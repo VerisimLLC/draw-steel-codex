@@ -1979,13 +1979,15 @@ function GameHud.CreateInventoryDialog(self, options)
 				vmargin = 0,
 			},
 			children = {
-				gui.Input{
+				--the canonical search field; look comes from DefaultStyles'
+				--searchInput rules, borderBox keeps its hpad 24 inside the
+				--width. Height 20 is the minimum for the pill's cornerRadius 9.
+				gui.SearchInput{
 					id = 'search-input',
-					classes = {"input"},
 					placeholderText = 'Search...',
-					selfStyle = {
-						height = 14,
-					},
+					borderBox = true,
+					width = '100%',
+					height = 20,
 					editlag = 0.25,
 					events = {
 						edit = function(element)

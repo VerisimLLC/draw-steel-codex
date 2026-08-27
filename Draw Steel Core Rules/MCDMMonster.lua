@@ -40,7 +40,9 @@ function monster:MonsterGroup()
             return MonsterGroup.Get(self.groupid)
         end
         for id, group in unhidden_pairs(GetTableCached(MonsterGroup.tableName)) do
-            if string.lower(group.name) == string.lower(cat) then
+            --Skip rows with no name, as in MCDMUtils.GetStandardAbility.
+            local groupName = group.name
+            if type(groupName) == "string" and string.lower(groupName) == string.lower(cat) then
                 return MonsterGroup.Get(id)
             end
         end
@@ -381,10 +383,10 @@ function monster:RenderImplementationSummaryPanel(args)
             height = "auto",
             wrap = true,
             tmargin = 2,
-            text = [[<b>Gold:</b> Fully automated.
-<b>Silver:</b> Automated with some table adjudication necessary.
-<b>Bronze:</b> Partially automated.
-<b>Unimplemented:</b> Requires manual adjudication.
+            text = [[<b>Fully Automated:</b> Everything is handled by the app.
+<b>Mostly Automated:</b> Automated, with some table adjudication necessary.
+<b>Partly Automated:</b> Some of it is handled; the rest needs adjudication.
+<b>Not Automated:</b> Requires manual adjudication.
 <b>Narrative:</b> Role play only, no automation.
 
 A monster's status is the lowest tier across its abilities and traits; Narrative entries are neutral and do not lower it.]],
@@ -503,6 +505,12 @@ function monster:SizeDescription()
     return self:GetBaseCreatureSize()
 end
 
+--the statblock's title-line role text, e.g. "Level 1 Horde Harrier" or
+--"Level 2 Ruinant minion".
+function monster:RoleDescription()
+    return string.format("Level %d %s%s", round(tonumber(self.cr) or 0), self.role, cond(self.minion, " minion", ""))
+end
+
 --render a 'statblock' for the creature.
 function monster:Render(args, options)
 
@@ -563,8 +571,9 @@ function monster:Render(args, options)
     local normalActions = {}
 
     for _,ability in ipairs(abilities) do
+        --No extra pad: the card carries its own insets now that it draws as
+        --a bordered rounded card.
         normalActions[#normalActions+1] = ability:Render({
-            pad = 12,
             width = "100%",
         }, {
             token = token,
@@ -613,6 +622,7 @@ function monster:Render(args, options)
 				halign = "left",
 
                 gui.Panel{
+                    classes = {"statblockNameRow"},
                     width = "100%",
                     height = 28,
                     flow = "horizontal",
@@ -634,7 +644,7 @@ function monster:Render(args, options)
                         width = "auto",
                         height = "auto",
                         halign = "right",
-                        text = string.format("Level %d %s%s", round(tonumber(self.cr) or 0), self.role, cond(self.minion, " minion", "")),
+                        text = self:RoleDescription(),
                     }
                 },
 

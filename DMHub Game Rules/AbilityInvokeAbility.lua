@@ -374,6 +374,19 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
     repeat
 
+        --Each pass of this loop resolves the invoke for ONE chosen target when
+        --Choose Invocation Order is on. Mark the start of a fresh movement
+        --scope on the shared cast so Cast.SpacesMovedThisInvocation reports
+        --only this target's movement (e.g. Pack Formation: each wolf's second
+        --shift is limited to the remainder of THAT wolf's speed, not starved
+        --by the wolves that moved before it). Gated on promptWhenResolving:
+        --nested invoke behaviors (the legs of a multi-behavior chain) run this
+        --same Cast function and must NOT reset the scope, or a later leg's
+        --parameter formulas would always see 0.
+        if promptWhenResolving and options.symbols ~= nil and options.symbols.cast ~= nil then
+            options.symbols.cast:BeginInvocationMovementScope()
+        end
+
         if promptWhenResolving and #targetChoices > 0 then
 
             print("INVOKE:: ChooseTarget:: prompting...")
@@ -405,6 +418,13 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
             while targets == nil do
                 coroutine.yield(0.1)
+                --If the caster died while we waited, the prompt is gone and
+                --no answer will ever come. Treat it as cancelled so the
+                --ability can finish instead of hanging.
+                if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+                    targets = {}
+                    targetChoices = {}
+                end
             end
         end
 
@@ -767,6 +787,16 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
     until promptWhenResolving == false or #targetChoices == 0
 end
 
+--A string that changes every time the turn changes. Used to spot a leftover flag from
+--an invoke that never finished.
+function ActivatedAbilityInvokeAbilityBehavior.SquadSuppressionTurnKey()
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then
+        return "none"
+    end
+    return string.format("%s:%s:%s", tostring(q.round), tostring(q.turn), tostring(q.currentTurn))
+end
+
 function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abilityClone, casterToken, targeting, symbols, options)
     --record if we have to 'pay' for the invoke -- if work was done.
     local haveToPay = false
@@ -775,12 +805,34 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
 
     --When the invoke opted out of squad coordination, mirror the abilityClone flag
     --onto the cast caster's properties as a transient depth counter so any cloned/
-    --bifurcated/synthesized variant produced downstream is also covered. Cleared
-    --in finishHandler below. UsesSquadCoordination checks both signals.
+    --bifurcated/synthesized variant produced downstream is also covered.
+    --UsesSquadCoordination checks both signals.
     local suppressSquad = abilityClone:try_get("disableSquadCoordination", false) == true
     if suppressSquad and casterToken ~= nil and casterToken.properties ~= nil then
         local depth = casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0)
         casterToken.properties._tmp_disableSquadCoordinationDepth = depth + 1
+        casterToken.properties._tmp_disableSquadCoordinationTurn = ActivatedAbilityInvokeAbilityBehavior.SquadSuppressionTurnKey()
+    end
+
+    --Always lower the counter again on the way out, not just when a cast finishes. If
+    --the player declines the prompt it used to stay up, and that minion's squad could
+    --never attack with more than one member again (report 3ERZG7SW).
+    local squadSuppressionReleased = false
+    local ReleaseSquadSuppression = function()
+        if squadSuppressionReleased or not suppressSquad then
+            return
+        end
+        squadSuppressionReleased = true
+        if casterToken == nil or casterToken.properties == nil then
+            return
+        end
+        local depth = casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0)
+        if depth <= 1 then
+            casterToken.properties._tmp_disableSquadCoordinationDepth = nil
+            casterToken.properties._tmp_disableSquadCoordinationTurn = nil
+        else
+            casterToken.properties._tmp_disableSquadCoordinationDepth = depth - 1
+        end
     end
 
     print("INVOKE:: STARTING:", abilityClone.name)
@@ -830,14 +882,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         end
         casting = false
         finishedCasting = true
-        if suppressSquad and casterToken ~= nil and casterToken.properties ~= nil then
-            local depth = casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0)
-            if depth <= 1 then
-                casterToken.properties._tmp_disableSquadCoordinationDepth = nil
-            else
-                casterToken.properties._tmp_disableSquadCoordinationDepth = depth - 1
-            end
-        end
+        ReleaseSquadSuppression()
         if finishOptions.pay then
             --if the ability we invoked had to be paid for, we have to pay for the invoke.
             ability:CommitToPaying(casterToken, finishOptions)
@@ -970,7 +1015,13 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 local synth = abilityClone:SynthesizeAbilities(casterToken.properties)
                 if synth ~= nil and #synth == 1 then
                     --if exactly one synthesized ability then just auto-cast it?
+                    local preSynthDisableSquad = abilityClone:try_get("disableSquadCoordination")
                     abilityClone = synth[1]
+                    --Synthesizing builds a fresh ability, so copy the opt-out across.
+                    --Without it a minion gets asked for one target per squad member.
+                    if preSynthDisableSquad ~= nil then
+                        abilityClone.disableSquadCoordination = preSynthDisableSquad
+                    end
                     --The synth is a brand-new ability; re-install our wrappers so we still get
                     --notified when it begins/finishes. Preserve any wrappers the synth came with.
                     local synthOnBegin = abilityClone:try_get("OnBeginCast")
@@ -1030,6 +1081,9 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             break
         end
     end
+
+    --Catches the cases where no cast ever finished, such as the player declining.
+    ReleaseSquadSuppression()
 
     print("INVOKE:: FINISHED FOR", abilityClone.name, coroutine.running(), "CANCELED:", canceled)
 
@@ -1292,7 +1346,13 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 
 	local standardAbilities = {}
 	for k,v in unhidden_pairs(dmhub.GetTable("standardAbilities") or {}) do
-		standardAbilities[#standardAbilities+1] = { text = v.name, id = k }
+		--A nameless standardAbilities row would put a nil into the dropdown's
+		--sort comparator and stop the menu from opening at all.
+		local abilityName = v.name
+		if type(abilityName) ~= "string" or abilityName == "" then
+			abilityName = "(Unnamed)"
+		end
+		standardAbilities[#standardAbilities+1] = { text = abilityName, id = k }
 	end
 
 	result[#result+1] = gui.Panel{

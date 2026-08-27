@@ -26,6 +26,56 @@ function Commands.RegisterMacro(args)
         doc = doc,
         summary = summary,
         completions = args.completions,
+
+        -- Optional: surface this macro in the no-code command builder's
+        -- browsable command list (CommandBuilder.lua). Shape:
+        --   commandInfo = {
+        --     name = "Screen Shake",       -- display name shown to the user
+        --     description = "...",         -- one-line description for the list
+        --     params = {                   -- optional; ordered arguments
+        --       { name = "Duration", min = 0.1, max = 3, default = 0.3,
+        --         round = 0.05, labelFormat = "%.2f" },
+        --       ...
+        --     },
+        --     dmonly = true,               -- optional; hide from non-directors
+        --     broadcast = "always",        -- optional; see below
+        --   }
+        --
+        -- Params are baked into the recorded command as arguments in params
+        -- order. Three kinds, by the param's `type`:
+        --   (none)    a number on a slider. min/max/default/round/labelFormat.
+        --   "choices" a dropdown. `options` ({{id=,text=}, ...}) if given,
+        --             otherwise the macro's OWN `completions` function is
+        --             reused -- the same list the chat input offers. Values
+        --             must be single-token ids; nothing is quoted.
+        --   "audio"   the app's sound picker (gui.AudioEditor). Bakes the
+        --             audio asset id. Prefer this over a "choices" list of
+        --             sounds: it names and previews them, and can upload a
+        --             new sound in place.
+        --   "text"    a free-text input. `placeholder` for the empty hint.
+        --             Text params must come last: everything after the
+        --             positional args belongs to them. A blank one is
+        --             dropped. A `joiner` (e.g. "|") is emitted just before
+        --             the value, which is how a macro that takes one
+        --             free-form line with an internal separator is split
+        --             into several labelled fields.
+        -- `required = true` on any param keeps Add Step / Apply disabled
+        -- until it has a value.
+        --
+        -- dmonly: set when the command's own body bails out on
+        -- `not dmhub.isDM`. The browser omits the row entirely for players so
+        -- they cannot record a step that would silently do nothing for them.
+        --
+        -- broadcast: set when the command only affects the client that runs
+        -- it. A journal command button executes on the presser's machine
+        -- alone (RichMacro.press -> dmhub.Execute), so a purely local effect
+        -- -- a screen shake, a sound, a banner -- never reaches the table
+        -- unless the step is wrapped in /broadcast. Values:
+        --   "always" -- always recorded as "broadcast <command>"; no choice.
+        --   "on"     -- offer a "Send to all players" check, checked.
+        --   "off"    -- offer it unchecked.
+        --   nil      -- no option; the command already networks its effect.
+        commandInfo = args.commandInfo,
     }
 end
 
@@ -67,14 +117,23 @@ function Commands.GetCurrentArg(text)
     return macroName, args, partial, argIndex
 end
 
--- Register documentation for a built-in (C#) command without overriding its
--- execution. Only populates _macros so the ChatPanel UI shows summary, doc,
--- and argument completions.
+-- Register documentation for a command the codex does not implement, without
+-- overriding its execution. Two kinds qualify: C# commands (CommandController's
+-- [GameCommand] methods, e.g. /delay) and the engine's core-asset Lua commands
+-- (Assets/CoreAssets/Lua/commands.txt, which populates the Commands table
+-- before the codex loads, e.g. /roll). Only populates _macros, so the ChatPanel
+-- UI shows summary, doc and argument completions and the command builder can
+-- surface it -- assigning Commands[name] here instead would SHADOW the
+-- core-asset implementation.
 function Commands.RegisterBuiltinDoc(args)
     Commands._macros[string.lower(args.name)] = {
         doc = args.doc,
         summary = args.summary,
         completions = args.completions,
+
+        --optional no-code command builder surfacing; same shape as in
+        --Commands.RegisterMacro above.
+        commandInfo = args.commandInfo,
     }
 end
 

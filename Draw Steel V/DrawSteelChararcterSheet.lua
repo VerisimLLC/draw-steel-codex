@@ -8789,7 +8789,7 @@ local function FeaturesIndexPanel()
     clearButton = gui.Panel{
         floating = true,
         classes = {"featureClearFilter", "collapsed"},
-        bgimage = "ui-icons/close.png",
+        bgimage = "phosphor/x-bold.png",
         width = 14,
         height = 14,
         halign = "right",

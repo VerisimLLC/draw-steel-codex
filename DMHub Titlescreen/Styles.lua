@@ -351,15 +351,40 @@ Styles = {
 			width = 240,
 			pad = 4,
 			hpad = 10,
-			borderColor = "#999999",
-			borderWidth = 2,
+			--aligned with the canonical {input} look in DefaultStyles
+			--(Control Zoo pass 2026-08-22). Raw colors, as everywhere in
+			--this legacy sheet. border, NOT borderWidth: the old square
+			--borderWidth = 2 outline in #999999 was what every in-game
+			--input actually showed -- it overpowered the themed rounded
+			--frame, and borderWidth = 0 in a deeper sheet cannot clear
+			--it (see the dropdownSearch note in DefaultStyles).
+			border = 1,
+			borderColor = "#0A0A0B",
 			selectedColor = '#444444',
-			bgcolor = 'black',
+			bgcolor = "#0A0A0B",
+		},
+
+		gui.Style{
+			--mirror of the theme's {input, bordered} opt-in frame, so
+			--the class agrees whichever sheet wins the cascade.
+			selectors = {'input', 'bordered'},
+			borderColor = "#313134",
+		},
+
+		gui.Style{
+			--~searchInput: see the canonical rule in DefaultStyles --
+			--without it these frame rules race the frameless
+			--searchInput state rules and the frame flashes on hover.
+			selectors = {'input', 'hover', '~searchInput'},
+			bgcolor = "#2E2E33",
+			borderColor = "#8A8A8A",
+			transitionTime = 0.15,
 		},
 
         gui.Style{
-            selectors = {'input', 'focus'},
-			borderColor = "white",
+            selectors = {'input', 'focus', '~searchInput'},
+			bgcolor = "#2E2E33",
+			borderColor = "#F2EDE1",
         },
 
         gui.Style{
@@ -372,19 +397,44 @@ Styles = {
 
 		gui.Style{
 			selectors = {"searchInput"},
-			hpad = 6,
-			fontSize = 16,
-			bold = true,
+			--aligned with the canonical searchInput look in
+			--DefaultStyles (Control Zoo decision 2026-08-20, frameless
+			--pass 2026-08-21): quiet 14px regular type, NO frame at
+			--rest -- the border is painted the same as the fill and
+			--hover/focus lift the whole fill instead. Raw colors, as
+			--everywhere in this legacy sheet. hpad in the STYLE:
+			--inputs ignore inline pads.
+			hpad = 24,
+			fontSize = 14,
+			bold = false,
 			borderFade = false,
 
             color = "white",
-            borderWidth = 1,
-            borderColor = "grey",
+            bgcolor = "black",
+            --border, not borderWidth: see the canonical searchInput
+            --rule in DefaultStyles -- borderWidth is the widget's
+            --square outline and breaks the rounded caps. Kept in the
+            --geometry (painted fill-color) so state changes do not
+            --shift pixels.
+            border = 1,
+            borderWidth = 0,
+            borderColor = "black",
+            --7, not 9: must stay under half the RENDERED height at
+            --any window scale (see the canonical rule's comment).
+            cornerRadius = 7,
 		},
 
         gui.Style{
+            selectors = {"searchInput", "hover"},
+            bgcolor = "#2E2E33",
+            borderColor = "#2E2E33",
+            transitionTime = 0.15,
+        },
+
+        gui.Style{
             selectors = {"searchInput", "focus"},
-            borderColor = Styles.textColor,
+            bgcolor = "#2E2E33",
+            borderColor = "#2E2E33",
         },
 
 		--labels.

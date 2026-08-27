@@ -906,10 +906,14 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
             gui.Label {
                 classes = {"form"},
                 text = "Title:",
-                hmargin = 4,
+                hmargin = 10,
+                textAlignment = "right",
+                width = "auto",
             },
             gui.Label {
                 classes = {"form"},
+                width = "100%-160",
+                hmargin = 4,
                 data = {
                     ownerName = ownerName,
                     ownerColor = ownerColor,
@@ -941,18 +945,22 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Progress field
     local progressField = gui.Panel {
-        width = "98%",
+        width = "auto",
         height = "auto",
         flow = "horizontal",
+        halign = "right",
         valign = "center",
         children = {
             gui.Label {
                 classes = {"form"},
                 text = "Progress:",
                 hmargin = 4,
+                width = "auto",
+                minWidth = 0,
             },
             gui.Label {
                 classes = {"form"},
+                width = "auto",
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -988,10 +996,14 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
             gui.Label {
                 classes = {"form"},
                 text = "Project Source:",
-                hmargin = 4,
+                hmargin = 10,
+                textAlignment = "right",
+                width = "auto",
             },
             gui.Label {
                 classes = {"form"},
+                width = "100%-60",
+                hmargin = 4,
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1016,18 +1028,22 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Characteristic field (read-only, displays comma-separated list)
     local characteristicField = gui.Panel {
-        width = "98%",
+        width = "auto",
         height = "auto",
         flow = "horizontal",
+        halign = "right",
         valign = "center",
         children = {
             gui.Label {
                 classes = {"form"},
                 text = "Project Roll Characteristic:",
                 hmargin = 4,
+                width = "auto",
+                minWidth = 0,
             },
             gui.Label {
                 classes = {"form"},
+                width = "auto",
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1058,18 +1074,22 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Language field
     local languageField = gui.Panel {
-        width = "98%",
+        width = "auto",
         height = "auto",
         flow = "horizontal",
+        halign = "right",
         valign = "center",
         children = {
             gui.Label {
                 classes = {"form"},
                 text = "Language Penalty:",
                 hmargin = 4,
+                width = "auto",
+                minWidth = 0,
             },
             gui.Label {
                 classes = {"form"},
+                width = "auto",
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1097,18 +1117,22 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
 
     -- Status field
     local statusField = gui.Panel {
-        width = "98%",
+        width = "auto",
         height = "auto",
         flow = "horizontal",
+        halign = "right",
         valign = "center",
         children = {
             gui.Label {
                 classes = {"form"},
                 text = "Status:",
                 hmargin = 4,
+                width = "auto",
+                minWidth = 0,
             },
             gui.Label {
                 classes = {"form"},
+                width = "auto",
                 data = {
                     getProject = function(element)
                         local projectController = element:FindParentWithClass("projectController")
@@ -1155,17 +1179,17 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
                 height = "auto",
                 children = {
                     gui.Panel {
-                        width = "33%",
+                        width = "50%",
                         height = "auto",
                         children = {titleField}
                     },
                     gui.Panel {
-                        width = "34%",
+                        width = "25%",
                         height = "auto",
                         children = {statusField}
                     },
                     gui.Panel {
-                        width = "33%",
+                        width = "25%",
                         height = "auto",
                         children = {progressField}
                     }
@@ -1177,17 +1201,17 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
                 classes = {"peFormRow"},
                 children = {
                     gui.Panel {
-                        width = "33%",
+                        width = "50%",
                         height = "auto",
                         children = {sourceField}
                     },
                     gui.Panel {
-                        width = "34%",
+                        width = "25%",
                         height = "auto",
                         children = {languageField}
                     },
                     gui.Panel {
-                        width = "33%",
+                        width = "25%",
                         height = "auto",
                         children = {characteristicField}
                     }
@@ -1395,6 +1419,82 @@ end
 ---   - hmargin: number - Horizontal margin (default: nil)
 ---   - vmargin: number - Vertical margin (default: nil)
 --- @return table button The roll button element
+--- Picks which characteristic a project roll is made with
+--- A project may allow several and nobody would choose anything but their best,
+--- so it is derived rather than asked for. The baseline roll dialog carries one
+--- characteristic per check, so this has to be settled before the ask.
+--- @param roller DTRoller The entity making the roll
+--- @param allowed table Characteristic keys the project permits
+--- @return string attrid The characteristic to roll
+function DTProjectEditor._bestCharacteristic(roller, allowed)
+    local bestId, bestValue = nil, nil
+
+    for _, attrId in ipairs(allowed or {}) do
+        local value = roller:GetCharacteristic(attrId)
+        if bestValue == nil or value > bestValue then
+            bestId, bestValue = attrId, value
+        end
+    end
+
+    return bestId or DTConstants.CHARACTERISTICS[1].key
+end
+
+--- Turns one completed roll into the project's record of it
+--- @param info table The harvested roll
+--- @param roller DTRoller The entity that rolled
+--- @param token any The hero whose project this is
+--- @param attrid string The characteristic rolled
+--- @param isBreakthrough boolean Whether this roll came of a breakthrough
+--- @return DTRoll roll The record
+function DTProjectEditor._buildProjectRoll(info, roller, token, attrid, isBreakthrough)
+    --The dialog applies edges and banes to the total itself, flat, at every
+    --count -- verified against recorded rolls: "2d10+2 2 banes" on faces 7+4
+    --landed a total of 9. There is nothing to correct, and taking the total as
+    --given is what keeps every modifier the dialog applied intact.
+    local label = cond(isBreakthrough, "Breakthrough:", "Project roll:")
+
+    --The roll's own formula is the truest audit available and costs nothing to
+    --read back: it names every modifier that actually applied, which a count of
+    --edges and banes cannot. Falls back to the counts if the roll has aged out
+    --of chat.
+    local rollInfo = nil
+    if info.rollid ~= nil and info.rollid ~= "" then
+        rollInfo = chat.GetRollInfo(info.rollid)
+    end
+
+    --Named rather than left implicit: a plustwo modifier like Skilled folds into
+    --the formula's number, so "2d10+4" cannot be told apart from a bigger
+    --characteristic without this.
+    local applied = ""
+    if #(info.modifiersUsed or {}) > 0 then
+        applied = string.format("; <b>Applied:</b> %s",
+            table.concat(info.modifiersUsed, ", "))
+    end
+
+    local rollString = string.format("2d10 + %s", attrid)
+    local audit
+    if rollInfo ~= nil and rollInfo.rollStr ~= nil then
+        rollString = rollInfo.rollStr
+        audit = string.format("<b>%s</b> %s%s; <b>Natural:</b> %d",
+            label, rollInfo.rollStr, applied, info.naturalRoll or 0)
+    else
+        audit = string.format("<b>%s</b> %s; <b>Edges:</b> %d; <b>Banes:</b> %d%s; <b>Natural:</b> %d",
+            label, DTConstants.GetDisplayText(DTConstants.CHARACTERISTICS, attrid),
+            info.boons or 0, info.banes or 0, applied, info.naturalRoll or 0)
+    end
+
+    return DTRoll.CreateNew()
+        :SetAudit(audit)
+        :SetRollGuid(info.rollid or "")
+        :SetRollString(rollString)
+        :SetRolledBy(roller:GetName())
+        :SetRolledByID(token.id or "")
+        :SetRolledByFollowerID(roller:GetFollowerID())
+        :SetNaturalRoll(info.naturalRoll or 0)
+        :SetBreakthrough(isBreakthrough)
+        :SetAmount(info.total or 0)
+end
+
 function DTProjectEditor:_createRollButton(options)
     options = options or {}
     local confirmCallback = options.confirm
@@ -1506,46 +1606,75 @@ function DTProjectEditor:_createRollButton(options)
                     end
                 end
 
-                local function XshowRollDialog(roller)
-                    local options = {
-                        attrId = "agl",
-                        explanation = "Project roll",
-                        title = "Make a project roll",
-                        skills = {},
-                        languages = {},
-                        modifiers = {},
-                        silent = true,
-                        callback = function(result, boons, banes)
-                            print("THC:: RESULT::", result, boons, banes)
-                        end,
-                    }
-                    local followerId = roller:GetFollowerID()
-                    local rollingToken = followerId and dmhub.GetTokenById(followerId) or token
-                    dmhub.Coroutine(function()
-                        rollingToken.properties:RequestProjectRoll(rollingToken, options)
-                    end)
-                end
-
-                -- Helper function to create and show roll dialog
+                --Project rolls go through the game's own roll dialog. That is what
+                --brings titles, complications and kit modifiers to bear on them,
+                --none of which the bespoke dialog could see.
                 local function showRollDialog(roller)
+                    --A follower rolling is the follower rolling: the request is
+                    --addressed to them, so the formula and the modifier sweep both
+                    --resolve against their characteristics rather than the hero's.
+                    --GetCharacterById, never GetTokenById -- the latter is map-only,
+                    --and an unplaced follower would quietly roll as the hero and
+                    --produce a plausible wrong number rather than an error.
+                    local followerId = roller:GetFollowerID()
+                    local rollingToken = token
+                    if followerId ~= nil and #followerId > 0 then
+                        rollingToken = dmhub.GetCharacterById(followerId) or token
+                    end
+
+                    local projectTitle = project:GetTitle()
+
+                    --Built once and reused for every breakthrough, so the chain is
+                    --rolled on exactly the setup the first roll used.
+                    local attrid = DTProjectEditor._bestCharacteristic(
+                        roller, project:GetTestCharacteristics())
+
+                    --skills is left empty deliberately. A project does not declare
+                    --which skills apply, so there is nothing to hint from; the
+                    --Skilled modifier is offered and the roller ticks it if it
+                    --applies, which is the audit detail we agreed to trade away.
                     local options = {
-                        roller = roller,
-                        projectTitle = project:GetTitle(),
-                        data = {
-                            project = project
-                        },
-                        callbacks = {
-                            confirm = function(rolls)
-                                if confirmCallback then
-                                    confirmCallback(rolls, controller, roller)
-                                end
-                            end,
-                            cancel = function()
-                                -- cancel handler
-                            end
-                        }
+                        attrid = attrid,
+                        explanation = string.format("Project roll - %s", projectTitle),
+                        title = string.format("Project roll - %s", projectTitle),
+                        skills = {},
+                        languages = project:GetProjectSourceLanguages(),
+                        modifiers = {},
+                        --Awaited headlessly rather than through the roll summary
+                        --window. That window is a LaunchablePanel and so lives in
+                        --the documents layer, which sits BELOW mainDialogPanel --
+                        --where the character sheet lives, and the sheet is where
+                        --this was launched from. The Director would watch their
+                        --own request disappear behind the sheet. Players never saw
+                        --it because the roll dialog outranks both.
+                        silent = true,
                     }
-                    CharacterSheet.instance:AddChild(DTProjectRollDialog.CreateAsChild(options))
+
+                    dmhub.Coroutine(function()
+                        local rolls = {}
+                        local isFirstRoll = true
+
+                        while true do
+                            local info = rollingToken.properties:RequestProjectRoll(rollingToken, options)
+                            --Cancelled or timed out. Whatever was already rolled
+                            --stands: those dice were really thrown.
+                            if info == nil then
+                                break
+                            end
+
+                            rolls[#rolls + 1] = DTProjectEditor._buildProjectRoll(
+                                info, roller, token, attrid, not isFirstRoll)
+                            isFirstRoll = false
+
+                            if not info.isCrit then
+                                break
+                            end
+                        end
+
+                        if #rolls > 0 and confirmCallback then
+                            confirmCallback(rolls, controller, roller)
+                        end
+                    end)
                 end
 
                 -- Check if any followers have rolls (keyed table, so use next())

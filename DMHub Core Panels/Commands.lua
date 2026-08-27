@@ -158,6 +158,16 @@ Commands.RegisterMacro{
     name = "synccamera",
     summary = "sync player cameras",
     doc = "Syncs the camera to the current view for all players.",
+
+    --dmonly: the body below returns early for players. No broadcast option:
+    --dmhub.SyncCamera is the networked call, so the effect already reaches
+    --every client from the one that runs it.
+    commandInfo = {
+        name = "Summon Player Cameras",
+        description = "Pull every player's view to yours, and ping the spot.",
+        dmonly = true,
+    },
+
     command = function()
         if not dmhub.isDM then
             return
@@ -561,6 +571,17 @@ Commands.RegisterBuiltinDoc{
     name = "delay",
     summary = "delay execution",
     doc = "Usage: /delay <seconds>\nDelays command execution by the given number of seconds.",
+
+    --surface in the no-code command builder: in a multi-step command the
+    --engine waits this long after the delay step before running the next
+    --step (CommandController.ExecuteCommandPipe).
+    commandInfo = {
+        name = "Delay",
+        description = "Wait before running the next step.",
+        params = {
+            {name = "Seconds", min = 0.1, max = 10, default = 1, round = 0.1, labelFormat = "%.1f"},
+        },
+    },
 }
 
 -- console: Toggle the debug console.
@@ -642,6 +663,30 @@ Commands.RegisterBuiltinDoc{
     name = "lua",
     summary = "execute Lua code",
     doc = "Usage: /lua <code>\nExecutes the given Lua code in the console environment.",
+}
+
+-- roll: Roll dice into chat.
+--
+-- Not a C# command: Commands.roll lives in the engine's core-asset Lua chunk
+-- (Assets/CoreAssets/Lua/commands.txt, loaded before the codex) and calls
+-- dmhub.Roll with the current token as the roller. RegisterBuiltinDoc only
+-- writes Commands._macros, so the core-asset function keeps handling
+-- execution -- do NOT define Commands.roll here, that would shadow it.
+Commands.RegisterBuiltinDoc{
+    name = "roll",
+    summary = "roll dice",
+    doc = "Usage: /roll <expression>\nRolls a dice expression (1d6, 2d10+3, ...) and posts the result to chat, attributed to your current token.",
+
+    --A free-text param: dice expressions are their own little language, so
+    --there is no useful list to pick from. It is the only param, so it takes
+    --the whole argument string.
+    commandInfo = {
+        name = "Roll Dice",
+        description = "Roll a dice expression into chat.",
+        params = {
+            {name = "Dice", type = "text", required = true, placeholder = "1d6"},
+        },
+    },
 }
 
 -- eval: Evaluate a dice expression.

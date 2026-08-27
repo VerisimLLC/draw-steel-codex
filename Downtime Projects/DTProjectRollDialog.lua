@@ -539,51 +539,34 @@ function DTProjectRollDialog._createPanel(options)
                                                     },
                                                 },
                                             },
-                                            gui.Multiselect{
+                                            gui.Dropdown{
                                                 options = skillList,
                                                 width = "98%",
                                                 halign = "left",
                                                 vmargin = 4,
                                                 textDefault = "Select a skill...",
                                                 sort = true,
-                                                chipPos = "bottom",
                                                 data = {
                                                     skillLookup = skillLookup,
-                                                    skillsSelected = {},
                                                 },
                                                 change = function(element)
-                                                    local newSelectedDict = element.value
-                                                    local curSelected = element.data.skillsSelected or {}
-                                                    local skillLookup = element.data.skillLookup
-                                                    -- Convert dictionary to array
-                                                    local newSelectedArray = {}
-                                                    for id, flag in pairs(newSelectedDict) do
-                                                        if flag then
-                                                            newSelectedArray[#newSelectedArray + 1] = id
-                                                        end
+                                                    local rollController = element:FindParentWithClass("rollController")
+                                                    if rollController == nil then
+                                                        return
                                                     end
-                                                    local changed = DTHelpers.SyncArrays(curSelected, newSelectedArray)
-                                                    if changed then
-                                                        element.data.skillsSelected = curSelected
-                                                        local rollController = element:FindParentWithClass("rollController")
-                                                        if rollController then
-                                                            rollController:FireEvent("removeItem", "bonuses", element.id)
-                                                            if #curSelected > 0 then
-                                                                local description = skillLookup[curSelected[1]]
-                                                                for i = 2, #curSelected do
-                                                                    description = description .. ", " .. skillLookup[curSelected[i]]
-                                                                end
-                                                                local value = 2 * #curSelected
 
-                                                                local item = {
-                                                                    id = element.id,
-                                                                    value = value,
-                                                                    description = string.format("Skill%s: %s (%+d)", #curSelected > 1 and "s" or "", description, value)
-                                                                }
-                                                                rollController:FireEvent("addItem", "bonuses", item)
-                                                            end
-                                                        end
+                                                    rollController:FireEvent("removeItem", "bonuses", element.id)
+
+                                                    local skillName = element.data.skillLookup[element.idChosen]
+                                                    if skillName == nil then
+                                                        return
                                                     end
+
+                                                    rollController:FireEvent("addItem", "bonuses", {
+                                                        id = element.id,
+                                                        value = 2,
+                                                        description = string.format("Skill: %s (+2)", skillName),
+                                                    })
                                                 end,
                                             },
                                         }
@@ -961,8 +944,7 @@ function creature:RequestProjectRoll(casterToken, options)
     if not resultTable.result or resultTable.action == nil then
         return nil
     end
-    print("THC:: RESULT::", json(resultTable))
-    
+
     local action = resultTable.action
     if action.info == nil or action.info.tokens == nil then
         return nil
@@ -974,20 +956,34 @@ function creature:RequestProjectRoll(casterToken, options)
     if tokenResult == nil then
         return nil
     end
+
+    --A cancelled or abandoned request still carries a token entry; it just has
+    --no roll in it. Without this the caller records a roll of nothing, which
+    --then clamps to 1 point of progress the hero never earned.
+    if tokenResult.status ~= "complete" then
+        return nil
+    end
     
     local result = tokenResult.result or 0
     local boons = tokenResult.boons or 0
     local banes = tokenResult.banes or 0
-    print("THC:: ACTION::", json(action.info))
-    
+
     -- Call the callback if provided
     if options.callback then
         options.callback(result, boons, banes)
     end
-    
+
     return {
         boons = boons,
         banes = banes,
         total = result,
+        naturalRoll = tokenResult.naturalRoll or 0,
+        --Breakthrough reads this rather than naturalRoll >= 19: a modifier that
+        --appends a die makes the natural total unreliable, and this is measured
+        --from the highest two faces.
+        isCrit = tokenResult.isCrit == true,
+        dice = tokenResult.dice or {},
+        rollid = tokenResult.rollid or "",
+        modifiersUsed = tokenResult.modifiersUsed or {},
     }
 end

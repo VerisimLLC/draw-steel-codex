@@ -6341,6 +6341,13 @@ function creature:OnMove(path)
     --movement and OA immunity still suppress them.
     local immuneFromDeparture = path.forced or moverImmuneToOpportunityAttacks
 
+    --"Willingly moves away" for the mover-side `departadjacent` dispatch below
+    --(the goblin Cunning trait). Deliberately NOT gated by
+    --moverImmuneToOpportunityAttacks: a trait that both grants OA immunity and
+    --grants a parting attack would otherwise suppress its own second half.
+    --Forced movement and shifting are not willing, so they do not count.
+    local willingDeparture = (not path.forced) and (not path.shifting)
+
     local ourTileSize = ourToken.tileSize
 
 
@@ -6567,6 +6574,19 @@ function creature:OnMove(path)
                         if departureNotImmuneForThisObserver then
                             tok.properties:DispatchEvent("leaveadjacentorshift", { movingcreature = self })
                         end
+                    end
+
+                    --Mirror of leaveadjacent, dispatched on the MOVER instead of the
+                    --creature being left, carrying the enemy just departed. This is
+                    --what a "when you willingly move away from an adjacent enemy"
+                    --trait needs (goblin Cunning) -- the mover cannot know at
+                    --begin-move which enemy it will end up leaving, so the check has
+                    --to happen here, per step, where adjacency is actually lost.
+                    --Gated only on the mover: the observer-side OA filters above
+                    --(banes, opportunityattack target filter, CanMakeOpportunityAttacks)
+                    --describe the enemy's reaction, not the mover's own trait.
+                    if willingDeparture and withinVerticalReach and (not tok:IsFriend(self)) and self:CanUseTriggeredAbilities() then
+                        self:DispatchEvent("departadjacent", { departedcreature = tok.properties })
                     end
                 end
             end
@@ -9032,14 +9052,24 @@ function creature.RegisterMatchString(entry)
 	creature.matchStringPredicates[key] = entry.match
 end
 
+--symbols registered with global = true read party/game-wide state (hero
+--tokens, malice) rather than the creature they are evaluated on. Consumers
+--(e.g. rail script buttons) use this to know a formula still means
+--something with no character selected.
+creature.globalSymbols = {}
+
 --mod tool for adding new Goblin Script symbols
 --Use the following fields:
 -- symbol: string symbol name
 -- lookup: function to insert in lookupsymbols, runs in GoblinScript
 -- help: (optional) corresponding helpsymbols input
+-- global: (optional) true if the symbol reads game-wide state, not the creature
 function creature.RegisterSymbol(newSymbol)
 	local key = newSymbol.symbol
 	creature.lookupSymbols[key] = newSymbol.lookup
+	if newSymbol.global then
+		creature.globalSymbols[key] = true
+	end
 	if newSymbol.help ~= nil then
 		creature.helpSymbols[key] = newSymbol.help
 		character.helpSymbols[key] = creature.helpSymbols[key]
@@ -10589,10 +10619,17 @@ function creature:Rest(restType, keepOngoingEffects)
 		local victories = self:try_get("victories", 0)
 		if victories > 0 then
 			local curXp = self:try_get("xp", 0)
-			local newXp = curXp + victories
 			local level = self:CharacterLevel()
 			local xpPerLevel = toint(dmhub.GetSettingValue("xpperlevel") or 16)
 			if xpPerLevel == 0 then xpPerLevel = 16 end
+
+			--A directly-set level can leave xp below what that level implies.
+			local xpFloorForLevel = (level - 1) * xpPerLevel
+			if curXp < xpFloorForLevel then
+				curXp = xpFloorForLevel
+			end
+
+			local newXp = curXp + victories
 			local xpNextLevel = level * xpPerLevel
 			local newLevel = level
 			local levelingUp = newXp >= xpNextLevel

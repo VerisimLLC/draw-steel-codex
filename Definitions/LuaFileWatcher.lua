@@ -9,7 +9,7 @@ end
 
 --- WriteContents
 --- @param contents string
---- @return nil
+--- @return boolean
 function LuaFileWatcher:WriteContents(contents)
 	-- dummy implementation for documentation purposes only
 end

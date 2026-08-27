@@ -64,6 +64,9 @@ local function PerformEndCombat()
 
 	CharacterResource.SetMalice(0, "End of Combat")
 
+	--summons don't outlive the encounter.
+	ActivatedAbilitySummonBehavior.RemoveSummonsAtEndOfCombat()
+
 	for initiativeid,_ in pairs(q.entries) do
 		local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
 		for _,tok in ipairs(tokens) do
@@ -94,7 +97,9 @@ local function ShowVictoryScreen()
 end
 
 --Prompt the DM before ending combat: present the Victory Screen, end with no
---victory, or cancel. Shared by both initiative-bar "End Combat" menu items.
+--victory, or cancel. Shared by both initiative-bar "End Combat" menu items and
+--the game menu's "End Combat" command (via the g_drawSteelPromptEndCombat
+--export below).
 local function PromptEndCombat()
 	GameHud.instance:ModalMessage{
 		title = "End Combat",
@@ -120,6 +125,10 @@ local function PromptEndCombat()
 		},
 	}
 end
+
+--Exported for MCDMCommands.lua's game-menu "End Combat" command, which loads
+--before this file and resolves the export at click time.
+g_drawSteelPromptEndCombat = PromptEndCombat
 
 local g_triggeredResourceId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
 
@@ -1198,9 +1207,25 @@ end
 -- =====================================================================
 
 -- Return { ["Villain Action 1"] = ability, ... } for a token, or nil.
+local g_reportedVillainActionScanError = false
 local function GetVillainActionAbilities(token)
     if token == nil or token.properties == nil then return nil end
-    local abilities = token.properties:GetActivatedAbilities()
+    --Containment: GetActivatedAbilities runs a huge pass over authored data
+    --(modifiers, items, triggers, module content). A throw here used to
+    --propagate out of the refreshGame dispatch and abort the refresh of every
+    --remaining HUD panel, including the action bar. Drop just this token from
+    --the villain-action scan instead (mirrors DrawSteelActionBar.lua's
+    --containment for report Q3Y6HTZ4).
+    local ok, abilities = pcall(function()
+        return token.properties:GetActivatedAbilities()
+    end)
+    if not ok then
+        if not g_reportedVillainActionScanError then
+            g_reportedVillainActionScanError = true
+            dmhub.CloudError(string.format("Villain action scan failed for token; skipping it: %s", tostring(abilities)))
+        end
+        return nil
+    end
     if abilities == nil then return nil end
     local result
     for _, ab in ipairs(abilities) do
@@ -4064,7 +4089,57 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				or {m_unmovedSegment, m_segmentSpacer, m_hadTurnSegment}),
 		}
 
-		return gui.Panel{
+		--Notebook button in the monster container's upper-left corner: opens
+		--the Encounter Wrangler window (Director only, and only when the
+		--"dev:encounterwrangler" flag is on; see EncounterWrangler.lua).
+		--A construction-time floating child: the refresh handler must re-include
+		--it (via data.wranglerButton) whenever it reassigns .children, the same
+		--contract m_bar and the label panel rely on.
+		local m_wranglerButton = nil
+		if not playerside then
+			m_wranglerButton = gui.Panel{
+				classes = {"initiativeWranglerButton", "hidden"},
+				styles = {
+					{
+						selectors = {"initiativeWranglerButton"},
+						bgcolor = "#ffffffcc",
+					},
+					{
+						selectors = {"initiativeWranglerButton", "hover"},
+						bgcolor = "white",
+						transitionTime = 0.1,
+					},
+					{
+						selectors = {"initiativeWranglerButton", "press"},
+						bgcolor = "#ffffff88",
+					},
+				},
+				floating = true,
+				halign = "left",
+				valign = "top",
+				--negative x floats it just OUTSIDE the container's left edge,
+				--in the gap beside the leftmost card, so it never overlaps
+				--card art (floating children are not clipped by the parent).
+				x = -28,
+				y = 4,
+				width = 24,
+				height = 24,
+				bgimage = "phosphor/notebook.png",
+				hoverCursor = "pressbutton",
+				swallowPress = true,
+				linger = function(element)
+					gui.Tooltip("Encounter Wrangler")(element)
+				end,
+				press = function(element)
+					local wrangler = rawget(_G, "EncounterWrangler")
+					if wrangler ~= nil then
+						wrangler.Open()
+					end
+				end,
+			}
+		end
+
+		local containerPanel = gui.Panel{
 			styles = {
 				{
 					selectors = {"initiativeEntryContainer"},
@@ -4099,6 +4174,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				segmentSpacer = m_segmentSpacer,
 				hadTurnLabel = m_hadTurnLabel,
 				unmovedLabel = m_unmovedLabel,
+				wranglerButton = m_wranglerButton,
 			},
 
 			gui.Panel{
@@ -4121,6 +4197,15 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			--attachment to keep the bar alive without re-attach churn.
 			m_bar,
 		}
+
+		--Attached after construction rather than positionally: it is nil on
+		--the player side, and a nil in a positional constructor truncates
+		--the child list after it.
+		if m_wranglerButton ~= nil then
+			containerPanel:AddChild(m_wranglerButton)
+		end
+
+		return containerPanel
 	end
 
     
@@ -4685,6 +4770,20 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 
 			for _,e in ipairs(playerList) do processEntry(e.k, e.v, true) end
 			for _,e in ipairs(monsterList) do processEntry(e.k, e.v, false) end
+
+			--The Encounter Wrangler button is a construction-time floating child;
+			--re-include it in every reassignment or it gets disposed. Appended
+			--AFTER the cards so it renders above them (children render in list
+			--order; seeding it before the cards buried it under the leftmost
+			--card). Director only.
+			--Gated behind the per-user "dev:encounterwrangler" flag (declared in
+			--EncounterWrangler.lua, deliberately absent from the settings UI;
+			--toggle with "/toggle dev:encounterwrangler" in chat).
+			if monsterContainer.data.wranglerButton ~= nil then
+				monsterChildren[#monsterChildren+1] = monsterContainer.data.wranglerButton
+				local wranglerEnabled = dmhub.isDM and dmhub.GetSettingValue("dev:encounterwrangler") == true
+				monsterContainer.data.wranglerButton:SetClass("hidden", not wranglerEnabled)
+			end
 
 			--The anthem speaker icon goes last so it renders above the centered card.
 			--It must be included in every reassignment or it gets disposed.

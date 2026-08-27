@@ -230,9 +230,11 @@ end
 
 function creature:CalculateNamedCustomAttribute(id)
     local cacheKey = id
+    --keyed to tablesUpdateId so values derived from compendium tables/assets are
+    --recalculated after a reload rather than memoized for the whole session.
     local cache = self:try_get("_tmp_calculatedAttributes")
-    if cache == nil then
-        cache = {}
+    if cache == nil or cache.__tablesUpdateId ~= dmhub.tablesUpdateId then
+        cache = { __tablesUpdateId = dmhub.tablesUpdateId }
         self._tmp_calculatedAttributes = cache
     end
 
@@ -471,6 +473,33 @@ function character:GetHeroicOrMaliceResources()
         return summonerToken.properties:GetHeroicOrMaliceResources()
     end
     return g_baseCharacterGetHeroicOrMaliceResources(self)
+end
+
+--A summon that shares its summoner's heroic resource surfaces the summoner's
+--heroic/epic quantities in GetResources, so ability costs paid in those
+--resources pass affordability checks (see ActivatedAbility:GetCost). Spends
+--against these keys already route to the summoner in Resource.lua.
+local g_baseMonsterGetResources = monster.GetResources
+function monster:GetResources()
+    local summonerToken = self:GetHeroicResourceSharingSummonerToken()
+    if summonerToken == nil then
+        return g_baseMonsterGetResources(self)
+    end
+
+    local cached = self:try_get("_tmp_sharedresources")
+    if cached ~= nil and self:try_get("_tmp_sharedresourcesUpdate") == dmhub.ngameupdate then
+        return cached
+    end
+
+    local result = table.shallow_copy(g_baseMonsterGetResources(self))
+    local summonerResources = summonerToken.properties:GetResources()
+    result[CharacterResource.heroicResourceId] = summonerResources[CharacterResource.heroicResourceId]
+    result[CharacterResource.epicResourceId] = summonerResources[CharacterResource.epicResourceId]
+
+    self._tmp_sharedresources = result
+    self._tmp_sharedresourcesUpdate = dmhub.ngameupdate
+
+    return result
 end
 
 --- Returns true if this creature is a summon owned by a hero. Hero-summoned monsters
@@ -874,7 +903,12 @@ function creature:RefreshInitiativeInfo(token)
         if initiativeEntry ~= nil and initiativeEntry.initiativeid == initiativeid then
             self._tmp_initiativeStatus = "OurTurn"
         elseif not q:HasInitiative(initiativeid) then
-            self._tmp_initiativeStatus = "NonCombatant"
+            if self:try_get("treatAsObject", false) then
+                --Object-tagged creatures are scenery, not skipped combatants; don't grey them out.
+                self._tmp_initiativeStatus = nil
+            else
+                self._tmp_initiativeStatus = "NonCombatant"
+            end
         elseif q:HasHadTurn(initiativeid) then
             self._tmp_initiativeStatus = "Done"
         elseif q:ChoosingTurn() and q:IsPlayersTurn() == q:IsEntryPlayer(initiativeid) and (q:has_key("priorityids") == false or q:EntriesUnmoved()[initiativeid]) then
@@ -1474,6 +1508,9 @@ creature.RegisterMatchString{
 
 creature.RegisterSymbol{
     symbol = "herotokens",
+    --the pool is party-global; global = true lets rail buttons and other
+    --consumers evaluate this with no character selected.
+    global = true,
     lookup = function(c)
         return c:GetHeroTokens()
     end,
@@ -1487,6 +1524,8 @@ creature.RegisterSymbol{
 
 creature.RegisterSymbol{
     symbol = "malice",
+    --game-wide pool; the lookup ignores the creature entirely.
+    global = true,
     lookup = function(c)
         return CharacterResource.GetMalice()
     end,
@@ -3014,6 +3053,10 @@ function creature:GetHeroicResourceName()
 end
 
 function monster:GetHeroicResourceName()
+    local summonerToken = self:GetHeroicResourceSharingSummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:GetHeroicResourceName()
+    end
     return "Malice"
 end
 
@@ -3048,6 +3091,11 @@ function character:GetHeroicOrMaliceId()
 end
 
 function monster:GetHeroicOrMaliceId()
+    --A summon sharing its summoner's heroic resource pays costs in that
+    --resource, not Malice (same treatment as AnimalCompanion).
+    if self:GetHeroicResourceSharingSummonerToken() ~= nil then
+        return CharacterResource.heroicResourceId
+    end
     return CharacterResource.maliceResourceId
 end
 
@@ -3083,6 +3131,11 @@ local g_defaultExcludeKeywords = { "Companion" }
 function creature:PostProcessInvokedAbility(ability)
     return ability
 end
+
+--Once-per-session flag so a persistent bad trigger doesn't flood the cloud
+--error log: the action bar re-runs GetActivatedAbilities on every refresh.
+local g_reportedManualTriggerError = false
+local g_reportedBadConsumableError = false
 
 function creature:GetActivatedAbilities(options)
     options = options or {}
@@ -3152,14 +3205,25 @@ function creature:GetActivatedAbilities(options)
     if options.manualTriggers then
         local triggeredAbilities = self:GetTriggeredAbilities()
         for i, trigger in ipairs(triggeredAbilities) do
-            local ability
-            if trigger.ability.typeName == "ActivatedAbility" then
-                ability = DeepCopy(trigger.ability)
-                ability._tmp_temporaryClone = true
-            elseif trigger.ability:try_get("hasManualVersion", false) and not trigger.ability:IsLocalOnly() then
-                ability = trigger.ability:GenerateManualVersion()
+            --Per-entry isolation: GenerateManualVersion executes authored
+            --trigger data, so one malformed trigger must drop only itself,
+            --not abort the whole ability list (which kills the action bar).
+            local ok, ability = pcall(function()
+                if trigger.ability.typeName == "ActivatedAbility" then
+                    local a = DeepCopy(trigger.ability)
+                    a._tmp_temporaryClone = true
+                    return a
+                elseif trigger.ability:try_get("hasManualVersion", false) and not trigger.ability:IsLocalOnly() then
+                    return trigger.ability:GenerateManualVersion()
+                end
+                return nil
+            end)
+            if ok then
+                result[#result + 1] = ability
+            elseif not g_reportedManualTriggerError then
+                g_reportedManualTriggerError = true
+                dmhub.CloudError(string.format("GetActivatedAbilities: dropping manual trigger that failed to generate: %s", tostring(ability)))
             end
-            result[#result + 1] = ability
         end
     end
 
@@ -3177,8 +3241,22 @@ function creature:GetActivatedAbilities(options)
     local gearTable = dmhub.GetTable('tbl_Gear')
     for k, info in pairs(self:try_get('inventory', {})) do
         local itemInfo = gearTable[k]
-        if itemInfo ~= nil and itemInfo:has_key("consumable") then
-            ability = itemInfo.consumable:MakeTemporaryClone()
+        -- The type check guards against bad import data leaving `consumable` as
+        -- a boolean flag instead of an embedded ActivatedAbility; one malformed
+        -- item must not error out GetActivatedAbilities for the whole creature.
+        local consumableAbility = nil
+        if itemInfo ~= nil then
+            consumableAbility = itemInfo:try_get("consumable")
+            if consumableAbility ~= nil and type(consumableAbility) ~= "table" then
+                if not g_reportedBadConsumableError then
+                    g_reportedBadConsumableError = true
+                    dmhub.CloudError(string.format("GetActivatedAbilities: gear item %s has a %s in its consumable field instead of an ActivatedAbility; skipping it.", tostring(k), type(consumableAbility)))
+                end
+                consumableAbility = nil
+            end
+        end
+        if consumableAbility ~= nil then
+            ability = consumableAbility:MakeTemporaryClone()
             ability._tmp_boundCaster = self
             result[#result + 1] = ability
         end
@@ -3528,6 +3606,134 @@ creature.RegisterSymbol {
         name = "Concealed",
         type = "boolean",
         desc = "True if the creature is in an area that is concealed.",
+    }
+}
+
+--The living enemy tokens relevant to this creature: every token on the map
+--that is not friendly to this creature's token and is not dead. When an
+--initiative encounter is active (an unhidden initiative queue exists), only
+--enemies participating in the initiative queue count; out of combat, all
+--enemy tokens on the current map count. Neutral (non-friendly) tokens count
+--as enemies, matching the Monster AI's combatant enumeration.
+function creature:GetRelevantEnemyTokens()
+    local token = dmhub.LookupToken(self)
+    if token == nil or not token.valid then
+        return {}
+    end
+
+    local q = dmhub.initiativeQueue
+    local combatActive = q ~= nil and (not q.hidden)
+
+    local result = {}
+    for _,tok in ipairs(dmhub.allTokens) do
+        if tok.valid and tok.properties ~= nil and tok.charid ~= token.charid
+                and (not tok.properties:IsDead())
+                and (not dmhub.TokensAreFriendly(token, tok)) then
+            local include = true
+            if combatActive then
+                local initiativeid = InitiativeQueue.GetInitiativeId(tok)
+                include = initiativeid ~= nil and q.entries[initiativeid] ~= nil
+            end
+            if include then
+                result[#result+1] = tok
+            end
+        end
+    end
+
+    return result
+end
+
+--How long (seconds) a computed cover-from-enemies result stays fresh. These
+--symbols are evaluated by action-bar and tooltip refreshes, so the O(enemies)
+--cover raycasts are cached per-creature in a transient _tmp_ field rather
+--than recomputed every UI frame.
+local g_coverFromEnemiesCacheSeconds = 0.5
+
+--Computes whether this creature has cover from all/any relevant enemies.
+--Returns a table {all = boolean, any = boolean}. "all" is vacuously true and
+--"any" false when there are no relevant enemies. An enemy grants cover when
+--dmhub.GetCoverInfo(enemyToken, selfToken, pierce) is non-nil (nil means no
+--cover); the observing enemy is the attacker, and pierce follows the
+--RuleUtils.HasLineOfEffect idiom of using the attacker's PierceWalls.
+function creature:CalculateCoverFromEnemies()
+    local now = dmhub.Time()
+    local cached = self:try_get("_tmp_coverFromEnemies")
+    if cached ~= nil and (now - cached.time) < g_coverFromEnemiesCacheSeconds then
+        return cached
+    end
+
+    local result = { time = now, all = true, any = false }
+
+    --The "Has Cover" custom attribute (granted by traits like Iron Barricade)
+    --means the creature counts as having cover from everyone. It is folded in
+    --here rather than referenced in formulas because "has" is a reserved
+    --GoblinScript operator, making the attribute's name unparseable in a
+    --formula with its natural spacing.
+    if (self:CalculateNamedCustomAttribute("Has Cover") or 0) > 0 then
+        print("HideGate:: cover check: creature has the Has Cover attribute; counts as cover from all")
+        result.any = true
+        self._tmp_coverFromEnemies = result
+        return result
+    end
+
+    local token = dmhub.LookupToken(self)
+    if token == nil or not token.valid then
+        print("HideGate:: cover check: creature has no valid token; vacuous result (all=true)")
+    else
+        local enemies = self:GetRelevantEnemyTokens()
+        local q = dmhub.initiativeQueue
+        print(string.format("HideGate:: cover check: %d relevant enemies (combat=%s)",
+            #enemies, tostring(q ~= nil and (not q.hidden))))
+        for _,enemyTok in ipairs(enemies) do
+            local pierce = 0
+            if enemyTok.properties ~= nil then
+                pierce = enemyTok.properties:GetPierceWalls()
+            end
+            --favorTarget = true: hider-favoring bias -- any sampled sightline the enemy
+            --has that clips an obstruction counts as the hider being behind cover.
+            local coverInfo = dmhub.GetCoverInfo(enemyTok, token, pierce, true)
+            print(string.format("HideGate::   enemy %s -> %s",
+                tostring(enemyTok.name), coverInfo ~= nil and ("cover: " .. tostring(coverInfo.description)) or "NO COVER"))
+            if coverInfo ~= nil then
+                result.any = true
+            else
+                result.all = false
+            end
+        end
+    end
+
+    self._tmp_coverFromEnemies = result
+    return result
+end
+
+--NOTE: these symbol names deliberately avoid the word "has" -- "has" is a
+--reserved (case-insensitive) GoblinScript operator, so a symbol name starting
+--with it can never be referenced with natural spacing in a formula.
+creature.RegisterSymbol {
+    symbol = "coverfromallenemies",
+    lookup = function(c)
+        return c:CalculateCoverFromEnemies().all
+    end,
+    help = {
+        name = "Cover From All Enemies",
+        type = "boolean",
+        desc = "True if every living enemy has cover to this creature (in combat, only enemies in the initiative queue count; out of combat, all enemy tokens on the map count), or if the creature has the Has Cover custom attribute. Vacuously true when there are no relevant enemies.",
+        seealso = {"Cover From Any Enemy", "Concealed"},
+        examples = {"Concealed or Cover From All Enemies"},
+    }
+}
+
+creature.RegisterSymbol {
+    symbol = "coverfromanyenemy",
+    lookup = function(c)
+        return c:CalculateCoverFromEnemies().any
+    end,
+    help = {
+        name = "Cover From Any Enemy",
+        type = "boolean",
+        desc = "True if at least one living enemy has cover to this creature (in combat, only enemies in the initiative queue count; out of combat, all enemy tokens on the map count), or if the creature has the Has Cover custom attribute. False when there are no relevant enemies and the attribute is absent.",
+        seealso = {"Cover From All Enemies", "Concealed"},
+        examples = {"Concealed or Cover From Any Enemy"},
     }
 }
 
@@ -5801,6 +6007,15 @@ function creature.TakeDamage(self, amount, note, info)
                     end
                 end
 
+                --Victim-side: the squad records its own losses (round-bucketed, so
+                --the victory screen can tell a squad wiped in round 1). Recorded
+                --with or without an attacker so environmental deaths count; the
+                --stat routes to the squad's initiative group.
+                local victimToken = dmhub.LookupToken(self)
+                if victimToken ~= nil then
+                    LiveEncounter.TrackHeroStats(victimToken.charid, "deaths", minionsKilled)
+                end
+
                 --batch for the squadminiondeaths trigger; see the batching
                 --machinery above TakeDamage. The batch flushes only once the
                 --director confirms the deaths.
@@ -6006,6 +6221,18 @@ function creature.TakeDamage(self, amount, note, info)
                     roundNumber = roundNumber,
                     dailyLimit = 20,
                 })
+
+                --Per-encounter combat stat: the attacker drove a hero to dying.
+                --Read by the victory screen's monster roles (Heartbreaker); the
+                --routing in TrackHeroStats credits a monster attacker's
+                --initiative group. Runs once here on the resolving client, at
+                --the not-dying -> dying transition.
+                if eventArg.attacker ~= nil then
+                    local attackerToken = dmhub.LookupToken(eventArg.attacker)
+                    if attackerToken ~= nil then
+                        LiveEncounter.TrackHeroStats(attackerToken.charid, "heroesDowned")
+                    end
+                end
             end
 
             self:DispatchEvent("dying", eventArg)
@@ -6069,22 +6296,38 @@ function creature.TakeDamage(self, amount, note, info)
             eventArg.usedability = eventArg.ability
             eventArg.hasattacker = eventArg.attacker ~= nil
 
+            --Per-encounter combat stat: a dying monster records its own death for
+            --its initiative group (round-bucketed, so the victory screen can tell
+            --a group that fell entirely in round 1). Recorded with or without an
+            --attacker so environmental deaths count; minions never reach this
+            --path (their squad's losses are recorded in the minion branch above).
+            if not self:IsHero() then
+                local victimToken = dmhub.LookupToken(self)
+                if victimToken ~= nil then
+                    LiveEncounter.TrackHeroStats(victimToken.charid, "deaths")
+                end
+            end
+
             if eventArg.attacker ~= nil then
                 --NOTE: We have to TriggerEvent here not DispatchEvent because
                 --DispatchEvent does not currently have support for dispatching
                 --creature objects and other self-referential objects.
                 eventArg.attacker:TriggerEvent("kill", eventArg)
 
-                --Per-encounter hero stat: credit the killer with a monster kill.
-                --Guarded to non-hero victims (a dying hero is not a "kill"); minions
-                --are counted separately as minionKills and never reach this path.
+                --Per-encounter combat stat: credit the killer. A non-hero victim
+                --is a "kill" (for a hero killer this feeds the hero roles; for a
+                --monster killer -- e.g. downing a hero's companion -- it routes to
+                --the monster's initiative group). A HERO victim is instead a
+                --"heroKill", the victory screen's Hero Slayer role. Minions are
+                --counted separately as minionKills and never reach this path.
                 --This runs once on the resolving client as the victim transitions
-                --to dead. TrackHeroStats self-guards to heroes, so a monster killing
-                --a monster is dropped.
-                if not self:IsHero() then
-                    local killerToken = dmhub.LookupToken(eventArg.attacker)
-                    if killerToken ~= nil then
+                --to dead.
+                local killerToken = dmhub.LookupToken(eventArg.attacker)
+                if killerToken ~= nil then
+                    if not self:IsHero() then
                         LiveEncounter.TrackHeroStats(killerToken.charid, "kills")
+                    else
+                        LiveEncounter.TrackHeroStats(killerToken.charid, "heroKills")
                     end
                 end
             end
@@ -7299,9 +7542,9 @@ local function GroupingHud(groupid)
             end,
         }
 
-        m_sheet:FireEvent("think")
-
         sheetParent.sheet = m_sheet
+
+        m_sheet:FireEvent("think")
     end
 end
 

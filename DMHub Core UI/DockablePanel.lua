@@ -9,6 +9,41 @@ setting{
     storage = "transient",
 }
 
+--The icon-rail ("New Experimental UI") mode toggle. Registered HERE
+--rather than in DocumentSystem (which owns the rail itself) because this
+--file loads long before it and the setting is read at STARTUP: the title
+--bar is built at CodexTitleBar.lua load time and sizes its search box
+--via DockablePanel.EffectiveDockScale, and reading a not-yet-registered
+--setting logs an engine "Could not find setting" error. The behavior
+--stays in DocumentSystem: its rail/dock sync work is reached through the
+--IconRailSettingChanged global it defines. rawget because the global is
+--nil until DocumentSystem loads -- harmless, since the setting can only
+--change from UI that exists well after load.
+--
+--Defaults ON: the rail is now the intended UI, and resetCount forces it
+--back to the default ONCE for everyone -- users who had opted out (or
+--never opted in, back when the default was false) are switched on at the
+--first launch after this ships. The engine implements it in
+--CoreAssets/Lua/settings.txt: it keeps a companion "iconrail_resets"
+--preference and only resets while that counter is below resetCount, so a
+--user who turns the rail off AFTER the migration keeps it off. Bump
+--resetCount only to deliberately force everyone back to the default again.
+setting{
+    id = "iconrail",
+    description = "New Experimental UI",
+    help = "Experimental: replace the side docks with icon rails on the screen edges, and summon panels as floating windows from them.",
+    storage = "preference",
+    editor = "check",
+    default = true,
+    resetCount = 1,
+    onchange = function()
+        local fn = rawget(_G, "IconRailSettingChanged")
+        if fn ~= nil then
+            fn()
+        end
+    end,
+}
+
 setting{
     id = "dockscale",
     description = "Dock Scale",
@@ -19,6 +54,14 @@ setting{
     default = 1.0,
     min = 0.5,
     max = 1.5,
+    --The icon-rail UI ignores dock scaling entirely (docks are slid away
+    --there and every reader goes through DockablePanel.EffectiveDockScale,
+    --which reads 1 while iconrail is on), so hide the slider with it. The
+    --stored preference is kept and comes back when the rail is turned off.
+    visible = function()
+        return dmhub.GetSettingValue("iconrail") ~= true
+    end,
+    monitorVisible = {"iconrail"},
     onchange = function()
         --Apply the new scale live to any docks that already exist. Docks are
         --only created once a game is active; bail out otherwise.
@@ -168,7 +211,7 @@ function GameHud:CreateSingleDock(params)
 	--NOTE: DockHeight is captured as an upvalue by fitChildren/sizeChild below;
 	--the setScale event reassigns it so those closures pick up the new value.
 	local baseDockHeight = (params.height or 1080)
-	local dockScale = cond(floating, 1, dmhub.GetSettingValue("dockscale") or 1)
+	local dockScale = cond(floating, 1, DockablePanel.EffectiveDockScale())
 	local DockHeight = baseDockHeight / dockScale
 	--The dock is created at base size / uiscale 1 / default pivot, then setScale
 	--is fired once after construction to apply the real scale+pivot+height. This
@@ -374,7 +417,7 @@ function GameHud:CreateSingleDock(params)
 			if floating then
 				return
 			end
-			dockScale = dmhub.GetSettingValue("dockscale") or 1
+			dockScale = DockablePanel.EffectiveDockScale()
 			DockHeight = baseDockHeight / dockScale
 			element.data.DockHeight = DockHeight
 			--Set pivot in selfStyle (the form that actually takes effect) and
@@ -961,7 +1004,7 @@ CreateDockablePanelTabbedContainer = function(options)
 		--renders at dockscale (via uiscale) and its logical height is the screen
 		--height divided by that scale, so a panel needs a proportionally larger
 		--logical max height to still stretch to the full screen when scaled down.
-		local dockScale = dmhub.GetSettingValue("dockscale") or 1
+		local dockScale = DockablePanel.EffectiveDockScale()
 
 		return {
 			minHeight = min + tabSpacing, -- + panelSpacing*2,
@@ -2163,12 +2206,60 @@ end
 
 
 
+--May THIS user have this panel at all? devonly panels need dev mode, dmonly
+--panels need the Director.
+--
+--This has to be asked everywhere a panel is instantiated, not just where the
+--Panels menu is built. It previously guarded only the menu, so a player who
+--had docked a Director-only panel BEFORE it was flagged kept getting it
+--restored from their saved layout on every launch -- report XRA4WE35, a
+--player's dock listing the Director's encounter rosters, monster counts, EV
+--and all. Hiding the menu entry does nothing for a panel that is already
+--docked.
+--
+--Checking dmhub.isDM here is no more fragile than what the layout already
+--does: GetDockablePanelsSetting picks which saved layout to read from the
+--same flag, so if it were unresolved the wrong dock config would load
+--wholesale. Player and Director layouts are separate settings, so a panel
+--dropped from a player's layout can never cost a Director theirs.
+local PanelPermittedForUser = function(p)
+	if p == nil then
+		--unknown identifier (a mod that is not loaded): leave it to the
+		--caller, which finds no registration and adds nothing.
+		return true
+	end
+	if p.devonly and not devmode() then
+		return false
+	end
+	if p.dmonly and not dmhub.isDM then
+		return false
+	end
+	return true
+end
+
 DockablePanel = {}
 
 DockablePanel = {
+	--Exposed because the icon rail and the panel windows restore panels from
+	--their own saved config, not from the docks, and must apply the same rule.
+	PanelPermittedForUser = PanelPermittedForUser,
+
 	ContentWidth = 364,
 	DockWidth = 364,
     FloatingDockMargin = 100,
+
+	--The dock scale actually in effect. The icon-rail UI ignores the Dock
+	--Scale setting (the docks are slid away there and the slider is hidden
+	--from the settings screen), so it reads as 1 while iconrail is on; the
+	--stored preference is untouched and applies again when the rail is
+	--turned off. All dockscale readers must go through this rather than
+	--reading the setting directly.
+	EffectiveDockScale = function()
+		if dmhub.GetSettingValue("iconrail") == true then
+			return 1
+		end
+		return dmhub.GetSettingValue("dockscale") or 1
+	end,
 
 	--args: name, icon, content(), vscroll, minHeight/maxHeight (content
 	--bounds used by the dock AND as vertical bounds for the panel's
@@ -2177,6 +2268,9 @@ DockablePanel = {
 	--Standalone-window extras: resizableWidth/resizableHeight = false
 	--lock window resizing on that axis (default: both freely resizable);
 	--minWidth/maxWidth bound the window's width.
+	--popoutHeight (content px) gives the panel's native OS popout window
+	--its own default height, instead of inheriting the in-app window's
+	--footprint when popping out.
 	--preferFloating = true opens the panel on the floating (center) dock
 	--as a window over the map instead of claiming a side dock;
 	--floatingHalign = "right" places that window on the right.
@@ -2331,7 +2425,7 @@ DockablePanel = {
 
 		for _,name in ipairs(names) do
 			for k,p in pairs(dockablePanels) do
-				if string.lower(p.name) == string.lower(name) then
+				if string.lower(p.name) == string.lower(name) and PanelPermittedForUser(p) then
 					local instance = existing[p.identifier]
 					existing[p.identifier] = nil
 					if instance == nil or not instance.valid then
@@ -2361,10 +2455,7 @@ DockablePanel = {
 		local result = {}
 		for k,p in pairs(dockablePanels) do
 
-			local available = (not p.devonly) or devmode()
-            if p.dmonly and not dmhub.isDM then
-                available = false
-            end
+			local available = PanelPermittedForUser(p)
 
 			--A panel may hide itself from the menus in this context --
 			--Maps, for one, which players only get when there is a map
@@ -2654,14 +2745,19 @@ DockablePanel = {
 					--try to find the panel with this identifier and create it.
 					
 					for _,panelid in ipairs(panelInfo.tabs) do
-					
-						if existingInstances[panelid] ~= nil then
-							panelInstances[#panelInstances+1] = existingInstances[panelid]
-							existingInstances[panelid] = nil
-						else
-							for k,p in pairs(dockablePanels) do
-								if p.identifier == panelid then
-									panelInstances[#panelInstances+1] = CreateDockablePanelInstance(p)
+
+						--Skipping rather than dropping the entry: any live
+						--instance stays in existingInstances and is destroyed
+						--by the cleanup at the end of this function.
+						if PanelPermittedForUser(dockablePanels[panelid]) then
+							if existingInstances[panelid] ~= nil then
+								panelInstances[#panelInstances+1] = existingInstances[panelid]
+								existingInstances[panelid] = nil
+							else
+								for k,p in pairs(dockablePanels) do
+									if p.identifier == panelid then
+										panelInstances[#panelInstances+1] = CreateDockablePanelInstance(p)
+									end
 								end
 							end
 						end

@@ -1188,6 +1188,25 @@ TriggeredAbility.RegisterTrigger{
     },
 }
 
+--The mirror of leaveadjacent: fires on the creature DOING the moving, once per
+--adjacent enemy it willingly leaves. Use this for traits worded "when you
+--willingly move away from an adjacent enemy..." (goblin Cunning). Shifting and
+--forced movement are not willing and do not trigger it. Unlike leaveadjacent,
+--the mover's own "Immunity from Opportunity Attack" does NOT suppress this, so
+--a trait can grant that immunity and a parting attack at the same time.
+TriggeredAbility.RegisterTrigger{
+    id = "departadjacent",
+    text = "Moved Away From a Creature",
+    symbols = {
+        departedcreature = {
+            name = "Departed Creature",
+            type = "creature",
+            desc = "The adjacent enemy that was moved away from.",
+            prose = "the departed creature",
+        },
+    },
+}
+
 TriggeredAbility.RegisterTrigger{
     id = "gaintempstamina",
     text = "Gain Temporary Stamina",
@@ -1319,6 +1338,16 @@ function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 	if (not targetToken.isObject) and (not ability:HasKeyword("Area"))
 		and (not casterToken:IsFriend(targetToken))
 		and targetToken.properties:HasCondition(g_hiddenConditionId) ~= false then
+		return false
+	end
+
+	-- Untargetable By Strikes (Shadow Veil and similar): a creature with a non-zero
+	-- "Untargetable By Strikes" custom attribute can't be targeted by abilities that
+	-- have the Strike keyword. This gate runs for every prospective target, so area
+	-- strikes are blocked for the flagged creature too, not just direct targeting.
+	-- Non-Strike abilities are unaffected.
+	if ability:HasKeyword("Strike")
+		and targetToken.properties:CalculateNamedCustomAttribute("Untargetable By Strikes") > 0 then
 		return false
 	end
 

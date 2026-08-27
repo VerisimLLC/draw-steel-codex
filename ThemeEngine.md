@@ -170,7 +170,9 @@ Themes are relatively broad in scope. They consist of fonts and styles. They hav
 
 Please review the `default` theme in `DMHub Core UI / DefaultStyles.lua` to see the available fonts and class selectors. The file is sectioned for navigation: `1. BASICS` (panel/label/button/input/dropdown), `2. FORMS`, `3. CARDS`, `4. DIALOGS`, `5. UTILITIES`.
 
-A second built-in theme `default-rounded` (display name "Default Rounded") inherits everything from `default` and only overrides `cornerRadius` on bordered surfaces (10px on panel-class surfaces, 5px on interactive controls). Selectable via the devmode Theme Test panel; it's a useful demonstration of "themes only override what they need."
+`default` is the only built-in theme, and the theme is **not a user choice** -- there is no theme picker and no persisted active-theme preference. It carries the corner radii for the whole app (10px on panel-class surfaces, 5px on interactive controls, asymmetric values on `featureCardHeader` / `featureCardBody`, the enum-slider ends and `tab` so only the outer corners round). `ThemeEngine.GetActiveTheme()` therefore always returns `"default"`, and there is no `SetActiveTheme`.
+
+The theme axis still exists in the engine for two reasons: a subtree can pin itself to known-good styling with `GetStyles("default", "default")` (the theme-recovery pattern used by the color-scheme picker's own controls), and a mod can `RegisterTheme` its own. Only the **color scheme** is user-selectable.
 
 When creating custom schemes, remember that, like Color Schemes, the Theme Engine will use the default entries if your theme excludes them.
 

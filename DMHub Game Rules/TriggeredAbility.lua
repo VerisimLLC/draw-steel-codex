@@ -1182,6 +1182,19 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			end
 		end
     elseif self.targetType == 'subject' and subjectToken ~= nil then
+        --The subject is predetermined, but the authored target filters
+        --(Target Filter / Ability Filters / Reasoned Filters) still gate
+        --the trigger: a subject failing them means it does not fire.
+        if not self:TargetPassesAuthoredFilters(casterToken, subjectToken, symbols) then
+            if argOptions.debugLog then
+                argOptions.debugLog[#argOptions.debugLog+1] = {
+                    name = self.name,
+                    success = false,
+                    reason = "Subject fails target filter",
+                }
+            end
+            return
+        end
         targets = {
             {
                 loc = subjectToken.loc,
@@ -1238,6 +1251,50 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 targets[#targets] = nil
             end
         end
+
+    elseif self.targetType == 'abilitycaster' or self.targetType == 'abilitytarget' or self.targetType == 'triggerer' or self.targetType == 'departedcreature' then
+        --Contextual creature installed on the firing modifier at roll time
+        --(modifier-fired custom triggers; see InstallSymbolsFromContext in
+        --DSRollDialog), or carried directly on the trigger event payload
+        --(departadjacent's departedcreature). Either way the id names a
+        --creature symbol to look up. Subject-hood stays with the owner --
+        --this choice is purely who the effect lands on.
+        local contextTarget = symbols and symbols[self.targetType]
+        if type(contextTarget) == "function" then
+            contextTarget = contextTarget("self")
+        end
+        local contextToken = nil
+        if contextTarget ~= nil then
+            contextToken = dmhub.LookupToken(contextTarget)
+        end
+        if contextToken == nil then
+            if argOptions.debugLog then
+                argOptions.debugLog[#argOptions.debugLog+1] = {
+                    name = self.name,
+                    success = false,
+                    reason = self.targetType .. " not available",
+                }
+            end
+            return
+        end
+
+        if not self:TargetPassesAuthoredFilters(casterToken, contextToken, symbols) then
+            if argOptions.debugLog then
+                argOptions.debugLog[#argOptions.debugLog+1] = {
+                    name = self.name,
+                    success = false,
+                    reason = "Target fails target filter",
+                }
+            end
+            return
+        end
+
+        targets = {
+            {
+                loc = contextToken.loc,
+                token = contextToken,
+            }
+        }
 
 	elseif self.targetType == 'attacker' or self.targetType == 'target' then
 		if symbols[self.targetType] == nil then

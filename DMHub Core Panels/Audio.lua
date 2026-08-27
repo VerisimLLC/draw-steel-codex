@@ -674,15 +674,38 @@ local function PrunePlayOrder()
 	end
 end
 
+--The category bucket an audio asset really belongs to, or nil for uncategorised.
+--An unset category reads back as nil (never set) OR "" (cleared through the
+--AudioAssetLua setter, which stringifies nil to ""); both mean uncategorised, so
+--they collapse to nil here and callers can test it directly. NB Lua treats "" as
+--truthy, so a bare `asset.category or fallback` misses the empty-string case.
+local function NormalizedAudioCategory(asset)
+	local c = asset.category
+	if c == nil or c == "" then
+		return nil
+	end
+	return c
+end
+
 --All clips currently playing for a category (Music/Ambience/Effects), found by
 --scanning audio.currentlyPlaying. Sorted by play-start order ascending
 --(oldest first) -- stable across loop restarts.
-local function PlayingTracksForCategory(cat)
+--
+--includeUncategorised also picks up clips with no category. Those belonged to no
+--lane at all before, so the dock rendered its idle "Nothing playing" CTA over the
+--top of an audible track (report RXC87T4Y). They ride the music lane rather than a
+--lane of their own so they pick up the hero card's transport and playlist chrome
+--too; the hero subtitle names the real state, since an uncategorised clip is still
+--unrouted engine-side (no Levels fader, no Anthem duck).
+local function PlayingTracksForCategory(cat, includeUncategorised)
 	local list = {}
 	for assetid,_ in pairs(audio.currentlyPlaying) do
 		local a = assets.audioTable[assetid]
-		if a ~= nil and a.category == cat then
-			list[#list+1] = { id = assetid, asset = a, order = PlayOrderOf(assetid) }
+		if a ~= nil then
+			local c = NormalizedAudioCategory(a)
+			if c == cat or (includeUncategorised and c == nil) then
+				list[#list+1] = { id = assetid, asset = a, order = PlayOrderOf(assetid) }
+			end
 		end
 	end
 	if #list > 1 then
@@ -1450,7 +1473,9 @@ g_drawSteelAudioBar = {
 	--newest playing music track, else newest playing ambience bed, else nil.
 	PrimaryPlayingName = function()
 		PrunePlayOrder()
-		local list = PlayingTracksForCategory("music")
+		--Same lane rule as the dock: an uncategorised clip is still the thing the
+		--table can hear, so this readout must not report silence over the top of it.
+		local list = PlayingTracksForCategory("music", true)
 		if #list == 0 then
 			list = PlayingTracksForCategory("ambience")
 		end
@@ -1540,7 +1565,10 @@ end
 --live instance from audio.currentlyPlaying at every call site.
 local function MusicChannelInstances()
 	local list = {}
-	local tracks = PlayingTracksForCategory("music")
+	--Uncategorised clips are included because the dock's hero card shows them in the
+	--music lane; without them here the hero's pause button would be a dead control
+	--whenever an uncategorised track is the one playing.
+	local tracks = PlayingTracksForCategory("music", true)
 	for i=1,#tracks do
 		local instance = audio.currentlyPlaying[tracks[i].id]
 		if instance ~= nil then
@@ -3224,16 +3252,10 @@ local m_poolPendingRename = nil    --poolid whose card row should auto-open rena
 local m_poolCueIndex = {}          --per-pool DM-cue cycle index (module-local, session-only)
 local g_poolsCardExpandPool = nil  --function(poolid): expand that pool row + rebuild the card
 
---Normalise the stored category to a dropdown option id. An unset category reads back
---as nil (never set) OR "" (set to nil through the current AudioAssetLua setter, which
---stringifies nil to ""); both mean "uncategorised". NB Lua treats "" as truthy, so a
---bare `category or "none"` would surface a blank option for the empty-string case.
+--The stored category as a dropdown option id -- uncategorised becomes the "none"
+--option (see NormalizedAudioCategory for what counts as uncategorised).
 local function GetAssetCategoryId(asset)
-	local c = asset.category
-	if c == nil or c == "" then
-		return "none"
-	end
-	return c
+	return NormalizedAudioCategory(asset) or "none"
 end
 
 --Builds the category dropdown for one asset. opts carries only presentation
@@ -3292,6 +3314,15 @@ local function CreateCategoryDropdown(asset, opts)
 	dropdown:SetClass("unrouted", IsUnrouted())
 	return dropdown
 end
+
+--Press click for this file's hand-rolled glyph controls (transport, cue, play,
+--pin, ...). Text buttons get their click from the {label, button, press} rule in
+--DefaultStyles; these are raw gui.Panels matching no button selector, so they were
+--silent. Splice it into a control's own styles list to opt it in. A style rule and
+--not an audio.FireSoundEvent in the press handler on purpose: the engine mutes
+--style sounds while the app is unfocused, and these should behave like every other
+--button rather than clicking in the background.
+local GLYPH_PRESS_SOUND = { selectors = {"press"}, soundEvent = "Mouse.Click" }
 
 --Unified soundboard button style rules (chunk F1a/F1d). Shared verbatim by BOTH
 --surfaces: the dock attaches these via ThemeEngine.MergeTokens on soundboardBody
@@ -3636,8 +3667,9 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 			},
 		}
 		muteButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioSbMute", "hoverable"},
-			bgimage = "ui-icons/ph-speaker-high-fill.png",
+			bgimage = "phosphor/speaker-high-fill.png",
 			width = 12,
 			height = 12,
 			valign = "center",
@@ -3647,10 +3679,10 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				muted = not muted
 				element:SetClass("muted", muted)
 				if muted then
-					element.bgimage = "ui-icons/ph-speaker-slash-fill.png"
+					element.bgimage = "phosphor/speaker-slash-fill.png"
 					audio.SetSoundEventVolume(assetid, 0)
 				else
-					element.bgimage = "ui-icons/ph-speaker-high-fill.png"
+					element.bgimage = "phosphor/speaker-high-fill.png"
 					audio.SetSoundEventVolume(assetid, volumeSlider.value)
 				end
 			end,
@@ -4041,9 +4073,10 @@ local function CreatePlayerSoundPanel()
 			gui.Tooltip("Mute")(element)
 		end,
 		styles = {
-			{ bgimage = "ui-icons/ph-speaker-high-fill.png" },
-			{ selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
+			{ bgimage = "phosphor/speaker-high-fill.png" },
+			{ selectors = {"muted"}, bgimage = "phosphor/speaker-slash-fill.png" },
 			{ selectors = {"hover"}, brightness = 2 },
+			GLYPH_PRESS_SOUND,
 		},
 	}
 
@@ -4179,7 +4212,11 @@ local function CreatePlayerSoundPanel()
 
 		PrunePlayOrder()
 
-		local musicList = PlayingTracksForCategory("music")
+		--Uncategorised clips ride the music lane (see PlayingTracksForCategory), so a
+		--player sees what the table is actually hearing instead of "Nothing playing".
+		--No "Uncategorised" subtitle on this side: a player cannot set a category, and
+		--the nudge to fix it belongs on the DM's dock.
+		local musicList = PlayingTracksForCategory("music", true)
 		local mid, ma = nil, nil
 		local musicExtrasList = {}
 		if #musicList > 0 then
@@ -4305,7 +4342,7 @@ local function CreatePlayerSoundPanel()
 			end
 			local h = 330
 			local tabSpacing = 40
-			local dockScale = dmhub.GetSettingValue("dockscale") or 1
+			local dockScale = DockablePanel.EffectiveDockScale()
 			inst.data.minHeight = h
 			inst.data.maxHeight = h
 			container.data.minHeight = h + tabSpacing
@@ -4423,9 +4460,10 @@ local function BuildSoundPanelContent()
 			gui.Tooltip("Mute for everyone")(element)
 		end,
 		styles = {
-			{ bgimage = "ui-icons/ph-speaker-high-fill.png" },
-			{ selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
+			{ bgimage = "phosphor/speaker-high-fill.png" },
+			{ selectors = {"muted"}, bgimage = "phosphor/speaker-slash-fill.png" },
 			{ selectors = {"hover"}, brightness = 2 },
+			GLYPH_PRESS_SOUND,
 		},
 	}
 
@@ -4434,6 +4472,7 @@ local function BuildSoundPanelContent()
 	--glyph). Hidden entirely when nothing is playing so the status row does not
 	--show a dead control at rest.
 	local stopAllButton = gui.Panel{
+		styles = { GLYPH_PRESS_SOUND },
 		classes = {"hidden"},
 		bgimage = "panels/square.png",
 		bgcolor = "white",
@@ -4482,6 +4521,9 @@ local function BuildSoundPanelContent()
 	--progress slider's drag-preview math can read it without re-deriving from
 	--audio.currentlyPlaying on every frame. Written only by UpdateNowPlaying.
 	local m_heroPaused = false
+	--True while the hero card is showing a clip with no category, which the subtitle
+	--names and its tooltip explains. Written only by UpdateNowPlaying.
+	local m_heroUncategorised = false
 	--True while the user is actively dragging the progress slider. The 0.5s poll
 	--(UpdateNowPlaying) must not overwrite the slider's value while this is true, or
 	--the tick fights the drag and the thumb stutters back mid-scrub.
@@ -4526,6 +4568,9 @@ local function BuildSoundPanelContent()
 		textWrap = false,
 		textOverflow = "ellipsis",
 	}
+	--Names the hero's lane ("Music", or "Uncategorised" for a clip with no category).
+	--The tooltip only appears in the uncategorised case, and reuses the Studio row
+	--dropdown's wording so both surfaces explain the same gap the same way.
 	local subtitleLabel = gui.Label{
 		classes = {"sizeXs", "fgMuted"},
 		text = "",
@@ -4534,6 +4579,11 @@ local function BuildSoundPanelContent()
 		halign = "left",
 		valign = "center",
 		hmargin = 4,
+		linger = function(element)
+			if m_heroUncategorised then
+				gui.Tooltip("Set a Category. This clip will ignore Levels faders until you set a category.")(element)
+			end
+		end,
 	}
 
 	--Playlist transport lines (H-dock). Both start collapsed -- UpdateNowPlaying
@@ -4569,6 +4619,7 @@ local function BuildSoundPanelContent()
 	--which one shows.
 	local pauseButton
 	pauseButton = gui.Panel{
+		styles = { GLYPH_PRESS_SOUND },
 		classes = {"hidden"},
 		bgimage = "ui-icons/ph-play-pause-fill.png",
 		width = 18,
@@ -4584,6 +4635,7 @@ local function BuildSoundPanelContent()
 		end,
 	}
 	local stopButton = gui.Panel{
+		styles = { GLYPH_PRESS_SOUND },
 		classes = {"hidden"},
 		bgimage = "ui-icons/ph-stop-fill.png",
 		bgcolor = "white",
@@ -4691,6 +4743,7 @@ local function BuildSoundPanelContent()
 	--valign=center inside the 18-tall transportRow so they sit flush with the
 	--other transport controls.
 	local shuffleChip = gui.Panel{
+		styles = { GLYPH_PRESS_SOUND },
 		classes = {"collapsed"},
 		bgimage = "ui-icons/ph-shuffle-fill.png",
 		--Default white; UpdateNowPlaying tints it to the theme accent while shuffle
@@ -4717,6 +4770,7 @@ local function BuildSoundPanelContent()
 		end,
 	}
 	local nextChip = gui.Panel{
+		styles = { GLYPH_PRESS_SOUND },
 		classes = {"collapsed"},
 		bgimage = "ui-icons/ph-skip-forward-fill.png",
 		bgcolor = "white",
@@ -4776,6 +4830,7 @@ local function BuildSoundPanelContent()
 				textOverflow = "ellipsis",
 			},
 			gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				bgimage = "ui-icons/ph-stop-fill.png",
 				bgcolor = "white",
 				width = 11,
@@ -4831,6 +4886,7 @@ local function BuildSoundPanelContent()
 				textOverflow = "ellipsis",
 			},
 			gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				bgimage = "ui-icons/ph-stop-fill.png",
 				bgcolor = "white",
 				width = 11,
@@ -5108,8 +5164,10 @@ local function BuildSoundPanelContent()
 
 		--Music hero = the most recently STARTED track (starting a new track is
 		--an intentional act, so it takes the big slot); earlier tracks remain
-		--as extra rows in start order.
-		local musicList = PlayingTracksForCategory("music")
+		--as extra rows in start order. The lane includes uncategorised clips, so
+		--one can win the hero slot -- the subtitle below then reads "Uncategorised"
+		--rather than claiming a Music routing the clip does not have.
+		local musicList = PlayingTracksForCategory("music", true)
 		local mid, ma = nil, nil
 		local musicExtrasList = {}
 		if #musicList > 0 then
@@ -5136,7 +5194,12 @@ local function BuildSoundPanelContent()
 			end
 			titleLabel.text = DisplayNameForAsset(ma)
 			titleLabel:SetClass("fgMuted", false)
-			subtitleLabel.text = "Music"
+			m_heroUncategorised = NormalizedAudioCategory(ma) == nil
+			if m_heroUncategorised then
+				subtitleLabel.text = "Uncategorised"
+			else
+				subtitleLabel.text = "Music"
+			end
 			stopButton:SetClass("hidden", false)
 			pauseButton:SetClass("hidden", false)
 			pauseButton.bgimage = paused and "ui-icons/ph-play-fill.png" or "ui-icons/ph-play-pause-fill.png"
@@ -5154,6 +5217,7 @@ local function BuildSoundPanelContent()
 			stopButton:SetClass("hidden", true)
 			pauseButton:SetClass("hidden", true)
 			m_heroPaused = false
+			m_heroUncategorised = false
 			timeCurrent.text = ""
 			timeTotal.text = ""
 			if not m_scrubbing then
@@ -5518,6 +5582,7 @@ local function BuildSoundPanelContent()
 			end
 
 			previewButton = gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				bgimage = "ui-icons/ph-headphones-fill.png",
 				bgcolor = "white",
 				width = 14,
@@ -6089,9 +6154,12 @@ local function BuildSoundPanelContent()
 				vmargin = 4,
 			}
 
-			local searchInput = gui.Input{
+			--the canonical search field; look comes from DefaultStyles'
+			--searchInput rules, borderBox keeps its hpad 24 inside the width.
+			local searchInput = gui.SearchInput{
 				placeholderText = "Search sounds",
 				text = "",
+				borderBox = true,
 				width = "100%",
 				height = 24,
 				editlag = 0.1,
@@ -6276,6 +6344,7 @@ local function BuildSoundPanelContent()
 			end
 
 			previewButton = gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				bgimage = "ui-icons/ph-headphones-fill.png",
 				bgcolor = "white",
 				width = 14,
@@ -6311,7 +6380,8 @@ local function BuildSoundPanelContent()
 
 			local onOffButton
 			onOffButton = gui.Panel{
-				bgimage = "ui-icons/ph-speaker-slash-fill.png",
+				styles = { GLYPH_PRESS_SOUND },
+				bgimage = "phosphor/speaker-slash-fill.png",
 				bgcolor = "white",
 				width = 16,
 				height = 16,
@@ -6633,7 +6703,7 @@ local function BuildSoundPanelContent()
 				secondaryRow:SetClass("collapsed", not (isTrigger or hasCustomSource))
 
 				local on = not c.disabled
-				onOffButton.bgimage = on and "ui-icons/ph-speaker-high-fill.png" or "ui-icons/ph-speaker-slash-fill.png"
+				onOffButton.bgimage = on and "phosphor/speaker-high-fill.png" or "phosphor/speaker-slash-fill.png"
 
 				local lit = on and (not isTrigger)
 				statusDot.bgcolor = lit and "#5cb85c" or "#888888"
@@ -7336,6 +7406,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	local playButton
 	if not slim then
 		playButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioBroadcastButton"},
 			bgimage = "ui-icons/ph-play-fill.png",
 			width = 18,
@@ -7365,6 +7436,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	--so it clears when the clip ends or another row takes over.
 	local cueButton
 	cueButton = gui.Panel{
+		styles = { GLYPH_PRESS_SOUND },
 		classes = {"audioCueButton"},
 		bgimage = "ui-icons/ph-headphones-fill.png",
 		width = 18,
@@ -7417,6 +7489,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	local loopButton
 	if not slim then
 		loopButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioRowLoopButton", cond(audioAsset.loop, nil, "disabled")},
 			bgimage = "game-icons/infinity.png",
 			width = 16,
@@ -7446,8 +7519,9 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 	local muteButton
 	if not slim then
 		muteButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"hoverable", "audioRowMuteButton"},
-			bgimage = "ui-icons/ph-speaker-high-fill.png",
+			bgimage = "phosphor/speaker-high-fill.png",
 			bgcolor = "white",
 			width = 16,
 			height = 16,
@@ -7457,10 +7531,10 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				muted = not muted
 				element:SetClass("muted", muted)
 				if muted then
-					element.bgimage = "ui-icons/ph-speaker-slash-fill.png"
+					element.bgimage = "phosphor/speaker-slash-fill.png"
 					audio.SetSoundEventVolume(audioAsset.id, 0)
 				else
-					element.bgimage = "ui-icons/ph-speaker-high-fill.png"
+					element.bgimage = "phosphor/speaker-high-fill.png"
 					audio.SetSoundEventVolume(audioAsset.id, volumeSlider.value)
 				end
 			end,
@@ -7602,6 +7676,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			end
 		end
 		plusButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioAddTrackButton"},
 			bgimage = alreadyIn and "icons/standard/Icon_App_Check.png" or "ui-icons/Plus.png",
 			width = 18,
@@ -7677,6 +7752,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 			end
 		end
 		plusButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioAddTrackButton"},
 			bgimage = alreadyIn and "icons/standard/Icon_App_Check.png" or "ui-icons/Plus.png",
 			width = 18,
@@ -8425,9 +8501,12 @@ local CreateStudioSoundboard = function()
 			vmargin = 4,
 		}
 
-		local searchInput = gui.Input{
+		--the canonical search field; look comes from DefaultStyles'
+		--searchInput rules, borderBox keeps its hpad 24 inside the width.
+		local searchInput = gui.SearchInput{
 			placeholderText = "Search clips and pools",
 			text = "",
+			borderBox = true,
 			width = "100%",
 			height = 24,
 			editlag = 0.1,
@@ -10066,6 +10145,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 
 		local pin
 		pin = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioPlPin", cond(pl.pinned, "pinned", nil)},
 			bgimage = "ui-icons/ph-push-pin-fill.png",
 			width = 16,
@@ -10164,6 +10244,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 
 		local playButton
 		playButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioBroadcastButton"},
 			bgimage = "ui-icons/ph-play-fill.png",
 			width = 18,
@@ -10293,6 +10374,7 @@ local CreateStudioPlaylistsCard = function(heightSpec)
 			--already honors it); false = the playlist stops after its last track.
 			local loopToggle
 			loopToggle = gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				classes = {"audioRowLoopButton", cond(pl.loop ~= false, nil, "disabled")},
 				bgimage = "game-icons/infinity.png",
 				width = 16,
@@ -10851,6 +10933,7 @@ local CreateStudioVariantPoolsCard = function(heightSpec)
 		local lastFiredAssetId = nil
 		local cueButton
 		cueButton = gui.Panel{
+			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioCueButton"},
 			bgimage = "ui-icons/ph-headphones-fill.png",
 			width = 18,
@@ -11699,6 +11782,7 @@ local function CreateStudioNowPlayingStrip()
 				textOverflow = "ellipsis",
 			},
 			gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				bgimage = "panels/square.png",
 				bgcolor = "white",
 				width = 11,
@@ -11753,6 +11837,7 @@ local function CreateStudioNowPlayingStrip()
 				textOverflow = "ellipsis",
 			},
 			gui.Panel{
+				styles = { GLYPH_PRESS_SOUND },
 				bgimage = "panels/square.png",
 				bgcolor = "white",
 				width = 11,

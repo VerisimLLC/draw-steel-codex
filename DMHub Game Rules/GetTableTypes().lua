@@ -33,11 +33,20 @@ CharacterModifier.TypeInfo.aura = {
 			auraDef = environmentalKeywordType.ApplyToAuraTree(DeepCopy(auraDef))
 		end
 
+		local radius = ExecuteGoblinScript(modifier.radius, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), 0, "Aura radius")
+
 		local auraInstance = AuraInstance.new{
 			guid = modifier:try_get("seq", "--"),
 			casterid = token.id,
 			name = modifier.aura.name,
 			tokenAttached = true, --tell DMHub this is attached to its caster token.
+
+			--Default vertical extent: the aura reaches as far above and below its
+			--caster as it does laterally. The engine computes the band live from the
+			--caster token (see AuraInstance:GetVerticalRadius); the aura payload's
+			--unlimitedHeight flag opts back out to an infinite column.
+			verticalRadius = math.max(0, math.floor(tonumber(radius) or 0)),
+
 			symbols = {
 				caster = GenerateSymbols(creature),
 			},
@@ -50,7 +59,7 @@ CharacterModifier.TypeInfo.aura = {
 				--let it calculate this from the token.
 				--targetPoint = core.Vector3(token.loc.x, token.loc.y, 0),
 				range = 100,
-				radius = ExecuteGoblinScript(modifier.radius, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), 0, "Aura radius"),
+				radius = radius,
 			},
 		}
 

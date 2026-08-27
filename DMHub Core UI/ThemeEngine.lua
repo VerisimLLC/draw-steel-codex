@@ -44,25 +44,29 @@ ThemeEngine = {} --RegisterGameType("ThemeEngine")
 -- Private state
 -- =============================================================================
 
+-- The base theme / color scheme. `default` is structural, not cosmetic: it is
+-- the root of every theme chain, the fallback for unknown or missing ids, and
+-- cannot be deregistered. Do not repoint these at another id.
+--
+-- There is exactly one shipping theme (`default`, which carries the rounded
+-- corner radii) and it is not user-selectable: the theme axis exists so a
+-- subtree can be pinned to known-good styling and so mods can register their
+-- own, not so the user can pick one. Only the color scheme is a user choice.
+local DEFAULT_THEME_ID = "default"
+local DEFAULT_SCHEME_ID = "default"
+
 local _colorSchemes = {}         -- schemeId -> stored color-scheme spec
 local _themes = {}               -- themeId -> stored theme spec
 
-local _activeThemeId = nil
 local _activeSchemeId = nil
 
--- Persistent storage for the user's active theme and color scheme
--- selections. No section/editor/description, so they don't appear in
--- the settings UI. storage = "preference" -- per-user, persists across
--- games on this machine.
-local _activeThemeSetting = setting{
-    id = "themeengine.activetheme",
-    storage = "preference",
-    default = "default",
-}
+-- Persistent storage for the user's active color scheme selection. No
+-- section/editor/description, so it doesn't appear in the settings UI.
+-- storage = "preference" -- per-user, persists across games on this machine.
 local _activeSchemeSetting = setting{
     id = "themeengine.activecolorscheme",
     storage = "preference",
-    default = "default",
+    default = DEFAULT_SCHEME_ID,
 }
 
 -- User-created color schemes are persisted (as a JSON array) on the user's
@@ -99,9 +103,6 @@ local GRADIENT_PROPS = { gradient = true }
 
 local UNRESOLVED_COLOR = "#FF00FF"  -- magenta, loud in UI
 local UNRESOLVED_FONT = "Berling"     -- known safe fallback
-
-local DEFAULT_THEME_ID = "default"
-local DEFAULT_SCHEME_ID = "default"
 
 local THEME_CHANGED_EVENT = "ThemeEngine.ThemeChanged"
 
@@ -404,7 +405,7 @@ end
 --- @return string schemeId
 local function _resolveEffectivePair(themeIdArg, schemeIdArg)
 
-    local themeId = themeIdArg or _activeThemeId
+    local themeId = themeIdArg or DEFAULT_THEME_ID
     local schemeId
 
     if themeIdArg ~= nil then
@@ -422,7 +423,7 @@ local function _resolveEffectivePair(themeIdArg, schemeIdArg)
         elseif _activeSchemeId ~= nil then
             schemeId = _activeSchemeId
         else
-            local theme = themeId and _themes[themeId] or nil
+            local theme = _themes[themeId]
             schemeId = theme and theme.colorScheme or nil
         end
     end
@@ -449,22 +450,11 @@ local function _isColorSchemeInUse(id)
     if id == _activeSchemeId then
         return true
     end
-    if _activeThemeId ~= nil then
-        local theme = _themes[_activeThemeId]
-        if theme and theme.colorScheme == id then
-            return true
-        end
+    local theme = _themes[DEFAULT_THEME_ID]
+    if theme and theme.colorScheme == id then
+        return true
     end
     return false
-end
-
---- Return true if the given theme id is the currently-active theme.
---- (After flattening, the "active chain" is just [default, active]; the
---- default theme is handled separately in DeregisterTheme.)
---- @param id string
---- @return boolean
-local function _isThemeInActiveChain(id)
-    return _activeThemeId ~= nil and id == _activeThemeId
 end
 
 -- =============================================================================
@@ -568,10 +558,8 @@ end
 
 --- Deregister a theme by id. Silent no-op if the id isn't registered.
 ---
---- Refuses (with a log) to remove:
----   * the default theme -- it's the ultimate fallback and must remain present;
----   * the currently active theme -- removing it while it's rendering would
----     visibly break the UI.
+--- Refuses (with a log) to remove the default theme -- it's the ultimate
+--- fallback, the only theme ever active, and must remain present.
 ---
 --- Because removal can only affect entries that aren't on-screen, nothing visible
 --- changes and OnThemeChanged is not fired. The resolved-styles cache is still
@@ -581,10 +569,6 @@ end
 function ThemeEngine.DeregisterTheme(id)
     if id == DEFAULT_THEME_ID then
         _log("refused to deregister the default theme")
-        return false
-    end
-    if _isThemeInActiveChain(id) then
-        _log("refused to deregister theme in active chain: " .. tostring(id))
         return false
     end
     if not _themes[id] then
@@ -599,17 +583,6 @@ end
 -- Public API -- Activation & inspection
 -- =============================================================================
 
---- Set the active theme. Stores the id as given without validation; resolution
---- happens at read time (GetActiveTheme / GetStyles fall back to default for
---- unknown or nil ids). Fires OnThemeChanged if the stored value actually changed.
---- @param themeId string|nil
-function ThemeEngine.SetActiveTheme(themeId)
-    if _activeThemeId == themeId then return end
-    _activeThemeId = themeId
-    _activeThemeSetting:Set(themeId or "default")
-    _fireThemeChanged()
-end
-
 --- Set the active color scheme. Stores the id as given without validation;
 --- resolution happens at read time (GetActiveColorScheme / GetStyles fall back
 --- to default for unknown or nil ids). Fires OnThemeChanged if the stored value
@@ -618,14 +591,16 @@ end
 function ThemeEngine.SetActiveColorScheme(schemeId)
     if _activeSchemeId == schemeId then return end
     _activeSchemeId = schemeId
-    _activeSchemeSetting:Set(schemeId or "default")
+    _activeSchemeSetting:Set(schemeId or DEFAULT_SCHEME_ID)
     _fireThemeChanged()
 end
 
---- Returns the active theme id, guaranteed to be a registered id.
+--- Returns the active theme id. Always the default theme: the theme is not a
+--- user choice, so there is nothing to select. Kept as an accessor so callers
+--- that pair it with GetActiveColorScheme() don't hardcode the id.
 --- @return string
 function ThemeEngine.GetActiveTheme()
-    return _normalizeThemeId(_activeThemeId)
+    return DEFAULT_THEME_ID
 end
 
 --- Returns the active color scheme id, guaranteed to be a registered id.
@@ -634,12 +609,13 @@ function ThemeEngine.GetActiveColorScheme()
     return _normalizeSchemeId(_activeSchemeId)
 end
 
---- Restore the persisted active theme / scheme ids verbatim. Unknown ids are
---- preserved here -- the read path coerces them to default at resolution time,
+--- Restore the persisted active color scheme id verbatim. An unknown id is
+--- preserved here -- the read path coerces it to default at resolution time,
 --- which means the user's stored preference survives even when the registering
 --- mod isn't loaded yet (or at all in the current session).
+---
+--- Call once, after every color scheme has been registered.
 function ThemeEngine.RestoreActiveSelection()
-    _activeThemeId = _activeThemeSetting:Get()
     _activeSchemeId = _activeSchemeSetting:Get()
     _fireThemeChanged()
 end

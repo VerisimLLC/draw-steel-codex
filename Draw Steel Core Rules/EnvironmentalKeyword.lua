@@ -31,9 +31,11 @@ local mod = dmhub.GetModLoading()
 --- @field powerRollTiers string[]|nil The three power table tier texts (tier 1 = 11 or less, tier 2 = 12-16, tier 3 = 17+). No class default: assigned per instance by the editor.
 --- @field powerRollShiftEntryMode "normal"|"bane"|"ignore" How the simple power roll handles entry during a Shift: normal rolls normally, bane adds one non-stacking bane, and ignore suppresses only the simple power roll for that entry. Same field name as Aura; a non-normal keyword mode is copied additively onto zone auras that do not already have a non-normal mode.
 --- @field includeAdjacent boolean If true, areas marked with this keyword extend one tile outward (8-way): creatures adjacent to the area count as touching it for enter/start-of-turn triggers (the entry power roll fires for them at the start of their turn, with a bane), but adjacent tiles do not take the keyword's terrain rules, move damage, or modifiers. Same field name as Aura; copied onto zone auras.
+--- @field creatureFilter string GoblinScript evaluated against each creature to decide whether the keyword affects it at all. Empty (the class default) affects everyone. Applies to the whole keyword -- modifiers, triggers, the entry power roll, the move damage, AND the terrain rules (difficult terrain, water, concealment, climbable). The terrain half needs the engine: an aura reporting a filter is left out of FloorController.GetTileRulesAtLoc unless the caller names the creature it is asking about, and Aura.ApplyTo consults the filter for everything else, evaluating this script through AuraInstance:CreaturePassesFilterForToken and caching the verdict per creature per game update. Merged onto an aura's own creatureFilter with an "and" rather than skipped like the other fields, because a filter is a restriction -- dropping it would WIDEN who the keyword affects.
 --- @field defaultHeight number|nil Default vertical extent, in tiles above the ground, stamped onto new zones painted with this keyword from the Map Markup panel. 0 = ground only (affects creatures standing in the zone but not flyers above it); N = up to N tiles above the ground; absent = unlimited height. Zone bands are ground-relative, so this follows the terrain over ledges and pits. Only a DEFAULT: each painted zone stores its own height and can be re-set in the Edit Zone dialog. No class default: absent = unlimited.
 --- @field appearance table|nil Optional visual representation drawn on the map for zones of this keyword (beyond the overlay stripes), edited in the Edit Appearance dialog. mode = "floor": {mode, tileid = tilesheet asset id filling the tiles, edgeWallId = wall asset id drawn as a decorative ring around the boundary (nil = none), alpha = fill opacity, fractalEdge = deterministic organic-boundary strength from 0 to 1 (nil = 0), edgeFade = inward fill fade in tiles from 0 to 0.35 (nil = 0), tileImageId/edgeImageId = source image asset ids shown in the dialog's IconEditors (nil when the asset was copied from an existing tilesheet/wall), tileOwned/edgeOwned = true when the asset was created/forked for this keyword (replaced assets are Delete()d)}. Floor fills force the private tilesheet asset to oneLargeTile so the whole image is the repeating unit. mode = "sprites": {mode, sprites = image asset ids, spriteScale = quad size within the tile, spriteAlpha}. Texture scale/hue/saturation/brightness live on the referenced ASSETS, exactly like real floors and walls. MapMarkupPanel stamps this onto zone aura instances (AuraInstance:GetAppearance); the engine's MarkupZoneVisuals renders it resting on the ground, terrain-conformed and parallax-correct. No class default: absent = no visual.
 --- @field appearanceDefaultOff boolean|nil When true, new zones painted with this keyword from the Map Markup panel start with their visual representation hidden (record field hideAppearance; stripes only). Toggled by the "Visuals" pill on the zone palette chip. Only a DEFAULT stamped at paint time: each painted zone owns its own flag afterward (the Visuals badge on its zone-list row), so flipping this never disturbs existing zones. Only meaningful when appearance is set. No class default: absent = visuals shown.
+--- @field defaultPlayerVisible boolean|nil When false, new zones painted with this keyword from the Map Markup panel start hidden from players (record field playerVisible). Set by the "New Zones Visible to Players" check in the keyword editor. Only a DEFAULT stamped at paint time: each painted zone owns its own flag afterward (the Edit Zone dialog), so flipping this never disturbs existing zones. No class default: absent = visible.
 --- @field script string|nil Optional Lua zone-script source, edited in the Edit Script dialog. When set, one instance of the script runs on EVERY client for each zone of this keyword on the current map (Entire Map blankets included). The source must RETURN a table of handlers, all optional: create(zone), destroy(zone), locsChanged(zone), think(zone), and thinkInterval (seconds between think calls, default 1). destroy is guaranteed to run when the zone is de-instantiated: erased or deleted, its keyword deleted, the map changed, the script edited, or mods reloaded. If locsChanged is absent the script is restarted (destroy then create) whenever the zone's tiles change. The zone object passed to handlers carries zoneid/floorid/floorIndex/mapid, name, keyword (type name), keywordid, color, altitude, height (nil = unlimited), entireMap, locs (list of Loc userdata, ready for e.g. dmhub.CreateWorldDistortion), locsAndAdjacent (locs plus every tile 8-way adjacent to the zone; computed lazily on first read and refreshed when the zone's tiles change) and data (an empty scratch table for script state). No class default: absent = no script.
 --- @field mapid string|nil When set, this keyword is a map-scoped zone type: it was created from that map's Zone Types palette and is hidden from the compendium, other maps' palettes, and keyword dropdowns until promoted ("Make Available to All Maps" clears the field). No class default: absent = a full keyword.
 EnvironmentalKeyword = RegisterGameType("EnvironmentalKeyword", "CharacterFeature")
@@ -56,6 +58,7 @@ EnvironmentalKeyword.powerRollEnabled = false
 EnvironmentalKeyword.powerRollBonus = 0
 EnvironmentalKeyword.powerRollShiftEntryMode = "normal"
 EnvironmentalKeyword.includeAdjacent = false
+EnvironmentalKeyword.creatureFilter = ""
 
 --Index of keywords by lower-case name, rebuilt whenever tables refresh. Used by
 --runtime code that needs to resolve a keyword from its name.
@@ -199,6 +202,31 @@ function EnvironmentalKeyword.ApplyToAura(auraDef, keywordid)
 				auraDef.powerRollEnabled = true
 				auraDef.powerRollBonus = keyword:try_get("powerRollBonus", 0)
 				auraDef.powerRollTiers = dmhub.DeepCopy(tiers)
+			end
+		end
+	end)
+
+	--Creature filter: only creatures matching this GoblinScript are affected.
+	--Unlike every other field here this one MERGES rather than defers to the aura,
+	--because it is a restriction, not an addition: skipping it because the aura
+	--already carries a filter of its own would quietly let the keyword affect
+	--creatures its author excluded. Two filters therefore "and" together, and the
+	--plain-text containment check keeps a second application of the same keyword
+	--(re-merging an aura def that was already merged) from growing the string.
+	pcall(function()
+		local keywordFilter = keyword:try_get("creatureFilter", "")
+		if type(keywordFilter) == "string" and keywordFilter ~= "" then
+			local auraFilter = auraDef:try_get("creatureFilter", "")
+			if auraFilter == nil or auraFilter == "" then
+				auraDef.creatureFilter = keywordFilter
+			elseif type(auraFilter) == "string" then
+				if string.find(auraFilter, keywordFilter, 1, true) == nil then
+					auraDef.creatureFilter = string.format("(%s) and (%s)", auraFilter, keywordFilter)
+				end
+			--an aura carrying the level-tiered table form of a filter cannot be
+			--text-merged with. Leave it alone rather than clobber a restriction
+			--the aura's own author wrote: an aura the keyword cannot narrow is a
+			--better outcome than one whose own filter silently disappeared.
 			end
 		end
 	end)
@@ -2065,6 +2093,36 @@ local SetData = function(tableName, keywordPanel, keyid)
 		defaultHeightUnits,
 	}
 
+	--Whether zones painted with this keyword start visible to players. Scenery
+	--the table can see anyway (water, difficult ground) stays checked; a type
+	--that is a secret hazard is unchecked once here instead of per zone. Only a
+	--DEFAULT stamped at paint time (MapMarkupPanel CreateZone) -- each zone owns
+	--its flag afterward, in the Edit Zone dialog -- so changing it here never
+	--touches zones already on a map. Visible is the default and stays off the
+	--record, so keywords serialized before this field keep behaving as they did.
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Check{
+			value = keyword:try_get("defaultPlayerVisible", true),
+			text = "New Zones Visible to Players",
+			change = function(element)
+				if element.value then
+					keyword.defaultPlayerVisible = nil
+				else
+					keyword.defaultPlayerVisible = false
+				end
+				UploadKeyword()
+			end,
+		},
+	}
+
+	children[#children+1] = gui.Label{
+		classes = {"formStacked", "fgMuted"},
+		width = "94%",
+		height = "auto",
+		text = "Unchecked, zones you paint with this type start hidden from players. Each zone keeps its own setting afterward, in the Edit Zone dialog.",
+	}
+
 	--optional visual representation drawn on the map for zones of this type:
 	--a floor-texture fill with an optional edge brush, or per-tile sprites.
 	--Configured in its own dialog; the label summarizes what is set up.
@@ -2330,6 +2388,65 @@ local SetData = function(tableName, keywordPanel, keyid)
 		},
 	}
 	children[#children+1] = moveDamageDetails
+
+	--optional GoblinScript restricting who the keyword affects. Covers the whole
+	--keyword, terrain rules included: the engine keeps a filtered aura out of the
+	--per-tile rules lookup and decides it per creature instead (Aura.ApplyTo ->
+	--AuraInstance:CreaturePassesFilterForToken).
+	children[#children+1] = gui.Panel{
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Affects Only:",
+			hover = gui.Tooltip("Optional filter. When set, only creatures this GoblinScript returns true for are affected by the keyword at all - its terrain rules, movement damage, power roll and modifiers alike. Leave it empty to affect everyone."),
+		},
+		gui.GoblinScriptInput{
+			classes = {"formStacked"},
+			value = keyword:try_get("creatureFilter", ""),
+			--plain text only: the widget's right-click menu otherwise offers the
+			--level-tiered table form, which means nothing for an environmental
+			--keyword (there is no level context) and would break the string merge
+			--in ApplyToAura.
+			displayTypes = "none",
+			change = function(element)
+				keyword.creatureFilter = element.value
+				UploadKeyword()
+			end,
+			documentation = {
+				help = "This GoblinScript determines which creatures this environmental keyword affects. It is evaluated for each creature in an area marked with the keyword, and none of the keyword takes hold unless it returns true - terrain rules, movement damage, power roll and modifiers alike. An empty script affects every creature.",
+				output = "boolean",
+				examples = {
+					{
+						script = 'not (Keywords has "Fire")',
+						text = "Only creatures that are not themselves Fire creatures are affected -- a fire elemental wades through its own element unharmed.",
+					},
+					{
+						script = 'OnGround',
+						text = "Only creatures on the ground are affected; anything flying, burrowing, or climbing over the area is not.",
+					},
+				},
+				subject = creature.helpSymbols,
+				subjectDescription = "Creature in the area marked with this keyword.",
+				symbols = {
+					target = {
+						name = "Target",
+						type = "creature",
+						desc = "The creature being tested. A synonym for 'Self' in this script.",
+					},
+					caster = {
+						name = "Caster",
+						type = "creature",
+						desc = "The creature that created the area, when it came from an ability. Painted map zones have no caster.",
+					},
+					aura = {
+						name = "Aura",
+						type = "aura",
+						desc = "The area applying this keyword.",
+					},
+				},
+			},
+		},
+	}
 
 	--optional power roll made against any creature that enters the area or
 	--starts its turn there (shared editor section with the Aura dialog).
@@ -2718,5 +2835,129 @@ GameSystem.RegisterGoblinScriptField{
 		end
 
 		return false
+	end,
+}
+
+--------------------------------------------------------------------------------
+-- AdjacentToWater: Water Weird support.
+--
+-- A location is "adjacent to water" when the square itself or any square
+-- within 1 of it is a body of water (tile rules flagged as water; the engine
+-- merges apply-to-all water markup zones into those rules), OR when a creature
+-- that counts as a water elemental occupies the square or an adjacent square.
+--
+-- "Water elemental" rule as implemented: the creature's keywords include
+-- "Elemental" AND the creature has a swim speed. This deliberately covers the
+-- Water Wolves (keywords Water Wolf + Elemental, swim 6/8) while excluding
+-- elementals with no affinity for water (a fire elemental has no swim speed).
+-- Dead or dying creatures do not count as bodies of water.
+--
+-- The casting creature itself never counts as the qualifying elemental: the
+-- Water Weird rule says "any OTHER water elemental", and while a teleport
+-- filtered on this symbol is being targeted the caster's own token is still
+-- standing on the map, so without an exclusion every square within 2 of the
+-- caster would qualify. ActivatedAbility:TargetLocPassesFilterPredicate stamps
+-- the caster's token id onto the symbolized Loc as _tmp_casterid; the Loc
+-- field honors that here. The creature-side field excludes its own token.
+--------------------------------------------------------------------------------
+
+local function IsWaterElementalToken(tok, excludeCharid)
+	if tok == nil or not tok.valid then
+		return false
+	end
+	if excludeCharid ~= nil and tok.charid == excludeCharid then
+		return false
+	end
+
+	local props = tok.properties
+	if props == nil then
+		return false
+	end
+
+	--a dead or dying elemental is not a body of water. pcall guards: token
+	--properties are not guaranteed to bind as a full creature type, and
+	--reading a missing method on a game-typed instance raises.
+	local dead = false
+	pcall(function() dead = props:IsDeadOrDying() end)
+	if dead then
+		return false
+	end
+
+	local isElemental = false
+	pcall(function()
+		for keyword,_ in pairs(props:Keywords() or {}) do
+			if string.lower(keyword) == "elemental" then
+				isElemental = true
+				break
+			end
+		end
+	end)
+	if not isElemental then
+		return false
+	end
+
+	local canSwim = false
+	pcall(function() canSwim = props:CanSwim() end)
+	return canSwim
+end
+
+--True if engineLoc itself, or any square within radius 1 of it, is water
+--terrain or holds a water elemental (other than excludeCharid's token).
+local function LocTouchesWater(engineLoc, excludeCharid)
+	local locs = { engineLoc }
+	for _,adj in ipairs(engineLoc:LocsInRadius(1) or {}) do
+		locs[#locs+1] = adj
+	end
+
+	for _,loc in ipairs(locs) do
+		--GetTileRulesAtLoc returns nil off-map / where there is no terrain.
+		local rules = dmhub.GetTileRulesAtLoc(loc)
+		if rules ~= nil and rules.water then
+			return true
+		end
+
+		for _,tok in ipairs(dmhub.GetTokensAtLoc(loc) or {}) do
+			if IsWaterElementalToken(tok, excludeCharid) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+GameSystem.RegisterGoblinScriptField{
+	target = Loc,
+	name = "AdjacentToWater",
+	type = "boolean",
+	desc = "True if this location is, or is within 1 square of, a body of water (water terrain or a water markup zone), or is within 1 square of a water elemental creature. A creature casting an ability filtered on this never counts itself as the water elemental.",
+	seealso = {"Environment", "Concealment"},
+	examples = {"target.AdjacentToWater"},
+	calculate = function(c)
+		local engineLoc = rawget(c, "_tmp_loc")
+		if engineLoc == nil then
+			return false
+		end
+
+		return LocTouchesWater(engineLoc, rawget(c, "_tmp_casterid"))
+	end,
+}
+
+--Creature-side twin used for the caster gate ("the wolf can enter an ADJACENT
+--body of water"): true when the creature's own square touches water by the
+--same rule, never counting the creature's own token as the water elemental.
+GameSystem.RegisterGoblinScriptField{
+	name = "AdjacentToWater",
+	type = "boolean",
+	desc = "True if this creature is in or adjacent to a body of water (water terrain or a water markup zone), or adjacent to another water elemental creature. The creature's own token never counts as the water elemental.",
+	seealso = {"Keywords"},
+	examples = {"self.AdjacentToWater"},
+	calculate = function(c)
+		local token = dmhub.LookupToken(c)
+		if token == nil or token.loc == nil then
+			return false
+		end
+
+		return LocTouchesWater(token.loc, token.charid)
 	end,
 }

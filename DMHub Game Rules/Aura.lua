@@ -13,7 +13,7 @@ local mod = dmhub.GetModLoading()
 --- @field source string Source description string.
 --- @field description string Rules text.
 --- @field applyto string Target filter id: "all", "allother", "selfandfriends", "friends", "enemies", "sametype", "othertype".
---- @field creatureFilter nil|string|number|table GoblinScript filter evaluated against each creature to determine whether it is affected.
+--- @field creatureFilter nil|string|number|table GoblinScript filter evaluated against each creature to determine whether it is affected. Honoured on both sides of the engine boundary: Lua checks it in Aura:CreaturePassesFilter (modifiers, triggers, enter/start-of-turn), and the engine reads it through AuraInstance:GetCreatureFilter so Aura.ApplyTo can consult it too -- which is what keeps a filtered aura out of the per-tile terrain rules (FloorController.GetTileRulesAtLoc) and decides it per creature instead.
 --- @field modifiers CharacterModifier[] Modifiers applied to creatures inside the aura.
 --- @field subauras nil|Aura[] Optional child aura payloads. Each shares this aura's area, caster,
 --- duration, and removal, but has its own applyto/creatureFilter/modifiers/triggers/terrain flags/
@@ -1061,6 +1061,18 @@ function Aura:GenerateEditor(options)
                 end,
             },
 
+            gui.Check {
+                styles = ThemeEngine.GetStyles(),
+                halign = "left",
+                text = "Unlimited Height",
+                tooltip = "By default an aura reaches as far above and below its source as it does laterally. Check this to have it instead reach any distance up and down.",
+                value = self:try_get("unlimitedHeight", false),
+                change = function(element)
+                    self.unlimitedHeight = element.value
+                    resultPanel:FireEventTree("refreshAura")
+                end,
+            },
+
             CharacterFeature.EditorPanel(self, {
                 halign = "left",
                 noscroll = true,
@@ -1544,6 +1556,33 @@ function AuraInstance:GetConcealment()
     return self.aura:try_get("concealment", false)
 end
 
+--The aura definition's GoblinScript creature filter, or "" when it has none.
+--Read once by the engine when it builds the C# Aura (Aura.cs AddAuraFromLua):
+--an aura that reports a filter here is no longer treated as a property of the
+--tiles it covers, because it applies to some creatures standing there and not
+--others. The engine then asks CreaturePassesFilterForToken per creature.
+function AuraInstance:GetCreatureFilter()
+    local filter = self.aura:try_get("creatureFilter", "")
+    if type(filter) ~= "string" then
+        return ""
+    end
+    return filter
+end
+
+--Engine entry point for the creature filter: called from Aura.ApplyTo and from
+--FloorController.GetTileRulesAtLoc with the token being tested. The engine
+--caches the answer per creature per game update, so this runs at most once per
+--pair per update even though its callers are per-tile pathfinding loops.
+--Returns true (affected) for anything it cannot evaluate, matching
+--Aura:CreaturePassesFilter: an unevaluable filter should leave the aura working
+--as if unfiltered rather than silently affect nobody.
+function AuraInstance:CreaturePassesFilterForToken(token)
+    if token == nil or token.properties == nil then
+        return true
+    end
+    return self.aura:CreaturePassesFilter(token.properties, self)
+end
+
 function AuraInstance:GetCover()
     if self.aura:try_get("blocks_line_of_effect", false) then
         return 1
@@ -1642,6 +1681,22 @@ end
 --leave it false.
 function AuraInstance:GetGroundRelative()
     return self.aura:try_get("auraGroundRelative", false) == true
+end
+
+--Optional caster-relative vertical half-extent in tiles, set on the INSTANCE
+--by token-attached aura generators (ModifierAura's generateAura) to the aura's
+--lateral radius: by default an aura reaches as far above and below its caster
+--as it does laterally. The engine computes the affected band live as
+--[casterBottom - r, casterTop + r] at test time (Aura.TryGetCasterBand), so it
+--follows a flying caster with no re-registration. nil means no caster-relative
+--band (the aura uses the absolute auraHeight band, or is unlimited). The aura
+--payload's unlimitedHeight flag is the author's opt-out back to the legacy
+--infinite column.
+function AuraInstance:GetVerticalRadius()
+    if self.aura:try_get("unlimitedHeight", false) == true then
+        return nil
+    end
+    return self:try_get("verticalRadius")
 end
 
 function AuraInstance:GetDamageInfo()
@@ -1747,6 +1802,26 @@ end
 
 --Relocation abilities come from the parent only.
 function ChildAuraInstance:FillActivatedAbilities(creature, resultAbilities)
+end
+
+--The vertical band is a property of the shared area, so children always use
+--the parent's: a sub-aura payload never carries its own auraHeight/altitude,
+--and without this delegation the engine would read nil from the child def and
+--register the child as an infinite column inside a banded parent.
+function ChildAuraInstance:GetHeight()
+    return self._tmp_parent:GetHeight()
+end
+
+function ChildAuraInstance:GetAltitude()
+    return self._tmp_parent:GetAltitude()
+end
+
+function ChildAuraInstance:GetGroundRelative()
+    return self._tmp_parent:GetGroundRelative()
+end
+
+function ChildAuraInstance:GetVerticalRadius()
+    return self._tmp_parent:GetVerticalRadius()
 end
 
 --- Builds transient ChildAuraInstance views for each entry in this instance's aura.subauras.
@@ -2051,13 +2126,24 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
 
         print("AURA:: CREATED")
 
-        --If the ability's area is a cube, give the aura a matching finite height (in
-        --tiles) so it only affects creatures within the cube's vertical extent rather
-        --than extending to infinite height. auraHeight of 0 leaves it unlimited, which
-        --is the correct behavior for flat shapes (bursts, cones, lines, etc).
+        --Vertical extent. A cube keeps its legacy behavior: the component-level
+        --auraHeight below anchors the band at the spawned object's render altitude
+        --(see ObjectComponentAura.GetAuras) with the cube's own height. Every other
+        --shape gets the default band: the zone reaches as far above and below the
+        --cast altitude as it does laterally, written onto the aura payload so the
+        --engine's GetHeight/GetAltitude reads pick it up in both the object and the
+        --no-object registration paths. unlimitedHeight on the aura payload is the
+        --author's opt-out back to the legacy infinite column, and an explicitly
+        --authored auraHeight is respected as-is.
         local auraHeight = 0
         if targetArea ~= nil and targetArea.shape == "Cube" then
             auraHeight = targetArea.radius
+        elseif auraDef:try_get("unlimitedHeight", false) ~= true and auraDef:try_get("auraHeight") == nil then
+            local lateral = math.floor(tonumber(targetArea ~= nil and targetArea.radius or nil) or -1)
+            if lateral >= 0 then
+                auraDef.auraHeight = lateral * 2
+                auraDef.auraAltitude = (tonumber(targetLoc.altitude) or 0) - lateral
+            end
         end
 
         local obj = nil

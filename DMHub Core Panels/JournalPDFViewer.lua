@@ -4037,6 +4037,43 @@ local g_journalWindowedSetting = setting {
 
 local g_pdfViewerDialog = nil
 
+--This is a live companion capability, not a platform guess. The first
+--popout launches the helper, so false can become true shortly after the Lua
+--panel has moved. Keeping this uncached also makes a helper restart safe.
+local function PopoutCustomTitleBarSupported()
+    local ok, supported = pcall(function()
+        return dmhub.popoutCustomTitleBarSupported
+    end)
+    return ok and supported == true
+end
+
+--The same 42px caption-button zones and 16px glyphs used by the main app's
+--Chromium-style title bar. The companion leaves these three zones as client
+--input while treating the rest of the bar as native draggable caption.
+local function CreatePDFPopoutWindowControl(args)
+    return gui.Panel {
+        classes = { "pdfPopoutWindowControl", cond(args.danger, "pdfPopoutWindowControlDanger") },
+        bgimage = true,
+        width = 42,
+        height = "100%",
+        valign = "center",
+        click = args.click,
+
+        gui.Panel {
+            classes = { "pdfPopoutWindowControlIcon", cond(args.danger, "pdfPopoutWindowControlIconDanger") },
+            bgimage = args.icon,
+            width = 16,
+            height = 16,
+            halign = "center",
+            valign = "center",
+            interactable = false,
+            setIcon = function(element, icon)
+                element.bgimage = icon
+            end,
+        },
+    }
+end
+
 mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
     if g_pdfViewerDialog ~= nil and g_pdfViewerDialog.valid then
         if g_pdfViewerDialog.data.doc == doc then
@@ -4056,12 +4093,96 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
     local document = doc.doc
 
     local dialogPanel
+    local popoutMaximizeControl
+
+    local popoutTitleBar = gui.Panel {
+        classes = { "pdfPopoutTitleBar", "collapsed" },
+        bgimage = true,
+        bgcolor = "@bg",
+        flow = "horizontal",
+        width = "100%",
+        height = 32,
+        halign = "left",
+        valign = "top",
+
+        gui.Panel {
+            bgimage = "ui-icons/codex-logo.png",
+            bgcolor = "white",
+            width = 18,
+            height = 18,
+            lmargin = 10,
+            rmargin = 8,
+            halign = "left",
+            valign = "center",
+            interactable = false,
+        },
+
+        gui.Label {
+            text = doc.description,
+            width = "100% available",
+            height = "100%",
+            fontSize = 14,
+            color = "@fg",
+            textAlignment = "left",
+            textWrap = false,
+            textOverflow = "ellipsis",
+            valign = "center",
+            interactable = false,
+        },
+
+        gui.Panel {
+            classes = { "pdfPopoutWindowButtons" },
+            flow = "horizontal",
+            width = "auto",
+            height = "100%",
+            halign = "right",
+            valign = "center",
+
+            CreatePDFPopoutWindowControl {
+                icon = "window-chrome/chrome-minimize.png",
+                click = function()
+                    if dialogPanel ~= nil and dialogPanel.valid then
+                        pcall(function()
+                            dialogPanel:MinimizeNativeWindow()
+                        end)
+                    end
+                end,
+            },
+
+            (function()
+                popoutMaximizeControl = CreatePDFPopoutWindowControl {
+                    icon = "window-chrome/chrome-maximize.png",
+                    click = function()
+                        if dialogPanel ~= nil and dialogPanel.valid then
+                            pcall(function()
+                                dialogPanel:ToggleMaximizeNativeWindow()
+                            end)
+                        end
+                    end,
+                }
+                return popoutMaximizeControl
+            end)(),
+
+            CreatePDFPopoutWindowControl {
+                danger = true,
+                icon = "window-chrome/chrome-close.png",
+                click = function()
+                    if dialogPanel ~= nil and dialogPanel.valid then
+                        dialogPanel:DestroySelf()
+                    end
+                end,
+            },
+        },
+    }
+
     dialogPanel = gui.Panel {
         classes = { "framedPanel", cond(g_journalWindowedSetting:Get(), "windowed") },
         pad = 8,
         flow = "vertical",
         data = {
             doc = doc,
+            poppedOut = false,
+            chromeVisible = false,
         },
         styles = {
             ThemeEngine.GetStyles(),
@@ -4076,13 +4197,86 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                 width = "100%-776",
                 transitionTime = 0.1,
             },
+            {
+                selectors = { "framedPanel", "pdfPopoutCustomChrome" },
+                borderWidth = 0,
+                cornerRadius = 0,
+            },
+            {
+                selectors = { "pdfViewerContent", "pdfPopoutCustomChrome" },
+                --32px title row plus the viewer's existing 30px inset.
+                height = "100%-62",
+            },
+            {
+                selectors = { "pdfPopoutTitleBar" },
+                bgcolor = "@bg",
+            },
+            {
+                selectors = { "pdfPopoutWindowControl" },
+                bgcolor = "clear",
+            },
+            {
+                selectors = { "pdfPopoutWindowControl", "hover" },
+                bgcolor = "#ffffff1f",
+            },
+            {
+                selectors = { "pdfPopoutWindowControl", "press" },
+                bgcolor = "#ffffff33",
+            },
+            {
+                selectors = { "pdfPopoutWindowControlDanger", "hover" },
+                bgcolor = "#c42b1c",
+            },
+            {
+                selectors = { "pdfPopoutWindowControlDanger", "press" },
+                bgcolor = "#b3271a",
+            },
+            {
+                selectors = { "pdfPopoutWindowControlIcon" },
+                bgcolor = "@fg",
+            },
+            {
+                selectors = { "pdfPopoutWindowControlIconDanger", "parent:hover" },
+                bgcolor = "#ffffff",
+            },
         },
-
-
 
         resize = function(element, width, height)
             element.selfStyle.width = width
             element.selfStyle.height = height
+        end,
+
+        popout = function(element)
+            element.data.poppedOut = true
+        end,
+
+        --This poll lives on the always-active root, not on the initially
+        --collapsed titlebar: the first helper's HELLO arrives after the
+        --window is created, and a collapsed panel is not guaranteed a think.
+        thinkTime = 0.1,
+        think = function(element)
+            local visible = element.data.poppedOut and PopoutCustomTitleBarSupported()
+            if visible ~= element.data.chromeVisible then
+                element.data.chromeVisible = visible
+                element.selfStyle.pad = visible and 0 or 8
+                popoutTitleBar:SetClass("collapsed", not visible)
+                --The root drops its modal frame/padding and the content makes
+                --room for this flow row only when Lua chrome is live.
+                element:SetClassTree("pdfPopoutCustomChrome", visible)
+            end
+
+            if visible and popoutMaximizeControl ~= nil and popoutMaximizeControl.valid then
+                local maximized = false
+                pcall(function()
+                    maximized = element.nativeWindowMaximized == true
+                end)
+                if maximized ~= popoutMaximizeControl.data.maximized then
+                    popoutMaximizeControl.data.maximized = maximized
+                    popoutMaximizeControl:FireEventTree("setIcon", cond(maximized,
+                        "window-chrome/chrome-restore.png",
+                        "window-chrome/chrome-maximize.png"))
+                end
+            end
         end,
 
         --scheduled by the popout button: binds the PDF paging keys to the
@@ -4122,7 +4316,10 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
             end
         end,
 
+        popoutTitleBar,
+
         gui.Panel {
+            classes = { "pdfViewerContent" },
             width = "100%-30",
             height = "100%-30",
             halign = "center",
@@ -4175,6 +4372,12 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                     dialogPanel:MoveToNativeWindow {
                         scaling = 0.9,
                         resizeable = true,
+                        --The new Windows companion creates this normal
+                        --toplevel borderless. Old companions ignore the bit;
+                        --the Lua title bar stays collapsed until HELLO says
+                        --the feature is supported, so they retain one native
+                        --title bar rather than getting duplicate chrome.
+                        customTitleBar = true,
                         --the OS window title; engines predating it fall
                         --back to the product name.
                         title = doc.description,

@@ -1027,6 +1027,61 @@ local function CreateLobbyHud(dialog, tokenInfo)
     return gamehud
 end
 
+--The generic identity for the tracked-documents top bar when the adventure
+--cannot be named. Kept in step with the initial values CodexTitleBar.lua gives
+--the menu item itself.
+local g_adventureDocumentsIcon = "phosphor/book-open.png"
+
+--Walks a document's journal-folder ancestry and returns the description of the
+--outermost real folder (the built-in roots -- Shared/Private/Templates/map --
+--are not in the folders table, so the walk simply runs out there). Adventures
+--ship their documents under a single top-level folder named for the adventure,
+--so that folder is the adventure's name. Returns nil for a document that sits
+--loose in a built-in root.
+local function AdventureFolderNameForDoc(doc)
+    local foldersTable = assets.documentFoldersTable or {}
+    local folderId = doc.parentFolder
+    local name = nil
+    local count = 0
+    while folderId ~= nil and folderId ~= "" and count < 20 do
+        local folder = foldersTable[folderId]
+        if folder == nil then
+            break
+        end
+        if not folder.hidden then
+            name = folder.description or name
+        end
+        folderId = folder.parentFolder
+        count = count + 1
+    end
+    return name
+end
+
+--The label for the tracked-documents top bar, derived from the documents being
+--tracked: if they all live under the same adventure folder, that adventure is
+--what the director is running. Returns nil when the answer is not unanimous
+--(two adventures tracked at once, or documents with no adventure folder) --
+--TopBar.SetAdventureDocuments renders a nil name as "Adventure Documents".
+local function AdventureDocumentsLabel(documentids)
+    local documentsTable = dmhub.GetTable(CustomDocument.tableName) or {}
+    local result = nil
+    for _,docid in ipairs(documentids) do
+        local doc = documentsTable[docid]
+        if doc == nil then
+            return nil
+        end
+
+        local name = AdventureFolderNameForDoc(doc)
+        if name == nil or (result ~= nil and result ~= name) then
+            return nil
+        end
+
+        result = name
+    end
+
+    return result
+end
+
 function GameHud:CreateAdventureDocumentsManager()
     local resultPanel
 
@@ -1066,9 +1121,22 @@ function GameHud:CreateAdventureDocumentsManager()
 
             print("AdventureDoc:: MONITOR", docs, "->", documentids)
 
-            local meta = m_docs["meta"] or {
-                icon = "panels/drawsteel/delian-tomb.png",
-                name = "Delian Tomb",
+            --An adventure can name its own bar with /setadventuredocumentstitle,
+            --but almost none do, and defaulting to the starter adventure's
+            --identity branded every adventure "Delian Tomb". Derive the name
+            --from the tracked documents instead, and fall back to the generic
+            --identity rather than to a specific adventure's.
+            local metaRecord = m_docs["meta"]
+            local metaName = metaRecord and metaRecord.name
+            if metaName == "" then
+                --the whole-adventure "untrack" buttons blank the title to clear
+                --it; an empty label would otherwise leave a nameless bar.
+                metaName = nil
+            end
+
+            local meta = {
+                name = metaName or AdventureDocumentsLabel(documentids),
+                icon = (metaRecord and metaRecord.icon) or g_adventureDocumentsIcon,
             }
 
             TopBar.SetAdventureDocuments(meta, documentids)
@@ -1079,10 +1147,6 @@ function GameHud:CreateAdventureDocumentsManager()
         end,
 
         destroy = function(element)
-            local meta = m_docs["meta"] or {
-                icon = "panels/drawsteel/delian-tomb.png",
-                name = "Delian Tomb",
-            }
             TopBar.SetAdventureDocuments(nil, {})
             print("ADVENTURE:: DESTROY DOC")
         end,
@@ -1402,8 +1466,6 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			gamehud:RequireRollListenerPanel(),
 			FullscreenDisplay.Create{belowui = true},
 			--gamehud:CreateSidePanel(),
-			gamehud:CreateActionBar(dialog, tokenInfo),
-			gamehud:CreateReactionBar(dialog, tokenInfo),
 			--gamehud:CreateSessionsPanel(),
 			--gamehud:CreateChatPanel(),
 			gamehud:CreateFrozenLabel(),
@@ -1422,6 +1484,31 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			--while still leaving it below mainDialog / modal / popup / rollDialog,
 			--so modals and the dice dialog continue to win.
 			gamehud:CreateDocumentsPanel(),
+
+			--The action bar sits ABOVE the documents layer for the same reason.
+			--Everything the bar floats out of its strip -- the drawer menus, the
+			--cast controls (abilityController / Confirm), the Respite Activity
+			--drawer -- reaches up to ~900px into map space, so a window parked
+			--anywhere near the bottom centre swallowed the control AND its
+			--clicks. Reported three times over: UECH333Y (drawer cards),
+			--58DDT3EB (Confirm), TR4BXVG8 (Respite Activity).
+			--
+			--Promoting the whole bar rather than re-homing the individual popups
+			--is deliberate. The popups cannot leave the bar's subtree: drawer
+			--menus re-parent into their own drawer to position themselves and
+			--route events through FindParentWithClass("actionBar")
+			--(DrawSteelActionBar.lua, the ActionMenu "menu" handler), and the
+			--rest ride the bar's FireEventTree. renderOnTop is no help either --
+			--it draws on the top-most sorting canvas, which the raycaster does
+			--not reach, so the control would paint but stay unclickable.
+			--
+			--The price is that the bar's own strip (its gradient backdrop and the
+			--drawer buttons, ~58px tall and panelWidth wide, not full screen) now
+			--draws over the bottom of a window parked at bottom centre. That is
+			--much the smaller footprint of the two, and the bar hides itself
+			--entirely when no token is selected.
+			gamehud:CreateActionBar(dialog, tokenInfo),
+			gamehud:CreateReactionBar(dialog, tokenInfo),
             gamehud:CreateAbilityDisplayPanel(),
             gamehud:CreateStandaloneRollHost(),
 			mainDialogPanel,
@@ -1484,18 +1571,22 @@ end
 --roll host). With the legacy docks a fixed 364 column is reserved for
 --the right dock. In icon-rail mode the dock is gone, so the hosts sit
 --near the right edge -- clearing only the rail's button column -- and
---slide left, up to the legacy 364, when floating panel windows are
---parked against the right edge (RailWindowsRightIntrusion).
+--slide left, as far as needed to fully clear floating panel windows
+--parked against the right edge (RailWindowsRightIntrusion), stopping
+--only when the host itself would run off the left of the screen.
 local RIGHT_HOST_LEGACY_MARGIN = 364
 --rail column: 12 edge margin + 40 button + a small gap.
 local RIGHT_HOST_RAIL_MARGIN = 60
-local function RightHostMargin()
+local function RightHostMargin(hostWidth)
     if rawget(_G, "RailModeActive") == nil or not RailModeActive() then
         return RIGHT_HOST_LEGACY_MARGIN
     end
     local intrusion = 0
     if rawget(_G, "RailWindowsRightIntrusion") ~= nil then
-        intrusion = RailWindowsRightIntrusion(RIGHT_HOST_LEGACY_MARGIN)
+        --the reserve keeps the host on screen: its own width plus a
+        --left rail column's worth of clearance.
+        intrusion = RailWindowsRightIntrusion(RIGHT_HOST_LEGACY_MARGIN,
+            hostWidth + RIGHT_HOST_RAIL_MARGIN)
     end
     return math.max(RIGHT_HOST_RAIL_MARGIN, intrusion)
 end
@@ -1504,6 +1595,12 @@ end
 --the inputs (the iconrail setting, window drags/opens/closes) have no
 --single change event, and the check is a handful of table reads.
 local function TrackRightHostMargin(panel)
+    --both hosts declare fixed numeric widths; fall back to the wider of
+    --the two so a non-numeric width just means a slightly shorter slide.
+    local hostWidth = panel.selfStyle.width
+    if type(hostWidth) ~= "number" then
+        hostWidth = 540
+    end
     local currentMargin = nil
     panel.thinkTime = 0.25
     --panels built with no event handlers have a nil events table; reading
@@ -1512,7 +1609,7 @@ local function TrackRightHostMargin(panel)
         panel.events = {}
     end
     panel.events.think = function(element)
-        local m = RightHostMargin()
+        local m = RightHostMargin(hostWidth)
         if m ~= currentMargin then
             currentMargin = m
             element.selfStyle.rmargin = m
@@ -1827,9 +1924,9 @@ end
 function GameHud:CreateFrozenLabel()
 
 	local freezebind = dmhub.GetCommandBinding("togglefreeze")
-	local bindtext = "(Players cannot move.)"
+	local bindtext = "(Players cannot act.)"
 	if freezebind ~= nil and dmhub.isDM then
-		bindtext = string.format("(Players cannot move. %s to toggle.)", freezebind)
+		bindtext = string.format("(Players cannot act. %s to toggle.)", freezebind)
 	end
 
 

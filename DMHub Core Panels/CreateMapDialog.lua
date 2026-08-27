@@ -1130,8 +1130,10 @@ mod.shared.ImportMapToFloorCo = function(info)
                             local foundryDoorState = portal.foundryDoorState or (flags and flags.foundry_door_state)
                             -- TODO: Apply Foundry open/locked door state when DMHub exposes a door-state API.
                             local delta = core.Vector2(x2 - x1, y1 - y2)
-                            portalObj.x = area.x1 + ((x1 + x2) / 2)
-                            portalObj.y = area.y2 - ((y1 + y2) / 2)
+                            -- A portal object's position is its hinge, not its center,
+                            -- so anchor it at the first endpoint of the portal segment.
+                            portalObj.x = area.x1 + x1
+                            portalObj.y = area.y2 - y1
                             portalObj.rotation = delta.angle + (tonumber(dmhub.GetSettingValue("mapimport:portal_rotation_offset")) or 90)
                             portalObj.scale = portalObjectScale(nodeId, delta.length)
                             portalObj:Upload()

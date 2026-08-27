@@ -17,7 +17,7 @@ end
 --- Executes a GoblinScript "rule" as part of the ability's power table effect resolution.
 ActivatedAbilityDrawSteelCommandBehavior = RegisterGameType("ActivatedAbilityDrawSteelCommandBehavior", "ActivatedAbilityBehavior")
 
-ActivatedAbilityDrawSteelCommandBehavior.summary = 'Power Roll Effect'
+ActivatedAbilityDrawSteelCommandBehavior.summary = 'Power Table Effect'
 ActivatedAbilityDrawSteelCommandBehavior.rule = ''
 
 ActivatedAbility.RegisterType
@@ -102,6 +102,12 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
 
             while targets == nil do
                 coroutine.yield(0.1)
+                --If the caster died while we waited, no answer will ever
+                --come. Treat it as cancelled instead of hanging.
+                if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+                    targets = {}
+                    targetChoices = {}
+                end
             end
         end
 
@@ -508,7 +514,7 @@ local g_rulePatterns = {
     },
 
     {
-        pattern = "^(?<vertical>vertical )?(?<movement>pull|push|slide) +(?<straightup>straight up +)?(?<distance>[0-9]+)(?<ignorestabilityifcompanion>[,;]? ignoring stability if (your )?companion is adjacent( to the target)?)?(?<ignorestability>[,;]? (ignoring stability|this (push|pull|slide) ignores the target.s stability))?",
+        pattern = "^(?<vertical>vertical )?(?<movement>pull|push|slide) +(?<straightup>straight up +)?(?<distance>[0-9]+)(?<ignorestabilityifcompanion>[,;]? ignoring stability if (your )?companion is adjacent( to the target)?)?(?<ignorestabilityifally>[,;]? (allies ignore stability|ignoring stability if the target is (an|your) ally|ignoring (the )?stability of allies))?(?<ignorestability>[,;]? (ignoring stability|this (push|pull|slide) ignores the target.s stability))?",
         execute = function(behavior, ability, casterToken, targetToken, options, match)
 
             print("INVOKE:: EXECUTE FORCE MOVE", match.movement, match.distance)
@@ -593,7 +599,12 @@ local g_rulePatterns = {
                     ignoreForCompanion = companionToken.loc:DistanceInTiles(targetToken.loc) <= 1
                 end
             end
-            if stability ~= 0 and (match.ignorestability or ignoreForCompanion or casterToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0) then
+            --"allies ignore stability": zero stability only when the pusher counts the target as a friend.
+            local ignoreForAlly = false
+            if match.ignorestabilityifally then
+                ignoreForAlly = casterToken:IsFriend(targetToken)
+            end
+            if stability ~= 0 and (match.ignorestability or ignoreForCompanion or ignoreForAlly or casterToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0) then
                 stability = 0
                 adjustments[#adjustments+1] = "Ignoring Stability"
             end
@@ -717,7 +728,7 @@ local g_rulePatterns = {
         end,
     },
     {
-        pattern = "^prone( and)? can't stand \\((?<duration>eot|eoe|save ends)\\)",
+        pattern = "^prone( and)? cant stand \\((?<duration>eot|eoe|save ends)\\)",
         execute = function(behavior, ability, casterToken, targetToken, options, match)
             ability:CommitToPaying(casterToken, options)
 

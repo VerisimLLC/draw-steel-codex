@@ -1300,6 +1300,10 @@ function ActivatedAbility:TargetLocPassesFilterPredicate(casterToken, symbols)
     print("MARKER:: GENERAL", self.targetType, "X (", self.targetFilter, ")")
 	return function(loc)
 		local symbolizedLoc = Loc.Create(loc)
+		--make the casting token available to Loc GoblinScript fields that must
+		--exclude it (e.g. AdjacentToWater treats other water elementals as
+		--bodies of water, but never the caster itself). _tmp_ = transient.
+		symbolizedLoc._tmp_casterid = casterToken.charid
 		symbolsCopy.target = symbolizedLoc
 
 		local result = GoblinScriptTrue(ExecuteGoblinScript(self.targetFilter, casterToken.properties:LookupSymbol(symbolsCopy), 0, string.format("Target location filter for %s", self.name)))
@@ -1308,13 +1312,31 @@ function ActivatedAbility:TargetLocPassesFilterPredicate(casterToken, symbols)
 end
 
 
+--Returns the failure message for the first abilityFilters entry whose formula
+--evaluates false, or nil if all pass. The failing filter table itself is
+--returned as a second value so callers can inspect extra fields on the entry
+--(e.g. sightlines = true asks the action bar to draw line-of-sight arrows from
+--enemies that can see the caster while the blocked ability is hovered).
+--Callers that use this in an `or` expression naturally truncate to just the
+--message.
 function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
     local filters = self:try_get("abilityFilters", {})
 
+    --HideGate diagnostics: the Hide maneuver's cover/concealment gate is easy to
+    --break silently (a GoblinScript error in a filter formula evaluates to the
+    --default of 1 = pass), so trace its evaluation to the console.
+    local diag = self.name == "Hide"
+    if diag then
+        print(string.format("HideGate:: evaluating %d filter(s) on %s", #filters, self.name))
+    end
+
     for _,filter in ipairs(filters) do
         local result = ExecuteGoblinScript(filter.formula, casterCreature:LookupSymbol{}, 1, "Test ability filter")
+        if diag then
+            print("HideGate:: formula [", filter.formula, "] ->", result, "pass =", GoblinScriptTrue(result))
+        end
         if not GoblinScriptTrue(result) then
-            return StringInterpolateGoblinScript(filter.reason, casterCreature)
+            return StringInterpolateGoblinScript(filter.reason, casterCreature), filter
         end
     end
 
@@ -1491,6 +1513,51 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     end
 
     return result
+end
+
+--- Evaluates only the authored filter formulas -- customTargetFilters
+--- (Ability Filters), the Target Filter formula, and Reasoned Filters --
+--- against a prospective target. None of TargetPassesFilter's structural
+--- gates (allegiance, untargetable, line of sight) run here. Use where the
+--- target is predetermined (e.g. a triggered ability targeting its subject)
+--- and only the author's filters should gate it.
+--- @param casterToken CharacterToken
+--- @param targetToken CharacterToken
+--- @param symbols table
+--- @return boolean, nil|string
+function ActivatedAbility:TargetPassesAuthoredFilters(casterToken, targetToken, symbols)
+	local reasonedFilters = self:try_get("reasonedFilters", {})
+	local customFilters = self:try_get("customTargetFilters", {})
+	local filter = self.targetFilter
+	if filter == "" and #reasonedFilters == 0 and #customFilters == 0 then
+		return true
+	end
+
+	--Same symbol environment TargetPassesFilter builds for its formulas.
+	local caster = GenerateSymbols(casterToken.properties)
+	symbols = table.shallow_copy(symbols or {})
+	symbols.invoker = symbols.invoker or caster
+	symbols.caster = caster
+	symbols.enemy = not IsFriendForTargeting(casterToken, targetToken)
+	symbols.target = GenerateSymbols(targetToken.properties)
+
+	for _,customFilter in ipairs(customFilters) do
+		if not GoblinScriptTrue(ExecuteGoblinScript(customFilter, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target filter for %s", self.name))) then
+			return false
+		end
+	end
+
+	if filter ~= "" and not GoblinScriptTrue(ExecuteGoblinScript(filter, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target filter for %s", self.name))) then
+		return false
+	end
+
+	for _,reasonedFilter in ipairs(reasonedFilters) do
+		if not GoblinScriptTrue(ExecuteGoblinScript(reasonedFilter.formula, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target reasoned filter for %s", self.name))) then
+			return false, StringInterpolateGoblinScript(reasonedFilter.reason, symbols)
+		end
+	end
+
+	return true
 end
 
 --- @return boolean
@@ -1672,6 +1739,9 @@ function ActivatedAbility:SwitchModes(i)
     result.skippable = self:try_get("skippable")
     result.countsAsCast = self:try_get("countsAsCast")
     result.promptOverride = self:try_get("promptOverride")
+    -- Keep the opt-out across the mode switch, or a minion gets asked for one target
+    -- per squad member.
+    result.disableSquadCoordination = self:try_get("disableSquadCoordination")
 
     if result.resourceCost == "none" then
         result.resourceCost = self.resourceCost
@@ -1969,10 +2039,13 @@ function ActivatedAbility:GetCost(casterToken, options)
 
 		--look for any resources of this type in the level progression and spend the first one we find.
 		--the common case is for the progression to just be one resource.
-		--Remap heroic resource to the creature's actual resource (e.g. malice for monsters).
+		--Remap heroic resource to the creature's actual resource (e.g. malice for
+		--monsters). Goes through GetHeroicOrMaliceId rather than the raw resourceid
+		--field so summons that share their summoner's heroic resource keep the
+		--heroic cost instead of being remapped to Malice.
 		local effectiveResourceCost = self.resourceCost
-		if effectiveResourceCost == CharacterResource.heroicResourceId and creature.resourceid ~= CharacterResource.heroicResourceId then
-			effectiveResourceCost = creature.resourceid
+		if effectiveResourceCost == CharacterResource.heroicResourceId then
+			effectiveResourceCost = creature:GetHeroicOrMaliceId()
 		end
 		local resourceLevels = CharacterResource.GetLevelProgression(effectiveResourceCost)
 
@@ -2654,6 +2727,14 @@ end
 --- @param targets { loc = Loc, token = CharacterToken }[]
 --- @param options table
 function ActivatedAbility:Cast(casterToken, targets, options)
+	--While the Director has the game frozen, players cannot act. Refuse here,
+	--before the chat message and before any resources are spent -- this is the
+	--central funnel every ability activation path goes through.
+	if dmhub.frozen and not dmhub.isDM then
+		print("Cast:: refused; the game is frozen")
+		return
+	end
+
 	options = options or {}
 	options.symbols = options.symbols or {}
     options.symbols.castid = dmhub.GenerateGuid()

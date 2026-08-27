@@ -508,8 +508,13 @@ function GameHud:RequireRollListenerPanel()
 												req:BeginChanges()
 												req.info.tokens[tokid].status = 'complete'
 												req.info.tokens[tokid].result = rollInfo.total
+												req.info.tokens[tokid].naturalRoll = rollInfo.naturalRoll
 												req.info.tokens[tokid].boons = rollInfo.boons
 												req.info.tokens[tokid].banes = rollInfo.banes
+												req.info.tokens[tokid].dice = RollUtils.SortedDice(rollInfo)
+												req.info.tokens[tokid].isCrit = RollUtils.IsCrit(rollInfo)
+												req.info.tokens[tokid].rollid = rollInfo.key
+												req.info.tokens[tokid].modifiersUsed = rollInfo.properties ~= nil and rollInfo.properties:try_get("modifiersUsed", {}) or {}
 
 												if rollInfo.forcedResult then
 													req.info.tokens[tokid].forcedResult = rollInfo.autosuccess

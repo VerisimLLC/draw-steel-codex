@@ -230,8 +230,13 @@ function Translation.CreateEditor()
 				},
 			},
 
-			gui.Input{
-				classes = {"formInput"},
+			--the canonical search field; sized explicitly since it no longer
+			--rides the formInput class.
+			gui.SearchInput{
+				borderBox = true,
+				width = 240,
+				height = 26,
+				halign = "left",
 				placeholderText = "Search Strings...",
 				translation = function(element)
 					element.text = ""

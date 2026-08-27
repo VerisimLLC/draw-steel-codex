@@ -88,13 +88,16 @@ Floating text that says "Artifact Appears" is not automation -- it's a sticky no
 - **Float text is NOT automation.** If a behavior's only runtime effect is displaying
   a message, that mechanic is unautomated. The tier should reflect what actually happens
   in the game engine, not what text appears on screen.
-- **"Implementation: 0" or "implementation: 2" markers** in the YAML indicate the original
+- **"Implementation: 1" or "implementation: 2" markers** in the YAML indicate the original
   author already flagged this as unimplemented or partially implemented. Respect those flags.
 - **`effectImplemented` is DEPRECATED and must be completely ignored.** Do NOT read it, set
-  it, or reference it in any YAML output. Use the `implementation` field exclusively
-  (0 = unimplemented, 1 = narrative, 2 = partial, 3 = full). If you encounter
-  `effectImplemented` in existing YAML, ignore it -- the `implementation` field is
-  authoritative.
+  it, or reference it in any YAML output. Use the `implementation` field exclusively.
+  Its scale comes from `gui.ImplementationStatus` in `DMHub Core UI/Gui.lua` and maps
+  directly onto the tier names above: 0 = won't implement/narrative, 1 = unimplemented
+  (the default), 2 = Bronze, 3 = Silver, **4 = Gold**. Fully automated content must be
+  marked `implementation: 4` -- marking it 3 displays as Silver in the app. If you
+  encounter `effectImplemented` in existing YAML, ignore it -- the `implementation`
+  field is authoritative.
 - **Assess benefit AND drawback separately.** A complication with a fully automated drawback
   but a text-only benefit (or vice versa) is at best SILVER, not GOLD.
 - **Conditional modifiers count as automated** only if the condition can actually be evaluated
@@ -359,7 +362,10 @@ All reference docs live in the `data/` submodule under `data/docs/`.
 
 **CRITICAL:** When writing ANY GoblinScript formula, ALWAYS:
 1. Check GOBLINSCRIPT-CONTEXTS.md to know what symbols are available in that specific field
-2. Check GOBLINSCRIPT-SYMBOLS.md for the exact symbol name (with spaces!)
+2. Check GOBLINSCRIPT-SYMBOLS.md for the exact symbol name -- then write it WITHOUT
+   spaces in the formula (`MaximumStamina`, not `Maximum Stamina`). Lookup strips spaces
+   and case, and spaced spellings silently mis-parse when a word collides with a reserved
+   operator (`has`, `is`, `not`, `and`, `or`, `when`, `where`, `else`)
 3. Understand what "Self" means in that context (the creature being evaluated, NOT always the caster)
 4. NEVER guess symbol names -- always verify against the reference
 

@@ -156,8 +156,12 @@ ActivatedAbility.RegisterType{
 ActivatedAbilityPortalTransitBehavior.summary = "Portal Transit"
 ActivatedAbilityPortalTransitBehavior.auraName = ""
 
---- Every placed portal of the given aura name on the given floor, read straight off the
+--- Every placed portal of the given aura name anywhere on the map, read straight off the
 --- map objects.
+---
+--- The network is floor-agnostic: portals connect to each other, not to a floor, and a pair
+--- opened on two different floors has to link. Each record carries its OWN floor, because
+--- every consumer below keys squares on xyfloorOnly.str.
 ---
 --- The map is deliberately the source of truth here rather than the trigger's "aura"
 --- symbol or the owner's aura list. An aura trigger can be handed to the controlling
@@ -167,9 +171,8 @@ ActivatedAbilityPortalTransitBehavior.auraName = ""
 --- receiving machine -- which is precisely the case where somebody else moved the token.
 --- Map objects are present and identical on every client.
 --- @param auraName string Aura name to match (case-insensitive).
---- @param floorIndex number Only portals on this floor are collected.
 --- @return table[] A list of { loc = Loc, casterid = string }.
-local function CollectPortals(auraName, floorIndex)
+local function CollectPortals(auraName)
     local result = {}
     if auraName == "" then
         return result
@@ -178,7 +181,7 @@ local function CollectPortals(auraName, floorIndex)
     local wanted = string.lower(auraName)
     for _, floor in ipairs(game.currentMap.floors) do
         for _, obj in pairs(floor.objects) do
-            if obj.valid and obj.floorIndex == floorIndex then
+            if obj.valid then
                 local component = obj:GetComponent("Aura")
                 local props = nil
                 if component ~= nil then
@@ -191,10 +194,12 @@ local function CollectPortals(auraName, floorIndex)
                 end
 
                 if auraInstance ~= nil and string.lower(auraInstance:try_get("name", "")) == wanted then
+                    -- core.Loc carries no floor of its own, so WithDifferentFloor is the only
+                    -- thing that sets one, and it must be the OBJECT's floor.
                     local portalLoc = core.Loc{
                         x = math.floor(obj.x + 0.5),
                         y = math.floor(obj.y + 0.5),
-                    }:WithDifferentFloor(floorIndex)
+                    }:WithDifferentFloor(obj.floorIndex)
 
                     -- A placed object stores no elevation of its own: LuaObjectInstance exposes
                     -- only x/y/floorIndex, and the aura's shape altitude is not bound to Lua. A
@@ -331,13 +336,19 @@ end
 --- recoverable -- it drops the creature and deals falling damage nobody chose -- whereas
 --- emerging low is harmless and is then clamped up to the destination's own ground anyway.
 --- This matches the direction the pit clamp in PerformTransit already resolves ties.
+---
+--- The floor is compared explicitly because DistanceInTiles measures the lateral (x/y)
+--- dimensions ONLY (see the teleport-cost note in Draw Steel UI/DSHud.lua). The network
+--- spans floors, so without it a portal directly overhead reads as adjacent and donates its
+--- altitude to an emergence on another floor. FloorDifference rather than a floor equality
+--- test: a portal on a layer of the destination's floor is still on that floor.
 --- @param portals table[] All placed portals as { loc, altitude, casterid }.
 --- @param loc Loc The chosen destination square.
 --- @return nil|number
 local function EmergeAltitudeFor(portals, loc)
     local result = nil
     for _, portal in ipairs(portals) do
-        if portal.altitude ~= nil and portal.loc:DistanceInTiles(loc) <= 1 then
+        if portal.altitude ~= nil and portal.loc:FloorDifference(loc) == 0 and portal.loc:DistanceInTiles(loc) <= 1 then
             if result == nil or portal.altitude < result then
                 result = portal.altitude
             end
@@ -402,6 +413,47 @@ end
 local function ChooseTransitDestination(travelToken, candidates, symbols, chooserToken)
     local capturedLoc = nil
 
+    --- Resolve a picked square back onto the candidate it represents, so the FLOOR comes from
+    --- the candidate rather than from the click.
+    ---
+    --- The map hands back a loc on whichever floor the click resolved against, and for a player
+    --- that is their own token's floor: "look up" is a view overlay, not a change of the
+    --- interactive floor, so clicking a highlighted square one floor UP returns those x/y
+    --- coordinates stamped with the traveller's floor. Teleporting there leaves them where they
+    --- started. Clicking DOWN happens to work because lower floors are part of the same
+    --- rendered stack and resolve to their own floor.
+    ---
+    --- An exact match wins outright. Otherwise a unique x/y match identifies the square
+    --- unambiguously and its floor is trusted over the click's. Anything else (no match, or the
+    --- same x/y offered on two floors at once) is left exactly as picked rather than guessed at.
+    --- @param picked nil|Loc
+    --- @param candidateLocs Loc[]
+    --- @return nil|Loc
+    local function SnapToCandidate(picked, candidateLocs)
+        if picked == nil then
+            return nil
+        end
+
+        local match = nil
+        local matchCount = 0
+        for _, candidate in ipairs(candidateLocs) do
+            if candidate.x == picked.x and candidate.y == picked.y then
+                if candidate.floor == picked.floor then
+                    return candidate
+                end
+
+                match = candidate
+                matchCount = matchCount + 1
+            end
+        end
+
+        if matchCount == 1 then
+            return match
+        end
+
+        return picked
+    end
+
     local captureBehavior = ActivatedAbilityBehavior.new{
         instant = true,
     }
@@ -436,7 +488,7 @@ local function ChooseTransitDestination(travelToken, candidates, symbols, choose
     -- client is running this code, so callers must already be executing there.
     ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(chooserToken or travelToken, pickAbility, travelToken, "prompt", symbols or {}, {})
 
-    return capturedLoc
+    return SnapToCandidate(capturedLoc, candidates)
 end
 
 --- Forget that this creature has entered these portals this turn.
@@ -522,10 +574,28 @@ local function PerformTransit(travelToken, portals, candidates, symbols, chooser
     -- Mark the hop as free movement so the teleport is not billed against whatever movement the
     -- creature has left. Saved and restored rather than cleared outright so this never stomps a
     -- value an enclosing flow is relying on.
+    local originLoc = travelToken.loc
+
     local previousFreeMovement = travelToken.properties:try_get("_tmp_freeMovement", false)
     travelToken.properties._tmp_freeMovement = true
     travelToken:Teleport(teleportLoc)
     travelToken.properties._tmp_freeMovement = previousFreeMovement
+
+    -- Arriving on a floor ABOVE the one departed leaves the "look up" view (FloorNavigation.
+    -- LookRelative, DMHub Core Panels/Floors.lua) pointing one or more floors past where the
+    -- creature now stands: the offset is measured from whatever floor the token is on, and it
+    -- was raised to see the destination in the first place. Drop back to Forward so the view
+    -- lands on the floor just arrived at.
+    --
+    -- "lookup" is a client-local VIEW setting, not token state, so this is applied only on the
+    -- client whose own token travelled. The forced path runs on the PUSHER's client, where
+    -- resetting the view because somebody else moved would be wrong.
+    if originLoc:FloorDifference(teleportLoc) > 0 then
+        local localToken = dmhub.currentToken
+        if localToken ~= nil and localToken.id == travelToken.id and dmhub.GetSettingValue("lookup") ~= 0 then
+            dmhub.SetSettingValue("lookup", 0)
+        end
+    end
 
     -- Emerging above the ground means falling; the engine does not resolve that on its own.
     -- Structured exactly like the teleport branch of DMHub Game Rules/AbilityRelocateCreature.lua:
@@ -589,7 +659,7 @@ function ActivatedAbilityPortalTransitBehavior:Cast(ability, casterToken, target
         wasShovedHere = forcedDest == travelToken.loc.xyfloorOnly.str
     end
 
-    local portals = CollectPortals(self:try_get("auraName", ""), travelToken.loc.floor)
+    local portals = CollectPortals(self:try_get("auraName", ""))
 
     -- Lift the engine's once-per-turn-per-aura lock off the portals, so a creature can keep using
     -- them. Done before the shove check as well: an ally who was shoved onto a portal still
@@ -662,7 +732,7 @@ function DrawSteelPortalTransit.TryForcedTransit(movedToken, pusherToken, origin
         return
     end
 
-    local portals = CollectPortals(PORTAL_AURA_NAME, movedToken.loc.floor)
+    local portals = CollectPortals(PORTAL_AURA_NAME)
     if #portals < 2 then
         -- A lone portal is a dead end: there is nowhere to emerge.
         return

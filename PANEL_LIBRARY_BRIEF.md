@@ -410,18 +410,213 @@ Remaining design rounds before their steps: publish metadata (before
   remembered `packid` no longer has a publish surface -- sharing those
   buttons individually mints fresh single-button packs.
 
+- **2026-08-20 -- Vocabulary unified on TOOLKIT (owner decision).**
+  The UI had two names for one concept: "tool panel" (library
+  section, create tile, both dialog titles, Add-to dropdown) vs
+  "Toolkit" (rail menu, every strip's serialized default name). All
+  user-facing strings now say toolkit: YOUR TOOLKITS / New toolkit /
+  Edit toolkit; the rail menu's "New Toolkit" recased to match.
+  Rejected: "tool panel" (clunky; collides with the panels-vs-buttons
+  vocabulary -- a toolkit is a container of buttons, not a panel;
+  sat confusingly above ALL PANELS), "toolbar" (names the geometry,
+  not the concept; generic), "toolrail" (overloads "rail", already
+  load-bearing for the edge columns). Settings ids (iconrailtoolkits)
+  were already toolkit-named and are unchanged. The library window
+  also grew to 900x760 (browser matched -- same-frame rule), the
+  header-band hairline and section count chips were removed at owner
+  request, and both create tiles now share the plus glyph.
+
+- **2026-08-20 -- Library visual refresh: mockup APPROVED, first
+  in-engine attempt REVERTED ("this looks completely chopped" --
+  owner).** The owner-approved direction lives at
+  ui-mockup/panel-library-redesign.html (same section order, same
+  palette, white phosphor icons; rhythm, label-anchored section
+  headers with count chips, glyph chips on rows, tile plates, wider
+  spotlight cards). The blind translation failed three ways, recorded
+  so the next attempt avoids them: (1) the header-label "patch" trick
+  assumed the window surface is @bgAlt -- it is not, so labels sat in
+  visible grey boxes; (2) 1px bordered plates on the near-black
+  window read as a harsh chopped grid, nothing like the mockup's
+  soft bgAlt-on-bg values; (3) the added vertical rhythm ate the
+  FIXED 700px window's budget and collapsed the ALL PANELS
+  "available" scroll region to a sliver. Verdict: NO further blind
+  visual passes on this surface -- iterate in the ui-harness with
+  screenshots and match the mockup by eye before showing the owner.
+  SECOND ATTEMPT SHIPPED same day, harness-verified this time (a
+  faithful scratch replica of the window, iterated v1->v3 over the
+  HTTP bridge with screenshots at each step): soft FILLS instead of
+  borders everywhere (tile plates #ffffff08, no border -- 1px borders
+  over near-black were the "chopped" read; create tiles keep a
+  parchment-alpha outline as the one accent), label-anchored section
+  headers (label + a "100% available"-width hairline filling the
+  rest of the row -- available-width works horizontally,
+  harness-proven; the count chips shipped briefly and were removed
+  at the owner's request same day: "remove these little numbers";
+  the header-band hairline likewise removed same day at the owner's
+  request -- the section rules carry the structure alone), 28px soft glyph chips on ALL PANELS rows, a
+  hairline under the header band, and rhythm tuned (16/10 header
+  margins, 8/7 tile pads) so the fixed 700px window keeps 2+ visible
+  ALL PANELS rows. Cards move to the same soft-fill language
+  (#ffffff08 fill, #ffffff14 border, radius 10). Mockup reference at
+  ui-mockup/panel-library-redesign.html.
+  Two defects from the same screenshots WERE kept: the compact ADDED
+  overlay now shows the check alone over the face (its check+label
+  used to strike through the tile name), and a @label face that
+  cannot evaluate falls back to the icon instead of showing "-".
+
+- **2026-08-19 -- The COMMUNITY SPOTLIGHT switches to compact square
+  tiles (owner request): the styled face, the name, and the
+  download/heart counts -- no description, no author.** 96x112
+  vertical tiles via CommunityButtonCard's new opts.compact; the heart
+  stays its own click target and the ADDED overlay/click gate carry
+  over unchanged. The full 410x70 card remains the Community
+  Browser's form (descriptions live there).
+
+- **2026-08-19 -- Replica faces get honest: community cards, Share
+  Your Buttons rows, and the library's replica tiles now render a
+  script button's AUTHORED styling (owner request: "show the actual
+  button with its styling in the library").** One shared
+  ScriptButtonFacePanel builds the 40px face everywhere:
+  @bgcolor/@bggradient/@opacity land as the same selfStyle overrides
+  the rail's create applies, and a @label button previews its live
+  value (evaluated once on the viewer's character at build) instead
+  of its icon. Panel replicas and create tiles pass no def and keep
+  the plain chip.
+
+- **2026-08-19 -- Script buttons gain @disabled: a GoblinScript
+  condition (owner request: "grey it out and remove interactable
+  click and hover, for example if there are no more recoveries").**
+  While the condition holds, the button greys (opacity 0.4), loses
+  its hover tint and swell (higher-selector-count rules -- count
+  ranks before declaration order), plays no sounds, and does not run
+  from ANY path (click, strip click, context-menu Run -- gated in
+  RunToolkitScriptButton plus the press handlers). Deliberate keeps:
+  the hover LABEL stays (with @tooltip it says WHY the button is
+  off) and right-click stays (Edit Script must always be reachable).
+  Unevaluable (no character, bad formula) = ENABLED, so an error can
+  never lock a button out. Evaluated live on the rail refreshRail /
+  strip refreshToolkit cadences. Canonical pairing, in the template:
+  "@disabled Recoveries Available To Spend < 1".
+
+- **2026-08-19 -- Script edits to an EXISTING button apply LIVE on
+  every file save (owner-priority fix for the trap they hit: the
+  watched-file flow felt live, but nothing landed until the dialog's
+  Save).** The Edit code watcher now commits the SCRIPT to the stored
+  record on each save -- script only, mutated in place so name / icon /
+  description stay dialog-managed and pack / packid survive -- then
+  rebuilds the rail (standalone) or the open strip (toolkit item) so
+  directives and hover text follow instantly; the status line appends
+  "Applied to the button." A NEW button still requires Create (nothing
+  exists to commit to). Known accepted edge: Cancel after a live save
+  does not revert already-applied script saves. Template copy updated
+  to describe both modes.
+
+- **2026-08-19 -- Script buttons gain @tooltip: author-set hover text
+  replacing the button's name, with live state via GoblinScript
+  (owner idea: "use recovery" -> "at full stamina").** The directive
+  value is tried as GoblinScript first (evaluated on the player's
+  current character -- data, never Lua, the @label trust rule) and
+  falls back to the raw text when the formula errors or returns
+  nothing, which is what makes plain-prose tooltips zero-syntax.
+  Uppercased into the rail label voice; re-evaluated on the existing
+  refresh cadences (rail refreshRail, strip refreshToolkit), so the
+  text updates while the pointer sits on the button. Rendered
+  everywhere the button renders: rail hover label and strip hover
+  label (StripHoverLabel now accepts a text FUNCTION). Deferred
+  alternative, recorded 2026-08-19: an imperative
+  scriptbutton.SetHoverText() run-time API -- weaker fit (updates
+  only on click, new API surface); can coexist later if a case needs
+  it. Implementation note: ScriptButtonHoverText squeezed in as ONE
+  new file-scope local -- the chunk is within a handful of locals of
+  Lua's 200 cap; the next helpers must ride an existing table.
+
+- **2026-08-19 -- Toolkit window CLUSTERS (owner request): panels
+  opened from a strip arrange around it, avoid overlapping other
+  windows, and follow the strip when dragged.** Design points, from
+  the unanswered sign-off round Claude resolved with its
+  recommendations (all reversible): (1) the cluster is ONE transient
+  unit -- panels from the same strip stay open together, keyed
+  "toolkitcluster:<id>" in g_railTransientKey, and opening from the
+  rail or another strip sweeps the unpinned members as one
+  (RailSweepTransient now centralizes all five former inline sweep
+  sites; one of them had silently skipped the pinned check its
+  comment promised -- restored). (2) Placement: remembered per-toolkit
+  offset first, else first free spot below/right/left/above the strip
+  (then a staggered cascade), screened against every open window and
+  strip; cluster placement is ABSOLUTE, beating the panel's
+  remembered solo spot. Offsets persist as rec.cluster on the toolkit
+  record. (3) Sticky: strip drags move members live (dragging-event
+  deltas; the drop applies any remainder so a no-dragging engine
+  still snaps them); a hand-dragged member STAYS in the cluster at
+  its new offset. (4) The window's close button (or strip-click
+  close) leaves the cluster; ESCAPE keeps membership, matching
+  escape's keep-everything contract. (4b, owner amendment same day,
+  superseding "closing the strip leaves windows in place"):
+  DELIBERATELY closing the strip -- rail-button toggle, its own X, or
+  deleting the toolkit -- closes every open cluster window with it
+  (pinned excepted), via ToolkitCluster.CloseAll. The EditToolkit
+  hide/show rebuild and the rail-mode-off teardown do NOT count as
+  closing. Offsets survive, so reopening rebuilds the arrangement. Implementation note: helpers live on a single
+  ToolkitCluster table -- the file's main chunk is at Lua's 200-local
+  limit, loose helper locals no longer fit. The rail root's 0.5s
+  transient-liveness check learned the cluster key (a cluster is
+  live while ANY member window is open).
+
+- **2026-08-19 -- Toolkit strip buttons drop the generic boxed
+  gui.Tooltip for the rail's own hover-label grammar (owner request:
+  "more like the ones we have in the rail system").** StripHoverLabel
+  gives every strip button -- panel shortcuts, script buttons, and
+  the + -- a floating iconRailLabel fading in 10px BELOW the hovered
+  button (below, not beside: the row is horizontal, so a side label
+  would overlap the neighbour; the group flyout's name-slot pattern
+  was rejected here because the toolkit strip is persistent and a
+  fixed-width slot is permanent dead width). Inherits the rail rules
+  wholesale, including parent:active suppression -- an open panel's
+  button shows the close hint, not its name.
+
+- **2026-08-19 -- Script buttons get the classic motion package by
+  default: swell on hover (1.08), SQUASH on click (0.9 -- the classic
+  game-button press, owner-amended from the grow-pop after feel
+  testing; EaseOutBack spring back up to the hover swell over 0.25s),
+  back to rest; @clickanim none opts out of both
+  (owner picked option A default-on/directive-opt-out, then amended
+  the motion to hover-swell + click-pop the same day).** Both button
+  constructions (standalone rail, toolkit strip) wear a "scriptAnim"
+  class when animating -- it gates the hover-swell style rule; pack
+  "panel" shortcuts are excluded (their click opens a window). Every
+  run path funnels through RunToolkitScriptButton, which pulses
+  "clickPop" before the outcome arrives (a pulsed style fades out
+  over ITS OWN transitionTime -- the roll dialogs' "flash" precedent;
+  the justDropped clear-through-base mechanism does NOT apply to
+  PulseClass). Field-debugged gotcha (2026-08-19): style rules rank
+  by SELECTOR COUNT before declaration order, and a click always
+  happens under hover -- the pop rule must carry the same selector
+  count as the hover-swell rule (and be declared later) or its scale
+  silently loses the blend and the pop never shows. Rationale:
+  script buttons are the rail's only buttons whose click can otherwise
+  vanish without a trace (a panel button's feedback is the window
+  opening), so they react bodily and panel buttons deliberately do
+  not. New directive `@clickanim pop|none` parsed in
+  ScriptButtonStyle (string-only, community-safe); rejected: opt-in
+  directive (feature invisible to the users who need it), pop on all
+  rail buttons (decoration; re-opens the reviewed rail look).
+  Squash-on-press remains a possible future @clickanim variant.
+  Community-card replicas do NOT pop (their click means "add", not
+  "run").
+
 - **2026-08-18 -- The whole Panel Library surface goes behind a dev
-  gate (owner request).** The hidden `dev:panellibrary` setting
-  (preference storage, default false, no editor so it appears on no
-  settings screen) gates creation of the rail's + button -- and with
-  it everything only the + opens: the library window, the community
-  spotlight/browser, and the Share Your Buttons dialog. The rail's
-  older right-click menu (add panel / New Toolkit / Rearrange) stays,
-  as do toolkits and buttons already on the rail. Toggling the setting
-  rebuilds the rails live: enable with
-  `dmhub.SetSettingValue("dev:panellibrary", true)` in the console.
-  VERIFIED live both ways: + absent at default false, back
-  immediately after flipping true.
+  gate (owner request).** SUPERSEDED 2026-08-24, see below. The hidden
+  `dev:panellibrary` setting gated creation of the rail's + button --
+  and with it everything only the + opens: the library window, the
+  community spotlight/browser, and the Share Your Buttons dialog.
+
+- **2026-08-24 -- The dev gate is gone; the Panel Library is on for
+  everyone (owner request).** The `dev:panellibrary` setting is
+  deleted, and the rail's + button is created unconditionally (still
+  suppressed in rearrange mode, which is the trash zone's territory).
+  Nothing else read the setting, so the library window, the community
+  spotlight/browser and the Share Your Buttons dialog all come back
+  with the +.
 
 ### Phase 2/3 viability research (verified against code, 2026-08-17)
 

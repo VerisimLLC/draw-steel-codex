@@ -1563,10 +1563,12 @@ local function CreateLocalAssetsSection()
 
 		local MaxSearchRows = 100
 
-		local searchInput = gui.Input{
+		--the canonical search field; look comes from DefaultStyles'
+		--searchInput rules, borderBox keeps its hpad 24 inside the width.
+		local searchInput = gui.SearchInput{
+			borderBox = true,
 			width = 180,
 			height = 24,
-			fontSize = 14,
 			halign = "left",
 			vmargin = 4,
 			placeholderText = "Search ids, names, filenames...",
@@ -4642,16 +4644,12 @@ local CreatePatreonAccountPanel = function()
 		}
 	end
 
-	--tier 0 with a link is a real state: a free-tier or lapsed patron. Say so
-	--rather than implying nothing is connected.
+	--Deliberately no tier or pledge state here: the legacy DMHub-campaign tier
+	--is meaningless to Codex users (an MCDM patron reads as tier 0 on it), so
+	--showing it produced "no active pledge" next to a working $8 entitlement.
+	--What the pledge actually unlocks is the EntitledOrgRows list below.
 	local function ConnectedText(data)
-		local tier = data.tier or 0
-		local text
-		if tier > 0 then
-			text = string.format("Connected to Patreon   (patron tier %d)", tier)
-		else
-			text = "Connected to Patreon   (no active pledge)"
-		end
+		local text = "Connected to Patreon"
 		if (data.linkedAt or 0) > 0 then
 			text = string.format("%s   linked %s", text, os.date("%d %b %Y", math.floor(data.linkedAt / 1000)))
 		end
@@ -4671,7 +4669,6 @@ local CreatePatreonAccountPanel = function()
 
 		for _,entry in ipairs(list) do
 			if entry.entitled then
-				local label = entry.orgid
 				local suffix
 				if entry.active then
 					if (entry.cents or 0) > 0 then
@@ -4685,6 +4682,20 @@ local CreatePatreonAccountPanel = function()
 				end
 
 				local orgid = entry.orgid
+
+				--The row names the CREATOR, not our internal orgid: campaign name
+				--first ("MCDM Productions"), then the org displayName, and the raw
+				--orgid only until the lookup lands. Both live on the org's public
+				--ModuleAuthor record, so the label starts as the orgid and the
+				--GetOrganizationInfo callback below upgrades it in place.
+				local orgLabel = gui.Label{
+					width = "100%",
+					height = "auto",
+					fontSize = 13,
+					vmargin = 1,
+					text = string.format("%s   <color=#999999>(%s)</color>", orgid, suffix),
+					markdown = true,
+				}
 
 				--Which modules the membership includes lives on the org's public
 				--ModuleAuthor record, not in our entitlement, so it is one source
@@ -4714,6 +4725,13 @@ local CreatePatreonAccountPanel = function()
 								if not element.valid then
 									return
 								end
+
+								--upgrade the row label to the creator's real name.
+								local name = (info.patreonCampaign and info.patreonCampaign.name) or info.displayName
+								if name ~= nil and name ~= "" and orgLabel.valid then
+									orgLabel.text = string.format("%s   <color=#999999>(%s)</color>", name, suffix)
+								end
+
 								local ids = info.patreonModules or {}
 								if #ids == 0 then
 									return
@@ -4763,14 +4781,7 @@ local CreatePatreonAccountPanel = function()
 					end,
 				}
 
-				rows[#rows+1] = gui.Label{
-					width = "100%",
-					height = "auto",
-					fontSize = 13,
-					vmargin = 1,
-					text = string.format("%s   <color=#999999>(%s)</color>", label, suffix),
-					markdown = true,
-				}
+				rows[#rows+1] = orgLabel
 				rows[#rows+1] = modulesContainer
 			end
 		end
@@ -4905,7 +4916,7 @@ local CreatePatreonAccountPanel = function()
 				fontSize = 14,
 				maxWidth = 600,
 				vmargin = 2,
-				text = "Disconnect your Patreon account? You will lose any benefits your patron tier unlocks until you link it again.",
+				text = "Disconnect your Patreon account? You will lose any creator content your memberships unlock until you link it again.",
 			},
 		}
 
@@ -4989,7 +5000,7 @@ local CreatePatreonAccountPanel = function()
 			fontSize = 13,
 			maxWidth = 600,
 			vmargin = 2,
-			text = "Link your Patreon account to unlock what your patron tier includes. We only read which tier you are on - never payment details.",
+			text = "Link your Patreon account to unlock content from creators you support. We only read which creators you support - never payment details.",
 		}
 
 		if message ~= nil then
@@ -5026,7 +5037,6 @@ local CreatePatreonAccountPanel = function()
 		end
 		return {
 			linked = true,
-			tier = dmhub.patreonPledgeTier,
 			patreonUserId = id,
 			linkedAt = dmhub.patreonLinkedAt,
 		}
@@ -5087,6 +5097,16 @@ function CreateSettingsScreen(dialog, args)
     args = args or {}
 
 	dmhub.Debug('EXEC SETTING SCREEN')
+
+	--PERF instrumentation: how long the full settings-dialog build takes and
+	--how much of it is the command-builder lightning icons, printed at the
+	--end of this function. os.clock() (CPU seconds) rather than dmhub.Time(),
+	--which is frame-quantized.
+	local perfStart = os.clock()
+	local perfLightningBaseline = {
+		count = CommandBuilder.profile.count,
+		seconds = CommandBuilder.profile.seconds,
+	}
 
 	local m_selectedTab = "General"
 
@@ -5601,6 +5621,7 @@ function CreateSettingsScreen(dialog, args)
 						--Setting('perf:hideftextures'),
 						Setting('perf:castshadows'),
                         Setting("graphics:uiblur"),
+                        Setting("mergedtitlebar"),
 
 						SettingsSection("Graphics"),
 
@@ -6430,6 +6451,11 @@ function CreateSettingsScreen(dialog, args)
 	else
 		dialog.sheet = m_screenRoot
 	end
+
+	print(string.format("SETTINGSPERF:: dialog built in %.1fms (lightning icons: %d created, %.1fms)",
+		(os.clock() - perfStart) * 1000,
+		CommandBuilder.profile.count - perfLightningBaseline.count,
+		(CommandBuilder.profile.seconds - perfLightningBaseline.seconds) * 1000))
 
 	settingsDialog:PulseClass("fadein")
 end

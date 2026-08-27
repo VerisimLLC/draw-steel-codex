@@ -19,6 +19,11 @@ ThemeEngine.RegisterColorScheme{
         -- Surfaces (design ladder: #0a0a0b page, #1a1a1e nested strip)
         bg            = "#0A0A0B",
         bgAlt         = "#1A1A1E",
+        -- The hover/focus "lift" fill for interactive text fields (search
+        -- bar, inputs): the whole control raises to this gray and holds it
+        -- while focused. Introduced 2026-08-22 to unify the value the
+        -- search-bar rules had shipped as literal #2E2E33.
+        bgRaised      = "#2E2E33",
         bgInverse     = "#E4DDD0", -- parchment "primary by value" fill
 
         -- Foreground / text (parchment ladder - the "less stark white")
@@ -30,6 +35,12 @@ ThemeEngine.RegisterColorScheme{
 
         -- Borders (design: depth from quiet 1px edges, not bright frames)
         border        = "#FFFFFF29", -- control border, white at 0.16
+        -- @border pre-composited over @bg at FULL alpha. The rounded
+        -- `border` frame shader ignores the color's alpha channel
+        -- (measured 2026-08-21: #FFFFFF29 renders as a full-contrast
+        -- ~#909090 line), so any rule drawing a QUIET rounded frame must
+        -- use this token instead of @border.
+        borderSolid   = "#313134",
         borderInverse = "#7A7468",
 
         -- Accent + interactive (achromatic: emphasis by value, not hue)
@@ -138,6 +149,7 @@ ThemeEngine.RegisterColorScheme{
         -- Surfaces
         bg            = "#1B1310",
         bgAlt         = "#2A1E15",
+        bgRaised      = "#3A2B1E", -- text-field hover/focus lift (see default scheme)
         bgInverse     = "#E9B86F",
 
         -- Foreground / text
@@ -149,6 +161,10 @@ ThemeEngine.RegisterColorScheme{
 
         -- Borders
         border        = "#C49562",
+        -- This scheme's @border is already full-alpha, but the rounded
+        -- frame shader path wants a QUIET resting frame; the dark leather
+        -- brown (= this scheme's borderInverse) plays that role.
+        borderSolid   = "#5A4128",
         borderInverse = "#5A4128",
 
         -- Accent + interactive
@@ -201,7 +217,7 @@ ThemeEngine.RegisterColorScheme{
 ThemeEngine.RegisterTheme{
     id          = "default",
     name        = "Default",
-    description = "The Draw Steel default theme.",
+    description = "The Draw Steel theme: rounded corners on bordered surfaces.",
     colorScheme = "default",
 
     fonts = {
@@ -583,6 +599,21 @@ ThemeEngine.RegisterTheme{
         },
 
         --[[ Input ]]
+        -- The ONE canonical text-field look (Control Zoo pass 2026-08-22),
+        -- sharing the search bar's interaction language -- quiet at rest,
+        -- the fill lifts to @bgRaised on hover, the lift holds on focus --
+        -- with two deliberate differences from searchInput:
+        --   1. An editing field keeps an honest 1px resting frame for
+        --      "type here" affordance; a search bar's magnifier already
+        --      carries that job, so search rests frameless.
+        --   2. Focus paints the frame @fgStrong: in a form, the frame is
+        --      what answers "where will my keystrokes go", so the input's
+        --      state ladder tops out above search's fill-only hold.
+        -- Ladder: @borderSolid -> @fgMuted (hover) -> @fgStrong (focus),
+        -- monotonic in both schemes. `border`, NOT `borderWidth` (the
+        -- square widget outline -- see the searchInput comment below), and
+        -- @borderSolid, NOT @border, because the rounded frame shader
+        -- ignores alpha and renders @border as a full-contrast line.
         {
             selectors = {"input"},
             bgimage = true,
@@ -590,8 +621,12 @@ ThemeEngine.RegisterTheme{
             fontSize = 14,
             color = "@fg",
             bgcolor = "@bg",
-            borderColor = "@border",
-            border = 2,
+            -- Frameless at rest (trial 2026-08-22): painted fill-color,
+            -- like searchInput; the 1px geometry stays so hover/focus
+            -- recolor without shifting pixels.
+            borderColor = "@bg",
+            border = 1,
+            borderWidth = 0,
             bold = false,
             height = 26,
             -- The dims below mirror the legacy Styles.Default 'input-main' rule
@@ -608,9 +643,33 @@ ThemeEngine.RegisterTheme{
             vpad = 4,
             selectedColor = "#444444",
         },
+        -- Opt-in resting frame for inputs on surfaces at or below @bg,
+        -- where the frameless well has nothing to contrast against:
+        -- compose `classes = {"bordered"}`. The conjunct rule redirects
+        -- the generic {bordered} @border (alpha token -- renders
+        -- full-contrast through the rounded frame shader) to the quiet
+        -- @borderSolid. Hover/focus below take over the frame color in
+        -- both variants.
         {
-            selectors = {"input", "focus"},
-            borderColor = "@fg",
+            selectors = {"input", "bordered"},
+            borderColor = "@borderSolid",
+        },
+        -- ~searchInput: search fields are {input} too, and without the
+        -- exclusion these frame rules race the frameless {searchInput}
+        -- state rules on hover-enter -- the frame won the first resolve
+        -- pass and then faded out as the searchInput override landed
+        -- (flashing frame, MonsterSearch 2026-08-22). Search fields are
+        -- governed entirely by their own state rules below.
+        {
+            selectors = {"input", "hover", "~searchInput"},
+            bgcolor = "@bgRaised",
+            borderColor = "@fgMuted",
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"input", "focus", "~searchInput"},
+            bgcolor = "@bgRaised",
+            borderColor = "@fgStrong",
         },
         {
             selectors = {"inputFaded"},
@@ -619,33 +678,80 @@ ThemeEngine.RegisterTheme{
             borderFade = true,
             bgcolor = "@bg",
         },
-        -- Default search input has no border. Surfaces that want a bordered
-        -- search input add it via their own MergeStyles extras.
+        -- The ONE canonical search-field look (Control Zoo decision
+        -- 2026-08-20, "solve it once and for all"). History: the default
+        -- shipped borderless, which is invisible on dark surfaces, so the
+        -- title bar and Maps panel each grew their own frame -- and both
+        -- independently chose thin @border + focus @fgStrong. That de
+        -- facto standard is now THE standard, with quiet 14px regular
+        -- type (16 bold outshouted every surface it sat on). Surfaces
+        -- must NOT re-style searchInput locally.
         {
             selectors = {"searchInput"},
             bgimage = true,
-            hpad = 6,
-            fontSize = 16,
-            bold = true,
+            fontSize = 14,
+            bold = false,
             borderFade = false,
             color = "@fg",
             bgcolor = "@bg",
+            --border, NOT borderWidth: `border` is the rounded shader
+            --frame; `borderWidth` draws the input widget's own SQUARE
+            --outline, which pokes past the pill's end caps as a broken
+            --inner edge (live-debugged on the title bar 2026-08-20 --
+            --red-border/green-fill experiments; the old rule zeroed it
+            --deliberately).
+            border = 1,
             borderWidth = 0,
+            --no visible border at rest: painted the same color as the
+            --fill (NOT alpha 0 -- the 1px `border` shader IGNORES the
+            --color's alpha channel: @border #FFFFFF29 and #FFFFFF14
+            --both measured as an antialiased ~#909090 WHITE hairline,
+            --title bar 2026-08-21, so alpha-based border tokens render
+            --full-contrast). Keeping border = 1 in the geometry lets
+            --hover (@borderInverse) and focus (@fgStrong) recolor it
+            --without anything shifting.
+            borderColor = "@bg",
+            hpad = 24,
+        },
+        {
+            --hover response is the FILL lightening, not a frame (Venla
+            --2026-08-21): the whole bar lifts to a raised gray. The
+            --border is repainted to match the hover fill so it stays
+            --invisible -- leaving it at the resting @bg would draw a
+            --dark ring around the lightened bar.
+            selectors = {"searchInput", "hover"},
+            bgcolor = "@bgRaised",
+            borderColor = "@bgRaised",
+            transitionTime = 0.15,
+        },
+        {
+            --focused = the highlight HOLDS: same raised fill as hover,
+            --still no frame (Venla 2026-08-21). The caret and typed
+            --text carry the active signal beyond the fill.
+            selectors = {"searchInput", "focus"},
+            bgcolor = "@bgRaised",
+            borderColor = "@bgRaised",
         },
         -- Magnifying-glass icon child auto-created by gui.SearchInput.
-        -- Tinted to @fg so the glyph follows the active scheme. The
-        -- `floating = true` and `x = -20` positioning stay inline at
-        -- the call site -- floating is a structural property (controls
-        -- layout participation) that the engine doesn't honor through
-        -- the style cascade.
+        -- Tinted to @fg so the glyph follows the active scheme; the
+        -- structural half (floating, position, size) lives inline at the
+        -- call site -- floating is a property the engine doesn't honor
+        -- through the style cascade.
         {
             selectors = {"searchInputIcon"},
             bgcolor = "@fg",
-            vmargin = 0,
-            halign = "left",
-            valign = "center",
-            height = "90%",
-            width = "100% height",
+        },
+        -- Clear-x child auto-created by gui.SearchInput, shown while the
+        -- field has text. Muted at rest so it reads quieter than the
+        -- typed text beside it; full strength on hover to invite the
+        -- click.
+        {
+            selectors = {"searchInputClear"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"searchInputClear", "hover"},
+            bgcolor = "@fgStrong",
         },
         -- Color picker main button (gui.ColorPicker mainPanel).
         -- The button shows the currently-selected color via
@@ -697,7 +803,10 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"dropdown", "hover", "~search"},
-            bgcolor = "@fg",
+            --hover fills use @accentHover, not @fg/@bgInverse: the
+            --parchment text color as a large fill read as aged paper
+            --over warm map art (Venla 2026-08-19; see menuItem hover).
+            bgcolor = "@accentHover",
         },
         -- The search field inside an open dropdown popup. It is a
         -- {searchInput}, so it picks up the base {input} rule's border = 2 --
@@ -821,13 +930,15 @@ ThemeEngine.RegisterTheme{
         {
             selectors = {"dropdownOption", "hover"},
             color = "@fgInverse",
-            bgcolor = "@bgInverse",
+            --@accentHover, not @bgInverse: the aged-paper hover fix
+            --(see menuItem hover).
+            bgcolor = "@accentHover",
             priority = 5,
         },
         {
             selectors = {"dropdownOption", "searchfocus"},
             color = "@bg",
-            bgcolor = "@fg",
+            bgcolor = "@accentHover",
         },
         {
             selectors = {"dropdownOption", "disabled"},
@@ -1241,9 +1352,20 @@ ThemeEngine.RegisterTheme{
             selectors = {"panel", "buttonIcon", "parent:addButton"},
             bgimage = "ui-icons/Plus.png",
         },
+        -- Note on hover-circle backplates (tried and removed 2026-08-22):
+        -- a hover-only circle behind the X was prototyped as
+        -- `{iconButton, closeButton}` bgimage = "game-icons/plain-circle.png"
+        -- (a TEXTURE, not cornerRadius -- the rounded shader's radius must
+        -- stay under half the rendered height at any window scale) with a
+        -- clear rest tint and @bgRaised on hover, plus an 85% glyph inset
+        -- for ring clearance (62% shrank the X to ~10px on sizeXs chrome
+        -- buttons). Venla preferred the plain glyph; the generic
+        -- {iconButton, hover} brightness lift is the whole hover state.
         {
             selectors = {"panel", "buttonIcon", "parent:closeButton"},
-            bgimage = "ui-icons/close.png",
+            -- phosphor's geometric X (Control Zoo pass 2026-08-22),
+            -- replacing the legacy ui-icons/close.png glyph app-wide.
+            bgimage = "phosphor/x-bold.png",
         },
         -- Standard inset for close buttons. They are almost always pinned to a
         -- top corner (halign right/left + valign top + floating), and sitting
@@ -1472,7 +1594,22 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"menuItem", "hover"},
-            bgcolor = "@fg",
+            --The search bar's quiet raised lift, not an inverted accent
+            --fill (Venla 2026-08-24: "use the search field's light grey
+            --hover for the other hovers here too"). Supersedes the
+            --@accentHover fill picked 2026-08-19 -- the whole title bar
+            --now shares one hover language: fill lifts to @bgRaised,
+            --content color stays put.
+            bgcolor = "@bgRaised",
+            transitionTime = 0.15,
+        },
+        {
+            --while the item's dropdown is open the plate HOLDS, hover or
+            --not (Venla 2026-08-24, VS Code menu behavior). The class is
+            --managed by the opener (menuOpen on open, cleared on every
+            --close path incl. the closePopup event).
+            selectors = {"menuItem", "menuOpen"},
+            bgcolor = "@bgRaised",
         },
         {
             selectors = {"menuLabel"},
@@ -1483,34 +1620,41 @@ ThemeEngine.RegisterTheme{
             hmargin = 4,
             color = "@fg",
         },
-        {
-            selectors = {"menuLabel", "parent:hover"},
-            color = "@bg",
-        },
+        --No parent:hover recolor for menuLabel/menuItemIcon: the raised
+        --fill is dark enough that the resting @fg stays readable, same
+        --as typed text in the search bar. (The old @accentHover fill
+        --needed the @bg flip; it left with it, 2026-08-24.)
         {
             selectors = {"menuItemIcon"},
             bgcolor = "@fg",
         },
-        {
-            selectors = {"menuItemIcon", "parent:hover"},
-            bgcolor = "@bg",
-        },
 
         --[[ Context menu ]]
 
-        -- The popup panel itself
+        -- The popup panel itself: frameless flat chrome, VS Code-style
+        -- (Venla 2026-08-24) -- the fill matches the title bar's @bg so a
+        -- menu dropped from the bar reads as the bar continuing, the way
+        -- the search popup continues its field. No border; rounded like
+        -- the rest of the popup family. Supersedes the parchment-framed
+        -- @surfaceLinear look.
         {
             selectors = {"contextMenu"},
             bgimage = true,
-            bgcolor = "white",
-            gradient = "@surfaceLinear",
-            borderColor = "@fg",
-            borderWidth = 2,
+            bgcolor = "@bg",
+            borderWidth = 0,
+            cornerRadius = 7,
+            --breathing room above the first row and below the last, and
+            --it keeps a hovered edge row's square fill inside the
+            --rounded corners (fills do not clip to the radius).
+            vpad = 6,
             flow = "vertical",
         },
 
         -- Rows: transparent at rest so the panel surface paints through;
-        -- hover/press states give them distinct backgrounds.
+        -- hover lifts one surface step, content color stays put (the
+        -- title-bar hover language; the old inverted @accentHover fill
+        -- and its dark-text flips left 2026-08-24). Instant, no fade --
+        -- a fade lags when running the cursor down a list.
         {
             selectors = {"contextMenuItem"},
             bgimage = true,
@@ -1520,8 +1664,7 @@ ThemeEngine.RegisterTheme{
         },
         {
             selectors = {"contextMenuItem", "hover"},
-            bgcolor = "@fg",
-            color = "@bg",
+            bgcolor = "@bgRaised",
         },
         {
             selectors = {"contextMenuItem", "press"},
@@ -1538,10 +1681,6 @@ ThemeEngine.RegisterTheme{
             selectors = {"contextMenuLabel", "disabled"},
             color = "@fgMuted",
         },
-        {
-            selectors = {"contextMenuLabel", "parent:hover"},
-            color = "@bg",
-        },
 
         -- Bind label (keyboard shortcut hint)
         {
@@ -1553,19 +1692,11 @@ ThemeEngine.RegisterTheme{
             selectors = {"contextMenuBind", "disabled"},
             color = "@fgMuted",
         },
-        {
-            selectors = {"contextMenuBind", "parent:hover"},
-            color = "@bg",
-        },
 
         -- Icon glyph (image-tint to text color)
         {
             selectors = {"contextMenuIcon"},
             bgcolor = "@fg",
-        },
-        {
-            selectors = {"contextMenuIcon", "parent:hover"},
-            bgcolor = "@bg",
         },
 
         -- Checkmark glyph
@@ -1573,16 +1704,13 @@ ThemeEngine.RegisterTheme{
             selectors = {"contextMenuCheck"},
             bgcolor = "@fg",
         },
-        {
-            selectors = {"contextMenuCheck", "parent:hover"},
-            bgcolor = "@bg",
-        },
 
-        -- Divider
+        -- Divider: quiet white-alpha hairline (@border), not a parchment
+        -- line -- depth from quiet edges, per the design ladder.
         {
             selectors = {"contextMenuDiv"},
             bgimage = true,
-            bgcolor = "@fg",
+            bgcolor = "@border",
             vmargin = 2,
         },
 
@@ -2393,60 +2521,16 @@ ThemeEngine.RegisterTheme{
         },
 
         -- =====================================================================
-        -- Square-corner reset.
+        -- Corner radii.
         --
-        -- The cascade is additive: an absent property does not reset an
-        -- inherited one. When a rounded theme (e.g. default-rounded) is the
-        -- active theme on an ancestor, its cornerRadius cascades into any
-        -- subtree -- even one explicitly styled with GetStyles("default").
-        -- The default theme must therefore *assert* square corners, not
-        -- merely omit cornerRadius. This block mirrors the default-rounded
-        -- selector set 1:1 so the two stay in lockstep.
+        -- 10px on panel-class surfaces, 5px on interactive controls, with
+        -- asymmetric values where only the outer corners should round
+        -- (featureCardHeader/Body when stacked, enum-slider ends, tab tops).
+        -- These live on the base theme deliberately: rounded corners are not
+        -- an option, so every subtree -- including one explicitly styled with
+        -- GetStyles("default") for theme-recovery purposes -- gets them.
         -- =====================================================================
-        { selectors = {"panel", "bordered"},   cornerRadius = 0 },
-        { selectors = {"panel", "dialog"},     cornerRadius = 0 },
-        { selectors = {"modalDialog"},         cornerRadius = 0 },
-        { selectors = {"framedPanel"},         cornerRadius = 0 },
-        { selectors = {"contextMenu"},         cornerRadius = 0 },
-        { selectors = {"featureCard"},         cornerRadius = 0 },
-        { selectors = {"featureCardHeader"},   cornerRadius = 0 },
-        { selectors = {"featureCardHeader", "expanded"}, cornerRadius = 0 },
-        { selectors = {"featureCardBody"},     cornerRadius = 0 },
 
-        { selectors = {"label", "button"},        cornerRadius = 0 },
-        { selectors = {"iconButton"},             cornerRadius = 0 },
-        { selectors = {"input"},                  cornerRadius = 0 },
-        { selectors = {"searchInput"},            cornerRadius = 0 },
-        { selectors = {"dropdown"},               cornerRadius = 0 },
-        { selectors = {"dropdownBorder"},         cornerRadius = 0 },
-        { selectors = {"dropdownMenuSub"},        cornerRadius = 0 },
-        { selectors = {"colorPicker"},            cornerRadius = 0 },
-        { selectors = {"label", "bordered"},      cornerRadius = 0 },
-        { selectors = {"input", "bordered"},      cornerRadius = 0 },
-        { selectors = {"multiselectChip"},        cornerRadius = 0 },
-        { selectors = {"multiselectChipRemove"},  cornerRadius = 0 },
-        { selectors = {"enumSliderOption"},       cornerRadius = 0 },
-        { selectors = {"enumSliderOption", "enumSliderFirst"},                     cornerRadius = 0 },
-        { selectors = {"enumSliderOption", "enumSliderLast"},                      cornerRadius = 0 },
-        { selectors = {"enumSliderOption", "enumSliderFirst", "enumSliderLast"},   cornerRadius = 0 },
-        { selectors = {"checkBackground"},        cornerRadius = 0 },
-        { selectors = {"tab"},                    cornerRadius = 0 },
-    },
-}
-
--- =============================================================================
--- Default Rounded theme -- inherits everything from default and only overrides
--- cornerRadius on bordered surfaces. 10px for panel-class surfaces, 5px for
--- interactive controls (buttons, inputs, dropdowns, checkboxes, tabs, …).
--- =============================================================================
-
-ThemeEngine.RegisterTheme{
-    id          = "default-rounded",
-    name        = "Default Rounded",
-    description = "Default theme with rounded corners on bordered surfaces.",
-    colorScheme = "default",
-
-    styles = {
         -- Panel surfaces
         { selectors = {"panel", "bordered"},   cornerRadius = 10 },
         { selectors = {"panel", "dialog"},     cornerRadius = 10 },
@@ -2468,7 +2552,20 @@ ThemeEngine.RegisterTheme{
         { selectors = {"label", "button"},        cornerRadius = 5 },
         { selectors = {"iconButton"},             cornerRadius = 5 },
         { selectors = {"input"},                  cornerRadius = 5 },
-        { selectors = {"searchInput"},            cornerRadius = 5 },
+        --search fields are the one pill-shaped input: form follows
+        --function -- a search box filters, a plain input edits.
+        --7, not 9: the radius must stay UNDER half the field's
+        --RENDERED height or the border path breaks at the end caps --
+        --and window scale shrinks rendered heights below the declared
+        --ones, which is what the old "under half of 20" reasoning
+        --missed. The title bar's 20px field renders 18px in a 1009px
+        --window, where 9 hit the limit and the caps broke (live-
+        --debugged 2026-08-21). The relative forms ("50% height",
+        --"45% height") do NOT fix this: they resolve against the
+        --declared height before scaling, so they break identically
+        --(also tried live). 7 keeps the caps clean down to ~0.78
+        --window scale (15.5px rendered) on the 20px fields.
+        { selectors = {"searchInput"},            cornerRadius = 7 },
         { selectors = {"dropdown"},               cornerRadius = 5 },
         { selectors = {"dropdownBorder"},         cornerRadius = 5 },
         { selectors = {"dropdownMenuSub"},        cornerRadius = 5 },
@@ -2866,7 +2963,7 @@ ThemeEngine.RegisterColorScheme{
 -- active pick of a custom scheme would fall back to default.
 ThemeEngine.LoadUserColorSchemes()
 
--- After schemes and themes are registered, restore the user's
--- saved selections (defaults to "default" / "default" if they
--- haven't picked anything yet).
+-- After the schemes are registered, restore the user's saved color-scheme
+-- selection (defaults to the "default" scheme if they haven't picked anything
+-- yet).
 ThemeEngine.RestoreActiveSelection()

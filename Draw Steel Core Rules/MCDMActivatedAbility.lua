@@ -15,6 +15,8 @@ local g_settingTargetObjects = setting {
 -- which iterates each rule with pairs() to resolve @tokens. All colors use
 -- scheme @tokens so the panel tracks the active color scheme.
 SpellRenderStyles = {
+    -- The ability card itself: simple rounded card, matching the monster
+    -- sheet's ms-card grammar.
     {
         selectors = "#spellInfo",
         width = "100%",
@@ -22,6 +24,11 @@ SpellRenderStyles = {
         flow = 'vertical',
         halign = 'left',
         valign = 'center',
+        bgcolor = "@bgAlt",
+        border = 1,
+        borderColor = "@border",
+        cornerRadius = 6,
+        vmargin = 4,
     },
     {
         selectors = { "hoverable", "#spellInfo" },
@@ -113,11 +120,6 @@ SpellRenderStyles = {
         color = "@fgInverse",
     },
 
-    -- Decorative accent line: border tint with an alpha falloff gradient.
-    {
-        selectors = { "fadeLine" },
-        bgcolor = "@border",
-    },
 
     -- MCDM tab graphics: tab background tinted to the scheme accent. NOTE the
     -- tab art (TabBGImage) is a gold-baked PNG, so the accent tint multiplies
@@ -186,6 +188,179 @@ SpellRenderStyles = {
     },
 
 }
+
+-- The action color key used to color-code ability title bands across the app
+-- (the monster sheet cards and the ability card header). Deliberately
+-- scheme-independent literals rather than theme tokens: the key is a fixed
+-- semantic code (Main Action = red, Maneuver = blue, Triggered = green,
+-- Move = orange, No Action = black, Traits/Other = purple) and must not
+-- drift when a theme remaps its status colors.
+ActivatedAbility.actionColorKey = {
+    ["ms-action-main"] = "#8E2B2B",
+    ["ms-action-maneuver"] = "#2C5F8A",
+    ["ms-action-triggered"] = "#2E7048",
+    ["ms-action-move"] = "#B97A24",
+    ["ms-action-none"] = "#1C1C1C",
+    ["ms-action-other"] = "#5E3A78",
+    --The malice cost diamond's inner-diamond red (see RichResource.lua /
+    --the action bar costDiamond), so malice features match the icon.
+    ["ms-action-malice"] = "#DE1E47",
+}
+
+--- Which color-key class this ability's title band gets, from its action
+--- economy. Villain actions count as main actions. A real action economy
+--- (main/maneuver/triggered) wins over a malice cost -- a malice-costing
+--- maneuver is still a maneuver -- so malice red is reserved for malice
+--- features with no action of their own.
+--- @return string
+function ActivatedAbility:ActionColorKeyClass()
+    if self:has_key("villainAction") or self.categorization == "Villain Action" then
+        return "ms-action-main"
+    end
+
+    local rid = self:ActionResource()
+    if rid == CharacterResource.actionResourceId then
+        return "ms-action-main"
+    elseif rid == CharacterResource.maneuverResourceId then
+        return "ms-action-maneuver"
+    elseif rid == CharacterResource.triggerResourceId then
+        return "ms-action-triggered"
+    end
+
+    if self.categorization == "Malice" then
+        return "ms-action-malice"
+    end
+
+    if self.categorization == "Move" then
+        return "ms-action-move"
+    end
+
+    --Free actions: no action resource at all, or the free-maneuver pseudo
+    --resource.
+    if rid == nil or rid == CharacterResource.freeManeuverResourceId then
+        return "ms-action-none"
+    end
+
+    return "ms-action-other"
+end
+
+--- The key color rendered as TEXT rather than as a band behind white text.
+---
+--- Each key color is picked to sit BEHIND white, so as text it is far too dark:
+--- the traits purple (#5E3A78) scores about 2.2:1 on the near-black panel
+--- surface, under the 3:1 floor even at 15pt bold. This rescales every channel
+--- by the same factor until the brightest one reaches 200 -- a value lift in
+--- HSV terms, so hue and saturation survive and it still reads as the same
+--- color. (Mixing toward white instead washes the purple out to grey-lavender.)
+--- A color already that bright, and a light color scheme, are both left alone.
+--- @param color string "#RRGGBB"
+--- @return string
+function ActivatedAbility.ActionColorKeyAsText(color)
+    local r, g, b = color:match("^#(%x%x)(%x%x)(%x%x)")
+    if r == nil then return color end
+    local bg = tostring(ThemeEngine.ResolveTokens("@bg"))
+    local br, bg2, bb = bg:match("^#(%x%x)(%x%x)(%x%x)")
+    if br ~= nil then
+        --Perceived brightness; exact luminance is more than this needs.
+        local brightness = 0.299 * tonumber(br, 16) + 0.587 * tonumber(bg2, 16)
+            + 0.114 * tonumber(bb, 16)
+        --Light scheme: the key colors are dark, which is what reads there.
+        if brightness >= 128 then return color end
+    end
+    r, g, b = tonumber(r, 16), tonumber(g, 16), tonumber(b, 16)
+    local mx = math.max(r, g, b)
+    if mx <= 0 or mx >= 200 then return color end
+    local k = 200 / mx
+    local function scale(c) return math.max(0, math.min(255, math.floor(c * k + 0.5))) end
+    return string.format("#%02X%02X%02X", scale(r), scale(g), scale(b))
+end
+
+--- One NAME-color rule per color-key class: on a quiet header the key that
+--- used to paint the band paints the ability name instead. priority beats the
+--- plain "name on a band" rule.
+---
+--- `scope` says where the key class sits. "parent" (the default) is for a band
+--- that carries the class itself, as the tac panel cards do. "self" is for a
+--- card whose band is class-less when quiet and puts the key on the label --
+--- which is what keeps the LOUD ability card unaffected by these rules.
+--- @param nameClass string The label class carrying the ability name
+--- @param scope? string "parent" (default) or "self"
+--- @return table[]
+function ActivatedAbility.ActionColorKeyTextStyles(nameClass, scope)
+    local result = {}
+    for class, color in pairs(ActivatedAbility.actionColorKey) do
+        result[#result+1] = {
+            selectors = cond(scope == "self",
+                {"label", nameClass, class},
+                {"label", nameClass, "parent:" .. class}),
+            color = ActivatedAbility.ActionColorKeyAsText(color),
+            priority = 5,
+        }
+    end
+    return result
+end
+
+--- One bgcolor rule per color-key class, for panels carrying the given band
+--- class. Append to a style list routed through ThemeEngine.
+--- @param bandClass string
+--- @return table[]
+function ActivatedAbility.ActionColorKeyStyles(bandClass)
+    local result = {}
+    for class, color in pairs(ActivatedAbility.actionColorKey) do
+        result[#result+1] = {
+            selectors = {"panel", bandClass, class},
+            bgcolor = color,
+        }
+    end
+    return result
+end
+
+-- Color-keyed title band on the ability card. The band colors are fixed dark
+-- literals, so the name on it is fixed light rather than a theme token.
+SpellRenderStyles[#SpellRenderStyles+1] = {
+    selectors = {"panel", "abilityHeadBand"},
+    --Inset by 1px on the left, right and top: the card's own 1px border is drawn
+    --inside its rect, so a full-bleed band paints straight over the outline.
+    width = "100%-2",
+    height = "auto",
+    flow = "horizontal",
+    halign = "center",
+    valign = "top",
+    tmargin = 1,
+    bgimage = "panels/square.png",
+    bgcolor = "clear",
+    hpad = 14,
+    vpad = 8,
+    --Top corners only, tucked just inside the card's radius-6 border.
+    cornerRadius = {x1 = 5, y1 = 5, x2 = 0, y2 = 0},
+    --Hairline dividing the header from the body. In this framework y1 is the
+    --BOTTOM edge and y2 the top (x1 left, x2 right); always give all four, and
+    --never add a blanket borderWidth -- that overrides the per-edge widths.
+    border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
+    borderColor = "@border",
+    borderBox = true,
+}
+for _, rule in ipairs(ActivatedAbility.ActionColorKeyStyles("abilityHeadBand")) do
+    SpellRenderStyles[#SpellRenderStyles+1] = rule
+end
+SpellRenderStyles[#SpellRenderStyles+1] = {
+    selectors = {"label", "abilityName", "parent:abilityHeadBand"},
+    color = "#FFFFFF",
+}
+
+--The quiet band: same geometry, no color key behind it. Hosts that embed the
+--card in a panel rather than floating it over the map (the tac panel sections)
+--pass params.quietTitleBand, which drops the band to a palette surface and
+--moves the key color onto the name -- where it is applied via the key class on
+--the LABEL, so the loud card above keeps its white-on-color header untouched.
+SpellRenderStyles[#SpellRenderStyles+1] = {
+    selectors = {"panel", "abilityHeadBand", "quietBand"},
+    bgcolor = "@bg",
+    priority = 5,
+}
+for _, rule in ipairs(ActivatedAbility.ActionColorKeyTextStyles("abilityName", "self")) do
+    SpellRenderStyles[#SpellRenderStyles+1] = rule
+end
 
 -- Themed style rules for the ability-improvement pills (routed through
 -- ThemeEngine.MergeStyles at render time so they track the active scheme).
@@ -663,7 +838,16 @@ local g_abilityScrollBleedLeft = 60
 --inside keeps the card's true bounds. That way the tabs fall inside the mask
 --but nothing else shifts. Returns the body unchanged when not scrolling, so
 --the non-scrolling tooltip path keeps its original single-panel shape.
-local function WrapAbilityBodyInScrollFrame(maxHeight, bodyPanel)
+---
+--- bleedLeft is 0 for a card rendered without tabs (params.hideTabs): with
+--- nothing hanging off the left edge the overhang has nothing to protect, and
+--- an invisible raycast target reaching 60px past the card would sit over
+--- whatever the host has drawn there.
+--- @param maxHeight number|nil
+--- @param bleedLeft number
+--- @param bodyPanel Panel
+--- @return Panel
+local function WrapAbilityBodyInScrollFrame(maxHeight, bleedLeft, bodyPanel)
     if maxHeight == nil then
         return bodyPanel
     end
@@ -671,7 +855,7 @@ local function WrapAbilityBodyInScrollFrame(maxHeight, bodyPanel)
     return gui.Panel {
         id = "abilityScrollFrame",
         flow = "vertical",
-        width = string.format("100%%+%d", g_abilityScrollBleedLeft),
+        width = cond(bleedLeft > 0, string.format("100%%+%d", bleedLeft), "100%"),
         height = "auto",
         halign = "right",
         valign = "top",
@@ -703,6 +887,61 @@ local function WrapAbilityBodyInScrollFrame(maxHeight, bodyPanel)
     }
 end
 
+--- A copy of a style rule list with every size multiplied.
+---
+--- The card's sizes are a fixed pixel ladder tuned for the card floating over
+--- the map; params.cardScale shrinks the whole thing for hosts that embed it in
+--- a narrow panel. The rule lists are shared module state, so this copies rather
+--- than mutating -- the map card and an embedded card render in the same frame.
+--- @param styles table list of plain style rule tables
+--- @param scale number 1 leaves the list untouched
+--- @return table
+local function ScaleStyleSizes(styles, scale)
+    if scale == 1 then
+        return styles
+    end
+    local result = {}
+    for i, rule in ipairs(styles) do
+        local copy = {}
+        for k, v in pairs(rule) do
+            copy[k] = v
+        end
+        --Type and the padding around it, so a shrunk card does not sit in
+        --full-size margins. Margins and borders are deliberately left alone:
+        --they are card chrome, not a function of the text size.
+        for _, key in ipairs({"fontSize", "minFontSize", "pad", "hpad", "vpad",
+                             "lpad", "rpad", "tpad", "bpad"}) do
+            if type(copy[key]) == "number" then
+                copy[key] = copy[key] * scale
+            end
+        end
+        result[i] = copy
+    end
+    return result
+end
+
+--- One of the card's gold bookmark tabs, or an inert stand-in.
+---
+--- The tabs float OUTSIDE the card's left edge (x = -26 to -46), which only
+--- works for a card floating over the map. Embedded in a panel they hang over
+--- whatever sits to the card's left, so those hosts pass params.hideTabs.
+---
+--- A stand-in rather than nil: these are positional children, and a nil in the
+--- middle of a table constructor makes the list length ambiguous, which can
+--- silently drop the siblings after it.
+--- @param hide boolean
+--- @param buildArgs fun(): table builds the gui.Panel args for the real tab. A
+--- function, not a table: a table constructor is evaluated before the call, so
+--- it would build the tab's child panels even when hidden, leaving them
+--- orphaned (the engine warns about panels created with no parent).
+--- @return Panel
+local function CardBookmarkTab(hide, buildArgs)
+    if hide then
+        return gui.Panel{ width = 0, height = 0, floating = true }
+    end
+    return gui.Panel(buildArgs())
+end
+
 function ActivatedAbility:Render(options, params)
     params = params or {}
     options = options or {}
@@ -714,6 +953,31 @@ function ActivatedAbility:Render(options, params)
 
     local paramMaxHeight = params.maxHeight
     params.maxHeight = nil
+
+    --Stripped like maxHeight: params is handed down to the behaviors, and a
+    --presentation flag has no business reaching them.
+    local quietTitleBand = params.quietTitleBand
+    params.quietTitleBand = nil
+
+    local hideTabs = params.hideTabs
+    params.hideTabs = nil
+
+    --Stripped like the flags above. One knob for the card's whole size ladder:
+    --the floating map card leaves it at 1, a host embedding the card in a narrow
+    --panel passes something smaller so the card stops dwarfing its neighbours.
+    local cardScale = params.cardScale or 1
+    params.cardScale = nil
+
+    --Scale a size from the card's ladder. Rounded, and never below 1px.
+    local function sc(n)
+        if cardScale == 1 then
+            return n
+        end
+        return math.max(1, math.floor(n * cardScale + 0.5))
+    end
+
+    --The clip-rect overhang exists only to keep the bookmark tabs visible.
+    local scrollBleedLeft = cond(hideTabs, 0, g_abilityScrollBleedLeft)
 
     local summary = options.summary
     options.summary = nil
@@ -1415,6 +1679,12 @@ function ActivatedAbility:Render(options, params)
         actionText = resourceInfo.name
     end
 
+    --Malice abilities collapse the action label and the target/range section:
+    --they are effects bought with malice, so "Free" and the default targeting
+    --info carry no information. The keyword row survives only if the ability
+    --actually has keywords.
+    local isMaliceAbility = self.categorization == "Malice"
+
     local preDescription = self:try_get("preDescription", "")
     local description = self.description
 
@@ -1469,7 +1739,7 @@ function ActivatedAbility:Render(options, params)
                     maxHeight = 22,
                     text = "!",
                     fontFace = "DrawSteelGlyphs",
-                    fontSize = 34,
+                    fontSize = sc(34),
                     halign = "left",
                     valign = "center",
 
@@ -1480,7 +1750,7 @@ function ActivatedAbility:Render(options, params)
                     width = "80%",
                     height = "auto",
                     text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[1], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
-                    fontSize = 16,
+                    fontSize = sc(16),
                     halign = "left",
                     valign = "center",
                     lmargin = 6,
@@ -1512,7 +1782,7 @@ function ActivatedAbility:Render(options, params)
                     maxHeight = 22,
                     text = "@",
                     fontFace = "DrawSteelGlyphs",
-                    fontSize = 34,
+                    fontSize = sc(34),
                     halign = "left",
                     valign = "center",
 
@@ -1523,7 +1793,7 @@ function ActivatedAbility:Render(options, params)
                     width = "80%",
                     height = "auto",
                     text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[2], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
-                    fontSize = 16,
+                    fontSize = sc(16),
                     halign = "left",
                     valign = "center",
                     lmargin = 6,
@@ -1552,7 +1822,7 @@ function ActivatedAbility:Render(options, params)
                     maxHeight = 22,
                     text = "#",
                     fontFace = "DrawSteelGlyphs",
-                    fontSize = 34,
+                    fontSize = sc(34),
                     halign = "left",
                     valign = "center",
 
@@ -1563,7 +1833,7 @@ function ActivatedAbility:Render(options, params)
                     width = "80%",
                     height = "auto",
                     text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[3], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
-                    fontSize = 16,
+                    fontSize = sc(16),
                     halign = "left",
                     valign = "center",
                     lmargin = 6,
@@ -1601,6 +1871,9 @@ function ActivatedAbility:Render(options, params)
     local descriptionString
     if description == "" then
         descriptionString = ""
+    elseif isMaliceAbility then
+        --Malice abilities are all effect; the "Effect:" prefix is noise.
+        descriptionString = description
     else
         descriptionString = "<b>Effect: </b>" .. description
     end
@@ -1628,7 +1901,7 @@ function ActivatedAbility:Render(options, params)
             classes = { "bgDanger" },
             width = "100%",
             height = "auto",
-            fontSize = 14,
+            fontSize = sc(14),
             hpad = 16,
             vpad = 4,
             text = suppressMessage,
@@ -1655,7 +1928,7 @@ function ActivatedAbility:Render(options, params)
                     classes = { cond(reminder.positive, "bgSuccess", "bgDanger") },
                     width = "100%",
                     height = "auto",
-                    fontSize = 14,
+                    fontSize = sc(14),
                     hpad = 16,
                     vpad = 4,
                     text = StringInterpolateGoblinScript(reminder.text or "", creatureProperties),
@@ -1684,7 +1957,7 @@ function ActivatedAbility:Render(options, params)
             classes = { "bgDanger" },
             width = "100%",
             height = "auto",
-            fontSize = 14,
+            fontSize = sc(14),
             hpad = 16,
             vpad = 4,
             text = footerNote,
@@ -1694,10 +1967,38 @@ function ActivatedAbility:Render(options, params)
     --king panel
     local args = {
         id = 'spellInfo',
-        styles = ThemeEngine.MergeStyles(SpellRenderStyles),
+        styles = ThemeEngine.MergeStyles(ScaleStyleSizes(SpellRenderStyles, cardScale)),
+        bgimage = "panels/square.png",
         hpad = 0,
         vpad = 0,
 
+        --Color-keyed title band, full bleed across the top of the card. Sits
+        --outside the padded body (and outside the scroll frame, so a
+        --scrolling card keeps its title visible).
+        gui.Panel {
+            classes = cond(quietTitleBand,
+                {"abilityHeadBand", "quietBand"},
+                {"abilityHeadBand", self:ActionColorKeyClass()}),
+
+            --name of the ability
+            gui.Label {
+
+                width = "auto",
+                id = "spellName",
+                --Quiet band: the key rides on the label instead (see above).
+                classes = cond(quietTitleBand,
+                    {"abilityName", self:ActionColorKeyClass()},
+                    {"abilityName"}),
+                fontSize = sc(24),
+                fontFace = "Newzald",
+                minFontSize = 14,
+                fontWeight = "Light",
+                maxWidth = "100%",
+                text = string.format("<b>%s</b>%s <size=18>%s</size>", self.name, meleeOrRangedVariantText, costString),
+                height = "auto",
+                markdown = true,
+            },
+        },
 
         --King panel for inside info.
         --A caller that knows how much room the card actually has (the ability
@@ -1706,7 +2007,7 @@ function ActivatedAbility:Render(options, params)
         --The scrolling/clipping is done by the frame wrapped around this panel,
         --NOT by this panel -- see WrapAbilityBodyInScrollFrame for why the clip
         --rect has to be wider than the body.
-        WrapAbilityBodyInScrollFrame(paramMaxHeight, gui.Panel {
+        WrapAbilityBodyInScrollFrame(paramMaxHeight, scrollBleedLeft, gui.Panel {
 
             id = "headerPanel",
             flow = "vertical",
@@ -1715,21 +2016,23 @@ function ActivatedAbility:Render(options, params)
             --In scroll mode this body sits inside that wider frame and must
             --occupy exactly the card's own bounds: full card width (which is
             --also what stops the fixed-340-wide embedded roll dialog from being
-            --cropped -- the old 90% was narrower than the dialog), right-aligned
-            --so every bit of the frame's extra width bleeds off to the LEFT
-            --where the tabs live. The 20px lmargin becomes hpad, which keeps the
-            --text where it was and also insets it clear of the scrollbar drawn
-            --at the frame's right edge. borderBox because this framework has no
-            --per-side padding and bare hpad is additive to the width.
-            width = cond(paramMaxHeight ~= nil, string.format("100%%-%d", g_abilityScrollBleedLeft), "90%"),
+            --cropped), right-aligned so every bit of the frame's extra width
+            --bleeds off to the LEFT where the tabs live. The scroll-mode hpad
+            --is bigger to inset the text clear of the scrollbar drawn at the
+            --frame's right edge; the left never needed it, and a blanket hpad
+            --was pushing the body text well inside the title above it.
+            --borderBox because bare padding is additive to the width.
+            width = cond(paramMaxHeight ~= nil and scrollBleedLeft > 0,
+                string.format("100%%-%d", scrollBleedLeft), "100%"),
             halign = cond(paramMaxHeight ~= nil, "right", nil),
             height = "auto",
             bgimage = true,
             bgcolor = "clear",
-            tmargin = 15,
-            lmargin = cond(paramMaxHeight ~= nil, 0, 20),
-            hpad = cond(paramMaxHeight ~= nil, 20, 0),
-            borderBox = cond(paramMaxHeight ~= nil, true, false),
+            tmargin = 8,
+            bmargin = 8,
+            lpad = sc(14),
+            rpad = sc(cond(paramMaxHeight ~= nil, 20, 14)),
+            borderBox = true,
 
             --titel and ability and icon type king panel
             gui.Panel {
@@ -1759,7 +2062,7 @@ function ActivatedAbility:Render(options, params)
                     --name and type
                     gui.Panel {
 
-                        width = "auto",
+                        width = "100%",
                         height = "auto",
                         valign = "top",
                         bgcolor = "clear",
@@ -1767,28 +2070,16 @@ function ActivatedAbility:Render(options, params)
 
                         flow = "vertical",
 
-                        --name of the ability
-                        gui.Label {
-
-                            width = "auto",
-                            id = "spellName",
-                            classes = {"abilityName"},
-                            fontSize = 24,
-                            fontFace = "Newzald",
-                            minFontSize = 14,
-                            fontWeight = "Light",
-                            maxWidth = "100%",
-                            text = string.format("<b>%s</b>%s <size=18>%s</size>", self.name, meleeOrRangedVariantText, costString),
-                            height = "auto",
-                            markdown = true,
-                        },
-
                         --Type of ability
+                        --Full width so the implementation chip can pack to the
+                        --right edge while the type name stays on the left.
                         gui.Panel {
 
                             flow = "horizontal",
-                            width = "auto",
+                            width = "100%",
                             height = "auto",
+                            halign = "left",
+                            tmargin = 4,
 
                             gui.Label {
 
@@ -1810,6 +2101,7 @@ function ActivatedAbility:Render(options, params)
                                 height = "auto",
 
                                 flow = "horizontal",
+                                halign = "right",
                                 lmargin = 10,
                                 bgimage = true,
                                 bgcolor = "clear",
@@ -1819,13 +2111,13 @@ function ActivatedAbility:Render(options, params)
                                 end,
 
                                 hover = function(element)
-                                    local text = [[<b>Gold:</b> Fully automated.
+                                    local text = [[<b>Fully Automated:</b> Everything is handled by the app.
 
-<b>Silver:</b> Automated with some table adjudication necessary.
+<b>Mostly Automated:</b> Automated, with some table adjudication necessary.
 
-<b>Bronze:</b> Partially automated.
+<b>Partly Automated:</b> Some of it is handled; the rest needs adjudication.
 
-<b>Unimplemented:</b> Requires manual adjudication.
+<b>Not Automated:</b> Requires manual adjudication.
 
 <b>Narrative:</b> Role play only, no automation.
 ]]
@@ -1847,8 +2139,8 @@ function ActivatedAbility:Render(options, params)
                                     classes = { "implementationDiamond" },
                                     rotate = 45,
 
-                                    width = 10,
-                                    height = 10,
+                                    width = sc(10),
+                                    height = sc(10),
                                     bgimage = true,
                                     valign = "center",
 
@@ -1874,9 +2166,8 @@ function ActivatedAbility:Render(options, params)
 
                                 gui.Label {
                                     classes = { "implementationChip" },
-                                    text = gui.ImplementationStatusValues[self:try_get("implementation", 1)] or "Unimplemented",
+                                    text = gui.ImplementationStatusValues[self:try_get("implementation", 1)] or "Not Automated",
                                     create = function(element)
-                                        print("venla:", mod.images.diamond)
                                         local impl = self:try_get("implementation", 1)
                                         -- Set the appropriate class based on implementation status
                                         if impl == 0 then
@@ -1941,12 +2232,13 @@ function ActivatedAbility:Render(options, params)
                 height = 25,
                 tmargin = 6,
                 flow = "horizontal",
+                collapsed = cond(isMaliceAbility and #keywords == 0, 1, 0),
 
                 --keywords
                 gui.Label {
 
                     text = string.format("%s", keywordText),
-                    fontSize = 20,
+                    fontSize = sc(20),
                     minFontSize = 8,
                     fontFace = "Newzald",
                     fontWeight = "Light",
@@ -1964,12 +2256,13 @@ function ActivatedAbility:Render(options, params)
                 gui.Label {
 
                     text = string.format("%s", actionText),
-                    fontSize = 20,
+                    fontSize = sc(20),
                     fontFace = "Newzald",
                     fontWeight = "Light",
                     width = "auto",
                     halign = "right",
                     markdown = true,
+                    collapsed = cond(isMaliceAbility, 1, 0),
 
 
                 },
@@ -1986,6 +2279,7 @@ function ActivatedAbility:Render(options, params)
                 height = "auto",
                 tmargin = 2,
                 flow = "vertical",
+                collapsed = cond(isMaliceAbility, 1, 0),
 
                 showAbilitySection = function(element, options)
                     if options.ability.name ~= self.name then
@@ -2001,7 +2295,7 @@ function ActivatedAbility:Render(options, params)
                 end,
 
                 --tab panel
-                gui.Panel {
+                CardBookmarkTab(hideTabs, function() return {
                     styles = {
                         {
                             selectors = { "tab" },
@@ -2026,7 +2320,7 @@ function ActivatedAbility:Render(options, params)
                         classes = { "goldTabLabel" },
                         width = "auto",
                         height = "auto",
-                        fontSize = 22,
+                        fontSize = sc(22),
                         bold = true,
                         text = "Target",
                         y = -18,
@@ -2034,13 +2328,17 @@ function ActivatedAbility:Render(options, params)
                         halign = "center",
                         valign = "center",
                     },
-                },
+                } end),
 
 
+                --Same geometry as the target row below: a fixed 24px glyph
+                --column then the text, so the two icon rows share a left edge.
+                --A width="auto" row with no halign centres itself in the card.
                 gui.Panel {
-                    width = "auto",
+                    width = "100%",
                     height = "auto",
                     flow = "horizontal",
+                    halign = "left",
                     gui.Label {
 
                         create = function(element)
@@ -2066,23 +2364,25 @@ function ActivatedAbility:Render(options, params)
                             end
                         end,
                         fontFace = "DrawSteelGlyphs",
-                        fontSize = 20,
-                        width = "auto",
+                        fontSize = sc(20),
+                        width = sc(24),
+                        height = "auto",
                         halign = "right",
                         valign = "center",
-                        lmargin = 5,
+                        lmargin = sc(5),
                     },
 
 
                     gui.Label {
 
                         text = self:DescribeRange(creatureProperties),
-                        fontSize = 18,
+                        fontSize = sc(18),
                         fontFace = "Newzald",
                         fontWeight = "Light",
-                        width = "auto",
+                        width = string.format("100%%-%d", sc(33)),
+                        height = "auto",
                         halign = "left",
-                        lmargin = 6,
+                        lmargin = sc(4),
                         valign = "center",
                         markdown = true,
 
@@ -2099,24 +2399,24 @@ function ActivatedAbility:Render(options, params)
 
                         text = "x",
                         fontFace = "DrawSteelGlyphs",
-                        fontSize = 20,
-                        width = 24,
+                        fontSize = sc(20),
+                        width = sc(24),
                         height = "auto",
                         halign = "right",
                         valign = "top",
-                        lmargin = 5,
+                        lmargin = sc(5),
 
                     },
 
                     gui.Label {
 
                         text = string.format("<b></b> <i>%s</i>", self:DescribeTarget(token)),
-                        fontSize = 18,
+                        fontSize = sc(18),
                         fontFace = "Newzald",
                         fontWeight = "Light",
-                        width = "100%-33",
+                        width = string.format("100%%-%d", sc(33)),
                         halign = "left",
-                        lmargin = 4,
+                        lmargin = sc(4),
                         valign = "top",
                         markdown = true,
                         textWrap = true,
@@ -2148,7 +2448,7 @@ function ActivatedAbility:Render(options, params)
                         local m_value = capturedEntry.checked
                         local pillPanel
                         pillPanel = gui.Panel{
-                            styles = ThemeEngine.MergeStyles(g_improvementPillStyles),
+                            styles = ThemeEngine.MergeStyles(ScaleStyleSizes(g_improvementPillStyles, cardScale)),
                             classes = {"improvementPill"},
                             press = function(el)
                                 m_value = not m_value
@@ -2275,7 +2575,7 @@ function ActivatedAbility:Render(options, params)
             gui.Label {
                 classes = { cond(preDescriptionString == "", "collapsed", nil) },
                 text = string.format("%s", preDescriptionString),
-                fontSize = 18,
+                fontSize = sc(18),
                 fontFace = "Newzald",
                 fontWeight = "Light",
                 width = "100%",
@@ -2323,7 +2623,7 @@ function ActivatedAbility:Render(options, params)
                 gui.Label {
 
                     text = self:GetPowerRollDisplay(),
-                    fontSize = 18,
+                    fontSize = sc(18),
                     fontFace = "Newzald",
                     fontWeight = "Light",
                     width = "auto",
@@ -2363,7 +2663,7 @@ function ActivatedAbility:Render(options, params)
                 end,
 
                 --tab panel
-                gui.Panel {
+                CardBookmarkTab(hideTabs, function() return {
                     styles = {
                         {
                             selectors = { "tab" },
@@ -2388,7 +2688,7 @@ function ActivatedAbility:Render(options, params)
                         classes = { "goldTabLabel" },
                         width = "auto",
                         height = "auto",
-                        fontSize = 22,
+                        fontSize = sc(22),
                         bold = true,
                         text = "Effect",
                         y = -18,
@@ -2396,7 +2696,7 @@ function ActivatedAbility:Render(options, params)
                         halign = "center",
                         valign = "center",
                     },
-                },
+                } end),
 
                 gui.Label {
                     text = descriptionString,
@@ -2405,7 +2705,7 @@ function ActivatedAbility:Render(options, params)
                     height = "auto",
                     halign = "left",
                     bmargin = 4,
-                    fontSize = 14,
+                    fontSize = sc(14),
                 },
             },
 
@@ -2449,64 +2749,8 @@ function ActivatedAbility:Render(options, params)
             text = actionText,
         },]]
 
-        --border line right panel
-        gui.Panel {
-
-            classes = { "fadeLine" },
-            floating = true,
-            valign = "top",
-            halign = "left",
-            height = 1.2,
-            width = 500,
-            bgimage = true,
-            gradient = gui.Gradient {
-                point_a = { x = 0, y = 0 },
-                point_b = { x = 1, y = 0 },
-                stops = {
-                    {
-                        position = 0,
-                        color = "white",
-                    },
-
-                    {
-                        position = 1,
-                        color = "clear",
-                    }
-                }
-            }
-
-        },
-
-        --border line down panel
-        gui.Panel {
-
-            classes = { "fadeLine" },
-            floating = true,
-            valign = "top",
-            halign = "left",
-            height = 200,
-            width = 1.2,
-            bgimage = true,
-            gradient = gui.Gradient {
-                point_a = { x = 0, y = 1 },
-                point_b = { x = 0, y = 0 },
-                stops = {
-                    {
-                        position = 0,
-                        color = "white",
-                    },
-
-                    {
-                        position = 1,
-                        color = "clear",
-                    }
-                }
-            }
-
-        },
-
         --tab panel
-        gui.Panel {
+        CardBookmarkTab(hideTabs, function() return {
 
             classes = { "goldTab" },
             floating = true,
@@ -2523,7 +2767,7 @@ function ActivatedAbility:Render(options, params)
             showAbilitySection = function(element, options)
                 element:SetClass("collapsed", true)
             end,
-        },
+        } end),
 
         suppressPanel,
         reminderPanel,
@@ -2747,6 +2991,45 @@ function ActivatedAbility:UsesIndividualManeuver(casterToken)
     return self.selfTarget or self.targetType == 'self'
 end
 
+--Minions we have already logged about, so we print once each instead of every refresh.
+local g_reportedSquadSuppression = {}
+
+--True while an invoke is holding this minion's squad coordination off. A flag stamped
+--on an earlier turn is left over from an invoke that never finished, so drop it --
+--otherwise the squad is stuck attacking with one member for the rest of the session.
+local function SquadCoordinationSuppressed(casterToken)
+    if casterToken == nil or casterToken.properties == nil then
+        return false
+    end
+
+    local depth = casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0) or 0
+    if depth <= 0 then
+        return false
+    end
+
+    --Never throw here: this runs while the player is picking targets.
+    local invokeBehavior = rawget(_G, "ActivatedAbilityInvokeAbilityBehavior")
+    local turnKeyFunction = invokeBehavior ~= nil and invokeBehavior.SquadSuppressionTurnKey or nil
+
+    local stampedTurn = casterToken.properties:try_get("_tmp_disableSquadCoordinationTurn")
+    local currentTurn = turnKeyFunction ~= nil and turnKeyFunction() or nil
+    if stampedTurn ~= nil and currentTurn ~= nil and stampedTurn ~= currentTurn then
+        print(string.format("SQUADDIAG:: clearing leaked squad-coordination suppression on %s (depth=%d stamped=%s now=%s)",
+            tostring(casterToken.name or casterToken.charid), depth, tostring(stampedTurn), tostring(currentTurn)))
+        casterToken.properties._tmp_disableSquadCoordinationDepth = nil
+        casterToken.properties._tmp_disableSquadCoordinationTurn = nil
+        return false
+    end
+
+    if not g_reportedSquadSuppression[casterToken.charid] then
+        g_reportedSquadSuppression[casterToken.charid] = true
+        print(string.format("SQUADDIAG:: squad coordination suppressed on %s by an active invoke (depth=%d turn=%s)",
+            tostring(casterToken.name or casterToken.charid), depth, tostring(stampedTurn)))
+    end
+
+    return true
+end
+
 --Returns true if this ability, when cast by a minion in a squad, should be coordinated across the squad
 function ActivatedAbility:UsesSquadCoordination(casterToken)
     --An invoke that opted out of squad coordination forces this off regardless of the
@@ -2756,8 +3039,7 @@ function ActivatedAbility:UsesSquadCoordination(casterToken)
     if self:try_get("disableSquadCoordination", false) then
         return false
     end
-    if casterToken ~= nil and casterToken.properties ~= nil
-        and (casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0) or 0) > 0 then
+    if SquadCoordinationSuppressed(casterToken) then
         return false
     end
     --casterToken.properties can be nil if the caster was destroyed/despawned mid-cast

@@ -8,7 +8,199 @@ local GetSettingEnum = function(var)
 	return var.enum
 end
 
-local CreateEditorPanel = function(var, editor, changeFunction, args)
+--Command-builder entries for an enum/dropdown setting: one "Set X to <option>"
+--menu item per enum value. Evaluated at click time so dynamic option lists
+--(var.getOptions) stay fresh. The recorded command is the engine's plain
+--"<settingid> <value>" setter. String values are ALWAYS quoted: an unquoted
+--arg goes through SetValue(string) -> ScriptSerialize.JsonToLua, which
+--mangles any non-JSON token (a dice asset id parses as a number prefix or
+--nil). Quoting makes ExecuteCommand strip the quotes and pass the raw
+--string straight through.
+local DropdownLightningEntries = function(var)
+	return function(element)
+		local name = var.description or var.id
+
+		local opts
+		if var.getOptions ~= nil then
+			opts = var.getOptions()
+		else
+			opts = {}
+			for i,item in ipairs(GetSettingEnum(var)) do
+				opts[#opts+1] = {
+					id = item.value,
+					text = item.text or item.value,
+				}
+			end
+		end
+
+		local entries = {}
+		for _,opt in ipairs(opts) do
+			local value = opt.id
+			local optionText = tostring(opt.text or value)
+			local command
+			if type(value) == "string" then
+				command = string.format('%s "%s"', var.id, value)
+			else
+				command = string.format("%s %s", var.id, tostring(value))
+			end
+			entries[#entries+1] = {
+				text = string.format("Set %s to %s", name, optionText),
+				command = command,
+				stepText = string.format("%s = %s", name, optionText),
+			}
+		end
+		return entries
+	end
+end
+
+--Command-builder popup for a slider setting: a mini slider (same range,
+--rounding, and value formatting as the row's editor) plus an Add Step
+--button, so the user can record "set this setting to any chosen value".
+--The recorded command sets the setting's STORED value (%g keeps floats
+--compact); the chip shows the formatted display value.
+local SliderLightningPopup = function(var, formatFunction, deformatFunction)
+	return function(iconElement)
+		local name = var.description or var.id
+		local m_value = dmhub.GetSettingValue(var.id)
+
+		local FormatValue = function(value)
+			if formatFunction ~= nil then
+				return formatFunction(value)
+			end
+			return string.format(var.labelFormat or "%.1f", value)
+		end
+
+		local slider = gui.Slider{
+			minValue = var.min,
+			maxValue = var.max,
+			value = m_value,
+			round = var.round,
+
+			formatFunction = formatFunction,
+			deformatFunction = deformatFunction,
+
+			sliderWidth = 140,
+			labelWidth = 48,
+			labelFormat = var.labelFormat or "%.1f",
+			events = {
+				change = function(element)
+					m_value = element.data.getValue()
+				end,
+				confirm = function(element)
+					m_value = element.data.getValue()
+				end,
+			},
+			style = {
+				width = 220,
+				height = 28,
+				fontSize = 12,
+			},
+		}
+
+		return gui.Panel{
+			classes = {"bordered", "bg"},
+			width = "auto",
+			height = "auto",
+			flow = "vertical",
+			pad = 8,
+
+			gui.Label{
+				text = string.format("Set %s to:", name),
+				fontSize = 12,
+				width = "auto",
+				height = "auto",
+			},
+
+			slider,
+
+			gui.Button{
+				text = "Add Step",
+				fontSize = 12,
+				width = "auto",
+				height = 24,
+				hpad = 10,
+				borderBox = true,
+				halign = "right",
+				vmargin = 4,
+				click = function(element)
+					CommandBuilder.RecordStep{
+						command = string.format("%s %g", var.id, m_value),
+						text = string.format("%s = %s", name, FormatValue(m_value)),
+					}
+					iconElement.popup = nil
+				end,
+			},
+		}
+	end
+end
+
+--Command-builder popup for a color setting: a color picker (starting from
+--the setting's current color) plus an Add Step button, so the user can
+--record "set this setting to any chosen color". Color settings store a
+--Color userdata, so the recorded command carries the engine's serialized
+--userdata form -- {"__usertype":"LuaColor","h":...,"s":...,"v":...,"a":...}
+---- which ExecuteCommand's setting path deserializes back into a proper
+--Color value (a plain hex string would store a string and break C#-side
+--readers of the setting). The chip shows the friendly hex form.
+local ColorLightningPopup = function(var)
+	return function(iconElement)
+		local name = var.description or var.id
+
+		--the picker opens its own popup when clicked; the engine keeps our
+		--popup open because the picker is inside it (popup chains).
+		local picker = gui.ColorPicker{
+			value = dmhub.GetSettingValue(var.id),
+			hasAlpha = var.hasAlpha,
+			popupAlignment = 'left',
+			styles = {
+				{
+					width = 24,
+					height = 24,
+					halign = "left",
+					valign = "center",
+				},
+			},
+		}
+
+		return gui.Panel{
+			classes = {"bordered", "bg"},
+			width = "auto",
+			height = "auto",
+			flow = "vertical",
+			pad = 8,
+
+			gui.Label{
+				text = string.format("Set %s to:", name),
+				fontSize = 12,
+				width = "auto",
+				height = "auto",
+			},
+
+			picker,
+
+			gui.Button{
+				text = "Add Step",
+				fontSize = 12,
+				width = "auto",
+				height = 24,
+				hpad = 10,
+				borderBox = true,
+				halign = "right",
+				vmargin = 4,
+				click = function(element)
+					local c = core.Color(picker.value)
+					CommandBuilder.RecordStep{
+						command = string.format('%s {"__usertype":"LuaColor","h":%g,"s":%g,"v":%g,"a":%g}', var.id, c.h, c.s, c.v, c.a),
+						text = string.format("%s = %s", name, c.tostring),
+					}
+					iconElement.popup = nil
+				end,
+			},
+		}
+	end
+end
+
+local CreateEditorPanel = function(var, editor, changeFunction, args, lightning)
 	args = args or {}
 	-- Opt-in label-above-control layout. When passed via the editor's options
 	-- table (e.g. CreateSettingsEditor("foo", {stacked = true})), the row
@@ -26,6 +218,19 @@ local CreateEditorPanel = function(var, editor, changeFunction, args)
 		}
 	end
 
+	-- Optional command-builder affordance (a CommandBuilder.LightningIcon
+	-- options table). Built lazily on the first activation of command
+	-- creation mode: while the mode is inactive the only cost is the extra
+	-- monitor registration. The row watches both its own setting and the
+	-- mode flag; the monitor event fires for either, and both reactions are
+	-- cheap no-ops for the id that did not change.
+	local attachLightning = nil
+	if lightning ~= nil then
+		attachLightning = function(element)
+			CommandBuilder.EnsureLightningIcon(element, lightning)
+		end
+	end
+
 	return gui.Panel{
 		styles = {
 			{
@@ -38,13 +243,17 @@ local CreateEditorPanel = function(var, editor, changeFunction, args)
 			args.panelStyle,
 		},
 
-		monitor = var.id,
+		monitor = lightning ~= nil and {var.id, "commandcreationmode"} or var.id,
 		events = {
 			monitor = function(element)
 				if changeFunction ~= nil then
 					changeFunction(dmhub.GetSettingValue(var.id))
 				end
+				if attachLightning ~= nil then
+					attachLightning(element)
+				end
 			end,
+			create = attachLightning,
 			linger = gui.Tooltip(var.help),
 		},
 
@@ -136,7 +345,14 @@ local SettingsEditors = {
 			}
 		}
 
-		return CreateEditorPanel(var, sliderElement, function(newValue) sliderElement.data.setValueNoEvent(newValue) end)
+		return CreateEditorPanel(var, sliderElement, function(newValue) sliderElement.data.setValueNoEvent(newValue) end, nil, {
+			floating = true,
+			halign = "right",
+			valign = "center",
+			--gutter column, consistent with every other editor type.
+			rmargin = -26,
+			createPopup = SliderLightningPopup(var, formatFunction, deformatFunction),
+		})
 	end,
 
 	slider = function(var, options)
@@ -195,7 +411,14 @@ local SettingsEditors = {
 			},
 		}
 
-		return CreateEditorPanel(var, sliderElement, function(newValue) sliderElement.data.setValueNoEvent(newValue) end, options)
+		return CreateEditorPanel(var, sliderElement, function(newValue) sliderElement.data.setValueNoEvent(newValue) end, options, {
+			floating = true,
+			halign = "right",
+			valign = "center",
+			--gutter column, consistent with every other editor type.
+			rmargin = -26,
+			createPopup = SliderLightningPopup(var, formatFunction, deformatFunction),
+		})
 
 	end,
 
@@ -213,10 +436,53 @@ local SettingsEditors = {
 			}
 		end
 
+		--While command creation mode is active (see CommandBuilder.lua), a
+		--lightning icon floats at the right edge of the row; its menu records
+		--set/toggle steps for this setting into the command being built. The
+		--icon is built lazily on the first activation of the mode -- a normal
+		--settings open constructs nothing for it.
+		local lightningOptions = {
+			floating = true,
+			halign = "right",
+			valign = "center",
+			--all lightning icons sit in one consistent column just outside
+			--the row's right edge, in the gutter before the scrollbar --
+			--dropdown/slider controls extend to the row edge, so inside the
+			--row there is no overlap-free spot shared by every editor type.
+			rmargin = -26,
+			entries = function(element)
+				local name = var.description or var.id
+				return {
+					{
+						text = string.format("Turn %s on", name),
+						command = string.format("%s true", var.id),
+						stepText = string.format("%s on", name),
+					},
+					{
+						text = string.format("Turn %s off", name),
+						command = string.format("%s false", var.id),
+						stepText = string.format("%s off", name),
+					},
+					{
+						text = string.format("Toggle %s", name),
+						command = string.format("toggle %s", var.id),
+						stepText = string.format("Toggle %s", name),
+					},
+				}
+			end,
+		}
+
+		local AttachLightning = function(element)
+			CommandBuilder.EnsureLightningIcon(element, lightningOptions)
+		end
+
 		return
 		gui.Panel{
 			width = "90%",
 			height = "auto",
+			multimonitor = {"commandcreationmode"},
+			create = AttachLightning,
+			monitor = AttachLightning,
 			gui.Check{
 				value = dmhub.GetSettingValue(var.id),
 				text = var.description,
@@ -277,7 +543,7 @@ local SettingsEditors = {
 						}
 					end,
 				},
-			}
+			},
 		}
 	end,
 
@@ -358,7 +624,14 @@ local SettingsEditors = {
 				}
 			}
 		
-		return CreateEditorPanel(var, editor, nil, args)
+		return CreateEditorPanel(var, editor, nil, args, {
+			floating = true,
+			halign = "right",
+			valign = "center",
+			--gutter column, consistent with every other editor type.
+			rmargin = -26,
+			entries = DropdownLightningEntries(var),
+		})
 
 	end,
 
@@ -526,7 +799,14 @@ local SettingsEditors = {
 
 				}
 
-		return CreateEditorPanel(var, picker, nil, options)
+		return CreateEditorPanel(var, picker, nil, options, {
+			floating = true,
+			halign = "right",
+			valign = "center",
+			--gutter column, consistent with every other editor type.
+			rmargin = -26,
+			createPopup = ColorLightningPopup(var),
+		})
 	end,
 
 	buttonincrement = function(var)

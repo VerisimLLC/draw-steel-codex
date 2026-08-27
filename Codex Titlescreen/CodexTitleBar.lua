@@ -100,6 +100,586 @@ local function TicketStatusBridgeAvailable()
     return ok and fn ~= nil
 end
 
+--Merged title bar: the engine strips the native Windows caption so this bar
+--sits flush with the top of the window, and the bar supplies dragging plus
+--the minimize / maximize / close buttons (LuaInterfaceWindowChrome.cs). On
+--engines without the bridge, or non-Windows platforms, the feature is
+--simply absent.
+local g_windowChromeAvailable = nil
+local function WindowChromeBridgeAvailable()
+    if g_windowChromeAvailable == nil then
+        local ok, avail = pcall(function() return dmhub.mergedTitleBarAvailable end)
+        g_windowChromeAvailable = (ok and avail == true)
+    end
+    return g_windowChromeAvailable
+end
+
+local function MergedTitleBarActive()
+    return WindowChromeBridgeAvailable() and dmhub.GetSettingValue("mergedtitlebar") == true
+end
+
+local function ApplyMergedTitleBar()
+    if WindowChromeBridgeAvailable() then
+        dmhub.SetMergedTitleBar(dmhub.GetSettingValue("mergedtitlebar") == true)
+    end
+end
+
+setting{
+    id = "mergedtitlebar",
+    description = "Merge window title bar",
+    storage = "preference",
+    editor = "check",
+    default = true,
+    onchange = function()
+        ApplyMergedTitleBar()
+    end,
+}
+
+--apply the stored preference at module load (and re-apply on reloads --
+--SetMergedTitleBar is idempotent).
+ApplyMergedTitleBar()
+
+--Window-transition guard: window geometry changes (maximize / restore, and
+--the boot-time merge convergence) take the engine a few frames to re-layout,
+--and the DWM transition animation happily showcases the bar mid-layout. While
+--the guard is active the bar's CONTENTS are hidden (the flat surface strip
+--stays, so the bar reads as an empty native caption) and are revealed only
+--once the screen resolution has held still for a run of samples.
+local g_menuBarPanel = nil
+local g_transitionToken = 0
+local g_transitionActive = false
+
+--Keeps the bar inside its own width; defined further down, but the transition
+--guard below runs it while the bar is hidden so a resize is already absorbed
+--by the time the bar is revealed.
+local BarFitApply
+
+--The maximize/restore window control. Held separately from the bar tree
+--because the stage-2 hit regions report it to the engine as the native
+--HTMAXBUTTON zone (Windows 11 Snap Layouts flyout), after which its mouse
+--interaction is relayed back through the windowMaxButtonState /
+--windowMaxButtonClick global events rather than normal gui events.
+local m_maximizeControl = nil
+
+local function StartWindowTransitionGuard(stableSamples, timeout, reason)
+    local bar = g_menuBarPanel
+    if bar == nil or not bar.valid or not MergedTitleBarActive() then
+        return
+    end
+
+    stableSamples = stableSamples or 6
+    timeout = timeout or 2.5
+
+    g_transitionToken = g_transitionToken + 1
+    local token = g_transitionToken
+
+    if not g_transitionActive then
+        g_transitionActive = true
+        bar:SetClassTree("windowTransition", true)
+    end
+
+    local dims = dmhub.screenDimensions
+    local lastW, lastH = dims.x, dims.y
+    local stable = 0
+    local started = dmhub.Time()
+
+    local function poll()
+        if mod.unloaded or token ~= g_transitionToken then
+            return
+        end
+        if not bar.valid then
+            g_transitionActive = false
+            return
+        end
+
+        local d = dmhub.screenDimensions
+        if d.x == lastW and d.y == lastH then
+            stable = stable + 1
+        else
+            stable = 0
+            lastW = d.x
+            lastH = d.y
+        end
+
+        --Re-fit while still hidden. The collapse ladder moves one step per
+        --pass, so running it on the poll cadence lets a big resize settle
+        --into its final layout before the bar comes back into view.
+        BarFitApply()
+
+        --reveal once the resolution has held still, or on a hard timeout so
+        --the bar can never be lost to a stuck transition. The dead-man
+        --heartbeat is unaffected: hiding is opacity only, thinks keep running.
+        if stable >= stableSamples or dmhub.Time() - started > timeout then
+            g_transitionActive = false
+            bar:SetClassTree("windowTransition", false)
+            return
+        end
+
+        dmhub.Schedule(0.05, poll)
+    end
+
+    dmhub.Schedule(0.05, poll)
+end
+
+----------------------------------------------------------------------
+-- Narrow-bar fit.
+--
+-- The whole title bar is ONE horizontal flow, and the engine abandons
+-- alignment the moment a horizontal flow overfills: SheetPanel's
+-- LayoutChildrenInternal packs EVERY child from the left once nothing is
+-- left over (`if(available <= 0f) numLeft = childPanels.Count`). So an
+-- overfull bar walks its right-hand cluster -- the minimize / maximize /
+-- close buttons -- straight off the right edge of the screen. Nothing
+-- ellipsizes or clips on its own to stop that.
+--
+-- So the bar keeps itself inside its own width. Space is handed back in a
+-- fixed order, least-missed first: the search box narrows, then the map
+-- name, then the menu strip's padding. If shrinking is not enough the
+-- collapse ladder below takes whole elements away in the same spirit.
+-- The window buttons are never in either list.
+----------------------------------------------------------------------
+
+--Bar units held back from the budget. The engine's flow also charges each
+--child's horizontal MARGINS, which are not part of any panel's
+--renderedWidth, so a plain width sum reads UNDER the true demand -- the
+--hidden presentation bar alone carries a 32-unit rmargin. Measured at 32
+--on an in-game bar; 44 leaves a little slack.
+local BAR_FIT_RESERVE = 44
+
+--Coming back out of a shrink needs more room than staying in it, or a bar
+--sitting exactly on a boundary flips between two layouts every tick.
+local BAR_FIT_HYSTERESIS = 24
+
+--Floors for the elements that shrink rather than vanish. The search floor
+--still shows a few characters of a query; the map-name floor still shows
+--enough of a map's name to recognise it (both ellipsize past that).
+local BAR_FIT_SEARCH_MIN = 132
+local BAR_FIT_MAPNAME_MIN = 84
+local BAR_FIT_MAPNAME_FULL = 380
+
+--Menu strip: {menuItem} ships hpad 8 and {menuLabel} hmargin 4, so each
+--item can give back 2*(8-2) of padding and each label 2*(4-1) of margin
+--without touching the type size.
+local BAR_FIT_MENU_HPAD, BAR_FIT_MENU_HPAD_MIN = 8, 2
+local BAR_FIT_MENU_MARGIN, BAR_FIT_MENU_MARGIN_MIN = 4, 1
+
+--Defined with the search bar further down; the fit pass needs the box's
+--natural width, which tracks the dock-scale setting.
+local SearchBoxWidth
+
+--Panels the fit pass drives, registered by the factories that build them.
+--Every entry is optional -- the title-screen bar builds a different subset
+--than an in-game one -- and each is re-validated before use.
+local g_barFit = {
+    panels = {},        --name -> Panel; the shrink stages and the ladder both
+                        --look their subjects up here
+    naturals = {},      --key -> last width seen while visible
+    depth = 0,          --how many collapse-ladder steps are applied
+    withheld = 0,       --bar units the previous pass was saving
+    menusDropped = {},  --panel id -> true for menu items the ladder dropped
+
+    --Last values pushed out, so a pass only writes when something actually
+    --changed. These are memos rather than reads of selfStyle because reading
+    --a style property that was never explicitly set raises ("Error indexing
+    --userdata") -- menu-item hpad and label hmargin both come from class
+    --styles, so neither can be read back.
+    appliedMapName = nil,
+    appliedMenuHpad = nil,
+    appliedMenuMargin = nil,
+}
+
+--The collapse ladder, most expendable first: the map info, then the search
+--box, then the status readouts, and only then the menu strip. "menus" is the
+--last resort and expands into one step per menu item, dropped from the RIGHT
+--of the strip so the Codex menu -- and with it Settings and Quit -- is the
+--final survivor.
+--
+--The search box still SHRINKS first (stage 1 of the fit pass), but the whole
+--map cluster is taken away before the box itself is: the search gets used
+--constantly, while the map name survives on the full Maps panel (the
+--cluster's hover tooltip was removed 2026-08-25).
+--
+--No step may be an ANCESTOR of another: both would be credited with the same
+--pixels when the pass reconstructs the bar's natural demand. That is why the
+--map cluster is represented by its two children (the name and the terrain
+--chip) rather than by the cluster itself.
+local BAR_FIT_LADDER = {
+    "mapName", "mapChip", "search",
+    "initiative", "devGame", "connectivity", "audio",
+    "menus",
+}
+
+--Returns the panel, so an element declared inline in a child list can be
+--registered without being pulled out into a local first.
+local function BarFitRegister(name, panel)
+    g_barFit.panels[name] = panel
+    return panel
+end
+
+--The menu strip, in left-to-right order. Read off the bar rather than
+--registered by the factories, because the factories do not run in bar order
+--(Adventure Documents is built well before the Codex/Game/Tools items it sits
+--after). Direct children only: the map cluster also wears "menuItem", but it
+--lives inside the status bar, not on the bar itself.
+local function BarFitMenuItems(bar)
+    local items = {}
+    for _,child in ipairs(bar.children) do
+        if child.valid and child:HasClass("menuItem") then
+            items[#items+1] = child
+        end
+    end
+    return items
+end
+
+--The ladder flattened into concrete steps, so applying it and costing a
+--restore both index the same list. Keys are stable per element (panel ids)
+--because the remembered natural widths are looked up by key.
+local function BarFitSteps(menuItems)
+    local steps = {}
+    for _,name in ipairs(BAR_FIT_LADDER) do
+        if name ~= "menus" then
+            steps[#steps+1] = {key = name, panel = g_barFit.panels[name]}
+        else
+            --Only menu items that are actually on screen have anything to
+            --give, so items the bar has hidden for its own reasons (the
+            --main-menu-only Codex entry while in game, Developer outside dev
+            --mode) are skipped rather than burning a ladder step on a
+            --zero-width panel. Items THIS pass hid still count, or the step
+            --list would shuffle underneath the depth counter.
+            local live = {}
+            for _,item in ipairs(menuItems) do
+                if item.valid and (item.enabled or item:HasClass("barFitHidden")) then
+                    live[#live+1] = item
+                end
+            end
+            --live[1] is never dropped: it keeps the Codex menu, and with it
+            --Settings and Quit to Desktop, reachable at any window width.
+            for i = #live, 2, -1 do
+                steps[#steps+1] = {key = "menu:" .. tostring(live[i].id), panel = live[i], isMenu = true}
+            end
+        end
+    end
+    return steps
+end
+
+--True once the fit pass has dropped this menu item. The two menu items that
+--own their own selfStyle.collapsed (Developer, keyed to dev mode, and
+--Adventure Documents, keyed to the tracked document list) consult this from
+--their own visibility code -- a selfStyle write beats any class rule, so the
+--ladder cannot collapse them from the outside.
+local function BarFitMenuDropped(element)
+    if element == nil or not element.valid then
+        return false
+    end
+    return g_barFit.menusDropped[element.id] == true
+end
+
+--Total width the bar's flow is currently asking for. Floating children (the
+--drag surface) sit outside the flow, and a panel the engine has taken out of
+--layout reports enabled == false.
+local function BarFitMeasure(bar)
+    local total = 0
+    for _,child in ipairs(bar.children) do
+        if child.valid and child.enabled
+                and child.id ~= "titleBarDragSurface" then
+            total = total + child.renderedWidth
+        end
+    end
+    return total
+end
+
+--Remember how wide each ladder step is while it is still visible, so the pass
+--knows what putting it back would cost.
+local function BarFitLatchNaturals(steps)
+    for _,step in ipairs(steps) do
+        local panel = step.panel
+        if panel ~= nil and panel.valid and panel.enabled and panel.renderedWidth > 0 then
+            g_barFit.naturals[step.key] = panel.renderedWidth
+        end
+    end
+end
+
+--What a ladder step costs to put back, at NATURAL size.
+local function BarFitStepNatural(step)
+    --No latched width means the bar has never had this element on screen for
+    --reasons of its own -- the search box on the title screen, the status
+    --readouts with Show Status Bar off. Releasing the ladder would not bring
+    --it back, so it must not be credited with space it never occupied.
+    if g_barFit.naturals[step.key] == nil then
+        return 0
+    end
+    --The two elements the shrink stages also drive get authoritative naturals:
+    --their latched width is whatever they had been squeezed down to just
+    --before being collapsed, which would under-report the cost of a restore
+    --and make the ladder bounce back out too eagerly.
+    if step.key == "search" then
+        return SearchBoxWidth()
+    elseif step.key == "mapName" then
+        return BAR_FIT_MAPNAME_FULL
+    end
+    return g_barFit.naturals[step.key]
+end
+
+local function BarFitApplyLadder(steps, depth)
+    local dropped = {}
+    for i,step in ipairs(steps) do
+        local on = (i <= depth)
+        if step.panel ~= nil and step.panel.valid then
+            step.panel:SetClass("barFitHidden", on)
+            if on and step.isMenu then
+                dropped[step.panel.id] = true
+            end
+        end
+    end
+    --read by the menu items that own their own selfStyle.collapsed
+    g_barFit.menusDropped = dropped
+end
+
+--The fit pass. Called from the bar's think and from the window-transition
+--guard, so a bar that was hidden through a resize is already correct when it
+--is revealed. (Assigns the forward declaration up beside g_menuBarPanel.)
+function BarFitApply()
+    local bar = g_menuBarPanel
+    if bar == nil or not bar.valid then
+        return
+    end
+
+    local barWidth = bar.renderedWidth
+    if barWidth == nil or barWidth <= 0 then
+        return
+    end
+
+    local items = BarFitMenuItems(bar)
+    local steps = BarFitSteps(items)
+    BarFitLatchNaturals(steps)
+
+    --clamped because the step list is rebuilt each pass and can get shorter
+    --(a menu item the bar hid for its own reasons drops out of it)
+    local depth = math.min(g_barFit.depth, #steps)
+
+    --What the flow WOULD ask for with nothing shrunk and nothing collapsed.
+    --The measurement already has the previous pass's savings applied, so both
+    --kinds of saving are added back: that makes the budget an absolute figure
+    --instead of a delta on itself, which is what lets the pass re-expand
+    --rather than chase its own tail.
+    local ladderSaved = 0
+    for i = 1, depth do
+        ladderSaved = ladderSaved + BarFitStepNatural(steps[i])
+    end
+
+    local demand = BarFitMeasure(bar) + g_barFit.withheld + ladderSaved
+
+    --Total units that have to be given back, then what is still owed once the
+    --collapse ladder's existing steps are credited.
+    local owed = demand + BAR_FIT_RESERVE - barWidth
+    local remaining = owed - ladderSaved
+
+    --Each shrink stage below is gated on the element actually being laid out
+    --(`enabled`), which rules out two different double-counts: an element the
+    --LADDER collapsed is already credited in full by ladderSaved, and an
+    --element the bar hides for its own reasons -- the search box on the title
+    --screen, the whole status bar with Show Status Bar off -- occupies no
+    --space to give back in the first place.
+    local withheld = 0
+
+    --Stage 1: the search box narrows first. It is the widest thing on the bar
+    --that nobody is reading while they resize a window.
+    local searchBar = g_barFit.panels.search
+    if searchBar ~= nil and searchBar.valid and searchBar.enabled then
+        local full = SearchBoxWidth()
+        local target = full
+        if remaining > 0 then
+            target = math.max(BAR_FIT_SEARCH_MIN, full - remaining)
+        end
+        --this pass is the ONLY writer of the box's width (its own think used
+        --to set it from SearchBoxWidth and would fight the squeeze)
+        if searchBar.data.appliedSearchWidth ~= target then
+            searchBar.data.appliedSearchWidth = target
+            searchBar.selfStyle.width = target
+        end
+        withheld = withheld + (full - target)
+        remaining = remaining - (full - target)
+    end
+
+    --Stage 2: then the map name, which ellipsizes as it narrows (the full
+    --string is only in the Maps panel now -- the cluster tooltip is gone).
+    local mapNameLabel = g_barFit.panels.mapName
+    if mapNameLabel ~= nil and mapNameLabel.valid and mapNameLabel.enabled then
+        local target = BAR_FIT_MAPNAME_FULL
+        if remaining > 0 then
+            target = math.max(BAR_FIT_MAPNAME_MIN, BAR_FIT_MAPNAME_FULL - remaining)
+        end
+        if g_barFit.appliedMapName ~= target then
+            g_barFit.appliedMapName = target
+            mapNameLabel.selfStyle.width = target
+        end
+        withheld = withheld + (BAR_FIT_MAPNAME_FULL - target)
+        remaining = remaining - (BAR_FIT_MAPNAME_FULL - target)
+    end
+
+    --Stage 3: then the menu strip tightens. Padding and label margins only --
+    --the type size is left alone, and the squeeze is spread evenly across the
+    --items rather than flattening the leftmost ones first, so the strip stays
+    --evenly spaced. Only items actually on screen can give anything back.
+    local live = 0
+    for _,item in ipairs(items) do
+        if item.valid and item.enabled then
+            live = live + 1
+        end
+    end
+    local perItem = 2*(BAR_FIT_MENU_HPAD - BAR_FIT_MENU_HPAD_MIN)
+        + 2*(BAR_FIT_MENU_MARGIN - BAR_FIT_MENU_MARGIN_MIN)
+    if live > 0 then
+        local share = 0
+        if remaining > 0 then
+            share = math.min(1, remaining / (live * perItem))
+        end
+        local hpad = math.floor(BAR_FIT_MENU_HPAD - share*(BAR_FIT_MENU_HPAD - BAR_FIT_MENU_HPAD_MIN) + 0.5)
+        local margin = math.floor(BAR_FIT_MENU_MARGIN - share*(BAR_FIT_MENU_MARGIN - BAR_FIT_MENU_MARGIN_MIN) + 0.5)
+        if hpad ~= g_barFit.appliedMenuHpad or margin ~= g_barFit.appliedMenuMargin then
+            g_barFit.appliedMenuHpad = hpad
+            g_barFit.appliedMenuMargin = margin
+            for _,item in ipairs(items) do
+                if item.valid then
+                    item.selfStyle.hpad = hpad
+                    item:FireEventTree("barFitMenuMargin", margin)
+                end
+            end
+        end
+        local given = live * (2*(BAR_FIT_MENU_HPAD - hpad) + 2*(BAR_FIT_MENU_MARGIN - margin))
+        withheld = withheld + given
+        remaining = remaining - given
+    end
+
+    g_barFit.withheld = withheld
+
+    --Stage 4: still over budget with everything shrunk, so start taking whole
+    --elements away, one step per pass -- that converges in a few ticks and
+    --keeps the movement legible. Coming back out has to pay the step's own
+    --width plus the hysteresis margin, so a bar sitting on a step boundary
+    --does not flap between two layouts.
+    if remaining > 0 then
+        depth = math.min(depth + 1, #steps)
+    elseif depth > 0 then
+        local cost = BarFitStepNatural(steps[depth])
+        if remaining + cost + BAR_FIT_HYSTERESIS <= 0 then
+            depth = depth - 1
+        end
+    end
+
+    if depth ~= g_barFit.depth then
+        g_barFit.depth = depth
+        BarFitApplyLadder(steps, depth)
+    end
+end
+
+--Stage-2 hit regions: report the bar's REAL layout to the engine so the
+--native caption hit-test uses exact rects instead of the engine's crude
+--built-in constants. Exclusions are the bar's direct children (menu
+--clusters, presentation/status bars, the right-side search + window-button
+--cluster); the gaps between them become native caption -- drag, Aero snap
+--and double-click-to-maximize all handled by Windows. The maximize control
+--is reported separately so the engine can map it to HTMAXBUTTON, which is
+--what makes the Snap Layouts flyout appear on hover. The engine snapshots
+--the rects at call time, so this re-sends on the bar's think cadence to
+--track layout changes; pcall-gated so an engine without the bridge (or
+--running the legacy strip mode, where the engine ignores regions anyway)
+--stays safe.
+local function UpdateTitleBarHitRegions()
+    local bar = g_menuBarPanel
+    if bar == nil or not bar.valid or not MergedTitleBarActive() then
+        return
+    end
+    pcall(function()
+        if dmhub.titleBarChromeMode ~= "nccalcsize" then
+            return
+        end
+        local exclusions = {}
+        for _,child in ipairs(bar.children) do
+            --skip the drag surface (it IS the draggable emptiness);
+            --hidden/collapsed children are not interactive so they must
+            --not eat caption either.
+            if child.valid and child.id ~= "titleBarDragSurface"
+                    and not child:HasClass("collapsed") and not child:HasClass("hidden") then
+                exclusions[#exclusions+1] = child
+            end
+        end
+        --while fullscreen the maximize control is disabled, so don't hand
+        --it to the engine as the native HTMAXBUTTON zone (no Snap Layouts
+        --flyout, no native click relay); the area stays inside the window
+        --button cluster's exclusion so the gui's gated click handles it.
+        local maxControl = nil
+        if m_maximizeControl ~= nil and m_maximizeControl.valid
+                and dmhub.GetSettingValue("fullscreen") ~= true then
+            maxControl = m_maximizeControl
+        end
+        dmhub.SetTitleBarHitRegions{
+            bar = bar,
+            exclusions = exclusions,
+            maximizeButton = maxControl,
+        }
+    end)
+end
+
+--A native-style caption control: a full-bar-height hover ZONE with a
+--centered glyph. The zone -- not the glyph -- takes the hover fill and
+--the click, matching how the real Windows caption buttons behave (zone
+--styles: titleBarStyleExtras in CreateTopBar).
+local function CreateWindowControl(args)
+    return gui.Panel{
+        classes = {"windowControl", cond(args.danger, "windowControlDanger")},
+        bgimage = true,
+        width = 42,
+        height = "100%",
+        valign = "center",
+        data = { maximized = nil },
+        calculateVisibility = args.calculateVisibility,
+        click = args.click,
+
+        gui.Panel{
+            classes = {"windowControlIcon", cond(args.danger, "windowControlIconDanger")},
+            bgimage = args.icon,
+            width = 16,
+            height = 16,
+            halign = "center",
+            valign = "center",
+            interactable = false,
+            setIcon = function(element, icon)
+                element.bgimage = icon
+            end,
+        },
+    }
+end
+
+--Flips the "fullscreen" user setting; the engine's per-frame enforcer
+--(GameHarness) applies it, exactly like Alt+Enter. Same choreography as
+--the maximize button: hide the bar contents first, resize a beat later,
+--so the hide is on screen before the mode change's mis-laid-out settle
+--frames are. Used by the Fullscreen checkbox in the Codex menus.
+local function ToggleFullscreen()
+    StartWindowTransitionGuard(nil, nil, "fullscreen menu item")
+    dmhub.Schedule(0.05, function()
+        if not mod.unloaded then
+            dmhub.SetSettingValue("fullscreen",
+                not (dmhub.GetSettingValue("fullscreen") == true))
+        end
+    end)
+end
+
+--The Fullscreen checkbox row shared by both Codex menus (main-menu and
+--in-game variants). Built fresh per open so the check reflects the current
+--setting. Always the FIRST row of the menu.
+local function FullscreenMenuItem()
+    return {
+        text = "Fullscreen",
+        icon = "phosphor/arrows-out-simple-fill.png",
+        check = dmhub.GetSettingValue("fullscreen") == true,
+        click = function()
+            ToggleFullscreen()
+        end,
+    }
+end
+
 local function TicketHasUnseenResponse(t)
     if type(t) ~= "table" then
         return false
@@ -295,6 +875,15 @@ local function CreateCodexMenuItem(args)
             end,
             interactable = false,
 
+            --the narrow-bar fit pass tightens the strip by trimming each
+            --label's side margins (see BarFitApply stage 3). Written
+            --unconditionally: the pass only fires this when the value
+            --changed, and hmargin comes from {menuLabel} so it cannot be
+            --read back to compare against.
+            barFitMenuMargin = function(element, margin)
+                element.selfStyle.hmargin = margin
+            end,
+
             --floating marker dot pinned to the label's top-right corner.
             alertPanel,
         },
@@ -308,6 +897,7 @@ local function CreateCodexMenuItem(args)
             for _,sibling in ipairs(element.parent.children) do
                 if sibling ~= element and sibling.popup ~= nil then
                     sibling.popup = nil
+                    sibling:SetClass("menuOpen", false)
                     element:FireEvent("press")
                     return
                 end
@@ -318,6 +908,7 @@ local function CreateCodexMenuItem(args)
 
            	if element.popup ~= nil then
 				element.popup = nil
+				element:SetClass("menuOpen", false)
 				return
 			end
 
@@ -334,11 +925,20 @@ local function CreateCodexMenuItem(args)
 					entries = menuItems,
 					click = function()
 						element.popup = nil
+						element:SetClass("menuOpen", false)
 					end,
 				}
 			}
+			--the plate holds while the dropdown is open (Venla
+			--2026-08-24, VS Code menu behavior): menuOpen carries the
+			--same raised fill as hover, cleared on every close path --
+			--including click-outside, via the closePopup event below.
+			element:SetClass("menuOpen", true)
 
+		end,
 
+		closePopup = function(element)
+			element:SetClass("menuOpen", false)
 		end,
 	}
 
@@ -650,22 +1250,8 @@ local function CreateConnectivityPanel()
         bgimage = "phosphor/wifi-high-fill.png",
         bgcolor = "#c8c8c8",
         data = { frame = 0 },
-        linger = function(element)
-            local lines = {}
-            if dmhub.gameServerConnected == false then
-                lines[#lines + 1] = "Disconnected from the game server -- reconnecting..."
-            elseif dmhub.undoState.undoPending or dmhub.pendingWriteCount > 0 then
-                lines[#lines + 1] = string.format("Syncing (%d writes pending)", dmhub.pendingWriteCount)
-            else
-                lines[#lines + 1] = "Synced with the game server"
-            end
-            local seq = dmhub.durableObjectSeq
-            if seq ~= nil and seq > 0 then
-                lines[#lines + 1] = string.format("Server message seq: %d", seq)
-            end
-            lines[#lines + 1] = "Click to open the Heroes panel"
-            gui.Tooltip(table.concat(lines, "\n"))(element)
-        end,
+        --No hover tooltip (Venla 2026-08-25: bar glyphs are self evident;
+        --the glyph itself carries the sync state).
     }
 
     local playersRow = gui.Panel{
@@ -765,23 +1351,37 @@ local function CreateConnectivityPanel()
                 return
             end
             element.popupsInheritStyles = true
+            --Anchor to the full-bar-height cluster plate rather than the
+            --default mouse position, and use the shared frameless
+            --below-bar rig: sizeless shim + margin standoff + the
+            --dropdowns' x-shift so the popout hangs under the plate's
+            --left edge (see ShowOverlayMenu for the same recipe).
+            element.popupPositioning = "panel"
             element.popup = gui.Panel{
-                --heroesPopout: content inside reaches this wrapper by
-                --class to dismiss the popout (the local-game promote
-                --flow closes it before showing its modal).
-                classes = {"bordered", "bg", "heroesPopout"},
-                width = 440,
-                height = 480,
-                pad = 8,
-                borderBox = true,
-                halign = "left",
+                width = "auto",
+                height = "auto",
+                halign = "right",
                 valign = "bottom",
-                closePopout = function()
-                    if element ~= nil and element.valid then
-                        element.popup = nil
-                    end
-                end,
-                factory(),
+                gui.Panel{
+                    --heroesPopout: content inside reaches this wrapper by
+                    --class to dismiss the popout (the local-game promote
+                    --flow closes it before showing its modal).
+                    classes = {"bg", "heroesPopout"},
+                    cornerRadius = 10,
+                    margin = 4,
+                    x = -element.renderedWidth,
+                    width = 440,
+                    height = 480,
+                    pad = 8,
+                    borderBox = true,
+                    valign = "bottom",
+                    closePopout = function()
+                        if element ~= nil and element.valid then
+                            element.popup = nil
+                        end
+                    end,
+                    factory(),
+                },
             }
         end,
 
@@ -1131,23 +1731,24 @@ end
 -- types (MapMarkup.GetZoneTypesOnMap filters for them).
 --------------------------------------------------------------------
 
---The hidden-zone-types preference (';'-joined keyword ids) as a set.
-function g_tileIndicator.HiddenZoneSet()
+--The shown-zone-types preference (';'-joined keyword ids) as a set. Zone
+--types default hidden, so this records opt-INs, same as the built-ins below.
+function g_tileIndicator.ShownZoneSet()
     local result = {}
-    local str = tostring(dmhub.GetSettingValue("mapoverlay:hiddenzones") or "")
+    local str = tostring(dmhub.GetSettingValue("mapoverlay:shownzones") or "")
     for id in string.gmatch(str, "[^;]+") do
         result[id] = true
     end
     return result
 end
 
-function g_tileIndicator.WriteHiddenZoneSet(set)
+function g_tileIndicator.WriteShownZoneSet(set)
     local ids = {}
     for id,_ in pairs(set) do
         ids[#ids+1] = id
     end
     table.sort(ids)
-    dmhub.SetSettingValue("mapoverlay:hiddenzones", table.concat(ids, ";"))
+    dmhub.SetSettingValue("mapoverlay:shownzones", table.concat(ids, ";"))
 end
 
 --The four built-in terrain rule types, styled to match the engine's
@@ -1161,8 +1762,8 @@ g_tileIndicator.BUILTINS = {
 }
 
 --The shown-built-ins preference (';'-joined ids from BUILTINS) as a set.
---Built-ins default hidden, so this records opt-INs (the mirror image of
---HiddenZoneSet).
+--Built-ins default hidden, so this records opt-INs (same shape as
+--ShownZoneSet; separate settings because the id spaces differ).
 function g_tileIndicator.ShownBuiltinSet()
     local result = {}
     local str = tostring(dmhub.GetSettingValue("mapoverlay:shownbuiltins") or "")
@@ -1275,7 +1876,8 @@ function g_tileIndicator.CreateOverlayMenu()
     end
 
     --one row per zone type: a stripe swatch in the type's map color and
-    --angle, and a checkbox driving its entry in mapoverlay:hiddenzones.
+    --angle, and a checkbox driving its entry in mapoverlay:shownzones
+    --(zone types default hidden; checked = opted in).
     local function ZoneRow(zoneType)
         local gradient = nil
         local bg = zoneType.color or "#888888"
@@ -1301,24 +1903,24 @@ function g_tileIndicator.CreateOverlayMenu()
             },
 
             gui.Check{
-                value = g_tileIndicator.HiddenZoneSet()[zoneType.keywordid] == nil,
+                value = g_tileIndicator.ShownZoneSet()[zoneType.keywordid] ~= nil,
                 text = zoneType.name,
                 halign = "left",
                 lmargin = 6,
                 style = checkStyle,
-                monitor = "mapoverlay:hiddenzones",
+                monitor = "mapoverlay:shownzones",
                 events = {
                     monitor = function(element)
-                        element.value = g_tileIndicator.HiddenZoneSet()[zoneType.keywordid] == nil
+                        element.value = g_tileIndicator.ShownZoneSet()[zoneType.keywordid] ~= nil
                     end,
                     change = function(element)
-                        local set = g_tileIndicator.HiddenZoneSet()
+                        local set = g_tileIndicator.ShownZoneSet()
                         if element.value then
-                            set[zoneType.keywordid] = nil
-                        else
                             set[zoneType.keywordid] = true
+                        else
+                            set[zoneType.keywordid] = nil
                         end
-                        g_tileIndicator.WriteHiddenZoneSet(set)
+                        g_tileIndicator.WriteShownZoneSet(set)
                     end,
                 },
             },
@@ -1400,7 +2002,11 @@ function g_tileIndicator.CreateOverlayMenu()
             click = function(element)
                 dmhub.SetSettingValue("mapoverlay:walls", true)
                 dmhub.SetSettingValue("mapoverlay:elevation", true)
-                dmhub.SetSettingValue("mapoverlay:hiddenzones", "")
+                local zset = g_tileIndicator.ShownZoneSet()
+                for _,zoneType in ipairs(g_tileIndicator.ZoneTypesOnMap()) do
+                    zset[zoneType.keywordid] = true
+                end
+                g_tileIndicator.WriteShownZoneSet(zset)
                 local set = g_tileIndicator.ShownBuiltinSet()
                 for _,builtin in ipairs(g_tileIndicator.BuiltinTypesOnMap()) do
                     set[builtin.id] = true
@@ -1422,11 +2028,7 @@ function g_tileIndicator.CreateOverlayMenu()
                 dmhub.SetSettingValue("mapoverlay:walls", false)
                 dmhub.SetSettingValue("mapoverlay:elevation", false)
                 dmhub.SetSettingValue("mapoverlay:shownbuiltins", "")
-                local set = g_tileIndicator.HiddenZoneSet()
-                for _,zoneType in ipairs(g_tileIndicator.ZoneTypesOnMap()) do
-                    set[zoneType.keywordid] = true
-                end
-                g_tileIndicator.WriteHiddenZoneSet(set)
+                dmhub.SetSettingValue("mapoverlay:shownzones", "")
             end,
         },
     }
@@ -1488,16 +2090,35 @@ function g_tileIndicator.ShowOverlayMenu(element)
         return
     end
     element.popupsInheritStyles = true
+    --Anchor to the full-bar-height cluster plate, not the default mouse
+    --position -- mouse anchoring is what made this menu open on top of
+    --the bar, hanging from wherever the click landed.
+    element.popupPositioning = "panel"
+    --Same treatment as the audio popover: frameless flat chrome matching
+    --the title-bar menus (@bg fill, no border, radius 10), inside a
+    --sizeless shim so the margin stands the panel off below the bar --
+    --margins directly on the popup panel are ignored by popup placement.
     element.popup = gui.Panel{
-        classes = {"bordered", "bg"},
-        width = 280,
+        width = "auto",
         height = "auto",
-        pad = 12,
-        borderBox = true,
-        halign = "left",
+        halign = "right",
         valign = "bottom",
-        flow = "vertical",
-        g_tileIndicator.CreateOverlayMenu(),
+        gui.Panel{
+            classes = {"bg"},
+            cornerRadius = 10,
+            margin = 4,
+            --halign "right" + shifting back by the plate's width hangs the
+            --menu below the plate's left edge, extending right under it --
+            --the same trick the title-bar dropdowns use.
+            x = -element.renderedWidth,
+            width = 280,
+            height = "auto",
+            pad = 12,
+            borderBox = true,
+            valign = "bottom",
+            flow = "vertical",
+            g_tileIndicator.CreateOverlayMenu(),
+        },
     }
 end
 
@@ -1594,6 +2215,8 @@ local function CreateStatusBar()
     -- so the box is capped (narrower than the old 420) and the text
     -- ellipsizes rather than wrapping or shrinking away to nothing;
     -- hovering shows the untruncated string (on the cluster's tooltip).
+    -- On a narrow bar the fit pass (BarFitApply) narrows this width further,
+    -- so BAR_FIT_MAPNAME_FULL must stay in step with the width below.
     m_mapNameLabel = gui.Label{
         --menuLabel is what flips the text to @bg when the plate fills on
         --hover. It carries a 16px font for the main menu strip; this cluster
@@ -1645,22 +2268,10 @@ local function CreateStatusBar()
         valign = "center",
         hpad = 8,
 
-        linger = function(element)
-            local lines = {}
-            local mapText = m_mapNameLabel.data.fullText
-            if mapText ~= nil and mapText ~= "" then
-                lines[#lines+1] = mapText
-            end
-            local tileName = m_tileChip.data.name
-            if tileName ~= nil then
-                lines[#lines+1] = string.format("Tile under cursor: %s", tileName)
-            end
-            if #lines == 0 then
-                return
-            end
-            lines[#lines+1] = "Click to choose which map overlays are shown."
-            gui.Tooltip(table.concat(lines, "\n"))(element)
-        end,
+        --No hover tooltip (Venla 2026-08-25: bar items are self evident).
+        --Note this also drops the untruncated-map-name hover that the
+        --narrow-bar fit pass relied on for ellipsized names, and the
+        --"tile under cursor" readout.
 
         click = function(element)
             g_tileIndicator.ShowOverlayMenu(element)
@@ -1669,6 +2280,20 @@ local function CreateStatusBar()
         m_tileChip,
         m_mapNameLabel,
     }
+
+    --First to go on a narrow bar: the label narrows (stage 2 of the fit
+    --pass) and then the whole cluster collapses -- name first, terrain chip
+    --after -- before anything else is dropped, so the search box outlives
+    --the map info entirely.
+    BarFitRegister("mapName", m_mapNameLabel)
+    BarFitRegister("mapChip", m_tileChip)
+
+    local m_initiativeHost = CreateInitiativeStatusHost()
+    BarFitRegister("initiative", m_initiativeHost)
+
+    -- While a CommandBuilder session is active, a floating recorder dialog
+    -- shows the steps; this zero-size host is just its mount point.
+    local m_commandBuilderHost = CommandBuilder.CreateDialogHost()
 
     resultPanel = gui.Panel{
         flow = "horizontal",
@@ -1705,7 +2330,7 @@ local function CreateStatusBar()
         -- can reveal them in the OS file browser). Empty (zero-width) for every
         -- normal game. LocalAssetsStatus is read-and-compared-to-nil so an
         -- older engine build (before the bridge exists) simply shows nothing.
-        gui.Label{
+        BarFitRegister("devGame", gui.Label{
             minFontSize = 10,
             bold = true,
             color = "#f0a030",
@@ -1750,20 +2375,24 @@ local function CreateStatusBar()
                     element.text = ""
                 end
             end,
-        },
+        }),
 
-        CreateConnectivityPanel(),
+        BarFitRegister("connectivity", CreateConnectivityPanel()),
 
         -- Host for the initiative/game-mode panel; empty (and therefore
         -- zero-width) until a game hud mounts one. Collapsing on the
         -- showstatusbar preference is done here rather than in the mounted
         -- panel so the initiative bar does not have to know about this
         -- setting.
-        CreateInitiativeStatusHost(),
+        m_initiativeHost,
 
         -- Hovered-tile terrain chip + map name/engine status, sharing one
         -- clickable plate that opens the map overlay menu.
         m_mapCluster,
+
+        -- Zero-size mount point that opens the command-builder recorder
+        -- dialog when a session begins.
+        m_commandBuilderHost,
     }
 
     return resultPanel
@@ -1839,12 +2468,45 @@ Search.RegisterProvider{
 -- the box still tracks the dock scale, it just sits inset from the dock edge.
 local g_searchWidthFraction = 0.9
 
-local function SearchBoxWidth()
-    return math.floor(364 * g_searchWidthFraction * (dmhub.GetSettingValue("dockscale") or 1))
+--assigns the forward declaration up by the fit controller, which needs the
+--box's natural width to know how much narrowing it has left to give
+function SearchBoxWidth()
+    return math.floor(364 * g_searchWidthFraction * DockablePanel.EffectiveDockScale())
 end
 
 local function CreateSearchBar()
     local resultPanel
+
+    --the seamless-popup dressing (the connector strip below the bar and
+    --the bar's squared-off bottom corners) must track whether a POPUP is
+    --actually up, not focus -- a focused empty bar with no recents has
+    --no popup and must stay a plain closed pill (Venla 2026-08-21).
+    --Called from the paths that assign/clear the popup, from the popups'
+    --own destroy (so an engine outside-click dismissal retracts the
+    --dressing IMMEDIATELY -- the think tick alone left it flickering for
+    --up to 0.2s), plus the think tick as a catch-all.
+    local function SyncPopupOpenState()
+        if resultPanel == nil or not resultPanel.valid then
+            return
+        end
+        local hasPopup = resultPanel.popup ~= nil
+        if hasPopup ~= resultPanel.data.hadPopup then
+            resultPanel.data.hadPopup = hasPopup
+            resultPanel:SetClass("searchPopupOpen", hasPopup)
+            resultPanel:FireEventTree("searchPopupChanged", hasPopup)
+        end
+    end
+
+    --destroy handler shared by the popups: when a popup is torn down and
+    --nothing replaced it, retract the dressing right away. The
+    --popup-still-set guard keeps per-keystroke popup REPLACEMENT from
+    --blinking the connector (the old popup's destroy can fire after the
+    --new one is already assigned).
+    local function OnSearchPopupDestroyed()
+        if resultPanel ~= nil and resultPanel.valid and resultPanel.popup == nil then
+            SyncPopupOpenState()
+        end
+    end
 
     -- Per-doc heading search lives in JournalPDFViewer.lua (SearchPDFHeadings,
     -- shared with the "In this document" context provider). This wrapper maps
@@ -2285,18 +2947,14 @@ local function CreateSearchBar()
             end
         end
 
+        --the filled, scrolling body. Its searchResultsPanel fill/corners
+        --live HERE, not on the popup root: the root's first 4px are a
+        --transparent notch (see below).
         popupPanel = gui.Panel{
-            classes = {"bordered", "bg", "searchResultsPanel"},
+            classes = {"searchResultsPanel"},
             flow = "vertical",
-            -- Mirrors the search box's dockscale-tracking width (HB1), but
-            -- never shrinks below the old fixed 368 -- cards in this popup
-            -- must never wrap at small dock scales. At scale > 1 the popup
-            -- grows to match the (now wider) box above it. Rebuilt fresh per
-            -- search, so a value computed at construction stays current.
-            width = math.max(368, math.floor(364 * (dmhub.GetSettingValue("dockscale") or 1))),
+            width = "100%",
             height = "auto",
-            halign = "center",
-            valign = "bottom",
             vscroll = true,
             children = children,
 
@@ -2313,7 +2971,39 @@ local function CreateSearchBar()
                 end
             end,
         }
-        return popupPanel
+
+        return gui.Panel{
+            destroy = OnSearchPopupDestroyed,
+            --top-center pivot: the engine places a popup ONCE, against
+            --its rect at placement time, and an auto-height popup that
+            --finishes layout afterwards grows around its pivot -- with
+            --the default center pivot a SHORT popup's top edge crept up
+            --over the search bar and clipped its text (Venla
+            --2026-08-21). Anchored at the top, growth extends downward
+            --only, so the placed top edge (flush under the bar) holds
+            --for every result count.
+            pivot = {x = 0.5, y = 1},
+            flow = "vertical",
+            -- Exactly the search box's width -- the popup must never be
+            -- wider or narrower than the box above it (Venla 2026-08-21;
+            -- this replaces the old max(368, dock width) rule, trading the
+            -- no-wrap floor for alignment). Rebuilt fresh per search, so a
+            -- value computed at construction stays current.
+            width = SearchBoxWidth(),
+            height = "auto",
+            halign = "center",
+            valign = "bottom",
+            --transparent notch: the engine PLACES the popup's top edge
+            --~6px INSIDE the bar (measured 2026-08-21; the shared fill
+            --hid the overlap, but the opaque fill painted over glyph
+            --descenders -- g, y, p -- which reach the bar's last rows).
+            --10px of transparency puts the fill's top just below the
+            --bar's box; the bar itself and its connector strip show
+            --through with the same fill, so the join still reads
+            --seamless.
+            gui.Panel{ width = 1, height = 10 },
+            popupPanel,
+        }
     end
 
     -- Empty-state: focusing the search box with no query shows the recently
@@ -2515,17 +3205,39 @@ local function CreateSearchBar()
             resultPanel.data.searchStatus = nil
             if resultPanel.popup == nil or not resultPanel.data.isNoResultsPopup then
                 resultPanel.data.isNoResultsPopup = true
-                resultPanel.popup = gui.Label{
-                    width = "auto",
+                --same chrome and width as the grouped results popup, so the
+                --empty state reads as the same surface and sits below the
+                --box like the results do (the old bare black label sat on
+                --top of the input itself). popupsInheritStyles is what
+                --delivers the searchResultsPanel/searchEmptyState rules to
+                --the re-rooted popup -- without it the label renders with
+                --default label styling, huge and unframed.
+                resultPanel.popupsInheritStyles = true
+                resultPanel.popup = gui.Panel{
+                    destroy = OnSearchPopupDestroyed,
+                    --top-center pivot + 10px descender notch, same
+                    --structure as the grouped popup (see
+                    --CreateGroupedPopup for the full rationale).
+                    pivot = {x = 0.5, y = 1},
+                    flow = "vertical",
+                    width = SearchBoxWidth(),
                     height = "auto",
                     halign = "center",
                     valign = "bottom",
-                    fontSize = 18,
-                    bgimage = true,
-                    bgcolor = "black",
-                    settext = function(element, newtext)
-                        element.text = newtext
-                    end,
+                    gui.Panel{ width = 1, height = 10 },
+                    gui.Panel{
+                        classes = {"searchResultsPanel"},
+                        flow = "vertical",
+                        width = "100%",
+                        height = "auto",
+                        gui.Label{
+                            classes = {"searchEmptyState"},
+                            text = "",
+                            settext = function(element, newtext)
+                                element.text = newtext
+                            end,
+                        },
+                    },
                 }
             end
 
@@ -2603,8 +3315,14 @@ local function CreateSearchBar()
         width = SearchBoxWidth(),
         height = 20,
         halign = "right",
+        --breathing room against the window edge: without it the pill's
+        --border (and the popup centered under it) sat on the last pixel
+        --of the screen (Venla 2026-08-21).
+        rmargin = 8,
         valign = "center",
-        pad = 2,
+        --no pad override: the canonical searchInput padding (room for
+        --the magnifier) comes from the component/style (Control Zoo
+        --pass 2026-08-20; the old pad=2 left the text under the icon).
         popupPositioning = "panel",
         placeholderText = cond(dmhub.GetCommandBinding("find"), string.format("Search (%s)...", dmhub.GetCommandBinding("find") or ""), "Search..."),
         inputEvents = { "find" },
@@ -2618,6 +3336,7 @@ local function CreateSearchBar()
             if not status then
                 element:FireEvent("repeatSearch")
             end
+            SyncPopupOpenState()
         end,
         change = function(element)
             --element:FireEvent("edit")
@@ -2627,22 +3346,18 @@ local function CreateSearchBar()
             if string.trim(element.text or "") == "" then
                 ShowRecentResults()
             end
+            SyncPopupOpenState()
         end,
         -- Click-to-focus on the empty box shows the recents. The engine has
         -- no input-gained-focus event (deselect has no symmetric select), so
         -- watch for the rising edge of hasInputFocus on a light think.
         thinkTime = 0.2,
         think = function(element)
-            -- Live-follow the dock scale setting (HB1) so a mid-session
-            -- change to the slider is reflected without a reload. Cheap
-            -- setting read on a 0.2s tick; only touches .width when it
-            -- actually changed.
-            local w = SearchBoxWidth()
-            if element.data.appliedSearchWidth ~= w then
-                element.data.appliedSearchWidth = w
-                element.selfStyle.width = w
-            end
-
+            -- The box's WIDTH is not set here: the bar's fit pass owns it
+            -- (BarFitApply), because on a narrow window the box is the first
+            -- thing asked to give space back. The fit pass re-reads
+            -- SearchBoxWidth() every tick, so a mid-session change to the
+            -- dock-scale slider (HB1) is still followed without a reload.
             local focused = element.hasInputFocus
             if focused and (not element.data.hadInputFocus)
                 and element.popup == nil
@@ -2650,6 +3365,7 @@ local function CreateSearchBar()
                 ShowRecentResults()
             end
             element.data.hadInputFocus = focused
+            SyncPopupOpenState()
         end,
         -- Keyboard navigation of the results popup: arrows move the selection,
         -- Enter activates it (or the first result when nothing is selected).
@@ -2700,6 +3416,39 @@ local function CreateSearchBar()
             element:FireEvent("edit")
         end,
     }
+
+    --seamless popup connector (Venla 2026-08-21): while a results popup
+    --is up (searchPopupChanged, from SyncPopupOpenState), this strip
+    --extends the field's fill down over the gap the engine leaves above
+    --the popup (popup roots ignore y offsets, so the FIELD carries the
+    --bridge). Same fill as field and popup, so the three read as one
+    --stretched shape. AddChild, NOT a positional child in the
+    --constructor -- a positional option would overwrite
+    --gui.SearchInput's own magnifier child. Floating children anchor to
+    --the CONTENT box (inside hpad 24), hence the +48 to reach the full
+    --pill width.
+    resultPanel:AddChild(gui.Panel{
+        classes = {"searchPopupBridge", "hidden"},
+        floating = true,
+        interactable = false,
+        halign = "center",
+        valign = "bottom",
+        width = "100%+48",
+        height = 14,
+        --17, not 14: panel children render ABOVE the input's own text,
+        --and at 14 the strip's top row overlapped the glyph descender
+        --zone and clipped g/y/p tails (live-debugged 2026-08-21 -- the
+        --popup fill was innocent). 3px lower clears the text; the
+        --strip still overlaps the popup fill below, so the join stays
+        --seamless.
+        y = 17,
+        searchPopupChanged = function(element, hasPopup)
+            element:SetClass("hidden", not hasPopup)
+        end,
+    })
+
+    --first in line to give space back on a narrow bar
+    BarFitRegister("search", resultPanel)
 
     return resultPanel
 end
@@ -2815,8 +3564,8 @@ local function CreateAudioIndicator()
                 gui.Tooltip("Mute (only you)")(element)
             end,
             styles = {
-                { bgimage = "ui-icons/ph-speaker-high-fill.png" },
-                { selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
+                { bgimage = "phosphor/speaker-high-fill.png" },
+                { selectors = {"muted"}, bgimage = "phosphor/speaker-slash-fill.png" },
                 { selectors = {"hover"}, brightness = 2 },
             },
             create = function(element)
@@ -2852,12 +3601,12 @@ local function CreateAudioIndicator()
         }
 
         local children = {
-            -- "Now Playing" header (bold, pinned white -- the popover bg is
-            -- known-dark in every scheme) with the track title on its own
-            -- line beneath, mirroring the Studio's Now Playing card.
+            -- "Now Playing" header (bold @fgStrong -- the popover inherits
+            -- themed styles via popupsInheritStyles, so it tracks the theme
+            -- like the menus do) with the track title on its own line
+            -- beneath, mirroring the Studio's Now Playing card.
             gui.Label{
-                classes = {"sizeXs", "bold"},
-                color = "#ffffff",
+                classes = {"sizeXs", "bold", "fgStrong"},
                 width = "100%",
                 height = "auto",
                 text = "Now Playing",
@@ -2889,12 +3638,28 @@ local function CreateAudioIndicator()
         --game-wide controls live here, including the game-wide mute as a
         --labeled control (promoted from the old master-row glyph tooltip).
         if bar.CanControlAudio ~= nil and bar.CanControlAudio() then
-            children[#children+1] = gui.Label{
-                classes = {"sizeXs", "fgMuted"},
+            --Section header per the panel design language: label + full-width
+            --hairline underline. The underline doubles as the seam between
+            --the personal tier above and the broadcast tier below, so no
+            --separate divider (the style guide bans a hairline directly
+            --above a header -- they double up).
+            children[#children+1] = gui.Panel{
+                flow = "vertical",
                 width = "100%",
                 height = "auto",
-                text = "Levels",
-                tmargin = 4,
+                tmargin = 6,
+                gui.Label{
+                    classes = {"sizeXs", "fgMuted"},
+                    width = "100%",
+                    height = "auto",
+                    text = "Levels",
+                    bmargin = 2,
+                },
+                gui.Panel{
+                    classes = {"audioPopoverHairline"},
+                    width = "100%",
+                    height = 1,
+                },
             }
             children[#children+1] = bar.MakeFaderRow("Music", bar.MakeBroadcastFader("music"), false)
             children[#children+1] = bar.MakeFaderRow("Ambience", bar.MakeBroadcastFader("ambience"), false)
@@ -2916,8 +3681,8 @@ local function CreateAudioIndicator()
                     RefreshMutedCause()
                 end,
                 styles = {
-                    { bgimage = "ui-icons/ph-speaker-high-fill.png" },
-                    { selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
+                    { bgimage = "phosphor/speaker-high-fill.png" },
+                    { selectors = {"muted"}, bgimage = "phosphor/speaker-slash-fill.png" },
                     { selectors = {"hover"}, brightness = 2 },
                 },
                 create = function(element)
@@ -2977,8 +3742,15 @@ local function CreateAudioIndicator()
             }
         end
 
+        --Frameless flat chrome matching the title bar's context menus
+        --(Venla 2026-08-24 menu rework): @bg fill continuing the bar, no
+        --border, radius 10 like the rest of the popup family. margin 4
+        --is the same standoff the contextMenu class carries -- without
+        --it the popover touches the bar and melts into its fill.
         return gui.Panel{
-            classes = {"bordered", "bg"},
+            classes = {"bg"},
+            cornerRadius = 10,
+            margin = 4,
             flow = "vertical",
             width = 340,
             height = "auto",
@@ -2986,6 +3758,20 @@ local function CreateAudioIndicator()
             borderBox = true,
             halign = "right",
             valign = "bottom",
+            --Muted slider recipe, scoped to this popover: the shared fader
+            --rows ship the app-wide bright track/fill/handle, which is six
+            --loud sliders in a small panel. Quiet them to the border/muted
+            --tokens so the section text reads first. priority beats the
+            --equal-specificity DefaultStyles base rules.
+            styles = ThemeEngine.MergeTokens{
+                --opacity keeps the unfilled track clearly dimmer than the
+                --@fgMuted fill; at full brightness the two grays are close
+                --enough that the fill position stops reading.
+                { selectors = {"sliderNotch"}, bgcolor = "@border", opacity = 0.5, priority = 10 },
+                { selectors = {"sliderFill"}, bgcolor = "@fgMuted", priority = 10 },
+                { selectors = {"sliderHandleInner"}, bgcolor = "@fgMuted", priority = 10 },
+                { selectors = {"audioPopoverHairline"}, bgimage = true, bgcolor = "@border", opacity = 0.35 },
+            },
             children = children,
         }
     end
@@ -2997,15 +3783,38 @@ local function CreateAudioIndicator()
         valign = "center",
         hmargin = 6,
         bgcolor = "white",
-        bgimage = "ui-icons/ph-speaker-high-fill.png",
-
-        linger = function(element)
-            gui.Tooltip("Audio controls")(element)
-        end,
+        bgimage = "phosphor/speaker-high-fill.png",
 
         press = function(element)
+            --Toggle: a second click on the glyph closes the open popover
+            --instead of rebuilding it in place (same guard as the menu
+            --items -- clicking the anchor does not count as click-away).
+            if element.popup ~= nil then
+                element.popup = nil
+                return
+            end
             element.popupsInheritStyles = true
-            element.popup = BuildPopover()
+            --Same two-panel shape as the menu dropdowns: the popup itself
+            --is a sizeless shim, and the visible panel's margin insets it
+            --from the shim's edges. Margin set directly on the popup panel
+            --is ignored by popup placement (verified: the panel sat flush
+            --against the bar), so the standoff below the bar only works
+            --with the margin one level down.
+            local popover = BuildPopover()
+            if popover ~= nil then
+                --halign "right" + shifting back by the anchor's width
+                --left-aligns the popover with the glyph (the dropdowns'
+                --trick). element.parent is the full-bar-height wrapper
+                --the popup anchors to.
+                popover.selfStyle.x = -element.parent.renderedWidth
+                element.popup = gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    halign = "right",
+                    valign = "bottom",
+                    popover,
+                }
+            end
         end,
 
         -- Run the state logic once at construction too: without this the
@@ -3024,19 +3833,31 @@ local function CreateAudioIndicator()
             element.data.audioIndicatorState = state
 
             if state == "muted" then
-                element.bgimage = "ui-icons/ph-speaker-slash-fill.png"
+                element.bgimage = "phosphor/speaker-slash-fill.png"
                 element.selfStyle.opacity = 1
             elseif state == "playing" then
-                element.bgimage = "ui-icons/ph-speaker-high-fill.png"
+                element.bgimage = "phosphor/speaker-high-fill.png"
                 element.selfStyle.opacity = 1
             else
-                element.bgimage = "ui-icons/ph-speaker-none-fill.png"
+                element.bgimage = "phosphor/speaker-none-fill.png"
                 element.selfStyle.opacity = 0.4
             end
         end,
     }
 
-    return resultPanel
+    --Full-bar-height anchor for the popover, matching how the menu items
+    --drop their dropdowns: a popup below an anchor that spans the bar
+    --lands below the bar, while one anchored to the 18px glyph (centered
+    --in the bar) opened on top of it.
+    local wrapperPanel = gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = "100%",
+        resultPanel,
+    }
+    resultPanel.popupPositioning = wrapperPanel
+
+    return wrapperPanel
 end
 
 local g_adventureDocumentsBar
@@ -3158,16 +3979,33 @@ local function CreateTopBar()
     local m_audioIndicator = CreateAudioIndicator()
     local m_presentationBar = CreatePresentationBar()
 
+    --last of the non-menu elements the narrow-bar ladder gives up
+    BarFitRegister("audio", m_audioIndicator)
+
     g_searchBar = m_searchBar
     g_presentationBar = m_presentationBar
 
 
     local m_documents
+    --Generic until the tracked documents say which adventure this is; GameHud's
+    --adventure-documents manager fires "setname"/"seticon" with the real
+    --identity. An icon must be set here for CreateCodexMenuItem to build the
+    --icon panel at all -- that panel owns the "seticon" handler.
     local m_adventureDocumentsBar = CreateCodexMenuItem{
-        icon = "panels/drawsteel/delian-tomb.png",
-        name = "Delian Tomb",
+        icon = "phosphor/book-open.png",
+        name = "Adventure Documents",
         create = function(element)
             element.selfStyle.collapsed = 1
+        end,
+        --Re-asserted on the bar's think (calculateVisibility is broadcast from
+        --there) rather than only when the document list changes: this item
+        --owns its selfStyle.collapsed, and a selfStyle write beats the fit
+        --ladder's class rule, so a narrow bar could not collapse it from the
+        --outside. Without the re-assert the ladder would skip straight past
+        --this item and drop the menus to its left instead.
+        calculateVisibility = function(element)
+            element.selfStyle.collapsed = (m_documents == nil) or (#m_documents == 0)
+                or (not dmhub.isDM) or BarFitMenuDropped(element)
         end,
         menuItems = function()
             local result = {}
@@ -3187,7 +4025,9 @@ local function CreateTopBar()
         end,
         documents = function(element, documentids)
             m_documents = documentids
-            element.selfStyle.collapsed = (#m_documents == 0) or (not dmhub.isDM)
+            --applied straight away so the item appears without waiting for a
+            --think tick; calculateVisibility above keeps it right after that
+            element:FireEvent("calculateVisibility")
         end,
     }
 
@@ -5493,10 +6333,32 @@ local function CreateTopBar()
                 selectors = {"ingameOnly", "~ingame"},
                 collapsed = 1,
             },
+            --window-transition guard: hide the ENTIRE bar -- contents and
+            --the root's flat strip alike -- so nothing of the title bar
+            --renders while the window geometry is still settling (the strip
+            --used to stay painted, and its 1-2 mis-laid-out frames read as
+            --the bar flickering down into the window on restore).
+            {
+                selectors = {"windowTransition"},
+                opacity = 0,
+            },
         },
+
+        data = { lastScreenDims = nil },
+
+        create = function(element)
+            g_menuBarPanel = element
+            --boot: the merge convergence resizes the client several times in
+            --the first moments; hold the bar contents hidden until settled.
+            StartWindowTransitionGuard(12, 6, "boot")
+        end,
 
         destroy = function(element)
             g_adventureDocumentsBar = nil
+            --a dead bar must not leave stale hit regions behind: without the
+            --clear, drags and clicks would keep hitting rects for a layout
+            --that no longer exists until the bar is rebuilt.
+            pcall(function() dmhub.SetTitleBarHitRegions(nil) end)
         end,
 
         thinkTime = 0.2,
@@ -5506,7 +6368,106 @@ local function CreateTopBar()
                 element:SetClassTree("ingame", m_inGame)
             end
             element:FireEventTree("calculateVisibility")
+
+            --dead-man heartbeat: while merged, the engine's watchdog restores
+            --the native caption if this bar stops running (a Lua error would
+            --otherwise leave the window with no drag surface and no close
+            --button). pcall: an engine with the chrome bridge but not the
+            --watchdog yet must not error the bar's think.
+            if MergedTitleBarActive() then
+                pcall(function() dmhub.WindowChromeHeartbeat() end)
+
+                --reactive guard: geometry changes we did not initiate (edge
+                --snap, Win+arrow, external restores) also settle over several
+                --frames; catch them on the think cadence and hide until stable.
+                local d = dmhub.screenDimensions
+                local prev = element.data.lastScreenDims
+                if prev ~= nil and (d.x ~= prev.x or d.y ~= prev.y) and not g_transitionActive then
+                    StartWindowTransitionGuard(nil, nil, "external resize")
+                end
+                element.data.lastScreenDims = {x = d.x, y = d.y}
+
+                --keep the engine's native hit-test in sync with the bar's
+                --real layout (rects are snapshotted engine-side at call time).
+                UpdateTitleBarHitRegions()
+            end
+
+            --keep the bar inside its width, whatever the window is doing.
+            --Runs in every mode, not just merged: an overfull flow loses its
+            --right-hand cluster off the screen edge either way.
+            BarFitApply()
         end,
+
+        --Merged title bar: empty bar surface acts as the native caption.
+        --This drag surface sits BEHIND every other child (first child =
+        --bottom of the draw order), NOT as a press handler on the bar root:
+        --press events bubble to ANCESTORS only, so a press on a click-only
+        --child (the window buttons, the map cluster, ...) used to find the
+        --root's press handler, start the native modal window-drag loop, and
+        --have the mouse release swallowed by it -- the child's click never
+        --fired. As a sibling underneath, the surface only receives presses
+        --that land on genuinely empty bar space.
+        --
+        --Press starts a native window drag (snap-to-edge included); a second
+        --press within the double-click window toggles maximize instead (the
+        --engine has no doubleClick event, so it is hand-rolled).
+        gui.Panel{
+            --the id is load-bearing: UpdateTitleBarHitRegions skips this
+            --child by id when reporting the bar's interactive exclusions
+            --(the drag surface IS the draggable emptiness, not an exclusion).
+            id = "titleBarDragSurface",
+            floating = true,
+            width = "100%",
+            height = "100%",
+            bgimage = true,
+            bgcolor = "clear",
+            data = { lastBarPress = nil },
+            press = function(element)
+                if not MergedTitleBarActive() then
+                    return
+                end
+                local now = dmhub.Time()
+                if element.data.lastBarPress ~= nil and now - element.data.lastBarPress < 0.4 then
+                    element.data.lastBarPress = nil
+                    --hide the bar contents FIRST and resize a beat later, so
+                    --the hide is on screen before the resize's mis-laid-out
+                    --settle frames are.
+                    StartWindowTransitionGuard(nil, nil, "double-press toggle")
+                    dmhub.Schedule(0.05, function()
+                        if not mod.unloaded then
+                            dmhub.ToggleMaximizeWindow()
+                        end
+                    end)
+                else
+                    element.data.lastBarPress = now
+                    --no native drag while maximized: dragging a maximized
+                    --window makes Windows drag-restore it mid-loop, which
+                    --Unity fights -- the window ends up unzoomed at a
+                    --corrupt oversized rect (reproduced 2026-08-23:
+                    --1936x1119 hanging off every screen edge). While
+                    --maximized the bar restores via double-press or the
+                    --restore button only.
+                    if not dmhub.windowMaximized then
+                        local before = dmhub.screenDimensions
+                        dmhub.BeginWindowDrag()
+                        --BeginWindowDrag blocks through the whole native drag.
+                        --If it ended in an edge-snap the window was resized
+                        --while the engine was frozen; guard the settle frames.
+                        --The size check is deferred a beat because the engine
+                        --only reports the new dimensions on the next frame.
+                        dmhub.Schedule(0.1, function()
+                            if mod.unloaded then
+                                return
+                            end
+                            local after = dmhub.screenDimensions
+                            if after.x ~= before.x or after.y ~= before.y then
+                                StartWindowTransitionGuard(nil, nil, "drag snap resize")
+                            end
+                        end)
+                    end
+                end
+            end,
+        },
 
         CreateCodexMenuItem{
             name = "Codex",
@@ -5514,6 +6475,7 @@ local function CreateTopBar()
             mainmenu = true,
             menuItems = function()
                 local items = {
+                    FullscreenMenuItem(),
                     {
                         text = "Settings",
                         icon = "panels/hud/gear.png",
@@ -5548,6 +6510,9 @@ local function CreateTopBar()
                 for i=#storeItems,1,-1 do
                     table.insert(items, 1, storeItems[i])
                 end
+                --inserted AFTER the store rows are prepended so Fullscreen
+                --lands at the very top, matching the main-menu Codex menu.
+                table.insert(items, 1, FullscreenMenuItem())
                 return items
             end,
         },
@@ -5768,7 +6733,10 @@ local function CreateTopBar()
         CreateCodexMenuItem{
             name = "Developer",
             calculateVisibility = function(element)
-                element.selfStyle.collapsed = cond(devmode(), 0, 1)
+                --BarFitMenuDropped: same reason as Adventure Documents above
+                --- this item owns its selfStyle.collapsed, so the narrow-bar
+                --ladder cannot collapse it with a class and is honoured here.
+                element.selfStyle.collapsed = cond(devmode() and not BarFitMenuDropped(element), 0, 1)
             end,
             menuItems = function()
                 if not devmode() then
@@ -5860,33 +6828,178 @@ local function CreateTopBar()
             halign = "right",
             m_audioIndicator,
             m_searchBar,
+
+            -- Window controls for the merged title bar: minimize /
+            -- maximize-restore / close, drawn by us but driving the native
+            -- window (the classic three cannot be kept system-drawn once
+            -- the caption is stripped). Collapsed whenever the merged bar
+            -- is off or unsupported; visibility rides the menuBar think's
+            -- calculateVisibility broadcast.
+            gui.Panel{
+                classes = {"windowButtons", "collapsed"},
+                flow = "horizontal",
+                width = "auto",
+                height = "100%",
+                valign = "center",
+                lmargin = 8,
+                calculateVisibility = function(element)
+                    element:SetClass("collapsed", not MergedTitleBarActive())
+                end,
+
+                --window-chrome/*: the Windows caption glyph shapes (codicon
+                --geometry), served from StreamingAssets by the engine's
+                --GetWindowChromeIcon. Each control is a full-bar-height
+                --hover ZONE like the native caption buttons -- adjacent
+                --42px strips whose whole surface fills on hover (faint
+                --light for minimize/maximize, the Windows red for close;
+                --styles live in titleBarStyleExtras below). Presses find no
+                --handler here and no ancestor has one, so the drag surface
+                --(a sibling underneath) never steals the click.
+                --(Fullscreen is no longer a window control here -- it lives
+                --in the Codex menus as a checkbox row, see ToggleFullscreen.)
+                CreateWindowControl{
+                    icon = "window-chrome/chrome-minimize.png",
+                    click = function()
+                        dmhub.MinimizeWindow()
+                    end,
+                },
+                --assigned to the file-local so UpdateTitleBarHitRegions can
+                --report it as the engine's HTMAXBUTTON zone; the click below
+                --still fires on engines/modes without the stage-2 regions
+                --(there the control is ordinary gui), while under the regions
+                --the engine relays clicks via windowMaxButtonClick instead.
+                (function()
+                    m_maximizeControl = CreateWindowControl{
+                        icon = "window-chrome/chrome-maximize.png",
+                        --swap square (maximize) and overlapping-squares
+                        --(restore) as the window state changes, polled on the
+                        --same broadcast that drives the cluster's visibility.
+                        --Reading the property on a pre-bridge engine would
+                        --raise, so gate first.
+                        calculateVisibility = function(element)
+                            --while fullscreen the enforcer owns the window
+                            --geometry, so maximize/restore is meaningless:
+                            --gray the control out (style below) and let the
+                            --click gate ignore presses.
+                            local fullscreen = dmhub.GetSettingValue("fullscreen") == true
+                            if fullscreen ~= element.data.fullscreenDisabled then
+                                element.data.fullscreenDisabled = fullscreen
+                                element:SetClass("windowControlDisabled", fullscreen)
+                            end
+                            if not WindowChromeBridgeAvailable() then
+                                return
+                            end
+                            local maximized = dmhub.windowMaximized
+                            if maximized ~= element.data.maximized then
+                                element.data.maximized = maximized
+                                element:FireEventTree("setIcon", cond(maximized, "window-chrome/chrome-restore.png", "window-chrome/chrome-maximize.png"))
+                            end
+                        end,
+                        click = function()
+                            --disabled while fullscreen; minimize/close stay live.
+                            if dmhub.GetSettingValue("fullscreen") == true then
+                                return
+                            end
+                            --hide the bar contents FIRST and resize a beat later,
+                            --so the hide is on screen before the resize's
+                            --mis-laid-out settle frames are.
+                            StartWindowTransitionGuard(nil, nil, "maximize button")
+                            dmhub.Schedule(0.05, function()
+                                if not mod.unloaded then
+                                    dmhub.ToggleMaximizeWindow()
+                                end
+                            end)
+                        end,
+                    }
+                    return m_maximizeControl
+                end)(),
+                CreateWindowControl{
+                    danger = true,
+                    icon = "window-chrome/chrome-close.png",
+                    click = function()
+                        dmhub.CloseWindow()
+                    end,
+                },
+            },
         },
     }
 
     local titleBarStyleExtras = {
-        -- Title-bar bar surface paints with the scheme's barTrack
-        -- gradient. bgcolor = "white" is the image-tint multiplier:
-        -- without it the cascade's @bg tints the gradient down to
-        -- near-black on dark schemes.
+        -- Narrow-bar fit: the collapse ladder's own way of taking an element
+        -- out of the flow. Deliberately NOT the "collapsed" class -- several
+        -- of these elements drive that themselves (the initiative host tracks
+        -- the Show Status Bar setting, the menu items track dev mode and
+        -- in-game state), and two writers on one class fight. A separate
+        -- class means the ladder and the element's own visibility rules
+        -- simply both get a veto.
+        {
+            selectors = {"barFitHidden"},
+            collapsed = 1,
+        },
+
+        -- Title-bar bar surface paints flat @bg -- the same color the DWM
+        -- caption used before the merged title bar replaced it
+        -- (WindowTitleBarTheme.cs hardcodes that caption to the default
+        -- scheme's bg #0A0A0B). Was the @barTrack gradient; flattened by
+        -- request 2026-08-23 so the merged bar reads as window chrome.
         {
             selectors = {"titleBarSurface"},
             bgimage = true,
-            bgcolor = "white",
-            gradient = "@barTrack",
+            bgcolor = "@bg",
         },
 
-        -- Title-bar search field: bordered variant + behavior visibility.
-        -- DefaultStyles' searchInput rule ships borderWidth=0; the title
-        -- bar wants a thin frame so we add it here at the surface.
+        -- Window controls (CreateWindowControl): full-height caption-button
+        -- hover zones. Faint light fill for minimize/maximize, the Windows
+        -- red for close; the close glyph flips to pure white over the red
+        -- (@fg parchment would look dirty there). Danger rules come after
+        -- the generic ones so they win the cascade.
         {
-            selectors = {"searchInput"},
-            borderWidth = 1,
-            borderColor = "@border",
+            selectors = {"windowControl"},
+            bgcolor = "clear",
         },
         {
-            selectors = {"searchInput", "focus"},
-            borderColor = "@fgStrong",
+            selectors = {"windowControl", "hover"},
+            bgcolor = "#ffffff1f",
         },
+        {
+            selectors = {"windowControl", "press"},
+            bgcolor = "#ffffff33",
+        },
+        {
+            selectors = {"windowControlDanger", "hover"},
+            bgcolor = "#c42b1c",
+        },
+        {
+            selectors = {"windowControlDanger", "press"},
+            bgcolor = "#b3271a",
+        },
+        {
+            selectors = {"windowControlIcon"},
+            --neutral light grey rather than the theme's parchment @fg:
+            --window chrome should read as OS furniture, not app content
+            --(Venla 2026-08-23). Close still flips to white over the red.
+            bgcolor = "#d4d4d4",
+        },
+        {
+            selectors = {"windowControlIconDanger", "parent:hover"},
+            bgcolor = "#ffffff",
+        },
+        -- Disabled state (maximize while fullscreen): no hover/press fill
+        -- and a faded glyph. After the hover/press rules so it wins the
+        -- cascade at equal specificity.
+        {
+            selectors = {"windowControl", "windowControlDisabled"},
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"windowControlIcon", "parent:windowControlDisabled"},
+            opacity = 0.35,
+        },
+
+        -- Title-bar search field visibility. (Its LOOK is the canonical
+        -- searchInput rule in DefaultStyles now -- this surface's old
+        -- thin-frame variant was promoted to the app-wide default,
+        -- Control Zoo decision 2026-08-20.)
         {
             selectors = {"searchInput", "~ingame", "~searchoverride"},
             hidden = 1,
@@ -5901,48 +7014,100 @@ local function CreateTopBar()
             hidden = 1,
         },
 
-        -- Grouped global-search results popup.
+        -- Grouped global-search results popup: the search bar's own
+        -- focused fill, stretched downward (Venla 2026-08-21) -- no
+        -- frame, no separate panel color, square top corners so it
+        -- continues the bar's silhouette; only the bottom keeps the
+        -- pill rounding. x1=TL, y1=TR, x2=BR, y2=BL.
         {
             selectors = {"searchResultsPanel"},
-            pad = 6,
+            --vpad only, NO horizontal padding: row highlights span the
+            --popup's full width (Venla 2026-08-21), so rows reach the
+            --edges and carry their text inset as their own lpad/rpad.
+            vpad = 6,
             maxHeight = 600,
             borderBox = true,
+            bgimage = true,
+            bgcolor = "#2E2E33",
+            cornerRadius = {x1 = 0, y1 = 0, x2 = 7, y2 = 7},
+        },
+        {
+            -- While the search's results popup is actually up (class
+            -- toggled by SyncPopupOpenState), the field's bottom
+            -- corners square off so the popup below continues the
+            -- shape without corner notches. Keyed to the popup, NOT
+            -- focus: a focused empty bar has no popup and must stay a
+            -- plain closed pill.
+            selectors = {"searchInput", "searchPopupOpen"},
+            cornerRadius = {x1 = 7, y1 = 7, x2 = 0, y2 = 0},
+        },
+        {
+            -- The connector strip a focused search bar drops below
+            -- itself to meet the popup (the engine positions popup
+            -- roots a few px lower and ignores y offsets on them, so
+            -- the FIELD bridges the gap). Same fill as bar + popup, so
+            -- the overlap is invisible and the three read as one shape.
+            selectors = {"searchPopupBridge"},
+            bgimage = true,
+            bgcolor = "#2E2E33",
         },
         {
             selectors = {"searchGroupHeading"},
-            width = "100%-12",
+            --hmargin 12, matching the old 6 popup pad + 6 margin now
+            --that the popup itself has no horizontal padding.
+            width = "100%-24",
             height = "auto",
             halign = "left",
             color = "@accent",
             fontSize = 13,
             tmargin = 6,
             bmargin = 2,
-            hmargin = 6,
+            hmargin = 12,
         },
         {
             selectors = {"searchResultRow"},
-            width = "100%-12",
+            --full width so the hover/keyboard highlight runs edge to
+            --edge of the popup; the text inset lives in the row's OWN
+            --padding instead of margins. rpad 28, not symmetric: the
+            --engine scrollbar overlays the popup's right edge, and the
+            --right-aligned type labels must stay clear of it (Venla
+            --2026-08-21).
+            width = "100%",
             height = "auto",
             halign = "left",
             valign = "center",
             bgimage = true,
             bgcolor = "clear",
-            pad = 4,
-            hmargin = 6,
+            vpad = 4,
+            lpad = 16,
+            rpad = 28,
             borderBox = true,
         },
+        --row highlights lift ABOVE the popup's #2E2E33 ground (@bgAlt
+        --is darker than it now and read as dark stripes).
         {
             selectors = {"searchResultRow", "hover"},
-            bgcolor = "@bgAlt",
+            bgcolor = "#3B3B42",
         },
         {
             selectors = {"searchResultRow", "searchfocus"},
-            bgcolor = "@bgAlt",
+            bgcolor = "#3B3B42",
         },
         {
             selectors = {"searchSeeAll", "searchfocus"},
             bgimage = true,
-            bgcolor = "@bgAlt",
+            bgcolor = "#3B3B42",
+        },
+        {
+            -- Empty-state line ("No Search Results" / "Searching...")
+            -- shown alone inside the searchResultsPanel frame.
+            selectors = {"searchEmptyState"},
+            width = "100%",
+            height = "auto",
+            textAlignment = "center",
+            color = "@fgMuted",
+            fontSize = 13,
+            vmargin = 6,
         },
         {
             -- 20px to line up with the placed-token portraits (CreateTokenImage
@@ -5977,6 +7142,17 @@ local function CreateTopBar()
         {
             selectors = {"searchResultName"},
             width = "auto",
+            --hard cap, not "available": rows flow horizontally with an
+            --auto-width name block, so an uncapped long name pushes the
+            --right-hand type/chips column past the row edge and it
+            --clips mid-word (Venla 2026-08-21). Fixed cap, not an
+            --available-based width -- see the Control Zoo mock's note
+            --on the hover-restyle flicker loop. BOTH columns are
+            --capped (the right one overflowed too on long monster
+            --names as type labels); capped labels wrap instead of
+            --clipping. 150 + the right column's 95 + icon and margins
+            --fills the current popup width.
+            maxWidth = 150,
             height = "auto",
             halign = "left",
             valign = "center",
@@ -5986,6 +7162,10 @@ local function CreateTopBar()
         {
             selectors = {"searchResultType"},
             width = "auto",
+            --the right column's cap (see searchResultName): long type
+            --labels -- e.g. a monster name on an ability row -- wrap
+            --within it instead of running off the row edge.
+            maxWidth = 95,
             height = "auto",
             halign = "right",
             valign = "center",
@@ -5996,6 +7176,9 @@ local function CreateTopBar()
         {
             selectors = {"searchResultSub"},
             width = "auto",
+            --same cap rationale as searchResultName: the sub line also
+            --widens the name block and pushes the right column out.
+            maxWidth = 150,
             height = "auto",
             halign = "left",
             color = "@fgMuted",
@@ -6028,6 +7211,9 @@ local function CreateTopBar()
         {
             selectors = {"searchHintText"},
             width = "auto",
+            --cap like searchResultName (minus the lead-in arrow), so a
+            --long action hint cannot widen the name block either.
+            maxWidth = 134,
             height = "auto",
             valign = "center",
             color = "@fgMuted",
@@ -6039,6 +7225,8 @@ local function CreateTopBar()
             -- chip above (and from sibling buttons when there is more than one).
             selectors = {"searchResultChip"},
             width = "auto",
+            --same right-column cap as searchResultType.
+            maxWidth = 95,
             height = "auto",
             halign = "right",
             valign = "center",
@@ -6062,16 +7250,31 @@ local function CreateTopBar()
         },
         {
             selectors = {"searchSeeAll"},
-            width = "100%-12",
+            --full width with row-matching pads, so its searchfocus
+            --highlight also runs edge to edge (see searchResultRow).
+            width = "100%",
             height = "auto",
             halign = "left",
             color = "@accentHover",
             fontSize = 13,
-            pad = 4,
-            hmargin = 6,
+            vpad = 4,
+            lpad = 16,
+            rpad = 28,
             borderBox = true,
         },
     }
+
+    -- Expose the REAL global-search bar to dev surfaces (the Control
+    -- Zoo hosts it for styling work on the results popup). The popup
+    -- inherits its searchResult* rules from the HOST's cascade
+    -- (popupsInheritStyles), so a foreign host must merge
+    -- TopBar.SearchBarStyles() into its own sheet -- and must
+    -- SetClassTree("ingame", true) on its wrapper, or the sheet's
+    -- {searchInput, ~ingame} rule hides the bar.
+    TopBar.CreateSearchBar = CreateSearchBar
+    TopBar.SearchBarStyles = function()
+        return titleBarStyleExtras
+    end
 
     -- Tree-wide invalidation pulse for theme repaints. Reassigning .styles
     -- updates the rule array but doesn't mark descendants dirty, so without
@@ -6137,3 +7340,61 @@ local function CreateTopBar()
 end
 
 dmhub.titleBarContainer.sheet = CreateTopBar()
+
+--HTMAXBUTTON relay: while the stage-2 hit regions are registered, the
+--maximize control is a native non-client zone -- the gui never receives
+--mouse events over it -- so the engine relays its interaction here. The
+--events are argless; state is read from dmhub.windowMaxButtonState. Both
+--handlers survive bar rebuilds (they resolve m_maximizeControl at fire
+--time) and go quiet after a mod reload via the mod.unloaded guard.
+dmhub.RegisterEventHandler("windowMaxButtonState", function()
+    if mod.unloaded then
+        return
+    end
+    local control = m_maximizeControl
+    if control == nil or not control.valid then
+        return
+    end
+    --disabled while fullscreen: no hover/press feedback on the dead control.
+    if dmhub.GetSettingValue("fullscreen") == true then
+        control:SetClass("hover", false)
+        control:SetClass("press", false)
+        return
+    end
+    local state = "none"
+    pcall(function() state = dmhub.windowMaxButtonState end)
+    control:SetClass("hover", state == "hover" or state == "pressed")
+    control:SetClass("press", state == "pressed")
+end)
+
+dmhub.RegisterEventHandler("windowMaxButtonClick", function()
+    if mod.unloaded then
+        return
+    end
+    --disabled while fullscreen. Swallow the click (return true) so the
+    --engine's no-listener fallback doesn't toggle the window itself.
+    if dmhub.GetSettingValue("fullscreen") == true then
+        return true
+    end
+    --same flow as the control's gui click handler: hide the bar contents
+    --FIRST and resize a beat later, so the hide is on screen before the
+    --resize's mis-laid-out settle frames are.
+    StartWindowTransitionGuard(nil, nil, "maximize button")
+    dmhub.Schedule(0.05, function()
+        if not mod.unloaded then
+            dmhub.ToggleMaximizeWindow()
+        end
+    end)
+
+    --Swallow the event. The engine's relay treats a NON-swallowed click as
+    --"no Lua listener" and toggles the window itself so the button can never
+    --go dead (LuaInterfaceWindowChrome, the ConsumeMaxButtonClick relay) --
+    --and FireGlobalEvent reports "swallowed" only when a handler returns
+    --true, not merely when one is registered. Since the toggle above is
+    --SCHEDULED rather than immediate, returning nothing let the engine
+    --fallback maximize right away and this handler restore 0.05s later: one
+    --click maximized the window and then animated it straight back down
+    --(observed 2026-08-23). The early mod.unloaded return deliberately stays
+    --falsy so the fallback still works once this handler is dead.
+    return true
+end)

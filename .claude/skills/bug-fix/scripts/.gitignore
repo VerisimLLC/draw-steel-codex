@@ -1,0 +1,10 @@
+# NEVER commit credentials. They belong in a credentials directory outside this
+# repo -- see CREDENTIALS.md. These patterns are a backstop for a private
+# checkout that keeps them beside the scripts.
+bug-report-config.json
+mcdm-key.json
+*-key.json
+admin-secret*.txt
+MCDM_CLOUDFLARE_SECRET.txt
+__pycache__/
+*.pyc

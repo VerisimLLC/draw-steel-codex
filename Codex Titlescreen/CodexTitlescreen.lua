@@ -3373,8 +3373,25 @@ local function MakeGamePanel(gameIndex)
                     valign = "top",
                     textAlignment = "topleft",
 
+                    -- The card is a fixed 176px box but line height tracks
+                    -- the Font Size setting, so a fixed fraction cannot fit
+                    -- the blurb at every setting: the old "30%" (52.8px) is
+                    -- 3 lines at 80%, 2 at 100% and only 1 at 140%, while
+                    -- leaving dead space above the bottom-aligned pill.
+                    -- "available" instead claims whatever the card has left
+                    -- after the title row, backend line and bottom pill, so
+                    -- the blurb gets every line that actually fits (and it
+                    -- adapts to whichever bottom control this card shows).
+                    -- TMP then ellipsizes the remainder: overflow mode is a
+                    -- plain assignment to the TextMeshPro component, so it
+                    -- fits whole wrapped lines and truncates, never shrinks.
+                    -- Do NOT add minFontSize here: an autoshrink floor wins
+                    -- over the overflow mode and squeezes the blurb down to
+                    -- unreadable instead of truncating it.
+                    textOverflow = "Ellipsis",
+
                     width = "100%",
-                    height = "30%",
+                    height = "100% available",
 
                     flow = "horizontal",
                 },
@@ -3387,6 +3404,9 @@ local function MakeGamePanel(gameIndex)
                     classes = { "gameIdPill" },
                     textAlignment = "center",
                     fontSize = 14,
+                    -- Fixed 360x36 pill: let the long gameid autoshrink at
+                    -- large Font Size settings instead of overflowing.
+                    minFontSize = 10,
                     bold = true,
                     width = 360,
                     height = 36,
@@ -3407,7 +3427,13 @@ local function MakeGamePanel(gameIndex)
                             -- Hide the gameid copy label for local games; the
                             -- id is a local-only GUID that nobody can join.
                             -- The "Invite Players" button shows in its place.
-                            element:SetClass("hidden", m_game.storage == 3)
+                            -- Must be "collapsed", not "hidden": a hidden
+                            -- panel still occupies its 36px + margins, which
+                            -- stacks with the Invite button and steals two
+                            -- lines from the blurb above (height is
+                            -- "100% available", so it only gets what the
+                            -- bottom controls leave behind).
+                            element:SetClass("collapsed", m_game.storage == 3)
 
                             local gameid = m_game.gameid
                             if g_streamerModeSetting:Get() then
@@ -4364,7 +4390,7 @@ local function MakeHeroPanel(heroIndex)
         -- playingInCampaignBanner class supplies @bgAlt bgcolor via the
         -- Heroes column's MergeStyles extras. The {banner} class stays
         -- for the existing hover-brightness rules below.
-        classes = { "collapsed", "banner", "playingInCampaignBanner" },
+        classes = { "collapsed", "banner", "playingInCampaignBanner", "hiddenWithNoCharacter" },
         width = "94%",
         height = "20% width",
         bgimage = true,
@@ -7214,18 +7240,26 @@ function CreateTitlescreen(dialog, options)
 
                                 text = "CAMPAIGNS",
                                 fontSize = 70,
+                                -- Autoshrink at large Font Size settings so
+                                -- the magnified title does not run under the
+                                -- +/search buttons packed to its right.
+                                minFontSize = 40,
                                 fontFace = "book",
 
                                 halign = "center",
                                 valign = "center",
                                 textAlignment = "center",
 
-                                width = "85%",
+                                -- Complement width leaving room for the two
+                                -- 48px buttons, which are now SIBLINGS rather
+                                -- than children: as children they sat inside
+                                -- the text area, so the autoshrink measurement
+                                -- could not see them and the title ran under.
+                                width = "100%-110",
                                 height = "100%",
+                            },
 
-                                flow = "horizontal",
-
-                                --add game button.
+                            --add game button.
                                 gui.Button {
                                     width = 48,
                                     height = 48,
@@ -7294,8 +7328,6 @@ function CreateTitlescreen(dialog, options)
                                     },
 
                                 },
-                            }
-
 
                         },
 

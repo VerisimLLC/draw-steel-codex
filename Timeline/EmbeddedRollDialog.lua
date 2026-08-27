@@ -1012,6 +1012,73 @@ function GameHud.CreateEmbeddedRollDialog()
         return nil
     end
 
+    -- When a redirect trigger (a changeTarget power-roll modifier, e.g. the
+    -- Goblin Monarch's Meat Shield) chooses a new target, swing the targeting
+    -- arrow off the old target and onto the new one. The engine animates the
+    -- sweep locally and networks it so all other clients play it too.
+    -- Keyed by the original target's charid; the stored value is the charid
+    -- the arrow currently points at, so repeat syncs don't replay the sweep
+    -- and a withdrawn redirect (retargetid going back to nil) swings the
+    -- arrow back to the original target.
+    local m_appliedArrowRetargets = {}
+    local function RetargetArrowForTrigger(target, triggerInfo)
+        if target == nil or target.token == nil or m_options == nil then
+            return
+        end
+
+        local charid = target.token.charid
+        local applied = m_appliedArrowRetargets[charid]
+        local newid = triggerInfo.retargetid
+
+        if newid == applied then
+            return
+        end
+
+        local casterToken = nil
+        if m_options.creature ~= nil then
+            casterToken = dmhub.LookupToken(m_options.creature)
+        end
+        if casterToken == nil then
+            return
+        end
+
+        -- The arrow currently points at the previously applied redirect
+        -- target (if any), otherwise at the original target.
+        local currentToken = target.token
+        if applied ~= nil then
+            currentToken = dmhub.GetTokenById(applied) or target.token
+        end
+
+        -- nil retargetid means the redirect was withdrawn: swing back to the
+        -- original target.
+        local newToken = target.token
+        if newid ~= nil then
+            newToken = dmhub.GetTokenById(newid)
+        end
+        if newToken == nil then
+            return
+        end
+
+        local marker = FindMarkerForTarget(casterToken, currentToken)
+        if marker == nil then
+            return
+        end
+
+        marker:Retarget(newToken)
+        m_appliedArrowRetargets[charid] = newid
+
+        -- Re-key the marker table so later lookups find it under the token
+        -- the arrow now points at.
+        local rays = m_options.markLineOfSight
+        if rays ~= nil then
+            local oldKey = string.format("%s-%s", casterToken.charid, currentToken.charid)
+            if rays[oldKey] == marker then
+                rays[oldKey] = nil
+                rays[string.format("%s-%s", casterToken.charid, newToken.charid)] = marker
+            end
+        end
+    end
+
     -- Update the targeting arrow labels for the current target based on enabled modifiers.
     local function UpdateArrowLabelsForCurrentTarget()
         if m_options == nil or m_options.markLineOfSight == nil then
@@ -2256,6 +2323,10 @@ function GameHud.CreateEmbeddedRollDialog()
                                         end
 
                                         DuplicateTriggerToMultiTargets(triggerInfo)
+
+                                        --a redirect trigger chose (or withdrew) a new
+                                        --target: swing the targeting arrow to match.
+                                        RetargetArrowForTrigger(target, triggerInfo)
                                     end
                                 end
                             end
@@ -2292,6 +2363,7 @@ function GameHud.CreateEmbeddedRollDialog()
             end
 
             m_openedTriggers = nil
+            m_appliedArrowRetargets = {}
 
             for tokenid, triggerList in pairs(triggersByToken) do
                 local token = dmhub.GetTokenById(tokenid)
@@ -3401,6 +3473,20 @@ function GameHud.CreateEmbeddedRollDialog()
                             change = function(element)
                                 mod.override = element.value
 
+                                -- A named after-roll group is a single choice,
+                                -- not a set of independent checkboxes. Enabling
+                                -- one member clears every peer before the roll
+                                -- is recalculated.
+                                local group = mod.modifier:try_get("afterRollExclusiveGroup", "")
+                                if element.value and group ~= "" then
+                                    for _, peer in ipairs(m_options.modifiers or {}) do
+                                        if peer ~= mod and peer.isAfterRoll and peer.modifier ~= nil
+                                                and peer.modifier:try_get("afterRollExclusiveGroup", "") == group then
+                                            peer.override = false
+                                        end
+                                    end
+                                end
+
                                 resultPanel:FireEventTree('prepare', m_options)
                                 CalculateRollText()
                                 RecalculateMultiTargets()
@@ -4343,6 +4429,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 end
                 local effectiveRollInfo = {
                     total        = correctedTotal,
+                    naturalRoll  = m_rollInfo and m_rollInfo.naturalRoll or correctedTotal,
                     boons        = rollInfo.boons,
                     banes        = rollInfo.banes,
                     tiers        = rollInfo.tiers,
@@ -5705,6 +5792,11 @@ function GameHud.CreateEmbeddedRollDialog()
                     --roll re-resolves in ShowDialog.)
                     SetRollDiceOverride(nil)
 
+                    -- After-roll choices are not present when the dice are
+                    -- submitted. Snapshot again at acceptance so single-target
+                    -- costs and triggers include the accepted choices.
+                    modifiersUsed = DeepCopy(m_activeModifiers)
+
                     local resourceConsumed = false
 
                     local surgesUsed = 0
@@ -5714,6 +5806,8 @@ function GameHud.CreateEmbeddedRollDialog()
                     local triggerCostsPaid = {}
 
                     local modifiersAccountedFor = {}
+
+                    local consumeOnceModifiers = {}
 
                     if multitargetsUsed ~= nil then
                         for i, target in ipairs(multitargetsUsed) do
@@ -5807,6 +5901,20 @@ function GameHud.CreateEmbeddedRollDialog()
                                             c = token.properties
                                         end
                                         modifiersAccountedFor[modifier.guid] = true
+                                    end
+                                end
+
+                                -- Roll-wide modifiers can be copied into every
+                                -- target snapshot. Keep their effect on every
+                                -- target but bill the resource only once.
+                                if c ~= nil and modifier:try_get("consumeOncePerRoll", false) then
+                                    local onceKey = modifier:try_get("guid")
+                                        or modifier:try_get("resourceCost")
+                                        or modifier:try_get("name")
+                                    if consumeOnceModifiers[onceKey] then
+                                        c = nil
+                                    else
+                                        consumeOnceModifiers[onceKey] = true
                                     end
                                 end
 
@@ -5976,6 +6084,7 @@ function GameHud.CreateEmbeddedRollDialog()
                             m_symbols.cast.naturalRoll = natRoll > 0 and natRoll or correctedTotal
                             local tierRollInfo = {
                                 total        = correctedTotal,
+                                naturalRoll  = natRoll > 0 and natRoll or correctedTotal,
                                 boons        = rollInfo.boons,
                                 banes        = rollInfo.banes,
                                 tiers        = rollInfo.tiers,
@@ -6085,7 +6194,10 @@ function GameHud.CreateEmbeddedRollDialog()
                             -- m_crowsResolved guard stops `complete` (or an AI
                             -- auto-proceed) from applying the result a second time.
                             local fn = GameSystem:try_get("RollDialogAutoProceed")
-                            if (not m_crowsResolved) and fn ~= nil and type(fn) == "function" and fn(m_options) then
+                            if (not m_crowsResolved) and fn ~= nil and type(fn) == "function" and fn(m_options, {
+                                    rollInfo = rollInfo,
+                                    afterRollModifiers = m_afterRollModifierEntries,
+                                }) then
                                 m_crowsResolved = true
                                 rollAgainButton:SetClass("collapsed", true)
                                 proceedAfterRollButton:SetClass("collapsed", true)

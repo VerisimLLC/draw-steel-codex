@@ -276,8 +276,56 @@ end
 -- Utility namespace for power roll helpers shared across files.
 RollUtils = {}
 
+--- The dice that counted, highest first. Dropped dice are excluded.
+--- @param rollInfo table A completed roll
+--- @return number[] faces The die results, descending
+function RollUtils.SortedDice(rollInfo)
+    local faces = {}
+
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.dropped ~= true then
+            faces[#faces + 1] = roll.result
+        end
+    end
+
+    table.sort(faces, function(a, b) return a > b end)
+
+    return faces
+end
+
+--- Whether a roll is a critical: the two highest dice reading max and max-1 or
+--- better. On the usual two d10s that is exactly a natural 19 or 20; expressed
+--- per-die it stays correct when an effect adds a third die.
+--- @param rollInfo table A completed roll
+--- @return boolean isCrit True when the roll is a critical
+function RollUtils.IsCrit(rollInfo)
+    local faces = RollUtils.SortedDice(rollInfo)
+    if #faces < 2 then
+        return false
+    end
+
+    local maxFace = 10
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.numFaces ~= nil then
+            maxFace = roll.numFaces
+            break
+        end
+    end
+
+    return faces[1] == maxFace and faces[2] >= maxFace - 1
+end
+
 --result has {total = number, boons = nil|number, banes = nil|number, autosuccess = bool?, autofailure = bool?, nottierone = bool?, nottierthree = bool?, tiers = nil|number}
 function RollUtils.DiceResultToTier(result)
+    -- A game system may define absolute natural-roll outcomes without
+    -- replacing this shared helper (important because several files cache the
+    -- function itself during load). Returning nil keeps the standard rules.
+    local naturalTierFn = GameSystem:try_get("PowerRollNaturalTierOverride")
+    if naturalTierFn ~= nil and type(naturalTierFn) == "function" then
+        local naturalTier = naturalTierFn(result)
+        if naturalTier ~= nil then return naturalTier end
+    end
+
     if result.autosuccess then
         return 3
     end
@@ -981,20 +1029,13 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
     local modifiersOnCaster = self:GetActiveModifiers()
     for _,mod in ipairs(modifiersOnCaster) do
         local m = mod.mod:DescribeModifyPowerRoll(mod, self, "ability_power_roll", {ability = ability, caster = self, target = targetCreature, attribute = self:try_get("attrid"), skills = {self:try_get("skillid")}})
-        if m == nil then
-            print("TARGETING_LABEL_DEBUG: modifier '" .. mod.mod.name .. "' did not return a description for ability_power_roll")
-        end
-
         if m ~= nil then
             m.hint = m.modifier:HintModifyPowerRolls(mod, self, "ability_power_roll", {
                 ability = ability,
                 target = targetCreature,
             })
             if m.hint ~= nil and m.hint.result then
-                print("TARGETING_LABEL_DEBUG: caster modifier '" .. m.modifier.name .. "' hint accepted: hint=" .. tostring(m.hint) .. " result=" .. tostring(m.hint.result) .. " justification=" .. (m.hint.justification and table.concat(m.hint.justification, "; ") or "nil"))
                 result[#result+1] = m
-            else
-                printf("TARGETING_LABEL_DEBUG: caster modifier '%s' hint rejected: hint=%s result=%s justification=%s", m.modifier.name, tostring(m.hint), m.hint and tostring(m.hint.result) or "nil", m.hint and table.concat(m.hint.justification or {}, "; ") or "nil")
             end
         end
     end
@@ -1003,10 +1044,6 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
     local modifiersOnTarget = targetCreature:GetActiveModifiers()
     for _,mod in ipairs(modifiersOnTarget) do
         local m = mod.mod:DescribeModifyPowerRoll(mod, targetCreature, "enemy_ability_power_roll", {ability = ability, caster = self, target = targetCreature})
-        if m == nil then
-            print("TARGETING_LABEL_DEBUG: modifier '" .. mod.mod.name .. "' did not return a description for enemy_ability_power_roll")
-        end
-
         if m ~= nil then
             m.hint = m.modifier:HintModifyPowerRolls(mod, targetCreature, "enemy_ability_power_roll", {
                 ability = ability,
@@ -1014,10 +1051,7 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
                 target = targetCreature,
             })
             if m.hint ~= nil and m.hint.result then
-                print("TARGETING_LABEL_DEBUG: target modifier '" .. m.modifier.name .. "' hint accepted: hint=" .. tostring(m.hint) .. " result=" .. tostring(m.hint.result) .. " justification=" .. (m.hint.justification and table.concat(m.hint.justification, "; ") or "nil"))
                 result[#result+1] = m
-            else
-                printf("TARGETING_LABEL_DEBUG: target modifier '%s' hint rejected: hint=%s result=%s justification=%s", m.modifier.name, tostring(m.hint), m.hint and tostring(m.hint.result) or "nil", m.hint and table.concat(m.hint.justification or {}, "; ") or "nil")
             end
         end
     end
@@ -1864,6 +1898,13 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
             while targets == nil do
                 coroutine.yield(0.1)
+                --If the caster died while we waited, the prompt is gone and
+                --no answer will ever come. Treat it as cancelled so the
+                --ability can finish instead of hanging.
+                if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+                    targets = {}
+                    targetChoices = {}
+                end
             end
         end
 
@@ -1908,7 +1949,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
                     --Check modifiers actually applied to roll for this target
                     for _, mod in ipairs(m_rollInfo.properties.multitargets[numTarget].modifiersUsed or {}) do
-                        potencyApplied = potencyApplied + mod:try_get("potencymod", 0)
+                        potencyApplied = potencyApplied + (tonumber(mod:try_get("potencymod", 0)) or 0)
                     end
 
                     options.symbols.cast:SetPotencyApplied(targetToken, potencyApplied)
@@ -2078,6 +2119,28 @@ end
 function ActivatedAbilityPowerRollBehavior:GetPowerRollDisplay()
     local roll = self.roll
     return string.gsub(roll, "2d10", "<b>Power Roll</b>")
+end
+
+--An invoked custom ability carries its own power roll (e.g. the Reaver's
+--Phalanx Breaker shifts, then invokes a three-target power roll). The card's
+--render pass already unwraps those nested tiers to display them, so this
+--lookup has to find the same roll -- it gates the whole power-roll section,
+--which stays collapsed while it returns "".
+function ActivatedAbilityInvokeAbilityBehavior:GetPowerRollDisplay()
+    if self.abilityType ~= "custom" then
+        return nil
+    end
+
+    --Take the last matching subbehavior, which is what the render pass shows.
+    local customAbility = self:try_get("customAbility")
+    local result = nil
+    for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
+        if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            result = subbehavior:GetPowerRollDisplay()
+        end
+    end
+
+    return result
 end
 
 --Resolves the value of the characteristic this power roll uses for `caster`,
@@ -3514,7 +3577,7 @@ function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, 
         if target.token ~= nil then
 		    local dcinfo = dcaction.info.tokens[target.token.charid]
             if dcinfo ~= nil then
-                local tier = DiceResultToTier{ total = dcinfo.result, boons = dcinfo.boons, banes = dcinfo.banes }
+                local tier = DiceResultToTier{ total = dcinfo.result, naturalRoll = dcinfo.naturalRoll, boons = dcinfo.boons, banes = dcinfo.banes }
                 options.symbols.cast:SetTierResult(target.token, tier)
                 local command = self.tiers[tier]
                 self:ExecuteCommand(ability, casterToken, target.token, options, command)
@@ -3571,7 +3634,7 @@ function ActivatedAbilityPowerRollBehavior:CastCustom(ability, casterToken, targ
         if target.token ~= nil then
 		    local dcinfo = dcaction.info.tokens[target.token.charid]
             if dcinfo ~= nil then
-                local tier = DiceResultToTier{ total = dcinfo.result, boons = dcinfo.boons, banes = dcinfo.banes }
+                local tier = DiceResultToTier{ total = dcinfo.result, naturalRoll = dcinfo.naturalRoll, boons = dcinfo.boons, banes = dcinfo.banes }
                 if self:has_key("callback") then
                     self.callback(target.token, tier)
                 end

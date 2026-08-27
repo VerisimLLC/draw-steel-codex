@@ -1385,13 +1385,6 @@ local function NovelContentMarker(extraClass)
         floating = true,
         interactable = false,
         bgimage = "panels/square.png",
-        rotate = 45,
-
-        gui.Panel {
-            classes = { "novelMarkerInner" },
-            bgimage = "panels/square.png",
-            interactable = false,
-        },
 
         --Slow breathe so it reads as "look here" without strobing. Only ticks
         --while the marker is actually up.
@@ -1421,12 +1414,13 @@ end
 
 local NOVEL_MARKER_RULES = {
     {
+        --Matches the standard new-content badge (gui.NewContentAlert): a
+        --solid red circle so alerts read the same everywhere.
         selectors = { "novelMarker" },
         width = 14,
         height = 14,
-        bgcolor = "@accent",
-        borderWidth = 1,
-        borderColor = "@fgStrong",
+        bgcolor = "#ee4444",
+        cornerRadius = 7,
         halign = "right",
         valign = "top",
         margin = -4,
@@ -1437,6 +1431,7 @@ local NOVEL_MARKER_RULES = {
         selectors = { "novelMarker", "onAbility" },
         width = 12,
         height = 12,
+        cornerRadius = 6,
         halign = "left",
         valign = "top",
         margin = 3,
@@ -1446,14 +1441,6 @@ local NOVEL_MARKER_RULES = {
         brightness = 2,
         transitionTime = 0.8,
         easing = "easeInOutSine",
-    },
-    {
-        selectors = { "novelMarkerInner" },
-        width = "45%",
-        height = "45%",
-        halign = "center",
-        valign = "center",
-        bgcolor = "@fgStrong",
     },
 }
 
@@ -2697,8 +2684,23 @@ local function ActionBarDrawer(args)
                 --heading (see the ActionMenu "menu" handler), so this drawer can
                 --stay hidden rather than taking up room on the bar.
                 local inRespite = InRespiteMode()
-                resultPanel:SetClass("hidden", not inRespite)
-                if not inRespite then
+
+                --Even during a respite, a creature with no respite activities
+                --(most monsters) has nothing to put in this drawer, so keep it
+                --hidden for them too. Matches the menu's own filter below.
+                local haveRespiteActivities = false
+                if inRespite then
+                    for _, ability in ipairs(g_abilities) do
+                        if ability.actionResourceId == CharacterResource.respiteActivityId and ability.categorization ~= "Hidden" then
+                            haveRespiteActivities = true
+                            break
+                        end
+                    end
+                end
+
+                local showDrawer = inRespite and haveRespiteActivities
+                resultPanel:SetClass("hidden", not showDrawer)
+                if not showDrawer then
                     return
                 end
 
@@ -3114,6 +3116,7 @@ local function CreateActionBar()
 
     --Respite activities get their own drawer, floating above and centered over
     --the main bar. The drawer hides itself unless the game is in respite mode
+    --AND the selected creature has at least one respite activity to list
     --(see the args.type == "respite" handling in ActionBarDrawer).
     local m_respitePanel = ActionBarDrawer { name = "Respite Activity", type = "respite", panel = {
         floating = true,
@@ -3272,8 +3275,30 @@ local function CreateActionBar()
                 element:FireEventTree("closemenu", "primary")
             end
 
-            g_resources = g_token.properties:GetResources()
-            g_abilities = g_token.properties:GetActivatedAbilities { bindCaster = true, manualTriggers = true }
+            --Containment: GetResources/GetActivatedAbilities run a huge pass
+            --over authored data (modifiers, items, triggers, module content).
+            --A throw in there used to abort this refresh right after the bar
+            --was unhidden above, leaving a visible but dead action bar -- and
+            --left g_abilities holding the PREVIOUS token's list. Fall back to
+            --empty lists so the bar always renders (movement and free-action
+            --drawers stay usable) and never shows another creature's abilities.
+            local okResources, resources = pcall(function()
+                return g_token.properties:GetResources()
+            end)
+            g_resources = (okResources and resources) or {}
+
+            local okAbilities, abilitiesOrErr = pcall(function()
+                return g_token.properties:GetActivatedAbilities { bindCaster = true, manualTriggers = true }
+            end)
+            g_abilities = (okAbilities and abilitiesOrErr) or {}
+
+            if (not okResources) or (not okAbilities) then
+                if not element.data.reportedRefreshError then
+                    element.data.reportedRefreshError = true
+                    dmhub.CloudError(string.format("Action bar refresh failed; showing empty ability list: %s",
+                        tostring((not okResources) and resources or abilitiesOrErr)))
+                end
+            end
 
             --break out melee and ranged.
             local abilities = {}
@@ -3358,6 +3383,61 @@ end
 --- @type {mod: table, checked: boolean}[]
 local m_activeImprovements = {}
 
+--Sight-line arrows for blocked abilities: when an ability is suppressed by an
+--abilityFilters entry carrying sightlines = true, hovering its heading draws a
+--red line-of-sight arrow from each relevant enemy that has a clear view (no
+--cover) of the caster, so the player can see exactly who is blocking them
+--(e.g. the Hide maneuver's concealment-or-cover requirement). Arrows are
+--freed on dehover and on heading destroy; ownership tracking makes sure a
+--newly hovered heading's arrows are not clobbered by the previous heading's
+--dehover.
+--One table, not three locals: the merged file sits at Lua's 200
+--top-level-locals ceiling (same consolidation as g_overviewRisk).
+local g_filterSightlines = { rays = {}, owner = nil, MAX = 12 }
+
+local function ClearFilterSightlineRays()
+    for _,ray in ipairs(g_filterSightlines.rays) do
+        ray:DestroyLineOfSight()
+    end
+    g_filterSightlines.rays = {}
+    g_filterSightlines.owner = nil
+end
+
+local function ShowFilterSightlineRays(ownerElement)
+    ClearFilterSightlineRays()
+
+    local token = g_token
+    if token == nil or not token.valid or token.properties == nil then
+        return
+    end
+
+    --A concealed creature cannot be seen; nothing to draw.
+    if token.properties:IsConcealed() then
+        return
+    end
+
+    for _,enemyTok in ipairs(token.properties:GetRelevantEnemyTokens()) do
+        if #g_filterSightlines.rays >= g_filterSightlines.MAX then
+            break
+        end
+
+        local pierce = 0
+        if enemyTok.properties ~= nil then
+            pierce = enemyTok.properties:GetPierceWalls()
+        end
+
+        --nil cover info means the enemy has a clear view of the caster. favorTarget = true
+        --matches the hider-favoring bias used by the Hide gate's cover symbols, so the
+        --arrows always agree with the gate's verdict.
+        local coverInfo = dmhub.GetCoverInfo(enemyTok, token, pierce, true)
+        if coverInfo == nil then
+            g_filterSightlines.rays[#g_filterSightlines.rays+1] = dmhub.MarkLineOfSight(enemyTok, token, pierce, "red")
+        end
+    end
+
+    g_filterSightlines.owner = ownerElement
+end
+
 --- @param args nil|{casterToken: nil|CharacterToken, ability: nil|ActivatedAbility, instantCast: nil|boolean, targets: nil|table, cast: nil|table, symbols: nil|table}
 local function AbilityHeading(args)
     local args = args or {}
@@ -3366,6 +3446,10 @@ local function AbilityHeading(args)
     local m_cannotAfford = false
     local m_expended = false
     local m_suppressed = false
+
+    --True when the filter suppressing this ability asks for enemy sight-line
+    --arrows on hover (sightlines = true on the abilityFilters entry).
+    local m_sightlineFilter = false
 
     local resultPanel
 
@@ -3538,9 +3622,13 @@ local function AbilityHeading(args)
         end,
 
         ability = function(element, ability)
-            local suppressMessage = ability:try_get("suppressExplanation") or
-                ability:AbilityFilterFailureMessage(CasterToken().properties)
+            local suppressMessage = ability:try_get("suppressExplanation")
+            local suppressFilter = nil
+            if suppressMessage == nil then
+                suppressMessage, suppressFilter = ability:AbilityFilterFailureMessage(CasterToken().properties)
+            end
             m_suppressed = suppressMessage ~= nil
+            m_sightlineFilter = m_suppressed and suppressFilter ~= nil and suppressFilter.sightlines == true
             element:SetClassTree("suppressed", m_suppressed)
 
             m_novelMarker:FireEvent("setNovel", AbilityIsNovel(ability))
@@ -3662,6 +3750,10 @@ local function AbilityHeading(args)
                 print("MENU:: DIRECT ABILITY")
                 m_showingAbility = CharacterPanel.DisplayAbility(CasterToken(), m_ability)
             end
+
+            if m_sightlineFilter then
+                ShowFilterSightlineRays(element)
+            end
         end,
 
         dehover = function(element)
@@ -3669,9 +3761,25 @@ local function AbilityHeading(args)
                 print("MENU:: DEHOVER")
                 CharacterPanel.HideAbility(m_ability)
             end
+
+            if g_filterSightlines.owner == element then
+                ClearFilterSightlineRays()
+            end
+        end,
+
+        destroy = function(element)
+            if g_filterSightlines.owner == element then
+                ClearFilterSightlineRays()
+            end
         end,
 
         press = function(element)
+            -- While the Director has the game frozen, players cannot act at
+            -- all; the FROZEN banner on screen explains why. Directors bypass.
+            if (not dmhub.isDM) and dmhub.frozen then
+                return
+            end
+
             -- Strict resource enforcement: if a player tries to use an ability
             -- whose icon is greyed out (insufficient resources, action already
             -- expended this round, or the ability filter suppresses it), the
@@ -7821,6 +7929,70 @@ local function GetArrowColor(ability, sourceToken, targetToken)
     return "black"
 end
 
+-- True when a casting-origin relay (a summon or ally carrying the modifier)
+-- puts the target in range even though the caster does not. The white range
+-- boxes and the targeting block already measure from the relay, so the arrow
+-- greying and the "Out of Range" label have to as well or they contradict a
+-- target the player can legally click.
+--
+-- Only call this once the caster has already failed its own range test:
+-- resolving relays walks every token on the map.
+local function CastingOriginCoversTarget(ability, casterToken, targetToken, range)
+    if ability == nil or casterToken == nil or targetToken == nil or range == nil then
+        return false
+    end
+
+    -- The modifier isn't loaded (mod disabled), so there are no relays.
+    if ActivatedAbility.IsTargetInRangeOfCastingOrigins == nil then
+        return false
+    end
+
+    -- An explicit range source is the complete origin contract. Relays still
+    -- apply to ordinary casts, but must not widen an invoked ability centered
+    -- on its parent cast's primary target.
+    if ability:GetRangeSource(casterToken) ~= casterToken then
+        return false
+    end
+
+    return ability:IsTargetInRangeOfCastingOrigins(casterToken, targetToken, range)
+end
+
+-- The token the targeting arrow should actually spring from: the caster, or a
+-- casting-origin relay if one stands closer to the target. The ability really
+-- does originate at the relay, so drawing from the hero over its head reads as
+-- a much longer shot than the one being taken.
+--
+-- Closest wins rather than first-in-range so the arrow matches the reach the
+-- player is being shown, and so hovering with several relays out is stable
+-- instead of picking whichever token happened to be enumerated first.
+local function ResolveArrowOrigin(ability, casterToken, targetToken)
+    if ability == nil or casterToken == nil or targetToken == nil then
+        return casterToken
+    end
+
+    -- The modifier isn't loaded (mod disabled), so there are no relays.
+    if ActivatedAbility.GetCastingOriginTokens == nil then
+        return casterToken
+    end
+
+    -- An explicit range source is the complete origin contract; see above.
+    if ability:GetRangeSource(casterToken) ~= casterToken then
+        return casterToken
+    end
+
+    local origin = casterToken
+    local bestDist = targetToken:Distance(casterToken)
+    for _, relayToken in ipairs(ability:GetCastingOriginTokens(casterToken)) do
+        local dist = targetToken:Distance(relayToken)
+        if dist < bestDist then
+            origin = relayToken
+            bestDist = dist
+        end
+    end
+
+    return origin
+end
+
 -- For arrow greying: returns the smaller of the ability range and any active
 -- per-creature line-of-effect cap on either token (e.g. Dazzled). LoE limits
 -- are stored as a square count, so they're scaled to dmhub units to match
@@ -7832,7 +8004,7 @@ end
 -- exceeds the range, at which point the target is out of range entirely
 -- regardless of horizontal distance. Return 0 in that case so the arrow greys
 -- fully.
-local function EffectiveArrowRange(sourceToken, targetToken, range)
+local function EffectiveArrowRange(sourceToken, targetToken, range, ability)
     local function loeUnits(tok)
         if tok == nil or tok.properties == nil then return nil end
         local limit = tok.properties:CalculateNamedCustomAttribute("Line Of Effect Limit") or 0
@@ -7840,6 +8012,15 @@ local function EffectiveArrowRange(sourceToken, targetToken, range)
         return limit * dmhub.unitsPerSquare
     end
     local effective = range
+
+    -- Measured from a relay instead of the caster, the target is in range, so
+    -- the arrow must not grey. Line-of-effect caps below still apply.
+    if effective ~= nil and sourceToken ~= nil and targetToken ~= nil
+        and not (range + dmhub.unitsPerSquare > targetToken:Distance(sourceToken))
+        and CastingOriginCoversTarget(ability, sourceToken, targetToken, range) then
+        effective = nil
+    end
+
     local sourceUnits = loeUnits(sourceToken)
     local targetUnits = loeUnits(targetToken)
     if sourceUnits ~= nil and (effective == nil or sourceUnits < effective) then
@@ -7857,13 +8038,19 @@ local function EffectiveArrowRange(sourceToken, targetToken, range)
     return effective
 end
 
-local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, ability, range)
+-- originToken is where the ability actually reaches from -- the caster, or a
+-- casting-origin relay standing in for it. Everything geometric (line of sight,
+-- line of effect, range) measures from there; the modifier list still comes off
+-- sourceToken, since edges and banes belong to the caster either way.
+local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, ability, range, originToken)
     if markers == nil or ability == nil or sourceToken == nil or targetToken == nil then
         return
     end
 
-    local pierceWalls = sourceToken.properties:GetPierceWalls()
-    if sourceToken:GetLineOfSight(targetToken, pierceWalls) == 0 then
+    originToken = originToken or sourceToken
+
+    local pierceWalls = originToken.properties:GetPierceWalls()
+    if originToken:GetLineOfSight(targetToken, pierceWalls) == 0 then
         markers:AddLabel("No Line of Sight", "forbidden")
         return
     end
@@ -7879,7 +8066,7 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
     local sourceLoeLimit = loeLimit(sourceToken)
     local targetLoeLimit = loeLimit(targetToken)
     if sourceLoeLimit > 0 or targetLoeLimit > 0 then
-        local distSquares = sourceToken:Distance(targetToken) / dmhub.unitsPerSquare
+        local distSquares = originToken:Distance(targetToken) / dmhub.unitsPerSquare
         if (sourceLoeLimit > 0 and distSquares > sourceLoeLimit) or
            (targetLoeLimit > 0 and distSquares > targetLoeLimit) then
             markers:AddLabel("Beyond Line of Effect", "forbidden")
@@ -7894,16 +8081,16 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
     -- above/below is out of range only when the altitude separation alone
     -- exceeds range; otherwise the horizontal distance is what matters.
     if range ~= nil then
-        local horizDist = targetToken:Distance(sourceToken)
-        local altDiffUnits = math.abs(sourceToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
-        if math.max(horizDist, altDiffUnits) >= range + dmhub.unitsPerSquare then
+        local horizDist = targetToken:Distance(originToken)
+        local altDiffUnits = math.abs(originToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+        if math.max(horizDist, altDiffUnits) >= range + dmhub.unitsPerSquare
+            and not CastingOriginCoversTarget(ability, sourceToken, targetToken, range) then
             markers:AddLabel("Out of Range", "forbidden")
             return
         end
     end
 
     local modifiers = sourceToken.properties:DescribeModifiersOnTarget(ability, targetToken)
-    printf("LABEL_DEBUG: AddModifierLabelsToMarker called, markers=%s, #modifiers=%d", tostring(markers), #modifiers)
     for _,m in ipairs(modifiers) do
         local modInfo = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[m.modifier.modtype]
         local labelType = "neutral"
@@ -7912,7 +8099,6 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
         elseif modInfo ~= nil and (modInfo.value or 0) < 0 then
             labelType = "debuff"
         end
-        printf("LABEL_DEBUG: AddLabel('%s', '%s') modtype='%s'", m.modifier.name, labelType, tostring(m.modifier.modtype))
         markers:AddLabel(m.modifier.name, labelType)
     end
 end
@@ -7945,7 +8131,7 @@ local function ReplaceTargetLineOfSightRays(rays, ability, range)
         if m_targetLineOfSightRays[key] ~= nil then
             t[key] = m_targetLineOfSightRays[key]
         else
-            t[key] = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(ability, ray.a, ray.b), EffectiveArrowRange(ray.a, ray.b, range))
+            t[key] = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(ability, ray.a, ray.b), EffectiveArrowRange(ray.a, ray.b, range, ability))
             AddModifierLabelsToMarker(t[key], ray.a, ray.b, ability, range)
             --Mark player-locked attacker->target pairings so they stand out
             --from the auto-assigned ones.
@@ -8396,6 +8582,46 @@ local AddRadiusMarker = function(locOverride, radius, color, filterFunction)
     g_radiusMarkers[#g_radiusMarkers + 1] = dmhub.MarkLocs {
         locs = locs,
         color = color,
+    }
+end
+
+--- Highlight the squares an explicit targeting whitelist (_tmp_restrictLocs) offers on floors
+--- OTHER than the caster's, and report whether any were drawn.
+---
+--- The normal highlight is a radius built around the caster and filtered down to the whitelist,
+--- which can only ever produce squares on the caster's own floor: CalculateShape's
+--- "radiusfromcreature" anchors to the caster's occupied squares and ignores targetFloorIndex,
+--- so an off-floor square is never in the set being filtered. The whitelist is already the
+--- exact set of legal squares, so those floors are marked directly instead of enumerating and
+--- filtering a radius that cannot reach them.
+---
+--- Used by the portal emergence picker in Draw Steel Ability Behaviors/AbilityRelocateAura.lua,
+--- whose portal network spans floors. Abilities with no whitelist are unaffected.
+--- @return nil
+local function MarkOffFloorWhitelist()
+    if g_currentAbility == nil or g_token == nil or (not g_token.valid) then
+        return
+    end
+
+    local restrictLocs = g_currentAbility:try_get("_tmp_restrictLocs")
+    if restrictLocs == nil then
+        return
+    end
+
+    local offFloor = {}
+    for _, loc in ipairs(restrictLocs) do
+        if loc.floor ~= g_token.floorIndex then
+            offFloor[#offFloor + 1] = loc
+        end
+    end
+
+    if #offFloor == 0 then
+        return
+    end
+
+    g_radiusMarkers[#g_radiusMarkers + 1] = dmhub.MarkLocs {
+        locs = offFloor,
+        color = "white",
     }
 end
 
@@ -10353,7 +10579,14 @@ CreateAbilityController = function()
         end,
 
         chooseTarget = function(element, options)
-            if g_actionBar == nil then return end
+            if g_actionBar == nil then
+                --No action bar means nobody will ever answer this prompt.
+                --Cancel it so the ability doesn't hang waiting.
+                if options ~= nil and options.cancel ~= nil then
+                    options.cancel()
+                end
+                return
+            end
             ClearRadiusMarkers()
 
             --reasons[charid] = reason string for targets that pass the
@@ -10576,7 +10809,7 @@ CreateAbilityController = function()
             if SquadStrikeActive() and g_squadPendingLockMinion ~= nil and g_squadPendingLockMinion.valid
                 and not SquadIsActiveMinionToken(targetToken) then
                 local range = g_currentAbility:GetRange(g_token.properties, g_currentSymbols)
-                m_markLineOfSight = dmhub.MarkLineOfSight(g_squadPendingLockMinion, targetToken, g_squadPendingLockMinion.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, g_squadPendingLockMinion, targetToken), EffectiveArrowRange(g_squadPendingLockMinion, targetToken, range))
+                m_markLineOfSight = dmhub.MarkLineOfSight(g_squadPendingLockMinion, targetToken, g_squadPendingLockMinion.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, g_squadPendingLockMinion, targetToken), EffectiveArrowRange(g_squadPendingLockMinion, targetToken, range, g_currentAbility))
                 if m_markLineOfSight ~= nil then
                     AddModifierLabelsToMarker(m_markLineOfSight, g_squadPendingLockMinion, targetToken, g_currentAbility, range)
                     m_markLineOfSight:AddLabel("Locked", "buff")
@@ -10603,7 +10836,7 @@ CreateAbilityController = function()
                     if ray.b.id == targetToken.id then
                         rayCoversTarget = true
                         if m_targetLineOfSightRays[string.format("%s-%s", ray.a.id, ray.b.id)] == nil then
-                            m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, ray.a, ray.b), EffectiveArrowRange(ray.a, ray.b, range))
+                            m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, ray.a, ray.b), EffectiveArrowRange(ray.a, ray.b, range, g_currentAbility))
                             AddModifierLabelsToMarker(m_markLineOfSight, ray.a, ray.b, g_currentAbility, range)
                             m_markLineOfSightToken = targetToken
                             m_markLineOfSightSourceToken = g_token
@@ -10614,12 +10847,14 @@ CreateAbilityController = function()
             end
             if rays == nil or not rayCoversTarget then
                 --either no squad rays at all, or the hovered target wasn't
-                --reachable by any squad member -- draw from the caster.
-                m_markLineOfSight = dmhub.MarkLineOfSight(g_token, targetToken, g_token.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, g_token, targetToken), EffectiveArrowRange(g_token, targetToken, range))
+                --reachable by any squad member -- draw from the caster, or from
+                --a casting-origin relay if one is closer to the target.
+                local originToken = ResolveArrowOrigin(g_currentAbility, g_token, targetToken)
+                m_markLineOfSight = dmhub.MarkLineOfSight(originToken, targetToken, originToken.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, g_token, targetToken), EffectiveArrowRange(originToken, targetToken, range, g_currentAbility))
                 if m_markLineOfSight ~= nil then
-                    AddModifierLabelsToMarker(m_markLineOfSight, g_token, targetToken, g_currentAbility, range)
+                    AddModifierLabelsToMarker(m_markLineOfSight, g_token, targetToken, g_currentAbility, range, originToken)
                     m_markLineOfSightToken = targetToken
-                    m_markLineOfSightSourceToken = g_token
+                    m_markLineOfSightSourceToken = originToken
                 end
             end
         end,
@@ -12445,6 +12680,11 @@ local function CalculateSpellTargetFocusing(symbols)
                     failReason = "Target is untargetable"
                 end
 
+                --enforced by GameSystem.AllowTargeting; this just surfaces the reason.
+                if g_currentAbility:HasKeyword("Strike") and targetToken.properties:CalculateNamedCustomAttribute("Untargetable By Strikes") > 0 then
+                    failReason = "This creature can't be targeted by strikes"
+                end
+
                 local casterLocOverride = g_currentAbility:try_get("casterLocOverride")
                 local rangeSource = g_currentAbility:GetRangeSource(g_token)
                 local directRangeSource = casterLocOverride or rangeSource
@@ -12453,10 +12693,7 @@ local function CalculateSpellTargetFocusing(symbols)
                 if canTarget then
                     --give us an extra square of range to account for diagonals.
                     if failReason == nil and spell.targetType ~= "areatemplate" and checkStrictRange and not (range + dmhub.unitsPerSquare > targetToken:Distance(directRangeSource)) then
-                        --An explicit range source is the complete origin contract. Casting-
-                        --origin relays still apply to ordinary casts, but must not widen an
-                        --invoked ability centered on its parent cast's primary target.
-                        if rangeSource ~= g_token or not spell:IsTargetInRangeOfCastingOrigins(g_token, targetToken, range) then
+                        if not CastingOriginCoversTarget(spell, g_token, targetToken, range) then
                             failReason = "Out of range"
                         end
                     end
@@ -12471,7 +12708,8 @@ local function CalculateSpellTargetFocusing(symbols)
                         if altDiff > 0 then
                             local horizDist = targetToken:Distance(directRangeSource)
                             local altDiffUnits = altDiff * dmhub.unitsPerSquare
-                            if math.max(horizDist, altDiffUnits) >= range + dmhub.unitsPerSquare then
+                            if math.max(horizDist, altDiffUnits) >= range + dmhub.unitsPerSquare
+                                and not CastingOriginCoversTarget(spell, g_token, targetToken, range) then
                                 failReason = string.format("Out of range (altitude difference: %d)", altDiff)
                             end
                         end
@@ -12887,6 +13125,10 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                     else
                         print("MovementRadius:: MARK", range)
                         AddRadiusMarker(loc, range, 'white', filterTargetPredicate)
+
+                        --The radius above can only produce squares on the caster's floor. A
+                        --whitelist that reaches onto other floors marks those directly.
+                        MarkOffFloorWhitelist()
                     end
 
                     m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token, g_currentSymbols)

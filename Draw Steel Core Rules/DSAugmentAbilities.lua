@@ -100,9 +100,11 @@ function ActivatedAbilityAugmentedAbilityBehavior:SynthesizeAbilities(ability, c
                         return
                     end
 
+                    --Same remap as ActivatedAbility:GetCost: GetHeroicOrMaliceId keeps
+                    --summoner-shared summons on the heroic resource instead of Malice.
                     local effectiveResourceCost = parentAbility.resourceCost
-                    if effectiveResourceCost == CharacterResource.heroicResourceId and casterToken.properties.resourceid ~= CharacterResource.heroicResourceId then
-                        effectiveResourceCost = casterToken.properties.resourceid
+                    if effectiveResourceCost == CharacterResource.heroicResourceId then
+                        effectiveResourceCost = casterToken.properties:GetHeroicOrMaliceId()
                     end
 
                     local fullCost = parentAbility:GetCost(casterToken)

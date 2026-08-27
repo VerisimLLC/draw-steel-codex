@@ -319,6 +319,12 @@ local TRIGGER_METADATA = {
     },
 
     -- Movement (alphabetical)
+    departadjacent = {
+        label = "Move Away From Adjacent Creature",
+        description = "Fires on the moving creature for each adjacent enemy it willingly moves away from. Shifting and forced movement do not trigger it.",
+        tags = {"adjacent", "depart", "move", "away", "leave", "opportunity", "cunning"},
+        group = "movement",
+    },
     leaveadjacent = {
         label = "Adjacent Creature Moves Away",
         description = "Fires when a creature adjacent to this one moves away.",
@@ -852,7 +858,44 @@ local function makeTriggerEventButton(ability, refreshSection, fireChange)
     }
 end
 
-local function buildTriggerSection(ability, refreshSection, fireChange)
+local function buildTriggerSection(ability, refreshSection, fireChange, editorOptions)
+    -- ctx marks a modifier-fired custom trigger (e.g. a Modify Power Rolls
+    -- modifier's custom trigger). Those fire directly when the modifier is
+    -- used, never through trigger-event dispatch, so the event-dispatch
+    -- fields (Trigger Event, Trigger Subject, When Active) are collapsed.
+    local ctx = editorOptions and editorOptions.customTriggerContext
+
+    -- The standard subject field must stay "self" or "any" here, or the
+    -- runtime subject gates in TriggeredAbility:Trigger silently kill the
+    -- trigger. Normalize legacy values on open; the Setup section's Target
+    -- dropdown keeps them in sync from then on.
+    if ctx ~= nil then
+        if ctx.subjectOptions then
+            -- Mark the trigger so the Setup Target dropdown offers the
+            -- contextual creatures (see GetDisplayedTargetTypeOptions).
+            ability.modifierCustomTrigger = true
+        end
+        -- Subject-hood always belongs to the owner for a custom trigger:
+        -- Requires Condition checks the owner and Subject in formulas is the
+        -- owner. The contextual creatures are plain target types instead.
+        if ability:try_get("subject", "self") ~= "self" then
+            ability.subject = "self"
+        end
+        -- Migrate the short-lived subject-based scheme: a contextual choice
+        -- stored as "subject" targeting becomes the equivalent target type.
+        if ability.targetType == "subject" then
+            local choice = ability:try_get("customTriggerSubject", "self")
+            if ctx.subjectOptions and choice ~= "self" then
+                ability.targetType = choice
+            else
+                ability.targetType = "self"
+            end
+        end
+        if ability:has_key("customTriggerSubject") then
+            ability.customTriggerSubject = nil
+        end
+    end
+
     local children = {}
 
     children[#children + 1] = sectionHeading("Trigger")
@@ -869,6 +912,21 @@ local function buildTriggerSection(ability, refreshSection, fireChange)
             end,
         })
 
+    if ctx ~= nil then
+        -- A custom trigger has no event to pick: it fires whenever the
+        -- owning modifier is used. Show a static note in the event's place.
+        -- The contextual creatures (Ability Caster / Ability Target /
+        -- Triggerer) are offered in the Setup section's Target dropdown.
+        children[#children + 1] = fieldRow("Trigger",
+            gui.Label{
+                width = "100%",
+                height = "auto",
+                fontSize = 14,
+                color = "@fg",
+                textAlignment = "left",
+                text = ctx.note or "Fires automatically when this modifier is used.",
+            })
+    else
     -- Trigger Event -- categorized picker modal (phase 2). The hint lists
     -- the GoblinScript symbols this event injects; refreshSection() rebuilds
     -- this section on trigger change, so it stays in sync with the picker.
@@ -906,6 +964,7 @@ local function buildTriggerSection(ability, refreshSection, fireChange)
                 ability.whenActive = element.idChosen
             end,
         })
+    end
 
     -- Requires Condition
     local conditionOptions = {
@@ -941,8 +1000,10 @@ local function buildTriggerSection(ability, refreshSection, fireChange)
         }
     end
 
-    -- Trigger Range (GoblinScript) -- hidden when Subject is Self.
-    if ability:try_get("subject", "self") ~= "self" then
+    -- Trigger Range (GoblinScript) -- hidden when Subject is Self, and for
+    -- custom triggers entirely (their subject is always the owner; gate on
+    -- another creature's distance via Target Filter or Triggers Only When).
+    if ctx == nil and ability:try_get("subject", "self") ~= "self" then
         children[#children + 1] = fieldRow("Trigger Range",
             gui.GoblinScriptInput{
                 value = ability:try_get("subjectRange", ""),
@@ -967,11 +1028,6 @@ local function buildTriggerSection(ability, refreshSection, fireChange)
 
     -- Triggers Only When (GoblinScript condition formula)
     local helpSymbols = {
-        caster = {
-            name = "Caster",
-            type = "creature",
-            desc = "The creature that controls the aura triggering this ability.\n\n<color=#ffaaaa><i>This field is only available for triggered abilities that are triggered by an aura.</i></color>",
-        },
         subject = {
             name = "Subject",
             type = "creature",
@@ -984,16 +1040,29 @@ local function buildTriggerSection(ability, refreshSection, fireChange)
             text = "The triggered ability only activates when stamina is below 5.",
         },
     }
-    local triggerInfo = TriggeredAbility.GetTriggerById(ability.trigger)
-    if triggerInfo ~= nil then
-        for k, v in pairs(triggerInfo.symbols or {}) do
-            if type(v) == "table" and v.name then
-                k = string.lower(string.gsub(v.name, "%s+", ""))
-            end
+    if ctx ~= nil then
+        -- Custom triggers get the symbols the modifier installs at fire
+        -- time instead of the (never consulted) trigger event's symbols.
+        for k, v in pairs(ctx.symbols or {}) do
             helpSymbols[k] = v
         end
-        for _, example in ipairs(triggerInfo.examples or {}) do
-            examples[#examples + 1] = example
+    else
+        helpSymbols.caster = {
+            name = "Caster",
+            type = "creature",
+            desc = "The creature that controls the aura triggering this ability.\n\n<color=#ffaaaa><i>This field is only available for triggered abilities that are triggered by an aura.</i></color>",
+        }
+        local triggerInfo = TriggeredAbility.GetTriggerById(ability.trigger)
+        if triggerInfo ~= nil then
+            for k, v in pairs(triggerInfo.symbols or {}) do
+                if type(v) == "table" and v.name then
+                    k = string.lower(string.gsub(v.name, "%s+", ""))
+                end
+                helpSymbols[k] = v
+            end
+            for _, example in ipairs(triggerInfo.examples or {}) do
+                examples[#examples + 1] = example
+            end
         end
     end
 
@@ -1231,7 +1300,9 @@ end
 -- action (the "how it fires" half), the full Target Type / Range /
 -- numTargets / AOE / proximity stack lifted from the New Ability Editor
 -- (the "what it hits" half), and the Despawn cleanup field.
-local function buildSetupSection(ability, refreshSection, fireChange)
+local function buildSetupSection(ability, refreshSection, fireChange, editorOptions)
+    -- ctx marks a modifier-fired custom trigger; see buildTriggerSection.
+    local ctx = editorOptions and editorOptions.customTriggerContext
     local children = {}
 
     children[#children + 1] = sectionHeading("Setup")
@@ -1300,15 +1371,20 @@ local function buildSetupSection(ability, refreshSection, fireChange)
             end,
         })
 
-    -- Manual Version checkbox
-    children[#children + 1] = gui.Check{
-        text = "Create manual version of this trigger",
-        value = ability:try_get("hasManualVersion", false),
-        vmargin = 6,
-        change = function(element)
-            ability.hasManualVersion = element.value
-        end,
-    }
+    -- Manual Version checkbox. Hidden for custom triggers: manual versions
+    -- are generated only from the creature's triggered-abilities list (see
+    -- FillTriggeredAbilities), which never includes a modifier-embedded
+    -- custom trigger, so the field does nothing there.
+    if ctx == nil then
+        children[#children + 1] = gui.Check{
+            text = "Create manual version of this trigger",
+            value = ability:try_get("hasManualVersion", false),
+            vmargin = 6,
+            change = function(element)
+                ability.hasManualVersion = element.value
+            end,
+        }
+    end
 
     -- Hostile Trigger checkbox. A hostile trigger is a harmful prompt forced
     -- on the creature (e.g. Bleeding damage) rather than a beneficial
@@ -1649,7 +1725,7 @@ local function makeNavButton(sectionDef, onSelect)
     }
 end
 
-local function makeSectionContent(sectionDef, ability, fireChange)
+local function makeSectionContent(sectionDef, ability, fireChange, editorOptions)
     local content
     content = gui.Panel{
         classes = {"nae-section-content", "inactive"},
@@ -1662,9 +1738,11 @@ local function makeSectionContent(sectionDef, ability, fireChange)
     -- is the broader "structural change happened" dispatcher that fires
     -- refreshAbility across the whole root (used by the Effects section
     -- so the bottom-bar paste button and the behaviour list both react).
+    -- editorOptions carries caller context (e.g. customTriggerContext);
+    -- builders that don't use it just ignore the extra argument.
     local function refresh()
         local builder = SECTION_BUILDERS[sectionDef.id]
-        content.children = builder(ability, refresh, fireChange)
+        content.children = builder(ability, refresh, fireChange, editorOptions)
     end
     refresh()
 
@@ -1785,7 +1863,10 @@ local function pickOverride(override, derived)
     return derived
 end
 
-local function buildTriggerPreviewCard(ability)
+-- ctx is the customTriggerContext when editing a modifier-fired custom
+-- trigger; the derived trigger prose becomes the context note since the
+-- stored event id is never consulted for those.
+local function buildTriggerPreviewCard(ability, ctx)
     local CARD_WIDTH = LAYOUT.PREVIEW_WIDTH - 2 * LAYOUT.COL_HPAD - LAYOUT.SCROLL_GUTTER
 
     -- Card Type: explicit override only (no derivation; the dropdown picks
@@ -1866,8 +1947,14 @@ local function buildTriggerPreviewCard(ability)
         return nil
     end
     local targetText = pickOverride(ability:try_get("displayTarget"), deriveTarget())
+    local derivedProse
+    if ctx ~= nil then
+        derivedProse = ctx.note or "Fires automatically when this modifier is used."
+    else
+        derivedProse = renderTriggerProse(ability)
+    end
     local triggerProse = pickOverride(ability:try_get("displayTriggerProse"),
-                                      renderTriggerProse(ability))
+                                      derivedProse)
     local effectText   = pickOverride(ability:try_get("displayEffectProse"),
                                       behaviorsFallbackText(ability))
 
@@ -2439,7 +2526,10 @@ end
 -- The caller lifts rollupInfo (text + color) into the pane sub-heading so
 -- the chip reads as part of the "How This Triggers" label row instead of
 -- taking its own row inside the card.
-local function buildMechanicalView(ability)
+-- ctx is the customTriggerContext when editing a modifier-fired custom
+-- trigger: the Event/Subject/When Active rows are replaced or dropped since
+-- event dispatch never runs for those triggers.
+local function buildMechanicalView(ability, ctx)
     local CARD_WIDTH = LAYOUT.PREVIEW_WIDTH - 2 * LAYOUT.COL_HPAD - LAYOUT.SCROLL_GUTTER
 
     -- Gather row values + validation status in one pass so the rollup chip
@@ -2464,8 +2554,12 @@ local function buildMechanicalView(ability)
 
     -- Event
     local triggerId = ability:try_get("trigger") or ""
-    addRow("Event", triggerId ~= "" and triggerId or "(unset)",
-        triggerId == "" and "Missing" or (not isValidTriggerId(triggerId) and "Unregistered" or nil))
+    if ctx ~= nil then
+        addRow("Event", "Custom (fired by modifier)", nil)
+    else
+        addRow("Event", triggerId ~= "" and triggerId or "(unset)",
+            triggerId == "" and "Missing" or (not isValidTriggerId(triggerId) and "Unregistered" or nil))
+    end
 
     -- Subject. Two failure modes surfaced as chips:
     --   * Unknown subject id (data corruption / schema change)
@@ -2473,6 +2567,9 @@ local function buildMechanicalView(ability)
     --     author picked a subject that excludes the caster. At runtime
     --     this silently never fires -- the resolver at
     --     TriggeredAbility.lua:746 rejects. Warn at author time.
+    if ctx ~= nil then
+        addRow("Subject", "Self (Owner of this Modifier)", nil)
+    else
     local subjectId = ability:try_get("subject") or "self"
     local subjectChip
     if not VALID_SUBJECT_IDS[subjectId] then
@@ -2481,6 +2578,7 @@ local function buildMechanicalView(ability)
         subjectChip = "Never fires"
     end
     addRow("Subject", subjectId, subjectChip)
+    end
 
     -- Target. The set of valid target types is gated by the trigger event
     -- (and subject) via each TargetTypes entry's condition(). A target picked
@@ -2508,8 +2606,10 @@ local function buildMechanicalView(ability)
             end
         end
     end
+    -- Event-based validity is meaningless for a custom trigger (the stored
+    -- event id is never consulted), so skip the chip there.
     addRow("Target", targetLabel or chosenTargetId or "(unset)",
-        (not targetValid) and { text = "Invalid for event", class = "bgWarning" } or nil)
+        (not targetValid and ctx == nil) and { text = "Invalid for event", class = "bgWarning" } or nil)
 
     -- Triggers When (condition). Two failure modes:
     --   * Compile error -- formula is malformed.
@@ -2521,11 +2621,24 @@ local function buildMechanicalView(ability)
     --     belongs to a different trigger event.
     local condition = ability:try_get("conditionFormula") or ""
     local condOk, condErr = compileCondition(condition)
+    -- Custom triggers reference the symbols the modifier installs at fire
+    -- time (ctx.symbols), not the stored event's symbols -- extend a copy
+    -- of the allowed set so those don't flag as unknown.
+    local allowedRefs = buildAllowedReferences(triggerId)
+    if ctx ~= nil and ctx.symbols ~= nil then
+        allowedRefs = table.shallow_copy(allowedRefs)
+        for k, def in pairs(ctx.symbols) do
+            allowedRefs[normaliseSymbolReference(k)] = true
+            if type(def) == "table" and def.name ~= nil then
+                allowedRefs[normaliseSymbolReference(def.name)] = true
+            end
+        end
+    end
     local condChip
     if not condOk then
         condChip = "Error: " .. (condErr or "compile failed")
     else
-        local unknown = unknownReferences(condition, buildAllowedReferences(triggerId))
+        local unknown = unknownReferences(condition, allowedRefs)
         if #unknown > 0 then
             condChip = "Unknown: " .. unknown[1]
         else
@@ -2580,10 +2693,13 @@ local function buildMechanicalView(ability)
     addRow("Mode", MODE_LABELS[modeId] or tostring(modeId),
         MODE_LABELS[modeId] == nil and "Unknown" or nil)
 
-    -- When Active
-    local whenActive = ability:try_get("whenActive") or "always"
-    addRow("When Active", WHEN_ACTIVE_LABELS[whenActive] or whenActive,
-        WHEN_ACTIVE_LABELS[whenActive] == nil and "Unknown" or nil)
+    -- When Active -- only consulted by event dispatch, so dropped for
+    -- custom triggers.
+    if ctx == nil then
+        local whenActive = ability:try_get("whenActive") or "always"
+        addRow("When Active", WHEN_ACTIVE_LABELS[whenActive] or whenActive,
+            WHEN_ACTIVE_LABELS[whenActive] == nil and "Unknown" or nil)
+    end
 
     -- Rollup chip text and colour.
     local rollupText = (issueCount == 0) and "Trigger ready"
@@ -2596,7 +2712,9 @@ local function buildMechanicalView(ability)
     -- fallback until opt-in #5 ships.
     local GSP = rawget(_G, "GoblinScriptProse")
     local whenClause = ""
-    if GSP ~= nil and GSP.RenderTriggerSentence then
+    if ctx ~= nil then
+        whenClause = ctx.note or "Fires automatically when this modifier is used."
+    elseif GSP ~= nil and GSP.RenderTriggerSentence then
         local ok, sentence = pcall(GSP.RenderTriggerSentence, ability)
         if ok and sentence ~= nil then whenClause = sentence end
     end
@@ -3090,7 +3208,6 @@ local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
             },
             gui.Button{
                 classes = {"closeButton", "sizeM"},
-                icon = "ui-icons/close.png",
                 halign = "right",
                 valign = "top",
                 floating = true,
@@ -6418,6 +6535,7 @@ end
 -- back to the original entry point. Threaded through to buildTestTriggerCard
 -- so the Pop out press handler can capture it for openTestTriggerPopout.
 local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
+    local ctx = editorOptions and editorOptions.customTriggerContext
     -- Heading rows (subHeading below) need to match the cards' width so the
     -- right-aligned rollup chip aligns with the card's right border instead
     -- of bleeding into the scroll gutter.
@@ -6537,7 +6655,7 @@ local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
 
             -- Trigger Preview
             children[#children + 1] = subHeading("Trigger Preview", 0, nil)
-            local cardOk, cardOrErr = pcall(buildTriggerPreviewCard, ability)
+            local cardOk, cardOrErr = pcall(buildTriggerPreviewCard, ability, ctx)
             if cardOk and cardOrErr ~= nil then
                 children[#children + 1] = cardOrErr
             else
@@ -6554,7 +6672,7 @@ local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
             -- 2026-04-24 polish pass -- the diagnostic-style sub-title is
             -- self-explanatory, the earlier "will this trigger?" subtitle
             -- became redundant once the chip moved inline).
-            local mechOk, mechRes, mechRollup = pcall(buildMechanicalView, ability)
+            local mechOk, mechRes, mechRollup = pcall(buildMechanicalView, ability, ctx)
             local mechPane, rollup
             if mechOk and mechRes ~= nil then
                 mechPane, rollup = mechRes, mechRollup
@@ -6576,10 +6694,16 @@ local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
     -- C6b: pass editorOptions.reopen through so the in-editor card's Pop
     -- out press handler can forward it to the floating popout's "Open
     -- Editor" button. Nil-safe; popout omits the button when reopen is nil.
-    local testTriggerCard = buildTestTriggerCard(ability, {
-        mode = "editor",
-        reopen = editorOptions and editorOptions.reopen or nil,
-    })
+    -- Custom triggers get no Test Trigger card: the tester simulates from
+    -- the stored trigger event's metadata, which is never consulted for a
+    -- modifier-fired trigger.
+    local testTriggerCard
+    if ctx == nil then
+        testTriggerCard = buildTestTriggerCard(ability, {
+            mode = "editor",
+            reopen = editorOptions and editorOptions.reopen or nil,
+        })
+    end
 
     local scrollArea = gui.Panel{
         classes = {"nae-preview-body"},
@@ -6692,7 +6816,7 @@ local function generateSectionedEditor(ability, options)
         navButtons[#navButtons + 1] = makeNavButton(sectionDef, function(id)
             selectSection(id)
         end)
-        sectionContents[#sectionContents + 1] = makeSectionContent(sectionDef, ability, fireChange)
+        sectionContents[#sectionContents + 1] = makeSectionContent(sectionDef, ability, fireChange, options)
     end
 
     -- Nav buttons sit inside an auto-sized inner container so the group can

@@ -2362,6 +2362,43 @@ function Encounter.ClearReadiedEncounter()
     g_readiedEncounter = nil
 end
 
+-- The engine's own click-to-place is armed through GUI focus, not through a
+-- mode flag: dmhub.GetSelectedEncounter reads gui.GetFocus().data.encounter,
+-- so while a panel carrying an encounter holds focus the map draws a ghost of
+-- the whole roster under the cursor and the next map click spawns it. Nothing
+-- disarms that on its own. Once the encounter has been placed some other way
+-- -- or combat has begun -- the arming is stale: the Director is left dragging
+-- a phantom copy of the encounter around, one click from spawning a second
+-- one on top of the fight they just started.
+--
+-- Only a panel that is actually arming an encounter is cleared, never the
+-- placement banner, which holds focus on purpose so it can receive the map
+-- click. The clear is repeated a beat later because the click that placed the
+-- encounter can still be bubbling: the encounter card's own click handler
+-- re-focuses the card AFTER this runs.
+function Encounter.DisarmClickToPlace()
+    local function Clear()
+        local focus = gui.GetFocus()
+        if focus == nil or not focus.valid then
+            return
+        end
+        if focus:HasClass("encounterPlacementBanner") then
+            return
+        end
+        if focus.data.encounter ~= nil then
+            gui.SetFocus(nil)
+        end
+    end
+
+    Clear()
+    dmhub.Schedule(0.1, function()
+        if mod.unloaded then
+            return
+        end
+        Clear()
+    end)
+end
+
 -- Set of wave ids that have already been deployed (or dismissed) during this live
 -- encounter. A deployed wave's reinforcement button no longer shows. Empty by
 -- default; mutated through MarkWaveDeployed (which copies-on-write so the shared
@@ -4455,7 +4492,6 @@ ScheduleDriver()
 --options:
 --  width        : block width (default 700)
 --  height       : code area height (default 340)
---  filenameHint : used for the external editor's temp filename
 --  getText      : function() -> current code
 --  setText      : function(newCode) called whenever the code changes
 function EncounterScript.CreateCodePanel(options)
@@ -4546,17 +4582,7 @@ function EncounterScript.CreateCodePanel(options)
             vmargin = 4,
             click = function(element)
                 DestroyWatcher()
-                --OpenTextFileInConnectedEditor caps filenames at 48 chars and
-                --returns nil past it. filenameHint is a 36-char data-table GUID,
-                --so the full "encounterscript-<guid>.lua" (56 chars) always
-                --overflowed. Keep the prefix short and truncate the hint so the
-                --result stays well under the limit.
-                local hint = tostring(options.filenameHint or "script")
-                if #hint > 24 then
-                    hint = hint:sub(1, 24)
-                end
-                local filename = string.format("encounter-%s.lua", hint)
-                watcher = dmhub.OpenTextFileInConnectedEditor(filename, options.getText() or "", function(contents)
+                watcher = dmhub.OpenTextFileInConnectedEditor(options.getText() or "", function(contents)
                     if mod.unloaded or not resultPanel.valid then
                         return
                     end
@@ -4579,7 +4605,6 @@ end
 --The modal editor for an attachment's custom Lua. options:
 --  title            : dialog title (default "Encounter Script")
 --  code             : initial code
---  filenameHint     : external-editor temp filename hint
 --  onSave           : function(newCode) - called when Save is pressed
 --  canSaveToLibrary : offer the "Save to Library..." button
 --  onSavedToLibrary : function(scriptid) - called after the library item is
@@ -4591,7 +4616,6 @@ function EncounterScript.ShowCodeEditorDialog(options)
     local codePanel = EncounterScript.CreateCodePanel{
         width = "100%",
         height = 380,
-        filenameHint = options.filenameHint,
         getText = function() return currentCode end,
         setText = function(text) currentCode = text end,
     }
@@ -4775,7 +4799,6 @@ local ScriptCompendiumSetData = function(tableName, scriptPanel, keyid)
     children[#children + 1] = EncounterScript.CreateCodePanel{
         width = 800,
         height = 420,
-        filenameHint = keyid,
         getText = function()
             return script:try_get("code", "")
         end,

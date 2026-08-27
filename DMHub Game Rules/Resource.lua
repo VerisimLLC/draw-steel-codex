@@ -643,8 +643,11 @@ function creature:ConsumeResource(key, refreshType, quantity, note)
 		end
 	end
 
+	--Malice is matched explicitly: a sharing summon's GetHeroicOrMaliceId reports
+	--the heroic resource, but legacy call sites still key spends by the monster's
+	--resourceid field (= Malice) and those must keep routing to the summoner.
 	local heroicSharingSummoner = self.GetHeroicResourceSharingSummonerToken and self:GetHeroicResourceSharingSummonerToken()
-	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == self:GetHeroicOrMaliceId()) then
+	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == CharacterResource.maliceResourceId or key == self:GetHeroicOrMaliceId()) then
 		return heroicSharingSummoner.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", quantity, note)
 	end
 
@@ -821,8 +824,9 @@ function creature:RefreshResource(key, refreshType, quantity, note)
 		end
 	end
 
+	--Malice matched explicitly for the same reason as in ConsumeResource above.
 	local heroicSharingSummoner = self.GetHeroicResourceSharingSummonerToken and self:GetHeroicResourceSharingSummonerToken()
-	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == self:GetHeroicOrMaliceId()) then
+	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == CharacterResource.maliceResourceId or key == self:GetHeroicOrMaliceId()) then
 		return heroicSharingSummoner.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", quantity, note)
 	end
 
@@ -957,8 +961,9 @@ function creature:AddUnboundedResource(key, quantity, note)
 		end
 	end
 
+	--Malice matched explicitly for the same reason as in ConsumeResource above.
 	local heroicSharingSummoner = self.GetHeroicResourceSharingSummonerToken and self:GetHeroicResourceSharingSummonerToken()
-	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == self:GetHeroicOrMaliceId()) then
+	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == CharacterResource.maliceResourceId or key == self:GetHeroicOrMaliceId()) then
 		return heroicSharingSummoner.properties:AddUnboundedResource(CharacterResource.heroicResourceId, quantity, note)
 	end
 

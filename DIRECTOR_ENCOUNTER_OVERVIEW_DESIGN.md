@@ -1543,6 +1543,32 @@ correctly. Zero errors.**
   minions (tok.properties.minion == true); a captain keeps its own name
   and its own member row and never folds into a squad entry.
 
+**2026-08-25, fortieth report (Ricky, Boddorff Buckfeather's Thunder of
+Heavens) - Healer detection (reloaded live; detection verified headless
+on both his examples, visual pending his hover).**
+- **facets.heals**: the recursive behavior scanner flags
+  ActivatedAbilityHealBehavior and
+  ActivatedAbilityGrantTemporaryStaminaBehavior (substring match), so
+  Thunder of Heavens' heal INSIDE an InvokeAbilityBehavior is caught by
+  the existing depth-3 descent. Verified headless: only Thunder of
+  Heavens and Enchantments of War flag among both monsters' kits.
+- **Chip badge**: green shield (c86775c1, #7AC77A - the High Stamina
+  glyph, green positive channel) joins the badge row next to summon;
+  counts toward badges1/badges2 title reservation; never on off-lens
+  chips; tooltip "This ability can regain and/or grant temporary
+  stamina".
+- **Footer line**: green "Healer" under the High Stamina slot when ANY
+  kit ability heals (column.healer, computed beside areaWindow); hover
+  = Ricky's copy "This creature has an ability that can regain and/or
+  grant temporary stamina".
+- SCOPE TRAP caught pre-reload: the chip loop's `facets` local lives
+  inside `if overview then` - the first healBadge computation sat
+  outside it and would have raised on an uninitialized global read.
+- Also this session: field test 39 hover gained "This creature is..."
+  and Ricky DECLINED the red-above-green reordering proposal for now
+  ("high damage dealer isn't actually a sense of urgency, but I like it
+  being red") - line order stays as built, revisitable.
+
 **2026-08-25, thirty-ninth report (Ricky) - green "High Stamina" tag
 (reloaded live; awaiting his eyeball on Bandit Chief / Knave / Rival
 Null in the bandit encounter).**

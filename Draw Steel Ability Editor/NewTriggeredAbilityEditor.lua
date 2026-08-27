@@ -319,6 +319,12 @@ local TRIGGER_METADATA = {
     },
 
     -- Movement (alphabetical)
+    departadjacent = {
+        label = "Move Away From Adjacent Creature",
+        description = "Fires on the moving creature for each adjacent enemy it willingly moves away from. Shifting and forced movement do not trigger it.",
+        tags = {"adjacent", "depart", "move", "away", "leave", "opportunity", "cunning"},
+        group = "movement",
+    },
     leaveadjacent = {
         label = "Adjacent Creature Moves Away",
         description = "Fires when a creature adjacent to this one moves away.",

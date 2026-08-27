@@ -1164,6 +1164,7 @@ GoblinScriptProse.eventProse = {
     castsignature     = "when {subject} use{s} a signature ability or area ability",
 
     -- Movement band
+    departadjacent    = "when {subject} willingly move{s} away from an adjacent enemy",
     leaveadjacent     = "when a creature adjacent to {subject} moves away",
     leaveadjacentorshift = "when a creature adjacent to {subject} moves or shifts away",
     move              = "when {subject} begin{s} moving",

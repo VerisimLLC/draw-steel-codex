@@ -1252,11 +1252,13 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             end
         end
 
-    elseif self.targetType == 'abilitycaster' or self.targetType == 'abilitytarget' or self.targetType == 'triggerer' then
+    elseif self.targetType == 'abilitycaster' or self.targetType == 'abilitytarget' or self.targetType == 'triggerer' or self.targetType == 'departedcreature' then
         --Contextual creature installed on the firing modifier at roll time
         --(modifier-fired custom triggers; see InstallSymbolsFromContext in
-        --DSRollDialog). Subject-hood stays with the owner -- this choice is
-        --purely who the effect lands on.
+        --DSRollDialog), or carried directly on the trigger event payload
+        --(departadjacent's departedcreature). Either way the id names a
+        --creature symbol to look up. Subject-hood stays with the owner --
+        --this choice is purely who the effect lands on.
         local contextTarget = symbols and symbols[self.targetType]
         if type(contextTarget) == "function" then
             contextTarget = contextTarget("self")

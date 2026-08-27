@@ -1543,6 +1543,19 @@ correctly. Zero errors.**
   minions (tok.properties.minion == true); a captain keeps its own name
   and its own member row and never folds into a squad entry.
 
+**2026-08-25, thirty-eighth report (Ricky) - reach hovers lose the
+formula (reloaded live).**
+- "Can't reach any hero" hover: was the arithmetic ("Heroes within N
+  squares: speed X + longest range Y..."); now "Not within range of any
+  enemies using standard movement".
+- Green "Outside reach of heroes" hover: now "Relatively safe; no
+  heroes can target this creature using standard movement". Ricky's
+  reasoning, recorded: DS heroes carry so many items/traits that
+  crossing the battlefield unexpectedly is always possible -
+  "relatively" plus the "standard movement" qualifier owns that
+  uncertainty, the formula does not. Extends the conclusion-not-
+  homework rule (field test 20) to the reach channel.
+
 **2026-08-25, thirty-seventh report (Ricky) - hordes are Squishy + role
 hover copy is HIS OWN (commit, reloaded live).**
 - **Horde organization wears the Squishy tag** like minions. Judgment

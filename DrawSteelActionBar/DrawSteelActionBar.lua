@@ -1798,6 +1798,11 @@ local OVERVIEW_FOOTER_RULES = {
         rmargin = 4,
         bgcolor = "#E9B86F",
     },
+    --Field test 39: the High Stamina shield, green = the positive channel.
+    {
+        selectors = { "overviewRiskIcon", "hs" },
+        bgcolor = "#7AC77A",
+    },
     --Field test 31: the amber Likely Target line's label sizes to its text
     --so several debuff glyphs can ride the line as its icon bullets.
     {
@@ -4780,7 +4785,25 @@ local function OverviewHeroProfiles()
         local profile = { token = hero, speed = 0, range = 1,
             bestBurst = 0, bestPush = 0, bestSquad = 0,
             bestName = nil, pushName = nil,
-            surgeDamage = 0, spent = false }
+            surgeDamage = 0, maxTier3 = 0, maxHit = 0, spent = false }
+        --Field test 39: worst-case damage for the green High Stamina tag.
+        --Reads a resolved tier line with its DICE MAXED ("2d6 + 19" -> 31);
+        --plain numbers pass through. nil when the line has no leading number.
+        local function MaxDamageFromResolved(resolved)
+            if type(resolved) ~= "string" then
+                return nil
+            end
+            local plain = string.gsub(resolved, "<[^>]*>", "")
+            local n, d, bonus = string.match(plain, "^%s*(%d+)[dD](%d+)%s*%+%s*(%d+)")
+            if n ~= nil then
+                return tonumber(n) * tonumber(d) + tonumber(bonus)
+            end
+            n, d = string.match(plain, "^%s*(%d+)[dD](%d+)")
+            if n ~= nil then
+                return tonumber(n) * tonumber(d)
+            end
+            return tonumber(string.match(plain, "^%s*(%d+)"))
+        end
         pcall(function() profile.speed = tonumber(hero.properties:GetSpeed()) or 0 end)
         pcall(function()
             local resources = hero.properties:GetResources() or {}
@@ -4845,6 +4868,24 @@ local function OverviewHeroProfiles()
                                 profile.bestSquad = squadHit
                             end
                         end
+                        --Field test 39: the High Stamina ceiling ignores
+                        --affordability on purpose - crits grant extra turns
+                        --and allies grant free strikes, so the worst case
+                        --is any ability's MAXED tier-3 line.
+                        pcall(function()
+                            for _, behavior in ipairs(variation.behaviors or {}) do
+                                if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                                    local tiers = behavior:try_get("tiers")
+                                    if tiers ~= nil and tiers[3] ~= nil then
+                                        local resolved = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(hero.properties, tiers[3], nil, true)
+                                        local maxDamage = MaxDamageFromResolved(resolved)
+                                        if maxDamage ~= nil and maxDamage > profile.maxTier3 then
+                                            profile.maxTier3 = maxDamage
+                                        end
+                                    end
+                                end
+                            end
+                        end)
                         local tt = variation.targetType
                         if tt ~= "self" and tt ~= "emptyspace" and tt ~= "anyspace" and tt ~= "map" then
                             local r = tonumber(variation:GetRange(hero.properties))
@@ -4855,6 +4896,7 @@ local function OverviewHeroProfiles()
                     end
                 end
             end
+            profile.maxHit = profile.maxTier3 + 3 * highest
         end)
         if q ~= nil then
             pcall(function() profile.spent = q:HasHadTurn(InitiativeQueue.GetInitiativeId(hero)) == true end)
@@ -5175,6 +5217,19 @@ local function OverviewColumnSignals(column)
     if q ~= nil then
         heroes = OverviewHeroTokens()
     end
+    --Field test 39 (Ricky): the green High Stamina ceiling = TWICE the
+    --party's best maxed tier-3 hit + 3 surges (a tier-3 crit grants
+    --another turn, so the best ability can land twice). 0 disables the
+    --tag (no queue, or no hero damage found).
+    local highThreshold = 0
+    if q ~= nil then
+        for _, profile in ipairs(OverviewHeroProfiles()) do
+            local hit = (profile.maxHit or 0) * 2
+            if hit > highThreshold then
+                highThreshold = hit
+            end
+        end
+    end
     for _, tok in ipairs(column.tokens or {}) do
         if tok ~= nil and tok.valid and tok.properties ~= nil then
             --Field test 33: squad identity only substitutes for MINIONS.
@@ -5217,6 +5272,14 @@ local function OverviewColumnSignals(column)
                     end
                 end
                 member.risk, member.safe = OverviewThreatEstimate(tok, threats, q ~= nil)
+                --High Stamina never co-exists with a risk tag; current
+                --stamina must clear the whole party ceiling.
+                member.highStamina = false
+                if highThreshold > 0 and member.risk == nil then
+                    local cur = nil
+                    pcall(function() cur = tonumber(tok.properties:CurrentHitpoints()) end)
+                    member.highStamina = cur ~= nil and cur > highThreshold
+                end
                 byKey[key] = member
                 members[#members + 1] = member
             end
@@ -5559,6 +5622,23 @@ local function OverviewColumnFooter()
         text = "Outside reach of heroes",
         hover = gui.Tooltip{ text = "Relatively safe; no heroes can target this creature using standard movement", valign = "top" },
     }
+    --Field test 39 (Ricky): green "High Stamina" - this creature clears
+    --the party's worst-case burst, so there is no rush to use it before
+    --the Director's next turn. Green shield = the positive channel.
+    local hsRow = gui.Panel {
+        classes = { "overviewRiskRow", "collapsed" },
+        hover = gui.Tooltip{ text = "Unlikely to die before the start of your next turn", valign = "top" },
+        gui.Panel {
+            classes = { "overviewRiskIcon", "hs" },
+            bgimage = "c86775c1-72d6-4a46-8493-a8b9c341a1ee",
+            interactable = false,
+        },
+        gui.Label {
+            classes = { "overviewFooterRisk" },
+            text = string.format("<color=%s><b>High Stamina</b></color>", OVERVIEW.GUIDE_COLOR),
+            hover = gui.Tooltip{ text = "Unlikely to die before the start of your next turn", valign = "top" },
+        },
+    }
 
     --The Near Death box; collapsed when safe. Hover = one plain sentence.
     --Field test 21/22: a red skull-and-crossbones (Provided By MCDM library)
@@ -5790,6 +5870,7 @@ local function OverviewColumnFooter()
             signalLabel,
             reachLabel,
             safeLabel,
+            hsRow,
             riskRow,
             m_riskBullets[1].row,
             m_riskBullets[2].row,
@@ -6475,6 +6556,7 @@ local function OverviewColumnFooter()
             --shows the WORST member's line (its rows carry short tags).
             local risk = nil
             local allSafe = #members > 0
+            local allHighStamina = #members > 0
             for _, member in ipairs(members) do
                 --A real Near Death outranks the standing minion Squishy
                 --(a two-squad column shows the worst member's line).
@@ -6486,8 +6568,12 @@ local function OverviewColumnFooter()
                 if member.safe ~= true then
                     allSafe = false
                 end
+                if member.highStamina ~= true then
+                    allHighStamina = false
+                end
             end
             safeLabel:SetClass("collapsed", not (allSafe and signals.inCombat))
+            hsRow:SetClass("collapsed", not (allHighStamina and signals.inCombat))
             m_riskTooltip = risk and risk.tooltip or nil
             local headline = risk and risk.headline or nil
             riskLabel.text = headline ~= nil and string.format("<color=%s><b>%s</b></color>", g_overviewRisk.red, headline) or ""

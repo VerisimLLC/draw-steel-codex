@@ -5557,7 +5557,7 @@ local function OverviewColumnFooter()
     local safeLabel = gui.Label {
         classes = { "overviewFooterSafe", "collapsed" },
         text = "Outside reach of heroes",
-        hover = gui.Tooltip{ text = "Relatively safe - no ready hero can strike it before your next turn", valign = "top" },
+        hover = gui.Tooltip{ text = "Relatively safe; no heroes can target this creature using standard movement", valign = "top" },
     }
 
     --The Near Death box; collapsed when safe. Hover = one plain sentence.
@@ -6620,10 +6620,10 @@ local function OverviewColumnFooter()
             m_reachTooltip = nil
             if #members == 1 and members[1].reach ~= nil then
                 local reach = members[1].reach
+                --Field test 38 (Ricky): no formula in the hover - the
+                --"standard movement" qualifier carries the uncertainty.
                 reachText = OverviewReachText(reach)
-                m_reachTooltip = string.format(
-                    "Heroes within %d squares: speed %d + longest range %d. Straight-line estimate; ignores walls and terrain.",
-                    reach.reach, reach.speed, reach.range)
+                m_reachTooltip = "Not within range of any enemies using standard movement"
             end
             reachLabel.text = reachText or ""
             reachLabel:SetClass("collapsed", reachText == nil)

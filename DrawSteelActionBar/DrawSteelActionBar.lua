@@ -665,7 +665,7 @@ local function OverviewAbilityFacets(ability)
         forced = false, forcedDistance = 0, forcedVerb = nil,
         control = false, conditions = {},
         malice = false, maliceCost = 0,
-        multiTarget = false, summon = false,
+        multiTarget = false, summon = false, heals = false,
     }
     if ability == nil then
         return facets
@@ -732,6 +732,11 @@ local function OverviewAbilityFacets(ability)
                 facets.damage = true
             elseif string.find(tn, "Summon", 1, true) ~= nil then
                 facets.summon = true
+            elseif string.find(tn, "HealBehavior", 1, true) ~= nil
+                or string.find(tn, "GrantTemporaryStamina", 1, true) ~= nil then
+                --Field test 40 (Ricky): regain-stamina and temp-stamina
+                --effects mark the ability (and its owner) as a healer.
+                facets.heals = true
             elseif string.find(tn, "ForcedMovement", 1, true) ~= nil then
                 facets.forced = true
                 local d = tonumber(behavior:try_get("distance"))
@@ -1801,6 +1806,23 @@ local OVERVIEW_FOOTER_RULES = {
     --Field test 39: the High Stamina shield, green = the positive channel.
     {
         selectors = { "overviewRiskIcon", "hs" },
+        bgcolor = "#7AC77A",
+    },
+    --Field test 40: the chip's green heal shield (regain/temp stamina).
+    {
+        selectors = { "overviewHealBadge" },
+        width = 18,
+        height = 18,
+        valign = "center",
+        lmargin = 2,
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "overviewHealIcon" },
+        width = 15,
+        height = 15,
+        halign = "center",
+        valign = "center",
         bgcolor = "#7AC77A",
     },
     --Field test 31: the amber Likely Target line's label sizes to its text
@@ -3575,6 +3597,19 @@ local function AbilityHeading(args)
             interactable = false,
         },
     }
+    --Field test 40: green shield = the ability regains stamina or grants
+    --temporary stamina (the same glyph as the footer's High Stamina /
+    --Healer lines - green is the positive channel).
+    local m_healBadge = gui.Panel {
+        classes = { "overviewHealBadge", "collapsed" },
+        bgimage = "panels/square.png",
+        hover = gui.Tooltip{ text = "This ability can regain and/or grant temporary stamina", valign = "top" },
+        gui.Panel {
+            classes = { "overviewHealIcon" },
+            bgimage = "c86775c1-72d6-4a46-8493-a8b9c341a1ee",
+            interactable = false,
+        },
+    }
     --Field test 14: TOP-right corner - the title row's right side is
     --reliably empty for monster kit names, while the vertical center is the
     --malice cost diamond's zone and the bottom is the keywords line (both
@@ -3592,6 +3627,7 @@ local function AbilityHeading(args)
         tmargin = 3,
         flow = "horizontal",
         m_summonBadge,
+        m_healBadge,
         m_multiBadge,
         m_areaBadge,
         m_dmgBadge,
@@ -3611,7 +3647,7 @@ local function AbilityHeading(args)
             args.overviewPress = overviewPress
         end,
 
-        setOverviewBadges = function(element, dmg, multi, multiDamaging, summon, dmgTooltip, areaTooltip)
+        setOverviewBadges = function(element, dmg, multi, multiDamaging, summon, dmgTooltip, areaTooltip, heal)
             m_dmgBadge:SetClass("collapsed", dmg ~= true)
             m_dmgBadge.data.tooltip = dmgTooltip or "This ability does high damage"
             m_multiBadge:SetClass("collapsed", multi ~= true)
@@ -3622,7 +3658,8 @@ local function AbilityHeading(args)
             local area = areaTooltip ~= nil
             m_areaBadge:SetClass("collapsed", not area)
             m_areaBadge.data.tooltip = areaTooltip
-            local count = (dmg == true and 1 or 0) + (multi == true and 1 or 0) + (summon == true and 1 or 0) + (area and 1 or 0)
+            m_healBadge:SetClass("collapsed", heal ~= true)
+            local count = (dmg == true and 1 or 0) + (multi == true and 1 or 0) + (summon == true and 1 or 0) + (area and 1 or 0) + (heal == true and 1 or 0)
             m_badgeRow:SetClass("collapsed", count == 0)
             --Long titles (Rival Tactician's "Dual Targeting Shot") reach the
             --top-right corner, so floating alone cannot guarantee no
@@ -5639,6 +5676,23 @@ local function OverviewColumnFooter()
             hover = gui.Tooltip{ text = "This creature is unlikely to die before the start of your next turn", valign = "top" },
         },
     }
+    --Field test 40 (Ricky): green "Healer" when the kit can regain or
+    --grant temporary stamina; the chips carrying those abilities wear the
+    --same green shield badge.
+    local healerRow = gui.Panel {
+        classes = { "overviewRiskRow", "collapsed" },
+        hover = gui.Tooltip{ text = "This creature has an ability that can regain and/or grant temporary stamina", valign = "top" },
+        gui.Panel {
+            classes = { "overviewRiskIcon", "hs" },
+            bgimage = "c86775c1-72d6-4a46-8493-a8b9c341a1ee",
+            interactable = false,
+        },
+        gui.Label {
+            classes = { "overviewFooterRisk" },
+            text = string.format("<color=%s><b>Healer</b></color>", OVERVIEW.GUIDE_COLOR),
+            hover = gui.Tooltip{ text = "This creature has an ability that can regain and/or grant temporary stamina", valign = "top" },
+        },
+    }
 
     --The Near Death box; collapsed when safe. Hover = one plain sentence.
     --Field test 21/22: a red skull-and-crossbones (Provided By MCDM library)
@@ -5871,6 +5925,7 @@ local function OverviewColumnFooter()
             reachLabel,
             safeLabel,
             hsRow,
+            healerRow,
             riskRow,
             m_riskBullets[1].row,
             m_riskBullets[2].row,
@@ -6574,6 +6629,7 @@ local function OverviewColumnFooter()
             end
             safeLabel:SetClass("collapsed", not (allSafe and signals.inCombat))
             hsRow:SetClass("collapsed", not (allHighStamina and signals.inCombat))
+            healerRow:SetClass("collapsed", column.healer ~= true)
             m_riskTooltip = risk and risk.tooltip or nil
             local headline = risk and risk.headline or nil
             riskLabel.text = headline ~= nil and string.format("<color=%s><b>%s</b></color>", g_overviewRisk.red, headline) or ""
@@ -6962,6 +7018,7 @@ local function ActionSubMenu(args)
                 local dmgTooltip = nil
                 local areaTooltip = nil
                 local multiBadge, multiDamaging, summonBadge = false, false, false
+                local healBadge = false
                 if overview then
                     local facets = facetsByAbility[abilities[i]]
                     if facets ~= nil then
@@ -6982,6 +7039,9 @@ local function ActionSubMenu(args)
                             summonBadge = facets.summon == true
                             multiBadge = (not summonBadge) and facets.multiTarget == true
                             multiDamaging = facets.damage == true
+                            --Field test 40: green shield on any chip that
+                            --regains stamina or grants temporary stamina.
+                            healBadge = facets.heals == true
                             --Field test 27: an area ability wears the gold
                             --"!" window alert only while it could actually
                             --catch several heroes (positional; recomputed
@@ -7002,7 +7062,7 @@ local function ActionSubMenu(args)
                         end
                     end
                 end
-                m_chips[i]:FireEvent("setOverviewBadges", dmgBadge, multiBadge, multiDamaging, summonBadge, dmgTooltip, areaTooltip)
+                m_chips[i]:FireEvent("setOverviewBadges", dmgBadge, multiBadge, multiDamaging, summonBadge, dmgTooltip, areaTooltip, healBadge)
             end
 
             for i = #abilities + 1, #m_chips do
@@ -7521,6 +7581,15 @@ ActionMenu = function()
                 local facets = OverviewAbilityFacets(ability)
                 if facets.area == true and OverviewAreaCatch(column.token, ability) ~= nil then
                     column.areaWindow = true
+                    break
+                end
+            end
+            --Field test 40: any regain/temp-stamina ability in the kit
+            --marks the column "Healer" (green footer line, chip shields).
+            column.healer = false
+            for _, ability in ipairs(column.abilities or {}) do
+                if OverviewAbilityFacets(ability).heals == true then
+                    column.healer = true
                     break
                 end
             end

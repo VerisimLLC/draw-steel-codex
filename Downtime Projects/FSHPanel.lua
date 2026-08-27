@@ -1458,9 +1458,33 @@ function FSHPanel.LogRow(trip, expanded, onToggle)
     local live = trip.status ~= FSHTrip.STATUS.CLOSED.key
     local skillText = trip.skill ~= nil and trip.skill.name or "no skill"
 
-    --Leaves room for the caret column and its margins.
+    --Same portrait the standings use, so a hero looks the same in both tabs.
+    local token = dmhub.GetCharacterById(trip.charid or "")
+    local portrait = gui.Panel{
+        width = 32,
+        height = 32,
+        halign = "left",
+        valign = "center",
+        rmargin = 6,
+        children = (token ~= nil and token.valid) and {
+            gui.CreateTokenImage(token, {
+                width = 32,
+                height = 32,
+                halign = "center",
+                valign = "center",
+                refresh = function(element)
+                    if token == nil or not token.valid then
+                        return
+                    end
+                    element:FireEventTree("token", token)
+                end
+            })
+        } or {}
+    }
+
+    --Leaves room for the caret column, its margins, and the portrait.
     local labels = gui.Panel{
-        width = "100%-22",
+        width = "100%-60",
         height = "auto",
         flow = "vertical",
         valign = "center",
@@ -1493,6 +1517,7 @@ function FSHPanel.LogRow(trip, expanded, onToggle)
             valign = "center",
             hmargin = 3
         }
+        headerChildren[#headerChildren + 1] = portrait
         headerChildren[#headerChildren + 1] = labels
 
         return gui.Panel{
@@ -1535,6 +1560,7 @@ function FSHPanel.LogRow(trip, expanded, onToggle)
     detail:SetClass("collapsed", not expanded)
 
     headerChildren[#headerChildren + 1] = caret
+    headerChildren[#headerChildren + 1] = portrait
     headerChildren[#headerChildren + 1] = labels
 
     local header = gui.Panel{

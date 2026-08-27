@@ -4978,8 +4978,15 @@ local function OverviewThreatEstimate(tok, threats, inCombat)
         return list
     end
 
+    --Field test 37 (Ricky): horde monsters wear the Squishy tag too. A
+    --horde's REAL Near Death still outranks it (unlike minions) so the
+    --per-member skulls and the note-first row sort keep pointing at the
+    --one that is actually dying.
+    local isHorde = false
+    pcall(function() isHorde = string.lower(tok.properties:Organization() or "") == "horde" end)
+
     if isMinion or (killer == nil and pushKiller == nil) then
-        if isMinion then
+        if isMinion or isHorde then
             --Field test 28 (Ricky): a minion column ALWAYS reads
             --"Squishy", never "Near Death" - a squishy monster is almost
             --always near death anyway, so one word carries it (his call,
@@ -4991,7 +4998,7 @@ local function OverviewThreatEstimate(tok, threats, inCombat)
                 squishy = true,
                 headline = "Squishy",
                 bullets = ThreatBullets(2),
-                tooltip = "Even small hits kill minions and cut the squad's damage output.",
+                tooltip = "Squishies die quickly! Use them before they're gone.",
             }, safeOutside
         end
         return nil, safeOutside
@@ -5075,12 +5082,12 @@ local OVERVIEW_ROLE_PROSE = {
     hexer      = "Hexers specialize in debuffing enemies using conditions and other effects. They are generally squishy and rely on others to defend them.",
     mount      = "Mounts are mobile creatures meant to be ridden in combat, and who make their riders even more dangerous.",
     support    = "Support creatures specialize in aiding their allies by providing buffs, healing, movement, or action options.",
-    leader     = "A leader is a powerful monster who buffs their allies and grants them additional actions. They utilize villain actions and can stand toe-to-toe with two or more heroes of the same level by themself.",
-    solo       = "A solo creature is an encounter all on their own, and can typically stand toe-to-toe with six heroes of the same level.",
+    leader     = "A Leader is a powerful monster who buffs their allies and grants them additional actions.",
+    solo       = "A solo creature is an encounter all on their own. They have a special set of rules within their stat block.",
     minion     = "Minions are weaker enemies who are made to die fast and threaten heroes en masse.",
-    horde      = "Hordes are hardier and work in smaller groups than minions, but it still takes more than one to effectively threaten a single hero of the same level.",
+    horde      = "Horde creatures are more fragile than any other monsters except minions.",
     platoon    = "Platoons are highly organized and usually self-sufficient armies, well equipped to handle most combat objectives. A single platoon creature is a decent threat to a hero of the same level.",
-    elite      = "Elite creatures are the functional opposite of minions: hardy, and usually able to stand up to two heroes of the same level.",
+    elite      = "Elite monsters are hardy and can usually stand up to 2 heroes of the same level.",
 }
 
 --The stat block's role for the footer: line = the role line with the ROLE

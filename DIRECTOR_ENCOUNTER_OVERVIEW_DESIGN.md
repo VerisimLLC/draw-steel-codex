@@ -1543,6 +1543,33 @@ correctly. Zero errors.**
   minions (tok.properties.minion == true); a captain keeps its own name
   and its own member row and never folds into a squad entry.
 
+**2026-08-25, thirty-ninth report (Ricky) - green "High Stamina" tag
+(reloaded live; awaiting his eyeball on Bandit Chief / Knave / Rival
+Null in the bandit encounter).**
+- **Ricky's formula, implemented as specced**: ceiling = 2 x the party's
+  best (maxed tier-3 damage + 3 surges x that hero's highest
+  characteristic); a member whose CURRENT stamina EXCEEDS the ceiling
+  wears green "High Stamina" (shield icon c86775c1 from Provided By
+  MCDM, tinted #7AC77A). His rationale recorded: a tier-3 crit grants
+  another turn (hence x2), Strike Now et al make one-round damage
+  unpredictable, so the bound is deliberately worst-case. Affordability
+  and spent-state are IGNORED on purpose. Hover: "Unlikely to die
+  before the start of your next turn".
+- Boundary semantics: stamina EXACTLY at the ceiling = reduced to 0 by
+  the worst case = dead, so strict > is used. If a monster Ricky
+  expects tagged is not, check the resolved tier-3 lines and the
+  x3-surge characteristic first.
+- Mechanics: profile.maxTier3 from engine-resolved tier-3 text with
+  DICE MAXED (MaxDamageFromResolved parses "NdM + K" -> N*M+K; plain
+  numbers pass through; defined inside OverviewHeroProfiles - the
+  200-locals ceiling); profile.maxHit = maxTier3 + 3 x highest;
+  threshold computed once per OverviewColumnSignals; member.highStamina
+  requires risk == nil (never co-exists with Near Death/Squishy);
+  column shows hsRow only when EVERY member qualifies. Row sits after
+  the green Outside-reach line (positive channel cluster).
+- Chip badges NOT added for this tag - it is a creature fact, not an
+  ability fact.
+
 **2026-08-25, thirty-eighth report (Ricky) - reach hovers lose the
 formula (reloaded live).**
 - "Can't reach any hero" hover: was the arithmetic ("Heroes within N

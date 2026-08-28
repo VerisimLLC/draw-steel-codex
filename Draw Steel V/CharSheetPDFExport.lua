@@ -402,12 +402,29 @@ end
 
 local g_variantLabels = { simple = "Simple Sheet", expanded = "Expanded Sheet" }
 
+--Reading a PDF asset's doc is what starts its download: the blank sheets are cloud
+--assets and are not on disk the first time a machine exports one. Do it while the
+--export menu is being built, so the bytes have usually landed by the time a variant
+--is picked. The engine waits for the file either way; this just removes the wait.
+local function PrefetchDocument(template)
+    if template == nil then
+        return
+    end
+
+    local docAsset = CharSheetPDFExport.ResolveDocumentAsset(template)
+    if docAsset ~= nil then
+        --the getter's side effect is the point; the document itself is unused here.
+        local _ = docAsset.doc
+    end
+end
+
 --Builds the ordered list of export options offered by the sheet button: one entry per
 --available PDF sheet variant, then the always-available Codex JSON download.
 function CharSheetPDFExport.GetExportOptions(token)
     local options = {}
     for _,variant in ipairs(CharSheetPDFExport.AvailableVariants(token.properties)) do
         local v = variant
+        PrefetchDocument(CharSheetPDFExport.ResolveTemplateForVariant(token.properties, v))
         options[#options+1] = {
             text = g_variantLabels[v] or v,
             run = function() CharSheetPDFExport.ExportVariant(token, v) end,

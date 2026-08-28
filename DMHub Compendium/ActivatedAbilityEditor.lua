@@ -1097,10 +1097,22 @@ function ActivatedAbility:TargetTypeEditor()
                         id = "enemy",
                         text = "Enemy Creatures",
                     },
+                    --targetAllegiance = "dead". An area already picks up corpse
+                    --objects (TokensInShape always walks object tokens), and
+                    --TargetPassesFilter swaps each corpse for the creature that
+                    --died there, so the target filter sees the dead creature.
+                    {
+                        id = "dead",
+                        text = "Dead Creatures",
+                    },
                 },
-				idChosen = cond(self.objectTarget, "all_and_objects",
+				--"dead" is checked first. objectTarget is false for it, so without this
+				--the dropdown reads back as "Creatures" and the next change to it would
+				--silently clear targetAllegiance and break the ability's targeting.
+				idChosen = cond(self.targetAllegiance == "dead", "dead",
+                           cond(self.objectTarget, "all_and_objects",
                            cond(self.targetAllegiance == "ally", "ally",
-                           cond(self.targetAllegiance == "enemy", "enemy", "all"))),
+                           cond(self.targetAllegiance == "enemy", "enemy", "all")))),
 				change = function(element)
                     if element.idChosen == "all" then
                         self.objectTarget = false
@@ -1114,6 +1126,9 @@ function ActivatedAbility:TargetTypeEditor()
                     elseif element.idChosen == "enemy" then
                         self.objectTarget = false
                         self.targetAllegiance = "enemy"
+                    elseif element.idChosen == "dead" then
+                        self.objectTarget = false
+                        self.targetAllegiance = "dead"
                     else
                         self.objectTarget = false
                         self.targetAllegiance = nil

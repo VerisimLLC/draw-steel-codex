@@ -5481,6 +5481,9 @@ end
 --   checkbox, which the tokenizer matches bare).
 -- takesName: if true, the tag uses [[tagname]] or [[tagname:suffix]] syntax and
 --   a unique name is auto-generated on insert.
+-- menuLabel: the user-facing name in the toolbar's insert menus, for tags whose
+--   internal name is not what we call them in the UI. The tag name itself is
+--   never renamed -- it is document syntax and the autocomplete matches on it.
 -- Treat as read-only: it is shared by every editor surface.
 local g_richTagDescriptions = {
     dice = {desc = "Embeddable dice roll", takesName = true},
@@ -5490,7 +5493,7 @@ local g_richTagDescriptions = {
     image = {desc = "Embedded image", takesName = true},
     sound = {desc = "Audio player", takesName = true},
     bar = {desc = "Progress or health bar", patternExample = "###--"},
-    macro = {desc = "Clickable command button", patternExample = "/roll 1d20|Roll"},
+    macro = {desc = "Clickable command button", patternExample = "/roll 1d20|Roll", menuLabel = "button"},
     encounter = {desc = "Embedded encounter", takesName = true},
     scene = {desc = "Scene reference", takesName = true},
     party = {desc = "Party display", takesName = true},
@@ -7166,14 +7169,21 @@ local function CreateMarkdownToolbar(opts)
     local widgetTags = { "dice", "bar", "counter", "checkbox", "macro",
                          "reminder", "timer", "setting" }
 
+    --The option id stays the internal tag name (the change handler inserts by
+    --tag name), but the label shown can differ -- see menuLabel above.
+    local function TagMenuLabel(t)
+        local meta = g_richTagDescriptions[t]
+        return (meta ~= nil and meta.menuLabel) or t
+    end
+
     local mediaOptions = { { id = "", text = "Insert Media" } }
     for _, t in ipairs(mediaTags) do
-        mediaOptions[#mediaOptions + 1] = { id = t, text = t }
+        mediaOptions[#mediaOptions + 1] = { id = t, text = TagMenuLabel(t) }
     end
 
     local widgetOptions = { { id = "", text = "Insert Widget" } }
     for _, t in ipairs(widgetTags) do
-        widgetOptions[#widgetOptions + 1] = { id = t, text = t }
+        widgetOptions[#widgetOptions + 1] = { id = t, text = TagMenuLabel(t) }
     end
     --Draw Steel! lives in the widget menu but is not a rich tag: it inserts
     --the roll-link markup, so it gets a sentinel id the change handler

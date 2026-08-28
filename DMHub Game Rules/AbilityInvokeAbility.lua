@@ -893,19 +893,33 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         castOptions.OnFinishCastHandlers[#castOptions.OnFinishCastHandlers + 1] = finishHandler
     end
 
-	abilityClone.OnBeginCast = function(_ability, castOptions)
-		if OnBeginCast then
-			OnBeginCast()
-		end
-		casting = true
-        installFinishHandler(castOptions)
-	end
+    --Prompt handlers can replace a wrapper ability with a concrete synthesized
+    --ability (for example, choosing Melee Free Strike from the generic Free
+    --Strike prompt). Every replacement still needs the invoke lifecycle hooks.
+    local installCastCallbacks = function(castAbility)
+        local priorBeginCast = castAbility:try_get("OnBeginCast")
+        local priorFinishCast = castAbility:try_get("OnFinishCast")
 
-    --Defense-in-depth: keep OnFinishCast as a fallback in case this path somehow runs
-    --through a Cast that skips OnBeginCast. The finishHandler is idempotent via finishedCasting.
-	abilityClone.OnFinishCast = function(ability, finishOptions)
-        finishHandler(ability, casterToken, finishOptions)
-	end
+        castAbility.OnBeginCast = function(beginAbility, castOptions)
+            if priorBeginCast then
+                priorBeginCast(beginAbility, castOptions)
+            end
+            casting = true
+            installFinishHandler(castOptions)
+        end
+
+        --Defense-in-depth: keep OnFinishCast as a fallback in case this path
+        --somehow runs through a Cast that skips OnBeginCast. finishHandler is
+        --idempotent via finishedCasting.
+        castAbility.OnFinishCast = function(finishedAbility, finishOptions)
+            if priorFinishCast then
+                priorFinishCast(finishedAbility, finishOptions)
+            end
+            finishHandler(finishedAbility, casterToken, finishOptions)
+        end
+    end
+
+    installCastCallbacks(abilityClone)
 
     local canceled = false
 
@@ -939,6 +953,17 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             print("PUSH:: INVOKING!!!!!")
             targeting = invokerToken.properties._tmp_aipromptCallback(invokerToken, casterToken, abilityClone, symbols, options)
             aiResolvedTargeting = (targeting ~= "prompt" and targeting ~= "prompt_inherit")
+        end
+
+        --A prompt handler may resolve a synthesized-ability chooser as well as
+        --its targets. Consume the override immediately so it cannot leak into a
+        --later invoke that shares the parent cast's options table.
+        local abilityOverride = options.abilityOverride
+        if abilityOverride ~= nil then
+            options.abilityOverride = nil
+            abilityClone = abilityOverride
+            abilityClone.invoker = invokerToken.properties
+            installCastCallbacks(abilityClone)
         end
 
         if targeting == "prompt" or targeting == "prompt_inherit" then
@@ -1013,19 +1038,9 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 if synth ~= nil and #synth == 1 then
                     --if exactly one synthesized ability then just auto-cast it?
                     abilityClone = synth[1]
-                    --The synth is a brand-new ability; re-install our wrappers so we still get
-                    --notified when it begins/finishes. Preserve any wrappers the synth came with.
-                    local synthOnBegin = abilityClone:try_get("OnBeginCast")
-                    local synthOnFinish = abilityClone:try_get("OnFinishCast")
-                    abilityClone.OnBeginCast = function(_ability, castOptions)
-                        if synthOnBegin then synthOnBegin() end
-                        casting = true
-                        installFinishHandler(castOptions)
-                    end
-                    abilityClone.OnFinishCast = function(ability, finishOptions)
-                        if synthOnFinish then synthOnFinish(ability, finishOptions) end
-                        finishHandler(ability, casterToken, finishOptions)
-                    end
+                    --The synth is a brand-new ability; re-install our wrappers
+                    --while preserving any callbacks the synth came with.
+                    installCastCallbacks(abilityClone)
                 end
             end
 

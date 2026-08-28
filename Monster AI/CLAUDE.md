@@ -106,6 +106,12 @@ MonsterAI:RegisterMaliceAbility{
 A **prompt** handles abilities that require a secondary targeting choice during resolution (e.g., a Shift destination after a hit, or a Push/Pull direction). Registered with:
 - `prompts` -- array of ability name strings this handler responds to. Can be plain names (`"Shift"`) or monster-qualified (`"Decrepit Skeleton:Invoked Ability"`)
 - `handler(ai, invokerToken, casterToken, abilityClone, symbols, options)` -- returns a table with `targets` array, or `nil` to fall through to manual prompting
+- `abilityOverride` -- optional ability in the returned table. Use this when the prompt chooses a concrete synthesized ability as well as its targets; the invoke framework casts the override and preserves its begin/finish callbacks
+
+The generic `Free Strike` handler uses `abilityOverride` to choose the best legal
+immediate melee or ranged free strike. It deliberately removes charge movement,
+does not take control of player-owned creatures, and is reusable by any AI-driven
+effect that invokes the standard Free Strike ability.
 
 The generic `Push!`, `Pull!`, and `Slide!` handler recognizes
 `vertical_push`, `vertical_pull`, and `vertical_slide`. It uses the ability's
@@ -327,6 +333,7 @@ MonsterAI:RegisterPrompt{
     handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
         -- Calculate best target/location for the prompt
         -- Return {targets = {{token = someToken}}} or {targets = {{loc = someLoc}}}
+        -- Add abilityOverride = concreteAbility when resolving a synthesized chooser
         -- Return nil to fall back to manual prompting
     end,
 }

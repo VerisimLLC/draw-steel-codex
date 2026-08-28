@@ -21,6 +21,26 @@ local mod = dmhub.GetModLoading()
 --polylines - which is exactly the markup "Line" tool.
 --============================================================================
 
+--============================================================================
+--File-scope namespaces. This chunk is a Lua "main function", so it is bound by
+--the 200-locals-per-function ceiling. It used to sit exactly at 200: the next
+--top-level `local` added anywhere in this file would have failed to compile,
+--and a merge that introduced one would have done so without a conflict. The
+--file-scope constants and mutable state therefore live as fields of three
+--tables rather than as ~93 separate locals:
+--
+--  K  -- immutable constants           (was the UPPER_CASE file locals)
+--  m  -- mutable module state          (was the m_* file locals)
+--  gs -- settings + chained-hook prevs (was the g_* file locals)
+--
+--The `local function`s below are still plain locals. Do NOT declare a local
+--named K, m or gs anywhere in this file: it would shadow a namespace and
+--silently break every reference to it inside that scope.
+--============================================================================
+local K = {}
+local m = {}
+local gs = {}
+
 local function track(eventType, fields)
     if dmhub.GetSettingValue("telemetry_enabled") == false then
         return
@@ -72,14 +92,14 @@ setting{
 --from. Wall assets require an image (ImageAsset.ValidationCheck), so presets
 --cannot be created from scratch; we duplicate this invisible base and set
 --gameplay fields on the copy. Same asset MapImport uses for invisible walls.
-local BASE_INVISIBLE_WALL_ID = "eae7f3fe-d278-455c-853a-ac43f948c743"
+K.BASE_INVISIBLE_WALL_ID = "eae7f3fe-d278-455c-853a-ac43f948c743"
 
 --The Core "Invisible Floor" tilesheet (invisible=true, Building layer): the
 --shared TOP face of every markup solid block. The top face of an invisible
 --tilesheet never renders on player clients (and only faintly for the DM while
 --an editing tool is open), so one shared sheet serves every solid type - the
 --per-type differences live entirely in the wall asset.
-local INVISIBLE_TILESHEET_ID = "-MGAVDxkFE-ZzzNYBV0D"
+K.INVISIBLE_TILESHEET_ID = "-MGAVDxkFE-ZzzNYBV0D"
 
 --============================================================================
 --Openable walls (doors).
@@ -105,12 +125,12 @@ local INVISIBLE_TILESHEET_ID = "-MGAVDxkFE-ZzzNYBV0D"
 --Draw Steel door open/close audio assets (data/audio/ds-opendoor-wav.yaml /
 --ds-closedoor-wav.yaml), stamped onto openable wall assets so the engine's
 --door toggle plays them for every client.
-local DOOR_OPEN_SOUND_ID = "f6bc62cc-7225-48cf-b719-b86280ea198d"
-local DOOR_CLOSE_SOUND_ID = "e9950541-0c22-41d3-baba-f7f307b3e81a"
+K.DOOR_OPEN_SOUND_ID = "f6bc62cc-7225-48cf-b719-b86280ea198d"
+K.DOOR_CLOSE_SOUND_ID = "e9950541-0c22-41d3-baba-f7f307b3e81a"
 
 --Gameplay fields stamped on the wall asset backing a new openable type: a
 --closed door blocks like a stone wall; opening it disables all of this.
-local DOOR_TYPE_FIELDS = {
+K.DOOR_TYPE_FIELDS = {
     blocksMovement = true,
     blocksForcedMovement = true,
     occludesVision = true,
@@ -125,7 +145,7 @@ local DOOR_TYPE_FIELDS = {
 --sign-off). height is the per-placement wall height stamped into the height
 --setting when the preset is selected (nil = full height); wall height is a
 --property of the drawing operation, not of the wall asset.
-local WALL_PRESETS = {
+K.WALL_PRESETS = {
     {
         key = "stone",
         name = "Stone Wall",
@@ -218,9 +238,9 @@ local WALL_PRESETS = {
     },
 }
 
-local WALL_PRESETS_BY_KEY = {}
-for _,preset in ipairs(WALL_PRESETS) do
-    WALL_PRESETS_BY_KEY[preset.key] = preset
+K.WALL_PRESETS_BY_KEY = {}
+for _,preset in ipairs(K.WALL_PRESETS) do
+    K.WALL_PRESETS_BY_KEY[preset.key] = preset
 end
 
 --============================================================================
@@ -234,7 +254,7 @@ end
 --and a typed 3 simply reads back as Wood (which it is, mechanically).
 --============================================================================
 
-local BREAK_MATERIALS = {
+K.BREAK_MATERIALS = {
     {
         id = "glass",
         text = "Glass",
@@ -257,10 +277,10 @@ local BREAK_MATERIALS = {
     },
 }
 
-local DEFAULT_BREAK_STAMINA = 3
+K.DEFAULT_BREAK_STAMINA = 3
 
 local function BreakMaterialForStamina(stamina)
-    for _,material in ipairs(BREAK_MATERIALS) do
+    for _,material in ipairs(K.BREAK_MATERIALS) do
         if material.stamina ~= nil and material.stamina == stamina then
             return material.id
         end
@@ -269,7 +289,7 @@ local function BreakMaterialForStamina(stamina)
 end
 
 local function BreakMaterialById(id)
-    for _,material in ipairs(BREAK_MATERIALS) do
+    for _,material in ipairs(K.BREAK_MATERIALS) do
         if material.id == id then
             return material
         end
@@ -296,7 +316,7 @@ end
 local function SetAssetBreakable(asset, breakable, stamina)
     if breakable then
         asset.solidity = "Thin"
-        asset.breakStamina = math.max(1, math.floor((stamina or DEFAULT_BREAK_STAMINA) + 0.5))
+        asset.breakStamina = math.max(1, math.floor((stamina or K.DEFAULT_BREAK_STAMINA) + 0.5))
     else
         asset.solidity = "Unbreakable"
         asset.breakStamina = 0
@@ -323,18 +343,18 @@ end
 --every palette entry can be drawn either way.
 --============================================================================
 
-local DEFAULT_PALETTE = "preset:stone;preset:window;preset:fence;preset:lowwall;preset:curtain;preset:barrier"
+K.DEFAULT_PALETTE = "preset:stone;preset:window;preset:fence;preset:lowwall;preset:curtain;preset:barrier"
 
-local g_paletteSetting = setting{
+gs.paletteSetting = setting{
     id = "markup:wallpalette",
     description = "Map Markup Wall Palette",
     storage = "map",
-    default = DEFAULT_PALETTE,
+    default = K.DEFAULT_PALETTE,
 }
 
 local function ParsePalette()
     local result = {}
-    local str = g_paletteSetting:Get()
+    local str = gs.paletteSetting:Get()
     if type(str) ~= "string" or str == "" or str == "none" then
         return result
     end
@@ -379,7 +399,7 @@ local function SerializePalette(entries)
 end
 
 local function SavePalette(entries)
-    g_paletteSetting:Set(SerializePalette(entries))
+    gs.paletteSetting:Set(SerializePalette(entries))
 end
 
 --============================================================================
@@ -419,23 +439,22 @@ end
 --at that point. On engine builds without the field everything degrades to
 --the old behavior (game-wide walls, no deletion).
 --
---One table rather than several locals: this file-level chunk is AT Lua's
---200-local cap (the openable probe's cache lives here as a field for the
---same reason). The keyword-side helpers are added as extra fields further
+--One table rather than several locals (the openable probe's cache lives
+--here as a field for the same reason); see the file-scope namespace note at
+--the top of this file. The keyword helpers are added as extra fields further
 --down, below the GetKeyword/FindKeywordIdByName locals they need.
 --============================================================================
-local m_mapScope
-m_mapScope = {
+m.mapScope = {
     openableSupport = nil,
 
     --Engine gate, same probe recipe as OpenableWallsSupported: the accessor
     --reads "" (never nil) when unset precisely so this probe works.
     wallSupportCache = nil,
     WallSupported = function()
-        if m_mapScope.wallSupportCache ~= nil then
-            return m_mapScope.wallSupportCache
+        if m.mapScope.wallSupportCache ~= nil then
+            return m.mapScope.wallSupportCache
         end
-        local probe = assets.walls[BASE_INVISIBLE_WALL_ID]
+        local probe = assets.walls[K.BASE_INVISIBLE_WALL_ID]
         if probe == nil then
             for _,wall in pairs(assets.walls) do
                 probe = wall
@@ -450,8 +469,8 @@ m_mapScope = {
         pcall(function()
             value = probe.markupMapId
         end)
-        m_mapScope.wallSupportCache = (value ~= nil)
-        return m_mapScope.wallSupportCache
+        m.mapScope.wallSupportCache = (value ~= nil)
+        return m.mapScope.wallSupportCache
     end,
 
     --the map id a wall type is private to, or nil for game-wide/legacy walls
@@ -474,7 +493,7 @@ m_mapScope = {
     --always are; map-private ones only on the map they were created on.
     --The wall twin of KeywordAvailableOnThisMap.
     WallAvailableOnThisMap = function(asset)
-        local mapid = m_mapScope.WallMapId(asset)
+        local mapid = m.mapScope.WallMapId(asset)
         return mapid == nil or mapid == game.currentMapId
     end,
 
@@ -511,7 +530,7 @@ m_mapScope = {
         if asset == nil then
             return
         end
-        local mapid = m_mapScope.WallMapId(asset)
+        local mapid = m.mapScope.WallMapId(asset)
         if mapid == nil or mapid ~= game.currentMapId then
             return
         end
@@ -520,7 +539,7 @@ m_mapScope = {
                 return
             end
         end
-        if m_mapScope.WallInUseOnMap(guid) then
+        if m.mapScope.WallInUseOnMap(guid) then
             return
         end
         asset:Delete()
@@ -532,13 +551,13 @@ m_mapScope = {
 --NOT error - it silently returns nil (verified live 2026-07-27) - so the
 --probe must check the VALUE is non-nil, not just that the read succeeded.
 --On a supporting build the accessor returns a real boolean. Cached (on
---m_mapScope, sparing a file-level local): chips and dialogs consult this
+--m.mapScope, sparing a file-level local): chips and dialogs consult this
 --repeatedly.
 local function OpenableWallsSupported()
-    if m_mapScope.openableSupport ~= nil then
-        return m_mapScope.openableSupport
+    if m.mapScope.openableSupport ~= nil then
+        return m.mapScope.openableSupport
     end
-    local probe = assets.walls[BASE_INVISIBLE_WALL_ID]
+    local probe = assets.walls[K.BASE_INVISIBLE_WALL_ID]
     if probe == nil then
         for _,wall in pairs(assets.walls) do
             probe = wall
@@ -552,8 +571,8 @@ local function OpenableWallsSupported()
     local ok, value = pcall(function()
         return probe.openable
     end)
-    m_mapScope.openableSupport = ok and value ~= nil
-    return m_mapScope.openableSupport
+    m.mapScope.openableSupport = ok and value ~= nil
+    return m.mapScope.openableSupport
 end
 
 local function AssetIsOpenable(asset)
@@ -580,10 +599,10 @@ local function SetAssetOpenable(asset, openable)
         asset.openable = openable == true
         if openable then
             if asset.openSound == nil or asset.openSound == "" then
-                asset.openSound = DOOR_OPEN_SOUND_ID
+                asset.openSound = K.DOOR_OPEN_SOUND_ID
             end
             if asset.closeSound == nil or asset.closeSound == "" then
-                asset.closeSound = DOOR_CLOSE_SOUND_ID
+                asset.closeSound = K.DOOR_CLOSE_SOUND_ID
             end
         end
     end)
@@ -595,7 +614,7 @@ local function PresetForEntry(entry)
     if entry == nil or entry.kind ~= "preset" then
         return nil
     end
-    return WALL_PRESETS_BY_KEY[entry.key]
+    return K.WALL_PRESETS_BY_KEY[entry.key]
 end
 
 local function EntryDisplayName(entry)
@@ -899,12 +918,12 @@ end
 --Creates a game wall asset by duplicating the invisible base and applying
 --the given name + gameplay fields. Returns the new guid, or nil on failure.
 local function CreateMarkupWallAsset(name, fields)
-    if assets.walls[BASE_INVISIBLE_WALL_ID] == nil then
+    if assets.walls[K.BASE_INVISIBLE_WALL_ID] == nil then
         dmhub.Debug("MARKUP:: base invisible wall asset is not available in this game")
         return nil
     end
 
-    local guid = assets:DuplicateWall(BASE_INVISIBLE_WALL_ID)
+    local guid = assets:DuplicateWall(K.BASE_INVISIBLE_WALL_ID)
     if guid == nil then
         return nil
     end
@@ -914,7 +933,7 @@ local function CreateMarkupWallAsset(name, fields)
     ApplyFieldsToWall(wall, fields)
     --new markup walls are private to the map they were created on until
     --promoted from Edit Wall's "Make Available to All Maps".
-    m_mapScope.StampWall(wall)
+    m.mapScope.StampWall(wall)
     wall:Upload()
     return guid
 end
@@ -1002,7 +1021,7 @@ end
 --first use, exactly like wall presets materialize wall assets). Colors match
 --the tile height overlay's built-in stripe colors so the readout stays
 --consistent with un-zoned tiles that carry the same rules.
-local ZONE_PRESETS = {
+K.ZONE_PRESETS = {
     {
         key = "difficult",
         name = "Difficult Terrain",
@@ -1029,22 +1048,22 @@ local ZONE_PRESETS = {
     },
 }
 
-local ZONE_PRESETS_BY_KEY = {}
-for _,preset in ipairs(ZONE_PRESETS) do
-    ZONE_PRESETS_BY_KEY[preset.key] = preset
+K.ZONE_PRESETS_BY_KEY = {}
+for _,preset in ipairs(K.ZONE_PRESETS) do
+    K.ZONE_PRESETS_BY_KEY[preset.key] = preset
 end
 
 --Fallback chip/stripe colors for keywords whose icon color is white/unset.
-local ZONE_FALLBACK_COLORS = {
+K.ZONE_FALLBACK_COLORS = {
     "#d94a3d", "#7a3dd9", "#3dd9c8", "#d9b83d", "#d93d9e", "#4ad93d",
 }
 
-local ZONE_ANGLE_A = math.pi * 0.25
-local ZONE_ANGLE_B = math.pi * 0.75
+K.ZONE_ANGLE_A = math.pi * 0.25
+K.ZONE_ANGLE_B = math.pi * 0.75
 
 --Zone stripes, shared by the map overlay and the panel's little zone swatches.
---Kept in one table rather than as several file-level locals: this chunk is
---close to Lua's 200-locals cap (same reason as m_dispelState below).
+--Kept in one table rather than as several file-level locals, grouping the
+--related state (same reason as m.dispelState below).
 --
 --  .HashAngle(id)        angle from the keyword id alone
 --  .AngleForKeyword(id)  the angle actually used - the map-wide assignment when
@@ -1055,14 +1074,14 @@ local ZONE_ANGLE_B = math.pi * 0.75
 --
 --`assignment` starts empty, so everything falls back to the hash until the zone
 --cache has been built at least once for the current map.
-local m_zoneStripes = { gradients = {}, assignment = {}, swatchPeriod = 0.28 }
+m.zoneStripes = { gradients = {}, assignment = {}, swatchPeriod = 0.28 }
 
 --Two angles only. Which one a keyword gets is decided in .Assign below; this is
 --the starting point and the tiebreak - a stable function of the keyword id, so
 --a keyword with nothing to clash with stripes the same way on every map.
-function m_zoneStripes.HashAngle(keywordid)
+function m.zoneStripes.HashAngle(keywordid)
     if type(keywordid) ~= "string" or keywordid == "" then
-        return ZONE_ANGLE_A
+        return K.ZONE_ANGLE_A
     end
 
     local hash = 0
@@ -1073,10 +1092,10 @@ function m_zoneStripes.HashAngle(keywordid)
     --a middle bit rather than the low one: with an odd multiplier the low bit
     --is just the parity of the byte sum, which clumps for similar ids.
     if math.floor(hash / 128) % 2 == 1 then
-        return ZONE_ANGLE_B
+        return K.ZONE_ANGLE_B
     end
 
-    return ZONE_ANGLE_A
+    return K.ZONE_ANGLE_A
 end
 
 --The stripe angle for a keyword. This is a property of the KEYWORD, not of
@@ -1084,12 +1103,12 @@ end
 --zone the other, so same-keyword regions read as one thing at a glance. (It
 --used to alternate with the number of zones already on the floor, which gave
 --two zones of the same keyword different angles.)
-function m_zoneStripes.AngleForKeyword(keywordid)
+function m.zoneStripes.AngleForKeyword(keywordid)
     if type(keywordid) ~= "string" or keywordid == "" then
-        return ZONE_ANGLE_A
+        return K.ZONE_ANGLE_A
     end
 
-    return m_zoneStripes.assignment[keywordid] or m_zoneStripes.HashAngle(keywordid)
+    return m.zoneStripes.assignment[keywordid] or m.zoneStripes.HashAngle(keywordid)
 end
 
 --============================================================================
@@ -1112,32 +1131,32 @@ end
 --  .opacitySeq      bumped on every real change - the feed's re-mesh signal
 --  .opacityFeedSeq  the seq the feed last published (see dmhub.GetMarkupZones)
 --
---(Fields on m_zoneStripes rather than file-level locals: this chunk is at
---Lua's 200-locals cap, same reason the rest of this table exists.)
+--(Fields on m.zoneStripes rather than file-level locals, same reason the
+--rest of this table exists.)
 --============================================================================
-m_zoneStripes.opacity = {}
-m_zoneStripes.opacitySeq = 0
-m_zoneStripes.opacityFeedSeq = 0
+m.zoneStripes.opacity = {}
+m.zoneStripes.opacitySeq = 0
+m.zoneStripes.opacityFeedSeq = 0
 
 --Zones group by keyword - one group, one slider, per zone type. A record
 --whose keyword id could not be resolved (dead id from the table-creation
 --race; see MaterializeZonePreset) falls back to its stored keyword NAME, so
 --it still groups with its siblings instead of splitting off on its own.
-function m_zoneStripes.GroupKey(entry)
+function m.zoneStripes.GroupKey(entry)
     if type(entry.keywordid) == "string" and entry.keywordid ~= "" then
         return entry.keywordid
     end
     return "name:" .. tostring(entry.keywordName or "Zone")
 end
 
-function m_zoneStripes.Opacity(key)
+function m.zoneStripes.Opacity(key)
     if type(key) ~= "string" or key == "" then
         return 1
     end
-    return m_zoneStripes.opacity[key] or 1
+    return m.zoneStripes.opacity[key] or 1
 end
 
-function m_zoneStripes.SetOpacity(key, value)
+function m.zoneStripes.SetOpacity(key, value)
     if type(key) ~= "string" or key == "" then
         return
     end
@@ -1160,16 +1179,16 @@ function m_zoneStripes.SetOpacity(key, value)
         stored = v
     end
 
-    if m_zoneStripes.opacity[key] == stored then
+    if m.zoneStripes.opacity[key] == stored then
         return
     end
 
-    m_zoneStripes.opacity[key] = stored
-    m_zoneStripes.opacitySeq = m_zoneStripes.opacitySeq + 1
+    m.zoneStripes.opacity[key] = stored
+    m.zoneStripes.opacitySeq = m.zoneStripes.opacitySeq + 1
 end
 
-function m_zoneStripes.AnyFade()
-    for _,_ in pairs(m_zoneStripes.opacity) do
+function m.zoneStripes.AnyFade()
+    for _,_ in pairs(m.zoneStripes.opacity) do
         return true
     end
     return false
@@ -1178,7 +1197,7 @@ end
 --The stripe colour scaled by a fade factor. Only the "#rrggbb"/"#rrggbbaa"
 --forms can be scaled; anything else (a named colour) passes through, matching
 --ZoneOverlayColor's own rule.
-function m_zoneStripes.FadeColor(color, opacity)
+function m.zoneStripes.FadeColor(color, opacity)
     if opacity >= 1 or type(color) ~= "string" or string.sub(color, 1, 1) ~= "#" then
         return color
     end
@@ -1207,7 +1226,7 @@ end
 --rules, so muting it from the cascade is a no-op. Resolved via MergeTokens at
 --build time (the list rebuilds on every refresh, so a live theme switch is
 --picked up on the next refresh).
-function m_zoneStripes.OpacitySliderStyles()
+function m.zoneStripes.OpacitySliderStyles()
     return ThemeEngine.MergeTokens{
         {
             selectors = {"percentSlider"},
@@ -1249,7 +1268,7 @@ end
 
 --{h, s, v} in 0..1 for a "#rrggbb" / "#rrggbbaa" colour; nil for anything else
 --(named colours, which the panel's colours never are in practice).
-function m_zoneStripes.HSV(color)
+function m.zoneStripes.HSV(color)
     if type(color) ~= "string" or string.sub(color, 1, 1) ~= "#" then
         return nil
     end
@@ -1301,9 +1320,9 @@ end
 --them. Greys have no meaningful hue, so hue only counts as far as the LESS
 --saturated of the two is actually coloured. 0 = identical; .similarThreshold is
 --about where two colours stop reading as the same wash.
-m_zoneStripes.similarThreshold = 0.25
+m.zoneStripes.similarThreshold = 0.25
 
-function m_zoneStripes.ColorDistance(a, b)
+function m.zoneStripes.ColorDistance(a, b)
     local dh = math.abs(a.h - b.h)
     if dh > 0.5 then
         dh = 1 - dh
@@ -1321,7 +1340,7 @@ end
 --gradient wraps ('repeat'), so period is a fraction of the swatch, not of the
 --gradient. Returns nil for colours we can't build a transparent twin of (named
 --colours), in which case callers fall back to a flat chip.
-function m_zoneStripes.Gradient(color, angle)
+function m.zoneStripes.Gradient(color, angle)
     if type(color) ~= "string" or string.sub(color, 1, 1) ~= "#" then
         return nil
     end
@@ -1331,12 +1350,12 @@ function m_zoneStripes.Gradient(color, angle)
         return nil
     end
 
-    angle = angle or ZONE_ANGLE_A
+    angle = angle or K.ZONE_ANGLE_A
 
     local rgb = string.sub(color, 1, 7)
     local key = rgb .. "/" .. tostring(angle)
-    if m_zoneStripes.gradients[key] ~= nil then
-        return m_zoneStripes.gradients[key]
+    if m.zoneStripes.gradients[key] ~= nil then
+        return m.zoneStripes.gradients[key]
     end
 
     --the transparent stop keeps the same RGB so the (narrow) blend band
@@ -1345,8 +1364,8 @@ function m_zoneStripes.Gradient(color, angle)
         type = "linear",
         point_a = {x = 0.5, y = 0.5},
         point_b = {
-            x = 0.5 + math.cos(angle) * m_zoneStripes.swatchPeriod,
-            y = 0.5 + math.sin(angle) * m_zoneStripes.swatchPeriod,
+            x = 0.5 + math.cos(angle) * m.zoneStripes.swatchPeriod,
+            y = 0.5 + math.sin(angle) * m.zoneStripes.swatchPeriod,
         },
         ["repeat"] = true,
         stops = {
@@ -1357,13 +1376,13 @@ function m_zoneStripes.Gradient(color, angle)
         },
     }
 
-    m_zoneStripes.gradients[key] = result
+    m.zoneStripes.gradients[key] = result
     return result
 end
 
 --The little 14x14 zone swatch used by the palette chips and the zone list.
-function m_zoneStripes.Swatch(color, angle)
-    local gradient = m_zoneStripes.Gradient(color, angle)
+function m.zoneStripes.Swatch(color, angle)
+    local gradient = m.zoneStripes.Gradient(color, angle)
 
     --the gradient MULTIPLIES the panel's own colour, so with a gradient the
     --colour lives in the stops and the panel itself must be white.
@@ -1389,18 +1408,18 @@ end
 --  "preset:<key>:<id>"       built-in materialized as keyword <id>
 --  "keyword:<id>"            keyword added from the library / created new
 --  "none"                    explicitly empty
-local DEFAULT_ZONE_PALETTE = "preset:difficult;preset:water;preset:concealing"
+K.DEFAULT_ZONE_PALETTE = "preset:difficult;preset:water;preset:concealing"
 
-local g_zonePaletteSetting = setting{
+gs.zonePaletteSetting = setting{
     id = "markup:zonepalette",
     description = "Map Markup Zone Palette",
     storage = "map",
-    default = DEFAULT_ZONE_PALETTE,
+    default = K.DEFAULT_ZONE_PALETTE,
 }
 
 local function ParseZonePalette()
     local result = {}
-    local str = g_zonePaletteSetting:Get()
+    local str = gs.zonePaletteSetting:Get()
     if type(str) ~= "string" or str == "" or str == "none" then
         return result
     end
@@ -1445,7 +1464,7 @@ local function SerializeZonePalette(entries)
 end
 
 local function SaveZonePalette(entries)
-    g_zonePaletteSetting:Set(SerializeZonePalette(entries))
+    gs.zonePaletteSetting:Set(SerializeZonePalette(entries))
 end
 
 --============================================================================
@@ -1465,13 +1484,13 @@ end
 --map would bury the painted zones the DM is actually working with. The lit
 --button on the palette chip is the indicator.
 --
---One table rather than a handful of file-level locals: this chunk is a few
---locals short of Lua's 200-locals cap (same reason as m_zoneStripes and
---m_dispelState). Rebuild is assigned much further down, where the keyword
+--One table rather than a handful of file-level locals, grouping the related
+--state (same reason as m.zoneStripes and m.dispelState). Rebuild is assigned
+--much further down, where the keyword
 --helpers and the zone cache it reads are already in scope.
 --============================================================================
-local m_entireMap = {
-    --resolved blanket entries (same shape as m_zoneCache entries, plus
+m.entireMap = {
+    --resolved blanket entries (same shape as m.zoneCache entries, plus
     --entireMap = true); rebuilt with the zone cache.
     entries = {},
 
@@ -1489,10 +1508,10 @@ local m_entireMap = {
 --pcall-guarded: this is read from EnsureZoneCache, which runs on every aura
 --poll -- including polls that land before there is a map to scope a
 --map-storage setting to (boot, map switches).
-function m_entireMap.Serialized()
+function m.entireMap.Serialized()
     local str = nil
     pcall(function()
-        str = m_entireMap.setting:Get()
+        str = m.entireMap.setting:Get()
     end)
     if type(str) ~= "string" then
         return ""
@@ -1501,9 +1520,9 @@ function m_entireMap.Serialized()
 end
 
 --Set of keyword ids this map blankets.
-function m_entireMap.Keywords()
+function m.entireMap.Keywords()
     local result = {}
-    for _,id in ipairs(string.split(m_entireMap.Serialized(), ";")) do
+    for _,id in ipairs(string.split(m.entireMap.Serialized(), ";")) do
         if id ~= "" then
             result[id] = true
         end
@@ -1511,22 +1530,22 @@ function m_entireMap.Keywords()
     return result
 end
 
-function m_entireMap.IsSet(keywordid)
+function m.entireMap.IsSet(keywordid)
     if keywordid == nil then
         return false
     end
-    return m_entireMap.Keywords()[keywordid] == true
+    return m.entireMap.Keywords()[keywordid] == true
 end
 
 --Turns the blanket on or off for a keyword. Ids are stored sorted so the
 --serialized value is stable: it doubles as part of the zone cache's validity
 --key, and a reordering would rebuild the cache for nothing.
-function m_entireMap.Set(keywordid, value)
+function m.entireMap.Set(keywordid, value)
     if keywordid == nil then
         return
     end
 
-    local ids = m_entireMap.Keywords()
+    local ids = m.entireMap.Keywords()
     if (ids[keywordid] == true) == (value == true) then
         return
     end
@@ -1542,7 +1561,7 @@ function m_entireMap.Set(keywordid, value)
         sorted[#sorted+1] = id
     end
     table.sort(sorted)
-    m_entireMap.setting:Set(table.concat(sorted, ";"))
+    m.entireMap.setting:Set(table.concat(sorted, ";"))
 end
 
 --The zone cache's validity key for blankets. The setting can change without
@@ -1552,8 +1571,8 @@ end
 --rebuild it. Empty string when nothing is blanketed -- the common case, and
 --the reason the extent is only read when it can matter (this runs on every
 --aura poll).
-function m_entireMap.CacheKey()
-    local str = m_entireMap.Serialized()
+function m.entireMap.CacheKey()
+    local str = m.entireMap.Serialized()
     if str == "" then
         return ""
     end
@@ -1573,10 +1592,10 @@ function m_entireMap.CacheKey()
         math.floor(dims.x), math.floor(dims.y), math.floor(dims.z), math.floor(dims.w))
 end
 
-local ENVIRONMENTAL_KEYWORDS_TABLE = "environmentalKeywords"
+K.ENVIRONMENTAL_KEYWORDS_TABLE = "environmentalKeywords"
 
 local function GetKeywordTable()
-    return dmhub.GetTable(ENVIRONMENTAL_KEYWORDS_TABLE) or {}
+    return dmhub.GetTable(K.ENVIRONMENTAL_KEYWORDS_TABLE) or {}
 end
 
 local function GetKeyword(keywordid)
@@ -1605,9 +1624,8 @@ end
 --tile counts as dark), sorted for a stable cache key. Sampled state lives here
 --too: [floorid.."@"..pct] = {state=<engine hash>, dark={[lockey]=true}}, with
 --`serial` bumped on every change so EnsureZoneCache rebuilds. All of it on ONE
---table: this chunk runs close to Lua's 200-locals-per-function cap (see
---m_entireMap).
-local m_dynamicLight = {
+--table, grouping the related state (see m.entireMap).
+m.dynamicLight = {
     setting = setting{
         id = "markup:zonedynamiclight",
         description = "Map Markup Dynamic-Light Zone Types",
@@ -1625,22 +1643,22 @@ local m_dynamicLight = {
     cacheKey = false,
 }
 
-function m_dynamicLight.Supported()
-    if m_dynamicLight.supported == nil then
+function m.dynamicLight.Supported()
+    if m.dynamicLight.supported == nil then
         local ok, value = pcall(function()
             return dmhub.supportsDynamicLightZones
         end)
-        m_dynamicLight.supported = (ok and value == true)
+        m.dynamicLight.supported = (ok and value == true)
     end
-    return m_dynamicLight.supported
+    return m.dynamicLight.supported
 end
 
---pcall-guarded like m_entireMap.Serialized: read on aura polls that can land
+--pcall-guarded like m.entireMap.Serialized: read on aura polls that can land
 --before there is a map to scope a map-storage setting to.
-function m_dynamicLight.Serialized()
+function m.dynamicLight.Serialized()
     local str = nil
     pcall(function()
-        str = m_dynamicLight.setting:Get()
+        str = m.dynamicLight.setting:Get()
     end)
     if type(str) ~= "string" then
         return ""
@@ -1653,11 +1671,11 @@ end
 --flag disables an already-configured threshold everywhere (carve, sampling,
 --chip UI) without deleting it -- re-checking restores it. The flag lives on
 --the keyword so the palette only offers Dynamic Light where it makes sense
---(Darkness), not on every chip. refreshTables bumps m_zoneTablesGen, which
+--(Darkness), not on every chip. refreshTables bumps m.zoneTablesGen, which
 --is already part of the zone cache key, so a flag flip rebuilds promptly.
-function m_dynamicLight.Thresholds()
+function m.dynamicLight.Thresholds()
     local result = {}
-    for _,item in ipairs(string.split(m_dynamicLight.Serialized(), ";")) do
+    for _,item in ipairs(string.split(m.dynamicLight.Serialized(), ";")) do
         if item ~= "" then
             local kwid, pct = string.match(item, "^(.-):(%d+)$")
             pct = tonumber(pct)
@@ -1680,21 +1698,21 @@ function m_dynamicLight.Thresholds()
     return result
 end
 
-function m_dynamicLight.GetThreshold(keywordid)
+function m.dynamicLight.GetThreshold(keywordid)
     if keywordid == nil then
         return nil
     end
-    return m_dynamicLight.Thresholds()[keywordid]
+    return m.dynamicLight.Thresholds()[keywordid]
 end
 
 --Sets or clears (pct = nil) the threshold for a keyword. Stored sorted so the
 --serialized value is stable: it is part of the zone cache's validity key.
-function m_dynamicLight.Set(keywordid, pct)
+function m.dynamicLight.Set(keywordid, pct)
     if keywordid == nil then
         return
     end
 
-    local thresholds = m_dynamicLight.Thresholds()
+    local thresholds = m.dynamicLight.Thresholds()
     if thresholds[keywordid] == pct then
         return
     end
@@ -1705,21 +1723,21 @@ function m_dynamicLight.Set(keywordid, pct)
         sorted[#sorted+1] = string.format("%s:%d", id, value)
     end
     table.sort(sorted)
-    m_dynamicLight.setting:Set(table.concat(sorted, ";"))
+    m.dynamicLight.setting:Set(table.concat(sorted, ";"))
 end
 
 --The zone cache's validity key for dynamic light: the configuration plus the
 --sampling serial (a sample changing what is dark must rebuild the footprints).
 --Empty string when the feature is off -- the common case.
-function m_dynamicLight.CacheKey()
-    local str = m_dynamicLight.Serialized()
+function m.dynamicLight.CacheKey()
+    local str = m.dynamicLight.Serialized()
     if str == "" then
         return ""
     end
-    return string.format("%s#%d", str, m_dynamicLight.serial)
+    return string.format("%s#%d", str, m.dynamicLight.serial)
 end
 
-function m_dynamicLight.StateKey(floorid, pct)
+function m.dynamicLight.StateKey(floorid, pct)
     return string.format("%s@%d", floorid, pct)
 end
 
@@ -1729,7 +1747,7 @@ end
 --would drop lit tiles from the record on its next write. An unsampled
 --(floor, threshold) applies the zone unfiltered: painted zones stay in force
 --until the first sample lands (<1s), rather than flashing off.
-function m_dynamicLight.ApplyFilter(thresholds, entry)
+function m.dynamicLight.ApplyFilter(thresholds, entry)
     local pct = nil
     if entry.keywordid ~= nil then
         pct = thresholds[entry.keywordid]
@@ -1738,7 +1756,7 @@ function m_dynamicLight.ApplyFilter(thresholds, entry)
         return entry.locs
     end
 
-    local darkState = m_dynamicLight.states[m_dynamicLight.StateKey(entry.floorid, pct)]
+    local darkState = m.dynamicLight.states[m.dynamicLight.StateKey(entry.floorid, pct)]
     if darkState == nil then
         return entry.locs
     end
@@ -1799,13 +1817,13 @@ local function KeywordColor(keywordid, kw)
     for i = 1, #(keywordid or "") do
         hash = (hash * 31 + string.byte(keywordid, i)) % 65536
     end
-    return ZONE_FALLBACK_COLORS[(hash % #ZONE_FALLBACK_COLORS) + 1]
+    return K.ZONE_FALLBACK_COLORS[(hash % #K.ZONE_FALLBACK_COLORS) + 1]
 end
 
 --Picks a stripe angle for every keyword on the map in ONE pass over the whole
 --set, so keywords whose colours are close can be pushed to opposite angles:
 --two similar reds side by side then read as two regions instead of one blur.
---(Lives here rather than up with the rest of m_zoneStripes because it needs
+--(Lives here rather than up with the rest of m.zoneStripes because it needs
 --KeywordColor and ParseZonePalette, and a closure written above a file-level
 --local can't see it - it would compile to a global read and come back nil.)
 --
@@ -1828,7 +1846,7 @@ local function AssignZoneStripeAngles(zoneCache)
             return
         end
 
-        local hsv = m_zoneStripes.HSV(KeywordColor(keywordid, GetKeyword(keywordid)))
+        local hsv = m.zoneStripes.HSV(KeywordColor(keywordid, GetKeyword(keywordid)))
         if hsv == nil then
             return
         end
@@ -1852,8 +1870,8 @@ local function AssignZoneStripeAngles(zoneCache)
         local nearA = nil
         local nearB = nil
         for otherid,otherAngle in pairs(assignment) do
-            local d = m_zoneStripes.ColorDistance(colors[id], colors[otherid])
-            if otherAngle == ZONE_ANGLE_A then
+            local d = m.zoneStripes.ColorDistance(colors[id], colors[otherid])
+            if otherAngle == K.ZONE_ANGLE_A then
                 if nearA == nil or d < nearA then
                     nearA = d
                 end
@@ -1864,22 +1882,22 @@ local function AssignZoneStripeAngles(zoneCache)
             end
         end
 
-        local angle = m_zoneStripes.HashAngle(id)
-        if (nearA ~= nil and nearA < m_zoneStripes.similarThreshold)
-            or (nearB ~= nil and nearB < m_zoneStripes.similarThreshold) then
+        local angle = m.zoneStripes.HashAngle(id)
+        if (nearA ~= nil and nearA < m.zoneStripes.similarThreshold)
+            or (nearB ~= nil and nearB < m.zoneStripes.similarThreshold) then
             local a = nearA or math.huge
             local b = nearB or math.huge
             if a > b then
-                angle = ZONE_ANGLE_A
+                angle = K.ZONE_ANGLE_A
             elseif b > a then
-                angle = ZONE_ANGLE_B
+                angle = K.ZONE_ANGLE_B
             end
         end
 
         assignment[id] = angle
     end
 
-    m_zoneStripes.assignment = assignment
+    m.zoneStripes.assignment = assignment
 end
 
 --Effective rule flags a keyword contributes to tiles. try_get throughout:
@@ -1930,16 +1948,15 @@ end
 --flat ground, in a pit, or on a raised ledge, and excludes anything flying
 --over it.
 --
---Everything hangs off this ONE table: MapMarkupPanel's main chunk is at Lua's
---200-local ceiling, and this declaration takes the last free slot. Do NOT add
---another file-level local here without first re-probing (append dummy locals
---to a copy and run luac -p until it reports "too many local variables").
-local m_zoneHeight = {}
+--Everything hangs off this ONE table, grouping the related state. (This was
+--once the file's last free local slot; see the file-scope namespace note at
+--the top of this file for where that pressure went.)
+m.zoneHeight = {}
 
 --The type's default height, or nil for unlimited. try_get + pcall: keywords
 --serialized before this field exist, and game-typed instances raise on
 --unknown-field reads.
-function m_zoneHeight.Get(kw)
+function m.zoneHeight.Get(kw)
     if kw == nil then
         return nil
     end
@@ -1955,7 +1972,7 @@ end
 
 --Writes the default onto the keyword. nil clears it back to unlimited (the
 --same nil-assign the keyword editor uses to clear mapid).
-function m_zoneHeight.Set(keywordid, height)
+function m.zoneHeight.Set(keywordid, height)
     local kw = GetKeyword(keywordid)
     if kw == nil then
         return
@@ -1965,12 +1982,12 @@ function m_zoneHeight.Set(keywordid, height)
     else
         kw.defaultHeight = math.max(0, math.floor(height))
     end
-    dmhub.SetAndUploadTableItem(ENVIRONMENTAL_KEYWORDS_TABLE, kw)
+    dmhub.SetAndUploadTableItem(K.ENVIRONMENTAL_KEYWORDS_TABLE, kw)
 end
 
 --Human-readable height for chip summaries, list rows and menus. Unlimited is
 --the default and reads as clutter everywhere, so it describes as nil.
-function m_zoneHeight.Describe(height)
+function m.zoneHeight.Describe(height)
     if height == nil then
         return nil
     end
@@ -2036,7 +2053,7 @@ local function KeywordSummary(kw)
     end)
     --the default height a zone of this type is painted with; unlimited (the
     --default) describes as nil and stays out of the summary.
-    local heightText = m_zoneHeight.Describe(m_zoneHeight.Get(kw))
+    local heightText = m.zoneHeight.Describe(m.zoneHeight.Get(kw))
     if heightText ~= nil then
         parts[#parts+1] = heightText
     end
@@ -2100,10 +2117,10 @@ end
 --reference keywords by id but heal dead ids by stored name (see
 --RebuildZoneCache), so a record whose id no longer resolves and whose
 --keywordName matches counts as using it too. Assigned here rather than in
---the m_mapScope constructor because it needs GetKeyword, which is declared
+--the m.mapScope constructor because it needs GetKeyword, which is declared
 --below that constructor (a closure written above a file-level local compiles
 --to a global read and comes back nil).
-m_mapScope.KeywordInUseOnMap = function(keywordid, kw)
+m.mapScope.KeywordInUseOnMap = function(keywordid, kw)
     local map = game.currentMap
     if map == nil then
         --can't tell; report in-use so the caller keeps the keyword.
@@ -2138,7 +2155,7 @@ end
 --at it. Promoted and compendium keywords are shared content and are never
 --deleted here. The blanket/dynamic-light configs are cleared by the removal
 --path before this runs.
-m_mapScope.DeleteKeywordIfOrphaned = function(keywordid, remainingEntries)
+m.mapScope.DeleteKeywordIfOrphaned = function(keywordid, remainingEntries)
     local kw = GetKeyword(keywordid)
     if kw == nil then
         return
@@ -2153,11 +2170,11 @@ m_mapScope.DeleteKeywordIfOrphaned = function(keywordid, remainingEntries)
             return
         end
     end
-    if m_mapScope.KeywordInUseOnMap(keywordid, kw) then
+    if m.mapScope.KeywordInUseOnMap(keywordid, kw) then
         return
     end
     kw.hidden = true
-    dmhub.SetAndUploadTableItem(ENVIRONMENTAL_KEYWORDS_TABLE, kw)
+    dmhub.SetAndUploadTableItem(K.ENVIRONMENTAL_KEYWORDS_TABLE, kw)
 end
 
 --Materializes a built-in zone preset as a real Environmental Keyword in this
@@ -2200,7 +2217,7 @@ local function MaterializeZonePreset(preset)
     --returned (also stamped onto kw.id); it is NOT kw.guid. Referencing
     --kw.guid here left palette entries and zone records stranded on ids
     --that never existed in the table (masked by the heal-by-name path).
-    local keywordid = dmhub.SetAndUploadTableItem(ENVIRONMENTAL_KEYWORDS_TABLE, kw)
+    local keywordid = dmhub.SetAndUploadTableItem(K.ENVIRONMENTAL_KEYWORDS_TABLE, kw)
 
     if GetKeyword(keywordid) == nil then
         --table-creation race: the item isn't locally visible yet. Zone
@@ -2244,7 +2261,7 @@ end
 
 --Overlay tint per surface family (labels always render too, so color is
 --never the sole signifier). Families added to the registry later fall back.
-local SURFACE_COLORS = {
+K.SURFACE_COLORS = {
     [1] = "#b0a99b", --Generic
     [2] = "#8a5a2e", --Dirt
     [3] = "#4a9e3d", --Grass
@@ -2255,10 +2272,10 @@ local SURFACE_COLORS = {
     [8] = "#3d8fd9", --Puddle
     [9] = "#d9e8f2", --Snow
 }
-local SURFACE_FALLBACK_COLOR = "#9a9a9a"
+K.SURFACE_FALLBACK_COLOR = "#9a9a9a"
 
 local function SurfaceColor(surfaceId)
-    return SURFACE_COLORS[surfaceId] or SURFACE_FALLBACK_COLOR
+    return K.SURFACE_COLORS[surfaceId] or K.SURFACE_FALLBACK_COLOR
 end
 
 --The map's default footstep surface: what unpainted tiles (surfaceType 0)
@@ -2266,7 +2283,7 @@ end
 --creature.PlayLandingFootstep via dmhub.GetSettingValue. Map storage: DM
 --writes it, it syncs to every client (players play their own footsteps),
 --and it changes with the map. 0 = no default (the engine's Generic).
-local g_footstepDefaultSetting = setting{
+gs.footstepDefaultSetting = setting{
     id = "markup:footstepdefault",
     description = "Map Default Footsteps",
     storage = "map",
@@ -2294,61 +2311,60 @@ end
 
 --Engine support probe: the zone storage API, the GetMapAuras hook and the
 --overlay feed all shipped in the same engine build as dmhub.markupZonesSeq.
-local m_zoneEngineSupport = nil
+m.zoneEngineSupport = nil
 local function ZonesSupported()
-    if m_zoneEngineSupport == nil then
+    if m.zoneEngineSupport == nil then
         local ok = pcall(function()
             return dmhub.markupZonesSeq
         end)
-        m_zoneEngineSupport = ok
+        m.zoneEngineSupport = ok
     end
-    return m_zoneEngineSupport
+    return m.zoneEngineSupport
 end
 
 --Forward declarations: assigned in the panel-state section below. Used by the
 --overlay feed's panel-open backstop and its mode report.
-local m_markupHudRef = function() return nil end
-local m_markupModeRef = function() return "walls" end
+m.markupHudRef = function() return nil end
+m.markupModeRef = function() return "walls" end
 
-local m_zoneCache = nil            --list of resolved zone entries, all floors
-local m_surfaceCache = nil         --list of resolved footstep-surface entries, all floors
-local m_zoneCacheSeq = nil
-local m_zoneCacheMapid = nil
-local m_zoneCacheTablesGen = nil
-local m_zoneTablesGen = 0          --bumped on refreshTables (keyword edits)
-local m_zoneRevision = 0           --bumped on every cache rebuild; overlay cache key
-local m_zoneAuraInstances = {}     --what dmhub.GetMapAuras returns
-local m_zoneOverlayZones = {}      --GetMarkupZones list: the rules zones
-local m_surfaceOverlayZones = {}   --footstep-surface region overlay entries
-local m_footstepsOverlayZones = {} --GetMarkupZones list in footsteps mode:
+m.zoneCache = nil            --list of resolved zone entries, all floors
+m.surfaceCache = nil         --list of resolved footstep-surface entries, all floors
+m.zoneCacheSeq = nil
+m.zoneCacheMapid = nil
+m.zoneCacheTablesGen = nil
+m.zoneTablesGen = 0          --bumped on refreshTables (keyword edits)
+m.zoneRevision = 0           --bumped on every cache rebuild; overlay cache key
+m.zoneAuraInstances = {}     --what dmhub.GetMapAuras returns
+m.zoneOverlayZones = {}      --GetMarkupZones list: the rules zones
+m.surfaceOverlayZones = {}   --footstep-surface region overlay entries
+m.footstepsOverlayZones = {} --GetMarkupZones list in footsteps mode:
                                    --the surface regions + water rules zones
 --(The feed's last-reported footstepsMode/panelOpen flags used to be two
---file-level locals here; they now live on m_dispelState as feedFootstepsMode /
---feedPanelOpen -- alongside its feedZoneFilter -- to free local slots under the
---200-locals cap for m_holes below.)
+--file-level locals here; they now live on m.dispelState as feedFootstepsMode /
+--feedPanelOpen, alongside its feedZoneFilter.)
 
 --Dispel suppression state (EnvironmentalKeyword.dispels): live auras whose
 --keyword dispels other keywords temporarily carve their tiles out of zones
 --of the dispelled keywords -- rules and overlay both -- with the records left
 --untouched, so the zones come back when the aura moves on or expires.
---One table rather than several locals plus a function: this chunk is close
---to Lua's 200-locals-per-function cap.
+--One table rather than several locals plus a function, grouping the related
+--state.
 --  signature      what the active footprints looked like when the derived
 --                 lists were last built (false = must rebuild)
 --  footprints     list of {floorIndex, locKeys = set of "x,y", dispelledIds}
---  auraInstances  m_zoneAuraInstances with dispelled tiles removed, or nil
+--  auraInstances  m.zoneAuraInstances with dispelled tiles removed, or nil
 --                 when nothing is suppressed (use the base list)
---  overlayZones   m_zoneOverlayZones likewise, or nil
---  auraSources    index-aligned with m_zoneAuraInstances: the m_zoneCache
+--  overlayZones   m.zoneOverlayZones likewise, or nil
+--  auraSources    index-aligned with m.zoneAuraInstances: the m.zoneCache
 --                 entry an instance was built from (absent for surfaces and
 --                 holes -- both pass through RebuildLists untouched)
---  overlaySources index-aligned with m_zoneOverlayZones, same idea
+--  overlaySources index-aligned with m.zoneOverlayZones, same idea
 --  RebuildLists   derives auraInstances/overlayZones from the base lists
 --  feedFootstepsMode / feedPanelOpen / feedZoneFilter
 --                 the overlay feed's last-reported state; a flip bumps
---                 m_zoneRevision so the overlay mesh rebuilds (fields here
---                 rather than file-level locals: 200-locals cap)
-local m_dispelState = {
+--                 m.zoneRevision so the overlay mesh rebuilds (fields here
+--                 rather than file-level locals)
+m.dispelState = {
     signature = false,
     footprints = {},
     auraInstances = nil,
@@ -2386,16 +2402,16 @@ local m_dispelState = {
 --record). On engines without ClipPolygons it falls back to deleting touched
 --shapes whole.
 --
---One table rather than several file-level locals: 200-locals cap.
+--One table rather than several file-level locals, grouping the related state.
 --============================================================================
-local m_holes = {
+m.holes = {
     color = "#555555",   --stripe/swatch color; holes have no keyword to color them
     cache = {},          --resolved hole entries, all floors; rebuilt with the zone cache
     overlayZones = {},   --stripe overlay entries, fed only while the panel is open
     engineSupport = nil,
     --opacity-slider group key for the Holes group in the zone list. Holes
     --have no keywordid, so they need a reserved key that no real keyword can
-    --collide with (m_zoneStripes.GroupKey's name: fallback would collide
+    --collide with (m.zoneStripes.GroupKey's name: fallback would collide
     --with a keyword literally named "Hole").
     groupKey = "hole:builtin",
 }
@@ -2404,18 +2420,18 @@ local m_holes = {
 --harmless no-op aura and no hole appears, so painting refuses instead of
 --appearing to do nothing. (Unknown dmhub properties read as nil silently, so
 --== true is the whole test; see supportsObjectEditingFilter for the pattern.)
-function m_holes.Supported()
-    if m_holes.engineSupport == nil then
-        m_holes.engineSupport = (dmhub.supportsMarkupHoles == true)
+function m.holes.Supported()
+    if m.holes.engineSupport == nil then
+        m.holes.engineSupport = (dmhub.supportsMarkupHoles == true)
     end
-    return m_holes.engineSupport
+    return m.holes.engineSupport
 end
 
 --The aura that makes a hole real: `hole = true` rides AuraInstance:GetHole
 --into the engine (forceGameRules.hole + fall-through map geometry + the
 --excavation visual); the polygons ride AuraInstance:GetHolePolygons into the
 --visual's mesh.
-function m_holes.BuildAuraInstance(entry)
+function m.holes.BuildAuraInstance(entry)
     local auraType = rawget(_G, "Aura")
     local auraInstanceType = rawget(_G, "AuraInstance")
     if auraType == nil or auraInstanceType == nil then
@@ -2453,7 +2469,7 @@ function m_holes.BuildAuraInstance(entry)
         guid = entry.zoneid,
         name = "Hole",
         iconid = "ui-icons/skills/1.png",
-        display = { bgcolor = m_holes.color, hueshift = 0, saturation = 1, brightness = 1 },
+        display = { bgcolor = m.holes.color, hueshift = 0, saturation = 1, brightness = 1 },
         area = shape,
         holePolygons = entry.polygons,
     }
@@ -2462,8 +2478,8 @@ end
 --Writes a new hole record from a closed stroke. One record per stroke;
 --overlapping holes simply overlap (the hole rule and the visual are both
 --idempotent per tile), so there is none of the zones' merge/split machinery.
-function m_holes.Paint(floor, points, locs)
-    if not m_holes.Supported() then
+function m.holes.Paint(floor, points, locs)
+    if not m.holes.Supported() then
         dmhub.Debug("MARKUP:: hole zones need an engine build with dmhub.supportsMarkupHoles")
         return
     end
@@ -2511,7 +2527,7 @@ end
 --the map's extent is cut into a 3x3 grid of areas, and the zone's centroid
 --picks one. Indexed [row][col] with row 1 = south (low y), col 1 = west
 --(low x); world +y is north (the top of the map).
-local ZONE_AREA_NAMES = {
+K.ZONE_AREA_NAMES = {
     { "SW Corner", "South Side", "SE Corner" },
     { "West Side", "Center",     "East Side" },
     { "NW Corner", "North Side", "NE Corner" },
@@ -2557,7 +2573,7 @@ local function ZoneAreaDescription(entry)
     if col < 1 then col = 1 elseif col > 3 then col = 3 end
     if row < 1 then row = 1 elseif row > 3 then row = 3 end
 
-    return ZONE_AREA_NAMES[row][col]
+    return K.ZONE_AREA_NAMES[row][col]
 end
 
 --The stripe color handed to the overlay: the stored pattern color with a
@@ -2769,10 +2785,10 @@ end
 --that interact with that keyword. Called from RebuildZoneCache after the
 --record walk, because it carves against the painted zones that walk found.
 --`floors` is the {floorid, floorIndex} list collected there.
-function m_entireMap.Rebuild(floors)
-    m_entireMap.entries = {}
+function m.entireMap.Rebuild(floors)
+    m.entireMap.entries = {}
 
-    local ids = m_entireMap.Keywords()
+    local ids = m.entireMap.Keywords()
     if next(ids) == nil then
         return
     end
@@ -2796,7 +2812,7 @@ function m_entireMap.Rebuild(floors)
         return
     end
 
-    local dynThresholds = m_dynamicLight.Thresholds()
+    local dynThresholds = m.dynamicLight.Thresholds()
 
     for keywordid,_ in pairs(ids) do
         local kw = GetKeyword(keywordid)
@@ -2812,7 +2828,7 @@ function m_entireMap.Rebuild(floors)
                 --direction: the explicitly painted zone takes the ground,
                 --matching "last drawn wins" at paint time.
                 local blocked = {}
-                for _,entry in ipairs(m_zoneCache) do
+                for _,entry in ipairs(m.zoneCache) do
                     if entry.floorid == floorInfo.floorid and entry.keywordid ~= nil
                         and (entry.keywordid == keywordid
                             or dispels[entry.keywordid] ~= nil
@@ -2829,7 +2845,7 @@ function m_entireMap.Rebuild(floors)
                 --darkness in the second before the first sample lands.
                 local darkState = nil
                 if dynPct ~= nil then
-                    darkState = m_dynamicLight.states[m_dynamicLight.StateKey(floorInfo.floorid, dynPct)]
+                    darkState = m.dynamicLight.states[m.dynamicLight.StateKey(floorInfo.floorid, dynPct)]
                 end
 
                 local locs = {}
@@ -2846,7 +2862,7 @@ function m_entireMap.Rebuild(floors)
                 end
 
                 if #locs > 0 then
-                    m_entireMap.entries[#m_entireMap.entries+1] = {
+                    m.entireMap.entries[#m.entireMap.entries+1] = {
                         --stable per keyword+floor: the aura guid keys
                         --triggers and entered-tracking off it.
                         zoneid = string.format("entiremap-%s-%s", keywordid, floorInfo.floorid),
@@ -2863,7 +2879,7 @@ function m_entireMap.Rebuild(floors)
                         --reaches flyers as well as the ground.
                         playerVisible = false,
                         patternColor = KeywordColor(keywordid, kw),
-                        patternAngle = m_zoneStripes.AngleForKeyword(keywordid),
+                        patternAngle = m.zoneStripes.AngleForKeyword(keywordid),
                         entireMap = true,
                     }
                 end
@@ -2873,22 +2889,22 @@ function m_entireMap.Rebuild(floors)
 end
 
 local function RebuildZoneCache()
-    m_zoneCache = {}
-    m_surfaceCache = {}
-    m_zoneAuraInstances = {}
-    m_zoneOverlayZones = {}
-    m_surfaceOverlayZones = {}
-    m_footstepsOverlayZones = {}
-    m_holes.cache = {}
-    m_holes.overlayZones = {}
+    m.zoneCache = {}
+    m.surfaceCache = {}
+    m.zoneAuraInstances = {}
+    m.zoneOverlayZones = {}
+    m.surfaceOverlayZones = {}
+    m.footstepsOverlayZones = {}
+    m.holes.cache = {}
+    m.holes.overlayZones = {}
 
     --any active dispel suppression must re-derive against the fresh lists;
     --signature=false forces that on the next EnsureKeywordAuraZones.
-    m_dispelState.signature = false
-    m_dispelState.auraInstances = nil
-    m_dispelState.overlayZones = nil
-    m_dispelState.auraSources = {}
-    m_dispelState.overlaySources = {}
+    m.dispelState.signature = false
+    m.dispelState.auraInstances = nil
+    m.dispelState.overlayZones = nil
+    m.dispelState.auraSources = {}
+    m.dispelState.overlaySources = {}
 
     local map = game.currentMap
     if map == nil then
@@ -2940,7 +2956,7 @@ local function RebuildZoneCache()
                         name = surfaceInfo.text
                     end
 
-                    m_surfaceCache[#m_surfaceCache+1] = {
+                    m.surfaceCache[#m.surfaceCache+1] = {
                         zoneid = zoneid,
                         floorid = floorid,
                         floorIndex = floorIndex,
@@ -2951,7 +2967,7 @@ local function RebuildZoneCache()
                         --a surface family is exclusive per tile and has no
                         --keyword, so its angle just alternates by family id;
                         --stored here so the panel's swatch can match the map.
-                        patternAngle = cond(surfaceId % 2 == 0, ZONE_ANGLE_B, ZONE_ANGLE_A),
+                        patternAngle = cond(surfaceId % 2 == 0, K.ZONE_ANGLE_B, K.ZONE_ANGLE_A),
                     }
                 elseif type(record) == "table" and record.category == "hole" then
                     local locs = {}
@@ -2985,7 +3001,7 @@ local function RebuildZoneCache()
                         end
                     end
 
-                    m_holes.cache[#m_holes.cache+1] = {
+                    m.holes.cache[#m.holes.cache+1] = {
                         zoneid = zoneid,
                         floorid = floorid,
                         floorIndex = floorIndex,
@@ -2997,8 +3013,8 @@ local function RebuildZoneCache()
                         hole = true,
                         name = "Hole",
                         keywordName = "Hole",
-                        patternColor = m_holes.color,
-                        patternAngle = ZONE_ANGLE_A,
+                        patternColor = m.holes.color,
+                        patternAngle = K.ZONE_ANGLE_A,
                     }
                 elseif type(record) == "table" and record.category == nil then
                     --resolve the keyword by id, healing dead ids by stored
@@ -3046,7 +3062,7 @@ local function RebuildZoneCache()
                         end
                     end
 
-                    m_zoneCache[#m_zoneCache+1] = {
+                    m.zoneCache[#m.zoneCache+1] = {
                         zoneid = zoneid,
                         floorid = floorid,
                         floorIndex = floorIndex,
@@ -3061,7 +3077,7 @@ local function RebuildZoneCache()
                         playerVisible = record.playerVisible == true,
                         hideAppearance = record.hideAppearance == true,
                         patternColor = patternColor,
-                        patternAngle = pattern.angle or ZONE_ANGLE_A,
+                        patternAngle = pattern.angle or K.ZONE_ANGLE_A,
                         ord = record.ord or 0,
                     }
                 end
@@ -3073,14 +3089,14 @@ local function RebuildZoneCache()
     --keywords land on opposite angles, which can only happen once every zone is
     --in the cache. Records whose keyword didn't resolve keep the angle stored
     --on them (AngleForKeyword has nothing better to offer for a dead id).
-    AssignZoneStripeAngles(m_zoneCache)
-    for _,entry in ipairs(m_zoneCache) do
+    AssignZoneStripeAngles(m.zoneCache)
+    for _,entry in ipairs(m.zoneCache) do
         if entry.keywordid ~= nil then
-            entry.patternAngle = m_zoneStripes.AngleForKeyword(entry.keywordid)
+            entry.patternAngle = m.zoneStripes.AngleForKeyword(entry.keywordid)
         end
     end
 
-    table.sort(m_surfaceCache, function(a, b)
+    table.sort(m.surfaceCache, function(a, b)
         if a.floorid ~= b.floorid then
             return a.floorid < b.floorid
         end
@@ -3090,11 +3106,11 @@ local function RebuildZoneCache()
     --Surface overlay entries go in their own list: the feed hands the engine
     --the rules zones normally, or - on the Footsteps tab - the footstep
     --surface regions plus the water rules zones (assembled into
-    --m_footstepsOverlayZones below; see dmhub.GetMarkupZones). Surfaces
+    --m.footstepsOverlayZones below; see dmhub.GetMarkupZones). Surfaces
     --render in the normal zone-stripe style, distinguished by the footprints
     --icon on their labels; the stripe angle alternates by family so adjacent
     --regions of similar colors still read as distinct.
-    for _,entry in ipairs(m_surfaceCache) do
+    for _,entry in ipairs(m.surfaceCache) do
         if #entry.locs > 0 and entry.floorIndex >= 0 then
             local locsUserdata = {}
             for _,l in ipairs(entry.locs) do
@@ -3106,7 +3122,7 @@ local function RebuildZoneCache()
             end
             entry.locsUserdata = locsUserdata
 
-            m_surfaceOverlayZones[#m_surfaceOverlayZones+1] = {
+            m.surfaceOverlayZones[#m.surfaceOverlayZones+1] = {
                 locs = locsUserdata,
                 color = ZoneOverlayColor(entry.patternColor),
                 angleRadians = entry.patternAngle,
@@ -3118,12 +3134,12 @@ local function RebuildZoneCache()
 
             local instance = BuildSurfaceAuraInstance(entry)
             if instance ~= nil then
-                m_zoneAuraInstances[#m_zoneAuraInstances+1] = instance
+                m.zoneAuraInstances[#m.zoneAuraInstances+1] = instance
             end
         end
     end
 
-    table.sort(m_zoneCache, function(a, b)
+    table.sort(m.zoneCache, function(a, b)
         if a.floorid ~= b.floorid then
             return a.floorid < b.floorid
         end
@@ -3135,10 +3151,10 @@ local function RebuildZoneCache()
 
     --dynamic-light types register/stripe only their currently-dark tiles; the
     --record locs (entry.locs) stay pristine -- they drive painting/splitting.
-    local dynThresholds = m_dynamicLight.Thresholds()
+    local dynThresholds = m.dynamicLight.Thresholds()
 
-    for _,entry in ipairs(m_zoneCache) do
-        local paintLocs = m_dynamicLight.ApplyFilter(dynThresholds, entry)
+    for _,entry in ipairs(m.zoneCache) do
+        local paintLocs = m.dynamicLight.ApplyFilter(dynThresholds, entry)
         if #paintLocs > 0 and entry.floorIndex >= 0 then
             local locsUserdata = {}
             for _,l in ipairs(paintLocs) do
@@ -3150,7 +3166,7 @@ local function RebuildZoneCache()
             end
             entry.locsUserdata = locsUserdata
 
-            m_zoneOverlayZones[#m_zoneOverlayZones+1] = {
+            m.zoneOverlayZones[#m.zoneOverlayZones+1] = {
                 locs = locsUserdata,
                 color = ZoneOverlayColor(entry.patternColor),
                 angleRadians = entry.patternAngle,
@@ -3167,25 +3183,25 @@ local function RebuildZoneCache()
                 --likewise ignored by the engine: the feed uses it to apply the
                 --Zones list's per-group opacity slider. Separate from
                 --keywordid because a record with an unresolvable keyword still
-                --belongs to a group (see m_zoneStripes.GroupKey).
-                zonegroup = m_zoneStripes.GroupKey(entry),
+                --belongs to a group (see m.zoneStripes.GroupKey).
+                zonegroup = m.zoneStripes.GroupKey(entry),
             }
-            m_dispelState.overlaySources[#m_zoneOverlayZones] = entry
+            m.dispelState.overlaySources[#m.zoneOverlayZones] = entry
 
             local instance = BuildZoneAuraInstance(entry)
             if instance ~= nil then
-                m_zoneAuraInstances[#m_zoneAuraInstances+1] = instance
-                m_dispelState.auraSources[#m_zoneAuraInstances] = entry
+                m.zoneAuraInstances[#m.zoneAuraInstances+1] = instance
+                m.dispelState.auraSources[#m.zoneAuraInstances] = entry
             end
         end
     end
 
     --Markup holes: one aura per record. No dispel bookkeeping (holes have no
     --keyword): instances appended WITHOUT an auraSources entry pass through
-    --m_dispelState.RebuildLists untouched, which is exactly right. The overlay
+    --m.dispelState.RebuildLists untouched, which is exactly right. The overlay
     --entries go in their own list; the feed appends them only while the panel
     --is open (with it closed the engine renders the actual hole instead).
-    for _,entry in ipairs(m_holes.cache) do
+    for _,entry in ipairs(m.holes.cache) do
         if #entry.locs > 0 and entry.floorIndex >= 0 then
             local locsUserdata = {}
             for _,l in ipairs(entry.locs) do
@@ -3197,18 +3213,18 @@ local function RebuildZoneCache()
             end
             entry.locsUserdata = locsUserdata
 
-            m_holes.overlayZones[#m_holes.overlayZones+1] = {
+            m.holes.overlayZones[#m.holes.overlayZones+1] = {
                 locs = locsUserdata,
-                color = ZoneOverlayColor(m_holes.color),
-                angleRadians = ZONE_ANGLE_A,
+                color = ZoneOverlayColor(m.holes.color),
+                angleRadians = K.ZONE_ANGLE_A,
                 label = "Hole",
                 playerVisible = false,
                 floorIndex = entry.floorIndex,
             }
 
-            local instance = m_holes.BuildAuraInstance(entry)
+            local instance = m.holes.BuildAuraInstance(entry)
             if instance ~= nil then
-                m_zoneAuraInstances[#m_zoneAuraInstances+1] = instance
+                m.zoneAuraInstances[#m.zoneAuraInstances+1] = instance
             end
         end
     end
@@ -3217,8 +3233,8 @@ local function RebuildZoneCache()
     --left it, and NO overlay entry - a blanket that striped the whole map
     --would bury the zones the DM is painting. They go in auraSources like any
     --other zone so a live dispelling aura suppresses them the same way.
-    m_entireMap.Rebuild(floorList)
-    for _,entry in ipairs(m_entireMap.entries) do
+    m.entireMap.Rebuild(floorList)
+    for _,entry in ipairs(m.entireMap.entries) do
         local locsUserdata = {}
         for _,l in ipairs(entry.locs) do
             locsUserdata[#locsUserdata+1] = core.Loc{
@@ -3231,8 +3247,8 @@ local function RebuildZoneCache()
 
         local instance = BuildZoneAuraInstance(entry)
         if instance ~= nil then
-            m_zoneAuraInstances[#m_zoneAuraInstances+1] = instance
-            m_dispelState.auraSources[#m_zoneAuraInstances] = entry
+            m.zoneAuraInstances[#m.zoneAuraInstances+1] = instance
+            m.dispelState.auraSources[#m.zoneAuraInstances] = entry
         end
     end
 
@@ -3241,12 +3257,12 @@ local function RebuildZoneCache()
     --surface, so the DM needs to see water while painting footsteps. Water
     --zones go last so they draw over surface stripes where the two overlap
     --(the water sound is what actually wins there).
-    for _,overlayZone in ipairs(m_surfaceOverlayZones) do
-        m_footstepsOverlayZones[#m_footstepsOverlayZones+1] = overlayZone
+    for _,overlayZone in ipairs(m.surfaceOverlayZones) do
+        m.footstepsOverlayZones[#m.footstepsOverlayZones+1] = overlayZone
     end
-    for _,overlayZone in ipairs(m_zoneOverlayZones) do
+    for _,overlayZone in ipairs(m.zoneOverlayZones) do
         if overlayZone.water then
-            m_footstepsOverlayZones[#m_footstepsOverlayZones+1] = overlayZone
+            m.footstepsOverlayZones[#m.footstepsOverlayZones+1] = overlayZone
         end
     end
 
@@ -3260,7 +3276,7 @@ local function RebuildZoneCache()
     --rawget-guarded like the other keyword refs.)
     local keywordType = rawget(_G, "EnvironmentalKeyword")
     if keywordType ~= nil and rawget(keywordType, "SyncZoneScripts") ~= nil then
-        keywordType.SyncZoneScripts({m_zoneCache, m_entireMap.entries})
+        keywordType.SyncZoneScripts({m.zoneCache, m.entireMap.entries})
     end
 end
 
@@ -3271,12 +3287,12 @@ end
 --the full zone comes back. nil derived lists mean "nothing suppressed, use
 --the base lists". Coordinates are rounded before keying: aura-area locs are
 --not guaranteed exact integers (see CollectKeywordAuraZones).
---(A field on m_dispelState rather than a chunk local: locals-cap, see above.)
-function m_dispelState.RebuildLists()
-    m_dispelState.auraInstances = nil
-    m_dispelState.overlayZones = nil
+--(A field on m.dispelState rather than a chunk local: locals-cap, see above.)
+function m.dispelState.RebuildLists()
+    m.dispelState.auraInstances = nil
+    m.dispelState.overlayZones = nil
 
-    local footprints = m_dispelState.footprints or {}
+    local footprints = m.dispelState.footprints or {}
     if #footprints == 0 then
         return
     end
@@ -3305,16 +3321,16 @@ function m_dispelState.RebuildLists()
             end
         end
     end
-    CollectSuppressed(m_zoneCache)
-    CollectSuppressed(m_entireMap.entries)
+    CollectSuppressed(m.zoneCache)
+    CollectSuppressed(m.entireMap.entries)
 
     if next(suppressedByZone) == nil then
         return
     end
 
     local instances = {}
-    for i,instance in ipairs(m_zoneAuraInstances) do
-        local entry = m_dispelState.auraSources[i]
+    for i,instance in ipairs(m.zoneAuraInstances) do
+        local entry = m.dispelState.auraSources[i]
         local suppressed = nil
         if entry ~= nil then
             suppressed = suppressedByZone[entry.zoneid]
@@ -3342,11 +3358,11 @@ function m_dispelState.RebuildLists()
             end
         end
     end
-    m_dispelState.auraInstances = instances
+    m.dispelState.auraInstances = instances
 
     local overlays = {}
-    for i,zone in ipairs(m_zoneOverlayZones) do
-        local entry = m_dispelState.overlaySources[i]
+    for i,zone in ipairs(m.zoneOverlayZones) do
+        local entry = m.dispelState.overlaySources[i]
         local suppressed = nil
         if entry ~= nil then
             suppressed = suppressedByZone[entry.zoneid]
@@ -3370,7 +3386,7 @@ function m_dispelState.RebuildLists()
             end
         end
     end
-    m_dispelState.overlayZones = overlays
+    m.dispelState.overlayZones = overlays
 end
 
 local function EnsureZoneCache()
@@ -3384,27 +3400,27 @@ local function EnsureZoneCache()
     --record write (and no seq bump) accompanies a change to them -- here or
     --on another client. Compare the value itself. Dynamic light is the same
     --shape: a per-map setting plus the sampling serial.
-    local blanketKey = m_entireMap.CacheKey()
-    local dynamicKey = m_dynamicLight.CacheKey()
-    if m_zoneCache ~= nil and seq == m_zoneCacheSeq and mapid == m_zoneCacheMapid
-        and m_zoneCacheTablesGen == m_zoneTablesGen and blanketKey == m_entireMap.cacheKey
-        and dynamicKey == m_dynamicLight.cacheKey then
+    local blanketKey = m.entireMap.CacheKey()
+    local dynamicKey = m.dynamicLight.CacheKey()
+    if m.zoneCache ~= nil and seq == m.zoneCacheSeq and mapid == m.zoneCacheMapid
+        and m.zoneCacheTablesGen == m.zoneTablesGen and blanketKey == m.entireMap.cacheKey
+        and dynamicKey == m.dynamicLight.cacheKey then
         return
     end
 
-    m_zoneCacheSeq = seq
-    m_zoneCacheMapid = mapid
-    m_zoneCacheTablesGen = m_zoneTablesGen
-    m_entireMap.cacheKey = blanketKey
-    m_dynamicLight.cacheKey = dynamicKey
-    m_zoneRevision = m_zoneRevision + 1
+    m.zoneCacheSeq = seq
+    m.zoneCacheMapid = mapid
+    m.zoneCacheTablesGen = m.zoneTablesGen
+    m.entireMap.cacheKey = blanketKey
+    m.dynamicLight.cacheKey = dynamicKey
+    m.zoneRevision = m.zoneRevision + 1
     RebuildZoneCache()
 end
 
 --The engine hooks (dmhub.GetMapAuras / dmhub.GetMarkupZones) are assigned
 --BELOW EnsureKeywordAuraZones -- both closures call it, and a local is only
 --captured when it is already in scope at closure creation (the same trap as
---m_markupHudRef above).
+--m.markupHudRef above).
 
 --Openness is read from the LIVE panel, not from the show/hide events.
 --showpanel/hidepanel only fire on a dock TAB switch (DockablePanel.lua's
@@ -3423,7 +3439,7 @@ end
 --dockablePanel ancestor here was exactly the bug that left the Fade Map
 --slider dead when the panel was hosted in a rail window.
 local function MarkupPanelIsOpen()
-    local hud = m_markupHudRef()
+    local hud = m.markupHudRef()
     if hud == nil or not hud.valid then
         return false
     end
@@ -3460,19 +3476,19 @@ end
 --by an aura modifier is registered on a creature (creature:AddAura). Auras on
 --map OBJECTS (AuraComponent) are not reachable from Lua and so are not covered.
 --Painted zones are not collected here either -- they reach the feed already,
---via m_zoneCache.
+--via m.zoneCache.
 --
---State lives in one table rather than two locals: this chunk is close to Lua's
---200-locals-per-function cap. `instances` holds the rules-only AuraInstance
+--State lives in one table rather than two locals, grouping the related state.
+--`instances` holds the rules-only AuraInstance
 --clones registered with the engine for keyword auras that have no other
 --registration path (see CollectKeywordAuraZones below).
-local m_keywordAuraOverlay = { zones = {}, signature = false, instances = nil }
+m.keywordAuraOverlay = { zones = {}, signature = false, instances = nil }
 
 --Appends one overlay entry per (aura, keyword) pair, and accumulates into
 --`signature` everything the resulting overlay mesh depends on. Also appends
 --a dispel footprint per (aura, keyword-with-dispels) pair into `footprints`
 --(the tiles where that keyword's dispelled zones are suppressed; see
---m_dispelState) and accumulates everything the suppression depends on into
+--m.dispelState) and accumulates everything the suppression depends on into
 --`dispelSignature`.
 --
 --`ruleSources` collects the aura instances that need ENGINE RULES
@@ -3559,7 +3575,7 @@ local function CollectKeywordAuraZones(auraInstance, keywordsTable, zones, signa
                 color = ZoneOverlayColor(KeywordColor(keywordid, keyword)),
                 --same angle a painted zone of this keyword gets, so an
                 --ability's darkness stripes identically to a Darkness zone.
-                angleRadians = m_zoneStripes.AngleForKeyword(keywordid),
+                angleRadians = m.zoneStripes.AngleForKeyword(keywordid),
                 label = keyword.name,
                 --a painted zone can be DM-only, but an aura is already on screen
                 --for everyone, so hiding just its label would be strange.
@@ -3619,7 +3635,7 @@ local function EnsureKeywordAuraZones(suppressAuraRefresh)
     local ruleSources = {}
 
     pcall(function()
-        local keywordsTable = dmhub.GetTable(ENVIRONMENTAL_KEYWORDS_TABLE) or {}
+        local keywordsTable = dmhub.GetTable(K.ENVIRONMENTAL_KEYWORDS_TABLE) or {}
         for _,token in ipairs(dmhub.allTokensIncludingObjects) do
             local props = token.properties
             if props ~= nil then
@@ -3647,10 +3663,10 @@ local function EnsureKeywordAuraZones(suppressAuraRefresh)
 
     table.sort(signature)
     local newSignature = table.concat(signature, "|")
-    if newSignature ~= m_keywordAuraOverlay.signature then
-        m_keywordAuraOverlay.signature = newSignature
-        m_keywordAuraOverlay.zones = zones
-        m_zoneRevision = m_zoneRevision + 1
+    if newSignature ~= m.keywordAuraOverlay.signature then
+        m.keywordAuraOverlay.signature = newSignature
+        m.keywordAuraOverlay.zones = zones
+        m.zoneRevision = m.zoneRevision + 1
 
         --Rebuild the rules-only clones the GetMapAuras hook hands the engine
         --(see the ruleSources note on CollectKeywordAuraZones). Rebuilt only on
@@ -3684,7 +3700,7 @@ local function EnsureKeywordAuraZones(suppressAuraRefresh)
                 end
             end
         end)
-        m_keywordAuraOverlay.instances = instances
+        m.keywordAuraOverlay.instances = instances
 
         --The engine only learns about these rules by re-polling the map-aura
         --feed; most changes (a cast, an expiry) already trigger an aura
@@ -3706,14 +3722,14 @@ local function EnsureKeywordAuraZones(suppressAuraRefresh)
     --(dmhub.GetMapAuras below) -- the fresh lists are what it receives.
     table.sort(dispelSignature)
     local newDispelSignature = table.concat(dispelSignature, "|")
-    if newDispelSignature ~= m_dispelState.signature then
-        local hadSuppression = m_dispelState.auraInstances ~= nil
-        m_dispelState.signature = newDispelSignature
-        m_dispelState.footprints = footprints
-        m_dispelState.RebuildLists()
+    if newDispelSignature ~= m.dispelState.signature then
+        local hadSuppression = m.dispelState.auraInstances ~= nil
+        m.dispelState.signature = newDispelSignature
+        m.dispelState.footprints = footprints
+        m.dispelState.RebuildLists()
 
-        if hadSuppression or m_dispelState.auraInstances ~= nil then
-            m_zoneRevision = m_zoneRevision + 1
+        if hadSuppression or m.dispelState.auraInstances ~= nil then
+            m.zoneRevision = m.zoneRevision + 1
             if not suppressAuraRefresh then
                 pcall(function()
                     dmhub.RefreshMapAuras()
@@ -3722,7 +3738,7 @@ local function EnsureKeywordAuraZones(suppressAuraRefresh)
         end
     end
 
-    return m_keywordAuraOverlay.zones
+    return m.keywordAuraOverlay.zones
 end
 
 --The engine hooks. Assigned inside pcall: on a stale engine build these
@@ -3738,16 +3754,16 @@ pcall(function()
     dmhub.GetMapAuras = function()
         EnsureZoneCache()
         EnsureKeywordAuraZones(true)
-        local base = m_zoneAuraInstances
-        if m_dispelState.auraInstances ~= nil then
-            base = m_dispelState.auraInstances
+        local base = m.zoneAuraInstances
+        if m.dispelState.auraInstances ~= nil then
+            base = m.dispelState.auraInstances
         end
 
         --Objectless keyword ability auras ride along as rules-only clones
         --(see EnsureKeywordAuraZones). Appended into a fresh list: the base
-        --lists must not be mutated -- m_dispelState keeps index-aligned
+        --lists must not be mutated -- m.dispelState keeps index-aligned
         --source tables for both of them.
-        local extra = m_keywordAuraOverlay.instances
+        local extra = m.keywordAuraOverlay.instances
         if extra == nil or #extra == 0 then
             return base
         end
@@ -3766,7 +3782,7 @@ pcall(function()
     dmhub.GetMarkupZones = function()
         EnsureZoneCache()
         local panelOpen = MarkupPanelIsOpen()
-        local mode = m_markupModeRef()
+        local mode = m.markupModeRef()
 
         --The Footsteps tab swaps the overlay wholesale: the normal zone
         --striping (rules zones here, built-in terrain-rule stripes engine
@@ -3781,9 +3797,9 @@ pcall(function()
         --a mode flip changes the zones list without any record changing, so
         --bump the revision to invalidate the overlay mesh - this is what
         --makes the swap take effect on engine builds old and new alike.
-        if footstepsMode ~= m_dispelState.feedFootstepsMode then
-            m_dispelState.feedFootstepsMode = footstepsMode
-            m_zoneRevision = m_zoneRevision + 1
+        if footstepsMode ~= m.dispelState.feedFootstepsMode then
+            m.dispelState.feedFootstepsMode = footstepsMode
+            m.zoneRevision = m.zoneRevision + 1
         end
 
         --same reasoning for panelOpen: with the tileheight:overlay preference
@@ -3791,14 +3807,14 @@ pcall(function()
         --no record has changed when it flips (opening/closing the panel, or a
         --Lua reload re-deriving it). Bump the revision so the overlay mesh is
         --rebuilt rather than serving a cached empty layer.
-        if panelOpen ~= m_dispelState.feedPanelOpen then
-            m_dispelState.feedPanelOpen = panelOpen
-            m_zoneRevision = m_zoneRevision + 1
+        if panelOpen ~= m.dispelState.feedPanelOpen then
+            m.dispelState.feedPanelOpen = panelOpen
+            m.zoneRevision = m.zoneRevision + 1
         end
 
-        local zones = m_zoneOverlayZones
+        local zones = m.zoneOverlayZones
         if footstepsMode then
-            zones = m_footstepsOverlayZones
+            zones = m.footstepsOverlayZones
         else
             --Keyword auras ride on the normal zone layer. The Footsteps tab
             --swaps that layer wholesale for surface regions, so they sit that
@@ -3809,8 +3825,8 @@ pcall(function()
             --dispelled render with the suppressed tiles removed, matching
             --the reduced aura registered for them.
             local auraZones = EnsureKeywordAuraZones(false)
-            if m_dispelState.overlayZones ~= nil then
-                zones = m_dispelState.overlayZones
+            if m.dispelState.overlayZones ~= nil then
+                zones = m.dispelState.overlayZones
             end
             if #auraZones > 0 then
                 local combined = {}
@@ -3840,9 +3856,9 @@ pcall(function()
         if not (panelOpen and (mode == "zones" or mode == "surfaces")) then
             shownStr = tostring(dmhub.GetSettingValue("mapoverlay:shownzones") or "")
         end
-        if shownStr ~= m_dispelState.feedZoneFilter then
-            m_dispelState.feedZoneFilter = shownStr
-            m_zoneRevision = m_zoneRevision + 1
+        if shownStr ~= m.dispelState.feedZoneFilter then
+            m.dispelState.feedZoneFilter = shownStr
+            m.zoneRevision = m.zoneRevision + 1
         end
         if shownStr ~= "*" then
             local shown = {}
@@ -3860,26 +3876,26 @@ pcall(function()
 
         --Per-zone-type fade: the opacity slider on each group in the Zones
         --list, applied to the colours here rather than to any record (see the
-        --m_zoneStripes.opacity block). Gated on the panel being open, so a
+        --m.zoneStripes.opacity block). Gated on the panel being open, so a
         --slider left part-way down has no effect once the panel closes. A
         --fade change is invisible to the engine's other cache signals, so the
         --published seq drives a revision bump the same way the zone-type
         --filter above does - including the whole feature switching off when
         --the last slider returns to 100%.
         local fadeSeq = 0
-        if panelOpen and m_zoneStripes.AnyFade() then
-            fadeSeq = m_zoneStripes.opacitySeq
+        if panelOpen and m.zoneStripes.AnyFade() then
+            fadeSeq = m.zoneStripes.opacitySeq
         end
-        if fadeSeq ~= m_zoneStripes.opacityFeedSeq then
-            m_zoneStripes.opacityFeedSeq = fadeSeq
-            m_zoneRevision = m_zoneRevision + 1
+        if fadeSeq ~= m.zoneStripes.opacityFeedSeq then
+            m.zoneStripes.opacityFeedSeq = fadeSeq
+            m.zoneRevision = m.zoneRevision + 1
         end
         if fadeSeq ~= 0 then
             local faded = {}
             for _,zone in ipairs(zones) do
                 --keyword-aura zones (a monster's Darkness) carry no zonegroup
                 --but do carry a keyword, and fade with their painted kin.
-                local opacity = m_zoneStripes.Opacity(zone.zonegroup or zone.keywordid)
+                local opacity = m.zoneStripes.Opacity(zone.zonegroup or zone.keywordid)
                 if opacity >= 1 then
                     faded[#faded+1] = zone
                 else
@@ -3890,7 +3906,7 @@ pcall(function()
                     for k,v in pairs(zone) do
                         copy[k] = v
                     end
-                    copy.color = m_zoneStripes.FadeColor(zone.color, opacity)
+                    copy.color = m.zoneStripes.FadeColor(zone.color, opacity)
                     faded[#faded+1] = copy
                 end
             end
@@ -3907,10 +3923,10 @@ pcall(function()
         --engine ignores unknown ids in that setting. Holes carry no
         --keywordid/zonegroup, so the shown-zones filter and the fade pass
         --above both leave them alone; appended after both passes, with their
-        --own fade applied here under the reserved m_holes.groupKey (the
+        --own fade applied here under the reserved m.holes.groupKey (the
         --Holes group's slider in the zone list).
         local holesShown = panelOpen
-        if not holesShown and #m_holes.overlayZones > 0 then
+        if not holesShown and #m.holes.overlayZones > 0 then
             local shownStr = tostring(dmhub.GetSettingValue("mapoverlay:shownbuiltins") or "")
             for id in string.gmatch(shownStr, "[^;]+") do
                 if id == "hole" then
@@ -3922,20 +3938,20 @@ pcall(function()
         --a pref flip changes the list with no record write; bump the revision
         --so the overlay mesh rebuilds (panelOpen flips already bump above,
         --the redundant second bump is harmless).
-        if holesShown ~= m_dispelState.feedHolesShown then
-            m_dispelState.feedHolesShown = holesShown
-            m_zoneRevision = m_zoneRevision + 1
+        if holesShown ~= m.dispelState.feedHolesShown then
+            m.dispelState.feedHolesShown = holesShown
+            m.zoneRevision = m.zoneRevision + 1
         end
-        if holesShown and #m_holes.overlayZones > 0 then
+        if holesShown and #m.holes.overlayZones > 0 then
             local holeOpacity = 1
             if fadeSeq ~= 0 then
-                holeOpacity = m_zoneStripes.Opacity(m_holes.groupKey)
+                holeOpacity = m.zoneStripes.Opacity(m.holes.groupKey)
             end
             local combined = {}
             for _,zone in ipairs(zones) do
                 combined[#combined+1] = zone
             end
-            for _,zone in ipairs(m_holes.overlayZones) do
+            for _,zone in ipairs(m.holes.overlayZones) do
                 if holeOpacity >= 1 then
                     combined[#combined+1] = zone
                 else
@@ -3945,7 +3961,7 @@ pcall(function()
                     for k,v in pairs(zone) do
                         copy[k] = v
                     end
-                    copy.color = m_zoneStripes.FadeColor(zone.color, holeOpacity)
+                    copy.color = m.zoneStripes.FadeColor(zone.color, holeOpacity)
                     combined[#combined+1] = copy
                 end
             end
@@ -3961,7 +3977,7 @@ pcall(function()
         --Flags only, no tiles: a per-tile suppression set would marshal the
         --whole map across the bridge on every poll of this feed.
         local blankets = {}
-        for _,entry in ipairs(m_entireMap.entries) do
+        for _,entry in ipairs(m.entireMap.entries) do
             blankets[#blankets+1] = {
                 floorIndex = entry.floorIndex,
                 difficultTerrain = entry.flags.difficultTerrain,
@@ -3986,7 +4002,7 @@ pcall(function()
             --preference otherwise (see TileHeightOverlay.Update).
             wallsMode = panelOpen and mode == "walls",
             elevationMode = panelOpen and mode == "elevation",
-            revision = m_zoneRevision,
+            revision = m.zoneRevision,
             zones = zones,
         }
     end
@@ -4031,7 +4047,7 @@ function MapMarkup.GetZoneTypesOnMap()
                 keywordid = keywordid,
                 name = name or "Zone",
                 color = color,
-                angleRadians = m_zoneStripes.AngleForKeyword(keywordid),
+                angleRadians = m.zoneStripes.AngleForKeyword(keywordid),
                 playerVisible = playerVisible == true,
             }
             seen[keywordid] = entry
@@ -4041,19 +4057,19 @@ function MapMarkup.GetZoneTypesOnMap()
         end
     end
 
-    for _,entry in ipairs(m_zoneCache) do
+    for _,entry in ipairs(m.zoneCache) do
         if entry.floorIndex ~= nil and entry.floorIndex >= 0 then
             Add(entry.keywordid, entry.keywordName or entry.name, entry.patternColor, entry.playerVisible)
         end
     end
     --"Entire Map" blankets: the type is in force even though nothing is drawn
     --for it. Never player-visible.
-    for _,entry in ipairs(m_entireMap.entries) do
+    for _,entry in ipairs(m.entireMap.entries) do
         Add(entry.keywordid, entry.keywordName or entry.name, entry.patternColor, false)
     end
     --keyword-carrying auras (abilities, monster traits): on screen for
     --everyone already.
-    for _,zone in ipairs(m_keywordAuraOverlay.zones or {}) do
+    for _,zone in ipairs(m.keywordAuraOverlay.zones or {}) do
         Add(zone.keywordid, zone.label, zone.color, true)
     end
 
@@ -4086,11 +4102,11 @@ function MapMarkup.GetHoleTypeOnMap()
         return nil
     end
     EnsureZoneCache()
-    for _,entry in ipairs(m_holes.cache) do
+    for _,entry in ipairs(m.holes.cache) do
         if entry.floorIndex ~= nil and entry.floorIndex >= 0 then
             return {
-                color = m_holes.color,
-                angleRadians = ZONE_ANGLE_A,
+                color = m.holes.color,
+                angleRadians = K.ZONE_ANGLE_A,
             }
         end
     end
@@ -4101,12 +4117,12 @@ end
 --the cache, and if this map actually has zones, rebuild the aura index so
 --the changes reach creatures without waiting for an unrelated rebuild.
 dmhub.RegisterEventHandler("refreshTables", function()
-    m_zoneTablesGen = m_zoneTablesGen + 1
+    m.zoneTablesGen = m.zoneTablesGen + 1
     if not ZonesSupported() then
         return
     end
     EnsureZoneCache()
-    if (m_zoneCache ~= nil and #m_zoneCache > 0) or #m_entireMap.entries > 0 then
+    if (m.zoneCache ~= nil and #m.zoneCache > 0) or #m.entireMap.entries > 0 then
         pcall(function()
             dmhub.RefreshMapAuras()
         end)
@@ -4126,16 +4142,16 @@ end)
 --map extent when any keyword at that threshold blankets the map, else the
 --union of that threshold's painted zone tiles on the floor (built in stable
 --cache order -- the candidate order is part of the engine's state hash).
-function m_dynamicLight.Sample()
-    if not m_dynamicLight.Supported() or not ZonesSupported() then
+function m.dynamicLight.Sample()
+    if not m.dynamicLight.Supported() or not ZonesSupported() then
         return
     end
 
-    local thresholds = m_dynamicLight.Thresholds()
+    local thresholds = m.dynamicLight.Thresholds()
     if next(thresholds) == nil then
-        if next(m_dynamicLight.states) ~= nil then
-            m_dynamicLight.states = {}
-            m_dynamicLight.serial = m_dynamicLight.serial + 1
+        if next(m.dynamicLight.states) ~= nil then
+            m.dynamicLight.states = {}
+            m.dynamicLight.serial = m.dynamicLight.serial + 1
             --without this the carve lingers until some unrelated aura
             --rebuild happens to re-poll the zone cache.
             pcall(function()
@@ -4167,7 +4183,7 @@ function m_dynamicLight.Sample()
         dims = map.dimensions
     end)
 
-    local blankets = m_entireMap.Keywords()
+    local blankets = m.entireMap.Keywords()
 
     --pct -> { kwids = set, blanket = bool }
     local groups = {}
@@ -4202,7 +4218,7 @@ function m_dynamicLight.Sample()
                 haveCandidates = args.x2 >= args.x1 and args.y2 >= args.y1
             else
                 local locs = {}
-                for _,entry in ipairs(m_zoneCache) do
+                for _,entry in ipairs(m.zoneCache) do
                     if entry.floorid == floorInfo.floorid and entry.keywordid ~= nil
                         and group.kwids[entry.keywordid] == true then
                         for _,l in ipairs(entry.locs) do
@@ -4218,10 +4234,10 @@ function m_dynamicLight.Sample()
             end
 
             if haveCandidates then
-                local key = m_dynamicLight.StateKey(floorInfo.floorid, pct)
+                local key = m.dynamicLight.StateKey(floorInfo.floorid, pct)
                 live[key] = true
 
-                local prev = m_dynamicLight.states[key]
+                local prev = m.dynamicLight.states[key]
                 if prev ~= nil then
                     args.knownState = prev.state
                 end
@@ -4248,7 +4264,7 @@ function m_dynamicLight.Sample()
                         end
                     end
 
-                    m_dynamicLight.states[key] = { state = result.state, dark = dark, sampled = sampled }
+                    m.dynamicLight.states[key] = { state = result.state, dark = dark, sampled = sampled }
                     changed = true
                 end
             end
@@ -4256,15 +4272,15 @@ function m_dynamicLight.Sample()
     end
 
     --configuration/zones that stopped being sampled must not keep carving.
-    for key,_ in pairs(m_dynamicLight.states) do
+    for key,_ in pairs(m.dynamicLight.states) do
         if live[key] ~= true then
-            m_dynamicLight.states[key] = nil
+            m.dynamicLight.states[key] = nil
             changed = true
         end
     end
 
     if changed then
-        m_dynamicLight.serial = m_dynamicLight.serial + 1
+        m.dynamicLight.serial = m.dynamicLight.serial + 1
         pcall(function()
             dmhub.RefreshMapAuras()
         end)
@@ -4273,15 +4289,15 @@ end
 
 --reschedule-first so a Sample error can't kill the loop; cheap when the
 --feature is unconfigured (one setting read).
-function m_dynamicLight.Tick()
+function m.dynamicLight.Tick()
     if mod.unloaded then
         return
     end
-    dmhub.Schedule(0.7, m_dynamicLight.Tick)
-    pcall(m_dynamicLight.Sample)
+    dmhub.Schedule(0.7, m.dynamicLight.Tick)
+    pcall(m.dynamicLight.Sample)
 end
 
-dmhub.Schedule(0.7, m_dynamicLight.Tick)
+dmhub.Schedule(0.7, m.dynamicLight.Tick)
 
 --============================================================================
 --Zone editing operations (paint / erase / create / update / delete).
@@ -4351,7 +4367,7 @@ end
 
 --Even-odd point-in-ring test against a flat {x1,y1,x2,y2,...} ring, matching
 --PolygonToLocs' fill rule.
-function m_holes.PointInRing(ring, px, py)
+function m.holes.PointInRing(ring, px, py)
     local n = #ring
     local inside = false
     local j = n - 1
@@ -4372,14 +4388,14 @@ end
 --Tiles covered by a hole's structured polygon list: each outer ring
 --rasterizes like a paint stroke, minus tiles whose center falls in one of
 --its clipped-out hole rings. Merged and deduplicated across entries.
-function m_holes.EntryLocs(polygons)
+function m.holes.EntryLocs(polygons)
     local seen = {}
     local result = {}
     for _,entry in ipairs(polygons or {}) do
         for _,l in ipairs(PolygonToLocs(entry.points or {})) do
             local inHole = false
             for _,holeRing in ipairs(entry.holes or {}) do
-                if m_holes.PointInRing(holeRing, l.x, l.y) then
+                if m.holes.PointInRing(holeRing, l.x, l.y) then
                     inHole = true
                     break
                 end
@@ -4449,7 +4465,7 @@ end
 local function ZonesOnFloor(floorid)
     EnsureZoneCache()
     local result = {}
-    for _,entry in ipairs(m_zoneCache or {}) do
+    for _,entry in ipairs(m.zoneCache or {}) do
         if entry.floorid == floorid then
             result[#result+1] = entry
         end
@@ -4459,7 +4475,7 @@ end
 
 local function FindZoneEntry(zoneid)
     EnsureZoneCache()
-    for _,entry in ipairs(m_zoneCache or {}) do
+    for _,entry in ipairs(m.zoneCache or {}) do
         if entry.zoneid == zoneid then
             return entry
         end
@@ -4516,7 +4532,7 @@ local function CreateZone(keywordid, locs, fallbackInfo)
     --stripe angle is a function of the keyword, so every zone of a keyword on
     --this map stripes the same way. (The overlay feed re-derives it anyway;
     --this is only what gets stored on the record.)
-    local angle = m_zoneStripes.AngleForKeyword(keywordid)
+    local angle = m.zoneStripes.AngleForKeyword(keywordid)
 
     local color = KeywordColor(keywordid, kw)
     if kw == nil and fallbackInfo ~= nil and fallbackInfo.color ~= nil then
@@ -4546,7 +4562,7 @@ local function CreateZone(keywordid, locs, fallbackInfo)
     --The zone TYPE's default height is stamped on at paint time; the zone owns
     --it from here on (Edit Zone dialog), so re-defaulting the type later leaves
     --zones already painted alone. nil = unlimited and stays off the record.
-    record.height = m_zoneHeight.Get(kw)
+    record.height = m.zoneHeight.Get(kw)
 
     --Same deal for the type's "draw with visuals" toggle (the Visuals pill on
     --the palette chip): pill off = the new zone starts with its visual
@@ -4630,7 +4646,7 @@ end
 local function WriteZoneLocsSplitting(floor, entry, newLocs)
     local components = SplitContiguousComponents(newLocs)
     if #components == 0 then
-        --NOTE: a stale m_zoneTargetId pointing at the removed zone is
+        --NOTE: a stale m.zoneTargetId pointing at the removed zone is
         --harmless - target lookups search the cache by id and just miss.
         floor:RemoveMarkupZone(entry.zoneid)
         return
@@ -4699,7 +4715,7 @@ end
 local function SurfacesOnFloor(floorid)
     EnsureZoneCache()
     local result = {}
-    for _,entry in ipairs(m_surfaceCache or {}) do
+    for _,entry in ipairs(m.surfaceCache or {}) do
         if entry.floorid == floorid then
             result[#result+1] = entry
         end
@@ -4740,8 +4756,8 @@ end
 --Rebuilt lazily from the surface cache whenever the records change.
 --============================================================================
 
-local m_paintedSurfaceLookup = nil    --floorid -> { "x,y" -> surface id }
-local m_paintedSurfaceLookupRev = nil
+m.paintedSurfaceLookup = nil    --floorid -> { "x,y" -> surface id }
+m.paintedSurfaceLookupRev = nil
 
 MapMarkupFootsteps = {
     --Returns the painted footstep-surface family id at a tile, or nil when no
@@ -4752,14 +4768,14 @@ MapMarkupFootsteps = {
         end
         EnsureZoneCache()
 
-        if m_paintedSurfaceLookup == nil or m_paintedSurfaceLookupRev ~= m_zoneRevision then
-            m_paintedSurfaceLookupRev = m_zoneRevision
-            m_paintedSurfaceLookup = {}
-            for _,entry in ipairs(m_surfaceCache or {}) do
-                local floorMap = m_paintedSurfaceLookup[entry.floorid]
+        if m.paintedSurfaceLookup == nil or m.paintedSurfaceLookupRev ~= m.zoneRevision then
+            m.paintedSurfaceLookupRev = m.zoneRevision
+            m.paintedSurfaceLookup = {}
+            for _,entry in ipairs(m.surfaceCache or {}) do
+                local floorMap = m.paintedSurfaceLookup[entry.floorid]
                 if floorMap == nil then
                     floorMap = {}
-                    m_paintedSurfaceLookup[entry.floorid] = floorMap
+                    m.paintedSurfaceLookup[entry.floorid] = floorMap
                 end
                 for _,l in ipairs(entry.locs) do
                     floorMap[ZoneLocKey(l.x, l.y)] = entry.surface
@@ -4767,7 +4783,7 @@ MapMarkupFootsteps = {
             end
         end
 
-        local floorMap = m_paintedSurfaceLookup[floorid]
+        local floorMap = m.paintedSurfaceLookup[floorid]
         if floorMap == nil then
             return nil
         end
@@ -4780,15 +4796,15 @@ MapMarkupFootsteps = {
 --and briefly pulses a highlight over its tiles so the user can spot it.
 --============================================================================
 
-local m_zoneFlashMarks = nil
-local m_zoneFlashGen = 0
+m.zoneFlashMarks = nil
+m.zoneFlashGen = 0
 
 local function ClearZoneFlash()
-    if m_zoneFlashMarks ~= nil then
+    if m.zoneFlashMarks ~= nil then
         pcall(function()
-            m_zoneFlashMarks:Destroy()
+            m.zoneFlashMarks:Destroy()
         end)
-        m_zoneFlashMarks = nil
+        m.zoneFlashMarks = nil
     end
 end
 
@@ -4827,8 +4843,8 @@ local function JumpToZone(entry)
     --pulse the zone's area: on / off / on, then clear. A newer flash (or a
     --reload) cancels the remainder of an older one via the generation guard.
     ClearZoneFlash()
-    m_zoneFlashGen = m_zoneFlashGen + 1
-    local gen = m_zoneFlashGen
+    m.zoneFlashGen = m.zoneFlashGen + 1
+    local gen = m.zoneFlashGen
 
     local locsUserdata = entry.locsUserdata
     if locsUserdata == nil then
@@ -4853,7 +4869,7 @@ local function JumpToZone(entry)
 
     local ShowPulse
     ShowPulse = function(step)
-        if (mod ~= nil and mod.unloaded) or gen ~= m_zoneFlashGen then
+        if (mod ~= nil and mod.unloaded) or gen ~= m.zoneFlashGen then
             return
         end
         if step > #PULSE_STEPS then
@@ -4869,7 +4885,7 @@ local function JumpToZone(entry)
                 }
             end)
             if ok then
-                m_zoneFlashMarks = marks
+                m.zoneFlashMarks = marks
             end
         else
             ClearZoneFlash()
@@ -4886,17 +4902,17 @@ end
 --Panel state + the engine-polled selection hook.
 --============================================================================
 
-local m_markupHud = nil
-m_markupHudRef = function() return m_markupHud end
-local m_mode = "walls"
-m_markupModeRef = function() return m_mode end
-local m_selectedIndex = 1
-local m_paletteEntries = {}
+m.markupHud = nil
+m.markupHudRef = function() return m.markupHud end
+m.mode = "walls"
+m.markupModeRef = function() return m.mode end
+m.selectedIndex = 1
+m.paletteEntries = {}
 --"rectangle" / "line" / "free" draw walls through the engine building tools,
 --and "points" drives the engine's wall vertex-editing tool the same way;
 --"erase" / "delete" and the solid shape tools are custom map tools driven
 --from this panel. Reset to each mode's first tool when the panel is built.
-local m_toolId = "rectangle"
+m.toolId = "rectangle"
 
 --============================================================================
 --ARMED: whether this panel's tool is live, i.e. whether clicks on the map do
@@ -4914,56 +4930,55 @@ local m_toolId = "rectangle"
 --disarms, Escape disarms, closing the panel disarms, and NOTHING else does.
 --Focus is still taken so the panel keeps its keyboard routing, but losing it
 --no longer means anything, which is what makes the state worth showing.
---ONE table, not a flag plus two functions: this file's main chunk is at Lua's
---200-local ceiling, so three new locals will not compile. Everything arming
---needs hangs off m_arm.
-local m_arm = {}
-m_arm.on = false
+--ONE table, not a flag plus two functions, grouping the related state.
+--Everything arming needs hangs off m.arm.
+m.arm = {}
+m.arm.on = false
 
 --The one predicate every drawing path gates on. Also requires the hud to
 --exist: an armed flag with no panel behind it must not publish tools.
-function m_arm.Armed()
-    return m_arm.on and m_markupHud ~= nil and m_markupHud.valid
+function m.arm.Armed()
+    return m.arm.on and m.markupHud ~= nil and m.markupHud.valid
 end
 
 --Arm or disarm, and tell the panel. The `markuparmed` event already drives
 --the armed dot on the mode tab; firing `think` re-runs the tool registration
---paths, which are gated on m_arm.Armed() and so register or unregister the
+--paths, which are gated on m.arm.Armed() and so register or unregister the
 --engine's custom map tools as the state flips.
-function m_arm.Set(on)
+function m.arm.Set(on)
     on = on == true
-    if m_arm.on == on then
+    if m.arm.on == on then
         return
     end
-    m_arm.on = on
-    if m_markupHud ~= nil and m_markupHud.valid then
-        m_markupHud:FireEventTree("markuparmed", on)
+    m.arm.on = on
+    if m.markupHud ~= nil and m.markupHud.valid then
+        m.markupHud:FireEventTree("markuparmed", on)
         --the tool strip lights its tool only while live (see refreshtools),
         --so every arm change has to repaint it...
-        m_markupHud:FireEventTree("refreshtools")
+        m.markupHud:FireEventTree("refreshtools")
         --...and think re-runs the registration paths, which are gated on
-        --m_arm.Armed() and so hand the engine's custom map tools out or take
+        --m.arm.Armed() and so hand the engine's custom map tools out or take
         --them back as the state flips.
-        m_markupHud:FireEventTree("think")
+        m.markupHud:FireEventTree("think")
     end
 end
 --Draw mode, independent of which wall type is selected: false draws thin
 --walls (barriers on a tile boundary), true draws area-filling solid blocks
 --of the SAME wall type. Toggled by the Thin/Solid control by the tool strip.
-local m_solidMode = false
+m.solidMode = false
 
 --Zones mode state: the selected zone-type chip (index into
---m_zonePaletteEntries), the active zone tool, and the target zone new
+--m.zonePaletteEntries), the active zone tool, and the target zone new
 --strokes merge into (nil = auto-pick / create by selected type).
-local m_zonePaletteEntries = {}
-local m_zoneSelectedType = 1
-local m_zoneToolId = "zonerect"
-local m_zoneTargetId = nil
+m.zonePaletteEntries = {}
+m.zoneSelectedType = 1
+m.zoneToolId = "zonerect"
+m.zoneTargetId = nil
 
 --Footsteps mode state: the selected surface family (AudioSurfaceTypes id)
 --and the active paint tool.
-local m_footstepSelected = 1
-local m_footstepToolId = "footrect"
+m.footstepSelected = 1
+m.footstepToolId = "footrect"
 
 --============================================================================
 --Props mode: invisible gameplay objects placed on the map. The palette is
@@ -4980,7 +4995,7 @@ local m_footstepToolId = "footrect"
 
 --The tag that makes an object asset a prop type, and the Core keyword the
 --engine filter + selection handler match on placed instances.
-local MARKUP_PROP_KEYWORD = "markup"
+K.MARKUP_PROP_KEYWORD = "markup"
 
 --Object assets tagged "markup" form the props palette. GetObjectsWithKeyword
 --matches the asset's keywords exactly (case-insensitive) but does NOT skip
@@ -4988,7 +5003,7 @@ local MARKUP_PROP_KEYWORD = "markup"
 --the chip order is stable.
 local function MarkupPropAssets()
     local result = {}
-    for _,node in ipairs(assets:GetObjectsWithKeyword(MARKUP_PROP_KEYWORD)) do
+    for _,node in ipairs(assets:GetObjectsWithKeyword(K.MARKUP_PROP_KEYWORD)) do
         if (not node.isfolder) and (not node.hidden) then
             result[#result+1] = node
         end
@@ -5045,7 +5060,7 @@ end
 --track a placed first teleporter awaiting its partner: the next placement
 --completes the pair, and ANY abort (Escape, chip/tab switch, focus loss,
 --selecting something else) deletes the first one again.
-local m_props = {
+m.props = {
     selected = nil,
     editingId = nil,    --primary bound prop (single-value reads)
     editingIds = nil,   --the FULL bound selection; property edits hit all of them
@@ -5078,7 +5093,7 @@ local function MarkupTeleportersOnMap()
     for _,floor in ipairs(map.floors or {}) do
         for _,obj in pairs(floor.objects or {}) do
             local kw = obj.keywords
-            if kw ~= nil and kw[MARKUP_PROP_KEYWORD] ~= nil then
+            if kw ~= nil and kw[K.MARKUP_PROP_KEYWORD] ~= nil then
                 local comp = obj:GetComponent("Teleporter")
                 if comp ~= nil then
                     result[#result+1] = {
@@ -5122,23 +5137,23 @@ end
 --The link name the next pair will use, generating a fresh unique one when
 --none is set (first use, or after a pair was completed).
 local function CurrentTeleporterLinkName()
-    if m_props.teleLink == nil or trim(m_props.teleLink) == "" then
-        m_props.teleLink = GenerateTeleporterLinkName()
+    if m.props.teleLink == nil or trim(m.props.teleLink) == "" then
+        m.props.teleLink = GenerateTeleporterLinkName()
     end
-    return m_props.teleLink
+    return m.props.teleLink
 end
 
 --Abort a half-placed teleporter pair: delete the first teleporter and clear
 --the pending state. Safe to call when nothing is pending.
 local function AbortPendingTeleporterPair()
-    local pendingId = m_props.pendingPartnerId
+    local pendingId = m.props.pendingPartnerId
     if pendingId == nil then
         return
     end
-    local pendingFloorId = m_props.pendingFloorId
-    m_props.pendingPartnerId = nil
-    m_props.pendingLink = nil
-    m_props.pendingFloorId = nil
+    local pendingFloorId = m.props.pendingFloorId
+    m.props.pendingPartnerId = nil
+    m.props.pendingLink = nil
+    m.props.pendingFloorId = nil
 
     local floor = nil
     if pendingFloorId ~= nil then
@@ -5154,8 +5169,8 @@ local function AbortPendingTeleporterPair()
         end
     end
 
-    if m_markupHud ~= nil and m_markupHud.valid then
-        m_markupHud:FireEventTree("refreshprops")
+    if m.markupHud ~= nil and m.markupHud.valid then
+        m.markupHud:FireEventTree("refreshprops")
     end
 end
 
@@ -5185,15 +5200,15 @@ end
 --vanished". Clicking a prop selects its palette chip instead (see
 --MarkupHandleObjectsSelected).
 local function GetMarkupObjectEditingFilter()
-    if m_mode ~= "props" then
+    if m.mode ~= "props" then
         return nil
     end
 
-    if not m_arm.Armed() then
+    if not m.arm.Armed() then
         return nil
     end
 
-    return MARKUP_PROP_KEYWORD
+    return K.MARKUP_PROP_KEYWORD
 end
 
 --The placement ghost needs an engine build beyond the object-editing filter:
@@ -5226,13 +5241,13 @@ local function GetMarkupSelectedObject()
     if not GhostSupported() then
         return nil
     end
-    if m_props.selected == nil or m_props.editingId ~= nil then
+    if m.props.selected == nil or m.props.editingId ~= nil then
         return nil
     end
-    if assets:GetObjectNode(m_props.selected) == nil then
+    if assets:GetObjectNode(m.props.selected) == nil then
         return nil
     end
-    return m_props.selected
+    return m.props.selected
 end
 
 --Props mode's half of the engine's object-selection callback: when the Props
@@ -5241,11 +5256,11 @@ end
 --dialog. The engine passes LuaObjectInstance userdata (not id strings,
 --despite the stub). Returns true when the selection was consumed.
 local function MarkupHandleObjectsSelected(objects)
-    if m_mode ~= "props" then
+    if m.mode ~= "props" then
         return false
     end
 
-    if not m_arm.Armed() then
+    if not m.arm.Armed() then
         return false
     end
 
@@ -5259,17 +5274,17 @@ local function MarkupHandleObjectsSelected(objects)
     if #valid == 0 then
         --selection cleared: unbind our editors, but let the generic dialog
         --see the clear too in case it is open.
-        if m_props.editingId ~= nil then
-            m_props.editingId = nil
-            m_props.editingIds = nil
-            m_markupHud:FireEventTree("refreshprops")
+        if m.props.editingId ~= nil then
+            m.props.editingId = nil
+            m.props.editingIds = nil
+            m.markupHud:FireEventTree("refreshprops")
         end
         return false
     end
 
     for _,obj in ipairs(valid) do
         local kw = obj.keywords
-        if kw == nil or kw[MARKUP_PROP_KEYWORD] == nil then
+        if kw == nil or kw[K.MARKUP_PROP_KEYWORD] == nil then
             return false
         end
     end
@@ -5278,10 +5293,10 @@ local function MarkupHandleObjectsSelected(objects)
     --the user moved on without placing the partner: abort (deletes the first
     --teleporter). Selecting the pending teleporter itself keeps the pair
     --pending - clicking the thing you just placed should not destroy it.
-    if m_props.pendingPartnerId ~= nil then
+    if m.props.pendingPartnerId ~= nil then
         local selectedPending = false
         for _,obj in ipairs(valid) do
-            if obj.objid == m_props.pendingPartnerId then
+            if obj.objid == m.props.pendingPartnerId then
                 selectedPending = true
                 break
             end
@@ -5293,22 +5308,22 @@ local function MarkupHandleObjectsSelected(objects)
 
     --bind the WHOLE selection: the first prop is the primary (single-value
     --reads come from it), and property edits apply to every bound prop.
-    m_props.editingId = valid[1].objid
+    m.props.editingId = valid[1].objid
     local ids = {}
     for _,obj in ipairs(valid) do
         ids[#ids+1] = obj.objid
     end
-    m_props.editingIds = ids
+    m.props.editingIds = ids
 
     --select the clicked prop's palette chip too, so the property editors
     --and the placement type follow what the DM is looking at. A prop whose
     --asset is no longer in the palette (untagged, or a legacy prop from the
     --preset-roster build) binds to the editors without moving the selection.
     local assetid = valid[1].assetid
-    if assetid ~= nil and assetid ~= m_props.selected then
+    if assetid ~= nil and assetid ~= m.props.selected then
         for _,node in ipairs(MarkupPropAssets()) do
             if node.id == assetid then
-                m_props.selected = assetid
+                m.props.selected = assetid
                 break
             end
         end
@@ -5338,7 +5353,7 @@ local function MarkupHandleObjectsSelected(objects)
         end
     end
 
-    m_markupHud:FireEventTree("refreshprops")
+    m.markupHud:FireEventTree("refreshprops")
     return true
 end
 
@@ -5356,11 +5371,11 @@ end
 --ElevationPanel.lua's version, focus-gated the same way -- the wrapper at the
 --bottom of this file chains the two so whichever panel has focus wins.
 local function GetMarkupHeightEditingInfo()
-    if m_mode ~= "elevation" or not ElevationSupported() then
+    if m.mode ~= "elevation" or not ElevationSupported() then
         return nil
     end
 
-    if not m_arm.Armed() then
+    if not m.arm.Armed() then
         return nil
     end
 
@@ -5373,25 +5388,25 @@ local function GetMarkupHeightEditingInfo()
 end
 
 local function GetMarkupSelectedWall()
-    if m_markupHud == nil or not m_markupHud.valid then
+    if m.markupHud == nil or not m.markupHud.valid then
         return nil
     end
 
     --The dock ancestor is optional: panel content can be hosted outside the
     --dock (e.g. the document system's PanelDocument bridge), so only use it
     --for the highlight, never as a gate.
-    local dockPanel = m_markupHud:FindParentWithClass("dockablePanel")
+    local dockPanel = m.markupHud:FindParentWithClass("dockablePanel")
 
     --erase/delete are custom map tools, not wall drawing: publish no wall so
     --the engine building tools stay inactive while they run.
-    if m_mode ~= "walls" or m_toolId == "erase" or m_toolId == "delete" or not m_arm.Armed() then
+    if m.mode ~= "walls" or m.toolId == "erase" or m.toolId == "delete" or not m.arm.Armed() then
         if dockPanel ~= nil then
             dockPanel:SetClass("highlightPanel", false)
         end
         return nil
     end
 
-    local entry = m_paletteEntries[m_selectedIndex or 0]
+    local entry = m.paletteEntries[m.selectedIndex or 0]
 
     --Solid draw mode publishes no wall: solid strokes run through custom map
     --tools + ExecutePolygonOperation{solid=true}, not the engine building
@@ -5403,7 +5418,7 @@ local function GetMarkupSelectedWall()
     --keeps GetWallPointsInvisibleOnly scoping the tool away from art walls.
     --Gated on the engine tool actually being "points", like the fallback
     --below, so the exception can never leak into wall drawing.
-    if m_solidMode and not (m_toolId == "points" and dmhub.GetSettingValue("buildingtool") == "points") then
+    if m.solidMode and not (m.toolId == "points" and dmhub.GetSettingValue("buildingtool") == "points") then
         if dockPanel ~= nil then
             dockPanel:SetClass("highlightPanel", false)
         end
@@ -5421,9 +5436,9 @@ local function GetMarkupSelectedWall()
         --when the palette selection is unmaterialized (fresh preset chips have
         --no asset until first clicked). Gated on the engine tool actually
         --being "points" so the fallback can never leak into wall DRAWING.
-        if m_toolId == "points" and dmhub.GetSettingValue("buildingtool") == "points" then
-            if assets.walls[BASE_INVISIBLE_WALL_ID] ~= nil then
-                guid = BASE_INVISIBLE_WALL_ID
+        if m.toolId == "points" and dmhub.GetSettingValue("buildingtool") == "points" then
+            if assets.walls[K.BASE_INVISIBLE_WALL_ID] ~= nil then
+                guid = K.BASE_INVISIBLE_WALL_ID
             end
         end
     end
@@ -5476,7 +5491,7 @@ local function ShowMarkupWallDialog(wallid, owner)
 
     --pcall + engine gate, like the openable fields below: pre-scoping engine
     --builds have no markupMapId to capture or restore.
-    if m_mapScope.WallSupported() then
+    if m.mapScope.WallSupported() then
         pcall(function()
             originalValues.markupMapId = asset.markupMapId
         end)
@@ -5516,7 +5531,7 @@ local function ShowMarkupWallDialog(wallid, owner)
     local breakable = AssetIsBreakable(asset)
     local breakStamina = asset.breakStamina or 0
     if breakable and breakStamina <= 0 then
-        breakStamina = DEFAULT_BREAK_STAMINA
+        breakStamina = K.DEFAULT_BREAK_STAMINA
     end
     local breakMaterialId = BreakMaterialForStamina(breakStamina)
 
@@ -5551,7 +5566,7 @@ local function ShowMarkupWallDialog(wallid, owner)
     --the original untouched either way. Requires the scoping engine build:
     --on a stale build every wall reads as unscoped, so forking is disabled
     --and the dialog saves in place exactly as before.
-    local isGlobalWall = m_mapScope.WallSupported() and m_mapScope.WallMapId(asset) == nil
+    local isGlobalWall = m.mapScope.WallSupported() and m.mapScope.WallMapId(asset) == nil
 
     local IsRenamed = function()
         return (asset.description or "") ~= (originalValues.description or "")
@@ -5605,7 +5620,7 @@ local function ShowMarkupWallDialog(wallid, owner)
                 fork.markupMapId = ""
             end)
         else
-            m_mapScope.StampWall(fork)
+            m.mapScope.StampWall(fork)
         end
         fork:Upload()
 
@@ -5616,7 +5631,7 @@ local function ShowMarkupWallDialog(wallid, owner)
         end)
 
         local changed = false
-        for _,entry in ipairs(m_paletteEntries) do
+        for _,entry in ipairs(m.paletteEntries) do
             if entry.guid == wallid then
                 entry.guid = newGuid
                 if entry.kind == "wall" then
@@ -5626,7 +5641,7 @@ local function ShowMarkupWallDialog(wallid, owner)
             end
         end
         if changed then
-            SavePalette(m_paletteEntries)
+            SavePalette(m.paletteEntries)
         end
     end
 
@@ -5693,7 +5708,7 @@ local function ShowMarkupWallDialog(wallid, owner)
             --zone type editor's button. Applied live like every other field
             --in this dialog: Save uploads the promotion, Cancel reverts it.
             gui.Panel{
-                classes = {"formStackedRow", cond(m_mapScope.WallMapId(asset) ~= nil, nil, "collapsed")},
+                classes = {"formStackedRow", cond(m.mapScope.WallMapId(asset) ~= nil, nil, "collapsed")},
                 gui.Label{
                     classes = {"formStacked"},
                     text = "This wall type is only available on this map.",
@@ -5942,7 +5957,7 @@ local function ShowMarkupWallDialog(wallid, owner)
                     idChosen = breakMaterialId,
                     options = (function()
                         local result = {}
-                        for _,material in ipairs(BREAK_MATERIALS) do
+                        for _,material in ipairs(K.BREAK_MATERIALS) do
                             result[#result+1] = {
                                 id = material.id,
                                 text = material.text,
@@ -6075,7 +6090,7 @@ end
 --The panel.
 --============================================================================
 
-local MODES = {
+K.MODES = {
     {
         id = "walls",
         text = "Walls",
@@ -6102,7 +6117,7 @@ local MODES = {
 --Tools with a `mapTool` field are custom map tools (editor.SetMapTool) whose
 --strokes come back to this panel as 'tool' events. The eraser and Delete
 --Wall tools are shared between the thin and solid tool strips.
-local TOOL_ERASE = {
+K.TOOL_ERASE = {
     id = "erase",
     text = "Erase",
     icon = "phosphor/eraser-fill.png",
@@ -6114,7 +6129,7 @@ local TOOL_ERASE = {
     help = "Eraser: drag a rectangle to erase every markup wall (and markup solid block) inside it. Visible art walls are not affected.",
 }
 
-local TOOL_DELETE = {
+K.TOOL_DELETE = {
     id = "delete",
     text = "Delete",
     icon = "ui-icons/close.png",
@@ -6141,7 +6156,7 @@ local TOOL_DELETE = {
 --custom tool against map focus; handling both is safe since retyping an
 --already-converted wall is a no-op (RetypeWallEdges skips ops already of
 --the target type).
-local TOOL_RETYPE = {
+K.TOOL_RETYPE = {
     id = "retype",
     text = "Retype",
     icon = "phosphor/paint-roller-fill.png",
@@ -6153,7 +6168,7 @@ local TOOL_RETYPE = {
 --`shape` pairs a tool with its counterpart in the other draw mode, so switching
 --Thin <-> Solid keeps the shape the user picked instead of resetting the strip.
 --Both strips lead with the rectangle so the two modes read the same.
-local TOOLS = {
+K.TOOLS = {
     {
         id = "rectangle",
         shape = "rect",
@@ -6185,9 +6200,9 @@ local TOOLS = {
         tool = "points",
         help = "Edit Points: drag a wall vertex to move it. Right-click a vertex to delete it, click on a wall line to add a vertex, and click a one-way wall's direction marker to flip its facing.",
     },
-    TOOL_RETYPE,
-    TOOL_ERASE,
-    TOOL_DELETE,
+    K.TOOL_RETYPE,
+    K.TOOL_ERASE,
+    K.TOOL_DELETE,
 }
 
 --Tool strip in SOLID draw mode: a solid block is a filled region, not an open
@@ -6198,7 +6213,7 @@ local TOOLS = {
 --strip: PointEditingTool edits solid-op outlines too (it exempts solid ops
 --from its floor-op skip), reshaping the block's area. On a stale engine build
 --the tool activates but shows no vertices for solids - harmless no-op.
-local SOLID_TOOLS = {
+K.SOLID_TOOLS = {
     {
         id = "solidrect",
         shape = "rect",
@@ -6235,15 +6250,15 @@ local SOLID_TOOLS = {
         tool = "points",
         help = "Edit Points: drag a vertex of a solid block to reshape its area. Right-click a vertex to delete it; click on an edge to add a vertex.",
     },
-    TOOL_RETYPE,
-    TOOL_ERASE,
-    TOOL_DELETE,
+    K.TOOL_RETYPE,
+    K.TOOL_ERASE,
+    K.TOOL_DELETE,
 }
 
 --Zone painting tools: all closed-shape custom map tools (a zone is a filled
 --tile region). Strokes come back as 'tool' events and rasterize to the tiles
 --whose centers the stroke contains.
-local ZONE_TOOLS = {
+K.ZONE_TOOLS = {
     {
         id = "zonerect",
         text = "Rect",
@@ -6276,7 +6291,7 @@ local ZONE_TOOLS = {
 }
 
 local function ZoneToolById(id)
-    for _,toolInfo in ipairs(ZONE_TOOLS) do
+    for _,toolInfo in ipairs(K.ZONE_TOOLS) do
         if toolInfo.id == id then
             return toolInfo
         end
@@ -6286,7 +6301,7 @@ end
 
 --Footsteps mode paint tools: the same closed-shape custom map tools as the
 --zone tools, painting the selected surface family instead of a keyword.
-local FOOTSTEP_TOOLS = {
+K.FOOTSTEP_TOOLS = {
     {
         id = "footrect",
         text = "Rect",
@@ -6319,7 +6334,7 @@ local FOOTSTEP_TOOLS = {
 }
 
 local function FootstepToolById(id)
-    for _,toolInfo in ipairs(FOOTSTEP_TOOLS) do
+    for _,toolInfo in ipairs(K.FOOTSTEP_TOOLS) do
         if toolInfo.id == id then
             return toolInfo
         end
@@ -6330,12 +6345,12 @@ end
 --Looks a tool id up in either strip (the draw-mode switch needs the OUTGOING
 --tool's shape, which by then is no longer in the active strip).
 local function FindToolInfo(id)
-    for _,toolInfo in ipairs(TOOLS) do
+    for _,toolInfo in ipairs(K.TOOLS) do
         if toolInfo.id == id then
             return toolInfo
         end
     end
-    for _,toolInfo in ipairs(SOLID_TOOLS) do
+    for _,toolInfo in ipairs(K.SOLID_TOOLS) do
         if toolInfo.id == id then
             return toolInfo
         end
@@ -6348,10 +6363,10 @@ end
 --custom map tools. Openable (door) types are thin-only - selecting one
 --forces thin mode (SelectChip) - so no separate strip is needed.
 local function ActiveToolInfos()
-    if m_solidMode and not EntryIsOpenable(m_paletteEntries[m_selectedIndex or 0]) then
-        return SOLID_TOOLS
+    if m.solidMode and not EntryIsOpenable(m.paletteEntries[m.selectedIndex or 0]) then
+        return K.SOLID_TOOLS
     end
-    return TOOLS
+    return K.TOOLS
 end
 
 --Chip rules are shared between the panel and the library modal: modals
@@ -6604,11 +6619,11 @@ end
 --The highlighted "about to delete" line, plus a key identifying its segment so
 --the marker is only rebuilt when the target segment actually changes (maphover
 --fires on every mouse move).
-local m_deleteHighlight = nil
-local m_deleteHighlightKey = nil
+m.deleteHighlight = nil
+m.deleteHighlightKey = nil
 --The warn-once flag for engine builds lacking GetNearestWallSegment lives on
---m_mapScope (m_mapScope.deleteWarnedNoEngine) rather than in its own local:
---this file-level chunk is AT Lua's 200-local cap.
+--m.mapScope (m.mapScope.deleteWarnedNoEngine) rather than in its own local,
+--keeping the probe's state with the rest of the map scope.
 
 local function DistancePointToSegment(px, py, ax, ay, bx, by)
     local dx = bx - ax
@@ -6670,8 +6685,8 @@ local function FindNearestDeleteSegment(point)
         }
     end)
     if not ok then
-        if not m_mapScope.deleteWarnedNoEngine then
-            m_mapScope.deleteWarnedNoEngine = true
+        if not m.mapScope.deleteWarnedNoEngine then
+            m.mapScope.deleteWarnedNoEngine = true
             dmhub.Debug("MARKUP:: delete tool needs an engine build with GetNearestWallSegment support")
         end
         return nil
@@ -6720,16 +6735,16 @@ end
 --erase a CLOSED box oriented along the segment: the wall centerline runs
 --through the box INTERIOR (no collinear edge, so clipper is stable).
 --
---DELETE_MIN_GAP guarantees the cut survives the engine's wall endpoint
+--K.DELETE_MIN_GAP guarantees the cut survives the engine's wall endpoint
 --auto-merge (WallInfo.PointsCloseEnoughToMerge). That threshold used to be 0.3
 --tiles - which forced MIN_GAP to 0.4 and made deleting one fine segment clear
 --its neighbours too. The engine now welds only within 0.01, so the gap can be
 --near-exact and a click removes just the touched segment.
 --REQUIRES that engine build: against an older engine (0.3 weld) gaps this
 --small heal straight back and deletion appears to do nothing.
-local DELETE_MIN_GAP = 0.05      --min cleared length along the wall (> 0.01 merge threshold)
-local DELETE_HALF_WIDTH = 0.05   --box half-width; keeps the centerline off the box edges
-local DELETE_END_OVERSHOOT = 0.02 --push the cut just past a long segment's ends so both are removed
+K.DELETE_MIN_GAP = 0.05      --min cleared length along the wall (> 0.01 merge threshold)
+K.DELETE_HALF_WIDTH = 0.05   --box half-width; keeps the centerline off the box edges
+K.DELETE_END_OVERSHOOT = 0.02 --push the cut just past a long segment's ends so both are removed
 
 --Given a touched edge { a = {x,y}, b = {x,y} } returns:
 --  a, b : the two axis endpoints of the cleared span (for the highlight preview)
@@ -6746,8 +6761,8 @@ local function DeleteSegmentGeometry(seg)
     local ux, uy = dx/len, dy/len   --unit along the segment
     local nx, ny = -uy, ux          --unit perpendicular to it
     local mx, my = (ax + bx)*0.5, (ay + by)*0.5
-    local halfLen = math.max(len*0.5 + DELETE_END_OVERSHOOT, DELETE_MIN_GAP*0.5)
-    local hw = DELETE_HALF_WIDTH
+    local halfLen = math.max(len*0.5 + K.DELETE_END_OVERSHOOT, K.DELETE_MIN_GAP*0.5)
+    local hw = K.DELETE_HALF_WIDTH
 
     local e1x, e1y = mx + ux*halfLen, my + uy*halfLen
     local e2x, e2y = mx - ux*halfLen, my - uy*halfLen
@@ -6764,12 +6779,12 @@ local function DeleteSegmentGeometry(seg)
     }
 end
 
---m_deleteHighlight holds either one HighlightLine handle (Delete's single
+--m.deleteHighlight holds either one HighlightLine handle (Delete's single
 --edge) or a plain list of them (Apply Type's whole-wall / marquee preview).
 local function ClearDeleteHighlight()
-    local h = m_deleteHighlight
-    m_deleteHighlight = nil
-    m_deleteHighlightKey = nil
+    local h = m.deleteHighlight
+    m.deleteHighlight = nil
+    m.deleteHighlightKey = nil
     if h == nil then
         return
     end
@@ -6787,30 +6802,30 @@ end
 local function ShowDeleteHighlight(seg, color)
     color = color or "#ff4d4d"
     local key = string.format("%.4f,%.4f,%.4f,%.4f,%s", seg.a.x, seg.a.y, seg.b.x, seg.b.y, color)
-    if key == m_deleteHighlightKey and m_deleteHighlight ~= nil then
+    if key == m.deleteHighlightKey and m.deleteHighlight ~= nil then
         return
     end
     ClearDeleteHighlight()
     --terrainParallax: the wall skeleton parallax-shifts with the camera + terrain
     --height every frame, so a flat (z=0) line drifts off the wall wherever the
     --map has parallax. This projects the highlight with the same parallax.
-    m_deleteHighlight = dmhub.HighlightLine{
+    m.deleteHighlight = dmhub.HighlightLine{
         color = color,
         a = core.Vector2(seg.a.x, seg.a.y),
         b = core.Vector2(seg.b.x, seg.b.y),
         floorIndex = game.currentFloorIndex,
         terrainParallax = true,
     }
-    m_deleteHighlightKey = key
+    m.deleteHighlightKey = key
 end
 
 --Multi-line variant for the Apply Type tool: one highlight line per edge in
 --a flat interleaved {ax,ay,bx,by, ...} list (the whole hovered wall on
 --hover; the captured edges during a marquee drag). Shares the delete
 --highlight's storage, so the two previews never stack. A field on
---m_mapScope rather than a new file-level local: this chunk is AT Lua's
---200-local cap.
-m_mapScope.ShowSegmentsHighlight = function(segments, color)
+--m.mapScope rather than a new file-level local, keeping it with the rest of
+--the map scope.
+m.mapScope.ShowSegmentsHighlight = function(segments, color)
     if segments == nil or #segments < 4 then
         ClearDeleteHighlight()
         return
@@ -6820,7 +6835,7 @@ m_mapScope.ShowSegmentsHighlight = function(segments, color)
         parts[#parts+1] = string.format("%.3f", segments[i])
     end
     local key = table.concat(parts, ",")
-    if key == m_deleteHighlightKey and m_deleteHighlight ~= nil then
+    if key == m.deleteHighlightKey and m.deleteHighlight ~= nil then
         return
     end
     ClearDeleteHighlight()
@@ -6834,8 +6849,8 @@ m_mapScope.ShowSegmentsHighlight = function(segments, color)
             terrainParallax = true,
         }
     end
-    m_deleteHighlight = lines
-    m_deleteHighlightKey = key
+    m.deleteHighlight = lines
+    m.deleteHighlightKey = key
 end
 
 local CreateMarkupEditor
@@ -6896,24 +6911,24 @@ CreateMarkupEditor = function()
         }
     end
 
-    m_paletteEntries = ParsePalette()
-    if m_selectedIndex ~= nil and m_selectedIndex > #m_paletteEntries then
-        m_selectedIndex = nil
+    m.paletteEntries = ParsePalette()
+    if m.selectedIndex ~= nil and m.selectedIndex > #m.paletteEntries then
+        m.selectedIndex = nil
     end
-    if m_selectedIndex == nil and #m_paletteEntries > 0 then
-        m_selectedIndex = 1
+    if m.selectedIndex == nil and #m.paletteEntries > 0 then
+        m.selectedIndex = 1
     end
 
     --Each mode's default drawing tool is its first: the rectangle, in both.
     --Solid mode's tools are custom map tools, so it leaves the shared
     --building-tool settings alone. Openable (door) types are thin-only.
-    if m_solidMode and EntryIsOpenable(m_paletteEntries[m_selectedIndex or 0]) then
-        m_solidMode = false
+    if m.solidMode and EntryIsOpenable(m.paletteEntries[m.selectedIndex or 0]) then
+        m.solidMode = false
     end
-    if m_solidMode then
-        m_toolId = "solidrect"
+    if m.solidMode then
+        m.toolId = "solidrect"
     else
-        m_toolId = "rectangle"
+        m.toolId = "rectangle"
         dmhub.SetSettingValue("buildingtool", "rectangle")
         dmhub.SetSettingValue("building:erase", false)
     end
@@ -6936,7 +6951,7 @@ CreateMarkupEditor = function()
         end
 
         entry.guid = guid
-        SavePalette(m_paletteEntries)
+        SavePalette(m.paletteEntries)
         return guid
     end
 
@@ -6972,7 +6987,7 @@ CreateMarkupEditor = function()
             if m_wallColor.supportCache ~= nil then
                 return m_wallColor.supportCache
             end
-            local probe = assets.walls[BASE_INVISIBLE_WALL_ID]
+            local probe = assets.walls[K.BASE_INVISIBLE_WALL_ID]
             if probe == nil then
                 for _,wall in pairs(assets.walls) do
                     probe = wall
@@ -7034,12 +7049,12 @@ CreateMarkupEditor = function()
     }
 
     SelectChip = function(index)
-        local entry = m_paletteEntries[index]
+        local entry = m.paletteEntries[index]
         if entry == nil then
             return
         end
 
-        m_selectedIndex = index
+        m.selectedIndex = index
 
         local preset = PresetForEntry(entry)
         if preset ~= nil then
@@ -7053,9 +7068,9 @@ CreateMarkupEditor = function()
         --Deliberately only for those two - a drawing tool the user chose is
         --their choice and survives changing type.
         local rearmedTool = nil
-        if m_toolId == "erase" or m_toolId == "delete" then
+        if m.toolId == "erase" or m.toolId == "delete" then
             local defaultTool = ActiveToolInfos()[1]
-            m_toolId = defaultTool.id
+            m.toolId = defaultTool.id
             rearmedTool = defaultTool
             --settings first: refreshtools reads buildingtool back to decide
             --which engine drawing tool shows selected.
@@ -7079,7 +7094,7 @@ CreateMarkupEditor = function()
         --strokes are real wall operations the engine can attach door state
         --to. SetDrawMode also rebuilds the tool strip and pushes the shared
         --building-tool setting.
-        if m_solidMode and EntryIsOpenable(entry) then
+        if m.solidMode and EntryIsOpenable(entry) then
             SetDrawMode(false)
         end
 
@@ -7100,37 +7115,37 @@ CreateMarkupEditor = function()
     end
 
     AddPaletteEntry = function(entry)
-        m_paletteEntries[#m_paletteEntries+1] = entry
-        m_selectedIndex = #m_paletteEntries
-        SavePalette(m_paletteEntries)
-        SelectChip(m_selectedIndex)
+        m.paletteEntries[#m.paletteEntries+1] = entry
+        m.selectedIndex = #m.paletteEntries
+        SavePalette(m.paletteEntries)
+        SelectChip(m.selectedIndex)
     end
 
     RemovePaletteEntry = function(index)
-        local removed = m_paletteEntries[index]
+        local removed = m.paletteEntries[index]
         if removed == nil then
             return
         end
 
-        table.remove(m_paletteEntries, index)
-        if m_selectedIndex ~= nil then
-            if m_selectedIndex == index then
-                m_selectedIndex = nil
-            elseif m_selectedIndex > index then
-                m_selectedIndex = m_selectedIndex - 1
+        table.remove(m.paletteEntries, index)
+        if m.selectedIndex ~= nil then
+            if m.selectedIndex == index then
+                m.selectedIndex = nil
+            elseif m.selectedIndex > index then
+                m.selectedIndex = m.selectedIndex - 1
             end
         end
-        SavePalette(m_paletteEntries)
+        SavePalette(m.paletteEntries)
 
         --a map-private type with no walls drawn is orphaned once its chip is
         --gone: delete the asset rather than stranding it in the library.
         if removed.guid ~= nil then
-            m_mapScope.DeleteWallIfOrphaned(removed.guid, m_paletteEntries)
+            m.mapScope.DeleteWallIfOrphaned(removed.guid, m.paletteEntries)
         end
     end
 
     local CreateChipContextMenuItems = function(element, index)
-        local entry = m_paletteEntries[index]
+        local entry = m.paletteEntries[index]
         local result = {}
 
         --library ("wall") chips were deliberately not editable while editing
@@ -7138,7 +7153,7 @@ CreateMarkupEditor = function()
         --engine build, editing a shared wall forks it instead (see
         --ShowMarkupWallDialog), so they become safely editable too.
         local editableKind = entry ~= nil and (entry.kind == "preset" or entry.kind == "solid" or entry.kind == "custom"
-            or (entry.kind == "wall" and m_mapScope.WallSupported()))
+            or (entry.kind == "wall" and m.mapScope.WallSupported()))
 
         if editableKind and entry.guid ~= nil and assets.walls[entry.guid] ~= nil then
             result[#result+1] = {
@@ -7184,7 +7199,7 @@ CreateMarkupEditor = function()
             --Rebuilt on every open so the ring always marks the type's
             --current color. anchor is the square the popup hangs off.
             local CreatePalettePopout = function(anchor)
-                local current = m_wallColor.EntryColor(m_paletteEntries[index])
+                local current = m_wallColor.EntryColor(m.paletteEntries[index])
                 local gridRows = {}
                 for rowIndex = 0,1 do
                     local swatches = {}
@@ -7214,7 +7229,7 @@ CreateMarkupEditor = function()
 
                             press = function(element)
                                 anchor.popup = nil
-                                local chipEntry = m_paletteEntries[index]
+                                local chipEntry = m.paletteEntries[index]
                                 if chipEntry == nil then
                                     return
                                 end
@@ -7282,7 +7297,7 @@ CreateMarkupEditor = function()
                     --show the type's current color; Default shows the stock
                     --grey when the type has none stored.
                     refreshwallcolors = function(element)
-                        local current = m_wallColor.EntryColor(m_paletteEntries[index])
+                        local current = m_wallColor.EntryColor(m.paletteEntries[index])
                         element.selfStyle.bgcolor = current or m_wallColor.COLORS[1].color
                     end,
 
@@ -7344,7 +7359,7 @@ CreateMarkupEditor = function()
             }
         end
         return gui.Panel{
-            classes = {"markupChip", cond(index == m_selectedIndex, "selected")},
+            classes = {"markupChip", cond(index == m.selectedIndex, "selected")},
             --palettePanel is already the panel's 96% content column, so rows
             --fill it entirely; the Add Wall Type row below is a sibling OF
             --that column at 96% itself, and the two must end up equally wide.
@@ -7425,9 +7440,9 @@ CreateMarkupEditor = function()
         flow = "horizontal",
         children = (function()
             local result = {}
-            for _,modeInfo in ipairs(MODES) do
+            for _,modeInfo in ipairs(K.MODES) do
                 result[#result+1] = gui.Label{
-                    classes = {"tab", cond(modeInfo.id == m_mode, "selected")},
+                    classes = {"tab", cond(modeInfo.id == m.mode, "selected")},
                     text = modeInfo.text,
                     --The theme's tab sizing (130x40 / 18pt) is for full-width
                     --tab strips; five tabs must fit in the dock width.
@@ -7440,9 +7455,9 @@ CreateMarkupEditor = function()
                         modetext = modeInfo.text,
                     },
                     press = function(element)
-                        m_mode = element.data.modeid
+                        m.mode = element.data.modeid
                         for _,tab in ipairs(element.parent.children) do
-                            tab:SetClass("selected", tab.data.modeid == m_mode)
+                            tab:SetClass("selected", tab.data.modeid == m.mode)
                         end
                         element.parent:FireEventTree("refreshtab")
                         contentPanel:FireEventTree("markupmode")
@@ -7457,7 +7472,7 @@ CreateMarkupEditor = function()
                     --Driven by contentPanel's childfocus/childdefocus, which
                     --already fire to highlight the dock title.
                     gui.Panel{
-                        classes = {"markupStateDot", cond(modeInfo.id ~= m_mode, "hidden")},
+                        classes = {"markupStateDot", cond(modeInfo.id ~= m.mode, "hidden")},
                         floating = true,
                         bgimage = "game-icons/plain-circle.png",
                         width = 6,
@@ -7467,7 +7482,7 @@ CreateMarkupEditor = function()
                         hmargin = 5,
 
                         refreshtab = function(element)
-                            element:SetClass("hidden", element.parent.data.modeid ~= m_mode)
+                            element:SetClass("hidden", element.parent.data.modeid ~= m.mode)
                         end,
 
                         markuparmed = function(element, armed)
@@ -7483,20 +7498,20 @@ CreateMarkupEditor = function()
     --the rebuild proper, split out so refreshpalette can hand it to
     --RebuildDeferringPopups and have it replayed later if a popup is open.
     local RebuildPalette = function(element)
-        m_paletteEntries = ParsePalette()
-        if m_selectedIndex ~= nil and m_selectedIndex > #m_paletteEntries then
-            m_selectedIndex = nil
+        m.paletteEntries = ParsePalette()
+        if m.selectedIndex ~= nil and m.selectedIndex > #m.paletteEntries then
+            m.selectedIndex = nil
         end
 
         local children = {}
-        for i,entry in ipairs(m_paletteEntries) do
+        for i,entry in ipairs(m.paletteEntries) do
             children[#children+1] = CreateWallChip(i, entry)
         end
         element.children = children
 
         --the selected chip can have become openable (Edit Wall on it,
         --or a remote change); openable types are thin-only.
-        if m_solidMode and EntryIsOpenable(m_paletteEntries[m_selectedIndex or 0]) and SetDrawMode ~= nil then
+        if m.solidMode and EntryIsOpenable(m.paletteEntries[m.selectedIndex or 0]) and SetDrawMode ~= nil then
             SetDrawMode(false)
         end
 
@@ -7546,7 +7561,7 @@ CreateMarkupEditor = function()
 
             refreshchips = function(element)
                 for _,chip in ipairs(element.children) do
-                    chip:SetClass("selected", chip.data.index == m_selectedIndex)
+                    chip:SetClass("selected", chip.data.index == m.selectedIndex)
                 end
             end,
         },
@@ -7578,9 +7593,9 @@ CreateMarkupEditor = function()
             press = function(element)
                 local entries = {}
 
-                for _,preset in ipairs(WALL_PRESETS) do
+                for _,preset in ipairs(K.WALL_PRESETS) do
                     local inPalette = false
-                    for _,entry in ipairs(m_paletteEntries) do
+                    for _,entry in ipairs(m.paletteEntries) do
                         if entry.kind == "preset" and entry.key == preset.key then
                             inPalette = true
                             break
@@ -7616,7 +7631,7 @@ CreateMarkupEditor = function()
                             }
                             return
                         end
-                        local guid = CreateMarkupWallAsset("Door", DOOR_TYPE_FIELDS)
+                        local guid = CreateMarkupWallAsset("Door", K.DOOR_TYPE_FIELDS)
                         if guid ~= nil then
                             AddPaletteEntry{
                                 kind = "custom",
@@ -7638,7 +7653,7 @@ CreateMarkupEditor = function()
                     text = "Custom...",
                     click = function()
                         element.popup = nil
-                        local guid = CreateMarkupWallAsset("Custom Markup Wall", WALL_PRESETS_BY_KEY["stone"].fields)
+                        local guid = CreateMarkupWallAsset("Custom Markup Wall", K.WALL_PRESETS_BY_KEY["stone"].fields)
                         if guid ~= nil then
                             AddPaletteEntry{
                                 kind = "custom",
@@ -7661,7 +7676,7 @@ CreateMarkupEditor = function()
                 --Markup is invisible-walls-only: visible art walls belong to
                 --the Building editor. Also skip walls already in the palette.
                 local paletteGuids = {}
-                for _,entry in ipairs(m_paletteEntries) do
+                for _,entry in ipairs(m.paletteEntries) do
                     if entry.guid ~= nil then
                         paletteGuids[entry.guid] = true
                     end
@@ -7670,7 +7685,7 @@ CreateMarkupEditor = function()
                 local sortedWalls = {}
                 for id,wall in pairs(assets.walls) do
                     --wall types private to other maps never appear here.
-                    if (not wall.hidden) and wall.invisible == true and (not paletteGuids[id]) and m_mapScope.WallAvailableOnThisMap(wall) then
+                    if (not wall.hidden) and wall.invisible == true and (not paletteGuids[id]) and m.mapScope.WallAvailableOnThisMap(wall) then
                         sortedWalls[#sortedWalls+1] = {
                             id = id,
                             wall = wall,
@@ -7823,7 +7838,7 @@ CreateMarkupEditor = function()
             end
 
             local chipClasses = {"markupToolChip"}
-            if toolInfo.id == m_toolId then
+            if toolInfo.id == m.toolId then
                 chipClasses[#chipClasses+1] = "selected"
             end
             if destructive then
@@ -7851,7 +7866,7 @@ CreateMarkupEditor = function()
                     --tool a coin flip between "keep drawing" and "stop", and
                     --a mis-aimed re-press silently puts the panel down.
                     --Escape is the way out.
-                    m_toolId = element.data.toolid
+                    m.toolId = element.data.toolid
                     if element.data.tool ~= nil then
                         dmhub.SetSettingValue("building:erase", false)
                         dmhub.SetSettingValue("buildingtool", element.data.tool)
@@ -7861,7 +7876,7 @@ CreateMarkupEditor = function()
                     --happens to focus afterwards, so the Building editor's
                     --palette stealing focus a frame later (the reason
                     --ReassertMarkupFocus existed) no longer stops drawing.
-                    m_arm.Set(true)
+                    m.arm.Set(true)
                     --Focus is still taken, but only so the panel keeps its
                     --keyboard routing -- it no longer decides anything. Still
                     --on contentPanel rather than this button: the strip is
@@ -7919,12 +7934,12 @@ CreateMarkupEditor = function()
                 local tools = ActiveToolInfos()
                 local activeInfo = nil
                 for _,toolInfo in ipairs(tools) do
-                    if toolInfo.id == m_toolId then
+                    if toolInfo.id == m.toolId then
                         activeInfo = toolInfo
                     end
                 end
 
-                local activeid = m_toolId
+                local activeid = m.toolId
                 if activeInfo == nil or activeInfo.mapTool == nil then
                     activeid = nil
                     if not dmhub.GetSettingValue("building:erase") then
@@ -7943,7 +7958,7 @@ CreateMarkupEditor = function()
                 --tool that does nothing when you click the map is precisely
                 --the lie this rework is removing. Pressing any tool (the same
                 --one included) arms it again.
-                local armed = m_arm.Armed()
+                local armed = m.arm.Armed()
                 for _,child in ipairs(element.children) do
                     child:SetClass("selected", armed and child.data.toolid == activeid)
                 end
@@ -7960,7 +7975,7 @@ CreateMarkupEditor = function()
 
                 local validTool = false
                 for _,toolInfo in ipairs(tools) do
-                    if toolInfo.id == m_toolId then
+                    if toolInfo.id == m.toolId then
                         validTool = true
                     end
                 end
@@ -7969,22 +7984,22 @@ CreateMarkupEditor = function()
                     --carry the equivalent shape across the mode switch (rect stays
                     --rect, polygon stays polygon) so only the strip changes, not the
                     --user's choice; otherwise fall back to the first tool.
-                    local outgoing = FindToolInfo(m_toolId)
+                    local outgoing = FindToolInfo(m.toolId)
                     local wantShape = nil
                     if outgoing ~= nil then
                         wantShape = outgoing.shape
                     end
 
-                    m_toolId = nil
+                    m.toolId = nil
                     if wantShape ~= nil then
                         for _,toolInfo in ipairs(tools) do
                             if toolInfo.shape == wantShape then
-                                m_toolId = toolInfo.id
+                                m.toolId = toolInfo.id
                             end
                         end
                     end
-                    if m_toolId == nil then
-                        m_toolId = tools[1].id
+                    if m.toolId == nil then
+                        m.toolId = tools[1].id
                     end
                 end
 
@@ -7999,11 +8014,11 @@ CreateMarkupEditor = function()
                 --markup tool and this panel is focused; release it and drop
                 --any highlight otherwise. Gating on focus keeps us from
                 --stealing map focus from ability targeting etc. This runs
-                --before the m_mode guard so switching mode/tool tears the
+                --before the m.mode guard so switching mode/tool tears the
                 --overlay down promptly.
-                local wantDelete = m_mode == "walls"
-                    and (m_toolId == "delete" or m_toolId == "retype")
-                    and m_arm.Armed()
+                local wantDelete = m.mode == "walls"
+                    and (m.toolId == "delete" or m.toolId == "retype")
+                    and m.arm.Armed()
 
                 if wantDelete then
                     if not element.mapfocus then
@@ -8014,16 +8029,16 @@ CreateMarkupEditor = function()
                         element.mapfocus = false
                     end
                     ClearDeleteHighlight()
-                    m_mapScope.retypeAnchor = nil
+                    m.mapScope.retypeAnchor = nil
                 end
 
-                if m_mode ~= "walls" then
+                if m.mode ~= "walls" then
                     return
                 end
 
                 local toolInfo = nil
                 for _,t in ipairs(ActiveToolInfos()) do
-                    if t.id == m_toolId and t.mapTool ~= nil then
+                    if t.id == m.toolId and t.mapTool ~= nil then
                         toolInfo = t
                     end
                 end
@@ -8031,7 +8046,7 @@ CreateMarkupEditor = function()
                     return
                 end
 
-                if not m_arm.Armed() then
+                if not m.arm.Armed() then
                     return
                 end
 
@@ -8078,17 +8093,17 @@ CreateMarkupEditor = function()
             end,
 
             tool = function(element, path)
-                if m_mode ~= "walls" or path == nil then
+                if m.mode ~= "walls" or path == nil then
                     return
                 end
                 --Erase (rectangle) and the solid shape tools deliver strokes.
                 --Delete's sentinel map tool captures nothing; its input
                 --arrives via maphover/mappress.
-                if m_toolId == "erase" then
+                if m.toolId == "erase" then
                     element:FireEvent("markuperase", path)
-                elseif m_toolId == "retype" then
+                elseif m.toolId == "retype" then
                     element:FireEvent("markupretype", path)
-                elseif m_toolId == "solidrect" or m_toolId == "solidpoly" or m_toolId == "solidfree" then
+                elseif m.toolId == "solidrect" or m.toolId == "solidpoly" or m.toolId == "solidfree" then
                     element:FireEvent("markupsolid", path)
                 end
             end,
@@ -8098,11 +8113,11 @@ CreateMarkupEditor = function()
             --degenerate (click-sized) stroke routes to the single-edge click
             --path instead - whether a plain click arrives here, via mappress,
             --or both depends on how the engine arbitrates the live rectangle
-            --tool against map focus, and all three are safe (see TOOL_RETYPE).
+            --tool against map focus, and all three are safe (see K.TOOL_RETYPE).
             markupretype = function(element, path)
                 --the marquee (or click) is over: drop the drag anchor and the
                 --live preview before applying.
-                m_mapScope.retypeAnchor = nil
+                m.mapScope.retypeAnchor = nil
                 ClearDeleteHighlight()
 
                 local floor = game.currentFloor
@@ -8137,7 +8152,7 @@ CreateMarkupEditor = function()
                     return
                 end
 
-                local entry = m_paletteEntries[m_selectedIndex or 0]
+                local entry = m.paletteEntries[m.selectedIndex or 0]
                 if entry == nil then
                     return
                 end
@@ -8172,7 +8187,7 @@ CreateMarkupEditor = function()
                 if seg == nil then
                     return
                 end
-                local entry = m_paletteEntries[m_selectedIndex or 0]
+                local entry = m.paletteEntries[m.selectedIndex or 0]
                 if entry == nil then
                     return
                 end
@@ -8245,8 +8260,8 @@ CreateMarkupEditor = function()
                     return
                 end
 
-                local entry = m_paletteEntries[m_selectedIndex or 0]
-                if entry == nil or not m_solidMode then
+                local entry = m.paletteEntries[m.selectedIndex or 0]
+                if entry == nil or not m.solidMode then
                     return
                 end
 
@@ -8262,7 +8277,7 @@ CreateMarkupEditor = function()
                     return
                 end
 
-                if assets.tilesheets[INVISIBLE_TILESHEET_ID] == nil then
+                if assets.tilesheets[K.INVISIBLE_TILESHEET_ID] == nil then
                     dmhub.Debug("MARKUP:: the Core invisible tilesheet is not available in this game")
                     return
                 end
@@ -8284,7 +8299,7 @@ CreateMarkupEditor = function()
                 floor:ExecutePolygonOperation{
                     points = {points},
                     wallid = guid,
-                    tileid = INVISIBLE_TILESHEET_ID,
+                    tileid = K.INVISIBLE_TILESHEET_ID,
                     wallheight = math.floor((height or 0) + 0.5),
                     solid = true,
                     walls = true,
@@ -8302,13 +8317,13 @@ CreateMarkupEditor = function()
             --  Apply Type drag   - the edges the current marquee rect would
             --                      convert, live as the rect grows.
             maphover = function(element, loc, point)
-                if m_mode ~= "walls" or (m_toolId ~= "delete" and m_toolId ~= "retype") then
+                if m.mode ~= "walls" or (m.toolId ~= "delete" and m.toolId ~= "retype") then
                     ClearDeleteHighlight()
                     return
                 end
 
-                if m_toolId == "retype" then
-                    local entry = m_paletteEntries[m_selectedIndex or 0]
+                if m.toolId == "retype" then
+                    local entry = m.paletteEntries[m.selectedIndex or 0]
                     local color = m_wallColor.EntryColor(entry) or "#4da6ff"
 
                     --marquee-in-progress: while the left button is held, the
@@ -8316,10 +8331,10 @@ CreateMarkupEditor = function()
                     --live rectangle tool, the first held-button hover)
                     --anchors the rect and the captured edges highlight live.
                     if element:GetMouseButton(0) then
-                        local anchor = m_mapScope.retypeAnchor
+                        local anchor = m.mapScope.retypeAnchor
                         if anchor == nil and point ~= nil then
                             anchor = { x = point.x, y = point.y }
-                            m_mapScope.retypeAnchor = anchor
+                            m.mapScope.retypeAnchor = anchor
                         end
                         if anchor ~= nil and point ~= nil
                             and (math.abs(point.x - anchor.x) >= 0.12 or math.abs(point.y - anchor.y) >= 0.12) then
@@ -8337,11 +8352,11 @@ CreateMarkupEditor = function()
                                     }
                                 end)
                             end
-                            m_mapScope.ShowSegmentsHighlight(segments or {}, color)
+                            m.mapScope.ShowSegmentsHighlight(segments or {}, color)
                             return
                         end
                     else
-                        m_mapScope.retypeAnchor = nil
+                        m.mapScope.retypeAnchor = nil
                     end
 
                     local seg = FindNearestDeleteSegment(point)
@@ -8363,7 +8378,7 @@ CreateMarkupEditor = function()
                             segments[#segments+1] = pts[i+2]
                             segments[#segments+1] = pts[i+3]
                         end
-                        m_mapScope.ShowSegmentsHighlight(segments, color)
+                        m.mapScope.ShowSegmentsHighlight(segments, color)
                     else
                         ShowDeleteHighlight(seg, color)
                     end
@@ -8385,21 +8400,21 @@ CreateMarkupEditor = function()
             --the rest of the wall intact, instead of wiping the whole wall.
             --Apply Type routes its click to the shared single-edge handler.
             mappress = function(element, loc, point)
-                if m_mode ~= "walls" then
+                if m.mode ~= "walls" then
                     return
                 end
-                if m_toolId == "retype" then
+                if m.toolId == "retype" then
                     --the press anchors a potential marquee (maphover shows
                     --the live rect's captured edges while the button stays
                     --down) and, when it lands on a wall, converts that whole
                     --drawn operation immediately.
                     if point ~= nil then
-                        m_mapScope.retypeAnchor = { x = point.x, y = point.y }
+                        m.mapScope.retypeAnchor = { x = point.x, y = point.y }
                     end
                     element:FireEvent("markupretypeclick", point)
                     return
                 end
-                if m_toolId ~= "delete" then
+                if m.toolId ~= "delete" then
                     return
                 end
                 local floor = game.currentFloor
@@ -8448,10 +8463,10 @@ CreateMarkupEditor = function()
     --directly under the tool strip because it changes which tools are shown.
     --(Forward-declared at the top of CreateMarkupEditor.)
     SetDrawMode = function(solid)
-        if m_solidMode == solid then
+        if m.solidMode == solid then
             return
         end
-        m_solidMode = solid
+        m.solidMode = solid
 
         --swaps the tool strip and, if the active tool has no counterpart in
         --the new mode, falls back to that mode's default drawing tool.
@@ -8463,9 +8478,9 @@ CreateMarkupEditor = function()
         --shared setting has to be pushed when we land on one. (rebuildtools
         --deliberately never writes settings - it also fires on remote palette
         --changes, where stealing the Building editor's tool would be rude.)
-        if not m_solidMode then
+        if not m.solidMode then
             for _,toolInfo in ipairs(ActiveToolInfos()) do
-                if toolInfo.id == m_toolId and toolInfo.tool ~= nil then
+                if toolInfo.id == m.toolId and toolInfo.tool ~= nil then
                     dmhub.SetSettingValue("building:erase", false)
                     dmhub.SetSettingValue("buildingtool", toolInfo.tool)
                 end
@@ -8502,7 +8517,7 @@ CreateMarkupEditor = function()
         end
 
         return gui.Panel{
-            classes = {"markupChip", cond(m_solidMode == solid, "selected")},
+            classes = {"markupChip", cond(m.solidMode == solid, "selected")},
             --the pair plus the 4px spacer between them spans the full 96%
             --content column, so the toggle's outer edges line up with the
             --palette rows and the Add Wall Type row above.
@@ -8526,7 +8541,7 @@ CreateMarkupEditor = function()
             end,
 
             refreshdrawmode = function(element)
-                element:SetClass("selected", m_solidMode == element.data.solid)
+                element:SetClass("selected", m.solidMode == element.data.solid)
             end,
 
             gui.Label{
@@ -8560,7 +8575,7 @@ CreateMarkupEditor = function()
             element:FireEvent("refreshdoorchip")
         end,
         refreshdoorchip = function(element)
-            element:SetClass("collapsed", EntryIsOpenable(m_paletteEntries[m_selectedIndex or 0]))
+            element:SetClass("collapsed", EntryIsOpenable(m.paletteEntries[m.selectedIndex or 0]))
         end,
 
         children = {
@@ -8603,7 +8618,7 @@ CreateMarkupEditor = function()
             height = "auto",
             vmargin = 4,
             refreshheight = function(element)
-                element.text = cond(m_solidMode, "Block Height", "Wall Height")
+                element.text = cond(m.solidMode, "Block Height", "Wall Height")
             end,
         },
 
@@ -8676,13 +8691,13 @@ CreateMarkupEditor = function()
     }
 
     local wallsPanel = gui.Panel{
-        classes = {cond(m_mode ~= "walls", "collapsed")},
+        classes = {cond(m.mode ~= "walls", "collapsed")},
         width = "100%",
         height = "auto",
         flow = "vertical",
 
         markupmode = function(element)
-            element:SetClass("collapsed", m_mode ~= "walls")
+            element:SetClass("collapsed", m.mode ~= "walls")
         end,
 
         --Fixed "how you draw" controls lead; the wall type list comes last
@@ -8730,7 +8745,7 @@ CreateMarkupEditor = function()
     --into real Environmental Keywords on first use (recording the new id back
     --into the palette, like wall presets record their materialized asset).
     local EnsureZoneTypeKeyword = function(index)
-        local entry = m_zonePaletteEntries[index or 0]
+        local entry = m.zonePaletteEntries[index or 0]
         if entry == nil then
             return nil
         end
@@ -8746,7 +8761,7 @@ CreateMarkupEditor = function()
         end
 
         if entry.kind == "preset" then
-            local preset = ZONE_PRESETS_BY_KEY[entry.key]
+            local preset = K.ZONE_PRESETS_BY_KEY[entry.key]
             if preset == nil then
                 return nil
             end
@@ -8755,7 +8770,7 @@ CreateMarkupEditor = function()
                 return nil
             end
             entry.keywordid = keywordid
-            SaveZonePalette(m_zonePaletteEntries)
+            SaveZonePalette(m.zonePaletteEntries)
             return keywordid
         end
 
@@ -8885,21 +8900,21 @@ CreateMarkupEditor = function()
 
     --The built-in "Hole" chip: always last in the palette, not keyword-backed
     --and not editable -- no right-click menu, no Entire Map pill, no dynamic
-    --light row. Painting with it cuts real holes in the map (see m_holes).
+    --light row. Painting with it cuts real holes in the map (see m.holes).
     local CreateHoleZoneChip = function(index)
         local summary = "Cuts a hole through the floor"
-        if not m_holes.Supported() then
+        if not m.holes.Supported() then
             summary = "Needs an engine update"
         end
 
-        local gradient = m_zoneStripes.Gradient(m_holes.color, ZONE_ANGLE_A)
-        local swatchColor = m_holes.color
+        local gradient = m.zoneStripes.Gradient(m.holes.color, K.ZONE_ANGLE_A)
+        local swatchColor = m.holes.color
         if gradient ~= nil then
             swatchColor = "white"
         end
 
         return gui.Panel{
-            classes = {"markupChip", cond(index == m_zoneSelectedType, "selected")},
+            classes = {"markupChip", cond(index == m.zoneSelectedType, "selected")},
             width = "100%",
             height = 36,
             halign = "center",
@@ -8914,10 +8929,10 @@ CreateMarkupEditor = function()
             },
 
             press = function(element)
-                m_zoneSelectedType = element.data.index
+                m.zoneSelectedType = element.data.index
                 --a fresh type selection paints new holes, not whatever zone
                 --was last targeted.
-                m_zoneTargetId = nil
+                m.zoneTargetId = nil
                 zonePalettePanel:FireEvent("refreshchips")
                 RefreshZoneUI()
                 --picking the type must arm the paint tool by itself, exactly
@@ -9005,7 +9020,7 @@ CreateMarkupEditor = function()
         local kw = GetKeyword(entry.keywordid)
         local preset = nil
         if entry.kind == "preset" then
-            preset = ZONE_PRESETS_BY_KEY[entry.key]
+            preset = K.ZONE_PRESETS_BY_KEY[entry.key]
         end
 
         local name, color, summary
@@ -9028,7 +9043,7 @@ CreateMarkupEditor = function()
         --lit pill is the indicator -- so keep the tooltip explicit about that.
         local entireMapButton
         entireMapButton = gui.Panel{
-            classes = {"markupEntireMap", cond(m_entireMap.IsSet(entry.keywordid), "lit")},
+            classes = {"markupEntireMap", cond(m.entireMap.IsSet(entry.keywordid), "lit")},
             width = 60,
             height = 16,
             valign = "center",
@@ -9042,8 +9057,8 @@ CreateMarkupEditor = function()
                     return
                 end
 
-                local lit = not m_entireMap.IsSet(keywordid)
-                m_entireMap.Set(keywordid, lit)
+                local lit = not m.entireMap.IsSet(keywordid)
+                m.entireMap.Set(keywordid, lit)
                 element:SetClass("lit", lit)
 
                 --a blanket registers (or drops) real auras, so rebuild now
@@ -9111,7 +9126,7 @@ CreateMarkupEditor = function()
                 else
                     keyword.appearanceDefaultOff = true
                 end
-                dmhub.SetAndUploadTableItem(ENVIRONMENTAL_KEYWORDS_TABLE, keyword)
+                dmhub.SetAndUploadTableItem(K.ENVIRONMENTAL_KEYWORDS_TABLE, keyword)
                 element:SetClass("lit", off)
             end,
 
@@ -9142,8 +9157,8 @@ CreateMarkupEditor = function()
         end
 
         local dynRow = nil
-        if dynEligible and m_dynamicLight.Supported() then
-            local dynPct = m_dynamicLight.GetThreshold(entry.keywordid)
+        if dynEligible and m.dynamicLight.Supported() then
+            local dynPct = m.dynamicLight.GetThreshold(entry.keywordid)
 
             local dynSlider
             dynSlider = gui.PercentSlider{
@@ -9166,12 +9181,12 @@ CreateMarkupEditor = function()
                     if pct < 1 then
                         pct = 1
                     end
-                    m_dynamicLight.Set(keywordid, pct)
+                    m.dynamicLight.Set(keywordid, pct)
                     --sample the new threshold NOW: waiting for the ticker
                     --leaves a visible blink where the zone rebuilds unfiltered
                     --(new threshold = no sample yet) and then snaps back a
                     --poll later.
-                    pcall(m_dynamicLight.Sample)
+                    pcall(m.dynamicLight.Sample)
                 end,
             }
 
@@ -9194,22 +9209,22 @@ CreateMarkupEditor = function()
                         return
                     end
 
-                    local lit = m_dynamicLight.GetThreshold(keywordid) == nil
+                    local lit = m.dynamicLight.GetThreshold(keywordid) == nil
                     if lit then
                         local pct = round(dynSlider.value * 100)
                         if pct < 1 then
                             pct = 30
                         end
-                        m_dynamicLight.Set(keywordid, pct)
+                        m.dynamicLight.Set(keywordid, pct)
                     else
-                        m_dynamicLight.Set(keywordid, nil)
+                        m.dynamicLight.Set(keywordid, nil)
                     end
                     element:SetClass("lit", lit)
                     dynSlider:SetClass("hidden", not lit)
                     --sample immediately: enabling carves in the same tick
                     --(no unfiltered blink), disabling clears the stored dark
                     --sets and refreshes the auras without waiting a poll.
-                    pcall(m_dynamicLight.Sample)
+                    pcall(m.dynamicLight.Sample)
                 end,
 
                 gui.Label{
@@ -9233,10 +9248,10 @@ CreateMarkupEditor = function()
             }
         end
 
-        --A wider version of m_zoneStripes.Swatch for the row's right-side
+        --A wider version of m.zoneStripes.Swatch for the row's right-side
         --visual, mirroring the wall rows' line-preview column: the stripe
         --pattern at the angle the map will actually paint.
-        local gradient = m_zoneStripes.Gradient(color, m_zoneStripes.AngleForKeyword(entry.keywordid))
+        local gradient = m.zoneStripes.Gradient(color, m.zoneStripes.AngleForKeyword(entry.keywordid))
         local swatchColor = color
         if gradient ~= nil then
             swatchColor = "white"
@@ -9307,7 +9322,7 @@ CreateMarkupEditor = function()
         }
 
         return gui.Panel{
-            classes = {"markupChip", cond(index == m_zoneSelectedType, "selected")},
+            classes = {"markupChip", cond(index == m.zoneSelectedType, "selected")},
             width = "100%",
             height = cond(dynRow ~= nil, 60, 36),
             halign = "center",
@@ -9322,10 +9337,10 @@ CreateMarkupEditor = function()
             },
 
             press = function(element)
-                m_zoneSelectedType = element.data.index
+                m.zoneSelectedType = element.data.index
                 --a fresh type selection paints into that type's existing zone
                 --(or a new one), not whatever zone was last targeted.
-                m_zoneTargetId = nil
+                m.zoneTargetId = nil
                 zonePalettePanel:FireEvent("refreshchips")
                 RefreshZoneUI()
                 --picking a zone type must arm the paint tool by itself: without
@@ -9344,11 +9359,11 @@ CreateMarkupEditor = function()
                     if keywordid == nil then
                         return
                     end
-                    m_zoneHeight.Set(keywordid, height)
+                    m.zoneHeight.Set(keywordid, height)
                     zonePalettePanel:FireEvent("refreshzonepalette")
                 end
 
-                local currentHeight = m_zoneHeight.Get(GetKeyword(entry.keywordid))
+                local currentHeight = m.zoneHeight.Get(GetKeyword(entry.keywordid))
 
                 element.popup = gui.ContextMenu{
                     entries = {
@@ -9394,31 +9409,31 @@ CreateMarkupEditor = function()
                                 --config) with the chip: otherwise they keep
                                 --applying to the map with no UI left to turn
                                 --them off.
-                                local removed = m_zonePaletteEntries[element.data.index]
+                                local removed = m.zonePaletteEntries[element.data.index]
                                 if removed ~= nil and removed.keywordid ~= nil then
-                                    if m_entireMap.IsSet(removed.keywordid) then
-                                        m_entireMap.Set(removed.keywordid, false)
+                                    if m.entireMap.IsSet(removed.keywordid) then
+                                        m.entireMap.Set(removed.keywordid, false)
                                         pcall(function()
                                             dmhub.RefreshMapAuras()
                                         end)
                                     end
-                                    m_dynamicLight.Set(removed.keywordid, nil)
+                                    m.dynamicLight.Set(removed.keywordid, nil)
                                 end
-                                table.remove(m_zonePaletteEntries, element.data.index)
-                                if m_zoneSelectedType > #m_zonePaletteEntries then
-                                    m_zoneSelectedType = #m_zonePaletteEntries
+                                table.remove(m.zonePaletteEntries, element.data.index)
+                                if m.zoneSelectedType > #m.zonePaletteEntries then
+                                    m.zoneSelectedType = #m.zonePaletteEntries
                                 end
-                                if m_zoneSelectedType < 1 then
-                                    m_zoneSelectedType = 1
+                                if m.zoneSelectedType < 1 then
+                                    m.zoneSelectedType = 1
                                 end
-                                SaveZonePalette(m_zonePaletteEntries)
+                                SaveZonePalette(m.zonePaletteEntries)
 
                                 --a map-scoped zone type with no zones painted
                                 --is orphaned once its chip is gone: delete the
                                 --keyword rather than stranding it hidden in
                                 --the table.
                                 if removed ~= nil and removed.keywordid ~= nil then
-                                    m_mapScope.DeleteKeywordIfOrphaned(removed.keywordid, m_zonePaletteEntries)
+                                    m.mapScope.DeleteKeywordIfOrphaned(removed.keywordid, m.zonePaletteEntries)
                                 end
                             end,
                         },
@@ -9434,16 +9449,16 @@ CreateMarkupEditor = function()
     --split out so refreshzonepalette can hand it to RebuildDeferringPopups
     --and have it replayed later if a chip context menu is open.
     local RebuildZonePalette = function(element)
-        m_zonePaletteEntries = ParseZonePalette()
+        m.zonePaletteEntries = ParseZonePalette()
         --the built-in Hole type is always present, after the user's zone
         --types. SerializeZonePalette skips it (no kind "preset", no
         --keywordid), so it never reaches the stored palette setting.
-        m_zonePaletteEntries[#m_zonePaletteEntries+1] = { kind = "hole" }
-        if m_zoneSelectedType > #m_zonePaletteEntries then
-            m_zoneSelectedType = #m_zonePaletteEntries
+        m.zonePaletteEntries[#m.zonePaletteEntries+1] = { kind = "hole" }
+        if m.zoneSelectedType > #m.zonePaletteEntries then
+            m.zoneSelectedType = #m.zonePaletteEntries
         end
-        if m_zoneSelectedType < 1 then
-            m_zoneSelectedType = 1
+        if m.zoneSelectedType < 1 then
+            m.zoneSelectedType = 1
         end
 
         --the chips stripe at the angle the map will actually use, and
@@ -9452,7 +9467,7 @@ CreateMarkupEditor = function()
         EnsureZoneCache()
 
         local children = {}
-        for i,entry in ipairs(m_zonePaletteEntries) do
+        for i,entry in ipairs(m.zonePaletteEntries) do
             children[#children+1] = CreateZoneChip(i, entry)
         end
         element.children = children
@@ -9494,7 +9509,7 @@ CreateMarkupEditor = function()
             refreshchips = function(element)
                 for _,chip in ipairs(element.children) do
                     if chip.data ~= nil and chip.data.index ~= nil then
-                        chip:SetClass("selected", chip.data.index == m_zoneSelectedType)
+                        chip:SetClass("selected", chip.data.index == m.zoneSelectedType)
                     end
                 end
             end,
@@ -9502,21 +9517,21 @@ CreateMarkupEditor = function()
     }
 
     --Adding a zone type selects it, mirroring what pressing its chip does.
-    --Without this the palette grows but m_zoneSelectedType stays put, so the
+    --Without this the palette grows but m.zoneSelectedType stays put, so the
     --new chip renders unselected and the next click on the map paints the
     --PREVIOUS type. The rebuild triggered by SaveZonePalette restamps the
-    --chips, and CreateZoneChip reads m_zoneSelectedType at construction, so
+    --chips, and CreateZoneChip reads m.zoneSelectedType at construction, so
     --the new chip is born selected without an explicit refreshchips.
     --Callers that also want the paint tool armed call TakeMarkupFocus()
     --afterwards; the "New Zone Type..." path deliberately does not, because it
     --opens a modal editor for the new keyword immediately.
     local AppendZoneTypeAndSelect = function(entry)
-        m_zonePaletteEntries[#m_zonePaletteEntries+1] = entry
-        m_zoneSelectedType = #m_zonePaletteEntries
+        m.zonePaletteEntries[#m.zonePaletteEntries+1] = entry
+        m.zoneSelectedType = #m.zonePaletteEntries
         --a fresh type selection paints into that type's existing zone (or a
         --new one), not whatever zone was last targeted.
-        m_zoneTargetId = nil
-        SaveZonePalette(m_zonePaletteEntries)
+        m.zoneTargetId = nil
+        SaveZonePalette(m.zonePaletteEntries)
         RefreshZoneUI()
     end
 
@@ -9544,9 +9559,9 @@ CreateMarkupEditor = function()
         press = function(element)
             local entries = {}
 
-            for _,preset in ipairs(ZONE_PRESETS) do
+            for _,preset in ipairs(K.ZONE_PRESETS) do
                 local inPalette = false
-                for _,entry in ipairs(m_zonePaletteEntries) do
+                for _,entry in ipairs(m.zonePaletteEntries) do
                     if entry.kind == "preset" and entry.key == preset.key then
                         inPalette = true
                         break
@@ -9569,7 +9584,7 @@ CreateMarkupEditor = function()
             end
 
             local paletteKeywords = {}
-            for _,entry in ipairs(m_zonePaletteEntries) do
+            for _,entry in ipairs(m.zonePaletteEntries) do
                 if entry.keywordid ~= nil then
                     paletteKeywords[entry.keywordid] = true
                 end
@@ -9619,7 +9634,7 @@ CreateMarkupEditor = function()
                     local kw = keywordType.CreateNew()
                     kw.name = "New Zone Type"
                     kw.mapid = game.currentMapId
-                    local keywordid = dmhub.SetAndUploadTableItem(ENVIRONMENTAL_KEYWORDS_TABLE, kw)
+                    local keywordid = dmhub.SetAndUploadTableItem(K.ENVIRONMENTAL_KEYWORDS_TABLE, kw)
                     AppendZoneTypeAndSelect{
                         kind = "keyword",
                         keywordid = keywordid,
@@ -9837,7 +9852,7 @@ CreateMarkupEditor = function()
             --nil for it, which is right for chips and menus): on a row that already
             --reads "N tiles", a silent height is indistinguishable from a zone whose
             --height nobody has looked at.
-            meta[#meta+1] = string.lower(m_zoneHeight.Describe(entry.height) or "Unlimited height")
+            meta[#meta+1] = string.lower(m.zoneHeight.Describe(entry.height) or "Unlimited height")
             --player-visible is the default now, so the row calls out the exception:
             --a zone the DM has deliberately kept to themselves.
             if not entry.playerVisible then
@@ -9858,7 +9873,7 @@ CreateMarkupEditor = function()
         end
 
         --Same enlarged swatch treatment as the zone-type rows.
-        local rowGradient = m_zoneStripes.Gradient(entry.patternColor, entry.patternAngle)
+        local rowGradient = m.zoneStripes.Gradient(entry.patternColor, entry.patternAngle)
         local rowSwatchColor = entry.patternColor
         if rowGradient ~= nil then
             rowSwatchColor = "white"
@@ -9913,7 +9928,7 @@ CreateMarkupEditor = function()
         end
 
         return gui.Panel{
-            classes = {"markupChip", cond(entry.zoneid == m_zoneTargetId, "selected")},
+            classes = {"markupChip", cond(entry.zoneid == m.zoneTargetId, "selected")},
             --zoneListPanel is already the 96% content column, so rows fill it
             --entirely and line up with the zone-type rows above.
             width = "100%",
@@ -9936,19 +9951,19 @@ CreateMarkupEditor = function()
             hover = gui.Tooltip("Click to select this zone and show it on the map. Right-click for options."),
 
             press = function(element)
-                m_zoneTargetId = entry.zoneid
+                m.zoneTargetId = entry.zoneid
                 --also select the matching type chip so continued painting
                 --extends this zone rather than switching types. (A hole
                 --target id is inert at paint time -- painting always cuts a
                 --new hole -- but the chip selection keeps the tool on holes.)
-                for i,paletteEntry in ipairs(m_zonePaletteEntries) do
+                for i,paletteEntry in ipairs(m.zonePaletteEntries) do
                     if entry.hole == true then
                         if paletteEntry.kind == "hole" then
-                            m_zoneSelectedType = i
+                            m.zoneSelectedType = i
                             break
                         end
                     elseif paletteEntry.keywordid ~= nil and paletteEntry.keywordid == entry.keywordid then
-                        m_zoneSelectedType = i
+                        m.zoneSelectedType = i
                         break
                     end
                 end
@@ -9980,8 +9995,8 @@ CreateMarkupEditor = function()
                         local floor = game.currentFloor
                         if floor ~= nil then
                             floor:RemoveMarkupZone(entry.zoneid)
-                            if m_zoneTargetId == entry.zoneid then
-                                m_zoneTargetId = nil
+                            if m.zoneTargetId == entry.zoneid then
+                                m.zoneTargetId = nil
                             end
                             RefreshZoneUI()
                         end
@@ -10044,7 +10059,7 @@ CreateMarkupEditor = function()
         local order = {}
 
         for _,entry in ipairs(ZonesOnFloor(floorid)) do
-            local key = m_zoneStripes.GroupKey(entry)
+            local key = m.zoneStripes.GroupKey(entry)
             local group = groups[key]
             if group == nil then
                 group = {
@@ -10068,7 +10083,7 @@ CreateMarkupEditor = function()
         --the ZonesOnFloor call above just refreshed. Sorted by id so the
         --list order is stable across rebuilds (hole records carry no ord).
         local holeEntries = {}
-        for _,entry in ipairs(m_holes.cache) do
+        for _,entry in ipairs(m.holes.cache) do
             if entry.floorid == floorid then
                 holeEntries[#holeEntries+1] = entry
             end
@@ -10078,10 +10093,10 @@ CreateMarkupEditor = function()
                 return a.zoneid < b.zoneid
             end)
             order[#order+1] = {
-                key = m_holes.groupKey,
+                key = m.holes.groupKey,
                 name = "Hole",
-                patternColor = m_holes.color,
-                patternAngle = ZONE_ANGLE_A,
+                patternColor = m.holes.color,
+                patternAngle = K.ZONE_ANGLE_A,
                 entries = holeEntries,
             }
         end
@@ -10094,14 +10109,14 @@ CreateMarkupEditor = function()
     --whole type on the map. Widths add up to exactly 100% (margins count in
     --horizontal flow), so nothing wraps as the panel is resized.
     local CreateZoneGroupHeader = function(group)
-        local gradient = m_zoneStripes.Gradient(group.patternColor, group.patternAngle)
+        local gradient = m.zoneStripes.Gradient(group.patternColor, group.patternAngle)
         local swatchColor = group.patternColor
         if gradient ~= nil then
             swatchColor = "white"
         end
 
         local ApplyOpacity = function(element)
-            m_zoneStripes.SetOpacity(group.key, element.value)
+            m.zoneStripes.SetOpacity(group.key, element.value)
         end
 
         return gui.Panel{
@@ -10135,13 +10150,13 @@ CreateMarkupEditor = function()
             },
 
             --transient and local: nothing here is written to the map, a
-            --setting or the players' clients. See m_zoneStripes.opacity.
+            --setting or the players' clients. See m.zoneStripes.opacity.
             gui.PercentSlider{
                 width = 88,
                 hmargin = 4,
                 valign = "center",
-                styles = m_zoneStripes.OpacitySliderStyles(),
-                value = m_zoneStripes.Opacity(group.key),
+                styles = m.zoneStripes.OpacitySliderStyles(),
+                value = m.zoneStripes.Opacity(group.key),
                 hover = gui.Tooltip("Fades this zone type on the map so you can see what is under it. A local viewing aid only - it is not saved, and players never see it."),
                 --a drag fires 'preview' per frame and 'confirm' on release;
                 --a click on the bar fires 'confirm' alone. All three land on
@@ -10158,7 +10173,7 @@ CreateMarkupEditor = function()
     local BuildZoneToolButtons = function()
         local result = {}
         local dividerAdded = false
-        for _,toolInfo in ipairs(ZONE_TOOLS) do
+        for _,toolInfo in ipairs(K.ZONE_TOOLS) do
             local destructive = toolInfo.erase == true
             if destructive and not dividerAdded then
                 dividerAdded = true
@@ -10174,7 +10189,7 @@ CreateMarkupEditor = function()
             end
 
             local chipClasses = {"markupToolChip"}
-            if toolInfo.id == m_zoneToolId then
+            if toolInfo.id == m.zoneToolId then
                 chipClasses[#chipClasses+1] = "selected"
             end
             if destructive then
@@ -10195,7 +10210,7 @@ CreateMarkupEditor = function()
                     toolid = toolInfo.id,
                 },
                 press = function(element)
-                    m_zoneToolId = element.data.toolid
+                    m.zoneToolId = element.data.toolid
                     zoneToolsPanel:FireEvent("refreshzonetools")
                     --focus + immediate tool registration; TakeMarkupFocus
                     --parks focus on contentPanel (chips are transient) and
@@ -10238,21 +10253,21 @@ CreateMarkupEditor = function()
         events = {
             refreshzonetools = function(element)
                 for _,child in ipairs(element.children) do
-                    child:SetClass("selected", child.data.toolid == m_zoneToolId)
+                    child:SetClass("selected", child.data.toolid == m.zoneToolId)
                 end
             end,
 
             think = function(element)
-                if m_mode ~= "zones" or not ZonesSupported() then
+                if m.mode ~= "zones" or not ZonesSupported() then
                     return
                 end
 
-                local toolInfo = ZoneToolById(m_zoneToolId)
+                local toolInfo = ZoneToolById(m.zoneToolId)
                 if toolInfo == nil then
                     return
                 end
 
-                if not m_arm.Armed() then
+                if not m.arm.Armed() then
                     return
                 end
 
@@ -10278,10 +10293,10 @@ CreateMarkupEditor = function()
             end,
 
             tool = function(element, path)
-                if m_mode ~= "zones" or path == nil then
+                if m.mode ~= "zones" or path == nil then
                     return
                 end
-                local toolInfo = ZoneToolById(m_zoneToolId)
+                local toolInfo = ZoneToolById(m.zoneToolId)
                 if toolInfo == nil then
                     return
                 end
@@ -10319,14 +10334,14 @@ CreateMarkupEditor = function()
                 --real hole instead of painting a keyword zone. None of the
                 --keyword machinery below (dispels, contiguity merging)
                 --applies to holes.
-                local selectedEntry = m_zonePaletteEntries[m_zoneSelectedType]
+                local selectedEntry = m.zonePaletteEntries[m.zoneSelectedType]
                 if selectedEntry ~= nil and selectedEntry.kind == "hole" then
-                    m_holes.Paint(floor, points, locs)
+                    m.holes.Paint(floor, points, locs)
                     RefreshZoneUI()
                     return
                 end
 
-                local keywordid = EnsureZoneTypeKeyword(m_zoneSelectedType)
+                local keywordid = EnsureZoneTypeKeyword(m.zoneSelectedType)
                 if keywordid == nil then
                     dmhub.Debug("MARKUP:: no valid zone type selected; stroke ignored")
                     return
@@ -10336,9 +10351,9 @@ CreateMarkupEditor = function()
                 --zone (and to heal by name) when the keyword upload hasn't
                 --landed locally yet.
                 local fallbackInfo = nil
-                local paletteEntry = m_zonePaletteEntries[m_zoneSelectedType]
+                local paletteEntry = m.zonePaletteEntries[m.zoneSelectedType]
                 if paletteEntry ~= nil and paletteEntry.kind == "preset" then
-                    local preset = ZONE_PRESETS_BY_KEY[paletteEntry.key]
+                    local preset = K.ZONE_PRESETS_BY_KEY[paletteEntry.key]
                     if preset ~= nil then
                         fallbackInfo = { name = preset.name, color = preset.color }
                     end
@@ -10438,7 +10453,7 @@ CreateMarkupEditor = function()
                     for i,component in ipairs(components) do
                         local zoneid = CreateZone(keywordid, component, fallbackInfo)
                         if i == 1 then
-                            m_zoneTargetId = zoneid
+                            m.zoneTargetId = zoneid
                         end
                     end
                     dmhub.EndTransaction()
@@ -10452,7 +10467,7 @@ CreateMarkupEditor = function()
                         end
                     end
                     for _,entry in ipairs(touched) do
-                        if entry.zoneid == m_zoneTargetId then
+                        if entry.zoneid == m.zoneTargetId then
                             primary = entry
                         end
                     end
@@ -10488,7 +10503,7 @@ CreateMarkupEditor = function()
                     WriteZoneLocsSplitting(floor, primary, newLocs)
                     dmhub.EndTransaction()
 
-                    m_zoneTargetId = primary.zoneid
+                    m.zoneTargetId = primary.zoneid
                 end
 
                 RefreshZoneUI()
@@ -10556,7 +10571,7 @@ CreateMarkupEditor = function()
                     for i = 1,#points do
                         eraseRing[i] = points[i]
                     end
-                    for _,entry in ipairs(m_holes.cache) do
+                    for _,entry in ipairs(m.holes.cache) do
                         if entry.floorid == floor.floorid and #entry.polygons > 0 then
                             local ok, touched = pcall(function()
                                 local inter = dmhub.ClipPolygons{
@@ -10581,7 +10596,7 @@ CreateMarkupEditor = function()
                         end
                     end
                 else
-                    for _,entry in ipairs(m_holes.cache) do
+                    for _,entry in ipairs(m.holes.cache) do
                         if entry.floorid == floor.floorid then
                             for _,l in ipairs(entry.locs) do
                                 if remove[ZoneLocKey(l.x, l.y)] then
@@ -10602,8 +10617,8 @@ CreateMarkupEditor = function()
                     --deletes emptied zones, and splits a zone the erase cut
                     --in half into separate records (one per region).
                     WriteZoneLocsSplitting(floor, edit.entry, edit.kept)
-                    if #edit.kept == 0 and m_zoneTargetId == edit.entry.zoneid then
-                        m_zoneTargetId = nil
+                    if #edit.kept == 0 and m.zoneTargetId == edit.entry.zoneid then
+                        m.zoneTargetId = nil
                     end
                 end
                 for _,edit in ipairs(holeEdits) do
@@ -10613,7 +10628,7 @@ CreateMarkupEditor = function()
                         floor:SetMarkupZone(edit.entry.zoneid, {
                             category = "hole",
                             polygons = edit.polygons,
-                            locs = m_holes.EntryLocs(edit.polygons),
+                            locs = m.holes.EntryLocs(edit.polygons),
                         })
                     end
                 end
@@ -10643,7 +10658,7 @@ CreateMarkupEditor = function()
 
         events = {
             think = function(element)
-                if m_mode ~= "zones" or not ZonesSupported() then
+                if m.mode ~= "zones" or not ZonesSupported() then
                     return
                 end
                 if dmhub.markupZonesSeq ~= element.data.seq or game.currentFloorId ~= element.data.floorid then
@@ -10694,14 +10709,14 @@ CreateMarkupEditor = function()
     }
 
     zonesPanel = gui.Panel{
-        classes = {cond(m_mode ~= "zones", "collapsed")},
+        classes = {cond(m.mode ~= "zones", "collapsed")},
         width = "100%",
         height = "auto",
         flow = "vertical",
 
         markupmode = function(element)
-            element:SetClass("collapsed", m_mode ~= "zones")
-            if m_mode == "zones" then
+            element:SetClass("collapsed", m.mode ~= "zones")
+            if m.mode == "zones" then
                 zonePalettePanel:FireEvent("refreshzonepalette")
                 zoneListPanel:FireEvent("refreshzones")
             end
@@ -10758,7 +10773,7 @@ CreateMarkupEditor = function()
     --column, so the grid's outer edges line up with the sections above.
     local CreateFootstepChip = function(surfaceInfo)
         return gui.Panel{
-            classes = {"markupChip", cond(surfaceInfo.id == m_footstepSelected, "selected")},
+            classes = {"markupChip", cond(surfaceInfo.id == m.footstepSelected, "selected")},
             width = "50%-2",
             height = 32,
             flow = "horizontal",
@@ -10773,7 +10788,7 @@ CreateMarkupEditor = function()
             },
 
             press = function(element)
-                m_footstepSelected = element.data.surfaceid
+                m.footstepSelected = element.data.surfaceid
                 footstepPalettePanel:FireEvent("refreshchips")
                 --picking a surface must arm the paint tool by itself; see
                 --TakeMarkupFocus.
@@ -10832,7 +10847,7 @@ CreateMarkupEditor = function()
             refreshchips = function(element)
                 for _,chip in ipairs(element.children) do
                     if chip.data ~= nil and chip.data.surfaceid ~= nil then
-                        chip:SetClass("selected", chip.data.surfaceid == m_footstepSelected)
+                        chip:SetClass("selected", chip.data.surfaceid == m.footstepSelected)
                     end
                 end
             end,
@@ -10863,10 +10878,10 @@ CreateMarkupEditor = function()
     footstepDefaultDropdown = gui.Dropdown{
         width = 200,
         height = 26,
-        idChosen = tostring(math.floor(tonumber(g_footstepDefaultSetting:Get()) or 0)),
+        idChosen = tostring(math.floor(tonumber(gs.footstepDefaultSetting:Get()) or 0)),
         options = BuildFootstepDefaultOptions(),
         change = function(element)
-            g_footstepDefaultSetting:Set(tonumber(element.idChosen) or 0)
+            gs.footstepDefaultSetting:Set(tonumber(element.idChosen) or 0)
         end,
     }
 
@@ -10882,7 +10897,7 @@ CreateMarkupEditor = function()
 
         events = {
             monitor = function(element)
-                local current = tostring(math.floor(tonumber(g_footstepDefaultSetting:Get()) or 0))
+                local current = tostring(math.floor(tonumber(gs.footstepDefaultSetting:Get()) or 0))
                 if footstepDefaultDropdown.idChosen ~= current then
                     footstepDefaultDropdown.idChosen = current
                 end
@@ -10901,7 +10916,7 @@ CreateMarkupEditor = function()
             bgimage = "ui-icons/ph-play-fill.png",
             hover = SideTooltip("Preview the default footstep sound."),
             press = function()
-                local defaultSurface = math.floor(tonumber(g_footstepDefaultSetting:Get()) or 0)
+                local defaultSurface = math.floor(tonumber(gs.footstepDefaultSetting:Get()) or 0)
                 PlaySurfaceSample(SurfaceInfoById(defaultSurface))
             end,
         },
@@ -10912,7 +10927,7 @@ CreateMarkupEditor = function()
     local BuildFootstepToolButtons = function()
         local result = {}
         local dividerAdded = false
-        for _,toolInfo in ipairs(FOOTSTEP_TOOLS) do
+        for _,toolInfo in ipairs(K.FOOTSTEP_TOOLS) do
             local destructive = toolInfo.erase == true
             if destructive and not dividerAdded then
                 dividerAdded = true
@@ -10928,7 +10943,7 @@ CreateMarkupEditor = function()
             end
 
             local chipClasses = {"markupToolChip"}
-            if toolInfo.id == m_footstepToolId then
+            if toolInfo.id == m.footstepToolId then
                 chipClasses[#chipClasses+1] = "selected"
             end
             if destructive then
@@ -10949,7 +10964,7 @@ CreateMarkupEditor = function()
                     toolid = toolInfo.id,
                 },
                 press = function(element)
-                    m_footstepToolId = element.data.toolid
+                    m.footstepToolId = element.data.toolid
                     footstepToolsPanel:FireEvent("refreshfoottools")
                     --focus + immediate tool registration; TakeMarkupFocus
                     --parks focus on contentPanel (chips are transient) and
@@ -10992,21 +11007,21 @@ CreateMarkupEditor = function()
         events = {
             refreshfoottools = function(element)
                 for _,child in ipairs(element.children) do
-                    child:SetClass("selected", child.data.toolid == m_footstepToolId)
+                    child:SetClass("selected", child.data.toolid == m.footstepToolId)
                 end
             end,
 
             think = function(element)
-                if m_mode ~= "surfaces" or not ZonesSupported() then
+                if m.mode ~= "surfaces" or not ZonesSupported() then
                     return
                 end
 
-                local toolInfo = FootstepToolById(m_footstepToolId)
+                local toolInfo = FootstepToolById(m.footstepToolId)
                 if toolInfo == nil then
                     return
                 end
 
-                if not m_arm.Armed() then
+                if not m.arm.Armed() then
                     return
                 end
 
@@ -11032,10 +11047,10 @@ CreateMarkupEditor = function()
             end,
 
             tool = function(element, path)
-                if m_mode ~= "surfaces" or path == nil then
+                if m.mode ~= "surfaces" or path == nil then
                     return
                 end
-                local toolInfo = FootstepToolById(m_footstepToolId)
+                local toolInfo = FootstepToolById(m.footstepToolId)
                 if toolInfo == nil then
                     return
                 end
@@ -11070,7 +11085,7 @@ CreateMarkupEditor = function()
                     return
                 end
 
-                if SurfaceInfoById(m_footstepSelected) == nil then
+                if SurfaceInfoById(m.footstepSelected) == nil then
                     dmhub.Debug("MARKUP:: no valid footstep surface selected; stroke ignored")
                     return
                 end
@@ -11083,7 +11098,7 @@ CreateMarkupEditor = function()
                 local selectedLocs = nil
                 local edits = {}
                 for _,entry in ipairs(SurfacesOnFloor(floor.floorid)) do
-                    if entry.surface == m_footstepSelected then
+                    if entry.surface == m.footstepSelected then
                         selectedLocs = entry.locs
                     else
                         local kept = {}
@@ -11121,7 +11136,7 @@ CreateMarkupEditor = function()
                 for _,edit in ipairs(edits) do
                     WriteSurfaceLocs(floor, edit.surface, edit.locs)
                 end
-                WriteSurfaceLocs(floor, m_footstepSelected, newLocs)
+                WriteSurfaceLocs(floor, m.footstepSelected, newLocs)
                 dmhub.EndTransaction()
 
                 RefreshFootstepUI()
@@ -11187,7 +11202,7 @@ CreateMarkupEditor = function()
 
     local CreateFootstepRow = function(entry)
         --Same enlarged swatch treatment as the zone rows.
-        local rowGradient = m_zoneStripes.Gradient(entry.patternColor, entry.patternAngle)
+        local rowGradient = m.zoneStripes.Gradient(entry.patternColor, entry.patternAngle)
         local rowSwatchColor = entry.patternColor
         if rowGradient ~= nil then
             rowSwatchColor = "white"
@@ -11208,7 +11223,7 @@ CreateMarkupEditor = function()
             hover = SideTooltip("Click to select this surface and show it on the map. Right-click for options."),
 
             press = function(element)
-                m_footstepSelected = entry.surface
+                m.footstepSelected = entry.surface
                 footstepPalettePanel:FireEvent("refreshchips")
                 JumpToZone(entry)
                 TakeMarkupFocus()
@@ -11283,7 +11298,7 @@ CreateMarkupEditor = function()
 
         events = {
             think = function(element)
-                if m_mode ~= "surfaces" or not ZonesSupported() then
+                if m.mode ~= "surfaces" or not ZonesSupported() then
                     return
                 end
                 if element.data.popupDeferred or dmhub.markupZonesSeq ~= element.data.seq or game.currentFloorId ~= element.data.floorid then
@@ -11333,14 +11348,14 @@ CreateMarkupEditor = function()
     }
 
     footstepsPanel = gui.Panel{
-        classes = {cond(m_mode ~= "surfaces", "collapsed")},
+        classes = {cond(m.mode ~= "surfaces", "collapsed")},
         width = "100%",
         height = "auto",
         flow = "vertical",
 
         markupmode = function(element)
-            element:SetClass("collapsed", m_mode ~= "surfaces")
-            if m_mode == "surfaces" then
+            element:SetClass("collapsed", m.mode ~= "surfaces")
+            if m.mode == "surfaces" then
                 footstepPalettePanel:FireEvent("refreshchips")
                 footstepListPanel:FireEvent("refreshfootsteps")
             end
@@ -11560,13 +11575,13 @@ CreateMarkupEditor = function()
     }
 
     local elevationPanel = gui.Panel{
-        classes = {cond(m_mode ~= "elevation", "collapsed")},
+        classes = {cond(m.mode ~= "elevation", "collapsed")},
         width = "100%",
         height = "auto",
         flow = "vertical",
 
         markupmode = function(element)
-            element:SetClass("collapsed", m_mode ~= "elevation")
+            element:SetClass("collapsed", m.mode ~= "elevation")
         end,
 
         gui.Label{
@@ -11604,7 +11619,7 @@ CreateMarkupEditor = function()
         end
         for _,obj in pairs(floor.objects) do
             local kw = obj.keywords
-            if kw ~= nil and kw[MARKUP_PROP_KEYWORD] ~= nil
+            if kw ~= nil and kw[K.MARKUP_PROP_KEYWORD] ~= nil
                 and (assetid == nil or obj.assetid == assetid) then
                 result[#result+1] = obj
             end
@@ -11617,19 +11632,19 @@ CreateMarkupEditor = function()
     --key off the INSTANCE's components, so deletion and light editing keep
     --working for legacy props.
     local GetEditingProp = function()
-        if m_props.editingId == nil then
+        if m.props.editingId == nil then
             return nil
         end
         local floor = game.currentFloor
         if floor == nil then
             return nil
         end
-        local obj = floor:GetObject(m_props.editingId)
+        local obj = floor:GetObject(m.props.editingId)
         if obj == nil then
             return nil
         end
         local kw = obj.keywords
-        if kw == nil or kw[MARKUP_PROP_KEYWORD] == nil then
+        if kw == nil or kw[K.MARKUP_PROP_KEYWORD] == nil then
             return nil
         end
         return obj
@@ -11639,7 +11654,7 @@ CreateMarkupEditor = function()
     --alive and markup-tagged. Property edits apply to all of these.
     local GetEditingProps = function()
         local result = {}
-        local ids = m_props.editingIds
+        local ids = m.props.editingIds
         if ids == nil then
             return result
         end
@@ -11651,7 +11666,7 @@ CreateMarkupEditor = function()
             local obj = floor:GetObject(objid)
             if obj ~= nil and obj.valid then
                 local kw = obj.keywords
-                if kw ~= nil and kw[MARKUP_PROP_KEYWORD] ~= nil then
+                if kw ~= nil and kw[K.MARKUP_PROP_KEYWORD] ~= nil then
                     result[#result+1] = obj
                 end
             end
@@ -11685,7 +11700,7 @@ CreateMarkupEditor = function()
         if assetid == nil then
             return nil
         end
-        local d = m_props.defaults[assetid]
+        local d = m.props.defaults[assetid]
         if d == nil then
             d = { color = "#ffffff", intensity = 0.5, radius = 4, flicker = 0 }
             local node = assets:GetObjectNode(assetid)
@@ -11710,7 +11725,7 @@ CreateMarkupEditor = function()
                     end
                 end
             end
-            m_props.defaults[assetid] = d
+            m.props.defaults[assetid] = d
         end
         return d
     end
@@ -11728,10 +11743,10 @@ CreateMarkupEditor = function()
             end
             return false
         end
-        if m_props.selected == nil then
+        if m.props.selected == nil then
             return false
         end
-        local node = assets:GetObjectNode(m_props.selected)
+        local node = assets:GetObjectNode(m.props.selected)
         return node ~= nil and NodeGetComponent(node, "Light") ~= nil
     end
 
@@ -11755,7 +11770,7 @@ CreateMarkupEditor = function()
         if applied then
             return
         end
-        local d = LightDefaultsFor(m_props.selected)
+        local d = LightDefaultsFor(m.props.selected)
         if d ~= nil then
             d[id] = value
         end
@@ -11778,7 +11793,7 @@ CreateMarkupEditor = function()
                 return nil
             end
         end
-        local d = LightDefaultsFor(m_props.selected)
+        local d = LightDefaultsFor(m.props.selected)
         if d ~= nil then
             return d[id]
         end
@@ -11794,7 +11809,7 @@ CreateMarkupEditor = function()
         if assetid == nil then
             return nil
         end
-        local d = m_props.textDefaults[assetid]
+        local d = m.props.textDefaults[assetid]
         if d == nil then
             d = { text = "", font = "", fontSize = 40, color = "#ffffff" }
             local node = assets:GetObjectNode(assetid)
@@ -11819,7 +11834,7 @@ CreateMarkupEditor = function()
                     end
                 end
             end
-            m_props.textDefaults[assetid] = d
+            m.props.textDefaults[assetid] = d
         end
         return d
     end
@@ -11837,10 +11852,10 @@ CreateMarkupEditor = function()
             end
             return false
         end
-        if m_props.selected == nil then
+        if m.props.selected == nil then
             return false
         end
-        local node = assets:GetObjectNode(m_props.selected)
+        local node = assets:GetObjectNode(m.props.selected)
         return node ~= nil and NodeGetComponent(node, "Text") ~= nil
     end
 
@@ -11864,7 +11879,7 @@ CreateMarkupEditor = function()
         if applied then
             return
         end
-        local d = TextDefaultsFor(m_props.selected)
+        local d = TextDefaultsFor(m.props.selected)
         if d ~= nil then
             d[id] = value
         end
@@ -11887,7 +11902,7 @@ CreateMarkupEditor = function()
                 return nil
             end
         end
-        local d = TextDefaultsFor(m_props.selected)
+        local d = TextDefaultsFor(m.props.selected)
         if d ~= nil then
             return d[id]
         end
@@ -11938,10 +11953,10 @@ CreateMarkupEditor = function()
             end
             return false
         end
-        if m_props.selected == nil then
+        if m.props.selected == nil then
             return false
         end
-        local node = assets:GetObjectNode(m_props.selected)
+        local node = assets:GetObjectNode(m.props.selected)
         return node ~= nil and NodeGetComponent(node, "Teleporter") ~= nil
     end
 
@@ -11952,8 +11967,8 @@ CreateMarkupEditor = function()
         if #teleporters > 0 then
             return teleporters[1].link
         end
-        if m_props.pendingPartnerId ~= nil and m_props.pendingLink ~= nil then
-            return m_props.pendingLink
+        if m.props.pendingPartnerId ~= nil and m.props.pendingLink ~= nil then
+            return m.props.pendingLink
         end
         return CurrentTeleporterLinkName()
     end
@@ -11971,8 +11986,8 @@ CreateMarkupEditor = function()
                 entry.comp:SetAndUploadProperties{ linkName = newLink }
             end
         end
-        if m_props.pendingLink ~= nil and LinkKey(m_props.pendingLink) == LinkKey(oldLink) then
-            m_props.pendingLink = newLink
+        if m.props.pendingLink ~= nil and LinkKey(m.props.pendingLink) == LinkKey(oldLink) then
+            m.props.pendingLink = newLink
         end
     end
 
@@ -12017,7 +12032,7 @@ CreateMarkupEditor = function()
                 return tostring(v)
             end
         end
-        return m_props.teleStyle
+        return m.props.teleStyle
     end
 
     --Apply a style choice: remember it for new pairs, and write it to EVERY
@@ -12025,7 +12040,7 @@ CreateMarkupEditor = function()
     --of a pair always keep the same styling, and a shift+click multi
     --selection styles all its pairs together.
     local ApplyTeleporterStyle = function(value)
-        m_props.teleStyle = value
+        m.props.teleStyle = value
 
         local links = {}
         local haveLink = false
@@ -12040,8 +12055,8 @@ CreateMarkupEditor = function()
             end
         end
 
-        if not haveLink and m_props.pendingPartnerId ~= nil and m_props.pendingLink ~= nil then
-            links[LinkKey(m_props.pendingLink)] = true
+        if not haveLink and m.props.pendingPartnerId ~= nil and m.props.pendingLink ~= nil then
+            links[LinkKey(m.props.pendingLink)] = true
             haveLink = true
         end
 
@@ -12092,13 +12107,13 @@ CreateMarkupEditor = function()
             if existing ~= nil then
                 for kw,_ in pairs(existing) do
                     kws[#kws+1] = kw
-                    if string.lower(kw) == MARKUP_PROP_KEYWORD then
+                    if string.lower(kw) == K.MARKUP_PROP_KEYWORD then
                         hasMarkup = true
                     end
                 end
             end
             if not hasMarkup then
-                kws[#kws+1] = MARKUP_PROP_KEYWORD
+                kws[#kws+1] = K.MARKUP_PROP_KEYWORD
             end
             coreComponent:SetProperty("keywords", kws)
         end
@@ -12146,14 +12161,14 @@ CreateMarkupEditor = function()
         local completedPair = false
         if teleporter ~= nil then
             local link
-            if m_props.pendingPartnerId ~= nil then
-                link = m_props.pendingLink or CurrentTeleporterLinkName()
+            if m.props.pendingPartnerId ~= nil then
+                link = m.props.pendingLink or CurrentTeleporterLinkName()
                 completedPair = true
             else
                 link = CurrentTeleporterLinkName()
             end
             teleporter:SetProperty("linkName", link)
-            teleporter:SetProperty("style", m_props.teleStyle)
+            teleporter:SetProperty("style", m.props.teleStyle)
         end
 
         obj:MarkUndo()
@@ -12161,15 +12176,15 @@ CreateMarkupEditor = function()
 
         if teleporter ~= nil then
             if completedPair then
-                m_props.pendingPartnerId = nil
-                m_props.pendingLink = nil
-                m_props.pendingFloorId = nil
+                m.props.pendingPartnerId = nil
+                m.props.pendingLink = nil
+                m.props.pendingFloorId = nil
                 --this name is taken now; the next pair generates a new one.
-                m_props.teleLink = nil
+                m.props.teleLink = nil
             else
-                m_props.pendingPartnerId = obj.objid
-                m_props.pendingLink = m_props.teleLink
-                m_props.pendingFloorId = obj.floorid
+                m.props.pendingPartnerId = obj.objid
+                m.props.pendingLink = m.props.teleLink
+                m.props.pendingFloorId = obj.floorid
             end
         end
 
@@ -12188,7 +12203,7 @@ CreateMarkupEditor = function()
         end
 
         return gui.Panel{
-            classes = {"markupChip", cond(node.id == m_props.selected, "selected")},
+            classes = {"markupChip", cond(node.id == m.props.selected, "selected")},
             width = "48%",
             height = 34,
             flow = "horizontal",
@@ -12207,12 +12222,12 @@ CreateMarkupEditor = function()
             press = function(element)
                 --switching type abandons a half-placed teleporter pair;
                 --re-pressing the already-selected chip does not.
-                if element.data.propid ~= m_props.selected then
+                if element.data.propid ~= m.props.selected then
                     AbortPendingTeleporterPair()
                 end
-                m_props.selected = element.data.propid
-                m_props.editingId = nil
-                m_props.editingIds = nil
+                m.props.selected = element.data.propid
+                m.props.editingId = nil
+                m.props.editingIds = nil
                 dmhub.ClearSelectedObjects()
                 RefreshPropUI()
                 --panel focus is what turns the object-editing filter on, and
@@ -12294,7 +12309,7 @@ CreateMarkupEditor = function()
                     --the first chip.
                     local found = false
                     for _,node in ipairs(nodes) do
-                        if node.id == m_props.selected then
+                        if node.id == m.props.selected then
                             found = true
                             break
                         end
@@ -12302,9 +12317,9 @@ CreateMarkupEditor = function()
                     if not found then
                         local first = nodes[1]
                         if first ~= nil then
-                            m_props.selected = first.id
+                            m.props.selected = first.id
                         else
-                            m_props.selected = nil
+                            m.props.selected = nil
                         end
                     end
 
@@ -12327,7 +12342,7 @@ CreateMarkupEditor = function()
                 else
                     for _,chip in ipairs(element.children) do
                         if chip.data ~= nil and chip.data.propid ~= nil then
-                            chip:SetClass("selected", chip.data.propid == m_props.selected)
+                            chip:SetClass("selected", chip.data.propid == m.props.selected)
                         end
                     end
                 end
@@ -12397,11 +12412,11 @@ CreateMarkupEditor = function()
         vmargin = 4,
 
         refreshprops = function(element)
-            if m_props.pendingPartnerId ~= nil then
+            if m.props.pendingPartnerId ~= nil then
                 element:SetClass("collapsed", false)
                 element.text = string.format(
                     "Now place the partner for '%s': click the map where the second teleporter should go (any floor). Press Escape to cancel and remove the first one.",
-                    tostring(m_props.pendingLink or ""))
+                    tostring(m.props.pendingLink or ""))
                 return
             end
             local editing = GetEditingProps()
@@ -12443,11 +12458,11 @@ CreateMarkupEditor = function()
                 end
                 return
             end
-            if m_props.selected == nil then
+            if m.props.selected == nil then
                 element:SetClass("collapsed", true)
                 return
             end
-            local node = assets:GetObjectNode(m_props.selected)
+            local node = assets:GetObjectNode(m.props.selected)
             if node == nil then
                 element:SetClass("collapsed", true)
                 return
@@ -12864,10 +12879,10 @@ CreateMarkupEditor = function()
                     local teleporters = EditingTeleporters()
                     if #teleporters > 0 then
                         RenameTeleporterLink(teleporters[1].link, typed)
-                    elseif m_props.pendingPartnerId ~= nil then
-                        RenameTeleporterLink(m_props.pendingLink, typed)
+                    elseif m.props.pendingPartnerId ~= nil then
+                        RenameTeleporterLink(m.props.pendingLink, typed)
                     else
-                        m_props.teleLink = typed
+                        m.props.teleLink = typed
                     end
                     RefreshPropUI()
                 end,
@@ -12959,16 +12974,16 @@ CreateMarkupEditor = function()
             --deleting the half-placed first teleporter IS the abort; just
             --clear the pending state rather than double-destroying.
             for _,d in ipairs(toDelete) do
-                if d.objid == m_props.pendingPartnerId then
-                    m_props.pendingPartnerId = nil
-                    m_props.pendingLink = nil
-                    m_props.pendingFloorId = nil
+                if d.objid == m.props.pendingPartnerId then
+                    m.props.pendingPartnerId = nil
+                    m.props.pendingLink = nil
+                    m.props.pendingFloorId = nil
                 end
             end
 
             dmhub.ClearSelectedObjects()
-            m_props.editingId = nil
-            m_props.editingIds = nil
+            m.props.editingId = nil
+            m.props.editingIds = nil
             for _,d in ipairs(toDelete) do
                 if d.valid then
                     d:Destroy()
@@ -13002,7 +13017,7 @@ CreateMarkupEditor = function()
         local row = 1 + math.floor(((y - dims.y) / h) * 3)
         if col < 1 then col = 1 elseif col > 3 then col = 3 end
         if row < 1 then row = 1 elseif row > 3 then row = 3 end
-        return ZONE_AREA_NAMES[row][col]
+        return K.ZONE_AREA_NAMES[row][col]
     end
 
     --Pan the camera to the first of a list of props and flash a highlight
@@ -13271,7 +13286,7 @@ CreateMarkupEditor = function()
                     --selection seq, batching everything into ONE callback
                     --next frame: the panel transitions straight from the old
                     --binding to the new one.
-                    for _,objid in ipairs(m_props.editingIds or {}) do
+                    for _,objid in ipairs(m.props.editingIds or {}) do
                         if not inRow[objid] then
                             local prev = floor:GetObject(objid)
                             if prev ~= nil and prev.valid then
@@ -13346,13 +13361,13 @@ CreateMarkupEditor = function()
 
         events = {
             think = function(element)
-                if m_mode == "props" then
+                if m.mode == "props" then
                     element:FireEvent("syncrows")
                 end
             end,
 
             refreshprops = function(element)
-                local show = PropsSupported() and m_props.selected ~= nil
+                local show = PropsSupported() and m.props.selected ~= nil
                 element:SetClass("collapsed", not show)
                 if show then
                     element:FireEvent("syncrows")
@@ -13360,15 +13375,15 @@ CreateMarkupEditor = function()
             end,
 
             syncrows = function(element)
-                if m_props.selected == nil then
+                if m.props.selected == nil then
                     return
                 end
-                local node = assets:GetObjectNode(m_props.selected)
+                local node = assets:GetObjectNode(m.props.selected)
                 if node == nil then
                     return
                 end
 
-                local props = PropsOnCurrentFloor(m_props.selected)
+                local props = PropsOnCurrentFloor(m.props.selected)
                 table.sort(props, function(a, b)
                     return tostring(a.objid) < tostring(b.objid)
                 end)
@@ -13421,7 +13436,7 @@ CreateMarkupEditor = function()
                 --signature includes position and the label-feeding fields so
                 --drags, renames, recolors and cross-floor partner changes
                 --refresh the rows too.
-                local parts = { tostring(m_props.selected), tostring(game.currentFloorId) }
+                local parts = { tostring(m.props.selected), tostring(game.currentFloorId) }
                 for _,entry in ipairs(entries) do
                     for _,obj in ipairs(entry.objs) do
                         local extra = ""
@@ -13482,7 +13497,7 @@ CreateMarkupEditor = function()
                 --row highlights when ANY of its props is bound (a pair row
                 --lights up whichever end was selected).
                 local selectedSet = {}
-                for _,objid in ipairs(m_props.editingIds or {}) do
+                for _,objid in ipairs(m.props.editingIds or {}) do
                     selectedSet[objid] = true
                 end
                 for _,row in ipairs(propListRows.children) do
@@ -13506,7 +13521,7 @@ CreateMarkupEditor = function()
     }
 
     propsPanel = gui.Panel{
-        classes = {cond(m_mode ~= "props", "collapsed")},
+        classes = {cond(m.mode ~= "props", "collapsed")},
         width = "100%",
         height = "auto",
         flow = "vertical",
@@ -13520,11 +13535,11 @@ CreateMarkupEditor = function()
         events = {
             markupmode = function(element)
                 --leaving the Props tab abandons a half-placed teleporter pair.
-                if m_mode ~= "props" then
+                if m.mode ~= "props" then
                     AbortPendingTeleporterPair()
                 end
-                element:SetClass("collapsed", m_mode ~= "props")
-                if m_mode == "props" then
+                element:SetClass("collapsed", m.mode ~= "props")
+                if m.mode == "props" then
                     element:FireEventTree("refreshprops")
                 end
                 --grab (or release) map focus on the mode switch itself, so the
@@ -13534,11 +13549,11 @@ CreateMarkupEditor = function()
             end,
 
             think = function(element)
-                local want = m_mode == "props" and PropsSupported()
-                    and m_props.selected ~= nil
-                    and m_arm.Armed()
+                local want = m.mode == "props" and PropsSupported()
+                    and m.props.selected ~= nil
+                    and m.arm.Armed()
 
-                if m_props.pendingPartnerId ~= nil then
+                if m.props.pendingPartnerId ~= nil then
                     if not want then
                         --disarmed (focus lost, tab left, panel closed) with a
                         --pair half-placed: abort, deleting the first one.
@@ -13547,17 +13562,17 @@ CreateMarkupEditor = function()
                         --the first teleporter can also die under us (another
                         --client, undo): quietly stop waiting for a partner.
                         local floor = nil
-                        if m_props.pendingFloorId ~= nil then
-                            floor = game.GetFloor(m_props.pendingFloorId)
+                        if m.props.pendingFloorId ~= nil then
+                            floor = game.GetFloor(m.props.pendingFloorId)
                         end
                         local pendingObj = nil
                         if floor ~= nil then
-                            pendingObj = floor:GetObject(m_props.pendingPartnerId)
+                            pendingObj = floor:GetObject(m.props.pendingPartnerId)
                         end
                         if pendingObj == nil or not pendingObj.valid then
-                            m_props.pendingPartnerId = nil
-                            m_props.pendingLink = nil
-                            m_props.pendingFloorId = nil
+                            m.props.pendingPartnerId = nil
+                            m.props.pendingLink = nil
+                            m.props.pendingFloorId = nil
                             RefreshPropUI()
                         end
                     end
@@ -13575,7 +13590,7 @@ CreateMarkupEditor = function()
             end,
 
             mappress = function(element, loc, point)
-                if m_mode ~= "props" or m_props.selected == nil then
+                if m.mode ~= "props" or m.props.selected == nil then
                     return
                 end
 
@@ -13600,7 +13615,7 @@ CreateMarkupEditor = function()
                     --prop) even when the 0.6-tile check above missed it.
                     --When it IS showing, place at exactly the previewed
                     --(snapped) position so the prop lands under the ghost.
-                    if m_props.editingId ~= nil then
+                    if m.props.editingId ~= nil then
                         return
                     end
                     local ghostPos = nil
@@ -13613,14 +13628,14 @@ CreateMarkupEditor = function()
                     placePoint = ghostPos
                 end
 
-                PlaceProp(m_props.selected, placePoint)
+                PlaceProp(m.props.selected, placePoint)
             end,
 
             create = function(element)
                 --a Lua reload can rebuild the panel with props already the
                 --active mode; the editors then get no markupmode event, so
                 --sync them here.
-                if m_mode == "props" then
+                if m.mode == "props" then
                     element:FireEventTree("refreshprops")
                 end
             end,
@@ -13657,7 +13672,7 @@ CreateMarkupEditor = function()
 
     --Placeholder for the modes that are not implemented yet.
     local placeholderPanel = gui.Label{
-        classes = {"fgMuted", cond(m_mode == "walls" or m_mode == "zones" or m_mode == "surfaces" or m_mode == "elevation" or m_mode == "props", "collapsed")},
+        classes = {"fgMuted", cond(m.mode == "walls" or m.mode == "zones" or m.mode == "surfaces" or m.mode == "elevation" or m.mode == "props", "collapsed")},
         text = "",
         width = "90%",
         height = "auto",
@@ -13666,12 +13681,12 @@ CreateMarkupEditor = function()
         textAlignment = "center",
 
         markupmode = function(element)
-            local implemented = m_mode == "walls" or m_mode == "zones" or m_mode == "surfaces" or m_mode == "elevation" or m_mode == "props"
+            local implemented = m.mode == "walls" or m.mode == "zones" or m.mode == "surfaces" or m.mode == "elevation" or m.mode == "props"
             element:SetClass("collapsed", implemented)
             if not implemented then
-                local modeName = m_mode
-                for _,modeInfo in ipairs(MODES) do
-                    if modeInfo.id == m_mode then
+                local modeName = m.mode
+                for _,modeInfo in ipairs(K.MODES) do
+                    if modeInfo.id == m.mode then
                         modeName = modeInfo.text
                     end
                 end
@@ -13725,13 +13740,13 @@ CreateMarkupEditor = function()
         end
 
         local toolPanel = nil
-        if m_mode == "walls" then
+        if m.mode == "walls" then
             toolPanel = toolsPanel
-        elseif m_mode == "zones" then
+        elseif m.mode == "zones" then
             toolPanel = zoneToolsPanel
-        elseif m_mode == "surfaces" then
+        elseif m.mode == "surfaces" then
             toolPanel = footstepToolsPanel
-        elseif m_mode == "props" then
+        elseif m.mode == "props" then
             toolPanel = propsPanel
         end
 
@@ -13772,7 +13787,7 @@ CreateMarkupEditor = function()
         --before the 0.3s poll re-registers the map tool and silently do
         --nothing.
         panelFocused = function(element)
-            m_arm.Set(true)
+            m.arm.Set(true)
             TakeMarkupFocus()
         end,
 
@@ -13787,10 +13802,10 @@ CreateMarkupEditor = function()
         --dmhub.CancelEditing chain lower down is a DIFFERENT route (sticky
         --map focus) and never sees the press while the window has it.
         panelEscape = function(element, claim)
-            if not m_arm.Armed() then
+            if not m.arm.Armed() then
                 return
             end
-            m_arm.Set(false)
+            m.arm.Set(false)
             --give up focus with the tool: both hosts skip the panelFocused
             --nudge while focus is already here (ClaimTabFocus /
             --FocusPanelContent guard on it), so keeping focus would mean
@@ -13813,7 +13828,7 @@ CreateMarkupEditor = function()
         --arrive-disarmed and it was walked back). The rest of explicit
         --arming stands: Escape and hiding disarm, focus loss does not.
         showpanel = function(element)
-            m_arm.Set(true)
+            m.arm.Set(true)
             if not gui.ChildHasFocus(element) then
                 gui.SetFocus(element)
             end
@@ -13822,7 +13837,7 @@ CreateMarkupEditor = function()
         --Hiding it DOES disarm: a tool you cannot see must not keep eating
         --map clicks.
         hidepanel = function(element)
-            m_arm.Set(false)
+            m.arm.Set(false)
             if gui.ChildHasFocus(element) then
                 gui.SetFocus(nil)
             end
@@ -13835,7 +13850,7 @@ CreateMarkupEditor = function()
         --These now only drive the host's focus HIGHLIGHT. They no longer
         --touch `markuparmed`: focus is not the armed state any more, so a
         --focus steal must not put the armed dot out while the tool is still
-        --live. m_arm.Set owns that event.
+        --live. m.arm.Set owns that event.
         childfocus = function(element)
             local dockPanel = element:FindParentWithClass("dockablePanel")
             if dockPanel ~= nil then
@@ -13871,7 +13886,7 @@ CreateMarkupEditor = function()
     --NOTE: openness is not flagged here. A saved dock layout builds this
     --content at startup without showing it; MarkupPanelIsOpen derives
     --visibility from the live panel's ancestor chain.
-    m_markupHud = contentPanel
+    m.markupHud = contentPanel
 
     palettePanel:FireEvent("refreshpalette")
     zonePalettePanel:FireEvent("refreshzonepalette")
@@ -13908,15 +13923,15 @@ end
 --reloaded.
 MapMarkupHooks = rawget(_G, "MapMarkupHooks") or {}
 
-local g_priorGetSelectedWall = dmhub.GetSelectedWall
-if g_priorGetSelectedWall == MapMarkupHooks.getSelectedWallWrapper or g_priorGetSelectedWall == nil then
-    g_priorGetSelectedWall = MapMarkupHooks.priorGetSelectedWall
+gs.priorGetSelectedWall = dmhub.GetSelectedWall
+if gs.priorGetSelectedWall == MapMarkupHooks.getSelectedWallWrapper or gs.priorGetSelectedWall == nil then
+    gs.priorGetSelectedWall = MapMarkupHooks.priorGetSelectedWall
 end
-MapMarkupHooks.priorGetSelectedWall = g_priorGetSelectedWall
+MapMarkupHooks.priorGetSelectedWall = gs.priorGetSelectedWall
 MapMarkupHooks.getSelectedWallWrapper = function()
     local result = nil
-    if g_priorGetSelectedWall ~= nil then
-        result = g_priorGetSelectedWall()
+    if gs.priorGetSelectedWall ~= nil then
+        result = gs.priorGetSelectedWall()
     end
     if result ~= nil then
         return result
@@ -13925,11 +13940,11 @@ MapMarkupHooks.getSelectedWallWrapper = function()
 end
 dmhub.GetSelectedWall = MapMarkupHooks.getSelectedWallWrapper
 
-local g_priorGetBuildingSolid = dmhub.GetBuildingSolid
-if g_priorGetBuildingSolid == MapMarkupHooks.getBuildingSolidWrapper or g_priorGetBuildingSolid == nil then
-    g_priorGetBuildingSolid = MapMarkupHooks.priorGetBuildingSolid
+gs.priorGetBuildingSolid = dmhub.GetBuildingSolid
+if gs.priorGetBuildingSolid == MapMarkupHooks.getBuildingSolidWrapper or gs.priorGetBuildingSolid == nil then
+    gs.priorGetBuildingSolid = MapMarkupHooks.priorGetBuildingSolid
 end
-MapMarkupHooks.priorGetBuildingSolid = g_priorGetBuildingSolid
+MapMarkupHooks.priorGetBuildingSolid = gs.priorGetBuildingSolid
 MapMarkupHooks.getBuildingSolidWrapper = function()
     --When the markup panel is driving wall drawing, never draw solid blocks,
     --even if the Building editor was left in Solid mode. (The Building
@@ -13937,8 +13952,8 @@ MapMarkupHooks.getBuildingSolidWrapper = function()
     if GetMarkupSelectedWall() ~= nil then
         return false
     end
-    if g_priorGetBuildingSolid ~= nil then
-        return g_priorGetBuildingSolid()
+    if gs.priorGetBuildingSolid ~= nil then
+        return gs.priorGetBuildingSolid()
     end
     return false
 end
@@ -13949,18 +13964,18 @@ dmhub.GetBuildingSolid = MapMarkupHooks.getBuildingSolidWrapper
 --having focus; we chain so whichever of the two panels has focus wins. Our
 --half is nil unless this panel is focused AND in Elevation mode, so the
 --Elevation Editor keeps working exactly as before.
-local g_priorGetHeightEditingInfo = dmhub.GetHeightEditingInfo
-if g_priorGetHeightEditingInfo == MapMarkupHooks.getHeightEditingInfoWrapper or g_priorGetHeightEditingInfo == nil then
-    g_priorGetHeightEditingInfo = MapMarkupHooks.priorGetHeightEditingInfo
+gs.priorGetHeightEditingInfo = dmhub.GetHeightEditingInfo
+if gs.priorGetHeightEditingInfo == MapMarkupHooks.getHeightEditingInfoWrapper or gs.priorGetHeightEditingInfo == nil then
+    gs.priorGetHeightEditingInfo = MapMarkupHooks.priorGetHeightEditingInfo
 end
-MapMarkupHooks.priorGetHeightEditingInfo = g_priorGetHeightEditingInfo
+MapMarkupHooks.priorGetHeightEditingInfo = gs.priorGetHeightEditingInfo
 MapMarkupHooks.getHeightEditingInfoWrapper = function()
     local result = GetMarkupHeightEditingInfo()
     if result ~= nil then
         return result
     end
-    if g_priorGetHeightEditingInfo ~= nil then
-        return g_priorGetHeightEditingInfo()
+    if gs.priorGetHeightEditingInfo ~= nil then
+        return gs.priorGetHeightEditingInfo()
     end
     return nil
 end
@@ -13974,14 +13989,14 @@ dmhub.GetHeightEditingInfo = MapMarkupHooks.getHeightEditingInfoWrapper
 --pcall on read AND write: this hook needs an engine build. On a stale engine
 --the property doesn't exist, reads/assignments raise, and the tool simply
 --edits all walls like the Building editor's version does.
-local g_priorGetWallPointsInvisibleOnly = nil
+gs.priorGetWallPointsInvisibleOnly = nil
 pcall(function()
-    g_priorGetWallPointsInvisibleOnly = dmhub.GetWallPointsInvisibleOnly
+    gs.priorGetWallPointsInvisibleOnly = dmhub.GetWallPointsInvisibleOnly
 end)
-if g_priorGetWallPointsInvisibleOnly == MapMarkupHooks.getWallPointsInvisibleOnlyWrapper or g_priorGetWallPointsInvisibleOnly == nil then
-    g_priorGetWallPointsInvisibleOnly = MapMarkupHooks.priorGetWallPointsInvisibleOnly
+if gs.priorGetWallPointsInvisibleOnly == MapMarkupHooks.getWallPointsInvisibleOnlyWrapper or gs.priorGetWallPointsInvisibleOnly == nil then
+    gs.priorGetWallPointsInvisibleOnly = MapMarkupHooks.priorGetWallPointsInvisibleOnly
 end
-MapMarkupHooks.priorGetWallPointsInvisibleOnly = g_priorGetWallPointsInvisibleOnly
+MapMarkupHooks.priorGetWallPointsInvisibleOnly = gs.priorGetWallPointsInvisibleOnly
 MapMarkupHooks.getWallPointsInvisibleOnlyWrapper = function()
     --true only while THIS panel is the reason the points tool is active: the
     --shared tool setting is "points" and our (focus-gated) wall selection is
@@ -13990,8 +14005,8 @@ MapMarkupHooks.getWallPointsInvisibleOnlyWrapper = function()
     if dmhub.GetSettingValue("buildingtool") == "points" and GetMarkupSelectedWall() ~= nil then
         return true
     end
-    if g_priorGetWallPointsInvisibleOnly ~= nil then
-        return g_priorGetWallPointsInvisibleOnly()
+    if gs.priorGetWallPointsInvisibleOnly ~= nil then
+        return gs.priorGetWallPointsInvisibleOnly()
     end
     return false
 end
@@ -14017,17 +14032,17 @@ end)
 --this module) assigns dmhub.ObjectsSelected to pop the generic object
 --properties dialog; chain so markup props selected while the Props tab is
 --focused bind to this panel's editors instead of opening that dialog.
-local g_priorObjectsSelected = dmhub.ObjectsSelected
-if g_priorObjectsSelected == MapMarkupHooks.objectsSelectedWrapper or g_priorObjectsSelected == nil then
-    g_priorObjectsSelected = MapMarkupHooks.priorObjectsSelected
+gs.priorObjectsSelected = dmhub.ObjectsSelected
+if gs.priorObjectsSelected == MapMarkupHooks.objectsSelectedWrapper or gs.priorObjectsSelected == nil then
+    gs.priorObjectsSelected = MapMarkupHooks.priorObjectsSelected
 end
-MapMarkupHooks.priorObjectsSelected = g_priorObjectsSelected
+MapMarkupHooks.priorObjectsSelected = gs.priorObjectsSelected
 MapMarkupHooks.objectsSelectedWrapper = function(objects)
     if MarkupHandleObjectsSelected(objects) then
         return
     end
-    if g_priorObjectsSelected ~= nil then
-        g_priorObjectsSelected(objects)
+    if gs.priorObjectsSelected ~= nil then
+        gs.priorObjectsSelected(objects)
     end
 end
 dmhub.ObjectsSelected = MapMarkupHooks.objectsSelectedWrapper
@@ -14038,13 +14053,13 @@ dmhub.ObjectsSelected = MapMarkupHooks.objectsSelectedWrapper
 --before this module) assigns the base handler, which clears object selection.
 --Focus loss is the fallback abort (the props think loop), so nothing is lost
 --if some other escape consumer wins.
-local g_priorCancelEditing = dmhub.CancelEditing
-if g_priorCancelEditing == MapMarkupHooks.cancelEditingWrapper or g_priorCancelEditing == nil then
-    g_priorCancelEditing = MapMarkupHooks.priorCancelEditing
+gs.priorCancelEditing = dmhub.CancelEditing
+if gs.priorCancelEditing == MapMarkupHooks.cancelEditingWrapper or gs.priorCancelEditing == nil then
+    gs.priorCancelEditing = MapMarkupHooks.priorCancelEditing
 end
-MapMarkupHooks.priorCancelEditing = g_priorCancelEditing
+MapMarkupHooks.priorCancelEditing = gs.priorCancelEditing
 MapMarkupHooks.cancelEditingWrapper = function(sheet)
-    if m_props.pendingPartnerId ~= nil and m_mode == "props" and m_arm.Armed() then
+    if m.props.pendingPartnerId ~= nil and m.mode == "props" and m.arm.Armed() then
         AbortPendingTeleporterPair()
         return true
     end
@@ -14054,13 +14069,13 @@ MapMarkupHooks.cancelEditingWrapper = function(sheet)
     --drawing", not "clear the selection" or "close the window". Consuming it
     --is what stops the window's own escape handler closing the panel out from
     --under a single keypress.
-    if m_arm.Armed() then
-        --m_arm.Set repaints the strip and unregisters the map tools.
-        m_arm.Set(false)
+    if m.arm.Armed() then
+        --m.arm.Set repaints the strip and unregisters the map tools.
+        m.arm.Set(false)
         return true
     end
-    if g_priorCancelEditing ~= nil then
-        return g_priorCancelEditing(sheet)
+    if gs.priorCancelEditing ~= nil then
+        return gs.priorCancelEditing(sheet)
     end
     return false
 end
@@ -14072,18 +14087,18 @@ dmhub.CancelEditing = MapMarkupHooks.cancelEditingWrapper
 --returned object assetid. Chain so the props tab's armed type publishes its
 --asset; our half is focus- and mode-gated, so the Objects panel keeps
 --working exactly as before.
-local g_priorGetSelectedObject = dmhub.GetSelectedObject
-if g_priorGetSelectedObject == MapMarkupHooks.getSelectedObjectWrapper or g_priorGetSelectedObject == nil then
-    g_priorGetSelectedObject = MapMarkupHooks.priorGetSelectedObject
+gs.priorGetSelectedObject = dmhub.GetSelectedObject
+if gs.priorGetSelectedObject == MapMarkupHooks.getSelectedObjectWrapper or gs.priorGetSelectedObject == nil then
+    gs.priorGetSelectedObject = MapMarkupHooks.priorGetSelectedObject
 end
-MapMarkupHooks.priorGetSelectedObject = g_priorGetSelectedObject
+MapMarkupHooks.priorGetSelectedObject = gs.priorGetSelectedObject
 MapMarkupHooks.getSelectedObjectWrapper = function()
     local result = GetMarkupSelectedObject()
     if result ~= nil then
         return result
     end
-    if g_priorGetSelectedObject ~= nil then
-        return g_priorGetSelectedObject()
+    if gs.priorGetSelectedObject ~= nil then
+        return gs.priorGetSelectedObject()
     end
     return nil
 end
@@ -14108,43 +14123,43 @@ if MapMarkupHooks.teleporterArrowHandles ~= nil then
         pcall(function() handle:Destroy() end)
     end
 end
-local m_teleporterArrowHandles = {}
-MapMarkupHooks.teleporterArrowHandles = m_teleporterArrowHandles
-local m_teleporterArrowKey = nil
+m.teleporterArrowHandles = {}
+MapMarkupHooks.teleporterArrowHandles = m.teleporterArrowHandles
+m.teleporterArrowKey = nil
 
 --The object pairs currently drawn as arrows ({aObjid, bObjid, key=linkkey}
 --each) plus the floor they were computed for: the FAST poll re-reads just
 --these objects' positions so a dragged end re-routes its arrow in real time,
 --while the slow poll owns membership (pairs appearing/disappearing).
-local m_teleporterArrowPairIds = {}
-local m_teleporterArrowFloorId = nil
-local m_teleporterArrowFastActive = false
+m.teleporterArrowPairIds = {}
+m.teleporterArrowFloorId = nil
+m.teleporterArrowFastActive = false
 
 local function ClearTeleporterArrows()
-    for _,handle in ipairs(m_teleporterArrowHandles) do
+    for _,handle in ipairs(m.teleporterArrowHandles) do
         pcall(function() handle:Destroy() end)
     end
-    for i = #m_teleporterArrowHandles, 1, -1 do
-        m_teleporterArrowHandles[i] = nil
+    for i = #m.teleporterArrowHandles, 1, -1 do
+        m.teleporterArrowHandles[i] = nil
     end
-    m_teleporterArrowKey = nil
+    m.teleporterArrowKey = nil
 end
 
-local ARROW_COLOR = "#7fd4ff"
-local ARROW_HEAD_LENGTH = 0.45
-local ARROW_HEAD_ANGLE = 0.45  --radians, ~26 degrees off the shaft
-local ARROW_END_INSET = 0.35   --pull the ends off the teleporter markers
+K.ARROW_COLOR = "#7fd4ff"
+K.ARROW_HEAD_LENGTH = 0.45
+K.ARROW_HEAD_ANGLE = 0.45  --radians, ~26 degrees off the shaft
+K.ARROW_END_INSET = 0.35   --pull the ends off the teleporter markers
 
 local function AddArrowLine(floorIndex, x1, y1, x2, y2)
     local handle = dmhub.HighlightLine{
-        color = ARROW_COLOR,
+        color = K.ARROW_COLOR,
         a = core.Vector2(x1, y1),
         b = core.Vector2(x2, y2),
         floorIndex = floorIndex,
         terrainParallax = true,
     }
     if handle ~= nil then
-        m_teleporterArrowHandles[#m_teleporterArrowHandles+1] = handle
+        m.teleporterArrowHandles[#m.teleporterArrowHandles+1] = handle
     end
 end
 
@@ -14163,27 +14178,27 @@ local function AddPairArrow(floorIndex, x1, y1, x2, y2)
     end
     local ux = dx/len
     local uy = dy/len
-    if len > 2*ARROW_END_INSET + 0.5 then
-        x1 = x1 + ux*ARROW_END_INSET
-        y1 = y1 + uy*ARROW_END_INSET
-        x2 = x2 - ux*ARROW_END_INSET
-        y2 = y2 - uy*ARROW_END_INSET
+    if len > 2*K.ARROW_END_INSET + 0.5 then
+        x1 = x1 + ux*K.ARROW_END_INSET
+        y1 = y1 + uy*K.ARROW_END_INSET
+        x2 = x2 - ux*K.ARROW_END_INSET
+        y2 = y2 - uy*K.ARROW_END_INSET
     end
 
     AddArrowLine(floorIndex, x1, y1, x2, y2)
 
-    local cosA = math.cos(ARROW_HEAD_ANGLE)
-    local sinA = math.sin(ARROW_HEAD_ANGLE)
+    local cosA = math.cos(K.ARROW_HEAD_ANGLE)
+    local sinA = math.sin(K.ARROW_HEAD_ANGLE)
     --head at (x2,y2): strokes angled back along the shaft.
     local hx, hy = RotateVec(-ux, -uy, cosA, sinA)
-    AddArrowLine(floorIndex, x2, y2, x2 + hx*ARROW_HEAD_LENGTH, y2 + hy*ARROW_HEAD_LENGTH)
+    AddArrowLine(floorIndex, x2, y2, x2 + hx*K.ARROW_HEAD_LENGTH, y2 + hy*K.ARROW_HEAD_LENGTH)
     hx, hy = RotateVec(-ux, -uy, cosA, -sinA)
-    AddArrowLine(floorIndex, x2, y2, x2 + hx*ARROW_HEAD_LENGTH, y2 + hy*ARROW_HEAD_LENGTH)
+    AddArrowLine(floorIndex, x2, y2, x2 + hx*K.ARROW_HEAD_LENGTH, y2 + hy*K.ARROW_HEAD_LENGTH)
     --head at (x1,y1): strokes angled forward along the shaft.
     hx, hy = RotateVec(ux, uy, cosA, sinA)
-    AddArrowLine(floorIndex, x1, y1, x1 + hx*ARROW_HEAD_LENGTH, y1 + hy*ARROW_HEAD_LENGTH)
+    AddArrowLine(floorIndex, x1, y1, x1 + hx*K.ARROW_HEAD_LENGTH, y1 + hy*K.ARROW_HEAD_LENGTH)
     hx, hy = RotateVec(ux, uy, cosA, -sinA)
-    AddArrowLine(floorIndex, x1, y1, x1 + hx*ARROW_HEAD_LENGTH, y1 + hy*ARROW_HEAD_LENGTH)
+    AddArrowLine(floorIndex, x1, y1, x1 + hx*K.ARROW_HEAD_LENGTH, y1 + hy*K.ARROW_HEAD_LENGTH)
 end
 
 local function UpdateTeleporterArrows()
@@ -14191,10 +14206,10 @@ local function UpdateTeleporterArrows()
     --teleporter markers themselves disappear, so the arrows must too.
     local show = GetMarkupObjectEditingFilter() ~= nil and game.currentFloor ~= nil
     if not show then
-        if #m_teleporterArrowHandles > 0 or m_teleporterArrowKey ~= nil then
+        if #m.teleporterArrowHandles > 0 or m.teleporterArrowKey ~= nil then
             ClearTeleporterArrows()
         end
-        m_teleporterArrowPairIds = {}
+        m.teleporterArrowPairIds = {}
         return
     end
 
@@ -14242,13 +14257,13 @@ local function UpdateTeleporterArrows()
     --hand the drawn membership to the fast poll (position tracking during
     --drags); recorded even when nothing changed so the first slow pass after
     --arming primes it.
-    m_teleporterArrowPairIds = pairIds
-    m_teleporterArrowFloorId = game.currentFloorId
+    m.teleporterArrowPairIds = pairIds
+    m.teleporterArrowFloorId = game.currentFloorId
 
     --rebuild only when an endpoint/pair actually changed; the markers are
     --parallax-baked so camera movement needs no rebuild.
     local arrowKey = table.concat(keyParts, ";")
-    if arrowKey == m_teleporterArrowKey then
+    if arrowKey == m.teleporterArrowKey then
         return
     end
 
@@ -14256,7 +14271,7 @@ local function UpdateTeleporterArrows()
     for _,arrow in ipairs(arrows) do
         AddPairArrow(floorIndex, arrow[1], arrow[2], arrow[3], arrow[4])
     end
-    m_teleporterArrowKey = arrowKey
+    m.teleporterArrowKey = arrowKey
 end
 
 --The FAST poll: while the Props tab is armed and arrows are on screen, track
@@ -14267,16 +14282,16 @@ end
 --moment the tab disarms, the floor changes, or the arrows empty.
 local function TeleporterArrowFastPoll()
     if mod.unloaded then
-        m_teleporterArrowFastActive = false
+        m.teleporterArrowFastActive = false
         return
     end
 
     local keepRunning = false
     local ok, err = pcall(function()
-        if #m_teleporterArrowPairIds == 0 or GetMarkupObjectEditingFilter() == nil then
+        if #m.teleporterArrowPairIds == 0 or GetMarkupObjectEditingFilter() == nil then
             return
         end
-        if game.currentFloorId ~= m_teleporterArrowFloorId then
+        if game.currentFloorId ~= m.teleporterArrowFloorId then
             return
         end
         local floor = game.currentFloor
@@ -14288,7 +14303,7 @@ local function TeleporterArrowFastPoll()
         local floorIndex = game.currentFloorIndex
         local arrows = {}
         local keyParts = { tostring(floorIndex) }
-        for _,pair in ipairs(m_teleporterArrowPairIds) do
+        for _,pair in ipairs(m.teleporterArrowPairIds) do
             local a = floor:GetObject(pair[1])
             local b = floor:GetObject(pair[2])
             if a ~= nil and a.valid and b ~= nil and b.valid then
@@ -14300,12 +14315,12 @@ local function TeleporterArrowFastPoll()
         end
 
         local arrowKey = table.concat(keyParts, ";")
-        if arrowKey ~= m_teleporterArrowKey then
+        if arrowKey ~= m.teleporterArrowKey then
             ClearTeleporterArrows()
             for _,arrow in ipairs(arrows) do
                 AddPairArrow(floorIndex, arrow[1], arrow[2], arrow[3], arrow[4])
             end
-            m_teleporterArrowKey = arrowKey
+            m.teleporterArrowKey = arrowKey
         end
     end)
     if not ok then
@@ -14315,7 +14330,7 @@ local function TeleporterArrowFastPoll()
     if keepRunning then
         dmhub.Schedule(0.05, TeleporterArrowFastPoll)
     else
-        m_teleporterArrowFastActive = false
+        m.teleporterArrowFastActive = false
     end
 end
 
@@ -14332,9 +14347,9 @@ local function TeleporterArrowPoll()
 
     --spin up the fast tracker whenever arrows exist and the tab is armed;
     --it shuts itself down (and this restarts it) as conditions change.
-    if not m_teleporterArrowFastActive and #m_teleporterArrowPairIds > 0
+    if not m.teleporterArrowFastActive and #m.teleporterArrowPairIds > 0
         and GetMarkupObjectEditingFilter() ~= nil then
-        m_teleporterArrowFastActive = true
+        m.teleporterArrowFastActive = true
         dmhub.Schedule(0.05, TeleporterArrowFastPoll)
     end
 

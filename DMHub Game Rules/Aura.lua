@@ -2466,6 +2466,28 @@ function Aura.RemoveMapAnchoredAura(entry)
     end
 end
 
+--- Removes map-anchored auras whose encounter duration has expired.
+--- Call this after hiding the initiative queue so HasExpired sees combat as over.
+--- Permanent and persistence-controlled auras keep their own lifetimes.
+function Aura.RemoveExpiredMapAnchoredAurasAtEndOfCombat()
+    --Summon cleanup may have changed the map without advancing the game update yet.
+    Aura.InvalidateMapAnchoredAuras()
+
+    --Removal invalidates the cached list, so keep a stable snapshot while walking it.
+    local entries = {}
+    for _, entry in ipairs(Aura.GetMapAnchoredAuras()) do
+        entries[#entries + 1] = entry
+    end
+
+    for _, entry in ipairs(entries) do
+        local instance = entry.instance
+        local duration = instance:try_get("duration")
+        if duration ~= "none" and duration ~= "persistence" and instance:HasExpired() then
+            Aura.RemoveMapAnchoredAura(entry)
+        end
+    end
+end
+
 --Turn-boundary aura triggers: which aura trigger id each turn event fires.
 --"nextturn" is dispatched at the start of the caster's turn, "endturn" at the end.
 local g_turnEventToAuraTrigger = {

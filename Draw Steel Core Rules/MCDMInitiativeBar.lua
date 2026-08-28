@@ -67,6 +67,8 @@ local function PerformEndCombat()
 	--summons don't outlive the encounter.
 	ActivatedAbilitySummonBehavior.RemoveSummonsAtEndOfCombat()
 
+	Aura.RemoveExpiredMapAnchoredAurasAtEndOfCombat()
+
 	for initiativeid,_ in pairs(q.entries) do
 		local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
 		for _,tok in ipairs(tokens) do

@@ -1807,6 +1807,8 @@ local function ProceedEndCombat()
     --summons don't outlive the encounter.
     ActivatedAbilitySummonBehavior.RemoveSummonsAtEndOfCombat()
 
+    Aura.RemoveExpiredMapAnchoredAurasAtEndOfCombat()
+
     local hud = GameHud.instance
     if hud ~= nil then
         for initiativeid, _ in pairs(q.entries) do

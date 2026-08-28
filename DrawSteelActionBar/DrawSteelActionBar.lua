@@ -90,6 +90,287 @@ local g_token
 --- @type nil|Creature
 local g_creature
 
+--The WHOLE current selection (every selected token that has properties), in
+--selection order, captured alongside g_token in the root refresh. g_token stays
+--bound to selectedOrPrimaryTokens[1] exactly as before; this list only feeds
+--the director's multi-monster overview ("Unique Abilities" drawer).
+--- @type CharacterToken[]
+local g_selectedTokens = {}
+
+--Identity of the current selection (charids in selection order). The engine
+--only re-fires the bar's "refresh" when the PRIMARY selected token changes;
+--adding or removing other tokens behind the same primary is silent (verified
+--live 2026-08-17). The root panel compares this at a low poll rate and
+--refreshes itself when the set changes, so overview mode tracks the whole
+--selection.
+local function SelectionSignature()
+    local parts = {}
+    for _, tok in ipairs(dmhub.selectedOrPrimaryTokens) do
+        if tok ~= nil and tok.valid then
+            parts[#parts + 1] = tok.charid
+        end
+    end
+    return table.concat(parts, ",")
+end
+
+--Is this token one the director's overview is designed for: a monster the
+--director runs. Heroes are far more complex than monsters and the overview
+--was never designed for them (field test F2-1); followers and hero summons
+--are player-side creatures and stay out for now too (they may fit later).
+--- @param tok CharacterToken
+--- @return boolean
+local function IsOverviewCreatureToken(tok)
+    if tok == nil or (not tok.valid) or tok.properties == nil then
+        return false
+    end
+    if tok.playerControlled then
+        return false
+    end
+    local props = tok.properties
+    local ok = false
+    pcall(function()
+        ok = props:IsMonster() and (not props:IsFollower()) and (not props:IsHeroSummon())
+    end)
+    return ok
+end
+
+--Overview mode = the local user is the director AND more than one token is
+--selected AND every selected token is a director-run monster (a selection
+--that includes any hero, follower or hero summon falls back to the classic
+--strip; F2-1) AND the selection is not just one minion squad (a squad is a
+--single actor, so it keeps the ordinary single-creature strip; Decision 43).
+--In this mode the strip shows Trigger | Unique Abilities | Malice: the Main
+--Action / Maneuver / Move drawers are identical across creatures so they are
+--hidden.
+local function InOverviewMode()
+    if not dmhub.isDM then
+        return false
+    end
+    if #g_selectedTokens < 2 then
+        return false
+    end
+    for _, tok in ipairs(g_selectedTokens) do
+        if not IsOverviewCreatureToken(tok) then
+            return false
+        end
+    end
+    --The squad exception applies only when EVERY selected token is a
+    --minion of one squad (that selection is a single acting unit). A
+    --captain plus their own squad is two statblocks - field test 27:
+    --Subcommander + Tetherites showed the classic strip instead of the
+    --overview because the captain reported the squad id too.
+    local squad = nil
+    local sameSquad = true
+    for _, tok in ipairs(g_selectedTokens) do
+        local isMinion = false
+        pcall(function() isMinion = tok.properties.minion == true end)
+        if not isMinion then
+            sameSquad = false
+            break
+        end
+        local memberSquad = tok.properties:MinionSquad()
+        if memberSquad == nil then
+            sameSquad = false
+            break
+        end
+        if squad == nil then
+            squad = memberSquad
+        elseif memberSquad ~= squad then
+            sameSquad = false
+            break
+        end
+    end
+    if squad ~= nil and sameSquad then
+        return false
+    end
+    return true
+end
+
+--P2-b (Decision 39): select every READY director monster on the current map
+--- alive, director-run, and (while an initiative queue is running) not yet
+--acted this round; out of combat, every director monster. Sets the selection
+--only; it does NOT open the Unique Abilities folder (opening is a separate
+--click). Returns the number selected. Called from the initiative bar's
+--"Ready Monsters" label (MCDMInitiativeBar.lua) - the one place on screen
+--that already means "these monsters have not gone yet".
+function DrawSteelActionBar.SelectReadyMonsters()
+    if not dmhub.isDM then
+        return 0
+    end
+    local q = dmhub.initiativeQueue
+    if q ~= nil and q.hidden then
+        q = nil
+    end
+    local result = {}
+    for _, tok in ipairs(dmhub.GetTokens() or {}) do
+        if IsOverviewCreatureToken(tok) then
+            local ok = true
+            pcall(function()
+                if tok.properties:IsDown() then
+                    ok = false
+                end
+            end)
+            if ok and q ~= nil then
+                --Field test 4: only monsters that are actually IN the
+                --initiative order. Reinforcements parked in "Ready Monsters"
+                --(the A5 Snipers) are not part of the encounter yet and
+                --selecting them was noise.
+                local initiativeid = nil
+                pcall(function() initiativeid = InitiativeQueue.GetInitiativeId(tok) end)
+                if initiativeid == nil or q.entries == nil or q.entries[initiativeid] == nil then
+                    ok = false
+                elseif q:HasHadTurn(initiativeid) then
+                    ok = false
+                end
+            end
+            if ok then
+                result[#result + 1] = tok
+            end
+        end
+    end
+    dmhub.selectedTokens = result
+    return #result
+end
+
+--Field test 21: second click on the initiative bar's "Select All" opens the
+--Unique Abilities menu (saves the trip to the bottom of the screen). Opens
+--only - never closes.
+function DrawSteelActionBar.OpenUniqueMenu()
+    if not GameHud.instance then
+        return
+    end
+    --Mid-rebuild the Hud instance exists but actionBarPanel is not assigned
+    --yet, and reading an unset field on a game-typed instance RAISES.
+    local barPanel = GameHud.instance:try_get("actionBarPanel")
+    if barPanel == nil or not barPanel.valid then
+        return
+    end
+    for _, drawer in ipairs(barPanel:GetChildrenWithClassRecursive("actionBarDrawer")) do
+        if drawer.data ~= nil and drawer.data.drawerType == "unique"
+            and not drawer:HasClass("collapsed") and not drawer:HasClass("active") then
+            drawer:FireEvent("press")
+        end
+    end
+end
+
+--Director overview, slice (e): the implicit claim-turn-at-target-confirm.
+--
+--A chip press in an overview column records WHO the cast is for here
+--({token, initiativeid}); nothing is claimed at that point (Decision 47 -
+--claiming is a broadcast and irreversible, see MCDMInitiativeQueue.ClaimTurn).
+--OverviewClaimBeforeCast, called from the ONE pre-Cast hook the two Cast
+--sites share (right after FireCastControlsOnCommit), consumes the record and
+--claims the entry's turn only if that is legal at that instant
+--(OverviewClaimGate); otherwise the cast proceeds without touching the queue,
+--exactly as an off-turn cast does today (Decision 24). The record is one-shot
+--(consumed by the first commit) and is cleared by cancelCasting, which every
+--exit funnels through (finishCasting, Skip, Esc, opening another menu,
+--controller disable, restoreFromBackup), so a later unrelated cast can never
+--claim by accident. Ordinary single-token menus never set it.
+local g_overviewCastPending = nil
+
+--Is a claim of this initiative entry legal for the Director right now?
+--Returns ok, reason, settled. reason is the newcomer-facing text shown inline
+--on the disabled button / tooltip. settled (F3-2) is true when taking the
+--turn is no longer an OPTION this round at all - nothing is running, or the
+--entry is acting now / has already acted - as opposed to merely blocked for
+--the moment (heroes' turn, another creature mid-turn): the footer hides the
+--button for settled cases (the signal line already says "acting now" /
+--"acted") and keeps the greyed button + reason only for the transient ones,
+--where the Director might want to know WHY they cannot act yet.
+--Stricter than InitiativeQueue.CanClaimTurn on purpose: the Director CAN
+--force any turn from the initiative bar, but the overview only offers a claim
+--at the genuine start-of-a-director-turn juncture (Phase 0 resolution:
+--ChoosingTurn, not the heroes' side, entry unmoved).
+local function OverviewClaimGate(initiativeid)
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then
+        return false, "No initiative running", true
+    end
+    --Transient, not settled: reinforcements waiting in "Ready Monsters" are a
+    --real in-play state (A5 Goblin Snipers) and the Director CAN change it by
+    --dragging them into the order - the greyed reason is the hint.
+    if initiativeid == nil or q.entries == nil or q.entries[initiativeid] == nil then
+        return false, "Not in the initiative order", false
+    end
+    if q.currentTurn == initiativeid then
+        return false, "Turn taken - acting now", true
+    end
+    if q:HasHadTurn(initiativeid) then
+        return false, "Already acted this round", true
+    end
+    if not q:ChoosingTurn() then
+        return false, "Another creature's turn is in progress", false
+    end
+    if q:IsPlayersTurn() then
+        return false, "It's the heroes' turn - browse only", false
+    end
+    if not InitiativeQueue.CanClaimTurn(initiativeid, { canControlInitiative = dmhub.isDM }) then
+        return false, "Cannot take turns right now", false
+    end
+    return true, nil, false
+end
+
+--Action economy of a kit ability for the overview column (field test 2:
+--"can this monster do two unique things this turn?" must read structurally).
+--Returns group, label: group 0 = main action (label "" - main actions stay
+--unmarked, they are the default), group 1 = everything that is NOT a main
+--action, labelled "Maneuver" / "Free Maneuver" / "Free Action" (no action
+--required) so the chip says so in legible text. Triggers / villain actions
+--never reach the column (IsUniqueKitAbility).
+local function OverviewActionType(ability)
+    local rid = nil
+    pcall(function() rid = ability.actionResourceId end)
+    if rid == CharacterResource.actionResourceId then
+        return 0, ""
+    elseif rid == CharacterResource.maneuverResourceId then
+        return 1, "Maneuver"
+    elseif rid == CharacterResource.freeManeuverResourceId then
+        return 1, "Free Maneuver"
+    elseif rid == "none" or rid == nil then
+        return 1, "Free Action"
+    end
+    --Anything else (respite activity, a custom resource) is not a main action
+    --either; show the resource's own name when it has one.
+    local name = nil
+    pcall(function()
+        local resource = dmhub.GetTable(CharacterResource.tableName)[rid]
+        name = resource and resource.name
+    end)
+    return 1, name or "Maneuver"
+end
+
+--Perform the claim through the shared helper. Returns true if the turn was
+--taken. Never called from a browse/preview click.
+local function OverviewClaimTurn(initiativeid)
+    local ok = OverviewClaimGate(initiativeid)
+    if not ok then
+        return false
+    end
+    print("OVERVIEW:: claiming turn for", initiativeid)
+    return InitiativeQueue.ClaimTurn(initiativeid, { canControlInitiative = dmhub.isDM }) == true
+end
+
+--The pre-Cast hook (see g_overviewCastPending). casterToken is the g_token the
+--Cast is about to run for; the pending record must name the same token so a
+--caster swap between chip press and confirm can never claim for the wrong
+--creature.
+local function OverviewClaimBeforeCast(casterToken)
+    local pending = g_overviewCastPending
+    g_overviewCastPending = nil
+    if pending == nil or pending.token == nil then
+        return
+    end
+    if casterToken == nil or not casterToken.valid or not pending.token.valid or pending.token.charid ~= casterToken.charid then
+        return
+    end
+    local initiativeid = InitiativeQueue.GetInitiativeId(casterToken)
+    if initiativeid == nil or initiativeid ~= pending.initiativeid then
+        return
+    end
+    OverviewClaimTurn(initiativeid)
+end
+
 --Minion squad coordinated strike: the minion->target assignment is automatic,
 --but the player can hard-lock a specific minion to a specific target by
 --clicking the minion and then the target. Locks live in MCDMActivatedAbility
@@ -266,6 +547,370 @@ local function GetHeroicResourceOrMaliceCost(ability, symbols)
     return heroicResourceEntry.quantity
 end
 
+--Consolidated overview constants/state. The file sits AT Lua 5.4's limit of
+--200 locals per chunk (the engine REFUSES the file past it - luac 5.5 on the
+--dev machine counts differently and misses it), so overview scalars live as
+--fields here rather than as top-level locals. Add new module state HERE.
+local OVERVIEW = {
+    GUIDE_COLOR = "#7AC77A",
+    FOOTER_ROWS = 3,
+    FOOTER_ROW_POOL = 12,
+    --Mini-row name length that still renders without ellipsis at the row
+    --font; longer names drop the monster-band prefix (field test 33).
+    ROW_NAME_CHARS = 22,
+    STATUS_ICONS = 2,
+    THREAT_COLOR = "#E06464",
+    NOREACH_COLOR = "#E0A050",
+    CHIP_CONDITION_ICONS = 2,
+    LOCATE_PAN_TIME = 0.55,
+    LOCATE_HOLD = 1.4,
+    locateGeneration = {},
+    tierFacetCache = {},
+}
+
+--P2-c1: LENSES (Decisions 8/21/27/31/49, X3). A lens is a FACET filter over
+--the overview columns: it hides columns with no matching kit ability, dims
+--(never hides) the non-matching chips inside the surviving columns, and sorts
+--each column's chips by the lens's natural key. Facets are derived, never
+--hand-tagged: keywords, behaviour types and the engine's own tier-text parser
+--(ActivatedAbilityDrawSteelCommandBehavior.WalkParsedSegments - the regex
+--rule matcher, NEVER substring search: "strained" is inside "restrained").
+local OVERVIEW_LENSES = {
+    { id = "all",     name = "All" },
+    { id = "damage",  name = "Damage" },
+    { id = "area",    name = "Area" },
+    { id = "forced",  name = "Forced Move" },
+    { id = "control", name = "Control" },
+    { id = "malice",  name = "Malice" },
+}
+--Session-scoped: the lens survives menu close/open but not a reload.
+local g_overviewLens = "all"
+
+local function OverviewLensInfo(id)
+    for _, lens in ipairs(OVERVIEW_LENSES) do
+        if lens.id == id then
+            return lens
+        end
+    end
+    return OVERVIEW_LENSES[1]
+end
+
+local function OverviewLensIndex(id)
+    for i, lens in ipairs(OVERVIEW_LENSES) do
+        if lens.id == id then
+            return i
+        end
+    end
+    return 1
+end
+
+--Tier-text facets, cached by the exact text (the parser is regex-heavy and
+--the same tier strings recur on every populate).
+local function OverviewTierFacets(text)
+    if type(text) ~= "string" or text == "" then
+        return { damage = nil, forced = nil, control = false }
+    end
+    local cached = OVERVIEW.tierFacetCache[text]
+    if cached ~= nil then
+        return cached
+    end
+    local facets = { damage = nil, forced = nil, forcedVerb = nil, control = false, conditions = {} }
+    local segments = nil
+    pcall(function()
+        segments = ActivatedAbilityDrawSteelCommandBehavior.WalkParsedSegments(text)
+    end)
+    for _, segment in ipairs(segments or {}) do
+        local m = segment.match
+        if type(m) == "table" then
+            if m.damage ~= nil then
+                local n = tonumber(string.match(tostring(m.damage), "^%s*(%d+)"))
+                if n ~= nil and (facets.damage == nil or n > facets.damage) then
+                    facets.damage = n
+                end
+            end
+            if m.movement ~= nil and m.distance ~= nil then
+                local n = tonumber(m.distance)
+                if n ~= nil and (facets.forced == nil or n > facets.forced) then
+                    facets.forced = n
+                    facets.forcedVerb = tostring(m.movement)
+                end
+            end
+            if m.condition ~= nil then
+                facets.control = true
+                local name = tostring(m.condition)
+                name = string.upper(string.sub(name, 1, 1)) .. string.sub(name, 2)
+                local seen = false
+                for _, existing in ipairs(facets.conditions) do
+                    if existing == name then
+                        seen = true
+                    end
+                end
+                if not seen then
+                    facets.conditions[#facets.conditions + 1] = name
+                end
+            end
+        end
+    end
+    OVERVIEW.tierFacetCache[text] = facets
+    return facets
+end
+
+--Facets of one kit ability: booleans per lens plus the lens sort keys.
+--  damage / damageValue (tier 2, Decision 21), area / areaSize,
+--  forced / forcedDistance, control, malice / maliceCost.
+local function OverviewAbilityFacets(ability)
+    local facets = {
+        damage = false, damageValue = 0,
+        area = false, areaSize = 0,
+        forced = false, forcedDistance = 0, forcedVerb = nil,
+        control = false, conditions = {},
+        malice = false, maliceCost = 0,
+        multiTarget = false, summon = false, heals = false,
+    }
+    if ability == nil then
+        return facets
+    end
+    pcall(function()
+        facets.multiTarget = (tonumber(ability.numTargets) or 1) > 1 or ability.targetType == "all"
+        if ability:HasKeyword("Area") == true then
+            facets.multiTarget = false
+        end
+    end)
+    pcall(function()
+        facets.area = ability:HasKeyword("Area") == true
+        if facets.area then
+            facets.areaSize = tonumber(ability:try_get("radius")) or tonumber(ability.range) or 0
+        end
+    end)
+    pcall(function()
+        local cost = GetHeroicResourceOrMaliceCost(ability) or 0
+        facets.malice = cost > 0
+        facets.maliceCost = cost
+    end)
+    --Field test 21 (Ghoul Leap): effects can hide one level down - an
+    --InvokeAbilityBehavior whose customAbility carries the real rule (Leap:
+    --"1 damage; prone" in a nested DrawSteelCommandBehavior). The scanner
+    --recurses one level into invoked custom abilities and parses bare rule
+    --commands with the same tier-text parser.
+    local scanBehaviors
+    scanBehaviors = function(behaviorList, depth)
+        for _, behavior in ipairs(behaviorList or {}) do
+            local tn = behavior.typeName or ""
+            if tn == "ActivatedAbilityPowerRollBehavior" then
+                local tiers = behavior:try_get("tiers") or {}
+                for i, text in ipairs(tiers) do
+                    local f = OverviewTierFacets(text)
+                    if f.damage ~= nil then
+                        facets.damage = true
+                        if i == 2 or (i == #tiers and facets.damageValue == 0) then
+                            facets.damageValue = f.damage
+                        end
+                    end
+                    if f.forced ~= nil then
+                        facets.forced = true
+                        if f.forced > facets.forcedDistance then
+                            facets.forcedDistance = f.forced
+                            facets.forcedVerb = f.forcedVerb
+                        end
+                    end
+                    if f.control then
+                        facets.control = true
+                        for _, name in ipairs(f.conditions) do
+                            local seen = false
+                            for _, existing in ipairs(facets.conditions) do
+                                if existing == name then
+                                    seen = true
+                                end
+                            end
+                            if not seen then
+                                facets.conditions[#facets.conditions + 1] = name
+                            end
+                        end
+                    end
+                end
+            elseif tn == "ActivatedAbilityDamageBehavior" then
+                facets.damage = true
+            elseif string.find(tn, "Summon", 1, true) ~= nil then
+                facets.summon = true
+            elseif string.find(tn, "HealBehavior", 1, true) ~= nil
+                or string.find(tn, "GrantTemporaryStamina", 1, true) ~= nil then
+                --Field test 40 (Ricky): regain-stamina and temp-stamina
+                --effects mark the ability (and its owner) as a healer.
+                facets.heals = true
+            elseif string.find(tn, "ForcedMovement", 1, true) ~= nil then
+                facets.forced = true
+                local d = tonumber(behavior:try_get("distance"))
+                if d ~= nil and d > facets.forcedDistance then
+                    facets.forcedDistance = d
+                end
+            elseif string.find(tn, "InflictCondition", 1, true) ~= nil
+                or string.find(tn, "ApplyCondition", 1, true) ~= nil then
+                facets.control = true
+            elseif tn == "ActivatedAbilityDrawSteelCommandBehavior" then
+                --applyto == "caster" is a self-effect (Zombie Dust: "The
+                --zombie falls prone") - not something inflicted on targets.
+                local rule = behavior:try_get("rule")
+                if behavior:try_get("applyto") == "caster" then
+                    rule = nil
+                end
+                if type(rule) == "string" and rule ~= "" then
+                    local f = OverviewTierFacets(rule)
+                    if f.damage ~= nil then
+                        facets.damage = true
+                        if facets.damageValue == 0 then
+                            facets.damageValue = f.damage
+                        end
+                    end
+                    if f.forced ~= nil then
+                        facets.forced = true
+                        if f.forced > facets.forcedDistance then
+                            facets.forcedDistance = f.forced
+                            facets.forcedVerb = f.forcedVerb
+                        end
+                    end
+                    if f.control then
+                        facets.control = true
+                        for _, name in ipairs(f.conditions) do
+                            local seen = false
+                            for _, existing in ipairs(facets.conditions) do
+                                if existing == name then
+                                    seen = true
+                                end
+                            end
+                            if not seen then
+                                facets.conditions[#facets.conditions + 1] = name
+                            end
+                        end
+                    end
+                end
+            elseif tn == "ActivatedAbilityInvokeAbilityBehavior" and depth < 3 then
+                local invoked = behavior:try_get("customAbility")
+                if invoked ~= nil then
+                    scanBehaviors(invoked:try_get("behaviors"), depth + 1)
+                end
+            elseif string.find(tn, "OngoingEffect", 1, true) ~= nil then
+                --Only an ongoing effect that carries a CONDITION is control;
+                --plain buffs (Defend's edge, Aid Attack) are not.
+                local effectid = behavior:try_get("ongoingEffect")
+                local info = nil
+                if effectid ~= nil then
+                    info = (dmhub.GetTable("characterOngoingEffects") or {})[effectid]
+                end
+                if info ~= nil and info.condition ~= nil and info.condition ~= "none" then
+                    facets.control = true
+                    local conditions = dmhub.GetTable(CharacterCondition.tableName) or {}
+                    local cond = conditions[info.condition]
+                    if cond ~= nil and cond.name ~= nil then
+                        local seen = false
+                        for _, existing in ipairs(facets.conditions) do
+                            if existing == cond.name then
+                                seen = true
+                            end
+                        end
+                        if not seen then
+                            facets.conditions[#facets.conditions + 1] = cond.name
+                        end
+                    end
+                end
+            end
+        end
+    end
+    pcall(function()
+        scanBehaviors(ability.behaviors or {}, 1)
+    end)
+    return facets
+end
+
+local function OverviewAbilityMatchesLens(facets, lens)
+    if lens == nil or lens == "all" then
+        return true
+    end
+    return facets[lens] == true
+end
+
+--Decision 21: Damage = tier-2 damage desc; Area = size desc; Forced Move =
+--distance desc; Malice = cost asc; Control has no magnitude -> damage desc.
+--ALL ties broken by tier-2 damage desc, then name.
+local function OverviewLensLess(lens, a, fa, b, fb)
+    if lens == "malice" and fa.maliceCost ~= fb.maliceCost then
+        return fa.maliceCost < fb.maliceCost
+    elseif lens == "area" and fa.areaSize ~= fb.areaSize then
+        return fa.areaSize > fb.areaSize
+    elseif lens == "forced" and fa.forcedDistance ~= fb.forcedDistance then
+        return fa.forcedDistance > fb.forcedDistance
+    end
+    if fa.damageValue ~= fb.damageValue then
+        return fa.damageValue > fb.damageValue
+    end
+    return a.name < b.name
+end
+
+--X14: the active lens's sort key, printed on a matching chip so the sort is
+--legible ("6 damage per target", "Area 3", "Push 3", "Restrained",
+--"1 Malice"). nil for the "All" lens or a non-matching chip.
+local function OverviewLensKeyText(facets, lens)
+    if facets == nil or lens == nil or lens == "all" or not OverviewAbilityMatchesLens(facets, lens) then
+        return nil
+    end
+    if lens == "damage" then
+        if facets.damageValue > 0 then
+            return string.format("%d damage per target", facets.damageValue)
+        end
+        return "Damage"
+    elseif lens == "area" then
+        if facets.areaSize > 0 then
+            return string.format("Area %d", facets.areaSize)
+        end
+        return "Area"
+    elseif lens == "forced" then
+        local verb = facets.forcedVerb or "Move"
+        verb = string.upper(string.sub(verb, 1, 1)) .. string.sub(verb, 2)
+        if facets.forcedDistance > 0 then
+            return string.format("%s %d", verb, facets.forcedDistance)
+        end
+        return "Forced movement"
+    elseif lens == "control" then
+        if #facets.conditions > 0 then
+            return table.concat(facets.conditions, ", ")
+        end
+        return "Applies an effect"
+    elseif lens == "malice" then
+        return string.format("%d Malice", facets.maliceCost)
+    end
+    return nil
+end
+
+--Decision 45: the token-UI glyph for each condition an ability can apply
+--(charConditions iconid + display, powertable entries preferred - the same
+--art players see on tokens). From facets.conditions (parser/effect names),
+--matched by lowercased name, never substring.
+local function OverviewConditionIcons(facets)
+    local result = {}
+    if facets == nil or facets.conditions == nil or #facets.conditions == 0 then
+        return result
+    end
+    local table_ = dmhub.GetTable(CharacterCondition.tableName) or {}
+    for _, name in ipairs(facets.conditions) do
+        local wanted = string.lower(name)
+        local best = nil
+        for _, cond in unhidden_pairs(table_) do
+            if string.lower(cond.name or "") == wanted then
+                if best == nil or (cond.powertable and not best.powertable) then
+                    best = cond
+                end
+            end
+        end
+        if best ~= nil and best.iconid ~= nil then
+            result[#result + 1] = {
+                name = best.name,
+                icon = best.iconid,
+                bgcolor = (best.display ~= nil and best.display.bgcolor) or "white",
+            }
+        end
+    end
+    return result
+end
+
 --Movement cross-section diagram during ability movement targeting.
 --
 --For any ability-driven movement preview -- forced move (push/pull/slide,
@@ -301,7 +946,11 @@ local g_movementDiagramShown = false
 ---        numbers (already computed from the game rules); forwarded through the
 ---        tiletooltip event as movingPathDamages so the movement diagram draws
 ---        the same red "-N" annotations the map targeting labels show.
-local function ShowMovementDiagram(token, path, label, alternates, damages)
+--- @param textOverride nil|string replaces the whole "<label>: <n> squares"
+---        first line, for previews that are not a movement at all (a summon
+---        placement reads "Goblin Runner appears here"). The elevation suffix is
+---        still appended.
+local function ShowMovementDiagram(token, path, label, alternates, damages, textOverride)
     if token == nil or path == nil or GameHud.instance == nil then
         return
     end
@@ -315,10 +964,13 @@ local function ShowMovementDiagram(token, path, label, alternates, damages)
 
     --Minimal, preview-path-safe movement text (numSteps / origin / destination
     --are populated on a move preview path; the fields TokenMoving reads are not).
-    local text = label
-    if path.numSteps ~= nil then
-        local distance = path.numSteps * dmhub.FeetPerTile
-        text = string.format("%s: %s %s", label, MeasurementSystem.NativeToDisplayString(distance), string.lower(MeasurementSystem.UnitName()))
+    local text = textOverride
+    if text == nil then
+        text = label
+        if path.numSteps ~= nil then
+            local distance = path.numSteps * dmhub.FeetPerTile
+            text = string.format("%s: %s %s", label, MeasurementSystem.NativeToDisplayString(distance), string.lower(MeasurementSystem.UnitName()))
+        end
     end
 
     if path.origin ~= nil and path.destination ~= nil then
@@ -798,6 +1450,751 @@ local NOVEL_MARKER_RULES = {
 }
 
 
+--Director multi-monster overview column footer (slice (d)); see the
+--OverviewColumnFooter block above ActionSubMenu for the design notes.
+--Merged into the action bar root's cascade like NOVEL_MARKER_RULES so
+--the rules resolve on columns inside an open action menu.
+--Pooled row count: the signals view shows OVERVIEW.FOOTER_ROWS then "+N
+--more"; the owner-selection prompt (slice (e)) may show up to this many
+--selectable members before its own "+N more".
+
+local OVERVIEW_FOOTER_RULES = {
+    {
+        selectors = { "overviewFooter" },
+        width = 205,
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        bgimage = true,
+        bgcolor = "#1D1D1D",
+        borderColor = "#606060",
+        borderWidth = 1.5,
+        pad = 4,
+        borderBox = true,
+    },
+    {
+        selectors = { "overviewFooter", "hover" },
+        borderColor = "white",
+        brightness = 1.2,
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "overviewFooterHeader" },
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        valign = "top",
+    },
+    {
+        selectors = { "overviewFooterText" },
+        width = "100%-40",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "center",
+        lmargin = 6,
+    },
+    --F2-4: every text in the footer sits at the X11 READ floor (12px) or
+    --above; 11px was reported unreadable on a laptop. Names never wrap and
+    --ellipsize instead of overflowing the column border.
+    --P2-c1 lens bar, field-test-4 restyle: flat and quiet (icon-rail
+    --spirit) - no box, no border; a row of text tabs, active = gold with a
+    --2px underline, zero-count tabs dimmed but pressable. The row keeps a
+    --near-black translucent backing so it reads over any map and eats the
+    --click (never a click-through to the map).
+    {
+        selectors = { "overviewLensBar" },
+        width = "auto",
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        valign = "bottom",
+        tmargin = 6,
+        bmargin = 0,
+    },
+    {
+        selectors = { "overviewLensRow" },
+        width = 6 * 106 + 8,
+        height = "auto",
+        flow = "horizontal",
+        halign = "center",
+        valign = "center",
+        bgimage = true,
+        bgcolor = "#000000D9",
+        cornerRadius = 4,
+        pad = 2,
+        borderBox = false,
+    },
+    {
+        selectors = { "overviewLensTab" },
+        width = 106,
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        hpad = 4,
+        vpad = 3,
+        borderBox = true,
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "overviewLensTab", "hover" },
+        bgcolor = "#ffffff18",
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "overviewLensTabLabel" },
+        width = "100%",
+        height = "auto",
+        fontSize = 13,
+        color = Styles.textColor,
+        opacity = 0.75,
+        textAlignment = "center",
+        textWrap = false,
+        textOverflow = "ellipsis",
+    },
+    {
+        selectors = { "overviewLensTabLabel", "parent:hover" },
+        color = "white",
+        opacity = 1,
+    },
+    {
+        selectors = { "overviewLensTabLabel", "parent:active" },
+        color = Styles.Ability.goldColor,
+        opacity = 1,
+        bold = true,
+    },
+    {
+        selectors = { "overviewLensTabLabel", "parent:zero", "~parent:active" },
+        opacity = 0.35,
+    },
+    {
+        selectors = { "overviewLensTabLine" },
+        width = "100%-8",
+        height = 2,
+        halign = "center",
+        valign = "bottom",
+        tmargin = 2,
+        bgimage = true,
+        bgcolor = Styles.Ability.goldColor,
+    },
+    {
+        selectors = { "overviewLensEmpty" },
+        width = "100%",
+        height = "auto",
+        fontSize = 13,
+        color = Styles.textColor,
+        textAlignment = "center",
+        textWrap = true,
+        tmargin = 4,
+    },
+    --Match side pops (field test 4: the dim alone did not steer the eye to
+    --Toxic Winds over Swamp Gas); off-lens dim floors at .45 per X3.
+    {
+        selectors = { "abilityHeading", "onLens" },
+        borderColor = Styles.Ability.goldColor,
+        borderWidth = 2.5,
+        brightness = 1.15,
+    },
+    {
+        selectors = { "abilityHeading", "offLens" },
+        saturation = 0.5,
+    },
+    --Decision 45 condition glyph row on overview chips (>= 16px, X15).
+    {
+        selectors = { "overviewConditionRow" },
+        width = "100%-20",
+        height = 18,
+        flow = "horizontal",
+        halign = "left",
+        valign = "center",
+        vmargin = 1,
+    },
+    {
+        selectors = { "overviewConditionIcon" },
+        width = 16,
+        height = 16,
+        halign = "left",
+        valign = "center",
+        rmargin = 3,
+        bgcolor = "white",
+    },
+    {
+        selectors = { "overviewConditionMore" },
+        width = "auto",
+        height = "auto",
+        fontSize = 13,
+        color = Styles.textColor,
+        halign = "left",
+        valign = "center",
+    },
+    {
+        selectors = { "overviewLensKey" },
+        fontSize = 13,
+        color = "#C9A86A",
+        textWrap = false,
+        width = "100%-20",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        vmargin = 1,
+    },
+    {
+        selectors = { "overviewLensKey", "expended" },
+        color = Styles.textColor,
+    },
+    --X6 "Everyone can:" - common abilities (Charge, Grab, Knockback...) that
+    --satisfy the active lens, dimmed, under the lens bar.
+    {
+        selectors = { "overviewLensEveryone" },
+        width = "100%",
+        height = "auto",
+        fontSize = 13,
+        color = Styles.textColor,
+        opacity = 0.75,
+        textAlignment = "center",
+        textWrap = true,
+        tmargin = 4,
+    },
+    {
+        selectors = { "abilityHeading", "offLens" },
+        opacity = 0.45,
+    },
+    --Chip badge row (field tests 10-13): surge = standout damage, twin
+    --persons = multi-target (red when damaging), person+plus = summon
+    --(green). Clear backings so the chip behind still hovers/presses.
+    --The title narrows when badges are up (field test 15: long Rival titles
+    --reached the corner) - reserve = badge row width + the 18px diamond
+    --clearance; priority 5 to beat the base abilityTitle width.
+    {
+        selectors = { "abilityTitle", "badges1" },
+        priority = 5,
+        width = "100%-46",
+    },
+    {
+        selectors = { "abilityTitle", "badges2" },
+        priority = 5,
+        width = "100%-68",
+    },
+    {
+        selectors = { "overviewBadgeRow" },
+        width = "auto",
+        height = "auto",
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "overviewDmgBadge" },
+        width = 18,
+        height = 18,
+        valign = "center",
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "overviewDmgIcon" },
+        width = 16,
+        height = 16,
+        halign = "center",
+        valign = "center",
+        bgcolor = "#E06464",
+    },
+    {
+        selectors = { "overviewAreaBadge" },
+        width = 18,
+        height = 18,
+        valign = "center",
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "overviewAreaIcon" },
+        width = 15,
+        height = 15,
+        halign = "center",
+        valign = "center",
+        bgcolor = "#E9B86F",
+    },
+    {
+        selectors = { "overviewMultiBadge" },
+        width = 20,
+        height = 18,
+        valign = "center",
+        lmargin = 2,
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "overviewMultiIcon" },
+        width = 12,
+        height = 12,
+        halign = "left",
+        valign = "top",
+        bgcolor = "#EDEDED",
+    },
+    {
+        selectors = { "overviewSummonBadge" },
+        width = 22,
+        height = 18,
+        valign = "center",
+        lmargin = 2,
+        flow = "horizontal",
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "overviewSummonIcon" },
+        width = 13,
+        height = 13,
+        halign = "left",
+        valign = "center",
+        bgcolor = "#7AC77A",
+    },
+    {
+        selectors = { "overviewSummonPlus" },
+        width = "auto",
+        height = "auto",
+        fontSize = 13,
+        bold = true,
+        color = "#7AC77A",
+        halign = "left",
+        valign = "center",
+    },
+    --Field test 21: red villain-action skull beside Near Death (16px; the
+    --"small" variant rides member rows on the name line).
+    {
+        selectors = { "overviewRiskRow" },
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        valign = "top",
+    },
+    {
+        selectors = { "overviewRiskSkull" },
+        width = 16,
+        height = 16,
+        halign = "left",
+        valign = "center",
+        rmargin = 3,
+        bgcolor = "#E06464",
+    },
+    {
+        selectors = { "overviewRiskSkull", "small" },
+        width = 13,
+        height = 13,
+        valign = "center",
+        tmargin = 0,
+    },
+    --Field test 29: the High-damage / area-window column lines carry the
+    --same glyph as the chip badge that earned them (surge / gold "!") as
+    --an icon bullet, marrying the creature line to the relevant abilities.
+    {
+        selectors = { "overviewRiskIcon" },
+        width = 16,
+        height = 16,
+        halign = "left",
+        valign = "center",
+        rmargin = 3,
+    },
+    {
+        selectors = { "overviewRiskIcon", "surge" },
+        bgcolor = "#E06464",
+    },
+    {
+        selectors = { "overviewRiskIcon", "area" },
+        width = 15,
+        height = 15,
+        rmargin = 4,
+        bgcolor = "#E9B86F",
+    },
+    --Field test 39: the High Stamina shield, green = the positive channel.
+    {
+        selectors = { "overviewRiskIcon", "hs" },
+        bgcolor = "#7AC77A",
+    },
+    --Field test 40: the chip's green heal shield (regain/temp stamina).
+    {
+        selectors = { "overviewHealBadge" },
+        width = 18,
+        height = 18,
+        valign = "center",
+        lmargin = 2,
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "overviewHealIcon" },
+        width = 15,
+        height = 15,
+        halign = "center",
+        valign = "center",
+        bgcolor = "#7AC77A",
+    },
+    --Field test 31: the amber Likely Target line's label sizes to its text
+    --so several debuff glyphs can ride the line as its icon bullets.
+    {
+        selectors = { "overviewFooterRisk", "likely" },
+        width = "auto",
+        textWrap = false,
+    },
+    --Field test 34: risk-box bullet rows indent to the headline's text
+    --(19 = 16px skull + 3 rmargin); a debuff bullet's glyph is 14px.
+    {
+        selectors = { "overviewRiskRow", "bullet" },
+        lmargin = 19,
+        width = "100%-19",
+    },
+    {
+        selectors = { "overviewRiskIcon", "bullet" },
+        width = 14,
+        height = 14,
+    },
+    --Field test 34: a mini-row's trailing debuff glyphs (13px, after the
+    --name) - the same symbol as the box bullet, binding fact to owner.
+    {
+        selectors = { "overviewRowStatusIcon" },
+        width = 13,
+        height = 13,
+        halign = "left",
+        valign = "center",
+        lmargin = 3,
+    },
+    --Field test 22: a member row's name yields the skull's width so the
+    --inline skull + ellipsized name never overflow the row.
+    {
+        selectors = { "overviewFooterRowLabel", "withSkull" },
+        width = "100%-16",
+    },
+    --Field test 18: the green relatively-safe line (exception only).
+    {
+        selectors = { "overviewFooterSafe" },
+        width = "100%",
+        height = "auto",
+        fontSize = 13,
+        color = "#7AC77A",
+        textAlignment = "left",
+        textWrap = false,
+        textOverflow = "ellipsis",
+    },
+    --P2-e threat-estimate line: allowed to wrap (reasons can be long).
+    --Field test 29: tmargin 1 seats the text a hair lower so it sits level
+    --with the 16px icon bullets (skull / surge / "!") beside it.
+    {
+        selectors = { "overviewFooterRisk" },
+        width = "100%-19",
+        height = "auto",
+        fontSize = 13,
+        tmargin = 1,
+        color = Styles.textColor,
+        textAlignment = "left",
+        textWrap = true,
+    },
+    --P2-a status strip: the token HUD's status icons at >= 16px (X15);
+    --threat flags (hero-applied marks/conditions) carry a red ring.
+    {
+        selectors = { "overviewFooterPortraitColumn" },
+        width = 34,
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+    },
+    {
+        selectors = { "overviewStatusStrip" },
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "center",
+        valign = "center",
+        tmargin = 3,
+    },
+    {
+        selectors = { "overviewStatusIcon" },
+        width = 18,
+        height = 18,
+        halign = "left",
+        valign = "center",
+        rmargin = 3,
+        bgcolor = "white",
+        borderWidth = 0,
+    },
+    {
+        selectors = { "overviewStatusIcon", "threat" },
+        borderWidth = 2,
+        borderColor = "#E06464",
+    },
+    {
+        selectors = { "overviewStatusIcon", "hover" },
+        brightness = 1.3,
+    },
+    {
+        selectors = { "overviewStatusMore" },
+        width = "auto",
+        height = "auto",
+        fontSize = 13,
+        color = Styles.textColor,
+        halign = "left",
+        valign = "center",
+    },
+    --F2-8 dismiss "x" at the footer's top-right (floating; the name label
+    --leaves it room).
+    {
+        selectors = { "overviewDismiss" },
+        width = 14,
+        height = 14,
+        bgcolor = "#9a9a9a",
+        opacity = 0.8,
+        halign = "right",
+        valign = "top",
+    },
+    {
+        selectors = { "overviewDismiss", "hover" },
+        bgcolor = "white",
+        opacity = 1,
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "overviewDismiss", "press" },
+        bgcolor = "#cccccc",
+    },
+    {
+        selectors = { "overviewFooterNameRow" },
+        width = "100%-16",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        valign = "top",
+    },
+    {
+        selectors = { "overviewCaptainIcon" },
+        width = 16,
+        height = 16,
+        halign = "left",
+        valign = "center",
+        lmargin = 4,
+        bgcolor = "white",
+    },
+    {
+        selectors = { "overviewFooterName" },
+        width = "auto",
+        maxWidth = "100%-22",
+        height = "auto",
+        fontSize = 14,
+        bold = true,
+        color = Styles.Ability.goldColor,
+        textAlignment = "left",
+        textWrap = false,
+        textOverflow = "ellipsis",
+    },
+    {
+        selectors = { "overviewFooterLine" },
+        width = "100%",
+        height = "auto",
+        fontSize = 13,
+        color = Styles.textColor,
+        textAlignment = "left",
+        textWrap = false,
+        textOverflow = "ellipsis",
+    },
+    {
+        selectors = { "overviewFooterRow" },
+        width = "100%",
+        height = 32,
+        flow = "horizontal",
+        halign = "left",
+        tmargin = 3,
+        bgimage = true,
+        bgcolor = "clear",
+    },
+    {
+        selectors = { "overviewFooterRow", "hover" },
+        bgcolor = "#ffffff22",
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "overviewFooterRowText" },
+        width = "100%-28",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "center",
+        lmargin = 4,
+    },
+    {
+        selectors = { "overviewFooterRowLabel" },
+        width = "100%",
+        height = "auto",
+        fontSize = 13,
+        color = Styles.textColor,
+        textAlignment = "left",
+        textWrap = false,
+        textOverflow = "ellipsis",
+        halign = "left",
+    },
+    {
+        selectors = { "overviewFooterRowSignal" },
+        width = "100%",
+        height = "auto",
+        fontSize = 13,
+        color = Styles.textColor,
+        opacity = 0.85,
+        textAlignment = "left",
+        textWrap = false,
+        textOverflow = "ellipsis",
+        halign = "left",
+    },
+    {
+        selectors = { "overviewFooterMore" },
+        width = "100%",
+        height = "auto",
+        fontSize = 13,
+        color = Styles.textColor,
+        textAlignment = "left",
+        tmargin = 3,
+        lmargin = 28,
+    },
+    --Field test 35: "+N more" is pressable (expand/fold the member list);
+    --the hover tint is its affordance.
+    {
+        selectors = { "overviewFooterMore", "hover" },
+        color = "#E9B86F",
+        bold = true,
+    },
+    --Whole-column acted greying (Decision 50 / F2-7): once every member of a
+    --column has acted this round, ALL of its chips grey out - title,
+    --keywords, icon, action type - so "do not use these" is unmistakable,
+    --while the chips stay discoverable and clickable (Decision 4; opacity
+    --floor per X3). Driven by an "acted" class tree on each chip (the same
+    --mechanism as "expended"); the earlier parent:acted opacity rule was
+    --too subtle to see in play.
+    {
+        selectors = { "abilityHeading", "acted" },
+        opacity = 0.55,
+        borderColor = "#404040",
+    },
+    {
+        selectors = { "abilityTitle", "acted" },
+        color = "#8a8a8a",
+    },
+    {
+        selectors = { "abilityInfoLabel", "acted" },
+        color = "#8a8a8a",
+    },
+    {
+        selectors = { "overviewActionType", "acted" },
+        color = "#8a8a8a",
+    },
+    {
+        selectors = { "abilityIconPanel", "acted" },
+        saturation = 0,
+        opacity = 0.6,
+    },
+    --Action economy on overview chips (field test 2): a legible 12px line
+    --under the keywords, gold so it reads as structure, not as a keyword.
+    --Community colour coding (field test 4): Maneuver = blue. The WORD is
+    --the colour-blind channel (X12) - colour is reinforcement only.
+    {
+        selectors = { "overviewActionType" },
+        fontSize = 13,
+        bold = true,
+        color = Styles.Ability.goldColor,
+        textWrap = false,
+        width = "100%-20",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        vmargin = 1,
+    },
+    {
+        selectors = { "overviewActionType", "maneuver" },
+        color = "#5B9BD5",
+    },
+    {
+        selectors = { "overviewActionType", "freeaction" },
+        color = "#B8B8B8",
+    },
+    {
+        selectors = { "overviewActionType", "expended" },
+        color = Styles.textColor,
+    },
+    --Hairline between a column's main actions (above) and its maneuvers /
+    --free actions (below), so "one above + one below" reads at a glance.
+    {
+        selectors = { "overviewActionDivider" },
+        width = 205 - 24,
+        height = 2,
+        halign = "center",
+        vmargin = 5,
+        bgimage = true,
+        bgcolor = Styles.Ability.goldColor,
+        opacity = 0.6,
+    },
+    --Slice (e): owner-selection prompt (instruction line + selectable member
+    --rows) and the "Take <Creature>'s turn" button with its inline reason.
+    {
+        selectors = { "overviewFooterPrompt" },
+        width = "100%",
+        height = "auto",
+        fontSize = 13,
+        bold = true,
+        color = Styles.Ability.goldColor,
+        textAlignment = "left",
+        textWrap = true,
+        tmargin = 4,
+    },
+    {
+        selectors = { "overviewFooterRow", "promptOption" },
+        bgcolor = "#ffffff11",
+        borderColor = "#606060",
+        borderWidth = 1,
+    },
+    {
+        selectors = { "overviewFooterRow", "promptOption", "hover" },
+        bgcolor = "#ffffff33",
+        borderColor = "white",
+    },
+    {
+        selectors = { "overviewTakeTurn" },
+        width = "100%",
+        height = 26,
+        halign = "center",
+        tmargin = 6,
+        bgimage = true,
+        bgcolor = "#2A2A2A",
+        borderColor = Styles.Ability.goldColor,
+        borderWidth = 1,
+        fontSize = 13,
+        bold = true,
+        color = Styles.Ability.goldColor,
+        textAlignment = "center",
+        textWrap = false,
+        borderBox = true,
+        hpad = 4,
+    },
+    {
+        selectors = { "overviewTakeTurn", "hover" },
+        bgcolor = "#3A3A3A",
+        borderColor = "white",
+        transitionTime = 0.1,
+    },
+    {
+        selectors = { "overviewTakeTurn", "disabled" },
+        opacity = 0.5,
+        color = Styles.textColor,
+        borderColor = "#606060",
+    },
+    {
+        selectors = { "overviewTakeTurn", "disabled", "hover" },
+        bgcolor = "#2A2A2A",
+        borderColor = "#606060",
+    },
+    {
+        selectors = { "overviewTakeTurnReason" },
+        width = "100%",
+        height = "auto",
+        fontSize = 13,
+        color = Styles.textColor,
+        textAlignment = "center",
+        textWrap = true,
+        tmargin = 2,
+    },
+}
+
 local function ActionBarDrawer(args)
     local m_resourceid
     local m_resourceInfo
@@ -1022,6 +2419,9 @@ local function ActionBarDrawer(args)
         --pass.
     elseif args.type == "respite" then
         --pass. Respite drawer has no resource counter; it just opens its menu.
+    elseif args.type == "unique" then
+        --pass. The director's multi-monster "Unique Abilities" drawer spans
+        --several tokens, so no single resource counter applies.
     else
         local m_segments = {}
         local m_margin = 2
@@ -1250,13 +2650,25 @@ local function ActionBarDrawer(args)
             element:SetClass("active", active)
             element.captureEscape = active
             element.mapfocus = active
+            --Field test 12: while the Unique Abilities menu is open, the
+            --on-map multi-select buttons (Group Initiative / Make Captain,
+            --MCDMMinion.lua) step aside - they appear for exactly the same
+            --multi-selection and drew OVER the lens bar.
+            if args.type == "unique" then
+                DrawSteelActionBar.uniqueMenuOpen = active
+            end
         end,
 
         mappress = function(element, loc, pos)
             element:FireEvent("escape")
         end,
 
-        closemenu = function(element)
+        closemenu = function(element, reason)
+            --See the root refresh: a primary-token change alone does not
+            --close the overview menu while overview mode persists (F2-8).
+            if reason == "primary" and args.type == "unique" and InOverviewMode() then
+                return
+            end
             if element:HasClass("active") then
                 element:FireEvent("press")
             end
@@ -1273,6 +2685,31 @@ local function ActionBarDrawer(args)
             local newToken = g_token.charid ~= element.data.lastcharid
 
             element.data.lastcharid = g_token.charid
+
+            --Director multi-monster overview: the "unique" drawer exists only
+            --in overview mode, and while it is up the per-creature Main
+            --Action / Maneuver / Move drawers step aside (Decision 43). All
+            --other drawers (Trigger, Malice, Respite) behave exactly as usual.
+            local overview = InOverviewMode()
+            if args.type == "unique" then
+                resultPanel:SetClass("collapsed", not overview)
+                if not overview then
+                    return
+                end
+
+                if newToken then
+                    resultPanel:SetClassTreeImmediate("available", true)
+                else
+                    resultPanel:SetClassTree("available", true)
+                end
+
+                return
+            elseif args.type == "action" or args.type == "maneuver" or args.type == "move" then
+                resultPanel:SetClass("collapsed", overview)
+                if overview then
+                    return
+                end
+            end
 
             if args.type == "respite" then
                 --Only show the respite drawer while the game is in respite mode.
@@ -1724,6 +3161,17 @@ local function CreateActionBar()
 
     local m_malicePanel
 
+    --Director multi-monster overview drawer. Built with the same factory as
+    --every other drawer so it is visually identical (Decision 40); it hides
+    --itself unless InOverviewMode() (see the drawer's refresh), so the
+    --single-selection strip is unchanged. Sits where Main Action sits today,
+    --so in overview mode the strip reads Trigger | Unique Abilities | Malice.
+    --Created for everyone (players simply never leave the collapsed state,
+    --since overview mode requires dmhub.isDM) so the children list below has
+    --no extra nil hole.
+    local m_uniquePanel = ActionBarDrawer { name = "Unique Abilities", type = "unique", panel = {
+        classes = { "actionBarDrawer", "collapsed" },
+    } }
 
     if dmhub.isDM then
         m_malicePanel = ActionBarDrawer { name = "Malice", type = "malice", panel = {
@@ -1750,7 +3198,7 @@ local function CreateActionBar()
 
     resultPanel = gui.Panel {
         classes = { "actionBar" },
-        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE }, ThemeEngine.MergeTokens(NOVEL_MARKER_RULES) },
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE }, ThemeEngine.MergeTokens(NOVEL_MARKER_RULES), ThemeEngine.MergeTokens(OVERVIEW_FOOTER_RULES) },
         width = "100%",
         height = 50,
         halign = "center",
@@ -1763,7 +3211,7 @@ local function CreateActionBar()
         create = function(element)
             element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
                 if element.valid then
-                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE }, ThemeEngine.MergeTokens(NOVEL_MARKER_RULES) }
+                    element.styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE }, ThemeEngine.MergeTokens(NOVEL_MARKER_RULES), ThemeEngine.MergeTokens(OVERVIEW_FOOTER_RULES) }
                 end
             end)
         end,
@@ -1775,9 +3223,49 @@ local function CreateActionBar()
             end
         end,
 
+        --Director only: poll the selection so the overview drawer tracks
+        --tokens joining/leaving behind an unchanged primary (see
+        --SelectionSignature). Not while a caster is pushed or a cast is in
+        --flight -- the strip stays put until the cast pops, as it does for
+        --invoke prompts today. Players never enter overview mode, so no poll.
+        thinkTime = cond(dmhub.isDM, 0.2, nil),
+        think = function(element)
+            if mod.unloaded or #g_casterTokenStack ~= 0 or g_currentAbility ~= nil then
+                return
+            end
+            if SelectionSignature() ~= element.data.selectionSignature then
+                element:FireEventTree("refresh")
+                --F2-8: an open Unique Abilities menu follows the selection
+                --live (a column dismissed, a token shift-clicked on the map)
+                --instead of going stale. No-op unless that menu is up.
+                element:FireEventTree("refreshOverview")
+            end
+        end,
+
         refresh = function(element)
             if #g_casterTokenStack == 0 then
                 g_token = dmhub.selectedOrPrimaryTokens[1]
+            end
+
+            --Capture the whole selection for the director overview. Only
+            --while no caster is pushed: during an invoked/overview cast the
+            --engine's selection override makes selectedOrPrimaryTokens report
+            --the caster, and the strip should stay put until the cast pops.
+            if #g_casterTokenStack == 0 then
+                local selected = {}
+                for _, tok in ipairs(dmhub.selectedOrPrimaryTokens) do
+                    if tok ~= nil and tok.valid and tok.properties ~= nil then
+                        selected[#selected + 1] = tok
+                    end
+                end
+                g_selectedTokens = selected
+                local signature = SelectionSignature()
+                if signature ~= element.data.selectionSignature then
+                    --Field test 8: a lens is a question about THIS selection;
+                    --changing the selection resets to All.
+                    g_overviewLens = "all"
+                end
+                element.data.selectionSignature = signature
             end
 
             if g_token == nil or not g_token.valid then
@@ -1790,6 +3278,15 @@ local function CreateActionBar()
             end
 
             g_creature = g_token.properties
+
+            --Entering or leaving overview mode swaps which drawers are on the
+            --strip; an open menu belonging to a drawer that is about to
+            --collapse would otherwise linger. Close it, as a token change does.
+            local overview = InOverviewMode()
+            if element.data.overviewMode ~= overview then
+                element.data.overviewMode = overview
+                element:FireEventTree("closemenu")
+            end
 
             --Hide the bar when the selected token is a fixture/object, EXCEPT
             --while an invoked cast is driving us (g_casterTokenStack non-empty).
@@ -1804,7 +3301,12 @@ local function CreateActionBar()
 
             if g_prevCharid ~= g_token.charid then
                 g_prevCharid = g_token.charid
-                element:FireEventTree("closemenu")
+                --"primary" tells the Unique Abilities drawer/menu to stay up:
+                --in overview mode the columns come from the WHOLE selection,
+                --so the primary token changing (F2-8 dismissed the primary's
+                --column, or a shift-click) is not a reason to close it. Every
+                --other menu closes as before.
+                element:FireEventTree("closemenu", "primary")
             end
 
             --Containment: GetResources/GetActivatedAbilities run a huge pass
@@ -1881,6 +3383,7 @@ local function CreateActionBar()
         m_respitePanel,
 
         m_triggerDrawerContainer,
+        m_uniquePanel,
         m_actionPanel,
         m_maneuverPanel,
         m_movementPanel,
@@ -1922,16 +3425,16 @@ local m_activeImprovements = {}
 --freed on dehover and on heading destroy; ownership tracking makes sure a
 --newly hovered heading's arrows are not clobbered by the previous heading's
 --dehover.
-local g_filterSightlineRays = {}
-local g_filterSightlineOwner = nil
-local MAX_FILTER_SIGHTLINE_RAYS = 12
+--One table, not three locals: the merged file sits at Lua's 200
+--top-level-locals ceiling (same consolidation as g_overviewRisk).
+local g_filterSightlines = { rays = {}, owner = nil, MAX = 12 }
 
 local function ClearFilterSightlineRays()
-    for _,ray in ipairs(g_filterSightlineRays) do
+    for _,ray in ipairs(g_filterSightlines.rays) do
         ray:DestroyLineOfSight()
     end
-    g_filterSightlineRays = {}
-    g_filterSightlineOwner = nil
+    g_filterSightlines.rays = {}
+    g_filterSightlines.owner = nil
 end
 
 local function ShowFilterSightlineRays(ownerElement)
@@ -1948,7 +3451,7 @@ local function ShowFilterSightlineRays(ownerElement)
     end
 
     for _,enemyTok in ipairs(token.properties:GetRelevantEnemyTokens()) do
-        if #g_filterSightlineRays >= MAX_FILTER_SIGHTLINE_RAYS then
+        if #g_filterSightlines.rays >= g_filterSightlines.MAX then
             break
         end
 
@@ -1962,13 +3465,14 @@ local function ShowFilterSightlineRays(ownerElement)
         --arrows always agree with the gate's verdict.
         local coverInfo = dmhub.GetCoverInfo(enemyTok, token, pierce, true)
         if coverInfo == nil then
-            g_filterSightlineRays[#g_filterSightlineRays+1] = dmhub.MarkLineOfSight(enemyTok, token, pierce, "red")
+            g_filterSightlines.rays[#g_filterSightlines.rays+1] = dmhub.MarkLineOfSight(enemyTok, token, pierce, "red")
         end
     end
 
-    g_filterSightlineOwner = ownerElement
+    g_filterSightlines.owner = ownerElement
 end
 
+--- @param args nil|{casterToken: nil|CharacterToken, ability: nil|ActivatedAbility, instantCast: nil|boolean, targets: nil|table, cast: nil|table, symbols: nil|table}
 local function AbilityHeading(args)
     local args = args or {}
 
@@ -1982,6 +3486,23 @@ local function AbilityHeading(args)
     local m_sightlineFilter = false
 
     local resultPanel
+
+    --The token this chip represents an ability OF. Normally that is the bar's
+    --bound token (g_token), but the director's multi-monster overview shows
+    --chips for tokens that are NOT the selected one, so an optional
+    --args.casterToken overrides it. Resolved through a function rather than
+    --captured once: g_token changes on every refresh while this panel is
+    --pooled and reused, and args.casterToken can be re-pointed via the
+    --"setCasterToken" event below. A caster that has since died/despawned
+    --(.valid == false) falls back to g_token so the chip never dereferences a
+    --nil .properties.
+    local function CasterToken()
+        local caster = args.casterToken
+        if caster ~= nil and caster.valid then
+            return caster
+        end
+        return g_token
+    end
 
     local SetCannotAfford = function(cannotAffordResourceCost, expended)
         if cannotAffordResourceCost ~= m_cannotAfford then
@@ -2002,14 +3523,160 @@ local function AbilityHeading(args)
     --marker has been dismissed by opening the menu.
     local m_novelMarker = NovelContentMarker("onAbility")
 
+    --Director-overview chip badges (never on hero chips - only the overview
+    --sets them; presses bubble through, so clicking a badge still casts):
+    --  * red surge = standout damage (field tests 10/11);
+    --  * two person silhouettes = targets more than one creature, red when
+    --    the ability does damage (field test 13);
+    --  * green person + "+" = brings a new creature into the encounter
+    --    (summon - friendly, hence green, field test 13).
+    local m_dmgBadge = gui.Panel {
+        classes = { "overviewDmgBadge", "collapsed" },
+        bgimage = "panels/square.png",
+        data = { tooltip = "This ability does high damage" },
+        hover = function(element)
+            gui.Tooltip{ text = element.data.tooltip, valign = "top" }(element)
+        end,
+        gui.Panel {
+            classes = { "overviewDmgIcon" },
+            bgimage = "game-icons/surge.png",
+            interactable = false,
+        },
+    }
+    local m_multiIcon1 = gui.Panel {
+        classes = { "overviewMultiIcon" },
+        bgimage = "e2345ee0-e8e3-412c-bebc-d0dddbafad93",
+        interactable = false,
+    }
+    local m_multiIcon2 = gui.Panel {
+        classes = { "overviewMultiIcon" },
+        bgimage = "e2345ee0-e8e3-412c-bebc-d0dddbafad93",
+        floating = true,
+        x = 6,
+        y = 3,
+        interactable = false,
+    }
+    local m_multiBadge = gui.Panel {
+        classes = { "overviewMultiBadge", "collapsed" },
+        bgimage = "panels/square.png",
+        hover = gui.Tooltip{ text = "Targets more than one creature", valign = "top" },
+        m_multiIcon1,
+        m_multiIcon2,
+    }
+    --Field test 27: the area-window alert is the MCDM trigger "!" tile
+    --(gold - an opportunity cue, not the red damage/death channel), shown
+    --only while the area could actually catch several heroes; the tooltip
+    --names them.
+    local m_areaBadge = gui.Panel {
+        classes = { "overviewAreaBadge", "collapsed" },
+        bgimage = "panels/square.png",
+        data = { tooltip = nil },
+        hover = function(element)
+            if element.data.tooltip ~= nil then
+                gui.Tooltip{ text = element.data.tooltip, valign = "top" }(element)
+            end
+        end,
+        gui.Panel {
+            classes = { "overviewAreaIcon" },
+            bgimage = "e7d55d80-630d-432d-8d3d-33051478bcd9",
+            interactable = false,
+        },
+    }
+    local m_summonBadge = gui.Panel {
+        classes = { "overviewSummonBadge", "collapsed" },
+        bgimage = "panels/square.png",
+        hover = gui.Tooltip{ text = "Brings a new creature into the encounter", valign = "top" },
+        gui.Panel {
+            classes = { "overviewSummonIcon" },
+            bgimage = "e2345ee0-e8e3-412c-bebc-d0dddbafad93",
+            interactable = false,
+        },
+        gui.Label {
+            classes = { "overviewSummonPlus" },
+            text = "+",
+            interactable = false,
+        },
+    }
+    --Field test 40: green shield = the ability regains stamina or grants
+    --temporary stamina (the same glyph as the footer's High Stamina /
+    --Healer lines - green is the positive channel).
+    local m_healBadge = gui.Panel {
+        classes = { "overviewHealBadge", "collapsed" },
+        bgimage = "panels/square.png",
+        hover = gui.Tooltip{ text = "This ability can regain and/or grant temporary stamina", valign = "top" },
+        gui.Panel {
+            classes = { "overviewHealIcon" },
+            --The Catch Breath heart-and-cross (abilities library), NOT the
+            --High Stamina shield - two green facts, two glyphs (field test 41).
+            bgimage = "9d51a1b8-ebec-48fd-b90e-e71aa5a72fb5",
+            interactable = false,
+        },
+    }
+    --Field test 14: TOP-right corner - the title row's right side is
+    --reliably empty for monster kit names, while the vertical center is the
+    --malice cost diamond's zone and the bottom is the keywords line (both
+    --collided). The novel pip owns the top-LEFT corner.
+    local m_badgeRow = gui.Panel {
+        classes = { "overviewBadgeRow", "collapsed" },
+        floating = true,
+        halign = "right",
+        valign = "top",
+        --rmargin clears the malice cost diamond, which floats half-out of
+        --the right edge and intrudes 15px into the chip (on a SHORT chip its
+        --centre rides high enough to reach the top corner - seen live on
+        --Get in Here!).
+        rmargin = 18,
+        tmargin = 3,
+        flow = "horizontal",
+        m_summonBadge,
+        m_healBadge,
+        m_multiBadge,
+        m_areaBadge,
+        m_dmgBadge,
+    }
+
     resultPanel = gui.Panel {
         classes = { "abilityHeading" },
+
+        --Re-point a pooled chip at a different owner. Fire this BEFORE the
+        --"ability" event, since "ability" computes suppression/cost from the
+        --caster. Pass nil to restore the g_token default.
+        --overviewPress (slice (e)) is the column's preview-on-click hook,
+        --function(ability, casterToken, commit) -> handled; nil (every
+        --ordinary menu) leaves the press path exactly as it was.
+        setCasterToken = function(element, casterToken, overviewPress)
+            args.casterToken = casterToken
+            args.overviewPress = overviewPress
+        end,
+
+        setOverviewBadges = function(element, dmg, multi, multiDamaging, summon, dmgTooltip, areaTooltip, heal)
+            m_dmgBadge:SetClass("collapsed", dmg ~= true)
+            m_dmgBadge.data.tooltip = dmgTooltip or "This ability does high damage"
+            m_multiBadge:SetClass("collapsed", multi ~= true)
+            local tint = multiDamaging and "#E06464" or "#EDEDED"
+            m_multiIcon1.selfStyle.bgcolor = tint
+            m_multiIcon2.selfStyle.bgcolor = tint
+            m_summonBadge:SetClass("collapsed", summon ~= true)
+            local area = areaTooltip ~= nil
+            m_areaBadge:SetClass("collapsed", not area)
+            m_areaBadge.data.tooltip = areaTooltip
+            m_healBadge:SetClass("collapsed", heal ~= true)
+            local count = (dmg == true and 1 or 0) + (multi == true and 1 or 0) + (summon == true and 1 or 0) + (area and 1 or 0) + (heal == true and 1 or 0)
+            m_badgeRow:SetClass("collapsed", count == 0)
+            --Long titles (Rival Tactician's "Dual Targeting Shot") reach the
+            --top-right corner, so floating alone cannot guarantee no
+            --overlap: the TITLE reserves the badge zone and wraps early
+            --instead (class tree; rules on abilityTitle in
+            --OVERVIEW_FOOTER_RULES).
+            element:SetClassTree("badges1", count == 1)
+            element:SetClassTree("badges2", count >= 2)
+        end,
 
         ability = function(element, ability)
             local suppressMessage = ability:try_get("suppressExplanation")
             local suppressFilter = nil
             if suppressMessage == nil then
-                suppressMessage, suppressFilter = ability:AbilityFilterFailureMessage(g_token.properties)
+                suppressMessage, suppressFilter = ability:AbilityFilterFailureMessage(CasterToken().properties)
             end
             m_suppressed = suppressMessage ~= nil
             m_sightlineFilter = m_suppressed and suppressFilter ~= nil and suppressFilter.sightlines == true
@@ -2029,7 +3696,7 @@ local function AbilityHeading(args)
                 text = 'Share to Chat',
                 click = function()
                     element.popup = nil
-                    chat.ShareObjectInfo(nil, nil, { charid = g_token.charid, ability = m_ability })
+                    chat.ShareObjectInfo(nil, nil, { charid = CasterToken().charid, ability = m_ability })
                 end,
             }
 
@@ -2089,8 +3756,9 @@ local function AbilityHeading(args)
                     end
                 end
 
-                if not addedEditEntry and g_token ~= nil and g_token.properties ~= nil then
-                    local innateAbility = g_token.properties:IsActivatedAbilityInnate(m_ability)
+                local casterToken = CasterToken()
+                if not addedEditEntry and casterToken ~= nil and casterToken.properties ~= nil then
+                    local innateAbility = casterToken.properties:IsActivatedAbilityInnate(m_ability)
                     if innateAbility then
                         entries[#entries + 1] = {
                             text = 'Edit Ability',
@@ -2099,10 +3767,12 @@ local function AbilityHeading(args)
 
                                 element.root:AddChild(innateAbility:ShowEditActivatedAbilityDialog{
                                     close = function()
-                                        g_token:ModifyProperties{
+                                        --resolved at close time, as the original g_token read was.
+                                        local tok = CasterToken()
+                                        tok:ModifyProperties{
                                             description = "Edit Innate Ability",
                                             execute = function()
-                                                g_token.properties.innateActivatedAbilities = g_token.properties.innateActivatedAbilities
+                                                tok.properties.innateActivatedAbilities = tok.properties.innateActivatedAbilities
                                             end,
                                         }
                                     end,
@@ -2126,10 +3796,10 @@ local function AbilityHeading(args)
             local menu = element:FindParentWithClass("actionMenu")
             if menu ~= nil then
                 print("MENU:: SHOW ABILITY")
-                menu:FireEvent("showability", m_ability)
+                menu:FireEvent("showability", m_ability, CasterToken())
             else
                 print("MENU:: DIRECT ABILITY")
-                m_showingAbility = CharacterPanel.DisplayAbility(g_token, m_ability)
+                m_showingAbility = CharacterPanel.DisplayAbility(CasterToken(), m_ability)
             end
 
             if m_sightlineFilter then
@@ -2143,13 +3813,13 @@ local function AbilityHeading(args)
                 CharacterPanel.HideAbility(m_ability)
             end
 
-            if g_filterSightlineOwner == element then
+            if g_filterSightlines.owner == element then
                 ClearFilterSightlineRays()
             end
         end,
 
         destroy = function(element)
-            if g_filterSightlineOwner == element then
+            if g_filterSightlines.owner == element then
                 ClearFilterSightlineRays()
             end
         end,
@@ -2194,62 +3864,114 @@ local function AbilityHeading(args)
                 m_ability.castImmediately = true
             end
 
-            if menu == nil then
-                print("MENU:: DISPLAY ABILITY NEW")
-                CharacterPanel.DisplayAbility(g_token, m_ability, { targets = args.targets, cast = args.cast })
-                m_showingAbility = false
-            end
+            --Casting on behalf of a token that is not the bar's bound token
+            --(director multi-monster overview). Mirrors the invokeAbility path
+            --(see "invokeAbility" on the ability controller): PushCasterToken
+            --rebinds g_token/g_creature and pushes the engine's selected-token
+            --override, then a refresh rebinds g_abilities/resources to the
+            --caster. The matching pop is NOT done here: every cast ends through
+            --cancelCasting (finishCasting, Skip, Esc, menu open, disable,
+            --restoreFromBackup all funnel there), and cancelCasting calls
+            --TryPopCasterToken exactly once. If a cast is already in flight we
+            --cancel it first so its own pushed caster (if any) is popped before
+            --ours goes on; otherwise the stack would end one deeper than the
+            --number of casts and the bar would stay bound to a stale token
+            --(refresh only re-reads the selection while the stack is empty).
+            --The commit tail of the press: (optionally) rebind the bar to
+            --the caster, then hand the ability to the controller. Split out
+            --so the overview's preview-on-click hook can defer it until the
+            --Director has picked WHICH member acts (slice (e)); an ordinary
+            --menu (no hook) runs it immediately with the chip's own caster and
+            --ability, exactly as before.
+            local function commit(casterToken, ability)
+                ability = ability or m_ability
+                if casterToken ~= nil and (g_token == nil or casterToken.charid ~= g_token.charid) then
+                    if g_currentAbility ~= nil then
+                        g_abilityController:FireEvent("cancelCasting")
+                    end
+                    PushCasterToken(casterToken)
+                    if g_actionBar ~= nil then
+                        g_actionBar:FireEvent("refresh")
+                    end
+                end
 
-                print("MENU:: HIGHLIGHT")
-            -- Collect applicable ability improvements from the caster.
-            m_activeImprovements = {}
-            if g_token ~= nil then
-                for _, activeMod in ipairs(g_token.properties:GetActiveModifiers()) do
-                    if activeMod.mod.behavior == "abilityimprovement" then
-                        local improvMod = activeMod.mod
-                        local passes = true
+                --Overview chip: remember who this cast is for so the pre-Cast
+                --hook can claim their turn at target confirm (only if legal
+                --then). Set AFTER any in-flight cancel above (which clears
+                --it) and before beginCasting. Ordinary chips never set it.
+                if args.overviewPress ~= nil and casterToken ~= nil and casterToken.valid then
+                    local initiativeid = nil
+                    pcall(function() initiativeid = InitiativeQueue.GetInitiativeId(casterToken) end)
+                    g_overviewCastPending = { token = casterToken, initiativeid = initiativeid }
+                else
+                    g_overviewCastPending = nil
+                end
 
-                        -- Keyword filter: if any keywords set, ability must have at least one match.
-                        local keywords = improvMod:try_get("keywords", {})
-                        local hasKeywords = false
-                        for _ in pairs(keywords) do hasKeywords = true; break end
-                        if hasKeywords then
-                            local abilityMatch = false
-                            for keyword, _ in pairs(keywords) do
-                                if m_ability.keywords ~= nil and m_ability.keywords[keyword] then
-                                    abilityMatch = true
-                                    break
+                if menu == nil then
+                    print("MENU:: DISPLAY ABILITY NEW")
+                    CharacterPanel.DisplayAbility(casterToken, ability, { targets = args.targets, cast = args.cast })
+                    m_showingAbility = false
+                end
+
+                    print("MENU:: HIGHLIGHT")
+                -- Collect applicable ability improvements from the caster.
+                m_activeImprovements = {}
+                if casterToken ~= nil then
+                    for _, activeMod in ipairs(casterToken.properties:GetActiveModifiers()) do
+                        if activeMod.mod.behavior == "abilityimprovement" then
+                            local improvMod = activeMod.mod
+                            local passes = true
+
+                            -- Keyword filter: if any keywords set, ability must have at least one match.
+                            local keywords = improvMod:try_get("keywords", {})
+                            local hasKeywords = false
+                            for _ in pairs(keywords) do hasKeywords = true; break end
+                            if hasKeywords then
+                                local abilityMatch = false
+                                for keyword, _ in pairs(keywords) do
+                                    if ability.keywords ~= nil and ability.keywords[keyword] then
+                                        abilityMatch = true
+                                        break
+                                    end
+                                end
+                                if not abilityMatch then passes = false end
+                            end
+
+                            -- Ability condition filter.
+                            if passes then
+                                local abilityFilter = improvMod:try_get("abilityFilter", "")
+                                if abilityFilter ~= "" then
+                                    local symbols = casterToken.properties:LookupSymbol{ability = ability}
+                                    passes = GoblinScriptTrue(ExecuteGoblinScript(abilityFilter, symbols, 1, "Ability improvement filter"))
                                 end
                             end
-                            if not abilityMatch then passes = false end
-                        end
 
-                        -- Ability condition filter.
-                        if passes then
-                            local abilityFilter = improvMod:try_get("abilityFilter", "")
-                            if abilityFilter ~= "" then
-                                local symbols = g_token.properties:LookupSymbol{ability = m_ability}
-                                passes = GoblinScriptTrue(ExecuteGoblinScript(abilityFilter, symbols, 1, "Ability improvement filter"))
+                            if passes then
+                                m_activeImprovements[#m_activeImprovements + 1] = {
+                                    mod = improvMod,
+                                    checked = false,
+                                }
                             end
-                        end
-
-                        if passes then
-                            m_activeImprovements[#m_activeImprovements + 1] = {
-                                mod = improvMod,
-                                checked = false,
-                            }
                         end
                     end
                 end
-            end
-            CharacterPanel.HighlightAbilitySection{
-                ability = m_ability,
-                caster = g_token,
-                section = "target",
-                improvements = m_activeImprovements,
-            }
+                CharacterPanel.HighlightAbilitySection{
+                    ability = ability,
+                    caster = casterToken,
+                    section = "target",
+                    improvements = m_activeImprovements,
+                }
 
-            g_abilityController:FireEventTree("beginCasting", m_ability, { targets = args.targets, cast = args.cast, symbols = args.symbols, fromui = true })
+                g_abilityController:FireEventTree("beginCasting", ability, { targets = args.targets, cast = args.cast, symbols = args.symbols, fromui = true })
+            end
+
+            local casterToken = CasterToken()
+            if args.overviewPress ~= nil and args.casterToken ~= nil then
+                if args.overviewPress(m_ability, casterToken, commit) then
+                    return
+                end
+            end
+            commit(casterToken)
         end,
 
         gui.Label {
@@ -2360,7 +4082,7 @@ local function AbilityHeading(args)
                 classes = { "abilityInfoLabel" },
                 text = "Ability Info",
                 ability = function(element, ability)
-                    local costInfo = ability:GetCost(g_token)
+                    local costInfo = ability:GetCost(CasterToken())
 
                     --look for heroic resource or malice cost and see if we can afford it.
                     local cannotAfford = false
@@ -2397,9 +4119,94 @@ local function AbilityHeading(args)
                     element.text = string.join(keywords, ", ")
                 end,
             },
+
+            --Decision 45 (overview only): the conditions this ability can
+            --apply, as the token-UI glyphs, up to two then "+N"; always on,
+            --not lens-gated, so the Control lens is discoverable from the
+            --chips. Inline under the keywords (the chip's right corner is
+            --already the cost diamond's and the novelty pip's).
+            gui.Panel {
+                classes = { "overviewConditionRow", "collapsed" },
+                gui.Panel { classes = { "overviewConditionIcon", "collapsed" }, bgimage = "panels/square.png" },
+                gui.Panel { classes = { "overviewConditionIcon", "collapsed" }, bgimage = "panels/square.png" },
+                gui.Label { classes = { "overviewConditionMore", "collapsed" }, text = "" },
+                ability = function(element, ability)
+                    local icons = {}
+                    if args.overviewPress ~= nil then
+                        icons = OverviewConditionIcons(OverviewAbilityFacets(ability))
+                    end
+                    local children = element.children
+                    local names = {}
+                    for _, icon in ipairs(icons) do
+                        names[#names + 1] = icon.name
+                    end
+                    for i = 1, OVERVIEW.CHIP_CONDITION_ICONS do
+                        local panel = children[i]
+                        local icon = icons[i]
+                        if icon == nil then
+                            panel:SetClass("collapsed", true)
+                        else
+                            panel:SetClass("collapsed", false)
+                            panel.bgimage = icon.icon
+                            panel.selfStyle.bgcolor = icon.bgcolor
+                        end
+                    end
+                    local more = children[OVERVIEW.CHIP_CONDITION_ICONS + 1]
+                    if #icons > OVERVIEW.CHIP_CONDITION_ICONS then
+                        more.text = string.format("+%d", #icons - OVERVIEW.CHIP_CONDITION_ICONS)
+                        more:SetClass("collapsed", false)
+                    else
+                        more:SetClass("collapsed", true)
+                    end
+                    element.data.tooltip = table.concat(names, ", ")
+                    element:SetClass("collapsed", #icons == 0)
+                end,
+                data = { tooltip = "" },
+                hover = function(element)
+                    if element.data.tooltip ~= "" then
+                        gui.Tooltip("Can apply: " .. element.data.tooltip)(element)
+                    end
+                end,
+            },
+
+            --Director overview only (args.overviewPress set): the action
+            --economy in legible text - "Maneuver" / "Free Maneuver" / "Free
+            --Action"; main actions stay unmarked. Ordinary menus never show
+            --it (the drawer already says which action the menu is).
+            gui.Label {
+                classes = { "overviewActionType", "collapsed" },
+                text = "",
+                ability = function(element, ability)
+                    local text = ""
+                    if args.overviewPress ~= nil then
+                        local _, label = OverviewActionType(ability)
+                        text = label or ""
+                    end
+                    element.text = text
+                    element:SetClass("maneuver", text == "Maneuver" or text == "Free Maneuver")
+                    element:SetClass("freeaction", text == "Free Action")
+                    element:SetClass("collapsed", text == "")
+                end,
+            },
+
+            --P2-c2 / X14: under an active lens, the lens's sort key on a
+            --matching overview chip ("6 damage per target", "Push 3").
+            gui.Label {
+                classes = { "overviewLensKey", "collapsed" },
+                text = "",
+                ability = function(element, ability)
+                    local text = nil
+                    if args.overviewPress ~= nil and g_overviewLens ~= "all" then
+                        text = OverviewLensKeyText(OverviewAbilityFacets(ability), g_overviewLens)
+                    end
+                    element.text = text or ""
+                    element:SetClass("collapsed", text == nil)
+                end,
+            },
         },
 
         m_novelMarker,
+        m_badgeRow,
     }
 
     if args.ability ~= nil then
@@ -2543,20 +4350,2536 @@ local function PowerRollTriggersSubmenu(args)
     return resultPanel
 end
 
-local function ActionSubMenu(args)
-    local m_children = {
-        gui.Label {
-            classes = { "submenuHeading" },
-            abilities = function(element, abilities, grouping)
-                if grouping == "Triggers" then
-                    grouping = "Manual Use Triggers"
+--Director multi-monster overview: the column FOOTER BAR (slice (d)).
+--
+--An overview column (see BuildOverviewColumns / the "unique" menu branch)
+--replaces the ordinary "submenuHeading" text label at the foot of the column
+--with a bar in the same visual position and palette (solid #1D1D1D, gold
+--text) that carries the statblock's identity and per-round SIGNALS - never
+--a verdict (Decision 48): the representative token's real portrait, the
+--statblock name (+ " xN"), the stat-block role line ("Level 1 Horde
+--Harrier", from monster.cr/.role exactly as the stat block header prints it;
+--nothing is fabricated when that data is missing), the RAW STAMINA
+--("13/15", F2-5 - the earlier Low/Moderate/High band was relative to the
+--creature's own max and said nothing useful) and the ACTED state from the
+--live initiative queue (InitiativeQueue:HasHadTurn): silent while not yet
+--acted, red "Turn already taken" once acted, "Acting now" mid-turn. Everything is text;
+--colour is never the only channel (Decision 51/X12); text >= 12px (X11 read
+--floor; F2-4 raised it from 11 - too small on a laptop).
+--
+--When a column has more than one member (Goblin Warrior x2), the footer grows
+--one compact MINI-ROW per member - per SQUAD for minions, since a squad is one
+--actor sharing one initiative slot and one stamina pool - each with a tiny
+--portrait and TWO lines: the member's name (ellipsized, F2-4 - one line
+--overflowed the column) and "13/15" (+ the acted state) (X7). At most three rows
+--are shown, then "+N more".
+--
+--Clicking the bar LOCATES the column: dmhub.CenterOnToken on the
+--representative and dmhub.PulseHighlightToken on every member; clicking a
+--mini-row locates that member. NEVER dmhub.FocusToken (it selects, which
+--collapses the overview scope - Decision 51/X5); dmhub.selectedTokens is not
+--touched.
+--
+--When EVERY member of a column has acted this round the whole column is
+--dimmed (class "acted" on the abilitySubMenu -> chips at 0.5 opacity, still
+--clickable/discoverable per Decision 4); nothing else dims a column.
+--
+--Pooled-panel rule (Field test log): the footer and its mini-rows are created
+--ONCE per ActionSubMenu and updated through the "overviewColumn" event; no
+--children list is ever reassigned after construction.
+--
+--Styling lives in OVERVIEW_FOOTER_RULES (next to NOVEL_MARKER_RULES, merged
+--into the action bar root's cascade).
+
+--Raw stamina for a token as "13/15" (+ " +T" temporary stamina when any);
+--nil when the creature has no usable stamina numbers. F2-5: the earlier
+--qualitative band (Low/Moderate/High, relative to the creature's OWN max)
+--told the Director nothing about survivability - a 15-max Warrior and an
+--80-max Monarch both read "High" - and in practice nearly every column read
+--"High". The raw numbers are cheap and unambiguous (Decision 9's "show raw
+--numbers"); the survivability question itself is the Phase 2 threat
+--estimate. For a minion, CurrentHitpoints/MaxHitpoints already report the
+--SQUAD pool (MCDMCreature.lua ~:172/:4710), so this is the squad's pool.
+local function OverviewStaminaText(tok)
+    local cur, max, temp = nil, nil, nil
+    pcall(function()
+        cur = tok.properties:CurrentHitpoints()
+        max = tok.properties:MaxHitpoints()
+    end)
+    pcall(function()
+        temp = tok.properties:TemporaryHitpoints()
+    end)
+    if type(cur) ~= "number" or type(max) ~= "number" or max <= 0 then
+        return nil
+    end
+    local text = string.format("%d/%d", round(cur), round(max))
+    if type(temp) == "number" and temp > 0 then
+        text = string.format("%s +%d", text, round(temp))
+    end
+    return text
+end
+
+--P2-a: the status entries a token's HUD shows (conditions, ongoing effects,
+--registered status icons) via TokenUI.CalculateStatusIcons, each reduced to
+--{id, icon, style, name, hoverText, threat, casterName}. THREAT = the
+--effect's caster is NOT a director-run monster, i.e. a hero put it there
+--(a Tactician's Mark, a Censor's judgment): deterministic and it says who
+--the heroes intend to kill (2026-08-18 play observation) - the footer
+--draws those with a red ring and mirrors them in red text. Self-applied
+--monster buffs and plain conditions stay neutral.
+
+--A registered status icon's hoverText may be a FUNCTION (creature) ->
+--string, computed live on hover (the wounded icon in DrawSteelTokenHud).
+--Resolve it once here; anything non-string becomes nil.
+local function OverviewStatusHoverText(icon, tok)
+    local text = icon.hoverText
+    if type(text) == "function" then
+        local ok, result = pcall(text, tok and tok.properties or nil)
+        text = ok and result or nil
+    end
+    if type(text) ~= "string" then
+        return nil
+    end
+    return text
+end
+
+local function OverviewStatusName(icon, hoverText)
+    if icon.statusText ~= nil and icon.statusText ~= "" then
+        return icon.statusText
+    end
+    local text = hoverText or icon.id or "Status"
+    --"Name: description" / "Name (2): description" -> Name
+    text = string.gsub(text, "<[^>]*>", "")
+    local name = string.match(text, "^([^:\n]+)") or text
+    name = string.gsub(name, "%s*%(%d+%)%s*$", "")
+    return trim(name)
+end
+
+--Returns entries, captain: the squad-captain crown (status id "captain") is
+--split out - it is IDENTITY, not a transient status, and the footer shows it
+--beside the name (field test 7), never in the status strip.
+local function OverviewStatusEntries(tok)
+    local entries = {}
+    local captain = nil
+    if tok == nil or not tok.valid or tok.properties == nil then
+        return entries, captain
+    end
+    local icons = nil
+    pcall(function() icons = TokenUI.CalculateStatusIcons(tok) end)
+    for _, icon in ipairs(icons or {}) do
+        --Skip the director-only eye and the walk-elevation glyph (an altitude
+        --readout, not a status; it is hidden at altitude 0 on the HUD).
+        if icon ~= nil and icon.id == "captain" then
+            captain = icon
+        elseif icon ~= nil and icon.icon ~= nil and icon.id ~= "invisible" and not icon.hideAtZeroAltitude then
+            local threat = false
+            local casterName = nil
+            if icon.casterid ~= nil then
+                local caster = dmhub.GetTokenById(icon.casterid)
+                if caster ~= nil and caster.valid then
+                    threat = not IsOverviewCreatureToken(caster)
+                    pcall(function()
+                        if caster.canLocalPlayerSeeName then
+                            casterName = caster.name
+                        end
+                    end)
+                    casterName = casterName or "a hero"
                 end
-                element.text = grouping
-            end,
-        }
+            end
+            local hoverText = OverviewStatusHoverText(icon, tok)
+            entries[#entries + 1] = {
+                id = icon.id,
+                icon = icon.icon,
+                style = icon.style,
+                name = OverviewStatusName(icon, hoverText),
+                hoverText = hoverText,
+                threat = threat,
+                casterName = casterName,
+                ord = #entries + 1,
+            }
+        end
+    end
+    --Threat flags first (stable otherwise), so the strip's "+N" never hides
+    --one.
+    table.sort(entries, function(a, b)
+        if a.threat ~= b.threat then
+            return a.threat
+        end
+        return a.ord < b.ord
+    end)
+    return entries, captain
+end
+
+--Red "Marked by Talent" (+N) mirror of a member's threat flags; nil if none.
+--prefixLength = the characters already on the line ("14/15 - "); the caster
+--is named only while the whole line still fits the 151px footer text column
+--(~26 chars at 12px) - the icon's hover text always names it.
+local function OverviewThreatText(entries, prefixLength)
+    local threats = {}
+    for _, entry in ipairs(entries or {}) do
+        if entry.threat then
+            threats[#threats + 1] = entry
+        end
+    end
+    if #threats == 0 then
+        return nil
+    end
+    local first = threats[1]
+    local text = first.name
+    if first.casterName ~= nil then
+        local long = string.format("%s by %s", text, first.casterName)
+        if (prefixLength or 0) + #long <= 26 then
+            text = long
+        end
+    end
+    if #threats > 1 then
+        text = string.format("%s +%d", text, #threats - 1)
+    end
+    return string.format("<color=%s>%s</color>", OVERVIEW.THREAT_COLOR, text)
+end
+
+--P2-d (X7 / Decision 48 signal): REACH ESTIMATE - how many heroes this
+--member could get at this turn: speed + the longest range among its kit
+--abilities that target enemies (melee counts 1), measured in straight-line
+--squares (Chebyshev, as Draw Steel counts) from the token; walls, terrain
+--and difficult ground are ignored, so it is an ESTIMATE and says so. Heroes
+--= live tokens on the map that are not director-run monsters.
+local function OverviewHeroTokens()
+    local heroes = {}
+    for _, tok in ipairs(dmhub.GetTokens() or {}) do
+        if tok ~= nil and tok.valid and tok.properties ~= nil and not tok.isObject and not IsOverviewCreatureToken(tok) then
+            local down = false
+            pcall(function() down = tok.properties:IsDown() end)
+            if not down then
+                heroes[#heroes + 1] = tok
+            end
+        end
+    end
+    return heroes
+end
+
+local function OverviewKitRange(tok, abilities)
+    local best = 1
+    for _, ability in ipairs(abilities or {}) do
+        pcall(function()
+            local tt = ability.targetType
+            if tt ~= "self" and tt ~= "emptyspace" and tt ~= "anyspace" and tt ~= "map" then
+                local r = tonumber(ability:GetRange(tok.properties))
+                if r ~= nil and r > best then
+                    best = r
+                end
+            end
+        end)
+    end
+    return best
+end
+
+local function OverviewReach(tok, abilities, heroes)
+    if tok == nil or not tok.valid or tok.properties == nil then
+        return nil
+    end
+    local speed = 0
+    pcall(function() speed = tonumber(tok.properties:GetSpeed()) or 0 end)
+    local range = OverviewKitRange(tok, abilities)
+    local reach = speed + range
+    local count = 0
+    local ok = pcall(function()
+        local locs = tok.locsOccupying
+        if locs == nil or #locs == 0 then
+            locs = { tok.loc }
+        end
+        for _, hero in ipairs(heroes or {}) do
+            local hloc = hero.loc
+            local nearest = nil
+            for _, loc in ipairs(locs) do
+                local d = math.max(math.abs(loc.x - hloc.x), math.abs(loc.y - hloc.y))
+                if nearest == nil or d < nearest then
+                    nearest = d
+                end
+            end
+            if nearest ~= nil and nearest <= reach then
+                count = count + 1
+            end
+        end
+    end)
+    if not ok then
+        return nil
+    end
+    return { count = count, reach = reach, speed = speed, range = range }
+end
+
+--One local for the whole P2-e feature (the file is near Lua's 200
+--top-level-locals limit): constants + the hero-profile cache + the
+--pathfinding cache. Declared HERE, above OverviewAreaCatch, its first
+--reader - a later local declaration would leave that reference resolving
+--to an uninitialized (raising) global.
+local g_overviewRisk = {
+    allowance = 4,
+    red = "#E06464",
+    amber = "#E0A050",
+    cache = { time = -1, list = {} },
+}
+
+--Field test 26: an Area chip earns the twin-person badge POSITIONALLY -
+--only when the area could catch two or more heroes somewhere the monster
+--can reach this turn. Field test 30 (Ricky: Synlirii Grafts' 1 burst
+--flagged a pair no neuronite could legally reach): the MOVEMENT leg now
+--uses the engine's real pathfinding (walls + occupied squares) via
+--tok:CalculatePathfindingArea(speed x 10 decis), cached per frame per
+--token on g_overviewRisk.pathCache - the badge pass and the column pass
+--both ask, for every area ability. The cast + area legs stay Chebyshev
+--with no walls or line of sight: two heroes are catchable together when
+--their mutual distance fits the area's diameter AND some single legal end
+--square has BOTH within cast range + area size (a per-axis interval
+--argument makes that pair test exact in open field). A burst-style
+--ability stores its size in range with no radius, so radius falls back to
+--range with 0 cast range. If pathfinding is unavailable the old
+--straight-line envelope from the current squares stands in.
+local function OverviewAreaCatch(tok, ability)
+    if tok == nil or not tok.valid or tok.properties == nil then
+        return nil
+    end
+    local radius = nil
+    local castRange = 0
+    pcall(function()
+        radius = tonumber(ability:try_get("radius"))
+        castRange = tonumber(ability.range) or 0
+    end)
+    if radius == nil or radius <= 0 then
+        radius = castRange
+        castRange = 0
+    end
+    if radius == nil or radius <= 0 then
+        return nil
+    end
+    local speed = 0
+    pcall(function() speed = tonumber(tok.properties:GetSpeed()) or 0 end)
+
+    local currentSquares = function()
+        local result = {}
+        pcall(function()
+            local locs = tok.locsOccupying
+            if locs == nil or #locs == 0 then
+                locs = { tok.loc }
+            end
+            for _, loc in ipairs(locs) do
+                result[#result + 1] = loc
+            end
+        end)
+        return result
+    end
+
+    --Legal end squares for this token's move this turn (plus its current
+    --squares - staying put is always legal), cached per frame per token.
+    local now = dmhub.Time()
+    if g_overviewRisk.pathCache == nil or g_overviewRisk.pathCache.time ~= now then
+        g_overviewRisk.pathCache = { time = now }
+    end
+    local squares = nil
+    local cached = g_overviewRisk.pathCache[tok.id]
+    if cached ~= nil then
+        squares = cached.squares
+    else
+        pcall(function()
+            local area = tok:CalculatePathfindingArea(speed * 10)
+            if area ~= nil then
+                squares = {}
+                for _, info in pairs(area) do
+                    squares[#squares + 1] = info.loc
+                end
+            end
+        end)
+        if squares ~= nil then
+            for _, loc in ipairs(currentSquares()) do
+                squares[#squares + 1] = loc
+            end
+        end
+        g_overviewRisk.pathCache[tok.id] = { squares = squares }
+    end
+
+    local reach = castRange + radius
+    if squares == nil or #squares == 0 then
+        squares = currentSquares()
+        reach = speed + castRange + radius
+    end
+    if #squares == 0 then
+        return nil
+    end
+
+    local reachable = {}
+    local ok = pcall(function()
+        for _, hero in ipairs(OverviewHeroTokens()) do
+            local hloc = hero.loc
+            for _, loc in ipairs(squares) do
+                local d = math.max(math.abs(loc.x - hloc.x), math.abs(loc.y - hloc.y))
+                if d <= reach then
+                    reachable[#reachable + 1] = { loc = hloc, name = hero.name }
+                    break
+                end
+            end
+        end
+    end)
+    if not ok or #reachable < 2 then
+        return nil
+    end
+    --Every hero who appears in at least one catchable pair is "positioned
+    --vulnerably"; the tooltip names them (Ricky's wording, field test 27).
+    --A pair only counts when ONE legal end square covers both heroes.
+    local caught = {}
+    for i = 1, #reachable do
+        for j = i + 1, #reachable do
+            local d = math.max(math.abs(reachable[i].loc.x - reachable[j].loc.x), math.abs(reachable[i].loc.y - reachable[j].loc.y))
+            if d <= radius * 2 then
+                for _, loc in ipairs(squares) do
+                    local di = math.max(math.abs(loc.x - reachable[i].loc.x), math.abs(loc.y - reachable[i].loc.y))
+                    local dj = math.max(math.abs(loc.x - reachable[j].loc.x), math.abs(loc.y - reachable[j].loc.y))
+                    if di <= reach and dj <= reach then
+                        caught[i] = true
+                        caught[j] = true
+                        break
+                    end
+                end
+            end
+        end
+    end
+    local names = {}
+    for i = 1, #reachable do
+        if caught[i] then
+            names[#names + 1] = reachable[i].name or "A hero"
+        end
+    end
+    if #names < 2 then
+        return nil
+    end
+    return names
+end
+
+--"3 heroes in reach" / "1 hero in reach" / "No hero in reach"; short = "3 in
+--reach" for the mini-rows.
+--Zero reads AMBER + bold (field test 4: white "0 in reach" did not steer -
+--zero is the "rule this monster out this turn" cue and must pop the way
+--"Turn already taken" does in red).
+local function OverviewReachText(reach, short)
+    if reach == nil then
+        return nil
+    end
+    --Field test 11 (Ricky's own silent-default rule, applied back at him):
+    --being able to reach heroes is the NORMAL state and says nothing worth
+    --reading on every chip - only the exception prints. Zero reach = amber
+    --"Can't reach any hero" = rule this monster out this turn. This also
+    --kills the near-duplicate reading with the risk box's "N heroes within
+    --striking range" (that line is the heroes' threat TO the monster and
+    --stays, as the WHY under the risk tag).
+    if reach.count > 0 then
+        return nil
+    end
+    if short then
+        return string.format("<color=%s><b>can reach no hero</b></color>", OVERVIEW.NOREACH_COLOR)
+    end
+    return string.format("<color=%s><b>Can't reach any hero</b></color>", OVERVIEW.NOREACH_COLOR)
+end
+
+--P2-e THREAT ESTIMATE (F2-5c, signed off by Ricky 2026-08-19): "if the
+--heroes strike this monster, could it die before it acts?" A risk band with
+--REASONS, never a verdict - always "could", crits are luck (Decision 48).
+--Silent when safe (never label the default state).
+--
+--Model, per monster member:
+--  * heroes who can STRIKE it: hero speed + the hero's longest damaging
+--    range >= straight-line distance (same Chebyshev estimate as P2-d,
+--    walls/terrain ignored);
+--  * each hero's BURST = best tier-2 damage across their abilities (same
+--    parser as the lenses) + a flat RIDER allowance for a triggered action /
+--    mark benefit (the Cursespitter died to crit + Mark trigger + a second
+--    ability - one hit is never the yardstick);
+--  * a hero who has ALREADY ACTED counts at HALF weight, not zero (Ricky:
+--    Strike Now can invoke a spent hero, so the risk is lower, not gone);
+--  * a monster MARKED/JUDGED by a hero is a declared kill target: red
+--    whenever anyone can reach it.
+--Bands: RED "High target risk" = marked with a hero in reach, or stamina <=
+--best single adjusted burst + rider; AMBER "At risk" = stamina <= the two
+--best adjusted bursts + rider, or marked with nobody in reach.
+--Hero combat profiles (speed, longest damaging range, best tier-2 burst,
+--acted), cached briefly: several columns x members all ask within one
+--populate pass, and hero kits do not change mid-frame.
+local function OverviewHeroProfiles()
+    local now = dmhub.Time()
+    if g_overviewRisk.cache.time == now then
+        return g_overviewRisk.cache.list
+    end
+    local q = dmhub.initiativeQueue
+    if q ~= nil and q.hidden then
+        q = nil
+    end
+    local list = {}
+    for _, hero in ipairs(OverviewHeroTokens()) do
+        --Field test 19 (v2, after Ricky's D3 kills beat the signature-only
+        --rule): the hero's threat is their best AFFORDABLE hit, priced from
+        --the ENGINE's caster-resolved tier text (characteristic and text
+        --bonuses included - raw-text parsing dropped "+R"/"+A"), plus the
+        --surge damage they are actually holding. Heroics count when the
+        --hero could afford them at the start of their turn (held resource
+        --+ SURGE/turn-gain assumptions below). Known accepted gaps:
+        --roll-time modifiers (fire specialization) and trait immunities.
+        local profile = { token = hero, speed = 0, range = 1,
+            bestBurst = 0, bestPush = 0, bestSquad = 0,
+            bestName = nil, pushName = nil,
+            surgeDamage = 0, maxTier3 = 0, maxHit = 0, spent = false }
+        --Field test 39: worst-case damage for the green High Stamina tag.
+        --Reads a resolved tier line with its DICE MAXED ("2d6 + 19" -> 31);
+        --plain numbers pass through. nil when the line has no leading number.
+        local function MaxDamageFromResolved(resolved)
+            if type(resolved) ~= "string" then
+                return nil
+            end
+            local plain = string.gsub(resolved, "<[^>]*>", "")
+            local n, d, bonus = string.match(plain, "^%s*(%d+)[dD](%d+)%s*%+%s*(%d+)")
+            if n ~= nil then
+                return tonumber(n) * tonumber(d) + tonumber(bonus)
+            end
+            n, d = string.match(plain, "^%s*(%d+)[dD](%d+)")
+            if n ~= nil then
+                return tonumber(n) * tonumber(d)
+            end
+            return tonumber(string.match(plain, "^%s*(%d+)"))
+        end
+        pcall(function() profile.speed = tonumber(hero.properties:GetSpeed()) or 0 end)
+        pcall(function()
+            local resources = hero.properties:GetResources() or {}
+            local heroicHeld = resources[CharacterResource.heroicResourceId] or 0
+            local surges = resources[CharacterResource.surgeResourceId] or 0
+            local highest = tonumber(hero.properties:HighestCharacteristic()) or 2
+            profile.surgeDamage = math.min(surges, 2) * highest
+
+            local abilities = hero.properties:GetActivatedAbilities { bindCaster = true } or {}
+            for _, ability in ipairs(abilities) do
+                local variations = { ability }
+                if ability.meleeAndRanged then
+                    variations = { ability.meleeVariation, ability.rangedVariation }
+                end
+                for _, variation in ipairs(variations) do
+                    local facets = OverviewAbilityFacets(variation)
+                    if facets.damage then
+                        local affordable = true
+                        if variation.categorization == "Heroic Ability" then
+                            local cost = GetHeroicResourceOrMaliceCost(variation) or 0
+                            affordable = cost <= heroicHeld + 2
+                        end
+                        if affordable then
+                            --Resolve the tier-2 line for THIS caster.
+                            local resolved = nil
+                            pcall(function()
+                                for _, behavior in ipairs(variation.behaviors or {}) do
+                                    if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                                        local tiers = behavior:try_get("tiers")
+                                        if tiers ~= nil and tiers[2] ~= nil then
+                                            resolved = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(hero.properties, tiers[2], nil, true)
+                                        end
+                                    end
+                                end
+                            end)
+                            local dmg = facets.damageValue
+                            if type(resolved) == "string" then
+                                local n = tonumber(string.match(string.gsub(resolved, "<[^>]*>", ""), "^%s*(%d+)"))
+                                if n ~= nil then
+                                    dmg = n
+                                end
+                            end
+                            if dmg > profile.bestBurst then
+                                profile.bestBurst = dmg
+                                profile.bestName = variation.name
+                            end
+                            local push = dmg + (facets.forcedDistance or 0)
+                            if facets.forcedDistance ~= nil and facets.forcedDistance > 0 and push > profile.bestPush then
+                                profile.bestPush = push
+                                profile.pushName = variation.name
+                            end
+                            --Field test 27 (Ricky's Two Shot correction):
+                            --against a minion squad every target of a
+                            --multi-target strike hits the SAME pool, so
+                            --the hero's squad threat is dmg x targets.
+                            local squadHit = dmg
+                            local numTargets = tonumber(variation.numTargets) or 1
+                            if variation.targetType == "target" and numTargets > 1 then
+                                squadHit = dmg * numTargets
+                            end
+                            if squadHit > profile.bestSquad then
+                                profile.bestSquad = squadHit
+                            end
+                        end
+                        --Field test 39: the High Stamina ceiling ignores
+                        --affordability on purpose - crits grant extra turns
+                        --and allies grant free strikes, so the worst case
+                        --is any ability's MAXED tier-3 line.
+                        pcall(function()
+                            for _, behavior in ipairs(variation.behaviors or {}) do
+                                if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                                    local tiers = behavior:try_get("tiers")
+                                    if tiers ~= nil and tiers[3] ~= nil then
+                                        local resolved = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(hero.properties, tiers[3], nil, true)
+                                        local maxDamage = MaxDamageFromResolved(resolved)
+                                        if maxDamage ~= nil and maxDamage > profile.maxTier3 then
+                                            profile.maxTier3 = maxDamage
+                                        end
+                                    end
+                                end
+                            end
+                        end)
+                        local tt = variation.targetType
+                        if tt ~= "self" and tt ~= "emptyspace" and tt ~= "anyspace" and tt ~= "map" then
+                            local r = tonumber(variation:GetRange(hero.properties))
+                            if r ~= nil and r > profile.range then
+                                profile.range = r
+                            end
+                        end
+                    end
+                end
+            end
+            profile.maxHit = profile.maxTier3 + 3 * highest
+        end)
+        if q ~= nil then
+            pcall(function() profile.spent = q:HasHadTurn(InitiativeQueue.GetInitiativeId(hero)) == true end)
+        end
+        list[#list + 1] = profile
+    end
+    g_overviewRisk.cache = { time = now, list = list }
+    return list
+end
+
+--Field test 18 (Ricky's redesign after D3 playtest): ONE state only.
+--"NEAR DEATH" (red) = an UNSPENT hero within striking range would drop the
+--monster with a tier-2 hit of a SIGNATURE ability. Spent heroes do not
+--count at all - they cannot act before the Director's next turn. No amber
+--tier, no allowances, no guidance lines: a simple, legible rule (accepted
+--trade-off, recorded: combos/crits/heroics can still kill "safe" monsters).
+--Cheap forced-movement flag (no wall physics): if the signature alone
+--misses the kill but signature + its push distance would reach it, the
+--monster still reads Near Death with a "push could finish it" bullet.
+--
+--Returns risk (nil, or {level="red", text, tooltip}), safeOutside (true
+--when NO unspent hero has the monster within striking range - the green
+--"Outside reach of heroes" line; recorded exception for later: on the
+--Director's last turn of the round, next round's refreshed heroes matter).
+local function OverviewThreatEstimate(tok, threats, inCombat)
+    if not inCombat or tok == nil or not tok.valid or tok.properties == nil then
+        return nil, false
+    end
+    local cur = nil
+    pcall(function() cur = tonumber(tok.properties:CurrentHitpoints()) end)
+    if cur == nil or cur <= 0 then
+        return nil, false
+    end
+    local isMinion = false
+    pcall(function() isMinion = tok.properties.minion == true end)
+
+    local locs = nil
+    pcall(function()
+        locs = tok.locsOccupying
+        if locs == nil or #locs == 0 then
+            locs = { tok.loc }
+        end
+    end)
+    if locs == nil then
+        return nil, false
+    end
+
+    local killer = nil
+    local pushKiller = nil
+    local anyUnspentInReach = false
+    for _, profile in ipairs(OverviewHeroProfiles()) do
+        if not profile.spent then
+            local hloc = nil
+            pcall(function() hloc = profile.token.loc end)
+            if hloc ~= nil then
+                local nearest = nil
+                for _, loc in ipairs(locs) do
+                    local d = math.max(math.abs(loc.x - hloc.x), math.abs(loc.y - hloc.y))
+                    if nearest == nil or d < nearest then
+                        nearest = d
+                    end
+                end
+                if nearest ~= nil and nearest <= profile.speed + profile.range then
+                    anyUnspentInReach = true
+                    --A minion squad's stamina is the shared pool, and a
+                    --multi-target strike hits it once per target (Two
+                    --Shot vs pitlings), so squads face bestSquad.
+                    local burst = profile.bestBurst
+                    if isMinion and profile.bestSquad > burst then
+                        burst = profile.bestSquad
+                    end
+                    local potential = burst + profile.surgeDamage
+                    local pushPotential = profile.bestPush + profile.surgeDamage
+                    if burst > 0 and cur <= potential then
+                        if killer == nil then
+                            killer = profile
+                        end
+                    elseif profile.bestPush > 0 and cur <= pushPotential then
+                        if pushKiller == nil then
+                            pushKiller = profile
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    local safeOutside = not anyUnspentInReach
+
+    --Field test 34 (Ricky): debuff facts are STRUCTURED bullets - each
+    --carries the condition's glyph so the footer can render the symbol
+    --instead of a "- " and the member rows can repeat the same symbol to
+    --show WHO it applies to. Plain bullets (Low Stamina, push) have no
+    --glyph. Dedupe by text; cap at `limit` with a "+N more" tail.
+    local function ThreatBullets(limit)
+        local list = {}
+        local seenTag = {}
+        local total = 0
+        for _, entry in ipairs(threats or {}) do
+            local text = entry.name or "Marked"
+            if entry.casterName ~= nil then
+                text = string.format("%s by %s", text, entry.casterName)
+            else
+                text = text .. " by a hero"
+            end
+            if not seenTag[text] then
+                seenTag[text] = true
+                total = total + 1
+                if total <= limit then
+                    local bgcolor = nil
+                    if type(entry.style) == "table" and entry.style.bgcolor ~= nil then
+                        bgcolor = entry.style.bgcolor
+                    end
+                    list[#list + 1] = { text = text, icon = entry.icon, bgcolor = bgcolor, hoverText = entry.hoverText }
+                end
+            end
+        end
+        if total > limit and #list > 0 then
+            list[#list].text = string.format("%s +%d more", list[#list].text, total - limit)
+        end
+        return list
+    end
+
+    --Field test 37 (Ricky): horde monsters wear the Squishy tag too. A
+    --horde's REAL Near Death still outranks it (unlike minions) so the
+    --per-member skulls and the note-first row sort keep pointing at the
+    --one that is actually dying.
+    local isHorde = false
+    pcall(function() isHorde = string.lower(tok.properties:Organization() or "") == "horde" end)
+
+    if isMinion or (killer == nil and pushKiller == nil) then
+        if isMinion or isHorde then
+            --Field test 28 (Ricky): a minion column ALWAYS reads
+            --"Squishy", never "Near Death" - a squishy monster is almost
+            --always near death anyway, so one word carries it (his call,
+            --recorded as revisitable). squishy does NOT count as dying
+            --for DMG badge rule 2 and does NOT put skulls on the squad
+            --mini-rows (the headline says it once).
+            return {
+                level = "red",
+                squishy = true,
+                headline = "Squishy",
+                bullets = ThreatBullets(2),
+                tooltip = "Squishies die quickly! Use them before they're gone.",
+            }, safeOutside
+        end
+        return nil, safeOutside
+    end
+
+    --Headline + WHY-bullets only (Ricky: no killer names on the chip; the
+    --arithmetic and the hero's name live in the tooltip).
+    local bullets = { { text = "Low Stamina" } }
+    for _, bullet in ipairs(ThreatBullets(2)) do
+        bullets[#bullets + 1] = bullet
+    end
+    if killer == nil and pushKiller ~= nil then
+        bullets[#bullets + 1] = { text = "A push could finish it" }
+    end
+
+    --Field test 20: the tooltip says the CONCLUSION, not the homework
+    --(the earlier version listed the ability, the arithmetic and the
+    --methodology - "far too technical" at the table).
+    local tooltip
+    if killer ~= nil then
+        tooltip = "A ready hero nearby could kill this with a single ability."
+    else
+        tooltip = "A ready hero nearby could kill this by pushing it into something."
+    end
+    return {
+        level = "red",
+        headline = "Near Death",
+        bullets = bullets,
+        tooltip = tooltip,
+    }, safeOutside
+end
+
+--Acted-this-round from the live initiative queue: true / false, or nil when
+--there is no (visible) queue or the token has no entry in it.
+local function OverviewActedState(q, tok)
+    if q == nil then
+        return nil
+    end
+    local acted = nil
+    pcall(function() acted = q:HasHadTurn(InitiativeQueue.GetInitiativeId(tok)) end)
+    if acted == true or acted == false then
+        return acted
+    end
+    return nil
+end
+
+--F2-9 / Decision 15: one-line PLAY PATTERN per monster role and per
+--organization, shown on hover of the footer's role line so the Director can
+--pick which column to read first. Paraphrased play guidance, not rules text.
+--Keys are the lowercase words monster:Role() / monster:Organization() yield.
+--Field test 26: each role takes the colour of its stat block header banner
+--in the Book Two PDF (sampled from Draw_Steel_Monsters_v1.01; the montage is
+--in the brief). Role-less headers (Solo/Leader organizations) are the PDF's
+--neutral grey.
+OVERVIEW.ROLE_COLORS = {
+    ambusher   = "#FBE48C",
+    artillery  = "#D8D4E5",
+    brute      = "#B3C9E6",
+    controller = "#F8ADA9",
+    defender   = "#D6D2B9",
+    harrier    = "#EED0D2",
+    hexer      = "#E2E9D3",
+    mount      = "#CEE6EF",
+    support    = "#F7E2D1",
+}
+OVERVIEW.ROLE_COLOR_DEFAULT = "#D7D9DA"
+
+--Field test 36 (Ricky): the earlier prose here was authored play-pattern
+--copy, NOT source text, and it contradicted actual kits (an ambusher
+--with no escape tools "slips away"). These are now the Monster Basics
+--role and organization descriptions from Draw Steel: Monsters (p4-5),
+--lightly trimmed to tooltip length, so the hover always matches the
+--book a Director has open. No invented tactics.
+local OVERVIEW_ROLE_PROSE = {
+    ambusher   = "Ambushers are melee warriors who can slip by beefier heroes to reach squishier targets in the back lines.",
+    artillery  = "Artillery creatures fight best from afar, and can use their most powerful abilities at great distance.",
+    brute      = "Brutes are hardy creatures who have lots of Stamina and deal lots of damage. Their abilities and traits make them difficult to ignore, hard to get away from, and let them push enemies around.",
+    controller = "Controllers are creatures who change the battlefield, often with magic or psionics. They reposition foes and alter terrain to make it advantageous for their allies. Often on the squishier side, so they need protection.",
+    defender   = "Defenders are tough creatures able to take a lot of damage, and who can force enemies to attack them instead of squishier targets.",
+    harrier    = "Harriers are mobile warriors who make definitive use of hit-and-run tactics. Their traits allow them to make the most of their positioning on the battlefield.",
+    hexer      = "Hexers specialize in debuffing enemies using conditions and other effects. They are generally squishy and rely on others to defend them.",
+    mount      = "Mounts are mobile creatures meant to be ridden in combat, and who make their riders even more dangerous.",
+    support    = "Support creatures specialize in aiding their allies by providing buffs, healing, movement, or action options.",
+    leader     = "A Leader is a powerful monster who buffs their allies and grants them additional actions.",
+    solo       = "A solo creature is an encounter all on their own. They have a special set of rules within their stat block.",
+    minion     = "Minions are weaker enemies who are made to die fast and threaten heroes en masse.",
+    horde      = "Horde creatures are more fragile than any other monsters except minions.",
+    platoon    = "Platoons are highly organized and usually self-sufficient armies, well equipped to handle most combat objectives. A single platoon creature is a decent threat to a hero of the same level.",
+    elite      = "Elite monsters are hardy and can usually stand up to 2 heroes of the same level.",
+}
+
+--The stat block's role for the footer: line = the role line with the ROLE
+--WORD first and emphasised ("<b>Controller</b>  Level 1 Horde"; a
+--Leader/Solo has only the organization, so that word leads), prose = the
+--hover play pattern (role + organization lines), plain = the stat block's
+--own "Level 1 Horde Controller" text. nil for anything without role data.
+--Built from monster.cr / monster.role exactly as the stat block header does
+--(MCDMMonster.lua ~:637).
+local function OverviewRoleInfo(tok)
+    local props = tok.properties
+    local role = nil
+    local level = nil
+    local isMinion = false
+    local roleWord = nil
+    local orgWord = nil
+    pcall(function()
+        if props:IsMonster() then
+            role = props:try_get("role")
+            level = tonumber(props:try_get("cr"))
+            isMinion = props.minion == true
+            roleWord = props:Role()
+            orgWord = props:Organization()
+        end
+    end)
+    if role == nil or role == "" then
+        return nil
+    end
+    local plain = role
+    if level ~= nil then
+        plain = string.format("Level %d %s", round(level), role)
+    end
+    if isMinion and string.find(string.lower(role), "minion", 1, true) == nil then
+        plain = plain .. " minion"
+        orgWord = orgWord or "minion"
+    end
+
+    --Field test 8: no level on the chip (the tooltip keeps the full stat
+    --block line). Natural order, role word emphasised: "Horde Controller",
+    --"Minion Harrier", or just "Leader".
+    local line = plain
+    if roleWord ~= nil then
+        local roleColor = OVERVIEW.ROLE_COLORS[string.lower(roleWord)] or OVERVIEW.ROLE_COLOR_DEFAULT
+        local roleText = string.upper(string.sub(roleWord, 1, 1)) .. string.sub(roleWord, 2)
+        line = string.format("<b>%s</b>", roleText)
+        if orgWord ~= nil then
+            line = string.upper(string.sub(orgWord, 1, 1)) .. string.sub(orgWord, 2) .. " " .. line
+        end
+        line = string.format("<color=%s>%s</color>", roleColor, line)
+    elseif orgWord ~= nil then
+        line = string.format("<color=%s><b>%s</b></color>", OVERVIEW.ROLE_COLOR_DEFAULT, string.upper(string.sub(orgWord, 1, 1)) .. string.sub(orgWord, 2))
+    end
+
+    --The book text opens with the role word itself, so no "Role:" prefix.
+    local prose = {}
+    if roleWord ~= nil and OVERVIEW_ROLE_PROSE[roleWord] ~= nil then
+        prose[#prose + 1] = OVERVIEW_ROLE_PROSE[roleWord]
+    end
+    if orgWord ~= nil and OVERVIEW_ROLE_PROSE[orgWord] ~= nil then
+        prose[#prose + 1] = OVERVIEW_ROLE_PROSE[orgWord]
+    end
+
+    return {
+        plain = plain,
+        line = line,
+        prose = table.concat(prose, "\n"),
+    }
+end
+
+--Reduce a column record ({tokens, token, name, label}) to its signals:
+--  members   = one entry per actor: { token, name, tokens, stamina, acted }
+--              (minions of one squad fold into a single entry, its name the
+--              squad id, tokens = every selected minion of that squad);
+--  actedCount / freshCount over members; allActed = every member acted;
+--  inCombat  = a live, non-hidden initiative queue exists.
+local function OverviewColumnSignals(column)
+    local q = dmhub.initiativeQueue
+    if q ~= nil and q.hidden then
+        q = nil
+    end
+
+    local members = {}
+    local byKey = {}
+    local heroes = nil
+    if q ~= nil then
+        heroes = OverviewHeroTokens()
+    end
+    --Field test 39 (Ricky): the green High Stamina ceiling = TWICE the
+    --party's best maxed tier-3 hit + 3 surges (a tier-3 crit grants
+    --another turn, so the best ability can land twice). 0 disables the
+    --tag (no queue, or no hero damage found).
+    local highThreshold = 0
+    if q ~= nil then
+        for _, profile in ipairs(OverviewHeroProfiles()) do
+            local hit = (profile.maxHit or 0) * 2
+            if hit > highThreshold then
+                highThreshold = hit
+            end
+        end
+    end
+    for _, tok in ipairs(column.tokens or {}) do
+        if tok ~= nil and tok.valid and tok.properties ~= nil then
+            --Field test 33: squad identity only substitutes for MINIONS.
+            --A non-minion carrying a squad id is that squad's CAPTAIN
+            --(field test 27's rule) - it keeps its own name and row, and
+            --never folds into the squad's member entry (Goblin Warrior 8,
+            --captain of Spinecleaver Squad 4, showed as "Spinecleaver
+            --Squad 4" inside the Warrior column).
+            local squad = nil
+            pcall(function()
+                if tok.properties.minion == true then
+                    squad = tok.properties:MinionSquad()
+                end
+            end)
+            local key = squad or tok.charid
+            local member = byKey[key]
+            if member == nil then
+                member = {
+                    token = tok,
+                    name = squad or tok.name or column.name or "Creature",
+                    tokens = {},
+                    stamina = OverviewStaminaText(tok),
+                    --P2-d: only in combat (heroes nil otherwise -> nil).
+                    reach = cond(heroes ~= nil, OverviewReach(tok, column.abilities, heroes), nil),
+                    risk = nil,
+                    acted = OverviewActedState(q, tok),
+                    --Slice (e): mid-turn (HasHadTurn only flips at turn
+                    --end), so the signal line can read "acting now".
+                    acting = false,
+                }
+                member.statuses, member.captain = OverviewStatusEntries(tok)
+                if q ~= nil then
+                    pcall(function() member.acting = q.currentTurn == InitiativeQueue.GetInitiativeId(tok) end)
+                end
+                --P2-e: threat estimate (nil when safe / out of combat).
+                local threats = {}
+                for _, entry in ipairs(member.statuses or {}) do
+                    if entry.threat then
+                        threats[#threats + 1] = entry
+                    end
+                end
+                member.risk, member.safe = OverviewThreatEstimate(tok, threats, q ~= nil)
+                --High Stamina never co-exists with a risk tag; current
+                --stamina must clear the whole party ceiling.
+                member.highStamina = false
+                if highThreshold > 0 and member.risk == nil then
+                    local cur = nil
+                    pcall(function() cur = tonumber(tok.properties:CurrentHitpoints()) end)
+                    member.highStamina = cur ~= nil and cur > highThreshold
+                end
+                byKey[key] = member
+                members[#members + 1] = member
+            end
+            member.tokens[#member.tokens + 1] = tok
+        end
+    end
+
+    local actedCount = 0
+    local freshCount = 0
+    local knownCount = 0
+    for _, member in ipairs(members) do
+        if member.acted == true then
+            actedCount = actedCount + 1
+            knownCount = knownCount + 1
+        elseif member.acted == false then
+            freshCount = freshCount + 1
+            knownCount = knownCount + 1
+        end
+    end
+
+    return {
+        members = members,
+        actedCount = actedCount,
+        --Only members with a queue entry count as not-yet-acted; a member
+        --with no entry (reinforcements in "Ready Monsters") is unknown, and
+        --knownCount lets the header stay silent rather than claim "2 of 2
+        --not yet acted" about creatures that are not in the order at all.
+        freshCount = freshCount,
+        knownCount = knownCount,
+        allActed = #members > 0 and actedCount == #members,
+        inCombat = q ~= nil,
+    }
+end
+
+--Locate on the map without selecting (Decision 51/X5): pan to one token,
+--pulse a set. Never dmhub.FocusToken.
+--
+--F3-1: the pulse was requested but never SEEN. Two reasons, both measured
+--live: dmhub.CenterOnToken{smooth=true} is a fixed ~0.5s eased tween (its
+--callback fires synchronously, so it cannot be used to sequence), and the
+--engine's PulseHighlightToken is a brief white flash - invisible while the
+--camera is still moving, and indistinguishable from the white selection ring
+--on a token that is already selected (which every overview token is). So:
+--(1) the pulse is deferred until the pan has settled (immediate when the
+--camera is already on the token), and (2) it is paired with the sustained
+--coloured "locate" ring on the token's bottomsheet (TokenUI.lua), held for
+--OVERVIEW.LOCATE_HOLD seconds. A later locate on the same token restarts
+--the hold instead of being cut short by the earlier timer.
+
+local function OverviewPulseTokens(tokens)
+    for _, tok in ipairs(tokens) do
+        if tok ~= nil and tok.valid then
+            local charid = tok.charid
+            local gen = (OVERVIEW.locateGeneration[charid] or 0) + 1
+            OVERVIEW.locateGeneration[charid] = gen
+            dmhub.PulseHighlightToken(charid)
+            if tok.bottomsheet ~= nil and tok.bottomsheet.valid then
+                tok.bottomsheet:SetClassTree("locate", true)
+            end
+            dmhub.Schedule(OVERVIEW.LOCATE_HOLD, function()
+                if mod.unloaded or OVERVIEW.locateGeneration[charid] ~= gen then
+                    return
+                end
+                OVERVIEW.locateGeneration[charid] = nil
+                local live = dmhub.GetTokenById(charid)
+                if live ~= nil and live.valid and live.bottomsheet ~= nil and live.bottomsheet.valid then
+                    live.bottomsheet:SetClassTree("locate", false)
+                end
+            end)
+        end
+    end
+end
+
+local function OverviewLocate(centerToken, pulseTokens)
+    if centerToken == nil or not centerToken.valid then
+        return
+    end
+    local tokens = {}
+    for _, tok in ipairs(pulseTokens or { centerToken }) do
+        tokens[#tokens + 1] = tok
+    end
+
+    --Field test 4: when locating a GROUP (a minion squad's mini-row), pan to
+    --the member nearest the group's centroid, not to whichever token happened
+    --to be listed first - in A5 one "Squad 4" Sniper is parked with Squad 5,
+    --and centering on it read as "panned to the wrong squad".
+    if #tokens > 1 then
+        local sx, sy, n = 0, 0, 0
+        for _, tok in ipairs(tokens) do
+            if tok ~= nil and tok.valid then
+                pcall(function()
+                    sx = sx + tok.loc.x
+                    sy = sy + tok.loc.y
+                    n = n + 1
+                end)
+            end
+        end
+        if n > 0 then
+            local cx, cy = sx / n, sy / n
+            local best, bestd = nil, nil
+            for _, tok in ipairs(tokens) do
+                if tok ~= nil and tok.valid then
+                    local ok = pcall(function()
+                        local d = math.max(math.abs(tok.loc.x - cx), math.abs(tok.loc.y - cy))
+                        if bestd == nil or d < bestd then
+                            best, bestd = tok, d
+                        end
+                    end)
+                end
+            end
+            if best ~= nil then
+                centerToken = best
+            end
+        end
+    end
+
+    local alreadyThere = false
+    pcall(function()
+        local cam = dmhub.cameraPosition
+        local loc = centerToken.loc
+        alreadyThere = math.abs(cam.x - loc.x) < 0.5 and math.abs(cam.y - loc.y) < 0.5
+    end)
+
+    dmhub.CenterOnToken(centerToken.charid, { smooth = true })
+    if alreadyThere then
+        OverviewPulseTokens(tokens)
+        return
+    end
+    dmhub.Schedule(OVERVIEW.LOCATE_PAN_TIME, function()
+        if mod.unloaded then
+            return
+        end
+        OverviewPulseTokens(tokens)
+    end)
+end
+
+--Acted-state copy for one member. Field test 4 (Ricky): NOT having acted
+--is the default and is not worth a label - the chips are bright and the
+--take-turn button is there; so nil for that case, nil out of combat or with
+--no queue entry. Having ACTED is the thing nobody must miss: the column is
+--already greyed (F2-7) and the line reads "Turn already taken" in red.
+--"Acting now" keeps its own plain text (mid-turn, HasHadTurn not yet set).
+local OVERVIEW_ACTED_COLOR = "#E06464"
+local function OverviewActedText(member, inCombat)
+    if not inCombat then
+        return nil
+    end
+    if member.acting == true then
+        return "Acting now"
+    elseif member.acted == true then
+        return string.format("<color=%s>Turn already taken</color>", OVERVIEW_ACTED_COLOR)
+    end
+    return nil
+end
+
+--"13/15" / "13/15 - Turn already taken" signal text for one member. The stamina is
+--the bare current/max readout every token nameplate in the app already uses
+--(a "Stamina " prefix pushed the acted state past the 151px text column and
+--got it ellipsized - measured live).
+--Field test 10: the signal line carries ONLY the acted state. The raw
+--stamina number is gone (Low Stamina lives as a risk bullet) and the
+--hero-applied effect names live in the risk box bullets - printing either
+--here doubled the information.
+local function OverviewSignalText(member, inCombat)
+    return OverviewActedText(member, inCombat) or ""
+end
+
+--Slice (e): the members of a column that could still take a turn, one per
+--DISTINCT initiative entry (a minion squad is one member already; several
+--tokens sharing an initiativeGrouping fold into one). Each entry is the
+--signals member record plus .initiativeid. Empty when no queue is running or
+--everyone has acted.
+local function OverviewFreshCandidates(signals)
+    local result = {}
+    if signals == nil or not signals.inCombat then
+        return result
+    end
+    local seen = {}
+    for _, member in ipairs(signals.members) do
+        if member.acted == false and member.acting ~= true and member.token ~= nil and member.token.valid then
+            local initiativeid = nil
+            pcall(function() initiativeid = InitiativeQueue.GetInitiativeId(member.token) end)
+            if initiativeid ~= nil and not seen[initiativeid] then
+                seen[initiativeid] = true
+                member.initiativeid = initiativeid
+                result[#result + 1] = member
+            end
+        end
+    end
+    return result
+end
+
+--Slice (e): a column's chips carry the REPRESENTATIVE member's bound copy of
+--each ability. When the owner prompt hands the cast to a different member,
+--fetch that member's own bound copy of the same ability (same guid, same
+--melee/ranged variation) so cost/range/GoblinScript resolve against the
+--actual caster. Falls back to the chip's ability if no match is found.
+local function OverviewMemberAbility(memberToken, ability)
+    if memberToken == nil or not memberToken.valid or memberToken.properties == nil or ability == nil then
+        return ability
+    end
+    local wanted = NovelAbilityKey(ability)
+    if wanted == nil then
+        return ability
+    end
+    local found = nil
+    pcall(function()
+        local kit = memberToken.properties:GetActivatedAbilities { excludeGlobal = true, bindCaster = true }
+        for _, candidate in ipairs(kit or {}) do
+            local variations = { candidate }
+            if candidate.meleeAndRanged then
+                variations = { candidate.meleeVariation, candidate.rangedVariation }
+            end
+            for _, variation in ipairs(variations) do
+                if variation ~= nil and NovelAbilityKey(variation) == wanted then
+                    found = variation
+                    return
+                end
+            end
+        end
+    end)
+    return found or ability
+end
+
+--Plain-English plural of a statblock name for the shared-entry button copy
+--("Goblin Assassins'", "Goblin Bosses'", "Harpies'"). Only used in a
+--possessive, so the result already carries the apostrophe.
+local function OverviewPluralPossessive(name)
+    local lower = string.lower(name)
+    if string.match(lower, "[sxz]$") or string.match(lower, "[cs]h$") then
+        return name .. "es'"
+    end
+    if string.match(lower, "[^aeiou]y$") then
+        return string.sub(name, 1, -2) .. "ies'"
+    end
+    return name .. "s'"
+end
+
+--Field test 25: the button is ALWAYS the generic "Take turn" - long monster
+--names (War Dog Subcommander) overflowed the 205px footer, and the column
+--already names the creature. The specific phrasing - "Take <Name>'s turn" /
+--"Take a <Name>'s turn" (several members with their own entries; the press
+--then asks which) / "Take the <Names>' turn" (F2-3: members sharing ONE
+--entry via initiativeGrouping act as a unit) - lives in the tooltip.
+local function OverviewTakeTurnText(column, memberCount, sharedEntry)
+    local name = column.name or "Creature"
+    local full
+    if memberCount > 1 and sharedEntry then
+        full = string.format("Take the %s turn", OverviewPluralPossessive(name))
+    elseif memberCount > 1 then
+        full = string.format("Take a %s's turn", name)
+    else
+        full = string.format("Take %s's turn", name)
+    end
+    return "Take turn", full
+end
+
+--One pooled footer bar. Populate/refresh via FireEvent("overviewColumn",
+--column, signals) where signals = OverviewColumnSignals(column).
+--
+--Slice (e) additions, all pooled and created once here:
+--  * takeTurnButton + reasonLabel: "Take <Creature>'s turn", enabled only
+--    when OverviewClaimGate passes for the representative's entry; when
+--    disabled it stays visible, greyed, with the reason inline and in the
+--    tooltip. Press: one fresh member -> OverviewClaimTurn directly; several
+--    distinct-initiative fresh members -> arm the owner prompt below.
+--  * owner-selection prompt (Decisions 32/36): FireEvent("armOwnerPrompt",
+--    prompt) with prompt = { members = OverviewFreshCandidates(...), ability
+--    = ActivatedAbility|nil, choose = function(member) }, or nil to disarm.
+--    While armed the mini-rows list ONLY the fresh members by token name,
+--    hovering a row pulses that token, pressing it calls prompt.choose. Esc /
+--    click-away close the menu, which disarms (ActionMenu closemenu/toggle),
+--    and any repopulate ("overviewColumn") disarms too.
+local function OverviewColumnFooter()
+    local m_column = nil
+    local m_signals = nil
+    local m_prompt = nil
+    local m_claimId = nil
+    local m_claimReason = nil
+    local m_takeTurnTooltip = nil
+
+    local portrait = gui.CreateTokenImage(nil, {
+        width = 34,
+        height = 34,
+        halign = "left",
+        valign = "center",
+        interactable = false,
+    })
+
+    local nameLabel = gui.Label {
+        classes = { "overviewFooterName" },
+        text = "",
+    }
+    --Field test 7: the squad-captain crown is identity, so it sits beside
+    --the name (squad colour preserved), not in the status strip.
+    local captainIcon = gui.Panel {
+        classes = { "overviewCaptainIcon", "collapsed" },
+        bgimage = "panels/hud/crown.png",
+        hover = gui.Tooltip("Squad captain"),
+    }
+    local nameRow = gui.Panel {
+        classes = { "overviewFooterNameRow" },
+        nameLabel,
+        captainIcon,
+    }
+    --F2-9: role word first and emphasised (overviewFooterRole colours the
+    --bold lead via the label's rich text); hover = the role's one-line play
+    --pattern (Decision 15). m_roleTooltip is set per column.
+    local m_roleTooltip = nil
+    local roleLabel = gui.Label {
+        classes = { "overviewFooterLine", "overviewFooterRole" },
+        text = "",
+        hover = function(element)
+            if m_roleTooltip ~= nil and m_roleTooltip ~= "" then
+                gui.Tooltip(m_roleTooltip)(element)
+            end
+        end,
+    }
+    local signalLabel = gui.Label {
+        classes = { "overviewFooterLine" },
+        text = "",
+    }
+    --P2-d reach estimate line (single-member columns; mini-rows carry the
+    --short form). Hover explains the arithmetic and that it is an estimate.
+    local m_reachTooltip = nil
+    local reachLabel = gui.Label {
+        classes = { "overviewFooterLine", "overviewFooterReach", "collapsed" },
+        text = "",
+        hover = function(element)
+            if m_reachTooltip ~= nil then
+                gui.Tooltip(m_reachTooltip)(element)
+            end
+        end,
+    }
+    --Field test 18: green "Outside reach of heroes" - shown only when NO
+    --unspent hero has this monster within striking range (the parked
+    --artillery signal). Hover: relatively safe.
+    local safeLabel = gui.Label {
+        classes = { "overviewFooterSafe", "collapsed" },
+        text = "Outside reach of heroes",
+        hover = gui.Tooltip{ text = "Relatively safe; no heroes can target this creature using standard movement", valign = "top" },
+    }
+    --Field test 39 (Ricky): green "High Stamina" - this creature clears
+    --the party's worst-case burst, so there is no rush to use it before
+    --the Director's next turn. Green shield = the positive channel.
+    local hsRow = gui.Panel {
+        classes = { "overviewRiskRow", "collapsed" },
+        hover = gui.Tooltip{ text = "This creature is unlikely to die before the start of your next turn", valign = "top" },
+        gui.Panel {
+            classes = { "overviewRiskIcon", "hs" },
+            bgimage = "c86775c1-72d6-4a46-8493-a8b9c341a1ee",
+            interactable = false,
+        },
+        gui.Label {
+            classes = { "overviewFooterRisk" },
+            text = string.format("<color=%s><b>High Stamina</b></color>", OVERVIEW.GUIDE_COLOR),
+            hover = gui.Tooltip{ text = "This creature is unlikely to die before the start of your next turn", valign = "top" },
+        },
+    }
+    --Field test 40 (Ricky): green "Healer" when the kit can regain or
+    --grant temporary stamina; the chips carrying those abilities wear the
+    --same green shield badge.
+    local healerRow = gui.Panel {
+        classes = { "overviewRiskRow", "collapsed" },
+        hover = gui.Tooltip{ text = "This creature has an ability that can regain and/or grant temporary stamina", valign = "top" },
+        gui.Panel {
+            classes = { "overviewRiskIcon", "hs" },
+            bgimage = "9d51a1b8-ebec-48fd-b90e-e71aa5a72fb5",
+            interactable = false,
+        },
+        gui.Label {
+            classes = { "overviewFooterRisk" },
+            text = string.format("<color=%s><b>Healer</b></color>", OVERVIEW.GUIDE_COLOR),
+            hover = gui.Tooltip{ text = "This creature has an ability that can regain and/or grant temporary stamina", valign = "top" },
+        },
     }
 
+    --The Near Death box; collapsed when safe. Hover = one plain sentence.
+    --Field test 21/22: a red skull-and-crossbones (Provided By MCDM library)
+    --sits beside the headline.
+    local m_riskTooltip = nil
+    local riskSkull = gui.Panel {
+        classes = { "overviewRiskSkull", "collapsed" },
+        bgimage = "ebc8b529-f450-4bee-9466-86374c26dc13",
+        hover = function(element)
+            if m_riskTooltip ~= nil then
+                gui.Tooltip(m_riskTooltip)(element)
+            end
+        end,
+    }
+    local riskLabel = gui.Label {
+        classes = { "overviewFooterRisk", "collapsed" },
+        text = "",
+        hover = function(element)
+            if m_riskTooltip ~= nil then
+                gui.Tooltip(m_riskTooltip)(element)
+            end
+        end,
+    }
+    local riskRow = gui.Panel {
+        classes = { "overviewRiskRow" },
+        riskSkull,
+        riskLabel,
+    }
+    --Field test 34 (Ricky): the risk box's bullets are their own pooled
+    --rows. A debuff bullet leads with the CONDITION'S GLYPH instead of a
+    --"- " (the same glyph its owner's mini-row wears, so the fact prints
+    --once and the symbol says who it applies to); plain bullets (Low
+    --Stamina, push) keep the "- ". Glyphs hover their own debuff text.
+    local m_riskBullets = {}
+    for i = 1, 4 do
+        local bulletIcon = gui.Panel {
+            classes = { "overviewRiskIcon", "bullet", "collapsed" },
+            bgimage = "panels/square.png",
+            data = { entry = nil },
+            hover = function(element)
+                local entry = element.data.entry
+                if entry ~= nil and entry.hoverText ~= nil and entry.hoverText ~= "" then
+                    gui.Tooltip(entry.hoverText)(element)
+                end
+            end,
+        }
+        local bulletLabel = gui.Label {
+            classes = { "overviewFooterRisk" },
+            text = "",
+        }
+        m_riskBullets[i] = {
+            icon = bulletIcon,
+            label = bulletLabel,
+            row = gui.Panel {
+                classes = { "overviewRiskRow", "bullet", "collapsed" },
+                bulletIcon,
+                bulletLabel,
+            },
+        }
+    end
+
+    --Field test 29 (Ricky): High damage dealer and the area window are
+    --their own rows beneath the risk box, each led by the SAME glyph as
+    --the chip badge that earned the line (surge / gold trigger "!") - an
+    --icon bullet that marries the creature line to the relevant abilities.
+    local m_dmgLineTooltip = nil
+    local dmgRow = gui.Panel {
+        classes = { "overviewRiskRow", "collapsed" },
+        hover = function(element)
+            if m_dmgLineTooltip ~= nil then
+                gui.Tooltip(m_dmgLineTooltip)(element)
+            end
+        end,
+        gui.Panel {
+            classes = { "overviewRiskIcon", "surge" },
+            bgimage = "game-icons/surge.png",
+            interactable = false,
+        },
+        gui.Label {
+            classes = { "overviewFooterRisk" },
+            text = string.format("<color=%s><b>High damage dealer</b></color>", g_overviewRisk.red),
+            hover = function(element)
+                if m_dmgLineTooltip ~= nil then
+                    gui.Tooltip(m_dmgLineTooltip)(element)
+                end
+            end,
+        },
+    }
+    local areaRow = gui.Panel {
+        classes = { "overviewRiskRow", "collapsed" },
+        hover = gui.Tooltip{ text = "An area ability in this kit could catch several heroes right now", valign = "top" },
+        gui.Panel {
+            classes = { "overviewRiskIcon", "area" },
+            bgimage = "e7d55d80-630d-432d-8d3d-33051478bcd9",
+            interactable = false,
+        },
+        gui.Label {
+            classes = { "overviewFooterRisk" },
+            text = string.format("<color=%s><b>Heroes vulnerable to area abilities</b></color>", g_overviewRisk.red),
+            hover = gui.Tooltip{ text = "An area ability in this kit could catch several heroes right now", valign = "top" },
+        },
+    }
+    --Field test 31 (Ricky, reversing his field-test-29 hold): amber
+    --"Likely Target" when the creature carries hero-applied debuffs (mark,
+    --judged, a granted edge...) and no red risk box already names them.
+    --The debuff glyphs themselves ride the line as its icon bullets;
+    --hover = "[conditions] make this creature a likely target".
+    local m_likelyTooltip = nil
+    local likelyIcons = {}
+    for i = 1, 3 do
+        --Each glyph answers hover with ITS debuff's own text, exactly like
+        --the strip icons did (field test 32); the label and the row's bare
+        --ground answer with the explainer.
+        likelyIcons[i] = gui.Panel {
+            classes = { "overviewRiskIcon", "collapsed" },
+            bgimage = "panels/square.png",
+            data = { entry = nil },
+            hover = function(element)
+                local entry = element.data.entry
+                if entry ~= nil and entry.hoverText ~= nil and entry.hoverText ~= "" then
+                    gui.Tooltip(entry.hoverText)(element)
+                end
+            end,
+        }
+    end
+    local likelyRow = gui.Panel {
+        classes = { "overviewRiskRow", "collapsed" },
+        hover = function(element)
+            if m_likelyTooltip ~= nil then
+                gui.Tooltip(m_likelyTooltip)(element)
+            end
+        end,
+        likelyIcons[1],
+        likelyIcons[2],
+        likelyIcons[3],
+        gui.Label {
+            classes = { "overviewFooterRisk", "likely" },
+            text = string.format("<color=%s><b>Likely Target</b></color>", g_overviewRisk.amber),
+            hover = function(element)
+                if m_likelyTooltip ~= nil then
+                    gui.Tooltip(m_likelyTooltip)(element)
+                end
+            end,
+        },
+    }
+
+    --P2-a: status strip - the token HUD's status icons for a single-member
+    --column (>= 16px per X15; threat flags red-ringed, hover = the HUD's own
+    --hover text). Pooled icon panels + "+N"; collapsed when empty or when the
+    --column has several members (their mini-rows mirror the names instead).
+    local statusIcons = {}
+    for i = 1, OVERVIEW.STATUS_ICONS do
+        statusIcons[i] = gui.Panel {
+            classes = { "overviewStatusIcon", "collapsed" },
+            bgimage = "panels/square.png",
+            data = { entry = nil },
+            hover = function(element)
+                local entry = element.data.entry
+                if entry ~= nil and entry.hoverText ~= nil and entry.hoverText ~= "" then
+                    gui.Tooltip(entry.hoverText)(element)
+                end
+            end,
+            setStatus = function(element, entry)
+                element.data.entry = entry
+                if entry == nil then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+                element:SetClass("collapsed", false)
+                element.bgimage = entry.icon
+                local bgcolor = "white"
+                if type(entry.style) == "table" and entry.style.bgcolor ~= nil then
+                    bgcolor = entry.style.bgcolor
+                end
+                element.selfStyle.bgcolor = bgcolor
+                element:SetClass("threat", entry.threat == true)
+            end,
+        }
+    end
+    local statusMore = gui.Label {
+        classes = { "overviewStatusMore", "collapsed" },
+        text = "",
+    }
+    local statusStripChildren = {}
+    for _, icon in ipairs(statusIcons) do
+        statusStripChildren[#statusStripChildren + 1] = icon
+    end
+    statusStripChildren[#statusStripChildren + 1] = statusMore
+    local statusStrip = gui.Panel {
+        classes = { "overviewStatusStrip", "collapsed" },
+        children = statusStripChildren,
+        setStatuses = function(element, entries)
+            if entries == nil or #entries == 0 then
+                element:SetClass("collapsed", true)
+                for _, icon in ipairs(statusIcons) do
+                    icon:FireEvent("setStatus", nil)
+                end
+                statusMore:SetClass("collapsed", true)
+                return
+            end
+            element:SetClass("collapsed", false)
+            for i, icon in ipairs(statusIcons) do
+                icon:FireEvent("setStatus", entries[i])
+            end
+            local overflow = #entries - #statusIcons
+            if overflow > 0 then
+                statusMore.text = string.format("+%d", overflow)
+                statusMore:SetClass("collapsed", false)
+            else
+                statusMore:SetClass("collapsed", true)
+            end
+        end,
+    }
+
+    --Field test 11: the status glyphs sit DIRECTLY UNDER THE PORTRAIT - the
+    --same fact as the risk bullets, on purpose: the image lands faster than
+    --the words.
+    local header = gui.Panel {
+        classes = { "overviewFooterHeader" },
+        gui.Panel {
+            classes = { "overviewFooterPortraitColumn" },
+            portrait,
+            statusStrip,
+        },
+        gui.Panel {
+            classes = { "overviewFooterText" },
+            nameRow,
+            roleLabel,
+            signalLabel,
+            reachLabel,
+            safeLabel,
+            hsRow,
+            healerRow,
+            riskRow,
+            m_riskBullets[1].row,
+            m_riskBullets[2].row,
+            m_riskBullets[3].row,
+            m_riskBullets[4].row,
+            dmgRow,
+            areaRow,
+            likelyRow,
+        },
+    }
+
+    --Instruction line of the owner-selection prompt; collapsed until armed.
+    local promptLabel = gui.Label {
+        classes = { "overviewFooterPrompt", "collapsed" },
+        text = "",
+    }
+
+    --Fixed pool of member mini-rows plus the overflow line; created once,
+    --collapsed when unused, never re-listed. The signals view uses the first
+    --OVERVIEW.FOOTER_ROWS; the owner prompt may use the whole pool.
+    local rows = {}
+    for i = 1, OVERVIEW.FOOTER_ROW_POOL do
+        local rowPortrait = gui.CreateTokenImage(nil, {
+            width = 24,
+            height = 24,
+            halign = "left",
+            valign = "center",
+            interactable = false,
+        })
+        --F2-4: two lines - the name alone (ellipsized) and the signals -
+        --instead of one long line that overflowed the column border.
+        local rowLabel = gui.Label {
+            classes = { "overviewFooterRowLabel" },
+            text = "",
+        }
+        local rowSignal = gui.Label {
+            classes = { "overviewFooterRowSignal" },
+            text = "",
+        }
+        local rowText
+        local rowSkull = gui.Panel {
+            classes = { "overviewRiskSkull", "small", "collapsed" },
+            bgimage = "ebc8b529-f450-4bee-9466-86374c26dc13",
+            hover = gui.Tooltip{ text = "Near Death", valign = "top" },
+        }
+        --Field test 34: trailing debuff glyphs on the name line - the
+        --same symbols as the box's glyph bullets, so the box says the
+        --fact once and the row says who it applies to. Hover = the
+        --debuff's own text.
+        local rowStatusIcons = {}
+        for k = 1, 2 do
+            rowStatusIcons[k] = gui.Panel {
+                classes = { "overviewRowStatusIcon", "collapsed" },
+                bgimage = "panels/square.png",
+                data = { entry = nil },
+                hover = function(element)
+                    local entry = element.data.entry
+                    if entry ~= nil and entry.hoverText ~= nil and entry.hoverText ~= "" then
+                        gui.Tooltip(entry.hoverText)(element)
+                    end
+                end,
+            }
+        end
+        local rowNameLine = gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            rowSkull,
+            rowLabel,
+            rowStatusIcons[1],
+            rowStatusIcons[2],
+        }
+        rowText = gui.Panel {
+            classes = { "overviewFooterRowText" },
+            rowNameLine,
+            rowSignal,
+        }
+        local row
+        row = gui.Panel {
+            classes = { "overviewFooterRow", "collapsed" },
+            --Stop the bubble at the row: without this a real click on a
+            --mini-row ALSO fired the footer's own locate.
+            swallowPress = true,
+            data = { member = nil },
+            rowPortrait,
+            rowText,
+
+            press = function(element)
+                local member = element.data.member
+                if member == nil then
+                    return
+                end
+                if m_prompt ~= nil then
+                    --Owner prompt armed: this row IS the choice.
+                    local prompt = m_prompt
+                    element:FindParentWithClass("overviewFooter"):FireEvent("armOwnerPrompt", nil)
+                    if prompt.choose ~= nil then
+                        prompt.choose(member)
+                    end
+                    return
+                end
+                OverviewLocate(member.token, member.tokens)
+            end,
+
+            --Decision 36: while the prompt is armed, hovering a member pulses
+            --that creature on the map so the Director sees who they are about
+            --to activate.
+            hover = function(element)
+                local member = element.data.member
+                if m_prompt ~= nil and member ~= nil then
+                    for _, tok in ipairs(member.tokens) do
+                        if tok ~= nil and tok.valid then
+                            dmhub.PulseHighlightToken(tok.charid)
+                        end
+                    end
+                end
+            end,
+
+            setMember = function(element, member, inCombat)
+                element.data.member = member
+                if member == nil then
+                    element:SetClass("collapsed", true)
+                    element:SetClass("promptOption", false)
+                    rowSkull:SetClass("collapsed", true)
+                    rowLabel:SetClass("withSkull", false)
+                    for _, iconPanel in ipairs(rowStatusIcons) do
+                        iconPanel.data.entry = nil
+                        iconPanel:SetClass("collapsed", true)
+                    end
+                    return
+                end
+                --The member list is snapshotted into m_signals when the column
+                --is populated, and LayoutRows re-runs from that cache on every
+                --menu open/close (DisarmOverviewPrompts fans out to parked
+                --columns too). A member's token can be gone by then (a killed
+                --minion cleaned up), and the engine's portraitFrame getter NREs
+                --on such a token, so drop the row instead of updating it.
+                if member.token == nil or not member.token.valid then
+                    element:SetClass("collapsed", true)
+                    element:SetClass("promptOption", false)
+                    return
+                end
+                element:SetClass("collapsed", false)
+                element:SetClass("promptOption", m_prompt ~= nil)
+                local ok = pcall(function()
+                    rowPortrait:FireEventTree("token", member.token)
+                end)
+                if not ok then
+                    element:SetClass("collapsed", true)
+                    element:SetClass("promptOption", false)
+                    return
+                end
+                --Field test 33 (Ricky): when the row text cannot fit
+                --("Goblin Spinecleaver Squad 1" ellipsized the squad
+                --NUMBER - the important bit), drop the monster-band
+                --prefix from the name (the bestiary group: "Goblin ",
+                --"Demon ", "War Dog "...). Solo monsters keep it - the
+                --band usually IS the name there (Arrix).
+                local text = member.name
+                local suffix = ""
+                if #member.tokens > 1 then
+                    suffix = string.format(" (%d)", #member.tokens)
+                end
+                if #text + #suffix > OVERVIEW.ROW_NAME_CHARS then
+                    pcall(function()
+                        local props = member.token.properties
+                        local org = string.lower(props:Organization() or "")
+                        if org ~= "solo" then
+                            local group = props:MonsterGroup()
+                            local band = group ~= nil and group.name or nil
+                            if band ~= nil and #band > 0 then
+                                local lowered = string.lower(text)
+                                --try the band as-is, then singular if the
+                                --group name is plural ("Goblins" group vs
+                                --"Goblin Warrior" statblock)
+                                for _, candidate in ipairs({ string.lower(band), (string.lower(band):gsub("s$", "")) }) do
+                                    local prefix = candidate .. " "
+                                    if #candidate > 0 and string.sub(lowered, 1, #prefix) == prefix then
+                                        text = string.sub(text, #prefix + 1)
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                end
+                rowLabel.text = text .. suffix
+                local signal = OverviewSignalText(member, inCombat)
+                local reach = OverviewReachText(member.reach, true)
+                if reach ~= nil then
+                    if signal == "" then
+                        signal = reach
+                    else
+                        signal = signal .. " - " .. reach
+                    end
+                end
+                --Field test 21/22: the row wears the skull inline before the
+                --name (mirrors the headline) instead of a text tag.
+                local rowRed = member.risk ~= nil and member.risk.squishy ~= true
+                rowSkull:SetClass("collapsed", not rowRed)
+                rowLabel:SetClass("withSkull", rowRed)
+                --Field test 34: this member's debuff glyphs trail the
+                --name; the label yields their width so the ellipsis and
+                --the glyphs never collide.
+                local rowThreats = {}
+                for _, status in ipairs(member.statuses or {}) do
+                    if status.threat then
+                        rowThreats[#rowThreats + 1] = status
+                    end
+                end
+                for k, iconPanel in ipairs(rowStatusIcons) do
+                    local entry = rowThreats[k]
+                    iconPanel.data.entry = entry
+                    if entry ~= nil then
+                        iconPanel.bgimage = entry.icon
+                        local bgcolor = "white"
+                        if type(entry.style) == "table" and entry.style.bgcolor ~= nil then
+                            bgcolor = entry.style.bgcolor
+                        end
+                        iconPanel.selfStyle.bgcolor = bgcolor
+                        iconPanel:SetClass("collapsed", false)
+                    else
+                        iconPanel:SetClass("collapsed", true)
+                    end
+                end
+                local shownGlyphs = math.min(#rowThreats, #rowStatusIcons)
+                local reserve = 0
+                if rowRed then
+                    reserve = reserve + 16
+                end
+                reserve = reserve + shownGlyphs * 16
+                if reserve > 0 then
+                    rowLabel.selfStyle.width = string.format("100%%-%d", reserve)
+                else
+                    rowLabel.selfStyle.width = "100%"
+                end
+                rowSignal.text = signal
+                rowSignal:SetClass("collapsed", signal == "")
+            end,
+        }
+        rows[i] = row
+    end
+
+    --Field test 35 (Ricky): "+N more" is a CONTROL, not a caption - press
+    --to show every member (each row press already locates its token on
+    --the map), press again to fold back to the first three. Expansion
+    --resets when the footer binds a different column. LayoutRows is
+    --forward-declared because this press handler needs it.
+    local m_rowsExpanded = false
+    local m_rowsColumnKey = nil
+    local LayoutRows
+    local moreLabel = gui.Label {
+        classes = { "overviewFooterMore", "collapsed" },
+        text = "",
+        swallowPress = true,
+        hover = function(element)
+            local text = "Show every member"
+            if m_rowsExpanded then
+                text = "Show fewer"
+            end
+            gui.Tooltip{ text = text, valign = "top" }(element)
+        end,
+        press = function(element)
+            m_rowsExpanded = not m_rowsExpanded
+            LayoutRows()
+        end,
+    }
+
+    --"Take <Creature>'s turn" and its inline reason when disabled.
+    local takeTurnButton = gui.Label {
+        classes = { "overviewTakeTurn", "disabled" },
+        swallowPress = true,
+        text = "Take turn",
+
+        hover = function(element)
+            if m_takeTurnTooltip ~= nil then
+                gui.Tooltip(m_takeTurnTooltip)(element)
+            end
+        end,
+
+        press = function(element)
+            if m_column == nil or m_signals == nil then
+                return
+            end
+            local footer = element:FindParentWithClass("overviewFooter")
+            if m_prompt ~= nil then
+                --Second press while the prompt is up backs out of it.
+                footer:FireEvent("armOwnerPrompt", nil)
+                return
+            end
+            if element:HasClass("disabled") or m_claimId == nil then
+                return
+            end
+            audio.FireSoundEvent("Mouse.Click")
+
+            local candidates = OverviewFreshCandidates(m_signals)
+            if #candidates > 1 then
+                --Several distinct initiative entries share this column
+                --(two Goblin Warriors, Sneaky/Dizzy): the Director picks the
+                --member whose turn is taken (Decisions 32/36).
+                footer:FireEvent("armOwnerPrompt", {
+                    members = candidates,
+                    ability = nil,
+                    choose = function(member)
+                        if OverviewClaimTurn(member.initiativeid) then
+                            local menu = footer:FindParentWithClass("actionMenu")
+                            if menu ~= nil then
+                                menu:FireEvent("refreshOverview")
+                            end
+                        end
+                    end,
+                })
+                return
+            end
+
+            --One actor (single monster or a whole minion squad, which shares
+            --one initiative id): take the turn now.
+            if OverviewClaimTurn(m_claimId) then
+                --Confirmation: the column repopulates from the live queue, so
+                --the button now reads "Turn taken - acting now" and the
+                --signals line flips to acted.
+                local menu = footer:FindParentWithClass("actionMenu")
+                if menu ~= nil then
+                    menu:FireEvent("refreshOverview")
+                end
+            end
+        end,
+    }
+    local reasonLabel = gui.Label {
+        classes = { "overviewTakeTurnReason", "collapsed" },
+        text = "",
+    }
+
+    --F2-8: dismiss this statblock from the overview - drops the column AND
+    --deselects its tokens on the map (the selection poll then repopulates
+    --the open menu; with one token left the strip falls back to the classic
+    --single-creature bar). A plain panel on purpose, not gui.Button{kind =
+    --"closeButton"}: that kind binds Escape, which must keep closing the
+    --menu. Floating at the footer's top-right so it never shifts the rows.
+    local dismissButton = gui.Panel {
+        classes = { "overviewDismiss" },
+        swallowPress = true,
+        bgimage = "ui-icons/close.png",
+        floating = true,
+        halign = "right",
+        valign = "top",
+        hover = gui.Tooltip("Remove from the overview (deselects on the map)"),
+        press = function(element)
+            if m_column == nil then
+                return
+            end
+            local remove = {}
+            for _, tok in ipairs(m_column.tokens or {}) do
+                if tok ~= nil and tok.valid then
+                    remove[tok.charid] = true
+                end
+            end
+            local remaining = {}
+            for _, tok in ipairs(dmhub.selectedTokens or {}) do
+                if tok ~= nil and tok.valid and not remove[tok.charid] then
+                    remaining[#remaining + 1] = tok
+                end
+            end
+            audio.FireSoundEvent("Mouse.Click")
+            dmhub.selectedTokens = remaining
+        end,
+    }
+
+    local children = { header, promptLabel, dismissButton }
+    for _, row in ipairs(rows) do
+        children[#children + 1] = row
+    end
+    children[#children + 1] = moreLabel
+    children[#children + 1] = takeTurnButton
+    children[#children + 1] = reasonLabel
+
+    --Lay the mini-rows out for the current mode: the signals view (first
+    --OVERVIEW.FOOTER_ROWS members, "+N more") or the armed owner prompt
+    --(fresh candidates only, whole pool).
+    LayoutRows = function()
+        if m_signals == nil then
+            for _, row in ipairs(rows) do
+                row:FireEvent("setMember", nil)
+            end
+            moreLabel:SetClass("collapsed", true)
+            return
+        end
+
+        local list = nil
+        local cap = OVERVIEW.FOOTER_ROWS
+        if m_rowsExpanded then
+            cap = #rows
+        end
+        if m_prompt ~= nil then
+            list = m_prompt.members
+            cap = #rows
+        elseif #m_signals.members > 1 then
+            list = m_signals.members
+            --Field test 33 (Ricky): a member carrying a note (the
+            --near-death skull) sorts to the top so it is never hidden
+            --behind "+N more" - he wants to SEE which one is dying.
+            --Stable for everyone else; the prompt view keeps its own
+            --fresh-candidate order.
+            local flagged, plain = {}, {}
+            for _, member in ipairs(list) do
+                if member.risk ~= nil and member.risk.squishy ~= true then
+                    flagged[#flagged + 1] = member
+                else
+                    plain[#plain + 1] = member
+                end
+            end
+            if #flagged > 0 then
+                list = {}
+                for _, member in ipairs(flagged) do
+                    list[#list + 1] = member
+                end
+                for _, member in ipairs(plain) do
+                    list[#list + 1] = member
+                end
+            end
+        end
+
+        if list == nil then
+            for _, row in ipairs(rows) do
+                row:FireEvent("setMember", nil)
+            end
+            moreLabel:SetClass("collapsed", true)
+            return
+        end
+
+        for i, row in ipairs(rows) do
+            if i <= cap then
+                row:FireEvent("setMember", list[i], m_signals.inCombat)
+            else
+                row:FireEvent("setMember", nil)
+            end
+        end
+        local overflow = #list - cap
+        if overflow > 0 then
+            moreLabel.text = string.format("+%d more", overflow)
+            moreLabel:SetClass("collapsed", false)
+        elseif m_prompt == nil and m_rowsExpanded and #list > OVERVIEW.FOOTER_ROWS then
+            --Expanded and everything fits: the same control folds it back.
+            moreLabel.text = "Show fewer"
+            moreLabel:SetClass("collapsed", false)
+        else
+            moreLabel:SetClass("collapsed", true)
+        end
+    end
+
+    --Recompute the take-turn button from the live queue.
+    local function LayoutTakeTurn()
+        if m_column == nil or m_signals == nil then
+            takeTurnButton:SetClass("collapsed", true)
+            reasonLabel:SetClass("collapsed", true)
+            m_claimId = nil
+            return
+        end
+        --The entry the button acts on: the one still-fresh member's entry
+        --when exactly one remains (which need not be the representative's -
+        --the representative can be the member acting NOW), the
+        --representative's when none is fresh (so the gate reports WHY), or -
+        --when several members are still fresh - the press arms the owner
+        --prompt and the button is enabled if ANY of them may claim.
+        local candidates = OverviewFreshCandidates(m_signals)
+        local ok, reason, settled
+        if #candidates > 1 then
+            ok = false
+            settled = true
+            for _, member in ipairs(candidates) do
+                local memberOk, memberReason, memberSettled = OverviewClaimGate(member.initiativeid)
+                if memberOk then
+                    ok = true
+                    reason = nil
+                    settled = false
+                    break
+                end
+                reason = reason or memberReason
+                settled = settled and memberSettled
+            end
+            m_claimId = candidates[1].initiativeid
+        elseif #candidates == 1 then
+            m_claimId = candidates[1].initiativeid
+            ok, reason, settled = OverviewClaimGate(m_claimId)
+        else
+            m_claimId = nil
+            pcall(function() m_claimId = InitiativeQueue.GetInitiativeId(m_column.token) end)
+            ok, reason, settled = OverviewClaimGate(m_claimId)
+        end
+
+        --F3-2: once the turn is taken / the creature has acted (or nothing is
+        --running), taking the turn is not an option any more - the button is
+        --noise, not information. The footer signal line carries the state
+        --("acting now" / "acted"); hide the button and its reason outright.
+        if not ok and settled then
+            takeTurnButton:SetClass("collapsed", true)
+            reasonLabel:SetClass("collapsed", true)
+            m_claimReason = reason
+            m_takeTurnTooltip = nil
+            return
+        end
+        takeTurnButton:SetClass("collapsed", false)
+
+        --F2-3: do the column's members all share ONE initiative entry? Count
+        --over EVERY member token, not just the representatives - in A5 a
+        --squad's tokens can carry different initiativeGrouping ids.
+        local sharedEntry = false
+        if #m_signals.members > 1 then
+            local distinct = {}
+            local count = 0
+            for _, member in ipairs(m_signals.members) do
+                for _, tok in ipairs(member.tokens) do
+                    local initiativeid = nil
+                    pcall(function() initiativeid = InitiativeQueue.GetInitiativeId(tok) end)
+                    if initiativeid ~= nil and not distinct[initiativeid] then
+                        distinct[initiativeid] = true
+                        count = count + 1
+                    end
+                end
+            end
+            sharedEntry = count == 1
+        end
+
+        local short, full = OverviewTakeTurnText(m_column, #m_signals.members, sharedEntry)
+        takeTurnButton.text = short
+        takeTurnButton:SetClass("disabled", not ok)
+        m_claimReason = reason
+        if ok then
+            m_takeTurnTooltip = full
+            reasonLabel:SetClass("collapsed", true)
+        else
+            m_takeTurnTooltip = string.format("%s: %s", full, reason or "unavailable")
+            reasonLabel.text = reason or ""
+            reasonLabel:SetClass("collapsed", reason == nil)
+        end
+    end
+
     local resultPanel
+    resultPanel = gui.Panel {
+        classes = { "overviewFooter", "collapsed" },
+        children = children,
+        --Real presses bubble to ancestors (see the lens tab note); the
+        --footer is the last stop before the drawer toggle.
+        swallowPress = true,
+
+        press = function(element)
+            if m_column == nil or m_signals == nil then
+                return
+            end
+            local pulse = {}
+            for _, member in ipairs(m_signals.members) do
+                for _, tok in ipairs(member.tokens) do
+                    pulse[#pulse + 1] = tok
+                end
+            end
+            OverviewLocate(m_column.token, pulse)
+        end,
+
+        --Arm (prompt ~= nil) or disarm (nil) the owner-selection prompt.
+        armOwnerPrompt = function(element, prompt)
+            if prompt ~= nil and (m_column == nil or m_signals == nil or prompt.members == nil or #prompt.members == 0) then
+                prompt = nil
+            end
+            m_prompt = prompt
+            if prompt == nil then
+                promptLabel:SetClass("collapsed", true)
+                takeTurnButton:SetClass("collapsed", m_column == nil)
+                LayoutRows()
+                if m_column ~= nil then
+                    LayoutTakeTurn()
+                end
+                return
+            end
+
+            local name = m_column.name or "creature"
+            if prompt.ability ~= nil then
+                promptLabel.text = string.format("Choose which %s uses %s", name, prompt.ability.name)
+            else
+                promptLabel.text = string.format("Choose which %s takes the turn", name)
+            end
+            promptLabel:SetClass("collapsed", false)
+            takeTurnButton.text = "Cancel"
+            takeTurnButton:SetClass("collapsed", false)
+            takeTurnButton:SetClass("disabled", false)
+            m_takeTurnTooltip = "Back out without choosing"
+            reasonLabel:SetClass("collapsed", true)
+            LayoutRows()
+
+            --Show every candidate on the map at once.
+            for _, member in ipairs(prompt.members) do
+                for _, tok in ipairs(member.tokens) do
+                    if tok ~= nil and tok.valid then
+                        dmhub.PulseHighlightToken(tok.charid)
+                    end
+                end
+            end
+        end,
+
+        overviewColumn = function(element, column, signals)
+            m_column = column
+            m_signals = signals
+            m_prompt = nil
+            promptLabel:SetClass("collapsed", true)
+            --Pooled footer: fold the member list back down when this
+            --panel starts showing a DIFFERENT column.
+            local columnKey = column ~= nil and (column.name or column.label) or nil
+            if columnKey ~= m_rowsColumnKey then
+                m_rowsColumnKey = columnKey
+                m_rowsExpanded = false
+            end
+            if column == nil or signals == nil or column.token == nil or not column.token.valid then
+                element:SetClass("collapsed", true)
+                LayoutRows()
+                LayoutTakeTurn()
+                return
+            end
+            element:SetClass("collapsed", false)
+
+            pcall(function()
+                portrait:FireEventTree("token", column.token)
+            end)
+            nameLabel.text = column.label or column.name or ""
+            --Crown when the column's single actor is a squad captain (a
+            --multi-member statblock column has no single identity to crown).
+            local captain = nil
+            if #signals.members == 1 and signals.members[1] ~= nil then
+                captain = signals.members[1].captain
+            end
+            if captain ~= nil then
+                local bgcolor = "white"
+                if type(captain.style) == "table" and captain.style.bgcolor ~= nil then
+                    bgcolor = captain.style.bgcolor
+                end
+                captainIcon.selfStyle.bgcolor = bgcolor
+                captainIcon:SetClass("collapsed", false)
+            else
+                captainIcon:SetClass("collapsed", true)
+            end
+
+            local roleInfo = OverviewRoleInfo(column.token)
+            roleLabel.text = roleInfo and roleInfo.line or ""
+            roleLabel:SetClass("collapsed", roleInfo == nil)
+            m_roleTooltip = nil
+            if roleInfo ~= nil and roleInfo.prose ~= "" then
+                m_roleTooltip = string.format("%s\n%s", roleInfo.plain, roleInfo.prose)
+            end
+
+            local members = signals.members
+            local text = ""
+            if #members <= 1 then
+                --Single actor: its own signals on the header line.
+                local member = members[1]
+                if member ~= nil then
+                    text = OverviewSignalText(member, signals.inCombat)
+                end
+            elseif signals.inCombat and signals.actedCount > 0 then
+                --Several actors: the header only speaks up once some of
+                --them HAVE acted (field test 4: not-yet-acted is the silent
+                --default); one mini-row per actor below (LayoutRows).
+                if signals.actedCount == #members then
+                    text = string.format("<color=%s>Turn already taken</color>", OVERVIEW_ACTED_COLOR)
+                else
+                    text = string.format("<color=%s>%d of %d already acted</color>", OVERVIEW_ACTED_COLOR, signals.actedCount, #members)
+                end
+            end
+            signalLabel.text = text
+            signalLabel:SetClass("collapsed", text == "")
+
+            --P2-a: status strip for a single actor; mini-rows carry the
+            --names when there are several. Field test 32 (Ricky): when the
+            --Likely Target row shows the threat glyphs, the strip drops
+            --them (they sat side by side, duplicated) and keeps only the
+            --other statuses; with a red risk box instead (no Likely row)
+            --the strip still shows every status, threats red-ringed
+            --(field test 11's twin-channel pairing with the bullets).
+            --Contents set below, after the risk/likely computation.
+            if #members ~= 1 then
+                statusStrip:FireEvent("setStatuses", nil)
+            end
+
+            --P2-e: risk line for a single actor; a multi-member column
+            --shows the WORST member's line (its rows carry short tags).
+            local risk = nil
+            local allSafe = #members > 0
+            local allHighStamina = #members > 0
+            for _, member in ipairs(members) do
+                --A real Near Death outranks the standing minion Squishy
+                --(a two-squad column shows the worst member's line).
+                if member.risk ~= nil then
+                    if risk == nil or (risk.squishy == true and member.risk.squishy ~= true) then
+                        risk = member.risk
+                    end
+                end
+                if member.safe ~= true then
+                    allSafe = false
+                end
+                if member.highStamina ~= true then
+                    allHighStamina = false
+                end
+            end
+            safeLabel:SetClass("collapsed", not (allSafe and signals.inCombat))
+            hsRow:SetClass("collapsed", not (allHighStamina and signals.inCombat))
+            healerRow:SetClass("collapsed", column.healer ~= true)
+            m_riskTooltip = risk and risk.tooltip or nil
+            local headline = risk and risk.headline or nil
+            riskLabel.text = headline ~= nil and string.format("<color=%s><b>%s</b></color>", g_overviewRisk.red, headline) or ""
+            riskLabel:SetClass("collapsed", headline == nil)
+            riskRow:SetClass("collapsed", headline == nil)
+            riskSkull:SetClass("collapsed", risk == nil or risk.level ~= "red")
+            --Field test 34: the box's bullets are the UNION over every
+            --member's risk bullets (deduped by text) - one member's mark
+            --and another's Low Stamina both print, once each, and the
+            --debuff glyphs bind each fact to the rows that wear the same
+            --symbol. Plain bullets render "- text"; glyph bullets render
+            --[glyph] text.
+            local bullets = {}
+            if risk ~= nil then
+                local seenBullet = {}
+                for _, member in ipairs(members) do
+                    if member.risk ~= nil then
+                        for _, bullet in ipairs(member.risk.bullets or {}) do
+                            if not seenBullet[bullet.text] then
+                                seenBullet[bullet.text] = true
+                                bullets[#bullets + 1] = bullet
+                            end
+                        end
+                    end
+                end
+            end
+            for i, entry in ipairs(m_riskBullets) do
+                local bullet = bullets[i]
+                if bullet == nil then
+                    entry.row:SetClass("collapsed", true)
+                    entry.icon.data.entry = nil
+                else
+                    entry.row:SetClass("collapsed", false)
+                    entry.icon.data.entry = bullet
+                    if bullet.icon ~= nil then
+                        entry.icon.bgimage = bullet.icon
+                        entry.icon.selfStyle.bgcolor = bullet.bgcolor or "white"
+                        entry.icon:SetClass("collapsed", false)
+                        entry.label.text = bullet.text
+                    else
+                        entry.icon:SetClass("collapsed", true)
+                        entry.label.text = "- " .. bullet.text
+                    end
+                end
+            end
+            --Field test 29: "High damage dealer" (red - field test 27:
+            --gold did not stand out enough) and the area-window line are
+            --their own icon-bulleted rows beneath the risk box; together
+            --they are the "use this monster now" cue Ricky described.
+            m_dmgLineTooltip = nil
+            if column.highDamage then
+                if risk == nil then
+                    m_dmgLineTooltip = "Highest damage of all selected monsters"
+                else
+                    m_dmgLineTooltip = "Highest damage of selected monsters near death"
+                end
+            end
+            dmgRow:SetClass("collapsed", not column.highDamage)
+            areaRow:SetClass("collapsed", not column.areaWindow)
+
+            --Field test 31: amber Likely Target for a single actor with
+            --hero-applied debuffs, unless a red risk box already names
+            --them in its bullets (Near Death / Squishy). The glyphs are
+            --the same status icons as the strip under the portrait.
+            local likely = nil
+            if #members == 1 and risk == nil then
+                local flags = {}
+                for _, entry in ipairs(members[1].statuses or {}) do
+                    if entry.threat then
+                        flags[#flags + 1] = entry
+                    end
+                end
+                if #flags > 0 then
+                    likely = flags
+                end
+            end
+            m_likelyTooltip = nil
+            for i, icon in ipairs(likelyIcons) do
+                local entry = likely ~= nil and likely[i] or nil
+                icon.data.entry = entry
+                if entry ~= nil then
+                    icon.bgimage = entry.icon
+                    local bgcolor = "white"
+                    if type(entry.style) == "table" and entry.style.bgcolor ~= nil then
+                        bgcolor = entry.style.bgcolor
+                    end
+                    icon.selfStyle.bgcolor = bgcolor
+                    icon:SetClass("collapsed", false)
+                else
+                    icon:SetClass("collapsed", true)
+                end
+            end
+            if likely ~= nil then
+                local names = {}
+                for _, entry in ipairs(likely) do
+                    names[#names + 1] = entry.name or "A condition"
+                end
+                local joined = names[1]
+                if #names == 2 then
+                    joined = names[1] .. " and " .. names[2]
+                elseif #names > 2 then
+                    joined = table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names]
+                end
+                local verb = "make"
+                if #names == 1 then
+                    verb = "makes"
+                end
+                m_likelyTooltip = string.format("%s %s this creature a likely target", joined, verb)
+            end
+            likelyRow:SetClass("collapsed", likely == nil)
+
+            --Field test 32: the strip's contents, now that we know whether
+            --the Likely Target row is carrying the threat glyphs.
+            if #members == 1 then
+                local entries = members[1].statuses
+                if likely ~= nil then
+                    local filtered = {}
+                    for _, entry in ipairs(entries or {}) do
+                        if not entry.threat then
+                            filtered[#filtered + 1] = entry
+                        end
+                    end
+                    entries = filtered
+                end
+                statusStrip:FireEvent("setStatuses", entries)
+            end
+
+            --P2-d: reach line for a single actor (rows carry it otherwise).
+            local reachText = nil
+            m_reachTooltip = nil
+            if #members == 1 and members[1].reach ~= nil then
+                local reach = members[1].reach
+                --Field test 38 (Ricky): no formula in the hover - the
+                --"standard movement" qualifier carries the uncertainty.
+                reachText = OverviewReachText(reach)
+                m_reachTooltip = "Not within range of any enemies using standard movement"
+            end
+            reachLabel.text = reachText or ""
+            reachLabel:SetClass("collapsed", reachText == nil)
+
+            LayoutRows()
+            LayoutTakeTurn()
+        end,
+    }
+
+    return resultPanel
+end
+
+local function ActionSubMenu(args)
+    --The column's foot: the ordinary text heading (every legacy menu) and,
+    --for a director-overview column, the identity/signals footer bar (slice
+    --(d)) which takes the heading's place. Both are pooled for the life of
+    --the column and always sit at the END of m_children, after the chips.
+    local m_heading = gui.Label {
+        classes = { "submenuHeading" },
+        abilities = function(element, abilities, grouping)
+            if grouping == "Triggers" then
+                grouping = "Manual Use Triggers"
+            end
+            element.text = grouping
+        end,
+    }
+    local m_footer = OverviewColumnFooter()
+
+    --Pooled chips (AbilityHeading, created on demand, never destroyed) and
+    --the pooled hairline an overview column shows between its main actions
+    --and its maneuvers. m_children is REBUILT from these on every populate
+    --(chips, divider at its slot, heading, footer) - see "abilities" below.
+    local m_chips = {}
+    local m_divider = gui.Panel {
+        classes = { "overviewActionDivider", "collapsed" },
+        interactable = false,
+    }
+
+    local m_children = { m_divider, m_heading, m_footer }
+
+    local resultPanel
+
+    --Optional owner override for every chip in this column (director
+    --multi-monster overview: one column per statblock, chips cast for that
+    --statblock's representative token). nil = the bar's bound token, exactly
+    --as before. Set via the "setCasterToken" event BEFORE "abilities", since
+    --the chips compute suppression/cost from their caster when populated.
+    --m_column is the overview column record ({tokens, token, name, label})
+    --passed alongside; nil for every ordinary menu, which keeps the plain
+    --heading and no footer/greying.
+    local m_casterToken = nil
+    local m_column = nil
+
+    --Slice (e): preview-on-click for an overview chip. Installed on every
+    --chip of an overview column (nil for ordinary menus, whose press path is
+    --byte-for-byte the old one). Called from AbilityHeading's press with the
+    --ability, the chip's caster and a commit(casterToken) continuation that
+    --runs the ordinary push-caster + beginCasting tail. Returns true when it
+    --took over the press.
+    --
+    --  * Always LOCATE the owner first (CenterOnToken + pulse; never
+    --    FocusToken, selection untouched) so the Director sees who is about
+    --    to act; the targeting overlay beginCasting draws is the reach
+    --    preview for now.
+    --  * If several DISTINCT initiative entries in this column are still
+    --    fresh (two Goblin Warriors, Sneaky/Dizzy), arm the footer's owner
+    --    prompt with the ability remembered: pressing a member re-points the
+    --    column at that member and commits the cast for it. Nothing is
+    --    claimed here; the claim happens at target confirm if legal
+    --    (g_overviewCastPending / OverviewClaimBeforeCast).
+    --  * One member (or a minion squad, one initiative id) commits at once.
+    local function OverviewChipPress(ability, casterToken, commit)
+        if m_column == nil or m_casterToken == nil then
+            return false
+        end
+        local signals = OverviewColumnSignals(m_column)
+        local candidates = OverviewFreshCandidates(signals)
+        print("OVERVIEW:: chip press", ability and ability.name, "candidates", #candidates)
+        if #candidates > 1 then
+            m_footer:FireEvent("armOwnerPrompt", {
+                members = candidates,
+                ability = ability,
+                choose = function(member)
+                    if member == nil or member.token == nil or not member.token.valid then
+                        return
+                    end
+                    m_column.token = member.token
+                    m_casterToken = member.token
+                    OverviewLocate(member.token, member.tokens)
+                    commit(member.token, OverviewMemberAbility(member.token, ability))
+                end,
+            })
+            return true
+        end
+
+        --One (or no) fresh entry: cast for the chip's own caster - the
+        --representative, which BuildOverviewColumns already points at the
+        --first fresh member - unless the queue moved on since the menu was
+        --populated, in which case follow the fresh member.
+        local owner = casterToken
+        local memberAbility = ability
+        local fresh = candidates[1]
+        if fresh ~= nil and fresh.token ~= nil and fresh.token.valid and (owner == nil or fresh.token.charid ~= owner.charid) then
+            owner = fresh.token
+            memberAbility = OverviewMemberAbility(owner, ability)
+        end
+        if owner ~= nil and owner.valid then
+            OverviewLocate(owner, { owner })
+        end
+        commit(owner, memberAbility)
+        return true
+    end
 
     resultPanel = gui.Panel {
 
@@ -2565,16 +6888,91 @@ local function ActionSubMenu(args)
         children = m_children,
         classes = { "abilitySubMenu" },
         blurBackground = true,
+        data = { lensMatchCount = 0 },
+
+        setCasterToken = function(element, casterToken, column)
+            m_casterToken = casterToken
+            m_column = column
+            --The abilitySubMenu style wraps a vertical flow into a second
+            --column when it runs out of height (legacy long menus). For an
+            --overview column that wrap misfires: the engine resolves the
+            --column's auto height and the wrap limit in one pass, and once
+            --the footer grew past ~70px (F2-4 two-line rows / 12px text) the
+            --footer of EVERY column - even a one-chip column - wrapped to the
+            --top-right of its column (seen live, A5). An overview kit is a
+            --handful of chips plus the footer and never needs to wrap, so
+            --turn wrapping off while a column is bound; restore it when the
+            --pooled panel is parked again.
+            element.selfStyle.wrap = not (column ~= nil and casterToken ~= nil)
+        end,
+
+        --Forwarded to the footer (slice (e) owner prompt); no-op for ordinary
+        --menus, whose footer is collapsed and has no column.
+        armOwnerPrompt = function(element, prompt)
+            m_footer:FireEvent("armOwnerPrompt", prompt)
+        end,
+
         abilities = function(element, abilities)
             if abilities == nil or #abilities == 0 then
                 element:SetClass("collapsed", true)
+                --A pooled overview column parked with no kit drops its
+                --footer state too (disarms any prompt).
+                if m_column == nil then
+                    m_footer:FireEvent("overviewColumn", nil, nil)
+                end
                 element:HaltEventPropagation()
                 return
             end
 
             element:SetClass("collapsed", false)
 
-            if abilities[1].categorization == "Malice" then
+            local overview = m_column ~= nil and m_casterToken ~= nil
+
+            --P2-c1: per-ability facets and the active lens (overview only).
+            local lens = "all"
+            local facetsByAbility = {}
+            local lensMatchCount = 0
+            if overview then
+                lens = g_overviewLens
+                for _, ability in ipairs(abilities) do
+                    local facets = OverviewAbilityFacets(ability)
+                    facetsByAbility[ability] = facets
+                    if OverviewAbilityMatchesLens(facets, lens) then
+                        lensMatchCount = lensMatchCount + 1
+                    end
+                end
+            end
+
+            if overview then
+                --Overview column (field test 2): main actions ABOVE, then
+                --maneuvers / free actions BELOW a hairline; within a group,
+                --the "All" lens puts signature first, then cost, then name
+                --("Monarch = one above + one below, Warrior = two above"
+                --reads structurally across columns); an active lens sorts by
+                --its natural key instead (Decision 21 / 49), keeping the
+                --action-economy partition.
+                table.sort(abilities, function(a, b)
+                    local groupA = OverviewActionType(a)
+                    local groupB = OverviewActionType(b)
+                    if groupA ~= groupB then
+                        return groupA < groupB
+                    end
+                    if lens ~= "all" then
+                        return OverviewLensLess(lens, a, facetsByAbility[a], b, facetsByAbility[b])
+                    end
+                    local sigA = a.categorization == "Signature Ability"
+                    local sigB = b.categorization == "Signature Ability"
+                    if sigA ~= sigB then
+                        return sigA
+                    end
+                    local costA = GetHeroicResourceOrMaliceCost(a) or 0
+                    local costB = GetHeroicResourceOrMaliceCost(b) or 0
+                    if costA ~= costB then
+                        return costA < costB
+                    end
+                    return a.name < b.name
+                end)
+            elseif abilities[1].categorization == "Malice" then
                 table.sort(abilities, function(a, b)
                     return (GetHeroicResourceOrMaliceCost(a) or 0) < (GetHeroicResourceOrMaliceCost(b) or 0)
                 end)
@@ -2591,24 +6989,164 @@ local function ActionSubMenu(args)
                 end)
             end
 
-            local startChildCount = #m_children
-
-            local heading = m_children[#m_children]
-            m_children[#m_children] = nil
-
             for i = 1, #abilities do
-                m_children[i] = m_children[i] or AbilityHeading()
-                m_children[i]:FireEventTree("ability", abilities[i])
-                m_children[i]:SetClass("collapsed", false)
+                m_chips[i] = m_chips[i] or AbilityHeading()
+                --Re-point the pooled chip at this column's owner (nil restores
+                --the g_token default) before it computes cost/suppression.
+                --The overview press hook rides along (nil for ordinary menus).
+                local pressHook = nil
+                if overview then
+                    pressHook = OverviewChipPress
+                end
+                m_chips[i]:FireEvent("setCasterToken", m_casterToken, pressHook)
+                m_chips[i]:FireEventTree("ability", abilities[i])
+                m_chips[i]:SetClass("collapsed", false)
+                --P2-c1 lens channel (X3): matching chips get a left tick,
+                --non-matching chips dim to .45 but stay (kit context). Both
+                --cleared for the "All" lens and for ordinary menus.
+                local onLens = false
+                local offLens = false
+                if overview and lens ~= "all" then
+                    onLens = OverviewAbilityMatchesLens(facetsByAbility[abilities[i]], lens)
+                    offLens = not onLens
+                end
+                m_chips[i]:SetClass("onLens", onLens)
+                m_chips[i]:SetClass("offLens", offLens)
+                --Field test 10: red surge DMG badge on (1) the highest-damage
+                --ability displayed and (2) the highest among creatures at red
+                --death risk (ties share it). Overview monsters only, and only
+                --under the All / Damage lenses.
+                local dmgBadge = false
+                local dmgTooltip = nil
+                local areaTooltip = nil
+                local multiBadge, multiDamaging, summonBadge = false, false, false
+                local healBadge = false
+                if overview then
+                    local facets = facetsByAbility[abilities[i]]
+                    if facets ~= nil then
+                        if (lens == "all" or lens == "damage") and m_column ~= nil and facets.damageValue > 0 then
+                            if m_column.dmgMax ~= nil and facets.damageValue >= m_column.dmgMax then
+                                dmgBadge = true
+                                dmgTooltip = "Highest damage of all selected monsters"
+                            elseif m_column.dmgRedMax ~= nil and facets.damageValue >= m_column.dmgRedMax then
+                                dmgBadge = true
+                                dmgTooltip = "Highest damage of selected monsters near death"
+                            end
+                        end
+                        --Field test 13: multi-target and summon markers ride
+                        --every lens, but never on a dimmed (off-lens) chip.
+                        --A summon IS a multi-ish ability; the green badge
+                        --wins so Get in Here! does not wear both.
+                        if not offLens then
+                            summonBadge = facets.summon == true
+                            multiBadge = (not summonBadge) and facets.multiTarget == true
+                            multiDamaging = facets.damage == true
+                            --Field test 40: green shield on any chip that
+                            --regains stamina or grants temporary stamina.
+                            healBadge = facets.heals == true
+                            --Field test 27: an area ability wears the gold
+                            --"!" window alert only while it could actually
+                            --catch several heroes (positional; recomputed
+                            --every populate so it follows the tokens); the
+                            --tooltip names who is exposed.
+                            if (not summonBadge) and facets.area == true then
+                                local names = OverviewAreaCatch(m_casterToken, abilities[i])
+                                if names ~= nil then
+                                    local list = names[1]
+                                    if #names == 2 then
+                                        list = names[1] .. " and " .. names[2]
+                                    elseif #names > 2 then
+                                        list = table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names]
+                                    end
+                                    areaTooltip = string.format("%s are positioned vulnerably to this ability", list)
+                                end
+                            end
+                        end
+                    end
+                end
+                m_chips[i]:FireEvent("setOverviewBadges", dmgBadge, multiBadge, multiDamaging, summonBadge, dmgTooltip, areaTooltip, healBadge)
             end
 
-            for i = #abilities + 1, #m_children do
-                m_children[i]:SetClass("collapsed", true)
+            for i = #abilities + 1, #m_chips do
+                m_chips[i]:SetClass("collapsed", true)
             end
 
-            m_children[#m_children + 1] = heading
+            --P2-c1 (Decision 31/49): a column with NO matching ability hides
+            --under an active lens; the menu re-centers the survivors because
+            --it is halign=center. The column stays populated so flipping the
+            --lens back is instant.
+            if overview and lens ~= "all" and lensMatchCount == 0 then
+                element:SetClass("collapsed", true)
+            end
+            element.data.lensMatchCount = lensMatchCount
 
-            if #m_children ~= startChildCount then
+            --Hairline after the last main-action chip, only when the column
+            --has chips on both sides of it.
+            local dividerAfter = nil
+            if overview then
+                local lastMain = 0
+                for i, ability in ipairs(abilities) do
+                    if OverviewActionType(ability) == 0 then
+                        lastMain = i
+                    end
+                end
+                if lastMain > 0 and lastMain < #abilities then
+                    dividerAfter = lastMain
+                end
+            end
+            m_divider:SetClass("collapsed", dividerAfter == nil)
+
+            --Rebuild the child order: every pooled chip (spares collapsed at
+            --the end), the divider at its slot (or parked collapsed before
+            --the tail), then heading + footer. Every pooled panel is ALWAYS
+            --in the list (fa2053b7 rule); the list is only re-assigned when
+            --the order actually changed.
+            local newChildren = {}
+            for i = 1, #m_chips do
+                newChildren[#newChildren + 1] = m_chips[i]
+                if dividerAfter == i then
+                    newChildren[#newChildren + 1] = m_divider
+                end
+            end
+            if dividerAfter == nil then
+                newChildren[#newChildren + 1] = m_divider
+            end
+            newChildren[#newChildren + 1] = m_heading
+            newChildren[#newChildren + 1] = m_footer
+
+            local changed = #newChildren ~= #m_children
+            if not changed then
+                for i = 1, #newChildren do
+                    if newChildren[i] ~= m_children[i] then
+                        changed = true
+                        break
+                    end
+                end
+            end
+            m_children = newChildren
+
+            --Overview column: footer bar instead of the text heading, and
+            --dim the whole column when every member has acted this round
+            --(Decision 50). Ordinary menus: heading shown, footer collapsed,
+            --never dimmed - unchanged from before slice (d).
+            local allActed = false
+            if overview then
+                local signals = OverviewColumnSignals(m_column)
+                allActed = signals.allActed
+                m_footer:FireEvent("overviewColumn", m_column, signals)
+            else
+                m_footer:FireEvent("overviewColumn", nil, nil)
+            end
+            m_heading:SetClass("collapsed", overview)
+            element:SetClass("acted", overview and allActed)
+            --F2-7: grey every chip of an all-acted column (class tree so the
+            --title / keywords / icon rules apply); always cleared for
+            --ordinary menus, which reuse no overview state.
+            for i = 1, #abilities do
+                m_chips[i]:SetClassTree("acted", overview and allActed)
+            end
+
+            if changed then
                 element.children = m_children
             end
         end,
@@ -2625,8 +7163,122 @@ local g_categorizationMapping = {
     ["Basic Attack"] = "Skill",
 }
 
+--Director multi-monster overview: does this ability belong in a statblock's
+--"unique kit" column? The kit comes from GetActivatedAbilities{excludeGlobal =
+--true}, which already drops free strikes, band malice features (MonsterGroup
+--maliceAbilities) and every global-modifier ability (Charge/Defend/Grab/Hide,
+--Dig, Disengage/Jump...). What remains is filtered again here so the column
+--holds ONLY the monster's own turn kit -- signature/heroic/"Ability" main
+--actions and maneuvers together (Decision 13):
+--  * Trigger / Villain Action are off-turn (Decision 16) and any ability whose
+--    action resource is the triggered action goes with them;
+--  * Malice-categorized abilities stay in the Malice drawer;
+--  * Common Ability / Basic Attack / Move / Hidden are the noise the overview
+--    exists to remove (belt-and-braces: excludeGlobal already removes them for
+--    every stock monster).
+local function IsUniqueKitAbility(ability)
+    local cat = ability.categorization
+    if cat == "Trigger" or cat == "Villain Action" or cat == "Malice"
+        or cat == "Common Ability" or cat == "Basic Attack" or cat == "Move" or cat == "Hidden" then
+        return false
+    end
+    if ability.actionResourceId == CharacterResource.triggerResourceId then
+        return false
+    end
+    return true
+end
+
+--Group g_selectedTokens by statblock and build one column description per
+--statblock, in order of first appearance in the selection (stable across
+--refreshes for as long as the selection stands). Renamed tokens of one
+--statblock ("Sneaky"/"Dizzy" Goblin Assassin) share a column. Returns a list
+--of { key, label, tokens, token, abilities }:
+--  key      = the statblock key (GetMonsterType(), else the token id);
+--  label    = statblock name plus " xN" when N > 1 (slice (d) replaces this
+--             with the portrait/signals footer bar);
+--  tokens   = every selected token of that statblock, selection order;
+--  token    = the representative token every chip casts for: the first
+--             member that has NOT acted this round (initiative queue
+--             HasHadTurn on its initiative id), else the first member;
+--  abilities= the representative's unique kit (see IsUniqueKitAbility),
+--             melee/ranged bifurcated like g_abilities is.
+local function BuildOverviewColumns()
+    local columns = {}
+    local byKey = {}
+
+    for _, tok in ipairs(g_selectedTokens) do
+        if tok ~= nil and tok.valid and tok.properties ~= nil then
+            local statblock = nil
+            pcall(function() statblock = tok.properties:GetMonsterType() end)
+            local key = statblock or tok.id
+            local column = byKey[key]
+            if column == nil then
+                column = {
+                    key = key,
+                    name = statblock or tok.name or "Creature",
+                    tokens = {},
+                }
+                byKey[key] = column
+                columns[#columns + 1] = column
+            end
+            column.tokens[#column.tokens + 1] = tok
+        end
+    end
+
+    local q = dmhub.initiativeQueue
+    if q ~= nil and q.hidden then
+        q = nil
+    end
+
+    for _, column in ipairs(columns) do
+        --Representative: prefer a member whose turn is still to come.
+        local rep = column.tokens[1]
+        if q ~= nil then
+            for _, tok in ipairs(column.tokens) do
+                local acted = false
+                pcall(function() acted = q:HasHadTurn(InitiativeQueue.GetInitiativeId(tok)) == true end)
+                if not acted then
+                    rep = tok
+                    break
+                end
+            end
+        end
+        column.token = rep
+
+        if #column.tokens > 1 then
+            column.label = string.format("%s x%d", column.name, #column.tokens)
+        else
+            column.label = column.name
+        end
+
+        local abilities = {}
+        local kit = rep.properties:GetActivatedAbilities { excludeGlobal = true, bindCaster = true }
+        for _, ability in ipairs(kit or {}) do
+            if IsUniqueKitAbility(ability) then
+                --Mirror the root refresh: melee/ranged bifurcations show as
+                --two chips.
+                local variations = { ability }
+                if ability.meleeAndRanged then
+                    variations = { ability.meleeVariation, ability.rangedVariation }
+                end
+                for _, variation in ipairs(variations) do
+                    if variation ~= nil and ((not variation:try_get("hideWhenFiltered")) or variation:AbilityFilterFailureMessage(rep.properties) == nil) then
+                        abilities[#abilities + 1] = variation
+                    end
+                end
+            end
+        end
+        column.abilities = abilities
+    end
+
+    return columns
+end
+
 ActionMenu = function()
     local m_submenus = {}
+    --Pooled per-statblock columns for the director overview ("unique"
+    --drawer); reused across opens like m_submenus, never rebuilt per frame.
+    local m_uniqueColumns = {}
     local m_args
     local resultPanel
     local m_showingAbility = false
@@ -2669,7 +7321,375 @@ ActionMenu = function()
         minHeight = 200,
         maxHeight = 900,
         flow = "horizontal",
+        --Decision 31: lens survivors sit centered (the lens bar above is
+        --wider than a single surviving column).
+        halign = "center",
     }
+
+    --P2-c1: the LENS BAR above the overview columns (Decision 27: fixed
+    --width so the cycle arrows never move; label click = dropdown of every
+    --lens with counts). Collapsed for every ordinary menu. Counts = matching
+    --kit abilities across the selection. m_lensColumns is the last column
+    --list PopulateUniqueColumns produced, so a lens change re-runs it.
+    local m_lensCounts = {}
+    local m_lensEmptyLabel = gui.Label {
+        classes = { "overviewLensEmpty", "collapsed" },
+        text = "",
+    }
+    --X6: "Everyone can: Charge, Knockback" - the COMMON abilities (not in any
+    --column's unique kit) that satisfy the active lens, read off the first
+    --column's representative. Collapsed for "All" and when none match.
+    local m_lensEveryoneLabel = gui.Label {
+        classes = { "overviewLensEveryone", "collapsed" },
+        text = "",
+    }
+    local function EveryoneCanText(columns, lens)
+        if lens == nil or lens == "all" or columns == nil or columns[1] == nil then
+            return nil
+        end
+        local tok = columns[1].token
+        if tok == nil or not tok.valid or tok.properties == nil then
+            return nil
+        end
+        local kitKeys = {}
+        for _, column in ipairs(columns) do
+            for _, ability in ipairs(column.abilities or {}) do
+                local key = NovelAbilityKey(ability)
+                if key ~= nil then
+                    kitKeys[key] = true
+                end
+            end
+        end
+        local names = {}
+        local seen = {}
+        pcall(function()
+            local all = tok.properties:GetActivatedAbilities { bindCaster = true } or {}
+            for _, ability in ipairs(all) do
+                local variations = { ability }
+                if ability.meleeAndRanged then
+                    variations = { ability.meleeVariation, ability.rangedVariation }
+                end
+                for _, variation in ipairs(variations) do
+                    local key = NovelAbilityKey(variation)
+                    local cat = variation.categorization
+                    if variation ~= nil and key ~= nil and not kitKeys[key]
+                        and cat ~= "Trigger" and cat ~= "Villain Action" and cat ~= "Malice" and cat ~= "Hidden"
+                        and OverviewAbilityMatchesLens(OverviewAbilityFacets(variation), lens) then
+                        local name = variation.name or "?"
+                        if not seen[name] then
+                            seen[name] = true
+                            names[#names + 1] = name
+                        end
+                    end
+                end
+            end
+        end)
+        if #names == 0 then
+            return nil
+        end
+        table.sort(names)
+        local shown = {}
+        for i = 1, math.min(4, #names) do
+            shown[#shown + 1] = names[i]
+        end
+        --Field test 4 copy: name the lens, not "everyone".
+        local text = string.format("Common %s abilities: %s",
+            string.lower(OverviewLensInfo(lens).name), table.concat(shown, ", "))
+        if #names > 4 then
+            text = string.format("%s +%d", text, #names - 4)
+        end
+        return text
+    end
+    local m_lensBar
+    --counts = matching ABILITIES per lens (the number on the tab, Decision
+    --8); creatureCounts = columns with at least one match (the tooltip
+    --speaks in creatures, field test 8).
+    local function LensCountsFromColumns(columns)
+        local counts = {}
+        local creatureCounts = {}
+        for _, lens in ipairs(OVERVIEW_LENSES) do
+            counts[lens.id] = 0
+            creatureCounts[lens.id] = 0
+        end
+        for _, column in ipairs(columns or {}) do
+            local columnHas = {}
+            for _, ability in ipairs(column.abilities or {}) do
+                local facets = OverviewAbilityFacets(ability)
+                for _, lens in ipairs(OVERVIEW_LENSES) do
+                    if OverviewAbilityMatchesLens(facets, lens.id) then
+                        counts[lens.id] = counts[lens.id] + 1
+                        columnHas[lens.id] = true
+                    end
+                end
+            end
+            for id, _ in pairs(columnHas) do
+                creatureCounts[id] = creatureCounts[id] + 1
+            end
+        end
+        return counts, creatureCounts
+    end
+    local m_lensTabs = {}
+    local function RefreshLensBar(columns)
+        local creatureCounts
+        m_lensCounts, creatureCounts = LensCountsFromColumns(columns)
+        local lens = OverviewLensInfo(g_overviewLens)
+        for _, tab in ipairs(m_lensTabs) do
+            local id = tab.data.lensid
+            local count = m_lensCounts[id] or 0
+            tab:FireEventTree("setLensState", string.format("%s (%d)", OverviewLensInfo(id).name, count), id == lens.id, count == 0 and id ~= "all", creatureCounts[id] or 0)
+        end
+        local empty = lens.id ~= "all" and (m_lensCounts[lens.id] or 0) == 0
+        if empty then
+            m_lensEmptyLabel.text = string.format("No %s abilities in this selection", string.lower(lens.name))
+        end
+        m_lensEmptyLabel:SetClass("collapsed", not empty)
+        local everyone = EveryoneCanText(columns, lens.id)
+        m_lensEveryoneLabel.text = everyone or ""
+        m_lensEveryoneLabel:SetClass("collapsed", everyone == nil)
+        --Field test 8: these lines sit directly beneath the ACTIVE tab
+        --(left edges aligned; the label wraps in the remaining width).
+        --CENTRED under the active tab: keep the label full row width and
+        --shift its rendering by x (layout untouched; numeric widths only -
+        --a %-width child of the auto-width bar collapses to one character
+        --per line, seen live).
+        local rowWidth = 6 * 106 + 8
+        local index = OverviewLensIndex(g_overviewLens)
+        local offset = (index - 0.5) * 106 + 4 - rowWidth / 2
+        for _, label in ipairs({ m_lensEveryoneLabel, m_lensEmptyLabel }) do
+            label.selfStyle.width = rowWidth
+            label.selfStyle.x = offset
+            label.selfStyle.lmargin = 0
+            label.selfStyle.textAlignment = "center"
+            label.selfStyle.halign = "center"
+        end
+    end
+    --Set by the unique-menu branch; a lens change re-populates through it.
+    local m_relens = nil
+    local function SetLens(id)
+        if OverviewLensInfo(id).id == g_overviewLens then
+            return
+        end
+        g_overviewLens = OverviewLensInfo(id).id
+        audio.FireSoundEvent("Mouse.Click")
+        if m_relens ~= nil then
+            m_relens()
+        end
+    end
+    --Field test 4 redesign: no box, no arrows, no dropdown - one quiet row
+    --of lens tabs in the flat minimalist style of the icon rail. Every tab
+    --is a plain panel (the chips' own construction, proven with real
+    --clicks); the active tab is gold with an underline, zero-count tabs dim
+    --but stay pressable (their empty state explains itself). The old cycle
+    --arrows closed the menu for real mouse clicks and the dropdown died with
+    --it, so both are gone; hotkeys (X4) can return cycling later.
+    for _, lens in ipairs(OVERVIEW_LENSES) do
+        local id = lens.id
+        local underline = gui.Panel {
+            classes = { "overviewLensTabLine", "hidden" },
+            interactable = false,
+        }
+        local label = gui.Label {
+            classes = { "overviewLensTabLabel" },
+            text = lens.name,
+            interactable = false,
+        }
+        local tab = gui.Panel {
+            classes = { "overviewLensTab" },
+            bgimage = "panels/square.png",
+            --Field test 8 ROOT CAUSE of "changing lens closes the menu":
+            --real input presses BUBBLE to every ancestor (engine default),
+            --and the Unique drawer is an ancestor of the menu, so the same
+            --click also toggled the drawer - twice, with the same-frame
+            --reopen swallowed by the shownMenuTime guard, leaving the menu
+            --closed. FireEvent("press") never bubbles, which is why every
+            --synthetic test passed. swallowPress stops the bubble here.
+            swallowPress = true,
+            data = { lensid = id, tooltip = nil },
+            flow = "vertical",
+            label,
+            underline,
+            hover = function(element)
+                if element.data.tooltip ~= nil then
+                    --valign top: below the cursor the tooltip covered the
+                    --chips and the neighbouring tabs (field test 8).
+                    gui.Tooltip{ text = element.data.tooltip, valign = "top" }(element)
+                end
+            end,
+            press = function(element)
+                SetLens(id)
+            end,
+            setLensState = function(element, text, active, zero, creatureCount)
+                label.text = text
+                element:SetClass("active", active)
+                element:SetClass("zero", zero)
+                underline:SetClass("hidden", not active)
+                --Field test 8 copy (Ricky's wording).
+                if id == "all" then
+                    element.data.tooltip = string.format("Shows every creature (%d creature%s)", creatureCount or 0, creatureCount == 1 and "" or "s")
+                else
+                    element.data.tooltip = string.format("Shows only creatures with %s abilities (%d creature%s)", lens.name, creatureCount or 0, creatureCount == 1 and "" or "s")
+                end
+            end,
+        }
+        m_lensTabs[#m_lensTabs + 1] = tab
+    end
+    local lensTabRow = gui.Panel {
+        classes = { "overviewLensRow" },
+        swallowPress = true,
+        children = m_lensTabs,
+    }
+    m_lensBar = gui.Panel {
+        classes = { "overviewLensBar", "collapsed" },
+        lensTabRow,
+        m_lensEmptyLabel,
+        m_lensEveryoneLabel,
+    }
+
+    --Slice (e): back out of any armed owner-selection prompt (Esc, click-away
+    --and menu switches all land here). Cheap no-op when none is armed.
+    local function DisarmOverviewPrompts()
+        for _, submenu in ipairs(m_uniqueColumns) do
+            submenu:FireEvent("armOwnerPrompt", nil)
+        end
+    end
+
+    --Populate the pooled overview columns from the current selection and
+    --the live initiative queue. Returns the column list and how many have a
+    --non-empty kit. Shared by the "unique" menu open and by refreshOverview
+    --(after a take-turn press) so the acted/fresh state, representative and
+    --take-turn buttons all follow the queue.
+    local function PopulateUniqueColumns()
+        local columns = BuildOverviewColumns()
+
+        --Field test 9: flag the HIGH DAMAGE DEALER(s) - the column whose kit
+        --carries the selection's best tier-2 damage, AND (separately) the
+        --best among columns already at red death risk, so when several are
+        --dying the Director knows which one to burn for damage first.
+        local maxDamage, redMaxDamage = 0, 0
+        for _, column in ipairs(columns) do
+            local best = 0
+            for _, ability in ipairs(column.abilities or {}) do
+                local facets = OverviewAbilityFacets(ability)
+                if facets.damageValue > best then
+                    best = facets.damageValue
+                end
+            end
+            column.bestDamage = best
+            --Field test 28: does ANY area ability in this kit have a live
+            --window (could catch several heroes right now)? Feeds the red
+            --"Heroes vulnerable to area abilities" footer line.
+            column.areaWindow = false
+            for _, ability in ipairs(column.abilities or {}) do
+                local facets = OverviewAbilityFacets(ability)
+                if facets.area == true and OverviewAreaCatch(column.token, ability) ~= nil then
+                    column.areaWindow = true
+                    break
+                end
+            end
+            --Field test 40: any regain/temp-stamina ability in the kit
+            --marks the column "Healer" (green footer line, chip shields).
+            column.healer = false
+            for _, ability in ipairs(column.abilities or {}) do
+                if OverviewAbilityFacets(ability).heals == true then
+                    column.healer = true
+                    break
+                end
+            end
+            column.anyRed = false
+            local signals = OverviewColumnSignals(column)
+            for _, member in ipairs(signals.members) do
+                if member.risk ~= nil and member.risk.level == "red" and member.risk.squishy ~= true then
+                    column.anyRed = true
+                end
+            end
+            if best > maxDamage then
+                maxDamage = best
+            end
+            if column.anyRed and best > redMaxDamage then
+                redMaxDamage = best
+            end
+        end
+        local redColumns = 0
+        for _, column in ipairs(columns) do
+            if column.anyRed then
+                redColumns = redColumns + 1
+            end
+        end
+        --Field test 18: the among-the-dying rule (badge AND footer bullet)
+        --only speaks when it DISAGREES with the overall-best rule and there
+        --is a real choice - two or more creatures near death. Otherwise the
+        --lone dying creature's own Near Death box already says everything.
+        local rule2Active = redColumns >= 2 and redMaxDamage > 0 and redMaxDamage < maxDamage
+        for _, column in ipairs(columns) do
+            column.highDamage = column.bestDamage > 0
+                and (column.bestDamage == maxDamage or (rule2Active and column.anyRed and column.bestDamage == redMaxDamage))
+            column.dmgMax = maxDamage > 0 and maxDamage or nil
+            column.dmgRedMax = (rule2Active and column.anyRed) and redMaxDamage or nil
+        end
+
+        local populated = 0
+        for i, column in ipairs(columns) do
+            m_uniqueColumns[i] = m_uniqueColumns[i] or ActionSubMenu {}
+            local submenu = m_uniqueColumns[i]
+            --The column record rides along so the footer bar can show the
+            --portrait/name/signals, the take-turn button and the owner
+            --prompt, and the column can grey itself when every member has
+            --acted (slices (d)/(e)).
+            submenu:FireEvent("setCasterToken", column.token, column)
+            submenu:FireEventTree("abilities", column.abilities, column.label)
+            if #column.abilities > 0 then
+                populated = populated + 1
+            end
+        end
+        --Any pooled column beyond this selection's count stays parented but
+        --collapsed (and unbound).
+        for i = #columns + 1, #m_uniqueColumns do
+            m_uniqueColumns[i]:FireEvent("setCasterToken", nil, nil)
+            m_uniqueColumns[i]:FireEventTree("abilities", nil, "")
+        end
+
+        --Field test 21: MANEUVER ROWS ALIGN across columns. Columns are
+        --bottom-anchored and each column's maneuver group sits directly
+        --above its footer, so equal footer heights line the maneuvers up.
+        --Reset now, measure after layout settles, apply the max.
+        for _, submenu in ipairs(m_uniqueColumns) do
+            local footer = submenu:GetChildrenWithClassRecursive("overviewFooter")[1]
+            if footer ~= nil and footer.valid then
+                footer.selfStyle.minHeight = 0
+            end
+        end
+        --Two passes: a first measure can catch the footers mid-layout
+        --(seen live: everything read ~100px one frame after populate), so
+        --re-measure once more after the layout has fully settled and apply
+        --the larger answer.
+        local function EqualizeFooters()
+            if mod.unloaded then
+                return
+            end
+            local footers = {}
+            local maxHeight = 0
+            for _, submenu in ipairs(m_uniqueColumns) do
+                if submenu.valid and not submenu:HasClass("collapsed") then
+                    local footer = submenu:GetChildrenWithClassRecursive("overviewFooter")[1]
+                    if footer ~= nil and footer.valid and not footer:HasClass("collapsed") then
+                        footers[#footers + 1] = footer
+                        local h = footer.renderedHeight
+                        if type(h) == "number" and h > maxHeight then
+                            maxHeight = h
+                        end
+                    end
+                end
+            end
+            if maxHeight > 0 then
+                for _, footer in ipairs(footers) do
+                    footer.selfStyle.minHeight = maxHeight
+                end
+            end
+        end
+        dmhub.Schedule(0.15, EqualizeFooters)
+        dmhub.Schedule(0.5, EqualizeFooters)
+        return columns, populated
+    end
 
 
     resultPanel = gui.Panel {
@@ -2688,9 +7708,12 @@ ActionMenu = function()
 
         g_manualSetResourcePanel,
 
-        showability = function(element, ability)
+        --casterToken is optional: an AbilityHeading with an args.casterToken
+        --override passes its owner so the card renders for that token; every
+        --other caller omits it and gets the bar's bound token as before.
+        showability = function(element, ability, casterToken)
             element:FireEvent("dehover")
-            local result = CharacterPanel.DisplayAbility(g_token, ability)
+            local result = CharacterPanel.DisplayAbility(casterToken or g_token, ability)
             if result then
                 m_showingAbility = ability
             end
@@ -2712,7 +7735,14 @@ ActionMenu = function()
 
         dehover = function(element)
             if m_showingAbility then
-                CharacterPanel.HideAbility(m_showingAbility)
+                --destroy fires this during RebuildGameHud, when the
+                --CharacterPanel module can be mid-reload and HideAbility
+                --briefly nil (seen live: reload while a hover card was up).
+                --The card dies with the HUD anyway; never let the guard
+                --crash the rebuild.
+                if CharacterPanel ~= nil and CharacterPanel.HideAbility ~= nil then
+                    CharacterPanel.HideAbility(m_showingAbility)
+                end
                 m_showingAbility = false
             end
         end,
@@ -2722,15 +7752,35 @@ ActionMenu = function()
             ClearAcknowledgedNovelAbilities()
         end,
 
-        closemenu = function(element)
+        closemenu = function(element, reason)
+            --Matches the drawer: the Unique Abilities menu rides out a
+            --primary-token change in overview mode (F2-8); only its prompts
+            --are disarmed, since the columns are about to repopulate.
+            if reason == "primary" and m_args ~= nil and m_args.type == "unique" and InOverviewMode() and not element:HasClass("hidden") then
+                DisarmOverviewPrompts()
+                return
+            end
             g_triggerPanel:SetClass("hidden", false)
             ClearAcknowledgedNovelAbilities()
+            DisarmOverviewPrompts()
+        end,
+
+        --Slice (e): re-read the queue into the open Unique Abilities menu
+        --(after a take-turn press). No-op unless that menu is up.
+        refreshOverview = function(element)
+            if element:HasClass("hidden") or m_args == nil or m_args.type ~= "unique" then
+                return
+            end
+            local columns = PopulateUniqueColumns()
+            RefreshLensBar(columns)
         end,
 
         menu = function(element, args)
             if element.data.shownMenuTime == dmhub.Time() or g_token == nil then
                 return
             end
+
+            DisarmOverviewPrompts()
 
             --Any menu interaction retires the previously acknowledged novel
             --set: those rows have been shown to the player, so they stop being
@@ -2779,6 +7829,70 @@ ActionMenu = function()
             args.drawer:AddChild(element)
 
             m_args = args
+
+            --Director multi-monster overview: one column per statblock in
+            --the selection, each chip casting for that statblock's
+            --representative token (AbilityHeading casterToken override).
+            --Nothing here claims a turn; a chip press goes through the
+            --ordinary AbilityHeading press path (PushCasterToken +
+            --beginCasting).
+            if args.type == "unique" then
+                local columns, populated = PopulateUniqueColumns()
+                --P2-c1: lens bar up, counts from this selection; a lens
+                --change re-populates the same columns.
+                m_relens = function()
+                    local relensed = PopulateUniqueColumns()
+                    RefreshLensBar(relensed)
+                end
+                RefreshLensBar(columns)
+                m_lensBar:SetClass("collapsed", false)
+                local children = {}
+                --EVERY pooled column goes in the list (the ones past this
+                --selection's count are collapsed by PopulateUniqueColumns);
+                --leaving one out would orphan it - see the pooled-panel rule.
+                for _, submenu in ipairs(m_uniqueColumns) do
+                    children[#children + 1] = submenu
+                end
+
+                if populated == 0 then
+                    element:SetClass("hidden", true)
+                    element:HaltEventPropagation()
+                    element:FindParentWithClass("actionBar"):FireEventTree("menuStatus")
+                    return
+                end
+
+                element:SetClass("hidden", false)
+
+                --Assigning m_containerPanel.children re-parents: any pooled
+                --panel left OUT of the list is orphaned and destroyed by the
+                --engine, and the next menu that reaches for it crashes on a
+                --dead panel (its .data is nil). The ordinary menu path keeps
+                --every pooled submenu in the list and merely collapses the
+                --unused ones; do the same here so the two menu kinds can be
+                --opened alternately without poisoning each other's pools.
+                for _, submenu in pairs(m_submenus) do
+                    submenu:SetClass("collapsed", true)
+                    children[#children + 1] = submenu
+                end
+                if m_commonSignatureWrapper ~= nil then
+                    m_commonSignatureWrapper:SetClass("collapsed", true)
+                    children[#children + 1] = m_commonSignatureWrapper
+                end
+                if element.data.triggerPanel ~= nil then
+                    element.data.triggerPanel:SetClass("collapsed", true)
+                    children[#children + 1] = element.data.triggerPanel
+                end
+
+                m_containerPanel.children = children
+
+                local actionBar = element:FindParentWithClass("actionBar")
+                actionBar:FireEventTree("menuStatus", args)
+                actionBar:FireEventTree("refreshNovelAbilities")
+
+                element:SetClassTree("malice", g_token.properties:IsMonster())
+                return
+            end
+
             local abilities = {}
             if args.type == "malice" then
                 for _, ability in ipairs(g_abilities) do
@@ -2919,6 +8033,13 @@ ActionMenu = function()
             m_abilitiesSubmenu:FireEventTree("abilities", abilitiesByGrouping["Abilities"], "Abilities")
             m_signatureSubmenu:FireEventTree("abilities", abilitiesByGrouping["Signature Abilities"], "Signature Abilities")
             m_spacer:SetClass("collapsed", abilitiesByGrouping["Signature Abilities"] == nil)
+            --The overview ("unique") branch parks this wrapper collapsed; the
+            --two submenus inside re-open themselves on their "abilities"
+            --event but the wrapper is a plain panel and does not, so it must
+            --be re-opened here or a single-token Main Action menu opened after
+            --any overview menu loses its Abilities / Signature Abilities
+            --column (field test F2-2).
+            m_commonSignatureWrapper:SetClass("collapsed", false)
 
             local wrapperOrd = GameSystem.ActionBarGroupings["Signature Abilities"] or 1000
             local inserted = false
@@ -2946,6 +8067,15 @@ ActionMenu = function()
                 element.data.triggerPanel:SetClass("collapsed", true)
             end
 
+            --Keep the overview's pooled columns parented (collapsed) so an
+            --ordinary menu opened after a Unique Abilities menu does not
+            --destroy them. Mirror of the same rule in the "unique" branch.
+            for _, submenu in ipairs(m_uniqueColumns) do
+                submenu:SetClass("collapsed", true)
+                children[#children + 1] = submenu
+            end
+            m_lensBar:SetClass("collapsed", true)
+
             m_containerPanel.children = children
 
             local actionBar = element:FindParentWithClass("actionBar")
@@ -2961,6 +8091,7 @@ ActionMenu = function()
         end,
 
         m_containerPanel,
+        m_lensBar,
         g_manualSetResourcePanel,
     }
 
@@ -5565,6 +10696,10 @@ CreateAbilityController = function()
         end,
 
         cancelCasting = function(element)
+            --Director overview (slice (e)): whatever ended this cast, the
+            --pending implicit-claim record dies with it.
+            g_overviewCastPending = nil
+
             ClearCastingTriggers()
 
             ClearCastingDurationEffects()
@@ -5698,6 +10833,27 @@ CreateAbilityController = function()
             local cancel = options.cancel or function() end
 
             gui.SetFocus(nil)
+
+            --The chooser lives inside the action bar, and "refresh" hides the
+            --whole bar when there is no token to show. An off-turn cast fired
+            --from the initiative bar (villain actions) with nothing selected
+            --pops its caster the moment the cast begins, so a behavior that
+            --then prompts for a target (Prompt When Resolving) would build its
+            --prompt inside a hidden bar: the cast silently waits on a choice
+            --nobody can see. Push the prompt's source token as the caster for
+            --the life of the chooser so the bar shows it; popped in destroy.
+            local pushedSourceToken = false
+            if options.sourceToken ~= nil and options.sourceToken.valid then
+                local shownToken = g_token
+                if #g_casterTokenStack == 0 then
+                    shownToken = dmhub.selectedOrPrimaryTokens[1]
+                end
+                if shownToken == nil or not shownToken.valid then
+                    PushCasterToken(options.sourceToken)
+                    pushedSourceToken = true
+                end
+            end
+
             g_actionBar:FireEvent("refresh")
 
             g_actionBar:SetClassTree("choosingTarget", true)
@@ -5741,6 +10897,13 @@ CreateAbilityController = function()
                     end
                     gui.SetFocus(nil)
                     g_actionBar:SetClassTree("choosingTarget", false)
+                    if pushedSourceToken then
+                        pushedSourceToken = false
+                        TryPopCasterToken()
+                        if g_actionBar ~= nil and g_actionBar.valid then
+                            g_actionBar:FireEvent("refresh")
+                        end
+                    end
                 end,
             }
 
@@ -6179,6 +11342,7 @@ CreateAbilityController = function()
                             --always shows it for jumps (vertically interesting by definition) and gates
                             --teleports on interest; the label reflects the movement type.
                             local diagramLabel = tr("Movement")
+                            local diagramTextOverride = nil
                             if movementType == "jump" then
                                 diagramLabel = tr("Jump")
                                 if g_jumpHoverUnreachable then
@@ -6198,8 +11362,23 @@ CreateAbilityController = function()
                                 --a teleport so the diagram keeps the dialed landing altitude and
                                 --synthesizes the arrival fall for a non-flyer.
                                 movementInfo.path.teleport = true
+                            elseif movementType == nil then
+                                --The ability moves nobody -- it PLACES something in the hovered
+                                --square (a summon). The default "Movement: 3 squares" reads as the
+                                --caster walking there and quotes a movement cost that is never
+                                --spent, so name what actually arrives. GetPlacementName is nil for
+                                --any other nil-movement ability, which keeps the old wording.
+                                local placementName = g_currentAbility:GetPlacementName(g_token, g_currentSymbols)
+                                if placementName ~= nil then
+                                    diagramLabel = placementName
+                                    diagramTextOverride = string.format(tr("%s appears here"), placementName)
+                                    if movementInfo.path.numSteps ~= nil then
+                                        local placementDist = movementInfo.path.numSteps * dmhub.FeetPerTile
+                                        diagramTextOverride = string.format(tr("%s appears here (%s %s away)"), placementName, MeasurementSystem.NativeToDisplayString(placementDist), string.lower(MeasurementSystem.UnitName()))
+                                    end
+                                end
                             end
-                            ShowMovementDiagram(g_token, movementInfo.path, diagramLabel, jumpAlternates)
+                            ShowMovementDiagram(g_token, movementInfo.path, diagramLabel, jumpAlternates, nil, diagramTextOverride)
                         end
                     end
                 elseif (shape == 'emptyspace' or shape == 'anyspace') and (targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures") then
@@ -7522,6 +12701,12 @@ CreateAbilityController = function()
                 FireCastControlsOnCommit(g_currentAbility, g_currentSymbols, g_token, targets)
                 local castControlsResolveHandler = MakeCastControlsOnResolveHandler(g_token)
 
+                --Director overview (slice (e)): the cast is now irreversible,
+                --so take the owner's turn first if that is legal (no-op for
+                --every ordinary cast). Same hook as the CalculateSpellTargeting
+                --commit below.
+                OverviewClaimBeforeCast(g_token)
+
                 RecordPartnerBurstRetargets(targets)
 
                 g_currentAbility:Cast(g_token, targets, {
@@ -7935,6 +13120,10 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             --resource adjustments) post-commit cleanly.
             FireCastControlsOnCommit(g_currentAbility, g_currentSymbols, g_token, targets)
             local castControlsResolveHandler = MakeCastControlsOnResolveHandler(g_token)
+
+            --Director overview (slice (e)): implicit claim at target confirm,
+            --only when legal; see g_overviewCastPending. No-op otherwise.
+            OverviewClaimBeforeCast(g_token)
 
             g_currentAbility:Cast(g_token, targets, {
                 attachedTriggers = attachedTriggers,

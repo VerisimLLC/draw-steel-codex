@@ -3524,8 +3524,12 @@ local function _buildTargetingSection(ability, fireChange)
     --------------------------------------------------------------------------
     -- 9. Affects (AOE types only)
     --------------------------------------------------------------------------
+    --"dead" is checked first. objectTarget is false for it, so without this the
+    --dropdown reads back as "Creatures" and the next change to it would silently
+    --clear targetAllegiance and break the ability's targeting.
     local function affectsIdChosen()
-        if ability.objectTarget then return "all_and_objects"
+        if ability.targetAllegiance == "dead" then return "dead"
+        elseif ability.objectTarget then return "all_and_objects"
         elseif ability.targetAllegiance == "ally" then return "ally"
         elseif ability.targetAllegiance == "enemy" then return "enemy"
         else return "all" end
@@ -3547,6 +3551,11 @@ local function _buildTargetingSection(ability, fireChange)
                 { id = "all_and_objects", text = "Creatures and Objects" },
                 { id = "ally",           text = "Allied Creatures" },
                 { id = "enemy",          text = "Enemy Creatures" },
+                --An area already picks up corpse objects (TokensInShape always
+                --walks object tokens), and TargetPassesFilter swaps each corpse
+                --for the creature that died there, so the target filter sees the
+                --dead creature.
+                { id = "dead",           text = "Dead Creatures" },
             },
             idChosen = affectsIdChosen(),
             change = function(element)
@@ -3562,6 +3571,9 @@ local function _buildTargetingSection(ability, fireChange)
                 elseif element.idChosen == "enemy" then
                     ability.objectTarget = false
                     ability.targetAllegiance = "enemy"
+                elseif element.idChosen == "dead" then
+                    ability.objectTarget = false
+                    ability.targetAllegiance = "dead"
                 else
                     ability.objectTarget = false
                     ability.targetAllegiance = nil

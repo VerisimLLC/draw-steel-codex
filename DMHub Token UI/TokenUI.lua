@@ -330,6 +330,14 @@ local CalculateStatusIcons = function(token)
                         statusText = condInfo.name
                     end
 
+                    --Effects with no linked condition still know their caster
+                    --(casterInfo is recorded on the instance either way); carry
+                    --the id so the hover highlight-line and threat detection
+                    --(e.g. the Director overview's red rings) work for them too.
+                    if casterInfo ~= nil and casterInfo.tokenid ~= nil and dmhub.GetTokenById(casterInfo.tokenid) ~= nil then
+                        casterid = casterInfo.tokenid
+                    end
+
 					if condInfo ~= nil and casterInfo ~= nil and casterInfo.tokenid ~= nil then
 						local casterToken = dmhub.GetTokenById(casterInfo.tokenid)
 						if casterToken ~= nil then
@@ -382,6 +390,12 @@ local CalculateStatusIcons = function(token)
 
 	return result
 end
+
+--Exposed so other surfaces can show EXACTLY the status icons the token HUD
+--shows (conditions, ongoing effects, registered status icons), with the same
+--icon / style / hoverText / statusText / casterid per entry - e.g. the
+--Director's multi-monster overview footer. Read-only; returns a fresh list.
+TokenUI.CalculateStatusIcons = CalculateStatusIcons
 
 
 local g_animationStyles = {
@@ -2950,6 +2964,22 @@ function CreateTokenHud(token)
                     selectors = {"highlighted"},
                     borderWidth = 4,
                     borderColor = '#ffffff99',
+                },
+
+                --"Locate this token" ring: a sustained, coloured ring that a UI
+                --surface toggles (SetClassTree("locate", true/false)) to point
+                --at a token without selecting it. Deliberately NOT white and
+                --thicker than the select/focus rings, so it still reads on a
+                --token that is already selected (the engine's
+                --PulseHighlightToken flash is white and brief, and vanishes
+                --against the selection ring / under a camera pan). priority 5
+                --so it wins over 'select' and 'focus' while held.
+                {
+                    selectors = {"locate"},
+                    priority = 5,
+                    borderWidth = 8,
+                    borderColor = '#f2b632',
+                    transitionTime = 0.15,
                 },
 
                 {

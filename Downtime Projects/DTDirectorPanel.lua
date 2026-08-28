@@ -818,6 +818,8 @@ local function RegisterWithRespite()
         key = RESPITE_ACTIVITY_KEY,
         name = "Downtime Projects",
         paintPlayer = DTProjectEditor.PaintRespiteProjects,
+        paintDirector = DTProjectEditor.PaintRespiteDirectorFeed,
+        needsAttention = DTProjectEditor.RespiteNeedsAttention,
     }
 end
 

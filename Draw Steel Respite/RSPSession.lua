@@ -28,6 +28,7 @@ end
 --- @field activities table<string, table> per-activity availability for this Respite
 --- @field characters table<string, RSPCharacter>
 --- @field commits table<string, boolean>
+--- @field startedAt number server time the Respite began
 RSPSession = RegisterGameType("RSPSession")
 
 RSPSession.phase = RSPConstants.phaseSetup
@@ -396,6 +397,10 @@ function RSPSession.Start()
     RSPSession.GrantActivityRolls()
     RSPSession.Mutate("Start respite", function(session)
         session.phase = RSPConstants.phaseActive
+        -- Stamped so activities can tell this Respite's events from the ones
+        -- that came before it. Everything the Director is shown is derived
+        -- from this one number plus what the features already record.
+        session.startedAt = dmhub.serverTime
     end)
 end
 
@@ -588,15 +593,17 @@ function RSPSession.CombinedRolls(charid)
     return rolls
 end
 
---- Hand out the Respite's downtime activities. Every covered hero and each of
---- their followers gets one roll per activity, so unticking non-participants
---- narrows who is paid as well as who appears.
-function RSPSession.GrantActivityRolls()
+--- Hand out downtime activities. Every covered hero and each of their
+--- followers gets one roll per activity, so unticking non-participants narrows
+--- who is paid as well as who appears. Takes an explicit count so extending a
+--- Respite pays only the extension.
+--- @param amount nil|number defaults to the Respite's activity allowance
+function RSPSession.GrantActivityRolls(amount)
     if not dmhub.isDM then
         return
     end
 
-    local count = RSPSession.ActivityCount()
+    local count = amount or RSPSession.ActivityCount()
     if count <= 0 then
         return
     end
@@ -621,5 +628,32 @@ function RSPSession.GrantActivityRolls()
                 end,
             }
         end
+    end
+end
+
+--- When the Respite began, as server time. Zero before it starts, which reads
+--- as "everything" to anything filtering on it.
+--- @return number
+function RSPSession.StartedAt()
+    local session = RSPSession.Active()
+    if session == nil then
+        return 0
+    end
+    return session:try_get("startedAt") or 0
+end
+
+--- Lengthen a Respite already under way
+--- The two numbers add to what is already there rather than replacing it, and
+--- they move independently: extending by days alone grants nothing.
+--- @param days number
+--- @param activities number
+function RSPSession.Extend(days, activities)
+    RSPSession.Mutate("Extend respite", function(session)
+        session.daysElapsed = math.max(0, session.daysElapsed + (days or 0))
+        session.activityCount = math.max(0, session.activityCount + (activities or 0))
+    end)
+
+    if (activities or 0) > 0 then
+        RSPSession.GrantActivityRolls(activities)
     end
 end

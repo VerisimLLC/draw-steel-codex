@@ -69,7 +69,7 @@ RSPConstants.activitiesMin = 0
 RSPConstants.activitiesMax = 99
 
 --- A form row splits into a label and the control beside it.
-RSPConstants.formLabelWidth = "35%"
+RSPConstants.formLabelWidth = "46%"
 RSPConstants.stepperWidth = "22%"
 
 --- Shares of a stepper: a button, the well, a button.
@@ -84,31 +84,32 @@ RSPConstants.characterRowIndicatorWidth = "32%"
 --- Share of the row the name gets when an indicator sits beside it. The rest
 --- of the row is the token image, the indicator, and the margins between
 --- them, so these two shares deliberately fall short of 100%.
-RSPConstants.characterRowNameShare = "60%-"
-RSPConstants.characterRowNameShareCrowded = "58%-"
-RSPConstants.characterRowRollsWidth = "12%"
+--- Every trailing widget gets the same slot, so the columns line up whatever
+--- a row happens to carry.
+RSPConstants.characterRowTrailingSlot = 26
+RSPConstants.characterRowNameMargins = 16
+RSPConstants.characterRowRollsWidth = 26
 
 --- The name takes whatever the token image and the trailing widgets leave
 --- behind, so it shrinks as a row gains a rolls count, a status icon or a
 --- lock.
---- An indented row gives up the same width again, so its trailing widgets stay
---- in line with every other row's.
+--- The name takes what is left after the fixed furniture: the token image, the
+--- indent on a follower's row, and one slot per trailing widget. Counted in
+--- pixels rather than shares, so adding a widget cannot quietly push the row
+--- wider than the list holding it.
 --- @param trailing number how many widgets follow the name
 --- @param indent nil|boolean whether this row sits under the one above
 --- @return string
 function RSPConstants.CharacterRowNameWidth(trailing, indent)
-    local share = "100%-"
-    if trailing == 1 then
-        share = RSPConstants.characterRowNameShare
-    elseif trailing >= 2 then
-        share = RSPConstants.characterRowNameShareCrowded
-    end
-
     local taken = RSPConstants.characterRowImageSize
+        + RSPConstants.characterRowNameMargins
+        + ((trailing or 0) * RSPConstants.characterRowTrailingSlot)
+
     if indent then
         taken = taken + RSPConstants.characterRowIndent
     end
-    return share .. tostring(taken)
+
+    return "100%-" .. tostring(taken)
 end
 
 --- Commitment shown on a Director list row.
@@ -132,8 +133,8 @@ RSPConstants.registryEvent = "rspActivityRegistry"
 
 --- The Activities steps put a narrow roster beside the pane where the
 --- activities themselves will live.
-RSPConstants.activityListWidth = "28%"
-RSPConstants.activityPaneWidth = "70%"
+RSPConstants.activityListWidth = "26%"
+RSPConstants.activityPaneWidth = "72%"
 
 --- How far a follower's row sits in from its hero's.
 RSPConstants.characterRowIndent = 24
@@ -148,7 +149,7 @@ RSPConstants.characterRowNameMaxChars = 20
 
 --- Gap between a row's roll count and the icon beside it. Small, so the
 --- number sits close to the status it belongs with.
-RSPConstants.characterRowRollsRightMargin = 2
+RSPConstants.characterRowRollsRightMargin = 0
 
 --- The activity pane's picker row, and what the body takes once the picker
 --- has had its band.
@@ -161,3 +162,28 @@ RSPConstants.activityBodyHeight = "100%-56"
 RSPConstants.iconCharacterSheet = "ui-icons/character-sheet.png"
 RSPConstants.sheetTabBuilder = "Builder"
 RSPConstants.activitySheetButtonSize = 28
+
+--- Events the Director has to act on, and the ones that went well.
+RSPConstants.iconAttention = "phosphor/warning-diamond-duotone.png"
+RSPConstants.iconComplete = "phosphor/check-circle-duotone.png"
+RSPConstants.eventIconSize = 16
+
+--- A Director feed section, inset from the pane so the scroll bar clears the
+--- text rather than sitting over it.
+RSPConstants.feedSectionInset = 6
+RSPConstants.feedSectionWidth = "100%-12"
+
+--- The scroller sits inside the bordered pane so its bar never lands on the
+--- frame.
+RSPConstants.feedScrollWidth = "100%-4"
+RSPConstants.feedScrollHeight = "100%-8"
+
+--- The Director's feed pane stops a little short of the divider below it.
+RSPConstants.feedPaneHeight = "100%-10"
+
+--- The Extend Respite prompt: two steppers and a pair of buttons.
+RSPConstants.extendDialogWidth = 520
+RSPConstants.extendDialogHeight = 268
+
+--- Lifts the button row off the bottom edge of the prompt.
+RSPConstants.extendDialogButtonLift = 14

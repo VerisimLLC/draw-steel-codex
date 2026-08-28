@@ -175,7 +175,7 @@ function RSPWidgets.CharacterRow(args)
         halign = "right",
         valign = "center",
         textAlignment = "right",
-        lmargin = 4,
+        lmargin = 0,
         rmargin = RSPConstants.characterRowRollsRightMargin,
         text = tostring(args.rolls(args.charid, args.owner)),
         create = function(element)
@@ -219,7 +219,7 @@ function RSPWidgets.CharacterRow(args)
         height = RSPConstants.characterRowStatusSize,
         halign = "right",
         valign = "center",
-        hmargin = 8,
+        hmargin = 2,
         swallowPress = args.statusClick ~= nil,
         press = args.statusClick ~= nil and function()
             if StatusOf() ~= nil then
@@ -232,6 +232,21 @@ function RSPWidgets.CharacterRow(args)
             element:SetClass("hidden", done == nil)
             element:SetClass("done", done == true)
             element:SetClass("pending", done ~= true)
+        end,
+    } or nil
+
+    -- Something on this character wants the Director. Built even when there is
+    -- nothing to say, so the rows either side keep their column.
+    local attention = args.attention ~= nil and gui.Panel{
+        classes = {"rspAttention", not args.attention(args.charid) and "hidden" or nil},
+        bgimage = RSPConstants.iconAttention,
+        width = RSPConstants.characterRowStatusSize,
+        height = RSPConstants.characterRowStatusSize,
+        halign = "right",
+        valign = "center",
+        hmargin = 0,
+        respiteChanged = function(element)
+            element:SetClass("hidden", not args.attention(args.charid))
         end,
     } or nil
 
@@ -282,7 +297,7 @@ function RSPWidgets.CharacterRow(args)
 
         gui.Label{
             classes = {"sizeM", "noBold"},
-            width = RSPConstants.CharacterRowNameWidth(TrailingCount(indicator, rolls, status, lock), args.indent),
+            width = RSPConstants.CharacterRowNameWidth(TrailingCount(indicator, attention, rolls, status, lock), args.indent),
             height = "auto",
             halign = "left",
             valign = "center",
@@ -294,6 +309,7 @@ function RSPWidgets.CharacterRow(args)
         },
 
         indicator,
+        attention,
         rolls,
         status,
         lock,
@@ -323,6 +339,7 @@ function RSPWidgets.CharacterList(args)
             highlight = args.highlight,
             click = args.click,
             indicator = args.indicator,
+            attention = args.attention,
             rolls = args.rolls,
             status = args.status,
             statusClick = args.statusClick,
@@ -396,6 +413,20 @@ function RSPWidgets.CustomStyles()
         },
         {
             selectors = {"rspStatus", "done"},
+            bgcolor = "@success",
+        },
+        -- Something the Director has to act on. Left standing until the
+        -- Respite is completed, so it is a state rather than a notification.
+        {
+            selectors = {"rspAttention"},
+            bgcolor = "@warning",
+        },
+        {
+            selectors = {"rspEventAlert"},
+            bgcolor = "@warning",
+        },
+        {
+            selectors = {"rspEventGood"},
             bgcolor = "@success",
         },
         -- The theme dims disabled buttons and checkboxes but has no rule for

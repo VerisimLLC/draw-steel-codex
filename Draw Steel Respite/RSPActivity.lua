@@ -14,6 +14,8 @@ local mod = dmhub.GetModLoading()
 --- @field name string
 --- @field paint fun(): Panel the Director's setup fields
 --- @field paintPlayer fun(args: table): Panel what a player does with it
+--- @field paintDirector fun(args: table): Panel what the Director watches
+--- @field needsAttention fun(args: table): boolean something the Director must act on
 RSPActivity = RegisterGameType("RSPActivity")
 
 RSPActivity.name = "Activity"
@@ -24,7 +26,7 @@ local m_activities = {}
 --- Offer an activity to the Respite.
 --- Registering a key twice replaces the earlier entry, so a code reload
 --- refreshes an activity instead of doubling it.
---- @param args {key: string, name: string, paint: nil|fun(): Panel, paintPlayer: nil|fun(args: table): Panel}
+--- @param args {key: string, name: string, paint: nil|fun(): Panel, paintPlayer: nil|fun(args: table): Panel, paintDirector: nil|fun(args: table): Panel, needsAttention: nil|fun(args: table): boolean}
 function RSPActivity.Register(args)
     if args == nil or type(args.key) ~= "string" or #args.key == 0 then
         return
@@ -35,6 +37,8 @@ function RSPActivity.Register(args)
         name = args.name or "Activity",
         paint = args.paint,
         paintPlayer = args.paintPlayer,
+        paintDirector = args.paintDirector,
+        needsAttention = args.needsAttention,
     }
 end
 
@@ -63,3 +67,18 @@ end
 -- which works on a cold start and on a code reload alike: this module always
 -- loads after theirs, so their handler is already waiting.
 dmhub.FireGlobalEvent(RSPConstants.registryEvent)
+
+--- Does any activity have something here the Director must act on?
+--- Asked per hero, so the Respite can mark a row without knowing what any
+--- activity actually does.
+--- @param args table charid, and since as a server time
+--- @return boolean
+function RSPActivity.AnyNeedsAttention(args)
+    for _, activity in pairs(m_activities) do
+        local check = activity:try_get("needsAttention")
+        if check ~= nil and check(args) then
+            return true
+        end
+    end
+    return false
+end

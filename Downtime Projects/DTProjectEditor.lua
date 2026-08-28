@@ -2786,3 +2786,306 @@ function DTProjectEditor.PaintRespiteProjects(args)
         list,
     }
 end
+
+--- Everything that moved a project, in the order it happened
+--- Rolls and adjustments share a base that stamps serverTime on commit, so the
+--- two interleave into one true sequence.
+--- @param project DTProject
+--- @return table[] items
+function DTProjectEditor._projectTimeline(project)
+    local items = {}
+
+    for _, roll in ipairs(project:GetRolls() or {}) do
+        items[#items + 1] = roll
+    end
+    for _, adjustment in ipairs(project:GetAdjustments() or {}) do
+        items[#items + 1] = adjustment
+    end
+
+    table.sort(items, function(a, b)
+        return (a.serverTime or 0) < (b.serverTime or 0)
+    end)
+
+    return items
+end
+
+--- What happened on one project inside a window
+--- The milestone and the completion are not recorded anywhere: they are the
+--- moments the running total crossed a threshold, so the timeline is replayed
+--- to find them. Nothing is stored, and nothing can disagree with the project.
+--- @param project DTProject
+--- @param since number server time to report from
+--- @return table[] events {kind, item, total, project}
+function DTProjectEditor._projectEvents(project, since)
+    local events = {}
+    local goal = project:GetProjectGoal() or 0
+    local milestone = project:GetMilestoneThreshold() or 0
+    local total = 0
+
+    for _, item in ipairs(DTProjectEditor._projectTimeline(project)) do
+        local before = total
+        total = total + item:GetAmount()
+
+        local recent = (item.serverTime or 0) >= since
+
+        if recent then
+            events[#events + 1] = {
+                kind = "roll",
+                item = item,
+                total = total,
+                project = project,
+            }
+        end
+
+        if milestone > 0 and before < milestone and total >= milestone and recent then
+            events[#events + 1] = {
+                kind = "milestone",
+                item = item,
+                total = total,
+                project = project,
+            }
+        end
+
+        if goal > 0 and before < goal and total >= goal and recent then
+            events[#events + 1] = {
+                kind = "complete",
+                item = item,
+                total = total,
+                project = project,
+            }
+        end
+    end
+
+    return events
+end
+
+--- The projects a hero owns
+--- @param heroToken any
+--- @return DTProject[]
+function DTProjectEditor._ownedProjects(heroToken)
+    if heroToken == nil or heroToken.properties == nil then
+        return {}
+    end
+
+    local downtimeInfo = heroToken.properties:GetDowntimeInfo()
+    if downtimeInfo == nil then
+        return {}
+    end
+
+    return downtimeInfo:GetSortedProjects() or {}
+end
+
+--- Has anything happened on this hero's projects that the Director must act on?
+--- Only a milestone or a completion counts, and only on projects this hero
+--- owns: those are the conversations the Director has to have.
+--- @param args table charid and since
+--- @return boolean
+function DTProjectEditor.RespiteNeedsAttention(args)
+    local heroToken = dmhub.GetCharacterById(args.charid)
+
+    for _, project in ipairs(DTProjectEditor._ownedProjects(heroToken)) do
+        for _, event in ipairs(DTProjectEditor._projectEvents(project, args.since or 0)) do
+            if event.kind ~= "roll" then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+--- Trims a name or title so a feed line stays on one row
+--- @param text string
+--- @param limit number
+--- @return string
+function DTProjectEditor._respiteShorten(text, limit)
+    if text == nil or text == "" then
+        return ""
+    end
+    if #text <= limit then
+        return text
+    end
+    return string.sub(text, 1, limit - 3) .. "..."
+end
+
+--- One line in the Director's feed
+--- @param event table from _projectEvents
+--- @return Panel
+function DTProjectEditor._respiteEventRow(event)
+    local project = event.project
+    local item = event.item
+    local goal = project:GetProjectGoal() or 0
+
+    local icon = nil
+    local textClass = "fg"
+    local text
+
+    -- Kept terse: the pane is narrow and the feed is scanned, not read.
+    local title = DTProjectEditor._respiteShorten(project:GetTitle(), 22)
+
+    if event.kind == "milestone" then
+        icon = RSPConstants.iconAttention
+        textClass = "warning"
+        text = string.format("<b>%s</b> milestone %d/%d", title, event.total, goal)
+    elseif event.kind == "complete" then
+        icon = RSPConstants.iconComplete
+        textClass = "success"
+        text = string.format("<b>%s</b> complete", title)
+    else
+        local who = item:try_get("rolledBy")
+        if who == nil or who == "" then
+            who = "Director"
+        end
+        text = string.format("%s <b>+%d</b> %s %d/%d",
+            DTProjectEditor._respiteShorten(who, 16),
+            item:GetAmount(), title, event.total, goal)
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        vmargin = 2,
+
+        gui.Panel{
+            classes = {icon == nil and "hidden" or nil,
+                event.kind == "complete" and "rspEventGood" or "rspEventAlert"},
+            bgimage = icon or RSPConstants.iconAttention,
+            width = RSPConstants.eventIconSize,
+            height = RSPConstants.eventIconSize,
+            halign = "left",
+            valign = "center",
+            rmargin = 6,
+        },
+
+        gui.Label{
+            classes = {"sizeS", "noBold", textClass},
+            width = "100%-" .. tostring(RSPConstants.eventIconSize + 6),
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            textWrap = true,
+            text = text,
+        },
+    }
+end
+
+--- What this hero got up to during the Respite, newest first
+--- Rolls the hero or their followers made anywhere they can reach, plus the
+--- milestones and completions on the projects they own.
+--- @param args table charid, and since as a server time
+--- @return Panel[] rows
+function DTProjectEditor._respiteFeedRows(args)
+    local heroToken = dmhub.GetCharacterById(args.charid)
+    local since = args.since or 0
+    local events = {}
+
+    local followers = {}
+    if heroToken ~= nil and heroToken.properties ~= nil then
+        local constants = rawget(_G, "DTConstants")
+        local held = constants ~= nil
+            and heroToken.properties:try_get(constants.FOLLOWERS_STORAGE_KEY) or nil
+        for followerId, _ in pairs(held or {}) do
+            followers[followerId] = true
+        end
+    end
+
+    --- @param item any a roll or adjustment
+    --- @return boolean
+    local function RolledByThisHousehold(item)
+        local rolledBy = item:try_get("rolledById")
+        if rolledBy == args.charid then
+            return true
+        end
+        local follower = item:try_get("rolledByFollowerId")
+        return follower ~= nil and followers[follower] == true
+    end
+
+    local seen = {}
+    local function Gather(project, ownedByHero)
+        for _, event in ipairs(DTProjectEditor._projectEvents(project, since)) do
+            local keep = false
+            if event.kind == "roll" then
+                keep = RolledByThisHousehold(event.item)
+            else
+                -- A milestone belongs to whoever owns the project, whoever
+                -- happened to roll it.
+                keep = ownedByHero
+            end
+
+            local key = string.format("%s:%s", event.kind, event.item:GetID())
+            if keep and not seen[key] then
+                seen[key] = true
+                events[#events + 1] = event
+            end
+        end
+    end
+
+    for _, project in ipairs(DTProjectEditor._ownedProjects(heroToken)) do
+        Gather(project, true)
+    end
+
+    for _, shared in ipairs(DTBusinessRules.GetSharedProjectsForRecipient(args.charid) or {}) do
+        if shared.project ~= nil then
+            Gather(shared.project, false)
+        end
+    end
+
+    table.sort(events, function(a, b)
+        return (a.item.serverTime or 0) > (b.item.serverTime or 0)
+    end)
+
+    local rows = {}
+    for _, event in ipairs(events) do
+        rows[#rows + 1] = DTProjectEditor._respiteEventRow(event)
+    end
+
+    if #rows == 0 then
+        rows[1] = gui.Label{
+            classes = {"sizeS", "noBold", "fgMuted"},
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            tmargin = 4,
+            text = "Nothing yet this Respite.",
+        }
+    end
+
+    return rows
+end
+
+--- The Director's view of this hero's downtime projects
+--- @param args table charid, and since as a server time
+--- @return Panel
+function DTProjectEditor.PaintRespiteDirectorFeed(args)
+    local list
+
+    local function Rebuild()
+        if list ~= nil and list.valid then
+            list.children = DTProjectEditor._respiteFeedRows(args)
+        end
+    end
+
+    list = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        children = DTProjectEditor._respiteFeedRows(args),
+    }
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+
+        DTProjectEditor._respiteWatcher(DTSettings.GetDocumentPath(), Rebuild),
+        DTProjectEditor._respiteWatcher(DTShares.GetDocumentPath(), Rebuild),
+
+        list,
+    }
+end

@@ -6,7 +6,7 @@ RSPPlayerActPanel = {}
 local INSTRUCTIONS = [[
 ### Downtime Activities
 
-The Respite is under way. Spend your downtime, then mark your hero complete.
+The Respite is underway. Spend your downtime, then mark your hero complete.
 You may also open your character sheet to make changes there, like changing your kit.
 If you lose this window, you can open it again with Game -> Respite.
 ]]

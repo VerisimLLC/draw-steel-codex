@@ -296,7 +296,9 @@ local function AdjustedGroupEV(group, numHeroes)
 end
 
 --The number of creatures a group actually places for a given hero count.
-local function AdjustedGroupCount(group, numHeroes)
+--Global on Encounter so headless spawners (Encounter of the Week) can apply
+--the same group gating the builder does; aliased locally below.
+function Encounter.AdjustedGroupCount(group, numHeroes)
     if group.minHeroes ~= nil and group.minHeroes > numHeroes then
         return 0
     end
@@ -307,6 +309,8 @@ local function AdjustedGroupCount(group, numHeroes)
     end
     return total
 end
+
+local AdjustedGroupCount = Encounter.AdjustedGroupCount
 
 --Display name for the group at the given index in the encounter ("Group A").
 local function GroupDisplayName(index)
@@ -3562,7 +3566,9 @@ end
 --around fallbackAnchor. Tokens are tagged with the group's placement id
 --(encounterStaged = false, so the builder never mistakes them for staging).
 --Returns the initiative groupid and the spawned charids.
-local function SpawnGroupForReal(group, numHeroes, fallbackAnchor)
+--Global on Encounter so headless spawners (Encounter of the Week) reuse this
+--walk instead of growing a fourth divergent copy; aliased locally below.
+function Encounter.SpawnGroupForReal(group, numHeroes, fallbackAnchor)
     local minionName = nil
     local nsquads = 1
     for _, monsterid in ipairs(SortedMonsterIds(group)) do
@@ -3667,6 +3673,8 @@ local function SpawnGroupForReal(group, numHeroes, fallbackAnchor)
 
     return groupid, charids
 end
+
+local SpawnGroupForReal = Encounter.SpawnGroupForReal
 
 --Place the encounter on the map for play. Staged tokens are collected first
 --(positions banked, tokens removed) so the freshest arrangement wins and

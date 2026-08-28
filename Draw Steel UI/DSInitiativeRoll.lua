@@ -919,6 +919,62 @@ function Encounter.DrawSteelWithEncounter(encounter, spawnedCharids)
     Encounter.ShowCombatSetupDialog(nil, encounter, spawnedCharids)
 end
 
+--Programmatic combat start: skips the Prepare Combat dialog entirely and goes
+--straight to the Draw Steel banner with the given sides and the normal
+--who-goes-first roll. Call it on ONE client (a Director -- it creates the
+--initiative queue for everyone when the banner resolves). Used by automated
+--game modes such as Encounter of the Week, where no Director is present to
+--drive the dialog.
+--args:
+--  playerTokens:  list of CharacterTokens fighting on the heroes' side.
+--  monsterTokens: list of CharacterTokens fighting on the monsters' side.
+--  encounter:     optional authored Encounter for the live encounter (victory
+--                 conditions, rewards); nil behaves like the dialog's
+--                 "Custom" choice.
+--Returns true, or false + a reason string when combat cannot start.
+function Encounter.StartCombatWithTokens(args)
+    args = args or {}
+
+    local q = dmhub.initiativeQueue
+    if q ~= nil and not q.hidden then
+        return false, "combat is already running"
+    end
+
+    if GameHud.instance == nil or GameHud.instance.parentPanel == nil then
+        return false, "no game hud to host the Draw Steel banner"
+    end
+
+    g_playerTokensOpenInitiative = {}
+    g_monsterTokensOpenInitiative = {}
+
+    local tokens = {}
+    for _,token in ipairs(args.playerTokens or {}) do
+        if token.valid then
+            tokens[#tokens+1] = token
+            g_playerTokensOpenInitiative[token.charid] = true
+        end
+    end
+    for _,token in ipairs(args.monsterTokens or {}) do
+        if token.valid then
+            tokens[#tokens+1] = token
+            g_monsterTokensOpenInitiative[token.charid] = true
+        end
+    end
+
+    if #tokens == 0 then
+        return false, "no valid tokens to enter combat"
+    end
+
+    g_selectedEncounterOpenInitiative = args.encounter
+    g_selectedTokensOpenInitiative = tokens
+
+    --nil = no immediate result: the banner runs the normal claim-the-die
+    --"Draw Steel" roll, and queue creation (plus readied-encounter cleanup)
+    --happens when it resolves, exactly like the dialog path.
+    showDrawSteelBanner(nil)
+    return true
+end
+
 --- @class RollInitiativeChatMessage
 --- @field winner "players"|"monsters"
 --- @field playerTokenIds string[]

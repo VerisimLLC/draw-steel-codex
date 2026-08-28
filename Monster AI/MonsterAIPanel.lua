@@ -185,6 +185,33 @@ local function MonsterAIThread(process)
     end
 end
 
+--Programmatic start/stop for the AI background process -- the same calls the
+--panel's Start AI button makes, exported so automated game modes (Encounter
+--of the Week) can run the AI with no Director UI. The process is registered
+--under the Monster AI panel but is independent of the panel being openable,
+--so this works on a client whose dmonly panels are hidden.
+function MonsterAI.StartAI()
+    g_terminate = false
+    MonsterAI.active = true
+    DockablePanel.StartProcess{
+        panel = "Monster AI",
+        id = "monster-ai",
+        coroutine = MonsterAIThread,
+    }
+end
+
+function MonsterAI.StopAI()
+    g_terminate = true
+    MonsterAI.active = false
+    DockablePanel.StopProcess("Monster AI", "monster-ai")
+end
+
+--True while the AI thread is running (it may take a beat to wind down after
+--StopAI; MonsterAI.active flips false as soon as a stop is requested).
+function MonsterAI.IsAIRunning()
+    return DockablePanel.HasActiveProcess("Monster AI")
+end
+
 MonsterAIPanel = function()
     local resultPanel
     local m_status
@@ -242,20 +269,12 @@ MonsterAIPanel = function()
             end,
             click = function()
                 if m_running then
-                    g_terminate = true
-                    MonsterAI.active = false
-                    DockablePanel.StopProcess("Monster AI", "monster-ai")
+                    MonsterAI.StopAI()
                 else
-                    g_terminate = false
-                    MonsterAI.active = true
                     --a background process rather than a bare coroutine:
                     --the AI keeps playing turns if this panel closes, and
                     --the rail button's gear spins while it runs.
-                    DockablePanel.StartProcess{
-                        panel = "Monster AI",
-                        id = "monster-ai",
-                        coroutine = MonsterAIThread,
-                    }
+                    MonsterAI.StartAI()
                 end
             end,
         },

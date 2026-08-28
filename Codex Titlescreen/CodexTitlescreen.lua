@@ -6030,6 +6030,43 @@ function CreateTitlescreen(dialog, options)
                 end,
             },
 
+            gui.Button {
+                -- Encounter of the Week entry point. Dev-gated behind
+                -- dev:encounteroftheweek (toggle via chat: /toggle
+                -- dev:encounteroftheweek); shown once past the starting
+                -- screen. Everything else about the mode lives in
+                -- EncounterOfTheWeek.lua in this module -- this link just
+                -- opens its screen. rawget rather than a bare global read:
+                -- globals are strict here, so a plain read would raise if
+                -- load order ever put this file first. The 'collapsed' cond
+                -- is listed last so a nil (setting on) cannot truncate the
+                -- classes array.
+                id = "eotwTitlescreenLink",
+                styles = ThemeEngine.GetStyles("default", "default"),
+                classes = { "hideOnStartingScreen", cond(rawget(_G, "EncounterOfTheWeek") ~= nil and EncounterOfTheWeek.Enabled(), nil, "collapsed") },
+                halign = "right",
+                valign = "top",
+                floating = true,
+                text = "Encounter of the Week",
+                width = "auto",
+                height = "auto",
+                pad = 6,
+                borderBox = true,
+                hmargin = 8,
+                vmargin = 24,
+                multimonitor = { "dev:encounteroftheweek" },
+                monitor = function(element)
+                    local eotw = rawget(_G, "EncounterOfTheWeek")
+                    element:SetClass("collapsed", eotw == nil or not eotw.Enabled())
+                end,
+                press = function(element)
+                    local eotw = rawget(_G, "EncounterOfTheWeek")
+                    if eotw ~= nil then
+                        eotw.ShowScreen()
+                    end
+                end,
+            },
+
             --top king panel
             gui.Panel {
 

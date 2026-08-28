@@ -1745,6 +1745,20 @@ function dmhub.PasteTokenFromClipboard(loc)
 	-- dummy implementation for documentation purposes only
 end
 
+--- CopyTokensToClipboard: Copies a list of tokens to the clipboard together, replacing any previous clipboard contents. Paste them as a batch with PasteTokensFromClipboard.
+--- @param tokens CharacterToken[] The tokens to copy.
+--- @return nil
+function dmhub.CopyTokensToClipboard(tokens)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PasteTokensFromClipboard: Pastes every token on the clipboard at once, fanning out from the given location. Returns the list of pasted token ids in the order they were copied; empty if the clipboard is empty.
+--- @param loc nil|Loc The anchor location to paste the tokens around.
+--- @return string[]
+function dmhub.PasteTokensFromClipboard(loc)
+	-- dummy implementation for documentation purposes only
+end
+
 --- ResetSetting: Reset the given setting to its default value.
 --- @param settingid string
 --- @return boolean

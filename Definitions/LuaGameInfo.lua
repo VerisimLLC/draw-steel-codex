@@ -38,6 +38,19 @@ function LuaGameInfo:Delete()
 	-- dummy implementation for documentation purposes only
 end
 
+--- Permanently destroy this game. For a game the user owns: marks it deleted
+--- in the lobby record, releases its server storage (the Durable Object for
+--- DO-backed games, on-disk files for Local games), and removes it from the
+--- account's game list / Encounter of the Week slot. For a game the user
+--- does not own, degrades to Leave(). options.complete(success, error) fires
+--- when the storage release finishes; the deleted flag and account cleanup
+--- happen regardless.
+--- @param options {complete: (fun(success: boolean, error: string|nil))|nil}
+--- @return nil
+function LuaGameInfo:DeleteAndReleaseStorage(options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- Undelete
 --- @return nil
 function LuaGameInfo:Undelete()

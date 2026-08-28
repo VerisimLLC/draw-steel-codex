@@ -142,6 +142,12 @@ function module.DownloadModuleInfo(options)
 	-- dummy implementation for documentation purposes only
 end
 
+--- DownloadModuleSnapshot: Downloads a published module's content snapshot WITHOUT installing it into the current game. Calls options.success with {moduleid, version, characters} where characters maps the module's character ids to character tokens (browse their name/properties/appearance; they are not in any game). The snapshot is cached permanently on disk, so repeat calls are local. Calls options.failure with an error message on failure.
+--- @param options table Options table with 'moduleid' (string), 'success' (function(table)), and 'failure' (function(string)) fields.
+function module.DownloadModuleSnapshot(options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- CalculateDownloadSizeInKBytes: Calculates the estimated download size in kilobytes for the given set of GUIDs, including assets, modules, and object tables.
 --- @param dynGuids table A table whose keys are GUID strings to calculate size for.
 --- @return number

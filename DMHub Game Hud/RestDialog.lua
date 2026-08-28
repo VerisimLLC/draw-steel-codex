@@ -100,6 +100,7 @@ RegisterGameType("RestRequestToken")
 -- tokens = string -> RequestRequestToken table.
 RegisterGameType("RestRequest")
 
+if false then
 LaunchablePanel.Register{
 	name = "Respite",
     menu = "game",
@@ -117,6 +118,7 @@ LaunchablePanel.Register{
 		return nil
 	end,
 }
+end
 
 -- ============================================================================
 -- DEPRECATED: OLD RESPITE "REST BOX" DIALOG

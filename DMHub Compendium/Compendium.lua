@@ -6631,7 +6631,7 @@ local LibraryPanel = function()
 	return resultPanel
 end
 
-local g_LibraryContentTypes = {"characterTypes", "classes", "subclasses", "races", "subraces", "backgrounds", "feats", "parties", "charConditions", "characterOngoingEffects", "creatureTemplates", "currency", "customAttributes", "damageTypes", "encounterScripts", "environmentalKeywords", "equipmentCategories", "featurePrefabs", "globalRuleMods", "languages", "characterResources", "Skills", "lootTables", "VisionType"}
+local g_LibraryContentTypes = {"characterTypes", "classes", "subclasses", "races", "subraces", "backgrounds", "feats", "parties", "charConditions", "characterOngoingEffects", "creatureTemplates", "currency", "customAttributes", "damageTypes", "encounterScripts", "environmentalKeywords", "equipmentCategories", "featurePrefabs", "globalRuleMods", "languages", "characterResources", "Skills", "lootTables", "mapScripts", "VisionType"}
 
 LaunchablePanel.Register{
 	name = "Compendium",

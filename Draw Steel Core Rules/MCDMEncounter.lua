@@ -4585,8 +4585,13 @@ ScheduleDriver()
 --  height       : code area height (default 340)
 --  getText      : function() -> current code
 --  setText      : function(newCode) called whenever the code changes
+--  compile      : function(code) -> def, err (default CompileDefinition; lets
+--                 other script kinds, e.g. Map Scripts, reuse this widget)
+--  describe     : function(def) -> status string (default DescribeDefinition)
 function EncounterScript.CreateCodePanel(options)
     options = options or {}
+    local compile = options.compile or EncounterScript.CompileDefinition
+    local describe = options.describe or EncounterScript.DescribeDefinition
 
     local watcher = nil
     local function DestroyWatcher()
@@ -4606,11 +4611,11 @@ function EncounterScript.CreateCodePanel(options)
         text = "",
         refreshCode = function(element)
             local code = options.getText()
-            local def, err = EncounterScript.CompileDefinition(code)
+            local def, err = compile(code)
             if def == nil then
                 element.text = tostring(err)
             else
-                element.text = EncounterScript.DescribeDefinition(def)
+                element.text = describe(def)
             end
         end,
     }
@@ -4700,13 +4705,19 @@ end
 --  canSaveToLibrary : offer the "Save to Library..." button
 --  onSavedToLibrary : function(scriptid) - called after the library item is
 --                     created (the dialog closes afterwards)
+--  compile/describe : as CreateCodePanel - reuse by other script kinds
+--  saveToLibrary    : function(def, code) -> scriptid; overrides the default
+--                     create-an-EncounterScript library save
 function EncounterScript.ShowCodeEditorDialog(options)
     options = options or {}
     local currentCode = options.code or ""
+    local compile = options.compile or EncounterScript.CompileDefinition
 
     local codePanel = EncounterScript.CreateCodePanel{
         width = "100%",
         height = 380,
+        compile = options.compile,
+        describe = options.describe,
         getText = function() return currentCode end,
         setText = function(text) currentCode = text end,
     }
@@ -4732,7 +4743,7 @@ function EncounterScript.ShowCodeEditorDialog(options)
             fontSize = 16,
             hmargin = 6,
             click = function(element)
-                local def, err = EncounterScript.CompileDefinition(currentCode)
+                local def, err = compile(currentCode)
                 if def == nil then
                     gui.ModalMessage{
                         title = "Cannot save to library",
@@ -4740,13 +4751,18 @@ function EncounterScript.ShowCodeEditorDialog(options)
                     }
                     return
                 end
-                local item = EncounterScript.new{
-                    guid = dmhub.GenerateGuid(),
-                    name = def.name or "New Encounter Script",
-                    description = def.description or "",
-                    code = currentCode,
-                }
-                local scriptid = dmhub.SetAndUploadTableItem(EncounterScript.tableName, item)
+                local scriptid
+                if options.saveToLibrary ~= nil then
+                    scriptid = options.saveToLibrary(def, currentCode)
+                else
+                    local item = EncounterScript.new{
+                        guid = dmhub.GenerateGuid(),
+                        name = def.name or "New Encounter Script",
+                        description = def.description or "",
+                        code = currentCode,
+                    }
+                    scriptid = dmhub.SetAndUploadTableItem(EncounterScript.tableName, item)
+                end
                 if options.onSavedToLibrary ~= nil then
                     options.onSavedToLibrary(scriptid)
                 end

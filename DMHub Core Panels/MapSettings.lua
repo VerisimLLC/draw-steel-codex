@@ -137,6 +137,39 @@ CreateMapSettings = function()
 
 	local stackedOpts = {stacked = true}
 
+	local children = {
+		CreateSettingsEditor("map:playerviewable", stackedOpts),
+		CreateSettingsEditor("map:playerinfobubbles", stackedOpts),
+		CreateSettingsEditor("map:parallaxscale", stackedOpts),
+		CreateSettingsEditor('gridcolor', stackedOpts),
+		CreateSettingsEditorsForSection('vision', stackedOpts),
+
+		CreateSettingsEditor("maplayout:tiletype", stackedOpts),
+		CreateSettingsEditor("maplayout:stagger", stackedOpts),
+		CreateSettingsEditor("maplayout:tilewidth", stackedOpts),
+		CreateSettingsEditor("maplayout:tileheight", stackedOpts),
+		CreateSettingsEditor("maplayout:hexslant", stackedOpts),
+
+		CreateSettingsEditor("editor:showpathfinding", stackedOpts),
+		CreateSettingsEditor("canlookup", stackedOpts),
+		CreateSettingsEditor("maxlookup", stackedOpts),
+	}
+
+	--Map Scripts live in the Draw Steel module set; rawget so this core panel
+	--still works when that module is not loaded.
+	local mapScript = rawget(_G, "MapScript")
+	if mapScript ~= nil then
+		children[#children+1] = gui.Label{
+			classes = {"bold"},
+			width = "100%",
+			height = "auto",
+			fontSize = 16,
+			tmargin = 8,
+			text = "Map Scripts",
+		}
+		children[#children+1] = mapScript.CreateSettingsPanel()
+	end
+
 	local contentPanel = gui.Panel{
 		id = "mapSettingsPanel",
 		flow = "vertical",
@@ -145,22 +178,7 @@ CreateMapSettings = function()
 			width = '100%',
 			height = 'auto',
 		},
-		children = {
-			CreateSettingsEditor("map:playerviewable", stackedOpts),
-			CreateSettingsEditor("map:parallaxscale", stackedOpts),
-			CreateSettingsEditor('gridcolor', stackedOpts),
-			CreateSettingsEditorsForSection('vision', stackedOpts),
-
-			CreateSettingsEditor("maplayout:tiletype", stackedOpts),
-			CreateSettingsEditor("maplayout:stagger", stackedOpts),
-			CreateSettingsEditor("maplayout:tilewidth", stackedOpts),
-			CreateSettingsEditor("maplayout:tileheight", stackedOpts),
-			CreateSettingsEditor("maplayout:hexslant", stackedOpts),
-
-			CreateSettingsEditor("editor:showpathfinding", stackedOpts),
-			CreateSettingsEditor("canlookup", stackedOpts),
-			CreateSettingsEditor("maxlookup", stackedOpts),
-		},
+		children = children,
 	}
 
 	return contentPanel

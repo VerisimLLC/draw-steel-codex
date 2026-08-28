@@ -5755,25 +5755,46 @@ function CreateSettingsScreen(dialog, args)
 
 					SettingGroup{
 						group = "Map",
-						build = function() return {
-						Setting("map:playerviewable"),
-						Setting("map:parallaxscale"),
-						Setting("gridcolor"),
+						build = function()
+							local result = {
+							Setting("map:playerviewable"),
+							Setting("map:parallaxscale"),
+							Setting("gridcolor"),
 
-						SettingsSection("vision"),
+							SettingsSection("vision"),
 
-						Setting("maplayout:tiletype"),
-						Setting("maplayout:stagger"),
-						Setting("maplayout:tilewidth"),
-						Setting("maplayout:tileheight"),
-						Setting("maplayout:hexslant"),
+							Setting("maplayout:tiletype"),
+							Setting("maplayout:stagger"),
+							Setting("maplayout:tilewidth"),
+							Setting("maplayout:tileheight"),
+							Setting("maplayout:hexslant"),
 
-						Setting("editor:showpathfinding"),
-						Setting("canlookup"),
-						Setting("maxlookup"),
+							Setting("editor:showpathfinding"),
+							Setting("canlookup"),
+							Setting("maxlookup"),
 
-						SettingsSection("Map"),
-						} end,
+							SettingsSection("Map"),
+							}
+
+							--Map Scripts live in the Draw Steel module set; rawget so
+							--this core screen still works when that module is not loaded.
+							local mapScript = rawget(_G, "MapScript")
+							if mapScript ~= nil then
+								result[#result+1] = SettingsHeading("Map Scripts")
+								--the group panel is width "auto", so give the section a
+								--concrete width for its percentage children to resolve
+								--against.
+								result[#result+1] = gui.Panel{
+									width = 600,
+									height = "auto",
+									halign = "left",
+									flow = "vertical",
+									mapScript.CreateSettingsPanel(),
+								}
+							end
+
+							return result
+						end,
 					},
 
 					SettingGroup{

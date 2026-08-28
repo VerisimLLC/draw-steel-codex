@@ -204,7 +204,9 @@ end
 
 --- Asks how much longer the Respite runs, then adds it on
 --- The two steppers hold their own numbers rather than writing through: this
---- is a question about an extension, and nothing should move until OK.
+--- is a question about an extension, and nothing should move until OK. Days
+--- carries activities along with it as it does on the Setup step, so the pair
+--- has to be repainted by hand once the numbers are only locals.
 function RSPDirectorActPanel.ShowExtendDialog()
     local days = RSPConstants.daysMin
     local activities = RSPConstants.daysMin
@@ -239,7 +241,13 @@ function RSPDirectorActPanel.ShowExtendDialog()
 
             RSPWidgets.FormRow("# Days Elapsed", RSPWidgets.Stepper{
                 get = function() return days end,
-                set = function(n) days = n end,
+                set = function(n)
+                    days = n
+                    activities = n
+                    if dialog ~= nil and dialog.valid then
+                        dialog:FireEventTree("respiteChanged")
+                    end
+                end,
                 min = RSPConstants.activitiesMin,
                 max = RSPConstants.daysMax,
             }),

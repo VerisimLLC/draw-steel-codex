@@ -4027,14 +4027,6 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
     return dialogPanel
 end
 
-local g_journalWindowedSetting = setting {
-    id = "journal:windowed",
-    description = "Journal is windowed",
-    editor = "check",
-    default = false,
-    storage = "preference",
-}
-
 local g_pdfViewerDialog = nil
 
 --This is a live companion capability, not a platform guess. The first
@@ -4119,7 +4111,7 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
 
         gui.Label {
             text = doc.description,
-            width = "available",
+            width = "100% available",
             height = "100%",
             fontSize = 14,
             color = "@fg",
@@ -4176,7 +4168,7 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
     }
 
     dialogPanel = gui.Panel {
-        classes = { "framedPanel", cond(g_journalWindowedSetting:Get(), "windowed") },
+        classes = { "framedPanel", },
         pad = 8,
         flow = "vertical",
         data = {
@@ -4191,11 +4183,6 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                 selectors = { "framedPanel" },
                 width = "100%",
                 height = "100%",
-            },
-            {
-                selectors = { "framedPanel", "windowed" },
-                width = "100%-776",
-                transitionTime = 0.1,
             },
             {
                 selectors = { "framedPanel", "pdfPopoutCustomChrome" },
@@ -4399,27 +4386,6 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                     --so the pair stays balanced even if the window closes
                     --before the event fires.
                     dialogPanel:ScheduleEvent("armPopoutCommandContext", 0.1)
-                end,
-            },
-
-            gui.Button {
-                classes = { "sizeXs" },
-                icon = "drawsteel/Icons_Nav_MinWindow.png",
-                valign = "center",
-                linger = function(element)
-                    gui.Tooltip("Maximize window")(element)
-                end,
-                setResizeIcon = function(element)
-                    local isWindowed = g_journalWindowedSetting:Get()
-                    dialogPanel:SetClass("windowed", isWindowed)
-                    element:FireEvent("setIcon", isWindowed and "drawsteel/Icons_Nav_MaxWindow.png" or "drawsteel/Icons_Nav_MinWindow.png")
-                end,
-                create = function(element)
-                    element:FireEvent("setResizeIcon")
-                end,
-                click = function(element)
-                    g_journalWindowedSetting:Set(not g_journalWindowedSetting:Get())
-                    element:FireEvent("setResizeIcon")
                 end,
             },
 

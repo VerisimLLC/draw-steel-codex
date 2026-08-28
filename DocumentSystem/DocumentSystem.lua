@@ -4298,6 +4298,12 @@ PanelDocument.panelName = ""
 PanelDocument.DefaultWidth = 380
 PanelDocument.DefaultHeight = 520
 
+--The rail-mode Font Size zoom (WindowUIScale, defined above), exported
+--for UI outside this file that scales its own root by the same factor
+--(the action bar does; see DSActionBar's setBarScale). A field rather
+--than a new local: this chunk is at Lua's 200-locals ceiling.
+PanelDocument.WindowUIScale = WindowUIScale
+
 --Declared here rather than beside its other uses further down: PresentPanel
 --needs it, and a local is not in lexical scope for code written above it.
 local g_panelDocumentHeaderHeight = 32

@@ -5839,19 +5839,45 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                 element.parent:SetClass("customActionBar", g_customActionBarFunction ~= nil)
                 element:SetClass("collapsed", g_customActionBarFunction == nil)
             end,
-            create = function(element)
+
+            --The bar's scale: the aspect-ratio fit it always had, times the
+            --Font Size setting as a flat zoom in icon-rail mode, the rails'
+            --way (PanelDocument.WindowUIScale -- the engine holds font
+            --magnification at 1 there, so scaling the root is how the bar
+            --follows the setting at all). Clamped so the scaled bar can
+            --never grow wider than the dock-free screen width.
+            setBarScale = function(element)
                 local dockareaAsPercentOfHeight = (380*2)/1080
                 local defaultRatio = (1920 - 1080*dockareaAsPercentOfHeight)/1080
                 local dim = dmhub.screenDimensionsBelowTitlebar
                 local screenRatio = (dim.x - dim.y*dockareaAsPercentOfHeight)/dim.y
 
+                --the scale at which the bar exactly fills the dock-free width.
+                local maxScale = screenRatio / defaultRatio
+
                 local uiscaleRatio = 0.9
 
-                if screenRatio < defaultRatio then
-                    element.selfStyle.uiscale = uiscaleRatio*screenRatio / defaultRatio
-                else
-                    element.selfStyle.uiscale = uiscaleRatio*1
+                local scale = uiscaleRatio
+                if maxScale < 1 then
+                    scale = uiscaleRatio * maxScale
                 end
+
+                scale = scale * PanelDocument.WindowUIScale()
+                if scale > maxScale then
+                    scale = maxScale
+                end
+
+                element.selfStyle.uiscale = scale
+            end,
+
+            --a live Font Size (or rail mode) change re-applies the zoom.
+            multimonitor = {"fontsize", "iconrail"},
+            monitor = function(element)
+                element:FireEvent("setBarScale")
+            end,
+
+            create = function(element)
+                element:FireEvent("setBarScale")
 
                 g_customActionBar = element
                 element:FireEvent("customActionBar")

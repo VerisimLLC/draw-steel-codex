@@ -4008,7 +4008,54 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			width = "auto",
 			height = "auto",
 			textAlignment = "center",
-			text = cond(playerside, "Ready Heroes", "Ready Monsters"),
+			--Director overview P2-b: for the Director the monster-side label
+			--is an action ("Select All" - field test: "Ready Monsters" did
+			--not read as clickable); players and the hero side keep the
+			--plain status wording.
+			text = cond(playerside, "Ready Heroes", cond(dmhub.isDM, "Select All", "Ready Monsters")),
+
+			--Director overview P2-b (DIRECTOR_ENCOUNTER_OVERVIEW_DESIGN.md,
+			--Decision 39): on the monster side, the Director can click this
+			--label to select every ready monster on the map at once - the
+			--multi-selection the "Unique Abilities" overview reads. Selection
+			--only; it never claims a turn or opens the folder.
+			hover = function(element)
+				if playerside or not dmhub.isDM then
+					return
+				end
+				gui.Tooltip("Click to select every ready monster on the map")(element)
+			end,
+			press = function(element)
+				if playerside or not dmhub.isDM then
+					return
+				end
+				local selectAll = rawget(_G, "DrawSteelActionBar")
+				if selectAll == nil or selectAll.SelectReadyMonsters == nil then
+					return
+				end
+				--Snapshot the selection so a SECOND click (selection already
+				--the ready set) opens the Unique Abilities menu instead -
+				--saves the trip to the bottom of the screen.
+				local before = {}
+				local beforeCount = 0
+				for _, tok in ipairs(dmhub.selectedTokens or {}) do
+					before[tok.charid] = true
+					beforeCount = beforeCount + 1
+				end
+				selectAll.SelectReadyMonsters()
+				local same = true
+				local afterCount = 0
+				for _, tok in ipairs(dmhub.selectedTokens or {}) do
+					afterCount = afterCount + 1
+					if not before[tok.charid] then
+						same = false
+					end
+				end
+				if same and afterCount == beforeCount and afterCount > 0
+					and selectAll.OpenUniqueMenu ~= nil then
+					selectAll.OpenUniqueMenu()
+				end
+			end,
 		}
 		local m_hadTurnSegment = gui.Panel{
 			classes = {"initiativeBarSegment", "hadTurn"},
@@ -4654,37 +4701,12 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				else
 					newEntries[k] = self:CreateInitiativeEntry(info, k, {
 						selectinitiative = function(element)
-
-							--Use the live queue (dmhub.initiativeQueue), not the closure-
-							--captured initiativeQueue from when refresh ran -- the latter
-							--can be stale after a turn transition, which made SelectTurn a
-							--silent no-op for drag-to-claim after ending the previous turn.
-							local q = dmhub.initiativeQueue
-							if q == nil or q.hidden then return end
-
-							if CanControlInitiative() == false and ((not q:ChoosingTurn()) or (not q:IsPlayersTurn()) or (not q:EntriesUnmoved()[k]) or (not q:IsEntryPlayer(k))) then
-								return
-							end
-							q:SelectTurn(k)
-							dmhub:UploadInitiativeQueue()
-
-							--Use the loop key (the initiative id) rather than v.initiativeid;
-							--group entries don't populate v.initiativeid, which left BeginTurn
-							--unfired and the drag-to-claim a no-op for monster groups.
-							local tokens = self:GetTokensForInitiativeId(info, k)
-							local tokenIds = {}
-							for i,tok in ipairs(tokens) do
-								if tok.properties ~= nil then
-									tok.properties:BeginTurn()
-									tokenIds[#tokenIds+1] = tok.charid
-								end
-							end
-
-							if #tokenIds > 0 then
-								chat.SendCustom(StartOfTurnChatMessage.new{
-									tokenids = tokenIds,
-								})
-							end
+							--The whole claim sequence (gate, SelectTurn, upload, BeginTurn
+							--per token, start-of-turn chat card) lives in
+							--InitiativeQueue.ClaimTurn so other surfaces can reuse it. It
+							--reads the LIVE queue and uses the loop key k as the initiative
+							--id (group entries do not populate v.initiativeid).
+							InitiativeQueue.ClaimTurn(k, {canControlInitiative = CanControlInitiative()})
 						end,
 					})
 					newEntries[k]:SetClass("player", isplayer)
@@ -4918,12 +4940,26 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 					--Shorten the label text when the segment is only one card wide so it
 					--still fits beneath the bar.
 					container.data.hadTurnLabel.text = (hadTurnCount == 1) and "Moved" or "Already Moved"
-					container.data.unmovedLabel.text = (unmovedCount == 1) and "Ready"
-						or (container.data.player and "Ready Heroes" or "Ready Monsters")
+					--Director overview P2-b: the Director's monster-side label
+					--is the "Select All" action (see the label's press); keep
+					--the plain status wording for players and the hero side.
+					if container.data.player then
+						container.data.unmovedLabel.text = (unmovedCount == 1) and "Ready" or "Ready Heroes"
+					elseif dmhub.isDM then
+						container.data.unmovedLabel.text = "Select All"
+					else
+						container.data.unmovedLabel.text = (unmovedCount == 1) and "Ready" or "Ready Monsters"
+					end
 					--Labels only show when this side is currently choosing the next turn,
 					--and the bucket has at least one card to label.
+					--Director overview P2-b: the Director's monster-side "Select All"
+					--is an ACTION, not a status, so it stays available whenever unmoved
+					--monsters exist - including during the heroes' turn, which is
+					--exactly when the Director preps the next activation (browsing the
+					--overview off-turn never claims; field test 16).
+					local showUnmoved = unmovedCount > 0 and (active or (dmhub.isDM and not container.data.player))
 					container.data.hadTurnLabel.selfStyle.hidden = (active and hadTurnCount > 0) and 0 or 1
-					container.data.unmovedLabel.selfStyle.hidden = (active and unmovedCount > 0) and 0 or 1
+					container.data.unmovedLabel.selfStyle.hidden = showUnmoved and 0 or 1
 				end)
 			end
 			SizeBar(playerContainer, playerCards, choosingPlayer)

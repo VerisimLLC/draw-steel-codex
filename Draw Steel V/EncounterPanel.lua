@@ -3651,6 +3651,13 @@ local function SpawnGroupForReal(group, numHeroes, fallbackAnchor)
                 end
 
                 token:UploadToken()
+                --refresh the token registry so the NEXT monster's generated
+                --name can see this one: OnCreateFromBestiary numbers against
+                --dmhub.GetTokens{pending=true}, which only sees fresh spawns
+                --after an update. Without this every monster in the batch is
+                --named "<type> 1" (the journal island's spawn already updates
+                --per token for the same reason).
+                game.UpdateCharacterTokens()
                 charids[#charids + 1] = token.charid
             end
 

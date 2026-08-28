@@ -505,6 +505,11 @@ def check_uuid_format(data, result: ValidationResult):
             val = node.get(field)
             if val is None or val is False or val == "":
                 continue
+            # Creature animation queues use dmhub.gameupdateid as a change stamp.
+            # Its engine-defined format is "<instance UUID>-<update counter>",
+            # rather than a standalone UUID.
+            if field == "guid" and path.endswith(".animations"):
+                continue
             if isinstance(val, str):
                 # Only warn if it looks like it's trying to be a UUID (has dashes)
                 # but isn't valid, or is at a top-level entry that should be UUID.

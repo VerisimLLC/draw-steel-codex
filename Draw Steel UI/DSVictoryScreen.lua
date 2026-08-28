@@ -2239,6 +2239,10 @@ local function BuildMonsterCard(live, group, roleInfo)
         else
             portraitPanel.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight * 0.01, portrait)
         end
+    elseif group.fallbackInfo ~= nil and group.fallbackInfo.portrait ~= nil then
+        --every member token was deleted outright; draw the portrait snapshotted
+        --into the live encounter at combat onset (no crop rect is available).
+        portraitPanel.bgimage = group.fallbackInfo.portrait
     end
 
     local nameText = name

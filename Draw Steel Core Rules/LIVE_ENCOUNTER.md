@@ -343,7 +343,11 @@ resolve to a hero is attributed to the token's **initiative grouping** (squad +
 captain, grouped monsters, or a lone monster) and accumulates under
 `monsterStats/<groupKey>/round<N>/<statid>`. The groupings are snapshotted into
 `onsetMonsterGroups` at combat start (`RecordOnsetMonsterGroups`, called from
-`Commands.rollinitiative` and `DeployWave`). Read back with
+`Commands.rollinitiative` and `DeployWave`); the snapshot also carries per-member
+display info (`memberinfo`: minion flag, portrait, monster type/role) so
+`GetMonsterGroups` still counts and draws members whose tokens were despawned or
+deleted -- dead monsters leave the map but read back as dead members instead of
+vanishing from the victory screen. Read back with
 `GetMonsterGroups()` / `GetStatsForMonsterGroup(statKey)` /
 `GetStatsForMonsterGroupByRound(statKey)`; consumed by the victory screen's
 Monsters tab (`DSVictoryScreen.ComputeMonsterRoles`, debug via `/monsterroles`).

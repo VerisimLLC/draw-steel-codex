@@ -155,11 +155,14 @@ local function SelectedFishableHeroes()
     return heroes
 end
 
---- Prompts for the hero and the optional skill, then starts the Trip
+--- Prompts for the character and the optional skill, then starts the Trip
 --- The characteristic is shown but not offered: the rules allow three and
 --- nobody would pick anything but their best, so the module derives it.
---- @param heroes table The controllable hero tokens
-local function ShowStartFishingDialog(heroes)
+--- @param heroes table The controllable tokens; the hero row hides for one
+--- @param args table|nil rollHolderId for a follower fishing on their hero's
+---   rolls, and onStarted for what to do once the Trip is running
+function FSHPanel.ShowStartFishingDialog(heroes, args)
+    args = args or {}
     local m_token = heroes[1]
 
     local characteristicLabel = gui.Label{
@@ -306,15 +309,18 @@ local function ShowStartFishingDialog(heroes)
                         end
                     end
 
-                    local charid = m_token.id
-                    local started = FSHTrip.Start(m_token, skill)
+                    local started = FSHTrip.Start(m_token, skill, args.rollHolderId)
                     gui.CloseModal()
 
-                    --The Trip document has to land before the dialog reads it,
+                    --The Trip document has to land before anything reads it,
                     --so hand off rather than opening in the same breath.
                     if started then
                         dmhub.Schedule(0.2, function()
-                            FSHPanel.OpenWindow()
+                            if args.onStarted ~= nil then
+                                args.onStarted()
+                            else
+                                FSHPanel.OpenWindow()
+                            end
                         end)
                     end
                 end
@@ -618,32 +624,18 @@ function FSHPanel.OwnedTripCharId()
     return nil
 end
 
---- The fishing window's contents
---- A launchable window rather than a modal: the roll dialog draws above the
---- window layer but below the modal layer, so a modal here would swallow the
---- very dice the player is casting.
---- @return Panel panel The window contents
-function FSHPanel.CreateTripWindow()
-    local charid = FSHPanel.OwnedTripCharId()
+--- A Trip, everything but the picture
+--- The whole outing lives here: the stringer, the events, the Tackle table, and
+--- the buttons that move between them. Sized to whatever hosts it, so the
+--- standalone window and the Respite show the same thing.
+--- @param args table charid, and onClose called when the Trip is closed up
+--- @return Panel|nil pane The Trip, or nil when there is no such character
+function FSHPanel.TripPane(args)
+    local charid = args.charid
     local token = charid ~= nil and dmhub.GetCharacterById(charid) or nil
 
     if token == nil or not token.valid then
-        return gui.Panel{
-            classes = { "fshTripWindow" },
-            styles = ThemeEngine.GetStyles(),
-            width = 400,
-            height = 120,
-            flow = "vertical",
-
-            gui.Label{
-                classes = { "sizeM", "fgMuted" },
-                width = "100%",
-                height = "auto",
-                halign = "center",
-                valign = "center",
-                text = "You are not fishing right now."
-            }
-        }
+        return nil
     end
 
     local m_signature = ""
@@ -653,20 +645,19 @@ function FSHPanel.CreateTripWindow()
     --which is what keeps a Goldenrod reroll reachable after any result.
     local m_page = "stringer"
 
+    --Where, not who: whoever is fishing is already selected in the list beside
+    --this, and their characteristic was settled when they started. Name and
+    --type share one line at one size, between the old heading and the line
+    --under it, so the water costs a row rather than three.
+    --Not modalTitle: that carries a 24px top margin and a 28px face meant for
+    --a dialog heading, which is most of the space this line was costing. The
+    --section-heading class is what the rest of the Trip already uses.
     local headerLabel = gui.Label{
-        classes = { "modalTitle", "sizeL" },
+        classes = { "tableLabel", "sizeS" },
         width = "100%",
         height = "auto",
         halign = "left",
-        text = token.name or "Fishing"
-    }
-
-    local approachLabel = gui.Label{
-        classes = { "sizeXs", "fgMuted" },
-        width = "100%",
-        height = "auto",
-        halign = "left",
-        text = ""
+        text = "Fishing"
     }
 
     local stringerPanel = gui.Panel{
@@ -754,7 +745,28 @@ function FSHPanel.CreateTripWindow()
         hover = gui.Tooltip("End the Trip. Unspent points are lost"),
         click = function(element)
             FSHTrip.Close(charid)
-            FSHPanel.CloseWindowFrom(element)
+            if args.onClose ~= nil then
+                args.onClose(element)
+            end
+        end
+    }
+
+    --The only way past the single-writer rule, and the player's way out of a
+    --Trip that has stopped moving: the client running it has gone, or the roll
+    --it waits on died with that client. Takes the Trip over rather than ending
+    --it, so the outing carries on from exactly where it stopped.
+    local takeOverButton = gui.Button{
+        classes = { "sizeM", "collapsed" },
+        width = 110,
+        height = 30,
+        halign = "right",
+        valign = "center",
+        rmargin = 6,
+        text = "Take Over",
+        hover = gui.Tooltip("Run this trip from here instead. Nothing already caught is lost"),
+        click = function()
+            FSHTrip.Reset(charid)
+            m_signature = ""
         end
     }
 
@@ -822,22 +834,25 @@ function FSHPanel.CreateTripWindow()
         tmargin = 6
     }
 
+    --Stops short of the scrolling region's right edge so the Buy buttons are
+    --not painted under the scroll bar, and left aligned so the rows hold that
+    --edge rather than centring in what is left.
     local shopPanel = gui.Panel{
         classes = { "collapsed" },
-        width = "100%",
+        width = "100%-8",
         height = "auto",
         flow = "vertical",
+        halign = "left",
         valign = "top"
     }
 
     local dialog
     dialog = gui.Panel{
-        classes = { "fshTripWindow" },
-        styles = ThemeEngine.GetStyles(),
-        width = ART_WIDTH + 420,
-        height = ART_HEIGHT + 40,
-        flow = "horizontal",
-        pad = 8,
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
 
         rebuild = function()
             local trip = FSHTrip.Get(charid)
@@ -845,13 +860,15 @@ function FSHPanel.CreateTripWindow()
                 return
             end
 
-            local approach = DTConstants.GetDisplayText(DTConstants.CHARACTERISTICS,
-                trip.characteristic ~= nil and trip.characteristic.id or "")
-            if trip.skill ~= nil then
-                approach = string.format("%s  ·  %s", approach, trip.skill.name)
-            end
-            approachLabel.text = string.format("%s  ·  %s", approach,
-                trip.waterName ~= "" and trip.waterName or "open water")
+            --The Trip's own record of the water rather than what is open now:
+            --a Trip outlives the water it started on, and it should still say
+            --where it happened.
+            local typeText = string.format("%s Water",
+                DTConstants.GetDisplayText(FSHConstants.WATER_TYPE,
+                    trip.waterType or FSHConstants.WATER_TYPE.FRESH.key))
+            local waterName = (trip.waterName ~= nil and trip.waterName ~= "")
+                and trip.waterName or "Open water"
+            headerLabel.text = string.format("%s  |  %s", waterName, typeText)
 
             local rows = {}
             for _, cast in ipairs(trip.casts or {}) do
@@ -965,10 +982,15 @@ function FSHPanel.CreateTripWindow()
                 and FSHTrip.HasGoldenrodReroll(charid)
             goldenrodButton:SetClass("collapsed", not canGoldenrod)
 
+            --Every control above this one is dead while the Trip belongs to
+            --another client, so this is the only thing to offer. A finished
+            --Trip is not offered it: there is nothing left to drive.
+            takeOverButton:SetClass("collapsed", owned or finished)
+
             --Say why rather than leaving a dead button: a Trip started on
             --another client cannot be driven from here.
             if not owned then
-                noticeLabel.text = "This Trip is being run from another client."
+                noticeLabel.text = "This trip is being run from another client."
             elseif waiting then
                 noticeLabel.text = "Waiting on the roll..."
             elseif trip.status == FSHTrip.STATUS.EVENT.key then
@@ -1017,11 +1039,15 @@ function FSHPanel.CreateTripWindow()
             local signature = "gone"
             if trip ~= nil then
                 local pending = FSHEvents.Pending(trip)
-                signature = string.format("%s:%d:%d:%s:%d:%s:%s:%d",
+                --Who is running it belongs here too: a Trip taken over changes
+                --which controls are live on both clients, and can move without
+                --anything else about the Trip moving with it.
+                signature = string.format("%s:%d:%d:%s:%d:%s:%s:%d:%s",
                     trip.status or "", #(trip.casts or {}), trip.points or 0,
                     trip.actionId or "", #(trip.events or {}),
                     pending ~= nil and tostring(pending.roll) or "-",
-                    trip.eventActionId or "", #(trip.purchases or {}))
+                    trip.eventActionId or "", #(trip.purchases or {}),
+                    trip.runByUserId or "")
             end
 
             if signature ~= m_signature then
@@ -1031,24 +1057,13 @@ function FSHPanel.CreateTripWindow()
         end,
 
         gui.Panel{
-            classes = { "image", "bordered" },
-            width = ART_WIDTH,
-            height = ART_HEIGHT,
-            halign = "left",
-            valign = "center",
-            bgimage = mod.images.fishing
-        },
-
-        gui.Panel{
-            width = "100%-" .. tostring(ART_WIDTH + 20),
+            width = "100%",
             height = "100%",
             flow = "vertical",
-            halign = "right",
+            halign = "left",
             valign = "top",
-            hmargin = 10,
 
             headerLabel,
-            approachLabel,
 
             --Stringer, events, and the Tackle table share one scrolling region.
             --Giving the stringer the leftover space instead meant a long shop
@@ -1065,17 +1080,29 @@ function FSHPanel.CreateTripWindow()
                 shopPanel
             },
 
-            noticeLabel,
-
-            pointsLabel,
-
+            --Points share the button row: every button in it is right aligned,
+            --so a left aligned column takes the empty half rather than a row of
+            --its own. The notice sits directly on top of the points, which is
+            --where the player is already looking.
             gui.Panel{
                 width = "100%",
-                height = 40,
+                height = 48,
                 flow = "horizontal",
                 valign = "bottom",
-                tmargin = 6,
+                tmargin = 4,
 
+                gui.Panel{
+                    width = "50%",
+                    height = "100%",
+                    flow = "vertical",
+                    halign = "left",
+                    valign = "center",
+
+                    noticeLabel,
+                    pointsLabel,
+                },
+
+                takeOverButton,
                 goldenrodButton,
                 primaryButton,
                 backButton,
@@ -1109,6 +1136,67 @@ function FSHPanel.CreateTripWindow()
     return dialog
 end
 
+--- The standalone fishing window: the picture, and the Trip beside it
+--- A launchable window rather than a modal: the roll dialog draws above the
+--- window layer but below the modal layer, so a modal here would swallow the
+--- very dice the player is casting.
+--- @return Panel panel The window contents
+function FSHPanel.CreateTripWindow()
+    local charid = FSHPanel.OwnedTripCharId()
+    local pane = FSHPanel.TripPane{
+        charid = charid,
+        onClose = FSHPanel.CloseWindowFrom,
+    }
+
+    if pane == nil then
+        return gui.Panel{
+            classes = { "fshTripWindow" },
+            styles = ThemeEngine.GetStyles(),
+            width = 400,
+            height = 120,
+            flow = "vertical",
+
+            gui.Label{
+                classes = { "sizeM", "fgMuted" },
+                width = "100%",
+                height = "auto",
+                halign = "center",
+                valign = "center",
+                text = "You are not fishing right now."
+            }
+        }
+    end
+
+    return gui.Panel{
+        classes = { "fshTripWindow" },
+        styles = ThemeEngine.GetStyles(),
+        width = ART_WIDTH + 420,
+        height = ART_HEIGHT + 40,
+        flow = "horizontal",
+        pad = 8,
+
+        gui.Panel{
+            classes = { "image", "bordered" },
+            width = ART_WIDTH,
+            height = ART_HEIGHT,
+            halign = "left",
+            valign = "center",
+            bgimage = mod.images.fishing
+        },
+
+        gui.Panel{
+            width = "100%-" .. tostring(ART_WIDTH + 20),
+            height = "100%",
+            flow = "vertical",
+            halign = "right",
+            valign = "top",
+            hmargin = 10,
+
+            pane,
+        },
+    }
+end
+
 LaunchablePanel.Register{
     name = FSHConstants.windowName,
     folder = "Game",
@@ -1131,7 +1219,24 @@ local function GatherRecords()
     local entries = {}
     local best = 0
 
+    --Followers fish on the same terms as their heroes, so the standings have
+    --to be able to show an artisan taking the record off the party.
+    local candidates = {}
     for _, token in ipairs(DTBusinessRules.GetAllHeroTokens()) do
+        candidates[#candidates + 1] = token
+
+        local session = rawget(_G, "RSPSession")
+        if session ~= nil then
+            for _, followerId in ipairs(session.FollowersOf(token.id)) do
+                local follower = dmhub.GetCharacterById(followerId)
+                if follower ~= nil and follower.valid then
+                    candidates[#candidates + 1] = follower
+                end
+            end
+        end
+    end
+
+    for _, token in ipairs(candidates) do
         --playerControlled covers both a directly owned token and one shared
         --through a player party.
         if token.playerControlled then
@@ -1447,7 +1552,10 @@ end
 --- @param expanded boolean Whether this row is currently open
 --- @param onToggle function|nil Called with the new open state when the caret is pressed
 --- @return Panel panel The log row
-function FSHPanel.LogRow(trip, expanded, onToggle)
+--- @param title string|nil names the row instead of the character; the
+---   portrait goes with the name, since a surface that knows whose Trips these
+---   are does not need telling twice
+function FSHPanel.LogRow(trip, expanded, onToggle, title)
     local catches = 0
     for _, cast in ipairs(trip.casts or {}) do
         if cast.result == FSHTrip.RESULT.CATCH.key then
@@ -1459,8 +1567,10 @@ function FSHPanel.LogRow(trip, expanded, onToggle)
     local skillText = trip.skill ~= nil and trip.skill.name or "no skill"
 
     --Same portrait the standings use, so a hero looks the same in both tabs.
+    --A titled row drops it: the surface asking for a title is one that already
+    --says whose Trips these are.
     local token = dmhub.GetCharacterById(trip.charid or "")
-    local portrait = gui.Panel{
+    local portrait = title == nil and gui.Panel{
         width = 32,
         height = 32,
         halign = "left",
@@ -1480,21 +1590,73 @@ function FSHPanel.LogRow(trip, expanded, onToggle)
                 end
             })
         } or {}
-    }
+    } or nil
 
-    --Leaves room for the caret column, its margins, and the portrait.
+    --A breakthrough marks the Trip it happened on, not just the character: the
+    --Director sees the warning on the roster row, and this is what says which
+    --of the household's Trips to open. Same icon as the roster's, so the two
+    --read as one thing. The Respite's cascade colours it; a host without that
+    --class still gets the glyph.
+    local breakthrough = nil
+    local respiteConstants = rawget(_G, "RSPConstants")
+    if respiteConstants ~= nil and #(trip.events or {}) > 0 then
+        breakthrough = gui.Panel{
+            classes = { "rspAttention" },
+            bgimage = respiteConstants.iconAttention,
+            width = 16,
+            height = 16,
+            halign = "right",
+            valign = "center",
+            hmargin = 4,
+            hover = gui.Tooltip("A breakthrough happened on this Trip"),
+        }
+    end
+
+    --Leaves room for the caret column, its margins, the portrait where there
+    --is one, and the breakthrough marker when the Trip carries one.
+    local taken = 22
+    if portrait ~= nil then
+        taken = taken + 38
+    end
+    if breakthrough ~= nil then
+        taken = taken + 24
+    end
+
     local labels = gui.Panel{
-        width = "100%-60",
+        width = "100%-" .. tostring(taken),
         height = "auto",
         flow = "vertical",
         valign = "center",
 
-        gui.Label{
-            classes = { "sizeXs" },
+        --The name and how the Trip stands, on one line: an asterisk needed
+        --explaining, and there is room to just say it.
+        gui.Panel{
             width = "100%",
             height = "auto",
+            flow = "horizontal",
             halign = "left",
-            text = string.format("%s%s", trip.tokenName or "Hero", cond(live, "  *", ""))
+
+            --Both bottom aligned: the status is the smaller of the two, and
+            --centring them leaves it floating against the name rather than
+            --sitting on the same line.
+            gui.Label{
+                classes = { "sizeXs" },
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "bottom",
+                text = title or trip.tokenName or "Hero"
+            },
+
+            gui.Label{
+                classes = { "sizeXxs", "fgMuted" },
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "bottom",
+                lmargin = 6,
+                text = cond(live, "still fishing", "trip complete")
+            },
         },
 
         gui.Label{
@@ -1507,35 +1669,11 @@ function FSHPanel.LogRow(trip, expanded, onToggle)
         }
     }
 
+    -- A Trip in progress opens like any other. It used to be a header alone,
+    -- which meant a breakthrough marked a row the Director could not open: the
+    -- marker landed when the breakthrough resolved but the reason for it only
+    -- arrived once the Trip closed. The "*" is what says it is still running.
     local headerChildren = {}
-
-    if live then
-        --Keeps the two rows' text on the same left edge whether or not there is
-        --a caret to sit in front of it.
-        headerChildren[#headerChildren + 1] = gui.Panel{
-            classes = { "sizeXs" },
-            valign = "center",
-            hmargin = 3
-        }
-        headerChildren[#headerChildren + 1] = portrait
-        headerChildren[#headerChildren + 1] = labels
-
-        return gui.Panel{
-            width = "100%",
-            height = "auto",
-            flow = "vertical",
-            valign = "top",
-            tmargin = 4,
-
-            gui.Panel{
-                width = "100%",
-                height = "auto",
-                flow = "horizontal",
-                valign = "top",
-                children = headerChildren
-            }
-        }
-    end
 
     local detail = LogDetail(trip)
 
@@ -1562,6 +1700,7 @@ function FSHPanel.LogRow(trip, expanded, onToggle)
     headerChildren[#headerChildren + 1] = caret
     headerChildren[#headerChildren + 1] = portrait
     headerChildren[#headerChildren + 1] = labels
+    headerChildren[#headerChildren + 1] = breakthrough
 
     local header = gui.Panel{
         width = "100%",
@@ -1661,7 +1800,7 @@ function FSHPanel.Create()
             end
 
             if #available > 0 then
-                ShowStartFishingDialog(available)
+                FSHPanel.ShowStartFishingDialog(available)
             end
         end
     }
@@ -2049,6 +2188,463 @@ local function PaintRespiteFields()
     }
 end
 
+--- The Trips a character has run in this Respite
+--- A follower's Trips belong on their hero's row, since the Director's roster
+--- is heroes: asking for a hero returns their household's outings.
+--- @param charid string The hero's id
+--- @return table[] trips Oldest first
+local function RespiteTrips(charid)
+    local trips = {}
+
+    local ids = { charid }
+    local session = rawget(_G, "RSPSession")
+    if session ~= nil then
+        for _, followerId in ipairs(session.FollowersOf(charid)) do
+            ids[#ids + 1] = followerId
+        end
+    end
+
+    for _, id in ipairs(ids) do
+        for _, trip in ipairs(FSHTrip.SessionTrips(id)) do
+            trips[#trips + 1] = trip
+        end
+    end
+
+    table.sort(trips, function(a, b)
+        return (a.openedAt or 0) < (b.openedAt or 0)
+    end)
+
+    return trips
+end
+
+--- Does a Trip want the Director's eye?
+--- Any breakthrough does. Half the table is fiction a human runs, and even the
+--- ones the module settles by itself are worth knowing about, so the whole
+--- events list counts rather than only what is still owed.
+--- @param trip table The Trip
+--- @return boolean
+local function TripWantsTheDirector(trip)
+    return #(trip.events or {}) > 0
+end
+
+--- Whether this hero's fishing wants the Director's eye
+--- @param args table charid
+--- @return boolean
+function FSHPanel.RespiteNeedsAttention(args)
+    for _, trip in ipairs(RespiteTrips(args.charid)) do
+        if TripWantsTheDirector(trip) then
+            return true
+        end
+    end
+    return false
+end
+
+--- What this hero's household got up to fishing, for the Director
+--- Rendered through the same log row the Water Log uses rather than a second
+--- renderer, so a Trip reads the same wherever it is shown.
+--- @param args table charid
+--- @return Panel
+function FSHPanel.PaintRespiteDirectorFeed(args)
+    local charid = args.charid
+
+    --Which rows are open, kept out here so a repaint does not collapse
+    --whatever the Director was reading.
+    local m_expanded = {}
+
+    local list
+
+    --What the rows amount to, so a tick that changes nothing does not rebuild
+    --the list under a Director who is reading it.
+    local m_signature = ""
+
+    local function Children()
+        local children = {}
+
+        for index, trip in ipairs(RespiteTrips(charid)) do
+            local key = string.format("%s:%d", trip.charid or "", index)
+            children[#children + 1] = FSHPanel.LogRow(trip, m_expanded[key] == true,
+                function()
+                    m_expanded[key] = not (m_expanded[key] == true)
+                    m_signature = ""
+                end,
+                --Whose Trip it is, is the row the Director already selected on
+                --the left; what they need here is which outing of theirs.
+                string.format("Trip %d", index))
+        end
+
+        if #children == 0 then
+            children[1] = gui.Label{
+                classes = { "sizeXs", "fgMuted" },
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                text = "No fishing this Respite."
+            }
+        end
+
+        return children
+    end
+
+    local function Signature()
+        local parts = {}
+
+        for _, trip in ipairs(RespiteTrips(charid)) do
+            parts[#parts + 1] = string.format("%s:%s:%d:%d:%d",
+                trip.charid or "", trip.status or "",
+                #(trip.casts or {}), #(trip.events or {}), #(trip.purchases or {}))
+        end
+        for key, open in pairs(m_expanded) do
+            if open then
+                parts[#parts + 1] = key
+            end
+        end
+        return table.concat(parts, "|")
+    end
+
+    m_signature = Signature()
+
+    list = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+
+        --Trips move while the Director is watching, and nothing else here
+        --tells the panel so.
+        thinkTime = 1,
+        think = function(element)
+            local signature = Signature()
+            if signature ~= m_signature then
+                m_signature = signature
+                element.children = Children()
+            end
+        end,
+
+        children = Children(),
+    }
+
+    return list
+end
+
+--- Where a character fishes during a Respite
+--- The Trip itself is the standalone window's pane, unchanged; this adds the
+--- way into one and the reason there is not one yet.
+--- @param args table charid, and owner when the character is a follower
+--- @return Panel
+function FSHPanel.PaintRespitePlayer(args)
+    local charid = args.charid
+
+    --A follower fishes on the rolls their hero holds for them.
+    local rollHolderId = args.owner or charid
+
+    local body
+    local m_signature = ""
+
+    --Which earlier Trips are open, kept out here so a repaint does not shut
+    --whatever the player was reading.
+    local m_expanded = {}
+
+    --This character's earlier outings, the live one left out: it has the whole
+    --pane above and does not want a second, smaller telling of itself.
+    --SessionTrips puts the live Trip last and only when it is live, so that is
+    --exactly the entry to drop.
+    local function FinishedTrips()
+        local trips = FSHTrip.SessionTrips(charid)
+        if FSHTrip.IsLive(charid) then
+            trips[#trips] = nil
+        end
+        return trips
+    end
+
+    --The pane is rebuilt only when the shape of the thing changes: a Trip
+    --appearing or ending, or the water opening. Rebuilding on every cast would
+    --throw away the scroll position mid-outing.
+    local function Signature()
+        local trip = FSHTrip.Get(charid)
+        --IsLive stands apart from the session: a Trip left over from a closed
+        --water still shows and still blocks starting another, so the pane has
+        --to notice it arriving and going away.
+        local shown = trip ~= nil
+            and (FSHTrip.IsLive(charid) or trip.sessionId == FSHWater.GetSessionID())
+
+        local parts = {
+            FSHWater.GetSessionID(),
+            tostring(FSHWater.IsOpen()),
+            tostring(FSHTrip.IsLive(charid)),
+            shown and (trip.status or "") or "none",
+            tostring(FSHTrip.RollsAvailable(charid, rollHolderId)),
+            tostring(#FinishedTrips()),
+        }
+        for key, open in pairs(m_expanded) do
+            if open then
+                parts[#parts + 1] = key
+            end
+        end
+        table.sort(parts)
+
+        return table.concat(parts, "|")
+    end
+
+    local function Rebuild()
+        if body == nil or not body.valid then
+            return
+        end
+
+        if not FSHWater.IsOpen() then
+            body.children = {
+                gui.Label{
+                    classes = { "sizeM", "fgMuted" },
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    tmargin = 8,
+                    text = "No water is open."
+                }
+            }
+            return
+        end
+
+        local children = {}
+
+        --A record nobody can read is the one thing there is no showing and no
+        --carrying on from, and it would otherwise block this hero from fishing
+        --for the rest of the Respite. Everything else is repairable, and is
+        --repaired in the Trip rather than thrown away.
+        if not FSHTrip.IsUsable(charid) then
+            FSHTrip.Abandon(charid)
+        end
+
+        local canStart, reason = FSHTrip.CanStart(charid, rollHolderId)
+        local token = dmhub.GetCharacterById(charid)
+
+        if canStart and token ~= nil then
+            children[#children + 1] = gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                halign = "left",
+                bmargin = 6,
+
+                gui.Button{
+                    classes = { "sizeM" },
+                    width = 150,
+                    height = 30,
+                    halign = "left",
+                    text = "Start Fishing",
+                    hover = gui.Tooltip("Costs one downtime roll, taken on your first cast"),
+                    click = function()
+                        FSHPanel.ShowStartFishingDialog({ token }, {
+                            rollHolderId = rollHolderId,
+                            onStarted = function()
+                                m_signature = ""
+                            end,
+                        })
+                    end
+                },
+
+                --Where they would be fishing, not what it costs: the roll
+                --count is already on their row in the list beside this.
+                gui.Label{
+                    classes = { "sizeXs", "fgMuted" },
+                    width = "auto",
+                    height = "auto",
+                    halign = "left",
+                    valign = "center",
+                    lmargin = 8,
+                    text = FSHWater.Describe()
+                },
+            }
+        end
+
+        --The pane is for the outing still going on, whatever water it started
+        --on: it is what blocks starting another, so hiding it is what leaves a
+        --player staring at a refusal with nothing to act on, and the Trip
+        --carries its own water in it so it reads correctly after that water has
+        --closed. A finished Trip does not get the pane - it has become one of
+        --the rows below, which is a better ending than a summary line sitting
+        --where a live Trip used to be.
+        local hasTrip = FSHTrip.IsLive(charid)
+
+        if hasTrip then
+            local pane = FSHPanel.TripPane{
+                charid = charid,
+                --Nothing to close: closing up turns the Trip into the newest
+                --row of the log underneath, and the way back in is Start
+                --Fishing above it.
+                onClose = function()
+                    m_signature = ""
+                end,
+            }
+            children[#children + 1] = gui.Panel{
+                width = "100%",
+                height = "100% available",
+                flow = "vertical",
+                halign = "left",
+                valign = "top",
+
+                pane,
+            }
+        elseif not canStart then
+            children[#children + 1] = gui.Label{
+                classes = { "sizeM", "fgMuted" },
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                tmargin = 8,
+                text = reason
+            }
+        end
+
+        --What they have already caught today. Rendered through the same log row
+        --the Water Log and the Director's feed use, so a Trip reads the same
+        --wherever it is shown.
+        local finished = FinishedTrips()
+        if #finished > 0 then
+            children[#children + 1] = gui.Label{
+                classes = { "tableLabel", "sizeXs" },
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                tmargin = 8,
+                text = "Earlier Trips"
+            }
+
+            for index, entry in ipairs(finished) do
+                local key = string.format("%d", index)
+                children[#children + 1] = FSHPanel.LogRow(entry, m_expanded[key] == true,
+                    function()
+                        m_expanded[key] = not (m_expanded[key] == true)
+                        m_signature = ""
+                    end,
+                    --Which outing of theirs, not whose: the player is looking
+                    --at their own character.
+                    string.format("Trip %d", index))
+            end
+        end
+
+        body.children = children
+    end
+
+    body = gui.Panel{
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+
+        create = function()
+            m_signature = Signature()
+            Rebuild()
+        end,
+
+        thinkTime = 0.4,
+        think = function()
+            local signature = Signature()
+            if signature ~= m_signature then
+                m_signature = signature
+                Rebuild()
+            end
+        end,
+    }
+
+    return body
+end
+
+--- Where the fishing happened, for the Respite's write-up
+--- @return string|nil
+function FSHPanel.RespiteJournalDetail()
+    if not FSHWater.IsOpen() then
+        return nil
+    end
+
+    -- Describe() separates with a pipe for the panel header; a sentence in a
+    -- document wants a comma.
+    return (FSHWater.Describe():gsub("%s*|%s*", ", "))
+end
+
+--- What this household's fishing amounted to, for the Respite's write-up
+--- Trips and their tally, then the moments worth naming: a breakthrough is
+--- fiction somebody has to remember, and the biggest fish is the bragging.
+--- @param args table charid
+--- @return string[]|nil lines nil when nobody fished
+function FSHPanel.RespiteJournalSummary(args)
+    --- Names whoever it was when that is not the hero the section belongs to.
+    --- @param who string|nil
+    --- @param what string
+    --- @return string
+    local function Attribute(who, what)
+        if who == nil then
+            return what
+        end
+        return string.format("%s: %s", who, what)
+    end
+
+    local trips = 0
+    local catches = 0
+    local largest = nil
+    local events = {}
+    local bought = {}
+
+    -- The same household the Director's feed reads, so the write-up and the
+    -- monitor can never tell different stories. Each Trip carries whose it was.
+    for _, trip in ipairs(RespiteTrips(args.charid)) do
+        -- Only a follower needs naming: the hero's own name is the heading
+        -- this sits under, and repeating it reads as a stutter.
+        local name = nil
+        if trip.charid ~= args.charid then
+            name = trip.tokenName or "A follower"
+        end
+        trips = trips + 1
+
+        for _, cast in ipairs(trip.casts or {}) do
+            if cast.result == FSHTrip.RESULT.CATCH.key then
+                catches = catches + 1
+                if largest == nil or (cast.points or 0) > largest.points then
+                    largest = {
+                        points = cast.points or 0,
+                        species = cast.species ~= nil and cast.species.name
+                            or "fish",
+                        who = name,
+                    }
+                end
+            end
+        end
+
+        for _, event in ipairs(trip.events or {}) do
+            events[#events + 1] = Attribute(name, event.name or "a breakthrough")
+        end
+
+        for _, purchase in ipairs(trip.purchases or {}) do
+            bought[#bought + 1] = Attribute(name, purchase.name or "something")
+        end
+    end
+
+    if trips == 0 then
+        return nil
+    end
+
+    local lines = {
+        string.format("Went fishing %d %s and landed %d %s", trips,
+            cond(trips == 1, "time", "times"), catches,
+            cond(catches == 1, "fish", "fish")),
+    }
+
+    if largest ~= nil then
+        lines[#lines + 1] = Attribute(largest.who, string.format(
+            "Biggest catch: %d %s", largest.points, largest.species))
+    end
+
+    for _, line in ipairs(events) do
+        lines[#lines + 1] = string.format("Breakthrough - %s", line)
+    end
+
+    for _, line in ipairs(bought) do
+        lines[#lines + 1] = string.format("Bought at the Tackle table - %s", line)
+    end
+
+    return lines
+end
+
 --- Offers fishing to the Respite, if the Respite module is installed.
 --- Registering the same key twice is a replace, so running this more than
 --- once costs nothing.
@@ -2068,6 +2664,23 @@ local function RegisterWithRespite()
         key = RESPITE_ACTIVITY_KEY,
         name = "Fishing",
         paint = PaintRespiteFields,
+        paintPlayer = FSHPanel.PaintRespitePlayer,
+        paintDirector = FSHPanel.PaintRespiteDirectorFeed,
+        needsAttention = FSHPanel.RespiteNeedsAttention,
+
+        --The Respite is the outing: opening mints a session, which is what
+        --separates this Respite's Trips from the last one's, and the name and
+        --type are whatever the Director set up.
+        onStart = function()
+            FSHWater.Open(FSHWater.GetName(), FSHWater.GetWaterType())
+        end,
+
+        onComplete = function()
+            FSHWater.Close()
+        end,
+
+        journalDetail = FSHPanel.RespiteJournalDetail,
+        journalSummary = FSHPanel.RespiteJournalSummary,
     }
 end
 

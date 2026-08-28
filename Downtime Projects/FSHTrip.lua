@@ -88,6 +88,51 @@ function FSHTrip.IsOwnedByThisClient(charid)
     return trip ~= nil and trip.runByUserId == dmhub.userid
 end
 
+--- Whether a Trip holds a state that can be shown and carried on from
+--- Almost every stuck Trip is not broken: it has a status, a stringer and a
+--- next move, and only needs someone able to make it. A record whose status is
+--- missing or unrecognised has none of that, and is the one kind worth throwing
+--- away rather than repairing.
+--- @param charid string The character's id
+--- @return boolean usable True when there is no Trip, or one that makes sense
+function FSHTrip.IsUsable(charid)
+    local trip = FSHTrip.Get(charid)
+    if trip == nil then
+        return true
+    end
+
+    for _, status in ipairs(FSHTrip.STATUS) do
+        if trip.status == status.key then
+            return true
+        end
+    end
+
+    return false
+end
+
+--- Hands a stranded Trip to the player looking at it
+--- The single-writer rule keeps two clients from advancing one Trip, but it
+--- also strands a Trip whose client has gone: nobody can drive it and nobody
+--- can start another. This moves the writer rather than relaxing the rule, and
+--- clears any roll the departed client was waiting on, which would otherwise
+--- hold the Trip still under its new owner. Nothing that happened is lost - the
+--- stringer, the points and the events are all where they were.
+--- @param charid string The character's id
+--- @return boolean claimed
+function FSHTrip.Reset(charid)
+    if FSHTrip.Get(charid) == nil then
+        return false
+    end
+
+    FSHTrip._write(charid, function(data)
+        data.runByUserId = dmhub.userid
+        data.actionId = nil
+        data.eventActionId = nil
+    end)
+
+    return true
+end
+
 --- Picks the characteristic a hero fishes with
 --- The rules allow Agility, Reason, or Intuition and no player would ever pick
 --- anything but their best, so the module derives it and shows which it used.
@@ -132,11 +177,40 @@ function FSHTrip.SkillOptions(creature)
     return options
 end
 
---- Determines whether a hero may start fishing right now
---- @param charid string The hero's token id
+--- The downtime rolls a character has left to fish with
+--- A follower's rolls are held on the hero they follow, keyed by follower id,
+--- so who is asked depends on who is paying.
+--- @param charid string The character's id
+--- @param rollHolderId string|nil Who holds the counter, the character themselves when nil
+--- @return number rolls
+function FSHTrip.RollsAvailable(charid, rollHolderId)
+    rollHolderId = rollHolderId or charid
+
+    local holder = dmhub.GetCharacterById(rollHolderId)
+    if holder == nil or holder.properties == nil then
+        return 0
+    end
+
+    local info = holder.properties:GetDowntimeInfo()
+    if info == nil then
+        return 0
+    end
+
+    if rollHolderId == charid then
+        return info:GetAvailableRolls()
+    end
+
+    return info:GetFollowerRolls(charid)
+end
+
+--- Determines whether a character may start fishing right now
+--- A Trip costs a downtime roll, so having one is part of being able to start.
+--- The roll is not taken here: it comes off the first cast.
+--- @param charid string The character's id
+--- @param rollHolderId string|nil Who holds their downtime rolls
 --- @return boolean available True when Start Fishing should be live
 --- @return string reason Why not, when unavailable
-function FSHTrip.CanStart(charid)
+function FSHTrip.CanStart(charid, rollHolderId)
     if not FSHWater.IsOpen() then
         return false, "No water is open."
     end
@@ -145,23 +219,67 @@ function FSHTrip.CanStart(charid)
         return false, "This hero is already fishing."
     end
 
+    if FSHTrip.RollsAvailable(charid, rollHolderId) < 1 then
+        return false, "No downtime rolls left."
+    end
+
+    return true, ""
+end
+
+--- Takes the downtime roll a Trip costs, once per Trip
+--- Charged on the first cast rather than at the start, so a Trip opened and
+--- abandoned costs nothing: nothing can be gained before a cast. Goldenrod
+--- recasts through the same door, and the flag is what keeps it free.
+--- @param charid string The character's id
+--- @return boolean paid True when the Trip is paid up
+--- @return string reason Why not, when it is not
+function FSHTrip.SpendRoll(charid)
+    local trip = FSHTrip.Get(charid)
+    if trip == nil then
+        return false, "There is no Trip."
+    end
+
+    if trip.rollSpent then
+        return true, ""
+    end
+
+    local rollHolderId = trip.rollHolderId or charid
+
+    --Asked again here rather than trusted from the start: the roll may have
+    --gone to a project while the Trip sat open.
+    if FSHTrip.RollsAvailable(charid, rollHolderId) < 1 then
+        return false, "No downtime rolls left."
+    end
+
+    local holder = dmhub.GetCharacterById(rollHolderId)
+    if holder == nil then
+        return false, "That character is not available."
+    end
+
+    DTProjectEditor.AdjustDowntimeRolls(holder, charid, -1)
+
+    FSHTrip._write(charid, function(data)
+        data.rollSpent = true
+    end)
+
     return true, ""
 end
 
 --- Starts a Trip, capturing the water and the hero's approach
 --- Overwrites any previous Trip for this hero wholesale, so a hero's document
 --- always describes their current outing and never accumulates.
---- @param token any The hero's token
+--- @param token any The character's token
 --- @param skill table|nil The chosen skill as { id, name }, or nil for none
+--- @param rollHolderId string|nil Who holds their downtime rolls; themselves when nil
 --- @return boolean started True when the Trip began
 --- @return string reason Why not, when it did not
-function FSHTrip.Start(token, skill)
+function FSHTrip.Start(token, skill, rollHolderId)
     if token == nil or not token.valid then
         return false, "That hero is not available."
     end
 
     local charid = token.id
-    local canStart, reason = FSHTrip.CanStart(charid)
+    local canStart, reason = FSHTrip.CanStart(charid, rollHolderId)
     if not canStart then
         return false, reason
     end
@@ -169,11 +287,30 @@ function FSHTrip.Start(token, skill)
     local attrid, attrValue = FSHTrip.DeriveCharacteristic(token.properties)
 
     local doc = mod:GetDocumentSnapshot(FSHTrip.DocumentName(charid))
+    local sessionId = FSHWater.GetSessionID()
+
+    --Starting a Trip replaces the document, so what earlier Trips amounted to
+    --has to be carried across or the Director loses everything but the last
+    --one. History belongs to the water session, which is one Respite: a Trip
+    --from an earlier session is not this Respite's business.
+    local history = {}
+    local previous = doc.data
+    if type(previous) == "table" and previous.sessionId == sessionId then
+        for _, entry in ipairs(previous.history or {}) do
+            history[#history + 1] = entry
+        end
+    end
+
     doc:BeginChange()
     doc.data = {
-        sessionId = FSHWater.GetSessionID(),
+        sessionId = sessionId,
+        history = history,
         charid = charid,
         runByUserId = dmhub.userid,
+        --A follower fishes on their hero's counter, so who pays is settled
+        --when the Trip opens rather than worked out again at every cast.
+        rollHolderId = rollHolderId or charid,
+        rollSpent = false,
         waterName = FSHWater.GetName(),
         waterType = FSHWater.GetWaterType(),
         characteristic = {
@@ -195,6 +332,10 @@ function FSHTrip.Start(token, skill)
     if FSHTrip.HasTitle(token.properties, FSHConstants.titleGoldenrod) then
         FSHTrip.SetGoldenrodReroll(charid, true)
     end
+
+    --Start writes the document itself rather than going through _write, so it
+    --has to say so on its own.
+    FSHTrip._announceChange()
 
     return true, ""
 end
@@ -629,13 +770,74 @@ function FSHTrip.Close(charid)
     --An unspent reroll does not survive the outing that granted it.
     FSHTrip.SetGoldenrodReroll(charid, false)
 
+    local closedAt = dmhub.serverTime
+
     FSHTrip._write(charid, function(data)
         data.status = FSHTrip.STATUS.CLOSED.key
         data.summary = summary
-        data.closedAt = dmhub.serverTime
+        data.closedAt = closedAt
+
+        --The next Trip replaces this document, so what happened here is filed
+        --before it can be overwritten. What the Director still owes lives in
+        --the events, which is why they are kept whole rather than summarised.
+        local history = {}
+        for _, entry in ipairs(data.history or {}) do
+            history[#history + 1] = entry
+        end
+        history[#history + 1] = {
+            --Carried so a filed Trip renders through the same row as a live
+            --one: the log row looks its character up by id.
+            charid = charid,
+            status = FSHTrip.STATUS.CLOSED.key,
+            openedAt = data.openedAt,
+            closedAt = closedAt,
+            waterName = data.waterName,
+            waterType = data.waterType,
+            characteristic = data.characteristic,
+            skill = data.skill,
+            casts = data.casts,
+            events = data.events,
+            purchases = data.purchases,
+            summary = summary,
+        }
+        data.history = history
     end)
 
     return summary
+end
+
+--- Every Trip a character has run in this water session, oldest first
+--- The live Trip comes last when there is one, so the Director reads a Respite
+--- in the order it happened rather than in the order the documents were built.
+--- @param charid string The character's id
+--- @return table[] trips The finished Trips, plus the one still running
+function FSHTrip.SessionTrips(charid)
+    local trip = FSHTrip.Get(charid)
+    if trip == nil then
+        return {}
+    end
+
+    local trips = {}
+    for _, entry in ipairs(trip.history or {}) do
+        trips[#trips + 1] = entry
+    end
+
+    --A closed Trip is already in the history, so taking it again would show it
+    --twice.
+    if trip.status ~= FSHTrip.STATUS.CLOSED.key then
+        trips[#trips + 1] = trip
+    end
+
+    --The log row shows whose Trip it was from this, the way the Water Log
+    --stamps it on the way past.
+    local token = dmhub.GetCharacterById(charid)
+    local name = (token ~= nil and token.name) or "Unnamed Hero"
+    for _, entry in ipairs(trips) do
+        entry.tokenName = name
+        entry.charid = entry.charid or charid
+    end
+
+    return trips
 end
 
 --- Lists the Trips belonging to the current water session
@@ -665,6 +867,31 @@ function FSHTrip.TripsThisSession(includeClosed)
     return trips
 end
 
+--- Throws a Trip away so the character can start another
+--- The way out of a Trip that cannot be finished: one being run from a client
+--- that has since gone, or one waiting on an answer nobody can give. Deletes
+--- rather than closes - an abandoned Trip is not a Trip taken, so it earns no
+--- record and no summary. A roll already spent on it stays spent, since the
+--- casts it paid for happened; one never cast on was never charged. Ownership
+--- is deliberately not checked: the player stuck behind a Trip is usually not
+--- the client running it.
+--- @param charid string The character's id
+--- @return boolean abandoned
+function FSHTrip.Abandon(charid)
+    local doc = mod:GetDocumentSnapshot(FSHTrip.DocumentName(charid))
+    if doc.data == nil or type(doc.data) ~= "table" or doc.data.charid == nil then
+        return false
+    end
+
+    doc:BeginChange()
+    doc.data = {}
+    doc:CompleteChange("Abandon fishing trip", { undoable = false })
+
+    FSHTrip._announceChange()
+
+    return true
+end
+
 --- DESTRUCTIVE Clears every hero's Trip, leaving nobody fishing
 --- Trip documents are not history worth keeping: the record on the character is
 --- what persists. This wipes the lot so a session can start from nothing.
@@ -676,8 +903,22 @@ function FSHTrip.ClearAll()
 
     local cleared = 0
 
+    --Followers fish too, and their Trips live on their own documents. Walking
+    --heroes alone left a follower mid-Trip after everything else was wiped.
+    local ids = {}
     for _, token in ipairs(DTBusinessRules.GetAllHeroTokens()) do
-        local doc = mod:GetDocumentSnapshot(FSHTrip.DocumentName(token.id))
+        ids[#ids + 1] = token.id
+
+        local session = rawget(_G, "RSPSession")
+        if session ~= nil then
+            for _, followerId in ipairs(session.FollowersOf(token.id, true)) do
+                ids[#ids + 1] = followerId
+            end
+        end
+    end
+
+    for _, id in ipairs(ids) do
+        local doc = mod:GetDocumentSnapshot(FSHTrip.DocumentName(id))
         if doc.data ~= nil and type(doc.data) == "table" and doc.data.charid ~= nil then
             doc:BeginChange()
             doc.data = {}
@@ -710,4 +951,18 @@ function FSHTrip._write(charid, Apply)
     doc:BeginChange()
     doc.data = rebuilt
     doc:CompleteChange("Update fishing trip", { undoable = false })
+
+    FSHTrip._announceChange()
+end
+
+--- Tells the Respite that a Trip moved
+--- Trips live in their own documents, which the Respite does not watch, so a
+--- breakthrough would otherwise sit unseen on the Director's roster until some
+--- unrelated write woke it. Every write to a Trip comes through _write or
+--- Start, so those two are the whole of it.
+function FSHTrip._announceChange()
+    local session = rawget(_G, "RSPSession")
+    if session ~= nil and session.Active() ~= nil then
+        session.Ping()
+    end
 end

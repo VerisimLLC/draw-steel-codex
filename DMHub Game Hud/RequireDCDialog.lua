@@ -481,6 +481,11 @@ function GameHud:RequireRollListenerPanel()
 										subtype = check.type,
 										nofadein = nofadein,
 
+										--Optional, and off unless the caller asks: the dialog
+										--is see-through by default, which is unreadable over a
+										--busy map. Absent means exactly what it meant before.
+										solidDialog = request.info:try_get("solidDialog", false),
+
 										alternateOptions = alternateOptions,
 										alternateChosen = checkIndex,
 										chooseAlternate = function(alternateIndex)

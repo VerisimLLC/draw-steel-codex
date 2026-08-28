@@ -1,7 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 --- Player Step 2: doing the downtime, and saying when you are finished.
-RSPPlayerActPanel = {}
+RSPPlayerActPanel = RegisterGameType("RSPPlayerActPanel")
 
 local INSTRUCTIONS = [[
 ### Downtime Activities

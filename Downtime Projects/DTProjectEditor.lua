@@ -2809,6 +2809,19 @@ function DTProjectEditor._projectTimeline(project)
     return items
 end
 
+--- The server time a Respite feed reports from
+--- The Respite hands this over as an accessor rather than a number, because a
+--- panel can be built before the Respite starts and a captured zero reads as
+--- "report everything ever". A plain number is still accepted.
+--- @param since number|fun(): number|nil
+--- @return number
+local function ResolveSince(since)
+    if type(since) == "function" then
+        return since() or 0
+    end
+    return since or 0
+end
+
 --- What happened on one project inside a window
 --- The milestone and the completion are not recorded anywhere: they are the
 --- moments the running total crossed a threshold, so the timeline is replayed
@@ -2884,7 +2897,7 @@ function DTProjectEditor.RespiteNeedsAttention(args)
     local heroToken = dmhub.GetCharacterById(args.charid)
 
     for _, project in ipairs(DTProjectEditor._ownedProjects(heroToken)) do
-        for _, event in ipairs(DTProjectEditor._projectEvents(project, args.since or 0)) do
+        for _, event in ipairs(DTProjectEditor._projectEvents(project, ResolveSince(args.since))) do
             if event.kind ~= "roll" then
                 return true
             end
@@ -2973,12 +2986,14 @@ end
 
 --- What this hero got up to during the Respite, newest first
 --- Rolls the hero or their followers made anywhere they can reach, plus the
---- milestones and completions on the projects they own.
---- @param args table charid, and since as a server time
---- @return Panel[] rows
-function DTProjectEditor._respiteFeedRows(args)
+--- milestones and completions on the projects they own. Shared by the
+--- Director's feed and the Respite's write-up, so the two can never disagree
+--- about what happened.
+--- @param args table charid, and since as a server time or a function
+--- @return table[] events
+function DTProjectEditor._respiteEvents(args)
     local heroToken = dmhub.GetCharacterById(args.charid)
-    local since = args.since or 0
+    local since = ResolveSince(args.since)
     local events = {}
 
     local followers = {}
@@ -3036,8 +3051,15 @@ function DTProjectEditor._respiteFeedRows(args)
         return (a.item.serverTime or 0) > (b.item.serverTime or 0)
     end)
 
+    return events
+end
+
+--- The Director's feed rows for one hero
+--- @param args table charid, and since as a server time or a function
+--- @return Panel[] rows
+function DTProjectEditor._respiteFeedRows(args)
     local rows = {}
-    for _, event in ipairs(events) do
+    for _, event in ipairs(DTProjectEditor._respiteEvents(args)) do
         rows[#rows + 1] = DTProjectEditor._respiteEventRow(event)
     end
 
@@ -3053,6 +3075,43 @@ function DTProjectEditor._respiteFeedRows(args)
     end
 
     return rows
+end
+
+--- What this household did with its projects, for the Respite's write-up
+--- Counted rather than listed: a hero who rolled seven times wants one line
+--- saying so, and the milestones and completions are the part worth naming.
+--- @param args table charid, and since as a server time or a function
+--- @return string[]|nil lines nil when they did nothing
+function DTProjectEditor.RespiteJournalSummary(args)
+    local rolls = 0
+    local named = {}
+
+    for _, event in ipairs(DTProjectEditor._respiteEvents(args) or {}) do
+        if event.kind == "roll" then
+            rolls = rolls + 1
+        elseif event.kind == "milestone" then
+            named[#named + 1] = string.format("reached a milestone on %s",
+                event.project:GetTitle())
+        elseif event.kind == "complete" then
+            named[#named + 1] = string.format("completed %s",
+                event.project:GetTitle())
+        end
+    end
+
+    if rolls == 0 and #named == 0 then
+        return nil
+    end
+
+    local lines = {}
+    if rolls > 0 then
+        lines[#lines + 1] = string.format("Rolled on downtime projects %d %s",
+            rolls, cond(rolls == 1, "time", "times"))
+    end
+    for _, line in ipairs(named) do
+        lines[#lines + 1] = line:gsub("^%l", string.upper)
+    end
+
+    return lines
 end
 
 --- The Director's view of this hero's downtime projects

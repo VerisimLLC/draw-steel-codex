@@ -15,7 +15,16 @@ local mod = dmhub.GetModLoading()
 --- @field paint fun(): Panel the Director's setup fields
 --- @field paintPlayer fun(args: table): Panel what a player does with it
 --- @field paintDirector fun(args: table): Panel what the Director watches
+--- Both paintDirector and needsAttention receive args.since, which is a server
+--- time OR a function returning one. Resolve it when you read it: a panel that
+--- captures the number can be built before the Respite starts, and a zero
+--- there means "report everything ever".
 --- @field needsAttention fun(args: table): boolean something the Director must act on
+--- @field onStart fun() the Respite has begun and this activity is on offer
+--- @field onComplete fun() the Respite is over
+--- @field journalDetail fun(): string|nil one line about this activity for the write-up
+--- @field journalSummary fun(args: table): string[]|nil what args.charid did;
+--- receives args.since like paintDirector does
 RSPActivity = RegisterGameType("RSPActivity")
 
 RSPActivity.name = "Activity"
@@ -39,6 +48,10 @@ function RSPActivity.Register(args)
         paintPlayer = args.paintPlayer,
         paintDirector = args.paintDirector,
         needsAttention = args.needsAttention,
+        onStart = args.onStart,
+        onComplete = args.onComplete,
+        journalDetail = args.journalDetail,
+        journalSummary = args.journalSummary,
     }
 end
 

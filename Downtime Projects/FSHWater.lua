@@ -128,7 +128,12 @@ function FSHWater.Close()
     doc:BeginChange()
     doc.data = {
         open = false,
-        sessionId = doc.data.sessionId
+        sessionId = doc.data.sessionId,
+        --Kept through the close: the Respite's setup fields are where the name
+        --and type are chosen, and a Respite that ends should not blank what
+        --the Director typed for the next one.
+        name = doc.data.name,
+        waterType = doc.data.waterType
     }
     doc:CompleteChange("Close fishing water", { undoable = false })
 

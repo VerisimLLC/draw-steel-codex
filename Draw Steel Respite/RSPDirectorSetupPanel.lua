@@ -1,7 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 --- Director Step 1: the terms of the Respite, before anyone is asked to join.
-RSPDirectorSetupPanel = {}
+RSPDirectorSetupPanel = RegisterGameType("RSPDirectorSetupPanel")
 
 local INSTRUCTIONS = [[
 ### Setup

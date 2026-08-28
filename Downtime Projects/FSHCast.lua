@@ -10,6 +10,11 @@ FSHCast = RegisterGameType("FSHCast")
 --- A final total at or below this is the one that got away.
 FSHCast.GOT_AWAY_MAX = 11
 
+--- Rolls already harvested, by action id. Client-local and never cleared: an
+--- action id is a guid, so the entries are worth a few bytes each and a code
+--- reload starts the table over.
+FSHCast._harvested = {}
+
 --- Overrides breakthrough detection so the rarest branches can be reached on
 --- demand. Honoured only while FSHConstants.DEBUG_MODE is on.
 FSHCast.TEST_MODE = {
@@ -160,6 +165,14 @@ function FSHCast.Cast(charid)
         return false, "This Trip is being run from another client."
     end
 
+    --A Trip costs one downtime roll, taken on the first cast. Nothing goes out
+    --unpaid: refusing here is what keeps a Trip from outrunning the rolls the
+    --Respite handed out.
+    local paid, why = FSHTrip.SpendRoll(charid)
+    if not paid then
+        return false, why
+    end
+
     local skills = {}
     if trip.skill ~= nil and trip.skill.id ~= nil and trip.skill.id ~= "" then
         skills[1] = trip.skill.id
@@ -186,7 +199,10 @@ function FSHCast.Cast(charid)
     local actionId = dmhub.SendActionRequest(RollRequest.new{
         title = title,
         checks = { check },
-        tokens = { [charid] = {} }
+        tokens = { [charid] = {} },
+        --A cast is read, not admired: the see-through frame sits over whatever
+        --map is behind it, and the stringer is hard enough to follow already.
+        solidDialog = true
     })
 
     if actionId == nil then
@@ -246,6 +262,14 @@ function FSHCast.Pump(charid)
         return
     end
 
+    --One harvest per roll. The Trip can be shown in more than one place on a
+    --client and every copy ticks, and a document write is not visible to a read
+    --in the same breath, so without this two of them can each see the same
+    --completed roll and record the cast twice.
+    if FSHCast._harvested[trip.actionId] then
+        return
+    end
+
     local request = dmhub.GetPlayerActionRequest(trip.actionId)
 
     --A request cleared out from under us takes its roll with it. Treat it as
@@ -267,6 +291,8 @@ function FSHCast.Pump(charid)
     if status ~= "complete" then
         return
     end
+
+    FSHCast._harvested[trip.actionId] = true
 
     dmhub.CancelActionRequest(trip.actionId)
 

@@ -1,7 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 --- Assembles the Respite wizards and puts them on the Game menu.
-RSPDialog = {}
+RSPDialog = RegisterGameType("RSPDialog")
 
 --- The Director's wizard. Every step it knows about is handed to the shell,
 --- which shows whichever one the session's phase calls for.
@@ -26,6 +26,26 @@ function RSPDialog.CreateDirectorView()
         end
     end
 
+    -- Pushed again when the Respite actually begins, so a player who closed
+    -- their window during the offer is not left out of the Respite they are
+    -- in. Safe to repeat: the push opens a window on a client that has none
+    -- and leaves an open one alone, so it can never shut one in someone's
+    -- face.
+    local function Start()
+        RSPSession.Start()
+        if root ~= nil and root.valid then
+            RSPSession.PresentToPlayers(root)
+        end
+    end
+
+    -- Setup is the one phase with nothing to preserve, so closing out of it
+    -- throws the Respite away rather than leaving a half-built one sitting in
+    -- the document with no way back to it.
+    local function Abandon()
+        RSPSession.Abandon()
+        Close()
+    end
+
     -- TESTING: Complete Respite wipes the Respite so the loop can be run
     -- again from Setup.
     local function Complete()
@@ -36,8 +56,8 @@ function RSPDialog.CreateDirectorView()
 
     root = RSPShell.Create{
         steps = {
-            RSPDirectorSetupPanel.Step(Offer, Close),
-            RSPDirectorPartPanel.Step(RSPSession.Start),
+            RSPDirectorSetupPanel.Step(Offer, Abandon),
+            RSPDirectorPartPanel.Step(Start),
             RSPDirectorActPanel.Step(Complete),
         },
     }
@@ -45,20 +65,23 @@ function RSPDialog.CreateDirectorView()
     return root
 end
 
---- What a player sees. Reached from the Game menu at any time, and pushed onto
---- their screen when the Director offers a Respite. The two arrive by
---- different routes, so the caller says how its copy is dismissed.
---- @param args {framed: nil|boolean, makeClose: fun(root: Panel): fun()}
+--- What a player sees. The Game menu opens it, and the Director's offer opens
+--- the same window by the same route, so there is only one of these.
 --- @return Panel
-function RSPDialog.CreatePlayerView(args)
+function RSPDialog.CreatePlayerView()
     local root
 
+    -- The launchable host owns this window's lifetime, so closing is a
+    -- request to the parent rather than a DestroySelf.
+    local function Close()
+        if root ~= nil and root.valid and root.parent ~= nil then
+            root.parent:FireEvent("close")
+        end
+    end
+
     root = RSPShell.Create{
-        framed = args.framed,
         steps = {
-            RSPPlayerRespitePanel.IdleStep(function()
-                args.makeClose(root)()
-            end),
+            RSPPlayerRespitePanel.IdleStep(Close),
             RSPPlayerRespitePanel.Step(),
             RSPPlayerActPanel.Step(),
         },
@@ -67,51 +90,54 @@ function RSPDialog.CreatePlayerView(args)
     return root
 end
 
---- @return Panel
+--- @return Panel|nil
 function RSPDialog.Create()
+    -- A Respite cannot begin mid-fight: the game mode it puts the table into
+    -- is the one combat is already using, so the window is refused outright
+    -- rather than opening onto a Respite that could never start.
+    if RSPSession.CombatInProgress() then
+        gui.ModalMessage{
+            title = RSPConstants.panelName,
+            message = "A Respite cannot be taken during combat. End the encounter first.",
+        }
+        return nil
+    end
+
     if dmhub.isDM then
         return RSPDialog.CreateDirectorView()
     end
 
-    -- Launched from the Game menu, so the launchable host owns the window
-    -- and paints the frame around it.
-    return RSPDialog.CreatePlayerView{
-        makeClose = function(root)
-            return function()
-                if root ~= nil and root.valid and root.parent ~= nil then
-                    root.parent:FireEvent("close")
-                end
-            end
-        end,
-    }
+    return RSPDialog.CreatePlayerView()
 end
 
---- The pushed copy. Returning nil leaves the Director's own screen alone, and
---- keeps the push from raising a window with nothing in it.
---- @return Panel|nil
-function RSPDialog.CreatePresentedPlayerView()
+--- The Director's offer, arriving on a player's client. Rather than building
+--- a window of its own it opens the Game menu's, so a Respite raised for a
+--- player is the same window in the same host they would have opened.
+---
+--- Presenting a dialog only calls this to have a panel built; returning
+--- nothing leaves the presentation machinery with nothing to tear down, so
+--- ending the Respite leaves the window standing on its idle step rather than
+--- yanking it away mid-click.
+--- @return nil
+function RSPDialog.RaiseForPlayer()
     if dmhub.isDM or RSPSession.Active() == nil then
         return nil
     end
 
-    -- Pushed onto the hud rather than hosted, so it draws its own frame, and
-    -- closing is local to this client: the Respite carries on without it.
-    return RSPDialog.CreatePlayerView{
-        framed = true,
-        makeClose = function(root)
-            return function()
-                if root ~= nil and root.valid then
-                    root:DestroySelf()
-                end
-            end
-        end,
-    }
+    -- LaunchPanelByName toggles, so a player who already opened it from the
+    -- menu would have it shut in their face. Asking first is per-client: this
+    -- runs on each player's own machine.
+    if not RSPShell.IsOpen() then
+        LaunchablePanel.LaunchPanelByName(RSPConstants.panelName)
+    end
+
+    return nil
 end
 
 GameHud.RegisterPresentableDialog{
     id = RSPConstants.dialogId,
     keeplocal = false,
-    create = RSPDialog.CreatePresentedPlayerView,
+    create = RSPDialog.RaiseForPlayer,
 }
 
 -- LaunchablePanel.Register is keyed by name, so this replaces the stock

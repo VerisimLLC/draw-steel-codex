@@ -1,7 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 --- Controls shared by the Respite steps.
-RSPWidgets = {}
+RSPWidgets = RegisterGameType("RSPWidgets")
 
 --- A "- [n] +" stepper over a bounded integer held in the session.
 --- The well never holds the value: it repaints from get() on every
@@ -235,6 +235,29 @@ function RSPWidgets.CharacterRow(args)
         end,
     } or nil
 
+    -- The settings document above catches a project roll, which pings it, but
+    -- not a fishing trip: that spends the roll by writing the holder's token
+    -- and nothing else. A panel carries one monitorGame, so the token gets a
+    -- watcher of its own. Zero-sized, so it costs the row no width.
+    local rollsWatcher = nil
+    if rolls ~= nil then
+        local holder = dmhub.GetCharacterById(args.owner or args.charid)
+        if holder ~= nil then
+            rollsWatcher = gui.Panel{
+                width = 0,
+                height = 0,
+                halign = "left",
+                valign = "center",
+                monitorGame = holder.monitorPath,
+                refreshGame = function()
+                    if rolls.valid then
+                        rolls.text = tostring(args.rolls(args.charid, args.owner))
+                    end
+                end,
+            }
+        end
+    end
+
     -- Something on this character wants the Director. Built even when there is
     -- nothing to say, so the rows either side keep their column.
     local attention = args.attention ~= nil and gui.Panel{
@@ -245,6 +268,11 @@ function RSPWidgets.CharacterRow(args)
         halign = "right",
         valign = "center",
         hmargin = 0,
+        -- What raises this lives in the activities, which keep their state in
+        -- their own documents. They call RSPSession.Ping when something moves,
+        -- which touches the Respite's document and brings every panel here
+        -- with it -- so this one handler covers a fishing breakthrough as well
+        -- as anything the Respite itself changes.
         respiteChanged = function(element)
             element:SetClass("hidden", not args.attention(args.charid))
         end,
@@ -313,6 +341,11 @@ function RSPWidgets.CharacterRow(args)
         rolls,
         status,
         lock,
+
+        -- Last and zero-sized, and deliberately not counted among the trailing
+        -- widgets above: it occupies no column, so the name must not give up
+        -- a slot for it.
+        rollsWatcher,
     }
 end
 
@@ -389,6 +422,19 @@ end
 --- @return table style rules
 function RSPWidgets.CustomStyles()
     return {
+        -- The size ladder does not reach a checkbox: DefaultStyles gives every
+        -- one a flat 30 high and defines no size variants, so two stacked in a
+        -- footer band overflow it. Completing the ladder here rather than in
+        -- DefaultStyles keeps a component-specific rule out of the shared
+        -- vocabulary, and rather than reaching into the checkbox itself.
+        {
+            selectors = {"checkbox", "sizeS"},
+            height = 22,
+        },
+        {
+            selectors = {"checkbox", "sizeXs"},
+            height = 18,
+        },
         {
             selectors = {"rspLock"},
             bgcolor = "@fg",

@@ -1,7 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 --- Shared vocabulary for the Respite feature.
-RSPConstants = {}
+RSPConstants = RegisterGameType("RSPConstants")
 
 RSPConstants.sessionDoc = "rspSession"
 
@@ -125,6 +125,11 @@ RSPConstants.activityHeaderTopMargin = 12
 RSPConstants.activityHeaderBottomMargin = 4
 RSPConstants.activityBodyIndent = 24
 
+--- Where a completed Respite writes itself up. "public" is the Shared
+--- Documents root; the folder is made on first use.
+RSPConstants.journalRoot = "public"
+RSPConstants.journalFolder = "Respites"
+
 --- Fired when the activity registry is ready to take registrations. Features
 --- load before this module, so they cannot register during their own load and
 --- no engine event covers a code reload. Any feature registering an activity
@@ -135,6 +140,27 @@ RSPConstants.registryEvent = "rspActivityRegistry"
 --- activities themselves will live.
 RSPConstants.activityListWidth = "26%"
 RSPConstants.activityPaneWidth = "72%"
+
+--- The Director's split is its own: that roster carries a warning marker and a
+--- combined roll count beside every name, so it needs room the player's list
+--- does not, and the feed beside it gives up about a fifth of its width.
+RSPConstants.directorListWidth = "40%"
+RSPConstants.directorPaneWidth = "58%"
+
+--- What the roster leaves for the completion count beneath it.
+RSPConstants.directorListHeight = "100%-32"
+
+--- The Activities footer does not divide into thirds: two checkboxes side by
+--- side need more than a third between two buttons that need less.
+RSPConstants.directorFooterCells = {"20%", "55%", "25%"}
+
+--- Air either side of each footer checkbox, so the pair does not read as one
+--- run-on line.
+RSPConstants.footerCheckboxMargin = 12
+
+--- Extend keeps the size class's height and type but not its 175 width: it
+--- says one short word, and Complete Respite is the wide one for a reason.
+RSPConstants.extendButtonWidth = 110
 
 --- How far a follower's row sits in from its hero's.
 RSPConstants.characterRowIndent = 24

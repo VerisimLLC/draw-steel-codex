@@ -69,6 +69,10 @@ FSHEvents.TABLE = {
     }
 }
 
+--- Might tests already answered, by action id. Same reason as
+--- FSHCast._harvested: client-local, never cleared.
+FSHEvents._harvested = {}
+
 --- The points an ancient fish is worth on a successful event 9.
 FSHEvents.ANCIENT_FISH_POINTS = 100
 
@@ -282,6 +286,13 @@ function FSHEvents.Pump(charid)
         return
     end
 
+    --One answer per test, however many copies of the Trip are on screen. See
+    --FSHCast._harvested: the same double-tick applies here, and answering the
+    --ancient fish twice would hand out the fish twice.
+    if FSHEvents._harvested[trip.eventActionId] then
+        return
+    end
+
     local request = dmhub.GetPlayerActionRequest(trip.eventActionId)
     if request == nil then
         FSHTrip.SetEventActionId(charid, nil)
@@ -300,6 +311,8 @@ function FSHEvents.Pump(charid)
     if status ~= "complete" then
         return
     end
+
+    FSHEvents._harvested[trip.eventActionId] = true
 
     dmhub.CancelActionRequest(trip.eventActionId)
     FSHTrip.SetEventActionId(charid, nil)

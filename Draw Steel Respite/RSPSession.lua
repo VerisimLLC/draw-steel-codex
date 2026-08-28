@@ -36,6 +36,16 @@ RSPSession.daysElapsed = 1
 RSPSession.activityCount = 1
 RSPSession.nonParticipantsMayAct = true
 RSPSession.journal = true
+RSPSession.revoke = true
+
+--- Bumped by RSPSession.Ping so a change an activity made announces itself.
+--- Declared rather than read through try_get: the session arrives as a plain
+--- table often enough that a method call on it cannot be relied on, and a
+--- raise inside a document change leaves the document mid-transaction.
+RSPSession.revision = 0
+
+--- When the Respite began, as server time.
+RSPSession.startedAt = 0
 
 mod:RegisterDocumentForCheckpointBackups(RSPConstants.sessionDoc)
 
@@ -152,7 +162,7 @@ function RSPSession.IsParticipating(charid)
     if session == nil then
         return false
     end
-    local entry = session.characters[charid]
+    local entry = (session.characters or {})[charid]
     return entry ~= nil and entry.participating or false
 end
 
@@ -160,6 +170,7 @@ end
 --- @param participating boolean
 function RSPSession.SetParticipating(charid, participating)
     RSPSession.Mutate("Set respite participation", function(session)
+        session.characters = session.characters or {}
         local entry = session.characters[charid]
         if entry == nil then
             entry = RSPCharacter.CreateNew{}
@@ -196,7 +207,7 @@ function RSPSession.CommittedCount()
 
     local count = 0
     for _, userid in ipairs(dmhub.users) do
-        if not dmhub.IsUserDM(userid) and session.commits[userid] then
+        if not dmhub.IsUserDM(userid) and (session.commits or {})[userid] then
             local info = dmhub.GetSessionInfo(userid)
             if info ~= nil and not info.loggedOut and info.timeSinceLastContact <= 60 then
                 count = count + 1
@@ -288,13 +299,14 @@ end
 --- @return boolean
 function RSPSession.IsCommitted(userid)
     local session = RSPSession.Active()
-    return session ~= nil and session.commits[userid] == true
+    return session ~= nil and (session.commits or {})[userid] == true
 end
 
 --- @param userid string
 --- @param committed boolean
 function RSPSession.SetCommitted(userid, committed)
     RSPSession.Mutate("Set respite commitment", function(session)
+        session.commits = session.commits or {}
         session.commits[userid] = committed or nil
     end)
 end
@@ -313,6 +325,22 @@ function RSPSession.MyCharacters()
     return result
 end
 
+--- Throw away a Respite that never started
+--- Deliberately none of what Complete does: nothing was granted, no time has
+--- passed and nobody has rested, so there is nothing to settle. Closing out of
+--- Setup is the only way here, which is why it does not ask about a Respite
+--- already under way.
+function RSPSession.Abandon()
+    local doc = RSPSession.Doc()
+    if doc == nil or doc.data == nil then
+        return
+    end
+
+    doc:BeginChange()
+    doc.data.session = nil
+    doc:CompleteChange("Abandon respite setup")
+end
+
 --- End the Respite and clear it away. With no session the Director falls back
 --- to Setup and the players fall back to their idle pane.
 function RSPSession.Complete()
@@ -320,6 +348,26 @@ function RSPSession.Complete()
     if doc == nil or doc.data == nil then
         return
     end
+
+    -- Before the wipe: the rest needs to know who took the Respite and how
+    -- long it ran, the activities need it still on offer to be told, and the
+    -- revocation has to read its own setting off the session.
+    -- First of the lot: it reports on everything the others are about to do,
+    -- and every word of it is read off the session that is about to go.
+    if RSPSession.JournalWanted() then
+        local journal = rawget(_G, "RSPJournal")
+        if journal ~= nil then
+            journal.Write()
+        end
+    end
+
+    RSPSession.NotifyActivities("onComplete")
+    RSPSession.CompleteGameEffects()
+
+    if RSPSession.RevokeWanted() then
+        RSPSession.RevokeUnusedActivities()
+    end
+
     doc:BeginChange()
     doc.data.session = nil
     doc:CompleteChange("Complete respite")
@@ -370,7 +418,7 @@ function RSPSession.IsActivityAvailable(key)
         return true
     end
 
-    local activities = session:try_get("activities")
+    local activities = session.activities or {}
     if activities == nil or activities[key] == nil then
         return true
     end
@@ -382,7 +430,7 @@ end
 --- @param available boolean
 function RSPSession.SetActivityAvailable(key, available)
     RSPSession.Mutate("Set respite activity availability", function(session)
-        local activities = session:try_get("activities")
+        local activities = session.activities or {}
         if activities == nil then
             activities = {}
             session.activities = activities
@@ -391,9 +439,173 @@ function RSPSession.SetActivityAvailable(key, available)
     end)
 end
 
+--- Everyone the Respite happens to: the heroes who chose to take it and their
+--- whole household beneath them, retainers included. Not the same set as the
+--- activity lists, which widen to non-participants when the Director allows
+--- it and leave retainers out; resting is only for those taking the Respite.
+--- @return table[] tokens
+function RSPSession.AffectedTokens()
+    local tokens = {}
+
+    local function Add(charid)
+        local token = dmhub.GetCharacterById(charid)
+        if token ~= nil and token.properties ~= nil then
+            tokens[#tokens + 1] = token
+        end
+    end
+
+    for _, charid in ipairs(RSPSession.Roster()) do
+        if RSPSession.IsParticipating(charid) then
+            Add(charid)
+            for _, followerId in ipairs(RSPSession.FollowersOf(charid, true)) do
+                Add(followerId)
+            end
+        end
+    end
+
+    return tokens
+end
+
+--- Announce that something an activity owns has changed
+--- The Respite's document is the one thing every panel in both windows already
+--- watches, so touching it is how a feature says "repaint". An activity keeps
+--- its own state in its own documents, which nothing here monitors: without
+--- this, a fishing breakthrough would sit unseen on the Director's roster
+--- until some unrelated write happened to wake it.
+---
+--- Cheap enough to call on every change: it bumps one number, and the panels
+--- it wakes only re-read what they already had.
+function RSPSession.Ping()
+    RSPSession.Mutate("Respite activity update", function(session)
+        session.revision = (session.revision or 0) + 1
+    end)
+end
+
+--- Tells the activities on offer that the Respite has begun or ended
+--- An activity may have a world of its own to set up - fishing opens water -
+--- and it knows what that is; the Respite only knows when. Only activities the
+--- Director left switched on are told.
+--- @param hook string "onStart" or "onComplete"
+function RSPSession.NotifyActivities(hook)
+    if not dmhub.isDM then
+        return
+    end
+
+    local registry = rawget(_G, "RSPActivity")
+    if registry == nil then
+        return
+    end
+
+    for _, activity in ipairs(registry.All()) do
+        local fn = activity:try_get(hook)
+        if fn ~= nil and RSPSession.IsActivityAvailable(activity.key) then
+            fn()
+        end
+    end
+end
+
+--- Is a fight actually running? A queue that exists but is hidden is how the
+--- game carries a mode between encounters, so only a visible one is combat.
+--- @return boolean
+function RSPSession.CombatInProgress()
+    local queue = dmhub.initiativeQueue
+    return queue ~= nil and (not queue.hidden)
+end
+
+--- The initiative interface, or nil where there is none to speak of. Reading
+--- an unset field on the hud raises, so it is asked for behind a pcall.
+--- @return table|nil
+local function InitiativeInterface()
+    local info = nil
+    pcall(function()
+        info = GameHud.instance.initiativeInterface
+    end)
+    return info
+end
+
+--- Puts the game into the Respite mode the rest of the app already knows
+--- about, and ends the "until respite" effects on everyone taking it. Mirrors
+--- what the old respite-mode bar did on the way in, minus pausing downtime
+--- rolls: this Respite grants rolls and expects them spent during it.
+function RSPSession.BeginGameEffects()
+    if not dmhub.isDM then
+        return
+    end
+
+    local info = InitiativeInterface()
+    if info == nil then
+        return
+    end
+
+    -- Only from a standing start, matching the guard the old mode used. The
+    -- window refuses to open during combat, so this is the backstop for a
+    -- fight that broke out while the Respite was being set up.
+    if RSPSession.CombatInProgress() then
+        return
+    end
+
+    UploadDayNightInfo()
+    if info.initiativeQueue == nil then
+        info.initiativeQueue = InitiativeQueue.Create()
+    end
+    info.initiativeQueue.gameMode = "respite"
+    info.UploadInitiative()
+
+    RSPSession.NotifyActivities("onStart")
+
+    local groupid = dmhub.GenerateGuid()
+    for _, token in ipairs(RSPSession.AffectedTokens()) do
+        token:ModifyProperties{
+            description = "Begin Respite",
+            combine = true,
+            groupid = groupid,
+            execute = function()
+                token.properties:RemoveOngoingEffectsOnRest("long")
+            end,
+        }
+        token.properties:DispatchEvent("startrespite", {})
+    end
+end
+
+--- Advances the clock by the days this Respite ran, hands the game back to
+--- exploration, and long rests everyone who took it. The rest keeps ongoing
+--- effects: the "until respite" ones ended when the Respite began, so clearing
+--- them again would wipe anything gained during it.
+function RSPSession.CompleteGameEffects()
+    if not dmhub.isDM then
+        return
+    end
+
+    MoveGameTime(RSPSession.DaysElapsed())
+
+    local info = InitiativeInterface()
+    if info ~= nil and info.initiativeQueue ~= nil then
+        info.initiativeQueue.gameMode = "exploration"
+        info.UploadInitiative()
+    end
+
+    local groupid = dmhub.GenerateGuid()
+    for _, token in ipairs(RSPSession.AffectedTokens()) do
+        local currentXp = token.properties:try_get("xp", 0)
+
+        token:ModifyProperties{
+            description = "Respite",
+            combine = true,
+            groupid = groupid,
+            execute = function()
+                token.properties:Rest("long", true)
+            end,
+        }
+
+        local newXp = token.properties:try_get("xp", 0)
+        token.properties:DispatchEvent("endrespite", {xpgained = newXp - currentXp})
+    end
+end
+
 --- Begin the Respite proper. Players stop choosing and start doing, which is
 --- also the moment the downtime activities are paid out.
 function RSPSession.Start()
+    RSPSession.BeginGameEffects()
     RSPSession.GrantActivityRolls()
     RSPSession.Mutate("Start respite", function(session)
         session.phase = RSPConstants.phaseActive
@@ -411,7 +623,7 @@ function RSPSession.IsDone(charid)
     if session == nil then
         return false
     end
-    local entry = session.characters[charid]
+    local entry = (session.characters or {})[charid]
     return entry ~= nil and entry.done or false
 end
 
@@ -419,6 +631,7 @@ end
 --- @param done boolean
 function RSPSession.SetDone(charid, done)
     RSPSession.Mutate("Set respite completion", function(session)
+        session.characters = session.characters or {}
         local entry = session.characters[charid]
         if entry == nil then
             entry = RSPCharacter.CreateNew{}
@@ -449,9 +662,14 @@ end
 --- A hero's artisan and sage followers, alphabetical. Followers are characters
 --- in their own right, held by id on the hero. Reads the downtime module's
 --- storage, so a game without it simply has no followers.
+---
+--- Retainers are left out by default because they take no downtime activity;
+--- pass includeRetainers when the whole household is meant, as it is when a
+--- Respite rests everyone.
 --- @param charid string the hero
+--- @param includeRetainers nil|boolean
 --- @return string[] charids
-function RSPSession.FollowersOf(charid)
+function RSPSession.FollowersOf(charid, includeRetainers)
     local result = {}
 
     local constants = rawget(_G, "DTConstants")
@@ -478,7 +696,12 @@ function RSPSession.FollowersOf(charid)
             end
         end)
 
-        if followerType == "artisan" or followerType == "sage" then
+        local wanted = followerType == "artisan" or followerType == "sage"
+        if includeRetainers and followerType == "retainer" then
+            wanted = true
+        end
+
+        if wanted then
             result[#result + 1] = followerId
         end
     end
@@ -519,6 +742,53 @@ function RSPSession.SetJournalWanted(wanted)
     RSPSession.Mutate("Set respite journal record", function(session)
         session.journal = wanted
     end)
+end
+
+--- Should downtime rolls nobody spent be taken back when the Respite ends?
+--- @return boolean
+function RSPSession.RevokeWanted()
+    local session = RSPSession.Active()
+    return session ~= nil and session.revoke ~= false
+end
+
+--- @param wanted boolean
+function RSPSession.SetRevokeWanted(wanted)
+    RSPSession.Mutate("Set respite activity revocation", function(session)
+        session.revoke = wanted
+    end)
+end
+
+--- Takes back every downtime roll nobody spent
+--- Everyone is swept, participant or not: a Respite grants activities for that
+--- Respite, and a roll saved past the end of one is a roll banked. Followers
+--- go with their heroes, since their rolls are held there.
+function RSPSession.RevokeUnusedActivities()
+    if not dmhub.isDM then
+        return
+    end
+
+    for _, charid in ipairs(RSPSession.Roster()) do
+        local token = dmhub.GetCharacterById(charid)
+        local followerIds = RSPSession.FollowersOf(charid, true)
+
+        if token ~= nil and token.properties ~= nil then
+            token:ModifyProperties{
+                description = "Revoke unused downtime activities",
+                execute = function()
+                    local info = token.properties:GetDowntimeInfo()
+                    if info == nil then
+                        return
+                    end
+
+                    info:GrantRolls(-info:GetAvailableRolls())
+                    for _, followerId in ipairs(followerIds) do
+                        info:GrantFollowerRolls(followerId,
+                            -info:GetFollowerRolls(followerId))
+                    end
+                end,
+            }
+        end
+    end
 end
 
 --- Is this character a hero the Respite covers, rather than a follower riding
@@ -639,7 +909,7 @@ function RSPSession.StartedAt()
     if session == nil then
         return 0
     end
-    return session:try_get("startedAt") or 0
+    return session.startedAt or 0
 end
 
 --- Lengthen a Respite already under way

@@ -3509,8 +3509,17 @@ function GameHud.CreateInitiativeBar(self, info)
 				click = function()
 					element.popup = nil
 
+					--The Respite is being rebuilt as a wizard of its own, so
+					--this entry raises that window instead of putting the game
+					--into respite mode. Setting the mode is deliberately left
+					--undone here for now: GameHud:BeginRespiteMode() below is
+					--what did it and is untouched, so the wizard can drive it
+					--once it owns the whole flow.
 					if mod.id == "respite" then
-						GameHud.instance:BeginRespiteMode()
+						local respite = rawget(_G, "RSPConstants")
+						if respite ~= nil then
+							LaunchablePanel.LaunchPanelByName(respite.panelName)
+						end
 						return
 					end
 
@@ -5113,10 +5122,12 @@ function GameHud.CreateRespiteBar(self, info)
 		valign = "top",
 
 		refresh = function(element)
-			local isRespite = info.initiativeQueue ~= nil
-				and info.initiativeQueue.hidden
-				and info.initiativeQueue.gameMode == "respite"
-			element:SetClass("hidden", not isRespite)
+			--The Respite wizard owns starting and ending a Respite now, and it
+			--is the only thing that may: this bar's End Respite rested every
+			--player-controlled token on the map for a flat 24 hours, ignoring
+			--who actually took the Respite. It stays built but never shows --
+			--the body below is the reference for what the wizard reproduces.
+			element:SetClass("hidden", true)
 		end,
 
 		gui.Panel{

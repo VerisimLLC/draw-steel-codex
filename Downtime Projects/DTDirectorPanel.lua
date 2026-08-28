@@ -820,6 +820,7 @@ local function RegisterWithRespite()
         paintPlayer = DTProjectEditor.PaintRespiteProjects,
         paintDirector = DTProjectEditor.PaintRespiteDirectorFeed,
         needsAttention = DTProjectEditor.RespiteNeedsAttention,
+        journalSummary = DTProjectEditor.RespiteJournalSummary,
     }
 end
 

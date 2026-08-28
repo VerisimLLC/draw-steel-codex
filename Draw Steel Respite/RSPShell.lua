@@ -3,7 +3,17 @@ local mod = dmhub.GetModLoading()
 --- The window frame every Respite step wears: the heading on the left of the
 --- header and information about the Respite on the right, a hairline under
 --- that, and an MCDM divider between the working area and the footer.
-RSPShell = {}
+RSPShell = RegisterGameType("RSPShell")
+
+--- How many Respite windows this client has open. The Director's offer asks
+--- before it raises one, so a player who already opened it from the Game menu
+--- is left alone rather than having it toggled shut under them.
+local m_openWindows = 0
+
+--- @return boolean
+function RSPShell.IsOpen()
+    return m_openWindows > 0
+end
 
 --- Height left for the working area once the header, its hairline and, on a
 --- step that has one, the footer band have taken theirs.
@@ -96,9 +106,12 @@ end
 --- the three a step actually fills.
 --- @param slot nil|Panel
 --- @return Panel
-local function FooterCell(slot)
+--- @param slot nil|Panel
+--- @param width nil|string overrides the even third
+--- @return Panel
+local function FooterCell(slot, width)
     return gui.Panel{
-        width = RSPConstants.footerCellWidth,
+        width = width or RSPConstants.footerCellWidth,
         height = "100%",
         flow = "horizontal",
         valign = "center",
@@ -106,19 +119,29 @@ local function FooterCell(slot)
     }
 end
 
---- @param args table Shell args; reads the three footer slots
+--- @param args table Shell args; reads the three footer slots, and
+---   footerCellWidths when a step's footer does not divide evenly
 --- @return Panel
 local function BuildFooter(args)
+    -- Thirds suit a footer of one control per side. A step carrying something
+    -- wider in the middle says so rather than having its content spill into
+    -- the cells either side of it.
+    local widths = args.footerCellWidths or {}
+
+    -- Takes whatever is left under the divider rather than a fixed band pinned
+    -- to the bottom edge. The working area is sized off footerHeight, so the
+    -- leftover is small, but a band that ends above it left the controls
+    -- sitting low rather than centred in the space they are given.
     return gui.Panel{
         width = "100%",
-        height = RSPConstants.footerHeight,
+        height = "100% available",
         flow = "horizontal",
         halign = "left",
         valign = "bottom",
 
-        FooterCell(args.footerLeft),
-        FooterCell(args.footerCenter),
-        FooterCell(args.footerRight),
+        FooterCell(args.footerLeft, widths[1]),
+        FooterCell(args.footerCenter, widths[2]),
+        FooterCell(args.footerRight, widths[3]),
     }
 end
 
@@ -136,12 +159,23 @@ local function BuildStep(args, collapsed)
         valign = "top",
 
         BuildHeader(args),
-        gui.MCDMDivider{
+
+        -- The lift rides on a wrapper rather than on the divider itself: a
+        -- client running a build where MCDMDivider still drops its own
+        -- tmargin would otherwise leave the hairline sitting low.
+        gui.Panel{
             width = "100%",
-            layout = "line",
-            height = RSPConstants.headerDividerHeight,
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
             tmargin = RSPConstants.headerDividerTopMargin,
             bmargin = RSPConstants.headerDividerBottomMargin,
+
+            gui.MCDMDivider{
+                width = "100%",
+                layout = "line",
+                height = RSPConstants.headerDividerHeight,
+            },
         },
         BuildBody(args),
 
@@ -166,10 +200,10 @@ end
 --- the phase decides which one is not collapsed. Swapping children instead
 --- would destroy the event subscriptions the steps refresh through.
 ---
---- Set framed when the window stands on its own. A launchable host paints the
---- frame around its content, so hosted copies stay transparent to avoid
---- double-framing; a copy pushed onto the hud has no host and must draw it.
---- @param args {steps: table[], framed: nil|boolean} each step carries a phase plus its own step args
+--- Every Respite window is hosted by the launchable panel, whichever way it
+--- was opened, so the host paints the frame and owns the close control and
+--- the shell stays transparent underneath it.
+--- @param args {steps: table[]} each step carries a phase plus its own step args
 --- @return Panel
 function RSPShell.Create(args)
     local phase = CurrentPhase()
@@ -183,7 +217,7 @@ function RSPShell.Create(args)
     end
 
     return gui.Panel{
-        classes = {"rspShell", args.framed and "dialog" or "launchablePanel"},
+        classes = {"rspShell", "launchablePanel"},
         styles = ThemeEngine.MergeStyles(RSPWidgets.CustomStyles()),
         width = RSPConstants.windowWidth,
         height = RSPConstants.windowHeight,
@@ -194,6 +228,15 @@ function RSPShell.Create(args)
 
         data = {
             themeSub = nil,
+            -- Whether this window has shown a Respite that was actually
+            -- running, which is what earns it a dismissal when that Respite
+            -- ends. A window opened from the Game menu between Respites is
+            -- legitimately idle and must not be closed out from under whoever
+            -- opened it.
+            -- Seeded from the phase this window was built on, so one opened
+            -- mid-Respite is dismissed by its end like any other.
+            sawRespite = phase == RSPConstants.phaseOffered
+                or phase == RSPConstants.phaseActive,
         },
 
         monitorGame = RSPSession.DocPath(),
@@ -202,13 +245,34 @@ function RSPShell.Create(args)
         end,
 
         respiteChanged = function(element)
-            local current = CurrentPhase()
+            local session = RSPSession.Active()
+            local current = session ~= nil and session.phase
+                or RSPConstants.phaseSetup
+
+            if current == RSPConstants.phaseOffered
+                or current == RSPConstants.phaseActive then
+                element.data.sawRespite = true
+            end
+
+            -- The Respite this window was following is over, so the window
+            -- goes with it rather than sitting there on a step about nothing.
+            -- The host owns the lifetime, so this asks rather than destroys.
+            if session == nil and element.data.sawRespite then
+                element.data.sawRespite = false
+                if element.parent ~= nil then
+                    element.parent:FireEvent("close")
+                end
+                return
+            end
+
             for _, step in ipairs(steps) do
                 step.panel:SetClass("collapsed", step.phase ~= current)
             end
         end,
 
         create = function(element)
+            m_openWindows = m_openWindows + 1
+
             element.data.themeSub = ThemeEngine.OnThemeChanged(mod, function()
                 if element.valid then
                     element.styles = ThemeEngine.MergeStyles(RSPWidgets.CustomStyles())
@@ -217,6 +281,8 @@ function RSPShell.Create(args)
         end,
 
         destroy = function(element)
+            m_openWindows = math.max(0, m_openWindows - 1)
+
             if element.data.themeSub ~= nil then
                 element.data.themeSub:Deregister()
                 element.data.themeSub = nil

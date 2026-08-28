@@ -7,7 +7,7 @@ FSHConstants = RegisterGameType("FSHConstants")
 --- Turns on every testing affordance at once: the Trip's starting points, the
 --- forced cast outcome, and the forced events-table result. One switch so none
 --- of them can be left on by accident. Ships false.
-FSHConstants.DEBUG_MODE = false
+FSHConstants.DEBUG_MODE = true
 
 --- Points a Trip opens with while debugging, so the Tackle table is reachable
 --- without a long night's fishing.

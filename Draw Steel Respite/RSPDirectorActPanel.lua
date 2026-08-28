@@ -1,15 +1,22 @@
 local mod = dmhub.GetModLoading()
 
 --- Director Step 3: the Respite in progress, and how far along everyone is.
-RSPDirectorActPanel = {}
+RSPDirectorActPanel = RegisterGameType("RSPDirectorActPanel")
 
 local INSTRUCTIONS = [[
 ### Activities
 
 The Respite is underway. Each hero is marked complete once their player is finished.
-
+Note that activity counts reflect hero and followers combined.
 Completing the Respite closes it for everyone.
 ]]
+
+--- The phase the Respite is in, or Setup when there is none.
+--- @return string
+local function CurrentPhase()
+    local session = RSPSession.Active()
+    return session ~= nil and session.phase or RSPConstants.phaseSetup
+end
 
 --- The heroes this Respite covers. Followers do not appear here: the hero is
 --- the unit of completion.
@@ -37,8 +44,25 @@ local function NeedsAttention(charid)
 
     return registry.AnyNeedsAttention{
         charid = charid,
-        since = RSPSession.StartedAt(),
+        since = RSPSession.StartedAt,
     }
+end
+
+--- How far the table has got, for the line under the roster.
+--- @return string
+local function CompletionCountText()
+    local roster = Roster()
+    local done = 0
+    for _, charid in ipairs(roster) do
+        if RSPSession.IsDone(charid) then
+            done = done + 1
+        end
+    end
+
+    if #roster > 0 and done >= #roster then
+        return "All Characters Complete"
+    end
+    return string.format("%d/%d Characters Complete", done, #roster)
 end
 
 --- What each activity has to report about the selected hero, under a heading
@@ -76,7 +100,11 @@ local function BuildFeedSections(charid)
                     text = activity.name,
                 },
 
-                paint{charid = charid, since = RSPSession.StartedAt()},
+                --The accessor, not the number: a section built before the
+                --Respite started would otherwise hold a zero forever, and a
+                --window of "everything after time zero" admits every roll the
+                --campaign has ever recorded.
+                paint{charid = charid, since = RSPSession.StartedAt},
             }
         end
     end
@@ -128,10 +156,29 @@ local function BuildWorkingArea()
 
         data = {
             charid = nil,
+            phase = nil,
         },
 
+        -- A section built before the Respite started can be holding anything
+        -- it worked out from a Respite that had not begun. Crossing into a new
+        -- phase throws the lot away and asks the activities again.
+        respiteChanged = function(element)
+            local phase = CurrentPhase()
+            if element.data.phase == phase then
+                return
+            end
+            element.data.phase = phase
+
+            local charid = element.data.charid
+            element.data.charid = nil
+            element:FireEvent("showCharacter", charid)
+        end,
+
         showCharacter = function(element, charid)
-            if element.data.charid == charid then
+            -- Asking for what is already shown is only cheap to ignore once
+            -- something is actually shown: an opening pane starts on nil, and
+            -- swallowing the nil that follows leaves it blank for good.
+            if element.data.charid == charid and #(element.children or {}) > 0 then
                 return
             end
             element.data.charid = charid
@@ -155,15 +202,13 @@ local function BuildWorkingArea()
             element.children = sections
         end,
 
-        -- Open on the first hero rather than an empty pane. Deferred because
-        -- the list has to exist before its selection can be read.
+        -- Open on the first hero rather than an empty pane. The roster is read
+        -- directly: by the time this is on screen the list has its selection,
+        -- and the pane must not depend on a later tick to have any content.
         create = function(element)
-            dmhub.Schedule(0.1, function()
-                if element.valid then
-                    element:FireEvent("showCharacter",
-                        list ~= nil and list.data.selected or nil)
-                end
-            end)
+            local roster = Roster()
+            element:FireEvent("showCharacter",
+                (list ~= nil and list.data.selected) or roster[1])
         end,
     }
 
@@ -180,18 +225,44 @@ local function BuildWorkingArea()
         valign = "top",
 
         gui.Panel{
-            width = RSPConstants.activityListWidth,
+            width = RSPConstants.directorListWidth,
             height = "100%",
             flow = "vertical",
             halign = "left",
             valign = "top",
 
-            list,
+            -- The list fills what the count line leaves. It scrolls on its
+            -- own, so a long roster costs the count nothing.
+            gui.Panel{
+                width = "100%",
+                height = RSPConstants.directorListHeight,
+                flow = "vertical",
+                halign = "left",
+                valign = "top",
+
+                list,
+            },
+
+            -- The count belongs to the list it counts, not to the footer: it
+            -- reads as the last line of the roster rather than as one of the
+            -- controls that close the Respite.
+            gui.Label{
+                classes = {"sizeM", "noBold"},
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                valign = "bottom",
+                tmargin = 6,
+                text = CompletionCountText(),
+                respiteChanged = function(element)
+                    element.text = CompletionCountText()
+                end,
+            },
         },
 
         gui.Panel{
             classes = {"bordered"},
-            width = RSPConstants.activityPaneWidth,
+            width = RSPConstants.directorPaneWidth,
             height = RSPConstants.feedPaneHeight,
             flow = "vertical",
             halign = "right",
@@ -292,21 +363,6 @@ function RSPDirectorActPanel.ShowExtendDialog()
     gui.ShowModal(dialog)
 end
 
---- @return string
-local function CompletionCountText()
-    local roster = Roster()
-    local done = 0
-    for _, charid in ipairs(roster) do
-        if RSPSession.IsDone(charid) then
-            done = done + 1
-        end
-    end
-
-    if #roster > 0 and done >= #roster then
-        return "All Characters Complete"
-    end
-    return string.format("%d/%d Characters Complete", done, #roster)
-end
 
 --- Build the Activities step.
 --- @param onComplete fun() invoked when the Director finishes the Respite
@@ -319,50 +375,62 @@ function RSPDirectorActPanel.Step(onComplete)
         instructions = INSTRUCTIONS,
         working = BuildWorkingArea(),
 
-        footerLeft = gui.Panel{
-            width = "100%",
-            height = "100%",
-            flow = "horizontal",
+        footerCellWidths = RSPConstants.directorFooterCells,
+
+        -- Matched to Complete Respite: they are the two things this step does,
+        -- and one of them is not a lesser control than the other.
+        footerLeft = gui.Button{
+            classes = {"sizeL"},
+            width = RSPConstants.extendButtonWidth,
+            text = "Extend",
             halign = "left",
             valign = "center",
-
-            gui.Button{
-                classes = {"sizeS"},
-                text = "Extend",
-                halign = "left",
-                valign = "center",
-                rmargin = 8,
-                hover = gui.Tooltip("Add days or downtime activities to this Respite"),
-                press = function()
-                    RSPDirectorActPanel.ShowExtendDialog()
-                end,
-            },
-
-            gui.Label{
-                classes = {"sizeM", "noBold"},
-                width = "100%-65",
-                height = "auto",
-                halign = "left",
-                valign = "center",
-                text = CompletionCountText(),
-                respiteChanged = function(element)
-                    element.text = CompletionCountText()
-                end,
-            },
+            hover = gui.Tooltip("Add days or downtime activities to this Respite"),
+            press = function()
+                RSPDirectorActPanel.ShowExtendDialog()
+            end,
         },
 
-        footerCenter = gui.Check{
-            classes = {"form"},
+        -- Two answers about what closing the Respite does, side by side
+        -- between the buttons. Sized to the pair rather than to the cell, so
+        -- the cell centres them as a group instead of the checkboxes having to
+        -- space themselves inside it.
+        footerCenter = gui.Panel{
+            width = "auto",
+            height = "auto",
+            flow = "horizontal",
             halign = "center",
             valign = "center",
-            text = "Create Journal Record",
-            value = RSPSession.JournalWanted(),
-            respiteChanged = function(element)
-                element.value = RSPSession.JournalWanted()
-            end,
-            change = function(element)
-                RSPSession.SetJournalWanted(element.value)
-            end,
+
+            gui.Check{
+                classes = {"form"},
+                halign = "left",
+                hmargin = RSPConstants.footerCheckboxMargin,
+                text = "Revoke Unused Activities",
+                hover = gui.Tooltip(
+                    "Take back every downtime roll nobody spent, participant or not"),
+                value = RSPSession.RevokeWanted(),
+                respiteChanged = function(element)
+                    element.value = RSPSession.RevokeWanted()
+                end,
+                change = function(element)
+                    RSPSession.SetRevokeWanted(element.value)
+                end,
+            },
+
+            gui.Check{
+                classes = {"form"},
+                halign = "left",
+                hmargin = RSPConstants.footerCheckboxMargin,
+                text = "Create Journal Record",
+                value = RSPSession.JournalWanted(),
+                respiteChanged = function(element)
+                    element.value = RSPSession.JournalWanted()
+                end,
+                change = function(element)
+                    RSPSession.SetJournalWanted(element.value)
+                end,
+            },
         },
 
         footerRight = gui.Button{

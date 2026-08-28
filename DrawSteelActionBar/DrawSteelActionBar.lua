@@ -6300,9 +6300,20 @@ CreateAbilityController = function()
                             requestDist = abilityDist
                         end
 
-                        if pathDist < requestDist and (g_currentAbility:try_get("targeting", "direct") == "straightline") and g_token.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
-                            local prevOvershoot = g_pointTargeting.pathEndOvershoot
+                        --The collision block and the rebound-bounce block below both
+                        --contribute rings and red "-N" labels to the SAME shapePathEnd /
+                        --labelsAtPathEnd lists, so they collect into these frame-local
+                        --lists and a single commit step afterward makes the redraw
+                        --decision. (Previously each block decided independently: the
+                        --bounce block compared a list against itself after appending to
+                        --it, so bounce rings never drew in a frame that also had a
+                        --collision ring, and neither block could tell its shapes moved.)
+                        local prevPathEnd = g_pointTargeting.shapePathEnd
+                        local prevOvershoot = g_pointTargeting.pathEndOvershoot
+                        local newPathEndShapes = nil
+                        local newTextLabels = {}
 
+                        if pathDist < requestDist and (g_currentAbility:try_get("targeting", "direct") == "straightline") and g_token.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
                             --Prefer the engine-reported force remaining at the collision
                             --(distance travelled and wall-break stamina already deducted).
                             --The tile-distance fallback below is 2D only, so it miscounts
@@ -6314,9 +6325,6 @@ CreateAbilityController = function()
                             end
                             g_pointTargeting.pathEndOvershoot = overshoot
 
-                            local prevPathEnd = g_pointTargeting.shapePathEnd
-                            destroyLabelsBeforeReturning = false
-
                             local destPoint = path.destination.point3
                             if g_token.creatureDimensions.x % 2 == 0 then
                                 local offset = (g_token.creatureDimensions.x - 1) * 0.5
@@ -6326,7 +6334,7 @@ CreateAbilityController = function()
                             local range = g_currentAbility:GetRange(g_token.properties, g_currentSymbols)
                             g_currentSymbols.range = range
 
-                            g_pointTargeting.shapePathEnd = {
+                            newPathEndShapes = {
                                 dmhub.CalculateShape {
                                     shape = cond(g_token.creatureDimensions.x % 2 == 1, "radius", "cylinder"),
                                     token = g_currentAbility:GetRangeSource(g_token),
@@ -6339,7 +6347,7 @@ CreateAbilityController = function()
                             local collideWith = movementInfo.collideWith or {}
 
                             --implement increase of collide damage if we collide into an object.
-                            local collideDamage = g_pointTargeting.pathEndOvershoot
+                            local collideDamage = overshoot
 
                             local isObject = true
                             for _, collideToken in ipairs(collideWith) do
@@ -6369,17 +6377,15 @@ CreateAbilityController = function()
                                 diagramCollisionDamage = collideDamage
                             end
 
-                            local textLabels = {}
                             if not suppressDamage then
-                                textLabels[#textLabels + 1] = {
+                                newTextLabels[#newTextLabels + 1] = {
                                     point = destPoint,
                                     text = string.format("-%d<color=#00000000>-</color>", collideDamage),
                                 }
                             end
 
                             for _, collideToken in ipairs(collideWith) do
-                                local targetPoint = collideToken:PosAtLoc()
-                                g_pointTargeting.shapePathEnd[#g_pointTargeting.shapePathEnd + 1] = dmhub.CalculateShape {
+                                newPathEndShapes[#newPathEndShapes + 1] = dmhub.CalculateShape {
                                     shape = cond(collideToken.creatureDimensions.x % 2 == 1, "radius", "radiusfromintersection"),
                                     token = collideToken,
                                     targetPoint = collideToken:PosAtLoc(),
@@ -6388,66 +6394,17 @@ CreateAbilityController = function()
                                 }
 
                                 if not suppressDamage then
-                                    textLabels[#textLabels + 1] = {
+                                    newTextLabels[#newTextLabels + 1] = {
                                         point = collideToken:PosAtLoc(),
                                         text = string.format("-%d<color=#00000000>-</color>", collideDamage),
                                     }
-                                end
-                            end
-
-                            local needRedraw = prevPathEnd == nil or #prevPathEnd ~= #g_pointTargeting.shapePathEnd or
-                                prevOvershoot ~= g_pointTargeting.pathEndOvershoot
-                            if not needRedraw then
-                                for i, loc in ipairs(prevPathEnd) do
-                                    if loc.str ~= g_pointTargeting.shapePathEnd[i].str then
-                                        needRedraw = true
-                                        break
-                                    end
-                                end
-                            end
-
-                            if needRedraw then
-                                if g_pointTargeting.labelsAtPathEnd ~= nil then
-                                    for _, marker in ipairs(g_pointTargeting.labelsAtPathEnd) do
-                                        marker:Destroy()
-                                    end
-                                    g_pointTargeting.labelsAtPathEnd = nil
-                                    destroyLabelsBeforeReturning = false
-                                end
-
-                                g_pointTargeting.labelsAtPathEnd = {}
-                                for i, loc in ipairs(g_pointTargeting.shapePathEnd) do
-                                    g_pointTargeting.labelsAtPathEnd[#g_pointTargeting.labelsAtPathEnd + 1] =
-                                        g_pointTargeting.shapePathEnd
-                                        [i]:Mark { color = "red", video = "divinationline.webm", showLocs = false }
-                            print("MARK:: MARK SHAPE")
-                                end
-
-                                for i, info in ipairs(textLabels) do
-                                    g_pointTargeting.labelsAtPathEnd[#g_pointTargeting.labelsAtPathEnd + 1] = dmhub
-                                        .CreateCanvasOnMap {
-                                            point = info.point,
-                                            sheet = gui.Label {
-                                                interactable = false,
-                                                halign = "center",
-                                                valign = "center",
-                                                color = "red",
-                                                width = "auto",
-                                                height = "auto",
-                                                fontSize = 0.5,
-                                                text = info.text,
-                                            }
-                                        }
                                 end
                             end
                         end
 
                         --show damage indicators at each rebound bounce point.
                         if movementInfo.bounceCollisions ~= nil and #movementInfo.bounceCollisions > 0 and (g_currentAbility:try_get("targeting", "direct") == "straightline") and g_token.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
-                            local prevPathEnd = g_pointTargeting.shapePathEnd
-                            destroyLabelsBeforeReturning = false
-                            g_pointTargeting.shapePathEnd = g_pointTargeting.shapePathEnd or {}
-                            local bounceTextLabels = {}
+                            newPathEndShapes = newPathEndShapes or {}
 
                             for _, collision in ipairs(movementInfo.bounceCollisions) do
                                 local bounceCollideWith = collision.collideWith or {}
@@ -6472,7 +6429,7 @@ CreateAbilityController = function()
                                     bounceDestPoint = core.Vector3(bounceDestPoint.x + offset, bounceDestPoint.y + offset, bounceDestPoint.z)
                                 end
 
-                                g_pointTargeting.shapePathEnd[#g_pointTargeting.shapePathEnd + 1] = dmhub.CalculateShape {
+                                newPathEndShapes[#newPathEndShapes + 1] = dmhub.CalculateShape {
                                     shape = cond(g_token.creatureDimensions.x % 2 == 1, "radius", "cylinder"),
                                     token = g_currentAbility:GetRangeSource(g_token),
                                     targetPoint = bounceDestPoint,
@@ -6481,14 +6438,14 @@ CreateAbilityController = function()
                                 }
 
                                 if not suppressBounceDamage then
-                                    bounceTextLabels[#bounceTextLabels + 1] = {
+                                    newTextLabels[#newTextLabels + 1] = {
                                         point = bounceDestPoint,
                                         text = string.format("-%d<color=#00000000>-</color>", bounceDamage),
                                     }
                                 end
 
                                 for _, collideToken in ipairs(bounceCollideWith) do
-                                    g_pointTargeting.shapePathEnd[#g_pointTargeting.shapePathEnd + 1] = dmhub.CalculateShape {
+                                    newPathEndShapes[#newPathEndShapes + 1] = dmhub.CalculateShape {
                                         shape = cond(collideToken.creatureDimensions.x % 2 == 1, "radius", "radiusfromintersection"),
                                         token = collideToken,
                                         targetPoint = collideToken:PosAtLoc(),
@@ -6496,29 +6453,52 @@ CreateAbilityController = function()
                                         radius = collideToken.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
                                     }
                                     if not suppressBounceDamage then
-                                        bounceTextLabels[#bounceTextLabels + 1] = {
+                                        newTextLabels[#newTextLabels + 1] = {
                                             point = collideToken:PosAtLoc(),
                                             text = string.format("-%d<color=#00000000>-</color>", bounceDamage),
                                         }
                                     end
                                 end
                             end
+                        end
 
-                            local needRedraw = prevPathEnd == nil or #prevPathEnd ~= #g_pointTargeting.shapePathEnd
+                        --Commit: keep this frame's shapes and decide once whether the
+                        --marks need redrawing. Redraw whenever the shape count, the
+                        --collision damage, or any shape's tile set changed. (LuaShape has
+                        --no .str property -- reading it yields nil, so the old .str
+                        --comparison never detected a change and alternating between two
+                        --collision targets with the same shape count and damage left
+                        --stale rings behind. Compare with :Equal instead.)
+                        if newPathEndShapes ~= nil then
+                            destroyLabelsBeforeReturning = false
+                            g_pointTargeting.shapePathEnd = newPathEndShapes
+
+                            local needRedraw = prevPathEnd == nil or #prevPathEnd ~= #newPathEndShapes or
+                                prevOvershoot ~= g_pointTargeting.pathEndOvershoot
+                            if not needRedraw then
+                                for i, prevShape in ipairs(prevPathEnd) do
+                                    if not prevShape:Equal(newPathEndShapes[i]) then
+                                        needRedraw = true
+                                        break
+                                    end
+                                end
+                            end
+
                             if needRedraw then
                                 if g_pointTargeting.labelsAtPathEnd ~= nil then
                                     for _, marker in ipairs(g_pointTargeting.labelsAtPathEnd) do
                                         marker:Destroy()
                                     end
-                                    destroyLabelsBeforeReturning = false
                                 end
 
-                                g_pointTargeting.labelsAtPathEnd = g_pointTargeting.labelsAtPathEnd or {}
-                                for i, shape in ipairs(g_pointTargeting.shapePathEnd) do
+                                g_pointTargeting.labelsAtPathEnd = {}
+                                for i, shape in ipairs(newPathEndShapes) do
                                     g_pointTargeting.labelsAtPathEnd[#g_pointTargeting.labelsAtPathEnd + 1] =
                                         shape:Mark { color = "red", video = "divinationline.webm", showLocs = false }
+                                    print("MARK:: MARK SHAPE")
                                 end
-                                for i, info in ipairs(bounceTextLabels) do
+
+                                for i, info in ipairs(newTextLabels) do
                                     g_pointTargeting.labelsAtPathEnd[#g_pointTargeting.labelsAtPathEnd + 1] = dmhub
                                         .CreateCanvasOnMap {
                                             point = info.point,

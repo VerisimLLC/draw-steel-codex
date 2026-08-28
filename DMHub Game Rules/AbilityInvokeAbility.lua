@@ -153,6 +153,24 @@ local function GetParentPrimaryTargetTokenId(options)
     return nil
 end
 
+--Squad caster-side invokes receive the main attacker as their current target.
+--Reverse its targetPairs entry to recover the parent target that attacker chose.
+local function GetParentCurrentTargetTokenId(options, currentToken)
+    local symbols = options ~= nil and options.symbols or nil
+    if symbols ~= nil and currentToken ~= nil then
+        for _,pair in ipairs(symbols.targetPairs or {}) do
+            if pair.a == currentToken.charid or pair.a == currentToken.id then
+                local targetToken = dmhub.GetTokenById(pair.b)
+                if targetToken ~= nil and targetToken.valid and targetToken.id ~= nil then
+                    return targetToken.id
+                end
+            end
+        end
+    end
+
+    return GetParentPrimaryTargetTokenId(options)
+end
+
 --Pulls every ActivatedAbility granted by a feature's "activated" modifiers into result,
 --stamping each clone with the class metadata that the chooseClassAbility filter reads.
 --- @param feature CharacterFeature
@@ -359,10 +377,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
     end
 
     local promptWhenResolving = self:try_get("promptWhenResolving", false)
-    local rangeOriginTokenId = nil
-    if self:try_get("rangeOrigin", "") == "parent_primary_target" then
-        rangeOriginTokenId = GetParentPrimaryTargetTokenId(options)
-    end
+    local rangeOrigin = self:try_get("rangeOrigin", "")
 
     local targetChoices = {}
     if promptWhenResolving then
@@ -436,6 +451,13 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
         for i,target in ipairs(targets) do
             if target.token ~= nil then
                 print("INVOKE:: CASTING ON TARGET", i, "/", #targets)
+
+                local rangeOriginTokenId = nil
+                if rangeOrigin == "parent_primary_target" then
+                    rangeOriginTokenId = GetParentPrimaryTargetTokenId(options)
+                elseif rangeOrigin == "parent_current_target" then
+                    rangeOriginTokenId = GetParentCurrentTargetTokenId(options, target.token)
+                end
 
                 --In a squad coordinated strike, the invoked effect (e.g. a forced-
                 --movement push/pull, or an inflicted condition) should be SOURCED

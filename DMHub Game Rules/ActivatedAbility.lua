@@ -3963,7 +3963,15 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
 		for i,item in ipairs(result) do
             if item.token ~= nil and item.token.properties ~= nil and casterToken.properties ~= nil then
                 symbols.target = item.token.properties
-                symbols.caster = casterToken.properties
+                local filterCasterToken = casterToken
+                if options.symbols.targetPairs ~= nil and options.symbols.cast ~= nil then
+                    --A squad signature can assign a different minion to each
+                    --target. Filters on target-side behaviors should evaluate
+                    --Caster against that target's main attacker, matching the
+                    --source used when the behavior is ultimately resolved.
+                    filterCasterToken = options.symbols.cast:MainAttackerForTarget(options.symbols, item.token, casterToken)
+                end
+                symbols.caster = filterCasterToken.properties
                 symbols.targetnumber = i
                 symbols.numberoftargets = #result
                 local passFilter = nil

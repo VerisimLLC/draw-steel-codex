@@ -5647,7 +5647,10 @@ function gui.MCDMDivider(options)
 			args[k] = v
 		end
 		args.height = (args.height and args.height > 1) and args.height or 12
-		args.tmargin = 0
+		-- Laid-out dividers default to no top margin, but a caller that asks
+		-- for one keeps it: the plain divider's tmargin of 4 is the wrong
+		-- default here, not a value to force on everybody.
+		args.tmargin = options.tmargin or 0
 		args.bgimage = nil
 		args.gradient = nil
 		args.flow = "horizontal"

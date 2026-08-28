@@ -134,3 +134,39 @@ function FSHWater.Close()
 
     return true
 end
+
+--- Renames the open water without disturbing the session
+--- Open() starts a new session every time, so it cannot be reused to edit a
+--- water already in use. Usable before the water is opened, so a Respite can
+--- settle the name and type ahead of time. Director only.
+--- @param name string|nil The water name, blank when nil
+--- @return boolean changed True when the name was written
+function FSHWater.SetName(name)
+    if not dmhub.isDM then
+        return false
+    end
+
+    local doc = FSHWater._safeDoc()
+    doc:BeginChange()
+    doc.data.name = type(name) == "string" and name or ""
+    doc:CompleteChange("Rename fishing water", { undoable = false })
+
+    return true
+end
+
+--- Changes the type of the open water without disturbing the session
+--- Director only.
+--- @param waterType string An FSHConstants.WATER_TYPE key
+--- @return boolean changed True when the type was written
+function FSHWater.SetWaterType(waterType)
+    if not dmhub.isDM then
+        return false
+    end
+
+    local doc = FSHWater._safeDoc()
+    doc:BeginChange()
+    doc.data.waterType = FSHWater._validWaterType(waterType)
+    doc:CompleteChange("Change fishing water type", { undoable = false })
+
+    return true
+end

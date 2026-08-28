@@ -2003,3 +2003,76 @@ DockablePanel.Register{
         return FSHPanel.Create()
     end,
 }
+
+--- Fishing's key in the Respite's activity registry. Fixed, so a reload
+--- refreshes the entry rather than adding a second one.
+local RESPITE_ACTIVITY_KEY = "ad441633-2345-46d0-aa40-8918df586475"
+
+--- The fields the Respite shows under "Fishing Available". They settle what
+--- the water will be; nothing is opened until the Respite starts.
+--- Painted into the Respite's own cascade, so no styles are rooted here.
+--- @return Panel
+local function PaintRespiteFields()
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+
+        RSPWidgets.FormRow("Water Name", gui.Input{
+            classes = { "input", "form" },
+            text = FSHWater.GetName(),
+            placeholderText = "Optional...",
+            lineType = "Single",
+            respiteChanged = function(element)
+                element.text = FSHWater.GetName()
+            end,
+            change = function(element)
+                FSHWater.SetName(element.text)
+            end,
+        }),
+
+        RSPWidgets.FormRow("Water Type", gui.Dropdown{
+            classes = { "dropdown", "form" },
+            options = DTConstants.GetDropdownOptions(FSHConstants.WATER_TYPE),
+            idChosen = FSHWater.GetWaterType(),
+            respiteChanged = function(element)
+                element.idChosen = FSHWater.GetWaterType()
+            end,
+            change = function(element)
+                FSHWater.SetWaterType(element.idChosen)
+            end,
+        }),
+
+        -- The water lives in this module's document, not the Respite's, so a
+        -- change made from the fishing panel has to reach these fields too.
+        RSPWidgets.DocumentMonitor(FSHWater.GetDocumentPath()),
+    }
+end
+
+--- Offers fishing to the Respite, if the Respite module is installed.
+--- Registering the same key twice is a replace, so running this more than
+--- once costs nothing.
+local function RegisterWithRespite()
+    if mod.unloaded then
+        return
+    end
+
+    -- Reading an unset global raises, and the Respite module is not
+    -- guaranteed to be installed alongside this one.
+    local registry = rawget(_G, "RSPActivity")
+    if registry == nil then
+        return
+    end
+
+    registry.Register{
+        key = RESPITE_ACTIVITY_KEY,
+        name = "Fishing",
+        paint = PaintRespiteFields,
+    }
+end
+
+-- The Respite module loads after this one, so it announces its registry and
+-- we answer. Must match RSPConstants.registryEvent. The direct call covers
+-- the reverse load order, where the registry is already up.
+dmhub.RegisterEventHandler("rspActivityRegistry", RegisterWithRespite)
+RegisterWithRespite()

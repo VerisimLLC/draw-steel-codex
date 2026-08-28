@@ -112,21 +112,7 @@ function DTCharSheetTab.CreateDowntimePanel()
         end,
 
         adjustRolls = function(element, amount, roller)
-            local token = getToken()
-            local tokenId = token.id
-            local rollerTokenId = roller:GetTokenID()
-            local dtInfo = token.properties:GetDowntimeInfo()
-            if dtInfo then
-                token:ModifyProperties{
-                    execute = function()
-                        if rollerTokenId == tokenId then
-                            dtInfo:GrantRolls(amount)
-                        else
-                            dtInfo:GrantFollowerRolls(rollerTokenId, amount)
-                        end
-                    end
-                }
-            end
+            DTProjectEditor.AdjustDowntimeRolls(getToken(), roller:GetTokenID(), amount)
             DTSettings.Touch()
             element:FireEventTree("refreshToken")
         end,

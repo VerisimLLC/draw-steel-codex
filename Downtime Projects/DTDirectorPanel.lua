@@ -795,3 +795,34 @@ function DTDirectorPanel:_refreshPanelContent(element)
     element.children = {headerPanel, contentPanel}
 end
 
+
+--- Downtime projects' key in the Respite's activity registry. Fixed, so a
+--- reload refreshes the entry rather than adding a second one.
+local RESPITE_ACTIVITY_KEY = "8dc3365d-df3c-4b88-aff9-90980caa6758"
+
+--- Offers downtime projects to the Respite, if the Respite module is
+--- installed. Nothing to configure per Respite, so no paint function.
+local function RegisterWithRespite()
+    if mod.unloaded then
+        return
+    end
+
+    -- Reading an unset global raises, and the Respite module is not
+    -- guaranteed to be installed alongside this one.
+    local registry = rawget(_G, "RSPActivity")
+    if registry == nil then
+        return
+    end
+
+    registry.Register{
+        key = RESPITE_ACTIVITY_KEY,
+        name = "Downtime Projects",
+        paintPlayer = DTProjectEditor.PaintRespiteProjects,
+    }
+end
+
+-- The Respite module loads after this one, so it announces its registry and
+-- we answer. Must match RSPConstants.registryEvent. The direct call covers
+-- the reverse load order, where the registry is already up.
+dmhub.RegisterEventHandler("rspActivityRegistry", RegisterWithRespite)
+RegisterWithRespite()

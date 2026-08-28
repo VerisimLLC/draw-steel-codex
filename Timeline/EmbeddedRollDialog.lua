@@ -1174,6 +1174,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
         local tierRollInfo = {
             total = correctedTotal,
+            naturalRoll = natRoll,
             boons = (m_rollInfo.boons or 0) + (target.boons or 0),
             banes = (m_rollInfo.banes or 0) + (target.banes or 0),
             tiers = m_rollInfo.tiers,

@@ -416,6 +416,7 @@ function ActivatedAbilityJumpBehavior:RollForTier(ability, casterToken, options,
             end
             m_result = {
                 total = rollInfo.total,
+                naturalRoll = rollInfo.naturalRoll,
                 boons = rollInfo.boons,
                 banes = rollInfo.banes,
                 tiers = rollInfo.tiers,

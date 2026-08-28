@@ -1724,11 +1724,11 @@ function creature:CalculatePotencyValueSelf(potency)
     if potency ~= nil then
         local potencyType = string.lower(potency)
         if potencyType == "weak" then
-            return potencyValue - 2 + potencyBonus
+            return potencyValue - 2 + potencyBonus + self:CalculateNamedCustomAttribute("Weak Potency Bonus")
         elseif potencyType == "average" then
-            return potencyValue - 1 + potencyBonus
+            return potencyValue - 1 + potencyBonus + self:CalculateNamedCustomAttribute("Average Potency Bonus")
         elseif potencyType == "strong" then
-            return potencyValue + potencyBonus
+            return potencyValue + potencyBonus + self:CalculateNamedCustomAttribute("Strong Potency Bonus")
         end
     end
     return potencyValue + potencyBonus

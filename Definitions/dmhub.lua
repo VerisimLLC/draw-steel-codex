@@ -1581,6 +1581,13 @@ function dmhub.OpenCharacterPopout(characterId, extraParams, onError)
 	-- dummy implementation for documentation purposes only
 end
 
+--- OpenCompanionTool: Opens a Draw Steel companion tool surface by route -- e.g. "/monsters" for the Monster Builder -- authenticated as the current user via the same one-time handoff OpenCharacterPopout uses. Prefers a new window in the bundled desktop companion (reusing a running instance when there is one) and falls back to opening the draw-steel-codex.com page, signed in, in the system browser. The route must be an absolute path of URL-safe segments (letters, digits, - and _); anything else fails to onError. Works with or without an active game. The success path is silent.
+--- @param route string The companion route to open, e.g. "/monsters".
+--- @param onError nil|function Optional callback invoked as onError(message:string) if the launch fails.
+function dmhub.OpenCompanionTool(route, onError)
+	-- dummy implementation for documentation purposes only
+end
+
 --- RunSteamHandoffDiagnostic: ADMIN ONLY. Runs the Steam companion-popout handoff end-to-end against the live cloud function and reports every captured datapoint back to onComplete as a table. The engine rejects non-admin accounts before requesting a Steam ticket or starting any network work. Use this to diagnose why drawSteelCompanion authentication might be failing on a particular machine. The variant argument selects the test scenario; pass 0 for the happy path or 1-5 to deliberately break a specific step (see SteamHandoffVariant in LoginController.cs).
 --- @param variant integer 0=HappyPath, 1=WrongIdentityCasing, 2=DashedHex, 3=Base64Ticket, 4=OldApiNoIdentity, 5=WrongAppId.
 --- @param onComplete function Called with a single result table containing variant, steamInitialized, steamLoggedOn, steamId, personaName, appId, identityRequested, identityRequestedLength, methodUsed, ticketHandle, callbackFired, callbackResult, callbackElapsedSeconds, ticketSize, ticketEncoding, ticketEncodedLength, ticketEncodedFirst16, appIdSent, mintUrl, httpStatus, httpElapsedSeconds, responseBody, nonce, consumeUrl, ok, error, errorStep.

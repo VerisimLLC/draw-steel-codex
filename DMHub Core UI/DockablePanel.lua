@@ -2276,6 +2276,12 @@ DockablePanel = {
 	--floatingHalign = "right" places that window on the right.
 	--menu = "codex"|"game"|"tools" lists the panel in that title-bar menu
 	--INSTEAD of the Panels menu.
+	--launch = function() makes this an ACTION registration instead of a
+	--panel: activating it (menu row, icon-rail button, ShowPanelByName)
+	--runs launch() and no window ever opens. Give it no content; it still
+	--gets an icon, menu placement, dmonly/devonly gating, and rail
+	--membership like any panel. First client: the Body Banks, which
+	--launches the companion app.
 	Register = function(args)
 		--if args.dmonly and not dmhub.isDM then
 		--	return
@@ -2511,6 +2517,17 @@ DockablePanel = {
                     
                     ---@param operation nil|'toggle'|'show'|'hide'
 					click = function(operation)
+						-- Action registration: activating it IS the action.
+						-- No dock, rail, or window is touched, so this works
+						-- from the lobby too. "hide" means the caller wants
+						-- it gone, which for an action is a no-op.
+						if p.launch ~= nil then
+							if operation ~= "hide" then
+								p.launch()
+							end
+							return
+						end
+
 						-- Docks are only created once a game is active. Bail out
 						-- silently when invoked from the lobby.
 						if gamehud == nil or rawget(gamehud, "leftDock") == nil then

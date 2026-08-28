@@ -4839,6 +4839,21 @@ local function RailActivation(key)
     return "close", ownerKey, doc, dialog
 end
 
+--An ACTION registration (DockablePanel.Register with launch = fn): its
+--button runs launch() instead of opening a window -- e.g. Monster
+--Builder, which launches the companion app. Returns the launch function
+--for a layout key, or nil for ordinary panels and non-panel keys.
+local function RailLaunchAction(key)
+    if key == nil then
+        return nil
+    end
+    local reg = DockablePanel.GetRegistration(string.lower(key))
+    if reg ~= nil and reg.launch ~= nil and DockablePanel.PanelPermittedForUser(reg) then
+        return reg.launch
+    end
+    return nil
+end
+
 --The rail's curated panel list, in display order (from the Player Icon
 --Rail design). Panels missing a registration, or not available to this
 --user (dmonly/devonly), are skipped wherever the list is consumed.
@@ -8614,6 +8629,11 @@ local function OpenIconRailWindow(panelName, placement)
     if doc == nil then
         return
     end
+    --an action registration never has a window; a stale restore record
+    --or Views entry naming one must not error into reg.content().
+    if RailLaunchAction(key) ~= nil then
+        return
+    end
 
     local args = {
         --dragging a rail window makes it stick where it lands: it stops
@@ -10997,6 +11017,9 @@ local function RailIsGroupableKey(key)
     return string.match(key, "^doc:") == nil
         and string.match(key, "^character:") == nil
         and string.match(key, "^toolkit:") == nil
+        --an action registration has no window, so a folder tab for it
+        --would be an inert chip; it stays a standalone button.
+        and RailLaunchAction(key) == nil
 end
 
 --(Grouping edits reach open windows through g_onPanelGroupChanged,
@@ -12619,6 +12642,12 @@ end
 --anchored beside the strip rather than beside the rail.
 local function ToolkitTogglePanel(panelKey, strip, toolkitid)
     local key = string.lower(panelKey)
+    --action registration: the strip button runs it; no window opens.
+    local launch = RailLaunchAction(key)
+    if launch ~= nil then
+        launch()
+        return
+    end
     local verb, ownerKey, doc, d = RailActivation(key)
     if doc == nil then
         return
@@ -16910,7 +16939,8 @@ local function CreateIconRail(side, entries)
         local buttonIconRect = nil
         local sbuttonStyle = nil
         --whether this button wears the scriptAnim class (hover swell +
-        --click pop): script buttons only, unless the author opted out.
+        --click pop): script buttons (unless the author opted out) and
+        --launch-action registrations, whose click also IS the act.
         --Pack "panel" shortcuts are excluded -- their click opens a
         --window, and buttons that open things answer with the window.
         local sbuttonAnimates = false
@@ -17125,6 +17155,13 @@ local function CreateIconRail(side, entries)
         --member has no button of its own to anchor to.
         local function ToggleGroupMember(memberKey)
             memberKey = string.lower(memberKey)
+            --defensive: launch panels are not groupable, but a stored
+            --group could predate the flag. Run the action, keep the strip.
+            local launch = RailLaunchAction(memberKey)
+            if launch ~= nil then
+                launch()
+                return
+            end
             local verb, ownerKey, doc, d = RailActivation(memberKey)
             if doc == nil then
                 return
@@ -17887,7 +17924,7 @@ local function CreateIconRail(side, entries)
         --a scale-down animation: it constructs oversized (justDropped)
         --and sheds the class a moment later, riding the transition.
         local buttonClasses = {"iconRailButton"}
-        if sbuttonAnimates then
+        if sbuttonAnimates or (reg ~= nil and reg.launch ~= nil) then
             buttonClasses[#buttonClasses + 1] = "scriptAnim"
         end
         if sbuttonDisabled then
@@ -18717,6 +18754,15 @@ local function CreateIconRail(side, entries)
                     return
                 end
 
+                --action registration: clicking IS the action (e.g. Monster
+                --Builder launching the companion app). The pop acknowledges
+                --the press, since no window will answer it.
+                if reg ~= nil and reg.launch ~= nil then
+                    element:PulseClass("clickPop")
+                    reg.launch()
+                    return
+                end
+
                 local doc = RailPanelDocument(key)
                 if doc == nil then
                     return
@@ -19118,20 +19164,24 @@ local function CreateIconRail(side, entries)
                     numAlerted = #DockablePanel.GetAlertedRegistrations()
                 end
 
-                table.insert(entries, 1, {
-                    text = cond(PanelDocument.IsPinned(key), "Unpin", "Pin in place"),
-                    click = function()
-                        element.popup = nil
-                        togglePin()
-                    end,
-                })
-                table.insert(entries, 1, {
-                    text = "Keep open",
-                    click = function()
-                        element.popup = nil
-                        keepOpen()
-                    end,
-                })
+                --action registrations have no window: nothing to keep
+                --open or pin, so those verbs stay off their menu.
+                if reg == nil or reg.launch == nil then
+                    table.insert(entries, 1, {
+                        text = cond(PanelDocument.IsPinned(key), "Unpin", "Pin in place"),
+                        click = function()
+                            element.popup = nil
+                            togglePin()
+                        end,
+                    })
+                    table.insert(entries, 1, {
+                        text = "Keep open",
+                        click = function()
+                            element.popup = nil
+                            keepOpen()
+                        end,
+                    })
+                end
                 table.insert(entries, 1, {
                     text = "Open",
                     bind = dmhub.GetCommandBinding(bindCommand),
@@ -19145,7 +19195,10 @@ local function CreateIconRail(side, entries)
                 --the move verbs: it acts on this panel, not on where the
                 --button lives.
                 if clearAlerts ~= nil then
-                    table.insert(entries, 4, {
+                    --a launch registration's menu skipped keep-open/pin, so
+                    --"after the open verbs" is position 2 there, 4 otherwise.
+                    local alertsAt = cond(reg ~= nil and reg.launch ~= nil, 2, 4)
+                    table.insert(entries, alertsAt, {
                         text = "Clear Alerts",
                         click = function()
                             element.popup = nil
@@ -19157,7 +19210,7 @@ local function CreateIconRail(side, entries)
                     --when other panels have alerts too, offer the sweep:
                     --every alerted registration retires in one act.
                     if numAlerted > 1 then
-                        table.insert(entries, 5, {
+                        table.insert(entries, alertsAt + 1, {
                             text = "Clear All Alerts",
                             click = function()
                                 element.popup = nil

@@ -5469,7 +5469,12 @@ CreateAbilityController = function()
 
             g_channeledResourcePanel:FireEventTree("focusspell")
 
-            if g_currentAbility ~= nil and g_currentAbility.castImmediately and (not g_castButton:HasClass("collapsed")) then
+            --A scripted invoke can preselect every target and still require the player
+            --to accept an optional rider. Leave that cast on Confirm/Skip so declining
+            --does not resolve the effect or spend its resource cost.
+            if g_currentAbility ~= nil and g_currentAbility.castImmediately
+                and g_currentAbility:try_get("promptOverride") == nil
+                and (not g_castButton:HasClass("collapsed")) then
                 g_castButton:FireEvent("press")
             end
 

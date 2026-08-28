@@ -817,6 +817,15 @@ function FSHTrip.SessionTrips(charid)
         return {}
     end
 
+    --The document outlives the Respite that filled it: nothing deletes a Trip
+    --when the water closes, and the history stays on it until the character
+    --fishes again. Start already refuses to carry an earlier session's history
+    --forward, and this is that same rule applied to reading it - without it the
+    --last Respite's outings turn up in this one.
+    if trip.sessionId ~= FSHWater.GetSessionID() then
+        return {}
+    end
+
     local trips = {}
     for _, entry in ipairs(trip.history or {}) do
         trips[#trips + 1] = entry

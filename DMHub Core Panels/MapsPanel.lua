@@ -52,7 +52,79 @@ DockablePanel.Register{
 	end,
 }
 
-local g_mapDialog = nil
+--Every map dialog that is alive right now. CreateMapDialog is called once
+--per host that shows the panel -- a dock slot, a rail-window tab, a popped
+--out window -- so more than one can exist at a time. A single "the current
+--dialog" upvalue aliased them: the last one built won, and it went nil the
+--moment ANY of them closed, leaving the survivors pointing at nothing.
+local g_mapDialogs = {}
+
+local RegisterMapDialog = function(element)
+	for _,panel in ipairs(g_mapDialogs) do
+		if panel == element then
+			return
+		end
+	end
+
+	g_mapDialogs[#g_mapDialogs+1] = element
+end
+
+local UnregisterMapDialog = function(element)
+	for i,panel in ipairs(g_mapDialogs) do
+		if panel == element then
+			table.remove(g_mapDialogs, i)
+			return
+		end
+	end
+end
+
+--Rebuild every open map dialog's list. Dialogs that have been destroyed are
+--dropped as we go, so a closed one never has to be cleaned up by hand.
+local RefreshMapDialogs = function()
+	local live = {}
+	for _,panel in ipairs(g_mapDialogs) do
+		if panel.valid then
+			live[#live+1] = panel
+		end
+	end
+
+	g_mapDialogs = live
+
+	for _,panel in ipairs(live) do
+		panel:FireEventTree("refreshMaps")
+	end
+end
+
+--Party tokens grouped by the map they are standing on -- the portrait strip
+--on each map row reads it. Rebuilt at the top of every refresh pass (a
+--dialog's own refreshMaps runs before its children's, top-down), so one
+--pass sees one consistent snapshot.
+--
+--This deliberately does NOT live on the dialog panel. It used to, and the
+--rows reached it through a pointer to "the" dialog, which is not something
+--a row can rely on: a dialog built inside a collapsed host (the dock builds
+--its content while its slot is still collapsed) is never activated, so its
+--create event -- which set that pointer -- never fires, while its
+--monitorGame registration still delivers refreshGame down the tree. The
+--rows then indexed a nil dialog and the panel died.
+local g_tokensPerMap = nil
+
+local RebuildTokensPerMap = function()
+	local result = {}
+	for _,partyid in ipairs(GetAllParties()) do
+		for _,charid in ipairs(dmhub.GetCharacterIdsInParty(partyid)) do
+			local token = dmhub.GetCharacterById(charid)
+			if token ~= nil and token.mapid then
+				local mapTokens = result[token.mapid] or {}
+				result[token.mapid] = mapTokens
+				mapTokens[#mapTokens+1] = token
+			end
+		end
+	end
+
+	g_tokensPerMap = result
+	return result
+end
 
 local DragNode = function(element, target)
 	if target == nil then
@@ -98,7 +170,7 @@ local DragNode = function(element, target)
 		a.ord = ord + 1
 		a.parentFolder = target.data.data
 		a:Upload("Re-order maps")
-		g_mapDialog:FireEventTree("refreshMaps")
+		RefreshMapDialogs()
 		return
 	end
 
@@ -119,7 +191,7 @@ local DragNode = function(element, target)
 		item:Upload("Re-order maps")
 	end
 
-	g_mapDialog:FireEventTree("refreshMaps")
+	RefreshMapDialogs()
 end
 
 --Per-map settings dialog, mirroring the Floors panel's per-floor settings
@@ -167,9 +239,7 @@ local function ShowMapSettings(map)
 							map:MarkUndo()
 							map.description = element.text
 							map:Upload("Renamed map")
-							if g_mapDialog ~= nil and g_mapDialog.valid then
-								g_mapDialog:FireEventTree("refreshMaps")
-							end
+							RefreshMapDialogs()
 						end
 					end,
 				},
@@ -456,7 +526,7 @@ local CreateMapTokenContainer = function(map, onClick)
 			local newTokenPanels = {}
 			local children = {}
 
-			local tokens = g_mapDialog.data.tokensPerMap[map.id] or {}
+			local tokens = (g_tokensPerMap or RebuildTokensPerMap())[map.id] or {}
 
 			for i,tok in ipairs(tokens) do
 				if i > g_maxMapPortraits then
@@ -1175,19 +1245,13 @@ local CreatePlayerMapDialog = function()
 		borderBox = true,
 		flow = "vertical",
 
-		data = {
-			tokensPerMap = {},
-		},
-
 		create = function(element)
-			g_mapDialog = element
+			RegisterMapDialog(element)
 			element:FireEventTree("refreshMaps")
 		end,
 
 		destroy = function(element)
-			if g_mapDialog == element then
-				g_mapDialog = nil
-			end
+			UnregisterMapDialog(element)
 		end,
 
 		monitorGame = {"/mapManifests", "/characters"},
@@ -1196,17 +1260,9 @@ local CreatePlayerMapDialog = function()
 		end,
 
 		refreshMaps = function(element)
-			element.data.tokensPerMap = {}
-			for _,partyid in ipairs(GetAllParties()) do
-				for _,charid in ipairs(dmhub.GetCharacterIdsInParty(partyid)) do
-					local token = dmhub.GetCharacterById(charid)
-					if token ~= nil and token.mapid then
-						local mapTokens = element.data.tokensPerMap[token.mapid] or {}
-						element.data.tokensPerMap[token.mapid] = mapTokens
-						mapTokens[#mapTokens+1] = token
-					end
-				end
-			end
+			--fires before the rows below it (FireEventTree runs top-down), so
+			--every row this pass reaches reads the snapshot taken here.
+			RebuildTokensPerMap()
 		end,
 
 		styles = ThemeEngine.MergeStyles(BuildMapListStyles()),
@@ -1290,19 +1346,13 @@ CreateMapDialog = function()
 		borderBox = true,
 		flow = "vertical",
 
-		data = {
-			tokensPerMap = {},
-		},
-
 		create = function(element)
             module.SyncModuleSnapshots()
-			g_mapDialog = element
+			RegisterMapDialog(element)
 		end,
 
 		destroy = function(element)
-			if g_mapDialog == element then
-				g_mapDialog = nil
-			end
+			UnregisterMapDialog(element)
 		end,
 
 		monitorGame = {"/mapManifests", "/mapFolders"},
@@ -1311,23 +1361,9 @@ CreateMapDialog = function()
 		end,
 
 		refreshMaps = function(element)
-			element.data.tokensPerMap = {}
-			local allParties = GetAllParties()
-			for _,k in ipairs(allParties) do
-				local partyMembers = dmhub.GetCharacterIdsInParty(k)
-				for _,charid in ipairs(partyMembers) do
-					local token = dmhub.GetCharacterById(charid)
-					if token.mapid then
-						local mapTokens = element.data.tokensPerMap[token.mapid] or {}
-
-						element.data.tokensPerMap[token.mapid] = mapTokens
-
-						mapTokens[#mapTokens+1] = token
-					end
-				end
-				
-			end
-			
+			--fires before the rows below it (FireEventTree runs top-down), so
+			--every row this pass reaches reads the snapshot taken here.
+			RebuildTokensPerMap()
 		end,
 
 		styles = ThemeEngine.MergeStyles(BuildMapListStyles()),

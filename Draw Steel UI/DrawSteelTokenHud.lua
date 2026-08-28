@@ -503,18 +503,6 @@ TokenHud.RegisterPanel{
                         element.selfStyle.opacity = element.data.startOpacity*(1-t)
                         return
                     end
-                    --Step aside while the token is a target candidate: the pick
-                    --click must reach the token, and showing a claim affordance
-                    --over a "click this ally" prompt invites the wrong action.
-                    --updateInitiative owns the real show/hide; this only masks
-                    --while targeting is live, and think keeps running (thinkTime
-                    --is still set) so the swords come back when targeting ends.
-                    local targeting = TokenIsTargetCandidate(token)
-                    element:SetClass("hidden", targeting)
-                    if targeting then
-                        return
-                    end
-
                     local r = math.sin(dmhub.Time()*2*math.pi)
                     if element:HasClass("highlight") or element:HasClass("childHover") then
                         r = 1
@@ -551,6 +539,18 @@ TokenHud.RegisterPanel{
                     if dmhub.Time() < (element.data.clickTime or 0) + 1 then
                         show = false
                     end
+
+                    --Step aside while the token is a target candidate: the pick
+                    --click must reach the token, and showing a claim affordance
+                    --over a "click this ally" prompt invites the wrong action.
+                    --This belongs here and not in think(): the hidden class has
+                    --exactly one owner, and the parent panel refires
+                    --updateInitiative every 0.2s, so a think() that fought it
+                    --flashed the swords back on five times a second.
+                    if TokenIsTargetCandidate(token) then
+                        show = false
+                    end
+
                     element:SetClass("hidden", not show)
                     element.thinkTime = cond(show, 0.01)
 

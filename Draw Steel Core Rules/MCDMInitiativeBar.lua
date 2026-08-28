@@ -3536,17 +3536,8 @@ function GameHud.CreateInitiativeBar(self, info)
 					end
 
 					if info.initiativeQueue.gameMode == "downtime" then
-						local settings = DTSettings.CreateNew()
-						if settings then
-							settings:SetPauseRolls(false)
-						end
 						for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do
 							token.properties:DispatchEvent("startdowntime", {})
-						end
-					else
-						local settings = DTSettings.CreateNew()
-						if settings then
-							settings:SetPauseRolls(true)
 						end
 					end
 
@@ -5087,11 +5078,6 @@ function GameHud:BeginRespiteMode()
 	end
 	info.initiativeQueue.gameMode = "respite"
 	info.UploadInitiative()
-
-	local settings = DTSettings.CreateNew()
-	if settings then
-		settings:SetPauseRolls(true)
-	end
 
 	--"Until Respite" ongoing effects end when the respite begins, not when it ends.
 	local groupid = dmhub.GenerateGuid()

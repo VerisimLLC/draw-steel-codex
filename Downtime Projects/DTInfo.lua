@@ -39,15 +39,6 @@ function DTInfo:GrantRolls(rolls)
     return self
 end
 
---- Uses available rolls (decrements counter)
---- @param rolls number The number of rolls to use
---- @return DTInfo self For chaining
-function DTInfo:UseAvailableRolls(rolls)
-    local useCount = math.max(0, math.floor(rolls or 0))
-    self.availableRolls = math.max(0, self:GetAvailableRolls() - useCount)
-    return self
-end
-
 --- Determine if we've been migrated - has .followerRolls
 --- @return boolean
 function DTInfo:IsMigrated()
@@ -107,18 +98,6 @@ function DTInfo:RemoveFollowerRolls(followerId)
         map[followerId] = nil
     end
     return self
-end
-
---- Gets all follower IDs that have available rolls greater than zero
---- @return table<string, number> Map of follower GUID to roll count for followers with rolls > 0
-function DTInfo:GetFollowerIdsWithRolls()
-    local result = {}
-    for followerId, rolls in pairs(self:GetFollowerRollsMap()) do
-        if rolls and rolls > 0 then
-            result[followerId] = rolls
-        end
-    end
-    return result
 end
 
 --- Repairs a stored project that lost its DTProject metatable on deserialization

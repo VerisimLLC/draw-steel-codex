@@ -20,97 +20,6 @@ local function ConstantOptions(constants)
     return options
 end
 
---- Prompts the Director for a water's optional name and required type
-local function ShowOpenWaterDialog()
-    local nameInput = gui.Input{
-        classes = { "input", "form" },
-        text = "The Dunn River",
-        placeholderText = "Optional...",
-        lineType = "Single"
-    }
-
-    local typeDropdown = gui.Dropdown{
-        classes = { "dropdown", "form" },
-        options = ConstantOptions(FSHConstants.WATER_TYPE),
-        idChosen = FSHConstants.WATER_TYPE.FRESH.key
-    }
-
-    local dialog
-    dialog = gui.Panel{
-        classes = { "dialog" },
-        styles = ThemeEngine.GetStyles(),
-        width = 500,
-        height = 260,
-        flow = "vertical",
-        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
-        captureEscape = true,
-
-        escape = function()
-            gui.CloseModal()
-        end,
-
-        gui.Label{
-            classes = { "modalTitle" },
-            text = "Open Water"
-        },
-
-        gui.Panel{
-            width = "98%",
-            height = "auto",
-            flow = "vertical",
-            valign = "top",
-
-            gui.Panel{
-                classes = { "formRow" },
-                gui.Label{
-                    classes = { "label", "form" },
-                    text = "Name:"
-                },
-                nameInput
-            },
-
-            gui.Panel{
-                classes = { "formRow" },
-                gui.Label{
-                    classes = { "label", "form" },
-                    text = "Type:"
-                },
-                typeDropdown
-            }
-        },
-
-        gui.Panel{
-            width = "auto",
-            height = "auto",
-            flow = "horizontal",
-            halign = "center",
-            valign = "top",
-            vmargin = 16,
-
-            gui.Button{
-                classes = { "sizeL" },
-                text = "Cancel",
-                hmargin = 8,
-                click = function()
-                    gui.CloseModal()
-                end
-            },
-
-            gui.Button{
-                classes = { "sizeL" },
-                text = "Open",
-                hmargin = 8,
-                click = function()
-                    FSHWater.Open(nameInput.text, typeDropdown.idChosen)
-                    gui.CloseModal()
-                end
-            }
-        }
-    }
-
-    gui.ShowModal(dialog)
-end
-
 --- Lists every hero this client could be running a Trip for
 --- Used for harvesting and for finding a Trip already in progress, so it stays
 --- wider than what may start a new one.
@@ -128,30 +37,6 @@ local function ControllableHeroes()
         return (a.name or "") < (b.name or "")
     end)
 
-    return heroes
-end
-
---- Lists the selected heroes that could start fishing right now
---- Fishing is something a hero does somewhere, so the token has to be one this
---- client controls, picked deliberately, and actually standing on the map.
---- GetTokenById is map-only, which is exactly the test wanted here.
---- @return table heroes The selected, controllable, on-map hero tokens
-local function SelectedFishableHeroes()
-    local heroes = {}
-
-    for _, token in ipairs(dmhub.selectedTokens or {}) do
-        if token ~= nil
-            and token.valid
-            and token.properties ~= nil
-            and token.properties:IsHero()
-            and token.playerControlled
-            and dmhub.GetTokenById(token.id) ~= nil then
-            heroes[#heroes + 1] = token
-        end
-    end
-
-    --Deliberately unsorted: selection order is meaningful here, and the first
-    --token selected is the one the start dialog should open on.
     return heroes
 end
 
@@ -1727,167 +1612,13 @@ end
 --- Creates the panel
 --- @return Panel panel The dock panel content
 function FSHPanel.Create()
-    local m_tab = dmhub.GetPref(string.format("fsh_tab:%s", dmhub.gameid or "default")) or "Fishing"
     local m_signature = ""
 
-    --Which log rows are open, by hero. Held out here rather than in the row so
-    --a rebuild does not collapse everything somebody was reading.
-    local m_expanded = {}
-
-    --hover is fixed at construction, so the changing reason is held here and
-    --read by the button's linger handler.
-    local m_startReason = "Begin a Trip"
-
-    local statusLabel = gui.Label{
-        classes = { "sizeS" },
-        width = "100%",
-        height = "auto",
-        halign = "left",
-        valign = "center",
-        tmargin = 4,
-        lmargin = 8,
-        text = ""
-    }
-
-    local openButton = gui.Button{
-        classes = { "sizeXs" },
-        width = 110,
-        height = 22,
-        halign = "left",
-        text = "Open Water",
-        hover = gui.Tooltip("Open a body of water so players can fish"),
-        click = function()
-            ShowOpenWaterDialog()
-        end
-    }
-
-    local closeButton = gui.Button{
-        classes = { "sizeXs" },
-        width = 110,
-        height = 22,
-        halign = "left",
-        hmargin = 4,
-        text = "Close Water",
-        hover = gui.Tooltip("Block new Trips. Trips already running finish normally"),
-        click = function()
-            FSHWater.Close()
-        end
-    }
-
-    local startButton = gui.Button{
-        classes = { "sizeXs" },
-        width = 110,
-        height = 22,
-        halign = "left",
-        text = "Go Fishing!",
-        linger = function(element)
-            gui.Tooltip(m_startReason)(element)
-        end,
-        click = function()
-            --A Trip already running on this client just wants its window back.
-            for _, token in ipairs(ControllableHeroes()) do
-                if FSHTrip.IsLive(token.id) and FSHTrip.IsOwnedByThisClient(token.id) then
-                    FSHPanel.OpenWindow()
-                    return
-                end
-            end
-
-            local available = {}
-            for _, token in ipairs(SelectedFishableHeroes()) do
-                if FSHTrip.CanStart(token.id) then
-                    available[#available + 1] = token
-                end
-            end
-
-            if #available > 0 then
-                FSHPanel.ShowStartFishingDialog(available)
-            end
-        end
-    }
-
-    local controlsPanel = gui.Panel{
-        width = "100%",
-        height = "auto",
-        flow = "horizontal",
-        halign = "left",
-        valign = "center",
-        vmargin = 4,
-
-        openButton,
-        closeButton,
-        startButton
-    }
-
-    local waterTabBody = gui.Panel{
+    local recordsBody = gui.Panel{
         width = "100%",
         height = "auto",
         flow = "vertical",
         valign = "top"
-    }
-
-    local recordsTabBody = gui.Panel{
-        width = "100%",
-        height = "auto",
-        flow = "vertical",
-        valign = "top"
-    }
-
-    local tabsPanel
-
-    local SelectTab = function(tabName)
-        m_tab = tabName
-        waterTabBody:SetClass("collapsed", tabName ~= "Fishing")
-        recordsTabBody:SetClass("collapsed", tabName ~= "Records")
-
-        for _, tab in ipairs(tabsPanel.children) do
-            if tab.data ~= nil and tab.data.tabName ~= nil then
-                tab:SetClass("selected", tab.data.tabName == tabName)
-            end
-        end
-
-        dmhub.SetPref(string.format("fsh_tab:%s", dmhub.gameid or "default"), tabName)
-    end
-
-    tabsPanel = gui.Panel{
-        classes = { "tabBar" },
-        width = "100%",
-        height = 24,
-
-        gui.Label{
-            classes = { "tab", cond(m_tab == "Fishing", "selected") },
-            text = "Fishing",
-            width = "50%",
-            height = "100%",
-            data = { tabName = "Fishing" },
-            press = function()
-                SelectTab("Fishing")
-            end
-        },
-
-        gui.Label{
-            classes = { "tab", cond(m_tab == "Records", "selected") },
-            text = "Records",
-            width = "50%",
-            height = "100%",
-            data = { tabName = "Records" },
-            press = function()
-                SelectTab("Records")
-            end
-        }
-    }
-
-    --Only the bodies scroll. The status line, controls, and tab bar stay put,
-    --so the tab bar never narrows when a scrollbar appears. The 12px inset is
-    --the scrollbar gutter.
-    local bodyScroll = gui.Panel{
-        width = "100%-12",
-        height = "100% available",
-        flow = "vertical",
-        valign = "top",
-        vscroll = true,
-
-        waterTabBody,
-        recordsTabBody
     }
 
     local resultPanel
@@ -1897,33 +1628,23 @@ function FSHPanel.Create()
         height = "100%",
         flow = "vertical",
 
-        monitorGame = FSHWater.GetDocumentPath(),
-        refreshGame = function(element)
-            element:FireEvent("rebuild")
-        end,
-
-        --Trips live in a document per hero, and which of them exist changes as
-        --people start and finish. Rather than juggle a monitor per hero, watch
-        --a cheap signature of the session's Trips and rebuild when it moves.
+        --Records land on the token when a Trip closes, which no single document
+        --monitor sees. A cheap signature of the standings covers it.
         thinkTime = 0.5,
         think = function(element)
             --A cast is answered wherever the hero is controlled, so the client
-            --that asked has to come back and collect the result.
+            --that asked has to come back and collect the result. This panel no
+            --longer shows Trips, but it is still somewhere a player may have
+            --open while their fishing window is not, so the pump stays.
             for _, token in ipairs(ControllableHeroes()) do
                 FSHCast.Pump(token.id)
             end
 
             local parts = {}
-            for _, trip in ipairs(FSHTrip.TripsThisSession(true)) do
-                parts[#parts + 1] = string.format("%s:%s:%d:%d:%s:%d",
-                    trip.charid or "", trip.status or "",
-                    #(trip.casts or {}), trip.points or 0,
-                    trip.actionId or "", #(trip.events or {}))
-            end
-
-            --Selection gates Start Fishing, so the button has to follow it.
-            for _, token in ipairs(SelectedFishableHeroes()) do
-                parts[#parts + 1] = string.format("sel:%s", token.id)
+            for _, entry in ipairs(GatherRecords()) do
+                parts[#parts + 1] = string.format("%s:%d:%d:%d",
+                    entry.name, entry.biggest.points or 0,
+                    entry.catches, entry.trips)
             end
 
             local signature = table.concat(parts, "|")
@@ -1934,91 +1655,6 @@ function FSHPanel.Create()
         end,
 
         rebuild = function()
-            local isOpen = FSHWater.IsOpen()
-
-            statusLabel.text = FSHWater.Describe()
-
-            openButton:SetClass("collapsed", not dmhub.isDM)
-            closeButton:SetClass("collapsed", not dmhub.isDM or not isOpen)
-            openButton.text = cond(isOpen, "Change Water", "Open Water")
-
-            --A Trip in progress is always reachable. Starting a new one needs a
-            --hero selected and standing on the map.
-            local resumable = 0
-            for _, token in ipairs(ControllableHeroes()) do
-                if FSHTrip.IsLive(token.id) and FSHTrip.IsOwnedByThisClient(token.id) then
-                    resumable = resumable + 1
-                end
-            end
-
-            local startable = 0
-            for _, token in ipairs(SelectedFishableHeroes()) do
-                if FSHTrip.CanStart(token.id) then
-                    startable = startable + 1
-                end
-            end
-
-            local canFish = startable > 0 or resumable > 0
-
-            startButton.text = cond(resumable > 0, "Back to Fishing", "Go Fishing!")
-            startButton:SetClass("collapsed", false)
-            startButton.interactable = canFish
-            startButton:SetClass("disabled", not canFish)
-
-            --Say what is missing rather than leaving a dead button.
-            if resumable > 0 then
-                m_startReason = "Open your fishing window"
-            elseif startable > 0 then
-                m_startReason = "Begin a Trip"
-            elseif not isOpen then
-                m_startReason = "No water is open"
-            elseif #SelectedFishableHeroes() == 0 then
-                m_startReason = "Select one of your heroes on the map"
-            else
-                m_startReason = "That hero is already fishing"
-            end
-
-            --The dock is the table's view of the water: who is out there and
-            --how they are doing. Your own outing lives in the fishing window,
-            --which is the only place casting happens.
-            local body = {}
-
-            local log = FSHTrip.TripsThisSession(true)
-            if #log > 0 then
-                body[#body + 1] = gui.Label{
-                    classes = { "tableLabel", "sizeXs" },
-                    width = "100%",
-                    height = "auto",
-                    halign = "left",
-                    tmargin = 10,
-                    text = "Fishing Log"
-                }
-
-                for _, trip in ipairs(log) do
-                    local charid = trip.charid or ""
-                    body[#body + 1] = FSHPanel.LogRow(trip, m_expanded[charid] == true,
-                        function(open)
-                            m_expanded[charid] = cond(open, true, nil)
-                        end)
-                end
-            end
-
-            if #body == 0 then
-                body[#body + 1] = gui.Label{
-                    classes = { "sizeXs", "fgMuted" },
-                    width = "100%",
-                    height = "auto",
-                    halign = "left",
-                    valign = "top",
-                    tmargin = 8,
-                    text = cond(isOpen,
-                        "Nobody has fished here yet.",
-                        "The Director has not opened any water.")
-                }
-            end
-
-            waterTabBody.children = body
-
             local entries, best = GatherRecords()
             local rows = {}
 
@@ -2105,20 +1741,24 @@ function FSHPanel.Create()
                 }
             end
 
-            recordsTabBody.children = rows
-
-            waterTabBody:SetClass("collapsed", m_tab ~= "Fishing")
-            recordsTabBody:SetClass("collapsed", m_tab ~= "Records")
+            recordsBody.children = rows
         end,
 
         create = function(element)
             element:FireEvent("rebuild")
         end,
 
-        statusLabel,
-        controlsPanel,
-        tabsPanel,
-        bodyScroll
+        --Only the body scrolls, and it stops short of the dock's right edge so
+        --the rows are not painted under the scroll bar.
+        gui.Panel{
+            width = "100%-12",
+            height = "100% available",
+            flow = "vertical",
+            valign = "top",
+            vscroll = true,
+
+            recordsBody,
+        },
     }
 
     ThemeEngine.OnThemeChanged(mod, function()
@@ -2131,12 +1771,12 @@ function FSHPanel.Create()
 end
 
 DockablePanel.Register{
-    name = "Fishing",
+    name = "Fishing Records",
     icon = "phosphor/fish-simple.png",
     minHeight = 160,
     maxHeight = 600,
-    --The panel scrolls its own body below the tab bar, so the dock must not
-    --also scroll the whole thing and drag the tabs out from under the user.
+    --The panel scrolls its own body, so the dock must not scroll the whole
+    --thing on top of it.
     vscroll = false,
     content = function()
         return FSHPanel.Create()

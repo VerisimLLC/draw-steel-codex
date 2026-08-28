@@ -29,17 +29,6 @@ function DTConfirmationDialog.ShowModal(title, message, confirmButtonText, cance
     gui.ShowModal(confirmationWindow)
 end
 
---- Shows a standardized delete confirmation dialog
---- @param message string Text to place after `are you sure you want to delete...`
---- @param onConfirm function Callback function to execute if user confirms deletion
---- @param onCancel function Optional callback function to execute if user cancels (default: just close dialog)
-function DTConfirmationDialog.ShowDeleteModal(message, onConfirm, onCancel)
-    local title = "Delete Confirmation"
-    local displayMessage = string.format("Are you sure you want to delete %s?", message or "this item")
-
-    DTConfirmationDialog.ShowModal(title, displayMessage, "Delete", "Cancel", onConfirm, onCancel)
-end
-
 --- Private helper to create the panel structure
 --- @param title string The dialog title text
 --- @param message string The main confirmation message

@@ -52,252 +52,9 @@ function DTDirectorPanel:_buildMainPanel()
             directorPanel:_refreshPanelContent(element)
         end,
         children = {
-            self:_buildHeaderPanel(),
             self:_buildContentPanel()
         }
     }
-end
-
---- Builds the header panel containing title and settings summary
---- @return table panel The header panel with title and settings summary
-function DTDirectorPanel:_buildHeaderPanel()
-    local isPaused = self.downtimeSettings:GetPauseRolls()
-    local pauseReason = self.downtimeSettings:GetPauseRollsReason()
-
-    local statusText = string.format("Rolling: %s", isPaused and "Paused" or "Enabled")
-
-    local headerPanel
-    headerPanel = gui.Panel {
-        width = "100%",
-        height = "40",
-        flow = "horizontal",
-        halign = "left",
-        valign = "center",
-        styles = ThemeEngine.GetStyles(),
-        children = {
-            -- Settings panel - edit button & state
-            gui.Panel {
-                width = "50%",
-                height = "100%",
-                flow = "horizontal",
-                halign = "left",
-                valign = "center",
-                children = {
-                    gui.Button {
-                        classes = {"settingsButton", "sizeS"},
-                        halign = "right",
-                        valign = "center",
-                        hmargin = 5,
-                        linger = function(element)
-                            gui.Tooltip("Edit downtime settings")(element)
-                        end,
-                        press = function()
-                            self:_showSettingsDialog()
-                        end
-                    },
-                    gui.Panel {
-                        width = "100%-20",
-                        height = "100%",
-                        flow = "vertical",
-                        halign = "left",
-                        valign = "center",
-                        children = {
-                            gui.Label {
-                                text = statusText,
-                                width = "auto",
-                                height = "auto",
-                                halign = "left",
-                                valign = "center"
-                            },
-                            gui.Label {
-                                text = pauseReason,
-                                classes = {"sizeXs", (not isPaused) and "collapsed" or nil},
-                                width = "auto",
-                                height = "auto",
-                                halign = "left",
-                                valign = "center"
-                            }
-                        },
-                    },
-                }
-            },
-            -- Buttons panel - Grant rolls
-            gui.Panel{
-                width = "50%",
-                height = "100%",
-                halign = "right",
-                valign = "center",
-                children = {
-                    gui.Button {
-                        classes = {"sizeM", "withInfo"},
-                        icon = "panels/initiative/initiative-dice.png",
-                        halign = "right",
-                        valign = "center",
-                        hmargin = 5,
-                        linger = function(element)
-                            gui.Tooltip("Grant rolls")(element)
-                        end,
-                        click = function()
-                            DTGrantRollsDialog.new{}:ShowDialog()
-                        end,
-                    },
-                }
-            },
-        }
-    }
-
-    -- The director panel is persistent across the session, so subscribe to
-    -- theme changes and refresh the styles array when the active scheme switches.
-    ThemeEngine.OnThemeChanged(mod, function()
-        if headerPanel and headerPanel.valid then
-            headerPanel.styles = ThemeEngine.GetStyles()
-        end
-    end)
-
-    return headerPanel
-end
-
---- Shows the settings edit dialog for downtime configuration
---- Allows editing pause rolls setting and reason
-function DTDirectorPanel:_showSettingsDialog()
-    local isPaused = self.downtimeSettings:GetPauseRolls()
-    local pauseReason = self.downtimeSettings:GetPauseRollsReason()
-
-    local settingsDialog = gui.Panel{
-        styles = ThemeEngine.GetStyles(),
-        classes = {"dtSettingsController", "dialog"},
-        width = 500,
-        height = 300,
-        flow = "vertical",
-
-        saveAndClose = function(element)
-            local chkPause = element:Get("chkPauseRolls")
-            local txtReason = element:Get("txtPauseReason")
-            if chkPause and txtReason then
-                self.downtimeSettings:SetData(chkPause.value, txtReason.text)
-                gui.CloseModal()
-            end
-        end,
-
-        validateForm = function(element)
-            local enabled = false
-            local chkPause = element:Get("chkPauseRolls")
-            if chkPause and not chkPause.value then
-                enabled = true
-            else
-                local txtReason = element:Get("txtPauseReason")
-                enabled = (txtReason and txtReason.text) and #txtReason.text > 0
-            end
-            element:FireEventTree("enableConfirm", enabled)
-        end,
-
-        create = function(element)
-            element:FireEvent("validateForm")
-        end,
-
-        escape = function(element)
-            gui.CloseModal()
-        end,
-
-        children = {
-            gui.Label{
-                classes = {"modalTitle"},
-                text = "Edit Downtime Settings",
-            },
-
-            -- Content
-            gui.Panel {
-                width = "98%",
-                height = "100%-124",
-                valign = "top",
-                flow = "vertical",
-                children = {
-                    gui.Panel {
-                        classes = {"formStackedRow"},
-                        children = {
-                            gui.Check {
-                                id = "chkPauseRolls",
-                                text = "Pause Rolls",
-                                value = isPaused,
-                                change = function(element)
-                                    local controller = element:FindParentWithClass("dtSettingsController")
-                                    if controller then
-                                        controller:FireEvent("validateForm")
-                                    end
-                                end,
-                            },
-                        },
-                    },
-
-                    gui.Panel {
-                        classes = {"formStackedRow"},
-                        children = {
-                            gui.Label {
-                                classes = {"formStacked"},
-                                text = "Pause Reason:",
-                            },
-                            gui.Input {
-                                classes = {"formStacked"},
-                                id = "txtPauseReason",
-                                text = pauseReason,
-                                placeholderText = "Enter reason for pausing rolls...",
-                                lineType = "Single",
-                                editlag = 0.5,
-                                change = function(element)
-                                    element:FireEvent("edit")
-                                end,
-                                edit = function(element)
-                                    local controller = element:FindParentWithClass("dtSettingsController")
-                                    if controller then
-                                        controller:FireEvent("validateForm")
-                                    end
-                                end,
-                            },
-                        },
-                    },
-                },
-            },
-
-            -- Footer
-            gui.Panel{
-                width = "100%",
-                height = 40,
-                vmargin = 10,
-                halign = "center",
-                valign = "bottom",
-                flow = "horizontal",
-                children = {
-                    gui.Button{
-                        classes = {"sizeL"},
-                        text = "Cancel",
-                        valign = "bottom",
-                        click = function(element)
-                            gui.CloseModal()
-                        end,
-                    },
-                    gui.Button{
-                        classes = {"sizeL", "disabled"},
-                        text = "Confirm",
-                        valign = "bottom",
-                        interactable = false,
-                        enableConfirm = function(element, enabled)
-                            element:SetClass("disabled", not enabled)
-                            element.interactable = enabled
-                        end,
-                        click = function(element)
-                            if not element.interactable then return end
-                            local controller = element:FindParentWithClass("dtSettingsController")
-                            if controller then
-                                controller:FireEvent("saveAndClose")
-                            end
-                        end,
-                    },
-                },
-            },
-        },
-    }
-
-    gui.ShowModal(settingsDialog)
 end
 
 --- Gets all hero characters in the game that have downtime projects
@@ -363,7 +120,7 @@ function DTDirectorPanel:_categorizeDowntimeProjects()
                         progress = project:GetProgress(),
                         goal = project:GetProjectGoal(),
                         milestoneThreshold = project:GetMilestoneThreshold(),
-                        pauseRollsReason = project:GetStatusReason(),
+                        statusReason = project:GetStatusReason(),
                     }
 
                     local status = project:GetStatus()
@@ -488,8 +245,8 @@ function DTDirectorPanel:_buildProjectDetail(projectEntry, tabType)
     local detailParts = {projectTitle, progressText}
 
     -- Add tab-specific field
-    if tabType == "attention" and projectEntry.pauseRollsReason and projectEntry.pauseRollsReason ~= "" then
-        detailParts[#detailParts + 1] = projectEntry.pauseRollsReason
+    if tabType == "attention" and projectEntry.statusReason and projectEntry.statusReason ~= "" then
+        detailParts[#detailParts + 1] = projectEntry.statusReason
     elseif tabType == "milestones" and projectEntry.milestoneThreshold and projectEntry.milestoneThreshold > 0 then
         detailParts[#detailParts + 1] = string.format("Milestone: %d", projectEntry.milestoneThreshold)
     end
@@ -790,9 +547,7 @@ end
 --- Refreshes the panel content (used by both refreshGame and show events)
 --- @param element table The main panel element to refresh
 function DTDirectorPanel:_refreshPanelContent(element)
-    local headerPanel = self:_buildHeaderPanel()
-    local contentPanel = self:_buildContentPanel()
-    element.children = {headerPanel, contentPanel}
+    element.children = {self:_buildContentPanel()}
 end
 
 

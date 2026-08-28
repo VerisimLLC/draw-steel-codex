@@ -4734,6 +4734,7 @@ function creature:GetCustomVisionSenses()
 end
 
 creature._tmp_grabbedby = false
+creature._tmp_movementcarrier = false
 
 local g_grabbedid = "70504ebe-3899-41d3-9f60-74b52ce35e39"
 local g_proneid = "da6867b1-01e3-4570-8d1b-1b94ea1ea343"
@@ -4749,6 +4750,7 @@ function creature:Invalidate()
     self._tmp_resources = nil
     self._tmp_languagesKnown = nil
     self._tmp_grabbedby = nil
+    self._tmp_movementcarrier = nil
     self._tmp_aggroColor = nil
     self._tmp_suspended = nil
     self._tmp_prone = nil
@@ -4815,6 +4817,7 @@ function creature:RefreshToken(token)
     end
 
     self._tmp_grabbedby = nil
+    self._tmp_movementcarrier = nil
     --Rebuild prone from the current inflicted-condition state on every token refresh.
     --The modifier cache can already be stamped for this game update before
     --this base refresh runs, which skips Invalidate() above; without this
@@ -4832,6 +4835,10 @@ function creature:RefreshToken(token)
         if inflictedConditions[g_proneid] ~= nil then
             self._tmp_prone = true
         end
+    end
+
+    if CharacterModifier.GetMovementCarrierFromModifiers ~= nil then
+        self._tmp_movementcarrier = CharacterModifier.GetMovementCarrierFromModifiers(self, modifiers)
     end
 
 	--check if any inflicted conditions or ongoing effects no longer sustain.
@@ -5570,27 +5577,42 @@ function creature:FillTemporalActiveModifiers(result)
 
 
     self._tmp_numberOfCreaturesGrabbed = 0
+    local grabbedTargetIds = {}
     local conditionSourceBestows = {}
+
+    local function AccumulateCarriedCreature(targetToken, countsTowardGrabLimit, useGrabMovementPenalty)
+        if targetToken == nil or targetToken.properties == nil then
+            return
+        end
+
+        if countsTowardGrabLimit then
+            self._tmp_numberOfCreaturesGrabbed = self._tmp_numberOfCreaturesGrabbed + 1
+        end
+
+        if useGrabMovementPenalty then
+	        local ourSize = self:CalculateNamedCustomAttribute("SizeWhenGrabbing")
+            local theirSize = targetToken.properties:GetCalculatedCreatureSizeAsNumber()
+
+            if ourSize <= theirSize then
+                local grabbingFeature = MCDMImporter.GetStandardFeature("Grabbing")
+                if grabbingFeature ~= nil then
+                    for _,modifier in ipairs(grabbingFeature.modifiers) do
+                        result[#result+1] = {
+                            mod = modifier,
+                            stacks = 1,
+                        }
+                    end
+                end
+            end
+        end
+    end
+
     if self:IsCasterOfConditions() then
         --apply slow down if we are grabbing.
         self:VisitConditionCasterSource(function(condid, targetToken)
             if condid == g_grabbedCondition then
-	            local ourSize = self:CalculateNamedCustomAttribute("SizeWhenGrabbing")
-                local theirSize = targetToken.properties:GetCalculatedCreatureSizeAsNumber()
-
-                self._tmp_numberOfCreaturesGrabbed = self._tmp_numberOfCreaturesGrabbed + 1
-
-                if ourSize <= theirSize then
-                    local grabbingFeature = MCDMImporter.GetStandardFeature("Grabbing")
-                    if grabbingFeature ~= nil then
-                        for _,modifier in ipairs(grabbingFeature.modifiers) do
-                            result[#result+1] = {
-                                mod = modifier,
-                                stacks = 1,
-                            }
-                        end
-                    end
-                end
+                grabbedTargetIds[targetToken.id] = true
+                AccumulateCarriedCreature(targetToken, true, true)
             end
 
             -- Check target's active modifiers for conditionsourcebestow.
@@ -5608,6 +5630,19 @@ function creature:FillTemporalActiveModifiers(result)
                             (conditionSourceBestows[modEntry.mod.conditionid] or 0) + 1
                     end
                 end
+            end
+        end)
+    end
+
+
+    if CharacterModifier.VisitMovementCarrierPassengers ~= nil then
+        CharacterModifier.VisitMovementCarrierPassengers(self, function(targetToken, modifier)
+            if not grabbedTargetIds[targetToken.id] then
+                AccumulateCarriedCreature(
+                    targetToken,
+                    modifier:try_get("countsTowardGrabLimit", true),
+                    modifier:try_get("useGrabMovementPenalty", true)
+                )
             end
         end)
     end

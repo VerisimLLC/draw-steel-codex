@@ -600,6 +600,12 @@ function RSPSession.CompleteGameEffects()
         local newXp = token.properties:try_get("xp", 0)
         token.properties:DispatchEvent("endrespite", {xpgained = newXp - currentXp})
     end
+
+    --Everyone is rested. Anything an activity has to do to the restored state
+    --belongs here rather than in onComplete, which ran before this: resource
+    --usage recorded before the rest is stamped with the old refresh id and
+    --quietly ignored.
+    RSPSession.NotifyActivities("onRested")
 end
 
 --- Begin the Respite proper. Players stop choosing and start doing, which is

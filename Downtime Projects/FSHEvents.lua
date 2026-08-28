@@ -320,9 +320,54 @@ function FSHEvents.Pump(charid)
     FSHEvents.AnswerAncientFish(charid, info.result or 0)
 end
 
+--- Whether this character will be rested by the Respite that is running
+--- Only a participant is: everyone else keeps whatever they had spent, so their
+--- Recovery has to come off now rather than waiting for a rest that will never
+--- reach them.
+--- @param charid string The character's id
+--- @return boolean
+local function RestedByThisRespite(charid)
+    local session = rawget(_G, "RSPSession")
+    if session == nil or session.Active() == nil then
+        return false
+    end
+    return session.IsParticipating(charid) == true
+end
+
+--- Takes Recoveries off a character, sharing included
+--- Deliberately unclamped: ConsumeResource bills a Bloodbound Band partner when
+--- the hero has none left, and being told your fishing cost someone else a
+--- Recovery is a better moment at the table than a debt quietly lapsing.
+--- @param token any The hero's token
+--- @param count number How many to take
+local function SpendRecoveries(token, count)
+    if token == nil or not token.valid or count <= 0 then
+        return
+    end
+
+    token:ModifyProperties{
+        description = "Pulled under by an ancient fish",
+        undoable = false,
+        execute = function()
+            token.properties:ConsumeResource(
+                CharacterResource.recoveryResourceId, "long", count,
+                "Pulled under by an ancient fish")
+        end
+    }
+end
+
+--- Takes a character's parked Recovery debt, once the Respite has rested them
+--- @param charid string The character's id
+--- @param count number How many Recoveries are owed
+function FSHEvents.TakeOwedRecoveries(charid, count)
+    SpendRecoveries(dmhub.GetCharacterById(charid), math.floor(count or 0))
+end
+
 --- Answers event 9 from the result of the hard Might test
---- The Recovery loss is reported rather than deducted: fishing is untethered
---- from respites, and the rules write the loss as landing at the end of one.
+--- A failure costs a Recovery, and when that lands depends on who is fishing.
+--- A participant is about to be rested, and usage recorded before that rest is
+--- stamped with the old refresh id and ignored - so their debt is parked on the
+--- water and taken in the activity's onRested. Anyone else is charged now.
 --- @param charid string The hero's token id
 --- @param total number The Might test total
 function FSHEvents.AnswerAncientFish(charid, total)
@@ -350,8 +395,26 @@ function FSHEvents.AnswerAncientFish(charid, total)
             "You land it: %s, worth %d points.", species.name,
             FSHEvents.ANCIENT_FISH_POINTS)
     else
-        owed[#owed + 1] =
-            "You owe a Recovery: end your next respite with one fewer than usual."
+        local token = dmhub.GetCharacterById(charid)
+        local maxRecoveries = 0
+        if token ~= nil and token.valid and token.properties ~= nil then
+            maxRecoveries =
+                token.properties:GetResources()[CharacterResource.recoveryResourceId] or 0
+        end
+
+        if maxRecoveries <= 0 then
+            --Followers have none, so there is nothing the fish can take.
+            applied[#applied + 1] =
+                "You are hauled out soaked, with no Recoveries to lose."
+        elseif RestedByThisRespite(charid) then
+            FSHWater.OweRecovery(charid)
+            applied[#applied + 1] =
+                "You end this Respite with one fewer Recovery than usual."
+        else
+            SpendRecoveries(token, 1)
+            applied[#applied + 1] = "It costs you a Recovery."
+        end
+
         if total <= 11 then
             owed[#owed + 1] = "The Director also owes you a consequence."
         end

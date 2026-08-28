@@ -22,6 +22,11 @@ local mod = dmhub.GetModLoading()
 --- @field needsAttention fun(args: table): boolean something the Director must act on
 --- @field onStart fun() the Respite has begun and this activity is on offer
 --- @field onComplete fun() the Respite is over
+--- @field onRested fun() every participant has been rested
+--- onComplete and onRested sit either side of the rest, and the difference
+--- matters: onComplete still sees the Respite as it was and runs before anybody
+--- is rested, while onRested runs after and is the only place to touch what the
+--- rest restores.
 --- @field journalDetail fun(): string|nil one line about this activity for the write-up
 --- @field journalSummary fun(args: table): string[]|nil what args.charid did;
 --- receives args.since like paintDirector does
@@ -50,6 +55,7 @@ function RSPActivity.Register(args)
         needsAttention = args.needsAttention,
         onStart = args.onStart,
         onComplete = args.onComplete,
+        onRested = args.onRested,
         journalDetail = args.journalDetail,
         journalSummary = args.journalSummary,
     }

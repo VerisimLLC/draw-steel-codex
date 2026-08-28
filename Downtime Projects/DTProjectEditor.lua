@@ -23,6 +23,18 @@ local function modifyTokenProps(info)
     end
 end
 
+--- Tells the Respite that a project moved
+--- Progress lives on the project owner's token, which the Respite does not
+--- watch, so a milestone crossed mid-Respite would otherwise sit unseen on the
+--- Director's roster until some unrelated repaint woke it. Touching the session
+--- document brings every Respite panel with it, the attention marker included.
+local function AnnounceChange()
+    local session = rawget(_G, "RSPSession")
+    if session ~= nil and session.Active() ~= nil then
+        session.Ping()
+    end
+end
+
 --- Gets the fresh project data from the character sheet
 --- @return DTProject|nil project The current project or nil if not found
 function DTProjectEditor:GetProject()
@@ -2172,9 +2184,13 @@ function DTProjectEditor.RecordProjectRolls(args)
     DTProjectEditor.AddRollsToProject(args.projectToken, args.projectId, args.rolls)
     DTProjectEditor.AdjustDowntimeRolls(args.rollHolderToken, args.rollerCharid, -1)
 
+    --Deferred with the rest: ModifyProperties runs its execute asynchronously,
+    --so announcing any sooner would wake the Respite to read progress that has
+    --not landed yet.
     dmhub.Schedule(0.2, function()
         DTSettings.Touch()
         DTShares.Touch()
+        AnnounceChange()
     end)
 end
 
@@ -2690,10 +2706,15 @@ function DTProjectEditor._respiteShorten(text, limit)
     return string.sub(text, 1, limit - 3) .. "..."
 end
 
+--- The shortcut into a hero's projects, sized to sit inside a feed row
+local RESPITE_SHEET_BUTTON_SIZE = 16
+local RESPITE_SHEET_BUTTON_MARGIN = 6
+
 --- One line in the Director's feed
 --- @param event table from _projectEvents
+--- @param charid string|nil whose feed this is, for the milestone shortcut
 --- @return Panel
-function DTProjectEditor._respiteEventRow(event)
+function DTProjectEditor._respiteEventRow(event, charid)
     local project = event.project
     local item = event.item
     local goal = project:GetProjectGoal() or 0
@@ -2723,6 +2744,35 @@ function DTProjectEditor._respiteEventRow(event)
             item:GetAmount(), title, event.total, goal)
     end
 
+    -- A milestone is the one event that asks the Director to go and do
+    -- something, so it is the only one that carries the way there. The sheet
+    -- opens on Downtime, which is where the project is.
+    local sheetButton = nil
+    if event.kind == "milestone" and charid ~= nil then
+        sheetButton = gui.Button{
+            classes = {"settingsButton", "sizeXs"},
+            halign = "right",
+            valign = "center",
+            lmargin = RESPITE_SHEET_BUTTON_MARGIN,
+            linger = function(element)
+                gui.Tooltip("Open this hero's downtime projects")(element)
+            end,
+            press = function()
+                local character = dmhub.GetCharacterById(charid)
+                if character ~= nil then
+                    character:ShowSheet("Downtime")
+                end
+            end,
+        }
+    end
+
+    -- The text gives up whatever the icon and the button take, so a row with a
+    -- button wraps rather than pushing it off the end of the pane.
+    local trailing = RSPConstants.eventIconSize + 6
+    if sheetButton ~= nil then
+        trailing = trailing + RESPITE_SHEET_BUTTON_SIZE + RESPITE_SHEET_BUTTON_MARGIN
+    end
+
     return gui.Panel{
         width = "100%",
         height = "auto",
@@ -2743,13 +2793,15 @@ function DTProjectEditor._respiteEventRow(event)
 
         gui.Label{
             classes = {"sizeS", "noBold", textClass},
-            width = "100%-" .. tostring(RSPConstants.eventIconSize + 6),
+            width = "100%-" .. tostring(trailing),
             height = "auto",
             halign = "left",
             valign = "center",
             textWrap = true,
             text = text,
         },
+
+        sheetButton,
     }
 end
 
@@ -2829,7 +2881,7 @@ end
 function DTProjectEditor._respiteFeedRows(args)
     local rows = {}
     for _, event in ipairs(DTProjectEditor._respiteEvents(args)) do
-        rows[#rows + 1] = DTProjectEditor._respiteEventRow(event)
+        rows[#rows + 1] = DTProjectEditor._respiteEventRow(event, args.charid)
     end
 
     if #rows == 0 then

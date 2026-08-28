@@ -61,6 +61,51 @@ function FSHWater.GetOpenedAt()
     return FSHWater._safeDoc().data.openedAt or 0
 end
 
+--- What the ancient fish is owed, by character
+--- A hero who fails the Might test on event 9 ends the Respite one Recovery
+--- down, but the debt cannot be taken until the Respite has rested them: usage
+--- recorded before the rest is stamped with the old refresh id and ignored. So
+--- it is parked here until the Respite says everyone has been rested.
+--- Kept on the water rather than the Trip because a Trip is closed and filed
+--- long before the Respite ends.
+--- @return table owed charid to the number of Recoveries owed
+function FSHWater.OwedRecoveries()
+    return FSHWater._safeDoc().data.owedRecoveries or {}
+end
+
+--- Records that a character owes a Recovery
+--- Written by whichever client answered the event, the way a Trip is.
+--- @param charid string The character's id
+function FSHWater.OweRecovery(charid)
+    if charid == nil or charid == "" then
+        return
+    end
+
+    local doc = FSHWater._safeDoc()
+    doc:BeginChange()
+
+    --Rebuilt rather than mutated in place: handing a document back a table it
+    --already owns does not reliably carry the new value.
+    local owed = {}
+    for id, count in pairs(doc.data.owedRecoveries or {}) do
+        owed[id] = count
+    end
+    owed[charid] = (owed[charid] or 0) + 1
+    doc.data.owedRecoveries = owed
+
+    doc:CompleteChange("Owe a fishing Recovery", { undoable = false })
+end
+
+--- Forgets every outstanding Recovery debt
+--- Called once the debts have been taken, so a second Respite cannot charge for
+--- the same ancient fish.
+function FSHWater.ClearOwedRecoveries()
+    local doc = FSHWater._safeDoc()
+    doc:BeginChange()
+    doc.data.owedRecoveries = {}
+    doc:CompleteChange("Clear fishing Recovery debts", { undoable = false })
+end
+
 --- Describes the water for the panel header
 --- @return string description The name and type, or a closed notice
 function FSHWater.Describe()
@@ -133,7 +178,11 @@ function FSHWater.Close()
         --and type are chosen, and a Respite that ends should not blank what
         --the Director typed for the next one.
         name = doc.data.name,
-        waterType = doc.data.waterType
+        waterType = doc.data.waterType,
+        --Also kept, and for a harder reason: the Respite closes the water on
+        --its way out, before it rests anybody. The debts are taken after that
+        --rest, so wiping them here would forgive every one of them.
+        owedRecoveries = doc.data.owedRecoveries
     }
     doc:CompleteChange("Close fishing water", { undoable = false })
 

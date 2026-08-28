@@ -123,10 +123,14 @@ function RSPJournal.Build()
     lines[#lines + 1] = string.format("**Participants:** %s",
         #who > 0 and table.concat(who, ", ") or "Nobody")
 
-    -- What everyone got up to. A character nobody has anything to say about is
-    -- left out rather than given an empty heading.
+    -- What everyone got up to. The whole roster, not just the participants:
+    -- a milestone belongs to whoever owns the project, and somebody else's roll
+    -- can carry it there. Leaving that out of the write-up hid the very thing
+    -- the Director has to deal with. A character nobody has anything to say
+    -- about is left out rather than given an empty heading, so the section only
+    -- grows by the people who actually did something.
     local told = {}
-    for _, charid in ipairs(participants) do
+    for _, charid in ipairs(RSPSession.Roster()) do
         local said = {}
         for _, activity in ipairs(activities) do
             local summarise = activity:try_get("journalSummary")

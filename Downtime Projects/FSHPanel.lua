@@ -2319,6 +2319,17 @@ local function RegisterWithRespite()
             FSHWater.Close()
         end,
 
+        --After the rest, and it has to be: a Recovery spent before it is
+        --stamped with the old refresh id and quietly ignored. The debts are
+        --cleared once taken so a second Respite cannot charge for the same
+        --ancient fish.
+        onRested = function()
+            for charid, count in pairs(FSHWater.OwedRecoveries()) do
+                FSHEvents.TakeOwedRecoveries(charid, count)
+            end
+            FSHWater.ClearOwedRecoveries()
+        end,
+
         journalDetail = FSHPanel.RespiteJournalDetail,
         journalSummary = FSHPanel.RespiteJournalSummary,
     }

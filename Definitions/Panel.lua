@@ -14,7 +14,7 @@
 --- @field root Panel The root panel of the hierarchy this Panel is within.
 --- @field parent Panel The parent panel of this panel. Returns nil if this panel is at the root of its hierarchy.
 --- @field siblingIndex number (read-only) Returns the 'sibling index' of this panel. The first child of its parent is 1, the second is 2, and so forth.
---- @field nativeWindowMaximized boolean (Read-only) True while the native popout window hosting this panel is maximized.
+--- @field nativeWindowMaximized boolean (read-only) True while the native popout window hosting this panel is maximized.
 --- @field children Panel[] A list of the children of this panel. Note that you may set this panel to a new list of children. Any panels that are left orphaned by doing this are automatically destroyed.
 --- @field selfStyle Style|StyleArgs Any style settings that are set directly on this panel. They do not apply to children, only directly to this panel. Note that styles that are set here override any other styling on the panel. Selectors set on this style are ignored.
 --- @field style Style|StyleArgs Style settings set on this panel, and all of its hierarchical children. Styles here are lower priority than those set in @see selfStyle but higher priority than other styles. Selectors set on this style are ignored.

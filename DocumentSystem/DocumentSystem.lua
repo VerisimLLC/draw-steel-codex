@@ -2993,14 +2993,26 @@ function CustomDocument.GetOrCreateTabbedViewer()
         tabScrollRight:SetClass("disabled", activeIdx >= #tabs or #tabs <= 1)
         tabScrollRight.interactable = (#tabs > 1 and activeIdx < #tabs)
 
-        -- Available width for the tab strip = bar width minus the arrow/close cluster.
-        -- tabButtonsPanel is auto-width, so its renderedWidth is the content (sum of
-        -- tabs), not the container; measure the full bar and subtract the arrows.
+        -- Available width for the tab strip = bar width minus everything that is
+        -- not a tab: the arrow/close cluster, the tree-rail toggle on the left,
+        -- and the + (new tab) button after the tabs. tabButtonsPanel is
+        -- auto-width, so its renderedWidth is the content (sum of tabs), not the
+        -- container; measure the full bar and subtract the fixed chrome.
         -- Before the first layout pass every panel reports a placeholder width, so
         -- defer until we have a real measurement (the viewer's think re-runs this).
+        local function chromeWidth(p, fallback)
+            local w = p.renderedWidth
+            if w and w > 1 then
+                return w
+            end
+            return fallback
+        end
         local barWidth = tabBar.renderedWidth or 0
         local arrowsWidth = tabArrowsPanel.renderedWidth or 0
-        local panelWidth = barWidth - arrowsWidth - 12
+        local panelWidth = barWidth - arrowsWidth
+            - chromeWidth(treeToggleButton, TAB_HEIGHT)
+            - chromeWidth(newTabButton, TAB_HEIGHT)
+            - 12
         if panelWidth < 200 then
             for _, tab in ipairs(tabs) do
                 tab.tabButton:SetClass("collapsed", false)

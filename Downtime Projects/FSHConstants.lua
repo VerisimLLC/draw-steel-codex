@@ -24,9 +24,6 @@ FSHConstants.itemAmazingMeal = "2a0994cf-ac5b-4c77-b9de-4466bc7cf53e"
 --- The shared effect all three meals apply.
 FSHConstants.effectMeal = "a89ba2b7-a60c-4536-8bcc-cdb016e71c3e"
 
---- The name of the fishing window, which is also how it is launched.
-FSHConstants.windowName = "Fishing"
-
 --- Titles the module grants. Angler, Goldenrod, and Master of Reels ship with
 --- the game; Devil's Bargain is added by the fishing content.
 FSHConstants.titleAngler = "396b55b9-efc0-4a6d-85c2-0bbab68213ce"

@@ -198,14 +198,13 @@ function FSHPanel.ShowStartFishingDialog(heroes, args)
                     gui.CloseModal()
 
                     --The Trip document has to land before anything reads it,
-                    --so hand off rather than opening in the same breath.
+                    --so hand off rather than reading it in the same breath.
+                    --onStarted is required: a Trip only happens inside the
+                    --Respite now, and the caller is the surface that has to
+                    --repaint itself around the new Trip.
                     if started then
                         dmhub.Schedule(0.2, function()
-                            if args.onStarted ~= nil then
-                                args.onStarted()
-                            else
-                                FSHPanel.OpenWindow()
-                            end
+                            args.onStarted()
                         end)
                     end
                 end
@@ -219,33 +218,6 @@ end
 --- Declared ahead of the Trip dialog, which closes over it, and defined further
 --- down beside the rest of the stringer rendering.
 local CastRow
-
---- The fishing art is 484x682; these preserve that ratio exactly.
-local ART_WIDTH = 341
-local ART_HEIGHT = 480
-
---- Opens the fishing window
---- LaunchPanelByName does not find a panel registered inside a folder, so the
---- registered menu entry is invoked directly, which is exactly what choosing it
---- from the menu does.
---- @return boolean opened True when the window was opened
-function FSHPanel.OpenWindow()
-    for _, item in ipairs(LaunchablePanel.GetMenuItems() or {}) do
-        if item.text == FSHConstants.windowName and item.click ~= nil then
-            item.click()
-            return true
-        end
-
-        for _, entry in ipairs(item.submenu or {}) do
-            if entry.text == FSHConstants.windowName and entry.click ~= nil then
-                entry.click()
-                return true
-            end
-        end
-    end
-
-    return false
-end
 
 --- Builds the event block for a Trip
 --- The full text is shown rather than a summary: half these results are fiction
@@ -478,41 +450,10 @@ function FSHPanel.ShopChildren(charid, trip)
     return children
 end
 
---- Closes the fishing window from a control inside it
---- The launchable panel exposes no close call. It wraps whatever content()
---- returned in a window panel, so that wrapper is exactly the parent of this
---- window's own root. Anything above it is a full-screen hud layer and must be
---- left alone, which is why this steps to a known node rather than searching.
---- @param element Panel A control inside the window
-function FSHPanel.CloseWindowFrom(element)
-    local root = element:FindParentWithClass("fshTripWindow")
-    if root == nil or not root.valid then
-        return
-    end
-
-    local window = root.parent
-    if window ~= nil and window.valid then
-        window:DestroySelf()
-    end
-end
-
---- The Trip this client is running, if any
---- @return string|nil charid The hero's token id
-function FSHPanel.OwnedTripCharId()
-    for _, token in ipairs(DTBusinessRules.GetAllHeroTokens()) do
-        if token.playerControlled
-            and FSHTrip.IsLive(token.id)
-            and FSHTrip.IsOwnedByThisClient(token.id) then
-            return token.id
-        end
-    end
-    return nil
-end
-
 --- A Trip, everything but the picture
 --- The whole outing lives here: the stringer, the events, the Tackle table, and
---- the buttons that move between them. Sized to whatever hosts it, so the
---- standalone window and the Respite show the same thing.
+--- the buttons that move between them. Sized to whatever hosts it, which is the
+--- Respite's player pane - a Trip only happens inside a Respite.
 --- @param args table charid, and onClose called when the Trip is closed up
 --- @return Panel|nil pane The Trip, or nil when there is no such character
 function FSHPanel.TripPane(args)
@@ -1021,77 +962,10 @@ function FSHPanel.TripPane(args)
     return dialog
 end
 
---- The standalone fishing window: the picture, and the Trip beside it
---- A launchable window rather than a modal: the roll dialog draws above the
---- window layer but below the modal layer, so a modal here would swallow the
---- very dice the player is casting.
---- @return Panel panel The window contents
-function FSHPanel.CreateTripWindow()
-    local charid = FSHPanel.OwnedTripCharId()
-    local pane = FSHPanel.TripPane{
-        charid = charid,
-        onClose = FSHPanel.CloseWindowFrom,
-    }
-
-    if pane == nil then
-        return gui.Panel{
-            classes = { "fshTripWindow" },
-            styles = ThemeEngine.GetStyles(),
-            width = 400,
-            height = 120,
-            flow = "vertical",
-
-            gui.Label{
-                classes = { "sizeM", "fgMuted" },
-                width = "100%",
-                height = "auto",
-                halign = "center",
-                valign = "center",
-                text = "You are not fishing right now."
-            }
-        }
-    end
-
-    return gui.Panel{
-        classes = { "fshTripWindow" },
-        styles = ThemeEngine.GetStyles(),
-        width = ART_WIDTH + 420,
-        height = ART_HEIGHT + 40,
-        flow = "horizontal",
-        pad = 8,
-
-        gui.Panel{
-            classes = { "image", "bordered" },
-            width = ART_WIDTH,
-            height = ART_HEIGHT,
-            halign = "left",
-            valign = "center",
-            bgimage = mod.images.fishing
-        },
-
-        gui.Panel{
-            width = "100%-" .. tostring(ART_WIDTH + 20),
-            height = "100%",
-            flow = "vertical",
-            halign = "right",
-            valign = "top",
-            hmargin = 10,
-
-            pane,
-        },
-    }
-end
-
-LaunchablePanel.Register{
-    name = FSHConstants.windowName,
-    folder = "Game",
-    halign = "center",
-    valign = "center",
-    draggable = true,
-    content = function()
-        return FSHPanel.CreateTripWindow()
-    end,
-}
+--A Trip only ever happens inside the Respite, which hosts TripPane directly.
+--The standalone window that used to sit under Codex > Game > Fishing is gone,
+--along with the plumbing that existed only to raise and close it: OpenWindow,
+--CloseWindowFrom, OwnedTripCharId, the art dimensions, and the window name.
 
 --- Gathers the fishing standings
 --- Only player-controlled heroes who have actually landed something appear: the

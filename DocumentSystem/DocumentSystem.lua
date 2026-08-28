@@ -1226,7 +1226,7 @@ function CustomDocument:CreateInterface(args)
         return true
     end
 
-    if dmhub.isDM then --and not args.presentationMode then
+    if dmhub.isDM and not args.presentationMode then
     -- Present to Players
         m_presentButton = gui.Button {
             classes = {"sizeS"},
@@ -1529,7 +1529,7 @@ function CustomDocument:CreateInterface(args)
             if t == currentId then isPlain = true break end
         end
 
-        if isPlain and (dmhub.isDM or self:HaveEditPermissions()) then
+        if isPlain and (not args.presentationMode) and (dmhub.isDM or self:HaveEditPermissions()) then
             local typeIconPanel, typeLabel
             local function SyncType()
                 local info = CustomDocument.DocTypeInfo(self)
@@ -1585,6 +1585,12 @@ function CustomDocument:CreateInterface(args)
         classes = { "closeButton", "sizeXs", cond(args.suppressCloseButton or args.presentationMode or (args.dialog == nil and args.close == nil), "collapsed") },
         hmargin = 4,
         closedocuments = function(element)
+            --a presented document is held open by the Director; the
+            --/closedocuments macro (fired tree-wide, so it reaches this
+            --button even collapsed) must not dismiss it.
+            if args.presentationMode then
+                return
+            end
             element:FireEvent("press")
         end,
         press = function(element)
@@ -1600,7 +1606,9 @@ function CustomDocument:CreateInterface(args)
     }
 
     local m_breadcrumb = gui.Label {
-        classes = {"fgMuted"},
+        --presentation mode: the breadcrumb would leak the document's journal
+        --folder path and open the journal tree popup; players get neither.
+        classes = {"fgMuted", cond(args.presentationMode, "collapsed")},
         text = buildBreadcrumbText(self),
         halign = "left",
         valign = "center",
@@ -4237,10 +4245,31 @@ GameHud.RegisterPresentableDialog {
     id = "document",
     create = function(args)
         local doc = (dmhub.GetTable(CustomDocument.tableName) or {})[args.docid]
-        if doc ~= nil then
-            doc:ShowDocument()
+        if doc == nil then
+            return nil
         end
-        return nil
+
+        if dmhub.isDM then
+            --Directors just get the document as a normal journal tab they are
+            --free to browse away from or close.
+            doc:ShowDocument()
+            return nil
+        end
+
+        --Players get a locked presentation window: presentationMode strips the
+        --close button and every editing affordance, so the document stays on
+        --screen, read-only, for as long as the Director presents it. Returning
+        --the panel (instead of opening a journal tab) is what lets GameHud
+        --destroy it the moment the presentation is cleared or replaced.
+        local dialog = doc:PresentDocument{ presentationMode = true }
+        --the rail-mode Font Size zoom applies via an event that needs the
+        --window attached; GameHud adds it right after this returns.
+        dmhub.Schedule(0.05, function()
+            if dialog ~= nil and dialog.valid then
+                dialog:FireEvent("setWindowScale")
+            end
+        end)
+        return dialog
     end,
     keeplocal = true,
 }

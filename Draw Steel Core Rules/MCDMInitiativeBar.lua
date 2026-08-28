@@ -312,7 +312,8 @@ local function CreateDrawSteelBubble()
 			end
 
 			--note that the dm always shows entries, and doesn't auto-remove entries since they might be for a different map.
-			return foundControllable or dmhub.isDM
+			--(DirectorUIVisible: a Director presenting as a player only sees End Turn for tokens they control.)
+			return foundControllable or GameHud.DirectorUIVisible()
 		end
     end
 
@@ -1792,7 +1793,7 @@ local function CreateVillainActionStrip(self, info)
         },
 
         refresh = function(element)
-            if not dmhub.isDM then
+            if not GameHud.DirectorUIVisible() then
                 element:SetClass("collapsed", true)
                 return
             end
@@ -1888,7 +1889,7 @@ local function CreateVillainActionStrip(self, info)
         -- Players never have the strip, so bail immediately for them.
         thinkTime = 0.7,
         think = function(element)
-            if not dmhub.isDM then return end
+            if not GameHud.DirectorUIVisible() then return end
 
             local q = dmhub.initiativeQueue
             local currentTurn = q and q.currentTurn
@@ -2028,7 +2029,7 @@ local function CreateReinforcementsStrip(self, info)
         },
 
         refresh = function(element)
-            if not dmhub.isDM then
+            if not GameHud.DirectorUIVisible() then
                 element:SetClass("collapsed", true)
                 return
             end
@@ -2077,7 +2078,7 @@ local function CreateReinforcementsStrip(self, info)
 
         thinkTime = 0.7,
         think = function(element)
-            if not dmhub.isDM then return end
+            if not GameHud.DirectorUIVisible() then return end
             element:FireEvent("refresh")
         end,
 
@@ -2368,7 +2369,7 @@ local function CreateCuesStrip(self, info)
         },
 
         refresh = function(element)
-            if not dmhub.isDM then
+            if not GameHud.DirectorUIVisible() then
                 element:SetClass("collapsed", true)
                 return
             end
@@ -2415,7 +2416,7 @@ local function CreateCuesStrip(self, info)
 
         thinkTime = 0.7,
         think = function(element)
-            if not dmhub.isDM then return end
+            if not GameHud.DirectorUIVisible() then return end
             element:FireEvent("refresh")
         end,
 
@@ -2624,7 +2625,7 @@ local function CreateEncounterActionsStrip(self, info)
         },
 
         refresh = function(element)
-            if not dmhub.isDM then
+            if not GameHud.DirectorUIVisible() then
                 element:SetClass("collapsed", true)
                 return
             end
@@ -2681,7 +2682,7 @@ local function CreateEncounterActionsStrip(self, info)
 
         thinkTime = 0.7,
         think = function(element)
-            if not dmhub.isDM then return end
+            if not GameHud.DirectorUIVisible() then return end
             element:FireEvent("refresh")
         end,
 
@@ -3040,7 +3041,7 @@ local function CreateAwardVictoryStrip(self, info)
                 return
             end
 
-            local isDM = dmhub.isDM
+            local isDM = GameHud.DirectorUIVisible()
             local visible = liveEncounter:try_get("objectiveVisible", false)
             local won = liveEncounter:CheckVictory()
             local lost = (not won) and liveEncounter:CheckDefeat()
@@ -3218,7 +3219,7 @@ local function CreateBossBarStrip(self, info)
                 return
             end
 
-            local isDM = dmhub.isDM
+            local isDM = GameHud.DirectorUIVisible()
             local visible = liveEncounter:try_get("bossBarVisible", false)
 
             --players only see the bar once it has been revealed.
@@ -3287,7 +3288,7 @@ function GameHud.CreateInitiativeBar(self, info)
 
     local resetTurnButton = nil
 
-    if dmhub.isDM then
+    if GameHud.DirectorUIVisible() then
         --Combat settings button: visible whenever the initiative bar is up. Click
         --opens a dropdown that includes "Revert Turn" (when a checkpoint exists),
         --plus the menu items that used to live behind the bubble's right-click.

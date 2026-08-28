@@ -85,7 +85,9 @@ local dockablePanelsDMSetting = "dockablepanelsgm_v2"
 local g_dockGap = 0
 
 function GetDockablePanelsSetting()
-	return cond(dmhub.isDM, dockablePanelsDMSetting, dockablePanelsPlayerSetting)
+	--DirectorUIVisible rather than dmhub.isDM: a Director presenting as a
+	--player (Encounter of the Week host) loads the player dock layout.
+	return cond(GameHud.DirectorUIVisible(), dockablePanelsDMSetting, dockablePanelsPlayerSetting)
 end
 
 local GetPanelsConfig = function()
@@ -2231,7 +2233,11 @@ local PanelPermittedForUser = function(p)
 	if p.devonly and not devmode() then
 		return false
 	end
-	if p.dmonly and not dmhub.isDM then
+	--DirectorUIVisible rather than dmhub.isDM so dmonly panels also hide for
+	--a Director presenting as a player (Encounter of the Week host). Panel
+	--background processes (DockablePanel.StartProcess) are independent of
+	--this gate, so the EotW host still runs the Monster AI headless.
+	if p.dmonly and not GameHud.DirectorUIVisible() then
 		return false
 	end
 	return true

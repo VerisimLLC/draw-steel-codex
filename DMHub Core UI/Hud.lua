@@ -802,4 +802,36 @@ GameHud.GetCurrentlyPresentedDialog = function()
 	return nil
 end
 
+--Director-facing UI gate. Game modes can register a filter that suppresses
+--Director chrome (dmonly dock panels, the GM toolbar, initiative-bar strips)
+--on clients that hold Director status internally but should present as
+--players -- e.g. the Encounter of the Week host, who must keep engine DM
+--rights (monster control, encounter spawning) while looking like a player.
+--This gates PRESENTATION only; permission checks must keep using dmhub.isDM.
+GameHud.directorUIFilters = {}
+
+--fn() -> false hides Director-facing UI on this client; any other result
+--(true, nil, or an error) leaves it visible.
+GameHud.RegisterDirectorUIFilter = function(fn)
+	if type(fn) == "function" then
+		GameHud.directorUIFilters[#GameHud.directorUIFilters+1] = fn
+	end
+end
+
+--True when this client should show Director-facing UI: a Director whose
+--registered filters (if any) all allow it. UI sites use this in place of
+--dmhub.isDM when gating pure chrome.
+GameHud.DirectorUIVisible = function()
+	if not dmhub.isDM then
+		return false
+	end
+	for _,fn in ipairs(GameHud.directorUIFilters) do
+		local ok, show = pcall(fn)
+		if ok and show == false then
+			return false
+		end
+	end
+	return true
+end
+
 ActionBarElements = {}

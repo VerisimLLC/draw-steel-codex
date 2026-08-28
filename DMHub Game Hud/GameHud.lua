@@ -659,7 +659,9 @@ setting{
 function GameHud:CreateToolbarPanel()
     local resultPanel
 
-	local settingName = cond(dmhub.isDM, "toolbargmconfig", "toolbarplayerconfig")
+	--DirectorUIVisible rather than dmhub.isDM: a Director presenting as a
+	--player (Encounter of the Week host) gets the player toolbar.
+	local settingName = cond(GameHud.DirectorUIVisible(), "toolbargmconfig", "toolbarplayerconfig")
 
 	local SerializeToolbar
 
@@ -1834,7 +1836,7 @@ end
 --panel that goes next to the initiative that has some DM controls such as a rest button and require roll button.
 function GameHud:DMGameControlsPanel()
 
-	if not dmhub.isDM then
+	if not GameHud.DirectorUIVisible() then
 		return gui.Panel{
 			halign = "left",
 			width = 1,
@@ -2048,8 +2050,10 @@ end
 local function TipAudienceOk(target)
 	target = target or "all"
 	if target == "all" then return true end
-	if target == "director" then return dmhub.isDM end
-	if target == "player" then return not dmhub.isDM end
+	--presentation-aware: a Director presenting as a player (Encounter of the
+	--Week host) gets player-audience tips, not director ones.
+	if target == "director" then return GameHud.DirectorUIVisible() end
+	if target == "player" then return not GameHud.DirectorUIVisible() end
 	return true
 end
 

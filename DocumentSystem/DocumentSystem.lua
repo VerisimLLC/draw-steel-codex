@@ -5379,6 +5379,18 @@ function PanelDocument:CreateInterface(args)
             end
             local content = reg.content()
             tab.contentRoot = content
+            --Mirror the dock host's stickyFocus contract: the dock instance
+            --carries the registration's stickyFocus flag on an ancestor of
+            --the content, which Hud.StickyFocus walks when a right-click on
+            --the map tries to cancel focus. Without it here, a rail-hosted
+            --tool panel (Objects, Terrain, Map Markup, ...) was fully
+            --deselected by any right-click on the map instead of just
+            --cancelling its in-progress action. Set on the wrapper, not the
+            --content, so a panel that replaces its own data table cannot
+            --clobber it.
+            if reg.stickyFocus then
+                element.data.stickyFocus = true
+            end
             content.selfStyle.valign = "top"
             --anchor the hosted content left as well: without an alignment
             --from an ancestor, panel content centers in the window host

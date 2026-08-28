@@ -24,6 +24,7 @@ local mod = dmhub.GetModLoading()
 --- @field forcedMovementDamageDealt number
 --- @field forcedMovementPaths table
 --- @field forcedMovementCreatureIds table
+--- @field forcedMovementCreatureCollisionIds table
 --- @field ability ActivatedAbility
 --- @field auraObject false|table
 ActivatedAbilityCast = RegisterGameType("ActivatedAbilityCast")
@@ -254,6 +255,25 @@ ActivatedAbilityCast.helpSymbols = {
         name = "Forced Movement Collision",
         type = "boolean",
         desc = "True if any forced movement caused by this ability collided with a creature or object.",
+    },
+
+    forcedmovementcreaturecollision = {
+        name = "Forced Movement Creature Collision",
+        type = "boolean",
+        desc = "True if a creature force moved by this ability collided with one or more other creatures.",
+    },
+
+    forcedmovementcreaturecollisioncount = {
+        name = "Forced Movement Creature Collision Count",
+        type = "number",
+        desc = "The number of unique creatures involved in forced movement creature collisions, including the moved creatures.",
+    },
+
+    wasinforcedmovementcreaturecollision = {
+        name = "Was In Forced Movement Creature Collision",
+        type = "function",
+        desc = "Returns true if the given creature was moved or struck in a forced movement creature collision caused by this ability.",
+        examples = {"Was In Forced Movement Creature Collision(Target)"},
     },
 
     forcedmovementcreaturecount = {
@@ -661,6 +681,37 @@ ActivatedAbilityCast.lookupSymbols = {
         return c.forcedMovementCollision
     end,
 
+    forcedmovementcreaturecollision = function(c)
+        return next(c:try_get("forcedMovementCreatureCollisionIds", {})) ~= nil
+    end,
+
+    forcedmovementcreaturecollisioncount = function(c)
+        local ids = c:try_get("forcedMovementCreatureCollisionIds", {})
+        local count = 0
+        for _ in pairs(ids) do
+            count = count + 1
+        end
+        return count
+    end,
+
+    wasinforcedmovementcreaturecollision = function(c)
+        return function(target)
+            if type(target) == "function" then
+                target = target("self")
+            end
+
+            if type(target) == "table" then
+                local tok = dmhub.LookupToken(target)
+                if tok ~= nil then
+                    local ids = c:try_get("forcedMovementCreatureCollisionIds", {})
+                    return ids[tok.charid] == true
+                end
+            end
+
+            return false
+        end
+    end,
+
     forcedmovementcreaturecount = function(c)
         local ids = c:try_get("forcedMovementCreatureIds", {})
         local count = 0
@@ -678,6 +729,33 @@ ActivatedAbilityCast.lookupSymbols = {
         return c.forcedMovementDamageDealtTarget
     end,
 }
+
+--- Records the creatures in a terminal forced-movement collision. The moved
+--- token only qualifies when at least one non-object creature was struck.
+--- @param movedToken CharacterToken
+--- @param collidedTokens CharacterToken[]
+function ActivatedAbilityCast:RecordForcedMovementCreatureCollision(movedToken, collidedTokens)
+    if movedToken == nil or movedToken.isObject or movedToken.charid == nil then
+        return
+    end
+
+    local collidedCreatureIds = {}
+    for _, tok in ipairs(collidedTokens or {}) do
+        if tok ~= nil and not tok.isObject and tok.charid ~= nil then
+            collidedCreatureIds[#collidedCreatureIds+1] = tok.charid
+        end
+    end
+
+    if #collidedCreatureIds == 0 then
+        return
+    end
+
+    local ids = self:get_or_add("forcedMovementCreatureCollisionIds", {})
+    ids[movedToken.charid] = true
+    for _, charid in ipairs(collidedCreatureIds) do
+        ids[charid] = true
+    end
+end
 
 --- @param tokenid string
 --- @param retargetid string

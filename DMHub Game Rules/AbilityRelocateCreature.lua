@@ -626,6 +626,10 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 		end
 
 		if collisionInfo ~= nil then
+                -- Keep the terminal post-passthrough creature collision on the
+                -- cast so later behaviors can identify every participant.
+                options.symbols.cast:RecordForcedMovementCreatureCollision(casterToken, collisionInfo.collideWith)
+
                 local forcedMovementType = ability:try_get("forcedMovement", "slide")
                 local withobject = #(collisionInfo.collideWith or {}) == 0
 

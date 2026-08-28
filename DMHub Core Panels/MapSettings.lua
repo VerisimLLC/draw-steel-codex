@@ -58,6 +58,19 @@ setting{
 }
 
 setting{
+	id = "map:playerinfobubbles",
+	description = "Players See Map Info Bubbles",
+	help = "If enabled, players can see the info bubbles on this map and click them to read their documents. Only applies to Player Viewable maps.",
+	storage = "map",
+	editor = "check",
+	default = false,
+	monitorVisible = {"map:playerviewable"},
+	visible = function()
+		return dmhub.GetSettingValue("map:playerviewable")
+	end,
+}
+
+setting{
 	id = "map:parallaxscale",
 	description = "Parallax Scale",
 	help = "Multiplies the parallax effect on this map relative to the game-wide Parallax setting. 1 leaves it unchanged, 0 disables parallax on this map, higher values make it more pronounced.",

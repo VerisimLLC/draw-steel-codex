@@ -287,38 +287,6 @@ local CreateAddButtonPanel = function()
                     }
                 end
 
-                local BuildSuccessView = function(newGameid)
-                    return gui.Panel {
-                        halign = "center",
-                        valign = "center",
-                        width = "90%",
-                        height = "auto",
-                        flow = "vertical",
-
-                        gui.Label {
-                            classes = {"sizeL", "bold"},
-                            text = "Game is Online!",
-                            width = "auto",
-                            height = "auto",
-                            halign = "center",
-                            vmargin = 4,
-                        },
-
-                        BuildInviteCodeView(newGameid),
-
-                        gui.Button {
-                            classes = {"sizeL"},
-                            text = "Play Online",
-                            halign = "center",
-                            vmargin = 4,
-                            click = function()
-                                gui.CloseModal()
-                                lobby:EnterGame(newGameid)
-                            end,
-                        },
-                    }
-                end
-
                 local BuildErrorView = function(msg)
                     return gui.Panel {
                         halign = "center",
@@ -368,12 +336,16 @@ local CreateAddButtonPanel = function()
                             end
                         end,
                         complete = function(success, newGameid, err)
-                            if inviteDialog == nil or not inviteDialog.valid then return end
                             if success then
-                                SetContent(BuildSuccessView(newGameid))
-                            else
-                                SetContent(BuildErrorView(err or "Unknown error"))
+                                -- Archiving the local copy closes its WebSocket. Leave
+                                -- before it reconnects to a newly-created empty database.
+                                gui.CloseModal()
+                                lobby:EnterGame(newGameid)
+                                return
                             end
+
+                            if inviteDialog == nil or not inviteDialog.valid then return end
+                            SetContent(BuildErrorView(err or "Unknown error"))
                         end,
                     }
                 end

@@ -6874,6 +6874,19 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 	--use this as an opportunity to clean up any ongoingEffects that are no longer active.
 	self.ongoingEffects = self:ActiveOngoingEffects(true)
 
+	--Record where the caster stood when this effect landed. Effects that leash a target
+	--to "the caster's position when this ability is used" (Hooked) measure from this
+	--point, so it has to be captured now -- the caster is free to walk away afterwards.
+	if casterInfo ~= nil and casterInfo.tokenid ~= nil and casterInfo.loc == nil then
+		local casterLocToken = dmhub.GetTokenById(casterInfo.tokenid)
+		if casterLocToken ~= nil and casterLocToken.valid then
+			local casterLoc = casterLocToken.loc
+			if casterLoc ~= nil and casterLoc.valid then
+				casterInfo.loc = { x = casterLoc.x, y = casterLoc.y, floor = casterLoc.floor }
+			end
+		end
+	end
+
 	options = options or {}
 
 	if options.transformid ~= nil then

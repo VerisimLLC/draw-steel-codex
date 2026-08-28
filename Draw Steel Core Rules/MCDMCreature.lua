@@ -7676,6 +7676,94 @@ end)
 
 
 ----------------------------------------------------------------------
+-- Battlefield adjacency symbols
+----------------------------------------------------------------------
+
+local function GetDeployedCreatureToken(c)
+    local token = dmhub.LookupToken(c)
+    if token == nil or not token.valid or not token.hasTokenOnThisMap then
+        return nil
+    end
+
+    return token
+end
+
+local function GetTokenActualFloor(token)
+    if game.currentMap == nil or token.loc == nil then
+        return nil
+    end
+
+    local floor = game.currentMap:GetFloorFromLoc(token.loc)
+    if floor == nil or not floor.valid then
+        return nil
+    end
+
+    return floor.actualFloor
+end
+
+GameSystem.RegisterGoblinScriptField{
+    target = creature,
+    name = "AdjacentToWall",
+    type = "boolean",
+    desc = "True if this creature is adjacent to wall collision on its current floor and at its current altitude.",
+    seealso = {"AdjacentToTargetableObject"},
+    examples = {"Target.AdjacentToWall"},
+    calculate = function(c)
+        local token = GetDeployedCreatureToken(c)
+        if token == nil then
+            return false
+        end
+
+        local ok, result = pcall(function()
+            return token:IsAdjacentToWall()
+        end)
+        return ok and result == true
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField{
+    target = creature,
+    name = "AdjacentToTargetableObject",
+    type = "boolean",
+    desc = "True if this creature is within 1 square of a live, attackable map object with a Targetable component on the same actual floor. Uses the engine's footprint distance; it does not add a separate elevation check.",
+    seealso = {"AdjacentToWall"},
+    examples = {"Target.AdjacentToTargetableObject"},
+    calculate = function(c)
+        local token = GetDeployedCreatureToken(c)
+        if token == nil then
+            return false
+        end
+
+        local actualFloor = GetTokenActualFloor(token)
+        if actualFloor == nil then
+            return false
+        end
+
+        for _,other in ipairs(dmhub.allTokensIncludingObjects or {}) do
+            if other ~= token and other.valid and other.hasTokenOnThisMap and
+                other.charid ~= token.charid and other.isObject and
+                GetTokenActualFloor(other) == actualFloor then
+                local component = other.objectComponent
+                local props = other.properties
+                if component ~= nil and component.componentType == "LuaTargetableObject" and
+                    other.isAttackableObject and props ~= nil then
+                    local alive = false
+                    pcall(function()
+                        alive = props:CurrentHitpoints() > 0
+                    end)
+                    if alive and token:Distance(other) <= 1 then
+                        return true
+                    end
+                end
+            end
+        end
+
+        return false
+    end,
+}
+
+
+----------------------------------------------------------------------
 -- Monster Modes
 ----------------------------------------------------------------------
 -- A monster can have multiple "monster modes" (e.g. a devil before/after its

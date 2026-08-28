@@ -439,6 +439,12 @@ function CharacterToken:Distance(otherTokenOrLoc)
 	-- dummy implementation for documentation purposes only
 end
 
+--- IsAdjacentToWall: Returns true if this token's occupied footprint is adjacent to wall collision on its current floor and at its current altitude.
+--- @return boolean
+function CharacterToken:IsAdjacentToWall()
+	-- dummy implementation for documentation purposes only
+end
+
 --- GetNearbyTokens
 --- @param radius number Radius in native units (default=one tile)
 --- @return CharacterToken[]

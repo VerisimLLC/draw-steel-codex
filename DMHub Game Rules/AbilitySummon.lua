@@ -28,6 +28,10 @@ ActivatedAbilitySummonBehavior.changeCreatureWhileCasting = false
 ActivatedAbilitySummonBehavior.groupInitiativeWithCaster = true
 ActivatedAbilitySummonBehavior.shareSurgesWithSummoner = false
 ActivatedAbilitySummonBehavior.shareHeroicResourceWithSummoner = false
+--Prompt for an existing same-type minion squad or a fresh squad even when
+--the caster is not a rules-level Summoner. This does not enable Summoner
+--limits or roster bookkeeping.
+ActivatedAbilitySummonBehavior.chooseSquad = false
 ActivatedAbilitySummonBehavior.choosePlacement = false
 ActivatedAbilitySummonBehavior.summonRange = "1"
 
@@ -333,21 +337,72 @@ function ActivatedAbilitySummonBehavior:SummarizeBehavior(ability, creatureLooku
 	return "Summon Creatures"
 end
 
---- Displays the squad-selection dialog for a Summoner caster.
+--Returns the live encounter squad data used when a non-Summoner ability opts
+--into squad choice. Rules-level Summoners keep using their private roster.
+local function GetEncounterMinionSquads(monsterType)
+    local squadsByType = {}
+    local allSquads = {}
+    local liveEntries = {}
+
+    for _,token in ipairs(dmhub.GetTokens{haveProperties = true}) do
+        local props = token.properties
+        if token.valid and props ~= nil and props.minion and not props:IsDeadOrDying() then
+            local squadName = props:MinionSquad()
+            local entryMonsterType = props:try_get("monster_type")
+            if squadName ~= nil then
+                liveEntries[#liveEntries+1] = {
+                    charid = token.charid,
+                    squad = squadName,
+                    monsterType = entryMonsterType,
+                }
+
+                local allInfo = allSquads[squadName]
+                if allInfo == nil then
+                    allInfo = { monsterType = entryMonsterType, count = 0, charids = {} }
+                    allSquads[squadName] = allInfo
+                end
+                allInfo.count = allInfo.count + 1
+                allInfo.charids[#allInfo.charids+1] = token.charid
+
+                if entryMonsterType == monsterType then
+                    local typeInfo = squadsByType[squadName]
+                    if typeInfo == nil then
+                        typeInfo = { monsterType = entryMonsterType, count = 0, charids = {} }
+                        squadsByType[squadName] = typeInfo
+                    end
+                    typeInfo.count = typeInfo.count + 1
+                    typeInfo.charids[#typeInfo.charids+1] = token.charid
+                end
+            end
+        end
+    end
+
+    return squadsByType, allSquads, liveEntries
+end
+
+--- Displays the squad-selection dialog for a summoning caster.
 --- Returns nil if cancelled, otherwise a result table with the chosen squad and warning flags.
 --- @param casterToken CharacterToken
 --- @param monsterType string The canonical monster_type of the creature being summoned.
 --- @param numSummons number How many creatures will be summoned into this squad.
 --- @param maxMinions number MaximumMinions attribute (0 means unlimited).
 --- @param maxSquads number MaxMinionSquads attribute (0 means unlimited).
+--- @param useEncounterSquads boolean|nil Use all live same-type minion squads instead of the caster's Summoner roster.
 --- @return table|nil result { squadName, isNew, exceededMinions, exceededSquads } or nil if cancelled.
-function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monsterType, numSummons, maxMinions, maxSquads)
+function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monsterType, numSummons, maxMinions, maxSquads, useEncounterSquads)
     local SQUAD_CAP = 8
 
     local caster = casterToken.properties
-    local squadsByType = caster:GetSummonedSquadsByType(monsterType)
-    local allSquads = caster:GetSummonedSquadsByType(nil)
-    local liveEntries = caster:GetLiveSummonedEntries()
+    local squadsByType
+    local allSquads
+    local liveEntries
+    if useEncounterSquads then
+        squadsByType, allSquads, liveEntries = GetEncounterMinionSquads(monsterType)
+    else
+        squadsByType = caster:GetSummonedSquadsByType(monsterType)
+        allSquads = caster:GetSummonedSquadsByType(nil)
+        liveEntries = caster:GetLiveSummonedEntries()
+    end
 
     local existingSquadNames = {}
     for name,_ in pairs(squadsByType) do
@@ -1287,9 +1342,18 @@ function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTil
         -- based on the current squadCtx.monsterType. Returns the chip panels.
         local function BuildSquadView()
             local caster = casterToken.properties
-            local squadsByType = caster:GetSummonedSquadsByType(squadCtx.monsterType)
-            local allSquads = caster:GetSummonedSquadsByType(nil)
-            local liveEntries = caster:GetLiveSummonedEntries()
+            local squadsByType
+            local allSquads
+            local liveEntries
+            if squadCtx.useEncounterSquads then
+                squadsByType = squadCtx.encounterSquadsByType
+                allSquads = squadCtx.encounterAllSquads
+                liveEntries = squadCtx.encounterLiveEntries
+            else
+                squadsByType = caster:GetSummonedSquadsByType(squadCtx.monsterType)
+                allSquads = caster:GetSummonedSquadsByType(nil)
+                liveEntries = caster:GetLiveSummonedEntries()
+            end
 
             local baselineMinionCount = #liveEntries
             local baselineSquadCount = 0
@@ -1846,6 +1910,9 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         local summonerMaxMinions = casterToken.properties:CalculateNamedCustomAttribute("MaximumMinions")
         local summonerMaxSquads = casterToken.properties:CalculateNamedCustomAttribute("MaxMinionSquads")
         local isSummoner = (not casterToken.properties.minion) and (summonerMaxMinions > 0 or summonerMaxSquads > 0)
+        local chooseSquad = self:try_get("chooseSquad", false)
+        local usesSquadChooser = isSummoner or chooseSquad
+        local useEncounterSquads = chooseSquad and not isSummoner
         local cachedSquadResult = nil
         local placementSquadCtx = nil
         local placementCreatureCtx = nil
@@ -1911,14 +1978,14 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
             local loc
             if self.replaceCaster then
-                if isSummoner then
+                if usesSquadChooser then
                     local squadResult
                     if cachedSquadResult ~= nil then
                         squadResult = cachedSquadResult
                     else
                         local shared = self.allCreaturesTheSame or allSame
                         local dialogCount = shared and numSummons or 1
-                        squadResult = ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, chosenOption.properties.monster_type, dialogCount, summonerMaxMinions, summonerMaxSquads)
+                        squadResult = ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, chosenOption.properties.monster_type, dialogCount, summonerMaxMinions, summonerMaxSquads, useEncounterSquads)
                         if squadResult == nil then
                             --abandoned: stop the whole cast (see the guard note above).
                             args.stopProcessing = true
@@ -1935,11 +2002,21 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 loc = casterToken.loc
             elseif manualPlacement then
                 local squadCtxArg = nil
-                if isSummoner then
+                if usesSquadChooser then
                     if placementSquadCtx == nil then
+                        local encounterSquadsByType = nil
+                        local encounterAllSquads = nil
+                        local encounterLiveEntries = nil
+                        if useEncounterSquads then
+                            encounterSquadsByType, encounterAllSquads, encounterLiveEntries = GetEncounterMinionSquads(chosenOption.properties.monster_type)
+                        end
                         placementSquadCtx = {
                             maxMinions = summonerMaxMinions,
                             maxSquads = summonerMaxSquads,
+                            useEncounterSquads = useEncounterSquads,
+                            encounterSquadsByType = encounterSquadsByType,
+                            encounterAllSquads = encounterAllSquads,
+                            encounterLiveEntries = encounterLiveEntries,
                             selectedSquadName = nil,
                             selectedIsNew = false,
                             placedBySquad = {},
@@ -2015,14 +2092,14 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     end
                 end
             else
-                if isSummoner then
+                if usesSquadChooser then
                     local squadResult
                     if cachedSquadResult ~= nil then
                         squadResult = cachedSquadResult
                     else
                         local shared = self.allCreaturesTheSame or allSame
                         local dialogCount = shared and numSummons or 1
-                        squadResult = ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, chosenOption.properties.monster_type, dialogCount, summonerMaxMinions, summonerMaxSquads)
+                        squadResult = ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, chosenOption.properties.monster_type, dialogCount, summonerMaxMinions, summonerMaxSquads, useEncounterSquads)
                         if squadResult == nil then
                             --abandoned: stop the whole cast (see the guard note above).
                             args.stopProcessing = true
@@ -2070,11 +2147,13 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
             if squadNameForSpawn ~= nil then
                 token.properties.minionSquad = squadNameForSpawn
-                summonerEntries[#summonerEntries+1] = {
-                    charid = token.charid,
-                    squad = squadNameForSpawn,
-                    monsterType = chosenOption.properties.monster_type,
-                }
+                if isSummoner then
+                    summonerEntries[#summonerEntries+1] = {
+                        charid = token.charid,
+                        squad = squadNameForSpawn,
+                        monsterType = chosenOption.properties.monster_type,
+                    }
+                end
             elseif token.properties.minion and (not self.joinExistingSquad) then
                 --minion spawned with no squad-selection UI (non-summoner
                 --caster): creature:MinionSquad() would default it into
@@ -2885,6 +2964,15 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
         minWidth = 300,
 		change = function(element)
 			self.allCreaturesTheSame = element.value
+		end,
+	}
+
+	list[#list+1] = gui.Check{
+		text = "Choose minion squad during casting",
+		value = self:try_get("chooseSquad", false),
+		minWidth = 300,
+		change = function(element)
+			self.chooseSquad = element.value
 		end,
 	}
 

@@ -171,17 +171,21 @@ setting{
 	default = false,
 }
 
-local includedAssets = function(element, includedAssets, dependencyAssets, signal)
+--initial is true only for the one-time seed pass that runs when the dialog opens
+--on an existing module. Every other pass comes from the dependency recompute.
+local includedAssets = function(element, includedAssets, dependencyAssets, signal, initial)
     --note dependents only include if the element is not a modify, since we don't
     --have to ship the dependent if we only modified it rather than created it.
 	local dependents = (not element:HasClass("modify")) and dependencyAssets[element.data.assetid]
 
-	local val = cond(includedAssets[element.data.assetid] or dependents, true, false)
-
 	local canOverride = not dmhub.GetSettingValue("module:exportignoredependencies")
 
-
-	if canOverride then
+	--With dependency checking off the recompute must not stomp the author's manual
+	--checks, but the seed from the previous publish still has to land, so let the
+	--initial pass through. Dependents never force a check in that mode -- they are
+	--only flagged with the "error" class below.
+	if canOverride or initial then
+		local val = cond(includedAssets[element.data.assetid] or (canOverride and dependents), true, false)
 		element.SetValue(element, val, signal)
 	end
 
@@ -1648,6 +1652,16 @@ local showShareModuleDialog = function(options)
 		includedAssets = DeepCopy(moduleInstance.publishingProperties.includedAssets)
 	end
 
+	--publishedAssets is the full guid set the last version actually shipped: the
+	--author's checks plus whatever the dependency pass pulled in. With dependency
+	--checking off nothing re-derives those extras, so seed from the shipped set to
+	--stop an update silently dropping them. Modules last published before this was
+	--recorded fall back to includedAssets.
+	if dmhub.GetSettingValue("module:exportignoredependencies")
+		and moduleInstance.publishingProperties.publishedAssets ~= nil then
+		includedAssets = DeepCopy(moduleInstance.publishingProperties.publishedAssets)
+	end
+
 	-- Per-asset hide list. Populated from publishingProperties so prior hides
 	-- persist across dialog opens; the right-click "Hide this entry" menu
 	-- adds to this map and invokes g_dialogState.onChange to persist.
@@ -1829,6 +1843,7 @@ local showShareModuleDialog = function(options)
 						success = function(guid)
 							dmhub.Debug(string.format("Module:: Uploaded to %s", guid))
 							moduleInstance.publishingProperties.includedAssets = includedAssets
+							moduleInstance.publishingProperties.publishedAssets = assetsIncludingDependencies
 							moduleInstance:Upload{
 								success = function()
 									statusLabel.text = "Your module has been uploaded"
@@ -3100,7 +3115,7 @@ local showShareModuleDialog = function(options)
 	dialogPanel:FireEventTree("refreshModule")
 
 	if not isNewModule then
-		dialogPanel:FireEventTree("includedAssets", includedAssets, m_dependencyAssets, true)
+		dialogPanel:FireEventTree("includedAssets", includedAssets, m_dependencyAssets, true, true)
 	end
 
 	ThemeEngine.OnThemeChanged(mod, function()

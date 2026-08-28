@@ -8140,6 +8140,13 @@ creature.helpSymbols = {
         name = "Number of Creatures Grabbed",
         type = "number",
         desc = "The number of creatures currently grabbed by this creature.",
+    },
+
+    grabbedcreatures = {
+        name = "Grabbed Creatures",
+        type = "creatureset",
+        desc = "The set of creatures currently grabbed by this creature.",
+        examples = {'GrabbedCreatures.Highest("Size") >= 2'},
     }
 }
 
@@ -8366,6 +8373,16 @@ creature.lookupSymbols = {
 
     numberofcreaturesgrabbed = function(c)
         return c:try_get("_tmp_numberOfCreaturesGrabbed", 0)
+    end,
+
+    grabbedcreatures = function(c)
+        local result = CreatureSet.new{}
+        c:VisitConditionCasterSource(function(conditionid, targetToken)
+            if conditionid == g_grabbedCondition then
+                result:Add(targetToken.properties)
+            end
+        end)
+        return result
     end,
 
 	hitpoints = function(c)

@@ -10759,8 +10759,30 @@ end
 --a per-user setting in Settings > General ("New Experimental UI"),
 --on by default; it used to be opt-in, and to additionally require
 --devmode() while the rail was a dev-only trial.
+--A custom-interface takeover (see PanelDocument.RailCustomInterfaceId)
+--forces the mode ON regardless of the setting: the docks slide away and
+--windows host on the layer exactly as in rail mode, with the mod's
+--widgets standing in for the button columns.
 function RailModeActive()
+    if PanelDocument.RailCustomInterfaceId() ~= nil then
+        return true
+    end
     return dmhub.GetSettingValue("iconrail") == true
+end
+
+--The id of the custom interface that currently owns the rail surface
+--(GameHud.RegisterCustomInterface with suppressRails), or nil when the
+--normal rails should build. A PanelDocument field rather than a local:
+--this file's main chunk runs close to Lua's 200-local ceiling. pcall so a
+--mid-deploy core without the hook degrades to the normal rails.
+PanelDocument.RailCustomInterfaceId = function()
+    local id = nil
+    pcall(function()
+        if GameHud.CustomInterfaceSuppressesRails() then
+            id = GameHud.CustomInterfaceId() or "custom"
+        end
+    end)
+    return id
 end
 
 --How deeply floating rail panel windows currently intrude into the
@@ -19597,6 +19619,13 @@ local function CreateIconRail(side, entries)
                 element:DestroySelf()
                 return
             end
+            --a custom interface took the rail surface over mid-session
+            --(e.g. the game mode identified itself after the rails were
+            --built): swap to its widgets.
+            if PanelDocument.RailCustomInterfaceId() ~= nil then
+                PanelDocument.RailCustomInterfaceRebuild()
+                return
+            end
             if g_railTransientKey ~= nil then
                 --a toolkit cluster stays the transient unit while ANY of
                 --its windows is open; a plain key while its own window is.
@@ -19786,9 +19815,162 @@ local function WrapRailOverflow(sides)
     end
 end
 
+--Slide the docks off screen for a custom-interface takeover WITHOUT
+--touching the dock settings: SyncDocksToRailMode writes them, which would
+--permanently trample the user's dock layout for what is a per-game-mode
+--takeover. The class is transient by design -- the next game entry
+--re-syncs the docks from the settings as usual.
+PanelDocument.SyncDocksOffscreenForCustomInterface = function(offscreen)
+    if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+        return
+    end
+    for _, side in ipairs({"left", "right"}) do
+        local dock = cond(side == "left", gamehud.leftDock, gamehud.rightDock)
+        if dock ~= nil and dock.valid then
+            if offscreen then
+                dock:SetClass("offscreen", true)
+            else
+                --restore to what the settings say (rail mode may still
+                --legitimately keep the dock off screen).
+                dock:SetClass("offscreen", dmhub.GetSettingValue(side .. "dockoffscreen") == true)
+            end
+        end
+    end
+end
+
+--A custom interface owns the rail surface: mount one wrapper per side
+--holding whatever widget the mod supplies (GameHud.CustomInterfaceRailPanel),
+--plus an optional bottom-corner wrapper per side
+--(GameHud.CustomInterfaceRailBottomPanel -- e.g. kept Chat/Action Log
+--buttons), instead of the button columns. The wrappers reuse the
+--"iconRail" class and the g_iconRails slots (bottom wrappers under
+--"leftbottom"/"rightbottom") so every existing lifecycle path --
+--DestroyIconRails, the stale-generation sweep, EnsureIconRail's
+--already-built check, the theme recolor loop -- handles them for free.
+--They also carry IconRailStyles, so provider widgets can use the standard
+--iconRailButton/iconRailIcon classes and look native.
+PanelDocument.BuildCustomInterfaceRails = function(layer)
+    local builtId = PanelDocument.RailCustomInterfaceId()
+
+    local function MakeWrapper(side, bottom, widget)
+        return gui.Panel{
+            classes = {"iconRail"},
+            halign = side,
+            valign = cond(bottom, "bottom", "top"),
+            lmargin = cond(side == "left", ICON_RAIL_LEFT, 0),
+            rmargin = cond(side == "right", ICON_RAIL_LEFT, 0),
+            tmargin = cond(bottom, 0, IconRailTop()),
+            bmargin = cond(bottom, 12, 0),
+            width = "auto",
+            height = "auto",
+            flow = "vertical",
+
+            data = { side = side },
+
+            styles = IconRailStyles(),
+
+            --the same Font Size zoom the real rail applies (see the
+            --setRailScale notes in CreateIconRail), anchored to whichever
+            --corner the wrapper hangs from so a bottom wrapper stays
+            --pinned to the bottom edge as it scales.
+            setRailScale = function(element)
+                element.selfStyle.pivot = {x = cond(side == "left", 0, 1), y = cond(bottom, 0, 1)}
+                element.selfStyle.uiscale = WindowUIScale()
+            end,
+
+            multimonitor = {"fontsize"},
+            monitor = function(element)
+                if g_railRebuildPending then
+                    return
+                end
+                g_railRebuildPending = true
+                dmhub.Schedule(0.01, function()
+                    g_railRebuildPending = false
+                    if mod.unloaded then
+                        return
+                    end
+                    RebuildIconRails()
+                end)
+            end,
+
+            --self-heal like the real rail: die with the module generation,
+            --and swap back to the normal rails the moment the takeover
+            --ends or changes hands.
+            thinkTime = 0.5,
+            think = function(element)
+                if mod.unloaded then
+                    element:DestroySelf()
+                    return
+                end
+                if PanelDocument.RailCustomInterfaceId() ~= builtId then
+                    PanelDocument.RailCustomInterfaceRebuild()
+                    return
+                end
+                --the standard rail cadence, so provider widgets can run
+                --refreshRail-driven behaviors (unread badges, lit states).
+                element:FireEventTree("refreshRail")
+                if side == "left" and not bottom then
+                    SyncDockHandles()
+                    RemoveDockTrayButtons()
+                    PanelDocument.SyncDocksOffscreenForCustomInterface(true)
+                end
+            end,
+
+            --"/" with nothing focused summons chat, exactly like the real
+            --rail. Only the left top wrapper is registered as the chat
+            --listener (below), so this runs once.
+            slash = function(element)
+                RailSlashOpensChat()
+            end,
+
+            --a chat message landing while chat is closed: the bubble
+            --helper bails harmlessly when it cannot find a slotted chat
+            --button (custom widgets are not slotted), but unread badges
+            --on provider buttons update via refreshRail above.
+            refreshChat = function(element, changeInfo)
+                PanelDocument.ChatBubbleNotify(changeInfo)
+            end,
+
+            widget,
+        }
+    end
+
+    for _, side in ipairs({"left", "right"}) do
+        local rail = MakeWrapper(side, false, GameHud.CustomInterfaceRailPanel(side))
+        g_iconRails[side] = rail
+        layer:AddChild(rail)
+        rail:FireEvent("setRailScale")
+
+        --the bottom wrapper only exists when the provider supplies a
+        --widget for it (pcall: the accessor may predate this deploy).
+        local bottomWidget = nil
+        pcall(function() bottomWidget = GameHud.CustomInterfaceRailBottomPanel(side) end)
+        if bottomWidget ~= nil then
+            local bottomRail = MakeWrapper(side, true, bottomWidget)
+            g_iconRails[side .. "bottom"] = bottomRail
+            layer:AddChild(bottomRail)
+            bottomRail:FireEvent("setRailScale")
+        end
+    end
+
+    --one chat listener, mirroring BuildIconRails: delivers the "/"
+    --hotkey and chat refresh events to the wrapper's handlers above.
+    if g_iconRails.left ~= nil then
+        chat.events:Listen(g_iconRails.left)
+    end
+
+    PanelDocument.SyncDocksOffscreenForCustomInterface(true)
+end
+
 local function BuildIconRails()
     local layer = DocumentsLayer()
     if layer == nil then
+        return
+    end
+    --a custom interface owns the rail surface: mount its widgets instead
+    --of the button columns.
+    if PanelDocument.RailCustomInterfaceId() ~= nil then
+        PanelDocument.BuildCustomInterfaceRails(layer)
         return
     end
     local sides = RailLayout()
@@ -19866,6 +20048,27 @@ RebuildIconRails = function()
     end
 end
 
+--Deferred full rebuild when a custom interface takes over or releases the
+--rail surface mid-session. Goes through DestroyIconRails + EnsureIconRail
+--rather than RebuildIconRails so the disable branch can restore the dock
+--handles when rail mode ends together with the takeover. Defined after
+--DestroyIconRails: that local is not in scope earlier in the chunk.
+PanelDocument.RailCustomInterfaceRebuild = function()
+    if g_railRebuildPending then
+        return
+    end
+    g_railRebuildPending = true
+    dmhub.Schedule(0.01, function()
+        g_railRebuildPending = false
+        if mod.unloaded then
+            return
+        end
+        PanelDocument.SyncDocksOffscreenForCustomInterface(PanelDocument.RailCustomInterfaceId() ~= nil)
+        DestroyIconRails()
+        EnsureIconRail()
+    end)
+end
+
 --Recolor the rails when the theme or color scheme changes. IconRailStyles
 --resolves its tokens (@fg, @fgStrong, the accent on the process gear)
 --ONCE, at construction, and nothing rebuilds the rails on a scheme
@@ -19933,6 +20136,55 @@ function EnsureIconRail()
         --tray buttons.
         SyncDockHandles()
         RemoveDockTrayButtons()
+        dmhub.UpdateScreenHudArea(1)
+        return
+    end
+
+    --a custom-interface takeover builds the mod's widgets instead of the
+    --button columns and restores nothing: the custom interface owns what
+    --is on screen. Mode flips mid-session are handled by the rails' own
+    --think (both kinds watch RailCustomInterfaceId), so standing rails
+    --are left alone here either way.
+    local customInterfaceId = PanelDocument.RailCustomInterfaceId()
+    if customInterfaceId ~= nil then
+        local custom = g_iconRails.left
+        if custom ~= nil and custom.valid then
+            return
+        end
+        local customLayer = DocumentsLayer()
+        if customLayer == nil then
+            return
+        end
+        --sweep rail panels left behind by a previous module generation,
+        --exactly as the normal build below does.
+        for _, child in ipairs(customLayer.children) do
+            if child.valid and (child:HasClass("iconRail") or child:HasClass("iconRailGhost") or child:HasClass("iconRailGhostLine") or child:HasClass("iconRailCardGhost") or child:HasClass("iconRailTrash") or child:HasClass("iconRailViewChip") or child:HasClass("iconRailViewToast") or child:HasClass("iconRailToolkitStrip")) then
+                child:DestroySelf()
+            end
+        end
+        --and orphaned panel windows from a previous generation (the
+        --custom interface can still open windows, e.g. the character
+        --panel; same reasoning as the normal-mode sweep below).
+        local customKnownDialogs = {}
+        for _, doc in pairs(g_panelDocuments) do
+            local d = doc:try_get("_tmp_dialog")
+            if d ~= nil and d.valid then
+                customKnownDialogs[d] = true
+            end
+        end
+        for _, child in ipairs(customLayer.children) do
+            if child.valid and not customKnownDialogs[child] then
+                local tabs = nil
+                pcall(function() tabs = child.data.panelTabs end)
+                if tabs ~= nil then
+                    child:DestroySelf()
+                end
+            end
+        end
+        BuildIconRails()
+        SyncDockHandles()
+        RemoveDockTrayButtons()
+        PanelDocument.SyncDocksOffscreenForCustomInterface(true)
         dmhub.UpdateScreenHudArea(1)
         return
     end

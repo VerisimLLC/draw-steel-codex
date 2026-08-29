@@ -701,7 +701,17 @@ function Search.CollectProviderResults(needle)
     end
 
     for _,spec in pairs(g_searchProviders) do
-        if spec.enumerate ~= nil then
+        --a mod-enforced custom interface can hide whole result buckets
+        --(e.g. no compendium results in Encounter of the Week games).
+        --pcall + rawget: Utils loads before the GameHud hook exists.
+        local bucketSuppressed = false
+        pcall(function()
+            local ghud = rawget(_G, "GameHud")
+            bucketSuppressed = ghud ~= nil and ghud.CustomInterfaceSuppressesSearchBucket(spec.bucket) == true
+        end)
+        if bucketSuppressed then
+            --skip this provider entirely
+        elseif spec.enumerate ~= nil then
             local ok, list = pcall(spec.enumerate, needle)
             if ok and type(list) == "table" then
                 for _,r in ipairs(list) do

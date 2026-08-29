@@ -2240,6 +2240,14 @@ local PanelPermittedForUser = function(p)
 	if p.dmonly and not GameHud.DirectorUIVisible() then
 		return false
 	end
+	--a mod-enforced custom interface can suppress panels by name
+	--(GameHud.RegisterCustomInterface); this gate covers every discovery
+	--surface that respects registrations -- menus, toolbar, rail, search.
+	local suppressed = false
+	pcall(function() suppressed = p.name ~= nil and GameHud.CustomInterfaceSuppressesPanel(p.name) == true end)
+	if suppressed then
+		return false
+	end
 	return true
 end
 

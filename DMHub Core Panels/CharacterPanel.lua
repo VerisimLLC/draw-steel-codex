@@ -48,6 +48,14 @@ function CharacterPanel.TokenAccessLevel(token)
     if token == nil or not token.valid then
         return "none"
     end
+    --a mod-enforced custom interface may override access outright
+    --(GameHud.RegisterCustomInterface): Encounter of the Week makes every
+    --hero's panel viewable but read-only for everyone, host included.
+    local override = nil
+    pcall(function() override = GameHud.CustomInterfaceCharacterPanelAccess(token) end)
+    if override ~= nil then
+        return override
+    end
     if token.canControl then
         return "edit"
     end

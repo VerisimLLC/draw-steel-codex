@@ -834,4 +834,156 @@ GameHud.DirectorUIVisible = function()
 	return true
 end
 
+--Custom-interface hook. A game mode can usurp the normal game hud chrome:
+--replace the icon-rail button columns with its own side widgets, suppress
+--(or add) title-bar menus, remove panels outright (e.g. the Compendium),
+--hide search buckets, and force the character panel read-only. The title
+--bar itself always remains. Register a provider table:
+--
+--  GameHud.RegisterCustomInterface{
+--      id = "eotw",                     --stable id; rails and the title
+--                                       --bar watch it to detect takeovers
+--      active = function() end,         --true while the interface is on
+--      suppressRails = true,            --replace the icon-rail columns;
+--                                       --docks slide away transiently too
+--      railPanel = function(side) end,  --widget for "left"/"right" (used
+--                                       --only when suppressRails)
+--      railBottomPanel = function(side) end,
+--                                       --widget pinned to the BOTTOM
+--                                       --corner of that side (e.g. kept
+--                                       --Chat/Action Log buttons)
+--      suppressTitlebarMenu = set|fn,   --menu NAME -> true hides it
+--      titlebarPanels = function() end, --panels added to the menu bar
+--      suppressPanel = set|fn,          --panel NAME -> true removes it
+--                                       --from menus/search/toolbar
+--      suppressSearchBucket = set|fn,   --search bucket id -> true
+--      characterPanelAccess = function(token) end,
+--                                       --override CharacterPanel access:
+--                                       --"edit"|"view"|"none"|nil=normal
+--  }
+--
+--Everything but id/active is optional. The FIRST registered provider whose
+--active() returns true wins. Consumer reads are pcall-guarded so a broken
+--provider degrades to the normal interface, never a dead hud.
+GameHud.customInterfaces = {}
+
+GameHud.RegisterCustomInterface = function(provider)
+	if type(provider) == "table" and type(provider.active) == "function" then
+		GameHud.customInterfaces[#GameHud.customInterfaces+1] = provider
+	end
+end
+
+--The active provider, or nil. Consumers use the helpers below instead.
+GameHud.CustomInterface = function()
+	for _,provider in ipairs(GameHud.customInterfaces) do
+		local ok, active = pcall(provider.active)
+		if ok and active then
+			return provider
+		end
+	end
+	return nil
+end
+
+--The active provider's id (nil when none): consumers that BUILD UI for an
+--interface compare this against what they built for to detect a takeover
+--or a release mid-session.
+GameHud.CustomInterfaceId = function()
+	local provider = GameHud.CustomInterface()
+	if provider == nil then
+		return nil
+	end
+	return provider.id or "custom"
+end
+
+--Evaluate a provider field that may be a plain value, a set-style table
+--keyed by the argument, or a function of the argument. nil when no
+--interface is active, the field is absent, or the provider errors.
+local function CustomInterfaceField(field, arg)
+	local provider = GameHud.CustomInterface()
+	if provider == nil then
+		return nil
+	end
+	local value = provider[field]
+	if type(value) == "function" then
+		local ok, result = pcall(value, arg)
+		if ok then
+			return result
+		end
+		return nil
+	end
+	if type(value) == "table" and arg ~= nil then
+		return value[arg]
+	end
+	return value
+end
+
+GameHud.CustomInterfaceSuppressesRails = function()
+	return CustomInterfaceField("suppressRails") == true
+end
+
+--The custom widget to mount where the icon rail would be, or nil.
+GameHud.CustomInterfaceRailPanel = function(side)
+	local provider = GameHud.CustomInterface()
+	if provider == nil or type(provider.railPanel) ~= "function" then
+		return nil
+	end
+	local ok, panel = pcall(provider.railPanel, side)
+	if ok then
+		return panel
+	end
+	return nil
+end
+
+--The custom widget pinned to the bottom corner of that side, or nil.
+GameHud.CustomInterfaceRailBottomPanel = function(side)
+	local provider = GameHud.CustomInterface()
+	if provider == nil or type(provider.railBottomPanel) ~= "function" then
+		return nil
+	end
+	local ok, panel = pcall(provider.railBottomPanel, side)
+	if ok then
+		return panel
+	end
+	return nil
+end
+
+GameHud.CustomInterfaceSuppressesTitlebarItem = function(name)
+	return CustomInterfaceField("suppressTitlebarMenu", name) == true
+end
+
+--Extra panels the interface adds to the title bar's menu row, or nil.
+GameHud.CustomInterfaceTitlebarPanels = function()
+	local provider = GameHud.CustomInterface()
+	if provider == nil or type(provider.titlebarPanels) ~= "function" then
+		return nil
+	end
+	local ok, panels = pcall(provider.titlebarPanels)
+	if ok and type(panels) == "table" then
+		return panels
+	end
+	return nil
+end
+
+GameHud.CustomInterfaceSuppressesPanel = function(name)
+	return CustomInterfaceField("suppressPanel", name) == true
+end
+
+GameHud.CustomInterfaceSuppressesSearchBucket = function(bucket)
+	return CustomInterfaceField("suppressSearchBucket", bucket) == true
+end
+
+--Access override for a token's character panel, or nil for the normal
+--rules. Only the three known access levels pass through.
+GameHud.CustomInterfaceCharacterPanelAccess = function(token)
+	local provider = GameHud.CustomInterface()
+	if provider == nil or type(provider.characterPanelAccess) ~= "function" then
+		return nil
+	end
+	local ok, access = pcall(provider.characterPanelAccess, token)
+	if ok and (access == "edit" or access == "view" or access == "none") then
+		return access
+	end
+	return nil
+end
+
 ActionBarElements = {}

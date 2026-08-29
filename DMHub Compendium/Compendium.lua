@@ -6642,6 +6642,13 @@ LaunchablePanel.Register{
 	draggable = false,
 	overdocks = true,
 	filtered = function()
+		--a mod-enforced custom interface can remove Compendium access
+		--outright (e.g. Encounter of the Week games).
+		local suppressed = false
+		pcall(function() suppressed = GameHud.CustomInterfaceSuppressesPanel("Compendium") == true end)
+		if suppressed then
+			return true
+		end
 		return (not dmhub.GetSettingValue("permissions.playerlibrary")) and (not dmhub.isDM)
 	end,
 

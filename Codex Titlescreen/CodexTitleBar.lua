@@ -946,6 +946,29 @@ local function CreateCodexMenuItem(args)
         resultPanel[k] = v
     end
 
+    --Custom-interface hook: a mod-enforced custom interface (see
+    --GameHud.RegisterCustomInterface in Hud.lua) can suppress title-bar
+    --menus by name. The bar broadcasts calculateVisibility every 200ms,
+    --so suppression tracks the active interface live with no rebuild.
+    --Items that own their own calculateVisibility (Developer, Adventure
+    --Documents) write selfStyle.collapsed, which beats any class rule:
+    --run theirs first and override. Items without one are hidden with a
+    --class instead, so the mainmenuOnly/ingameOnly class rules stay in
+    --charge whenever no custom interface is active.
+    local baseCalculateVisibility = resultPanel.calculateVisibility
+    resultPanel.calculateVisibility = function(element)
+        local suppressed = false
+        pcall(function() suppressed = GameHud.CustomInterfaceSuppressesTitlebarItem(name) == true end)
+        if baseCalculateVisibility ~= nil then
+            baseCalculateVisibility(element)
+            if suppressed then
+                element.selfStyle.collapsed = 1
+            end
+        else
+            element:SetClass("customInterfaceHidden", suppressed)
+        end
+    end
+
 	return gui.Panel(resultPanel)
 
 end
@@ -6267,6 +6290,12 @@ local function CreateTopBar()
                 selectors = {"ingameOnly", "~ingame"},
                 collapsed = 1,
             },
+            --a mod-enforced custom interface suppressed this menu item;
+            --see the calculateVisibility wrapper in CreateCodexMenuItem.
+            {
+                selectors = {"customInterfaceHidden"},
+                collapsed = 1,
+            },
             --window-transition guard: hide the ENTIRE bar -- contents and
             --the root's flat strip alike -- so nothing of the title bar
             --renders while the window geometry is still settling (the strip
@@ -6745,6 +6774,32 @@ local function CreateTopBar()
                 }
 
                 return items
+            end,
+        },
+
+        --Custom-interface additions: a mod-enforced custom interface
+        --(GameHud.RegisterCustomInterface) may add its own items to the
+        --title bar. The host rebuilds its children whenever the ACTIVE
+        --interface changes -- on the same calculateVisibility broadcast
+        --that drives menu suppression -- and is empty otherwise.
+        gui.Panel{
+            id = "customInterfaceTitlebarItems",
+            width = "auto",
+            height = "100%",
+            flow = "horizontal",
+            data = { builtFor = false },
+            calculateVisibility = function(element)
+                local id = nil
+                pcall(function() id = GameHud.CustomInterfaceId() end)
+                if id == element.data.builtFor then
+                    return
+                end
+                element.data.builtFor = id
+                local panels = nil
+                if id ~= nil then
+                    pcall(function() panels = GameHud.CustomInterfaceTitlebarPanels() end)
+                end
+                element.children = panels or {}
             end,
         },
 

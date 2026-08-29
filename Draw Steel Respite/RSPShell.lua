@@ -15,59 +15,67 @@ function RSPShell.IsOpen()
     return m_openWindows > 0
 end
 
---- Height left for the working area once the header, its hairline and, on a
---- step that has one, the footer band have taken theirs.
---- @param footerless nil|boolean true when the step ends at the working area
---- @return string
-local function WorkingHeight(footerless)
-    local reserved = RSPConstants.headerHeight
-        + RSPConstants.headerDividerHeight
-        + RSPConstants.headerDividerTopMargin
-        + RSPConstants.headerDividerBottomMargin
-
-    if not footerless then
-        reserved = reserved + RSPConstants.dividerBand + RSPConstants.footerHeight
-    end
-
-    return string.format("100%%-%d", reserved)
-end
-
 --- @param args table Shell args; reads headerInfo
 --- @return Panel
 local function BuildHeader(args)
-    -- Auto-height so the hairline below sits against the heading rather than
-    -- against the bottom of a fixed band with slack in it.
+
     return gui.Panel{
         width = "100%",
-        height = "auto",
-        flow = "horizontal",
+        height = RSPConstants.headerHeight,
+        flow = "vertical",
         halign = "left",
         valign = "top",
 
-        gui.Label{
-            classes = {"sizeXxl", "bold"},
-            width = RSPConstants.headerTitleWidth,
+        -- Draw the border floating first so the headline can paint over it
+        gui.Panel{
+            floating = true,
+            width = "100%",
             height = "auto",
+            flow = "vertical",
             halign = "left",
-            valign = "bottom",
-            bmargin = RSPConstants.headerTitleBottomMargin,
-            text = RSPConstants.panelName,
+            valign = "top",
+            tmargin = RSPConstants.headerDividerTopMargin,
+
+            gui.MCDMDivider{
+                width = "100%",
+                layout = "line",
+                height = RSPConstants.headerDividerHeight,
+            },
         },
 
-        gui.Label{
-            classes = {"sizeS", "noBold", "fgMuted"},
-            width = RSPConstants.headerInfoWidth,
+        -- Paint the heading text
+        gui.Panel{
+            width = "100%",
             height = "auto",
-            halign = "right",
-            rmargin = RSPConstants.headerInfoRightMargin,
-            valign = "bottom",
-            textAlignment = "right",
-            markdown = true,
-            textWrap = true,
-            text = args.headerInfo ~= nil and args.headerInfo() or "",
-            respiteChanged = function(element)
-                element.text = args.headerInfo ~= nil and args.headerInfo() or ""
-            end,
+            flow = "horizontal",
+            halign = "left",
+            valign = "top",
+
+            gui.Label{
+                classes = {"sizeXxl", "bold"},
+                width = RSPConstants.headerTitleWidth,
+                height = "auto",
+                halign = "left",
+                valign = "bottom",
+                bmargin = RSPConstants.headerTitleBottomMargin,
+                text = RSPConstants.panelName,
+            },
+
+            gui.Label{
+                classes = {"sizeS", "noBold", "fgMuted"},
+                width = RSPConstants.headerInfoWidth,
+                height = "auto",
+                halign = "right",
+                rmargin = RSPConstants.headerInfoRightMargin,
+                valign = "bottom",
+                textAlignment = "right",
+                markdown = true,
+                textWrap = true,
+                text = args.headerInfo ~= nil and args.headerInfo() or "",
+                respiteChanged = function(element)
+                    element.text = args.headerInfo ~= nil and args.headerInfo() or ""
+                end,
+            },
         },
     }
 end
@@ -79,7 +87,7 @@ local function BuildBody(args)
 
     return gui.Panel{
         width = "100%",
-        height = WorkingHeight(args.footerless),
+        height = "100% available",
         flow = side and "horizontal" or "vertical",
         halign = "left",
         valign = "top",
@@ -134,14 +142,28 @@ local function BuildFooter(args)
     -- sitting low rather than centred in the space they are given.
     return gui.Panel{
         width = "100%",
-        height = "100% available",
-        flow = "horizontal",
+        height = RSPConstants.footerHeight,
+        flow = "vertical",
         halign = "left",
         valign = "bottom",
 
-        FooterCell(args.footerLeft, widths[1]),
-        FooterCell(args.footerCenter, widths[2]),
-        FooterCell(args.footerRight, widths[3]),
+        gui.MCDMDivider{
+            width = "100%",
+            layout = "line",
+            vmargin = RSPConstants.footerDividerMargin,
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
+
+            FooterCell(args.footerLeft, widths[1]),
+            FooterCell(args.footerCenter, widths[2]),
+            FooterCell(args.footerRight, widths[3]),
+        }
     }
 end
 
@@ -160,32 +182,8 @@ local function BuildStep(args, collapsed)
 
         BuildHeader(args),
 
-        -- The lift rides on a wrapper rather than on the divider itself: a
-        -- client running a build where MCDMDivider still drops its own
-        -- tmargin would otherwise leave the hairline sitting low.
-        gui.Panel{
-            width = "100%",
-            height = "auto",
-            flow = "vertical",
-            halign = "left",
-            tmargin = RSPConstants.headerDividerTopMargin,
-            bmargin = RSPConstants.headerDividerBottomMargin,
-
-            gui.MCDMDivider{
-                width = "100%",
-                layout = "line",
-                height = RSPConstants.headerDividerHeight,
-            },
-        },
         BuildBody(args),
 
-        -- A step with nothing to say at the bottom keeps neither the rule nor
-        -- the band, and its working area takes the room back.
-        not args.footerless and gui.MCDMDivider{
-            width = "100%",
-            layout = "line",
-            vmargin = RSPConstants.footerDividerMargin,
-        } or nil,
         not args.footerless and BuildFooter(args) or nil,
     }
 end
@@ -224,7 +222,7 @@ function RSPShell.Create(args)
         flow = "vertical",
         halign = "center",
         valign = "center",
-        pad = 16,
+        pad = RSPConstants.windowPad,
 
         data = {
             themeSub = nil,

@@ -268,23 +268,23 @@ local function BuildWorkingArea()
     local list
     local pane
 
-    local entries = Entries()
-
-    local byId = {}
-    for _, entry in ipairs(entries) do
-        byId[entry.charid] = entry
-    end
-
+    --- Read fresh rather than captured: this window can be built before the
+    --- Director picks participants, and the roster arrives afterwards.
     --- @return table|nil the selected {charid, owner} entry
     local function Selection()
         if list == nil or list.data.selected == nil then
             return nil
         end
-        return byId[list.data.selected]
+        for _, entry in ipairs(Entries()) do
+            if entry.charid == list.data.selected then
+                return entry
+            end
+        end
+        return nil
     end
 
     list = RSPWidgets.CharacterList{
-        roster = entries,
+        roster = Entries,
         status = Completion,
 
         -- A follower's rolls live on the hero it follows, so the entry's
@@ -322,9 +322,23 @@ local function BuildWorkingArea()
 
     -- Open on the first character rather than an empty pane. The player can
     -- move off it, but there is always something to look at.
-    if list ~= nil and #entries > 0 then
+    local function SelectFirst()
+        if list == nil or not list.valid or list.data.selected ~= nil then
+            return
+        end
+
+        local entries = Entries()
+        if #entries == 0 then
+            return
+        end
+
         list.data.selected = entries[1].charid
+        if pane ~= nil and pane.valid then
+            pane:FireEvent("selectionChanged")
+        end
     end
+
+    SelectFirst()
 
     pane = BuildActivityPane(Selection)
 
@@ -341,6 +355,12 @@ local function BuildWorkingArea()
             flow = "vertical",
             halign = "left",
             valign = "top",
+
+            -- The roster can land after this window was built, so the opening
+            -- selection is made when there is one rather than only at build.
+            respiteChanged = function()
+                SelectFirst()
+            end,
 
             list,
         },

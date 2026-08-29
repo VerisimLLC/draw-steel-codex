@@ -926,6 +926,19 @@ function dmhub.ClearMovementCrossSection()
 	-- dummy implementation for documentation purposes only
 end
 
+--- SetMovementRestriction: Installs a Movement Restriction Mode on this client: while installed, tokens can only be moved within the given tiles. Pathfinding treats any step ending outside the set as impassable, so the drag preview and movement-radius markers clip to the allowed area, and drops outside it are refused -- including for the DM (the dmillegalmoves setting does not bypass it). Forced movement (pushes/slides) is exempt. The restriction applies to all tokens on this client until dmhub.ClearMovementRestriction is called or the game session ends. Calling again replaces the previous set.
+--- @param args {locs: Loc[]}
+--- @return nil
+function dmhub.SetMovementRestriction(args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearMovementRestriction: Clears the Movement Restriction Mode installed by dmhub.SetMovementRestriction, restoring normal token movement. Safe to call when no restriction is active.
+--- @return nil
+function dmhub.ClearMovementRestriction()
+	-- dummy implementation for documentation purposes only
+end
+
 --- Roll: Execute a dice roll. Returns an object that manages the roll.
 
 The rolldef table accepts a `forcedDice` field for integrations driving rolls from an

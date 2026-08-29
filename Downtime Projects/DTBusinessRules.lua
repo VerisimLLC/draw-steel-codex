@@ -297,6 +297,7 @@ function DTBusinessRules.ApplySourceToProject(project, sourceType, selectedId)
         if item then
             project:SetTitle(item.name)
                 :SetItemID(selectedId)
+                :SetActivityID("")
                 :SetItemPrerequisite(item.itemPrerequisite)
                 :SetProjectSource(item.projectSource)
                 :SetProjectGoal(tonumber(item.projectGoal:match("^%d+")))
@@ -308,6 +309,8 @@ function DTBusinessRules.ApplySourceToProject(project, sourceType, selectedId)
         local activity = dmhub.GetTable(DowntimeActivity.tableName)[selectedId]
         if activity then
             project:SetTitle(activity:GetName())
+                :SetActivityID(selectedId)
+                :SetItemID("")
                 :SetItemPrerequisite(activity:GetItemPrerequisite())
                 :SetProjectSource(activity:GetProjectSource())
                 :SetProjectGoal(tonumber(activity:GetProjectGoal():match("^%d+")))

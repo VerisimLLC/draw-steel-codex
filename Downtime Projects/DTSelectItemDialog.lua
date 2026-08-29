@@ -126,123 +126,115 @@ function DTSelectItemDialog._createPanel(callbacks)
             element:FireEvent("close")
         end,
 
-        children = {
-            -- Header
+        -- Header
+        gui.Label{
+            classes = {"modalTitle"},
+            text = "Select a Project Source",
+        },
+
+        -- Source toggle (segmented)
+        gui.Panel{
+            classes = {"tabBar"},
+            width = "100%+6",
+            height = 28,
+            tmargin = 12,
+            halign = "center",
             gui.Label{
-                classes = {"modalTitle"},
-                text = "Select a Project Source",
+                classes = {"tab", "selected"},
+                text = "Crafting Projects",
+                width = "50%",
+                height = "100%",
+                data = {sourceType = "crafting"},
+                refreshSource = function(element, sourceType)
+                    element:SetClass("selected", element.data.sourceType == sourceType)
+                end,
+                press = function(element)
+                    local controller = element:FindParentWithClass("selectItemDialogController")
+                    selectSource(controller, element.data.sourceType)
+                end,
             },
-
-            -- Source toggle (segmented)
-            gui.Panel{
-                classes = {"tabBar"},
-                width = "100%+6",
-                height = 28,
-                tmargin = 12,
-                halign = "center",
-                children = {
-                    gui.Label{
-                        classes = {"tab", "selected"},
-                        text = "Crafting Projects",
-                        width = "50%",
-                        height = "100%",
-                        data = {sourceType = "crafting"},
-                        refreshSource = function(element, sourceType)
-                            element:SetClass("selected", element.data.sourceType == sourceType)
-                        end,
-                        press = function(element)
-                            local controller = element:FindParentWithClass("selectItemDialogController")
-                            selectSource(controller, element.data.sourceType)
-                        end,
-                    },
-                    gui.Label{
-                        classes = {"tab"},
-                        text = "Activities",
-                        width = "50%",
-                        height = "100%",
-                        data = {sourceType = "activity"},
-                        refreshSource = function(element, sourceType)
-                            element:SetClass("selected", element.data.sourceType == sourceType)
-                        end,
-                        press = function(element)
-                            local controller = element:FindParentWithClass("selectItemDialogController")
-                            selectSource(controller, element.data.sourceType)
-                        end,
-                    },
-                },
+            gui.Label{
+                classes = {"tab"},
+                text = "Activities",
+                width = "50%",
+                height = "100%",
+                data = {sourceType = "activity"},
+                refreshSource = function(element, sourceType)
+                    element:SetClass("selected", element.data.sourceType == sourceType)
+                end,
+                press = function(element)
+                    local controller = element:FindParentWithClass("selectItemDialogController")
+                    selectSource(controller, element.data.sourceType)
+                end,
             },
+        },
 
-            -- Content
-            gui.Panel{
-                classes = {"formStackedRow"},
-                width = "100%",
-                halign = "center",
-                tmargin = 12,
-                children = {
-                    gui.Label{
-                        classes = {"formStacked"},
-                        text = "Selection",
-                    },
-                    gui.Dropdown{
-                        id = "itemSelector",
-                        classes = {"formStacked"},
-                        options = craftableItems,
-                        idChosen = nil,
-                        sort = true,
-                        hasSearch = true,
-                        textDefault = "Select an item...",
-                        change = function(element)
-                            local controller = element:FindParentWithClass("selectItemDialogController")
-                            if controller then
-                                controller:FireEvent("validateForm")
-                            end
-                        end,
-                    },
-                },
+        -- Content
+        gui.Panel{
+            classes = {"formStackedRow"},
+            width = "100%",
+            halign = "center",
+            tmargin = 12,
+            gui.Label{
+                classes = {"formStacked"},
+                text = "Selection",
             },
+            gui.Dropdown{
+                id = "itemSelector",
+                classes = {"formStacked"},
+                options = craftableItems,
+                idChosen = nil,
+                sort = true,
+                hasSearch = true,
+                textDefault = "Select an item...",
+                change = function(element)
+                    local controller = element:FindParentWithClass("selectItemDialogController")
+                    if controller then
+                        controller:FireEvent("validateForm")
+                    end
+                end,
+            },
+        },
 
-            -- Button panel
-            gui.Panel{
-                width = "100%",
-                height = 40,
-                halign = "center",
+        -- Button panel
+        gui.Panel{
+            width = "100%",
+            height = 40,
+            halign = "center",
+            valign = "bottom",
+            flow = "horizontal",
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Custom",
                 valign = "bottom",
-                flow = "horizontal",
-                children = {
-                    gui.Button{
-                        classes = {"sizeL"},
-                        text = "Custom",
-                        valign = "bottom",
-                        click = function(element)
-                            local controller = element:FindParentWithClass("selectItemDialogController")
-                            if controller then
-                                controller:FireEvent("escape")
-                            end
-                        end,
-                    },
-                    gui.Button{
-                        id = "confirmButton",
-                        classes = {"sizeL", "disabled"},
-                        text = "Start Craft",
-                        halign = "right",
-                        valign = "bottom",
-                        interactable = false,
-                        enableConfirm = function(element, enabled)
-                            element:SetClass("disabled", not enabled)
-                            element.interactable = enabled
-                        end,
-                        click = function(element)
-                            if not element.interactable then return end
-                            local controller = element:FindParentWithClass("selectItemDialogController")
-                            if controller then
-                                local dropdown = controller:Get("itemSelector")
-                                local selectedItemId = dropdown and dropdown.idChosen or nil
-                                callbacks.confirmHandler(controller.data.sourceType, selectedItemId)
-                                controller:FireEvent("close")
-                            end
-                        end,
-                    },
-                },
+                click = function(element)
+                    local controller = element:FindParentWithClass("selectItemDialogController")
+                    if controller then
+                        controller:FireEvent("escape")
+                    end
+                end,
+            },
+            gui.Button{
+                id = "confirmButton",
+                classes = {"sizeL", "disabled"},
+                text = "Start Craft",
+                halign = "right",
+                valign = "bottom",
+                interactable = false,
+                enableConfirm = function(element, enabled)
+                    element:SetClass("disabled", not enabled)
+                    element.interactable = enabled
+                end,
+                click = function(element)
+                    if not element.interactable then return end
+                    local controller = element:FindParentWithClass("selectItemDialogController")
+                    if controller then
+                        local dropdown = controller:Get("itemSelector")
+                        local selectedItemId = dropdown and dropdown.idChosen or nil
+                        callbacks.confirmHandler(controller.data.sourceType, selectedItemId)
+                        controller:FireEvent("close")
+                    end
+                end,
             },
         },
     }

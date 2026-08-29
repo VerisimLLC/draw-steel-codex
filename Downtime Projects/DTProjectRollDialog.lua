@@ -137,6 +137,50 @@ local function EventTextForTotal(tableRef, total)
     return nil
 end
 
+--- Drops the shared "Downtime Event:" prefix from an event table's name. Every
+--- table in the list carries it, so it is noise under a field already labelled
+--- Event Table. The compendium keeps the full names.
+--- @param options table List of { id, text } pairs from DTHelpers.GetEventTableOptions
+--- @return table options The same list with shortened text
+local function StripEventTablePrefix(options)
+    local result = {}
+
+    for _, option in ipairs(options) do
+        local text = option.text
+        if string.starts_with(text, DTConstants.EVENTS_TABLE_PREFIX) then
+            text = trim(text:sub(#DTConstants.EVENTS_TABLE_PREFIX + 1))
+        end
+
+        result[#result + 1] = {
+            id = option.id,
+            text = text,
+        }
+    end
+
+    return result
+end
+
+--- The event table a project starts the dialog on: the one named on the activity
+--- the project came from, falling back to Crafting and Research when the project
+--- has no activity, the activity names no table, or that table is no longer offered.
+--- @param project DTProject The project stopped at a milestone
+--- @param options table The event table dropdown options
+--- @return string tableId The GUID of the event table to select
+local function DefaultEventTableId(project, options)
+    local activityId = project:GetActivityID()
+    if activityId ~= "" then
+        local activity = (dmhub.GetTable(DowntimeActivity.tableName) or {})[activityId]
+        if activity ~= nil then
+            local tableId = activity:GetEventTableId()
+            if tableId ~= "" and DTHelpers.OptionsContain(options, tableId) then
+                return tableId
+            end
+        end
+    end
+
+    return DTConstants.EVENTS_TABLE_ID
+end
+
 --- Shows the project event dialog
 --- @param args table project The project stopped at a milestone, heroToken The
 ---        token whose sheet this was opened from and who is asked to roll
@@ -147,10 +191,16 @@ function DTEventRollDialog.ShowDialog(args)
         return
     end
 
-    local tableRef = RollTableReference.CreateRef(
-        DTConstants.EVENTS_TABLE, DTConstants.EVENTS_TABLE_ID)
-    local eventsTable = tableRef:GetTable()
-    if eventsTable == nil then
+    local tableOptions = StripEventTablePrefix(DTHelpers.GetEventTableOptions())
+    local selectedTableId = DefaultEventTableId(project, tableOptions)
+
+    --Both roll paths read the table through here, so they always roll whatever
+    --the dropdown currently shows rather than a reference captured at open time.
+    local function CurrentTableRef()
+        return RollTableReference.CreateRef(DTConstants.EVENTS_TABLE, selectedTableId)
+    end
+
+    if CurrentTableRef():GetTable() == nil then
         return
     end
 
@@ -174,6 +224,12 @@ function DTEventRollDialog.ShowDialog(args)
     --drawn by the engine and answer to no layer, and the table's own
     --RollOnTableProperties still puts the event text on the chat card.
     local function DirectorRoll()
+        local tableRef = CurrentTableRef()
+        local eventsTable = tableRef:GetTable()
+        if eventsTable == nil then
+            return
+        end
+
         local rollInfo = eventsTable:CalculateRollInfo()
         if rollInfo == nil then
             return
@@ -193,6 +249,12 @@ function DTEventRollDialog.ShowDialog(args)
 
     --Hands the roll to the hero's player and waits for it to come back.
     local function RequestRoll()
+        local tableRef = CurrentTableRef()
+        local eventsTable = tableRef:GetTable()
+        if eventsTable == nil then
+            return
+        end
+
         local check = RollCheck.new{
             type = "table",
             id = "custom",
@@ -279,102 +341,116 @@ function DTEventRollDialog.ShowDialog(args)
         height = 520,
         flow = "vertical",
 
-        children = {
+        gui.Label{
+            classes = {"modalTitle"},
+            text = "Roll A Project Event",
+        },
+
+        gui.Panel{
+            classes = {"formRow"},
+            width = "94%",
+            halign = "center",
+            vmargin = 8,
+
             gui.Label{
-                classes = {"modalTitle"},
-                text = "Roll A Project Event",
+                classes = {"label", "form"},
+                text = "Event Table:",
             },
 
-            gui.Panel{
-                width = "94%",
-                height = "auto",
-                halign = "center",
-                flow = "horizontal",
-                vmargin = 8,
+            gui.Dropdown{
+                classes = {"dropdown", "form"},
+                width = 280,
+                options = tableOptions,
+                idChosen = selectedTableId,
+                change = function(element)
+                    selectedTableId = element.idChosen
+                end,
+            },
+        },
 
-                children = {
-                    gui.Button{
-                        classes = {"sizeL"},
-                        text = "Request Roll",
-                        hmargin = 8,
-                        click = function()
-                            RequestRoll()
-                        end,
-                    },
+        gui.Panel{
+            width = "94%",
+            height = "auto",
+            halign = "center",
+            flow = "horizontal",
+            vmargin = 8,
 
-                    gui.Button{
-                        classes = {"sizeL"},
-                        text = "Roll",
-                        hmargin = 8,
-                        click = function()
-                            DirectorRoll()
-                        end,
-                    },
-                },
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Request Roll",
+                hmargin = 8,
+                click = function()
+                    RequestRoll()
+                end,
             },
 
-            --A d100 row can run long, so the text scrolls rather than pushing
-            --the milestone field off the bottom of the dialog.
-            gui.Panel{
-                width = "94%",
-                height = 150,
-                halign = "center",
-                vmargin = 8,
-                vscroll = true,
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Roll",
+                hmargin = 8,
+                click = function()
+                    DirectorRoll()
+                end,
+            },
+        },
 
-                children = {resultLabel},
+        --A d100 row can run long, so the text scrolls rather than pushing
+        --the milestone field off the bottom of the dialog.
+        gui.Panel{
+            width = "94%",
+            height = 150,
+            halign = "center",
+            vmargin = 8,
+            vscroll = true,
+
+resultLabel,
+        },
+
+        gui.MCDMDivider{
+            layout = "peak",
+            width = "90%",
+            vmargin = 8,
+        },
+
+        gui.Panel{
+            classes = {"formRow"},
+            width = "94%",
+            halign = "center",
+            vmargin = 8,
+
+            gui.Label{
+                classes = {"label", "form"},
+                text = "Next Milestone:",
             },
 
-            gui.MCDMDivider{
-                layout = "peak",
-                width = "90%",
-                vmargin = 8,
+            milestoneInput,
+        },
+
+        gui.Panel{
+            width = "94%",
+            height = 72,
+            halign = "center",
+            valign = "bottom",
+            flow = "horizontal",
+
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Cancel",
+                valign = "top",
+                hmargin = 8,
+                click = function()
+                    gui.CloseModal()
+                end,
             },
 
-            gui.Panel{
-                classes = {"formRow"},
-                width = "94%",
-                halign = "center",
-                vmargin = 8,
-
-                children = {
-                    gui.Label{
-                        classes = {"label", "form"},
-                        text = "Next Milestone:",
-                    },
-
-                    milestoneInput,
-                },
-            },
-
-            gui.Panel{
-                width = "94%",
-                height = 72,
-                halign = "center",
-                valign = "bottom",
-                flow = "horizontal",
-
-                children = {
-                    gui.Button{
-                        classes = {"sizeL"},
-                        text = "Cancel",
-                        valign = "top",
-                        hmargin = 8,
-                        click = function()
-                            gui.CloseModal()
-                        end,
-                    },
-
-                    gui.Button{
-                        classes = {"sizeL"},
-                        text = "Resolve",
-                        valign = "top",
-                        hmargin = 8,
-                        click = function()
-                            Resolve()
-                        end,
-                    },
-                },
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Resolve",
+                valign = "top",
+                hmargin = 8,
+                click = function()
+                    Resolve()
+                end,
             },
         },
     })

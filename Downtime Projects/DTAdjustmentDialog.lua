@@ -95,138 +95,128 @@ function DTAdjustmentDialog._createPanel(adjustment, confirmHandler, cancelHandl
             element:FireEvent("validateForm")
         end,
 
-        children = {
-            -- Header
-            gui.Label{
-                classes = {"modalTitle"},
-                text = "New Project Adjustment",
-            },
+        -- Header
+        gui.Label{
+            classes = {"modalTitle"},
+            text = "New Project Adjustment",
+        },
 
-            -- Form content
+        -- Form content
+        gui.Panel{
+            width = "100%",
+            height = "100%-110",
+            flow = "vertical",
+            vmargin = 10,
+            -- Amount field with numeric editor
             gui.Panel{
-                width = "100%",
-                height = "100%-110",
+                width = "90%",
+                height = "auto",
                 flow = "vertical",
                 vmargin = 10,
-                children = {
-                    -- Amount field with numeric editor
-                    gui.Panel{
-                        width = "90%",
-                        height = "auto",
-                        flow = "vertical",
-                        vmargin = 10,
-                        children = {
-                            gui.Label{
-                                classes = {"form"},
-                                text = "Adjustment Amount:",
-                                width = "100%",
-                            },
-                            gui.Label {
-                                id = "adjustmentAmountInput",
-                                classes = {"number", "bordered"},
-                                editable = true,
-                                numeric = true,
-                                characterLimit = 4,
-                                swallowPress = true,
-                                text = tostring(adjustment:GetAmount()),
-                                width = 90,
-                                height = 24,
-                                cornerRadius = 4,
-                                fontSize = 20,
-                                bgimage = true,
-                                border = 1,
-                                textAlignment = "center",
-                                valign = "center",
-                                halign = "left",
-                                change = function(element)
-                                    local numericValue = tonumber(element.text) or tonumber(element.text:match("%-?%d+")) or 0
-                                    element.text = tostring(numericValue)
-
-                                    local controller = element:FindParentWithClass("adjustmentDialogController")
-                                    if controller then
-                                        controller:FireEvent("adjustAmount", numericValue)
-                                    end
-                                end,
-                            },
-                        },
-                    },
-
-                    -- Reason field
-                    gui.Panel{
-                        width = "90%",
-                        height = 60,
-                        flow = "vertical",
-                        vmargin = 10,
-                        children = {
-                            gui.Label{
-                                classes = {"form"},
-                                text = "Reason:",
-                                width = "100%",
-                            },
-                            gui.Input{
-                                id = "adjustmentReason",
-                                classes = {"form"},
-                                text = adjustment:GetReason(),
-                                width = "100%",
-                                placeholderText = "Enter the reason for the adjustment...",
-                                editlag = 0.5,
-                                edit = function(element)
-                                    element:FireEvent("change")
-                                end,
-                                change = function(element)
-                                    local controller = element:FindParentWithClass("adjustmentDialogController")
-                                    if controller then
-                                        controller.data.currentReason = element.text
-                                        controller:FireEvent("validateForm")
-                                    end
-                                end,
-                            },
-                        },
-                    },
+                gui.Label{
+                    classes = {"form"},
+                    text = "Adjustment Amount:",
+                    width = "100%",
                 },
+                gui.Label {
+                    id = "adjustmentAmountInput",
+                    classes = {"number", "bordered"},
+                    editable = true,
+                    numeric = true,
+                    characterLimit = 4,
+                    swallowPress = true,
+                    text = tostring(adjustment:GetAmount()),
+                    width = 90,
+                    height = 24,
+                    cornerRadius = 4,
+                    fontSize = 20,
+                    bgimage = true,
+                    border = 1,
+                    textAlignment = "center",
+                    valign = "center",
+                    halign = "left",
+                    change = function(element)
+                        local numericValue = tonumber(element.text) or tonumber(element.text:match("%-?%d+")) or 0
+                        element.text = tostring(numericValue)
+
+                        local controller = element:FindParentWithClass("adjustmentDialogController")
+                        if controller then
+                            controller:FireEvent("adjustAmount", numericValue)
+                        end
+                    end,
+                },
             },
 
-            -- Button panel
+            -- Reason field
             gui.Panel{
-                width = "100%",
-                height = 40,
-                halign = "center",
-                valign = "bottom",
-                flow = "horizontal",
-                children = {
-                    gui.Button{
-                        classes = {"sizeL"},
-                        text = "Cancel",
-                        valign = "bottom",
-                        click = function(element)
-                            local controller = element:FindParentWithClass("adjustmentDialogController")
-                            if controller then
-                                controller:FireEvent("escape")
-                            end
-                        end,
-                    },
-                    gui.Button{
-                        id = "saveButton",
-                        classes = {"sizeL", "disabled"},
-                        text = "Save",
-                        halign = "right",
-                        valign = "bottom",
-                        interactable = false,
-                        enableSave = function(element, enabled)
-                            element:SetClass("disabled", not enabled)
-                            element.interactable = enabled
-                        end,
-                        click = function(element)
-                            if not element.interactable then return end
-                            local controller = element:FindParentWithClass("adjustmentDialogController")
-                            if controller then
-                                controller:FireEvent("saveAndClose")
-                            end
-                        end,
-                    },
+                width = "90%",
+                height = 60,
+                flow = "vertical",
+                vmargin = 10,
+                gui.Label{
+                    classes = {"form"},
+                    text = "Reason:",
+                    width = "100%",
                 },
-            },
+                gui.Input{
+                    id = "adjustmentReason",
+                    classes = {"form"},
+                    text = adjustment:GetReason(),
+                    width = "100%",
+                    placeholderText = "Enter the reason for the adjustment...",
+                    editlag = 0.5,
+                    edit = function(element)
+                        element:FireEvent("change")
+                    end,
+                    change = function(element)
+                        local controller = element:FindParentWithClass("adjustmentDialogController")
+                        if controller then
+                            controller.data.currentReason = element.text
+                            controller:FireEvent("validateForm")
+                        end
+                    end,
+                },
+            },
         },
+
+        -- Button panel
+        gui.Panel{
+            width = "100%",
+            height = 40,
+            halign = "center",
+            valign = "bottom",
+            flow = "horizontal",
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Cancel",
+                valign = "bottom",
+                click = function(element)
+                    local controller = element:FindParentWithClass("adjustmentDialogController")
+                    if controller then
+                        controller:FireEvent("escape")
+                    end
+                end,
+            },
+            gui.Button{
+                id = "saveButton",
+                classes = {"sizeL", "disabled"},
+                text = "Save",
+                halign = "right",
+                valign = "bottom",
+                interactable = false,
+                enableSave = function(element, enabled)
+                    element:SetClass("disabled", not enabled)
+                    element.interactable = enabled
+                end,
+                click = function(element)
+                    if not element.interactable then return end
+                    local controller = element:FindParentWithClass("adjustmentDialogController")
+                    if controller then
+                        controller:FireEvent("saveAndClose")
+                    end
+                end,
+            },
+        },
     }
 
     return resultPanel

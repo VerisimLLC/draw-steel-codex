@@ -66,9 +66,12 @@ DTConstants.STATUS.COMPLETE = DTConstants.STATUS[4]
 DTConstants.FOLLOWER_TYPE.ARTISAN = DTConstants.FOLLOWER_TYPE[1]
 DTConstants.FOLLOWER_TYPE.SAGE = DTConstants.FOLLOWER_TYPE[2]
 
---- The adventure table rolled for a project event at a milestone
+--- The adventure table rolled for a project event at a milestone. EVENTS_TABLE_ID
+--- is Crafting and Research, the fallback when nothing more specific is chosen.
+--- Only adventure tables named with EVENTS_TABLE_PREFIX are offered as event tables.
 DTConstants.EVENTS_TABLE = "adventureTables"
 DTConstants.EVENTS_TABLE_ID = "93ca7f30-7efa-454d-a5cb-a136046eae14"
+DTConstants.EVENTS_TABLE_PREFIX = "Downtime Event:"
 
 --- Helper function to get display text for enum keys
 --- Looks up the DTConstant in the enum table and returns displayText

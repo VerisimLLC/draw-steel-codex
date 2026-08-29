@@ -117,10 +117,8 @@ function DTCharSheetTab.CreateDowntimePanel()
             element:FireEventTree("refreshToken")
         end,
 
-        children = {
-            DTCharSheetTab._createHeaderPanel(),
-            DTCharSheetTab._createBodyPanel(),
-        }
+        DTCharSheetTab._createHeaderPanel(),
+        DTCharSheetTab._createBodyPanel(),
     }
 
     -- The CharSheet system caches this panel for the session, so its `styles`
@@ -285,36 +283,30 @@ function DTCharSheetTab._createHeaderPanel()
         flow = "horizontal",
         halign = "center",
         valign = "center",
-        children = {
-            -- Counters. They share one row rather than a column each, so the
-            -- next ones to arrive line up beside these instead of resizing the
-            -- bar around them.
-            gui.Panel {
-                width = "90%",
-                height = "100%",
-                flow = "horizontal",
-                halign = "left",
-                valign = "center",
-                lmargin = 20,
-                children = {
-                    CounterLabel("Hero Available Activities", HeroActivities),
-                    CounterLabel("Follower Aggregate Activities", FollowerActivities),
-                    activitiesButton,
-                }
-            },
+        -- Counters. They share one row rather than a column each, so the
+        -- next ones to arrive line up beside these instead of resizing the
+        -- bar around them.
+        gui.Panel {
+            width = "90%",
+            height = "100%",
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
+            lmargin = 20,
+            CounterLabel("Hero Available Activities", HeroActivities),
+            CounterLabel("Follower Aggregate Activities", FollowerActivities),
+            activitiesButton,
+        },
 
-            -- Add button
-            gui.Panel {
-                width = "10%",
-                height = "100%",
-                flow = "horizontal",
-                halign = "right",
-                valign = "center",
-                children = {
-                    addButton
-                }
-            }
-        }
+        -- Add button
+        gui.Panel {
+            width = "10%",
+            height = "100%",
+            flow = "horizontal",
+            halign = "right",
+            valign = "center",
+            addButton,
+        },
     }
 end
 
@@ -329,38 +321,34 @@ function DTCharSheetTab._createBodyPanel()
         halign = "center",
         valign = "top",
         vmargin = 4,
-        children = {
-            -- Scrollable projects area
+        -- Scrollable projects area
+        gui.Panel{
+            width = "100%",
+            height = "100%",
+            valign = "top",
+            vscroll = true,
+            -- Inner auto-height container that pins content to top
             gui.Panel{
+                id = "projectScrollArea",
+                classes = {"projectListController"},
                 width = "100%",
-                height = "100%",
+                height = "auto",
+                flow = "vertical",
+                halign = "center",
                 valign = "top",
-                vscroll = true,
-                children = {
-                    -- Inner auto-height container that pins content to top
-                    gui.Panel{
-                        id = "projectScrollArea",
-                        classes = {"projectListController"},
-                        width = "100%",
-                        height = "auto",
-                        flow = "vertical",
-                        halign = "center",
-                        valign = "top",
-                        create = function(element)
-                            dmhub.Schedule(0.2, function()
-                                element.monitorGame = DTShares.GetDocumentPath()
-                            end)
-                        end,
-                        refreshGame = function(element)
-                            element:FireEvent("refreshToken")
-                        end,
-                        refreshToken = function(element)
-                            DTCharSheetTab._refreshProjectsList(element)
-                        end
-                    }
-                }
-            }
-        }
+                create = function(element)
+                    dmhub.Schedule(0.2, function()
+                        element.monitorGame = DTShares.GetDocumentPath()
+                    end)
+                end,
+                refreshGame = function(element)
+                    element:FireEvent("refreshToken")
+                end,
+                refreshToken = function(element)
+                    DTCharSheetTab._refreshProjectsList(element)
+                end
+            },
+        },
     }
 end
 

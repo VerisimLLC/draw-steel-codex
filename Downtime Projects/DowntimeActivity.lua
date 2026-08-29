@@ -11,6 +11,7 @@ local mod = dmhub.GetModLoading()
 --- @field projectSourceLanguages string[] Language ids associated with the source
 --- @field testCharacteristics string[] DTConstants.CHARACTERISTICS keys usable for the roll
 --- @field projectGoal string Short text goal (number first, optional detail in parentheses)
+--- @field eventTableId string GUID of the adventure table rolled for this activity's events ("" for none)
 --- @field tableName string Data table name ("downtimeActivities")
 DowntimeActivity = RegisterGameType("DowntimeActivity")
 
@@ -20,6 +21,7 @@ DowntimeActivity.name = "New Downtime Activity"
 DowntimeActivity.itemPrerequisite = ""
 DowntimeActivity.projectSource = ""
 DowntimeActivity.projectGoal = ""
+DowntimeActivity.eventTableId = ""
 
 --- Creates a new downtime activity instance
 --- @param args table|nil Optional field overrides (Compendium.GenericEditor calls this as CreateNew{})
@@ -121,6 +123,20 @@ function DowntimeActivity:SetProjectGoal(goal)
     return self
 end
 
+--- Gets the id of the adventure table rolled for this activity's events
+--- @return string eventTableId The adventure table GUID, or "" if none is set
+function DowntimeActivity:GetEventTableId()
+    return self.eventTableId or ""
+end
+
+--- Sets the adventure table rolled for this activity's events
+--- @param tableId string The adventure table GUID, or "" for none
+--- @return DowntimeActivity self For chaining
+function DowntimeActivity:SetEventTableId(tableId)
+    self.eventTableId = tableId or ""
+    return self
+end
+
 --- Builds dropdown options for every visible language
 --- @return DropdownOption[] options List of { id, text } language options
 local function GetLanguageOptions()
@@ -132,6 +148,24 @@ local function GetLanguageOptions()
             text = language.name,
         }
     end
+    return result
+end
+
+--- Builds the event table dropdown options, led by a "(None)" entry so the
+--- Director can leave an activity without an event table of its own.
+--- @return DropdownOption[] options List of { id, text } options
+local function GetEventTableOptions()
+    local result = {
+        {
+            id = "",
+            text = "(None)",
+        },
+    }
+
+    for _, option in ipairs(DTHelpers.GetEventTableOptions()) do
+        result[#result + 1] = option
+    end
+
     return result
 end
 
@@ -276,6 +310,24 @@ local function SetActivity(editorPanel, activityId)
         gui.Label{
             classes = {"hint"},
             text = "Start with a number. If there is anything else to add, put it in parentheses afterward (e.g. 45 (yields 1d3 darts, or three darts if crafted by a shadow)).",
+        },
+    }
+
+    children[#children + 1] = gui.Panel{
+        classes = {"formStackedRow"},
+        gui.Label{
+            classes = {"formStacked"},
+            text = "Event Table:",
+        },
+        gui.Dropdown{
+            classes = {"formStacked"},
+            options = GetEventTableOptions(),
+            idChosen = activity:GetEventTableId(),
+            textDefault = "(None)",
+            change = function(element)
+                activity:SetEventTableId(element.idChosen)
+                Upload()
+            end,
         },
     }
 

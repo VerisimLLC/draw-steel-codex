@@ -60,76 +60,74 @@ function DTShareDialog._createPanel(options)
             element:FireEvent("close")
         end,
 
-        children = {
-            -- Header
-            gui.Label{
-                classes = {"modalTitle"},
-                text = "Share This Project With:",
-            },
+        -- Header
+        gui.Label{
+            classes = {"modalTitle"},
+            text = "Share This Project With:",
+        },
 
-            -- Content - Character selector
-            gui.Panel{
+        -- Content - Character selector
+        gui.Panel{
+            width = "96%",
+            height = "100%-110",
+            flow = "vertical",
+            halign = "center",
+            vmargin = 10,
+            gui.CharacterSelect({
+                id = "characterSelector",
+                allTokens = options.showList,
+                initialSelection = options.initialSelection,
+                halign = "center",
                 width = "96%",
-                height = "100%-110",
-                flow = "vertical",
-                halign = "center",
-                vmargin = 10,
-                gui.CharacterSelect({
-                    id = "characterSelector",
-                    allTokens = options.showList,
-                    initialSelection = options.initialSelection,
-                    halign = "center",
-                    width = "96%",
-                    height = 130,
-                    layout = "grid",
-                    showShortcuts = true,
-                })
-            },
+                height = 130,
+                layout = "grid",
+                showShortcuts = true,
+            })
+        },
 
-            -- Button panel
-            gui.Panel{
-                width = "100%",
-                floating = true,
-                height = 40,
-                halign = "center",
+        -- Button panel
+        gui.Panel{
+            width = "100%",
+            floating = true,
+            height = 40,
+            halign = "center",
+            valign = "bottom",
+            flow = "horizontal",
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Cancel",
                 valign = "bottom",
-                flow = "horizontal",
-                gui.Button{
-                    classes = {"sizeL"},
-                    text = "Cancel",
-                    valign = "bottom",
-                    click = function(element)
-                        local controller = element:FindParentWithClass("shareController")
-                        if controller then
-                            controller:FireEvent("escape")
-                        end
-                    end,
-                },
-                gui.Button{
-                    classes = {"sizeL"},
-                    text = "Share",
-                    halign = "right",
-                    valign = "bottom",
-                    click = function(element)
-                        local controller = element:FindParentWithClass("shareController")
-                        if controller then
-                            local selector = controller:Get("characterSelector")
-                            local selectedTokenIds = {}
-                            if selector and selector.value then
-                                -- Extract just the IDs from the keyed format
-                                for tokenId, value in pairs(selector.value) do
-                                    if value.selected then
-                                        selectedTokenIds[#selectedTokenIds + 1] = tokenId
-                                    end
+                click = function(element)
+                    local controller = element:FindParentWithClass("shareController")
+                    if controller then
+                        controller:FireEvent("escape")
+                    end
+                end,
+            },
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Share",
+                halign = "right",
+                valign = "bottom",
+                click = function(element)
+                    local controller = element:FindParentWithClass("shareController")
+                    if controller then
+                        local selector = controller:Get("characterSelector")
+                        local selectedTokenIds = {}
+                        if selector and selector.value then
+                            -- Extract just the IDs from the keyed format
+                            for tokenId, value in pairs(selector.value) do
+                                if value.selected then
+                                    selectedTokenIds[#selectedTokenIds + 1] = tokenId
                                 end
                             end
-                            options.callbacks.confirmHandler(selectedTokenIds)
-                            controller:FireEvent("close")
                         end
-                    end,
-                },
+                        options.callbacks.confirmHandler(selectedTokenIds)
+                        controller:FireEvent("close")
+                    end
+                end,
             },
-        },
+        },
     }
 
     return resultPanel

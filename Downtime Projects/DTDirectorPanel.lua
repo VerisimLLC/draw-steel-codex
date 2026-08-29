@@ -51,9 +51,7 @@ function DTDirectorPanel:_buildMainPanel()
         refreshGame = function(element)
             directorPanel:_refreshPanelContent(element)
         end,
-        children = {
-            self:_buildContentPanel()
-        }
+        self:_buildContentPanel(),
     }
 end
 
@@ -180,54 +178,52 @@ function DTDirectorPanel:_buildCharacterHeader(characterInfo, contentPanel, tabT
         tmargin = 6,
         valign = "top",
         flow = "horizontal",
-        children = {
-            triangle,
-            -- Character token
-            gui.Panel {
-                classes = {"bordered"},
-                width = 20,
-                height = 20,
-                valign = "center",
-                hmargin = 4,
-                children = token and {
-                    gui.CreateTokenImage(token, {
-                        width = 24,
-                        height = 24,
-                        halign = "center",
-                        valign = "center",
-                        refresh = function(element)
-                            if token == nil or not token.valid then return end
-                            element:FireEventTree("token", token)
-                        end,
-                    })
-                } or {}
-            },
-            -- Character name + player name
-            gui.Label{
-                classes = {"sizeS", "bold"},
-                text = characterName .. playerDisplay,
-                width = "70%",
-                height = "auto",
-                valign = "center",
-                hmargin = 4,
-            },
-            -- Settings button (right-aligned)
-            gui.Button {
-                classes = {"settingsButton", "sizeS"},
-                halign = "right",
-                valign = "center",
-                hmargin = 5,
-                linger = function(element)
-                    gui.Tooltip("Open character sheet")(element)
-                end,
-                press = function()
-                    local character = dmhub.GetCharacterById(characterId)
-                    if character then
-                        character:ShowSheet("Downtime")
-                    end
+        triangle,
+        -- Character token
+        gui.Panel {
+            classes = {"bordered"},
+            width = 20,
+            height = 20,
+            valign = "center",
+            hmargin = 4,
+            children = token and {
+                gui.CreateTokenImage(token, {
+                    width = 24,
+                    height = 24,
+                    halign = "center",
+                    valign = "center",
+                    refresh = function(element)
+                        if token == nil or not token.valid then return end
+                        element:FireEventTree("token", token)
+                    end,
+                })
+            } or {}
+        },
+        -- Character name + player name
+        gui.Label{
+            classes = {"sizeS", "bold"},
+            text = characterName .. playerDisplay,
+            width = "70%",
+            height = "auto",
+            valign = "center",
+            hmargin = 4,
+        },
+        -- Settings button (right-aligned)
+        gui.Button {
+            classes = {"settingsButton", "sizeS"},
+            halign = "right",
+            valign = "center",
+            hmargin = 5,
+            linger = function(element)
+                gui.Tooltip("Open character sheet")(element)
+            end,
+            press = function()
+                local character = dmhub.GetCharacterById(characterId)
+                if character then
+                    character:ShowSheet("Downtime")
                 end
-            }
-        }
+            end
+        },
     }
 end
 
@@ -265,17 +261,15 @@ function DTDirectorPanel:_buildProjectDetail(projectEntry, tabType)
         width = "100%",
         height = 25,
         flow = "horizontal",
-        children = {
-            gui.Label{
-                classes = {"sizeXxs"},
-                text = displayText,
-                width = "100%",
-                height = "100%",
-                valign = "center",
-                hmargin = 20,
-                wrap = true,
-            }
-        }
+        gui.Label{
+            classes = {"sizeXxs"},
+            text = displayText,
+            width = "100%",
+            height = "100%",
+            valign = "center",
+            hmargin = 20,
+            wrap = true,
+        },
     }
 end
 
@@ -318,10 +312,8 @@ function DTDirectorPanel:_buildCharacterSection(characterInfo, characterProjects
         height = "auto",
         flow = "vertical",
         valign = "top",
-        children = {
-            headerPanel,
-            contentPanel,
-        },
+        headerPanel,
+        contentPanel,
     }
 end
 
@@ -482,44 +474,42 @@ function DTDirectorPanel:_buildContentPanel()
         classes = {"tabBar"},
         width = "100%",
         height = 24,
-        children = {
-            gui.Label{
-                classes = tabClasses("Attention", #categorized.attention > 0),
-                text = string.format("Attention (%d)", #categorized.attention),
-                width = "25%",
-                height = "100%",
-                fontSize = 9.5,
-                data = {tabName = "Attention"},
-                press = function() selectTab("Attention") end,
-            },
-            gui.Label{
-                classes = tabClasses("Milestones", #categorized.milestones > 0),
-                text = string.format("Milestones (%d)", #categorized.milestones),
-                width = "25%",
-                height = "100%",
-                fontSize = 9.5,
-                data = {tabName = "Milestones"},
-                press = function() selectTab("Milestones") end,
-            },
-            gui.Label{
-                classes = tabClasses("Active", false),
-                text = string.format("Active (%d)", #categorized.active),
-                width = "25%",
-                height = "100%",
-                fontSize = 9.5,
-                data = {tabName = "Active"},
-                press = function() selectTab("Active") end,
-            },
-            gui.Label{
-                classes = tabClasses("Completed", false),
-                text = string.format("Completed (%d)", #categorized.completed),
-                width = "25%",
-                height = "100%",
-                fontSize = 9.5,
-                data = {tabName = "Completed"},
-                press = function() selectTab("Completed") end,
-            },
+        gui.Label{
+            classes = tabClasses("Attention", #categorized.attention > 0),
+            text = string.format("Attention (%d)", #categorized.attention),
+            width = "25%",
+            height = "100%",
+            fontSize = 9.5,
+            data = {tabName = "Attention"},
+            press = function() selectTab("Attention") end,
         },
+        gui.Label{
+            classes = tabClasses("Milestones", #categorized.milestones > 0),
+            text = string.format("Milestones (%d)", #categorized.milestones),
+            width = "25%",
+            height = "100%",
+            fontSize = 9.5,
+            data = {tabName = "Milestones"},
+            press = function() selectTab("Milestones") end,
+        },
+        gui.Label{
+            classes = tabClasses("Active", false),
+            text = string.format("Active (%d)", #categorized.active),
+            width = "25%",
+            height = "100%",
+            fontSize = 9.5,
+            data = {tabName = "Active"},
+            press = function() selectTab("Active") end,
+        },
+        gui.Label{
+            classes = tabClasses("Completed", false),
+            text = string.format("Completed (%d)", #categorized.completed),
+            width = "25%",
+            height = "100%",
+            fontSize = 9.5,
+            data = {tabName = "Completed"},
+            press = function() selectTab("Completed") end,
+        },
     }
 
     local outerPanel = gui.Panel {
@@ -527,10 +517,8 @@ function DTDirectorPanel:_buildContentPanel()
         height = "auto",
         flow = "vertical",
         styles = ThemeEngine.GetStyles(),
-        children = {
-            tabsPanel,
-            contentPanel,
-        },
+        tabsPanel,
+        contentPanel,
     }
 
     -- Refresh the cascade when the active theme/scheme changes so the

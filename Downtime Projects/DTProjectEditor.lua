@@ -142,50 +142,48 @@ function DTProjectEditor:_createProjectForm()
         width = "98%",
         height = "auto",
         valign = "center",
-        children = {
-            gui.Input {
-                classes = {"form"},
-                width = progress > 0 and "98%" or "98%-36",
-                height = 32,
-                valign = "center",
-                placeholderText = "Press the button to the left to craft an item (fully automated!), or enter project details manually...",
-                editlag = 0.5,
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
+        gui.Input {
+            classes = {"form"},
+            width = progress > 0 and "98%" or "98%-36",
+            height = 32,
+            valign = "center",
+            placeholderText = "Press the button to the left to craft an item (fully automated!), or enter project details manually...",
+            editlag = 0.5,
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
                     end
-                },
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project and element.text ~= project:GetTitle() then
-                        element.text = project:GetTitle() or ""
-                    end
-                end,
-                edit = function(element)
-                    element:FireEvent("change")
-                end,
-                change = function(element)
-                    local project = element.data.getProject(element)
-                    if project and element.text ~= project:GetTitle() then
-                        modifyTokenProps{
-                            description = "Change Downtime project title",
-                            undoable = false,
-                            execute = function()
-                                project:SetTitle(element.text)
-                            end,
-                        }
-                        dmhub.Schedule(0.1, function()
-                            DTSettings.Touch()
-                            DTShares.Touch()
-                        end)
-                    end
+                    return nil
                 end
-            }
-        }
+            },
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                if project and element.text ~= project:GetTitle() then
+                    element.text = project:GetTitle() or ""
+                end
+            end,
+            edit = function(element)
+                element:FireEvent("change")
+            end,
+            change = function(element)
+                local project = element.data.getProject(element)
+                if project and element.text ~= project:GetTitle() then
+                    modifyTokenProps{
+                        description = "Change Downtime project title",
+                        undoable = false,
+                        execute = function()
+                            project:SetTitle(element.text)
+                        end,
+                    }
+                    dmhub.Schedule(0.1, function()
+                        DTSettings.Touch()
+                        DTShares.Touch()
+                    end)
+                end
+            end
+        },
     }
 
     -- Progress field
@@ -194,35 +192,33 @@ function DTProjectEditor:_createProjectForm()
         height = "auto",
         flow = "vertical",
         valign = "center",
-        children = {
-            gui.Label {
-                text = "Progress:",
-                classes = {"form"},
-                width = "98%",
-            },
-            gui.Label {
-                classes = {"form", "bold"},
-                width = "100%-8",
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
+        gui.Label {
+            text = "Progress:",
+            classes = {"form"},
+            width = "98%",
+        },
+        gui.Label {
+            classes = {"form", "bold"},
+            width = "100%-8",
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
                     end
-                },
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project then
-                        local progress = project:GetProgress()
-                        local goal = project:GetProjectGoal()
-                        local pct = goal > 0 and (progress / goal) or 0
-                        element.text = string.format("%d / %d (%d%%)", progress, goal, math.floor(pct * 100))
-                    end
+                    return nil
                 end
-            }
-        }
+            },
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                if project then
+                    local progress = project:GetProgress()
+                    local goal = project:GetProjectGoal()
+                    local pct = goal > 0 and (progress / goal) or 0
+                    element.text = string.format("%d / %d (%d%%)", progress, goal, math.floor(pct * 100))
+                end
+            end
+        },
     }
 
     -- Prerequisite field (label + input)
@@ -230,50 +226,48 @@ function DTProjectEditor:_createProjectForm()
         width = "98%",
         height = "auto",
         flow = "vertical",
-        children = {
-            gui.Label {
-                classes = {"form"},
-                text = "Project Prerequisite:",
-            },
-            gui.Input {
-                classes = {"form"},
-                width = "94%",
-                placeholderText = "Required items or prerequisites...",
-                editlag = 0.5,
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
+        gui.Label {
+            classes = {"form"},
+            text = "Project Prerequisite:",
+        },
+        gui.Input {
+            classes = {"form"},
+            width = "94%",
+            placeholderText = "Required items or prerequisites...",
+            editlag = 0.5,
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
                     end
-                },
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project and element.text ~= project:GetItemPrerequisite() then
-                        element.text = project:GetItemPrerequisite() or ""
-                    end
-                end,
-                edit = function(element)
-                    element:FireEvent("change")
-                end,
-                change = function(element)
-                    local project = element.data.getProject(element)
-                    if project and element.text ~= project:GetItemPrerequisite() then
-                        modifyTokenProps{
-                            execute = function()
-                                project:SetItemPrerequisite(element.text)
-                            end,
-                        }
-                        dmhub.Schedule(0.1, function()
-                            DTSettings.Touch()
-                            DTShares.Touch()
-                        end)
-                    end
+                    return nil
                 end
-            }
-        }
+            },
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                if project and element.text ~= project:GetItemPrerequisite() then
+                    element.text = project:GetItemPrerequisite() or ""
+                end
+            end,
+            edit = function(element)
+                element:FireEvent("change")
+            end,
+            change = function(element)
+                local project = element.data.getProject(element)
+                if project and element.text ~= project:GetItemPrerequisite() then
+                    modifyTokenProps{
+                        execute = function()
+                            project:SetItemPrerequisite(element.text)
+                        end,
+                    }
+                    dmhub.Schedule(0.1, function()
+                        DTSettings.Touch()
+                        DTShares.Touch()
+                    end)
+                end
+            end
+        },
     }
 
     -- Source field
@@ -281,50 +275,48 @@ function DTProjectEditor:_createProjectForm()
         width = "98%-4",
         height = "auto",
         flow = "vertical",
-        children = {
-            gui.Label {
-                classes = {"form"},
-                text = "Project Source:",
-            },
-            gui.Input {
-                classes = {"form"},
-                width = "94%",
-                placeholderText = "Book, tutor, or source of project knowledge...",
-                editlag = 0.5,
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
+        gui.Label {
+            classes = {"form"},
+            text = "Project Source:",
+        },
+        gui.Input {
+            classes = {"form"},
+            width = "94%",
+            placeholderText = "Book, tutor, or source of project knowledge...",
+            editlag = 0.5,
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
                     end
-                },
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project and element.text ~= project:GetProjectSource() then
-                        element.text = project:GetProjectSource() or ""
-                    end
-                end,
-                edit = function(element)
-                    element:FireEvent("change")
-                end,
-                change = function(element)
-                    local project = element.data.getProject(element)
-                    if project and element.text ~= project:GetProjectSource() then
-                        modifyTokenProps{
-                            execute = function()
-                                project:SetProjectSource(element.text)
-                            end,
-                        }
-                        dmhub.Schedule(0.1, function()
-                            DTSettings.Touch()
-                            DTShares.Touch()
-                        end)
-                    end
+                    return nil
                 end
-            }
-        }
+            },
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                if project and element.text ~= project:GetProjectSource() then
+                    element.text = project:GetProjectSource() or ""
+                end
+            end,
+            edit = function(element)
+                element:FireEvent("change")
+            end,
+            change = function(element)
+                local project = element.data.getProject(element)
+                if project and element.text ~= project:GetProjectSource() then
+                    modifyTokenProps{
+                        execute = function()
+                            project:SetProjectSource(element.text)
+                        end,
+                    }
+                    dmhub.Schedule(0.1, function()
+                        DTSettings.Touch()
+                        DTShares.Touch()
+                    end)
+                end
+            end
+        },
     }
 
     -- Breakthrough Rolls field
@@ -333,35 +325,33 @@ function DTProjectEditor:_createProjectForm()
         height = "auto",
         flow = "vertical",
         halign = "center",
-        children = {
-            gui.Label {
-                classes = {"form"},
-                text = "Breakthroughs:",
-            },
-            gui.Label {
-                classes = {"form", "bold"},
-                width = "100%-8",
-                valign = "bottom",
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
+        gui.Label {
+            classes = {"form"},
+            text = "Breakthroughs:",
+        },
+        gui.Label {
+            classes = {"form", "bold"},
+            width = "100%-8",
+            valign = "bottom",
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
                     end
-                },
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project then
-                        local s = string.format("%d rolled", project:GetBreakthroughRollCount())
-                        if element.text ~= s then
-                            element.text = s
-                        end
+                    return nil
+                end
+            },
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                if project then
+                    local s = string.format("%d rolled", project:GetBreakthroughRollCount())
+                    if element.text ~= s then
+                        element.text = s
                     end
                 end
-            }
-        }
+            end
+        },
     }
 
     -- Characteristic field (label + dropdown)
@@ -369,87 +359,85 @@ function DTProjectEditor:_createProjectForm()
         width = "98%",
         height = "auto",
         flow = "vertical",
-        children = {
-            gui.Label {
-                classes = {"form"},
-                text = "Project Roll Characteristic:",
+        gui.Label {
+            classes = {"form"},
+            text = "Project Roll Characteristic:",
+        },
+        gui.Multiselect {
+            classes = {"form"},
+            flow = "horizontal",
+            dropdown = {
+                width = "33%",
             },
-            gui.Multiselect {
-                classes = {"form"},
-                flow = "horizontal",
-                dropdown = {
-                    width = "33%",
-                },
-                chipPanel = {
-                    width = "67%",
-                },
-                options = DTHelpers.ListToDropdownOptions(DTConstants.CHARACTERISTICS),
-                sort = true,
-                textDefault = "Select...",
-                data = {
-                    getProject = function(element)
+            chipPanel = {
+                width = "67%",
+            },
+            options = DTHelpers.ListToDropdownOptions(DTConstants.CHARACTERISTICS),
+            sort = true,
+            textDefault = "Select...",
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
+                    end
+                    return nil
+                end
+            },
+            create = function(element)
+                local project = element.data.getProject(element)
+                if project then
+                    local characteristics = project:GetTestCharacteristics() or {}
+                    local valueDict = {}
+                    for _, id in ipairs(characteristics) do
+                        valueDict[id] = true
+                    end
+                    element.value = valueDict
+                end
+            end,
+            refreshToken = function(element)
+                local uiDict = element.value
+                local project = element.data.getProject(element)
+                if project then
+                    local storageArray = project:GetTestCharacteristics() or {}
+                    -- Convert storage array to dict for comparison
+                    local storageDict = {}
+                    for _, id in ipairs(storageArray) do
+                        storageDict[id] = true
+                    end
+                    element.value = storageDict
+                end
+            end,
+            change = function(element)
+                local uiDict = element.value
+                local project = element.data.getProject(element)
+                if project then
+                    -- Convert dictionary to array for storage
+                    local uiArray = {}
+                    for id, flag in pairs(uiDict) do
+                        if flag then
+                            uiArray[#uiArray + 1] = id
+                        end
+                    end
+                    local storageArray = project:GetTestCharacteristics()
+                    if not dmhub.DeepEqual(uiArray, storageArray) then
+                        modifyTokenProps{
+                            execute = function()
+                                project:SetTestCharacteristics(uiArray)
+                            end
+                        }
                         local projectController = element:FindParentWithClass("projectController")
                         if projectController then
-                            return projectController.data.project
+                            projectController:FireEventTree("refreshToken")
                         end
-                        return nil
-                    end
-                },
-                create = function(element)
-                    local project = element.data.getProject(element)
-                    if project then
-                        local characteristics = project:GetTestCharacteristics() or {}
-                        local valueDict = {}
-                        for _, id in ipairs(characteristics) do
-                            valueDict[id] = true
-                        end
-                        element.value = valueDict
-                    end
-                end,
-                refreshToken = function(element)
-                    local uiDict = element.value
-                    local project = element.data.getProject(element)
-                    if project then
-                        local storageArray = project:GetTestCharacteristics() or {}
-                        -- Convert storage array to dict for comparison
-                        local storageDict = {}
-                        for _, id in ipairs(storageArray) do
-                            storageDict[id] = true
-                        end
-                        element.value = storageDict
-                    end
-                end,
-                change = function(element)
-                    local uiDict = element.value
-                    local project = element.data.getProject(element)
-                    if project then
-                        -- Convert dictionary to array for storage
-                        local uiArray = {}
-                        for id, flag in pairs(uiDict) do
-                            if flag then
-                                uiArray[#uiArray + 1] = id
-                            end
-                        end
-                        local storageArray = project:GetTestCharacteristics()
-                        if not dmhub.DeepEqual(uiArray, storageArray) then
-                            modifyTokenProps{
-                                execute = function()
-                                    project:SetTestCharacteristics(uiArray)
-                                end
-                            }
-                            local projectController = element:FindParentWithClass("projectController")
-                            if projectController then
-                                projectController:FireEventTree("refreshToken")
-                            end
-                            dmhub.Schedule(0.1, function()
-                                DTSettings.Touch()
-                                DTShares.Touch()
-                            end)
-                        end
+                        dmhub.Schedule(0.1, function()
+                            DTSettings.Touch()
+                            DTShares.Touch()
+                        end)
                     end
                 end
-            }
-        }
+            end
+        },
     }
 
     -- Language field
@@ -466,88 +454,86 @@ function DTProjectEditor:_createProjectForm()
         width = "98%",
         height = "auto",
         flow = "vertical",
-        children = {
-            gui.Label {
-                classes = {"form"},
-                text = "Languages:",
+        gui.Label {
+            classes = {"form"},
+            text = "Languages:",
+        },
+        gui.Multiselect {
+            classes = {"form"},
+            dropdown = {
+                width = "33%",
             },
-            gui.Multiselect {
-                classes = {"form"},
-                dropdown = {
-                    width = "33%",
-                },
-                chipPanel = {
-                    width = "67%",
-                },
-                options = candidateLangs,
-                flow = "horizontal",
-                textDefault = "Select languages...",
-                sort = true,
-                data = {
-                    getProject = function(element)
+            chipPanel = {
+                width = "67%",
+            },
+            options = candidateLangs,
+            flow = "horizontal",
+            textDefault = "Select languages...",
+            sort = true,
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
+                    end
+                    return nil
+                end
+            },
+            create = function(element)
+                local project = element.data.getProject(element)
+                if project then
+                    local languages = project:GetProjectSourceLanguages() or {}
+                    local valueDict = {}
+                    for _, id in ipairs(languages) do
+                        valueDict[id] = true
+                    end
+                    element.value = valueDict
+                end
+            end,
+            refreshToken = function(element)
+                local uiDict = element.value
+                local project = element.data.getProject(element)
+                if project then
+                    local storageArray = project:GetProjectSourceLanguages() or {}
+                    local storageDict = {}
+                    for _, id in ipairs(storageArray) do
+                        storageDict[id] = true
+                    end
+                    element.value = storageDict
+                end
+            end,
+            change = function(element)
+                local uiDict = element.value
+                local project = element.data.getProject(element)
+                if project then
+                    -- Convert dictionary to array for storage
+                    local uiArray = {}
+                    for id, flag in pairs(uiDict) do
+                        if flag then
+                            uiArray[#uiArray + 1] = id
+                        end
+                    end
+                    local storageArray = project:GetProjectSourceLanguages()
+                    if not dmhub.DeepEqual(uiArray, storageArray) then
+                        modifyTokenProps{
+                            description = "Change Downtime Project Languages",
+                            editable = false,
+                            execute = function()
+                                project:SetProjectSourceLanguages(uiArray)
+                            end,
+                        }
                         local projectController = element:FindParentWithClass("projectController")
                         if projectController then
-                            return projectController.data.project
+                            projectController:FireEventTree("refreshToken")
                         end
-                        return nil
-                    end
-                },
-                create = function(element)
-                    local project = element.data.getProject(element)
-                    if project then
-                        local languages = project:GetProjectSourceLanguages() or {}
-                        local valueDict = {}
-                        for _, id in ipairs(languages) do
-                            valueDict[id] = true
-                        end
-                        element.value = valueDict
-                    end
-                end,
-                refreshToken = function(element)
-                    local uiDict = element.value
-                    local project = element.data.getProject(element)
-                    if project then
-                        local storageArray = project:GetProjectSourceLanguages() or {}
-                        local storageDict = {}
-                        for _, id in ipairs(storageArray) do
-                            storageDict[id] = true
-                        end
-                        element.value = storageDict
-                    end
-                end,
-                change = function(element)
-                    local uiDict = element.value
-                    local project = element.data.getProject(element)
-                    if project then
-                        -- Convert dictionary to array for storage
-                        local uiArray = {}
-                        for id, flag in pairs(uiDict) do
-                            if flag then
-                                uiArray[#uiArray + 1] = id
-                            end
-                        end
-                        local storageArray = project:GetProjectSourceLanguages()
-                        if not dmhub.DeepEqual(uiArray, storageArray) then
-                            modifyTokenProps{
-                                description = "Change Downtime Project Languages",
-                                editable = false,
-                                execute = function()
-                                    project:SetProjectSourceLanguages(uiArray)
-                                end,
-                            }
-                            local projectController = element:FindParentWithClass("projectController")
-                            if projectController then
-                                projectController:FireEventTree("refreshToken")
-                            end
-                            dmhub.Schedule(0.1, function()
-                                DTSettings.Touch()
-                                DTShares.Touch()
-                            end)
-                        end
+                        dmhub.Schedule(0.1, function()
+                            DTSettings.Touch()
+                            DTShares.Touch()
+                        end)
                     end
                 end
-            }
-        }
+            end
+        },
     }
 
     -- Goal field (label + input)
@@ -555,51 +541,49 @@ function DTProjectEditor:_createProjectForm()
         width = "98%",
         height = "auto",
         flow = "vertical",
-        children = {
-            gui.Label {
-                classes = {"form"},
-                text = "Project Goal:",
-            },
-            gui.Input {
-                classes = {"form"},
-                width = "80%",
-                textAlignment = "center",
-                editlag = 0.5,
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
+        gui.Label {
+            classes = {"form"},
+            text = "Project Goal:",
+        },
+        gui.Input {
+            classes = {"form"},
+            width = "80%",
+            textAlignment = "center",
+            editlag = 0.5,
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
                     end
-                },
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project and element.text ~= tostring(project:GetProjectGoal()) then
-                        element.text = tostring(project:GetProjectGoal())
-                    end
-                end,
-                edit = function(element)
-                    element:FireEvent("change")
-                end,
-                change = function(element)
-                    local project = element.data.getProject(element)
-                    if project and tonumber(element.text) ~= project:GetProjectGoal() then
-                        local value = tonumber(element.text) or 1
-                        modifyTokenProps{
-                            execute = function()
-                                project:SetProjectGoal(math.max(1, math.floor(value)))
-                            end,
-                        }
-                        dmhub.Schedule(0.1, function()
-                            DTSettings.Touch()
-                            DTShares.Touch()
-                        end)
-                    end
+                    return nil
                 end
-            }
-        }
+            },
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                if project and element.text ~= tostring(project:GetProjectGoal()) then
+                    element.text = tostring(project:GetProjectGoal())
+                end
+            end,
+            edit = function(element)
+                element:FireEvent("change")
+            end,
+            change = function(element)
+                local project = element.data.getProject(element)
+                if project and tonumber(element.text) ~= project:GetProjectGoal() then
+                    local value = tonumber(element.text) or 1
+                    modifyTokenProps{
+                        execute = function()
+                            project:SetProjectGoal(math.max(1, math.floor(value)))
+                        end,
+                    }
+                    dmhub.Schedule(0.1, function()
+                        DTSettings.Touch()
+                        DTShares.Touch()
+                    end)
+                end
+            end
+        },
     }
 
     --A project parked at a milestone owes the events table a roll, so the
@@ -654,90 +638,84 @@ function DTProjectEditor:_createProjectForm()
                 return nil
             end
         },
-        children = {
-            gui.Label {
-                classes = {"form"},
-                text = "Status:",
-            },
+        gui.Label {
+            classes = {"form"},
+            text = "Status:",
+        },
+        gui.Panel {
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            flow = "horizontal",
             gui.Panel {
-                width = "100%",
-                height = "auto",
+                classes = {"statusDropdownWrap"},
                 halign = "left",
                 valign = "center",
                 flow = "horizontal",
-                children = {
-                    gui.Panel {
-                        classes = {"statusDropdownWrap"},
-                        halign = "left",
-                        valign = "center",
-                        flow = "horizontal",
-                        data = {
-                            getProject = function(element)
-                                local projectController = element:FindParentWithClass("projectController")
-                                if projectController then
-                                    return projectController.data.project
-                                end
-                                return nil
-                            end
-                        },
-                        refreshToken = function(element)
-                            local project = element.data.getProject(element)
-                            element:SetClass("hasEventsRoll", eventsRollButton ~= nil
-                                and project ~= nil
-                                and project:GetStatus() == DTConstants.STATUS.MILESTONE.key)
-                        end,
-                        children = {
-                            isDM and gui.Dropdown {
-                                classes = {"form"},
-                                width = "100%",
-                                options = DTHelpers.ListToDropdownOptions(DTConstants.STATUS),
-                                refreshToken = function(element)
-                                    local project = element.parent.data.getProject(element)
-                                    if project and element.idChosen ~= project:GetStatus() then
-                                        element.idChosen = project:GetStatus()
-                                    end
+                data = {
+                    getProject = function(element)
+                        local projectController = element:FindParentWithClass("projectController")
+                        if projectController then
+                            return projectController.data.project
+                        end
+                        return nil
+                    end
+                },
+                refreshToken = function(element)
+                    local project = element.data.getProject(element)
+                    element:SetClass("hasEventsRoll", eventsRollButton ~= nil
+                        and project ~= nil
+                        and project:GetStatus() == DTConstants.STATUS.MILESTONE.key)
+                end,
+                isDM and gui.Dropdown {
+                    classes = {"form"},
+                    width = "100%",
+                    options = DTHelpers.ListToDropdownOptions(DTConstants.STATUS),
+                    refreshToken = function(element)
+                        local project = element.parent.data.getProject(element)
+                        if project and element.idChosen ~= project:GetStatus() then
+                            element.idChosen = project:GetStatus()
+                        end
+                    end,
+                    change = function(element)
+                        local project = element.parent.data.getProject(element)
+                        if project and element.idChosen ~= project:GetStatus() then
+                            modifyTokenProps{
+                                execute = function()
+                                    project:SetStatus(element.idChosen)
                                 end,
-                                change = function(element)
-                                    local project = element.parent.data.getProject(element)
-                                    if project and element.idChosen ~= project:GetStatus() then
-                                        modifyTokenProps{
-                                            execute = function()
-                                                project:SetStatus(element.idChosen)
-                                            end,
-                                        }
-                                        dmhub.Schedule(0.1, function()
-                                            DTSettings.Touch()
-                                            DTShares.Touch()
-                                        end)
-                                    end
-                                end
-                            } or gui.Label {
-                                classes = {"form", "bold"},
-                                width = "auto",
-                                valign = "center",
-                                linger = function(element)
-                                    gui.Tooltip{
-                                        maxWidth = 300,
-                                        fontSize = 16,
-                                        text = "Your Director must activate this project by editing this form.",
-                                    }(element)
-                                end,
-                                refreshToken = function(element)
-                                    local project = element.parent.data.getProject(element)
-                                    if project then
-                                        local status = project:GetStatus()
-                                        element.text = DTConstants.GetDisplayText(DTConstants.STATUS, status)
-                                        element:SetClass("success", status == "ACTIVE")
-                                        element:SetClass("warning", status ~= "ACTIVE")
-                                    end
-                                end
-                            },
-                        },
-                    },
-                    eventsRollButton,
+                            }
+                            dmhub.Schedule(0.1, function()
+                                DTSettings.Touch()
+                                DTShares.Touch()
+                            end)
+                        end
+                    end
+                } or gui.Label {
+                    classes = {"form", "bold"},
+                    width = "auto",
+                    valign = "center",
+                    linger = function(element)
+                        gui.Tooltip{
+                            maxWidth = 300,
+                            fontSize = 16,
+                            text = "Your Director must activate this project by editing this form.",
+                        }(element)
+                    end,
+                    refreshToken = function(element)
+                        local project = element.parent.data.getProject(element)
+                        if project then
+                            local status = project:GetStatus()
+                            element.text = DTConstants.GetDisplayText(DTConstants.STATUS, status)
+                            element:SetClass("success", status == "ACTIVE")
+                            element:SetClass("warning", status ~= "ACTIVE")
+                        end
+                    end
                 },
             },
-        }
+            eventsRollButton,
+        },
     }
 
     -- Status Reason field (label + textbox for DM, display for players)
@@ -745,91 +723,89 @@ function DTProjectEditor:_createProjectForm()
         width = "98%",
         height = "auto",
         flow = "vertical",
-        children = {
-            gui.Label {
-                classes = {"form"},
-                width = "98%",
-                text = "",
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
+        gui.Label {
+            classes = {"form"},
+            width = "98%",
+            text = "",
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
                     end
-                },
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    local status = project and project:GetStatus()
-                    if isDM or status == DTConstants.STATUS.PAUSED.key or status == DTConstants.STATUS.MILESTONE.key then
-                        element.text = "Status Reason:"
-                    else
-                        element.text = ""
-                    end
+                    return nil
                 end
             },
-            isDM and gui.Input {
-                classes = {"form"},
-                width = "94%",
-                editlag = 0.5,
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
-                    end
-                },
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project and element.text ~= project:GetStatusReason() then
-                        element.text = project:GetStatusReason()
-                    end
-                end,
-                edit = function(element)
-                    element:FireEvent("change")
-                end,
-                change = function(element)
-                    local project = element.data.getProject(element)
-                    if project and element.text ~= project:GetStatusReason() then
-                        modifyTokenProps{
-                            description = "Change Downtime Project Status Reason",
-                            undoable = false,
-                            execute = function()
-                                project:SetStatusReason(element.text)
-                            end,
-                        }
-                        dmhub.Schedule(0.1, function()
-                            DTSettings.Touch()
-                            DTShares.Touch()
-                        end)
-                    end
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                local status = project and project:GetStatus()
+                if isDM or status == DTConstants.STATUS.PAUSED.key or status == DTConstants.STATUS.MILESTONE.key then
+                    element.text = "Status Reason:"
+                else
+                    element.text = ""
                 end
-            }or gui.Label {
-                classes = {"form", "bold"},
-                text = "",
-                width = "98%",
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
+            end
+        },
+        isDM and gui.Input {
+            classes = {"form"},
+            width = "94%",
+            editlag = 0.5,
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
                     end
-                },
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project and not project:IsActive() then
-                        element.text = project:GetStatusReason()
-                    else
-                        element.text = ""
-                    end
+                    return nil
                 end
-            }
-        }
+            },
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                if project and element.text ~= project:GetStatusReason() then
+                    element.text = project:GetStatusReason()
+                end
+            end,
+            edit = function(element)
+                element:FireEvent("change")
+            end,
+            change = function(element)
+                local project = element.data.getProject(element)
+                if project and element.text ~= project:GetStatusReason() then
+                    modifyTokenProps{
+                        description = "Change Downtime Project Status Reason",
+                        undoable = false,
+                        execute = function()
+                            project:SetStatusReason(element.text)
+                        end,
+                    }
+                    dmhub.Schedule(0.1, function()
+                        DTSettings.Touch()
+                        DTShares.Touch()
+                    end)
+                end
+            end
+        }or gui.Label {
+            classes = {"form", "bold"},
+            text = "",
+            width = "98%",
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
+                    end
+                    return nil
+                end
+            },
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                if project and not project:IsActive() then
+                    element.text = project:GetStatusReason()
+                else
+                    element.text = ""
+                end
+            end
+        },
     }
 
     -- Milestone field (label + input + suggestion button, DM only)
@@ -900,7 +876,7 @@ function DTProjectEditor:_createProjectForm()
             element:SetClass("hasSuggestion",
                 project ~= nil and DTBusinessRules.CalcNextMilestone(project) ~= nil)
         end,
-        children = {milestoneInput},
+milestoneInput,
     }
 
     --Fills the milestone in for the Director in one click. The next stop is a
@@ -982,20 +958,18 @@ function DTProjectEditor:_createProjectForm()
         width = "98%",
         height = "auto",
         flow = "vertical",
-        children = {
-            gui.Label {
-                classes = {"form"},
-                text = "Next Milestone:",
-            },
-            gui.Panel {
-                width = "100%",
-                height = "auto",
-                flow = "horizontal",
-                valign = "center",
-                children = {milestoneInputWrap, milestoneSuggestButton},
-            },
-            milestoneWatcher,
-        }
+        gui.Label {
+            classes = {"form"},
+            text = "Next Milestone:",
+        },
+        gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            valign = "center",
+milestoneInputWrap, milestoneSuggestButton,
+        },
+        milestoneWatcher,
     } or gui.Panel{height = 1}
 
     -- Main form panel
@@ -1005,92 +979,82 @@ function DTProjectEditor:_createProjectForm()
         height = "auto",
         flow = "vertical",
         vmargin = 10,
-        children = {
-            -- Row 1
+        -- Row 1
+        gui.Panel {
+            classes = {"peFormRow"},
             gui.Panel {
-                classes = {"peFormRow"},
-                children = {
-                    gui.Panel {
-                        width = "84%",
-                        height = "auto",
-                        flow = "horizontal",
-                        children = {selectItem, titleField}
-                    },
-                    gui.Panel {
-                        width = "15%-4",
-                        height = "auto",
-                        children = {progressField,},
-                    },
-                }
+                width = "84%",
+                height = "auto",
+                flow = "horizontal",
+selectItem, titleField,
             },
+            gui.Panel {
+                width = "15%-4",
+                height = "auto",
+progressField,
+            },
+        },
 
-            -- Row 2
+        -- Row 2
+        gui.Panel {
+            classes = {"peFormRow"},
             gui.Panel {
-                classes = {"peFormRow"},
-                children = {
-                    gui.Panel {
-                        width = "42%-2",
-                        height = "auto",
-                        children = {prerequisiteField,}
-                    },
-                    gui.Panel {
-                        width = "42%-2",
-                        height = "auto",
-                        children = {sourceField,}
-                    },
-                    gui.Panel {
-                        width = "15%-4",
-                        height = "auto",
-                        valign = "bottom",
-                        children = {breakthroughRolls,},
-                    },
-                }
+                width = "42%-2",
+                height = "auto",
+prerequisiteField,
             },
+            gui.Panel {
+                width = "42%-2",
+                height = "auto",
+sourceField,
+            },
+            gui.Panel {
+                width = "15%-4",
+                height = "auto",
+                valign = "bottom",
+breakthroughRolls,
+            },
+        },
 
-            -- Row 3
+        -- Row 3
+        gui.Panel {
+            classes = {"peFormRow"},
             gui.Panel {
-                classes = {"peFormRow"},
-                children = {
-                    gui.Panel {
-                        width = "42%-2",
-                        height = "auto",
-                        children = {characteristicField,}
-                    },
-                    gui.Panel {
-                        width = "42%-2",
-                        height = "auto",
-                        children = {languageField,}
-                    },
-                    gui.Panel {
-                        width = "15%-4",
-                        height = "auto",
-                        children = {goalField,}
-                    },
-                },
+                width = "42%-2",
+                height = "auto",
+characteristicField,
             },
+            gui.Panel {
+                width = "42%-2",
+                height = "auto",
+languageField,
+            },
+            gui.Panel {
+                width = "15%-4",
+                height = "auto",
+goalField,
+            },
+        },
 
-            -- Row 4
+        -- Row 4
+        gui.Panel {
+            classes = {"peFormRow"},
             gui.Panel {
-                classes = {"peFormRow"},
-                children = {
-                    gui.Panel {
-                        width = "42%-2",
-                        height = "auto",
-                        children = {statusField,}
-                    },
-                    gui.Panel {
-                        width = "42%-2",
-                        height = "auto",
-                        children = {statusReasonField,}
-                    },
-                    gui.Panel {
-                        width = "15%-4",
-                        height = "auto",
-                        children = {milestoneField,}
-                    },
-                }
+                width = "42%-2",
+                height = "auto",
+statusField,
             },
-        }
+            gui.Panel {
+                width = "42%-2",
+                height = "auto",
+statusReasonField,
+            },
+            gui.Panel {
+                width = "15%-4",
+                height = "auto",
+milestoneField,
+            },
+        },
     }
 end
 
@@ -1117,45 +1081,43 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
         height = "auto",
         flow = "horizontal",
         valign = "center",
-        children = {
-            gui.Label {
-                classes = {"form"},
-                text = "Title:",
-                hmargin = 10,
-                textAlignment = "right",
-                width = "auto",
-            },
-            gui.Label {
-                classes = {"form"},
-                width = "100%-160",
-                hmargin = 4,
-                data = {
-                    ownerName = ownerName,
-                    ownerColor = ownerColor,
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
+        gui.Label {
+            classes = {"form"},
+            text = "Title:",
+            hmargin = 10,
+            textAlignment = "right",
+            width = "auto",
+        },
+        gui.Label {
+            classes = {"form"},
+            width = "100%-160",
+            hmargin = 4,
+            data = {
+                ownerName = ownerName,
+                ownerColor = ownerColor,
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
                     end
-                },
-                create = function(element)
-                    element:FireEvent("refreshToken")
-                end,
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project then
-                        local ownerDisplay = element.data.ownerName
-                        -- Apply color if available
-                        if element.data.ownerColor then
-                            ownerDisplay = string.format("<color=%s>%s</color>", element.data.ownerColor, element.data.ownerName)
-                        end
-                        element.text = string.format("%s (from %s)", project:GetTitle(), ownerDisplay)
-                    end
+                    return nil
                 end
-            }
-        }
+            },
+            create = function(element)
+                element:FireEvent("refreshToken")
+            end,
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                if project then
+                    local ownerDisplay = element.data.ownerName
+                    -- Apply color if available
+                    if element.data.ownerColor then
+                        ownerDisplay = string.format("<color=%s>%s</color>", element.data.ownerColor, element.data.ownerName)
+                    end
+                    element.text = string.format("%s (from %s)", project:GetTitle(), ownerDisplay)
+                end
+            end
+        },
     }
 
     -- Progress field
@@ -1165,40 +1127,38 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
         flow = "horizontal",
         halign = "right",
         valign = "center",
-        children = {
-            gui.Label {
-                classes = {"form"},
-                text = "Progress:",
-                hmargin = 4,
-                width = "auto",
-                minWidth = 0,
-            },
-            gui.Label {
-                classes = {"form"},
-                width = "auto",
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
+        gui.Label {
+            classes = {"form"},
+            text = "Progress:",
+            hmargin = 4,
+            width = "auto",
+            minWidth = 0,
+        },
+        gui.Label {
+            classes = {"form"},
+            width = "auto",
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
                     end
-                },
-                create = function(element)
-                    element:FireEvent("refreshToken")
-                end,
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project then
-                        local progress = project:GetProgress()
-                        local goal = project:GetProjectGoal()
-                        local pct = goal > 0 and (progress / goal) or 0
-                        element.text = string.format("%d / %d (%d%%)", progress, goal, math.floor(pct * 100))
-                    end
+                    return nil
                 end
-            }
-        }
+            },
+            create = function(element)
+                element:FireEvent("refreshToken")
+            end,
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                if project then
+                    local progress = project:GetProgress()
+                    local goal = project:GetProjectGoal()
+                    local pct = goal > 0 and (progress / goal) or 0
+                    element.text = string.format("%d / %d (%d%%)", progress, goal, math.floor(pct * 100))
+                end
+            end
+        },
     }
 
     -- Source field
@@ -1207,38 +1167,36 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
         height = "auto",
         flow = "horizontal",
         valign = "center",
-        children = {
-            gui.Label {
-                classes = {"form"},
-                text = "Project Source:",
-                hmargin = 10,
-                textAlignment = "right",
-                width = "auto",
-            },
-            gui.Label {
-                classes = {"form"},
-                width = "100%-60",
-                hmargin = 4,
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
+        gui.Label {
+            classes = {"form"},
+            text = "Project Source:",
+            hmargin = 10,
+            textAlignment = "right",
+            width = "auto",
+        },
+        gui.Label {
+            classes = {"form"},
+            width = "100%-60",
+            hmargin = 4,
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
                     end
-                },
-                create = function(element)
-                    element:FireEvent("refreshToken")
-                end,
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project then
-                        element.text = project:GetProjectSource() or ""
-                    end
+                    return nil
                 end
-            }
-        }
+            },
+            create = function(element)
+                element:FireEvent("refreshToken")
+            end,
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                if project then
+                    element.text = project:GetProjectSource() or ""
+                end
+            end
+        },
     }
 
     -- Characteristic field (read-only, displays comma-separated list)
@@ -1248,43 +1206,41 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
         flow = "horizontal",
         halign = "right",
         valign = "center",
-        children = {
-            gui.Label {
-                classes = {"form"},
-                text = "Project Roll Characteristic:",
-                hmargin = 4,
-                width = "auto",
-                minWidth = 0,
-            },
-            gui.Label {
-                classes = {"form"},
-                width = "auto",
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
+        gui.Label {
+            classes = {"form"},
+            text = "Project Roll Characteristic:",
+            hmargin = 4,
+            width = "auto",
+            minWidth = 0,
+        },
+        gui.Label {
+            classes = {"form"},
+            width = "auto",
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
                     end
-                },
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project then
-                        local characteristics = project:GetTestCharacteristics()
-                        if characteristics and #characteristics > 0 then
-                            local displayTexts = {}
-                            for _, charKey in ipairs(characteristics) do
-                                displayTexts[#displayTexts + 1] = DTConstants.GetDisplayText(DTConstants.CHARACTERISTICS, charKey)
-                            end
-                            element.text = table.concat(displayTexts, ", ")
-                        else
-                            element.text = "(none)"
+                    return nil
+                end
+            },
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                if project then
+                    local characteristics = project:GetTestCharacteristics()
+                    if characteristics and #characteristics > 0 then
+                        local displayTexts = {}
+                        for _, charKey in ipairs(characteristics) do
+                            displayTexts[#displayTexts + 1] = DTConstants.GetDisplayText(DTConstants.CHARACTERISTICS, charKey)
                         end
+                        element.text = table.concat(displayTexts, ", ")
+                    else
+                        element.text = "(none)"
                     end
                 end
-            }
-        }
+            end
+        },
     }
 
     -- Language field
@@ -1294,40 +1250,38 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
         flow = "horizontal",
         halign = "right",
         valign = "center",
-        children = {
-            gui.Label {
-                classes = {"form"},
-                text = "Language Penalty:",
-                hmargin = 4,
-                width = "auto",
-                minWidth = 0,
-            },
-            gui.Label {
-                classes = {"form"},
-                width = "auto",
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
+        gui.Label {
+            classes = {"form"},
+            text = "Language Penalty:",
+            hmargin = 4,
+            width = "auto",
+            minWidth = 0,
+        },
+        gui.Label {
+            classes = {"form"},
+            width = "auto",
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
                     end
-                },
-                create = function(element)
-                    element:FireEvent("refreshToken")
-                end,
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project then
-                        local creature = CharacterSheet.instance.data.info.token.properties
-                        local projectLangs = project:GetProjectSourceLanguages()
-                        local penalty = DTBusinessRules.CalcLangPenalty(projectLangs, creature:LanguagesKnown())
-                        element.text = DTConstants.GetDisplayText(DTConstants.LANGUAGE_PENALTY, penalty)
-                    end
+                    return nil
                 end
-            }
-        }
+            },
+            create = function(element)
+                element:FireEvent("refreshToken")
+            end,
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                if project then
+                    local creature = CharacterSheet.instance.data.info.token.properties
+                    local projectLangs = project:GetProjectSourceLanguages()
+                    local penalty = DTBusinessRules.CalcLangPenalty(projectLangs, creature:LanguagesKnown())
+                    element.text = DTConstants.GetDisplayText(DTConstants.LANGUAGE_PENALTY, penalty)
+                end
+            end
+        },
     }
 
     -- Status field
@@ -1337,40 +1291,38 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
         flow = "horizontal",
         halign = "right",
         valign = "center",
-        children = {
-            gui.Label {
-                classes = {"form"},
-                text = "Status:",
-                hmargin = 4,
-                width = "auto",
-                minWidth = 0,
-            },
-            gui.Label {
-                classes = {"form"},
-                width = "auto",
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
+        gui.Label {
+            classes = {"form"},
+            text = "Status:",
+            hmargin = 4,
+            width = "auto",
+            minWidth = 0,
+        },
+        gui.Label {
+            classes = {"form"},
+            width = "auto",
+            data = {
+                getProject = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        return projectController.data.project
                     end
-                },
-                create = function(element)
-                    element:FireEvent("refreshToken")
-                end,
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project then
-                        local status = project:GetStatus()
-                        element.text = DTConstants.GetDisplayText(DTConstants.STATUS, status)
-                        element:SetClass("success", status == "ACTIVE")
-                        element:SetClass("warning", status ~= "ACTIVE")
-                    end
+                    return nil
                 end
-            }
-        }
+            },
+            create = function(element)
+                element:FireEvent("refreshToken")
+            end,
+            refreshToken = function(element)
+                local project = element.data.getProject(element)
+                if project then
+                    local status = project:GetStatus()
+                    element.text = DTConstants.GetDisplayText(DTConstants.STATUS, status)
+                    element:SetClass("success", status == "ACTIVE")
+                    element:SetClass("warning", status ~= "ACTIVE")
+                end
+            end
+        },
     }
 
     -- Shared project panel
@@ -1387,52 +1339,46 @@ function DTProjectEditor:_createSharedProjectForm(ownerName, ownerColor)
         refreshGame = function(element)
             element:FireEventTree("refreshToken")
         end,
-        children = {
-            -- Row 1: Title, Status, Progress
+        -- Row 1: Title, Status, Progress
+        gui.Panel {
+            classes = {"peFormRow"},
+            height = "auto",
             gui.Panel {
-                classes = {"peFormRow"},
+                width = "50%",
                 height = "auto",
-                children = {
-                    gui.Panel {
-                        width = "50%",
-                        height = "auto",
-                        children = {titleField}
-                    },
-                    gui.Panel {
-                        width = "25%",
-                        height = "auto",
-                        children = {statusField}
-                    },
-                    gui.Panel {
-                        width = "25%",
-                        height = "auto",
-                        children = {progressField}
-                    }
-                }
+titleField,
             },
-
-            -- Row 2: Source, Language Penalty, Characteristic
             gui.Panel {
-                classes = {"peFormRow"},
-                children = {
-                    gui.Panel {
-                        width = "50%",
-                        height = "auto",
-                        children = {sourceField}
-                    },
-                    gui.Panel {
-                        width = "25%",
-                        height = "auto",
-                        children = {languageField}
-                    },
-                    gui.Panel {
-                        width = "25%",
-                        height = "auto",
-                        children = {characteristicField}
-                    }
-                }
-            }
-        }
+                width = "25%",
+                height = "auto",
+statusField,
+            },
+            gui.Panel {
+                width = "25%",
+                height = "auto",
+progressField,
+            },
+        },
+
+        -- Row 2: Source, Language Penalty, Characteristic
+        gui.Panel {
+            classes = {"peFormRow"},
+            gui.Panel {
+                width = "50%",
+                height = "auto",
+sourceField,
+            },
+            gui.Panel {
+                width = "25%",
+                height = "auto",
+languageField,
+            },
+            gui.Panel {
+                width = "25%",
+                height = "auto",
+characteristicField,
+            },
+        },
     }
 end
 
@@ -1445,95 +1391,84 @@ function DTProjectEditor:_createAdjustmentsPanel()
         height = "100%",
         valign = "center",
         flow = "vertical",
-        children = {
-            -- Header
+        -- Header
+        gui.Panel {
+            classes = {"featureCardHeader", "expanded"},
+            width = "100%",
+            height = "auto",
+            margin = 0,
+            vpad = 6,
             gui.Panel {
-                classes = {"featureCardHeader", "expanded"},
-                width = "100%",
+                width = "80%",
+                halign = "left",
+                valign = "center",
                 height = "auto",
-                margin = 0,
-                vpad = 6,
-                children = {
-                    gui.Panel {
-                        width = "80%",
-                        halign = "left",
-                        valign = "center",
-                        height = "auto",
-                        children = {
-                            gui.Label {
-                                classes = {"form", "sizeS"},
-                                text = "Adjustments",
-                                width = "90%",
-                                hmargin = 10,
-                            },
-                        }
-                    },
-                    gui.Panel {
-                        width = "12%",
-                        height = "auto",
-                        halign = "right",
-                        linger = function(element)
-                            gui.Tooltip("Add an adjustment")(element)
-                        end,
-                        children = {
-                            gui.Button{
-                                classes = {"addButton"},
-                                halign = "center",
-                                click = function(element)
-                                    local controller = element:FindParentWithClass("projectController")
-                                    if controller then
-                                        local newAdjustment = DTAdjustment.CreateNew()
-                                        CharacterSheet.instance:AddChild(DTAdjustmentDialog.CreateAsChild(newAdjustment, {
-                                            confirm = function()
-                                                controller:FireEvent("addAdjustment", newAdjustment)
-                                            end,
-                                            cancel = function()
-                                                -- Cancel handling if needed
-                                            end
-                                        }))
-                                    end
-                                end,
-                            }
-                        }
-                    },
-                }
+                gui.Label {
+                    classes = {"form", "sizeS"},
+                    text = "Adjustments",
+                    width = "90%",
+                    hmargin = 10,
+                },
             },
-
-            -- Body - Scrollable adjustments list
             gui.Panel {
-                classes = {"featureCardBody"},
-                width = "100%",
-                height = "85%",
-                valign = "top",
-                vscroll = true,
-                children = {
-                    gui.Panel {
-                        id = "adjustmentScrollArea",
-                        width = "100%",
-                        height = "100%",
-                        flow = "vertical",
-                        valign = "top",
-                        data = {
-                            getProject = function(element)
-                                local projectController = element:FindParentWithClass("projectController")
-                                if projectController then
-                                    return projectController.data.project
+                width = "12%",
+                height = "auto",
+                halign = "right",
+                linger = function(element)
+                    gui.Tooltip("Add an adjustment")(element)
+                end,
+                gui.Button{
+                    classes = {"addButton"},
+                    halign = "center",
+                    click = function(element)
+                        local controller = element:FindParentWithClass("projectController")
+                        if controller then
+                            local newAdjustment = DTAdjustment.CreateNew()
+                            CharacterSheet.instance:AddChild(DTAdjustmentDialog.CreateAsChild(newAdjustment, {
+                                confirm = function()
+                                    controller:FireEvent("addAdjustment", newAdjustment)
+                                end,
+                                cancel = function()
+                                    -- Cancel handling if needed
                                 end
-                                return nil
-                            end,
-                        },
-                        refreshToken = function(element)
-                            local project = element.data.getProject(element)
-                            if project then
-                                local adjustments = project:GetAdjustments()
-                                element.children = DTProjectEditor._reconcileProgressItemsList(element.children, adjustments, "deleteAdjustment")
-                            end
-                        end,
-                        children = {}
-                    }
-                }
-            }
-        }
+                            }))
+                        end
+                    end,
+                },
+            },
+        },
+
+        -- Body - Scrollable adjustments list
+        gui.Panel {
+            classes = {"featureCardBody"},
+            width = "100%",
+            height = "85%",
+            valign = "top",
+            vscroll = true,
+            gui.Panel {
+                id = "adjustmentScrollArea",
+                width = "100%",
+                height = "100%",
+                flow = "vertical",
+                valign = "top",
+                data = {
+                    getProject = function(element)
+                        local projectController = element:FindParentWithClass("projectController")
+                        if projectController then
+                            return projectController.data.project
+                        end
+                        return nil
+                    end,
+                },
+                refreshToken = function(element)
+                    local project = element.data.getProject(element)
+                    if project then
+                        local adjustments = project:GetAdjustments()
+                        element.children = DTProjectEditor._reconcileProgressItemsList(element.children, adjustments, "deleteAdjustment")
+                    end
+                end,
+            },
+        },
     }
 end
 
@@ -1546,75 +1481,66 @@ function DTProjectEditor:_createRollsPanel()
         height = "100%",
         valign = "center",
         flow = "vertical",
-        children = {
-            -- Header
+        -- Header
+        gui.Panel {
+            classes = {"featureCardHeader", "expanded"},
+            width = "100%",
+            height = "auto",
+            margin = 0,
+            vpad = 6,
             gui.Panel {
-                classes = {"featureCardHeader", "expanded"},
+                width = "80%",
+                halign = "left",
+                valign = "center",
+                height = "auto",
+                gui.Label {
+                    classes = {"form", "sizeS"},
+                    text = "Rolls",
+                    width = "90%",
+                    hmargin = 10,
+                },
+            },
+            --Rolling on a project no longer happens here. The column is
+            --kept so the header keeps its shape.
+            gui.Panel {
+                width = "12%",
+                height = "auto",
+                halign = "right",
+            },
+        },
+
+        -- Body - Scrollable rolls list
+        gui.Panel {
+            classes = {"featureCardBody"},
+            width = "100%",
+            height = "85%",
+            valign = "top",
+            vscroll = true,
+            gui.Panel {
+                id = "rollScrollArea",
+                classes = {"rollListController"},
                 width = "100%",
                 height = "auto",
-                margin = 0,
-                vpad = 6,
-                children = {
-                    gui.Panel {
-                        width = "80%",
-                        halign = "left",
-                        valign = "center",
-                        height = "auto",
-                        children = {
-                            gui.Label {
-                                classes = {"form", "sizeS"},
-                                text = "Rolls",
-                                width = "90%",
-                                hmargin = 10,
-                            },
-                        }
-                    },
-                    --Rolling on a project no longer happens here. The column is
-                    --kept so the header keeps its shape.
-                    gui.Panel {
-                        width = "12%",
-                        height = "auto",
-                        halign = "right",
-                    },
-                }
-            },
-
-            -- Body - Scrollable rolls list
-            gui.Panel {
-                classes = {"featureCardBody"},
-                width = "100%",
-                height = "85%",
+                flow = "vertical",
                 valign = "top",
-                vscroll = true,
-                children = {
-                    gui.Panel {
-                        id = "rollScrollArea",
-                        classes = {"rollListController"},
-                        width = "100%",
-                        height = "auto",
-                        flow = "vertical",
-                        valign = "top",
-                        data = {
-                            getProject = function(element)
-                                local projectController = element:FindParentWithClass("projectController")
-                                if projectController then
-                                    return projectController.data.project
-                                end
-                                return nil
-                            end,
-                        },
-                        refreshToken = function(element)
-                            local project = element.data.getProject(element)
-                            if project then
-                                local rolls = project:GetRolls()
-                                element.children = DTProjectEditor._reconcileProgressItemsList(element.children, rolls, "deleteRoll")
-                            end
-                        end,
-                        children = {}
-                    }
-                }
-            }
-        }
+                data = {
+                    getProject = function(element)
+                        local projectController = element:FindParentWithClass("projectController")
+                        if projectController then
+                            return projectController.data.project
+                        end
+                        return nil
+                    end,
+                },
+                refreshToken = function(element)
+                    local project = element.data.getProject(element)
+                    if project then
+                        local rolls = project:GetRolls()
+                        element.children = DTProjectEditor._reconcileProgressItemsList(element.children, rolls, "deleteRoll")
+                    end
+                end,
+            },
+        },
     }
 end
 
@@ -1883,18 +1809,16 @@ function DTProjectEditor:_createProjectPanelContainer(additionalClasses, content
         data = {
             project = self:GetProject(),
         },
-        children = {
-            gui.Panel{
-                classes = {"bordered"},
-                width = "98%",
-                height = "auto",
-                halign = "left",
-                flow = "horizontal",
-                valign = "top",
-                children = contentPanels
-            },
-            actionButtonsPanel
-        }
+        gui.Panel{
+            classes = {"bordered"},
+            width = "98%",
+            height = "auto",
+            halign = "left",
+            flow = "horizontal",
+            valign = "top",
+            children = contentPanels
+        },
+        actionButtonsPanel,
     }
 
     -- Add event handlers if provided
@@ -1927,21 +1851,21 @@ function DTProjectEditor:CreateEditorPanel()
             halign = "left",
             valign = "top",
             hmargin = 8,
-            children = { formPanel }
+ formPanel ,
         },
         gui.Panel {
             width = "20%-8",
             height = "260",
             halign = "left",
             valign = "center",
-            children = { adjustmentsPanel }
+ adjustmentsPanel ,
         },
         gui.Panel {
             width = "20%-8",
             height = "260",
             halign = "left",
             valign = "center",
-            children = { rollsPanel }
+ rollsPanel ,
         }
     }
 
@@ -2029,7 +1953,7 @@ function DTProjectEditor:CreateSharedProjectPanel(ownerName, ownerId, ownerColor
             halign = "left",
             valign = "top",
             hmargin = 8,
-            children = { sharedFormPanel }
+ sharedFormPanel ,
         }
     }
 
@@ -2061,16 +1985,14 @@ function DTProjectEditor._reconcileProgressItemsList(panels, items, deleteEvent)
                 height = "90%",
                 halign = "center",
                 valign = "top",
-                children = {
-                    gui.Label {
-                        classes = {"info"},
-                        text = "There are no items yet.",
-                        width = "96%",
-                        height = "96%",
-                        halign = "center",
-                        valign = "top",
-                    }
-                }
+                gui.Label {
+                    classes = {"info"},
+                    text = "There are no items yet.",
+                    width = "96%",
+                    height = "96%",
+                    halign = "center",
+                    valign = "top",
+                },
             }
         }
     end
@@ -2167,76 +2089,68 @@ function DTProjectEditor._createProgressListItem(item, deleteEvent)
         data = {
             serverTime = item:GetServerTime(),
         },
-        children = {
-            -- Top row
-            gui.Panel {
+        -- Top row
+        gui.Panel {
+            flow = "horizontal",
+            valign = "top",
+            height = "auto",
+            width = "100%",
+            gui.Panel{
                 flow = "horizontal",
-                valign = "top",
-                height = "auto",
                 width = "100%",
-                children = {
-                    gui.Panel{
-                        flow = "horizontal",
-                        width = "100%",
-                        height = "auto",
-                        children = {
-                            gui.Label{
-                                classes = {"sizeXxs"},
-                                text = displayTime,
-                                width = 120,
-                                hmargin = 2,
-                            },
-                            gui.Label{
-                                classes = {"sizeXxs", "bold", amountClass},
-                                text = amountText,
-                                width = 25,
-                                hmargin = 2,
-                            },
-                            gui.Label{
-                                classes = {"sizeXxs"},
-                                text = userDisplay,
-                            },
-                        },
-                    },
-                    dmhub.isDM and gui.Button {
-                        classes = {"deleteButton", "sizeXs"},
-                        floating = true,
-                        halign = "right",
-                        valign = "center",
-                        hmargin = 2,
-                        click = function(element)
-                            local projectController = element:FindParentWithClass("projectController")
-                            if projectController then
-                                CharacterSheet.instance:AddChild(DTConfirmationDialog.ShowDeleteAsChild("this item", {
-                                    confirm = function()
-                                        projectController:FireEvent(deleteEvent, item:GetID())
-                                    end,
-                                    cancel = function()
-                                        -- Optional cancel logic
-                                    end
-                                }))
-                            end
-                        end,
-                    } or nil
-                }
+                height = "auto",
+                gui.Label{
+                    classes = {"sizeXxs"},
+                    text = displayTime,
+                    width = 120,
+                    hmargin = 2,
+                },
+                gui.Label{
+                    classes = {"sizeXxs", "bold", amountClass},
+                    text = amountText,
+                    width = 25,
+                    hmargin = 2,
+                },
+                gui.Label{
+                    classes = {"sizeXxs"},
+                    text = userDisplay,
+                },
             },
-            -- Bottom row
-            gui.Panel {
-                flow = "horizontal",
-                valign = "top",
+            dmhub.isDM and gui.Button {
+                classes = {"deleteButton", "sizeXs"},
+                floating = true,
+                halign = "right",
+                valign = "center",
+                hmargin = 2,
+                click = function(element)
+                    local projectController = element:FindParentWithClass("projectController")
+                    if projectController then
+                        CharacterSheet.instance:AddChild(DTConfirmationDialog.ShowDeleteAsChild("this item", {
+                            confirm = function()
+                                projectController:FireEvent(deleteEvent, item:GetID())
+                            end,
+                            cancel = function()
+                                -- Optional cancel logic
+                            end
+                        }))
+                    end
+                end,
+            } or nil,
+        },
+        -- Bottom row
+        gui.Panel {
+            flow = "horizontal",
+            valign = "top",
+            height = "auto",
+            width = "100%",
+            gui.Label{
+                classes = {"sizeXxs"},
+                text = description,
                 height = "auto",
-                width = "100%",
-                children = {
-                    gui.Label{
-                        classes = {"sizeXxs"},
-                        text = description,
-                        height = "auto",
-                        width = "98%",
-                        valign = "top",
-                    }
-                }
-            }
-        }
+                width = "98%",
+                valign = "top",
+            },
+        },
     }
 end
 

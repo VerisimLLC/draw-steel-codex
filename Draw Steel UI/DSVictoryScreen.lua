@@ -37,6 +37,37 @@ local mod = dmhub.GetModLoading()
 
 RegisterGameType("DSVictoryScreen")
 
+-- Proceed override hook: a mod (e.g. Encounter of the Week's Director-less
+-- games) can open the Proceed button to non-Directors and/or take over the
+-- click. Register with an override table:
+--   canProceed = function() return bool end  -- true: the local user may see
+--                and press Proceed even without Director status.
+--   proceed    = function(defaultProceed) return handled end -- runs on click
+--                BEFORE the normal teardown; return true to swallow the click
+--                (defaultProceed is passed in so the override can invoke the
+--                normal teardown itself). Return false/nil to fall through.
+-- Both callbacks run under pcall; a broken override degrades to the normal
+-- Director-only behavior. Registering replaces any previous override.
+local g_proceedOverride = nil
+function DSVictoryScreen.RegisterProceedOverride(override)
+    g_proceedOverride = override
+end
+
+-- True when the local user may press Proceed: the Director always may; the
+-- registered override can extend it to everyone else.
+local function CanLocalUserProceed()
+    if dmhub.isDM then
+        return true
+    end
+    if g_proceedOverride ~= nil and g_proceedOverride.canProceed ~= nil then
+        local ok, res = pcall(g_proceedOverride.canProceed)
+        if ok and res == true then
+            return true
+        end
+    end
+    return false
+end
+
 -- Seconds between each hero fading in.
 local g_heroStagger = 0.28
 
@@ -1823,6 +1854,11 @@ local function ProceedEndCombat()
     end
 end
 
+-- Exported for automation (e.g. Encounter of the Week's host runs the teardown
+-- on behalf of a player who pressed Proceed). Full-permission teardown: run it
+-- on a Director client.
+DSVictoryScreen.ProceedEndCombat = ProceedEndCombat
+
 -- Build a single hero's card: portrait, name, Stamina bar, Recoveries change, the fun
 -- role they earned (if any -- see ComputeHeroRoles; roleInfo may be nil and the role
 -- lines render blank), and a DEAD marker for fallen heroes. Every visible element
@@ -2685,6 +2721,15 @@ function DSVictoryScreen.Create()
         end,
 
         click = function(element)
+            --a registered override (see RegisterProceedOverride) gets first
+            --crack at the click; it returns true to swallow it (e.g. a player
+            --relaying the proceed to the Director's client).
+            if g_proceedOverride ~= nil and g_proceedOverride.proceed ~= nil then
+                local ok, handled = pcall(g_proceedOverride.proceed, ProceedEndCombat)
+                if ok and handled == true then
+                    return
+                end
+            end
             ProceedEndCombat()
         end,
     }
@@ -2856,7 +2901,7 @@ function DSVictoryScreen.Create()
             rightSword:SetClass("rsw-open", false)
             rightSword:SetClass("rsw-closed", true)
             proceedButton:SetClass("shown", false)
-            proceedButton:SetClass("collapsed", not dmhub.isDM)
+            proceedButton:SetClass("collapsed", not CanLocalUserProceed())
 
             --reset the Director victories controls for this showing.
             element.data.awardPlayed = false
@@ -3009,10 +3054,12 @@ function DSVictoryScreen.Create()
             proceedButton:SetClass("shown", true)
             --reveal the Director victories controls alongside Proceed (unless already
             --awarded, this is a player, or the outcome is a defeat -- no Victories
-            --are granted for losing).
+            --are granted for losing). DirectorUIVisible rather than raw isDM: in
+            --Director-less modes (Encounter of the Week) the host presents as a
+            --player and should not see the award controls either.
             local live, outcome = GetActiveOutcome()
             local awarded = live ~= nil and live:try_get("victoriesAwarded", false)
-            victoriesSection:SetClass("collapsed", (not dmhub.isDM) or awarded or outcome ~= "victory")
+            victoriesSection:SetClass("collapsed", (not GameHud.DirectorUIVisible()) or awarded or outcome ~= "victory")
         end,
 
         hideVictory = function(element)

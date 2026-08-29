@@ -319,3 +319,36 @@ function DTBusinessRules.ApplySourceToProject(project, sourceType, selectedId)
 
     return nil
 end
+
+--- Calculates the next milestone stop for a project.
+--- A goal of 30 or less has no milestone stops. Larger goals stop at fixed
+--- fractions of the goal, always rounded down, and the next stop is the lowest
+--- one the project has not yet passed.
+--- @param project DTProject The project to evaluate
+--- @return number|nil milestone The next milestone stop, nil if there is none
+function DTBusinessRules.CalcNextMilestone(project)
+    if not project then return nil end
+    if project:GetStatus() == DTConstants.STATUS.COMPLETE.key then return nil end
+
+    local goal = project:GetProjectGoal() or 0
+    if goal <= 30 then return nil end
+
+    --Numerator and denominator rather than a decimal, because a third of an
+    --exact multiple of three has to land on the multiple and 0.33 * 300 does not.
+    local stops
+    if goal <= 200 then
+        stops = {{1, 2}}
+    elseif goal <= 999 then
+        stops = {{1, 3}, {2, 3}}
+    else
+        stops = {{1, 4}, {1, 2}, {3, 4}}
+    end
+
+    local progress = project:GetProgress()
+    for _, stop in ipairs(stops) do
+        local threshold = math.floor(goal * stop[1] / stop[2])
+        if threshold > progress then return threshold end
+    end
+
+    return nil
+end

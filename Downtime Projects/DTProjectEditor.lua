@@ -55,6 +55,19 @@ function DTProjectEditor:_createProjectForm()
             vmargin = 6,
             flow = "horizontal",
         },
+        --The width sits on this wrapper rather than on the input itself: the
+        --themed "form" class wins over a style selector on an input, so an
+        --input can only be sized inline, which a state class cannot toggle.
+        {
+            selectors = {"milestoneInputWrap"},
+            width = "80%",
+            height = "auto",
+        },
+        --Narrower to make room for the suggestion button beside it.
+        {
+            selectors = {"milestoneInputWrap", "hasSuggestion"},
+            width = "56%",
+        },
     }
 
     -- Select Item button (only if no progress)
@@ -737,7 +750,152 @@ function DTProjectEditor:_createProjectForm()
         }
     }
 
-    -- Milestone field (label + input, DM only)
+    -- Milestone field (label + input + suggestion button, DM only)
+    local milestoneInput = gui.Input {
+        classes = {"form"},
+        width = "100%",
+        textAlignment = "center",
+        placeholderText = "0",
+        editlag = 0.5,
+        data = {
+            getProject = function(element)
+                local projectController = element:FindParentWithClass("projectController")
+                if projectController then
+                    return projectController.data.project
+                end
+                return nil
+            end
+        },
+        refreshToken = function(element)
+            local project = element.data.getProject(element)
+            if project and element.text ~= tostring(project:GetMilestoneThreshold()) then
+                local threshold = project:GetMilestoneThreshold()
+                element.text = threshold and tostring(threshold) or ""
+            end
+        end,
+        edit = function(element)
+            element:FireEvent("change")
+        end,
+        change = function(element)
+            local project = element.data.getProject(element)
+            if project and element.text ~= tostring(project:GetMilestoneThreshold()) then
+                modifyTokenProps{
+                    execute = function()
+                        if element.text == "" then
+                            project:SetMilestoneThreshold(nil)
+                        else
+                            local value = tonumber(element.text) or 0
+                            project:SetMilestoneThreshold(math.max(0, math.floor(value)))
+                        end
+                    end,
+                }
+                dmhub.Schedule(0.1, function()
+                    DTSettings.Touch()
+                    DTShares.Touch()
+                end)
+            end
+        end
+    }
+
+    --Carries the width so it can give back the space the suggestion button
+    --takes, leaving the field its usual size when there is nothing to suggest.
+    local milestoneInputWrap = gui.Panel {
+        classes = {"milestoneInputWrap"},
+        halign = "left",
+        valign = "center",
+        flow = "horizontal",
+        data = {
+            getProject = function(element)
+                local projectController = element:FindParentWithClass("projectController")
+                if projectController then
+                    return projectController.data.project
+                end
+                return nil
+            end
+        },
+        refreshToken = function(element)
+            local project = element.data.getProject(element)
+            element:SetClass("hasSuggestion",
+                project ~= nil and DTBusinessRules.CalcNextMilestone(project) ~= nil)
+        end,
+        children = {milestoneInput},
+    }
+
+    --Fills the milestone in for the Director in one click. The next stop is a
+    --function of the goal and the progress, both of which move while the sheet
+    --is open, so it is recomputed on every refresh rather than at build time.
+    local milestoneSuggestButton = gui.Button {
+        classes = {"sizeS", "collapsed"},
+        icon = "phosphor/book-light.png",
+        halign = "right",
+        valign = "center",
+        hoverCursor = "pressbutton",
+        data = {
+            suggestion = nil,
+            getProject = function(element)
+                local projectController = element:FindParentWithClass("projectController")
+                if projectController then
+                    return projectController.data.project, projectController
+                end
+                return nil
+            end
+        },
+        linger = function(element)
+            local suggestion = element.data.suggestion
+            if suggestion then
+                gui.Tooltip(string.format("Set the next milestone to %d.", suggestion))(element)
+            end
+        end,
+        refreshToken = function(element)
+            local project = element.data.getProject(element)
+            local suggestion = project and DTBusinessRules.CalcNextMilestone(project) or nil
+            element.data.suggestion = suggestion
+            element:SetClass("collapsed", suggestion == nil)
+        end,
+        click = function(element)
+            local suggestion = element.data.suggestion
+            if not suggestion then return end
+            local project, controller = element.data.getProject(element)
+            if not project then return end
+
+            modifyTokenProps{
+                description = "Set Downtime Project Milestone",
+                execute = function()
+                    project:SetMilestoneThreshold(suggestion)
+                end,
+            }
+            if controller then
+                controller:FireEventTree("refreshToken")
+            end
+            dmhub.Schedule(0.1, function()
+                DTSettings.Touch()
+                DTShares.Touch()
+            end)
+        end
+    }
+
+    --The goal and the progress both move on other clients - a player rolling on
+    --a shared project, the Director editing the goal from their own panel - and
+    --the downtime settings ping is how those changes reach this sheet. The
+    --document is not up when the sheet builds, so the monitor is attached later.
+    local milestoneWatcher = isDM and gui.Panel {
+        width = 0,
+        height = 0,
+        create = function(element)
+            dmhub.Schedule(0.2, function()
+                if element.valid then
+                    element.monitorGame = DTSettings.GetDocumentPath()
+                end
+            end)
+        end,
+        refreshGame = function(element)
+            local projectController = element:FindParentWithClass("projectController")
+            if projectController then
+                projectController:FireEventTree("refreshToken")
+            end
+        end,
+    } or nil
+
     local milestoneField = isDM and gui.Panel {
         width = "98%",
         height = "auto",
@@ -745,53 +903,16 @@ function DTProjectEditor:_createProjectForm()
         children = {
             gui.Label {
                 classes = {"form"},
-                text = "Milestone Stop:",
+                text = "Next Milestone:",
             },
-            gui.Input {
-                classes = {"form"},
-                width = "80%",
-                textAlignment = "center",
-                placeholderText = "0",
-                editlag = 0.5,
-                data = {
-                    getProject = function(element)
-                        local projectController = element:FindParentWithClass("projectController")
-                        if projectController then
-                            return projectController.data.project
-                        end
-                        return nil
-                    end
-                },
-                refreshToken = function(element)
-                    local project = element.data.getProject(element)
-                    if project and element.text ~= tostring(project:GetMilestoneThreshold()) then
-                        local threshold = project:GetMilestoneThreshold()
-                        element.text = threshold and tostring(threshold) or ""
-                    end
-                end,
-                edit = function(element)
-                    element:FireEvent("change")
-                end,
-                change = function(element)
-                    local project = element.data.getProject(element)
-                    if project and element.text ~= tostring(project:GetMilestoneThreshold()) then
-                        modifyTokenProps{
-                            execute = function()
-                                if element.text == "" then
-                                    project:SetMilestoneThreshold(nil)
-                                else
-                                    local value = tonumber(element.text) or 0
-                                    project:SetMilestoneThreshold(math.max(0, math.floor(value)))
-                                end
-                            end,
-                        }
-                        dmhub.Schedule(0.1, function()
-                            DTSettings.Touch()
-                            DTShares.Touch()
-                        end)
-                    end
-                end
-            }
+            gui.Panel {
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                valign = "center",
+                children = {milestoneInputWrap, milestoneSuggestButton},
+            },
+            milestoneWatcher,
         }
     } or gui.Panel{height = 1}
 

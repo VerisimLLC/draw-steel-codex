@@ -31,6 +31,17 @@ function EncounterOfTheWeek.Enabled()
     return dmhub.GetSettingValue("dev:encounteroftheweek") == true
 end
 
+--Set by the game-side EotW codemod just before it exits a finished game
+--(victory/defeat concluded): holds that game's id, or "". The screen's
+--resume refresh destroys the finished game / clears the account slot and
+--resets this -- a decided encounter is never offered for resume. Same
+--setting id as the game codemod's declaration (settings are keyed globally).
+setting{
+    id = "eotw:concludedgame",
+    default = "",
+    storage = "preference",
+}
+
 --The well-known lobby id, and staging until EotW nears release (the whole
 --mode is dev-gated, and the staging worker is where the lobby DO is tested).
 local LOBBY_ID = "eotw"
@@ -178,10 +189,65 @@ local function FormatHeroDetails(level, ancestry, className)
     return table.concat(parts, " ")
 end
 
+--True when an image id is a cloud-asset GUID whose asset record is not
+--loaded -- such an id cannot render (bgimage falls through to nothing).
+--Non-GUID ids (md5:/thumb:/#special, icon paths, userdata portraits)
+--resolve through other pipelines and are never flagged.
+local function IsUnresolvableAssetId(id)
+    if type(id) ~= "string" then
+        return false
+    end
+    if string.match(id, "^%x+%-%x+%-%x+%-%x+%-%x+$") == nil then
+        return false
+    end
+    local known = false
+    pcall(function() known = assets.allAssets[id] ~= nil end)
+    return not known
+end
+
+--Entering any game clears module asset stores (engine ClearModules), so
+--after returning to the titlescreen the cached pregen tokens' portrait
+--GUIDs can no longer resolve. Re-invoking the snapshot download makes the
+--engine re-register the module's image assets (its streamed payload is
+--disk-cached -- no network); on engine builds without that registration
+--this is a cheap no-op and the cards fall back to silhouettes.
+local m_pregenArtFetching = false
+local function EnsurePregenArt()
+    if m_pregenArtFetching or m_pregens == nil or module.DownloadModuleSnapshot == nil then
+        return
+    end
+    local sample = nil
+    for _,tok in pairs(m_pregenTokens or {}) do
+        pcall(function() sample = tok.offTokenPortrait end)
+        if sample ~= nil then
+            break
+        end
+    end
+    if not IsUnresolvableAssetId(sample) then
+        return
+    end
+    m_pregenArtFetching = true
+    module.DownloadModuleSnapshot{
+        moduleid = PREGEN_MODULE_ID,
+        success = function()
+            m_pregenArtFetching = false
+        end,
+        failure = function()
+            m_pregenArtFetching = false
+        end,
+    }
+end
+
 --Kick off (or re-kick after a failure) the pregen snapshot download.
---Safe to call any time; no-ops while a fetch is in flight or done.
+--Safe to call any time; no-ops while a fetch is in flight or done (though
+--a completed cache still re-checks that the pregen ART is registered --
+--see EnsurePregenArt).
 function EncounterOfTheWeek.CachePregens()
-    if m_pregens ~= nil or m_pregensFetching then
+    if m_pregens ~= nil then
+        EnsurePregenArt()
+        return
+    end
+    if m_pregensFetching then
         return
     end
     --Engine builds without the snapshot API: quietly do nothing (the
@@ -356,6 +422,7 @@ CreateScreen = function(args)
     local BuildGameView = nil
     local ShowAddHeroDialog = nil
     local RefreshChat = nil
+    local AttachMonitors = nil
 
     --the one modal dialog (create-game or add-hero) open over the screen;
     --guards against stacking a second copy from a double click.
@@ -650,6 +717,13 @@ CreateScreen = function(args)
     --launched/ready (possible within the record's 5-minute TTL). Checked
     --from RefreshGames, which runs on every roster change and reconnect.
     local m_enteringWorld = false
+    --Record statuses as of the first roster snapshot this screen saw.
+    --Auto-entry only fires on a status TRANSITION observed by this screen:
+    --a record already launched/ready when the screen opened is a game the
+    --player deliberately stepped out of (or is choosing whether to rejoin),
+    --so pulling them straight back in would make leaving impossible.
+    --Re-entering those goes through the explicit Re-join/Resume buttons.
+    local m_initialGameStatus = nil
     local CheckLaunchedGames = function()
         if m_enteringWorld or m_conn == nil then
             return
@@ -658,11 +732,18 @@ CreateScreen = function(args)
         if games == nil then
             return
         end
+        if m_initialGameStatus == nil then
+            m_initialGameStatus = {}
+            for gameid,record in pairs(games) do
+                m_initialGameStatus[gameid] = record.status
+            end
+        end
         local myUserid = dmhub.loginUserid
         for gameid,record in pairs(games) do
             local isHost = record.hostUserid == myUserid
             local isMember = isHost or (record.players ~= nil and record.players[myUserid] ~= nil)
-            if isMember and (record.status == "ready" or (record.status == "launched" and isHost)) then
+            if isMember and (record.status == "ready" or (record.status == "launched" and isHost))
+                    and m_initialGameStatus[gameid] ~= record.status then
                 m_enteringWorld = true
                 EnterWorld(gameid)
                 return
@@ -837,6 +918,17 @@ CreateScreen = function(args)
                     frameBg = bg
                 end
             end)
+            --a cloud-asset GUID whose record is not loaded cannot render
+            --(e.g. pregen art on an engine build that does not register the
+            --module's streamed images); drop it so the silhouette shows
+            --instead of an empty frame.
+            if IsUnresolvableAssetId(portrait) then
+                portrait = nil
+                portraitRect = nil
+            end
+            if IsUnresolvableAssetId(frameBg) then
+                frameBg = nil
+            end
         end
 
         local children = {}
@@ -1387,7 +1479,7 @@ CreateScreen = function(args)
                 textAlignment = "center",
                 vmargin = 10,
             }
-        elseif record.status == "ready" and isMember then
+        elseif record.status == "ready" and isMember and m_enteringWorld then
             children[#children+1] = gui.Label{
                 text = "Entering the game...",
                 fontSize = 18,
@@ -1445,14 +1537,55 @@ CreateScreen = function(args)
                 end,
             }
         end
+        --Re-join a game already in progress: any member once it is "ready",
+        --or the host while it is still "launched" (their re-entry re-runs
+        --the setup, which is re-entry safe). This is the manual path back
+        --in -- auto-entry only fires on status transitions this screen saw.
+        if isMember and (record.status == "ready" or (record.status == "launched" and isHost)) then
+            buttons[#buttons+1] = gui.Button{
+                text = "Re-join",
+                fontSize = 20,
+                width = 160,
+                height = 44,
+                hmargin = 6,
+                click = function()
+                    if not m_enteringWorld then
+                        m_enteringWorld = true
+                        EnterWorld(gameid)
+                    end
+                end,
+            }
+        end
         if isMember then
+            --The host's Abandon destroys the game outright (roster record
+            --dropped, engine game deleted + storage released, account slot
+            --cleared), so it asks for a second click to confirm. A
+            --non-host's Leave just gives up their membership.
             buttons[#buttons+1] = gui.Button{
                 text = cond(isHost, "Abandon", "Leave"),
                 fontSize = 20,
                 width = 160,
                 height = 44,
                 hmargin = 6,
-                click = function()
+                data = { confirming = false },
+                resetConfirm = function(element)
+                    element.data.confirming = false
+                    element.text = "Abandon"
+                end,
+                click = function(element)
+                    if isHost then
+                        if not element.data.confirming then
+                            element.data.confirming = true
+                            element.text = "Really?"
+                            element:ScheduleEvent("resetConfirm", 4)
+                            return
+                        end
+                        DestroyPreviousGame(gameid)
+                        if CloseGameView ~= nil then
+                            CloseGameView()
+                        end
+                        return
+                    end
                     if m_conn ~= nil then
                         m_conn:Request{
                             action = "leave-game",
@@ -1496,7 +1629,10 @@ CreateScreen = function(args)
             name = m_resumeInfo.description
         end
         local resumeGameid = m_resumeGameid
-        return gui.Panel{
+        --forward-declared so the Abandon click can remove the row itself
+        --(RefreshGames is declared later in the file and not in scope here).
+        local rowPanel
+        rowPanel = gui.Panel{
             width = "96%",
             height = "auto",
             halign = "center",
@@ -1534,7 +1670,37 @@ CreateScreen = function(args)
             RowButton("Resume", function()
                 EnterWorld(resumeGameid)
             end),
+
+            --Abandon destroys the in-progress game (engine game deleted,
+            --storage released, account slot cleared); second click confirms.
+            gui.Button{
+                text = "Abandon",
+                fontSize = 20,
+                width = 130,
+                height = 40,
+                halign = "right",
+                valign = "center",
+                hmargin = 4,
+                data = { confirming = false },
+                resetConfirm = function(element)
+                    element.data.confirming = false
+                    element.text = "Abandon"
+                end,
+                click = function(element)
+                    if not element.data.confirming then
+                        element.data.confirming = true
+                        element.text = "Really?"
+                        element:ScheduleEvent("resetConfirm", 4)
+                        return
+                    end
+                    DestroyPreviousGame(resumeGameid)
+                    if rowPanel ~= nil and rowPanel.valid then
+                        rowPanel:DestroySelf()
+                    end
+                end,
+            },
         }
+        return rowPanel
     end
 
     local RefreshGames = function()
@@ -1616,6 +1782,23 @@ CreateScreen = function(args)
     --resume row; a deleted/missing one clears the slot. Async -- the games
     --list re-renders when the lookup lands.
     RefreshResumeState = function()
+        --a game the game-side codemod marked finished (encounter decided,
+        --players auto-exited) gets destroyed instead of offered for resume:
+        --the host's machine deletes it and releases its storage, a member's
+        --machine leaves it -- both clear the account slot and drop any
+        --lingering lobby roster record.
+        local concluded = dmhub.GetSettingValue("eotw:concludedgame")
+        if concluded ~= nil and concluded ~= "" then
+            dmhub.SetSettingValue("eotw:concludedgame", "")
+            printf("EotW: cleaning up finished game %s", concluded)
+            DestroyPreviousGame(concluded)
+            if EotwSlotGameid() == concluded then
+                m_resumeGameid = nil
+                m_resumeInfo = nil
+                return
+            end
+        end
+
         local gameid = EotwSlotGameid()
         if gameid == nil then
             m_resumeGameid = nil
@@ -2194,6 +2377,18 @@ CreateScreen = function(args)
         --server expects).
         thinkTime = 30,
         think = function(element)
+            --Self-heal a terminally closed connection: the C# side never
+            --reconnects a Close()d connection, so open a fresh one and
+            --rebind our watchers to it. (Transient drops reconnect on
+            --their own and never reach the "closed" status.)
+            if m_conn ~= nil and lobbiesApi ~= nil and m_conn.status == "closed" then
+                m_conn = lobbiesApi:Connect(LOBBY_ID, LOBBY_OPTIONS)
+                m_initialGameStatus = nil
+                if AttachMonitors ~= nil then
+                    AttachMonitors()
+                end
+                RefreshAll()
+            end
             if m_conn == nil or not m_conn.connected then
                 return
             end
@@ -2454,8 +2649,13 @@ CreateScreen = function(args)
 
     --Watch the lobby document + connection state. Handlers are dropped by
     --Disconnect (destroy above); guard panel validity anyway since C#
-    --dispatches these outside the gui event flow.
-    if m_conn ~= nil then
+    --dispatches these outside the gui event flow. A function (rather than
+    --inline registration) so the think's self-heal can rebind the watchers
+    --after replacing a terminally closed connection.
+    AttachMonitors = function()
+        if m_conn == nil then
+            return
+        end
         m_conn:MonitorChanges(function(path)
             if mod.unloaded or resultPanel == nil or not resultPanel.valid then
                 return
@@ -2484,6 +2684,64 @@ CreateScreen = function(args)
             end
         end)
     end
+    AttachMonitors()
 
     return resultPanel
 end
+
+--── stale-screen sweep ──────────────────────────────────────────────────
+--Returning from a game reloads the titlescreen codemods but PRESERVES the
+--titlescreen's panel tree -- including any EotW screen that was open when
+--the game was entered (which is always the case for a game launched from
+--this screen). That surviving screen belongs to the previous codemod
+--generation: its lobby connection was closed during the game switch and is
+--never reopened, so every control on it fails with "Not connected to the
+--lobby". Replace it with a freshly built screen, which connects anew and
+--renders the current lobby state -- including the Resume/Abandon row for
+--the game the player just left.
+--
+--m_screen is nil in a freshly loaded generation, so any screen found on
+--the root here is by definition stale. If the reload happened while inside
+--a real game (titlescreen hidden), rebuilding waits until we are actually
+--back at the titlescreen, then gives up quietly after a few tries.
+local function SweepStaleScreen(retriesLeft)
+    if mod.unloaded then
+        return
+    end
+    local root = rawget(_G, "CodexTitlescreenRoot")
+    if root == nil or not root.valid then
+        return
+    end
+    if m_screen ~= nil and m_screen.valid then
+        --this generation owns a live screen; nothing stale to sweep.
+        return
+    end
+    local found = false
+    for _,ch in ipairs(root.children) do
+        if ch.id == "encounterOfTheWeekScreen" and ch.valid then
+            found = true
+        end
+    end
+    if not found then
+        return
+    end
+    local atTitlescreen = (not dmhub.inGame) or dmhub.isLobbyGame
+    if not atTitlescreen then
+        if retriesLeft > 0 then
+            dmhub.Schedule(2, function()
+                SweepStaleScreen(retriesLeft - 1)
+            end)
+        end
+        return
+    end
+    for _,ch in ipairs(root.children) do
+        if ch.id == "encounterOfTheWeekScreen" and ch.valid then
+            ch:DestroySelf()
+        end
+    end
+    EncounterOfTheWeek.ShowScreen()
+end
+
+dmhub.Schedule(1, function()
+    SweepStaleScreen(5)
+end)

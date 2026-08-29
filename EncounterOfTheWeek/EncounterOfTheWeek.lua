@@ -20,6 +20,17 @@ EncounterOfTheWeekGame = {}
 --  data.arrived       = { [userid] = serverTime }  (each member on arrival)
 --  data.placedHeroes  = { [userid] = { [kind..":"..heroid] = charid } }
 --                       (re-entering the game never duplicates heroes)
+--  data.combatStarted = true  (host-stamped when the initiative queue first
+--                       goes live; permanently lifts the start-zone
+--                       confinement on every client)
+--  data.proceedRequested = serverTime  (a player pressed Proceed on the
+--                       victory screen; the host tick runs the teardown and
+--                       clears it)
+--  data.abilityBusy   = { [userid] = serverTime }  (that client has an
+--                       ability cast/prompt in flight; refreshed while busy,
+--                       cleared when idle. The host defers the
+--                       victory/defeat award while any stamp is fresh, so
+--                       the outcome screen never interrupts a prompt.)
 local STATE_DOC_ID = "eotwstate"
 
 --Hidden escape hatch: "/toggle eotw:showdirectorui" in chat restores the
@@ -29,6 +40,17 @@ setting{
     id = "eotw:showdirectorui",
     description = "Show Director UI in Encounter of the Week games",
     default = false,
+    storage = "preference",
+}
+
+--Handoff to the titlescreen: set to the finished game's id just before this
+--client exits at encounter conclusion. The titlescreen EotW screen (which
+--re-declares this setting for read access) destroys the game / clears the
+--account slot and resets it on its next refresh -- a finished game is never
+--offered for resume.
+setting{
+    id = "eotw:concludedgame",
+    default = "",
     storage = "preference",
 }
 
@@ -220,6 +242,376 @@ local function StartZoneAnchor()
     end
     return best
 end
+
+--- lobby requests -----------------------------------------------------
+
+--Must match the titlescreen's lobby connection (Codex Titlescreen/
+--EncounterOfTheWeek.lua): the EotW lobby id, on the staging server while
+--EotW is dev-gated.
+local LOBBY_ID = "eotw"
+local LOBBY_STAGING = true
+
+--Send one request to the EotW lobby over a transient connection of our own
+--(the titlescreen's connection closed when its screen was destroyed during
+--the game switch). Requests fail immediately while the connection is still
+--opening, so poll for auth first (give up after ~30s). onDone(ok, result)
+--is optional; the connection is dropped either way.
+local function SendLobbyRequest(action, args, onDone)
+    local lobbies = rawget(_G, "lobbies")
+    if lobbies == nil then
+        printf("EotW: engine has no lobbies API; cannot send %s", tostring(action))
+        return
+    end
+
+    local conn = lobbies:Connect(LOBBY_ID, { staging = LOBBY_STAGING })
+    if conn == nil then
+        return
+    end
+
+    dmhub.Coroutine(function()
+        for _ = 1, 300 do
+            if mod.unloaded then
+                return
+            end
+            if conn.connected then
+                break
+            end
+            coroutine.yield(0.1)
+        end
+
+        if not conn.connected then
+            printf("EotW: lobby connection never became ready; %s not sent", tostring(action))
+            conn:Disconnect()
+            return
+        end
+
+        conn:Request{
+            action = action,
+            args = args,
+            success = function(result)
+                conn:Disconnect()
+                if onDone ~= nil then
+                    onDone(true, result)
+                end
+            end,
+            error = function(err)
+                conn:Disconnect()
+                if onDone ~= nil then
+                    onDone(false, err)
+                end
+            end,
+        }
+    end)
+end
+
+--- pre-combat start-zone confinement ----------------------------------
+
+--From arrival until the initiative queue goes live (the waiting-for-players
+--stretch plus the Draw Steel roll), heroes may reposition within the Start
+--zone but not leave it. Each client installs the engine's Movement
+--Restriction Mode locally and outlines the zone so players can see where
+--they may move. Once combat has started (host-stamped combatStarted in the
+--state doc) the confinement never returns -- a resume mid- or post-combat is
+--not confined.
+
+--The Start-zone outline drawn while confinement is active.
+local START_ZONE_COLOR = "#79d2a0"
+
+--Seconds between the victory screen dismissing and this client leaving for
+--the titlescreen: covers the screen's 0.7s fade plus the 1-3s GameDetails
+--write coalescing, so the host's end-of-combat writes flush before the
+--socket closes.
+local EXIT_DELAY = 4
+
+local m_restrictionInstalled = false
+local m_zoneMarker = nil
+local m_outcomeSeen = false
+local m_exitScheduled = false
+
+local function ClearStartZoneConfinement()
+    if m_restrictionInstalled then
+        m_restrictionInstalled = false
+        pcall(function() dmhub.ClearMovementRestriction() end)
+    end
+    if m_zoneMarker ~= nil then
+        pcall(function() m_zoneMarker:Destroy() end)
+        m_zoneMarker = nil
+    end
+end
+
+local function UpdateStartZoneConfinement()
+    local desired = false
+    if EncounterOfTheWeekGame.IsEotwGame() then
+        local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+        if doc.data.combatStarted ~= true then
+            local queue = dmhub.initiativeQueue
+            if queue == nil or queue.hidden then
+                desired = true
+            end
+        end
+    end
+
+    if not desired then
+        ClearStartZoneConfinement()
+        return
+    end
+
+    if m_restrictionInstalled then
+        return
+    end
+
+    local locs = StartZoneLocs()
+    if #locs == 0 then
+        --no Start zone on this map; nothing to confine to.
+        return
+    end
+
+    m_restrictionInstalled = true
+    --pcall: an engine build without the Movement Restriction API degrades to
+    --no confinement (the zone outline below still draws).
+    pcall(function() dmhub.SetMovementRestriction{ locs = locs } end)
+    m_zoneMarker = dmhub.MarkLocs{
+        locs = locs,
+        color = START_ZONE_COLOR,
+        style = "dashed",
+    }
+end
+
+--Watch the encounter conclude: once this client has seen the victory/defeat
+--screen (an awarded outcome on the live queue) and the queue then hides
+--(someone pressed Proceed), leave for the titlescreen. Clients that never
+--saw an awarded outcome (mid-join, or a combat ended through the Director
+--escape hatch) never auto-exit.
+local function UpdateEncounterConclusion()
+    if m_exitScheduled or not EncounterOfTheWeekGame.IsEotwGame() then
+        return
+    end
+
+    local queue = dmhub.initiativeQueue
+    if queue ~= nil and not queue.hidden then
+        if not m_outcomeSeen then
+            local outcome = nil
+            pcall(function()
+                local live = queue:try_get("liveEncounter")
+                if type(live) == "table" then
+                    outcome = live:GetAwardedOutcome()
+                end
+            end)
+            if outcome ~= nil then
+                m_outcomeSeen = true
+            end
+        end
+        return
+    end
+
+    if m_outcomeSeen then
+        m_exitScheduled = true
+        printf("EotW: encounter concluded; returning to the titlescreen")
+
+        --hand the finished game to the titlescreen: it destroys the game /
+        --clears the account slot on its next refresh, so a decided
+        --encounter is never offered for resume.
+        pcall(function() dmhub.SetSettingValue("eotw:concludedgame", dmhub.gameid) end)
+
+        --and drop out of the lobby roster now: the HOST's leave removes the
+        --game's record (and its chat) for the whole lobby, and members'
+        --leaves stop their returning screens' heartbeats from keeping a
+        --stale record alive. Best-effort -- the titlescreen cleanup sends
+        --leave-game again if this one loses the race with LeaveGame.
+        SendLobbyRequest("leave-game", { gameid = dmhub.gameid }, function(ok, result)
+            if not ok then
+                printf("EotW: conclusion leave-game not accepted: %s", tostring(result))
+            end
+        end)
+
+        --deferred: LeaveGame synchronously unloads this codemod, so let the
+        --frame (and the victory screen's fade) finish first.
+        dmhub.Schedule(EXIT_DELAY, function()
+            if mod.unloaded then
+                return
+            end
+            dmhub.LeaveGame()
+        end)
+    end
+end
+
+--- ability-activity mirror --------------------------------------------
+
+--The victory/defeat award must not interrupt an ability mid-prompt (a roll
+--dialog awaiting Accept, forced-movement placement, a spend-recovery modal,
+--a trigger card...). Those prompts are LOCAL to the prompting client, so
+--each client mirrors "I have ability activity in flight" into the state doc
+--and the host defers the award while any mirror stamp is fresh.
+
+--How often a busy client refreshes its stamp, and how old a stamp may be
+--before the host ignores it (a crashed client must not hold the award
+--hostage; a live one clears its stamp the second it goes idle anyway).
+local BUSY_REFRESH_INTERVAL = 5
+local BUSY_STALE_SECONDS = 15
+
+local m_busyStampTime = nil
+
+--True while THIS client has any ability cast, targeting session, roll
+--dialog, modal prompt, or unanswered trigger prompt in flight. Composed
+--from the exact predicates the invoke pipeline (AbilityInvokeAbility.lua),
+--the Monster AI's WaitForAbilityIdle, and the death gate
+--(AbilityRemoveCreature.lua) already trust. Every probe is pcall-guarded.
+local function AbilityActivityInFlight()
+    --any live cast coroutine (covers post-roll prompts, forced-movement
+    --placement, spend-recovery, invoked sub-abilities). On the host this
+    --also covers Monster AI casts, which run there.
+    local activeCasts = 0
+    pcall(function() activeCasts = ActivatedAbility.CountActiveCasts() end)
+    if activeCasts > 0 then
+        return true
+    end
+
+    --the action bar is targeting / awaiting Confirm. The new bar returns
+    --the ability OBJECT, the legacy bar a boolean -- test truthy.
+    local casting = nil
+    pcall(function()
+        if gamehud ~= nil and gamehud.actionBarPanel ~= nil and gamehud.actionBarPanel.valid then
+            casting = gamehud.actionBarPanel.data.IsCastingSpell()
+        end
+    end)
+    if casting ~= nil and casting ~= false then
+        return true
+    end
+
+    --any of the three roll surfaces (legacy singleton, embedded ability
+    --dialog, standalone roll host).
+    local rolling = false
+    pcall(function() rolling = CharacterPanel.AnyRollDialogShown() end)
+    if rolling then
+        return true
+    end
+
+    --a modal prompt is up (recovery selection, confer condition, fall...).
+    local modal = nil
+    pcall(function() modal = gui.GetModal() end)
+    if modal ~= nil then
+        return true
+    end
+
+    --an unanswered trigger / invocation prompt card on a creature this
+    --client controls. Hostile prompts never age out, so they must not block
+    --forever (same carve-out as the death gate).
+    for _,tok in ipairs(dmhub.allTokens) do
+        if tok.valid and tok.canControl and tok.properties ~= nil then
+            local triggers = nil
+            pcall(function() triggers = tok.properties:GetAvailableTriggers(true) end)
+            if triggers ~= nil then
+                for _,t in pairs(triggers) do
+                    if not t.hostile then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+
+    return false
+end
+
+local function WriteBusyStamp()
+    local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+    doc:BeginChange()
+    doc.data.abilityBusy = doc.data.abilityBusy or {}
+    doc.data.abilityBusy[dmhub.loginUserid] = dmhub.serverTime
+    doc:CompleteChange("Encounter of the Week: ability activity", {undoable = false})
+    m_busyStampTime = dmhub.serverTime
+end
+
+local function ClearBusyStamp()
+    local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+    if doc.data.abilityBusy ~= nil and doc.data.abilityBusy[dmhub.loginUserid] ~= nil then
+        doc:BeginChange()
+        doc.data.abilityBusy[dmhub.loginUserid] = nil
+        doc:CompleteChange("Encounter of the Week: ability activity ended", {undoable = false})
+    end
+    m_busyStampTime = nil
+end
+
+--Per-client, from the 1s driver: mirror local ability activity into the
+--state doc while combat is live. Writes only on transitions plus a
+--BUSY_REFRESH_INTERVAL keep-alive, so idle ticks cost nothing.
+local function UpdateBusyMirror()
+    if not EncounterOfTheWeekGame.IsEotwGame() then
+        return
+    end
+    local queue = dmhub.initiativeQueue
+    if queue == nil or queue.hidden then
+        if m_busyStampTime ~= nil then
+            ClearBusyStamp()
+        end
+        return
+    end
+
+    if AbilityActivityInFlight() then
+        if m_busyStampTime == nil or math.abs(dmhub.serverTime - m_busyStampTime) >= BUSY_REFRESH_INTERVAL then
+            WriteBusyStamp()
+        end
+    elseif m_busyStampTime ~= nil then
+        ClearBusyStamp()
+    end
+end
+
+--Host-side award gate: true while this client is busy (checked live, so AI
+--casts on the host are always fresh) or any other client's mirror stamp is
+--recent.
+local function AnyClientAbilityBusy()
+    if AbilityActivityInFlight() then
+        return true
+    end
+    local stamps = mod:GetDocumentSnapshot(STATE_DOC_ID).data.abilityBusy
+    if type(stamps) == "table" then
+        local myUserid = dmhub.loginUserid
+        for userid,t in pairs(stamps) do
+            if userid ~= myUserid and type(t) == "number" and math.abs(dmhub.serverTime - t) < BUSY_STALE_SECONDS then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+--The per-client driver: a cheap 1s poll self-heals across Lua reloads, the
+--late IsEotwGame flip (the host stamps the doc during setup), and map loads.
+dmhub.Coroutine(function()
+    while true do
+        coroutine.yield(1)
+        if mod.unloaded then
+            ClearStartZoneConfinement()
+            return
+        end
+        pcall(UpdateStartZoneConfinement)
+        pcall(UpdateBusyMirror)
+        pcall(UpdateEncounterConclusion)
+    end
+end)
+
+--Open the victory screen's Proceed button to every player in an EotW game.
+--The HOST pressing runs the normal Director teardown (battle log, role
+--history, analytics are Director-gated); a PLAYER pressing relays the
+--request through the state doc for the host tick to execute. pcall: a core
+--codex without the hook keeps the Director-only button.
+pcall(function()
+    DSVictoryScreen.RegisterProceedOverride{
+        canProceed = function()
+            return EncounterOfTheWeekGame.IsEotwGame()
+        end,
+        proceed = function(defaultProceed)
+            if not EncounterOfTheWeekGame.IsEotwGame() or dmhub.isDM then
+                return false
+            end
+            local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+            doc:BeginChange()
+            doc.data.proceedRequested = dmhub.serverTime
+            doc:CompleteChange("Encounter of the Week: proceed requested", {undoable = false})
+            return true
+        end,
+    }
+end)
 
 --- the map's journal encounter ----------------------------------------
 
@@ -625,16 +1017,154 @@ local function EnsureAIStopped()
     end)
 end
 
+--Host only: permanently record that combat has begun. Read by every client's
+--confinement driver -- once stamped, the start-zone confinement never
+--returns, so a resume mid- or post-combat is unrestricted.
+local function RecordCombatStarted()
+    local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+    if doc.data.combatStarted == true then
+        return
+    end
+    doc:BeginChange()
+    doc.data.combatStarted = true
+    doc:CompleteChange("Encounter of the Week: combat started", {undoable = false})
+end
+
+--Consecutive host ticks the met outcome condition has been observed with
+--every client ability-idle; the award waits for AWARD_HOLD_TICKS of them so
+--the fight visibly settles (and any just-started prompt's busy stamp has
+--time to replicate) before the screen takes over.
+local m_awardHoldTicks = 0
+local AWARD_HOLD_TICKS = 2
+
+--Host only, every tick while combat is live: award victory/defeat once the
+--encounter's conditions are met (the existing evaluators the Director's
+--objective strip uses) AND no client has an ability prompting -- the
+--victory screen must never interrupt a roll dialog or prompt mid-ability.
+--While an outcome is on screen, execute a player's relayed Proceed.
+--Everything is pcall-guarded: a rules hiccup must never kill the host tick.
+local function CheckEncounterOutcome(queue)
+    local live = nil
+    pcall(function()
+        local l = queue:try_get("liveEncounter")
+        if type(l) == "table" then
+            live = l
+        end
+    end)
+    if live == nil then
+        return
+    end
+
+    local outcome = nil
+    pcall(function() outcome = live:GetAwardedOutcome() end)
+    if outcome ~= nil then
+        --the victory/defeat screen is up everywhere. A player pressing
+        --Proceed stamps proceedRequested (see the proceed override); run the
+        --full Director teardown on their behalf.
+        local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
+        if doc.data.proceedRequested ~= nil then
+            printf("EotW: a player pressed Proceed; ending the encounter")
+            pcall(function() DSVictoryScreen.ProceedEndCombat() end)
+            doc:BeginChange()
+            doc.data.proceedRequested = nil
+            doc:CompleteChange("Encounter of the Week: proceed handled", {undoable = false})
+        end
+        return
+    end
+
+    local victory = false
+    pcall(function() victory = live:CheckVictory() == true end)
+
+    local defeat = false
+    if not victory then
+        --defeat = a script-declared defeat condition, or every hero down
+        --(CountLiveCombatants counts hitpoints > 0, so dying heroes count as
+        --down -- an all-dying party is a defeat in a one-shot).
+        pcall(function()
+            if live:CheckDefeat() == true then
+                defeat = true
+            else
+                local heroes, _ = live:CountLiveCombatants()
+                if heroes <= 0 then
+                    defeat = true
+                end
+            end
+        end)
+    end
+
+    if not victory and not defeat then
+        m_awardHoldTicks = 0
+        return
+    end
+
+    --the condition is met: wait until no client has an ability prompting
+    --(local check is live; remote clients via their mirror stamps), then
+    --hold for AWARD_HOLD_TICKS consecutive idle ticks before awarding.
+    local busy = false
+    pcall(function() busy = AnyClientAbilityBusy() end)
+    if busy then
+        m_awardHoldTicks = 0
+        return
+    end
+
+    m_awardHoldTicks = m_awardHoldTicks + 1
+    if m_awardHoldTicks < AWARD_HOLD_TICKS then
+        return
+    end
+    m_awardHoldTicks = 0
+
+    if victory then
+        printf("EotW: victory condition met; showing the victory screen")
+        live.victoryAwarded = true
+        dmhub:UploadInitiativeQueue()
+    else
+        printf("EotW: the heroes are defeated; showing the defeat screen")
+        live.defeatAwarded = true
+        dmhub:UploadInitiativeQueue()
+    end
+end
+
+--EotW games strictly enforce all game rules: every "Strict..." Rules
+--Enforcement option, plus the engine's "Strictly Enforce Movement Rules".
+--All of these gate on (not dmhub.isDM), so the host -- who keeps DM status
+--internally -- and the Monster AI it runs are unaffected. Game-scoped
+--settings are only editable from the dmonly Game settings tab, so players
+--cannot flip them off; the host tick re-asserts them in case the host does.
+local g_strictRuleSettings = {
+    "strictmovementrules", --Strictly Enforce Movement Rules (engine)
+    "strict:movement",     --Strictly Enforce Forced Movement Rules
+    "strict:targeting",    --Strictly Enforce Targeting Rules
+    "strict:resources",    --Strictly Enforce Action Economy and Resource Costs
+    "strict:inventory",    --Strict Inventory Management
+}
+
+--Force every strict-rules setting on, writing only the ones not already
+--true (these are game-scoped settings, so each write replicates).
+local function EnforceStrictRules()
+    for _,id in ipairs(g_strictRuleSettings) do
+        if dmhub.GetSettingValue(id) ~= true then
+            dmhub.SetSettingValue(id, true)
+        end
+    end
+end
+
 --The map script's host tick: runs only on the elected host client (the game
 --host -- the game's one Director). Drives the encounter state machine, with
 --the current stage mirrored into the script's shared state:
 --  (nil)      -> waiting for every expected player to arrive, then Draw Steel
---  "combat"   -> combat is live; keep the Monster AI playing the monsters
+--  "combat"   -> combat is live; watch for victory/defeat and keep the
+--                Monster AI playing the monsters
 --  "complete" -> combat ended; the AI is stopped and the script goes idle
+--                (clients that saw the outcome exit to the titlescreen on
+--                their own -- see UpdateEncounterConclusion)
 function EncounterOfTheWeekGame.MapScriptHostThink(ctx)
     if not EncounterOfTheWeekGame.IsEotwGame() then
         return
     end
+
+    --keep the strict-rules settings forced on for the life of the game
+    --(no-op writes are skipped, so this is free when nothing changed).
+    EnforceStrictRules()
 
     local queue = dmhub.initiativeQueue
     local queueLive = queue ~= nil and not queue.hidden
@@ -644,7 +1174,11 @@ function EncounterOfTheWeekGame.MapScriptHostThink(ctx)
         if shared.stage ~= "combat" then
             ctx:ModifyShared(function(s) s.stage = "combat" end)
         end
+        --stamped independently of the stage flip so a host handover between
+        --the flip and the stamp still lifts the players' confinement.
+        RecordCombatStarted()
         EnsureAIRunning()
+        CheckEncounterOutcome(queue)
         return
     end
 
@@ -680,65 +1214,22 @@ end
 
 --- lobby ready signal -------------------------------------------------
 
---Must match the titlescreen's lobby connection (Codex Titlescreen/
---EncounterOfTheWeek.lua): the EotW lobby id, on the staging server while
---EotW is dev-gated.
-local LOBBY_ID = "eotw"
-local LOBBY_STAGING = true
-
 --Tell the lobby this game is fully set up: the server flips the roster
 --record "launched" -> "ready". Waiting members only enter the game when
 --they see "ready" (the host enters on "launched" and runs setup first),
---so no joiner ever loads a half-initialized game. Opens its own lobby
---connection -- the titlescreen's closed when its screen was destroyed
---during the game switch. Safe to call when no roster record exists (a
---resume): the server answers "not registered", which we just log.
+--so no joiner ever loads a half-initialized game. Safe to call when no
+--roster record exists (a resume): the server answers "not registered",
+--which we just log.
 local function SignalGameReady()
-    local lobbies = rawget(_G, "lobbies")
-    if lobbies == nil then
-        printf("EotW: engine has no lobbies API; cannot signal game ready")
-        return
-    end
-
     local gameid = dmhub.gameid
-    local conn = lobbies:Connect(LOBBY_ID, { staging = LOBBY_STAGING })
-    if conn == nil then
-        return
-    end
-
-    dmhub.Coroutine(function()
-        --requests fail immediately while the connection is still opening,
-        --so wait for it to authenticate (give up after ~30s).
-        for _ = 1, 300 do
-            if mod.unloaded then
-                return
-            end
-            if conn.connected then
-                break
-            end
-            coroutine.yield(0.1)
+    SendLobbyRequest("ready-game", { gameid = gameid }, function(ok, result)
+        if ok then
+            printf("EotW: signaled ready-to-enter for game %s", gameid)
+        else
+            --"not registered" just means there is no roster record (a
+            --resume long after launch); anything else is worth seeing.
+            printf("EotW: ready-game signal not accepted: %s", tostring(result))
         end
-
-        if not conn.connected then
-            printf("EotW: lobby connection never became ready; game-ready signal not sent")
-            conn:Disconnect()
-            return
-        end
-
-        conn:Request{
-            action = "ready-game",
-            args = { gameid = gameid },
-            success = function(result)
-                printf("EotW: signaled ready-to-enter for game %s", gameid)
-                conn:Disconnect()
-            end,
-            error = function(err)
-                --"not registered" just means there is no roster record (a
-                --resume long after launch); anything else is worth seeing.
-                printf("EotW: ready-game signal not accepted: %s", tostring(err))
-                conn:Disconnect()
-            end,
-        }
     end)
 end
 
@@ -803,6 +1294,9 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
             --there is no Director in an EotW game: every player may control
             --initiative (select turns, advance rounds) for their side.
             dmhub.SetSettingValue("permission:playersinitiative", true)
+
+            --EotW games always strictly enforce the game rules.
+            EnforceStrictRules()
 
             --the map script takes it from here: combat entry once everyone
             --has arrived, then Monster AI supervision.

@@ -68,10 +68,76 @@ the engine gained a purpose-built API:
   `GetPregenToken(id)` returns the snapshot token.
 - Launch-time instantiation (Phase 6) should copy `SpawnTokenFromBestiaryLocally`
   (`GameLua.cs:604`): deep-copy the CharacterInfo, clear ownerId, fresh guid --
-  NOT `ReinstallCharacter`, which reuses the module charid. Caveat noted for
-  Phase 5/6: snapshot characters' portrait image ids resolve against the
-  module's streamed assets, which only load for installed modules -- verify
-  portraits at the titlescreen before promising them in the picker.
+  NOT `ReinstallCharacter`, which reuses the module charid.
+- **Pregen portraits at the titlescreen (CONFIRMED BROKEN + FIXED 2026-08-28;
+  engine NEEDS BUILD)**: the old caveat proved real -- snapshot characters'
+  portrait ids are cloud-asset GUIDs whose ImageAsset RECORDS live in the
+  version's **streamed** payload (`ver.streamed.assets.images` +
+  `imageLibraries`), which only `CloudAssetManager.LoadModulesDependencies`
+  registers, and only for modules the current game installs. At the
+  titlescreen `assets.allAssets` simply lacks the GUIDs (verified live), so
+  card bgimages rendered nothing. Fix: `DownloadModuleSnapshotCo` now runs
+  `EnsureModuleImageAssetsCo` (`Assets/ModuleManager.cs`) -- fetches the
+  version's streamed payload (shared `module-streamed-{dataid}.json` disk
+  cache first, then GCS `gcsStreamedId`, then Firebase
+  `/ModuleVersions/{dataid}/streamed`) and calls the new
+  `CloudAssetManager.RegisterModuleImageAssets(moduleid, streamed)`
+  (`Assets/Scripts/CloudAssetManager.cs`): registers a Module-type asset
+  store containing ONLY `images` + `imageLibraries` -- no monsters/tables/
+  documents, no `RecordNovelModuleContent`, `_moduleidToDependencyInfo`
+  untouched (so the dependency sweep ignores it and a real install replaces
+  it). The image BYTES need no help -- they are md5-content-addressed and
+  download from anywhere; only the records were missing. Entering any game
+  wipes module stores (`ClearModules`), so the Lua side re-ensures:
+  `EnsurePregenArt` (in `CachePregens`) re-invokes DownloadModuleSnapshot
+  (disk-cached, no network) whenever a sampled cached pregen portrait GUID is
+  absent from `assets.allAssets`. Stopgap for builds without the engine fix:
+  `MakeCardPanel` drops portrait/frame ids that are unresolvable asset GUIDs
+  (`IsUnresolvableAssetId`: GUID-shaped AND not in allAssets) so cards show
+  the silhouette instead of an empty frame.
+- **DEEPER ROOT CAUSE (2026-08-28, after the registration fix tested no-change
+  on a fresh build): the art ships in an INHERITED module, not this one.**
+  mcdm-encounteroftheweek v4's own streamed payload is 2 objectTables and
+  ZERO images -- correctly so: the pregen portraits live in the source
+  game's Avatar/AvatarBackground image libraries, which belong to
+  **venla-deliantomb**, and v4's version record declares
+  `dependencies = [venla-deliantomb v21 (77e58585-...)]` (verified in
+  Firebase). venla-deliantomb v21's streamed payload carries all 18 pregen
+  art GUIDs. ModShare rightly never offers another module's assets when
+  publishing yours, so NO republish is needed -- the titlescreen just was
+  not loading dependencies. In-game this works because
+  `GameController.LoadModulesFromGameDetails` ->
+  `ModuleManager.TraceDependencies` (transitive resolver) ->
+  `CloudAssetManager.LoadModulesDependencies` loads the streamed payload of
+  EVERY closure member; my first registration fix fetched only the root
+  module's own (art-less) payload. It also registered that empty store,
+  which made `HasModuleAssetStore` skip all retries for the session -- now
+  guarded (empty-images payloads register nothing, logged at info level).
+- **Module art preview infrastructure (BUILT 2026-08-28; engine NEEDS
+  BUILD)**: `ModuleManager.EnsureModuleArtPreviewCo(module, ver)` -- kicked
+  off (fire-and-forget, never blocks/fails the caller) by
+  `DownloadModuleSnapshotCo` after its success callback. Resolves the
+  module's full transitive dependency closure with the SAME
+  `TraceDependencies` resolver the in-game install path uses
+  (deprecation-aware; 30s deadline falls back to the root module alone),
+  then for each member without a loaded asset store runs
+  `RegisterStreamedImageAssetsCo(moduleid, versionid)`: streamed payload
+  from the shared disk cache -> GCS (`GetGcsStreamedId` works for deps
+  because the trace loads their /Module records) -> Firebase
+  `/ModuleVersions/{versionid}/streamed`, then
+  `CloudAssetManager.RegisterModuleImageAssets` (images + imageLibraries
+  ONLY -- content collections never leak into the current game, no
+  novel-content recording, real installs replace the store). A per-module
+  60s in-flight stamp prevents concurrent runs without being able to wedge
+  the session. All failures log with the `ModuleArtPreview:` prefix.
+  Re-ensure after game switches is unchanged: `ClearModules` wipes the
+  stores, and the EotW titlescreen's `EnsurePregenArt` re-invokes
+  DownloadModuleSnapshot when a sampled portrait stops resolving (all
+  payloads disk-cached, so re-registration is local). Extending the preview
+  beyond images later = widening the filter in RegisterModuleImageAssets.
+  The interim doctored-v4-cache test band-aid was removed once this landed
+  (original cache restored); venla-deliantomb v21's payload is already in
+  this machine's disk cache, so the new build registers art with no network.
 
 ## Dev setting
 
@@ -128,9 +194,17 @@ validates shape -- **the Lobby DO acts as a server**. Clients subscribe to the l
 document read-only; every mutation is a **typed request** the DO validates against the
 requester's permissions and then applies itself:
 
-- **Create game**: allowed only if the requester does not already have a game registered
-  in this lobby (one hosted game per user at a time). On grant, the DO records the roster
-  entry itself.
+- **Create game**: one hosted game per user at a time, enforced by SUPERSESSION
+  (changed 2026-08-28; originally a rejection): a create request from a user who
+  already hosts a registered game drops that record -- exactly as if the host had
+  left it, private chat purged -- and grants the new reservation in one step
+  (`ack.result.superseded` names the dropped gameid). A still-live unconfirmed
+  reservation is likewise replaced rather than rejected. Rationale: the screen
+  heartbeats every game the user hosts while it is open, so the old record never
+  expired and "already hosting game X" locked hosts out of ever re-creating;
+  the client's destroy-previous-game flow only ran AFTER a successful
+  reservation. The actual DMHub game is still destroyed client-side
+  (`DestroyPreviousGame`) once the replacement exists.
 - **Join game**: allowed only if the target game is public and has open slots. On grant,
   the DO updates the slot state itself.
 - **Chat**: a send request; the server stamps the sender identity and timestamp, enforces
@@ -154,8 +228,9 @@ surface as built:
   rejected.
 - Actions: `chat {text, gameid?}` (with `gameid`: the private chat of that game's
   lobby -- members only; one shared 8-token rate bucket per user across all
-  channels); `create-game {name?, public?}` (one hosted game per user; grants a
-  reservation); `confirm-game {gameid}`; `join-game {gameid, heroes?}` (public +
+  channels); `create-game {name?, public?}` (one hosted game per user -- an
+  existing hosted record is superseded/dropped and a live reservation replaced,
+  never rejected; grants a reservation); `confirm-game {gameid}`; `join-game {gameid, heroes?}` (public +
   open gate membership, host exempt from the public check; heroes optional --
   membership no longer implies slots); `set-heroes {gameid, heroes}` (replace the
   caller's hero-slot claim; members only); `leave-game {gameid}` (host leaving
@@ -373,10 +448,12 @@ row**, not vertical rows (user direction 2026-08-28). All in
   screen itself could not be exercised): portraits/frames/plates/chip render
   correctly, hover reveals the trash, the born tween + fade works (screenshot
   caught mid-animation with neighbors sliding apart), zero console errors, and a
-  full reload (49 mods) was clean. NOT yet seen live: the real game-lobby view
-  over a roster record, the picker grid at the titlescreen (incl. whether
-  pregen snapshot portraits resolve there -- silhouette fallback covers a miss),
-  and remote-player cards.
+  full reload (49 mods) was clean. The user then hit **pregen cards with no
+  art at the titlescreen** -- root-caused and fixed the same day (streamed
+  image assets not registered outside installing games; see "Pregen portraits
+  at the titlescreen" under Pregen heroes -- engine NEEDS BUILD, silhouette
+  stopgap live). NOT yet seen live: the game-lobby view over a roster record,
+  remote-player cards, the kick icon, and pregen art post-rebuild.
 
 ## One EotW game per account (DECIDED + BUILT 2026-08-27; worker DEPLOYED to staging, engine NEEDS BUILD, UNTESTED live)
 
@@ -438,8 +515,73 @@ degrades to exactly the old behavior (games land in the campaigns list).
 Deliberately NOT built: destroying the old game while other players are inside it
 still works (spec'd: the host entering a new game destroys the previous one; their
 clients get the terminal close and their slots self-clear via the deleted-game
-cleanup), and there is no standalone "abandon without starting a new game" button
--- destruction only happens on entering a new game. Revisit if wanted.
+cleanup).
+
+**Standalone Abandon (BUILT + verified live 2026-08-28; user direction).** The
+"abandon only on entering a new game" stance was revisited: leaving a game in
+progress had no way to either destroy it or get back in. Now:
+
+- The **resume row** ("Your game in progress") has an **Abandon** button next to
+  Resume. It calls `DestroyPreviousGame` (lobby `leave-game` best-effort +
+  `DeleteAndReleaseStorage`/`ClearEotwGame`) and removes the row.
+- The **game lobby view's host Abandon** now also destroys the game outright via
+  `DestroyPreviousGame` (previously it only dropped the lobby roster record,
+  stranding the engine game in the account slot). A non-host's Leave is unchanged
+  (leave-game only).
+- Both destructive Abandons use a two-click confirm: the button flips to
+  "Really?" and reverts after 4 seconds if not confirmed.
+- The game view also gained a **Re-join** button for members of a launched/ready
+  game (any member on "ready"; the host also on "launched" -- setup re-runs are
+  re-entry safe), since auto-entry no longer fires for pre-existing records (see
+  "Returning to the titlescreen" below).
+
+## Returning to the titlescreen after leaving a game (ROOT-CAUSED + FIXED 2026-08-28; verified live)
+
+Leaving an EotW game mid-encounter dumped the player on a **zombie EotW screen**:
+frozen roster ("Entering the game..."), and every control failing with "Not
+connected to the lobby". Root cause, established against the live app + Player.log:
+
+- Returning to the titlescreen **reloads the titlescreen codemods but PRESERVES
+  the titlescreen's panel tree** -- including the EotW screen that was open when
+  the game was entered (always the case for a game launched from it). The
+  surviving screen belongs to the previous codemod generation: one shared Lua
+  state, so its closures still run, but its file-locals (`m_conn`, `m_screen`)
+  are frozen from before the switch.
+- During the game switch the screen's **lobby connection is closed** (wrapper
+  status "closed" and the manager's shared-connection entry gone) and the C# side
+  never reconnects a `Close()`d `LobbyConnection` -- "closed" is terminal, with no
+  reconnect, no pings, no log lines. Every `Request` on it fails fast with
+  "Not connected to the lobby" (`LobbyConnection.cs`).
+
+Fixes (all Lua, in `Codex Titlescreen/EncounterOfTheWeek.lua`):
+
+- **Stale-screen sweep** (file-scope, scheduled 1s after every codemod load):
+  if this generation owns no screen (`m_screen == nil`) but an
+  `encounterOfTheWeekScreen` panel exists on `CodexTitlescreenRoot`, it is
+  destroyed and `ShowScreen()` builds a fresh one -- which connects anew and
+  renders current lobby state, including the resume row for the game just left.
+  Runs only at the titlescreen (`(not dmhub.inGame) or dmhub.isLobbyGame`),
+  retrying up to 5x2s otherwise (mid-game reloads leave the hidden zombie for
+  the return reload to sweep). The old screen's destroy-handler Disconnect is
+  safe next to the new connection: `CloseConnection` only removes the dict entry
+  if it still maps to that exact connection.
+- **Connection self-heal** (screen think, 30s): a `m_conn.status == "closed"`
+  connection is replaced via a fresh `lobbies.Connect` and the document/status
+  monitors are rebound (`AttachMonitors`, extracted from the inline registration).
+  Backstop only -- the sweep handles the main path.
+- **Transition-gated auto-entry**: `CheckLaunchedGames` snapshots each record's
+  status on the first roster scan (`m_initialGameStatus`) and only auto-enters on
+  a status CHANGE it observed. A record already launched/ready when the screen
+  opened (i.e. a game the player just stepped out of) no longer yanks them
+  straight back in -- without this, the rebuilt screen would make leaving
+  impossible while the roster record lived. Re-entry for those is the explicit
+  Re-join button / resume row. The Begin flow is unaffected (open->launched and
+  launched->ready are transitions). The "Entering the game..." label now only
+  shows while `m_enteringWorld` is actually set.
+
+While in the game nobody heartbeats the roster record, so it expires <=5 min
+after launch; the common post-leave state is therefore the resume row
+(record gone, engine game alive in the eotw slot), now with Resume + Abandon.
 
 ## Hero transfer into the game (DECIDED + BUILT 2026-08-27)
 
@@ -741,6 +883,323 @@ entirely as leafy EotW-module code plus small named hooks in core:
     -- GetTokenById returns nil for deleted AND despawned characters (verified), so
     the stale ids in the shipped doc never trip it.
 
+### Start-zone confinement during the pre-combat phase (DECIDED + BUILT 2026-08-28; engine NEEDS BUILD)
+
+User direction (2026-08-28): while the initiative roll is displayed, heroes may
+move around inside the Start zone but not leave it, and the zone is marked
+visibly for the players. Built as a general engine **Movement Restriction Mode**
+hook plus leafy EotW code:
+
+- **Window**: the whole pre-combat phase -- from entering an EotW game until the
+  initiative queue goes live. That covers both the waiting-for-players stretch
+  and the Draw Steel banner (the "initiative is displayed" moment), i.e. the
+  original step-22 positioning phase minus the ready-up. Once combat has started
+  the restriction never returns: the host stamps `combatStarted = true` into the
+  `eotwstate` doc when the queue first goes live, and clients treat that as a
+  permanent latch (so a resume after combat, or after the encounter concludes,
+  is never confined).
+- **Engine hook (`Assets/Scripts/LuaInterface.cs`)**:
+  `dmhub.SetMovementRestriction{locs}` / `dmhub.ClearMovementRestriction()`.
+  Stores a `HashSet<Loc>` (normalized `withoutTinySizeOrAltitude`) on
+  `GameController.instance.movementRestrictionLocs`, so the mode dies with the
+  game session automatically. Enforcement, both in `CharacterToken.cs`:
+  1. `GetMoveCostFn`'s `singleMoveCostFn` treats any step destination outside
+     the set as impassable (`return null`) -- pathfinding, the drag preview
+     arrow, and the movement-radius markers all clip to the zone for free, and
+     `token:Move` (arrow keys, AI, abilities) is covered too. The
+     `MoveCostFlags.ForcedMovement` flag set is exempt (pushes/slides are not
+     player movement).
+  2. A commit backstop in `UpdateDragging` right after `canMakeMove` is
+     computed: a path whose `dest` is outside the set forces
+     `legalMove/canMakeMove` false -- including for the DM (`dmillegalmoves`
+     does NOT punch through a mod-installed restriction, and the ctrl-teleport
+     and alt-force-move commits gate on `canMakeMove` too).
+  The restriction is a per-client install and applies to all tokens while
+  installed; the installing mod controls when it is active. LuaLS stubs in
+  `Definitions/dmhub.lua`. On an engine build without the API the Lua degrades
+  to no confinement (nil probe), overlay still shown.
+- **Zone overlay**: each client draws the Start zone itself with
+  `dmhub.MarkLocs{locs, color, style="dashed"}` while the restriction is
+  active, destroying the returned handle when it lifts. Every EotW client runs
+  the codemod, so local drawing needs no networking (MarkLocs markers DO also
+  self-transmit when the user's cursor-broadcast setting is on -- remote
+  duplicates render identically, harmless).
+- **Driver**: a 1s poll coroutine in the EotW codemod (started at codemod load,
+  `mod.unloaded`-guarded) evaluates the desired state per client:
+  `IsEotwGame()` AND `combatStarted` not stamped AND queue not live AND the map
+  has Start-zone tiles -> install restriction + overlay, else clear both. A
+  poll (rather than event wiring) self-heals across Lua reloads, late
+  `IsEotwGame` flips, and map loads.
+
+### Strict rules enforcement (DECIDED + BUILT 2026-08-28)
+
+User direction (2026-08-28): EotW games strictly enforce all game rules -- the
+settings screen's "Rules Enforcement" options that start with "Strict"/"Strictly"
+are force-enabled. The forced set (`g_strictRuleSettings` in
+`EncounterOfTheWeek/EncounterOfTheWeek.lua`):
+
+- `strict:movement` (Strictly Enforce Forced Movement Rules)
+- `strict:targeting` (Strictly Enforce Targeting Rules)
+- `strict:resources` (Strictly Enforce Action Economy and Resource Costs)
+- `strict:inventory` (Strict Inventory Management)
+- `strictmovementrules` (the ENGINE's "Strictly Enforce Movement Rules", under
+  the settings screen's separate "Game" heading -- included because the intent
+  is "strictly enforce all game rules"; drop it from the list if unwanted)
+
+Deliberately NOT forced: `strict:hiddeninvisible` ("Hidden Monsters Invisible
+to Players") -- it shares the GameStrictRules section but is a Director
+visibility tool, not a strictness rule, and does not match the "Strict..."
+naming criterion.
+
+Mechanism: `EnforceStrictRules()` writes any of the five game-scoped settings
+that is not already `true`. Called from the host's `SetupOnArrival` block
+(next to the `permission:playersinitiative` write) and re-asserted at the top
+of every `MapScriptHostThink` tick (check-before-write, so steady-state ticks
+write nothing). Safety facts verified in source: every consumer of these
+settings gates on `(not dmhub.isDM)`, so the host -- who keeps real DM status
+-- and the Monster AI casts it runs are unaffected; and the settings screen's
+"Game" tab (the only editor surface) is `dmonly` on the real `dmhub.isDM`, so
+players cannot flip them off -- the host-tick re-assert only guards against
+the host itself using the still-visible Game tab (a recorded
+Director-presentation gap).
+
+### Victory/defeat auto-detection, player Proceed, and auto-exit (DECIDED + BUILT 2026-08-28)
+
+User direction (2026-08-28): the game detects the encounter's victory/defeat
+conditions itself, triggers the victory/defeat screen, players (not just the
+Director) can press Proceed, and after Proceed everyone is returned to the
+Codex titlescreen.
+
+- **Detection (host map-script tick, while the queue is live)**: if
+  `live:GetAwardedOutcome()` is nil, evaluate victory =
+  `live:CheckVictory()` (the existing evaluator: all seven authored conditions
+  plus encounter-script overrides, pending reinforcements included) and defeat
+  = `live:CheckDefeat()` (script-declared) OR all heroes down via
+  `live:CountLiveCombatants()` returning `heroes == 0`. Note
+  `CountLiveCombatants` counts `CurrentHitpoints() > 0`, so DYING heroes
+  (hp <= 0 but above the death threshold) count as down -- an all-dying party
+  is a defeat, which is the intended one-shot semantics. Award = set
+  `live.victoryAwarded`/`defeatAwarded` + `dmhub:UploadInitiativeQueue()` --
+  exactly what the initiative bar's Award Victory button does. The existing
+  `DSVictoryScreen` (mounted on every client, monitoring `/initiativeQueue`)
+  then shows the victory/defeat screen everywhere with hero cards, roles, and
+  the defeat backdrop; no new broadcast mechanism.
+- **The award waits for ability prompts (ADDED 2026-08-28 after the first
+  live run: the victory screen appeared mid-ability-prompt)**. The killing
+  blow usually lands mid-ability, with the caster's roll dialog / follow-up
+  prompts still open -- and those prompts are LOCAL to the caster's client,
+  invisible to the awarding host. So every client mirrors "I have ability
+  activity in flight" into the state doc (`abilityBusy[userid] =
+  serverTime`, written from the 1s driver on transitions plus a 5s
+  keep-alive while busy, cleared when idle; host ignores stamps older than
+  15s so a crashed client cannot hold the award hostage). The per-client
+  predicate `AbilityActivityInFlight()` composes exactly the primitives the
+  codex already trusts (the invoke pipeline's wait, `MonsterAI:
+  WaitForAbilityIdle`, the death gate): live cast coroutines
+  (`ActivatedAbility.CountActiveCasts` -- on the host this covers Monster AI
+  casts), action-bar targeting (`actionBarPanel.data.IsCastingSpell()`,
+  tested TRUTHY -- the two bars return different types), all three roll
+  surfaces (`CharacterPanel.AnyRollDialogShown`), open modals
+  (`gui.GetModal`), and unanswered non-hostile trigger/invocation prompt
+  cards on controlled creatures (`GetAvailableTriggers(true)`; hostile
+  prompts never age out and must not block). The host awards only when the
+  condition is met AND nobody is busy (its own state checked live, remote
+  clients via fresh stamps) for 2 consecutive host ticks
+  (`AWARD_HOLD_TICKS`) -- the hold lets the fight visibly settle and lets a
+  just-started prompt's stamp replicate.
+- **Player Proceed (core hook)**: `DSVictoryScreen.RegisterProceedOverride{
+  canProceed, proceed }` in `Draw Steel UI/DSVictoryScreen.lua`. Proceed-button
+  visibility becomes `dmhub.isDM OR canProceed()` (pcall-guarded); the click
+  runs `proceed(ProceedEndCombat)` first and only falls through to the normal
+  Director teardown when the override declines. `ProceedEndCombat` is also
+  exported as `DSVictoryScreen.ProceedEndCombat` for the host-side automation.
+  The Victories award section's visibility gate converts `dmhub.isDM` ->
+  `GameHud.DirectorUIVisible()` (identical in normal games; hidden in EotW for
+  everyone including the host, per the no-Director presentation).
+- **EotW override**: when `IsEotwGame()`, everyone may press Proceed. The HOST
+  pressing runs the normal full teardown directly (battle log +
+  `encounter_complete` analytics + role history are `dmhub.isDM`-gated and must
+  run on the host). A PLAYER pressing stamps `proceedRequested` into the
+  `eotwstate` doc; the host tick (which is already watching the awarded
+  outcome) sees it and runs `DSVictoryScreen.ProceedEndCombat()` -- worst case
+  ~2s latency before the screen dismisses for everyone. If the host client is
+  gone, the request sits until the host returns (same accepted class as the
+  other host-crash edges).
+- **Auto-exit to the titlescreen**: each client's 1s driver latches "outcome
+  seen" while the queue is live with an awarded outcome; when the queue then
+  hides/disappears (Proceed ran), it schedules `dmhub.LeaveGame()` once, ~4s
+  out (covers the victory screen's 0.7s fade plus the 1-3s GameDetails write
+  coalescing so the host's battle-log/queue writes flush before the socket
+  closes). Every client leaves, host included, landing on the titlescreen --
+  the existing post-leave flow (stale-screen sweep, resume row, no auto
+  re-entry) already handles the arrival. Clients that never saw an awarded
+  outcome (a combat ended via the Director escape hatch, or a mid-join) do NOT
+  auto-exit. `dmhub.LeaveGame` is deferred via `dmhub.Schedule` because it
+  synchronously unloads the calling codemod.
+- **Finished-game cleanup (ADDED 2026-08-28 after the first live run: the
+  game lingered in the lobby list and the account slot after everyone
+  exited)**. Two causes: nobody ever told the lobby the game was over (and a
+  returning member's EotW screen HEARTBEATS every game it occupies on its 30s
+  think, keeping the roster record alive past the 5-minute TTL forever), and
+  the finished game still sat in the eotw account slot offering Resume. Fix,
+  both halves at conclusion time:
+  - **Game-side (before exiting)**: every client stamps the finished gameid
+    into the machine-local preference `eotw:concludedgame` and sends a lobby
+    `leave-game` over a transient connection (`SendLobbyRequest`, the
+    generalized SignalGameReady plumbing). The HOST's leave drops the roster
+    record + its chat for the whole lobby immediately; members' leaves remove
+    their membership so their returning screens stop heartbeating it.
+    Best-effort: if the send loses the race with `LeaveGame` (~4s), the
+    titlescreen half re-sends it.
+  - **Titlescreen-side**: `RefreshResumeState` (runs on every screen open)
+    reads `eotw:concludedgame`; when set it clears the preference and runs
+    `DestroyPreviousGame(gameid)` -- on the host's machine that deletes the
+    game and releases its Durable Object, on a member's machine it degrades
+    to Leave -- and both clear the eotw account slot, so no resume row and no
+    stale roster row. The setting is declared in both files (settings are
+    keyed globally by id).
+  Degraded worst case (host crashed before stamping): the record expires via
+  the normal 5-minute TTL once members' leaves land, and the host's next
+  screen open still shows the resume row with Abandon.
+
+### Custom interface: usurping the game hud (DECIDED + BUILT 2026-08-28)
+
+User direction (2026-08-28): the core app gains hooks for a mod to enforce a
+**custom interface** -- the titlebar remains (items suppressible/addable),
+the side icon rails are replaceable with mod widgets, and EotW uses it: no
+side buttons, no "Panels" menu, no Compendium access, and a hero roster on
+the left edge.
+
+**The core hook** -- `GameHud.RegisterCustomInterface{...}` in
+`DMHub Core UI/Hud.lua` (right after `RegisterDirectorUIFilter`, same
+pattern). A provider table: `id` (stable string; consumers watch it to
+detect takeovers), `active()` (first registered provider whose active() is
+true wins), and optional fields `suppressRails`, `railPanel(side)`,
+`suppressTitlebarMenu` (set|fn by menu NAME), `titlebarPanels()`,
+`suppressPanel` (set|fn by panel NAME), `suppressSearchBucket` (set|fn by
+bucket id), `characterPanelAccess(token)` -> "edit"|"view"|"none"|nil.
+Every consumer read is pcall-guarded; a broken provider degrades to the
+normal interface. Consumers wired in core:
+
+- **Icon rails** (`DocumentSystem/DocumentSystem.lua`): a takeover
+  (`PanelDocument.RailCustomInterfaceId()`, new) forces `RailModeActive()`
+  true regardless of the iconrail setting (docks slide away, windows host
+  on the layer), and `BuildIconRails` mounts per-side wrapper panels
+  holding `railPanel(side)` widgets instead of the button columns, plus an
+  optional BOTTOM-corner wrapper per side from `railBottomPanel(side)`
+  (stored as `g_iconRails["leftbottom"/"rightbottom"]`; valign bottom,
+  setRailScale pivots on the bottom corner so Font Size zoom keeps it
+  pinned). The wrappers reuse the `iconRail` class + `g_iconRails` slots
+  so every lifecycle path (destroy, stale-generation sweep, theme recolor,
+  fontsize-zoom via setRailScale) works unchanged, carry `IconRailStyles()`
+  so provider widgets can use the native iconRailButton/iconRailIcon/
+  iconRailActiveMark classes, and fire `refreshRail` tree-wide on their
+  0.5s think (the standard rail cadence -- unread badges, lit states).
+  The left top wrapper is also registered as the chat listener
+  (`chat.events:Listen`) with the real rail's `slash` ->
+  `RailSlashOpensChat` and `refreshChat` -> `ChatBubbleNotify` handlers,
+  so "/" still summons chat during a takeover (the speech bubble bails
+  harmlessly -- it needs a slotted chat button to anchor on). Both rail
+  kinds watch `RailCustomInterfaceId` on their 0.5s think and swap via
+  `PanelDocument.RailCustomInterfaceRebuild()` (DestroyIconRails +
+  EnsureIconRail, deferred) when the mode flips mid-session -- so the
+  takeover engages even though the EotW state doc may identify the game
+  only after EnterGame built the normal rails. Docks are hidden with the
+  `offscreen` CLASS only (`SyncDocksOffscreenForCustomInterface`), never
+  the dock settings -- SyncDocksToRailMode writes settings and would
+  permanently trample the user's dock layout. A takeover restores NO
+  pinned/popped windows (the custom interface owns the screen); orphaned
+  windows from a previous Lua generation are still swept. NOTE: new
+  DocumentSystem cross-function helpers are `PanelDocument.*` fields, not
+  locals -- the file's main chunk runs near the 200-local ceiling.
+- **Titlebar** (`Codex Titlescreen/CodexTitleBar.lua`):
+  `CreateCodexMenuItem` wraps `calculateVisibility` (the 200ms broadcast):
+  suppressed items collapse -- via a `customInterfaceHidden` class rule for
+  items with no own calculateVisibility (so the mainmenuOnly/ingameOnly
+  class rules stay in charge otherwise), and by overriding
+  `selfStyle.collapsed` after running the item's own calc for those that
+  have one (Developer, Adventure Documents). A `customInterfaceTitlebarItems`
+  host panel (after the Feedback menu) rebuilds its children from
+  `titlebarPanels()` whenever the active interface id changes.
+- **Panel registries**: `DockablePanel.PanelPermittedForUser` checks
+  `CustomInterfaceSuppressesPanel(p.name)` (covers Panels menu, toolbar,
+  rail, search harvest for dockables); `LaunchablePanel` is ENGINE core Lua
+  (`Assets/CoreAssets/Lua/game-hud-menu.txt`) and was NOT touched -- the
+  Compendium's own `filtered` registration (`DMHub Compendium/
+  Compendium.lua`) checks the hook instead, which removes it from the
+  Codex menu, the hud toolbar, and the search apptools bucket.
+- **Search** (`DMHub Utils/Utils.lua` `Search.CollectProviderResults`):
+  providers whose `bucket` is suppressed are skipped -- this kills the six
+  compendium-bucket providers (compendium-content, glossary,
+  treasure-items, class features, monsters, monster-abilities) that bypass
+  the menus. Verified live: 65 "goblin" results with the interface off, 0 on.
+- **Character panel** (`DMHub Core Panels/CharacterPanel.lua`
+  `TokenAccessLevel`): the `characterPanelAccess(token)` override runs
+  before the normal canControl/partymembercontrols rules; "view" produces
+  the existing readonly-class panel (55 TacPanel edit gates + editOnly
+  chrome collapse + sheet button blocked).
+
+**The EotW hud** (`EncounterOfTheWeek/EncounterOfTheWeekHud.lua`, new file,
+registered in the EotW codemod at position 2 after EncounterOfTheWeek.lua):
+
+- Provider: active when `IsEotwGame()` (the `eotw:showdirectorui` escape
+  hatch restores the FULL normal interface), or when the new hidden dev
+  toggle `/toggle eotw:forcecustomui` is on (iterate in any game without
+  launching a real EotW game -- flips take effect within ~0.5s).
+- Suppresses: rails (both sides), the "Panels" titlebar menu, the
+  "Compendium" panel, the "compendium" search bucket.
+- **Kept buttons (user direction 2026-08-28): Chat and Action Log survive
+  in the bottom-left corner** -- `railBottomPanel("left")` returns a strip
+  of rail-style buttons (`CreatePanelButton`): 40px iconRailButton look
+  (the wrapper's IconRailStyles makes the classes native), the panel's
+  registered icon, its unread badge (hasNewContent/newContentCount/
+  markContentSeen on the refreshRail cadence, the real button's recipe),
+  the active underline while the window is up, and the real open path
+  (`DockablePanel.LaunchPanelByName(name, "toggle")` -> the rail's open
+  handler -> a normal rail window). Chat and Action Log share a window as
+  tabs exactly as on the real rail. Verified live via the force toggle:
+  buttons render bottom-left, chat opens with input focused, active class
+  lights, action log opens tabbed, toggle closes, zero errors.
+- **Hero roster** on the left edge: one card per party hero
+  (`Party.GetPlayerCharacters()` + `IsHero()`, so off-map heroes count) --
+  204px wide, iconRailButton-style backing (blur + #000000cc + radius 8),
+  a 54x72 portrait mini-card (portraitBackground frame + offTokenPortrait
+  cropped via GetPortraitRectForAspect), name, "Stamina cur/max [+temp]
+  Rec cur/max", "<HeroicResourceName> N  Surges N", and a condition-icon
+  row (inflictedConditions + statusEffect ongoing effects, tooltips).
+  The local player's own heroes (strict `ownerId == dmhub.loginUserid`,
+  NOT canControl -- the host controls everything) sort first, spaced
+  tighter, on a blue-tinted bordered backing; a 16px gap separates the
+  groups. Refresh: 1s think + `/characters` monitor; cards rebuild only
+  when the roster signature changes.
+- Clicking a card pops the full character panel
+  (`ToggleCharacterPanelDocument(charid)`), **read-only for everyone, own
+  heroes included** -- `characterPanelAccess` returns "view" for every
+  player-controlled token (interpretation of "read-only when in
+  [encounter] of the week": sheet edits are off; state changes go through
+  the action bar and game flows -- consistent with strict rules
+  enforcement; flag if own-hero read-only is too strict).
+
+Verified live (authoring game via the force toggle): takeover + release
+both directions with zero console errors; roster card renders with
+portrait/stats/condition icon; panel opens read-only (access "view" for a
+canControl token); Panels menu vanishes; Compendium gone from launchable
+menu items and search. NOT yet seen: multiple heroes / the mine-vs-others
+grouping with real per-player ownership (the authoring hero is
+PARTY-owned), a real EotW game end-to-end, and dock-mode users (rails off).
+
+Known gaps (accepted for now): a user who pre-bound a "togglepanel
+compendium" keybind may still open it (`LaunchablePanel.LaunchPanelByName`
+ignores `filtered`; fixing needs engine core Lua);
+`GameHud:ViewCompendiumEntryModal` single-entry cards from journal links
+still work (arguably desirable). ~~No chat access with the rails gone~~
+RESOLVED (2026-08-28, user direction): Chat + Action Log buttons kept in
+the bottom-left corner (see the kept-buttons bullet above), and "/" still
+opens chat via the wrapper's chat-listener wiring. Residual: the chat
+speech-bubble preview does not show during a takeover (it anchors by
+top-slot math on a slotted chat button); the Chat button's unread badge
+covers awareness.
+
 ---
 
 # Development Plan
@@ -952,8 +1411,12 @@ Begin is now the only launch path, with the resume row for re-entry.)
     enters on "launched", runs setup in-game, and the game-side codemod sends
     `ready-game` ("launched" -> "ready"); other members enter only on "ready"
     (waiting note shown in the game view meanwhile). See "Joiner-side module
-    install race" for why. Members with zero heroes (observers) enter too. A member who reopens the screen while their
-    game is launched (within the record's 5-min TTL) is likewise pulled in.
+    install race" for why. Members with zero heroes (observers) enter too.
+    SUPERSEDED (2026-08-28): a member who reopens the screen while their game is
+    ALREADY launched/ready is no longer auto-pulled in -- auto-entry fires only
+    on status transitions the open screen observed; pre-existing records get an
+    explicit Re-join button instead (see "Returning to the titlescreen" in
+    Architecture Notes).
     **DECIDED (2026-08-27): the per-member "Enter World" button is gone** --
     Begin is the only way to launch into the game; the resume row ("Your game
     in progress" -> Resume) remains the re-entry path for a game whose roster
@@ -963,12 +1426,13 @@ Begin is now the only launch path, with the resume row for re-entry.)
     heartbeat still ok) -- ALL CHECKS PASSED against local
     `wrangler dev --env staging`. Staging deploy is a user action
     (`npm run deploy`); until then Begin's click gets "Unknown action".
-22. [ ] Starting-zone phase: DEFERRED (2026-08-28 user direction: combat enters
+22. [~] Starting-zone phase: DEFERRED (2026-08-28 user direction: combat enters
     as soon as every player is in the game -- see the "Automated combat entry"
     architecture section; a positioning/ready-up phase may return as a later
-    requirement). If revived, it slots in as an extra pre-combat stage in
-    `MapScriptHostThink` (players move only within Start-zone tiles; ready-up;
-    then the arrival gate).
+    requirement). PARTIALLY REVIVED as step 25 (2026-08-28, later): the
+    movement-confinement half (players move only within Start-zone tiles,
+    zone marked visibly) is built; the ready-up gate remains unbuilt -- combat
+    still enters on the arrival gate alone.
 23. [x] Monster AI auto-run + no-Director presentation: BUILT 2026-08-28
     (UNTESTED live). `MonsterAI.StartAI()/StopAI()/IsAIRunning()` exported;
     the EotW map script's host tick keeps the AI running while combat is live
@@ -984,6 +1448,39 @@ Begin is now the only launch path, with the resume row for re-entry.)
     monsters, the map's authored encounter driving victory/rewards. Completion
     detection beyond "stage flips to complete and the AI stops" (victory flow,
     next steps) remains later work.
+
+25. [x] Pre-combat start-zone confinement: BUILT 2026-08-28 (engine NEEDS
+    BUILD, UNTESTED live). New engine Movement Restriction Mode
+    (`dmhub.SetMovementRestriction`/`ClearMovementRestriction` +
+    `GameController.movementRestrictionLocs` + enforcement in
+    `CharacterToken.GetMoveCostFn` and the `UpdateDragging` commit backstop);
+    EotW driver confines every client to the Start zone from arrival until the
+    initiative queue goes live, drawing the zone with `dmhub.MarkLocs`.
+    Design in "Start-zone confinement during the pre-combat phase".
+26. [x] Victory/defeat auto-detection + player Proceed + auto-exit: BUILT
+    2026-08-28 (UNTESTED live; Lua only). Host tick awards
+    victory/defeat from `CheckVictory`/`CheckDefeat`/all-heroes-down; the
+    victory screen shows everywhere via the existing queue flags; new
+    `DSVictoryScreen.RegisterProceedOverride` core hook lets every EotW player
+    press Proceed (players relay through the host via `proceedRequested`);
+    every client that saw the outcome auto-exits to the titlescreen ~4s after
+    the queue hides. Design in "Victory/defeat auto-detection, player Proceed,
+    and auto-exit".
+
+27. [x] Strict rules enforcement: BUILT 2026-08-28 (Lua only, UNTESTED in a
+    live EotW game). All "Strict..." rules-enforcement settings (the four
+    `strict:*` Rules Enforcement options + the engine's
+    `strictmovementrules`) are forced on by the host at setup and re-asserted
+    every host tick. Design in "Strict rules enforcement".
+
+28. [x] Custom interface: BUILT + partially verified live 2026-08-28 (Lua
+    only, no engine change). Core `GameHud.RegisterCustomInterface` hook +
+    consumers (rails, titlebar, panel registries, search, character-panel
+    access) and the EotW hud (`EncounterOfTheWeekHud.lua`: no side
+    buttons, no Panels menu, no Compendium, left-edge hero roster with
+    read-only character-panel popouts). Design + verification status in
+    "Custom interface: usurping the game hud". Still to see live: multiple
+    heroes with real per-player ownership, and a real EotW game.
 
 Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
 
@@ -1014,8 +1511,11 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
   mcdm-encounteroftheweek module's version snapshot, browsed pre-install via the
   new `module.DownloadModuleSnapshot` engine API (see "Pregen heroes from the
   module"). Phase 5 still has to author them (stat source: companion-app pregen
-  JSON). Open sub-question: whether pregen portraits render at the titlescreen
-  without the module's streamed assets loaded.
+  JSON). ~~Open sub-question: whether pregen portraits render at the titlescreen
+  without the module's streamed assets loaded.~~ RESOLVED (2026-08-28): they did
+  NOT render; engine-side images-only registration fix built (NEEDS BUILD) plus
+  a Lua silhouette stopgap -- see "Pregen portraits at the titlescreen" under
+  "Pregen heroes from the module".
 
 ---
 
@@ -1122,3 +1622,200 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
     zero new console errors. Live titlescreen pass (game view over a real
     roster, picker grid, pregen portraits at the titlescreen, remote-player
     cards, kick icon) still pending -- needs the app at the titlescreen.
+- 2026-08-28 (same session, later): **Pregen cards had no art at the
+  titlescreen -- root-caused and fixed** (user rebuilt + tested the picker:
+  cards render, portraits blank). Live probes confirmed the design doc's old
+  caveat: the snapshot carries portrait GUIDs (`offTokenPortrait` etc. return
+  them fine) but their ImageAsset records live in the version's STREAMED
+  payload, registered only for modules the current game installs --
+  `assets.allAssets` (5575 entries) lacked all three probed GUIDs at the
+  titlescreen. Full mechanism + fix design in the new "Pregen portraits at
+  the titlescreen" bullet under "Pregen heroes from the module". Changes:
+  - **Engine (NEEDS BUILD, uncommitted)**: `Assets/ModuleManager.cs`
+    (`EnsureModuleImageAssetsCo`, run by `DownloadModuleSnapshotCo` before
+    its success callback; disk-cache/GCS/Firebase fetch of the streamed
+    payload, writes the shared `module-streamed-{dataid}.json` cache) +
+    `Assets/Scripts/CloudAssetManager.cs` (`HasModuleAssetStore`,
+    `RegisterModuleImageAssets` -- images+imageLibraries only).
+  - **Codex Lua (live via gitfolder, reload clean)**:
+    `Codex Titlescreen/EncounterOfTheWeek.lua` -- `IsUnresolvableAssetId`
+    (GUID-shaped + missing from allAssets; pattern verified against
+    md5:/thumb:/#/path id forms), silhouette fallback in `MakeCardPanel`,
+    and `EnsurePregenArt` re-registration trigger in `CachePregens` (covers
+    ClearModules wiping the store on every game switch).
+  - NEXT: user rebuilds the engine, restarts to the titlescreen, opens the
+    picker -- pregen cards should show real portraits (first open may need a
+    beat while the streamed payload downloads once; thereafter disk-cached).
+    On failure, check the console for `DownloadModuleSnapshot:` warnings.
+- 2026-08-28 (same session, later): **User rebuilt; still no art -- deeper
+  root cause found and the proper infrastructure built.** Live tracing on the
+  fresh build showed the registration fix ran once at boot but module v4's own
+  streamed payload holds 2 objectTables and ZERO images -- correctly, because
+  **the pregen art ships in venla-deliantomb, which v4 declares as a
+  dependency** (v21, verified in Firebase; its payload carries all 18 art
+  GUIDs). In-game the dependency closure loads every member's streamed assets;
+  the titlescreen previously loaded none, and my first fix loaded only the
+  root module's. Interim doctored-v4-cache test confirmed the registration
+  chain end-to-end on the user's machine ("works now locally"); the cache was
+  then restored. Built this session (all engine, NEEDS BUILD, uncommitted):
+  **module art preview** -- `EnsureModuleArtPreviewCo` +
+  `RegisterStreamedImageAssetsCo` in `Assets/ModuleManager.cs` (dependency
+  closure via TraceDependencies, fire-and-forget after the snapshot success,
+  60s in-flight stamp, `ModuleArtPreview:` log prefix) and the empty-payload
+  guard in `CloudAssetManager.RegisterModuleImageAssets`. Full design in the
+  "Module art preview infrastructure" bullet under Pregen heroes. NO module
+  republish needed. NEXT: user rebuilds, restarts, opens the picker --
+  venla-deliantomb v21's payload is already disk-cached, so pregen portraits
+  should appear with no network fetch.
+- 2026-08-28 (later session): **"already hosting game X" create lockout fixed**
+  (user report: hosting a new game failed with `already hosting game
+  SillySilentShackledElf`; expectation is the old game just gets deleted).
+  Root cause: the lobby DO's `create-game` REJECTED while the requester's old
+  roster record was alive, and the screen's 30s think heartbeats every hosted
+  game, so the record never expired while the user was on the EotW screen; the
+  client's `DestroyPreviousGame` only runs after a successful reservation.
+  Fix is server-side supersession in `applyCreateGame`
+  (`cloudflare-game-server/src/lobby-core.ts`): an existing hosted record is
+  dropped exactly like a host leave-game (the DO's existing null-put handling
+  purges its game chat and broadcasts the removal) and a live reservation is
+  replaced; `ack.result.superseded` names the dropped gameid. Design bullet
+  under "The DO arbitrates" updated. NO client change needed (the leave-game
+  in `DestroyPreviousGame` for the already-dropped record fails harmlessly and
+  its error is ignored). Tests: `lobby-core.test.ts` supersede rewrite (suite
+  253 green, tsc clean); `lobby-smoke.ts` section 4 updated + new section 9b +
+  section 11 checks adjusted -- ALL CHECKS PASSED against local
+  `wrangler dev --env staging`. **STAGING DEPLOY PENDING (user:
+  `npm run deploy` -- the deploy command is permission-gated for Claude).**
+  Note the running eotw lobby DO keeps executing old code until it hibernates;
+  after deploying, close the EotW screen for a minute (disconnect all clients)
+  so the DO can hibernate and wake on the new code, then create the game.
+  Nothing committed to git.
+- 2026-08-28 (later session): **Start-zone confinement + victory/defeat
+  auto-detection + player Proceed + auto-exit built** (steps 25-26; user
+  direction: heroes may move only within the Start zone while initiative is
+  displayed, with the zone overlay shown; the game detects victory/defeat
+  itself, shows the victory/defeat screen, players may press Proceed, and
+  everyone then exits to the titlescreen). Full designs in the two new
+  architecture sections ("Start-zone confinement during the pre-combat phase"
+  and "Victory/defeat auto-detection, player Proceed, and auto-exit").
+  - **Engine (NEEDS BUILD, uncommitted)**: the Movement Restriction Mode --
+    `dmhub.SetMovementRestriction{locs}`/`ClearMovementRestriction`
+    (`Assets/Scripts/LuaInterface.cs`, next to the movement cross-section
+    bridge), `GameController.movementRestrictionLocs`
+    (`Assets/Scripts/GameController.cs`), enforcement in
+    `Assets/Scripts/CharacterToken.cs` (`GetMoveCostFn` construction snapshot +
+    `singleMoveCostFn` step veto; `UpdateDragging` commit backstop after the
+    `canMakeMove` computation). Stubs added to `Definitions/dmhub.lua`.
+  - **Core codex Lua**: `Draw Steel UI/DSVictoryScreen.lua` --
+    `DSVictoryScreen.RegisterProceedOverride` + `CanLocalUserProceed`, the
+    proceed click runs the override first, `ProceedEndCombat` exported as
+    `DSVictoryScreen.ProceedEndCombat`, victories-section gate converted
+    `dmhub.isDM` -> `GameHud.DirectorUIVisible()`.
+  - **EotW codemod** (`EncounterOfTheWeek/EncounterOfTheWeek.lua`): per-client
+    1s driver (start-zone confinement install/clear + `dmhub.MarkLocs` dashed
+    outline + the outcome-seen -> queue-hidden -> `dmhub.LeaveGame` auto-exit,
+    EXIT_DELAY 4s); proceed override registration (host falls through to the
+    normal teardown, players stamp `proceedRequested`); host tick additions
+    (`RecordCombatStarted` stamp, `CheckEncounterOutcome`: award
+    victory/defeat via `CheckVictory`/`CheckDefeat`/all-heroes-down and execute
+    relayed Proceeds). State doc gained `combatStarted` + `proceedRequested`.
+  - **Verified**: all Lua luac-clean; reload in the running app (49 mods,
+    zero new errors -- but that instance's game lacks the EotW codemod, so
+    only the core hook loaded); `/testvictory` smoke on the live app: the
+    victory screen renders with the new gates (Proceed + Victories visible to
+    a Director), a registered test override intercepted the real Proceed
+    click and received the default-teardown function, cleanup clean; the
+    driver's exact `dmhub.MarkLocs{locs,color,style="dashed"}` call shape
+    draws and destroys cleanly. NOTE: a pre-existing (not from this session)
+    parse artifact exists at `Definitions/dmhub.lua:609` (luac reports it;
+    stubs are LSP-only, engine never loads them, harmless).
+  - **NOT verified**: the engine restriction (needs the engine build), and
+    the whole flow in a real EotW game (confinement on entry, overlay
+    visible, restriction lifting when the queue goes live, auto
+    victory/defeat award, player Proceed relay, the 4s auto-exit on every
+    client). Next live test: enter an EotW game, confirm confinement +
+    overlay pre-combat and during the Draw Steel roll, fight to a win/loss,
+    watch the screen appear automatically, press Proceed from a PLAYER
+    client, and confirm both clients land on the titlescreen.
+- 2026-08-28 (same session, continued): **first live run found two defects;
+  both fixed** (Lua only, live via gitfolder, reload on the running
+  instance clean -- that instance's game lacks the EotW codemod, so the
+  codemod-side changes are luac-verified + load-verified only).
+  1. **The victory screen appeared mid-ability-prompt.** Fix: the
+     per-client ability-activity mirror + host award gate + 2-tick idle
+     hold -- full design in the new "The award waits for ability prompts"
+     bullet. Files: `EncounterOfTheWeek/EncounterOfTheWeek.lua`
+     (`AbilityActivityInFlight`, `UpdateBusyMirror`, `AnyClientAbilityBusy`,
+     the `m_awardHoldTicks` gate in `CheckEncounterOutcome`; state doc
+     gained `abilityBusy`).
+  2. **The finished game lingered in the lobby games list ("(launched)"
+     row) and stayed in the account slot.** Root cause: nobody told the
+     lobby the game ended, and a returning member's screen HEARTBEATS every
+     game it occupies (30s think), so the record's 5-minute TTL never
+     fired. Fix: conclusion-time cleanup, designed in the new
+     "Finished-game cleanup" bullet -- game-side every client stamps the
+     machine-local `eotw:concludedgame` preference and sends a lobby
+     `leave-game` (via `SendLobbyRequest`, the generalized SignalGameReady
+     plumbing -- SignalGameReady now wraps it); titlescreen-side
+     `RefreshResumeState` destroys/leaves the finished game
+     (`DestroyPreviousGame`) and clears the slot + preference. Files:
+     `EncounterOfTheWeek/EncounterOfTheWeek.lua`,
+     `Codex Titlescreen/EncounterOfTheWeek.lua` (setting declared in both).
+  Both fixes are UNTESTED live; the next live test above now also covers:
+  killing blow mid-prompt -> screen waits until the prompt resolves (~2-4s
+  after idle), and after the auto-exit the lobby list shows no stale row
+  and the EotW screen offers no resume of the finished game.
+- 2026-08-28 (later session): **Strict rules enforcement built** (step 27; user
+  direction: the "Rules Enforcement" settings that start with "Strict"/
+  "Strictly" are force-enabled in EotW games). One file,
+  `EncounterOfTheWeek/EncounterOfTheWeek.lua`: `g_strictRuleSettings` +
+  `EnforceStrictRules()` (writes only settings not already true), called from
+  the host's `SetupOnArrival` and re-asserted at the top of every
+  `MapScriptHostThink` tick. Forces `strict:movement`/`strict:targeting`/
+  `strict:resources`/`strict:inventory` plus the engine's
+  `strictmovementrules` (judgment call -- it lives under the "Game" heading
+  but matches the "Strictly..." intent; easy to drop from the list);
+  `strict:hiddeninvisible` deliberately excluded. Full rationale + the
+  DM-exemption/editability audit in the "Strict rules enforcement"
+  architecture section. luac-clean; reload on the running instance (49 mods,
+  game has the EotW codemod loaded) produced zero new errors and all five
+  setting ids resolve; the actual force-on is UNTESTED in a live EotW game --
+  verify on the next live run (enter an EotW game as host, open Settings >
+  Game, confirm the five checkboxes are on and monsters/AI still act).
+- 2026-08-28 (later session): **Custom interface built** (step 28; user
+  direction: core hooks so a mod can usurp the game hud -- titlebar stays
+  but items suppressible/addable, rails replaceable -- and EotW uses them:
+  no side buttons, no Panels menu, no Compendium access, a left-edge hero
+  roster with portrait/name/stamina/recoveries/heroic resource/surges/
+  condition icons, own heroes grouped on top with a distinct backing, click
+  pops the character panel read-only). All design + the file-by-file
+  mechanism in the new "Custom interface: usurping the game hud"
+  architecture section. Files: `DMHub Core UI/Hud.lua` (the hook),
+  `DocumentSystem/DocumentSystem.lua` (rail takeover),
+  `Codex Titlescreen/CodexTitleBar.lua` (menu suppression + additions
+  host), `DMHub Core UI/DockablePanel.lua` + `DMHub Compendium/
+  Compendium.lua` (panel suppression), `DMHub Utils/Utils.lua` (search
+  bucket gate), `DMHub Core Panels/CharacterPanel.lua` (access override),
+  `EncounterOfTheWeek/EncounterOfTheWeekHud.lua` (NEW -- registered in the
+  EotW codemod at position 2; Firebase persistence confirmed). All Lua, no
+  engine change, luac + ASCII clean, live via gitfolder, NOT committed.
+  Verified live in the authoring game via the new `/toggle
+  eotw:forcecustomui` dev switch: takeover and release both directions
+  with zero console errors (rails swap within 0.5s), roster card correct
+  (portrait, stats, prone icon during a temporary inflict), character
+  panel opens read-only, Panels menu gone, Compendium gone from menus and
+  search (65 "goblin" results -> 0). Untested: multi-hero grouping with
+  real ownership, dock-mode users, and the whole thing inside a real EotW
+  game -- add to the next live-run checklist.
+  - Follow-up same session (user direction): **Chat + Action Log buttons
+    kept, bottom-left corner.** Core: `railBottomPanel(side)` provider
+    field + bottom-corner wrappers in `BuildCustomInterfaceRails`
+    (IconRailStyles on all wrappers, refreshRail cadence, chat listener
+    with slash/refreshChat -- "/" opens chat during takeovers). EotW:
+    `CreatePanelButton`/`CreateCornerButtonsPanel` in
+    `EncounterOfTheWeekHud.lua` -- native-look rail buttons with unread
+    badges + active underline, opening real rail windows via
+    `DockablePanel.LaunchPanelByName`. Verified live (open with focused
+    input, tabbed window, toggle, active class, clean release; zero
+    errors). Residual: no chat speech-bubble preview during takeovers
+    (slot-anchored); the unread badge covers it.

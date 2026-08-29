@@ -4734,11 +4734,35 @@ function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, t
 		end
 	end
 
+	--MODE GATING ALSO MATTERS: a purge gated to a different mode than this apply
+	--can never run in the same cast (ActivatedAbilityBehavior:IsFiltered drops a
+	--behavior whose modesSelected does not contain options.symbols.mode), so it is
+	--not a pairing and must not install the FinishCast leak protection -- doing so
+	--deletes the effect the cast just applied. The Shieldscale Drangolin's
+	--"Size 2 or 3" applies its size effect on one mode and purges it on the other
+	--(report 64XYJBPE). Only treat the modes as exclusive when the engine actually
+	--honors them: multipleModes with a non-empty list on both sides.
+	local myModes = self:try_get("modesSelected", {})
+
 	local hasPurgePair = false
 	for i,b in ipairs(ability.behaviors) do
 		if (myIndex == nil or i > myIndex) and b.typeName == "ActivatedAbilityPurgeEffectsBehavior" and b.mode == "effect" and b.ongoingEffect == self.ongoingEffect then
-			hasPurgePair = true
-			break
+			local purgeModes = b:try_get("modesSelected", {})
+			local modeExclusive = false
+			if ability.multipleModes and #myModes > 0 and #purgeModes > 0 then
+				modeExclusive = true
+				for _,m in ipairs(myModes) do
+					if table.contains(purgeModes, m) then
+						modeExclusive = false
+						break
+					end
+				end
+			end
+
+			if not modeExclusive then
+				hasPurgePair = true
+				break
+			end
 		end
 	end
 	local pairedApplications = nil

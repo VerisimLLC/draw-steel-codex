@@ -66,6 +66,10 @@ DTConstants.STATUS.COMPLETE = DTConstants.STATUS[4]
 DTConstants.FOLLOWER_TYPE.ARTISAN = DTConstants.FOLLOWER_TYPE[1]
 DTConstants.FOLLOWER_TYPE.SAGE = DTConstants.FOLLOWER_TYPE[2]
 
+--- The adventure table rolled for a project event at a milestone
+DTConstants.EVENTS_TABLE = "adventureTables"
+DTConstants.EVENTS_TABLE_ID = "93ca7f30-7efa-454d-a5cb-a136046eae14"
+
 --- Helper function to get display text for enum keys
 --- Looks up the DTConstant in the enum table and returns displayText
 --- Falls back to title-case formatting if key not found

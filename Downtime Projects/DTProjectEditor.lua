@@ -68,6 +68,17 @@ function DTProjectEditor:_createProjectForm()
             selectors = {"milestoneInputWrap", "hasSuggestion"},
             width = "56%",
         },
+        --Same wrapper trick for the status dropdown, which is themed "form" too.
+        {
+            selectors = {"statusDropdownWrap"},
+            width = "100%-4",
+            height = "auto",
+        },
+        --Narrower to make room for the events roll button beside it.
+        {
+            selectors = {"statusDropdownWrap", "hasEventsRoll"},
+            width = "100%-38",
+        },
     }
 
     -- Select Item button (only if no progress)
@@ -591,6 +602,44 @@ function DTProjectEditor:_createProjectForm()
         }
     }
 
+    --A project parked at a milestone owes the events table a roll, so the
+    --Director gets the dice here rather than having to go and find the table.
+    local eventsRollButton = isDM and gui.Button {
+        classes = {"sizeM", "collapsed"},
+        icon = "panels/initiative/initiative-dice.png",
+        halign = "right",
+        valign = "center",
+        hoverCursor = "pressbutton",
+        data = {
+            getProject = function(element)
+                local projectController = element:FindParentWithClass("projectController")
+                if projectController then
+                    return projectController.data.project
+                end
+                return nil
+            end
+        },
+        linger = function(element)
+            gui.Tooltip("Roll on Events Table.")(element)
+        end,
+        refreshToken = function(element)
+            local project = element.data.getProject(element)
+            element:SetClass("collapsed", project == nil
+                or project:GetStatus() ~= DTConstants.STATUS.MILESTONE.key)
+        end,
+        click = function(element)
+            local project = element.data.getProject(element)
+            if project == nil then return end
+
+            --The sheet's token normally, falling back to the project's owner so
+            --the button still works if the editor is ever hosted elsewhere.
+            DTEventRollDialog.ShowDialog{
+                project = project,
+                heroToken = getToken() or dmhub.GetCharacterById(project:GetOwnerID()),
+            }
+        end
+    } or nil
+
     -- Status field (label + dropdown for DM, display for players)
     local statusField = gui.Panel {
         width = "98%",
@@ -610,50 +659,83 @@ function DTProjectEditor:_createProjectForm()
                 classes = {"form"},
                 text = "Status:",
             },
-            isDM and gui.Dropdown {
-                classes = {"form"},
-                width = "100%-4",
-                options = DTHelpers.ListToDropdownOptions(DTConstants.STATUS),
-                refreshToken = function(element)
-                    local project = element.parent.data.getProject(element)
-                    if project and element.idChosen ~= project:GetStatus() then
-                        element.idChosen = project:GetStatus()
-                    end
-                end,
-                change = function(element)
-                    local project = element.parent.data.getProject(element)
-                    if project and element.idChosen ~= project:GetStatus() then
-                        modifyTokenProps{
-                            execute = function()
-                                project:SetStatus(element.idChosen)
-                            end,
-                        }
-                        dmhub.Schedule(0.1, function()
-                            DTSettings.Touch()
-                            DTShares.Touch()
-                        end)
-                    end
-                end
-            } or gui.Label {
-                classes = {"form", "bold"},
-                width = "auto",
+            gui.Panel {
+                width = "100%",
+                height = "auto",
+                halign = "left",
                 valign = "center",
-                linger = function(element)
-                    gui.Tooltip{
-                        maxWidth = 300,
-                        fontSize = 16,
-                        text = "Your Director must activate this project by editing this form.",
-                    }(element)
-                end,
-                refreshToken = function(element)
-                    local project = element.parent.data.getProject(element)
-                    if project then
-                        local status = project:GetStatus()
-                        element.text = DTConstants.GetDisplayText(DTConstants.STATUS, status)
-                        element:SetClass("success", status == "ACTIVE")
-                        element:SetClass("warning", status ~= "ACTIVE")
-                    end
-                end
+                flow = "horizontal",
+                children = {
+                    gui.Panel {
+                        classes = {"statusDropdownWrap"},
+                        halign = "left",
+                        valign = "center",
+                        flow = "horizontal",
+                        data = {
+                            getProject = function(element)
+                                local projectController = element:FindParentWithClass("projectController")
+                                if projectController then
+                                    return projectController.data.project
+                                end
+                                return nil
+                            end
+                        },
+                        refreshToken = function(element)
+                            local project = element.data.getProject(element)
+                            element:SetClass("hasEventsRoll", eventsRollButton ~= nil
+                                and project ~= nil
+                                and project:GetStatus() == DTConstants.STATUS.MILESTONE.key)
+                        end,
+                        children = {
+                            isDM and gui.Dropdown {
+                                classes = {"form"},
+                                width = "100%",
+                                options = DTHelpers.ListToDropdownOptions(DTConstants.STATUS),
+                                refreshToken = function(element)
+                                    local project = element.parent.data.getProject(element)
+                                    if project and element.idChosen ~= project:GetStatus() then
+                                        element.idChosen = project:GetStatus()
+                                    end
+                                end,
+                                change = function(element)
+                                    local project = element.parent.data.getProject(element)
+                                    if project and element.idChosen ~= project:GetStatus() then
+                                        modifyTokenProps{
+                                            execute = function()
+                                                project:SetStatus(element.idChosen)
+                                            end,
+                                        }
+                                        dmhub.Schedule(0.1, function()
+                                            DTSettings.Touch()
+                                            DTShares.Touch()
+                                        end)
+                                    end
+                                end
+                            } or gui.Label {
+                                classes = {"form", "bold"},
+                                width = "auto",
+                                valign = "center",
+                                linger = function(element)
+                                    gui.Tooltip{
+                                        maxWidth = 300,
+                                        fontSize = 16,
+                                        text = "Your Director must activate this project by editing this form.",
+                                    }(element)
+                                end,
+                                refreshToken = function(element)
+                                    local project = element.parent.data.getProject(element)
+                                    if project then
+                                        local status = project:GetStatus()
+                                        element.text = DTConstants.GetDisplayText(DTConstants.STATUS, status)
+                                        element:SetClass("success", status == "ACTIVE")
+                                        element:SetClass("warning", status ~= "ACTIVE")
+                                    end
+                                end
+                            },
+                        },
+                    },
+                    eventsRollButton,
+                },
             },
         }
     }

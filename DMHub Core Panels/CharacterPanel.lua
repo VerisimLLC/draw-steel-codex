@@ -506,7 +506,7 @@ end
 
 DockablePanel.Register {
     name = "Bestiary",
-	icon = "icons/standard/Icon_App_Bestiary.png",
+	icon = "phosphor/skull-thin.png",
     minHeight = 140,
     dmonly = true,
     --no host scroll: the panel builds its own scroll region below a

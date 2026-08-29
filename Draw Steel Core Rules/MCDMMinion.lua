@@ -1210,6 +1210,17 @@ DrawSteelMinion.SelectionActionsHud = function()
                 canGroupInitiative = DrawSteelMinion.CanGroupInitiative(selectedTokens)
             end
 
+            --While the Director's Unique Abilities overview menu is open,
+            --these on-map buttons step aside: they trigger on the same
+            --multi-selection and float in worldspace, where they drew OVER
+            --the overview's lens bar (DIRECTOR_ENCOUNTER_OVERVIEW_DESIGN.md,
+            --field test 12). The menu is the multi-select surface then.
+            local actionBar = rawget(_G, "DrawSteelActionBar")
+            if actionBar ~= nil and actionBar.uniqueMenuOpen == true then
+                captainInfo = nil
+                canGroupInitiative = false
+            end
+
             local xpos, ypos = nil, nil
             if captainInfo ~= nil or canGroupInitiative then
                 xpos, ypos = ComputeSelectionAnchor(selectedTokens)

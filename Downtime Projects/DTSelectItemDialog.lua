@@ -211,7 +211,7 @@ function DTSelectItemDialog._createPanel(callbacks)
                 children = {
                     gui.Button{
                         classes = {"sizeL"},
-                        text = "Cancel",
+                        text = "Custom",
                         valign = "bottom",
                         click = function(element)
                             local controller = element:FindParentWithClass("selectItemDialogController")

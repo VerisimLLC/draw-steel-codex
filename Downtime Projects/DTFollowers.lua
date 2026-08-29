@@ -50,25 +50,6 @@ function DTFollowers:AggregateAvailableRolls()
     return total
 end
 
---- Find all the followers that have available rolls
---- @return table followers The followers with rolls
-function DTFollowers:GetFollowersWithAvailbleRolls()
-    local followers = {}
-    if not (self.creature and self.creature:IsHero()) then
-        return followers
-    end
-
-    local downtimeInfo = self.creature:GetDowntimeInfo()
-    if not downtimeInfo then return followers end
-
-    for id, follower in pairs(self.followers or {}) do
-        if downtimeInfo:GetFollowerRolls(id) > 0 then
-            followers[id] = follower
-        end
-    end
-    return followers
-end
-
 --- Extend creature to get downtime followers
 --- @return DTFollowers|nil followers The downtime followers for the character
 creature.GetDowntimeFollowers = function(self)

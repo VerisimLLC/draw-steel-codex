@@ -124,6 +124,32 @@ function GameHud.CreateRollDialog(self)
     local resultPanel
     local CalculateRollText
 
+    --How see-through the frame sits when nobody has asked otherwise. Kept here
+    --so the resting value and the solid override read as one decision.
+    local DIALOG_OPACITY = 0.95
+
+    --The framed panel the dialog is drawn on, found rather than held: it is
+    --built inline inside resultPanel, and hoisting it out would move a few
+    --hundred lines to gain nothing.
+    local m_framePanel = nil
+    local function FramePanel()
+        if m_framePanel ~= nil and m_framePanel.valid then
+            return m_framePanel
+        end
+
+        m_framePanel = nil
+        if resultPanel ~= nil and resultPanel.valid then
+            for _, child in ipairs(resultPanel.children or {}) do
+                if child.valid and child:HasClass("framedPanel") then
+                    m_framePanel = child
+                    break
+                end
+            end
+        end
+
+        return m_framePanel
+    end
+
     local rollAllPrompts = nil
     local rollActive = nil
     local beginRoll = nil
@@ -2496,7 +2522,7 @@ function GameHud.CreateRollDialog(self)
         gui.Panel {
             classes = { "framedPanel" },
             cornerRadius = 0,
-            opacity = 0.95,
+            opacity = DIALOG_OPACITY,
             blurBackground = true,
             gui.Panel {
                 halign = "right",
@@ -2534,6 +2560,18 @@ function GameHud.CreateRollDialog(self)
             ShowDialog = function(options)
                 if not resultPanel.valid then
                     return
+                end
+
+                --The frame is see-through by default, which is unreadable over
+                --a busy map. A caller that needs to be read rather than
+                --admired asks for a solid one; everyone else is untouched.
+                --The blur is what actually shows the map through, so turning
+                --the opacity up on its own would not be enough.
+                local frame = FramePanel()
+                if frame ~= nil then
+                    local solid = options.solidDialog == true
+                    frame.blurBackground = not solid
+                    frame.selfStyle.opacity = cond(solid, 1, DIALOG_OPACITY)
                 end
 
                 print("RollDialog:: SHOW", options)
@@ -3203,6 +3241,22 @@ function GameHud.CreateRollDialog(self)
                             end
                             creatureToken:Upload('Used resource')
                         end
+                    end
+
+                    --Publish which modifiers the roller actually kept. The dialog
+                    --has always known; it just died with the dialog, leaving a
+                    --caller unable to tell a +2 from Skilled apart from +2 of
+                    --characteristic. Snapshotted here rather than at submission
+                    --because after-roll choices are not settled until now.
+                    if rollInfo ~= nil and rollInfo.properties ~= nil then
+                        local names = {}
+                        for _, modifier in ipairs(DeepCopy(m_activeModifiers)) do
+                            local name = modifier ~= nil and modifier.name or nil
+                            if name ~= nil and name ~= "" then
+                                names[#names + 1] = name
+                            end
+                        end
+                        rollInfo.properties.modifiersUsed = names
                     end
 
                     if completeRollFn ~= nil then

@@ -94,3 +94,18 @@ function DTConstants.GetDisplayText(enumTable, key)
 
     return key or ""
 end
+--- Builds dropdown options from a list of DTConstant instances
+--- @param enumTable table The DTConstant list
+--- @return table options List of { id, text } options
+function DTConstants.GetDropdownOptions(enumTable)
+    local options = {}
+    if enumTable and type(enumTable) == "table" then
+        for _, constant in ipairs(enumTable) do
+            options[#options + 1] = {
+                id = constant.key,
+                text = constant.displayText
+            }
+        end
+    end
+    return options
+end

@@ -112,21 +112,7 @@ function DTCharSheetTab.CreateDowntimePanel()
         end,
 
         adjustRolls = function(element, amount, roller)
-            local token = getToken()
-            local tokenId = token.id
-            local rollerTokenId = roller:GetTokenID()
-            local dtInfo = token.properties:GetDowntimeInfo()
-            if dtInfo then
-                token:ModifyProperties{
-                    execute = function()
-                        if rollerTokenId == tokenId then
-                            dtInfo:GrantRolls(amount)
-                        else
-                            dtInfo:GrantFollowerRolls(rollerTokenId, amount)
-                        end
-                    end
-                }
-            end
+            DTProjectEditor.AdjustDowntimeRolls(getToken(), roller:GetTokenID(), amount)
             DTSettings.Touch()
             element:FireEventTree("refreshToken")
         end,
@@ -149,285 +135,92 @@ function DTCharSheetTab.CreateDowntimePanel()
     return downtimePanel
 end
 
---- Creates the available rolls display panel
---- @return table panel The panel showing available rolls count
+--- Creates the bar above the projects list
+--- @return table panel The counters, and the button that adds a project
 function DTCharSheetTab._createHeaderPanel()
 
-    local rollStatusGroup = gui.Panel {
-        width = "100%",
-        height = "auto",
-        flow = "horizontal",
-        halign = "left",
-        valign = "center",
-        hmargin = 20,
-        children = {
-            gui.Label {
-                classes = {"sizeL"},
-                text = "Rolling Status: ",
-                width = "auto",
-                height = "auto",
-                hmargin = 2,
-                halign = "left",
-                valign = "center",
-            },
-            gui.Label {
-                classes = {"sizeL"},
-                text = "CALCULATING...",
-                width = "auto",
-                hmargin = 2,
-                height = "auto",
-                halign = "left",
-                valign = "center",
-                interactable = CanEditProjectRolls(),
-                create = function(element)
-                    dmhub.Schedule(0.2, function()
-                        element.monitorGame = DTSettings.GetDocumentPath()
-                    end)
-                end,
-                refreshGame = function(element)
-                    element:FireEvent("refreshToken")
-                end,
-                press = function(element)
-                    local status
-                    local settings = DTSettings.CreateNew()
-                    if settings then
-                        status = settings:GetPauseRolls()
-                        settings:SetPauseRolls(not status)
-                    end
-                    element:FireEventTree("refreshToken")
-                end,
-                refreshToken = function(element)
-                    local status = "UNKNOWN"
-                    local settings = DTSettings.CreateNew()
-                    if settings then
-                        status = settings:GetPauseRolls() and "PAUSED" or "AVAILABLE"
-                    end
-                    element.text = status
-                    element:SetClass("success", status == "AVAILABLE")
-                    element:SetClass("warning", status ~= "AVAILABLE")
-                end,
-            },
-            gui.Label {
-                classes = {"sizeL"},
-                text = "",
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                valign = "center",
-                bold = false,
-                create = function(element)
-                    dmhub.Schedule(0.2, function()
-                        element.monitorGame = DTSettings.GetDocumentPath()
-                    end)
-                end,
-                refreshGame = function(element)
-                    element:FireEvent("refreshToken")
-                end,
-                refreshToken = function(element)
-                    local reason = ""
-                    local settings = DTSettings.CreateNew()
-                    if settings then
-                        if settings:GetPauseRolls() then
-                            reason = "(<i>" .. settings:GetPauseRollsReason() .. "</i>)"
-                        end
-                    end
-                    element.text = reason
-                end,
-            },
-            gui.Label {
-                classes = {"bordered", "sizeS", "bold", "warning"},
-                text = "?",
-                width = 20,
-                height = 20,
-                halign = "left",
-                valign = "center",
-                hmargin = 4,
-                textAlignment = "center",
-                create = function(element)
-                    dmhub.Schedule(0.2, function()
-                        element.monitorGame = DTSettings.GetDocumentPath()
-                    end)
-                end,
-                linger = function(element)
-                    gui.Tooltip{
-                        maxWidth = 300,
-                        fontSize = 16,
-                        text = "Your Director can enable rolling by opening Panels -> Downtime Projects, then clicking the gear button.",
-                    }(element)
-                end,
-                refreshGame = function(element)
-                    element:FireEvent("refreshToken")
-                end,
-                refreshToken = function(element)
-                    local visible = false
-                    local settings = DTSettings.CreateNew()
-                    if settings then
-                        visible = settings:GetPauseRolls()
-                    end
-                    element:SetClass("collapsed", not visible)
-                end,
-            },
-        }
-    }
+    --How many downtime activities the hero has left to spend.
+    --@return number
+    local function HeroActivities()
+        local token = getToken()
+        if token == nil or token.properties == nil or not token.properties:IsHero() then
+            return 0
+        end
 
-    local availableRollsGroup = gui.Panel {
-        width = "100%",
-        height = "auto",
-        flow = "horizontal",
+        local downtimeInfo = token.properties:GetDowntimeInfo()
+        if downtimeInfo == nil then
+            return 0
+        end
+
+        return downtimeInfo:GetAvailableRolls() or 0
+    end
+
+    --Every activity the hero's followers hold between them, as one number.
+    --@return number
+    local function FollowerActivities()
+        local token = getToken()
+        if token == nil or token.properties == nil or not token.properties:IsHero() then
+            return 0
+        end
+
+        local followers = token.properties:GetDowntimeFollowers()
+        if followers == nil then
+            return 0
+        end
+
+        return followers:AggregateAvailableRolls() or 0
+    end
+
+    --A counter on the bar. Plain text in the ordinary colour: these are a
+    --running total to glance at, not a status to react to.
+    --@param caption string What the number counts
+    --@param Count fun(): number Reads the number
+    --@return Panel
+    local function CounterLabel(caption, Count)
+        return gui.Label {
+            classes = {"sizeL"},
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            rmargin = 24,
+            text = caption,
+
+            --The document is not up yet when the sheet builds its panels, so
+            --the monitor is attached once it is.
+            create = function(element)
+                element:FireEvent("refreshToken")
+                dmhub.Schedule(0.2, function()
+                    if element.valid then
+                        element.monitorGame = DTSettings.GetDocumentPath()
+                    end
+                end)
+            end,
+            refreshGame = function(element)
+                element:FireEvent("refreshToken")
+            end,
+            refreshToken = function(element)
+                element.text = string.format("%s: %d", caption, Count())
+            end,
+        }
+    end
+
+    --Setting the counts is the Director's business, and a player's only when
+    --the Director has handed it to them. Re-checked on every refresh, since the
+    --permission can be granted while the sheet is open.
+    local activitiesButton = gui.Button {
+        classes = {"settingsButton", "sizeS", cond(not CanEditProjectRolls(), "collapsed")},
         halign = "left",
         valign = "center",
-        data = {
-            availableRolls = 0,
-            message = "",
-        },
-        create = function(element)
-            dmhub.Schedule(0.2, function()
-                element.monitorGame = DTSettings.GetDocumentPath()
-            end)
-        end,
-        refreshGame = function(element)
-            element:FireEventTree("refreshToken")
+        linger = function(element)
+            gui.Tooltip("Set downtime activities for this hero and their followers")(element)
         end,
         refreshToken = function(element)
-            local fmt = "%d%s"
-            local msg = ""
-            element.data.availableRolls = 0
-            if CharacterSheet.instance.data.info then
-                local token = CharacterSheet.instance.data.info.token
-                if token and token.properties and token.properties:IsHero() then
-                    local downtimeInfo = token.properties:GetDowntimeInfo()
-                    if downtimeInfo then
-                        element.data.availableRolls = downtimeInfo:GetAvailableRolls()
-                    else
-                        msg = " (Can't get downtime info)"
-                    end
-                else
-                    msg = " (Not a Hero)"
-                end
-                element.data.message = string.format(fmt, element.data.availableRolls, msg)
-                element:SetClass("success", element.data.availableRolls > 0)
-                element:SetClass("warning", element.data.availableRolls <= 0)
-            end
+            element:SetClass("collapsed", not CanEditProjectRolls())
         end,
-        children = {
-            gui.Label {
-                classes = {"sizeL"},
-                text = "Available Rolls: ",
-                width = "auto",
-                height = "auto",
-                hmargin = 2,
-                halign = "left",
-                valign = "center",
-            },
-            gui.Label {
-                classes = {"sizeL"},
-                text = "CALCULATING...",
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                valign = "center",
-                editable = CanEditProjectRolls(),
-                hmargin = 2,
-                refreshToken = function(element)
-                    local availableRolls = element.parent.data.availableRolls
-                    element.text = element.parent.data.message
-                    element:SetClass("success", availableRolls > 0)
-                    element:SetClass("warning", availableRolls <= 0)
-                end,
-                change = function(element)
-                    if tonumber(element.text) then
-                        local token = getToken()
-                        local downtimeInfo = token and token.properties:GetDowntimeInfo()
-                        if downtimeInfo then
-                            modifyTokenProps{
-                                execute = function ()
-                                    downtimeInfo.availableRolls = tonumber(element.text)
-                                end,
-                            }
-                            element:FireEventTree("refreshToken")
-                        end
-                    end
-                end,
-            },
-            gui.Label {
-                classes = {"bordered", "sizeS", "bold", "warning"},
-                text = "?",
-                width = 20,
-                height = 20,
-                halign = "left",
-                valign = "center",
-                hmargin = 4,
-                textAlignment = "center",
-                linger = function(element)
-                    gui.Tooltip{
-                        maxWidth = 300,
-                        fontSize = 16,
-                        text = "Your Director can grant rolls by opening Panels -> Downtime Projects, then clicking the dice button.",
-                    }(element)
-                end,
-                refreshToken = function(element)
-                    local visible = element.parent.data.availableRolls == 0
-                    element:SetClass("collapsed", not visible)
-                end,
-            },
-        }
-    }
-
-    local followerRollsGroup = gui.Panel {
-        width = "100%",
-        height = "auto",
-        flow = "horizontal",
-        halign = "left",
-        valign = "center",
-        children = {
-            gui.Label {
-                classes = {"sizeL"},
-                text = "Follower Rolls: ",
-                width = "auto",
-                height = "auto",
-                hmargin = 2,
-                halign = "left",
-                valign = "center",
-            },
-            gui.Label {
-                classes = {"sizeL"},
-                text = "CALCULATING...",
-                width = "auto",
-                height = "auto",
-                halign = "left",
-                valign = "center",
-                hmargin = 2,
-                create = function(element)
-                    dmhub.Schedule(0.2, function()
-                        element.monitorGame = DTSettings.GetDocumentPath()
-                    end)
-                end,
-                refreshGame = function(element)
-                    element:FireEvent("refreshToken")
-                end,
-                refreshToken = function(element)
-                    local fmt = "%d%s"
-                    local availableRolls = 0
-                    local msg = ""
-                    if CharacterSheet.instance.data.info then
-                        local token = CharacterSheet.instance.data.info.token
-                        if token and token.properties and token.properties:IsHero() then
-                            local downtimeFollowers = token.properties:GetDowntimeFollowers()
-                            if downtimeFollowers then
-                                availableRolls = downtimeFollowers:AggregateAvailableRolls()
-                            else
-                                msg = " (Can't get follower rolls)"
-                            end
-                        else
-                            msg = " (Not a Hero)"
-                        end
-                        element.text = string.format(fmt, availableRolls, msg)
-                        element:SetClass("success", availableRolls > 0)
-                        element:SetClass("warning", availableRolls <= 0)
-                    end
-                end,
-            }
-        }
+        click = function()
+            DTActivitiesDialog.ShowDialog(getToken())
+        end,
     }
 
     local addButton = gui.Button {
@@ -493,40 +286,21 @@ function DTCharSheetTab._createHeaderPanel()
         halign = "center",
         valign = "center",
         children = {
-            -- Roll Status
+            -- Counters. They share one row rather than a column each, so the
+            -- next ones to arrive line up beside these instead of resizing the
+            -- bar around them.
             gui.Panel {
-                width = "30%",
+                width = "90%",
                 height = "100%",
                 flow = "horizontal",
                 halign = "left",
                 valign = "center",
+                lmargin = 20,
                 children = {
-                    rollStatusGroup
+                    CounterLabel("Hero Available Activities", HeroActivities),
+                    CounterLabel("Follower Aggregate Activities", FollowerActivities),
+                    activitiesButton,
                 }
-            },
-
-            -- Available Rolls
-            gui.Panel {
-                width = "30%",
-                height = "100%",
-                flow = "horizontal",
-                halign = "left",
-                valign = "center",
-                children = {
-                    availableRollsGroup
-                },
-            },
-
-            -- Follower Rolls
-            gui.Panel {
-                width = "30%",
-                height = "100%",
-                flow = "horizontal",
-                halign = "left",
-                valign = "center",
-                children = {
-                    followerRollsGroup
-                },
             },
 
             -- Add button

@@ -463,11 +463,25 @@ TokenHud.RegisterPanel{
                 },
 
                 gui.Panel{
-                    --hit area.
-                    width = 16,
-                    height = 16,
+                    --[[
+                        IMPORTANT: This is the hit area for clicking a token to
+                        claim the turn. It is purposefully small so that the
+                        player can click the token's edge without claiming the
+                        turn.
+                        That is an expected and desired use case - players like
+                        to see what a token can do before deciding whether to
+                        claim the turn.
+                        If we make it bigger or if we enable the health bar as
+                        claim turn again, then we will make the user experience
+                        worse as a result.
+                        TL;DR: Please do not expand this hit box or make the
+                        health bar claim the turn.
+                    ]]
+                    width = 28,
+                    height = 28,
                     bgimage = true,
                     bgcolor = "clear",
+                    cornerRadius = 14,
                     halign = "center",
                     valign = "center",
                     interactable = true,
@@ -558,9 +572,17 @@ TokenHud.RegisterPanel{
                 end,
             },
 
+            --The name bar. It is NOT a button, and must not become one again.
+            --It still owns the claim in its press handler, because the swords'
+            --hit area fires that event at it - but it is not interactable, so
+            --the only way in is that 24x24 box on the swords themselves.
+            --Making this clickable puts a 100x26 catchment 40px below the
+            --token, so the claim fires from a band the player reads as a
+            --health bar, nowhere near the thing that looks like the button.
+            --Leave interactable false.
             gui.Panel{
                 classes = {"actionBarDrawer", "hidden", "nameplate"},
-                interactable = true,
+                interactable = false,
                 halign = "center",
                 valign = "center",
                 width = 100,
@@ -580,9 +602,10 @@ TokenHud.RegisterPanel{
                     Styles.ActionBar,
                 },
 
-				refresh = function(element)
-                    element.interactable = token.canControl
-                end,
+                --No refresh setting interactable from token.canControl here.
+                --It used to, and that is what quietly undid every attempt to
+                --stop this bar taking clicks. The claim is gated on canControl
+                --in the press handler below, which is where it belongs.
 
                 think = function(element)
                     local r = math.sin(dmhub.Time()*2*math.pi)
@@ -611,13 +634,11 @@ TokenHud.RegisterPanel{
                     element.data.prevStatus = status
                 end,
 
-                hover = function(element)
-                    element.parent:GetChildrenWithClassRecursive("swords")[1]:SetClass("highlight", true)
-                end,
-
-                dehover = function(element)
-                    element.parent:GetChildrenWithClassRecursive("swords")[1]:SetClass("highlight", false)
-                end,
+                --The hover/dehover that lit the swords from this bar are gone
+                --with the interactivity. They were the tell: hovering the name
+                --bar made the swords glow, so the swords looked like a button
+                --whose real catchment was somewhere else entirely. The swords
+                --now light from their own hit area, via childHover.
 
                 press = function(element)
                     if RoutePressToTargetPick(token) then

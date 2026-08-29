@@ -481,6 +481,11 @@ function GameHud:RequireRollListenerPanel()
 										subtype = check.type,
 										nofadein = nofadein,
 
+										--Optional, and off unless the caller asks: the dialog
+										--is see-through by default, which is unreadable over a
+										--busy map. Absent means exactly what it meant before.
+										solidDialog = request.info:try_get("solidDialog", false),
+
 										alternateOptions = alternateOptions,
 										alternateChosen = checkIndex,
 										chooseAlternate = function(alternateIndex)
@@ -511,6 +516,10 @@ function GameHud:RequireRollListenerPanel()
 												req.info.tokens[tokid].naturalRoll = rollInfo.naturalRoll
 												req.info.tokens[tokid].boons = rollInfo.boons
 												req.info.tokens[tokid].banes = rollInfo.banes
+												req.info.tokens[tokid].dice = RollUtils.SortedDice(rollInfo)
+												req.info.tokens[tokid].isCrit = RollUtils.IsCrit(rollInfo)
+												req.info.tokens[tokid].rollid = rollInfo.key
+												req.info.tokens[tokid].modifiersUsed = rollInfo.properties ~= nil and rollInfo.properties:try_get("modifiersUsed", {}) or {}
 
 												if rollInfo.forcedResult then
 													req.info.tokens[tokid].forcedResult = rollInfo.autosuccess

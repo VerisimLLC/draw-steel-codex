@@ -165,6 +165,45 @@ function InitiativeQueue.GetTokensForInitiativeId(initiativeid, allTokens)
         end
     end
 
+    --Every display surface (initiative bar card, turn tooltip, center-on,
+    --action-log start-of-turn card) uses result[1] as the group's face, but
+    --the list is built in pairs() order, so a group entry could wear any
+    --member's portrait - a Goblin Monarch grouped with its Runners showed a
+    --Runner as "whose turn it is". Order the group so its natural leader
+    --comes first: non-minions before minions, then by organization weight
+    --(solo/leader above elite/platoon/horde), then by name/id so the pick is
+    --at least deterministic. Callers that iterate the whole list are
+    --unaffected; no caller could rely on the old order, since pairs() never
+    --guaranteed one.
+    if #result > 1 then
+        local orgWeight = { solo = 6, leader = 5, elite = 4, platoon = 3, horde = 2, minion = 1 }
+        local function DisplayRank(tok)
+            local rank = 0
+            pcall(function()
+                if not tok.properties.minion then
+                    rank = rank + 10
+                end
+                local org = tok.properties:Organization()
+                rank = rank + (orgWeight[org] or 0)
+            end)
+            return rank
+        end
+        local ranks = {}
+        for _, tok in ipairs(result) do
+            ranks[tok.charid] = DisplayRank(tok)
+        end
+        table.sort(result, function(a, b)
+            local ra, rb = ranks[a.charid], ranks[b.charid]
+            if ra ~= rb then
+                return ra > rb
+            end
+            if a.name ~= b.name then
+                return (a.name or "") < (b.name or "")
+            end
+            return a.charid < b.charid
+        end)
+    end
+
 	return result
 end
 
@@ -584,6 +623,79 @@ function InitiativeQueue:HasHadTurn(initiativeid)
 	end
 
 	return entry.round > self.round
+end
+
+--Claim-turn helpers.
+--
+--Historically the whole "claim this entry's turn" sequence lived inline in the
+--initiative bar's per-entry click closure (MCDMInitiativeBar selectinitiative),
+--so nothing else could reuse it. It is pulled out here so other surfaces (e.g.
+--the Director's multi-monster overview) can gate and perform a claim through
+--one code path. The bar now calls these; the observable behaviour is unchanged.
+--
+--Claiming is a BROADCAST and is not reversible: it uploads the queue to every
+--client, runs BeginTurn (start-of-turn triggers) for every token in the entry,
+--and posts a player-visible start-of-turn chat card. Callers must therefore only
+--claim at a genuine commit point, never from a browse/preview click.
+--
+--CanClaimTurn(initiativeid, options): true when a claim of this entry is legal
+--right now. Mirrors the bar's gate exactly: with control of initiative the
+--claim is always allowed; without it, the queue must be choosing a turn, it must
+--be the players' side to act, the entry must be unmoved this round, and the
+--entry must be a player entry. options.canControlInitiative lets the caller
+--supply the control check (the bar's setting-backed one); it defaults to
+--dmhub.isDM.
+function InitiativeQueue.CanClaimTurn(initiativeid, options)
+	local q = dmhub.initiativeQueue
+	if q == nil or q.hidden then
+		return false
+	end
+
+	local canControl = dmhub.isDM
+	if options ~= nil and options.canControlInitiative ~= nil then
+		canControl = options.canControlInitiative
+	end
+
+	if canControl == false and ((not q:ChoosingTurn()) or (not q:IsPlayersTurn()) or (not q:EntriesUnmoved()[initiativeid]) or (not q:IsEntryPlayer(initiativeid))) then
+		return false
+	end
+
+	return true
+end
+
+--ClaimTurn(initiativeid, options): performs the claim. Returns true if the claim
+--was carried out, false if CanClaimTurn refused it. Uses the live queue
+--(dmhub.initiativeQueue), never a captured one, because a captured queue can be
+--stale after a turn transition and would make SelectTurn a silent no-op.
+--options.canControlInitiative is forwarded to CanClaimTurn.
+function InitiativeQueue.ClaimTurn(initiativeid, options)
+	if not InitiativeQueue.CanClaimTurn(initiativeid, options) then
+		return false
+	end
+
+	local q = dmhub.initiativeQueue
+	q:SelectTurn(initiativeid)
+	dmhub:UploadInitiativeQueue()
+
+	--Every token sharing this initiative id begins its turn (a minion squad or
+	--monster group claims as one). Use the initiative id itself rather than any
+	--per-entry initiativeid field: group entries do not populate the latter.
+	local tokens = InitiativeQueue.GetTokensForInitiativeId(initiativeid, dmhub.allTokens)
+	local tokenIds = {}
+	for _,tok in ipairs(tokens) do
+		if tok.properties ~= nil then
+			tok.properties:BeginTurn()
+			tokenIds[#tokenIds+1] = tok.charid
+		end
+	end
+
+	if #tokenIds > 0 and StartOfTurnChatMessage ~= nil then
+		chat.SendCustom(StartOfTurnChatMessage.new{
+			tokenids = tokenIds,
+		})
+	end
+
+	return true
 end
 
 function InitiativeQueue:CurrentInitiativeId()

@@ -276,7 +276,46 @@ end
 -- Utility namespace for power roll helpers shared across files.
 RollUtils = {}
 
---result has {total = number, boons = nil|number, banes = nil|number, autosuccess = bool?, autofailure = bool?, nottierone = bool?, nottierthree = bool?, tiers = nil|number}
+--- The dice that counted, highest first. Dropped dice are excluded.
+--- @param rollInfo table A completed roll
+--- @return number[] faces The die results, descending
+function RollUtils.SortedDice(rollInfo)
+    local faces = {}
+
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.dropped ~= true then
+            faces[#faces + 1] = roll.result
+        end
+    end
+
+    table.sort(faces, function(a, b) return a > b end)
+
+    return faces
+end
+
+--- Whether a roll is a critical: the two highest dice reading max and max-1 or
+--- better. On the usual two d10s that is exactly a natural 19 or 20; expressed
+--- per-die it stays correct when an effect adds a third die.
+--- @param rollInfo table A completed roll
+--- @return boolean isCrit True when the roll is a critical
+function RollUtils.IsCrit(rollInfo)
+    local faces = RollUtils.SortedDice(rollInfo)
+    if #faces < 2 then
+        return false
+    end
+
+    local maxFace = 10
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.numFaces ~= nil then
+            maxFace = roll.numFaces
+            break
+        end
+    end
+
+    return faces[1] == maxFace and faces[2] >= maxFace - 1
+end
+
+--result has {total = number, naturalRoll = nil|number, boons = nil|number, banes = nil|number, autosuccess = bool?, autofailure = bool?, nottierone = bool?, nottierthree = bool?, tiers = nil|number}
 function RollUtils.DiceResultToTier(result)
     -- A game system may define absolute natural-roll outcomes without
     -- replacing this shared helper (important because several files cache the
@@ -313,6 +352,12 @@ function RollUtils.DiceResultToTier(result)
         tier = 3
     elseif tier < 1 then
         tier = 1
+    end
+
+    --A natural 19 or 20 is always a tier 3 result, whatever the modifiers say.
+    --Without this a double bane could drag a crit down to tier 2.
+    if tier < 3 and (result.naturalRoll or 0) >= 19 then
+        tier = 3
     end
 
     if tier == 3 and result.nottierthree then
@@ -420,6 +465,7 @@ local function CalculateMultitargetsFromRollProperties(rollMessage, rollResult)
         if target.tokenid then
             local rollInfo = {
                 total = rollResult.total,
+                naturalRoll = rollResult.naturalRoll,
                 boons = rollResult.boons,
                 banes = rollResult.banes,
                 autosuccess = rollResult.autosuccess,
@@ -687,6 +733,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                 if count == m_numDice then
                     local tier = DiceResultToTier{
                         total = total,
+                        naturalRoll = total - m_mod,
                         boons = m_rollInfo.surges,
                         banes = m_rollInfo.shields,
                         autofailure = m_rollInfo.autofailure,
@@ -1639,6 +1686,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             m_rollInfo = rollInfo
             m_result = {
                 total = rollInfo.total,
+                naturalRoll = rollInfo.naturalRoll,
                 boons = rollInfo.boons,
                 banes = rollInfo.banes,
                 tiers = rollInfo.tiers,
@@ -2846,6 +2894,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
     local m_rows = nil
 
     local m_lastKnownTotal = nil
+    local m_naturalRoll = nil
 
     local m_listening = {}
     local m_mod = 0
@@ -2961,7 +3010,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
 
                                 local total = m_lastKnownTotal + newMod - oldMod
 
-                                local index = self:try_get("overrideTier") or DiceResultToTier{ total = total, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
+                                local index = self:try_get("overrideTier") or DiceResultToTier{ total = total, naturalRoll = m_naturalRoll, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
                                 if m_rows ~= nil then
                                     for i,row in ipairs(m_rows) do
                                         if row ~=nil and row.valid then
@@ -3063,6 +3112,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
                 m_rows = {}
 
                 m_lastKnownTotal = info.total
+                m_naturalRoll = info.naturalRoll
                 local index = self:try_get("overrideTier") or DiceResultToTier(rollInfo)
 
                 for i, tier in ipairs(self.tiers) do
@@ -3143,6 +3193,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
             if complete or m_diceFinished then
                 m_complete = complete
                 m_lastKnownTotal = info.total
+                m_naturalRoll = info.naturalRoll
                 local index = self:try_get("overrideTier") or DiceResultToTier(rollInfo)
                 if self:has_key("overrideTier") == false then
                     local multitargets = CalculateMultitargetsFromRollProperties(rollInfo)
@@ -3184,7 +3235,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
 
                 if #info.rolls == 0 then
                     local total = m_mod
-                    local index = DiceResultToTier{ total = total, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
+                    local index = DiceResultToTier{ total = total, naturalRoll = total - m_mod, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
                     for i,row in ipairs(m_rows) do
                         if row ~=nil and row.valid then
                             row:SetClassImmediate("highlighted", i == index)
@@ -3252,7 +3303,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
                 return
             end
 
-            local index = DiceResultToTier{ total = total, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
+            local index = DiceResultToTier{ total = total, naturalRoll = total - m_mod, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
             for i,row in ipairs(m_rows) do
                 if row ~=nil and row.valid then
                     row:SetClassImmediate("highlighted", i == index)

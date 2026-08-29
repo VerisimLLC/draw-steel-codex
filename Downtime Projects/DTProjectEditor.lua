@@ -23,6 +23,18 @@ local function modifyTokenProps(info)
     end
 end
 
+--- Tells the Respite that a project moved
+--- Progress lives on the project owner's token, which the Respite does not
+--- watch, so a milestone crossed mid-Respite would otherwise sit unseen on the
+--- Director's roster until some unrelated repaint woke it. Touching the session
+--- document brings every Respite panel with it, the attention marker included.
+local function AnnounceChange()
+    local session = rawget(_G, "RSPSession")
+    if session ~= nil and session.Active() ~= nil then
+        session.Ping()
+    end
+end
+
 --- Gets the fresh project data from the character sheet
 --- @return DTProject|nil project The current project or nil if not found
 function DTProjectEditor:GetProject()
@@ -1354,17 +1366,12 @@ function DTProjectEditor:_createRollsPanel()
                             },
                         }
                     },
+                    --Rolling on a project no longer happens here. The column is
+                    --kept so the header keeps its shape.
                     gui.Panel {
                         width = "12%",
                         height = "auto",
                         halign = "right",
-                        children = {
-                            self:_createRollButton({
-                                confirm = function(rolls, controller, roller)
-                                    controller:FireEvent("addRolls", rolls, roller)
-                                end
-                            }),
-                        }
                     },
                 }
             },
@@ -1419,212 +1426,80 @@ end
 ---   - hmargin: number - Horizontal margin (default: nil)
 ---   - vmargin: number - Vertical margin (default: nil)
 --- @return table button The roll button element
-function DTProjectEditor:_createRollButton(options)
-    options = options or {}
-    local confirmCallback = options.confirm
-    local width = options.width or 24
-    local height = options.height or 24
-    local margin = options.margin or 0
-    local halign = options.halign or nil
-    local hmargin = options.hmargin or nil
-    local vmargin = options.vmargin or nil
+--- Picks which characteristic a project roll is made with
+--- A project may allow several and nobody would choose anything but their best,
+--- so it is derived rather than asked for. The baseline roll dialog carries one
+--- characteristic per check, so this has to be settled before the ask.
+--- @param roller DTRoller The entity making the roll
+--- @param allowed table Characteristic keys the project permits
+--- @return string attrid The characteristic to roll
+function DTProjectEditor._bestCharacteristic(roller, allowed)
+    local bestId, bestValue = nil, nil
 
-    return gui.Button{
-        classes = {"withInfo"},
-        icon = "panels/initiative/initiative-dice.png",
-        width = width,
-        height = height,
-        margin = margin,
-        halign = halign,
-        hmargin = hmargin,
-        vmargin = vmargin,
-        data = {
-            enabled = false,
-            tooltipText = "",
-            getDowntimeFollowers = function(element)
-                local downtimeController = element:FindParentWithClass("downtimeController")
-                if downtimeController then
-                    return downtimeController.data.getDowntimeFollowers()
-                end
-                return nil
-            end,
-            getDowntimeInfo = function(element)
-                local downtimeController = element:FindParentWithClass("downtimeController")
-                if downtimeController then
-                    return downtimeController.data.getDowntimeInfo()
-                end
-                return nil
-            end,
-            getProject = function(element)
-                local projectController = element:FindParentWithClass("projectController")
-                if projectController then
-                    return projectController.data.project
-                end
-                return nil
-            end,
-            characterRolls = function(element)
-                local downtimeInfo = element.data.getDowntimeInfo(element)
-                if downtimeInfo then return downtimeInfo:GetAvailableRolls() end
-                return 0
-            end,
-            followerRolls = function(element)
-                local downtimeFollowers = element.data.getDowntimeFollowers(element)
-                if downtimeFollowers then return downtimeFollowers:AggregateAvailableRolls() end
-                return 0
-            end,
-        },
-        create = function(element)
-            element:FireEvent("refreshToken")
-            dmhub.Schedule(0.2, function()
-                element.monitorGame = DTSettings.GetDocumentPath()
-            end)
-        end,
-        refreshGame = function(element)
-            element:FireEvent("refreshToken")
-        end,
-        refreshToken = function(element)
-            local isEnabled = false
-            element.data.tooltipText = "Project not found?"
-            local project = element.data.getProject(element)
-            if project then
-                local validState, issueList = project:IsValidStateToRoll()
-                if validState then
-                    local followerRolls = element.data.followerRolls(element)
-                    local characterRolls = element.data.characterRolls(element)
-                    if followerRolls + characterRolls > 0 then
-                        local settings = DTSettings.CreateNew()
-                        if settings then
-                            if settings:GetPauseRolls() then
-                                element.data.tooltipText = "Rolling is currently paused"
-                            else
-                                element.data.tooltipText = "Make a roll"
-                                isEnabled = true
-                            end
-                        end
-                    else
-                        element.data.tooltipText = "You have no available rolls"
-                    end
-                else
-                    element.data.tooltipText = table.concat(issueList, " ")
-                end
-            end
-            element.data.enabled = isEnabled
-        end,
-        linger = function(element)
-            if element.data.tooltipText and #element.data.tooltipText then
-                gui.Tooltip(element.data.tooltipText)(element)
-            end
-        end,
-        press = function(element)
-            if not element.data.enabled then return end
-            local project = element.data.getProject(element)
-            local controller = element:FindParentWithClass("projectController")
-            if project and controller then
-                local token = CharacterSheet.instance.data.info.token
+    for _, attrId in ipairs(allowed or {}) do
+        local value = roller:GetCharacteristic(attrId)
+        if bestValue == nil or value > bestValue then
+            bestId, bestValue = attrId, value
+        end
+    end
 
-                local followersWithRolls = {}
-                if token.properties and token.properties.GetDowntimeFollowers then
-                    local dtFollowers = token.properties:GetDowntimeFollowers()
-                    if dtFollowers then
-                        followersWithRolls = dtFollowers:GetFollowersWithAvailbleRolls() or {}
-                    end
-                end
+    return bestId or DTConstants.CHARACTERISTICS[1].key
+end
 
-                local function XshowRollDialog(roller)
-                    local options = {
-                        attrId = "agl",
-                        explanation = "Project roll",
-                        title = "Make a project roll",
-                        skills = {},
-                        languages = {},
-                        modifiers = {},
-                        silent = true,
-                        callback = function(result, boons, banes)
-                            print("THC:: RESULT::", result, boons, banes)
-                        end,
-                    }
-                    local followerId = roller:GetFollowerID()
-                    local rollingToken = followerId and dmhub.GetTokenById(followerId) or token
-                    dmhub.Coroutine(function()
-                        rollingToken.properties:RequestProjectRoll(rollingToken, options)
-                    end)
-                end
+--- Turns one completed roll into the project's record of it
+--- @param info table The harvested roll
+--- @param roller DTRoller The entity that rolled
+--- @param token any The hero whose project this is
+--- @param attrid string The characteristic rolled
+--- @param isBreakthrough boolean Whether this roll came of a breakthrough
+--- @return DTRoll roll The record
+function DTProjectEditor._buildProjectRoll(info, roller, token, attrid, isBreakthrough)
+    --The dialog applies edges and banes to the total itself, flat, at every
+    --count -- verified against recorded rolls: "2d10+2 2 banes" on faces 7+4
+    --landed a total of 9. There is nothing to correct, and taking the total as
+    --given is what keeps every modifier the dialog applied intact.
+    local label = cond(isBreakthrough, "Breakthrough:", "Project roll:")
 
-                -- Helper function to create and show roll dialog
-                local function showRollDialog(roller)
-                    local options = {
-                        roller = roller,
-                        projectTitle = project:GetTitle(),
-                        data = {
-                            project = project
-                        },
-                        callbacks = {
-                            confirm = function(rolls)
-                                if confirmCallback then
-                                    confirmCallback(rolls, controller, roller)
-                                end
-                            end,
-                            cancel = function()
-                                -- cancel handler
-                            end
-                        }
-                    }
-                    CharacterSheet.instance:AddChild(DTProjectRollDialog.CreateAsChild(options))
-                end
+    --The roll's own formula is the truest audit available and costs nothing to
+    --read back: it names every modifier that actually applied, which a count of
+    --edges and banes cannot. Falls back to the counts if the roll has aged out
+    --of chat.
+    local rollInfo = nil
+    if info.rollid ~= nil and info.rollid ~= "" then
+        rollInfo = chat.GetRollInfo(info.rollid)
+    end
 
-                -- Check if any followers have rolls (keyed table, so use next())
-                local hasFollowersWithRolls = next(followersWithRolls) ~= nil
+    --Named rather than left implicit: a plustwo modifier like Skilled folds into
+    --the formula's number, so "2d10+4" cannot be told apart from a bigger
+    --characteristic without this.
+    local applied = ""
+    if #(info.modifiersUsed or {}) > 0 then
+        applied = string.format("; <b>Applied:</b> %s",
+            table.concat(info.modifiersUsed, ", "))
+    end
 
-                -- If no followers with rolls, go straight to roll dialog with character.
-                -- Only when the hero actually has rolls -- otherwise this rolled for free.
-                if not hasFollowersWithRolls then
-                    if element.data.characterRolls(element) > 0 then
-                        local roller = DTRoller.CreateNew(token.properties)
-                        showRollDialog(roller)
-                    end
-                else
-                    -- Build context menu with character + followers
-                    local menuItems = {}
-                    local parentElement = element
+    local rollString = string.format("2d10 + %s", attrid)
+    local audit
+    if rollInfo ~= nil and rollInfo.rollStr ~= nil then
+        rollString = rollInfo.rollStr
+        audit = string.format("<b>%s</b> %s%s; <b>Natural:</b> %d",
+            label, rollInfo.rollStr, applied, info.naturalRoll or 0)
+    else
+        audit = string.format("<b>%s</b> %s; <b>Edges:</b> %d; <b>Banes:</b> %d%s; <b>Natural:</b> %d",
+            label, DTConstants.GetDisplayText(DTConstants.CHARACTERISTICS, attrid),
+            info.boons or 0, info.banes or 0, applied, info.naturalRoll or 0)
+    end
 
-                    -- Add character as first menu item
-                    if element.data.characterRolls(element) > 0 then
-                        local characterRoller = DTRoller.CreateNew(token.properties)
-                        menuItems[#menuItems + 1] = {
-                            text = characterRoller:GetName(),
-                            click = function(menuElement)
-                                showRollDialog(characterRoller)
-                                if parentElement.popup then
-                                    parentElement.popup = nil
-                                end
-                            end,
-                        }
-                    end
-
-                    -- Add each follower with rolls (iterate keyed table with pairs)
-                    for _,follower in pairs(followersWithRolls) do
-                        local followerRoller = DTRoller.CreateNew(follower.properties, token.id)
-                        if followerRoller ~= nil then
-                            menuItems[#menuItems + 1] = {
-                                text = followerRoller:GetName(),
-                                click = function(menuElement)
-                                    showRollDialog(followerRoller)
-                                    if parentElement.popup then
-                                        parentElement.popup = nil
-                                    end
-                                end,
-                            }
-                        end
-                    end
-
-                    -- Show context menu
-                    element.popup = gui.ContextMenu {
-                        entries = menuItems,
-                    }
-                end
-            end
-        end,
-    }
+    return DTRoll.CreateNew()
+        :SetAudit(audit)
+        :SetRollGuid(info.rollid or "")
+        :SetRollString(rollString)
+        :SetRolledBy(roller:GetName())
+        :SetRolledByID(token.id or "")
+        :SetRolledByFollowerID(roller:GetFollowerID())
+        :SetNaturalRoll(info.naturalRoll or 0)
+        :SetBreakthrough(isBreakthrough)
+        :SetAmount(info.total or 0)
 end
 
 --- Creates action buttons for owned project panels (delete + share)
@@ -1715,10 +1590,10 @@ function DTProjectEditor:_createOwnedProjectButtons()
     return {deleteButton, shareButton}
 end
 
---- Creates action buttons for shared project panels (unshare + roll)
+--- Creates action buttons for shared project panels
 --- @param ownerName string The display name of the character who owns this project
 --- @param ownerId string The token ID of the character who owns this project
---- @return table buttons Array containing unshare button and roll button elements
+--- @return table buttons Array containing the unshare button
 function DTProjectEditor:_createSharedProjectButtons(ownerName, ownerId)
     local unshareButton = gui.Button {
         classes = {"deleteButton", "sizeS"},
@@ -1762,42 +1637,7 @@ function DTProjectEditor:_createSharedProjectButtons(ownerName, ownerId)
         end
     }
 
-    local rollButton = self:_createRollButton({
-        width = 20,
-        height = 20,
-        halign = "left",
-        hmargin = 5,
-        vmargin = 5,
-        border = 0,
-        confirm = function(rolls, controller, roller)
-            local token = dmhub.GetCharacterById(ownerId)
-            local project = controller.data.project
-            if token and project then
-                -- Protect against stale project references
-                local downtimeInfo = token.properties:GetDowntimeInfo()
-                if downtimeInfo then
-                    local p2 = downtimeInfo:GetProject(project:GetID())
-                    if p2 then
-                        token:ModifyProperties{
-                            description = "Downtime project update",
-                            execute = function ()
-                                p2:AddRolls(rolls)
-                            end
-                        }
-                        local downtimeController = controller:FindParentWithClass("downtimeController")
-                        if downtimeController then
-                            downtimeController:FireEvent("adjustRolls", -1, roller)
-                        end
-                    end
-                end
-                dmhub.Schedule(0.1, function()
-                    controller:FireEventTree("refreshToken")
-                end)
-            end
-        end
-    })
-
-    return {unshareButton, rollButton}
+    return {unshareButton}
 end
 
 --- Creates the action buttons panel container
@@ -1928,31 +1768,6 @@ function DTProjectEditor:CreateEditorPanel()
                 DTSettings.Touch()
                 DTShares.Touch()
             end)
-        end,
-
-        addRolls = function(element, rolls, roller)
-            local downtimeController = element:FindParentWithClass("downtimeController")
-            if downtimeController then
-                local token = getToken()
-                if token then
-                    local downtimeInfo = token.properties:GetDowntimeInfo()
-                    if downtimeInfo then
-                        local project = downtimeInfo:GetProject(element.data.project:GetID())
-                        if project then
-                            token:ModifyProperties{
-                                execute = function()
-                                    project:AddRolls(rolls)
-                                end,
-                            }
-                            downtimeController:FireEvent("adjustRolls", -1, roller)
-                            dmhub.Schedule(0.2, function()
-                                DTSettings.Touch()
-                                DTShares.Touch()
-                            end)
-                        end
-                    end
-                end
-            end
         end,
 
         deleteRoll = function(element, rollId)
@@ -2219,5 +2034,938 @@ function DTProjectEditor._createProgressListItem(item, deleteEvent)
                 }
             }
         }
+    }
+end
+
+--- Rolls a project for a roller that has already been decided
+--- The character sheet asks who is rolling; the Respite already knows, because
+--- the player picked a hero or a follower in its own list. Both routes end up
+--- here so the roll itself, the crit chain and the modifier sweep stay in one
+--- place.
+--- @param args table project, roller, heroToken, and onRolls(rolls, roller)
+function DTProjectEditor.PerformProjectRoll(args)
+    local project = args.project
+    local roller = args.roller
+    local heroToken = args.heroToken
+    if project == nil or roller == nil or heroToken == nil then
+        return
+    end
+
+    --A follower rolling is the follower rolling: the request is addressed to
+    --them, so the formula and the modifier sweep both resolve against their
+    --characteristics rather than the hero's. GetCharacterById, never
+    --GetTokenById -- the latter is map-only, and an unplaced follower would
+    --quietly roll as the hero and produce a plausible wrong number rather than
+    --an error.
+    local followerId = roller:GetFollowerID()
+    local rollingToken = heroToken
+    if followerId ~= nil and #followerId > 0 then
+        rollingToken = dmhub.GetCharacterById(followerId) or heroToken
+    end
+
+    local projectTitle = project:GetTitle()
+
+    --Built once and reused for every breakthrough, so the chain is rolled on
+    --exactly the setup the first roll used.
+    local attrid = DTProjectEditor._bestCharacteristic(
+        roller, project:GetTestCharacteristics())
+
+    --skills is left empty deliberately. A project does not declare which
+    --skills apply, so there is nothing to hint from; the Skilled modifier is
+    --offered and the roller ticks it if it applies.
+    local options = {
+        attrid = attrid,
+        explanation = string.format("Project roll - %s", projectTitle),
+        title = string.format("Project roll - %s", projectTitle),
+        skills = {},
+        languages = project:GetProjectSourceLanguages(),
+        modifiers = {},
+        --Awaited headlessly rather than through the roll summary window, which
+        --would open behind the surface that launched it.
+        silent = true,
+    }
+
+    dmhub.Coroutine(function()
+        local rolls = {}
+        local isFirstRoll = true
+
+        while true do
+            local info = rollingToken.properties:RequestProjectRoll(rollingToken, options)
+            --Cancelled or timed out. Whatever was already rolled stands: those
+            --dice were really thrown.
+            if info == nil then
+                break
+            end
+
+            rolls[#rolls + 1] = DTProjectEditor._buildProjectRoll(
+                info, roller, heroToken, attrid, not isFirstRoll)
+            isFirstRoll = false
+
+            if not info.isCrit then
+                break
+            end
+        end
+
+        if #rolls > 0 and args.onRolls ~= nil then
+            args.onRolls(rolls, roller)
+        end
+    end)
+end
+
+--- Adds finished rolls to a project, on whichever hero holds that project
+--- @param projectToken any The token owning the project
+--- @param projectId string
+--- @param rolls table DTRoll objects
+--- @return boolean added
+function DTProjectEditor.AddRollsToProject(projectToken, projectId, rolls)
+    if projectToken == nil or projectToken.properties == nil then
+        return false
+    end
+
+    local downtimeInfo = projectToken.properties:GetDowntimeInfo()
+    if downtimeInfo == nil then
+        return false
+    end
+
+    -- Re-read the project off the token rather than trusting a held
+    -- reference, which may be stale by the time a roll finishes.
+    local project = downtimeInfo:GetProject(projectId)
+    if project == nil then
+        return false
+    end
+
+    projectToken:ModifyProperties{
+        description = "Downtime project roll",
+        execute = function()
+            project:AddRolls(rolls)
+        end,
+    }
+
+    return true
+end
+
+--- Moves a hero's or a follower's downtime roll counter
+--- A follower's rolls are held on the hero they follow, keyed by follower id,
+--- so the roller's own id decides which counter moves.
+--- @param rollHolderToken any The hero holding the counters
+--- @param rollerCharid string The hero or follower spending
+--- @param amount number Negative to spend
+function DTProjectEditor.AdjustDowntimeRolls(rollHolderToken, rollerCharid, amount)
+    if rollHolderToken == nil or rollHolderToken.properties == nil then
+        return
+    end
+    if rollerCharid == nil or rollerCharid == "" then
+        return
+    end
+
+    rollHolderToken:ModifyProperties{
+        description = "Adjust downtime rolls",
+        execute = function()
+            local downtimeInfo = rollHolderToken.properties:GetDowntimeInfo()
+            if downtimeInfo == nil then
+                return
+            end
+
+            if rollerCharid == rollHolderToken.id then
+                downtimeInfo:GrantRolls(amount)
+            else
+                downtimeInfo:GrantFollowerRolls(rollerCharid, amount)
+            end
+        end,
+    }
+end
+
+--- Records finished project rolls, and spends the roll that paid for them
+--- Two different heroes whenever the project is shared: the progress belongs
+--- to whoever owns the project, while the roll comes off the roller's own
+--- hero.
+--- @param args table projectToken, projectId, rolls, rollHolderToken, rollerCharid
+function DTProjectEditor.RecordProjectRolls(args)
+    DTProjectEditor.AddRollsToProject(args.projectToken, args.projectId, args.rolls)
+    DTProjectEditor.AdjustDowntimeRolls(args.rollHolderToken, args.rollerCharid, -1)
+
+    --Deferred with the rest: ModifyProperties runs its execute asynchronously,
+    --so announcing any sooner would wake the Respite to read progress that has
+    --not landed yet.
+    dmhub.Schedule(0.2, function()
+        DTSettings.Touch()
+        DTShares.Touch()
+        AnnounceChange()
+    end)
+end
+
+--- Comma-separated display names for a project's test characteristics
+--- @param project DTProject
+--- @return string
+function DTProjectEditor._characteristicNames(project)
+    local names = {}
+    for _, key in ipairs(project:GetTestCharacteristics() or {}) do
+        names[#names + 1] = DTConstants.GetDisplayText(DTConstants.CHARACTERISTICS, key)
+    end
+    if #names == 0 then
+        return "None"
+    end
+    return table.concat(names, ", ")
+end
+
+--- Comma-separated display names for a project's source languages
+--- @param project DTProject
+--- @return string
+function DTProjectEditor._languageNames(project)
+    local langTable = dmhub.GetTableVisible(Language.tableName) or {}
+    local names = {}
+    for _, id in ipairs(project:GetProjectSourceLanguages() or {}) do
+        local entry = langTable[id]
+        if entry ~= nil then
+            names[#names + 1] = entry.name
+        end
+    end
+    if #names == 0 then
+        return "None"
+    end
+    return table.concat(names, ", ")
+end
+
+--- A project's characteristics, languages and status as one unlabelled line
+--- @param project DTProject
+--- @return string
+function DTProjectEditor._respiteSummaryLine(project)
+    return string.format("%s | %s | %s",
+        DTProjectEditor._characteristicNames(project),
+        DTProjectEditor._languageNames(project),
+        DTConstants.GetDisplayText(DTConstants.STATUS, project:GetStatus()))
+end
+
+--- A progress bar reading X/Y, sized by its container rather than by the goal
+--- Built the way the tactical panel's stamina bar is: a bordered track, an
+--- inner fill whose width is driven through selfStyle, and a floating label
+--- over the top.
+--- @param project DTProject
+--- @return Panel
+function DTProjectEditor._respiteProgressBar(project)
+    local function Ratio()
+        local goal = project:GetProjectGoal() or 0
+        if goal <= 0 then
+            return 0
+        end
+        return math.max(0, math.min(1, project:GetProgress() / goal))
+    end
+
+    local fill = gui.Panel{
+        classes = {"fillBarFill"},
+        width = string.format("%f%%-2", Ratio() * 100),
+        height = "100%-2",
+        halign = "left",
+        valign = "center",
+        lmargin = 1,
+        bgimage = true,
+        interactable = false,
+        refreshProject = function(element)
+            element.selfStyle.width = string.format("%f%%-2", Ratio() * 100)
+        end,
+    }
+
+    local label = gui.Label{
+        classes = {"fg", "sizeXs", "number", "bold"},
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        floating = true,
+        interactable = false,
+        text = string.format("%d/%d", project:GetProgress(), project:GetProjectGoal() or 0),
+        refreshProject = function(element)
+            element.text = string.format("%d/%d", project:GetProgress(), project:GetProjectGoal() or 0)
+        end,
+    }
+
+    return gui.Panel{
+        classes = {"bordered"},
+        width = "70%",
+        height = 16,
+        flow = "horizontal",
+        halign = "left",
+        cornerRadius = 0,
+        bgcolor = "clear",
+
+        fill,
+        label,
+    }
+end
+
+--- One project as the Respite shows it: read only, plus a roll button for the
+--- entity the player has selected.
+--- @param args table project, ownerToken, heroToken, roller and rollsLeft()
+--- @return Panel
+function DTProjectEditor._respiteProjectCard(args)
+    local project = args.project
+    local rollButton
+
+    rollButton = gui.Button{
+        classes = {"withInfo"},
+        icon = "panels/initiative/initiative-dice.png",
+        width = 28,
+        height = 28,
+        halign = "right",
+        valign = "center",
+        refreshProject = function(element)
+            local valid, reasons = project:IsValidStateToRoll()
+            local rolls = args.rollsLeft()
+            local enabled = valid and rolls > 0
+
+            element:SetClass("disabled", not enabled)
+            element.interactable = enabled
+
+            if rolls <= 0 then
+                element.tooltip = gui.Tooltip(string.format(
+                    "%s has no downtime rolls left.", args.roller:GetName()))
+            elseif not valid then
+                element.tooltip = gui.Tooltip(table.concat(reasons or {}, "\n"))
+            else
+                element.tooltip = gui.Tooltip(string.format(
+                    "Roll for %s", args.roller:GetName()))
+            end
+        end,
+        press = function(element)
+            if not element.interactable then
+                return
+            end
+
+            -- heroToken is the roller's own hero, not the project's owner:
+            -- it is what the roll is recorded against and where a follower is
+            -- resolved from. On a shared project those are different people.
+            DTProjectEditor.PerformProjectRoll{
+                project = project,
+                roller = args.roller,
+                heroToken = args.rollHolderToken,
+                onRolls = function(rolls)
+                    DTProjectEditor.RecordProjectRolls{
+                        projectToken = args.ownerToken,
+                        projectId = project:GetID(),
+                        rolls = rolls,
+                        rollHolderToken = args.rollHolderToken,
+                        rollerCharid = args.rollerCharid,
+                    }
+                end,
+            }
+        end,
+    }
+
+    -- Short of the full width, and left-aligned, so the list's scroll bar does
+    -- not sit over the card's right border.
+    return gui.Panel{
+        classes = {"bordered"},
+        width = "100%-12",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        vmargin = 4,
+
+        gui.Panel{
+            width = "96%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "center",
+            vmargin = 6,
+
+            gui.CreateTokenImage(args.ownerToken, {
+                width = 34,
+                height = 34,
+                halign = "left",
+                valign = "center",
+            }),
+
+            gui.Label{
+                classes = {"sizeM", "bold"},
+                width = "70%-34",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                hmargin = 8,
+                textWrap = false,
+                text = project:GetTitle(),
+            },
+
+            rollButton,
+        },
+
+        gui.Panel{
+            width = "96%",
+            height = "auto",
+            flow = "vertical",
+            halign = "center",
+            bmargin = 6,
+
+            DTProjectEditor._respiteProgressBar(project),
+
+            -- One line, no labels: the Respite is tight for room and these
+            -- three read fine as a run-on.
+            gui.Label{
+                classes = {"sizeS", "noBold"},
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                tmargin = 2,
+                textWrap = true,
+                text = DTProjectEditor._respiteSummaryLine(project),
+                refreshProject = function(element)
+                    element.text = DTProjectEditor._respiteSummaryLine(project)
+                end,
+            },
+        },
+    }
+end
+
+--- Builds the cards for one selection. Called again whenever the set of
+--- projects could have changed, since a share arriving or leaving changes the
+--- list itself rather than any one card.
+--- @param args table charid of the selection, and owner when it is a follower
+--- @return Panel[] cards
+function DTProjectEditor._respiteProjectCards(args)
+    local heroId = args.owner or args.charid
+    local heroToken = dmhub.GetCharacterById(heroId)
+
+    local cards = {}
+    local rollerToken = dmhub.GetCharacterById(args.charid)
+
+    if heroToken ~= nil and heroToken.properties ~= nil and rollerToken ~= nil then
+        local roller
+        local rollsLeft
+
+        if args.owner == nil then
+            roller = DTRoller.CreateNew(heroToken.properties)
+            rollsLeft = function()
+                local info = heroToken.properties:GetDowntimeInfo()
+                return info ~= nil and info:GetAvailableRolls() or 0
+            end
+        else
+            roller = DTRoller.CreateNew(rollerToken.properties, heroId)
+            rollsLeft = function()
+                local info = heroToken.properties:GetDowntimeInfo()
+                return info ~= nil and info:GetFollowerRolls(args.charid) or 0
+            end
+        end
+
+        local entries = {}
+        local downtimeInfo = heroToken.properties:GetDowntimeInfo()
+        if downtimeInfo ~= nil then
+            for _, project in ipairs(downtimeInfo:GetSortedProjects() or {}) do
+                entries[#entries + 1] = {project = project, ownerToken = heroToken}
+            end
+        end
+
+        for _, shared in ipairs(DTBusinessRules.GetSharedProjectsForRecipient(heroId) or {}) do
+            local ownerToken = dmhub.GetCharacterById(shared.ownerId)
+            if shared.project ~= nil and ownerToken ~= nil then
+                entries[#entries + 1] = {project = shared.project, ownerToken = ownerToken}
+            end
+        end
+
+        for _, entry in ipairs(entries) do
+            if entry.project:GetStatus() ~= DTConstants.STATUS.COMPLETE.key and roller ~= nil then
+                cards[#cards + 1] = DTProjectEditor._respiteProjectCard{
+                    project = entry.project,
+                    ownerToken = entry.ownerToken,
+                    rollHolderToken = heroToken,
+                    rollerCharid = args.charid,
+                    roller = roller,
+                    rollsLeft = rollsLeft,
+                }
+            end
+        end
+    end
+
+    if #cards == 0 then
+        cards[1] = gui.Label{
+            classes = {"sizeM", "noBold", "fgMuted"},
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+            tmargin = 24,
+            text = "No projects under way.",
+        }
+    end
+
+    return cards
+end
+
+--- A zero-size panel that watches one document and reports back
+--- A panel carries a single monitorGame, and this list has to answer to three
+--- separate signals, so each gets its own watcher. Assigned on a delay the way
+--- the character sheet does it.
+--- @param path string|nil document path to watch
+--- @param onChange fun() what to do when it moves
+--- @return Panel
+function DTProjectEditor._respiteWatcher(path, onChange)
+    return gui.Panel{
+        width = 0,
+        height = 0,
+        create = function(element)
+            dmhub.Schedule(0.2, function()
+                if element.valid and path ~= nil then
+                    element.monitorGame = path
+                end
+            end)
+        end,
+        refreshGame = function()
+            onChange()
+        end,
+    }
+end
+
+--- Every unfinished project the selected entity can roll on, read only.
+--- A follower has no projects of their own, so they work the hero's list; the
+--- hero's own list is what they own plus anything shared with them.
+---
+--- Anyone can change these while they sit on screen: another hero can share a
+--- project in or out, and other players roll on shared projects. Shares and
+--- the downtime settings ping rebuild the list, since either can change which
+--- projects belong on it; the hero's own token only repaints the cards.
+--- @param args table charid of the selection, and owner when it is a follower
+--- @return Panel
+function DTProjectEditor.PaintRespiteProjects(args)
+    local heroId = args.owner or args.charid
+    local heroToken = dmhub.GetCharacterById(heroId)
+
+    local list
+    local function Rebuild()
+        if list ~= nil and list.valid then
+            list.children = DTProjectEditor._respiteProjectCards(args)
+            list:FireEventTree("refreshProject")
+        end
+    end
+
+    list = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+
+        create = function(element)
+            element:FireEventTree("refreshProject")
+        end,
+
+        children = DTProjectEditor._respiteProjectCards(args),
+    }
+
+    return gui.Panel{
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        vscroll = true,
+
+        DTProjectEditor._respiteWatcher(DTShares.GetDocumentPath(), Rebuild),
+        DTProjectEditor._respiteWatcher(DTSettings.GetDocumentPath(), Rebuild),
+        DTProjectEditor._respiteWatcher(
+            heroToken ~= nil and heroToken.monitorPath or nil,
+            function()
+                if list ~= nil and list.valid then
+                    list:FireEventTree("refreshProject")
+                end
+            end),
+
+        list,
+    }
+end
+
+--- Everything that moved a project, in the order it happened
+--- Rolls and adjustments share a base that stamps serverTime on commit, so the
+--- two interleave into one true sequence.
+--- @param project DTProject
+--- @return table[] items
+function DTProjectEditor._projectTimeline(project)
+    local items = {}
+
+    for _, roll in ipairs(project:GetRolls() or {}) do
+        items[#items + 1] = roll
+    end
+    for _, adjustment in ipairs(project:GetAdjustments() or {}) do
+        items[#items + 1] = adjustment
+    end
+
+    table.sort(items, function(a, b)
+        return (a.serverTime or 0) < (b.serverTime or 0)
+    end)
+
+    return items
+end
+
+--- The server time a Respite feed reports from
+--- The Respite hands this over as an accessor rather than a number, because a
+--- panel can be built before the Respite starts and a captured zero reads as
+--- "report everything ever". A plain number is still accepted.
+--- @param since number|fun(): number|nil
+--- @return number
+local function ResolveSince(since)
+    if type(since) == "function" then
+        return since() or 0
+    end
+    return since or 0
+end
+
+--- What happened on one project inside a window
+--- The milestone and the completion are not recorded anywhere: they are the
+--- moments the running total crossed a threshold, so the timeline is replayed
+--- to find them. Nothing is stored, and nothing can disagree with the project.
+--- @param project DTProject
+--- @param since number server time to report from
+--- @return table[] events {kind, item, total, project}
+function DTProjectEditor._projectEvents(project, since)
+    local events = {}
+    local goal = project:GetProjectGoal() or 0
+    local milestone = project:GetMilestoneThreshold() or 0
+    local total = 0
+
+    for _, item in ipairs(DTProjectEditor._projectTimeline(project)) do
+        local before = total
+        total = total + item:GetAmount()
+
+        local recent = (item.serverTime or 0) >= since
+
+        if recent then
+            events[#events + 1] = {
+                kind = "roll",
+                item = item,
+                total = total,
+                project = project,
+            }
+        end
+
+        if milestone > 0 and before < milestone and total >= milestone and recent then
+            events[#events + 1] = {
+                kind = "milestone",
+                item = item,
+                total = total,
+                project = project,
+            }
+        end
+
+        if goal > 0 and before < goal and total >= goal and recent then
+            events[#events + 1] = {
+                kind = "complete",
+                item = item,
+                total = total,
+                project = project,
+            }
+        end
+    end
+
+    return events
+end
+
+--- The projects a hero owns
+--- @param heroToken any
+--- @return DTProject[]
+function DTProjectEditor._ownedProjects(heroToken)
+    if heroToken == nil or heroToken.properties == nil then
+        return {}
+    end
+
+    local downtimeInfo = heroToken.properties:GetDowntimeInfo()
+    if downtimeInfo == nil then
+        return {}
+    end
+
+    return downtimeInfo:GetSortedProjects() or {}
+end
+
+--- Has anything happened on this hero's projects that the Director must act on?
+--- Only a milestone or a completion counts, and only on projects this hero
+--- owns: those are the conversations the Director has to have.
+--- @param args table charid and since
+--- @return boolean
+function DTProjectEditor.RespiteNeedsAttention(args)
+    local heroToken = dmhub.GetCharacterById(args.charid)
+
+    for _, project in ipairs(DTProjectEditor._ownedProjects(heroToken)) do
+        for _, event in ipairs(DTProjectEditor._projectEvents(project, ResolveSince(args.since))) do
+            if event.kind ~= "roll" then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+--- Trims a name or title so a feed line stays on one row
+--- @param text string
+--- @param limit number
+--- @return string
+function DTProjectEditor._respiteShorten(text, limit)
+    if text == nil or text == "" then
+        return ""
+    end
+    if #text <= limit then
+        return text
+    end
+    return string.sub(text, 1, limit - 3) .. "..."
+end
+
+--- The shortcut into a hero's projects, sized to sit inside a feed row
+local RESPITE_SHEET_BUTTON_SIZE = 16
+local RESPITE_SHEET_BUTTON_MARGIN = 6
+
+--- One line in the Director's feed
+--- @param event table from _projectEvents
+--- @param charid string|nil whose feed this is, for the milestone shortcut
+--- @return Panel
+function DTProjectEditor._respiteEventRow(event, charid)
+    local project = event.project
+    local item = event.item
+    local goal = project:GetProjectGoal() or 0
+
+    local icon = nil
+    local textClass = "fg"
+    local text
+
+    -- Kept terse: the pane is narrow and the feed is scanned, not read.
+    local title = DTProjectEditor._respiteShorten(project:GetTitle(), 22)
+
+    if event.kind == "milestone" then
+        icon = RSPConstants.iconAttention
+        textClass = "warning"
+        text = string.format("<b>%s</b> milestone %d/%d", title, event.total, goal)
+    elseif event.kind == "complete" then
+        icon = RSPConstants.iconComplete
+        textClass = "success"
+        text = string.format("<b>%s</b> complete", title)
+    else
+        local who = item:try_get("rolledBy")
+        if who == nil or who == "" then
+            who = "Director"
+        end
+        text = string.format("%s <b>+%d</b> %s %d/%d",
+            DTProjectEditor._respiteShorten(who, 16),
+            item:GetAmount(), title, event.total, goal)
+    end
+
+    -- A milestone is the one event that asks the Director to go and do
+    -- something, so it is the only one that carries the way there. The sheet
+    -- opens on Downtime, which is where the project is.
+    local sheetButton = nil
+    if event.kind == "milestone" and charid ~= nil then
+        sheetButton = gui.Button{
+            classes = {"settingsButton", "sizeXs"},
+            halign = "right",
+            valign = "center",
+            lmargin = RESPITE_SHEET_BUTTON_MARGIN,
+            linger = function(element)
+                gui.Tooltip("Open this hero's downtime projects")(element)
+            end,
+            press = function()
+                local character = dmhub.GetCharacterById(charid)
+                if character ~= nil then
+                    character:ShowSheet("Downtime")
+                end
+            end,
+        }
+    end
+
+    -- The text gives up whatever the icon and the button take, so a row with a
+    -- button wraps rather than pushing it off the end of the pane.
+    local trailing = RSPConstants.eventIconSize + 6
+    if sheetButton ~= nil then
+        trailing = trailing + RESPITE_SHEET_BUTTON_SIZE + RESPITE_SHEET_BUTTON_MARGIN
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        vmargin = 2,
+
+        gui.Panel{
+            classes = {icon == nil and "hidden" or nil,
+                event.kind == "complete" and "rspEventGood" or "rspEventAlert"},
+            bgimage = icon or RSPConstants.iconAttention,
+            width = RSPConstants.eventIconSize,
+            height = RSPConstants.eventIconSize,
+            halign = "left",
+            valign = "center",
+            rmargin = 6,
+        },
+
+        gui.Label{
+            classes = {"sizeS", "noBold", textClass},
+            width = "100%-" .. tostring(trailing),
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            textWrap = true,
+            text = text,
+        },
+
+        sheetButton,
+    }
+end
+
+--- What this hero got up to during the Respite, newest first
+--- Rolls the hero or their followers made anywhere they can reach, plus the
+--- milestones and completions on the projects they own. Shared by the
+--- Director's feed and the Respite's write-up, so the two can never disagree
+--- about what happened.
+--- @param args table charid, and since as a server time or a function
+--- @return table[] events
+function DTProjectEditor._respiteEvents(args)
+    local heroToken = dmhub.GetCharacterById(args.charid)
+    local since = ResolveSince(args.since)
+    local events = {}
+
+    local followers = {}
+    if heroToken ~= nil and heroToken.properties ~= nil then
+        local constants = rawget(_G, "DTConstants")
+        local held = constants ~= nil
+            and heroToken.properties:try_get(constants.FOLLOWERS_STORAGE_KEY) or nil
+        for followerId, _ in pairs(held or {}) do
+            followers[followerId] = true
+        end
+    end
+
+    --- @param item any a roll or adjustment
+    --- @return boolean
+    local function RolledByThisHousehold(item)
+        local rolledBy = item:try_get("rolledById")
+        if rolledBy == args.charid then
+            return true
+        end
+        local follower = item:try_get("rolledByFollowerId")
+        return follower ~= nil and followers[follower] == true
+    end
+
+    local seen = {}
+    local function Gather(project, ownedByHero)
+        for _, event in ipairs(DTProjectEditor._projectEvents(project, since)) do
+            local keep = false
+            if event.kind == "roll" then
+                keep = RolledByThisHousehold(event.item)
+            else
+                -- A milestone belongs to whoever owns the project, whoever
+                -- happened to roll it.
+                keep = ownedByHero
+            end
+
+            local key = string.format("%s:%s", event.kind, event.item:GetID())
+            if keep and not seen[key] then
+                seen[key] = true
+                events[#events + 1] = event
+            end
+        end
+    end
+
+    for _, project in ipairs(DTProjectEditor._ownedProjects(heroToken)) do
+        Gather(project, true)
+    end
+
+    for _, shared in ipairs(DTBusinessRules.GetSharedProjectsForRecipient(args.charid) or {}) do
+        if shared.project ~= nil then
+            Gather(shared.project, false)
+        end
+    end
+
+    table.sort(events, function(a, b)
+        return (a.item.serverTime or 0) > (b.item.serverTime or 0)
+    end)
+
+    return events
+end
+
+--- The Director's feed rows for one hero
+--- @param args table charid, and since as a server time or a function
+--- @return Panel[] rows
+function DTProjectEditor._respiteFeedRows(args)
+    local rows = {}
+    for _, event in ipairs(DTProjectEditor._respiteEvents(args)) do
+        rows[#rows + 1] = DTProjectEditor._respiteEventRow(event, args.charid)
+    end
+
+    if #rows == 0 then
+        rows[1] = gui.Label{
+            classes = {"sizeS", "noBold", "fgMuted"},
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            tmargin = 4,
+            text = "Nothing yet this Respite.",
+        }
+    end
+
+    return rows
+end
+
+--- What this household did with its projects, for the Respite's write-up
+--- Counted rather than listed: a hero who rolled seven times wants one line
+--- saying so, and the milestones and completions are the part worth naming.
+--- @param args table charid, and since as a server time or a function
+--- @return string[]|nil lines nil when they did nothing
+function DTProjectEditor.RespiteJournalSummary(args)
+    local rolls = 0
+    local named = {}
+
+    for _, event in ipairs(DTProjectEditor._respiteEvents(args) or {}) do
+        if event.kind == "roll" then
+            rolls = rolls + 1
+        elseif event.kind == "milestone" then
+            named[#named + 1] = string.format("reached a milestone on %s",
+                event.project:GetTitle())
+        elseif event.kind == "complete" then
+            named[#named + 1] = string.format("completed %s",
+                event.project:GetTitle())
+        end
+    end
+
+    if rolls == 0 and #named == 0 then
+        return nil
+    end
+
+    local lines = {}
+    if rolls > 0 then
+        lines[#lines + 1] = string.format("Rolled on downtime projects %d %s",
+            rolls, cond(rolls == 1, "time", "times"))
+    end
+    for _, line in ipairs(named) do
+        lines[#lines + 1] = line:gsub("^%l", string.upper)
+    end
+
+    return lines
+end
+
+--- The Director's view of this hero's downtime projects
+--- @param args table charid, and since as a server time
+--- @return Panel
+function DTProjectEditor.PaintRespiteDirectorFeed(args)
+    local list
+
+    local function Rebuild()
+        if list ~= nil and list.valid then
+            list.children = DTProjectEditor._respiteFeedRows(args)
+        end
+    end
+
+    list = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        children = DTProjectEditor._respiteFeedRows(args),
+    }
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+
+        DTProjectEditor._respiteWatcher(DTSettings.GetDocumentPath(), Rebuild),
+        DTProjectEditor._respiteWatcher(DTShares.GetDocumentPath(), Rebuild),
+
+        list,
     }
 end

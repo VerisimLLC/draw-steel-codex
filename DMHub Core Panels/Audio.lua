@@ -3669,7 +3669,7 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 		muteButton = gui.Panel{
 			styles = { GLYPH_PRESS_SOUND },
 			classes = {"audioSbMute", "hoverable"},
-			bgimage = "ui-icons/ph-speaker-high-fill.png",
+			bgimage = "phosphor/speaker-high-fill.png",
 			width = 12,
 			height = 12,
 			valign = "center",
@@ -3679,10 +3679,10 @@ CreateSoundboardButton = function(getBoardOrLegacyBoard, slot, opts)
 				muted = not muted
 				element:SetClass("muted", muted)
 				if muted then
-					element.bgimage = "ui-icons/ph-speaker-slash-fill.png"
+					element.bgimage = "phosphor/speaker-slash-fill.png"
 					audio.SetSoundEventVolume(assetid, 0)
 				else
-					element.bgimage = "ui-icons/ph-speaker-high-fill.png"
+					element.bgimage = "phosphor/speaker-high-fill.png"
 					audio.SetSoundEventVolume(assetid, volumeSlider.value)
 				end
 			end,
@@ -4073,8 +4073,8 @@ local function CreatePlayerSoundPanel()
 			gui.Tooltip("Mute")(element)
 		end,
 		styles = {
-			{ bgimage = "ui-icons/ph-speaker-high-fill.png" },
-			{ selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
+			{ bgimage = "phosphor/speaker-high-fill.png" },
+			{ selectors = {"muted"}, bgimage = "phosphor/speaker-slash-fill.png" },
 			{ selectors = {"hover"}, brightness = 2 },
 			GLYPH_PRESS_SOUND,
 		},
@@ -4460,8 +4460,8 @@ local function BuildSoundPanelContent()
 			gui.Tooltip("Mute for everyone")(element)
 		end,
 		styles = {
-			{ bgimage = "ui-icons/ph-speaker-high-fill.png" },
-			{ selectors = {"muted"}, bgimage = "ui-icons/ph-speaker-slash-fill.png" },
+			{ bgimage = "phosphor/speaker-high-fill.png" },
+			{ selectors = {"muted"}, bgimage = "phosphor/speaker-slash-fill.png" },
 			{ selectors = {"hover"}, brightness = 2 },
 			GLYPH_PRESS_SOUND,
 		},
@@ -6381,7 +6381,7 @@ local function BuildSoundPanelContent()
 			local onOffButton
 			onOffButton = gui.Panel{
 				styles = { GLYPH_PRESS_SOUND },
-				bgimage = "ui-icons/ph-speaker-slash-fill.png",
+				bgimage = "phosphor/speaker-slash-fill.png",
 				bgcolor = "white",
 				width = 16,
 				height = 16,
@@ -6703,7 +6703,7 @@ local function BuildSoundPanelContent()
 				secondaryRow:SetClass("collapsed", not (isTrigger or hasCustomSource))
 
 				local on = not c.disabled
-				onOffButton.bgimage = on and "ui-icons/ph-speaker-high-fill.png" or "ui-icons/ph-speaker-slash-fill.png"
+				onOffButton.bgimage = on and "phosphor/speaker-high-fill.png" or "phosphor/speaker-slash-fill.png"
 
 				local lit = on and (not isTrigger)
 				statusDot.bgcolor = lit and "#5cb85c" or "#888888"
@@ -7521,7 +7521,7 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 		muteButton = gui.Panel{
 			styles = { GLYPH_PRESS_SOUND },
 			classes = {"hoverable", "audioRowMuteButton"},
-			bgimage = "ui-icons/ph-speaker-high-fill.png",
+			bgimage = "phosphor/speaker-high-fill.png",
 			bgcolor = "white",
 			width = 16,
 			height = 16,
@@ -7531,10 +7531,10 @@ local CreateAudioStudioRow = function(audioAsset, opts)
 				muted = not muted
 				element:SetClass("muted", muted)
 				if muted then
-					element.bgimage = "ui-icons/ph-speaker-slash-fill.png"
+					element.bgimage = "phosphor/speaker-slash-fill.png"
 					audio.SetSoundEventVolume(audioAsset.id, 0)
 				else
-					element.bgimage = "ui-icons/ph-speaker-high-fill.png"
+					element.bgimage = "phosphor/speaker-high-fill.png"
 					audio.SetSoundEventVolume(audioAsset.id, volumeSlider.value)
 				end
 			end,

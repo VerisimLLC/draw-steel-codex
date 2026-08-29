@@ -6376,6 +6376,13 @@ function creature:OnMove(path)
     --movement and OA immunity still suppress them.
     local immuneFromDeparture = path.forced or moverImmuneToOpportunityAttacks
 
+    --"Willingly moves away" for the mover-side `departadjacent` dispatch below
+    --(the goblin Cunning trait). Deliberately NOT gated by
+    --moverImmuneToOpportunityAttacks: a trait that both grants OA immunity and
+    --grants a parting attack would otherwise suppress its own second half.
+    --Forced movement and shifting are not willing, so they do not count.
+    local willingDeparture = (not path.forced) and (not path.shifting)
+
     local ourTileSize = ourToken.tileSize
 
 
@@ -6602,6 +6609,19 @@ function creature:OnMove(path)
                         if departureNotImmuneForThisObserver then
                             tok.properties:DispatchEvent("leaveadjacentorshift", { movingcreature = self })
                         end
+                    end
+
+                    --Mirror of leaveadjacent, dispatched on the MOVER instead of the
+                    --creature being left, carrying the enemy just departed. This is
+                    --what a "when you willingly move away from an adjacent enemy"
+                    --trait needs (goblin Cunning) -- the mover cannot know at
+                    --begin-move which enemy it will end up leaving, so the check has
+                    --to happen here, per step, where adjacency is actually lost.
+                    --Gated only on the mover: the observer-side OA filters above
+                    --(banes, opportunityattack target filter, CanMakeOpportunityAttacks)
+                    --describe the enemy's reaction, not the mover's own trait.
+                    if willingDeparture and withinVerticalReach and (not tok:IsFriend(self)) and self:CanUseTriggeredAbilities() then
+                        self:DispatchEvent("departadjacent", { departedcreature = tok.properties })
                     end
                 end
             end
@@ -6888,6 +6908,19 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 
 	--use this as an opportunity to clean up any ongoingEffects that are no longer active.
 	self.ongoingEffects = self:ActiveOngoingEffects(true)
+
+	--Record where the caster stood when this effect landed. Effects that leash a target
+	--to "the caster's position when this ability is used" (Hooked) measure from this
+	--point, so it has to be captured now -- the caster is free to walk away afterwards.
+	if casterInfo ~= nil and casterInfo.tokenid ~= nil and casterInfo.loc == nil then
+		local casterLocToken = dmhub.GetTokenById(casterInfo.tokenid)
+		if casterLocToken ~= nil and casterLocToken.valid then
+			local casterLoc = casterLocToken.loc
+			if casterLoc ~= nil and casterLoc.valid then
+				casterInfo.loc = { x = casterLoc.x, y = casterLoc.y, floor = casterLoc.floor }
+			end
+		end
+	end
 
 	options = options or {}
 

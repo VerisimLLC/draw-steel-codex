@@ -212,6 +212,11 @@ local MODIFIER_METADATA = {
         tags = {"cast", "origin", "position", "source"},
         group = "movement",
     },
+    movementrestriction = {
+        description = "Stop the bearer approaching a creature, or straying more than a set number of squares from one.",
+        tags = {"restrict", "leash", "approach", "frightened", "hooked", "move"},
+        group = "movement",
+    },
     forcedmovement = {
         description = "Enable forced movement on the bearer.",
         tags = {"push", "pull", "slide", "forced", "move"},

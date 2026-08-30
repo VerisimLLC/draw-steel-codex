@@ -1500,12 +1500,30 @@ function DTProjectEditor:_createRollsPanel()
                     hmargin = 10,
                 },
             },
-            --Rolling on a project no longer happens here. The column is
-            --kept so the header keeps its shape.
             gui.Panel {
                 width = "12%",
                 height = "auto",
                 halign = "right",
+                children = {
+                    self:_createRollButton({
+                        --The hero owns this project and holds the rolls, so
+                        --both sides of the record are the sheet's own token.
+                        confirm = function(rolls, controller, roller)
+                            local token = getToken()
+                            if token == nil then
+                                return
+                            end
+
+                            DTProjectEditor.RecordProjectRolls{
+                                projectToken = token,
+                                projectId = controller.data.project:GetID(),
+                                rolls = rolls,
+                                rollHolderToken = token,
+                                rollerCharid = roller:GetTokenID(),
+                            }
+                        end,
+                    }),
+                },
             },
         },
 
@@ -1629,6 +1647,191 @@ function DTProjectEditor._buildProjectRoll(info, roller, token, attrid, isBreakt
         :SetNaturalRoll(info.naturalRoll or 0)
         :SetBreakthrough(isBreakthrough)
         :SetAmount(info.total or 0)
+end
+
+--- The roll button on a project's detail. Players only, and only when the game
+--- opts into rolling from the sheet: rolling normally belongs to the Respite.
+--- Offers the hero and any follower holding a roll, then hands the chosen
+--- roller to the game's own roll dialog.
+--- @param options table confirm(rolls, controller, roller), plus optional sizing
+--- @return Panel
+function DTProjectEditor:_createRollButton(options)
+    options = options or {}
+    local confirmCallback = options.confirm
+
+    return gui.Button{
+        classes = {"withInfo"},
+        icon = "panels/initiative/initiative-dice.png",
+        width = options.width or 24,
+        height = options.height or 24,
+        margin = options.margin or 0,
+        halign = options.halign or nil,
+        hmargin = options.hmargin or nil,
+        vmargin = options.vmargin or nil,
+        data = {
+            enabled = false,
+            tooltipText = "",
+            getDowntimeFollowers = function(element)
+                local downtimeController = element:FindParentWithClass("downtimeController")
+                if downtimeController then
+                    return downtimeController.data.getDowntimeFollowers()
+                end
+                return nil
+            end,
+            getDowntimeInfo = function(element)
+                local downtimeController = element:FindParentWithClass("downtimeController")
+                if downtimeController then
+                    return downtimeController.data.getDowntimeInfo()
+                end
+                return nil
+            end,
+            getProject = function(element)
+                local projectController = element:FindParentWithClass("projectController")
+                if projectController then
+                    return projectController.data.project
+                end
+                return nil
+            end,
+            characterRolls = function(element)
+                local downtimeInfo = element.data.getDowntimeInfo(element)
+                if downtimeInfo then return downtimeInfo:GetAvailableRolls() end
+                return 0
+            end,
+            followerRolls = function(element)
+                local downtimeFollowers = element.data.getDowntimeFollowers(element)
+                if downtimeFollowers then return downtimeFollowers:AggregateAvailableRolls() end
+                return 0
+            end,
+        },
+
+        --Spending a roll never touches this project's own document, so the
+        --counts are watched the way the tab's roll counter watches them.
+        create = function(element)
+            element:FireEvent("refreshToken")
+            dmhub.Schedule(0.2, function()
+                if element.valid then
+                    element.monitorGame = DTSettings.GetDocumentPath()
+                end
+            end)
+        end,
+
+        refreshGame = function(element)
+            element:FireEvent("refreshToken")
+        end,
+
+        refreshToken = function(element)
+            --The roll is addressed to whoever controls the token, which the
+            --Director never is.
+            element:SetClass("collapsed",
+                dmhub.isDM or not DTCharSheetTab.RollingFromSheetEnabled())
+
+            local isEnabled = false
+            element.data.tooltipText = "Project not found?"
+
+            local project = element.data.getProject(element)
+            if project then
+                local validState, issueList = project:IsValidStateToRoll()
+                if validState then
+                    if element.data.followerRolls(element)
+                        + element.data.characterRolls(element) > 0 then
+                        element.data.tooltipText = "Make a roll"
+                        isEnabled = true
+                    else
+                        element.data.tooltipText = "You have no available rolls"
+                    end
+                else
+                    element.data.tooltipText = table.concat(issueList, " ")
+                end
+            end
+
+            element.data.enabled = isEnabled
+        end,
+
+        linger = function(element)
+            if element.data.tooltipText and #element.data.tooltipText then
+                gui.Tooltip(element.data.tooltipText)(element)
+            end
+        end,
+
+        press = function(element)
+            if not element.data.enabled then return end
+
+            local project = element.data.getProject(element)
+            local controller = element:FindParentWithClass("projectController")
+            if project == nil or controller == nil then return end
+
+            local token = getToken()
+            if token == nil then return end
+
+            local followersWithRolls = {}
+            local dtFollowers = token.properties:GetDowntimeFollowers()
+            if dtFollowers then
+                followersWithRolls = dtFollowers:GetFollowersWithAvailbleRolls() or {}
+            end
+
+            --Project rolls go through the game's own roll dialog. That is what
+            --brings titles, complications and kit modifiers to bear on them.
+            --The roll itself lives in PerformProjectRoll so the Respite can
+            --run the same one for a roller it has already chosen.
+            local function showRollDialog(roller)
+                DTProjectEditor.PerformProjectRoll{
+                    project = project,
+                    roller = roller,
+                    heroToken = token,
+                    onRolls = function(rolls)
+                        if confirmCallback then
+                            confirmCallback(rolls, controller, roller)
+                        end
+                    end,
+                }
+            end
+
+            --Keyed table, so next() rather than #.
+            if next(followersWithRolls) == nil then
+                --Only when the hero actually has rolls, otherwise this rolled
+                --for free.
+                if element.data.characterRolls(element) > 0 then
+                    showRollDialog(DTRoller.CreateNew(token.properties))
+                end
+                return
+            end
+
+            local menuItems = {}
+            local parentElement = element
+
+            if element.data.characterRolls(element) > 0 then
+                local characterRoller = DTRoller.CreateNew(token.properties)
+                menuItems[#menuItems + 1] = {
+                    text = characterRoller:GetName(),
+                    click = function()
+                        showRollDialog(characterRoller)
+                        if parentElement.popup then
+                            parentElement.popup = nil
+                        end
+                    end,
+                }
+            end
+
+            for _, follower in pairs(followersWithRolls) do
+                local followerRoller = DTRoller.CreateNew(follower.properties, token.id)
+                if followerRoller ~= nil then
+                    menuItems[#menuItems + 1] = {
+                        text = followerRoller:GetName(),
+                        click = function()
+                            showRollDialog(followerRoller)
+                            if parentElement.popup then
+                                parentElement.popup = nil
+                            end
+                        end,
+                    }
+                end
+            end
+
+            element.popup = gui.ContextMenu{
+                entries = menuItems,
+            }
+        end,
+    }
 end
 
 --- Creates action buttons for owned project panels (delete + share)
@@ -1766,7 +1969,33 @@ function DTProjectEditor:_createSharedProjectButtons(ownerName, ownerId)
         end
     }
 
-    return {unshareButton}
+    local rollButton = self:_createRollButton({
+        width = 20,
+        height = 20,
+        halign = "left",
+        hmargin = 5,
+        vmargin = 5,
+        --The progress goes to the project's owner; the roll comes off the
+        --roller's own hero, which is the sheet this is being viewed from. On a
+        --shared project those are two different people.
+        confirm = function(rolls, controller, roller)
+            local ownerToken = dmhub.GetCharacterById(ownerId)
+            local heroToken = getToken()
+            if ownerToken == nil or heroToken == nil then
+                return
+            end
+
+            DTProjectEditor.RecordProjectRolls{
+                projectToken = ownerToken,
+                projectId = controller.data.project:GetID(),
+                rolls = rolls,
+                rollHolderToken = heroToken,
+                rollerCharid = roller:GetTokenID(),
+            }
+        end,
+    })
+
+    return {unshareButton, rollButton}
 end
 
 --- Creates the action buttons panel container

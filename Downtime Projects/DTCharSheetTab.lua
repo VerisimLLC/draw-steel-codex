@@ -21,6 +21,13 @@ local CanEditProjectRolls = function()
 	return dmhub.isDM or playersEditProjectRols:Get()
 end
 
+--- Whether this game lets players roll from the project detail. The setting
+--- alone, unlike CanEditProjectRolls.
+--- @return boolean
+function DTCharSheetTab.RollingFromSheetEnabled()
+	return playersEditProjectRols:Get()
+end
+
 function DTCharSheetTab.GetToken()
     if CharacterSheet.instance and CharacterSheet.instance.data and CharacterSheet.instance.data.info then
         return CharacterSheet.instance.data.info.token
@@ -118,7 +125,7 @@ function DTCharSheetTab.CreateDowntimePanel()
         end,
 
         DTCharSheetTab._createHeaderPanel(),
-        DTCharSheetTab._createBodyPanel(),
+        DTCharSheetTab._createBodyPanel(),
     }
 
     -- The CharSheet system caches this panel for the session, so its `styles`
@@ -295,7 +302,7 @@ function DTCharSheetTab._createHeaderPanel()
             lmargin = 20,
             CounterLabel("Hero Available Activities", HeroActivities),
             CounterLabel("Follower Aggregate Activities", FollowerActivities),
-            activitiesButton,
+            activitiesButton,
         },
 
         -- Add button

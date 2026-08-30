@@ -1383,13 +1383,17 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 
 	local standardAbilities = {}
 	for k,v in unhidden_pairs(dmhub.GetTable("standardAbilities") or {}) do
-		--A nameless standardAbilities row would put a nil into the dropdown's
-		--sort comparator and stop the menu from opening at all.
-		local abilityName = v.name
-		if type(abilityName) ~= "string" or abilityName == "" then
-			abilityName = "(Unnamed)"
+		--Abilities marked Hidden are internal helpers and are kept out of this list,
+		--except when one is already the current selection.
+		if (not v:try_get("hiddenFromInvoke", false)) or k == self.standardAbility then
+			--A nameless standardAbilities row would put a nil into the dropdown's
+			--sort comparator and stop the menu from opening at all.
+			local abilityName = v.name
+			if type(abilityName) ~= "string" or abilityName == "" then
+				abilityName = "(Unnamed)"
+			end
+			standardAbilities[#standardAbilities+1] = { text = abilityName, id = k }
 		end
-		standardAbilities[#standardAbilities+1] = { text = abilityName, id = k }
 	end
 
 	result[#result+1] = gui.Panel{

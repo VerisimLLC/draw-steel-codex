@@ -585,6 +585,13 @@ Compendium.Register{
 local function CreateEditAbilityEffectsPanel(tableName)
     local m_item = nil
     local editPanel
+
+    --The Hidden check only means anything for standard abilities, which are the
+    --only ones offered in the Invoked Ability dropdown.
+    local hiddenRowClasses = {"formStackedRow"}
+    if tableName ~= "standardAbilities" then
+        hiddenRowClasses[#hiddenRowClasses+1] = "collapsed"
+    end
     editPanel = gui.Panel{
         vscroll = true,
         width = 1000,
@@ -644,6 +651,23 @@ local function CreateEditAbilityEffectsPanel(tableName)
                     change = function(element)
                         if m_item ~= nil then
                             m_item.name = element.text
+                            editPanel:FireEvent("change")
+                        end
+                    end,
+                },
+            },
+
+            gui.Panel{
+                classes = hiddenRowClasses,
+                gui.Check{
+                    text = "Hidden",
+                    hover = gui.Tooltip("If checked, this ability won't appear in the Invoked Ability dropdown."),
+                    setdata = function(element, item)
+                        element.value = item:try_get("hiddenFromInvoke", false)
+                    end,
+                    change = function(element)
+                        if m_item ~= nil then
+                            m_item.hiddenFromInvoke = element.value
                             editPanel:FireEvent("change")
                         end
                     end,

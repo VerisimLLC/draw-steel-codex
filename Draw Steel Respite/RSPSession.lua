@@ -93,7 +93,9 @@ function RSPSession.Ensure()
     local doc = RSPSession.Doc()
     doc:BeginChange()
     doc.data = doc.data or {}
-    doc.data.session = RSPSession.CreateNew{}
+    doc.data.session = RSPSession.CreateNew{
+        location = doc.data.lastLocation or "",
+    }
     doc:CompleteChange("Begin respite setup")
 
     return doc.data.session
@@ -340,6 +342,19 @@ function RSPSession.MyCharacters()
     return result
 end
 
+--- Parks the location beside the session on the way out. It lives ON the
+--- session, which is wiped when the Respite ends, and the Director should not
+--- have to retype where the table is each time. The fishing water keeps its
+--- name across a close for the same reason; this is the same idea, made
+--- explicit because the session object does not survive to carry it.
+--- @param doc LuaCodeModDocumentSnapshot with a change already open
+local function RememberLocation(doc)
+    local session = doc.data.session
+    if session ~= nil then
+        doc.data.lastLocation = session:try_get("location", "")
+    end
+end
+
 --- Throw away a Respite that never started
 --- Deliberately none of what Complete does: nothing was granted, no time has
 --- passed and nobody has rested, so there is nothing to settle. Closing out of
@@ -352,6 +367,7 @@ function RSPSession.Abandon()
     end
 
     doc:BeginChange()
+    RememberLocation(doc)
     doc.data.session = nil
     doc:CompleteChange("Abandon respite setup")
 end
@@ -384,6 +400,7 @@ function RSPSession.Complete()
     end
 
     doc:BeginChange()
+    RememberLocation(doc)
     doc.data.session = nil
     doc:CompleteChange("Complete respite")
 end

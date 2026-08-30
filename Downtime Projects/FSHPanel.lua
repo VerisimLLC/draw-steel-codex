@@ -40,10 +40,13 @@ local function ControllableHeroes()
     return heroes
 end
 
+local START_DIALOG_WIDTH = 500
+local START_DIALOG_HEIGHT = 210
+
 --- Prompts for the character and the optional skill, then starts the Trip
 --- The characteristic is shown but not offered: the rules allow three and
 --- nobody would pick anything but their best, so the module derives it.
---- @param heroes table The controllable tokens; the hero row hides for one
+--- @param heroes table The token to fish as, as a one-element list
 --- @param args table|nil rollHolderId for a follower fishing on their hero's
 ---   rolls, and onStarted for what to do once the Trip is running
 function FSHPanel.ShowStartFishingDialog(heroes, args)
@@ -81,67 +84,22 @@ function FSHPanel.ShowStartFishingDialog(heroes, args)
         skillDropdown.idChosen = ""
     end
 
-    local heroOptions = {}
-    for _, token in ipairs(heroes) do
-        heroOptions[#heroOptions + 1] = {
-            id = token.id,
-            text = token.name or "Unnamed Hero"
-        }
-    end
-
-    local heroDropdown = gui.Dropdown{
-        classes = { "dropdown", "form" },
-        options = heroOptions,
-        idChosen = m_token ~= nil and m_token.id or nil,
-        change = function(element)
-            for _, token in ipairs(heroes) do
-                if token.id == element.idChosen then
-                    m_token = token
-                end
-            end
-            RefreshForHero()
-        end
+    local dlg = DialogShell.CreateNew{
+        title = "Start Fishing",
+        subtitle = m_token ~= nil and (m_token.name or "Unnamed Hero") or "",
+        width = START_DIALOG_WIDTH,
+        height = START_DIALOG_HEIGHT,
+        footerCells = {50, 50},
+        close = "modal",
+        escape = true,
     }
 
-    local heroRow = gui.Panel{
-        classes = { "formRow", cond(#heroes < 2, "collapsed") },
-        gui.Label{
-            classes = { "label", "form" },
-            text = "Hero:"
-        },
-        heroDropdown
-    }
-
-    local dialog
-    dialog = gui.Panel{
-        classes = { "dialog" },
-        styles = ThemeEngine.GetStyles(),
-        width = 500,
-        height = 240,
-        flow = "vertical",
-        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
-        captureEscape = true,
-
-        create = function()
-            RefreshForHero()
-        end,
-
-        escape = function()
-            gui.CloseModal()
-        end,
-
-        gui.Label{
-            classes = { "modalTitle" },
-            text = "Start Fishing"
-        },
-
+    dlg:SetWorkingContent{
         gui.Panel{
             width = "98%",
             height = "auto",
             flow = "vertical",
             valign = "top",
-
-            heroRow,
 
             gui.Panel{
                 classes = { "formRow" },
@@ -154,65 +112,58 @@ function FSHPanel.ShowStartFishingDialog(heroes, args)
 
             characteristicLabel
         },
-
-        gui.Panel{
-            width = "auto",
-            height = "auto",
-            flow = "horizontal",
-            halign = "center",
-            valign = "bottom",
-            vmargin = 16,
-
-            gui.Button{
-                classes = { "sizeL" },
-                text = "Cancel",
-                hmargin = 8,
-                click = function()
-                    gui.CloseModal()
-                end
-            },
-
-            gui.Button{
-                classes = { "sizeL" },
-                text = "Start",
-                hmargin = 8,
-                click = function()
-                    if m_token == nil then
-                        return
-                    end
-
-                    local skill = nil
-                    local chosen = skillDropdown.idChosen
-                    if chosen ~= nil and chosen ~= "" then
-                        for _, option in ipairs(skillDropdown.options or {}) do
-                            if option.id == chosen then
-                                skill = {
-                                    id = option.id,
-                                    name = option.text
-                                }
-                            end
-                        end
-                    end
-
-                    local started = FSHTrip.Start(m_token, skill, args.rollHolderId)
-                    gui.CloseModal()
-
-                    --The Trip document has to land before anything reads it,
-                    --so hand off rather than reading it in the same breath.
-                    --onStarted is required: a Trip only happens inside the
-                    --Respite now, and the caller is the surface that has to
-                    --repaint itself around the new Trip.
-                    if started then
-                        dmhub.Schedule(0.2, function()
-                            args.onStarted()
-                        end)
-                    end
-                end
-            }
-        }
     }
 
-    gui.ShowModal(dialog)
+    dlg:AddFooterButton{
+        slot = "left",
+        text = "Cancel",
+        click = function(shell)
+            shell:Close()
+        end,
+    }
+
+    dlg:AddFooterButton{
+        slot = "right",
+        text = "Start",
+        click = function(shell)
+            if m_token == nil then
+                return
+            end
+
+            local skill = nil
+            local chosen = skillDropdown.idChosen
+            if chosen ~= nil and chosen ~= "" then
+                for _, option in ipairs(skillDropdown.options or {}) do
+                    if option.id == chosen then
+                        skill = {
+                            id = option.id,
+                            name = option.text
+                        }
+                    end
+                end
+            end
+
+            local started = FSHTrip.Start(m_token, skill, args.rollHolderId)
+            shell:Close()
+
+            --The Trip document has to land before anything reads it,
+            --so hand off rather than reading it in the same breath.
+            --onStarted is required: a Trip only happens inside the
+            --Respite now, and the caller is the surface that has to
+            --repaint itself around the new Trip.
+            if started then
+                dmhub.Schedule(0.2, function()
+                    args.onStarted()
+                end)
+            end
+        end,
+    }
+
+    --Ran from the panel's create hook before; the fields it writes to are
+    --already built by here, so it runs straight through instead.
+    RefreshForHero()
+
+    gui.ShowModal(dlg:Root())
 end
 
 --- Declared ahead of the Trip dialog, which closes over it, and defined further

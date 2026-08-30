@@ -118,6 +118,33 @@ end
 --- @class DTEventRollDialog
 DTEventRollDialog = RegisterGameType("DTEventRollDialog")
 
+local WIDTH = 560
+local RESULT_HEIGHT = 150
+
+-- Sized to its contents rather than eyeballed: the two form rows carry a 26
+-- high control, the roll buttons are 35, the result panel is RESULT_HEIGHT,
+-- and each of the four takes vmargin 8 top and bottom. The shell adds a 40
+-- header, a 60 footer and its padding at both ends.
+local HEIGHT = (26 + 16) + (35 + 16) + (RESULT_HEIGHT + 16) + (26 + 16) + 40 + 60 + 24
+
+local HERO_NAME_LIMIT = 24
+
+--- The subtitle is a single line, so a name past the limit is cut and marked
+--- rather than left to crowd out the project title beside it.
+--- @param name string|nil
+--- @return string
+local function ShortHeroName(name)
+    if name == nil or name == "" then
+        return "Unknown Hero"
+    end
+
+    if #name <= HERO_NAME_LIMIT then
+        return name
+    end
+
+    return trim(name:sub(1, HERO_NAME_LIMIT)) .. "..."
+end
+
 --- The row text behind a dice total, read the way RollOnTableProperties does
 --- @param tableRef RollTableReference The events table reference
 --- @param total number The dice total rolled
@@ -309,8 +336,6 @@ function DTEventRollDialog.ShowDialog(args)
             end,
         }
 
-        gui.CloseModal()
-
         dmhub.Schedule(0.1, function()
             DTSettings.Touch()
             DTShares.Touch()
@@ -334,18 +359,18 @@ function DTEventRollDialog.ShowDialog(args)
         text = tostring(DTBusinessRules.CalcNextMilestone(project) or 0),
     }
 
-    gui.ShowModal(gui.Panel{
-        styles = ThemeEngine.GetStyles(),
-        classes = {"dialog"},
-        width = 560,
-        height = 520,
-        flow = "vertical",
+    local dlg = DialogShell.CreateNew{
+        title = "Roll A Project Event",
+        subtitle = string.format("%s for %s", project:GetTitle(),
+            ShortHeroName(heroToken.name)),
+        width = WIDTH,
+        height = HEIGHT,
+        footerCells = {50, 50},
+        close = "modal",
+        escape = true,
+    }
 
-        gui.Label{
-            classes = {"modalTitle"},
-            text = "Roll A Project Event",
-        },
-
+    dlg:SetWorkingContent{
         gui.Panel{
             classes = {"formRow"},
             width = "94%",
@@ -398,18 +423,12 @@ function DTEventRollDialog.ShowDialog(args)
         --the milestone field off the bottom of the dialog.
         gui.Panel{
             width = "94%",
-            height = 150,
+            height = RESULT_HEIGHT,
             halign = "center",
             vmargin = 8,
             vscroll = true,
 
-resultLabel,
-        },
-
-        gui.MCDMDivider{
-            layout = "peak",
-            width = "90%",
-            vmargin = 8,
+            resultLabel,
         },
 
         gui.Panel{
@@ -425,33 +444,24 @@ resultLabel,
 
             milestoneInput,
         },
+    }
 
-        gui.Panel{
-            width = "94%",
-            height = 72,
-            halign = "center",
-            valign = "bottom",
-            flow = "horizontal",
+    dlg:AddFooterButton{
+        slot = "left",
+        text = "Cancel",
+        click = function(shell)
+            shell:Close()
+        end,
+    }
 
-            gui.Button{
-                classes = {"sizeL"},
-                text = "Cancel",
-                valign = "top",
-                hmargin = 8,
-                click = function()
-                    gui.CloseModal()
-                end,
-            },
+    dlg:AddFooterButton{
+        slot = "right",
+        text = "Resolve",
+        click = function(shell)
+            Resolve()
+            shell:Close()
+        end,
+    }
 
-            gui.Button{
-                classes = {"sizeL"},
-                text = "Resolve",
-                valign = "top",
-                hmargin = 8,
-                click = function()
-                    Resolve()
-                end,
-            },
-        },
-    })
+    gui.ShowModal(dlg:Root())
 end

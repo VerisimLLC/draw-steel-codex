@@ -1,8 +1,9 @@
 local mod = dmhub.GetModLoading()
 
---- The window frame every Respite step wears: the heading on the left of the
---- header and information about the Respite on the right, a hairline under
---- that, and an MCDM divider between the working area and the footer.
+--- The Respite wizard. The window frame itself - heading band, working area
+--- and footer band - comes from DialogShell; what stays here is the wizard:
+--- which step the session's phase calls for, and when the window has outlived
+--- the Respite it was following.
 RSPShell = RegisterGameType("RSPShell")
 
 --- How many Respite windows this client has open. The Director's offer asks
@@ -15,79 +16,16 @@ function RSPShell.IsOpen()
     return m_openWindows > 0
 end
 
---- @param args table Shell args; reads headerInfo
---- @return Panel
-local function BuildHeader(args)
-
-    return gui.Panel{
-        width = "100%",
-        height = RSPConstants.headerHeight,
-        flow = "vertical",
-        halign = "left",
-        valign = "top",
-
-        -- Draw the border floating first so the headline can paint over it
-        gui.Panel{
-            floating = true,
-            width = "100%",
-            height = "auto",
-            flow = "vertical",
-            halign = "left",
-            valign = "top",
-            tmargin = RSPConstants.headerDividerTopMargin,
-
-            gui.MCDMDivider{
-                width = "100%",
-                layout = "line",
-                height = RSPConstants.headerDividerHeight,
-            },
-        },
-
-        -- Paint the heading text
-        gui.Panel{
-            width = "100%",
-            height = "auto",
-            flow = "horizontal",
-            halign = "left",
-            valign = "top",
-
-            gui.Label{
-                classes = {"sizeXxl", "bold"},
-                width = RSPConstants.headerTitleWidth,
-                height = "auto",
-                halign = "left",
-                valign = "bottom",
-                bmargin = RSPConstants.headerTitleBottomMargin,
-                text = RSPConstants.panelName,
-            },
-
-            gui.Label{
-                classes = {"sizeS", "noBold", "fgMuted"},
-                width = RSPConstants.headerInfoWidth,
-                height = "auto",
-                halign = "right",
-                rmargin = RSPConstants.headerInfoRightMargin,
-                valign = "bottom",
-                textAlignment = "right",
-                markdown = true,
-                textWrap = true,
-                text = args.headerInfo ~= nil and args.headerInfo() or "",
-                respiteChanged = function(element)
-                    element.text = args.headerInfo ~= nil and args.headerInfo() or ""
-                end,
-            },
-        },
-    }
-end
-
 --- @param args table Shell args; reads orientation, instructions and working
 --- @return Panel
 local function BuildBody(args)
     local side = args.orientation == RSPConstants.orientSide
 
+    -- 100%, not "100% available": a step's body is a sibling of the other
+    -- steps' bodies inside the working area, not of a header and a footer.
     return gui.Panel{
         width = "100%",
-        height = "100% available",
+        height = "100%",
         flow = side and "horizontal" or "vertical",
         halign = "left",
         valign = "top",
@@ -113,8 +51,6 @@ end
 --- flow so their contents land left, centre and right regardless of which of
 --- the three a step actually fills.
 --- @param slot nil|Panel
---- @return Panel
---- @param slot nil|Panel
 --- @param width nil|string overrides the even third
 --- @return Panel
 local function FooterCell(slot, width)
@@ -127,6 +63,8 @@ local function FooterCell(slot, width)
     }
 end
 
+--- A step's row of controls. The band and the rule above it belong to the
+--- DialogShell; this is only what sits inside them.
 --- @param args table Shell args; reads the three footer slots, and
 ---   footerCellWidths when a step's footer does not divide evenly
 --- @return Panel
@@ -136,55 +74,16 @@ local function BuildFooter(args)
     -- the cells either side of it.
     local widths = args.footerCellWidths or {}
 
-    -- Takes whatever is left under the divider rather than a fixed band pinned
-    -- to the bottom edge. The working area is sized off footerHeight, so the
-    -- leftover is small, but a band that ends above it left the controls
-    -- sitting low rather than centred in the space they are given.
     return gui.Panel{
-        width = "100%",
-        height = RSPConstants.footerHeight,
-        flow = "vertical",
-        halign = "left",
-        valign = "bottom",
-
-        gui.MCDMDivider{
-            width = "100%",
-            layout = "line",
-            vmargin = RSPConstants.footerDividerMargin,
-        },
-
-        gui.Panel{
-            width = "100%",
-            height = "auto",
-            flow = "horizontal",
-            halign = "left",
-            valign = "center",
-
-            FooterCell(args.footerLeft, widths[1]),
-            FooterCell(args.footerCenter, widths[2]),
-            FooterCell(args.footerRight, widths[3]),
-        }
-    }
-end
-
---- One step of a Respite wizard, filling the window.
---- @param args table the step's args
---- @param collapsed boolean whether this step starts out of view
---- @return Panel
-local function BuildStep(args, collapsed)
-    return gui.Panel{
-        classes = {collapsed and "collapsed" or nil},
         width = "100%",
         height = "100%",
-        flow = "vertical",
+        flow = "horizontal",
         halign = "left",
-        valign = "top",
+        valign = "center",
 
-        BuildHeader(args),
-
-        BuildBody(args),
-
-        not args.footerless and BuildFooter(args) or nil,
+        FooterCell(args.footerLeft, widths[1]),
+        FooterCell(args.footerCenter, widths[2]),
+        FooterCell(args.footerRight, widths[3]),
     }
 end
 
@@ -196,97 +95,122 @@ end
 
 --- Build the wizard. Every step is built once and lives in the tree together;
 --- the phase decides which one is not collapsed. Swapping children instead
---- would destroy the event subscriptions the steps refresh through.
+--- would destroy the event subscriptions the steps refresh through - which is
+--- also why the footer is one full-width cell holding every step's row rather
+--- than the shell's own cells being refilled on each change of phase.
 ---
 --- Every Respite window is hosted by the launchable panel, whichever way it
---- was opened, so the host paints the frame and owns the close control and
---- the shell stays transparent underneath it.
+--- was opened, so the host paints the frame and owns the close control and the
+--- shell stays transparent underneath it.
 --- @param args {steps: table[]} each step carries a phase plus its own step args
 --- @return Panel
 function RSPShell.Create(args)
     local phase = CurrentPhase()
 
     local steps = {}
-    local children = {}
+    local bodies = {}
+    local footers = {}
+
     for _, stepArgs in ipairs(args.steps) do
-        local panel = BuildStep(stepArgs, stepArgs.phase ~= phase)
-        steps[#steps + 1] = {phase = stepArgs.phase, panel = panel}
-        children[#children + 1] = panel
+        local collapsed = stepArgs.phase ~= phase
+
+        local body = BuildBody(stepArgs)
+        body:SetClass("collapsed", collapsed)
+        bodies[#bodies + 1] = body
+
+        local footer = nil
+        if not stepArgs.footerless then
+            footer = BuildFooter(stepArgs)
+            footer:SetClass("collapsed", collapsed)
+            footers[#footers + 1] = footer
+        end
+
+        steps[#steps + 1] = {
+            phase = stepArgs.phase,
+            body = body,
+            footer = footer,
+        }
     end
 
-    return gui.Panel{
+    -- Whether this window has shown a Respite that was actually running, which
+    -- is what earns it a dismissal when that Respite ends. A window opened from
+    -- the Game menu between Respites is legitimately idle and must not be
+    -- closed out from under whoever opened it. Seeded from the phase this
+    -- window was built on, so one opened mid-Respite is dismissed by its end
+    -- like any other.
+    local sawRespite = phase == RSPConstants.phaseOffered
+        or phase == RSPConstants.phaseActive
+
+    local dlg
+    dlg = DialogShell.CreateNew{
         classes = {"rspShell", "launchablePanel"},
-        styles = ThemeEngine.MergeStyles(RSPWidgets.CustomStyles()),
+        title = RSPConstants.panelName,
         width = RSPConstants.windowWidth,
         height = RSPConstants.windowHeight,
-        flow = "vertical",
-        halign = "center",
-        valign = "center",
-        pad = RSPConstants.windowPad,
+        footerCells = {100},
+        close = "host",
+        styles = RSPWidgets.CustomStyles(),
 
-        data = {
-            themeSub = nil,
-            -- Whether this window has shown a Respite that was actually
-            -- running, which is what earns it a dismissal when that Respite
-            -- ends. A window opened from the Game menu between Respites is
-            -- legitimately idle and must not be closed out from under whoever
-            -- opened it.
-            -- Seeded from the phase this window was built on, so one opened
-            -- mid-Respite is dismissed by its end like any other.
-            sawRespite = phase == RSPConstants.phaseOffered
-                or phase == RSPConstants.phaseActive,
-        },
+        monitor = RSPSession.DocPath(),
+        refresh = function(shell)
+            shell:Root():FireEventTree("respiteChanged")
 
-        monitorGame = RSPSession.DocPath(),
-        refreshGame = function(element)
-            element:FireEventTree("respiteChanged")
-        end,
-
-        respiteChanged = function(element)
             local session = RSPSession.Active()
             local current = session ~= nil and session.phase
                 or RSPConstants.phaseSetup
 
             if current == RSPConstants.phaseOffered
                 or current == RSPConstants.phaseActive then
-                element.data.sawRespite = true
+                sawRespite = true
             end
 
-            -- The Respite this window was following is over, so the window
-            -- goes with it rather than sitting there on a step about nothing.
-            -- The host owns the lifetime, so this asks rather than destroys.
-            if session == nil and element.data.sawRespite then
-                element.data.sawRespite = false
-                if element.parent ~= nil then
-                    element.parent:FireEvent("close")
-                end
+            -- The Respite this window was following is over, so the window goes
+            -- with it rather than sitting there on a step about nothing. The
+            -- host owns the lifetime, so this asks rather than destroys.
+            if session == nil and sawRespite then
+                sawRespite = false
+                shell:Close()
                 return
             end
 
             for _, step in ipairs(steps) do
-                step.panel:SetClass("collapsed", step.phase ~= current)
-            end
-        end,
-
-        create = function(element)
-            m_openWindows = m_openWindows + 1
-
-            element.data.themeSub = ThemeEngine.OnThemeChanged(mod, function()
-                if element.valid then
-                    element.styles = ThemeEngine.MergeStyles(RSPWidgets.CustomStyles())
+                local on = step.phase == current
+                step.body:SetClass("collapsed", not on)
+                if step.footer ~= nil then
+                    step.footer:SetClass("collapsed", not on)
                 end
-            end)
-        end,
-
-        destroy = function(element)
-            m_openWindows = math.max(0, m_openWindows - 1)
-
-            if element.data.themeSub ~= nil then
-                element.data.themeSub:Deregister()
-                element.data.themeSub = nil
+                if on then
+                    shell:ShowFooter(step.footer ~= nil)
+                end
             end
         end,
 
-        children = children,
+        onCreate = function()
+            m_openWindows = m_openWindows + 1
+        end,
+
+        onDestroy = function()
+            m_openWindows = math.max(0, m_openWindows - 1)
+        end,
     }
+
+    dlg:SetWorkingContent(bodies)
+
+    dlg:SetFooterContent("left", gui.Panel{
+        width = "100%",
+        height = "100%",
+        flow = "none",
+        halign = "left",
+        valign = "center",
+        children = footers,
+    })
+
+    -- The step this window opened on decides whether the band starts showing.
+    for _, step in ipairs(steps) do
+        if step.phase == phase then
+            dlg:ShowFooter(step.footer ~= nil)
+        end
+    end
+
+    return dlg:Root()
 end

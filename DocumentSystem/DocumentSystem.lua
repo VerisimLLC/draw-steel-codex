@@ -8905,6 +8905,21 @@ function PanelDocument.PopoutWindowStyles()
                 selectors = {"panelDocumentHairline"},
                 bgcolor = "@border",
             },
+            --rail-hover attention: while the pointer rests on this
+            --panel's rail button in the main window, the whole popout
+            --tree carries popoutAttention (SetClassTree from the rail
+            --button's hover) and the header takes the accent, so the
+            --raised OS window is easy to spot among others.
+            {
+                selectors = {"panelDocumentHeader", "popoutAttention"},
+                bgcolor = "@accent",
+                transitionTime = 0.15,
+            },
+            {
+                selectors = {"panelDocumentHairline", "popoutAttention"},
+                bgcolor = "@accent",
+                transitionTime = 0.15,
+            },
             {
                 selectors = {"label", "panelDocumentTitle"},
                 color = "@fgStrong",
@@ -18388,6 +18403,23 @@ local function CreateIconRail(side, entries)
             --from the button into the strip never shuts it mid-reach.
             hover = function(element)
                 RailButtonSound("hover")
+                --A popped-out panel's OS window can be buried under other
+                --windows; arriving on its rail button surfaces it: bring
+                --the window to the top (without stealing focus -- the
+                --pointer is here, in the main window) and light its
+                --header up so the eye finds it. Cleared on dehover.
+                --pcall: RaiseNativeWindow needs an engine build newer
+                --than this file; on an older build only the highlight
+                --happens.
+                if PanelDocument.IsPoppedOut(key) then
+                    local popoutHost = PanelDocument.PopoutHost(key)
+                    if popoutHost ~= nil and popoutHost.valid then
+                        pcall(function()
+                            popoutHost:RaiseNativeWindow()
+                        end)
+                        popoutHost:SetClassTree("popoutAttention", true)
+                    end
+                end
                 --Tell the rail the pointer is on it, so the + reveals.
                 --Hovering a CHILD does not deliver hover to the rail root
                 --(measured: the root's handler never fired while the
@@ -18469,6 +18501,15 @@ local function CreateIconRail(side, entries)
             end,
             dehover = function(element)
                 RailButtonSound("dehover")
+                --the popout attention highlight follows the pointer off
+                --the button. (A click that just closed the popout leaves
+                --an invalid host; the guard skips it.)
+                if PanelDocument.IsPoppedOut(key) then
+                    local popoutHost = PanelDocument.PopoutHost(key)
+                    if popoutHost ~= nil and popoutHost.valid then
+                        popoutHost:SetClassTree("popoutAttention", false)
+                    end
+                end
                 --the rail's own grace period decides whether this actually
                 --hides the + (travelling between buttons must not).
                 RailNotifyProximity(element, false)
@@ -18941,20 +18982,20 @@ local function CreateIconRail(side, entries)
                 end
 
                 --A popped-out panel is not in any window this rail owns,
-                --so it never reaches RailActivation below: its icon
-                --raises the OS window (or flashes its taskbar button when
-                --the OS denies the focus steal) rather than opening a
-                --copy. It comes home via the popout's own pop-in button.
-                --pcall: RaiseNativeWindow needs an engine build newer
-                --than this file; on an older build the click is a no-op.
+                --so it never reaches RailActivation below. Its button
+                --shows the X close hint while hovered (the panel is
+                --"shown"), so the click honors it: close the popout's OS
+                --window outright, exactly like the window's own chrome
+                --close button. Locating the window is the HOVER's job
+                --(raise + highlight -- see the hover handler); pop-in
+                --(back into the app) stays on the popout header's own
+                --button.
                 if PanelDocument.IsPoppedOut(key) then
                     local popoutHost = PanelDocument.PopoutHost(key)
+                    PanelDocument.PopoutForgetWindow(key)
                     if popoutHost ~= nil and popoutHost.valid then
-                        pcall(function()
-                            popoutHost:RaiseNativeWindow()
-                        end)
+                        popoutHost:DestroySelf()
                     end
-                    CenterOnCharacter()
                     RefreshRails()
                     return
                 end

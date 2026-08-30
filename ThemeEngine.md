@@ -60,6 +60,48 @@ Use `MergeStyles(myCustomStyles)` or `MergeTokens(myCustomStyles)` in place of `
 
 The handler is auto-deregistered when your mod unloads; `OnThemeChanged` also returns an entry with a `Deregister()` method if you need to unsubscribe earlier.
 
+### Accessibility preferences
+
+`ThemeEngine.GetAccessibility()` returns the user's accessibility preferences
+as a plain table:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `scale` | number | Text/UI scale from the engine's Font Size setting. `1.0` = 100%. |
+| `reduceMotion` | boolean | Skip transitions and non-essential animation. |
+| `statusIcons` | boolean | Pair a glyph with every status color. |
+| `colorScheme` | string | Active scheme id (same as `GetActiveColorScheme()`). |
+| `highContrast` | boolean | The active scheme registered itself high-contrast. |
+
+Read it fresh whenever you need it -- nothing is cached, so there is no stale
+copy to invalidate. Changing either preference fires the **same** event as a
+scheme change, so a panel already following the `OnThemeChanged` pattern picks
+them up with no extra wiring:
+
+```lua
+ThemeEngine.OnThemeChanged(mod, function()
+    if panel ~= nil and panel.valid then
+        panel.styles = ThemeEngine.GetStyles()
+        local a11y = ThemeEngine.GetAccessibility()
+        panel:SetClass("noMotion", a11y.reduceMotion)
+    end
+end)
+```
+
+Two rules of thumb:
+
+- **`reduceMotion` is not "no feedback".** Replace the animation with an
+  instant state change, don't remove the state change.
+- **`statusIcons` is the shape channel.** A status shown only as a color is
+  unreadable to roughly one man in twelve. When it is on, pair every
+  `@success` / `@warning` / `@danger` with a distinct glyph -- not the same
+  dot in four colors.
+
+`scale` is informational: the engine already applies Font Size to every label
+on its own. Read it when you are sizing something the cascade cannot reach --
+a fixed-pixel gutter, an icon box, a row height. Better still, size those in
+`em` or `sp` (see `Definitions/Style.lua`) and let the engine do it.
+
 ### requireConfirm for delete buttons
 
 Callers using `gui.Button{ classes = {"deleteButton"} }` can opt into a confirmation modal:

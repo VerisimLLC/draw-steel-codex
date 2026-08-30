@@ -2958,6 +2958,133 @@ ThemeEngine.RegisterColorScheme{
     },
 }
 
+-- =============================================================================
+-- High Contrast color scheme.
+--
+-- Built for low vision rather than for looks: true black, pure white text and
+-- loud borders. fg and fgStrong are both pure white on purpose -- there is no
+-- brighter color left for headings, so headings stand out by size instead.
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id           = "high-contrast",
+    name         = "High Contrast",
+    description  = "True black and pure white, at maximum legibility.",
+    highContrast = true,
+    colors = {
+        -- Surfaces
+        bg            = "#000000",
+        bgAlt         = "#16161A",
+        bgRaised      = "#2A2A30", -- text-field hover/focus lift (see default scheme)
+        bgInverse     = "#FFFFFF",
+
+        -- Foreground / text (both white -- see above)
+        fg            = "#FFFFFF",
+        fgStrong      = "#FFFFFF",
+        fgMuted       = "#C4C4C4",
+        fgPending     = "#A8A8A8",
+        fgInverse     = "#000000",
+
+        -- Borders (loud on purpose)
+        border        = "#FFFFFF",
+        borderSolid   = "#FFFFFF",
+        borderInverse = "#000000",
+
+        -- Accent + interactive
+        accent        = "#FFE14D",
+        accentHover   = "#FFFFFF",
+
+        -- Status. The default four are hard to tell apart if you are
+        -- colorblind; these stay distinct.
+        success       = "#B6FF9E",
+        info          = "#B49DFF",
+        warning       = "#FFD24D",
+        danger        = "#FF8A93",
+
+        -- Disabled text still has to be readable, so this is much lighter
+        -- than the default scheme's.
+        disabled      = "#8C8C8C",
+
+        -- implStatus* inherited on purpose: they should mean the same thing
+        -- in every scheme.
+    },
+    gradients = {
+        -- Near-flat on purpose -- a gradient would eat into the contrast.
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#16161A"},
+                {position = 1, color = "#000000"},
+            },
+        },
+
+        surfaceRadial = {
+            type = "radial",
+            point_a = {x = 0.5, y = 0.5},
+            point_b = {x = 0.5, y = 1.0},
+            stops = {
+                {position = -0.01, color = "#16161A"},
+                {position = 0.00,  color = "#16161A"},
+                {position = 0.50,  color = "#0B0B0D"},
+                {position = 1.00,  color = "#000000"},
+            },
+        },
+    },
+}
+
+-- =============================================================================
+-- Colorblind Safe color scheme.
+--
+-- Looks like the default scheme -- same surfaces, same text -- but the four
+-- status colors are re-picked so they stay apart for colorblind players. The
+-- default amber info and orange warning are close to the same color even for
+-- normal vision. Turning on Status Icons matters more than the colors do.
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id          = "colorblind-safe",
+    name        = "Colorblind Safe",
+    description = "The default look, with status colors that survive color vision deficiency.",
+    colors = {
+        -- Surfaces -- identical to the default scheme.
+        bg            = "#0A0A0B",
+        bgAlt         = "#1A1A1E",
+        bgRaised      = "#2E2E33",
+        bgInverse     = "#E4DDD0",
+
+        -- Foreground / text. fgMuted and fgPending are lifted; the default
+        -- values were too dark to read comfortably.
+        fg            = "#E4DDD0",
+        fgStrong      = "#F2EDE1",
+        fgMuted       = "#A5A5A5",
+        fgPending     = "#8F8A80",
+        fgInverse     = "#0A0A0B",
+
+        -- Borders. borderSolid is lifted; the default was nearly invisible.
+        border        = "#FFFFFF3D",
+        borderSolid   = "#66666C",
+        borderInverse = "#8F8A80",
+
+        -- Accent + interactive (colorless, as in the default scheme)
+        accent        = "#E4DDD0",
+        accentHover   = "#F7F3EA",
+
+        -- Status -- the point of this scheme.
+        success       = "#A0EE87",
+        info          = "#708CE1",
+        warning       = "#FABD2E",
+        danger        = "#DA6C75",
+
+        -- Disabled. The default was too dark to read.
+        disabled      = "#9A9A9A",
+
+        -- implStatus* inherited on purpose -- see the High Contrast scheme.
+    },
+    -- No gradients: the surfaces match the default scheme, so its gradients
+    -- already fit.
+}
+
 -- Register any user-created custom schemes (persisted per-user on this machine)
 -- so they exist before the active selection is restored -- otherwise a saved
 -- active pick of a custom scheme would fall back to default.

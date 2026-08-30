@@ -468,7 +468,10 @@ end
 --- plain table (not a `gui.Gradient`); the engine wraps it with `gui.Gradient` at
 --- resolve time. Stops inside the spec may use `@name` refs to colors in the same
 --- scheme -- those resolve during style resolution against the merged color table.
---- @param spec table { id, name, description, colors = { name = hex, ... }, gradients? = { name = spec, ... } }
+--- Set `highContrast = true` on a scheme built for legibility rather than
+--- looks. It changes no colors itself; panels read it to drop decoration
+--- that would wash out against the scheme.
+--- @param spec table { id, name, description, colors = { name = hex, ... }, gradients? = { name = spec, ... }, highContrast? = boolean }
 --- @return boolean registered
 function ThemeEngine.RegisterColorScheme(spec)
     if _colorSchemes[spec.id] then
@@ -480,6 +483,7 @@ function ThemeEngine.RegisterColorScheme(spec)
         description = spec.description,
         colors = spec.colors or {},
         gradients = spec.gradients or {},
+        highContrast = spec.highContrast == true,
     }
     return true
 end
@@ -497,6 +501,7 @@ function ThemeEngine.RegisterSimpleColorScheme(spec)
         description = spec.description,
         colors = spec.colors,
         gradients = spec.gradients,
+        highContrast = spec.highContrast,
     })
 end
 
@@ -618,6 +623,76 @@ end
 function ThemeEngine.RestoreActiveSelection()
     _activeSchemeId = _activeSchemeSetting:Get()
     _fireThemeChanged()
+end
+
+-- =============================================================================
+-- Public API -- Accessibility
+-- =============================================================================
+
+-- Changing either of these fires the same event as a color scheme change, so
+-- a panel already listening for theme changes picks them up for free. They
+-- sit under General because that is where Font Size is; a section of their
+-- own would need a matching call in SettingsScreen.lua.
+
+local _reduceMotionSetting = setting{
+    id = "themeengine.reducemotion",
+    description = "Reduce Motion",
+    help = "Skip screen transitions and non-essential animation.",
+    section = "General",
+    storage = "preference",
+    editor = "check",
+    default = false,
+    onchange = function()
+        _fireThemeChanged()
+    end,
+}
+
+local _statusIconsSetting = setting{
+    id = "themeengine.statusicons",
+    description = "Status Icons",
+    help = "Show a shape alongside every status color, so healthy / winded / dying don't depend on color alone.",
+    section = "General",
+    storage = "preference",
+    editor = "check",
+    default = false,
+    onchange = function()
+        _fireThemeChanged()
+    end,
+}
+
+-- The Font Size setting as a plain multiplier. Labels already scale on their
+-- own; this is for panels that size their own icons and gutters.
+local function _readScale()
+    local pct = dmhub.GetSettingValue("fontsize")
+    if type(pct) ~= "number" or pct <= 0 then
+        return 1
+    end
+    return pct * 0.01
+end
+
+--- Returns the user's accessibility preferences as a plain table.
+---
+--- Read it fresh each time -- nothing is cached. To re-render when one of
+--- these changes, subscribe with `OnThemeChanged`.
+---
+--- Fields:
+---   scale        number   Text/UI scale from the Font Size setting. 1.0 = 100%.
+---   reduceMotion boolean  Skip transitions and non-essential animation.
+---   statusIcons  boolean  Pair a glyph with every status color.
+---   colorScheme  string   Active scheme id (same as GetActiveColorScheme).
+---   highContrast boolean  The active scheme registered itself high-contrast.
+---
+--- @return table accessibility
+function ThemeEngine.GetAccessibility()
+    local schemeId = _normalizeSchemeId(_activeSchemeId)
+    local scheme = _colorSchemes[schemeId]
+    return {
+        scale = _readScale(),
+        reduceMotion = _reduceMotionSetting:Get() == true,
+        statusIcons = _statusIconsSetting:Get() == true,
+        colorScheme = schemeId,
+        highContrast = (scheme ~= nil and scheme.highContrast == true),
+    }
 end
 
 -- =============================================================================

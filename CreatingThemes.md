@@ -42,10 +42,17 @@ ThemeEngine.RegisterColorScheme{
     description = "Short summary.",
     colors      = { ... },              -- see keyword table below
     gradients   = { ... },              -- optional; see below
+    highContrast = false,               -- optional; see below
 }
 ```
 
 Returns `false` (and changes nothing) if the `id` is already registered.
+
+Set `highContrast = true` if your scheme is built for maximum legibility
+rather than for mood. The flag changes no colors by itself -- it surfaces as
+`ThemeEngine.GetAccessibility().highContrast` so a panel can drop a
+decorative treatment (a soft gradient, a faint divider) that would fight the
+scheme.
 
 ### 2.1 Color keywords
 

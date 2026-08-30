@@ -2651,7 +2651,12 @@ dmhub.RegisterEventHandler("refreshTables", function()
 	local byName = {}
 	local dataTable = dmhub.GetTable(EnvironmentalKeyword.tableName) or {}
 	for k,v in unhidden_pairs(dataTable) do
-		byName[string.lower(v.name)] = v
+		--Unhydrated stubs at the title screen have no name; keying by one is
+		--what this index is for, so there is nothing to key them under.
+		local name = rawget(v, "name")
+		if type(name) == "string" then
+			byName[string.lower(name)] = v
+		end
 	end
 	EnvironmentalKeyword.keywordsByName = byName
 end)

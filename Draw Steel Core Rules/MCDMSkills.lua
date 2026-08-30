@@ -124,7 +124,10 @@ dmhub.RegisterEventHandler("refreshTables", function()
 	local skillTable = dmhub.GetTable(Skill.tableName) or {}
 	Skill.SkillsInfo = {}
 	for id,info in pairs(skillTable) do
-		if rawget(info, "hidden") ~= true then
+		--refreshTables also fires at the title screen, where the compendium is
+		--not hydrated and entries come back as unnamed stubs. A skill with no
+		--name cannot be shown or sorted, so it is not one yet.
+		if rawget(info, "hidden") ~= true and type(rawget(info, "name")) == "string" then
 			Skill.SkillsInfo[#Skill.SkillsInfo+1] = info
 		end
 	end

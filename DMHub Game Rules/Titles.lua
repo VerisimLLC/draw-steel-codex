@@ -31,7 +31,13 @@ function Title.GetDropdownList()
     local result = {}
     local titlesTable = dmhub.GetTable('titles')
     for k, v in unhidden_pairs(titlesTable) do
-        result[#result + 1] = { id = k, text = v.name }
+        --A title with no name is an unhydrated stub, not a choice: the
+        --compendium is not loaded at the title screen, and the sort below
+        --compares these as strings.
+        local name = rawget(v, "name")
+        if type(name) == "string" then
+            result[#result + 1] = { id = k, text = name }
+        end
     end
     table.sort(result, function(a, b)
         return a.text < b.text

@@ -2750,6 +2750,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
 
             --destroying the popped viewer closes the OS window (the
             --engine sweeps native windows whose panel died).
+            v.data.popoutTeardownReason = "popin"  --POPOUT-DIAG
             v:DestroySelf()
             g_tabbedViewer = nil
 
@@ -3462,7 +3463,56 @@ function CustomDocument.GetOrCreateTabbedViewer()
             forwardHistory = {},
             shaded = false,
             poppedOut = false,
+            --POPOUT-DIAG (report UCBSGXVW): dmhub.Time() at which the viewer
+            --was popped out, and the name of the teardown path that is about
+            --to destroy it. Every KNOWN way a popped-out viewer can die sets
+            --the reason first; a destroy that arrives with it still nil is
+            --the unexplained one we are hunting. See the destroy handler.
+            popoutTime = nil,
+            popoutTeardownReason = nil,
         },
+
+        --POPOUT-DIAG (report UCBSGXVW): users see a popped-out journal window
+        --vanish ~1-2s after it opens, taking every open tab with it. The only
+        --engine trace is "NativeWindow: Sheet destroyed, closing window N",
+        --which merely says this panel's GameObject died -- it names no
+        --culprit, and the known Lua teardown paths were each ruled out by
+        --their absent side effects (no close-button sound, no rebuild, no
+        --reload, no error). This handler runs on EVERY destroy path, engine
+        --or Lua (SheetPanel fires "destroy" from DestroyPanel, OnDestroy and
+        --RecycleReset alike), so the next occurrence is attributable:
+        --  * reason ~= nil  -> a known path; logged quietly.
+        --  * reason == nil  -> logged as an ERROR so it reaches Player.log
+        --    AND the bug report's recentErrors, with a Lua traceback. If the
+        --    traceback shows Lua frames below this handler, Lua destroyed it
+        --    and they name the caller; if it bottoms out at the C boundary,
+        --    the destroy came from the engine (see the matching
+        --    SheetPanel.DestroyPanel diagnostic).
+        --Costs nothing until a popped-out viewer is destroyed.
+        destroy = function(element)
+            if not element.data.poppedOut then
+                return
+            end
+
+            local reason = element.data.popoutTeardownReason
+            local age = "unknown"
+            if type(element.data.popoutTime) == "number" then
+                age = string.format("%.2fs", dmhub.Time() - element.data.popoutTime)
+            end
+
+            local summary = string.format(
+                "POPOUT-DIAG:: popped-out journal viewer destroyed; reason=%s; age=%s; tabs=%d; activeTab=%s",
+                tostring(reason or "UNKNOWN"),
+                age,
+                #(element.data.tabs or {}),
+                tostring(element.data.activeTabId))
+
+            if reason == nil then
+                dmhub.Error(summary .. "\n" .. debug.traceback("popout destroy stack:"))
+            else
+                dmhub.Debug(summary)
+            end
+        end,
 
         --pop the viewer out into its own native OS window (the
         --companion-app mechanism the compendium and character sheet use).
@@ -3498,6 +3548,10 @@ function CustomDocument.GetOrCreateTabbedViewer()
             --it must lay out in-hierarchy first, but must never be
             --user-visible in the app.
             element.x = -30000
+
+            --POPOUT-DIAG: stamp the clock the destroy handler reports against.
+            element.data.popoutTime = dmhub.Time()
+            element.data.popoutTeardownReason = nil
 
             element:FireEventTree("popout")
             element:ScheduleEvent("popoutToNativeWindow", 0.15)
@@ -3622,6 +3676,12 @@ function CustomDocument.GetOrCreateTabbedViewer()
                 table.remove(element.data.tabs, idx)
 
                 if #element.data.tabs == 0 then
+                    --POPOUT-DIAG: the last tab closing is a legitimate (if
+                    --unwanted, while popped out) teardown -- name it so it is
+                    --not confused with the unexplained destroy.
+                    if element.data.popoutTeardownReason == nil then
+                        element.data.popoutTeardownReason = "lastTabClosed"
+                    end
                     viewer:DestroySelf()
                     g_tabbedViewer = nil
                     return
@@ -3699,6 +3759,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
 
         closeAllTabs = function(element)
             element.data.closeAllPending = true
+            element.data.popoutTeardownReason = "closeAllTabs"  --POPOUT-DIAG
             -- Close the first tab and let its close closure cascade. We target a
             -- live tab (tabs[1]) rather than activeTabId because the close path no
             -- longer switches activeTabId to a surviving tab during teardown.
@@ -4980,6 +5041,7 @@ mod.unloadHandlers[#mod.unloadHandlers + 1] = function()
     --popped out: it is unparented from the hud tree, so the hud rebuild
     --cannot reach it. Destroy it and the engine closes its window.
     if g_tabbedViewer ~= nil and g_tabbedViewer.valid and g_tabbedViewer.data.poppedOut then
+        g_tabbedViewer.data.popoutTeardownReason = "moduleUnload"  --POPOUT-DIAG
         g_tabbedViewer:DestroySelf()
         g_tabbedViewer = nil
     end

@@ -7353,11 +7353,7 @@ end
 --windows past the right rail. Falls back to the aspect formula before
 --the first layout pass.
 local function IconRailUIWidth()
-    --Truthiness, not a nil check: with no hud - at the home screen, say -
-    --GameHud.instance is its `false` default, which passes ~= nil and then
-    --raises on the index. RightHostMargin polls this from a think, so getting
-    --it wrong floods the log rather than erroring once.
-    if GameHud.instance and GameHud.instance.documentsPanel ~= nil and GameHud.instance.documentsPanel.valid then
+    if GameHud.instance ~= nil and GameHud.instance.documentsPanel ~= nil and GameHud.instance.documentsPanel.valid then
         local w = GameHud.instance.documentsPanel.renderedWidth
         if type(w) == "number" and w > 100 then
             return w

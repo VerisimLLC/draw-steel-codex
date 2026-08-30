@@ -17,7 +17,6 @@ local mod = dmhub.GetModLoading()
 --- @field footerCells Panel[] one per entry in footerCells
 --- @field footerContent Panel[][] what each cell holds, in order
 --- @field footerButtons table[] {button, cell, enabled} per tracked button
---- @field autoWidthButtons boolean
 --- @field closeMode string|function
 --- @field onClose function|boolean
 --- @field customStyles table[]|boolean
@@ -45,10 +44,10 @@ local FOOTER_HEIGHT = 60
 local FOOTER_DIVIDER_MARGIN = 12
 local DEFAULT_FOOTER_CELLS = {33, 34, 33}
 
+-- Every footer button is this size, and callers do not get a say: consistency
+-- across dialogs is the point of the shell. Change the baseline here and it
+-- moves everywhere at once.
 local BUTTON_CLASS = "sizeL"
-
---- Footer buttons size to their text rather than taking the theme's width.
-DialogShell.autoWidthButtons = false
 
 --- "modal", "destroy", "host", or a function taking the shell.
 DialogShell.closeMode = "modal"
@@ -268,14 +267,13 @@ local function ForgetButtons(dlg, index)
 end
 
 --- @param args table reads title, subtitle, closeButton, classes, width,
----   height, pad, floating, footerCells, autoWidthButtons, close, escape,
+---   height, pad, floating, footerCells, close, escape,
 ---   onClose, onCreate, onDestroy, monitor, refresh and styles
 --- @return DialogShell
 function DialogShell.CreateNew(args)
     args = args or {}
 
     local dlg = DialogShell.new{
-        autoWidthButtons = args.autoWidthButtons == true,
         closeMode = args.close or "modal",
         onClose = args.onClose or false,
         customStyles = args.styles or false,
@@ -455,9 +453,10 @@ function DialogShell:SetSubtitle(text)
 end
 
 --- Adds a button to a footer cell. Buttons added to the same cell sit in the
---- order they were added.
---- @param args table reads slot, text, tooltip, click, enabled and halign;
----   click and enabled are both called with the shell
+--- order they were added. The size is the shell's, not the caller's: width is
+--- the only dimension on offer, and omitting it takes the themed default.
+--- @param args table reads slot, text, tooltip, click, enabled, halign and
+---   width; click and enabled are both called with the shell
 --- @return Panel|nil button nil when the shell has no footer
 function DialogShell:AddFooterButton(args)
     local index = ResolveSlot(self, args.slot or "left")
@@ -468,7 +467,7 @@ function DialogShell:AddFooterButton(args)
     local button = gui.Button{
         classes = {BUTTON_CLASS},
         text = args.text or "",
-        width = self.autoWidthButtons and "auto" or nil,
+        width = args.width,
         halign = args.halign or DefaultHalign(self, index),
         valign = "center",
         hover = args.tooltip ~= nil and gui.Tooltip(args.tooltip) or nil,

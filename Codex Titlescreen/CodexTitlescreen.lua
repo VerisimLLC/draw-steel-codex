@@ -811,7 +811,46 @@ local function TooManyGamesDialog(element)
 end
 
 
-local function EditHero(element, character)
+--A hero the player abandoned in the builder without building anything: no
+--name, no class, and no portrait. CreateHero has to commit the character to
+--the lobby before the builder can open it (the builder edits a real character
+--by id), so without this check backing out of the builder leaves a permanent
+--empty shell in the lobby roster -- one that still shows up later as a
+--claimable hero, and whose null portraitId broke the local-character autosave.
+--Ancestry and level are deliberately NOT part of the test: a freshly created
+--hero already reports "Human" and level 1 by default, so neither can tell an
+--untouched hero apart from a deliberately chosen one.
+local function HeroIsUnstarted(character)
+    if character == nil or not character.valid then
+        return false
+    end
+
+    local props = character.properties
+    --Monster-typed heroes have creature properties, which have no GetClass.
+    --Never discard one: we cannot tell whether it was started.
+    if props == nil or props.typeName ~= "character" then
+        return false
+    end
+
+    if character.name ~= nil and character.name ~= "" then
+        return false
+    end
+
+    if character.appearance ~= nil and character.appearance.portraitId ~= nil then
+        return false
+    end
+
+    if props:GetClass() ~= nil then
+        return false
+    end
+
+    return true
+end
+
+--onClosed (optional) runs when the builder closes, before the create is
+--tracked. Returning true means it discarded the character, which suppresses
+--the tracking -- a hero that was thrown away was never created.
+local function EditHero(element, character, onClosed)
     -- Lobby characters never have a token on a map, so creature:RefreshToken
     -- (the usual ValidateAndRepair trigger) never fires for them. Heal any
     -- invalid state here so the character sheet doesn't open on corrupt data.
@@ -836,10 +875,16 @@ local function EditHero(element, character)
         print("TITLESCREEN:: SHOW")
         handler = nil
 
+        local c = character
+
+        local discarded = false
+        if onClosed ~= nil then
+            discarded = onClosed(c) == true
+        end
+
         -- Track character_create after the builder closes so ancestry/class/kit
         -- reflect the player's actual choices, not the defaults.
-        local c = character
-        if c ~= nil and c.valid then
+        if discarded == false and c ~= nil and c.valid then
             -- Monster-typed heroes have creature properties, which have no GetClass.
             local classInfo = c.properties.typeName == "character" and c.properties:GetClass() or nil
             local kitTable = dmhub.GetTable("kits")
@@ -893,7 +938,15 @@ local function CreateHero(element)
                                 c.properties.creatorid = dmhub.userid
                             end,
                         }
-                        EditHero(element, c)
+                        EditHero(element, c, function(character)
+                            if HeroIsUnstarted(character) == false then
+                                return false
+                            end
+
+                            print("TITLESCREEN:: discarding unstarted hero", charid)
+                            game.DeleteCharacters({ charid })
+                            return true
+                        end)
                     end
                     return
                 end

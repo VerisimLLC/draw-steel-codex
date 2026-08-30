@@ -2844,6 +2844,31 @@ mod.shared.FinishFloorImport = function(info, offsetX, offsetY)
         -- Wait a few frames so the spawned objects render and ObjectComponentMap.Calculate() runs.
         for i = 1, 60 do coroutine.yield(0.01) end
 
+        -- Correct placement now that the renderer has computed the real calibration.
+        -- The pre-spawn center estimate assumes a (0.5, 0.5) pivot and treats offset
+        -- as a world coordinate, but the real _mapPivot can be off-center by up to a
+        -- tile and world tile boundaries sit at half-integers (tile centers are at
+        -- integers). Both errors made same-size imports land a full tile off.
+        -- Recompute so the image's top-left corner lands exactly on tile (offsetX, offsetY).
+        if not applyMatch then
+            for _, obj in ipairs(newlySpawnedObjs) do
+                local d = obj.mapAlignmentDiagnostic
+                if d ~= nil and (d.imageWorldWidth or 0) > 0 and (d.imageWorldHeight or 0) > 0 then
+                    local targetX = (offsetX - 0.5) + d.imageWorldWidth * (d.mapPivotX or 0.5)
+                    local targetY = (offsetY - 0.5) + d.imageWorldHeight * (d.mapPivotY or 0.5)
+                    if math.abs(obj.x - targetX) > 0.0001 or math.abs(obj.y - targetY) > 0.0001 then
+                        printf("FLOOR_IMPORT:: Correcting placement from (%.4f, %.4f) to (%.4f, %.4f) using pivot=(%.6f, %.6f)",
+                            obj.x, obj.y, targetX, targetY, d.mapPivotX or 0.5, d.mapPivotY or 0.5)
+                        obj.x = targetX
+                        obj.y = targetY
+                        obj:Upload()
+                    end
+                else
+                    printf("FLOOR_IMPORT:: No calibration available for %s; leaving at center estimate", obj.id)
+                end
+            end
+        end
+
         -- Diagnostic: dump calibration for every Map LevelObject on the map (existing + new).
         printf("FLOOR_ALIGN_DIAG:: ===== Post-spawn calibration dump =====")
         map = getMap()

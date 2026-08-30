@@ -349,37 +349,68 @@ function RSPWidgets.CharacterRow(args)
     }
 end
 
---- A scrolling column of characters. The rows are built once from the roster
---- and repainted in place, so a session change never rebuilds the list.
---- @param args {roster: string[], highlight: fun(charid: string): boolean, click: nil|fun(charid: string), indicator: nil|fun(charid: string): string}
+--- A scrolling column of characters. Rows repaint themselves in place, and the
+--- list rebuilds them when the roster itself changes - a window built before
+--- the Director picked participants would otherwise keep the empty roster it
+--- started with for the rest of the Respite.
+--- @param args {roster: string[]|function, highlight: fun(charid: string): boolean, click: nil|fun(charid: string), indicator: nil|fun(charid: string): string}
 --- @return Panel
 function RSPWidgets.CharacterList(args)
-    local rows = {}
-    for _, entry in ipairs(args.roster) do
-        -- A roster is either plain charids or {charid, indent} entries, so a
-        -- flat list and a hero-with-followers list share this widget.
-        local charid = entry
-        local indent = false
-        local owner = nil
-        if type(entry) == "table" then
-            charid = entry.charid
-            indent = entry.indent == true
-            owner = entry.owner
+    --- The roster as it stands now. Callers may pass a fixed list or a function
+    --- for a roster that is not known when the list is built.
+    --- @return table
+    local function Roster()
+        local roster = args.roster
+        if type(roster) == "function" then
+            return roster() or {}
         end
+        return roster or {}
+    end
 
-        rows[#rows + 1] = RSPWidgets.CharacterRow{
-            charid = charid,
-            highlight = args.highlight,
-            click = args.click,
-            indicator = args.indicator,
-            attention = args.attention,
-            rolls = args.rolls,
-            status = args.status,
-            statusClick = args.statusClick,
-            lock = args.lock,
-            indent = indent,
-            owner = owner,
-        }
+    --- Splits a roster entry, which is either a plain charid or a table, so a
+    --- flat list and a hero-with-followers list share this widget.
+    --- @param entry string|table
+    --- @return string charid, boolean indent, string|nil owner
+    local function ReadEntry(entry)
+        if type(entry) == "table" then
+            return entry.charid, entry.indent == true, entry.owner
+        end
+        return entry, false, nil
+    end
+
+    local function BuildRows()
+        local rows = {}
+        for _, entry in ipairs(Roster()) do
+            local charid, indent, owner = ReadEntry(entry)
+
+            rows[#rows + 1] = RSPWidgets.CharacterRow{
+                charid = charid,
+                highlight = args.highlight,
+                click = args.click,
+                indicator = args.indicator,
+                attention = args.attention,
+                rolls = args.rolls,
+                status = args.status,
+                statusClick = args.statusClick,
+                lock = args.lock,
+                indent = indent,
+                owner = owner,
+            }
+        end
+        return rows
+    end
+
+    --- Who the rows were built for. Compared on every refresh so the list
+    --- rebuilds only when the roster changes, leaving the rows to repaint
+    --- themselves the rest of the time.
+    --- @return string
+    local function Signature()
+        local parts = {}
+        for _, entry in ipairs(Roster()) do
+            local charid, indent = ReadEntry(entry)
+            parts[#parts + 1] = string.format("%s:%s", tostring(charid), indent and "1" or "0")
+        end
+        return table.concat(parts, ",")
     end
 
     return gui.Panel{
@@ -394,9 +425,18 @@ function RSPWidgets.CharacterList(args)
         -- viewer's state, so it stays on the panel and out of the document.
         data = {
             selected = nil,
+            signature = Signature(),
         },
 
-        children = rows,
+        respiteChanged = function(element)
+            local signature = Signature()
+            if signature ~= element.data.signature then
+                element.data.signature = signature
+                element.children = BuildRows()
+            end
+        end,
+
+        children = BuildRows(),
     }
 end
 

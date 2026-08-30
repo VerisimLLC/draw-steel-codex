@@ -110,3 +110,348 @@ function creature:RequestProjectRoll(casterToken, options)
         modifiersUsed = tokenResult.modifiersUsed or {},
     }
 end
+--- Project event dialog
+--- A project that stops at a milestone owes the table a roll. This rolls it -
+--- either here or by asking the hero's player - shows what came up, and then
+--- resolves the stop by setting the next milestone and putting the project
+--- back to work.
+--- @class DTEventRollDialog
+DTEventRollDialog = RegisterGameType("DTEventRollDialog")
+
+--- The row text behind a dice total, read the way RollOnTableProperties does
+--- @param tableRef RollTableReference The events table reference
+--- @param total number The dice total rolled
+--- @return string|nil text The row's text, nil when the total is off the table
+local function EventTextForTotal(tableRef, total)
+    local t = tableRef:GetTable()
+    if t == nil then return nil end
+
+    local rowIndex = t:RowIndexFromDiceResult(total)
+    if rowIndex == nil or t.rows[rowIndex] == nil then return nil end
+
+    for _, item in ipairs(t.rows[rowIndex].value.items) do
+        local str = item:ToString()
+        if str ~= nil then return str end
+    end
+
+    return nil
+end
+
+--- Drops the shared "Downtime Event:" prefix from an event table's name. Every
+--- table in the list carries it, so it is noise under a field already labelled
+--- Event Table. The compendium keeps the full names.
+--- @param options table List of { id, text } pairs from DTHelpers.GetEventTableOptions
+--- @return table options The same list with shortened text
+local function StripEventTablePrefix(options)
+    local result = {}
+
+    for _, option in ipairs(options) do
+        local text = option.text
+        if string.starts_with(text, DTConstants.EVENTS_TABLE_PREFIX) then
+            text = trim(text:sub(#DTConstants.EVENTS_TABLE_PREFIX + 1))
+        end
+
+        result[#result + 1] = {
+            id = option.id,
+            text = text,
+        }
+    end
+
+    return result
+end
+
+--- The event table a project starts the dialog on: the one named on the activity
+--- the project came from, falling back to Crafting and Research when the project
+--- has no activity, the activity names no table, or that table is no longer offered.
+--- @param project DTProject The project stopped at a milestone
+--- @param options table The event table dropdown options
+--- @return string tableId The GUID of the event table to select
+local function DefaultEventTableId(project, options)
+    local activityId = project:GetActivityID()
+    if activityId ~= "" then
+        local activity = (dmhub.GetTable(DowntimeActivity.tableName) or {})[activityId]
+        if activity ~= nil then
+            local tableId = activity:GetEventTableId()
+            if tableId ~= "" and DTHelpers.OptionsContain(options, tableId) then
+                return tableId
+            end
+        end
+    end
+
+    return DTConstants.EVENTS_TABLE_ID
+end
+
+--- Shows the project event dialog
+--- @param args table project The project stopped at a milestone, heroToken The
+---        token whose sheet this was opened from and who is asked to roll
+function DTEventRollDialog.ShowDialog(args)
+    local project = args ~= nil and args.project or nil
+    local heroToken = args ~= nil and args.heroToken or nil
+    if project == nil or heroToken == nil then
+        return
+    end
+
+    local tableOptions = StripEventTablePrefix(DTHelpers.GetEventTableOptions())
+    local selectedTableId = DefaultEventTableId(project, tableOptions)
+
+    --Both roll paths read the table through here, so they always roll whatever
+    --the dropdown currently shows rather than a reference captured at open time.
+    local function CurrentTableRef()
+        return RollTableReference.CreateRef(DTConstants.EVENTS_TABLE, selectedTableId)
+    end
+
+    if CurrentTableRef():GetTable() == nil then
+        return
+    end
+
+    --Forward-declared so the handlers below capture them as upvalues.
+    local resultLabel
+    local milestoneInput
+
+    local function SetResult(text)
+        if resultLabel == nil or not resultLabel.valid then
+            return
+        end
+        local hasText = text ~= nil and #text > 0
+        resultLabel.text = hasText and text or "No event rolled yet."
+        resultLabel:SetClass("fgMuted", not hasText)
+    end
+
+    --The Director rolls it themself, with dice rather than the game's table
+    --dialog. That dialog is an embedded panel: given a tableRef it mounts into
+    --the hud's standaloneRollHost, which sits below both the character sheet and
+    --the modal layer, so from in here it rolls where nobody can see it. Dice are
+    --drawn by the engine and answer to no layer, and the table's own
+    --RollOnTableProperties still puts the event text on the chat card.
+    local function DirectorRoll()
+        local tableRef = CurrentTableRef()
+        local eventsTable = tableRef:GetTable()
+        if eventsTable == nil then
+            return
+        end
+
+        local rollInfo = eventsTable:CalculateRollInfo()
+        if rollInfo == nil then
+            return
+        end
+
+        dmhub.Roll{
+            roll = rollInfo.roll,
+            description = eventsTable.name,
+            tokenid = heroToken.id,
+            creature = heroToken.properties,
+            properties = RollOnTableProperties.new{ tableRef = tableRef },
+            complete = function(info)
+                SetResult(EventTextForTotal(tableRef, info.total))
+            end,
+        }
+    end
+
+    --Hands the roll to the hero's player and waits for it to come back.
+    local function RequestRoll()
+        local tableRef = CurrentTableRef()
+        local eventsTable = tableRef:GetTable()
+        if eventsTable == nil then
+            return
+        end
+
+        local check = RollCheck.new{
+            type = "table",
+            id = "custom",
+            group = "custom",
+            text = eventsTable.name,
+            tableRef = tableRef,
+            rollProperties = RollOnTableProperties.new{ tableRef = tableRef },
+        }
+
+        local tokens = {}
+        tokens[heroToken.id] = {}
+
+        dmhub.Coroutine(function()
+            local resultTable = {}
+            local actionid = dmhub.SendActionRequest(RollRequest.new{
+                title = "Project Event",
+                checks = {check},
+                tokens = tokens,
+            })
+
+            AwaitRequestedActionCoroutine(actionid, resultTable)
+            while resultTable.result == nil do
+                coroutine.yield(0.1)
+            end
+
+            --A cancelled or abandoned request still carries a token entry; it
+            --just has no roll in it.
+            local action = resultTable.action
+            local tokenResult = nil
+            if action ~= nil and action.info ~= nil and action.info.tokens ~= nil then
+                tokenResult = action.info.tokens[heroToken.id]
+            end
+            if tokenResult == nil or tokenResult.status ~= "complete" then
+                return
+            end
+
+            SetResult(EventTextForTotal(tableRef, tokenResult.result or 0))
+        end)
+    end
+
+    --Resolving the stop is the whole point of the dialog: the next milestone
+    --goes in and the project goes back to work.
+    local function Resolve()
+        local value = math.max(0, math.floor(tonumber(milestoneInput.text) or 0))
+
+        heroToken:ModifyProperties{
+            description = "Resolve Downtime Project Milestone",
+            undoable = false,
+            execute = function()
+                project:SetMilestoneThreshold(value)
+                    :SetStatus(DTConstants.STATUS.ACTIVE.key)
+            end,
+        }
+
+        gui.CloseModal()
+
+        dmhub.Schedule(0.1, function()
+            DTSettings.Touch()
+            DTShares.Touch()
+        end)
+    end
+
+    resultLabel = gui.Label{
+        classes = {"form", "fgMuted"},
+        width = "100%-16",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        textWrap = true,
+        text = "No event rolled yet.",
+    }
+
+    milestoneInput = gui.Input{
+        classes = {"input", "form"},
+        width = 100,
+        textAlignment = "center",
+        text = tostring(DTBusinessRules.CalcNextMilestone(project) or 0),
+    }
+
+    gui.ShowModal(gui.Panel{
+        styles = ThemeEngine.GetStyles(),
+        classes = {"dialog"},
+        width = 560,
+        height = 520,
+        flow = "vertical",
+
+        gui.Label{
+            classes = {"modalTitle"},
+            text = "Roll A Project Event",
+        },
+
+        gui.Panel{
+            classes = {"formRow"},
+            width = "94%",
+            halign = "center",
+            vmargin = 8,
+
+            gui.Label{
+                classes = {"label", "form"},
+                text = "Event Table:",
+            },
+
+            gui.Dropdown{
+                classes = {"dropdown", "form"},
+                width = 280,
+                options = tableOptions,
+                idChosen = selectedTableId,
+                change = function(element)
+                    selectedTableId = element.idChosen
+                end,
+            },
+        },
+
+        gui.Panel{
+            width = "94%",
+            height = "auto",
+            halign = "center",
+            flow = "horizontal",
+            vmargin = 8,
+
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Request Roll",
+                hmargin = 8,
+                click = function()
+                    RequestRoll()
+                end,
+            },
+
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Roll",
+                hmargin = 8,
+                click = function()
+                    DirectorRoll()
+                end,
+            },
+        },
+
+        --A d100 row can run long, so the text scrolls rather than pushing
+        --the milestone field off the bottom of the dialog.
+        gui.Panel{
+            width = "94%",
+            height = 150,
+            halign = "center",
+            vmargin = 8,
+            vscroll = true,
+
+resultLabel,
+        },
+
+        gui.MCDMDivider{
+            layout = "peak",
+            width = "90%",
+            vmargin = 8,
+        },
+
+        gui.Panel{
+            classes = {"formRow"},
+            width = "94%",
+            halign = "center",
+            vmargin = 8,
+
+            gui.Label{
+                classes = {"label", "form"},
+                text = "Next Milestone:",
+            },
+
+            milestoneInput,
+        },
+
+        gui.Panel{
+            width = "94%",
+            height = 72,
+            halign = "center",
+            valign = "bottom",
+            flow = "horizontal",
+
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Cancel",
+                valign = "top",
+                hmargin = 8,
+                click = function()
+                    gui.CloseModal()
+                end,
+            },
+
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Resolve",
+                valign = "top",
+                hmargin = 8,
+                click = function()
+                    Resolve()
+                end,
+            },
+        },
+    })
+end

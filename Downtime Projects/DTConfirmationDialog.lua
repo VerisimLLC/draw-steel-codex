@@ -70,54 +70,50 @@ function DTConfirmationDialog._createPanel(title, message, confirmButtonText, ca
             element:FireEvent("close")
         end,
 
-        children = {
-            -- Header
-            gui.Label{
-                classes = {"modalTitle"},
-                text = title,
-            },
-
-            -- Confirmation message
-            gui.Label{
-                classes = {"modalMessage"},
-                text = message,
-                height = 80,
-                textWrap = true,
-            },
-
-            -- Button panel
-            gui.Panel{
-                width = "100%",
-                height = 40,
-                halign = "center",
-                valign = "bottom",
-                flow = "horizontal",
-                children = {
-                    gui.Button{
-                        classes = {"sizeL"},
-                        text = cancelButtonText,
-                        valign = "bottom",
-                        click = function(element)
-                            local controller = element:FindParentWithClass("confirmDialogController")
-                            if controller then
-                                controller:FireEvent("escape")
-                            end
-                        end,
-                    },
-                    gui.Button{
-                        classes = {"sizeL"},
-                        text = confirmButtonText,
-                        halign = "right",
-                        valign = "bottom",
-                        click = function(element)
-                            local controller = element:FindParentWithClass("confirmDialogController")
-                            confirmHandler()
-                            if controller then controller:FireEvent("close") end
-                        end,
-                    },
-                },
-            },
+        -- Header
+        gui.Label{
+            classes = {"modalTitle"},
+            text = title,
         },
+
+        -- Confirmation message
+        gui.Label{
+            classes = {"modalMessage"},
+            text = message,
+            height = 80,
+            textWrap = true,
+        },
+
+        -- Button panel
+        gui.Panel{
+            width = "100%",
+            height = 40,
+            halign = "center",
+            valign = "bottom",
+            flow = "horizontal",
+            gui.Button{
+                classes = {"sizeL"},
+                text = cancelButtonText,
+                valign = "bottom",
+                click = function(element)
+                    local controller = element:FindParentWithClass("confirmDialogController")
+                    if controller then
+                        controller:FireEvent("escape")
+                    end
+                end,
+            },
+            gui.Button{
+                classes = {"sizeL"},
+                text = confirmButtonText,
+                halign = "right",
+                valign = "bottom",
+                click = function(element)
+                    local controller = element:FindParentWithClass("confirmDialogController")
+                    confirmHandler()
+                    if controller then controller:FireEvent("close") end
+                end,
+            },
+        },
     }
 
     return resultPanel

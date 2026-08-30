@@ -12472,6 +12472,213 @@ CreateMarkupEditor = function()
         end,
     }
 
+    --The asset "Save as New Light Type" clones: the first bound prop's
+    --asset when a placed light is being edited, else the selected palette
+    --asset - the same precedence the editors read with, so the saved type
+    --always matches what the sliders show.
+    local SaveLightTypeSourceNode = function()
+        for _,obj in ipairs(GetEditingProps()) do
+            if obj:GetComponent("Light") ~= nil then
+                local node = assets:GetObjectNode(obj.assetid)
+                if node ~= nil then
+                    return node
+                end
+            end
+        end
+        if m.props.selected == nil then
+            return nil
+        end
+        local node = assets:GetObjectNode(m.props.selected)
+        if node ~= nil and NodeGetComponent(node, "Light") ~= nil then
+            return node
+        end
+        return nil
+    end
+
+    --Create a new palette asset: the source asset's components with the
+    --current editor values baked into the Light component. Baked-in values
+    --are what make it a durable TYPE - session defaults seed from asset
+    --values, so the type looks the same in every later session.
+    local CreateLightTypeAsset = function(name)
+        local src = SaveLightTypeSourceNode()
+        if src == nil then
+            return
+        end
+        local color = ToColorValue(ReadLightProperty("color") or "#ffffff")
+        local intensity = tonumber(ReadLightProperty("intensity"))
+        local radius = tonumber(ReadLightProperty("radius"))
+        local flicker = tonumber(ReadLightProperty("flicker"))
+
+        local comps = {}
+        for key, comp in pairs(src.components) do
+            local doc = src:ComponentToJson(key)
+            if doc ~= nil then
+                if comp.name == "Light" then
+                    doc.color = { r = color.r, g = color.g, b = color.b, a = color.a }
+                    if intensity ~= nil then
+                        doc.intensity = intensity
+                    end
+                    if radius ~= nil then
+                        doc.radius = radius
+                    end
+                    if flicker ~= nil then
+                        doc.flicker = flicker
+                    end
+                end
+                comps[key] = doc
+            end
+        end
+
+        local srcKeywords = tostring(src.keywords or "")
+        local guid = assets:UploadNewObject{
+            description = name,
+            imageId = src.imageId,
+            parentFolder = src.parentFolder,
+            components = comps,
+        }
+        if guid == nil then
+            return
+        end
+
+        --keywords cannot ride through UploadNewObject (the string form does
+        --not convert), so stamp them once the node lands. Selecting the new
+        --type waits for the same moment: its chip only exists once the
+        --"markup" keyword is on and the roster refresh sees it.
+        dmhub.ScheduleWhen(function()
+            return assets:GetObjectNode(guid) ~= nil
+        end,
+        function()
+            if mod.unloaded then
+                return
+            end
+            local node = assets:GetObjectNode(guid)
+            local kw = srcKeywords
+            local hasMarkup = false
+            for _,part in ipairs(string.split(string.lower(kw), ",")) do
+                if string.trim(part) == K.MARKUP_PROP_KEYWORD then
+                    hasMarkup = true
+                end
+            end
+            if not hasMarkup then
+                if kw == "" then
+                    kw = K.MARKUP_PROP_KEYWORD
+                else
+                    kw = kw .. "," .. K.MARKUP_PROP_KEYWORD
+                end
+            end
+            node.keywords = kw
+            node:Upload()
+            m.props.selected = guid
+            RefreshPropUI()
+        end)
+
+        track("markup_light_type_create", {})
+    end
+
+    --Name prompt for saving the current light settings as a new palette
+    --type. Modeled on ShowZoneHeightDialog.
+    local ShowSaveLightTypeDialog = function(owner)
+        local nameText = ""
+        local modalLayer = nil
+        local Confirm = function()
+            local name = string.trim(nameText)
+            if name == "" then
+                name = "New Light"
+            end
+            CreateLightTypeAsset(name)
+            gui.CloseModalInLayer(modalLayer)
+        end
+        local dialogPanel
+        dialogPanel = gui.Panel{
+            id = "MarkupSaveLightTypeDialog",
+            classes = {"framedPanel"},
+            width = "94%",
+            maxWidth = 380,
+            height = "auto",
+            pad = 16,
+            borderBox = true,
+            flow = "vertical",
+            styles = ThemeEngine.MergeStyles{
+                Styles.Panel,
+                MarkupChipStyles(),
+            },
+
+            gui.Label{
+                classes = {"dialogTitle"},
+                text = "New Light Type",
+            },
+
+            gui.Panel{
+                classes = {"formStackedRow"},
+                gui.Label{
+                    classes = {"formStacked"},
+                    text = "Name:",
+                },
+                gui.Input{
+                    classes = {"formStacked"},
+                    text = "",
+                    width = 160,
+                    characterLimit = 40,
+                    selectAllOnFocus = true,
+                    hasInputFocus = true,
+                    change = function(element)
+                        nameText = element.text
+                    end,
+                    submit = function(element)
+                        nameText = element.text
+                        Confirm()
+                    end,
+                },
+            },
+
+            gui.Label{
+                classes = {"fgMuted", "sizeXs"},
+                text = "Saves the current color, brightness, radius and flicker as a new type in the palette, so the same light can be placed anywhere on any map.",
+                width = "94%",
+                height = "auto",
+                halign = "center",
+                vmargin = 2,
+            },
+
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                halign = "center",
+                vmargin = 8,
+
+                gui.Button{
+                    classes = {"sizeM"},
+                    text = "Cancel",
+                    halign = "center",
+                    captureEscape = true,
+                    escapePriority = EscapePriority.EXIT_DIALOG,
+                    events = {
+                        click = function(element)
+                            element:FireEvent("escape")
+                        end,
+                        escape = function()
+                            gui.CloseModalInLayer(modalLayer)
+                        end,
+                    },
+                },
+
+                gui.Button{
+                    classes = {"sizeM"},
+                    text = "Save",
+                    halign = "center",
+                    events = {
+                        click = function()
+                            Confirm()
+                        end,
+                    },
+                },
+            },
+        }
+
+        modalLayer = gui.ShowModal(dialogPanel, {owner = owner})
+    end
+
     --The light editors: shown when the bound prop - or, unbound, the
     --selected palette asset - has a Light component.
     propPropertiesPanel = gui.Panel{
@@ -12534,6 +12741,19 @@ CreateMarkupEditor = function()
         CreateLightSliderRow("Brightness:", "intensity", 0, 2),
         CreateLightSliderRow("Radius:", "radius", 0, 25),
         CreateLightSliderRow("Flicker:", "flicker", 0, 1),
+
+        gui.Button{
+            classes = {"sizeM"},
+            text = "Save as New Light Type",
+            halign = "center",
+            vmargin = 4,
+            hover = gui.Tooltip("Save these light settings as a named type in the palette, so the same light can be placed anywhere."),
+            events = {
+                click = function(element)
+                    ShowSaveLightTypeDialog(element)
+                end,
+            },
+        },
     }
 
     --The font picker's options. The ids gui.availableFonts hands back are
@@ -14072,6 +14292,14 @@ MapMarkupHooks.cancelEditingWrapper = function(sheet)
     if m.arm.Armed() then
         --m.arm.Set repaints the strip and unregisters the map tools.
         m.arm.Set(false)
+        --Drop focus with the tool, exactly like panelEscape does: both
+        --hosts skip the panelFocused nudge while focus is already on the
+        --panel, so keeping focus here would mean the next click on the
+        --panel does NOT re-arm - the tool reads as permanently stuck down
+        --(observed: placed markup props unreachable after Escape).
+        if m.markupHud ~= nil and m.markupHud.valid and gui.ChildHasFocus(m.markupHud) then
+            gui.SetFocus(nil)
+        end
         return true
     end
     if gs.priorCancelEditing ~= nil then

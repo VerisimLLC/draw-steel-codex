@@ -51,11 +51,11 @@ end
 --- flow so their contents land left, centre and right regardless of which of
 --- the three a step actually fills.
 --- @param slot nil|Panel
---- @param width nil|string overrides the even third
+--- @param pct number cell width as a whole percentage
 --- @return Panel
-local function FooterCell(slot, width)
+local function FooterCell(slot, pct)
     return gui.Panel{
-        width = width or RSPConstants.footerCellWidth,
+        width = string.format("%d%%", pct),
         height = "100%",
         flow = "horizontal",
         valign = "center",
@@ -81,9 +81,9 @@ local function BuildFooter(args)
         halign = "left",
         valign = "center",
 
-        FooterCell(args.footerLeft, widths[1]),
-        FooterCell(args.footerCenter, widths[2]),
-        FooterCell(args.footerRight, widths[3]),
+        FooterCell(args.footerLeft, widths[1] or RSPConstants.footerCells[1]),
+        FooterCell(args.footerCenter, widths[2] or RSPConstants.footerCells[2]),
+        FooterCell(args.footerRight, widths[3] or RSPConstants.footerCells[3]),
     }
 end
 

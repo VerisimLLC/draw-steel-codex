@@ -17,21 +17,10 @@ RSPConstants.phaseActive = "active"
 -- Window
 RSPConstants.windowWidth = 900
 RSPConstants.windowHeight = 620
-RSPConstants.windowPad = 16
 
--- Header: fixed band, divider floats under the heading so type prints over it
-RSPConstants.headerHeight = 40
-RSPConstants.headerDividerHeight = 12       -- weight of the rule, not spacing
-RSPConstants.headerDividerTopMargin = 22    -- where the rule crosses the band
-RSPConstants.headerTitleWidth = "25%"
-RSPConstants.headerTitleBottomMargin = -6   -- closes the line box's slack under the baseline
-RSPConstants.headerInfoWidth = "67%"
-RSPConstants.headerInfoRightMargin = 0
-
--- Footer: fixed band, divider on top, controls in three cells
-RSPConstants.footerHeight = 60
-RSPConstants.footerDividerMargin = 12
-RSPConstants.footerCellWidth = "33.3%"
+-- Footer cells. The band, its rule and the window's padding are the
+-- DialogShell's; only the split inside the band is ours.
+RSPConstants.footerCells = {33, 34, 33}   -- the middle takes the odd point
 RSPConstants.footerCheckboxMargin = 12
 RSPConstants.extendButtonWidth = 110        -- narrower than the size class; Complete Respite is the wide one
 
@@ -106,7 +95,7 @@ RSPConstants.sheetTabBuilder = "Builder"    -- where a player goes to change a k
 RSPConstants.directorListWidth = "40%"
 RSPConstants.directorPaneWidth = "58%"
 RSPConstants.directorListHeight = "100%-32" -- what the completion count leaves
-RSPConstants.directorFooterCells = {"20%", "55%", "25%"}  -- two checkboxes need more than a third
+RSPConstants.directorFooterCells = {20, 55, 25}  -- two checkboxes need more than a third
 
 -- Director feed
 RSPConstants.feedPaneHeight = "100%-10"

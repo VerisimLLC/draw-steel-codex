@@ -22,6 +22,7 @@ end
 --- @field id string
 --- @field phase string
 --- @field daysElapsed number
+--- @field location string optional, where the Respite is taken
 --- @field activityCount number
 --- @field nonParticipantsMayAct boolean
 --- @field journal boolean write the Respite up when it ends
@@ -119,6 +120,13 @@ function RSPSession.DaysElapsed()
     return session ~= nil and session.daysElapsed or RSPConstants.daysMin
 end
 
+--- Where the Respite is being taken. Optional, and empty when never set.
+--- @return string
+function RSPSession.Location()
+    local session = RSPSession.Active()
+    return session ~= nil and session:try_get("location", "") or ""
+end
+
 --- @return number
 function RSPSession.ActivityCount()
     local session = RSPSession.Active()
@@ -138,6 +146,13 @@ function RSPSession.SetDaysElapsed(days)
     RSPSession.Mutate("Set respite days elapsed", function(session)
         session.daysElapsed = days
         session.activityCount = days
+    end)
+end
+
+--- @param location string
+function RSPSession.SetLocation(location)
+    RSPSession.Mutate("Set respite location", function(session)
+        session.location = location or ""
     end)
 end
 

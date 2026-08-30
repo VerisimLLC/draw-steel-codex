@@ -85,6 +85,11 @@ function RSPJournal.Build()
     lines[#lines + 1] = string.format("*%s*", os.date("%A, %d %B %Y"))
     lines[#lines + 1] = ""
 
+    local location = RSPSession.Location()
+    if location ~= "" then
+        lines[#lines + 1] = string.format("**Location:** %s", location)
+    end
+
     lines[#lines + 1] = string.format("**Days Elapsed:** %d",
         RSPSession.DaysElapsed())
     lines[#lines + 1] = string.format("**Downtime Activities:** %d",

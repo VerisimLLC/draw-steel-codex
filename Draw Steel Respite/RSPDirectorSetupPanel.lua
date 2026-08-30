@@ -101,6 +101,53 @@ local function BuildWorkingArea()
         halign = "left",
         valign = "top",
 
+        RSPWidgets.FormRow("Location", gui.Input{
+            classes = {"input", "form"},
+            width = RSPConstants.locationWidth,
+            height = 22,
+            halign = "left",
+            valign = "center",
+            editlag = 0.5,
+            text = RSPSession.Location(),
+
+            --Every step is built up front, so this only takes focus when Setup
+            --is the one on screen. Delayed because focus does not stick until
+            --the window has laid out.
+            create = function(element)
+                dmhub.Schedule(0.2, function()
+                    if not element.valid then
+                        return
+                    end
+
+                    local session = RSPSession.Active()
+                    local phase = session ~= nil and session.phase
+                        or RSPConstants.phaseSetup
+                    if phase == RSPConstants.phaseSetup then
+                        gui.SetFocus(element)
+                    end
+                end)
+            end,
+
+            edit = function(element)
+                element:FireEvent("change")
+            end,
+
+            change = function(element)
+                if element.text ~= RSPSession.Location() then
+                    RSPSession.SetLocation(element.text)
+                end
+            end,
+
+            --Left alone while it holds what the session holds, so a refresh
+            --mid-edit cannot take the caret out from under the Director.
+            respiteChanged = function(element)
+                local location = RSPSession.Location()
+                if element.text ~= location then
+                    element.text = location
+                end
+            end,
+        }),
+
         RSPWidgets.FormRow("# Days Elapsed", RSPWidgets.Stepper{
             get = RSPSession.DaysElapsed,
             set = RSPSession.SetDaysElapsed,

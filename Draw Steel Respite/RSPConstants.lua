@@ -85,6 +85,7 @@ RSPConstants.activitiesMin = 0
 RSPConstants.activitiesMax = 99
 RSPConstants.formLabelWidth = "46%"
 RSPConstants.stepperWidth = "22%"
+RSPConstants.locationWidth = "50%"          -- a name needs more room than a stepper
 RSPConstants.stepperButtonWidth = "24%"     -- button / well / button
 RSPConstants.stepperWellWidth = "52%"
 RSPConstants.activityAreaHeight = "100%-146"

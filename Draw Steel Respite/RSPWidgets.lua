@@ -449,11 +449,18 @@ function RSPWidgets.RespiteSummary()
         mayText = "may"
     end
 
-    return string.format(
+    local summary = string.format(
         "Days Elapsed: **%d** | Downtime Activities: **%d** | Non participants **%s** do downtime.",
         RSPSession.DaysElapsed(),
         RSPSession.ActivityCount(),
         mayText)
+
+    local location = RSPSession.Location()
+    if location ~= "" then
+        summary = string.format("**%s** | %s", location, summary)
+    end
+
+    return summary
 end
 
 --- Rules the theme has no vocabulary for. The lock has to invert with the row

@@ -651,6 +651,78 @@ local function CreateWindowControl(args)
     }
 end
 
+--Quit confirmation for the close control. In a game the close button is one
+--click from ending the session, and it sits a few pixels from maximize, so it
+--gets hit by accident; there the press opens a large modal in the middle of
+--the screen and quits only once the user confirms. On the titlescreen -- and
+--in the lobby game, which is just the local character-creation game the rest
+--of this file also treats as "not in a game" -- there is nothing to interrupt,
+--so the close stays immediate.
+--
+--This guards OUR control only. A close that never reaches Lua (Alt+F4, the
+--taskbar menu, the system menu, the native caption in legacy strip mode)
+--still quits straight away; catching those would need an engine-side WM_CLOSE
+--hook.
+local m_quitConfirmDialog = nil
+
+local function ConfirmCloseWindow()
+    if (not dmhub.inGame) or dmhub.isLobbyGame then
+        dmhub.CloseWindow()
+        return
+    end
+
+    --the prompt lives in the gamehud modal layer (the title bar is its own
+    --sheet and has no modal stack of its own). Without a hud there is nothing
+    --to host it in, so don't leave the user with a dead close button.
+    local gh = rawget(_G, "gamehud")
+    if gh == nil then
+        dmhub.CloseWindow()
+        return
+    end
+
+    --repeated presses must not stack copies of the prompt.
+    if m_quitConfirmDialog ~= nil and m_quitConfirmDialog.valid then
+        return
+    end
+
+    m_quitConfirmDialog = gh:ModalDialog{
+        title = "Quit to Desktop?",
+        width = 760,
+        height = 340,
+        buttonsHalign = "center",
+        buttons = {
+            --escape cancels, like every other dialog in the app.
+            {
+                text = "Cancel",
+                escapeActivates = true,
+                click = function()
+                    m_quitConfirmDialog = nil
+                end,
+            },
+            {
+                text = "Quit",
+                click = function()
+                    m_quitConfirmDialog = nil
+                    dmhub.CloseWindow()
+                end,
+            },
+        },
+
+        gui.Panel{
+            width = 640,
+            height = 120,
+            halign = "center",
+            valign = "center",
+            flow = "vertical",
+
+            gui.Label{
+                classes = {"modalMessage"},
+                text = "You are in a game. Quitting will close Draw Steel Codex and leave the session.",
+            },
+        },
+    }
+end
+
 --Flips the "fullscreen" user setting; the engine's per-frame enforcer
 --(GameHarness) applies it, exactly like Alt+Enter. Same choreography as
 --the maximize button: hide the bar contents first, resize a beat later,
@@ -6985,7 +7057,7 @@ local function CreateTopBar()
                     danger = true,
                     icon = "window-chrome/chrome-close.png",
                     click = function()
-                        dmhub.CloseWindow()
+                        ConfirmCloseWindow()
                     end,
                 },
             },

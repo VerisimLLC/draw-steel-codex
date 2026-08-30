@@ -38,6 +38,7 @@
 --- @field playerControlled boolean (Read-only) True if this token is controlled by a player, or by the player's party.
 --- @field playerControlledNotShared boolean (Read-only) True if this token is controlled directly by a player.
 --- @field canControl boolean (Read-only) True if the current user has permissions to control this token (either because they own it, it is in their party, or they are the GM)
+--- @field canControlAsUser boolean (Read-only) True if the current user has permissions to control this token in their own right -- they own it, it is in their party, or they are the GM. Unlike canControl, control that a player host (see dmhub.playerHostMode) has only because its machine hosts the game does NOT count -- so this is the check for UI asking 'is this token mine to drive?'. Identical to canControl in every other game. @see canControl
 --- @field primaryCharacter boolean (Read-only) True if this is the primary character of the current user.
 --- @field playerControlledAndPrimary boolean (Read-only) True if this is the primary character of a player.
 --- @field activeControllerId nil|string (Read-only) the userid of the user who is best suited to responding to prompts on this token right now. Will return nil if the current user is the best suited to responding to prompts on this character.

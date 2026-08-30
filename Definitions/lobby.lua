@@ -16,6 +16,13 @@ function lobby:EnterLobbyGame(callback)
 	-- dummy implementation for documentation purposes only
 end
 
+--- ClearEotwGame: Clears the account's Encounter of the Week slot if it currently points at the given game id. Use when the slot's game turns out to be deleted or missing; joining/creating a new EotW game overwrites the slot on its own.
+--- @param gameid string
+--- @return nil
+function lobby:ClearEotwGame(gameid)
+	-- dummy implementation for documentation purposes only
+end
+
 --- SetVisibleGames: Declares the set of games currently shown on screen. The engine keeps a live metadata subscription open only for these games (plus always-on games such as the lobby); games scrolled off-screen keep their last-fetched snapshot but stop receiving live updates. Pass a Lua array of game id strings. All of the user's games are still loaded once at startup, so the full lobby list, search, and pagination keep working regardless of what is reported here.
 --- @param gameids string[] Array of game id strings currently visible on screen.
 function lobby:SetVisibleGames(gameids)
@@ -65,7 +72,7 @@ function lobby:CloneGameToLocal(gameid, options)
 	-- dummy implementation for documentation purposes only
 end
 
---- CreateGame: Creates a new game with the given options table. The options table may contain 'create' and 'error' callback functions, plus 'description', 'startingModule', 'backend' ("durableobjects" | "durableobjects-staging" | "firebase" | "local"), and 'accountSlot' ("eotw" records the new game in the account's dedicated Encounter of the Week slot instead of the games list). Rate-limited to one creation every 3 seconds.
+--- CreateGame: Creates a new game with the given options table. The options table may contain 'create' and 'error' callback functions. Rate-limited to one creation every 3 seconds.
 --- @param options table Options with optional 'create' and 'error' callback fields.
 function lobby:CreateGame(options)
 	-- dummy implementation for documentation purposes only
@@ -112,23 +119,9 @@ function lobby:JoinGame(gameid)
 	-- dummy implementation for documentation purposes only
 end
 
---- JoinGameEotw: Joins an Encounter of the Week game by ID. Identical to
---- JoinGame except the game is recorded in the account's dedicated Encounter
---- of the Week slot instead of the games list, so it never appears in the
---- campaigns lobby. Overwrites any previous slot value -- destroy or leave
---- the previous EotW game first (see LuaGameInfo.DeleteAndReleaseStorage).
+--- JoinGameEotw: Joins an Encounter of the Week game by ID. Identical to JoinGame except the game is recorded in the account's dedicated Encounter of the Week slot instead of the games list, so it never appears in the campaigns lobby. Overwrites any previous slot value -- destroy or leave the previous EotW game first (see LuaGameInfo.DeleteAndReleaseStorage).
 --- @param gameid string
 --- @return nil
 function lobby:JoinGameEotw(gameid)
-	-- dummy implementation for documentation purposes only
-end
-
---- ClearEotwGame: Clears the account's Encounter of the Week slot if it
---- currently points at the given game id. Use when the slot's game turns out
---- to be deleted or missing; joining/creating a new EotW game overwrites the
---- slot on its own.
---- @param gameid string
---- @return nil
-function lobby:ClearEotwGame(gameid)
 	-- dummy implementation for documentation purposes only
 end

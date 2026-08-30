@@ -106,6 +106,10 @@
 --- @field floorid string (read-only) the id of the current floor.
 --- @field isGameOwner boolean (read-only) true if the current user has ownership privileges in the game.
 --- @field isDM boolean (read-only) true if the current user has GM status in the game.
+--- @field isDMOrPlayerHost boolean (read-only) true if the current user has GM status in the game OR is a player host (see dmhub.playerHostMode). Read this instead of dmhub.isDM at sites that need hosting capability (running game setup, the Monster AI, host-only writes) rather than the Director experience.
+--- @field directorlessGame boolean (read-only) true if this game is directorless -- nobody plays the Director. A property of the GAME (set when it is created), so it is the same for every client and is already true when the game loads. In such a game the host's machine keeps real hosting authority (dmhub.isDMOrPlayerHost) while their user is presented and treated as a player (see dmhub.playerHostMode).
+--- @field playerHostMode boolean (read-only) Player-host mode: true when this is a directorless game AND this client has real hosting status. dmhub.isDM reads false here (player vision, rules enforcement, player UI) while dmhub.isDMOrPlayerHost keeps reporting the real hosting status. Derived from the game record, so it is correct from load with no arming step -- set GameInfo.directorless at creation (lobby:CreateGame{directorless = true}) rather than switching it on in-session. To let one client act as Director anyway for debugging, see dmhub.playerHostModeSuppressed.
+--- @field playerHostModeSuppressed boolean Debug/recovery escape hatch: while true, THIS client acts as the Director in a directorless game instead of as a player host. Client-only and session-scoped -- it does not touch the game record, so no other player is affected. Changing it flips dmhub.isDM, which forces the same full view-as-player refresh the Director's 'view as player' command uses, so expect the game to reload; it is a debugging action, not a normal-play one. Setting it has no effect (and causes no refresh) in a game that is not directorless.
 --- @field inGame boolean (read-only) true if we are currently in-game
 --- @field isLobbyGame boolean (read-only) true if in lobby
 --- @field gameid string (Read-only) The gameid of the current game.
@@ -928,7 +932,6 @@ end
 
 --- SetMovementRestriction: Installs a Movement Restriction Mode on this client: while installed, tokens can only be moved within the given tiles. Pathfinding treats any step ending outside the set as impassable, so the drag preview and movement-radius markers clip to the allowed area, and drops outside it are refused -- including for the DM (the dmillegalmoves setting does not bypass it). Forced movement (pushes/slides) is exempt. The restriction applies to all tokens on this client until dmhub.ClearMovementRestriction is called or the game session ends. Calling again replaces the previous set.
 --- @param args {locs: Loc[]}
---- @return nil
 function dmhub.SetMovementRestriction(args)
 	-- dummy implementation for documentation purposes only
 end
@@ -1760,7 +1763,6 @@ end
 
 --- CopyTokensToClipboard: Copies a list of tokens to the clipboard together, replacing any previous clipboard contents. Paste them as a batch with PasteTokensFromClipboard.
 --- @param tokens CharacterToken[] The tokens to copy.
---- @return nil
 function dmhub.CopyTokensToClipboard(tokens)
 	-- dummy implementation for documentation purposes only
 end
@@ -2048,6 +2050,24 @@ end
 --- @param fn (fun(): nil)
 --- @vararg args any
 function dmhub.Coroutine(fn, args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ExecuteWithHostPermissions: Runs 'fn' with host permissions: for the duration of the call, dmhub.isDM reports this client's real hosting status even on a player host (dmhub.playerHostMode). Use it for automation that acts on behalf of the machine hosting the game -- the Monster AI moving monsters -- so that player rules enforcement (strict:movement and friends) does not bind it. Do NOT use it around UI or presentation code: it restores Director CAPABILITY, and Director chrome/vision on a player host is a bug. 'fn' must not yield; to elevate a whole coroutine, call dmhub.PushHostPermissions at the top of it instead.
+--- @param fn (fun(): nil)
+function dmhub.ExecuteWithHostPermissions(fn)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PushHostPermissions: Elevates the running coroutine to host permissions (see dmhub.ExecuteWithHostPermissions) until a matching dmhub.PopHostPermissions, or until the coroutine finishes -- whichever comes first. The elevation follows the coroutine: it is suspended while the coroutine is yielded and restored when it is resumed, so no other code ever observes it. Intended for use INSIDE a coroutine; for a synchronous block use dmhub.ExecuteWithHostPermissions instead.
+--- @return nil
+function dmhub.PushHostPermissions()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PopHostPermissions: Drops one level of the elevation started by dmhub.PushHostPermissions.
+--- @return nil
+function dmhub.PopHostPermissions()
 	-- dummy implementation for documentation purposes only
 end
 

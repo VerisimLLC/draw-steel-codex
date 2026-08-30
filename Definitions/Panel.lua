@@ -176,7 +176,7 @@ function Panel:MoveToNativeWindow(args)
 	-- dummy implementation for documentation purposes only
 end
 
---- RaiseNativeWindow: If this panel lives in a native popout window (see MoveToNativeWindow), raise that OS window -- or flash its taskbar button when the OS denies the focus steal. Returns false if the panel is not in a native window.
+--- RaiseNativeWindow: If this panel lives in a native popout window (see MoveToNativeWindow), bring that OS window to the top of the z-order WITHOUT activating it (no focus change -- a locate aid, not a focus steal). Returns false if the panel is not in a native window.
 --- @return boolean
 function Panel:RaiseNativeWindow()
 	-- dummy implementation for documentation purposes only

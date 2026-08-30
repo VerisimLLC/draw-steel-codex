@@ -1317,9 +1317,13 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                             end
                             --the icon rail accepts documents as shortcut
                             --buttons, alongside the existing folder
-                            --reparent/reorder targets.
+                            --reparent/reorder targets -- but only the rows
+                            --it can actually resolve (see
+                            --RailCanTakeDocument); refusing the target here
+                            --is what keeps a PDF fragment from showing a
+                            --drop preview it would then ignore.
                             if target:HasClass("iconRail") or target:HasClass("iconRailButton") then
-                                return true
+                                return RailCanTakeDocument(element.data.doc or member)
                             end
                             --accept the folder as its TreeNode root
                             --(documentFolder) OR its header ("folder" --
@@ -1331,9 +1335,15 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                 target:FindParentWithClass("documentFolder") ~= nil
                         end,
                         dragging = function(element, target)
-                            --live slot preview while hovering a rail.
+                            --live slot preview while hovering a rail. A row
+                            --the rail cannot take previews nothing: pass nil
+                            --so any ghost still standing is hidden.
                             if rawget(_G, "IconRailDocDragging") ~= nil then
-                                IconRailDocDragging(target)
+                                if RailCanTakeDocument(element.data.doc or member) then
+                                    IconRailDocDragging(target)
+                                else
+                                    IconRailDocDragging(nil)
+                                end
                             end
                         end,
                         drag = function(element, target)

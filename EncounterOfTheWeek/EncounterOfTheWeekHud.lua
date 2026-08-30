@@ -4,8 +4,10 @@ local mod = dmhub.GetModLoading()
 --the GameHud.RegisterCustomInterface core hook (DMHub Core UI/Hud.lua).
 --While active it removes the icon-rail button columns (the docks slide
 --away with them), removes the "Panels" title-bar menu, removes Compendium
---access (menus, toolbar, search), and mounts a hero roster on the left
---edge of the screen: one card per hero showing portrait, name, stamina,
+--access (menus, toolbar, search), and mounts a hero roster on the right
+--edge of the screen (shrinking itself to fit when a full seven-hero
+--roster is taller than the window): one card per hero showing portrait,
+--name, stamina,
 --recoveries, heroic resource, surges, and condition icons. The local
 --player's own heroes sit at the top, closer together, on a distinct
 --backing. Clicking a card pops out the full character panel, which the
@@ -115,68 +117,203 @@ end
 
 --- Hero cards ---------------------------------------------------------------
 
-local CARD_WIDTH = 204
-local PORTRAIT_WIDTH = 54
-local PORTRAIT_HEIGHT = 72
+local CARD_WIDTH = 132
+local CARD_HEIGHT = 176
+local OVERLAY_HEIGHT = 58
+--condition chips in the card's top-right corner: the outer dark/red-bordered
+--chip and the condition icon inside it.
+local CONDITION_CHIP_SIZE = 26
+local CONDITION_ICON_SIZE = 18
 
---The small portrait card: the character panel's portrait-frame recipe in
---miniature -- frame (portraitBackground) over a dark backing plate, with
---the portrait inset and cropped to the frame's aspect. bgcolor stays
---white on the body so the artwork keeps its natural colors.
-local function CreatePortraitPanel(charid)
-    return gui.Panel{
-        classes = {"eotwHeroPortrait"},
-        width = PORTRAIT_WIDTH,
-        height = PORTRAIT_HEIGHT,
-        halign = "left",
+--The stamina bar: the character panel's health bar in miniature -- a
+--theme-bordered track whose border and fill both track the
+--healthy/winded/dying state (success/warning/danger, the documented
+--stamina tiers), with a glossy vertical gradient on the fill, the
+--cur/max numbers centered in white, and a temp-stamina segment in the
+--accent color riding the end of the fill when the hero has any.
+local function CreateStaminaBar(charid)
+    local fill = gui.Panel{
+        classes = {"fillBarFill", "healthFill"},
+        width = "0%",
+        height = "100%-2",
         valign = "center",
-        bgimage = "panels/square.png",
-        bgcolor = "#050505",
-        cornerRadius = 6,
-
-        gui.Panel{
-            classes = {"eotwHeroPortraitBody"},
-            width = "100%-2",
-            height = "100%-2",
-            halign = "center",
-            valign = "center",
-            cornerRadius = 6,
-            bgcolor = "white",
-            interactable = false,
-            refreshCard = function(element)
-                local tok = dmhub.GetCharacterById(charid)
-                if tok == nil or not tok.valid then
-                    return
-                end
-                local portrait = nil
-                pcall(function() portrait = tok.offTokenPortrait end)
-                if portrait == nil then
-                    return
-                end
-                element.bgimage = portrait
-                local rect = nil
-                pcall(function() rect = tok:GetPortraitRectForAspect(PORTRAIT_WIDTH / PORTRAIT_HEIGHT, portrait) end)
-                element.selfStyle.imageRect = rect
-            end,
-        },
-
+        halign = "left",
+        lmargin = 1,
+        bgimage = true,
+        interactable = false,
+    }
+    local tempFill = gui.Panel{
+        classes = {"fillBarFill", "eotwTempFill"},
+        width = "0%",
+        height = "100%-2",
+        valign = "center",
+        halign = "left",
+        bgimage = true,
+        interactable = false,
+    }
+    local numbers = gui.Label{
+        classes = {"eotwBarLabel"},
+        floating = true,
+        halign = "center",
+        valign = "center",
+        text = "",
+        interactable = false,
+    }
+    return gui.Panel{
+        classes = {"bordered"},
+        width = "100%",
+        height = 14,
+        flow = "horizontal",
+        halign = "center",
+        cornerRadius = 2,
+        bgimage = true,
+        bgcolor = "#00000066",
+        interactable = false,
+        fill,
+        tempFill,
+        numbers,
         refreshCard = function(element)
             local tok = dmhub.GetCharacterById(charid)
-            if tok == nil or not tok.valid then
+            if tok == nil or not tok.valid or tok.properties == nil then
                 return
             end
-            local frame = nil
-            pcall(function() frame = tok.portraitBackground end)
-            if frame ~= nil and frame ~= "" then
-                element.bgimage = frame
-                element.selfStyle.bgcolor = "white"
+            local c = tok.properties
+            local cur, max, temp = 0, 0, 0
+            local winded, dying = false, false
+            pcall(function()
+                cur = c:CurrentHitpoints()
+                max = c:MaxHitpoints()
+                temp = c:TemporaryHitpoints() or 0
+                winded = cur <= c:BloodiedThreshold()
+                dying = c:IsDying()
+            end)
+            local pct = 0
+            if max > 0 then
+                pct = math.max(0, math.min(1, cur / max))
             end
+            local tempPct = 0
+            if max > 0 and temp > 0 then
+                tempPct = math.min(1 - pct, temp / max)
+            end
+            fill.selfStyle.width = string.format("%f%%", pct * 98)
+            tempFill.selfStyle.width = string.format("%f%%", tempPct * 98)
+            fill:SetClass("winded", winded)
+            fill:SetClass("dying", dying)
+            element:SetClass("borderSuccess", not winded and not dying)
+            element:SetClass("borderWarning", winded and not dying)
+            element:SetClass("borderDanger", dying)
+            local text = string.format("%d/%d", cur, max)
+            if temp > 0 then
+                text = string.format("%s +%d", text, temp)
+            end
+            numbers.text = text
+        end,
+    }
+end
+
+--Heroic resource, icon only: the class's heroic resource icon (the
+--character panel's own source) with the current value beside it. Surges
+--are NOT here -- they render as per-surge icons in the card's bottom-right
+--corner (CreateSurgeCorner).
+local function CreateResourceRow(charid)
+    local hrIcon = gui.Panel{
+        classes = {"eotwResIcon"},
+        interactable = false,
+        refreshCard = function(element)
+            local tok = dmhub.GetCharacterById(charid)
+            if tok == nil or not tok.valid or tok.properties == nil then
+                return
+            end
+            local icon = nil
+            pcall(function()
+                local classInfo = tok.properties:GetClass()
+                if classInfo ~= nil then
+                    icon = classInfo:try_get("heroicResourceIcon")
+                end
+            end)
+            element:SetClass("hidden", icon == nil)
+            if icon ~= nil then
+                element.selfStyle.bgimage = icon
+            end
+        end,
+        linger = function(element)
+            local tok = dmhub.GetCharacterById(charid)
+            if tok ~= nil and tok.valid and tok.properties ~= nil then
+                local name = nil
+                pcall(function() name = tok.properties:GetHeroicResourceName() end)
+                gui.Tooltip(name or "Heroic Resource")(element)
+            end
+        end,
+    }
+    local hrValue = gui.Label{
+        classes = {"eotwResValue"},
+        text = "0",
+        interactable = false,
+        refreshCard = function(element)
+            local tok = dmhub.GetCharacterById(charid)
+            if tok == nil or not tok.valid or tok.properties == nil then
+                return
+            end
+            local value = 0
+            pcall(function() value = tok.properties:GetHeroicOrMaliceResources() or 0 end)
+            element.text = tostring(value)
+        end,
+    }
+    return gui.Panel{
+        width = "100%",
+        height = 16,
+        flow = "horizontal",
+        halign = "left",
+        valign = "center",
+        hrIcon,
+        hrValue,
+    }
+end
+
+--One surge icon PER available surge, in the card's bottom-right corner --
+--and nothing at all when the hero has none. Rebuilt only when the count
+--changes; display capped at 9 icons (they would outgrow the card).
+local function CreateSurgeCorner(charid)
+    return gui.Panel{
+        floating = true,
+        halign = "right",
+        valign = "bottom",
+        x = -4,
+        y = -3,
+        width = "auto",
+        height = 13,
+        flow = "horizontal",
+        interactable = false,
+        data = { count = nil },
+        refreshCard = function(element)
+            local tok = dmhub.GetCharacterById(charid)
+            if tok == nil or not tok.valid or tok.properties == nil then
+                return
+            end
+            local surges = 0
+            pcall(function() surges = tok.properties:GetAvailableSurges() or 0 end)
+            if surges == element.data.count then
+                return
+            end
+            element.data.count = surges
+            local icons = {}
+            for i = 1, math.min(surges, 9) do
+                icons[#icons+1] = gui.Panel{
+                    classes = {"eotwSurgeIcon"},
+                    interactable = false,
+                }
+            end
+            element.children = icons
         end,
     }
 end
 
 local function CreateHeroCard(entry)
     local charid = entry.charid
+    local mineClass = nil
+    if entry.mine then
+        mineClass = "mine"
+    end
 
     local nameLabel = gui.Label{
         classes = {"eotwHeroName"},
@@ -184,25 +321,20 @@ local function CreateHeroCard(entry)
         interactable = false,
     }
 
-    local statLine1 = gui.Label{
-        classes = {"eotwHeroStat"},
-        text = "",
-        interactable = false,
-    }
-
-    local statLine2 = gui.Label{
-        classes = {"eotwHeroStat"},
-        text = "",
-        interactable = false,
-    }
-
-    --condition icons; rebuilt only when the set actually changes.
+    --condition icons over the artwork, packed into the TOP-RIGHT corner
+    --(user direction 2026-08-29 -- they used to center across the top);
+    --rebuilt only when the set actually changes. Each icon sits on a dark
+    --red-bordered chip so it reads against any portrait.
     local conditionsRow = gui.Panel{
-        width = "100%",
+        floating = true,
+        halign = "right",
+        valign = "top",
+        x = -4,
+        y = 4,
+        width = CARD_WIDTH - 8,
         height = "auto",
         flow = "horizontal",
         wrap = true,
-        halign = "left",
         interactable = false,
         data = { signature = nil },
         refreshCard = function(element)
@@ -223,34 +355,72 @@ local function CreateHeroCard(entry)
             local icons = {}
             for _, cond in ipairs(entries) do
                 local condName = cond.name
+                --halign right on every chip is what right-packs the row:
+                --the flow layout places the trailing run of halign="right"
+                --children against the right edge, in order.
                 icons[#icons+1] = gui.Panel{
-                    width = 14,
-                    height = 14,
-                    rmargin = 2,
-                    bgimage = cond.icon,
-                    bgcolor = cond.display.bgcolor or "white",
-                    hueshift = cond.display.hueshift or 0,
-                    saturation = cond.display.saturation or 1,
-                    brightness = cond.display.brightness or 1,
+                    halign = "right",
+                    width = CONDITION_CHIP_SIZE,
+                    height = CONDITION_CHIP_SIZE,
+                    lmargin = 3,
+                    bmargin = 3,
+                    bgimage = "panels/square.png",
+                    bgcolor = "#000000cc",
+                    cornerRadius = 6,
+                    border = 2,
+                    borderColor = "#cc2222ff",
                     linger = function(iconElement)
                         gui.Tooltip(condName)(iconElement)
                     end,
+                    gui.Panel{
+                        width = CONDITION_ICON_SIZE,
+                        height = CONDITION_ICON_SIZE,
+                        halign = "center",
+                        valign = "center",
+                        bgimage = cond.icon,
+                        bgcolor = cond.display.bgcolor or "white",
+                        hueshift = cond.display.hueshift or 0,
+                        saturation = cond.display.saturation or 1,
+                        brightness = cond.display.brightness or 1,
+                        interactable = false,
+                    },
                 }
             end
             element.children = icons
         end,
     }
 
-    return gui.Panel{
-        classes = {"eotwHeroCard", cond(entry.mine, "mine", nil)},
-        width = CARD_WIDTH,
-        height = "auto",
-        flow = "horizontal",
-        pad = 6,
-        borderBox = true,
-        halign = "left",
+    --the bottom-third overlay: name, stamina bar, resource icons on a
+    --semi-opaque plate over the artwork.
+    local overlay = gui.Panel{
+        classes = {"eotwCardOverlay", mineClass},
+        floating = true,
+        halign = "center",
+        valign = "bottom",
+        width = "100%",
+        height = OVERLAY_HEIGHT,
+        flow = "vertical",
         bgimage = "panels/square.png",
-        blurBackground = true,
+        cornerRadius = 8,
+        hpad = 6,
+        vpad = 4,
+        borderBox = true,
+        interactable = false,
+
+        nameLabel,
+        CreateStaminaBar(charid),
+        CreateResourceRow(charid),
+    }
+
+    --the card IS the portrait: full-bleed artwork with the overlay and
+    --condition chips floating on top.
+    return gui.Panel{
+        classes = {"eotwHeroCard", mineClass},
+        width = CARD_WIDTH,
+        height = CARD_HEIGHT,
+        halign = "right",
+        cornerRadius = 8,
+        bgimage = "panels/square.png",
         swallowPress = true,
 
         data = { charid = charid, mine = entry.mine },
@@ -259,78 +429,119 @@ local function CreateHeroCard(entry)
             audio.FireSoundEvent("Mouse.Click")
             local toggle = rawget(_G, "ToggleCharacterPanelDocument")
             if toggle ~= nil then
-                toggle(charid)
+                --anchored to this card: the window opens right beside it
+                --instead of at the remembered/center position.
+                toggle(charid, nil, element)
             end
         end,
-
-        hover = function(element)
-            local tok = dmhub.GetCharacterById(charid)
-            if tok ~= nil and tok.valid then
-                gui.Tooltip(string.format("%s: view character panel", tok.name or "Hero"))(element)
-            end
-        end,
-
-        CreatePortraitPanel(charid),
-
-        gui.Panel{
-            width = string.format("%d", CARD_WIDTH - PORTRAIT_WIDTH - 20),
-            height = "auto",
-            flow = "vertical",
-            lmargin = 6,
-            halign = "left",
-            valign = "center",
-            interactable = false,
-
-            nameLabel,
-            statLine1,
-            statLine2,
-            conditionsRow,
-        },
 
         refreshCard = function(element)
             local tok = dmhub.GetCharacterById(charid)
-            if tok == nil or not tok.valid or tok.properties == nil then
+            if tok == nil or not tok.valid then
                 return
             end
-            local c = tok.properties
             nameLabel.text = tok.name or ""
-
-            local cur, max, temp = 0, 0, 0
-            pcall(function()
-                cur = c:CurrentHitpoints()
-                max = c:MaxHitpoints()
-                temp = c:TemporaryHitpoints() or 0
-            end)
-            local recoveries, maxRecoveries = 0, 0
-            pcall(function()
-                local recoveryid = CharacterResource.recoveryResourceId
-                maxRecoveries = c:GetResources()[recoveryid] or 0
-                recoveries = maxRecoveries - (c:GetResourceUsage(recoveryid, "long") or 0)
-            end)
-            local stamina = string.format("Stamina %d/%d", cur, max)
-            if temp > 0 then
-                stamina = string.format("%s +%d", stamina, temp)
+            local portrait = nil
+            pcall(function() portrait = tok.offTokenPortrait end)
+            if portrait ~= nil and portrait ~= "" then
+                --bgcolor white keeps the artwork untinted; the card's
+                --border and the overlay carry the mine/others styling.
+                element.bgimage = portrait
+                element.selfStyle.bgcolor = "white"
+                local rect = nil
+                pcall(function() rect = tok:GetPortraitRectForAspect(CARD_WIDTH / CARD_HEIGHT, portrait) end)
+                element.selfStyle.imageRect = rect
             end
-            statLine1.text = string.format("%s  Rec %d/%d", stamina, recoveries, maxRecoveries)
-
-            local hrName = "Resource"
-            local hrValue = 0
-            local surges = 0
-            pcall(function() hrName = c:GetHeroicResourceName() or "Resource" end)
-            pcall(function() hrValue = c:GetHeroicOrMaliceResources() or 0 end)
-            pcall(function() surges = c:GetAvailableSurges() or 0 end)
-            statLine2.text = string.format("%s %d  Surges %d", hrName, hrValue, surges)
         end,
+
+        conditionsRow,
+        overlay,
+        CreateSurgeCorner(charid),
     }
 end
 
 --- The roster panel ---------------------------------------------------------
 
+--The vertical space the column has to live in, in the rail wrapper's own
+--(pre-Font-Size-zoom) units. The wrapper is anchored under the title bar
+--at the rail's top inset and renders at the rail-mode Font Size zoom, so
+--the budget is the layer height less that inset and a bottom breathing
+--gap, divided back out of the zoom.
+--
+--Layer height is measured the way the rail measures it (the documents
+--layer is ~1048 units tall, not 1080 -- see IconRailUIHeight in
+--DocumentSystem). The inset mirrors IconRailTop() there; the constants
+--are duplicated rather than shared because both are file locals.
+local ROSTER_BOTTOM_GAP = 12
+--the smallest the column will shrink to before it just overflows: past
+--this the cards are unreadable and clipping is the better failure.
+local ROSTER_MIN_SCALE = 0.4
+
+local function RosterHeightBudget()
+    local layerHeight = 1048
+    pcall(function()
+        local h = GameHud.instance.documentsPanel.renderedHeight
+        if type(h) == "number" and h > 100 then
+            layerHeight = h
+        end
+    end)
+
+    local zoom = 1
+    pcall(function()
+        zoom = PanelDocument.WindowUIScale() or 1
+    end)
+    if type(zoom) ~= "number" or zoom <= 0 then
+        zoom = 1
+    end
+
+    --IconRailTop(): max(64, (ICON_RAIL_BUTTON + RAIL_STOP_GAP) * zoom + RAIL_STOP_GAP)
+    local topInset = (40 + 12) * zoom + 12
+    if topInset < 64 then
+        topInset = 64
+    end
+
+    local budget = (layerHeight - topInset - ROSTER_BOTTOM_GAP) / zoom
+    if budget < 100 then
+        budget = 100
+    end
+    return budget
+end
+
 --Built fresh by the custom-interface rail host each time the rails build.
 --Rebuilds its cards when party membership changes; individual card stats
 --refresh on a 1s think plus the /characters monitor for prompt updates.
+--With a full seven-hero roster the column is taller than the screen, so
+--it shrinks itself to fit (see FitToScreen).
 local function CreateHeroRosterPanel()
     local m_signature = nil
+    --the column's unscaled height, accumulated as the cards are built.
+    local m_contentHeight = 0
+    local m_appliedScale = nil
+    local m_fittedWhenAttached = false
+
+    --Shrink the whole column, anchored to its top-RIGHT corner (the side
+    --it hangs from), until it fits the screen. uiscale is a render-time
+    --zoom around the pivot -- the same recipe the rail roots use for the
+    --Font Size zoom -- so the layout inside the cards is untouched.
+    --NOTE: selfStyle.uiscale is write-only; never read it back.
+    local function FitToScreen(element)
+        local scale = 1
+        if m_contentHeight > 0 then
+            local budget = RosterHeightBudget()
+            if m_contentHeight > budget then
+                scale = budget / m_contentHeight
+                if scale < ROSTER_MIN_SCALE then
+                    scale = ROSTER_MIN_SCALE
+                end
+            end
+        end
+        if scale == m_appliedScale then
+            return
+        end
+        m_appliedScale = scale
+        element.selfStyle.pivot = {x = 1, y = 1}
+        element.selfStyle.uiscale = scale
+    end
 
     local function Refresh(element)
         local heroes = CollectHeroes()
@@ -339,10 +550,12 @@ local function CreateHeroRosterPanel()
             m_signature = sig
             local cards = {}
             local seenOther = false
+            local height = 0
             for _, entry in ipairs(heroes) do
                 local card = CreateHeroCard(entry)
                 if entry.mine then
                     card.selfStyle.vmargin = 2
+                    height = height + CARD_HEIGHT + 4
                 else
                     --a wider gap separates the local player's group from
                     --everyone else's heroes.
@@ -350,14 +563,21 @@ local function CreateHeroRosterPanel()
                         card.selfStyle.tmargin = 16
                         card.selfStyle.bmargin = 3
                         seenOther = true
+                        height = height + CARD_HEIGHT + 19
                     else
                         card.selfStyle.vmargin = 3
+                        height = height + CARD_HEIGHT + 6
                     end
                 end
                 cards[#cards+1] = card
             end
+            m_contentHeight = height
             element.children = cards
         end
+        --cheap enough to re-check every tick: the budget also moves when
+        --the window is resized or the Font Size zoom changes, neither of
+        --which touches the roster signature.
+        FitToScreen(element)
         element:FireEventTree("refreshCard")
     end
 
@@ -366,52 +586,149 @@ local function CreateHeroRosterPanel()
         width = "auto",
         height = "auto",
         flow = "vertical",
-        halign = "left",
+        halign = "right",
         valign = "top",
 
-        styles = {
+        styles = ThemeEngine.MergeTokens{
             {
                 selectors = {"eotwHeroCard"},
-                bgcolor = "#000000cc",
-                cornerRadius = 8,
+                bgcolor = "#151515",
+                border = 1,
+                borderColor = "#000000cc",
                 transitionTime = 0.15,
             },
             {
                 selectors = {"eotwHeroCard", "hover"},
-                bgcolor = "#000000ee",
+                brightness = 1.15,
+                borderColor = "#ffffff88",
             },
             {
                 selectors = {"eotwHeroCard", "mine"},
-                bgcolor = "#0d1e31d8",
-                border = 1,
-                borderColor = "#6fa8ff66",
+                border = 2,
+                borderColor = "#6fa8ffcc",
             },
             {
                 selectors = {"eotwHeroCard", "mine", "hover"},
-                bgcolor = "#14293fee",
-                borderColor = "#6fa8ffaa",
+                borderColor = "#9cc4ffff",
+            },
+            {
+                selectors = {"eotwCardOverlay"},
+                bgcolor = "#000000c0",
+            },
+            {
+                selectors = {"eotwCardOverlay", "mine"},
+                bgcolor = "#0d1e31d0",
             },
             {
                 selectors = {"eotwHeroName"},
-                fontSize = 13,
+                fontSize = 12,
                 bold = true,
                 color = "#ffffff",
                 width = "100%",
-                height = "auto",
+                height = 15,
                 textAlignment = "left",
+                textWrap = false,
+                bmargin = 3,
             },
             {
-                selectors = {"eotwHeroStat"},
-                fontSize = 11,
-                color = "#ccccccff",
-                width = "100%",
+                selectors = {"eotwResIcon"},
+                width = 14,
+                height = 14,
+                halign = "left",
+                valign = "center",
+                bgcolor = "white",
+            },
+            {
+                selectors = {"eotwResValue"},
+                fontSize = 12,
+                bold = true,
+                color = "#ffffff",
+                width = "auto",
                 height = "auto",
-                textAlignment = "left",
+                --both the icon and the value align left so the flow packs
+                --them together instead of spreading them across the row.
+                halign = "left",
+                valign = "center",
+                lmargin = 3,
+            },
+            --the health bar's state tints, copied from the character
+            --panel's HealthFill styles: success/warning/danger are the
+            --documented theme tiers for stamina. The gradient overrides
+            --the global fillBarFill's flat horizontal shade with a glossy
+            --vertical one; grayscale stops so the bgcolor tint carries
+            --the state color.
+            {
+                selectors = {"fillBarFill", "healthFill"},
+                bgcolor = "@success",
+                gradient = gui.Gradient{
+                    point_a = {x = 0, y = 0},
+                    point_b = {x = 0, y = 1},
+                    stops = {
+                        { position = 0, color = "#5A5A5A" },
+                        { position = 0.45, color = "#8E8E8E" },
+                        { position = 0.55, color = "#B4B4B4" },
+                        { position = 1, color = "#E4E4E4" },
+                    },
+                },
+            },
+            {
+                selectors = {"healthFill", "winded"},
+                transitionTime = 0.4,
+                bgcolor = "@warning",
+            },
+            {
+                selectors = {"healthFill", "dying"},
+                transitionTime = 0.4,
+                bgcolor = "@danger",
+            },
+            {
+                selectors = {"fillBarFill", "eotwTempFill"},
+                bgcolor = "@accent",
+                gradient = gui.Gradient{
+                    point_a = {x = 0, y = 0},
+                    point_b = {x = 0, y = 1},
+                    stops = {
+                        { position = 0, color = "#6A6A6A" },
+                        { position = 1, color = "#E4E4E4" },
+                    },
+                },
+            },
+            {
+                selectors = {"eotwBarLabel"},
+                fontSize = 10,
+                bold = true,
+                color = "#ffffff",
+                width = "100%",
+                height = "100%",
+                textAlignment = "center",
+                textWrap = false,
+            },
+            {
+                selectors = {"eotwSurgeIcon"},
+                width = 12,
+                height = 12,
+                valign = "center",
+                lmargin = 1,
+                bgimage = "game-icons/surge.png",
+                bgcolor = "white",
             },
         },
 
         create = function(element)
             Refresh(element)
+        end,
+
+        --the rail wrapper's own 0.5s cadence. Its first tick is the first
+        --moment the column is certainly attached to the documents layer,
+        --which is when a pivot write actually sticks (the same reason the
+        --rail roots fire setRailScale after AddChild), so the fit is
+        --forced once more there.
+        refreshRail = function(element)
+            if not m_fittedWhenAttached then
+                m_fittedWhenAttached = true
+                m_appliedScale = nil
+            end
+            FitToScreen(element)
         end,
 
         --any character change (stamina, conditions, new heroes) lands
@@ -601,8 +918,10 @@ pcall(function()
 
         suppressRails = true,
 
+        --the roster hangs off the RIGHT edge; the kept rail buttons stay
+        --in the bottom-LEFT corner where the real rail's are.
         railPanel = function(side)
-            if side == "left" then
+            if side == "right" then
                 return CreateHeroRosterPanel()
             end
             return nil

@@ -8286,7 +8286,10 @@ local OpenPanelPopout
 --RefreshRails are in scope to capture.
 --anchorToken (optional): open the window beside that token rather than
 --at its default/remembered position.
-function ToggleCharacterPanelDocument(charid, anchorToken)
+--anchorPanel (optional): open the window beside that UI PANEL instead
+--(see PanelDocument.PanelWindowPlacement) -- used by custom-interface
+--widgets like the EotW hero roster. anchorToken wins when both are given.
+function ToggleCharacterPanelDocument(charid, anchorToken, anchorPanel)
     local doc = CharacterPanelDocument.Get(charid)
     if doc == nil then
         return
@@ -8324,7 +8327,7 @@ function ToggleCharacterPanelDocument(charid, anchorToken)
     end
 
     local presentArgs = {}
-    if anchorToken ~= nil then
+    if anchorToken ~= nil or anchorPanel ~= nil then
         --mirror PresentPanel/PresentDocument's size resolution so the
         --placement math uses the size the window will actually open at:
         --the defaults, unless a drag/resize this session is remembered
@@ -8340,7 +8343,13 @@ function ToggleCharacterPanelDocument(charid, anchorToken)
         --(WindowUIScale), so the placement must dodge/fit the SCALED
         --footprint, not the declared geometry.
         local scale = WindowUIScale()
-        local placement = TokenWindowPlacement(anchorToken, width * scale, height * scale)
+        local placement = nil
+        if anchorToken ~= nil then
+            placement = TokenWindowPlacement(anchorToken, width * scale, height * scale)
+        end
+        if placement == nil and anchorPanel ~= nil then
+            placement = PanelDocument.PanelWindowPlacement(anchorPanel, width * scale, height * scale)
+        end
         if placement ~= nil then
             presentArgs.x = placement.x
             presentArgs.y = placement.y
@@ -8589,6 +8598,82 @@ local function DocumentsLayer()
         return nil
     end
     return panel
+end
+
+--Where a window anchored to an arbitrary UI panel lands: beside that
+--panel, level with its top, clamped on screen -- the UI-panel sibling of
+--TokenWindowPlacement (which anchors to a map token). width/height are
+--the SCALED window footprint, exactly as TokenWindowPlacement takes them.
+--First client: custom-interface rail widgets (the EotW hero roster) whose
+--cards open character windows; the anchor panel is assumed to render at
+--the rail-mode Font Size zoom (WindowUIScale) when deriving its on-screen
+--extent, which holds for anything mounted on the rail wrappers.
+--
+--UNITS: positionInScreenSpace is NOT in screen pixels despite the name --
+--it reads back in the LAYER's own units, the same space renderedWidth and
+--PresentDocument's args.x/y use, with the origin at the layer's
+--bottom-left and y UP. Verified live 2026-08-29 on a 1630x930 screen: the
+--documents layer reports position (946.45, 524) against a rendered size of
+--1892.9x1048 -- exactly half its own extent, which only holds in layer
+--units. The first cut of this function divided by screenDimensions.x/uiW
+--and so placed windows correctly only on a display whose pixel width
+--happened to equal the layer's unit width; everywhere else the anchor read
+--far off to the right and the window landed on top of it.
+--
+--It is also the PIVOT's position, not the centre: the rail wrappers and
+--the roster set pivot {1,1} so they read back their top-right corner.
+--Anchor panels are expected to keep the default centred pivot (the hero
+--CARDS do); anything with a moved pivot must not be passed here.
+PanelDocument.PanelWindowPlacement = function(panel, width, height)
+    if panel == nil or not panel.valid then
+        return nil
+    end
+    local layer = DocumentsLayer()
+    if layer == nil then
+        return nil
+    end
+    local uiW = IconRailUIWidth()
+    local uiH = IconRailUIHeight()
+    if uiW <= 0 or uiH <= 0 then
+        return nil
+    end
+
+    local layerLeft = layer.positionInScreenSpace.x - layer.renderedWidth / 2
+    local layerTop = layer.positionInScreenSpace.y + layer.renderedHeight / 2
+    local centerX = panel.positionInScreenSpace.x - layerLeft
+    local centerY = layerTop - panel.positionInScreenSpace.y
+
+    local scale = WindowUIScale()
+    local halfW = panel.renderedWidth * scale / 2
+    local halfH = panel.renderedHeight * scale / 2
+    local gap = 10
+    local margin = 8
+
+    --beside the panel, on whichever side has more room first -- the same
+    --preference TokenWindowPlacement uses. An anchor hanging off the right
+    --edge (the roster) therefore opens cleanly to its LEFT rather than
+    --being clamped back over the top of it.
+    local candidates = {
+        centerX + halfW + gap,
+        centerX - halfW - gap - width,
+    }
+    if centerX >= uiW / 2 then
+        candidates[1], candidates[2] = candidates[2], candidates[1]
+    end
+    local x = nil
+    for _, c in ipairs(candidates) do
+        if c >= margin and c + width <= uiW - margin then
+            x = c
+            break
+        end
+    end
+    if x == nil then
+        --the anchor effectively fills the screen; covering it is
+        --unavoidable, so clamp the preferred side on screen.
+        x = math.max(margin, math.min(candidates[1], uiW - width - margin))
+    end
+    local y = math.max(margin, math.min(centerY - halfH, uiH - height - margin))
+    return { x = x, y = y }
 end
 
 --the drag ghost panels and their helpers live below IconRailStyles,
@@ -10914,6 +10999,36 @@ function RailWindowsRightIntrusion(maxDepth, hostReserve)
         result = slideLimit
     elseif result < 0 then
         result = 0
+    end
+    return result
+end
+
+--How far in from the RIGHT screen edge the right-hand rail reaches, in
+--layer units, or 0 when there is no right rail. Normally that is just the
+--40-unit button column, but a custom-interface takeover mounts an
+--arbitrary widget in the wrapper's place (the EotW hero roster is a stack
+--of 132-unit cards), and the right-edge hosts -- the ability sidebar and
+--the standalone roll host -- have to clear whatever is actually there or
+--they render on top of it. Both the top and the bottom-corner wrappers
+--count: the hosts are full-height.
+--renderedWidth is the pre-zoom layout width and the wrapper renders at the
+--rail-mode Font Size zoom (setRailScale), so it is scaled by that here. A
+--widget that shrinks itself FURTHER (the roster's fit-to-screen uiscale)
+--is not visible from out here, which makes this an upper bound -- the safe
+--direction for a keep-clear reserve.
+function RailRightColumnWidth()
+    local result = 0
+    for _, key in ipairs({"right", "rightbottom"}) do
+        local rail = g_iconRails[key]
+        if rail ~= nil and rail.valid then
+            local w = rail.renderedWidth
+            if type(w) == "number" and w > 0 then
+                local depth = ICON_RAIL_LEFT + w * WindowUIScale()
+                if depth > result then
+                    result = depth
+                end
+            end
+        end
     end
     return result
 end

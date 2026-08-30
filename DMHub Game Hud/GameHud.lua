@@ -1579,9 +1579,22 @@ end
 local RIGHT_HOST_LEGACY_MARGIN = 364
 --rail column: 12 edge margin + 40 button + a small gap.
 local RIGHT_HOST_RAIL_MARGIN = 60
+--breathing room between the host and whatever the rail column ends in.
+local RIGHT_HOST_RAIL_GAP = 8
 local function RightHostMargin(hostWidth)
     if rawget(_G, "RailModeActive") == nil or not RailModeActive() then
         return RIGHT_HOST_LEGACY_MARGIN
+    end
+    --the rail column itself. RIGHT_HOST_RAIL_MARGIN covers the ordinary
+    --button strip, but a custom-interface takeover can mount a far wider
+    --widget there -- the EotW hero roster is a stack of 132-unit cards --
+    --and the host has to clear it rather than render over the top of it.
+    local column = RIGHT_HOST_RAIL_MARGIN
+    if rawget(_G, "RailRightColumnWidth") ~= nil then
+        local w = RailRightColumnWidth()
+        if type(w) == "number" and w + RIGHT_HOST_RAIL_GAP > column then
+            column = w + RIGHT_HOST_RAIL_GAP
+        end
     end
     local intrusion = 0
     if rawget(_G, "RailWindowsRightIntrusion") ~= nil then
@@ -1590,7 +1603,7 @@ local function RightHostMargin(hostWidth)
         intrusion = RailWindowsRightIntrusion(RIGHT_HOST_LEGACY_MARGIN,
             hostWidth + RIGHT_HOST_RAIL_MARGIN)
     end
-    return math.max(RIGHT_HOST_RAIL_MARGIN, intrusion)
+    return math.max(column, intrusion)
 end
 
 --Keep a right-side host's margin tracking RightHostMargin(). Polled:

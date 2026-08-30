@@ -575,6 +575,31 @@ local function AnyClientAbilityBusy()
     return false
 end
 
+--Player-host mode is NOT switched on from here. EotW games are created
+--directorless (GameInfo.directorless, via lobby:CreateGame{directorless=true}),
+--so the engine already has the host in player-host mode when the game loads --
+--player vision, player UI, strict rules -- on every entry path, with no
+--in-session switch and so no reload. All this driver does is keep the
+--"/toggle eotw:showdirectorui" debug hatch in sync, which deliberately DOES
+--refresh: it is a debugging action.
+--
+--Engine builds without the flag ignore it at creation and report
+--playerHostModeSuppressed as nil; there the Director-UI filter above remains
+--the (weaker) fallback presentation.
+local function UpdateDirectorUIHatch()
+    if dmhub.playerHostModeSuppressed == nil then
+        return
+    end
+    if not EncounterOfTheWeekGame.IsEotwGame() then
+        return
+    end
+    local suppress = dmhub.GetSettingValue("eotw:showdirectorui") == true
+    if dmhub.playerHostModeSuppressed ~= suppress then
+        printf("EncounterOfTheWeek: Director UI hatch %s", tostring(suppress))
+        dmhub.playerHostModeSuppressed = suppress
+    end
+end
+
 --The per-client driver: a cheap 1s poll self-heals across Lua reloads, the
 --late IsEotwGame flip (the host stamps the doc during setup), and map loads.
 dmhub.Coroutine(function()
@@ -584,6 +609,7 @@ dmhub.Coroutine(function()
             ClearStartZoneConfinement()
             return
         end
+        pcall(UpdateDirectorUIHatch)
         pcall(UpdateStartZoneConfinement)
         pcall(UpdateBusyMirror)
         pcall(UpdateEncounterConclusion)
@@ -601,7 +627,10 @@ pcall(function()
             return EncounterOfTheWeekGame.IsEotwGame()
         end,
         proceed = function(defaultProceed)
-            if not EncounterOfTheWeekGame.IsEotwGame() or dmhub.isDM then
+            --the HOST (a player host: real hosting status, presented as a
+            --player) falls through to the default teardown -- battle log,
+            --role history and analytics must run on the host machine.
+            if not EncounterOfTheWeekGame.IsEotwGame() or IsDMOrPlayerHost() then
                 return false
             end
             local doc = mod:GetDocumentSnapshot(STATE_DOC_ID)
@@ -621,7 +650,10 @@ end)
 --(parentFolder chain rooted at the map id), so a rules doc that happens to
 --embed an encounter can never be picked up.
 local function FindMapEncounter()
-    local entries = Encounter.GetEncountersOnCurrentMap()
+    --hostAccess: EotW games are directorless, so the host's dmhub.isDM is false
+    --and the map's journal folder is not in their viewing roots -- without this
+    --the encounter is invisible to the very client that has to spawn it.
+    local entries = Encounter.GetEncountersOnCurrentMap(true)
     local mapid = game.currentMapId
     local docsTable = dmhub.GetTable("documents") or {}
     for _,entry in ipairs(entries) do
@@ -1126,16 +1158,19 @@ end
 
 --EotW games strictly enforce all game rules: every "Strict..." Rules
 --Enforcement option, plus the engine's "Strictly Enforce Movement Rules".
---All of these gate on (not dmhub.isDM), so the host -- who keeps DM status
---internally -- and the Monster AI it runs are unaffected. Game-scoped
---settings are only editable from the dmonly Game settings tab, so players
---cannot flip them off; the host tick re-asserts them in case the host does.
+--All of these gate on (not dmhub.isDM) -- which, under player-host mode,
+--reads false on the HOST too, so the rules bind every human in the game.
+--The Monster AI is unaffected: its capability paths read IsDMOrPlayerHost.
+--Game-scoped settings are only editable from the dmonly Game settings tab,
+--so nobody in a player-host game can flip them off; the host tick
+--re-asserts them regardless.
 local g_strictRuleSettings = {
     "strictmovementrules", --Strictly Enforce Movement Rules (engine)
     "strict:movement",     --Strictly Enforce Forced Movement Rules
     "strict:targeting",    --Strictly Enforce Targeting Rules
     "strict:resources",    --Strictly Enforce Action Economy and Resource Costs
     "strict:inventory",    --Strict Inventory Management
+    "strict:rolls",        --Strictly Enforce Rolls
 }
 
 --Force every strict-rules setting on, writing only the ones not already
@@ -1255,14 +1290,18 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
             return
         end
 
-        --the host is the game's owner and keeps DM status internally, so
-        --isDM identifies exactly one client to run game-wide setup. (It is
-        --the REAL flag: EotW only hides Director presentation, via
-        --GameHud.DirectorUIVisible.)
-        if dmhub.isDM then
+        --the host is the game's owner and keeps real hosting status
+        --(IsDMOrPlayerHost -- true even in player-host mode, when dmhub.isDM
+        --reads false), so it identifies exactly one client to run game-wide
+        --setup.
+        if IsDMOrPlayerHost() then
             --stamp the game and record who the encounter waits for, BEFORE
             --any hero placement, so every later joiner sees an EotW game.
             RecordExpectedUsers(args.members)
+
+            --NOTE: nothing here switches on player-host mode. The game was
+            --created directorless, so the engine already had it on before this
+            --client finished loading.
         end
 
         PlaceMyHeroes(args.heroes, args.clipboardIds)
@@ -1272,7 +1311,7 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
         --map script's combat entry never fires on a half-placed party.
         RecordArrival()
 
-        if dmhub.isDM then
+        if IsDMOrPlayerHost() then
             local numHeroes = tonumber(args.numHeroes) or 0
             if numHeroes <= 0 then
                 --no slot count supplied (resuming an in-progress game with

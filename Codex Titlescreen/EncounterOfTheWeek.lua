@@ -107,12 +107,28 @@ local GAME_BACKEND = "durableobjects-staging"
 --Delian Tomb adventure uses; update alongside the weekly encounter.
 local LOADING_SCREEN_ART = "panels/backgrounds/delian-tomb-bg.png"
 
+--How long to let the loading screen dissolve in before this screen ducks
+--out from under it. The titlescreen's loading screen fades in over 0.3s
+--(the "loadingScreen"/"create" style pair in CodexTitlescreen.lua); hiding
+--any sooner makes the player watch this screen blink out and the loading
+--art transition in over the bare titlescreen instead.
+local LOADING_SCREEN_FADE_IN_SECONDS = 0.35
+
 --Hero card geometry (3:4 portrait aspect, matching the character panel's
 --portrait frame) and the entrance-animation timing for new heroes.
 local HERO_CARD_WIDTH = 176
 local HERO_CARD_HEIGHT = 235
 local HERO_CARD_ASPECT = HERO_CARD_WIDTH / HERO_CARD_HEIGHT
 local HERO_CARD_GROW_TIME = 0.3
+
+--Portrait warm-up cadence (see the warm-up section below). The eligible
+--set grows asynchronously -- the pregen snapshot lands after the screen
+--opens, and its art has to be re-registered after returning from a game --
+--so the warmer re-scans a few times rather than assuming one pass sees
+--everything. It stops early once the pregen cache has landed and a pass
+--finds nothing new.
+local PORTRAIT_WARM_RESCAN_SECONDS = 2
+local PORTRAIT_WARM_PASSES = 8
 
 --── pregen hero cache ────────────────────────────────────────────────
 --The codex-encounteroftheweek module ships premade heroes as module
@@ -320,6 +336,133 @@ function EncounterOfTheWeek.GetPregenToken(id)
     return m_pregenTokens[id]
 end
 
+--== portrait warm-up ==================================================
+--The Add-a-Hero picker's cards carry streamed portrait art, so a grid
+--built cold paints in halves: some cards drawn, a hitch while the rest
+--decode, then the remainder popping in. Nothing in the engine preloads an
+--image on request -- a texture streams because a live panel references it
+--(ImageDownloader.SetImageByIdentifier, see Assets/IMAGE_MANAGEMENT.md) --
+--so opening the EotW screen mounts a warmer instead: one 1x1 panel per
+--eligible portrait, stacked invisibly in the screen's top-left corner,
+--whose only job is to make the engine fetch the texture. By the time the
+--player reaches the picker the images are resident and the grid paints in
+--one pass. Nothing blocks on this: a portrait that has not arrived yet
+--just behaves as it does today.
+--
+--Eligible = the heroes the picker can actually offer: this machine's
+--titlescreen heroes and the module's pregens. Other players' heroes are
+--skipped deliberately -- their portraits are per-game cloud assets that do
+--not resolve here at all, which is why those cards show a silhouette.
+--
+--Image ids resolve by id alone; panel size selects no mip and no
+--thumbnail, so a 1x1 panel warms exactly the texture the full-size card
+--will later use.
+
+--Every image id the picker could need, deduped. Reads are pcall'd because
+--lobby tokens and detached snapshot tokens vary in shape, and ids are not
+--always strings (userdata portraits resolve through their own pipeline),
+--so the dedupe key is the id itself rather than a string.
+local function EligiblePortraitImageIds()
+    local seen = {}
+    local result = {}
+
+    local Add = function(id)
+        if id == nil or id == "" or seen[id] ~= nil then
+            return
+        end
+        --An unregistered cloud GUID cannot stream at all; skip it rather
+        --than queue a fetch that never resolves. Left unmarked, so a later
+        --pass picks it up once the module's art registers.
+        if IsUnresolvableAssetId(id) then
+            return
+        end
+        seen[id] = true
+        result[#result+1] = id
+    end
+
+    local AddToken = function(tok)
+        if tok == nil then
+            return
+        end
+        pcall(function()
+            local p = tok.offTokenPortrait
+            --spine portraits are skeletons loaded through addressables,
+            --not streamed textures; instantiating one offscreen would cost
+            --more than it saves.
+            if p ~= nil and not p.hasSpineAnimation then
+                Add(p)
+            end
+        end)
+        pcall(function()
+            Add(tok.portraitBackground)
+        end)
+    end
+
+    for _,tok in ipairs(table.values(dmhub.GetAllCharacters())) do
+        AddToken(tok)
+    end
+    for _,tok in pairs(m_pregenTokens or {}) do
+        AddToken(tok)
+    end
+
+    return result
+end
+
+--The warmer panel. Floating and 1x1, so it takes part in no layout.
+local function CreatePortraitWarmer()
+    --ids already given a panel; a warm panel is never removed, so the
+    --texture stays resident for as long as the screen is open.
+    local m_warmed = {}
+
+    return gui.Panel{
+        id = "eotwPortraitWarmer",
+        interactable = false,
+        floating = true,
+        halign = "left",
+        valign = "top",
+        width = 1,
+        height = 1,
+        flow = "none",
+
+        --deferred a tick rather than fired inline: the first pass adds
+        --children, and doing that while the panel is still starting is
+        --asking for trouble.
+        create = function(element)
+            element:ScheduleEvent("warmPortraits", 0.01, PORTRAIT_WARM_PASSES)
+        end,
+
+        warmPortraits = function(element, passesLeft)
+            local added = 0
+            for _,id in ipairs(EligiblePortraitImageIds()) do
+                if m_warmed[id] == nil then
+                    m_warmed[id] = true
+                    added = added + 1
+                    element:AddChild(gui.Panel{
+                        interactable = false,
+                        width = 1,
+                        height = 1,
+                        halign = "left",
+                        valign = "top",
+                        bgimage = id,
+                        bgcolor = "white",
+                    })
+                end
+            end
+
+            --Done: the pregen cache has landed and this pass found nothing
+            --new, so the eligible set is complete. While m_pregens is still
+            --nil the snapshot (or its art registration) is in flight, so
+            --keep looking until the passes run out.
+            if m_pregens ~= nil and added == 0 then
+                return
+            end
+            if passesLeft > 1 then
+                element:ScheduleEvent("warmPortraits", PORTRAIT_WARM_RESCAN_SECONDS, passesLeft - 1)
+            end
+        end,
+    }
+end
+
 --Eagerly warm the cache shortly after the titlescreen loads (deferred so
 --boot-time systems are up), and whenever the dev gate turns on.
 dmhub.Schedule(5, function()
@@ -341,6 +484,11 @@ local CreateScreen
 --is already open or we are not at the titlescreen.
 function EncounterOfTheWeek.ShowScreen()
     if m_screen ~= nil and m_screen.valid then
+        --a screen hidden for a game load (see the beginLoading handler)
+        --is still ours: reopen it rather than leave the player with a link
+        --that does nothing.
+        m_screen.data.loadingUp = false
+        m_screen:SetClass("hidden", false)
         return
     end
 
@@ -2180,6 +2328,14 @@ CreateScreen = function(args)
                         startingModule = STARTING_MODULE,
                         backend = GAME_BACKEND,
                         accountSlot = "eotw",
+                        --Every EotW game is directorless: the host's machine
+                        --hosts, but the host plays as a player. Recorded on the
+                        --game itself, so every client agrees and every entry
+                        --(create, join, resume) is already in the mode -- no
+                        --in-session switch and so no reload. Ignored by engine
+                        --builds without the flag, which fall back to the
+                        --in-game Director-UI filter.
+                        directorless = true,
                         create = function(gameid)
                             if prev ~= nil and prev ~= gameid then
                                 DestroyPreviousGame(prev)
@@ -2369,6 +2525,43 @@ CreateScreen = function(args)
 
         closeEncounterOfTheWeek = function(element)
             element:DestroySelf()
+        end,
+
+        --Entering a game raises the titlescreen's loading screen, but this
+        --screen is a FLOATING sibling of it on the titlescreen root, so it
+        --kept drawing on top of the loading art -- and stayed there until
+        --C# deactivated the whole titlescreen a second after the load
+        --finished. So hide it for the load -- but only once the loading
+        --screen has finished dissolving in, otherwise the player watches
+        --this screen vanish first and the art fade in over the bare
+        --titlescreen. Hidden panels still receive events, so we can come
+        --back. And hidden, never destroyed: SweepStaleScreen uses a
+        --surviving screen on the root as the record that the player was
+        --here when they left, and replaces it with a live one on return.
+        data = {
+            loadingUp = false,
+        },
+
+        beginLoading = function(element)
+            element.data.loadingUp = true
+            element:ScheduleEvent("hideBehindLoadingScreen", LOADING_SCREEN_FADE_IN_SECONDS)
+        end,
+
+        hideBehindLoadingScreen = function(element)
+            --a return that completed inside the fade window leaves us
+            --visible on purpose; don't hide behind a screen that is gone.
+            if not element.data.loadingUp then
+                return
+            end
+            element:SetClass("hidden", true)
+        end,
+
+        --Safety net for a return that does NOT reload the titlescreen
+        --codemods: the sweep would never run and this screen would stay
+        --hidden forever (ShowScreen no-ops while it is alive).
+        returnFromGameComplete = function(element)
+            element.data.loadingUp = false
+            element:SetClass("hidden", false)
         end,
 
         --Keep our roster records alive: the lobby expires a game 5 minutes
@@ -2686,6 +2879,11 @@ CreateScreen = function(args)
     end
     AttachMonitors()
 
+    --Start streaming the picker's portraits now, while the player is
+    --reading the overview and the games list, so the Add-a-Hero grid is
+    --warm by the time they open it.
+    resultPanel:AddChild(CreatePortraitWarmer())
+
     return resultPanel
 end
 
@@ -2725,7 +2923,14 @@ local function SweepStaleScreen(retriesLeft)
     if not found then
         return
     end
-    local atTitlescreen = (not dmhub.inGame) or dmhub.isLobbyGame
+    --"At the titlescreen" must mean the LOBBY game is the active game. The old
+    --check also accepted "not in a game", which is true during a real game's
+    --LOADING phase -- so the engine's mid-session hard refresh (e.g. arming
+    --player-host mode) made this sweep rebuild the screen and SHOW it over the
+    --game the player was still in. A real return to the titlescreen re-enters
+    --the lobby game and reloads these codemods, so the sweep re-arms there.
+    local atTitlescreen = false
+    pcall(function() atTitlescreen = (dmhub.isLobbyGame == true) end)
     if not atTitlescreen then
         if retriesLeft > 0 then
             dmhub.Schedule(2, function()

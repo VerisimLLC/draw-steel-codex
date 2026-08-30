@@ -139,6 +139,57 @@ the engine gained a purpose-built API:
   (original cache restored); venla-deliantomb v21's payload is already in
   this machine's disk cache, so the new build registers art with no network.
 
+## Stray extra pregens from shop auto-install (DIAGNOSED 2026-08-29; not an EotW bug)
+
+An EotW game can show a hero nobody claimed. Traced live in
+`OtherworldlyWailingCorruptedWorg`: an unclaimed **Dwarf Fury** sat in the
+**Players** party (so it reads as somebody's hero in the party UI) while the
+state doc's `placedHeroes` recorded only the four pregens actually claimed.
+
+It is **not** an EotW placement bug -- `PlaceMyHeroes` never touched it.
+`codex-vextestmodule` is **shop-auto-installed into every game David DMs**
+(`GameController.cs:5446-5462` walks `/Patrons/{userid}/inventory` and installs
+every `ItemType.Module` item unless `accountInfo.autoInstallShopModules[assetid]
+== false`), and its v1 snapshot carries **its own copy of the same 9 Draw Steel
+pregens** plus the stray `Test` map, 3 Shriekers, `Specter 1` and
+`Lv3 Summoner (Graves)`. See the `project_test_map_vextestmodule_autoinstall`
+memory for the giftcode provenance.
+
+The sharp edge is **charid overlap, and where it fails**:
+
+| pregen | vextestmodule v1 | mcdm-encounteroftheweek v4 |
+|---|---|---|
+| Human Null, Polder Elementalist, Orc Conduit, High Elf Tactician, Human Talent, Human Censor, Polder Shadow, Wode Elf Troubadour | same charid | same charid |
+| **Dwarf Fury** | `54ff6135-...` | `a0748893-...` |
+
+Eight of the nine share a charid (both modules descend from the same
+venla-deliantomb source game), so installing both is idempotent for them. The
+**Dwarf Fury alone diverges**, so the game ends up with two character records --
+and the vextestmodule one was authored with `partyid` = the Players party guid
+(`0339ff3e-...`, the same guid this game's default party uses), so it presents
+as a claimable/owned hero rather than sitting quietly with the other pregens in
+`Delian Tomb Pregens`.
+
+Consequences to keep in mind:
+
+- **Any module in a player's shop inventory that shares content lineage with
+  `mcdm-encounteroftheweek` can inject look-alike pregens into an EotW game.**
+  EotW never enumerates the game's characters to build its roster (the
+  titlescreen reads the module snapshot directly via
+  `module.DownloadModuleSnapshot`), so the roster stays correct -- the stray is
+  cosmetic, an extra unplaced character in the party UI.
+- Diagnosis recipe: `dmhub.GetAllCharacters()` for the full list (map tokens
+  alone miss it), `module.IsCharacterAvailableInModule(charid)` to tell module
+  content from EotW-pasted copies, then `module.DownloadModuleSnapshot` per
+  entry of `module.GetLoadedModules()` to find which module owns the charid.
+  `EncounterOfTheWeekGame.DebugGetState()` shows what EotW actually placed.
+- Dev-machine cleanup: turn off auto-install for the test modules
+  (`ShopInfo.cs:471` `autoInstall` setter -> `accountInfo.autoInstallShopModules
+  [assetid] = false`) rather than deleting the character per game.
+- Worth deciding later whether EotW games should suppress shop auto-install
+  entirely (`s_autoInstallSkipGameIds` already exists as a mechanism) so a
+  player's owned modules cannot leak content into a curated weekly encounter.
+
 ## Dev setting
 
 - Pattern: `setting{ id = "dev:encounteroftheweek", default = false, storage = "preference" }` with **no `editor`** so it never shows in settings UI; toggled via `/toggle dev:encounteroftheweek` in chat (`Commands.lua:451`). Template: `EncounterWrangler.lua:44-53`.
@@ -397,6 +448,36 @@ EotW games themselves are still ordinary DO-backed games (only the lobby is not 
   world is already fully populated. Holding the screen through setup would need a
   different host surface (the engine deactivates the titlescreen ~1s after
   endLoading) -- revisit only if the host pop-in bothers players.
+- **The EotW screen must hide itself for the load (FIXED 2026-08-29; verified
+  live)**: the loading screen went up, but the EotW screen kept drawing on top
+  of it and stayed there until the load finished -- disappearing only a second
+  or two later, when the engine deactivates the whole titlescreen GameObject
+  (`LuaTitlescreen.EndLoadingCo`, 1s after `endLoading`). The screen is a
+  `floating` sibling of the loading screen on `CodexTitlescreenRoot`, so child
+  order does not keep it underneath (the earlier "loading screen mounts ABOVE"
+  verification was a simulation and did not hold in the real entry). Fix: the
+  screen panel handles `beginLoading` by scheduling its own `hidden` class
+  `LOADING_SCREEN_FADE_IN_SECONDS` (0.35s) later, and `returnFromGameComplete`
+  by clearing it. **The delay matters**: the loading screen dissolves in over
+  0.3s (the `"loadingScreen"` / `"loadingScreen create"` style pair in
+  `CodexTitlescreen.lua`), so hiding on the event itself made the player watch
+  the EotW screen blink out and the loading art fade in over the bare
+  titlescreen. The screen must duck out *underneath* a loading screen that is
+  already opaque. A `data.loadingUp` flag (set on `beginLoading`, cleared by
+  `returnFromGameComplete` and `ShowScreen`) makes the scheduled hide a no-op
+  if the load resolved inside that 0.35s window. It is **hidden, never destroyed** --
+  a surviving screen on the root is exactly what `SweepStaleScreen` uses as the
+  record that the player was on this screen when they left, and destroying it
+  would drop them on the plain titlescreen (no resume row) when they came back.
+  `ShowScreen` also clears `hidden` on an already-live screen, so the
+  titlescreen link can never become a dead click if a return path skips both
+  the sweep and `returnFromGameComplete`. Hidden panels still receive events
+  (C# fires these with `FireEventRecursive`; `FireEventTree` also ignores the
+  hidden flag -- only `FireEventTreeVisible` skips them), so the screen can
+  always bring itself back. The heartbeat `think` does stop while hidden
+  (SheetPanel deactivates hidden panels), which costs nothing: the titlescreen
+  is deactivated moments later anyway, and nobody heartbeats a roster record
+  from inside a game.
 
 ## Hero-card lineup (game lobby view UI; DECIDED + BUILT 2026-08-28)
 
@@ -443,17 +524,51 @@ row**, not vertical rows (user direction 2026-08-28). All in
   the hero. Specs now carry ancestry/level (read via
   `creature:RaceOrMonsterType()` / `CharacterLevel()`, pcall-guarded; pregen
   cache entries store them too).
-- **Verified 2026-08-28** with an in-game visual mock (real tokens, modal over
-  the running game -- the connected instance was mid-game, so the titlescreen
-  screen itself could not be exercised): portraits/frames/plates/chip render
-  correctly, hover reveals the trash, the born tween + fade works (screenshot
-  caught mid-animation with neighbors sliding apart), zero console errors, and a
-  full reload (49 mods) was clean. The user then hit **pregen cards with no
-  art at the titlescreen** -- root-caused and fixed the same day (streamed
-  image assets not registered outside installing games; see "Pregen portraits
-  at the titlescreen" under Pregen heroes -- engine NEEDS BUILD, silhouette
-  stopgap live). NOT yet seen live: the game-lobby view over a roster record,
-  remote-player cards, the kick icon, and pregen art post-rebuild.
+- **Picker portrait warm-up**: the picker's portraits are streamed textures,
+  so a grid built cold paints in halves -- some cards drawn, a ~1s hitch while
+  the rest decode, then the remainder popping in. Nothing in the engine
+  preloads an image on request: a texture streams because a live panel
+  references it (`ImageDownloader.SetImageByIdentifier`, see
+  `Assets/IMAGE_MANAGEMENT.md`). So **opening the EotW screen mounts a
+  warmer** (`CreatePortraitWarmer`, added to `resultPanel` at the end of
+  `CreateScreen`): one 1x1 panel per eligible portrait, stacked invisibly in
+  the screen's top-left corner, floating so it joins no layout. Image ids
+  resolve by id alone -- panel size selects no mip and no thumbnail -- so a
+  1x1 panel warms exactly the texture the full-size card will later use.
+  - **Eligible** (`EligiblePortraitImageIds`) = what the picker can actually
+    offer: this machine's `dmhub.GetAllCharacters()` heroes and
+    `m_pregenTokens`, each contributing `offTokenPortrait` and
+    `portraitBackground`. Other players' heroes are skipped deliberately
+    (their portraits are per-game cloud assets that do not resolve here --
+    that is why those cards show a silhouette); spine portraits are skipped
+    because they are addressable skeletons, not streamed textures; and ids
+    failing `IsUnresolvableAssetId` are skipped *unmarked*, so a later pass
+    picks them up once the module's art registers.
+  - **Re-scans** every `PORTRAIT_WARM_RESCAN_SECONDS` (2s) up to
+    `PORTRAIT_WARM_PASSES` (8) times, because the eligible set grows
+    asynchronously -- the pregen snapshot lands after the screen opens, and
+    its art has to be re-registered after returning from a game
+    (`EnsurePregenArt`). It stops early once `m_pregens` is non-nil and a
+    pass adds nothing. The first pass is scheduled a tick out rather than
+    fired inline from `create`, since it adds children.
+  - **Nothing blocks on it.** A portrait that has not arrived by the time the
+    picker opens behaves exactly as it does today; the warm-up only makes
+    that case rarer. This is the deliberate contrast with the rejected
+    approach below.
+- **REJECTED: a "Loading..." cover over the picker** (tried and reverted
+  2026-08-29). The first attempt copied the shop's first-open cover
+  (`CodexShopScreen.lua`, `TrackCoverImage` + `shopLoadingCover`): cards fired
+  pending/ready events as their streamed art loaded, and a cover hid the grid
+  until the count balanced, with a 4s backstop. **In practice it stalled for a
+  long time** -- the counter did not balance, so it sat until the backstop on
+  every open, which is worse than the trickle it replaced. The likely cause is
+  a card incrementing pending in its `create` whose portrait's `imageLoaded`
+  never fires (an asset record that exists but whose texture never arrives
+  passes `IsUnresolvableAssetId` and is then counted but never satisfied), so
+  one dead portrait holds the whole grid. Do not re-attempt this without first
+  instrumenting which cards report ready and which do not. The core lesson:
+  **gating the UI on an image-load count makes the worst case worse**, whereas
+  warming ahead of time has no worst case.
 
 ## One EotW game per account (DECIDED + BUILT 2026-08-27; worker DEPLOYED to staging, engine NEEDS BUILD, UNTESTED live)
 
@@ -754,6 +869,15 @@ launch protocol:
 
 ### Automated combat entry + no Director (DECIDED + BUILT 2026-08-28; UNTESTED live)
 
+> **2026-08-29 update**: the Director-UI presentation filter described below is
+> now the OLD-ENGINE FALLBACK. On engine builds with player-host mode (see the
+> "Player-host mode" section), the host's `dmhub.isDM` itself reads false, so
+> `GameHud.DirectorUIVisible()` is false without the filter, the recorded
+> presentation gaps (engine DM vision, showInvisibleTokens, token-menu DM
+> entries, etc.) close automatically, and the `eotw:showdirectorui` escape
+> hatch works by DISARMING player-host mode. The filter registration is kept
+> so old builds keep the weaker chrome-only hiding.
+
 The user-facing spec for game start: once every player is in the game, combat is
 entered automatically -- heroes and monsters both -- with the normal "Draw Steel"
 banner + claim-the-die roll; the Monster AI plays the monsters; and nobody is a
@@ -931,6 +1055,519 @@ hook plus leafy EotW code:
   poll (rather than event wiring) self-heals across Lua reloads, late
   `IsEotwGame` flips, and map loads.
 
+### Player-host mode: the isDM / isDMOrPlayerHost split (DECIDED + BUILT 2026-08-29; engine NEEDS BUILD)
+
+User direction (2026-08-29, after finding the strict rules did not bind the
+host): invert the presentation-filter approach. The EotW host becomes a
+**player host** -- a machine that HOSTS the game (real DM status, runs setup
+and the Monster AI) whose USER is presented and treated as a player. A new
+engine flag makes `dmhub.isDM` read FALSE on that client, and every isDM
+site was audited to decide whether it means "the Director experience"
+(keeps isDM -- player behavior for the host) or "hosting capability"
+(converted to the new real check).
+
+**Engine surface** (`GameController.cs`, `LuaInterface.cs`):
+- `GameController.playerHostMode` -- instance bool, so it dies with the
+  game session (GameController is destroyed/recreated per game switch --
+  no leak into the next game, even one without the EotW codemod).
+  **Refresh-survival is load-bearing** (found 2026-08-29, see the reload
+  loop below): the view-as-player hard refresh ITSELF destroys and
+  recreates the GameController for the same game
+  (`GameHarness.RefreshGame` -> `EnterGame(gameid)`), so
+  `GameHarness.RefreshGame` now carries `playerHostMode` onto the fresh
+  instance. Without that, arming the mode (which forces a refresh) wipes
+  the mode, the 1s driver re-arms it, and the game re-enters forever.
+- `GameController.isDMOrPlayerHost` -- the REAL check (the old isDM body,
+  unchanged). `isDM` now returns `isDMOrPlayerHost && !playerHostMode`, so
+  every unconverted consumer -- C# vision/fog, showInvisibleTokens, the
+  engine's strictmovementrules exemption, dmillegalmoves, DM context menus,
+  and all Lua `dmhub.isDM` reads -- flips to player behavior automatically.
+- Lua: `dmhub.isDMOrPlayerHost` (read-only), `dmhub.playerHostMode`
+  (settable; toggling forces the view-as-player hard refresh). Stubs in
+  `Definitions/dmhub.lua`.
+- Unchanged and load-bearing: `isDMPossiblyImpersonating` stays REAL --
+  it gates game/map/floor setting writes (host setup keeps working) and
+  feeds the session record's `dm` flag (`GameController.cs:10179`), which
+  is what `IsDirectorPresent`/the map-script election read on every
+  client. Consequence: other clients may still badge the host as Director
+  in user lists (accepted, pre-existing gap).
+
+**Codex fallback helper**: global `IsDMOrPlayerHost()` in
+`DMHub Utils/Utils.lua` -- returns `dmhub.isDMOrPlayerHost`, falling back
+to `dmhub.isDM` when the engine lacks the API (unknown userdata members
+read nil). ALL codex conversions go through it, so on an old engine build
+every converted site behaves exactly as before (verified live on the
+un-rebuilt engine: helper returns isDM, reload clean). `dmhub.playerHostMode`
+disjuncts are written as `== true` so nil degrades safely.
+
+**DIRECTORLESS IS A PROPERTY OF THE GAME (DECIDED + BUILT 2026-08-29, user
+direction; engine NEEDS BUILD). This supersedes all "arming" designs
+below.** Directorless games -- host hosts, host plays -- are expected to be
+common beyond EotW, so the engine supports them intrinsically instead of
+EotW switching a session flag on after the fact. Every timing hazard
+recorded in this section (mid-install corruption, mid-combat interruption,
+the double load) existed only because the mode was switched on *inside* a
+running session, which forces the view-as-player hard refresh. Now nothing
+ever switches it on.
+
+- **`GameInfo.directorless`** (`AccountInfo.cs`), a bool on the game record
+  at `/games/{id}`, `NoSerializeValue(false)` so old records read false.
+  Set at creation; `GamesMonitor.CreateGameCo` reads a `directorless`
+  option from `lobby:CreateGame`.
+- **`GameController.playerHostMode` is now DERIVED, not stored**:
+  `directorlessGame && isDMOrPlayerHost`, with a session-only
+  `playerHostModeSuppressed` override for the debug hatch.
+  `directorlessGame` caches `GameInfo.directorless` in a `bool?` that reads
+  through until the summary lands then sticks -- so `isDM` costs what it
+  always did (the cached false short-circuits before the host lookup in
+  ordinary games). There is no setter, no latch, and no arming step.
+- **Timing is free**: the flag arrives with the game summary
+  (`LoadingMilestones.GameSummary`), and game-details processing is already
+  gated behind that same summary (`_waitingForGameSummary` in the
+  `SetShouldQueuePredicate`), so nothing that reads `isDM` meaningfully runs
+  before the mode is known.
+- **`GameHarness` lost both its player-host special cases**: `EnterGame`
+  needs no latch, and `RefreshGame` no longer carries the flag across a
+  refresh -- the fresh GameController re-derives it from the record. The
+  infinite-reload trap that carry-over existed to prevent is gone with it.
+- Lua: `dmhub.directorlessGame` and `dmhub.playerHostMode` are now
+  READ-ONLY; `dmhub.playerHostModeSuppressed` is the settable hatch (and
+  refreshes only when it actually changes this client's mode). Stubs
+  updated in `Definitions/dmhub.lua`.
+- EotW creates with `directorless = true`
+  (`Codex Titlescreen/EncounterOfTheWeek.lua`), and the game codemod's 1s
+  driver now only syncs the hatch (`UpdateDirectorUIHatch`). Deleted as
+  no-longer-needed: `UpdatePlayerHostMode`, `WantPlayerHostMode`, the
+  quiescence gate, the `hostSetupComplete` stamp and its writer, the
+  combat-entry gate, and the `ClearEotwMarker` disarm.
+- **Existing EotW games predate the flag** and will run with a Director
+  host: abandon and recreate them. There is deliberately no backfill --
+  if one is wanted later, add a settable `directorless` to `LuaGameInfo`
+  (`LuaLobby.cs`) alongside its `gameSystem` setter.
+- The Director-UI filter registration is retained as the presentation
+  fallback for engine builds without the flag.
+
+**Arming is quiescence-gated (ROOT-CAUSED + FIXED 2026-08-29, second
+live find).** Arming forces the hard refresh, and the refresh destroys
+the GameController and its server connection -- killing in-flight
+writes AND the pending `executeOnArrive` callback. On the first fresh
+CREATE under the armed build, the 1s driver armed mid-starting-module
+install: the install's floor-data uploads died with the connection while
+its GameDetails patch survived, so mapManifests read INSTALLED and the
+install never retries -- a permanently half-installed game (black map:
+no floor data on the server, no characters placeable, and SetupOnArrival
+never ran because the arrival callback was destroyed). Yesterday's live
+test missed this because it re-entered an already-installed game. Fixes:
+
+- *Lua (deployed)*: `UpdatePlayerHostMode` defers the false->true
+  transition until `dmhub.gameLoadingProgress == 1` AND the state doc's
+  `hostSetupComplete` stamp exists and is >= 10s old (GameDetails writes
+  coalesce 1-3s before uploading; the window lets setup's writes flush).
+  Disarming is never gated. `SetupOnArrival` no longer arms at its start
+  (that refresh would kill the very coroutine doing setup); instead its
+  host branch stamps `hostSetupComplete` (`RecordHostSetupComplete`) as
+  its LAST step, after SignalGameReady. Setup re-runs on every host
+  arrival, so pre-gate games self-heal the stamp on next entry. Net
+  sequencing on a fresh create: install -> load completes -> setup runs
+  and stamps -> ~10s flush -> arm -> the one refresh -> settle. (The
+  host now sees a beat of Director UI on entry -- accepted; the old
+  "arm immediately" behavior is what corrupted games.)
+- *Engine (GameController.cs Update, NEEDS BUILD)*: the
+  `s_forceHardRefresh` consumer defers the refresh (flag stays set)
+  while `_installingStarterMap` or `_loadingMilestone` is short of
+  Complete (GameDetails for the lobby game) -- defense-in-depth for any
+  future refresh trigger during load/install. Deliberate non-cover:
+  `_forceRefresh` (backupid restores) bypasses it, as before.
+- The broken game (`MythicMintyPersistentScholar`, created 2026-08-29)
+  is unrepairable (manifest says INSTALLED, floors gone) -- abandon it
+  from the EotW screen and create fresh.
+
+**Second live round (2026-08-29, later): the gate held, and three new
+findings.** The user rebuilt but the app was NOT actually restarted
+(Player.log + console buffer continuous across both sessions), so the
+old engine kept running; the deployed Lua gate alone was in effect. A
+fresh game (`BaronVoraciousPeckishScout`) installed and set up
+PERFECTLY (all floors, 29 characters, 8 spawned tokens -- the gate did
+its job). Then:
+
+1. *Arming landed mid-combat*: the 10s flush window let the player roll
+   initiative before the arming refresh fired -- a full game re-entry
+   right after their roll. FIXED (Lua, deployed): the map script's
+   combat entry now waits for `dmhub.playerHostMode == true` whenever
+   `WantPlayerHostMode()` (shared helper: EotW game + isDMOrPlayerHost +
+   hatch off + engine API present), so the one arming refresh always
+   precedes the first round.
+2. *The EotW screen re-opened OVER the in-game view on every mid-session
+   refresh* (this is the "sent back to the titlescreen" report): the
+   stale-screen sweep's "at titlescreen" check accepted "not in a game",
+   which is true during a real game's LOADING phase, so the refresh
+   re-entry rebuilt and SHOWED the screen. FIXED (Lua, deployed): the
+   sweep only rebuilds when `dmhub.isLobbyGame == true` (pcall-guarded);
+   real returns to the titlescreen reload the codemods and re-arm it.
+3. *ENGINE BUG (OPEN, the actual black map): the player-vision pipeline
+   never bootstraps on a load that starts with `dmhub.isDM == false`* --
+   which today only the player host does (playerHostMode carried across
+   the refresh). Proven live: same game, disarm the hatch -> renders
+   perfectly as Director; armed re-entry -> world black, zero token
+   sprites, `FLOOR VISION DIAG` shows `tokenVisionOnFloors=[]` and
+   `LightingMesh[VISION]` stuck with `lights=0` and a stale
+   `geomCamPos`, and enabling `debug:lightingdiag` produced NO
+   `[GeomCacheDiag]` output -- `LightingMesh.BeginJob` (vision's only
+   driver is `VisionMeshManager.LateUpdate`) stops being called
+   entirely. All data-level gates were verified good (hero owned, party
+   == default party, tokens spawned via `GetTokensAtLoc`, tokenVision
+   list empty). Root mechanism not yet pinned; the next build carries
+   permanent cheap instrumentation: `[VisionStallDiag]` heartbeats in
+   `VisionMeshManager.LateUpdate` (mesh count, BeginJob call counters,
+   per-mesh controller binding) plus a mesh-side watchdog in
+   `LightingMesh.LateUpdate` that fires when BeginJob goes idle under
+   player vision (catches a dead manager). Also fixed in the same
+   build, a real audit miss: `GameController.primaryCharacter` returned
+   null for the player host (`isDMPossiblyImpersonating` gate) -- now
+   exempted when `playerHostMode` is set, restoring the host's primary
+   character (vision main-floor selection, camera focus, player UX) --
+   plausibly the vision root cause, to be confirmed against the
+   heartbeat after the rebuild.
+
+**Third live round (2026-08-29, after the rebuild): THE BLACK MAP IS
+FIXED.** Verified in `DireAshenGoldenInitiate` with `isDM=false,
+playerHostMode=true`: the map, tokens and player action bar all render
+correctly, and no `[VisionStallDiag]` line ever fired (the stall state
+was never entered). The cause was the audit miss now corrected --
+`GameController.primaryCharacter` returned null for a player host via the
+`isDMPossiblyImpersonating` gate, which emptied `selectedOrPrimaryTokens`
+and starved the vision pipeline of a main floor. The `[VisionStallDiag]`
+instrumentation stays in as cheap permanent cover.
+
+The same run showed the arming refresh once more, and the log pinned the
+trigger exactly: the hatch was ON at entry (left on from the previous
+investigation), so the host set up and entered combat as a Director and
+the combat-entry gate correctly let combat proceed; the user then ran
+`/toggle eotw:showdirectorui` mid-combat (`ExecuteCommand
+(eotw:showdirectorui false)` sits between "Draw Steel!" and
+`playerHostMode false -> true` in Player.log), and the driver armed. So
+the gates worked as designed -- but a clean run still cost the player TWO
+loads, which is what motivated arming-before-entry above.
+
+**Directorless broke the encounter lookup: journal access is isDM-gated
+(ROOT-CAUSED + FIXED 2026-08-29, live).** First directorless run: the game
+loaded correctly as a player host but never drew steel. The log gave it
+away -- `EotW: encounter spawn failed: This map's journal has no encounter
+to spawn.` No monsters means `GatherCombatSides()` returns nil, so the map
+script's combat entry is never reached; nothing about initiative was
+involved. Root cause: `CustomDocument.GetAccessibleRoots()`
+(`DocumentSystem.lua`) grants `private`, `templates` and **the current
+map's own journal root** only when `dmhub.isDM` -- and the EotW encounter
+("Goblin Guards Combat") lives in that map root. With the host now a
+player from load, `Encounter.GetEncountersOnCurrentMap()` filtered the
+encounter document out before `FindMapEncounter` ever saw it. Verified
+live: `GetAccessibleRoots()` returned only `{public, <userid>}`, and 3
+markdown docs sat unreachable under the map root.
+
+Fix keeps presentation and capability separate rather than opening the
+journal up: `GetAccessibleRoots(hostAccess)` and
+`Encounter.GetEncountersOnCurrentMap(hostAccess)` take an optional flag
+that resolves access for the machine HOSTING the game
+(`IsDMOrPlayerHost()`) instead of the user viewing it; only capability
+callers pass it, so the host's journal UI still shows them exactly what a
+player sees. `FindMapEncounter` passes `true`. Default nil = today's
+behavior, so every other caller is untouched. Verified live: with
+hostAccess the lookup finds 5 encounters (0 without), the spawn succeeds,
+and `Encounter.StartCombatWithTokens` puts the DRAW STEEL banner up with
+`dmhub.isDM == false` -- confirming the initiative/banner chain needs no
+Director privileges (its only `isDM` reference is a right-click "Close"
+menu).
+
+**This is the third find in the same family** -- a directorless host loses
+DM-derived DATA ACCESS, not just Director UI. The others were
+`CharacterInfo.canControl` and `GameController.primaryCharacter`. When
+something stops working for a player host, look for a read gated on
+`dmhub.isDM` that is really a capability, not a presentation choice.
+
+Caveat for anyone re-testing the game used above
+(`ImmoralFearfulExternalLancer`): its map script already burned the
+`draw-steel` RunOnce watermark (the watermark is written BEFORE the
+callback fires), so combat will not auto-start there again. Test on a
+fresh game.
+
+**NEXT LIVE TEST (needs the engine build for the directorless flag):**
+with the hatch OFF, create a FRESH EotW game (existing ones predate the
+flag and must be abandoned) and confirm: a SINGLE load, player UI/vision
+from arrival, no second reload at any point, `/games/{id}/directorless`
+true in Firebase, and combat entering normally. Then confirm the hatch
+still works by toggling `eotw:showdirectorui` on and off mid-game -- that
+path should still refresh, which is correct for a debugging action.
+
+**The audit** (2026-08-29, five parallel agents over every isDM site:
+~115 engine C# + core-Lua sites, 294 codex Lua sites; full per-site logs
+in the session transcripts). Default = KEEP (player behavior). The
+conversions applied:
+
+- *Engine C#*: `CharacterInfo.canControl` (monster control / the AI's
+  foundation); `GameController.cs` starting-module install gate + its DIAG
+  mirrors (host must install) and `PasteCharacters` ownership stamp
+  (setup-script pastes must NOT stamp the host as owner of spawned
+  monsters); `CharacterToken.cs` prompt routing (`activeControllerId` --
+  otherwise the host defers every monster prompt to its own session:
+  deadlock), the three frozen-game gates (Teleport/ForcedPush/ExecuteMove
+  -- AI movement must never freeze), the two summon camera-centering
+  suppressions (canControl is host-wide now), and the hidden-token drag
+  P2P embargo; `CloudAssetManager.cs` fork-backfill sweeps;
+  `LevelObject.cs` portal recalc sweep; `ObjectController.cs` orphan
+  cleanup sweeps; `OnePlayerStatusPanel.cs` bogus "Stop impersonating";
+  `RectSelectObjects.cs` current-floor rubber-band restriction;
+  cross-map teleport camera-follow now requires OWNERSHIP on a player
+  host; `playingGame`/`perfhitch` analytics `dm` dimension = real hosting
+  status (workload semantics).
+- *Core Lua* (`Assets/CoreAssets/Lua/require-dc-dialog.txt`, ships with
+  the build): the two "who does this client prompt for" predicates and
+  the monster-save autoroll (see the compound rule below).
+- *Codex Lua*: MapScript host-presence write/release + `IsElectedHost`;
+  MCDMEncounter `CompleteEncounter` (battle log/analytics) + encounter-
+  script `IsElectedHost`; DSVictoryScreen `RecordHeroRoles`;
+  MCDMCreature `SyncHiddenInvisibility` single-writer; MCDMInitiativeQueue
+  `CanClaimTurn` programmatic default + `GetTokensForInitiativeId`'s
+  invisibility filter (mechanical token set for AI/turn processing;
+  trade-off: the host's initiative bar can show an invisible monster's
+  face); ActivatedAbility's frozen funnel + `params.director` analytics
+  (now: real Director, OR non-player-controlled cast on a player host --
+  so AI casts attribute as director, host hero casts as player);
+  Monster AI `/testai` gate; RequireDCDialog + DSRequestRollsDialog
+  monster-save/resistance autoroll.
+- *The compound prompt predicate* (core require-dc-dialog.txt + codex
+  RequireDCDialog.lua + DSRequestRollsDialog.lua): neither flag alone is
+  right -- a plain player prompts for anything they control; a DM/host for
+  non-player tokens; a player host BOTH monsters and their OWN tokens
+  (canControl is host-wide for them, so `tok.ownerId ==
+  dmhub.loginUserid`, gated on `dmhub.playerHostMode == true`, is the
+  discriminator; normal games bit-identical).
+- *Everything else KEEP*, notably every `strict:*` rules-enforcement gate,
+  Director chrome, DM-privileged info display, editor tools -- which is
+  the point: with isDM false, the host is bound by the strict rules,
+  loses DM vision/hidden-token display, gets the player UI, and the
+  Rules Enforcement problem that triggered this work resolves engine-wide.
+
+Notable accepted edges: the host can still physically drag monsters
+(canControl is capability -- needed for manual recovery, and the DM-drag
+paths are not player-rule-gated); freeze is unreachable in EotW and the
+host is exempt from it (AI safety); analytics dm dimensions now mean
+"was hosting".
+
+### Monster AI moves are clamped by strict:movement on a player host (ROOT-CAUSED + FIXED 2026-08-29; engine NEEDS BUILD, UNTESTED)
+
+Report: the Goblin Warrior's "Spear Charge" AI move works in a normal
+Director game, but in an EotW game the goblin announces the charge, the
+charge movement never happens, and it then attacks from outside range.
+Suspected to be a permissioning denial under player-host mode. It is not
+a permission denial -- token control, prompt routing and the frozen-game
+gates were all converted to `isDMOrPlayerHost` and work (the goblin does
+act). It is a **rules-enforcement clamp** that now binds the AI.
+
+**Mechanism.** `CharacterToken.Move` -- the `token:Move(loc, options)` Lua
+bridge (`Assets/Scripts/CharacterToken.cs:3040`) -- clamps `maxCost` to
+`GetRemainingMovementBudget()` when all of these hold:
+
+    !straightline && !freeMovement && movementType in {nil, Walk, Shift}
+    && gameDetails.incombat
+    && GameController.instance.isDM == false
+    && SettingsManager.GetBool("strict:movement")
+
+In EotW all four are true on the host: `strict:movement` is force-enabled
+by `EnforceStrictRules()`, and `isDM` is false because the host is a
+player host. So *every* Monster AI `token:Move` (29 call sites across
+`Monster AI/*.lua`, none of which pass `freeMovement`) is silently
+budget-clamped -- something that never happened in a Director game,
+where `isDM == true` short-circuits the clamp.
+
+Spear Charge is the case that shows it, because it moves **twice** in one
+turn:
+
+1. `execute` calls `token:Move(scoringInfo.loc, {maxCost = 10000})` -- the
+   reposition. At turn start the budget is full, so this move happens, and
+   `creature:CreatureMove` records it into `moveDistance`
+   (`Creature.lua:6829`; it is not `_tmp_freeMovement`, and it *is* the
+   monster's turn).
+2. `MonsterAI:ExecuteAbility` then runs the charge:
+   `token:Move(target.charge, {maxCost = 10000})`. Remaining budget is now
+   ~0, so `maxCost` clamps to ~0, `TryMoveTo` returns null, and `Move`
+   returns nil. **The AI ignores the nil return** and casts the ability
+   anyway -- hence the attack from outside range. Same shape in
+   `ExecuteSquadStrike` (`MonsterAI.lua:1167`/`1175`).
+
+**Planner/executor asymmetry makes it silent.** The charge is *validated*
+in `FindValidTargetsOfStrike` with `token:MarkMovementArrow(...)`, which
+has no `isDM`/`strict:movement` gate at all and measures the charge
+against full `CurrentMovementSpeed()` -- so the planner sees a legal
+charge that the executor then refuses, with no log line either side.
+
+**The fix, as built (three layers).**
+
+1. *Lua, live now, semantically right in every game*: the two **charge**
+   moves (`MonsterAI.lua` `ExecuteSquadStrike` and `ExecuteAbility`) pass
+   `freeMovement = true`. A Draw Steel Charge is a main action whose
+   movement belongs to the ability, not to the creature's move action, so
+   it must never be charged against -- or clamped by -- the move budget.
+   This alone resolves the reported symptom, and in a Director game it is
+   a behavioural no-op plus a correctness fix (the charge stops consuming
+   move distance).
+2. *Engine: the clamp learns the difference between the user and the
+   host.* New `CharacterToken.subjectToPlayerMovementRules` -- false for a
+   Director, and false on a player host for any token the user does not
+   own -- replaces the bare `isDM == false` test in the `token:Move`
+   clamp. The host's own hero stays fully bound by strict movement (the
+   point of player-host mode); a monster it controls only because it hosts
+   does not. In an ordinary game this evaluates exactly as before. It is
+   the backstop for AI-driven moves that do not run inside an elevated
+   coroutine.
+3. *Engine: host-permission elevation* -- the systemic answer, see the
+   next section.
+
+**This is the fourth find in the player-host family** and the first that
+is not a data-access gate: a *rules* gate the audit deliberately kept on
+`isDM` turns out to bind the host's AI, not just the host's own hero.
+Rule of thumb: a `strict:*` gate is correct on `isDM` only for tokens the
+USER is playing; anything the host drives programmatically needs either
+the ownership discriminator or host-permission elevation.
+
+### Host-permission elevation: coroutine-scoped, inert while yielded (DECIDED + BUILT 2026-08-29; engine NEEDS BUILD, UNTESTED)
+
+User direction (2026-08-29): rather than chase `isDM` gates one at a time,
+give the engine a scope that guarantees DM-level permissions for a stretch
+of Lua, and run the Monster AI inside it -- the AI *should* have host
+permissions, and enumerating every rule it might trip is a losing game.
+
+The naive form does not survive contact with the AI. `dmhub.Coroutine` is
+real Lua coroutines resumed once per frame from the harness in
+`LuaNative.cs`, and an AI turn spans hundreds of frames with `Sleep` calls
+throughout -- including one immediately before the charge move. A flag
+held for "the duration of the block" would therefore stay set across the
+frames *between* resumes, where `VisionMeshManager.LateUpdate`, fog,
+`showInvisibleTokens`, Director chrome and DM context menus all sample
+`isDM`. The player host would flip to Director vision and Director UI for
+the 10-odd seconds of every monster turn -- the exact family that produced
+the black map.
+
+So the elevation is **per-coroutine and inert while yielded**:
+
+- `ScriptEngine.hostPermissionDepth` (static int). `GameController.isDM`
+  reports real hosting status while it is non-zero:
+  `if(playerHostMode && ScriptEngine.hostPermissionDepth == 0) return false;`
+  -- the `playerHostMode` test stays first, so an ordinary game
+  short-circuits on the cached directorless check and costs exactly what
+  it did before.
+- The coroutine harness (`_callco` / `_updateco` in `LuaNative.cs`) parks
+  the depth on the coroutine record (`co.hostElevation`) via
+  `dmhub.SuspendHostPermissions()` the instant a coroutine yields, and
+  restores it with `dmhub.RestoreHostPermissions(n)` when that coroutine
+  is resumed. Between resumes the global depth is zero, so **nothing
+  outside a Lua execution window can ever observe an elevated `isDM`** --
+  rendering, vision and UI are structurally excluded rather than trusted
+  to behave. An elevation also dies with its coroutine, so a `Push` with
+  no matching `Pop` (an early return, an error) cannot leak.
+- Lua API: `dmhub.ExecuteWithHostPermissions(fn)` for a synchronous block
+  (`fn` must not yield -- it runs through `lua_pcall`, so a yield inside
+  raises the C-call-boundary error), and `dmhub.PushHostPermissions()` /
+  `dmhub.PopHostPermissions()` to elevate a whole coroutine.
+  `SuspendHostPermissions` / `RestoreHostPermissions` are harness
+  plumbing, marked `[Deprecated]` so they stay out of the generated docs.
+  Stubs in `Definitions/dmhub.lua`.
+- Codex helpers `ElevateToHostPermissions()` / `DropHostPermissions()` in
+  `DMHub Utils/Utils.lua`, guarded so they are no-ops on an engine build
+  without the API (unknown userdata members read nil) -- same pattern as
+  `IsDMOrPlayerHost()`.
+- Applied at the Monster AI's three coroutine entry points:
+  `MonsterAI:PlayTurn` (the turn itself), `MonsterAIThread`
+  (`MonsterAIPanel.lua` -- the watcher loop, which also handles triggers
+  inline), and the `/testai` one-shot run.
+- **Steady-state cost is zero.** The harness runs per coroutine per frame,
+  so it must not pay for a feature almost nothing uses:
+  `dmhub.PushHostPermissions` sets a `g_hostElevationDirty` Lua global, and
+  the harness only calls Suspend/Restore for a coroutine that is already
+  elevated or elevated itself during that resume. Coroutines that never
+  elevate touch neither bridge.
+- **The invariant is enforced, not merely maintained**: `Update()` and
+  `CallCoroutine()` zero `hostPermissionDepth` immediately after the
+  harness returns, so even a stray push (an at-exit callback, a `Push`
+  with no `Pop` outside a coroutine) cannot leak elevation into a frame.
+
+**Naming is deliberate: "host permissions", not "DM permissions".** The
+scope restores Director *capability*, never Director *presentation*.
+Wrapping UI or vision code in it would reintroduce precisely what
+player-host mode exists to prevent, and a name with "DM" in it invites
+exactly that.
+
+Accepted, per user direction: a codemod or rail-button macro can wrap the
+host's own hero in the scope and step outside the strict rules. Cheating
+via Lua is not a threat model here.
+
+Deliberately NOT replaced: the ~15 capability sites the audit converted to
+`isDMOrPlayerHost` stay as they are. Elevation is for automation acting on
+tokens the user does not own, not a general substitute for the
+capability/presentation split.
+
+**Known related site, left alone pending a decision**:
+`CharacterToken.DragBlockedByMovementRules` (the `strictmovementrules`
+drag block) has the same shape -- on a player host it now stops the host
+manually dragging a monster during combat when it is not that monster's
+turn, which the audit had explicitly accepted as a manual-recovery path.
+It is a user action rather than automation, so it was not changed; the
+same `subjectToPlayerMovementRules` helper would fix it in one line.
+
+### Turn control on a player host: End Turn for AI monsters (ROOT-CAUSED + FIXED 2026-08-29; engine NEEDS BUILD, UNTESTED)
+
+Report (2026-08-29): during a monster's turn in an EotW game the host is
+offered the initiative bubble's **End Turn** button and can click it,
+ending the AI's turn out from under it. A host who is not playing those
+monsters -- they are run by the Monster AI -- must not get that button.
+
+**Mechanism, and the fifth find in the player-host family.** The audit
+converted `CharacterInfo.canControl` to `isDMOrPlayerHost` because it is
+hosting capability (the Monster AI's foundation). But `canControl` is
+also read by UI asking a different question -- *is this token mine to
+drive?* -- and on a player host it answers "yes" for every token in the
+game. `ShouldShowEndTurn` in `MCDMInitiativeBar.lua` walks the tokens of
+the current initiative entry and shows End Turn if any is `canControl`,
+so the host got it on the goblins' turn. The same read sits on the
+bubble's three selected-token paths (the swords hover, its press, and the
+Claim Turn think), which would likewise let the host claim a monster's
+turn.
+
+This is the counterpart to the movement clamp: there, a *rules* gate kept
+on `isDM` wrongly bound the host's AI; here, a *capability* read
+converted to `isDMOrPlayerHost` wrongly frees the host's UI. Rule of
+thumb, extended: `canControl` is the right read for "may this machine do
+it"; UI asking "is this the user's token" needs the user-level read.
+
+**The fix (engine property + codex helper).**
+
+- *Engine*: `CharacterInfo.canControlAsUser` (`CharacterInfo.cs`) is
+  `canControl` with `isDMOrPlayerHost` swapped back to `isDM` -- the
+  Director, ownership and party-ownership arms unchanged. So it is
+  bit-identical to `canControl` in every game that is not directorless,
+  and on a player host it reports what a plain player would control.
+  Bound to Lua as `token.canControlAsUser` (`CharacterToken.cs`, with the
+  same `s_viewAsPlayerTokens` override as `canControl`); stub added to
+  `Definitions/CharacterToken.lua`.
+- *Codex*: global `TokenControlledByUser(tok)` in `DMHub Utils/Utils.lua`
+  -- returns `tok.canControlAsUser`, and on engine builds without the API
+  falls back to the ownership discriminator already used by the prompt
+  predicates (`dmhub.playerHostMode == true` -> `tok.ownerId ==
+  dmhub.loginUserid`), else `tok.canControl`. **The fallback is why this
+  fix is live before the rebuild**: EotW heroes are transferred with
+  strict ownership (`token.ownerId = dmhub.loginUserid`), so the
+  discriminator is exact for EotW; the engine property additionally
+  covers party-owned tokens, which the fallback misses.
+- *Applied* in `Draw Steel Core Rules/MCDMInitiativeBar.lua` at the four
+  bubble sites above. `ShouldShowEndTurn` gates both the label and the
+  press handler, so denying it removes the click too, and the bubble
+  falls back to showing "Enemy Turn" -- which is what the host should see.
+
+Deliberately unchanged: the "Combat Settings" gear menu (Switch Side,
+Skip to Next Round, Revert Turn) is gated on `CanControlInitiative()` =
+`dmhub.isDM or permission:playersinitiative`, so it is already closed to
+a player host. The host can still physically drag monsters -- the
+accepted manual-recovery path.
+
 ### Strict rules enforcement (DECIDED + BUILT 2026-08-28)
 
 User direction (2026-08-28): EotW games strictly enforce all game rules -- the
@@ -942,26 +1579,106 @@ are force-enabled. The forced set (`g_strictRuleSettings` in
 - `strict:targeting` (Strictly Enforce Targeting Rules)
 - `strict:resources` (Strictly Enforce Action Economy and Resource Costs)
 - `strict:inventory` (Strict Inventory Management)
-- `strictmovementrules` (the ENGINE's "Strictly Enforce Movement Rules", under
-  the settings screen's separate "Game" heading -- included because the intent
-  is "strictly enforce all game rules"; drop it from the list if unwanted)
+- `strict:rolls` (Strictly Enforce Rolls -- added 2026-08-29, see below)
+- `strictmovementrules` (the ENGINE's "Strictly Enforce Movement Rules";
+  included because the intent is "strictly enforce all game rules" -- drop it
+  from the list if unwanted. As of 2026-08-29 it renders WITH the others under
+  "Rules Enforcement" rather than under the separate "Game" heading.)
 
 Deliberately NOT forced: `strict:hiddeninvisible` ("Hidden Monsters Invisible
 to Players") -- it shares the GameStrictRules section but is a Director
 visibility tool, not a strictness rule, and does not match the "Strict..."
 naming criterion.
 
-Mechanism: `EnforceStrictRules()` writes any of the five game-scoped settings
+Mechanism: `EnforceStrictRules()` writes any of the six game-scoped settings
 that is not already `true`. Called from the host's `SetupOnArrival` block
 (next to the `permission:playersinitiative` write) and re-asserted at the top
 of every `MapScriptHostThink` tick (check-before-write, so steady-state ticks
-write nothing). Safety facts verified in source: every consumer of these
-settings gates on `(not dmhub.isDM)`, so the host -- who keeps real DM status
--- and the Monster AI casts it runs are unaffected; and the settings screen's
-"Game" tab (the only editor surface) is `dmonly` on the real `dmhub.isDM`, so
-players cannot flip them off -- the host-tick re-assert only guards against
-the host itself using the still-visible Game tab (a recorded
-Director-presentation gap).
+write nothing).
+
+#### "Strictly Enforce Rolls" (strict:rolls) -- NEW 2026-08-29
+
+User direction: the roll prompt was still a free editing surface. A new
+game-scoped setting, `Strictly Enforce Rolls`, withdraws every affordance that
+lets the roller change a result after the dice have spoken. Defined in
+`DMHub Titlescreen/Settings.lua` next to the other `strict:*` settings, in the
+`GameStrictRules` section.
+
+Gate: the global `StrictRollsEnforced()` in `DMHub Utils/Utils.lua` --
+`(not dmhub.isDM) and dmhub.GetSettingValue("strict:rolls")`. Deliberately
+`dmhub.isDM`, NOT `IsDMOrPlayerHost()`: `isDM` is the Director-EXPERIENCE flag,
+so a player host is bound exactly like any other player and only a Director is
+exempt, matching `strict:resources`/`strict:targeting`/`strict:inventory`.
+Sampled once per dialog in `GameHud.CreateEmbeddedRollDialog` (a fresh dialog
+is built for every roll, so it cannot go stale mid-roll).
+
+What it withdraws:
+
+- **Re-roll.** `rollAgainButton.selfStyle.collapsed = 1` -- the selfStyle, not
+  the `"collapsed"` class, because the trigger countdown's reveal
+  (`rollAgainButton:SetClass("collapsed", false)`) clears that class and would
+  undo it. **Accept Result then takes the whole button bar**
+  (`selfStyle.width = "100%"`, `halign = "center"`; inline geometry beats the
+  buttonPanel's `{button}` halign rule, same trick as `rollDiceButton`).
+- **Editing the dice expression.** `rollInput` gets `editable = false`;
+  programmatic `.text` writes (`CalculateRollText`) are unaffected.
+- **Click-a-tier overrides.** `MCDMAbilityRollBehavior` stops putting the
+  `"selectable"` class on the power-table rows (same switch the Monster AI's
+  `aiDriven` already used). Clicking an **"or" alternative** in the tier text
+  is untouched -- that is a legitimate ability choice and runs on the label's
+  own `or:` link path.
+  The **chat card's** power table offers the very same override
+  (`self.overrideTier = i`, gated on the `"amendable"` class) and its own
+  edge/bane amend labels, so both are closed there too -- locking only the
+  dialog would leave the result editable one panel over.
+- **Modifier chips.** Only the modifiers that actually applied are listed
+  (unchecked ones `goto continue` out of the build), and the rest are
+  read-outs: `ModifierPanel{readOnly = true}` drops the `press` handler and
+  the `"hoverable"` class while keeping the linger tooltip.
+- **The edge/bane bar.** `boonBar:MakeNonInteractiveRecursive()` after it is
+  assembled -- recursive because `interactable` does not cascade; this covers
+  the five entry boxes and the reset arrow at once, and takes their hover
+  highlight with it.
+- **Backing out of a committed cast.** The ability card's close (X) and ESC are
+  refused once `options.pay` is set (`ActivatedAbility:CommitToPaying`) -- the
+  cost is already spent, so a cancel there is a free undo.
+  `CharacterPanel.AcquireAbilityRollDialog` stashes the cast's options on the
+  dialog as `data.castOptions` (the close X lives OUTSIDE the dialog's
+  subtree, so it has no other way to see them), and both affordances go
+  through `RollDialogCancelOffered(dialog)` in Utils. The button polls it on a
+  0.25s think -- `pay` is set deep inside the cast coroutine with no hook to
+  listen to -- which is self-terminating, since a collapsed panel stops
+  thinking and `pay` is never unset. `dialog.data.Cancel()` itself is
+  deliberately NOT guarded: `restoreFromBackup`, the request-rolls cleanup and
+  the roll-table cleanup call it directly and must always work.
+
+Deliberately left alone: the **"Re-roll for 1 Intel"** button (a sanctioned
+re-roll with a resource cost, behind `dev:trackintel`; it still fires the
+collapsed Re-roll button's press event, which works because collapsed panels
+still receive programmatic events), the **after-roll modifiers panel** (those
+are real post-roll player choices, e.g. spending to boost), the **surges bar**,
+and the **multicost "Charges" input** -- all spend decisions, which is
+`strict:resources`' domain rather than this one. Revisit if any of them turns
+out to be a cheat vector in play.
+
+Also 2026-08-29: the engine's **"Strictly Enforce Movement Rules"** row now
+renders with the other rules-enforcement toggles. It is registered by the
+engine (`Assets/CoreAssets/Lua/settings.txt`) in the plain `"Game"` section, so
+`Settings.lua` re-homes it with a single `Settings["strictmovementrules"].section
+= "GameStrictRules"` write rather than duplicating the definition -- `setting{}`
+stores the info table by id and the settings screen reads `.section` off it, so
+the engine's description, help, default and ordinal are untouched. Lua-only; no
+engine build needed.
+
+**SUPERSEDED CAVEAT (2026-08-29)**: as originally built, the settings were on
+but did not bind the HOST -- every consumer gates on `(not dmhub.isDM)` and
+the host kept real DM status (user confirmed live: strict mode enforced for a
+player, not for the host). Resolved by **player-host mode** (see the
+"Player-host mode" section above): with `dmhub.playerHostMode` armed the
+host's `dmhub.isDM` reads false, so the same gates -- deliberately left
+reading `dmhub.isDM` -- now bind the host too, while the Monster AI's
+capability paths read `IsDMOrPlayerHost()`. Needs the engine build; on an
+old engine the host remains exempt (the pre-2026-08-29 behavior).
 
 ### Victory/defeat auto-detection, player Proceed, and auto-exit (DECIDED + BUILT 2026-08-28)
 
@@ -1068,7 +1785,7 @@ User direction (2026-08-28): the core app gains hooks for a mod to enforce a
 **custom interface** -- the titlebar remains (items suppressible/addable),
 the side icon rails are replaceable with mod widgets, and EotW uses it: no
 side buttons, no "Panels" menu, no Compendium access, and a hero roster on
-the left edge.
+the right edge (it started on the left; moved 2026-08-29, user direction).
 
 **The core hook** -- `GameHud.RegisterCustomInterface{...}` in
 `DMHub Core UI/Hud.lua` (right after `RegisterDirectorUIFilter`, same
@@ -1160,25 +1877,113 @@ registered in the EotW codemod at position 2 after EncounterOfTheWeek.lua):
   tabs exactly as on the real rail. Verified live via the force toggle:
   buttons render bottom-left, chat opens with input focused, active class
   lights, action log opens tabbed, toggle closes, zero errors.
-- **Hero roster** on the left edge: one card per party hero
+- **Hero roster** on the right edge (REDESIGNED 2026-08-28, user
+  direction: portraits ARE the card; moved from the left edge 2026-08-29,
+  user direction -- `railPanel(side)` now answers for `"right"`, and the
+  cards `halign = "right"` so the column packs against that edge. The
+  kept rail buttons stay in the bottom-LEFT corner, where the real
+  rail's live): one card per party hero
   (`Party.GetPlayerCharacters()` + `IsHero()`, so off-map heroes count) --
-  204px wide, iconRailButton-style backing (blur + #000000cc + radius 8),
-  a 54x72 portrait mini-card (portraitBackground frame + offTokenPortrait
-  cropped via GetPortraitRectForAspect), name, "Stamina cur/max [+temp]
-  Rec cur/max", "<HeroicResourceName> N  Surges N", and a condition-icon
-  row (inflictedConditions + statusEffect ongoing effects, tooltips).
-  The local player's own heroes (strict `ownerId == dmhub.loginUserid`,
-  NOT canControl -- the host controls everything) sort first, spaced
-  tighter, on a blue-tinted bordered backing; a 16px gap separates the
-  groups. Refresh: 1s think + `/characters` monitor; cards rebuild only
-  when the roster signature changes.
-- Clicking a card pops the full character panel
-  (`ToggleCharacterPanelDocument(charid)`), **read-only for everyone, own
-  heroes included** -- `characterPanelAccess` returns "view" for every
-  player-controlled token (interpretation of "read-only when in
-  [encounter] of the week": sheet edits are off; state changes go through
-  the action bar and game flows -- consistent with strict rules
-  enforcement; flag if own-hero read-only is too strict).
+  132x176 (3:4), the portrait full-bleed as the card's own bgimage
+  (bgcolor white so art is untinted; `GetPortraitRectForAspect(0.75)`
+  crop; dark plate fallback while art is missing), cornerRadius 8. The
+  bottom third is a floating semi-opaque overlay (58px, #000000c0;
+  blue-tinted for own heroes) holding the name, a real STAMINA BAR, and
+  the heroic-resource icon + value. The stamina bar (refined 2026-08-28,
+  user direction): 14px tall, theme `bordered` track whose border AND
+  fill track healthy/winded/dying via @success/@warning/@danger (the
+  HealthFill tint rules copied into the roster styles), a glossy VERTICAL
+  grayscale gradient on the fill (tinted by the state color, overriding
+  the global fillBarFill shade), the cur/max numbers centered in white on
+  the bar ("+N" appended while temp stamina is up), and an @accent
+  temp-stamina segment riding the end of the fill. Heroic resource: the
+  class's `heroicResourceIcon` (`GetClass():try_get("heroicResourceIcon")`,
+  hidden if absent) with its value, tooltip on linger. SURGES (user
+  direction): no default readout at all -- one `game-icons/surge.png`
+  icon PER available surge in the card's bottom-right corner, nothing
+  when the hero has none (display capped at 9 icons). No card hover
+  tooltip (removed, user direction). Recoveries not shown (the popped
+  panel carries them). CONDITION ICONS (resized + moved 2026-08-29, user
+  direction) float over the artwork in the card's TOP-RIGHT corner -- they
+  used to center across the top on small chips. Each is a 26x26 chip
+  (`CONDITION_CHIP_SIZE`), `#000000cc`, cornerRadius 6, with a 2px red
+  (`#cc2222ff`) border, holding the 18x18 condition icon
+  (`CONDITION_ICON_SIZE`), tooltip on linger. The row is a floating
+  `halign = "right"` wrap container inset 4 from the right edge, and every
+  chip carries `halign = "right"` itself: the flow layout right-packs the
+  TRAILING run of `halign="right"` children against the right edge in
+  order (`SheetPanel.LayoutChildrenInternal`), so all-right children pack
+  right without losing order -- the same trick the surge corner uses. The
+  fixed `CARD_WIDTH - 8` container width is what keeps `wrap` meaningful
+  for a heavily-conditioned hero (about 4 chips per row); surges live in
+  the opposite (bottom-right) corner, so the two never collide.
+  Own heroes (strict
+  `ownerId == dmhub.loginUserid`, NOT canControl -- the host controls
+  everything) sort first, spaced tighter, with a 2px blue border vs 1px
+  dark; a 16px gap separates the groups; hover = brightness lift.
+  Refresh: 1s think + `/characters` monitor; cards rebuild only when the
+  roster signature changes.
+- **The roster auto-shrinks to fit** (2026-08-29, user direction: "make it
+  auto-scale down once it can't fit in the screen, if there are lots of
+  heroes"). A seven-hero column is ~1283 units tall against ~972 of usable
+  layer height, so at full size it would run off the bottom. `FitToScreen`
+  writes `selfStyle.uiscale = budget / contentHeight` (clamped to <= 1,
+  floored at 0.4 -- below that the cards are unreadable and clipping is
+  the better failure) with `pivot = {x = 1, y = 1}`, so the column shrinks
+  toward the top-RIGHT corner it hangs from. This is the same render-time
+  zoom recipe the rail roots use for the Font Size zoom; card layout and
+  font sizes inside are untouched, they just render smaller.
+  - `contentHeight` is **accumulated exactly as the cards are built**
+    (`CARD_HEIGHT` + that card's own margins: +4 own, +19 for the first
+    other hero's group gap, +6 for later ones) rather than measured --
+    `renderedHeight` is pre-uiscale and would feed back into itself.
+  - The budget (`RosterHeightBudget`) is the documents layer's
+    `renderedHeight` (~1048 units, NOT 1080 -- measured the way
+    `IconRailUIHeight` does, falling back to 1048) less the rail's top
+    inset and a 12-unit bottom gap, divided back out of
+    `PanelDocument.WindowUIScale()` because the wrapper already renders at
+    that zoom. The top inset duplicates `IconRailTop()`'s
+    `max(64, (40 + 12) * zoom + 12)` -- both are file locals in
+    DocumentSystem, so the constants are mirrored, not shared.
+  - It is re-evaluated on every 1s `Refresh` (the budget moves on window
+    resize and Font Size changes, neither of which touches the roster
+    signature) and force-re-applied on the rail wrapper's first
+    `refreshRail` tick, which is the first moment the column is certainly
+    attached to the layer -- a pivot write needs an attached panel.
+    `selfStyle.uiscale` is write-only; never read it back.
+- Clicking a card pops the full character panel **beside the card, on the
+  side with more room** (user direction 2026-08-28; it used to open
+  mid-screen): `ToggleCharacterPanelDocument(charid, nil, cardPanel)` --
+  the third `anchorPanel` arg routes through
+  `PanelDocument.PanelWindowPlacement(panel, scaledW, scaledH)` in
+  DocumentSystem. It reads the anchor's `positionInScreenSpace`, offsets
+  by half its rendered extent at WindowUIScale (true for rail-wrapper
+  widgets), and places the window beside it, level with its top, clamped
+  on screen. An anchor past the layer's mid-line is tried on its LEFT
+  first -- the same preference `TokenWindowPlacement` uses -- so the
+  right-edge roster's cards always open their panel to the left.
+  - **`positionInScreenSpace` is NOT in screen pixels despite its name.**
+    It reads back in the documents layer's own units (the same space as
+    `renderedWidth` and `PresentDocument`'s `x`/`y`), origin at the
+    layer's bottom-left, y UP. Verified live 2026-08-29: on a 1630x930
+    screen the layer reports position (946.45, 524) against a rendered
+    size of 1892.9x1048 -- exactly half its own extent, which can only be
+    true in layer units. The first cut of the helper divided by
+    `screenDimensions.x / uiW`, which is 1 only when the display's pixel
+    width happens to equal the layer's unit width (a 1920-wide screen);
+    on this 1630-wide one the card read back at x 2108 in a 1892.9-unit
+    layer, the "fits on the right" test failed, the left candidate landed
+    at 1651 and the window opened straight over the cards. Now the
+    conversion is a plain translate by the layer's own rect.
+  - It is also the **PIVOT's** position, not the centre. The rail
+    wrappers and the roster set `pivot {1,1}` (for their uiscale) and so
+    read back their top-RIGHT corner, while the cards keep the default
+    centred pivot. Only pass centred-pivot panels as anchors. The panel is **read-only for everyone, own heroes included**
+  -- `characterPanelAccess` returns "view" for every player-controlled
+  token (interpretation of "read-only when in [encounter] of the week":
+  sheet edits are off; state changes go through the action bar and game
+  flows -- consistent with strict rules enforcement; flag if own-hero
+  read-only is too strict).
 
 Verified live (authoring game via the force toggle): takeover + release
 both directions with zero console errors; roster card renders with
@@ -1471,13 +2276,57 @@ Begin is now the only launch path, with the resume row for re-entry.)
     live EotW game). All "Strict..." rules-enforcement settings (the four
     `strict:*` Rules Enforcement options + the engine's
     `strictmovementrules`) are forced on by the host at setup and re-asserted
-    every host tick. Design in "Strict rules enforcement".
+    every host tick. Design in "Strict rules enforcement". 2026-08-29: found
+    live to not bind the HOST (DM-exempt gates); resolved by step 28.
+28. [x] Player-host mode: BUILT 2026-08-29 (engine NEEDS BUILD, UNTESTED
+    live). `dmhub.playerHostMode` / `dmhub.isDMOrPlayerHost` engine split +
+    the full audit of every isDM site (engine, core Lua, codex) converting
+    hosting-capability reads to the real check; EotW arms the mode on the
+    host, making the host a genuine player (vision, UI, strict rules) while
+    its machine keeps hosting (AI, setup, election, teardown). Design in
+    "Player-host mode: the isDM / isDMOrPlayerHost split".
+    **2026-08-29 later: infinite reload loop found + fixed (engine NEEDS
+    BUILD).** First live entry into an EotW game on the playerHostMode
+    build looped forever: arming the mode forces the view-as-player hard
+    refresh, the refresh destroys/recreates the GameController for the
+    same game (`GameHarness.RefreshGame` -> `EnterGame`), the fresh
+    instance starts with `playerHostMode = false`, and the 1s driver
+    re-arms it -- one full game re-entry every ~4.3s (loading screen
+    restarting from the beginning). Evidenced live via a diagnostic in
+    `UpdatePlayerHostMode` (kept, now logs every arming). Fixes:
+    `GameHarness.RefreshGame` carries `playerHostMode` onto the new
+    GameController; and the spurious "Lua has been updated. F4 to
+    refresh." notification the loop surfaced (every teardown's
+    `UnloadCodeMod` -> `InvalidateMod` marked checked-out dependent mods
+    as locally changed with zero file edits) is fixed by
+    `ScriptEngine.UnloadCodeMod(modid, invalidateDependents)` -- full
+    teardowns (`UnloadAllCodeMods`, `ReloadScripts`) pass false, targeted
+    hot-reloads keep the cascade. Until the engine is rebuilt, the loop is
+    held off on the dev machine by `/toggle eotw:showdirectorui` = ON
+    (set 2026-08-29): **toggle it back off after the next engine build**
+    to actually exercise player-host mode. Expected post-build behavior:
+    entering an EotW game still runs the loading screen twice (the one
+    legitimate arming refresh), then settles.
+    **2026-08-29 (later still): the loop-fix build went live, the hatch
+    came back off, and the first fresh CREATE corrupted the game** --
+    the driver armed mid-starting-module-install; the refresh killed the
+    install's floor uploads and the arrival callback (black map, no
+    setup, unrepairable since the manifest reads INSTALLED). Fixed by
+    quiescence-gating the arming (Lua deployed: arm only after full load
+    + a `hostSetupComplete` doc stamp aged past a 10s flush window,
+    stamped at the END of SetupOnArrival's host branch) plus an engine
+    deferral of `s_forceHardRefresh` during load/install (NEEDS BUILD).
+    Full design in "Arming is quiescence-gated" under the Player-host
+    section. The corrupted game `MythicMintyPersistentScholar` must be
+    Abandoned. NEXT LIVE TEST: abandon, create fresh, expect Director-UI
+    beat -> setup -> one arming refresh ~10s after entry -> player view,
+    heroes placed, encounter spawned, floors intact.
 
 28. [x] Custom interface: BUILT + partially verified live 2026-08-28 (Lua
     only, no engine change). Core `GameHud.RegisterCustomInterface` hook +
     consumers (rails, titlebar, panel registries, search, character-panel
     access) and the EotW hud (`EncounterOfTheWeekHud.lua`: no side
-    buttons, no Panels menu, no Compendium, left-edge hero roster with
+    buttons, no Panels menu, no Compendium, right-edge hero roster with
     read-only character-panel popouts). Design + verification status in
     "Custom interface: usurping the game hud". Still to see live: multiple
     heroes with real per-player ownership, and a real EotW game.
@@ -1782,6 +2631,53 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
   setting ids resolve; the actual force-on is UNTESTED in a live EotW game --
   verify on the next live run (enter an EotW game as host, open Settings >
   Game, confirm the five checkboxes are on and monsters/AI still act).
+- 2026-08-29: **Player-host mode built** (step 28; user direction after
+  playing EotW live: the strict settings were ON but did not bind the host --
+  every strict gate exempts `dmhub.isDM` and the host keeps real DM status.
+  User proposed, and directed building, `dmhub.isDMOrPlayerHost`: make the
+  host a "player host" -- isDM reads false, capability sites read the new
+  real check -- and audit every isDM site). Full design + the complete
+  conversion inventory in the new "Player-host mode" architecture section;
+  the strict-rules section and the no-Director section carry superseded
+  caveats pointing at it.
+  - **Engine (NEEDS BUILD, uncommitted)**: `GameController.cs`
+    (`playerHostMode` field, `isDMOrPlayerHost` getter, `isDM` override,
+    install-gate/PasteCharacters/camera/analytics conversions),
+    `LuaInterface.cs` (`dmhub.isDMOrPlayerHost` + settable
+    `dmhub.playerHostMode` with hard refresh), `CharacterInfo.cs`
+    (`canControl`), `CharacterToken.cs` (prompt routing, 3 frozen gates,
+    2 summon-centering, hidden-drag embargo), `CloudAssetManager.cs`,
+    `LevelObject.cs`, `ObjectController.cs`, `OnePlayerStatusPanel.cs`,
+    `RectSelectObjects.cs`, `GameHarness.cs`, and
+    `CoreAssets/Lua/require-dc-dialog.txt` (compound prompt predicate +
+    monster-save autoroll).
+  - **Codex Lua (deployed -- gitfolder = repo; reload on the running app 49
+    mods, zero errors)**: `DMHub Utils/Utils.lua` (the `IsDMOrPlayerHost()`
+    fallback helper -- ALL codex conversions route through it, so old engine
+    builds behave exactly as before; verified live on the un-rebuilt engine),
+    `EncounterOfTheWeek/EncounterOfTheWeek.lua` (arming/disarming +
+    host-gate conversions + escape-hatch integration), `MapScript.lua`,
+    `MCDMCreature.lua`, `MCDMEncounter.lua`, `MCDMInitiativeQueue.lua`,
+    `RequireDCDialog.lua`, `DSRequestRollsDialog.lua`, `DSVictoryScreen.lua`,
+    `ActivatedAbility.lua`, `Monster AI/MonsterAI.lua`,
+    `Definitions/dmhub.lua` (stubs).
+  - Audit method: five parallel read-only agents classified all ~115 engine
+    + 294 codex isDM sites (KEEP = player experience / CONVERT = hosting
+    capability); I reviewed every CONVERT/UNSURE and applied ~35
+    conversions. Highest-risk finds the audit caught: the starting-module
+    install gate, PasteCharacters stamping the host as owner of spawned
+    monsters, prompt routing deadlocking against the host's own session,
+    monster-save autoroll (AI would stall on a prompt), and the map-script
+    election trio.
+  - **NEXT: engine build, then the live EotW test** -- as host: player
+    vision/UI from arrival, strict rules now binding (movement clipped,
+    unaffordable abilities refuse, invalid targets refuse, drag out of turn
+    blocked), Monster AI still plays monsters (saves auto-resolve, prompts
+    route to the host, election holds), no camera yanks on AI
+    summons/teleports, victory teardown records battle log + roles, and
+    `/toggle eotw:showdirectorui` restores the full Director view. Watch
+    the first AI turn closely for any prompt/roll stall -- that is where a
+    missed capability site would surface.
 - 2026-08-28 (later session): **Custom interface built** (step 28; user
   direction: core hooks so a mod can usurp the game hud -- titlebar stays
   but items suppressible/addable, rails replaceable -- and EotW uses them:
@@ -1819,3 +2715,202 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
     input, tabbed window, toggle, active class, clean release; zero
     errors). Residual: no chat speech-bubble preview during takeovers
     (slot-anchored); the unread badge covers it.
+  - Follow-up same session (user direction): **card redesign + anchored
+    character windows.** Cards are now full-bleed portraits (132x176)
+    with a bottom-third semi-opaque overlay (name, unlabeled themed
+    stamina bar with winded/dying tinting + temp segment, heroic-resource
+    icon + surge icon with values), condition chips over the art; and the
+    popped character panel opens BESIDE the clicked card via the new
+    `PanelDocument.PanelWindowPlacement` +
+    `ToggleCharacterPanelDocument(charid, nil, anchorPanel)` third arg
+    (design in the roster/click bullets above). Verified live in a
+    4-hero test game: portraits fill the cards, bars read
+    correct fractions (11/18 partial, 21/21 full), icons + values render,
+    the Orc Conduit panel opened level with its card to the right, toggle
+    closed it; no new console errors.
+  - Follow-up same session (user direction): **bar + surge refinements.**
+    Card hover tooltip removed; stamina bar now 14px with the cur/max
+    numbers centered in white and a glossy vertical gradient fill; temp
+    stamina confirmed as a distinct accent segment at the end of the bar
+    with "+N" in the numbers; surges dropped from the resource row --
+    per-surge icons render in the card's bottom-right corner, none when
+    zero (capped at 9). Verified live (temp+surges temporarily inflicted
+    on Dwarf Fury and reverted): "27/33 +4" centered on the bar, grey
+    accent temp segment at the fill's end, two corner surge icons, other
+    cards icon-free; zero new errors.
+  - **2026-08-29 (user direction): the roster moved to the RIGHT edge and
+    now auto-shrinks to fit.** `railPanel(side)` answers for `"right"`
+    instead of `"left"` (the kept rail buttons stay bottom-left), the
+    cards `halign = "right"`, and the column applies a fit-to-screen
+    `uiscale` around a top-right pivot -- design in the two roster
+    bullets above. Lua only (`EncounterOfTheWeek/EncounterOfTheWeekHud.lua`),
+    luac-clean, live on disk via gitfolder.
+    Verified live 2026-08-29 in a 4-hero game: (a) the column hangs off
+    the right edge flush with it, and (c) clicking a card opens the
+    character window level with the card's top, cleanly to its LEFT --
+    but only after the two right-edge fixes below. Still **NOT SEEN**:
+    (b) the fit-to-screen shrink with 5+ heroes, (d) re-fit on window
+    resize / Font Size change.
+- **2026-08-29 (user direction): the two right-edge collisions the move
+  exposed are FIXED.** Both were core-codex bugs the roster was simply
+  the first widget wide enough to expose; Lua only, live on disk,
+  luac-clean, verified live by screenshot in the same 4-hero game.
+  - **Character windows opened over the cards, not beside them.**
+    `PanelDocument.PanelWindowPlacement` treated
+    `positionInScreenSpace` as screen pixels and converted; it is
+    already in layer units. See the units bullet in the roster/click
+    design above for the full account. The helper now translates by the
+    layer's own rect and prefers the roomier side (left for anything
+    past the mid-line), matching `TokenWindowPlacement`. Live check on a
+    1630x930 screen: a card centred at layer x 1814.9 now places a
+    380x520 window at (1358.9, 66) -- right edge 1738.9 against the
+    card's left edge 1748.9 -- where it used to place it at x 1651.6,
+    straight over the cards.
+    File: `DocumentSystem/DocumentSystem.lua`.
+  - **The ability sidebar / roll dialog overlapped the cards.** The
+    right-edge hosts (`abilityDisplayPanel` and `standaloneRollHostPanel`,
+    both 360 wide) reserve a right margin via `RightHostMargin`, which in
+    rail mode assumed the rail is the ordinary 40-unit button column
+    (`RIGHT_HOST_RAIL_MARGIN = 60`) and otherwise only dodged floating
+    panel WINDOWS (`RailWindowsRightIntrusion`). A custom-interface rail
+    widget is neither. DocumentSystem gained
+    `RailRightColumnWidth()` -- the `"right"`/`"rightbottom"` wrappers'
+    `ICON_RAIL_LEFT + renderedWidth * WindowUIScale()`, i.e. how far in
+    from the right edge the rail actually reaches -- and `RightHostMargin`
+    now takes `max(that + 8, 60, windowIntrusion)`. It is an upper bound:
+    a widget that shrinks itself further with its own `uiscale` (the
+    roster's fit-to-screen) is invisible from out there, which errs
+    toward extra clearance. Live check: the roster reports a 144-unit
+    column, the hosts moved from a 60- to a 152-unit margin (right edge
+    1740.9 vs the cards' 1748.9), and the "Ray of Wrath" card renders
+    fully clear of the roster.
+    Files: `DocumentSystem/DocumentSystem.lua`, `DMHub Game Hud/GameHud.lua`.
+  - Both are core-codex changes, so they apply to **any** custom
+    interface that mounts a wide right rail, not just EotW.
+- **2026-08-29 (research only, no code): "Spear Charge doesn't charge in
+  EotW" ROOT-CAUSED.** Not a permission denial -- the `strict:movement`
+  remaining-budget clamp in the `token:Move` Lua bridge
+  (`Assets/Scripts/CharacterToken.cs:3040`) gates on `isDM == false`, which
+  is now true on the player host, so every Monster AI move is clamped to
+  the monster's remaining move budget. Spear Charge moves twice in a turn,
+  so the second (the charge) gets ~0 budget, `Move` returns nil, the AI
+  ignores it and attacks from range. Full analysis in the "Monster AI moves
+  are clamped by strict:movement on a player host" section above.
+- **2026-08-29 (same session): FIXED in three layers, plus a new engine
+  concept.** (a) Lua, live now: the two charge moves pass
+  `freeMovement = true` -- a Charge's movement belongs to the ability, not
+  the move action. (b) Engine: `CharacterToken.subjectToPlayerMovementRules`
+  replaces the bare `isDM == false` in the `token:Move` strict:movement
+  clamp, so the clamp binds the host's own hero but not a token it controls
+  only because it hosts. (c) Engine, user direction: **host-permission
+  elevation** -- `ScriptEngine.hostPermissionDepth`, parked and restored
+  per-coroutine by the `LuaNative` harness so it is provably zero outside
+  Lua execution, exposed as `dmhub.ExecuteWithHostPermissions` /
+  `PushHostPermissions` / `PopHostPermissions` with
+  `ElevateToHostPermissions()` / `DropHostPermissions()` codex helpers, and
+  applied to the Monster AI's three coroutine entry points. Design in the
+  "Host-permission elevation" section above.
+  Files: `Assets/Scripts/ScriptEngine.cs`, `Assets/Scripts/GameController.cs`,
+  `Assets/Scripts/LuaInterface.cs`, `Assets/Scripts/LuaNative/LuaNative.cs`,
+  `Assets/Scripts/CharacterToken.cs`; `Definitions/dmhub.lua`,
+  `DMHub Utils/Utils.lua`, `Monster AI/MonsterAI.lua`,
+  `Monster AI/MonsterAIPanel.lua`.
+  **ENGINE NEEDS BUILD; UNTESTED.** On the current (un-rebuilt) engine the
+  codex helpers no-op and only the `freeMovement` charge fix is in effect --
+  which by itself should already make Spear Charge charge. To verify after
+  the build: in an EotW game watch a Goblin Warrior take a Spear Charge turn
+  (reposition, "Charge!", the charge move actually happens, strike in range);
+  confirm the host still sees player vision and player UI throughout the AI's
+  turn (nothing should flicker to Director chrome between AI actions); and
+  confirm a hero's own movement is still clamped by strict:movement.
+
+- **2026-08-29 (same session): EotW screen no longer sits on top of the
+  loading screen.** Reported: beginning the encounter puts up the loading
+  screen, but the EotW screen stays visible over it and through it, vanishing
+  only a second or two after the load. Root cause: nothing ever hid the
+  screen -- it is a floating sibling of the loading screen on the titlescreen
+  root and only went away when C# deactivated the titlescreen 1s after
+  `endLoading`. Fix (Lua only, live now): `Codex Titlescreen/EncounterOfTheWeek.lua`
+  -- the screen panel gains `beginLoading` (schedule the `hidden` class) and
+  `returnFromGameComplete` (clear it), and `ShowScreen` clears `hidden` on an
+  existing screen instead of no-opping into an invisible one. Hidden rather
+  than destroyed so `SweepStaleScreen` still sees it and rebuilds a live
+  screen on return. Verified in the running app by firing `beginLoading` and
+  then `returnFromGameComplete` on the live screen panel and screenshotting:
+  hides to the bare titlescreen, comes back with roster + chat intact.
+  Design detail folded into the loading-screen bullet under "Creating and
+  joining EotW games".
+  **Follow-up the same session:** the first cut hid on the `beginLoading`
+  event itself, which was too eager -- the player saw the screen blink out
+  and then the loading art transition in over the bare titlescreen. The hide
+  is now scheduled `LOADING_SCREEN_FADE_IN_SECONDS` (0.35s, the loading
+  screen's 0.3s dissolve plus margin) after `beginLoading`, gated on a
+  `data.loadingUp` flag so a load that resolves inside the window does not
+  hide anything. **The delay itself is UNVERIFIED live** -- the app was
+  mid-encounter when it was written, and it needs one real Begin to confirm
+  the handoff looks continuous.
+
+- **2026-08-29 (same session): Add-a-Hero picker portraits are warmed at
+  screen entry.** Reported: the picker comes up half-rendered, freezes for
+  about a second while the remaining portraits load, then fills in.
+  - **First attempt (a "Loading..." cover over the grid) STALLED and was
+    REVERTED** -- it waited on an image-load count that never balanced and sat
+    until its 4s backstop on every open. Recorded as REJECTED under
+    "Hero-card lineup" with the suspected cause, so it is not re-attempted.
+  - **Shipped instead (user direction): warm the portraits when the EotW
+    screen opens**, so the picker is already warm whenever it is opened and
+    nothing ever blocks on a load. Design in the new "Picker portrait
+    warm-up" bullet under "Hero-card lineup". Lua only, one file:
+    `Codex Titlescreen/EncounterOfTheWeek.lua` -- new
+    `PORTRAIT_WARM_RESCAN_SECONDS` / `PORTRAIT_WARM_PASSES` constants, a
+    portrait warm-up section (`EligiblePortraitImageIds`,
+    `CreatePortraitWarmer`) after the pregen accessors, and one
+    `resultPanel:AddChild(CreatePortraitWarmer())` at the end of
+    `CreateScreen`. `MakeCardPanel` and `ShowAddHeroDialog` are back to their
+    pre-session state.
+  - luac-clean, ASCII-clean, live via the gitfolder, **UNVERIFIED live** --
+    the connected instance was inside a game, not at the titlescreen. To
+    confirm: open the EotW screen, wait a few seconds, then open Add Hero and
+    watch whether the grid paints in one pass. If it still trickles, the
+    thing to check first is whether the 1x1 warm panels actually trigger a
+    fetch (inspect `#eotwPortraitWarmer`'s children and whether their
+    `imageLoaded` fired) before assuming the eligible-id set is wrong.
+
+- **2026-08-29 (user direction): "Strictly Enforce Rolls" + the movement-rules
+  row moved.** Full design in the "Strict rules enforcement" section above.
+  Two asks, both Lua-only and live on disk via the gitfolder, all files
+  luac-clean:
+  - The engine's "Strictly Enforce Movement Rules" row now renders under
+    "Rules Enforcement" with the other strict toggles, via a one-line
+    re-section in `DMHub Titlescreen/Settings.lua` (no engine build).
+  - New game setting `strict:rolls` ("Strictly Enforce Rolls") withdraws the
+    roll prompt's result-editing affordances for players and hosts, Directors
+    exempt: no Re-roll (Accept Result takes the whole bar), no editing the
+    dice expression, no click-a-tier override (in the roll dialog AND the chat
+    card), modifier chips filtered to the ones that applied and frozen, the
+    edge/bane bar frozen, and no backing out of a cast that has committed to
+    paying (close X and ESC). Files: `DMHub Titlescreen/Settings.lua`,
+    `DMHub Utils/Utils.lua` (`StrictRollsEnforced`,
+    `RollDialogCancelOffered`), `Timeline/EmbeddedRollDialog.lua`,
+    `Timeline/AbilitySidebar.lua` (stashes `data.castOptions`),
+    `Draw Steel Core Rules/MCDMAbilityRollBehavior.lua`,
+    `Draw Steel Core Rules/MCDMActivatedAbility.lua`.
+  - `strict:rolls` was added to EotW's forced set (`g_strictRuleSettings`),
+    so **existing EotW games will turn it on themselves** on the host's next
+    `MapScriptHostThink` tick. That is a live behaviour change for EotW, per
+    the section's stated intent ("every Strict... option"); remove the one
+    list entry if it should be opt-in instead.
+  - **UNVERIFIED live.** Registration was confirmed in the running app
+    (`dmhub.HasSetting("strict:rolls")` true, both rows report section
+    `GameStrictRules`), but no roll was driven through the locked UI: the
+    user was working in another game by then. To verify: turn the setting on
+    in a game, roll an ability as a PLAYER (or as the EotW player host), and
+    check (a) the Re-roll button is gone and Accept Result spans the bar,
+    (b) the roll expression will not take keystrokes but still updates itself
+    when modifiers change, (c) tier rows do not highlight on hover and do not
+    override on click -- in the dialog and in the chat card -- while an "or"
+    alternative in the tier text still selects, (d) only applied modifier
+    chips are listed and none of them toggle (tooltips still appear),
+    (e) the edge/bane boxes do not respond, (f) the card's close X is offered
+    before the cost is paid and gone afterwards, and ESC matches it, and
+    (g) a Director sees the unrestricted dialog throughout.

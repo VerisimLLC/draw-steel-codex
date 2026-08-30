@@ -400,9 +400,25 @@ local function RailAvailable()
     return dmhub.GetSettingValue("iconrail") == true
 end
 
+--Only a CustomDocument-backed row can actually go on a rail: the layout
+--key is "doc:<id>" and IconRailDocAdd resolves it against the
+--CustomDocument table. PDF fragments, PDFs and journal images live in
+--their own tables (see the journal's foldersToMembers build), so the add
+--silently no-ops for them -- don't offer a menu item that cannot work.
+local function RailCanTakeDocument(doc)
+    if doc == nil or doc.id == nil then
+        return false
+    end
+    local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+    return docs[doc.id] ~= nil
+end
+
 local function RailAddMenuEntries(element, doc)
     local result = {}
     if doc == nil or rawget(_G, "IconRailDocAdd") == nil or not RailAvailable() then
+        return result
+    end
+    if not RailCanTakeDocument(doc) then
         return result
     end
     result[#result + 1] = {
@@ -1301,9 +1317,13 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                             end
                             --the icon rail accepts documents as shortcut
                             --buttons, alongside the existing folder
-                            --reparent/reorder targets.
+                            --reparent/reorder targets -- but only the rows
+                            --it can actually resolve (see
+                            --RailCanTakeDocument); refusing the target here
+                            --is what keeps a PDF fragment from showing a
+                            --drop preview it would then ignore.
                             if target:HasClass("iconRail") or target:HasClass("iconRailButton") then
-                                return true
+                                return RailCanTakeDocument(element.data.doc or member)
                             end
                             --accept the folder as its TreeNode root
                             --(documentFolder) OR its header ("folder" --
@@ -1315,9 +1335,15 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                 target:FindParentWithClass("documentFolder") ~= nil
                         end,
                         dragging = function(element, target)
-                            --live slot preview while hovering a rail.
+                            --live slot preview while hovering a rail. A row
+                            --the rail cannot take previews nothing: pass nil
+                            --so any ghost still standing is hidden.
                             if rawget(_G, "IconRailDocDragging") ~= nil then
-                                IconRailDocDragging(target)
+                                if RailCanTakeDocument(element.data.doc or member) then
+                                    IconRailDocDragging(target)
+                                else
+                                    IconRailDocDragging(nil)
+                                end
                             end
                         end,
                         drag = function(element, target)

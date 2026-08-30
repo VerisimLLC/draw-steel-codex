@@ -3002,6 +3002,29 @@ setting{
 }
 
 setting{
+    id = "strict:rolls",
+    description = "Strictly Enforce Rolls",
+    help = "When enabled, a roll's result stands: players (and a GM viewing as a player) cannot re-roll, edit the dice expression, click a tier row to override the outcome, or change which modifiers and edges/banes were applied -- and only the modifiers that actually apply are listed. Backing out of an ability with the card's close button is also refused once its cost has been paid. The Director is never restricted.",
+    storage = "game",
+    editor = "check",
+    default = false,
+    section = "GameStrictRules",
+}
+
+--The engine registers "Strictly Enforce Movement Rules" (core settings.txt)
+--in the plain "Game" section, where it renders among the unrelated toggles
+--above the headings. It is a rules-enforcement setting like the four above,
+--so move it into that section here rather than duplicating the definition --
+--setting{} stores the info table by id and the settings screen reads .section
+--off it, so this one write re-homes the existing row without touching the
+--engine's description, help, default or ordinal.
+local g_engineMovementSetting = rawget(_G, "Settings")
+g_engineMovementSetting = g_engineMovementSetting ~= nil and g_engineMovementSetting["strictmovementrules"] or nil
+if g_engineMovementSetting ~= nil then
+    g_engineMovementSetting.section = "GameStrictRules"
+end
+
+setting{
     id = "dmhub:do_websocket_impl",
     description = "Game Server Connection",
     help = "Which WebSocket implementation to use when connecting to the cloud game server. Try the alternate option if you have trouble connecting (e.g. behind a corporate proxy or VPN). Takes effect on the next reconnect.",

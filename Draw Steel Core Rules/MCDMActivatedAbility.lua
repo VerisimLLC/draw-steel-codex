@@ -2787,35 +2787,64 @@ function ActivatedAbility:Render(options, params)
             valign = "top",
             escapeActivates = false,
             classes = { "collapsed" },
-            data = { rollDialog = nil },
-            embedRollDialog = function(element, dialog)
-                if dialog ~= nil and dialog.data ~= nil and dialog.data.Cancel ~= nil then
-                    element.data.rollDialog = dialog
-                    element:SetClass("collapsed", false)
+            data = { rollDialog = nil, aiDriven = false },
+
+            --The single place that decides whether the cancel affordance is on
+            --offer. Three reasons it is not: no interactive dialog is embedded,
+            --the Monster AI is driving the roll, or "Strictly Enforce Rolls" is
+            --on and the cast has already committed to paying its cost
+            --(RollDialogCancelOffered -- see DMHub Utils/Utils.lua).
+            refreshCancel = function(element)
+                local dialog = element.data.rollDialog
+                local offer = dialog ~= nil and dialog.valid and dialog.data ~= nil
+                    and dialog.data.Cancel ~= nil
+                    and (not element.data.aiDriven)
+                    and RollDialogCancelOffered(dialog)
+                element:SetClass("collapsed", not offer)
+                if offer then
                     --The ability tooltip is made non-interactive as a whole
                     --(AbilitySidebar MakeNonInteractiveRecursive). interactable is
                     --per-element and does not cascade to descendants, so re-enable
                     --this button on its own to make the click register.
                     element.interactable = true
+                end
+            end,
+
+            embedRollDialog = function(element, dialog)
+                if dialog ~= nil and dialog.data ~= nil and dialog.data.Cancel ~= nil then
+                    element.data.rollDialog = dialog
                 else
                     element.data.rollDialog = nil
-                    element:SetClass("collapsed", true)
                 end
+                element:FireEvent("refreshCancel")
             end,
             --The Monster AI drives its own roll and completes it, so the card
             --offers no cancel affordance while it does. Fired by
             --CharacterPanel.EmbedDialogInAbility straight after embedRollDialog
             --above, so this re-collapse lands on the freshly revealed button.
             rollDialogAIDriven = function(element, aiDriven)
-                if aiDriven then
-                    element:SetClass("collapsed", true)
-                end
+                element.data.aiDriven = aiDriven == true
+                element:FireEvent("refreshCancel")
             end,
+
+            --options.pay is set deep inside the cast coroutine, which offers the
+            --card no hook to listen to, so poll for it. Cheap (a few table
+            --reads) and self-terminating: the button starts collapsed, is
+            --revealed by embedRollDialog, and think stops the moment this
+            --collapses it again -- and `pay` is never unset.
+            thinkTime = 0.25,
+            think = function(element)
+                element:FireEvent("refreshCancel")
+            end,
+
             click = function(element)
+                --Belt and braces: the button is collapsed (and so unclickable)
+                --whenever cancelling is withdrawn, but re-check rather than
+                --trust the last poll.
                 local dialog = element.data.rollDialog
                 if dialog ~= nil and dialog.valid and dialog.data ~= nil
                     and dialog.data.Cancel ~= nil and dialog.data.IsShown ~= nil
-                    and dialog.data.IsShown() then
+                    and dialog.data.IsShown() and RollDialogCancelOffered(dialog) then
                     dialog.data.Cancel()
                 end
             end,

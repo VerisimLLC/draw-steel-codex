@@ -41,6 +41,43 @@ function DropHostPermissions()
     end
 end
 
+--- True when the "Strictly Enforce Rolls" game setting binds THIS client. It
+--- withdraws the roll dialog's result-editing affordances: the Re-roll button,
+--- the editable dice expression, click-a-tier-row overrides, the modifier chips
+--- and the edge/bane bar (both become read-outs, and only the modifiers that
+--- actually apply are listed), and the ability card's close button once the
+--- cast has committed to paying.
+--- Gated on dmhub.isDM, NOT IsDMOrPlayerHost(): isDM is the Director-EXPERIENCE
+--- flag, so a player host is bound by rules enforcement exactly like any other
+--- player, and only a Director is exempt. This matches strict:resources,
+--- strict:targeting and strict:inventory -- see PERMISSIONS_MODEL_REFERENCE.md.
+function StrictRollsEnforced()
+    return (not dmhub.isDM) and dmhub.GetSettingValue("strict:rolls") == true
+end
+
+--- True when the user may still back out of the embedded roll `dialog` -- the
+--- ability card's close (X) button and ESC. "Strictly Enforce Rolls" withdraws
+--- that the moment the cast behind the roll has committed to paying its cost:
+--- ActivatedAbility:CommitToPaying sets options.pay, and the cast stashes its
+--- options on the dialog as data.castOptions
+--- (CharacterPanel.AcquireAbilityRollDialog). The resources are spent by then,
+--- so a cancel would be a free undo. A roll with no cast behind it (standalone
+--- and table rolls carry no castOptions) stays cancellable, as does every roll
+--- for a Director.
+--- Deliberately NOT applied to dialog.data.Cancel() itself: system teardown
+--- paths -- restoreFromBackup, the request-rolls and roll-table cleanups --
+--- call that directly and must always work.
+function RollDialogCancelOffered(dialog)
+    if dialog == nil or not dialog.valid or dialog.data == nil then
+        return false
+    end
+    if not StrictRollsEnforced() then
+        return true
+    end
+    local castOptions = dialog.data.castOptions
+    return castOptions == nil or not castOptions.pay
+end
+
 -- True when the USER controls this token in their own right -- they own it,
 -- it is in their party, or they are the Director. On a player host
 -- (dmhub.playerHostMode) tok.canControl is host-WIDE: it reports true for

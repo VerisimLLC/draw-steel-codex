@@ -365,10 +365,18 @@ local function ModifierPanel(args)
     local m_eye = args.eye
     args.eye = nil
 
+    --Strictly Enforce Rolls: the badge is a read-out of what applied, not a
+    --control. It keeps its linger tooltip (interactable stays on) -- only the
+    --toggle and the clickable "hoverable" affordance go.
+    local m_readOnly = args.readOnly == true
+    args.readOnly = nil
+
     local classes = args.classes or {}
     classes[#classes+1] = "modifierPanel"
     classes[#classes+1] = "bgAlt"
-    classes[#classes+1] = "hoverable"
+    if not m_readOnly then
+        classes[#classes+1] = "hoverable"
+    end
     args.classes = nil
 
     local bonusIndicator = gui.Panel{
@@ -435,6 +443,10 @@ local function ModifierPanel(args)
         end,
     }
 
+    if m_readOnly then
+        params.press = nil
+    end
+
     if m_eye ~= nil then
         params[#params+1] = m_eye
     end
@@ -457,6 +469,13 @@ end
 
 
 function GameHud.CreateEmbeddedRollDialog()
+    --"Strictly Enforce Rolls" (strict:rolls), sampled once here: a fresh dialog
+    --is built for every roll (CharacterPanel.EmbedDialogInAbility /
+    --EmbedDialogStandalone), so the flag cannot go stale mid-roll and the
+    --affordances below can simply not be built. Directors are exempt; a player
+    --host is bound. See StrictRollsEnforced in DMHub Utils/Utils.lua.
+    local m_strictRolls = StrictRollsEnforced()
+
     --the creature doing the roll
     local creature = nil
 
@@ -855,6 +874,9 @@ function GameHud.CreateEmbeddedRollDialog()
     local rollInput = gui.Input{
         classes = { 'roll-input', 'hideWhenMinimized' },
         selectAllOnFocus = true,
+        --Strictly Enforce Rolls: the dice expression is a read-out. Programmatic
+        --writes to .text (CalculateRollText and friends) are unaffected.
+        editable = not m_strictRolls,
         events = {
             edit = function(element)
                 if element:HasClass("rolling") or element:HasClass("finishedRolling") then
@@ -3026,6 +3048,15 @@ function GameHud.CreateEmbeddedRollDialog()
                 CalculateRollText()
             end,
         })
+
+        if m_strictRolls then
+            --Strictly Enforce Rolls: the edge/bane bar reports what the rules
+            --worked out, it is not a picker. Recursive because `interactable`
+            --does not cascade -- this covers the five entry boxes and the
+            --reset arrow in one call. Their "hoverable" highlight goes with
+            --the clicks, which is the point: nothing here looks pressable.
+            boonBar:MakeNonInteractiveRecursive()
+        end
     end
 
 
@@ -3286,6 +3317,14 @@ function GameHud.CreateEmbeddedRollDialog()
                             ischecked = mod.hint.result
                         end
 
+                        --Strictly Enforce Rolls: the panel lists what applied to
+                        --this roll, so the modifiers the rules did NOT apply are
+                        --not offered at all. (The ones that did are still built,
+                        --read-only, below.)
+                        if m_strictRolls and not ischecked then
+                            goto continue
+                        end
+
                         local check --gui.Check that will come out of this.
 
                         local rawName = mod.modifier.name or ""
@@ -3463,6 +3502,7 @@ function GameHud.CreateEmbeddedRollDialog()
                             classes = classes,
                             text = text,
                             value = ischecked,
+                            readOnly = m_strictRolls,
                             hmargin = 2,
                             mod = mod,
                             eye = spoilerEye,
@@ -3971,6 +4011,23 @@ function GameHud.CreateEmbeddedRollDialog()
         events = {},
 
     }
+
+    if m_strictRolls then
+        --Strictly Enforce Rolls: the result stands, so there is no Re-roll.
+        --selfStyle rather than the "collapsed" CLASS, because the trigger
+        --countdown's reveal below clears that class to show the button
+        --(`rollAgainButton:SetClass("collapsed", false)`) and would undo it;
+        --a selfStyle collapse survives that. Programmatic presses still reach
+        --it (a collapsed panel still receives events), which is what keeps the
+        --Intel re-roll option working.
+        rollAgainButton.selfStyle.collapsed = 1
+
+        --With Re-roll gone, Accept Result takes the whole bar instead of
+        --sitting in the right half of it. Inline geometry beats the
+        --buttonPanel's {button} halign rule -- same trick as rollDiceButton.
+        proceedAfterRollButton.selfStyle.width = "100%"
+        proceedAfterRollButton.selfStyle.halign = "center"
+    end
 
     rollDiceButton = gui.PrettyButton {
         text = 'Roll Dice',
@@ -5650,6 +5707,13 @@ function GameHud.CreateEmbeddedRollDialog()
                 BroadcastDialogState()
             end,
             escape = function(element)
+                --ESC is the keyboard twin of the card's close (X); under
+                --"Strictly Enforce Rolls" both are withdrawn once the cast has
+                --committed to paying. data.Cancel itself stays unguarded --
+                --system teardown paths call it directly.
+                if not RollDialogCancelOffered(element) then
+                    return
+                end
                 element.data.Cancel()
             end,
             submit = function(element)

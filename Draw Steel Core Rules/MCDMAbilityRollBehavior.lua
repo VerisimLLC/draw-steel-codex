@@ -809,7 +809,13 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                         --the roll itself, so the rows must offer no click-to-override
                         --affordance. "aiDriven" is put on this subtree by the embedded
                         --roll dialog's ShowDialog before the dice land.
-                        element:SetClassTree("selectable", not element:HasClass("aiDriven"))
+                        --Nor under "Strictly Enforce Rolls": overriding the tier the
+                        --dice produced is exactly what that setting withdraws. Only
+                        --the row's tier override goes -- clicking an "or" alternative
+                        --in the tier text is a legitimate choice and runs on its own
+                        --path (the label's `or:` link handler), untouched.
+                        element:SetClassTree("selectable",
+                            (not element:HasClass("aiDriven")) and (not StrictRollsEnforced()))
                     end
                 end,
                 tierIcon,
@@ -2964,7 +2970,11 @@ function RollPropertiesPowerTable:CustomPanel(message)
                 fontSize = 14,
 
                 press = function(element)
+                    --Same amend affordance as the roll dialog's edge/bane bar,
+                    --reachable from the chat card after the fact; "Strictly
+                    --Enforce Rolls" closes both or it closes neither.
                     local isActive = g_activeRoll ~= nil and g_activeRoll.amendable and g_activeRoll.guid == messageGuid
+                        and (not StrictRollsEnforced())
                     if isActive  then
                         local oldMod = BoonsAndBanesToMod(m_boons, m_banes)
                         local currentValue = m_boons - m_banes
@@ -3070,7 +3080,13 @@ function RollPropertiesPowerTable:CustomPanel(message)
                 return
             end
 
+            --StrictRollsEnforced: the chat card's power table offers the very
+            --same click-a-tier override as the roll dialog's, so locking only
+            --the dialog would leave the result editable one panel over. Drives
+            --the "amendable" class (below), which both the tier rows and the
+            --edge/bane labels read.
             local isActive = g_activeRoll ~= nil and g_activeRoll.amendable and g_activeRoll.guid == messageGuid
+                and (not StrictRollsEnforced())
 
             m_tiers = info.tiers or 0
             m_boons = info.boons or 0

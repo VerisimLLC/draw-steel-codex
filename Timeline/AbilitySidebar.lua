@@ -2246,6 +2246,11 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
         if dialog.data ~= nil then
             dialog.data.castCoroutine = coid
             dialog.data.rollRelinquished = false
+            --The cast's own options table, so the card's close (X) button --
+            --which lives outside the dialog's subtree -- can see whether the
+            --cast has committed to paying (options.pay). Under "Strictly
+            --Enforce Rolls" a paid-for cast can no longer be backed out of.
+            dialog.data.castOptions = castOptions
         end
 
         --give a few cycles for the dialog to init.

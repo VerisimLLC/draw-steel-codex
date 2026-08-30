@@ -1524,6 +1524,10 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 
 			DramaticBanner.Create(),
 
+			--headless monitor that replays squishy-object wobbles broadcast by
+			--other clients (see SquishFx in InteractiveSign.lua).
+			SquishFx.CreateMonitorPanel(),
+
 			DSVictoryScreen.Create(),
 
 			gamehud:CreateTipBanner(),

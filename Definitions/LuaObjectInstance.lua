@@ -58,6 +58,13 @@ function LuaObjectInstance:ClearRadiusMarker()
 	-- dummy implementation for documentation purposes only
 end
 
+--- PlaySquishAnimation: Play a brief, purely visual squash-and-stretch wobble on this map object -- click feedback for squishy things. Local-only: never serialized or networked, so callers that want other clients to see it must broadcast it themselves. Probe inside pcall: older engine builds lack this method.
+--- @param args nil|{intensity: nil|number, duration: nil|number} intensity is the peak scale deflection (default 0.06 = 6%), duration in seconds (default 0.4).
+--- @return nil
+function LuaObjectInstance:PlaySquishAnimation(args)
+	-- dummy implementation for documentation purposes only
+end
+
 --- AddComponentFromJson
 --- @param id any
 --- @param json any

@@ -2331,7 +2331,9 @@ end
 -- and it never throws.
 function LiveEncounter.CompleteEncounter(outcome, roles)
     local ok, err = pcall(function()
-        if not dmhub.isDM then
+        --hosting capability: the EotW player host is the client that must
+        --record the battle log and analytics.
+        if not IsDMOrPlayerHost() then
             return
         end
 
@@ -3388,7 +3390,12 @@ end
 --   bubbleid      : string|nil     id of the info bubble it was found on, or
 --                                  nil for game-wide journal entries
 --   docid         : string|nil     id of the markdown document it was found in
-function Encounter.GetEncountersOnCurrentMap()
+--`hostAccess` (optional): search the journal with HOSTING-level access rather
+--than the viewer's. A directorless game's host has dmhub.isDM false, so the
+--map's own journal folder -- where the encounter lives -- is not in their
+--accessible roots; setup code that must find the encounter to run it passes
+--this. Director-facing UI does not.
+function Encounter.GetEncountersOnCurrentMap(hostAccess)
     local result = {}
     local seenDocs = {}
 
@@ -3440,7 +3447,7 @@ function Encounter.GetEncountersOnCurrentMap()
     --journal, sorted by name for a stable dropdown order.
     local docsTable = dmhub.GetTable(CustomDocument.tableName)
     if docsTable ~= nil then
-        local accessibleRoots = CustomDocument.GetAccessibleRoots()
+        local accessibleRoots = CustomDocument.GetAccessibleRoots(hostAccess)
         local docs = {}
         for docid, doc in unhidden_pairs(docsTable) do
             if doc.typeName == "MarkdownDocument" and not seenDocs[docid] and CustomDocument.IsDocInAccessibleRoot(doc, accessibleRoots) then
@@ -4302,7 +4309,8 @@ end
 --unreadable or nobody looks present - a stalled encounter script is worse
 --than a rare duplicate.
 local function IsElectedHost()
-    if not dmhub.isDM then
+    --hosting capability: the EotW player host must be electable.
+    if not IsDMOrPlayerHost() then
         return false
     end
     local best = nil

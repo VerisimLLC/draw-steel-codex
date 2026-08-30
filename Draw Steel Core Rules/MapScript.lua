@@ -618,7 +618,9 @@ local g_presence = { mapid = nil, lastWrite = 0 }
 --Write/refresh our presence entry in the map's document (directors only),
 --pruning long-dead entries while we are writing anyway.
 local function RenewHostPresence(mapid)
-    if not dmhub.isDM then
+    --hosting capability: a player host (real DM status presented as a
+    --player) must still write presence or no client is ever elected.
+    if not IsDMOrPlayerHost() then
         return
     end
     local now = dmhub.serverTime
@@ -653,7 +655,7 @@ local function ReleaseHostPresence(mapid)
         g_presence.mapid = nil
         g_presence.lastWrite = 0
     end
-    if not dmhub.isDM then
+    if not IsDMOrPlayerHost() then
         return
     end
     pcall(function()
@@ -675,7 +677,9 @@ end
 --- Before our own presence write lands we simply are not host yet (rather
 --- than failing open) - two directors arriving at once can never both act.
 function MapScript.IsElectedHost(mapid)
-    if not dmhub.isDM then
+    --hosting capability: the EotW player host must be electable (its
+    --session's dm flag stays true engine-side, so peers agree).
+    if not IsDMOrPlayerHost() then
         return false
     end
     if mapid == nil or mapid == "" then

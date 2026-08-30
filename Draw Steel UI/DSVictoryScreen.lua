@@ -1760,7 +1760,9 @@ end
 -- anything that computes roles after it runs can get a different answer than the
 -- screen displayed.
 local function RecordHeroRoles(live, roles)
-    if type(live) ~= "table" or not dmhub.isDM then
+    --real hosting check: the EotW player host runs the teardown and must
+    --still record the role history.
+    if type(live) ~= "table" or not IsDMOrPlayerHost() then
         return
     end
     -- Guard against a double-proceed re-recording the same encounter (transient:

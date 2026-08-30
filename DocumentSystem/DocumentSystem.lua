@@ -461,10 +461,20 @@ local function buildBreadcrumbText(doc)
     return table.concat(reversed, " <color=#ffffff99>></color> ")
 end
 
-function CustomDocument.GetAccessibleRoots()
+--`hostAccess` (optional): resolve access for the machine HOSTING the game
+--rather than for the user viewing it. Identical for a real Director. It matters
+--in a directorless game, where the host's dmhub.isDM is false: their setup code
+--still has to read the map's journal (that is where the encounter lives), but
+--their journal UI must keep showing them only what a player sees. So only
+--capability callers pass this -- never the browsing/viewing UI.
+function CustomDocument.GetAccessibleRoots(hostAccess)
     local roots = {}
     roots["public"] = true
-    if dmhub.isDM then
+    local director = dmhub.isDM
+    if hostAccess and IsDMOrPlayerHost() then
+        director = true
+    end
+    if director then
         roots["private"] = true
         roots["templates"] = true
         if game and game.currentMapId then

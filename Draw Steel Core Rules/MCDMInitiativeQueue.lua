@@ -148,7 +148,11 @@ function InitiativeQueue.GetTokensForInitiativeId(initiativeid, allTokens)
 		local monsterType = string.sub(initiativeid, 9, -1)
 
 		for k,tok in pairs(allTokens) do
-			if tok.properties ~= nil and (tok.properties:GetMonsterType() == monsterType or tok.properties:MinionSquad() == monsterType) and (dmhub.isDM or not tok.invisibleToPlayers) then
+			--IsDMOrPlayerHost: this list is also the mechanical token set for
+			--turn processing and the Monster AI on the host, so an invisible
+			--monster must not drop out of it there. (Trade-off: the player
+			--host's own initiative bar can show an invisible monster's face.)
+			if tok.properties ~= nil and (tok.properties:GetMonsterType() == monsterType or tok.properties:MinionSquad() == monsterType) and (IsDMOrPlayerHost() or not tok.invisibleToPlayers) then
 				result[#result+1] = tok
 			end
 		end
@@ -651,7 +655,10 @@ function InitiativeQueue.CanClaimTurn(initiativeid, options)
 		return false
 	end
 
-	local canControl = dmhub.isDM
+	--default is the real hosting check: programmatic callers (the AI, the
+	--EotW host automation) pass no options and must be able to claim monster
+	--entries on a player host. UI callers all pass the setting-backed check.
+	local canControl = IsDMOrPlayerHost()
 	if options ~= nil and options.canControlInitiative ~= nil then
 		canControl = options.canControlInitiative
 	end

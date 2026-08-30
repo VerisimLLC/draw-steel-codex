@@ -680,8 +680,9 @@ local g_hiddenInvisPending = {}
 --and a director who manually reveals a still-hidden monster is not fought.
 --The write is deferred out of the refresh path to avoid re-entrant uploads.
 local function SyncHiddenInvisibility(token)
-    --Only the director's client manages this.
-    if not dmhub.isDM then
+    --Only the hosting client manages this (a player host included: it is
+    --the single writer for director-run creatures).
+    if not IsDMOrPlayerHost() then
         return
     end
 

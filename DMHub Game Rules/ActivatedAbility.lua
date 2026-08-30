@@ -2397,7 +2397,10 @@ function ActivatedAbility:RecordAbilityUsage(casterToken, options)
         end
     end
 
-    if dmhub.isDM then
+    --director attribution: a Director's casts, plus director-run creatures
+    --cast on a player host (the Monster AI's monsters) -- but a player
+    --host's own hero casts count as player casts.
+    if dmhub.isDM or (IsDMOrPlayerHost() and not casterToken.playerControlled) then
         params.director = true
     end
 
@@ -2729,8 +2732,9 @@ end
 function ActivatedAbility:Cast(casterToken, targets, options)
 	--While the Director has the game frozen, players cannot act. Refuse here,
 	--before the chat message and before any resources are spent -- this is the
-	--central funnel every ability activation path goes through.
-	if dmhub.frozen and not dmhub.isDM then
+	--central funnel every ability activation path goes through. Real hosting
+	--check: the Monster AI's casts on a player host must never be refused.
+	if dmhub.frozen and not IsDMOrPlayerHost() then
 		print("Cast:: refused; the game is frozen")
 		return
 	end

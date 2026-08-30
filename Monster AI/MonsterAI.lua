@@ -268,7 +268,15 @@ end
 
 function MonsterAI:PlayTurn(initiativeid)
     dmhub.Coroutine(function()
+        --Everything a turn does -- moving monsters, casting their abilities --
+        --is the HOST acting, not the user playing, so run the whole turn with
+        --host permissions. On a player host (Encounter of the Week) this is
+        --what keeps player rules enforcement from binding the AI; the engine
+        --parks the elevation whenever this coroutine yields, so the user still
+        --sees player vision and player UI throughout.
+        ElevateToHostPermissions()
         self:PlayTurnCoroutine(initiativeid)
+        DropHostPermissions()
     end)
 end
 
@@ -1172,7 +1180,12 @@ function MonsterAI:ExecuteSquadStrike(ability)
                 self:Speech(squadMember.token, "Charge!")
                 self.Sleep(0.3)
                 print("AI:: CHARGE TO", bestOption.charge.x, bestOption.charge.y)
-                local path = squadMember.token:Move(bestOption.charge, {maxCost = 10000, ignoreFalling = false})
+                --freeMovement: a Charge is a main action whose movement belongs to the
+                --ability, not to the creature's move action, so it must not be charged
+                --against -- or clamped by -- the remaining move budget under
+                --strict:movement. Without this the move above eats the budget and the
+                --charge silently becomes a no-op, leaving the striker out of range.
+                local path = squadMember.token:Move(bestOption.charge, {maxCost = 10000, ignoreFalling = false, freeMovement = true})
                 self.Sleep(1)
             end
 
@@ -2183,7 +2196,9 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
             self:Speech(token, "Charge!")
             self.Sleep(0.5)
 
-            local path = token:Move(target.charge, {maxCost = 10000, ignoreFalling = false})
+            --freeMovement: the Charge's movement is part of the ability, not the
+            --creature's move action (see the matching note in ExecuteSquadStrike).
+            local path = token:Move(target.charge, {maxCost = 10000, ignoreFalling = false, freeMovement = true})
             self.Sleep(1)
             target.charge = nil
         end
@@ -2783,7 +2798,9 @@ Commands.RegisterMacro{
         return result
     end,
     command = function(str)
-        if not dmhub.isDM then
+        --hosting capability, not chrome: the machine that runs the AI (a
+        --player host included) must be able to drive it by hand.
+        if not IsDMOrPlayerHost() then
             print("/testai: DM only.")
             return
         end
@@ -3038,6 +3055,10 @@ Commands.RegisterMacro{
         end
 
         dmhub.Coroutine(function()
+            --Same as a real AI turn: this drives monsters as the host, so it runs
+            --with host permissions (see MonsterAI:PlayTurn).
+            ElevateToHostPermissions()
+
             --test:aiforcetier is read by ActivatedAbilityPowerRollBehavior:Cast
             --as each power roll resolves; it stamps overrideTier onto the roll,
             --which is exactly what clicking that tier row would have done. It
@@ -3060,6 +3081,8 @@ Commands.RegisterMacro{
             if not ok then
                 TestAIMessage(string.format("run failed: %s", tostring(err)))
             end
+
+            DropHostPermissions()
         end)
     end,
 }

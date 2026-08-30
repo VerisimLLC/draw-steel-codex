@@ -302,10 +302,14 @@ local function CreateDrawSteelBubble()
 		else
 			--Find the list of tokens for the first entry in the initiative queue. If we have control of any of them show
 			--the button, otherwise don't.
+			--TokenControlledByUser, not tok.canControl: on a player host
+			--(a directorless game, e.g. Encounter of the Week) canControl is
+			--host-wide, so the monsters the Monster AI is running would let
+			--the host end their turn out from under the AI.
 			local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, currentInitiativeId)
 			local foundControllable = false
 			for i,tok in ipairs(tokens) do
-				if tok.canControl then
+				if TokenControlledByUser(tok) then
 					foundControllable = true
 					break
 				end
@@ -476,7 +480,7 @@ local function CreateDrawSteelBubble()
 
             local canSelectToken = false
             local token = dmhub.selectedOrPrimaryTokens[1]
-            if token ~= nil and token.canControl then
+            if TokenControlledByUser(token) then
                 local initiativeid = InitiativeQueue.GetInitiativeId(token)
                 if initiativeid ~= nil and dmhub.initiativeQueue:IsEntryPlayer(initiativeid) and token.topsheet ~= nil then
                     canSelectToken = true
@@ -538,7 +542,7 @@ local function CreateDrawSteelBubble()
             end
 
             local token = dmhub.selectedOrPrimaryTokens[1]
-            if token ~= nil and token.canControl then
+            if TokenControlledByUser(token) then
                 local initiativeid = InitiativeQueue.GetInitiativeId(token)
                 if initiativeid ~= nil and (dmhub.initiativeQueue:IsEntryPlayer(initiativeid) == dmhub.initiativeQueue:IsPlayersTurn()) and token.topsheet ~= nil then
                     local nameplate = token.topsheet:GetChildrenWithClassRecursive("nameplate")[1]
@@ -772,7 +776,7 @@ local function CreateDrawSteelBubble()
                 end
 
                 local token = dmhub.selectedOrPrimaryTokens[1]
-                if token ~= nil and token.canControl then
+                if TokenControlledByUser(token) then
                     local initiativeid = InitiativeQueue.GetInitiativeId(token)
                     if initiativeid ~= nil and (dmhub.initiativeQueue:IsEntryPlayer(initiativeid) == dmhub.initiativeQueue:IsPlayersTurn()) then
                         element.parent:FireEventTree("claiming", true)

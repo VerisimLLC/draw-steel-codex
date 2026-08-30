@@ -59,6 +59,16 @@ GameHud.RegisterBetweenTurnHandler{
 --or a replacing StartProcess); g_terminate remains the panel's own local
 --stop flag, and both routes end the thread here.
 local function MonsterAIThread(process)
+    --The AI thread acts for the machine HOSTING the game, never for its user:
+    --it drives monsters, takes their turns and answers their triggers. Elevating
+    --the whole thread means every engine call it makes reports real hosting
+    --status, so player rules enforcement does not bind it on a player host
+    --(Encounter of the Week). The elevation is parked whenever this coroutine
+    --yields -- which is most of the time -- so the user keeps player vision and
+    --player UI, and it is discarded outright when the thread ends.
+    --Turns run in their OWN coroutine (MonsterAI:PlayTurn), which elevates itself.
+    ElevateToHostPermissions()
+
     MonsterAI.active = true
     g_status = nil
     while true do

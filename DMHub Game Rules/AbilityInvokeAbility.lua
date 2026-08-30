@@ -566,6 +566,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                 else
 
+                    if options.symbols.subject ~= nil then
+                        symbols.subject = options.symbols.subject
+                    end
+
                     local abilityTemplate = nil
                     if self.abilityType == "named" then
                         local abilities = target.token.properties:GetActivatedAbilities{allLoadouts = true, bindCaster = true}

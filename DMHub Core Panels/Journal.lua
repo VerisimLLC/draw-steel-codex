@@ -400,9 +400,25 @@ local function RailAvailable()
     return dmhub.GetSettingValue("iconrail") == true
 end
 
+--Only a CustomDocument-backed row can actually go on a rail: the layout
+--key is "doc:<id>" and IconRailDocAdd resolves it against the
+--CustomDocument table. PDF fragments, PDFs and journal images live in
+--their own tables (see the journal's foldersToMembers build), so the add
+--silently no-ops for them -- don't offer a menu item that cannot work.
+local function RailCanTakeDocument(doc)
+    if doc == nil or doc.id == nil then
+        return false
+    end
+    local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+    return docs[doc.id] ~= nil
+end
+
 local function RailAddMenuEntries(element, doc)
     local result = {}
     if doc == nil or rawget(_G, "IconRailDocAdd") == nil or not RailAvailable() then
+        return result
+    end
+    if not RailCanTakeDocument(doc) then
         return result
     end
     result[#result + 1] = {

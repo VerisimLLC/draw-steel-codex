@@ -117,7 +117,7 @@ function monster:FillFreeStrikes(options, result)
 
     local powerRoll = nil
     local damageType = "untyped"
-    local signatureRange = 1
+    local signatureRanges = {}
     if signature ~= nil then
         for _,behavior in ipairs(signature.behaviors) do
             if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
@@ -133,7 +133,20 @@ function monster:FillFreeStrikes(options, result)
             end
         end
 
-        signatureRange = signature:GetRange(self) or 1
+        local meleeSignature = signature
+        local rangedSignature = signature
+        if signature:HasKeyword("Melee") and signature:HasKeyword("Ranged") then
+            local splitSignature = signature:BifurcateIntoMeleeAndRanged(self)
+            meleeSignature = splitSignature.meleeVariation
+            rangedSignature = splitSignature.rangedVariation
+        end
+
+        if signature:HasKeyword("Melee") then
+            signatureRanges.Melee = meleeSignature:GetRange(self)
+        end
+        if signature:HasKeyword("Ranged") then
+            signatureRanges.Ranged = rangedSignature:GetRange(self)
+        end
     end
 
     local freeStrikeDamage = tostring(self:OpportunityAttack())
@@ -151,7 +164,8 @@ function monster:FillFreeStrikes(options, result)
         ability.targetType = "target"
         ability.numTargets = "1"
         if signature ~= nil and signature:HasKeyword(signatureKeyword) then
-            ability.range = math.max(defaultRange, signatureRange)
+            ability.range = math.max(defaultRange,
+                signatureRanges[signatureKeyword] or defaultRange)
         else
             ability.range = defaultRange
         end

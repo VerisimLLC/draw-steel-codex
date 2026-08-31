@@ -1044,6 +1044,387 @@ local g_remoteLastSection = nil
 -- the dice event subscriptions on the tier table).
 local g_remoteLastRollState = nil
 
+----------------------------------------------------------------------
+-- Movable / pinnable ability card
+--
+-- The floating ability card -- the roll-dialog card on the right of the
+-- screen, and the read-only copy shown while a REMOTE player rolls --
+-- can be dragged around by its color-keyed title band. Once the user
+-- has placed it, a pin appears beside the card's close X: clicking it
+-- saves the title band's position permanently, and every future card
+-- (local or remote; they are the same dialog to the user) opens there.
+-- Clicking the engaged pin forgets the spot and the card returns to its
+-- default sidebar position.
+--
+-- Positions are stored as the title band center's distance in from the
+-- screen's TOP-RIGHT corner, in positionInScreenSpace units (layout
+-- units, not pixels -- see reference notes on that property). Anchoring
+-- to the top-right keeps the card near its home edge if the window is
+-- resized, and restores are clamped back on screen.
+----------------------------------------------------------------------
+
+--Permanent pin: false when unpinned, else {rx, ry} -- the title band
+--center measured leftward (rx) and downward (ry) from the screen's
+--top-right corner.
+setting{
+    id = "abilitycardpin",
+    storage = "preference",
+    default = false,
+}
+
+--Where the user placed the card THIS appearance ({rx, ry} like the pin,
+--or nil). Seeded by drags; outlives the mid-cast card rebuilds
+--(targeting -> casting fires showAbility again) and is cleared once
+--nothing -- local or remote -- is displayed any more. Without a pin, a
+--drag therefore lasts for the current appearance only.
+local g_cardUserPos = nil
+
+local function CardIsPinned()
+    local pinned = dmhub.GetSettingValue("abilitycardpin")
+    return type(pinned) == "table" and pinned.rx ~= nil and pinned.ry ~= nil
+end
+
+--The active placement, or nil for the default sidebar position.
+local function CardPlacementTarget()
+    if g_cardUserPos ~= nil then
+        return g_cardUserPos
+    end
+    if CardIsPinned() then
+        return dmhub.GetSettingValue("abilitycardpin")
+    end
+    return nil
+end
+
+--Clear the transient placement once no card of either flavor is up.
+local function MaybeClearCardUserPos()
+    if g_displayedAbility == nil and g_remoteDisplayUserId == nil then
+        g_cardUserPos = nil
+    end
+end
+
+--The rect of the topmost ancestor panel -- the full-screen sheet -- in
+--positionInScreenSpace units (origin bottom-left, y UP). Placement is
+--measured against this rather than the sidebar host, whose own margins
+--slide around as rail windows open and close.
+local function CardScreenRect(panel)
+    local p = panel
+    while p.parent ~= nil do
+        p = p.parent
+    end
+    local pos = p.positionInScreenSpace
+    local halfw = p.renderedWidth / 2
+    local halfh = p.renderedHeight / 2
+    return {
+        left = pos.x - halfw,
+        right = pos.x + halfw,
+        top = pos.y + halfh,
+        bottom = pos.y - halfh,
+    }
+end
+
+--Styles for the pin that appears beside the card's close X once the card
+--has been placed. Same grammar as the rail windows' pin (DocumentSystem
+--panelDocumentPinButton), down to its opacity ladder: nearly invisible and
+--tilted at rest so it does not compete with the ability name beside it,
+--lifting on hover, upright and lit while engaged.
+--
+--White rather than that pin's @fgMuted/@fgStrong: it sits on the
+--color-keyed title band, whose colors are fixed dark literals in every
+--theme (see SpellRenderStyles), so anything riding on it is fixed light
+--too -- the same reason the ability name is a literal #FFFFFF.
+local g_cardPinStyles = {
+    {
+        selectors = {"abilityCardPin"},
+        bgcolor = "#FFFFFF",
+        opacity = 0.35,
+        rotate = 45,
+        transitionTime = 0.15,
+    },
+    {
+        selectors = {"abilityCardPin", "hover"},
+        opacity = 1,
+    },
+    {
+        selectors = {"abilityCardPin", "pinned"},
+        opacity = 1,
+        rotate = 0,
+    },
+}
+
+--Make a floating ability card movable: drag it by its title band, pin
+--the spot with the pin that appears once it has been placed. `wrapper`
+--is the outermost panel the drag moves; the title band is found inside
+--it. Cards without a band (the trigger renderers) are left alone.
+--
+--opts.deferReveal: the wrapper was built hidden for the roll-dialog flow
+--and RevealAbilityCard owns unhiding it -- the hide-until-placed logic
+--below must not reveal it early.
+local function AttachMovableAbilityCard(wrapper, opts)
+    opts = opts or {}
+    local band = wrapper:FindChildRecursive(function(p)
+        return p:HasClass("abilityHeadBand")
+    end)
+    if band == nil then
+        return
+    end
+
+    --non-nil while the band is being dragged; captured at beginDrag.
+    local dragBase = nil
+
+    --The band position the last correction was computed from, plus its
+    --timestamp. positionInScreenSpace lags layout by at least a frame,
+    --and two scheduled passes can mature in the SAME frame -- scheduled
+    --events are checked once per frame, and frames stretch to 100ms
+    --under the background 10fps throttle (GameConfig backgroundfps) or
+    --any hitch -- where the second pass re-reads the identical stale
+    --position and stacks its correction on top of the first (measured
+    --live: the card overshot 993px off screen, then swung back).
+    --Corrections are skipped until the measurement moves off the last
+    --basis; time-boxed so an external reflow landing back on the old
+    --basis cannot wedge placement permanently.
+    local lastCorrection = nil
+
+    --Hide-until-placed: a card opening onto a placed/pinned spot is laid
+    --out at its default position and only measured into place a frame or
+    --two later, which flashed it at the wrong spot for a frame (owner
+    --report 2026-08-30, hover previews). Build it hidden and reveal on
+    --the first placement pass that finds it in position. `hidden`, not
+    --opacity: opacity is per-widget and does not cascade, while hidden
+    --still lays the subtree out (same reasoning as the deferReveal
+    --wrapper in showAbility).
+    local pendingReveal = false
+    local function Reveal()
+        if not pendingReveal then
+            return
+        end
+        pendingReveal = false
+        if wrapper.valid then
+            --UpdateStyle mirrors RevealAbilityCard: the hidden setter
+            --historically did not mark the panel style-dirty.
+            wrapper.selfStyle.hidden = 0
+            wrapper:UpdateStyle()
+        end
+    end
+
+    --Idempotent placement: measure where the band actually is and nudge
+    --the wrapper by the difference. Re-run from think so the card holds
+    --its spot through layout reflows (the sidebar host's sliding margin,
+    --the visibility banner collapsing, the roll dialog growing the card).
+    local function ApplyPlacement()
+        local diag = rawget(_G, "CARDPLACE_DIAG")
+        local function dlog(fmt, ...)
+            if diag ~= nil then
+                diag[#diag+1] = string.format("%.3f " .. fmt, dmhub.Time(), ...)
+            end
+        end
+        if dragBase ~= nil then
+            --mid-drag the user's hand is the authority.
+            dlog("skip: dragging")
+            return
+        end
+        if not wrapper.valid or not band.valid or wrapper.parent == nil then
+            dlog("skip: invalid/unparented")
+            return
+        end
+        local target = CardPlacementTarget()
+        if target == nil then
+            Reveal()
+            return
+        end
+        local rect = CardScreenRect(wrapper)
+        --clamp so the band -- the drag handle -- always stays reachable.
+        local x = clamp(rect.right - target.rx, rect.left + 60, rect.right - 60)
+        local y = clamp(rect.top - target.ry, rect.bottom + 30, rect.top - 30)
+        local pos = band.positionInScreenSpace
+        local dx = x - pos.x
+        local dy = y - pos.y
+        if math.abs(dx) < 0.5 and math.abs(dy) < 0.5 then
+            --in position -- confirmed by a fresh measurement, so a card
+            --built hidden can now be shown without a wrong-spot flash.
+            dlog("in place at (%.0f,%.0f)", pos.x, pos.y)
+            Reveal()
+            return
+        end
+        if lastCorrection ~= nil
+            and dmhub.Time() - lastCorrection.time < 0.5
+            and math.abs(pos.x - lastCorrection.x) < 0.5
+            and math.abs(pos.y - lastCorrection.y) < 0.5 then
+            --the measurement has not caught up with the last correction
+            --yet; correcting again from the same basis double-applies.
+            dlog("skip: stale basis")
+            return
+        end
+        lastCorrection = {x = pos.x, y = pos.y, time = dmhub.Time()}
+        --panel x/y offsets are y-DOWN; positionInScreenSpace is y-UP.
+        dlog("correct: pos=(%.0f,%.0f) target=(%.0f,%.0f) wx=%.0f wy=%.0f", pos.x, pos.y, x, y, wrapper.x, wrapper.y)
+        wrapper.x = wrapper.x + dx
+        wrapper.y = wrapper.y - dy
+        --x/y writes take effect on this frame's render, so once the
+        --remaining error is imperceptible the card can be shown with the
+        --write instead of hiding through another confirm pass.
+        if math.abs(dx) < 8 and math.abs(dy) < 8 then
+            Reveal()
+        end
+    end
+
+    local pinButton
+    pinButton = gui.Panel{
+        classes = {"abilityCardPin", cond(CardPlacementTarget() == nil, "collapsed")},
+        styles = g_cardPinStyles,
+        bgimage = "phosphor/push-pin-simple-light.png",
+        --Sized and centred to match the cancel x it sits beside: both ride in
+        --flow in the band's abilityHeadControls row, so neither carries a
+        --hand-tuned offset and the pin closes up against the right edge on
+        --the cards that have no x. No rmargin -- the x brings its own 6px
+        --lmargin, and doubling it pushed the pair far enough left to land on
+        --the roll-visibility eyelid that trails the ability name.
+        width = 18,
+        height = 18,
+        valign = "center",
+        interactable = true,
+        swallowPress = true,
+
+        create = function(element)
+            element:SetClass("pinned", CardIsPinned())
+        end,
+
+        linger = function(element)
+            if element:HasClass("pinned") then
+                gui.Tooltip("Unpin: ability cards return to their usual spot")(element)
+            else
+                gui.Tooltip("Pin this spot: ability cards will always appear here")(element)
+            end
+        end,
+
+        click = function(element)
+            if CardIsPinned() then
+                --Unpin forgets the SAVED spot but does not move the card:
+                --it stays put for this appearance (carried by the transient
+                --position, which dies when the card closes) and only opens
+                --at the default sidebar position next time.
+                g_cardUserPos = g_cardUserPos or dmhub.GetSettingValue("abilitycardpin")
+                dmhub.SetSettingValue("abilitycardpin", false)
+                element:SetClass("pinned", false)
+            else
+                local rect = CardScreenRect(wrapper)
+                local pos = band.positionInScreenSpace
+                local placement = { rx = rect.right - pos.x, ry = rect.top - pos.y }
+                dmhub.SetSettingValue("abilitycardpin", placement)
+                g_cardUserPos = placement
+                element:SetClass("pinned", true)
+            end
+        end,
+    }
+    --Head of the band's control row, ahead of the cancel x. Inserted rather
+    --than AddChild'd: AddChild appends, which would put the pin to the RIGHT
+    --of the x. Every band comes from ActivatedAbility:Render and so carries
+    --the row; the fallback only keeps the pin reachable rather than lost if
+    --a band is ever built without one.
+    local headControls = band:FindChildRecursive(function(p)
+        return p:HasClass("abilityHeadControls")
+    end)
+    if headControls ~= nil then
+        local siblings = headControls.children
+        table.insert(siblings, 1, pinButton)
+        headControls.children = siblings
+    else
+        band:AddChild(pinButton)
+    end
+
+    --The card is made non-interactive wholesale (MakeNonInteractiveRecursive);
+    --interactable is per-element and does not cascade, so the drag handle
+    --re-enables just itself -- the same trick the card's close X uses.
+    band.interactable = true
+    band.draggable = true
+    band.dragMove = false
+    --panels built with no event handlers have a nil events table; reading
+    --panel.events returns nil rather than creating one, so seed it first.
+    if band.events == nil then
+        band.events = {}
+    end
+    band.events.beginDrag = function(element)
+        local pos = band.positionInScreenSpace
+        dragBase = {
+            x = wrapper.x,
+            y = wrapper.y,
+            bandX = pos.x,
+            bandY = pos.y,
+        }
+    end
+    band.events.dragging = function(element)
+        if dragBase == nil then
+            return
+        end
+        wrapper.x = dragBase.x + element.dragDelta.x
+        wrapper.y = dragBase.y + element.dragDelta.y
+    end
+    band.events.drag = function(element)
+        if dragBase == nil then
+            return
+        end
+        local delta = element.dragDelta
+        wrapper.x = dragBase.x + delta.x
+        wrapper.y = dragBase.y + delta.y
+        --the band's landing spot, computed from the drag delta rather
+        --than read back: positionInScreenSpace lags layout by a frame.
+        local rect = CardScreenRect(wrapper)
+        local bandX = dragBase.bandX + delta.x
+        local bandY = dragBase.bandY - delta.y
+        dragBase = nil
+        g_cardUserPos = { rx = rect.right - bandX, ry = rect.top - bandY }
+        --a pinned card follows the user's hand: the saved spot updates
+        --with the drag rather than snapping back next time.
+        if CardIsPinned() then
+            dmhub.SetSettingValue("abilitycardpin", g_cardUserPos)
+        end
+        pinButton:SetClass("collapsed", false)
+        --snaps the card back on screen if it was dropped over an edge.
+        ApplyPlacement()
+    end
+
+    --Initial restore + hold. ScheduleEvent fires even while the card is
+    --still hidden (deferReveal), and layout takes a few frames to
+    --settle, so retry a few times before think takes over. The early
+    --passes are tight so a hidden card is confirmed-in-place and shown
+    --within a few frames.
+    if wrapper.events == nil then
+        wrapper.events = {}
+    end
+    wrapper.events.applyCardPlacement = function()
+        ApplyPlacement()
+    end
+    wrapper.events.revealCardFailsafe = function()
+        --never leave the card invisible if placement cannot converge
+        --(e.g. the host never lays out).
+        Reveal()
+    end
+    wrapper.events.think = function()
+        ApplyPlacement()
+    end
+    if CardPlacementTarget() ~= nil then
+        --Opening onto a placed spot: keep the card hidden until it is
+        --measured into place. Deferred cards are already hidden and
+        --revealed by RevealAbilityCard (which applies placement first),
+        --so they must not be self-revealed here.
+        if not opts.deferReveal then
+            pendingReveal = true
+            wrapper.selfStyle.hidden = 1
+            wrapper:ScheduleEvent("revealCardFailsafe", 0.6)
+        end
+        --~0.1s apart: scheduled events fire on the frame they mature, and
+        --frames run 100ms apart under the background 10fps throttle --
+        --anything tighter just lands two passes in one frame there.
+        wrapper.thinkTime = 0.2
+        wrapper:ScheduleEvent("applyCardPlacement", 0.02)
+        wrapper:ScheduleEvent("applyCardPlacement", 0.12)
+        wrapper:ScheduleEvent("applyCardPlacement", 0.22)
+        wrapper:ScheduleEvent("applyCardPlacement", 0.35)
+        wrapper:ScheduleEvent("applyCardPlacement", 0.5)
+    else
+        wrapper.thinkTime = 0.5
+    end
+end
+
 -- Render a remote ability timeline from shared document data, or clear
 -- it when the document is empty / expired.  Called from refreshGame on
 -- the ability display panel.
@@ -1076,6 +1457,7 @@ local function RefreshRemoteAbilityDisplay(displayPanel, shareData)
             g_remoteLastSection = nil
             g_remoteLastRollState = nil
             displayPanel.children = {}
+            MaybeClearCardUserPos()
         end
         return
     end
@@ -1135,6 +1517,7 @@ local function RefreshRemoteAbilityDisplay(displayPanel, shareData)
             g_remoteLastSection = nil
             g_remoteLastRollState = nil
             displayPanel.children = {}
+            MaybeClearCardUserPos()
         end
         return
     end
@@ -1189,7 +1572,23 @@ local function RefreshRemoteAbilityDisplay(displayPanel, shareData)
         children = headerChildren,
     }
 
-    displayPanel.children = { header, abilityPanel }
+    --Wrap the header and card in one panel so the drag/pin machinery can
+    --move them together (see Movable / pinnable ability card above). The
+    --wrapper does the vertical centering, so the card's own valign is
+    --normalized to top -- two siblings with different valigns in one
+    --vertical flow stack from opposite ends and overlap.
+    abilityPanel.selfStyle.valign = "top"
+    local cardWrapper = gui.Panel{
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        flow = "vertical",
+        header,
+        abilityPanel,
+    }
+    AttachMovableAbilityCard(cardWrapper)
+
+    displayPanel.children = { cardWrapper }
     g_remoteDisplayUserId = shareData.userid
     g_remoteAbilityPanel = abilityPanel
 end
@@ -1331,6 +1730,7 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
                 g_remoteLastSection = nil
                 g_remoteLastRollState = nil
                 element.children = {}
+                MaybeClearCardUserPos()
             end
         end,
     }
@@ -1514,6 +1914,10 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
             end
 
             local cardWrapper = gui.Panel(wrapperArgs)
+            --Drag by the title band / pin the spot -- see the Movable /
+            --pinnable ability card section above. deferReveal cards are
+            --hidden/revealed by the roll-dialog flow, not by the helper.
+            AttachMovableAbilityCard(cardWrapper, {deferReveal = displayOptions.deferReveal})
             if displayOptions.deferReveal then
                 g_deferredCard = cardWrapper
             else
@@ -1557,6 +1961,7 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
                 if g_displayedAbility == nil then
                     ClearAbilityShare()
                 end
+                MaybeClearCardUserPos()
             end)
         end,
     }
@@ -2316,6 +2721,9 @@ function CharacterPanel.RevealAbilityCard(dialogPanel)
     end
 
     print("AbilityCard:: REVEAL")
+    --Land the card on its user-placed/pinned spot before it becomes
+    --visible, so it does not flash at the default position first.
+    g_deferredCard:FireEvent("applyCardPlacement")
     g_deferredCard.selfStyle.hidden = 0
     --The engine's selfStyle.hidden setter historically did not mark the panel
     --style-dirty (unlike collapsed and the other properties), so this write

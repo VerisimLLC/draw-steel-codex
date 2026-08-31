@@ -390,9 +390,54 @@ function MonsterAI:GetMovementToken(token)
     return token
 end
 
+-- The game permits sufficiently different creature sizes to share a space.
+-- AI movement may pass through allies, but should not deliberately end there.
+function MonsterAI:MovementLocOverlapsAlly(token, loc)
+    local movementToken = self:GetMovementToken(token)
+    if movementToken == nil or not movementToken.valid or loc == nil then
+        return false
+    end
+
+    if movementToken.loc.str == loc.str then
+        return false
+    end
+
+    local ourBottom = loc.altitude
+    local ourTop = ourBottom + movementToken.tileSize - 1
+    for _,occupiedLoc in ipairs(movementToken:LocsOccupyingWhenAt(loc)) do
+        for _,other in ipairs(dmhub.GetTokensAtLoc(occupiedLoc) or {}) do
+            if other.valid and not other.isObject and other.properties ~= nil
+                and not other.properties:IsDead() then
+                local otherMovementToken = self:GetMovementToken(other)
+                local movesWithUs = otherMovementToken ~= nil
+                    and otherMovementToken.valid
+                    and otherMovementToken.charid == movementToken.charid
+                local verticallyOverlaps = other.altitude <= ourTop
+                    and other.altitude + other.tileSize - 1 >= ourBottom
+                if not movesWithUs and verticallyOverlaps
+                    and dmhub.TokensAreFriendly(movementToken, other) then
+                    return true, other
+                end
+            end
+        end
+    end
+
+    return false
+end
+
 function MonsterAI:CalculateMovementPaths(token, movementAllowanceDecis, flags)
     local movementToken = self:GetMovementToken(token)
-    return movementToken:CalculatePathfindingArea(movementAllowanceDecis, flags or {})
+    local paths = movementToken:CalculatePathfindingArea(movementAllowanceDecis, flags or {})
+    local rejectedKeys = {}
+    for key,pathInfo in pairs(paths) do
+        if self:MovementLocOverlapsAlly(token, pathInfo.loc) then
+            rejectedKeys[#rejectedKeys+1] = key
+        end
+    end
+    for _,key in ipairs(rejectedKeys) do
+        paths[key] = nil
+    end
+    return paths
 end
 
 function MonsterAI:CalculateRemainingMovementPaths(token, flags)
@@ -406,6 +451,19 @@ end
 function MonsterAI:MoveToken(token, loc, options)
     local movementToken = self:GetMovementToken(token)
     local fromLoc = movementToken ~= nil and movementToken.loc or nil
+    local overlapsAlly, ally = self:MovementLocOverlapsAlly(token, loc)
+    if overlapsAlly then
+        self:LogDecision("MOVEMENT REJECTED", {
+            actor = self.TokenLogName(token),
+            actorId = token ~= nil and token.charid or nil,
+            from = self.LocLogName(fromLoc),
+            to = self.LocLogName(loc),
+            movementToken = movementToken ~= token and self.TokenLogName(movementToken) or nil,
+            targets = self.TargetsLogName({{token = ally}}),
+            reason = "destination footprint overlaps a live ally",
+        })
+        return nil
+    end
     self:LogDecision("MOVEMENT START", {
         actor = self.TokenLogName(token),
         actorId = token ~= nil and token.charid or nil,

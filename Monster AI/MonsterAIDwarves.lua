@@ -922,9 +922,7 @@ local function FindGrantedFreeStrikePlan(ai, actor)
     if not LiveCreature(actor) then
         return nil
     end
-    local movement = math.max(0,
-        actor.properties:CurrentMovementSpeed() - actor.properties:DistanceMovedThisTurn())
-    local paths = actor:CalculatePathfindingArea(movement*10, {})
+    local paths = ai:CalculateRemainingMovementPaths(actor)
     local oldTactics = ai.activeTactics
     ai.activeTactics = TacticsForToken(actor)
     local best = nil

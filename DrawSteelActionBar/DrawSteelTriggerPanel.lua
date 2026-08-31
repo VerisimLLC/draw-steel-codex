@@ -21,6 +21,19 @@ local g_triggerCardWidth = 178
 local g_triggerCardHPad = 6
 local g_triggerCardOuterWidth = g_triggerCardWidth + g_triggerCardHPad*2
 
+--How tall the card list may grow before it scrolls. An ability that offers one
+--trigger per damaged target -- Parry against a multi-target hit, or a minion
+--squad -- can produce a dozen at once, and without a bound they push the
+--Dismiss bar off the bottom of the screen and paint over each other.
+local g_triggerListMaxHeight = 520
+
+--The scroller alone is wider than the cards, so its bar overhangs to the right
+--of the stack rather than sitting over the card edge -- which is where the
+--heroic resource cost diamond is. The container keeps the card width, so the
+--cards stay put relative to the trigger button below them.
+local g_triggerScrollbarWidth = 20
+local g_triggerListWidth = g_triggerCardOuterWidth + g_triggerScrollbarWidth
+
 -- Build the candidate retarget list for a triggered ability that changes its
 -- target. Every token passing the all-inclusive changeTargetFilter is returned
 -- in `targets`. A token that additionally fails one of the "reasoned" filters is
@@ -213,11 +226,22 @@ mod.shared.CreateTriggerPanel = function()
         end,
     }
 
+    --The cards scroll in here rather than in the panel that also holds the
+    --Dismiss bar, so a long list never pushes that bar out of reach.
+    local triggerListPanel = gui.Panel{
+        width = g_triggerListWidth,
+        height = "auto",
+        maxHeight = g_triggerListMaxHeight,
+        flow = "vertical",
+        valign = "bottom",
+        vscroll = true,
+    }
+
 	local activeTriggersPanel
 
 	activeTriggersPanel = gui.Panel{
 		floating = true,
-		width = 190,
+		width = g_triggerCardOuterWidth,
 		height = 1,
 		vmargin = -20,
 		halign = "left",
@@ -234,9 +258,9 @@ mod.shared.CreateTriggerPanel = function()
 			styles = {
                 {
                     selectors = {"dismissAllPanel"},
-                    width = 190,
+                    width = g_triggerCardOuterWidth,
                     height = 24,
-                    halign = "center",
+                    halign = "left",
                     fontSize = 14,
                     vpad = 4,
                     hpad = 8,
@@ -258,7 +282,7 @@ mod.shared.CreateTriggerPanel = function()
                     vpad = 6,
                     hpad = g_triggerCardHPad,
                     vmargin = 0,
-                    halign = "center",
+                    halign = "left",
                     valign = "bottom",
                     bgimage = true,
 
@@ -495,6 +519,9 @@ mod.shared.CreateTriggerPanel = function()
                 Styles.TriggerStyles,
 			},
 
+            --Both declared here so they are parented from construction; refresh
+            --only ever re-fills the scroller's children.
+            triggerListPanel,
             dismissAllPanel,
 
 			refresh = function(element)
@@ -1591,9 +1618,9 @@ mod.shared.CreateTriggerPanel = function()
 				element:SetClass("collapsed", #children == 0)
                 activeTriggersPanel.data.hasTriggers = #children > 0
 
-                children[#children+1] = dismissAllPanel
-
-				element.children = children
+                --Cards into the scroller, Dismiss bar outside it so it stays put.
+                triggerListPanel.children = children
+				element.children = {triggerListPanel, dismissAllPanel}
 				m_activeTriggerPanels = newTriggerPanels
 			end,
 		}

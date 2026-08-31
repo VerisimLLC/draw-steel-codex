@@ -18,8 +18,8 @@ local mod = dmhub.GetModLoading()
 --            },
 --        },
 --        {
---            --legacy whole-group gate; the builder migrates this to
---            --monsterMinHeroes when the encounter is edited.
+--            --whole-group gate: below it the group contributes no EV and
+--            --places nothing, whatever monsterMinHeroes says.
 --            minHeroes = 3,
 --            monsters = {
 --                ["b7122d63-1ac3-4c4d-b7d5-82c5f1ea93d3"] = 1,
@@ -2541,9 +2541,46 @@ local function CreateGroupCard(args)
         }
     end
 
-    --group-scoped controls, shown once in the card footer: per-party-size
-    --balancing and per-group placement. (The "appears at N+ heroes" gate is
-    --per MONSTER and lives on each roster row.)
+    --group-scoped controls, shown once in the card footer: the whole-group
+    --"appears at N+ heroes" gate, per-party-size balancing, and per-group
+    --placement. The group gate is an OUTER gate -- below it the group
+    --contributes no EV and places nothing, regardless of the per-monster
+    --gates on the roster rows, which still apply within a surviving group.
+    local groupAppearsLink = gui.Label {
+        classes = { "link", "sizeXs" },
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        rmargin = 16,
+        text = "Appears: Always",
+        hover = gui.Tooltip("The minimum party size at which this whole group appears. Below it the group contributes no EV and places no monsters."),
+        refreshBuilder = function(element)
+            if group.minHeroes == nil then
+                element.text = "Appears: Always"
+            else
+                element.text = string.format("Appears: %d+", group.minHeroes)
+            end
+        end,
+        press = function(element)
+            local menuEntries = {}
+            for _, i in ipairs({ 0, 3, 4, 5, 6, 7 }) do
+                menuEntries[#menuEntries + 1] = {
+                    text = cond(i == 0, "Always", string.format("%d+ Heroes", i)),
+                    selected = (group.minHeroes or 0) == i,
+                    click = function()
+                        group.minHeroes = cond(i == 0, nil, i)
+                        element.popup = nil
+                        refresh()
+                    end,
+                }
+            end
+
+            element.popup = gui.ContextMenu {
+                entries = menuEntries,
+            }
+        end,
+    }
+
     local groupBalancingLink = gui.Label {
         classes = { "link", "sizeXs" },
         width = "auto",
@@ -2838,6 +2875,10 @@ local function CreateGroupCard(args)
 
         refreshBuilder = function(element)
             element:SetClass("activeGroup", state.activeGroup == group)
+            --dim the whole card when the group's own gate excludes it at the
+            --party size being previewed: it contributes no EV and places
+            --nothing, so it should not read as live content.
+            element:SetClass("gatedOff", group.minHeroes ~= nil and party.numHeroes < group.minHeroes)
         end,
 
         gui.Panel {
@@ -2946,6 +2987,7 @@ local function CreateGroupCard(args)
                     halign = "left",
                     valign = "center",
 
+                    groupAppearsLink,
                     groupBalancingLink,
                     placeLink,
                 },
@@ -3998,23 +4040,6 @@ function Encounter.Editor(self, options)
     --re-pointed after any structural change (the rebuild path does this).
     if #self.groups == 0 then
         self:AddGroup()
-    end
-
-    --Legacy migration: the appears gate used to live on the whole group
-    --(group.minHeroes); it is now scoped per monster. Convert a group-level
-    --gate into the equivalent per-monster gates when the encounter is edited.
-    --Spawn behavior is identical: every converted monster contributes 0
-    --below the gate via Encounter.AdjustedMonsterQuantity.
-    for _, group in ipairs(self.groups) do
-        if group.minHeroes ~= nil then
-            group.monsterMinHeroes = group.monsterMinHeroes or {}
-            for monsterid, _ in pairs(group.monsters) do
-                if group.monsterMinHeroes[monsterid] == nil then
-                    group.monsterMinHeroes[monsterid] = group.minHeroes
-                end
-            end
-            group.minHeroes = nil
-        end
     end
 
     --Refresh each attached encounter script's cached name/victory text so

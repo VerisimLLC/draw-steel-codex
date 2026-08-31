@@ -1886,7 +1886,25 @@ local function categoriserHasUnmadeChoice(creature, feature)
         local num = feature:NumChoices(creature)
         if num == nil or num <= 0 then return end
         local made = creature:GetLevelChoices()[feature.guid] or {}
-        if #made < num then unmade = true end
+        if feature:try_get("costsPoints") then
+            --For a point-buy slot NumChoices is the POINTS BUDGET, not a pick
+            --count: two picks costing 2+1 complete a 3-point slot. Judge
+            --completeness by points spent (mirrors FeatureUnspentChoices in
+            --Draw Steel V/DrawSteelChararcterSheet.lua).
+            local options = feature:GetOptions(creature:GetLevelChoices()) or {}
+            local spent = 0
+            for _,choiceid in ipairs(made) do
+                for _,opt in ipairs(options) do
+                    if opt.guid == choiceid then
+                        spent = spent + (rawget(opt, "pointsCost") or 1)
+                        break
+                    end
+                end
+            end
+            if spent < num then unmade = true end
+        else
+            if #made < num then unmade = true end
+        end
     end)
     return unmade
 end

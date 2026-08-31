@@ -70,6 +70,61 @@ function GameHud.ClearMapTooltip(self)
 end
 
 -------------------------------------------------------------------------------
+-- Tooltip suppression.
+--
+-- A general switch any mod can hold to silence tooltips for a phase of play:
+-- panel hover tooltips, map/tile tooltips, and the token-drag movement tooltip
+-- along with the movement cross-section diagram it carries. Keyed, so several
+-- mods can hold it independently and tooltips only come back when the last key
+-- is released.
+--
+-- The engine half (dmhub.tooltipsSuppressed) is what refuses to DISPLAY a
+-- tooltip panel -- any tooltip, from any source -- and it lives on the game
+-- session, so a mod that forgets to release its key can never break tooltips
+-- beyond that game. The Lua half here additionally stops the map tooltip being
+-- built and the cross-section diagram being RENDERED at all; the engine gate
+-- alone would still pay for the offscreen render texture behind a tooltip
+-- nobody ever sees.
+-------------------------------------------------------------------------------
+
+--one table rather than two file-level locals; this chunk is close to Lua's
+--200-local ceiling.
+local g_tooltipSuppression = {
+	keys = {},
+	active = false,
+}
+
+--- Is any mod currently suppressing tooltips?
+---@return boolean
+function GameHud.TooltipsSuppressed()
+	return g_tooltipSuppression.active
+end
+
+--- Hold or release tooltip suppression under a key of your own. While at least
+--- one key is held no tooltips are shown. Releasing a key that was never held
+--- is a no-op, so this is safe to call every poll tick with a computed value.
+---@param key string identifies the suppressor -- one key per feature.
+---@param suppressed boolean
+function GameHud.SetTooltipsSuppressed(key, suppressed)
+	if suppressed then
+		g_tooltipSuppression.keys[key] = true
+	else
+		g_tooltipSuppression.keys[key] = nil
+	end
+
+	local active = next(g_tooltipSuppression.keys) ~= nil
+	if active == g_tooltipSuppression.active then
+		return
+	end
+
+	g_tooltipSuppression.active = active
+
+	--the engine setter also dismisses any tooltip already on screen, so a
+	--suppression that starts under a resting mouse takes effect immediately.
+	dmhub.tooltipsSuppressed = active
+end
+
+-------------------------------------------------------------------------------
 -- Movement cross-section diagram.
 --
 -- A small side-on schematic shown inside the token-drag movement tooltip that
@@ -400,6 +455,7 @@ local function CreateMovementDiagramPanel()
 		end,
 		args = function(element, args)
 			if args == nil or args.movingToken == nil or args.movingPath == nil or
+			   GameHud.TooltipsSuppressed() or
 			   not dmhub.GetSettingValue("showmovementcrosssection") then
 				element.data.signature = nil
 				element:SetClass("collapsed", true)
@@ -1366,7 +1422,7 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			end,
 
 			tiletooltip = function(element, args)
-				if not g_settingMapTooltips:Get() then
+				if GameHud.TooltipsSuppressed() or not g_settingMapTooltips:Get() then
 					return
 				end
 

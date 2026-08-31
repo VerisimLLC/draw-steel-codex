@@ -337,6 +337,7 @@ local function ClearStartZoneConfinement()
         pcall(function() m_zoneMarker:Destroy() end)
         m_zoneMarker = nil
     end
+    GameHud.SetTooltipsSuppressed("eotw", false)
 end
 
 local function UpdateStartZoneConfinement()
@@ -350,6 +351,13 @@ local function UpdateStartZoneConfinement()
             end
         end
     end
+
+    --Tooltips -- the token-drag movement tooltip and its cross-section diagram
+    --above all -- are noise while players shuffle around the start zone, and
+    --the phase has nothing a tooltip would explain. Silence them for exactly as
+    --long as the confinement lasts. Done before the Start-zone lookup below so
+    --a map with no Start zone (no confinement possible) still gets the quiet.
+    GameHud.SetTooltipsSuppressed("eotw", desired)
 
     if not desired then
         ClearStartZoneConfinement()

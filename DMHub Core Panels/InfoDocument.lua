@@ -49,8 +49,25 @@ function CreateInfoDocument(description)
         annotations = {},
     }
 
-    markdownDoc:ShowCreateDialog()
+    --Persist the document BEFORE we hand an InfoDocument back. Our caller
+    --(InfoBubbleController.CreateInfoBubble) writes the bubble to the floor as a
+    --SEPARATE write the moment we return, so anything that stops the document
+    --from being written leaves a bubble whose docid resolves to nothing -- and
+    --clicking such a bubble used to be a silent no-op. Returning nil makes the
+    --caller abort the bubble instead, so the two can never come apart.
     dmhub.SetAndUploadTableItem(MarkdownDocument.tableName, markdownDoc)
+
+    if (dmhub.GetTable(CustomDocument.tableName) or {})[docid] == nil then
+        --SetAndUploadTableItem is a no-op in some games (the lobby game returns
+        --early), in which case the row never lands and the bubble must not exist.
+        gui.ModalMessage {
+            title = "Could Not Create Info Bubble",
+            message = "The journal document for this info bubble could not be saved, so the bubble was not created.",
+        }
+        return nil
+    end
+
+    markdownDoc:ShowCreateDialog()
 
     return InfoDocument.new {
         ord = maxOrd + 1,
@@ -816,10 +833,59 @@ end
 
 local loadid = dmhub.GenerateGuid()
 
+--A bubble can end up pointing at a docid that resolves to no document. The
+--document is written by CreateInfoDocument as a separate write from the bubble
+--itself, and in a local-assets game it is written to the YAML directory rather
+--than into the game -- so it vanishes from the game's view the moment that
+--directory is no longer mounted. Say so, and offer to rebuild the document
+--under the SAME docid so the bubble heals, rather than doing nothing at all.
+local function ShowMissingDocumentMessage(info)
+    local docid = info.document.docid
+    local description = info.description or "Info Bubble"
+
+    local message = string.format(
+        "This info bubble points at a journal document that no longer exists in this game.\n\nDocument id: %s",
+        tostring(docid))
+
+    local status = dmhub.LocalAssetsStatus()
+    if status ~= nil and status.active then
+        message = message .. "\n\nThis game is using local asset directories, so documents created in it are written to disk rather than into the game. If the document is not in those directories the bubble cannot resolve it."
+    end
+
+    gui.ModalMessage {
+        title = "Document Missing",
+        message = message,
+        options = {
+            {
+                text = "Create Document",
+                execute = function()
+                    local doc = MarkdownDocument.new {
+                        id = docid,
+                        description = description,
+                        parentFolder = game.currentMapId,
+                        content = "# " .. description,
+                        annotations = {},
+                    }
+                    doc:Upload()
+                    doc:ShowDocument{ bubbleIcon = info.icon, edit = true }
+                end,
+            },
+            {
+                text = "Cancel",
+            },
+        },
+    }
+end
+
 function GameHud:DisplayDocument(info)
     if info.document.docid then
         -- Open all docid-bearing bubbles as top-bar tabs in the journal viewer
         local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+
+        if docs[info.document.docid] == nil then
+            ShowMissingDocumentMessage(info)
+            return
+        end
 
         local bubblesSorted = {}
         for k, bubble in pairs(dmhub.infoBubbles) do
@@ -898,6 +964,28 @@ function GameHud:ShowInfoBubbleTip(info)
         return
     end
 
+    if info.document.docid then
+        --A docid that resolves to nothing used to fall through to the sections
+        --tooltip below, which renders as an ordinary bubble with no content --
+        --indistinguishable from a bubble the DM simply left empty.
+        gamehud.popupPanel.popup = gui.TooltipFrame(
+            gui.Label{
+                fontSize = 18,
+                text = string.format("<b><size=140%%>%s</size></b>\n<i>Document Missing</i>\nClick for Details", info.description or "Info Bubble"),
+                markdown = true,
+                width = "auto",
+                height = "auto",
+            },
+            {
+                width = "auto",
+                interactable = false,
+            }
+        )
+
+        gamehud.popupPanel.popup:MakeNonInteractiveRecursive()
+
+        return
+    end
 
     local styles = {
         {

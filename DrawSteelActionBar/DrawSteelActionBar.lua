@@ -7935,7 +7935,7 @@ ActionMenu = function()
                 local includeRespite = args.type == "maneuver" and (not InRespiteMode())
                 for _, ability in ipairs(g_abilities) do
                     local isRespiteActivity = ability.actionResourceId == CharacterResource.respiteActivityId
-                    if (ability.actionResourceId == args.resourceid or (args.type == "maneuver" and (ability.actionResourceId == "none" or ability.actionResourceId == CharacterResource.freeManeuverResourceId) and ability.categorization ~= "Malice" and ability.categorization ~= "Move" and ability.categorization ~= "Trigger") or (includeRespite and isRespiteActivity)) and ability.categorization ~= "Hidden" then
+                    if (ability.actionResourceId == args.resourceid or (args.type == "maneuver" and (ability.actionResourceId == "none" or ability.actionResourceId == CharacterResource.freeManeuverResourceId) and ability.categorization ~= "Malice" and ability.categorization ~= "Move" and ability.categorization ~= "Trigger") or (includeRespite and isRespiteActivity)) and ability.categorization ~= "Malice" and ability.categorization ~= "Hidden" then
                         abilities[#abilities + 1] = ability
                     end
                 end

@@ -1933,14 +1933,14 @@ function dmhub.CenterOnLoc(args)
 	-- dummy implementation for documentation purposes only
 end
 
---- SelectToken: Select the token with the given id, clearing selection of other tokens.
+--- SelectToken: Select the token with the given id, clearing selection of other tokens. The token is only selected if the user controls it in their own right (see CharacterToken.canControlAsUser); the selection is cleared regardless.
 --- @param charid string
 --- @return nil
 function dmhub.SelectToken(charid)
 	-- dummy implementation for documentation purposes only
 end
 
---- AddTokenToSelection: Add the token with the given id to the selection.
+--- AddTokenToSelection: Add the token with the given id to the selection. Does nothing unless the user controls the token in their own right (see CharacterToken.canControlAsUser).
 --- @param tokenid string
 --- @return nil
 function dmhub.AddTokenToSelection(tokenid)

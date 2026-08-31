@@ -479,6 +479,41 @@ local function BankGroupPositions(group, saveAppearances)
     return tokens
 end
 
+--Bank which staged monsters are sitting in which others' saddles, across every
+--group of the plan. Separate from BankGroupPositions because a mount is saved as
+--the (group, slot) pair it occupies, so it can only be resolved once every
+--group's slots are known -- a rider in one group can be riding a monster in
+--another. Call it while the tokens are still on the map, and in the same slot
+--order BankGroupPositions uses.
+local function BankStagedMounts(encounter)
+    local entries = {}
+    for groupIndex, group in ipairs(encounter.groups) do
+        for slot, token in ipairs(PlacedTokensForGroup(group)) do
+            entries[#entries + 1] = { group = groupIndex, slot = slot, token = token }
+        end
+    end
+    encounter:RecordMounts(entries)
+end
+
+--Seat the monsters of a group that has just been put on the map back onto their
+--saved mounts. Tokens already staged from the OTHER groups come along as mounts
+--to sit on (mountOnly), so a rider whose mount belongs to a group placed earlier
+--still finds it -- without re-seating creatures the Director has since moved.
+local function RestoreMountsForPlacedGroup(encounter, groupIndex, entries)
+    local all = {}
+    for _, entry in ipairs(entries) do
+        all[#all + 1] = entry
+    end
+    for otherIndex, other in ipairs(encounter.groups) do
+        if otherIndex ~= groupIndex then
+            for slot, token in ipairs(PlacedTokensForGroup(other)) do
+                all[#all + 1] = { group = otherIndex, slot = slot, token = token, mountOnly = true }
+            end
+        end
+    end
+    encounter:RestoreMounts(all)
+end
+
 --True when the group's saved positions were banked on a different map than
 --the one currently open (nil stagemapid = legacy data, treated as matching).
 local function GroupStagedOnOtherMap(group)
@@ -490,9 +525,12 @@ end
 --restoring saved appearances and player-visibility, and tag them with the
 --group's placement id so the builder recognises them as staged. A monster with
 --no banked position of its own -- one added to the group since it was staged --
---goes to a fallback grid rather than being skipped. Returns the spawned tokens.
-local function StageGroupAtSavedLocations(group, numHeroes, placementid)
+--goes to a fallback grid rather than being skipped. Monsters saved riding
+--another monster are put back in the saddle. Returns the spawned tokens.
+local function StageGroupAtSavedLocations(encounter, groupIndex, group, numHeroes, placementid)
     local tokens = {}
+    --the spawned tokens tagged with the slot each went into, for re-seating riders.
+    local mountEntries = {}
     local queues, legacy = BankedPositionQueues(group)
 
     --Where monsters with nothing banked land: beside the group's own saved
@@ -541,12 +579,14 @@ local function StageGroupAtSavedLocations(group, numHeroes, placementid)
                 end
                 token:UploadToken()
                 tokens[#tokens + 1] = token
+                mountEntries[#mountEntries + 1] = { group = groupIndex, slot = slot, token = token }
             end
             slot = slot + 1
         end
     end
     if #tokens > 0 then
         game.UpdateCharacterTokens()
+        RestoreMountsForPlacedGroup(encounter, groupIndex, mountEntries)
     end
     return tokens
 end
@@ -2540,6 +2580,8 @@ local function CreateGroupCard(args)
             local placed = PlacedTokensForGroup(group)
             if #placed > 0 then
                 BankGroupPositions(group, encounter.saveAppearances)
+                --while the tokens are still on the map: who was riding whom.
+                BankStagedMounts(encounter)
                 local charids = {}
                 for _, token in ipairs(placed) do
                     charids[#charids + 1] = token.charid
@@ -2589,7 +2631,7 @@ local function CreateGroupCard(args)
             --Positions banked on another map are coordinates that mean nothing
             --here, so fall through to click-to-stage instead.
             if group.spawnlocs ~= nil and #group.spawnlocs > 0 and not GroupStagedOnOtherMap(group) then
-                local tokens = StageGroupAtSavedLocations(group, party.numHeroes, placementid)
+                local tokens = StageGroupAtSavedLocations(encounter, groupIndex, group, party.numHeroes, placementid)
                 if #tokens > 0 then
                     editorPanel:SetClass("hidden", true)
 
@@ -2745,6 +2787,7 @@ local function CreateGroupCard(args)
                         copy.appearances = nil
                         copy.invisibleToPlayers = nil
                         copy.spawnmonsters = nil
+                        copy.mounts = nil
                         encounter.groups[#encounter.groups + 1] = copy
                         rebuild()
                     end,
@@ -2781,6 +2824,7 @@ local function CreateGroupCard(args)
                         group.appearances = nil
                         group.invisibleToPlayers = nil
                         group.spawnmonsters = nil
+                        group.mounts = nil
                         group.stagemapid = nil
                         refresh()
                     end,
@@ -2860,6 +2904,9 @@ local function CreateGroupCard(args)
                 swallowPress = true,
                 press = function(element)
                     table.remove(encounter.groups, groupIndex)
+                    --saved mounts name their group by index, so the survivors'
+                    --references have to shift down with the removal.
+                    encounter:RepairMountsAfterGroupRemoved(groupIndex)
                     if state.activeGroup == group then
                         state.activeGroup = encounter.groups[1]
                     end
@@ -3565,7 +3612,10 @@ end
 --saved position spawn there; slots without one spread in a 5-wide grid
 --around fallbackAnchor. Tokens are tagged with the group's placement id
 --(encounterStaged = false, so the builder never mistakes them for staging).
---Returns the initiative groupid and the spawned charids.
+--Returns the initiative groupid, the spawned charids, and each spawned token
+--tagged with its slot ({ slot = , token = }) -- the caller pairs those with the
+--group's index to restore saved mounts (Encounter.RestoreMounts), which it can
+--only do once every group it is placing is down.
 --Global on Encounter so headless spawners (Encounter of the Week) reuse this
 --walk instead of growing a fourth divergent copy; aliased locally below.
 function Encounter.SpawnGroupForReal(group, numHeroes, fallbackAnchor)
@@ -3597,6 +3647,8 @@ function Encounter.SpawnGroupForReal(group, numHeroes, fallbackAnchor)
 
     local groupid = dmhub.GenerateGuid()
     local charids = {}
+    --each spawned token tagged with its slot, for restoring saved mounts.
+    local mountEntries = {}
     local slot = 1
     local fallbackIndex = 0
     local nsquad = 1
@@ -3665,13 +3717,14 @@ function Encounter.SpawnGroupForReal(group, numHeroes, fallbackAnchor)
                 --per token for the same reason).
                 game.UpdateCharacterTokens()
                 charids[#charids + 1] = token.charid
+                mountEntries[#mountEntries + 1] = { slot = slot, token = token }
             end
 
             slot = slot + 1
         end
     end
 
-    return groupid, charids
+    return groupid, charids, mountEntries
 end
 
 local SpawnGroupForReal = Encounter.SpawnGroupForReal
@@ -3697,6 +3750,9 @@ local function PlaceEncounterForReal(encounter, party, opts)
     local function Proceed()
         --collect any staged tokens: bank the live arrangement, then clear
         --the props off the map so the real spawn cannot double them.
+        --Mounts first: a mount reference resolves against the OTHER groups'
+        --staged tokens, and the loop below deletes them group by group.
+        BankStagedMounts(encounter)
         local mutated = false
         for _, group in ipairs(encounter.groups) do
             local staged = PlacedTokensForGroup(group)
@@ -3772,10 +3828,11 @@ local function PlaceEncounterForReal(encounter, party, opts)
         --directly; everything else goes through click-to-place.
         local directGroups = {}
         local clickGroups = {}
-        for _, group in ipairs(encounter.groups) do
+        for groupIndex, group in ipairs(encounter.groups) do
             if group.wave == nil and AdjustedGroupCount(group, numHeroes) > 0 then
                 if group.spawnlocs ~= nil and #group.spawnlocs > 0 and not GroupStagedOnOtherMap(group) then
-                    directGroups[#directGroups + 1] = group
+                    --carry the group's index: saved mounts name (group, slot) pairs.
+                    directGroups[#directGroups + 1] = { group = group, index = groupIndex }
                 else
                     clickGroups[#clickGroups + 1] = group
                 end
@@ -3784,15 +3841,25 @@ local function PlaceEncounterForReal(encounter, party, opts)
 
         local spawnedCharids = {}
         local spawnedGroupids = {}
+        --every directly-spawned token tagged with its (group, slot), so riders can
+        --be seated once all of the groups are down.
+        local mountEntries = {}
 
-        for _, group in ipairs(directGroups) do
+        for _, direct in ipairs(directGroups) do
+            local group = direct.group
             local anchor = group.spawnlocs[1] or dmhub.cameraPosition
-            local groupid, charids = SpawnGroupForReal(group, numHeroes, anchor)
+            local groupid, charids, entries = SpawnGroupForReal(group, numHeroes, anchor)
             spawnedGroupids[#spawnedGroupids + 1] = groupid
             for _, cid in ipairs(charids) do
                 spawnedCharids[#spawnedCharids + 1] = cid
             end
+            for _, entry in ipairs(entries) do
+                mountEntries[#mountEntries + 1] = { group = direct.index, slot = entry.slot, token = entry.token }
+            end
         end
+
+        --monsters saved riding another monster go back in the saddle.
+        encounter:RestoreMounts(mountEntries)
 
         local function Finish()
             --engine-placed tokens are not always queryable the instant the
@@ -4095,6 +4162,8 @@ function Encounter.Editor(self, options)
                 end
             end
         end
+        --who was riding whom, banked while every group's tokens are still up.
+        BankStagedMounts(self)
         if #toDelete > 0 then
             game.DeleteCharacters(toDelete)
         end

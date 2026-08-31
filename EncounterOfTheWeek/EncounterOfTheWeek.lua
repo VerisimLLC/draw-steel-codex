@@ -707,15 +707,23 @@ function EncounterOfTheWeekGame.SpawnEncounterMonsters(numHeroes)
     Encounter.SetReadiedEncounter(entry.encounter)
 
     local spawns = {}
-    for _,group in ipairs(entry.encounter.groups) do
+    --every spawned token tagged with its (group, slot), so monsters saved riding
+    --another monster get seated once the whole encounter is down.
+    local mountEntries = {}
+    for groupIndex,group in ipairs(entry.encounter.groups) do
         if group.wave == nil and Encounter.AdjustedGroupCount(group, numHeroes) > 0 then
             local anchor = (group.spawnlocs or {})[1] or dmhub.cameraPosition
-            local _, charids = Encounter.SpawnGroupForReal(group, numHeroes, anchor)
+            local _, charids, entries = Encounter.SpawnGroupForReal(group, numHeroes, anchor)
             for _,charid in ipairs(charids) do
                 spawns[#spawns+1] = charid
             end
+            for _,e in ipairs(entries) do
+                mountEntries[#mountEntries+1] = { group = groupIndex, slot = e.slot, token = e.token }
+            end
         end
     end
+
+    entry.encounter:RestoreMounts(mountEntries)
 
     richEncounter.spawns = spawns
     richEncounter:UploadDocument()

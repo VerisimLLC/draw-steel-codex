@@ -69,6 +69,10 @@ local function MonsterAIThread(process)
     --Turns run in their OWN coroutine (MonsterAI:PlayTurn), which elevates itself.
     ElevateToHostPermissions()
 
+    local lifecycleAI = MonsterAI.new{}
+    lifecycleAI:LogDecision("AI STARTED", {
+        result = "background process is active",
+    })
     MonsterAI.active = true
     g_status = nil
     while true do
@@ -76,6 +80,11 @@ local function MonsterAIThread(process)
         coroutine.yield(0.1)
         if mod.unloaded or g_terminate or (process ~= nil and process.stopRequested) then
             MonsterAI.active = false
+            lifecycleAI:LogDecision("AI STOPPED", {
+                reason = mod.unloaded and "Monster AI module unloaded"
+                    or g_terminate and "stop requested from the Monster AI panel"
+                    or "background process stop requested",
+            })
             return
         end
 
@@ -132,6 +141,14 @@ local function MonsterAIThread(process)
                         end
 
                         distance = distance or 0
+                        lifecycleAI:SetLogContext(nil, {
+                            turn = k,
+                            round = queue.round,
+                        })
+                        lifecycleAI:LogDecision("INITIATIVE CANDIDATE", {
+                            distance = distance,
+                            reason = "lower nearest-player distance acts first",
+                        })
                         if bestScore == nil or distance < bestScore then
                             bestScore = distance
                             initiativeid = k
@@ -140,6 +157,14 @@ local function MonsterAIThread(process)
                 end
 
                 if initiativeid ~= nil then
+                    lifecycleAI:SetLogContext(nil, {
+                        turn = initiativeid,
+                        round = queue.round,
+                    })
+                    lifecycleAI:LogDecision("INITIATIVE SELECTED", {
+                        distance = bestScore,
+                        result = "beginning non-player initiative entry",
+                    })
                     dmhub.initiativeQueue:SelectTurn(initiativeid)
                     dmhub:UploadInitiativeQueue()
 

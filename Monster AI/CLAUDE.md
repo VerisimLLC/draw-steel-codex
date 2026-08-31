@@ -186,6 +186,38 @@ The AI's decision-making is score-based:
 2. **Target scoring within a move**: `FindBestMoveToUseStrike` iterates every reachable tile, evaluates valid targets from that position, and picks the tile that maximizes `numTargets + edges*0.1 - movementCost*0.001`.
 3. **Edge adjustments**: For each potential target at each position, active tactics add/subtract from the edge score. Line of sight obstruction subtracts 1 edge. Being a ranged attacker adjacent to enemies subtracts 1 edge.
 
+### Decision Logging
+
+The framework writes structured decision records to `Player.log` through a
+single `print()` call per record. Every line begins with `AI::` and names the
+event followed by stable `key=value` fields. Turn, actor, action category, move
+registration, ability, score, plan, targets, result, and rejection reason are
+included whenever they apply.
+
+Normal turn logging includes:
+
+- Initiative and actor start/finish events.
+- Every move registered for the monster that is disabled, missing an ability,
+  unaffordable, rejected by scoring, or accepted as a legal candidate.
+- The selected move's exact category (`Main Action`, `Maneuver`, and so on),
+  registration ID, ability names, score, and winning plan.
+- Every issued movement and every ability cast, including readable target
+  names and cast completion time.
+- Malice, villain action, prompt, trigger, minion squad, and synthesized-move
+  decisions.
+
+Use `ai:LogDecision(event, fields)` for new framework or band diagnostics so
+the current turn/move context is retained. A score callback may return a second
+string value when it returns `nil`; the framework records that value as the
+specific rejection reason:
+
+```lua
+return nil, "requires at least two enemies in the burst"
+```
+
+Avoid per-path-tile prints. Summarize the winning target plan instead so the
+actual action names and decision sequence remain readable.
+
 ### Key Helper Methods
 
 | Method | What it does |
@@ -194,8 +226,9 @@ The AI's decision-making is score-based:
 | `ai:FindBestMoveToUseBurst(token, ability, scorefn?)` | Same but for burst/area abilities (targetType "all") |
 | `ai:FindBestLinePlan(token, ability, options?)` | Scores line areas aimed at candidate tokens or locations. Supports `candidates`, `scorefn`, `symbols`, `checklos`, and placed-line `locOverride`; returns the best plan with its endpoint, targets, and score |
 | `ai:FindValidTargetsOfStrike(token, ability, loc, range?)` | Returns sorted array of `{token, loc, charge, edges}` for valid targets from a position |
-| `ai:ExecuteAbility(casterToken, ability, targets?, options?)` | Moves, displays line-of-sight rays, invokes the ability, waits for resolution |
+| `ai:ExecuteAbility(casterToken, ability, targets?, options?)` | Displays a three-pulse labeled telegraph for placed target areas, preserves the full area target list, invokes the original target type, and waits for resolution |
 | `ai:Speech(token, text, options?)` | Makes a token say something (text can be a string or array for random selection) |
+| `ai:FindMostSeniorInitiativeGroupMember(tokens)` | Chooses a live initiative-group leader by non-minion status, squad captain status, then highest EV; exact ties retain token order |
 | `ai:FindReachableConcealment()` | Finds the nearest reachable concealed tile |
 | `ai:FindClosestEnemy()` | Returns the nearest enemy token |
 | `ai:DistanceFromNearestEnemy(token)` | Returns distance to the closest enemy |
@@ -322,6 +355,19 @@ For burst abilities, omit the targets parameter:
 ```lua
 ai:ExecuteAbility(token, ability)  -- auto-targets all in range
 ```
+
+For placed cube, line, cone, and map areas, pass the original ability plus the
+chosen shape and every filtered creature inside it:
+```lua
+ai:ExecuteAbility(token, ability, targets, {
+    symbols = {targetArea = area},
+    targetArea = area,
+})
+```
+
+Do not rewrite an area ability to `target` or replace its `numTargets`. The
+execution helper preserves the supplied area target list and passes the shape
+through the normal `Cast()` contract.
 
 ### Step 7: Handle Prompts (If Needed)
 

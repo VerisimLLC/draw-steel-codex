@@ -151,7 +151,10 @@ local function FindBestImmediateFreeStrike(ai, actor, abilities)
     ai.activeTactics = priorTactics
 
     if not ok then
-        print("AI:: Failed to plan granted free strike:", plan)
+        ai:LogDecision("PROMPT ERROR", {
+            ability = "Granted Free Strike",
+            reason = "target planning failed: " .. tostring(plan),
+        })
         return nil
     end
     return plan
@@ -363,7 +366,6 @@ MonsterAI:RegisterPrompt{
         if forcedMovement == "pull" or forcedMovement == "vertical_pull" then
             local bestLoc = FindBestPullLocation(invokerToken, casterToken, abilityClone,
                 movementSymbols, range, forcedMovement, preferAltitude)
-            print("AI:: best pull loc =", bestLoc)
             if bestLoc ~= nil then
                 casterToken:MarkMovementArrow(bestLoc, ForcedMovementArrowOptions(forcedMovement, range))
                 MonsterAI.Sleep(1)
@@ -466,9 +468,7 @@ MonsterAI:RegisterPrompt{
             end
         end
 
-        print("AI:: bestLoc =", bestLoc)
         if bestLoc ~= nil then
-        print("AI:: Mark arrow to", bestLoc.x, bestLoc.y)
             casterToken:MarkMovementArrow(bestLoc, ForcedMovementArrowOptions(forcedMovement, range))
             MonsterAI.Sleep(1)
             casterToken:ClearMovementArrow()

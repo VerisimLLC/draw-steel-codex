@@ -350,8 +350,8 @@ local function GenerateStandardStrikeScoreFunction(score)
 end
 
 local function MoveCinematically(ai, token, loc)
-    local moving = loc ~= nil and loc.str ~= token.loc.str
-    token:Move(loc, {maxCost = 10000, ignoreFalling = false})
+    local moving = loc ~= nil and not ai:MovementTokenIsAtLoc(token, loc)
+    ai:MoveToken(token, loc, {maxCost = 10000, ignoreFalling = false})
     ai.Sleep(cond(moving, shadowElfCinematicPause, shadowElfSpeechPause))
 end
 
@@ -410,15 +410,9 @@ local function ExecuteAreaAbility(ai, token, ability, area, targets, options)
     options.symbols.targetArea = area
     options.targetArea = area
 
-    -- Abilities from GetActivatedAbilities are already temporary clones, so
-    -- MakeTemporaryClone() would return the same object and these mutations
-    -- would corrupt the instance in ai.abilities. Use a deep copy instead.
+    -- ExecuteAbility resolves modes on its temporary clone. Isolate that write
+    -- from the instance cached in ai.abilities.
     local abilityClone = DeepCopy(ability)
-    abilityClone.targetType = "target"
-    abilityClone.numTargets = math.max(1, #targets)
-    if #targets == 0 then
-        targets = {{loc = area.origin}}
-    end
 
     ai:ExecuteAbility(token, abilityClone, targets, options)
     area:Destroy()

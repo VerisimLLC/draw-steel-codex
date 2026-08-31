@@ -37,8 +37,8 @@ local function FindAbility(token, name)
 end
 
 local function MoveCinematically(ai, token, loc)
-    if loc ~= nil and loc.str ~= token.loc.str then
-        token:Move(loc, {maxCost = 10000, ignoreFalling = false})
+    if loc ~= nil and not ai:MovementTokenIsAtLoc(token, loc) then
+        ai:MoveToken(token, loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(movementPause)
     end
 end
@@ -155,8 +155,6 @@ local function ExecuteAreaAbility(ai, token, ability, area, targets)
         targetArea = area,
     }
     local abilityClone = DeepCopy(ability)
-    abilityClone.targetType = "target"
-    abilityClone.numTargets = math.max(1, #targets)
     ai:ExecuteAbility(token, abilityClone, targets, options)
     if type(area.Destroy) == "function" then
         area:Destroy()

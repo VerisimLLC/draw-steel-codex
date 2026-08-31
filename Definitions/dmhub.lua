@@ -756,6 +756,20 @@ function dmhub.LocalAssetsSearch(text)
 	-- dummy implementation for documentation purposes only
 end
 
+--- LocalAssetsCloudDiff: Compares the game's LIVE cloud asset store against the local YAML tree that is masking it. Local assets mode is per-client: the cloud assets keep arriving and keep being updated by other people playing the game, they are just not used. Each reported item has a state of 'cloudOnly' (in the cloud, nowhere on disk -- invisible to you right now), 'differs' (in both, with different content) or 'localOnly' (on disk only; omitted unless includeLocalOnly). Items whose content matches are not reported. Categories and items are sorted by display name. Dev mode only; returns nil when local assets mode is not active.
+--- @param includeLocalOnly nil|boolean Also report items that exist on disk but not in the cloud (off by default -- with a large overlay directory these dominate the list).
+--- @return { available: boolean, directory: string|nil, counts: { cloudOnly: number, differs: number, localOnly: number }, categories: { name: string, items: { category: string, tableid: string|nil, id: string, displayName: string|nil, state: string, mtime: number|nil }[] }[] }|nil
+function dmhub.LocalAssetsCloudDiff(includeLocalOnly)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsImportFromCloud: Copies the named items out of the game's live cloud asset store into the local YAML tree. An item that already has a file on disk is overwritten in place, wherever in the directory list it lives; a new one is created in the TOP directory. The items are applied to the running game as well, so they appear without a reload. Only 'cloudOnly' and 'differs' items make sense here -- a 'localOnly' item has nothing in the cloud to copy and is counted as failed. Dev mode only; returns nil when local assets mode is not active.
+--- @param items { category: string, tableid: nil|string, id: string }[] Items to copy down, in the shape LocalAssetsCloudDiff returns them.
+--- @return { imported: number, failed: number, directory: string }|nil
+function dmhub.LocalAssetsImportFromCloud(items)
+	-- dummy implementation for documentation purposes only
+end
+
 --- LocalAssetsGitInfo: Returns which git executable the local-assets git integration is using: the resolved path and its version (nil when no working git was found), where it came from (source 'setting' = the localassets:gitpath setting, 'auto' = auto-detected from PATH/common install locations), and the raw configured setting value. Resolution is cached per setting value. Dev mode only; nil otherwise.
 --- @return { path: string|nil, version: string|nil, source: string|nil, configured: string|nil }|nil
 function dmhub.LocalAssetsGitInfo()

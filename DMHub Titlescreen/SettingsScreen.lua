@@ -449,122 +449,34 @@ local function CreateImageEditorChooser()
 	}
 end
 
---Local assets: a per-game developer feature where the game's cloud assets are
---replaced by one or more local directory trees of YAML files (see
---LocalAssetDirectory in the engine and the /localassets macro). Multiple
---directories form an ordered overlay: the FIRST is the "top" directory --
---highest precedence, and the home for newly created entries. Returns a list
---of panels for the Editing settings tab, or an empty list when the feature
---does not apply (not in dev mode, or not in a real game).
-local function CreateLocalAssetsSection()
-	if dmhub.isLobbyGame or (not dmhub.GetSettingValue("dev")) then
-		return {}
-	end
-
-	--The directory list is stored newline-delimited in localassets:dirs, top
-	--directory first; the legacy single-path localassets:dir is honored as a
-	--fallback so games configured before the multi-directory feature keep
-	--working until the list is first edited here.
-	local function GetDirs()
-		local result = {}
-		local str = dmhub.GetSettingValue("localassets:dirs")
-		if str ~= nil and str ~= "" then
-			for line in string.gmatch(str, "[^\n]+") do
-				line = line:match("^%s*(.-)%s*$")
-				if line ~= "" then
-					result[#result+1] = line
-				end
-			end
-		end
-		if #result == 0 then
-			local legacy = dmhub.GetSettingValue("localassets:dir")
-			if legacy ~= nil and legacy ~= "" then
-				result[1] = legacy
-			end
-		end
-		return result
-	end
-
-	local function SetDirs(dirs)
-		dmhub.SetSettingValue("localassets:dirs", table.concat(dirs, "\n"))
-		if #dirs == 0 then
-			--clear the legacy single-dir setting too, or GetDirs would fall
-			--back to it and the feature would not actually turn off.
-			dmhub.SetSettingValue("localassets:dir", "")
-		end
-		--a pure reordering may apply live; other changes require a game
-		--reload. The status label reflects which via LocalAssetsStatus.
-		if dmhub.LocalAssetsApplyDirs ~= nil then
-			dmhub.LocalAssetsApplyDirs()
-		end
-	end
-
-	local function TopDir()
-		local dirs = GetDirs()
-		if dirs[1] == nil then
-			return ""
-		end
-		return dirs[1]
-	end
-
-	local function StatusText()
-		local status = dmhub.LocalAssetsStatus()
-		local dirs = GetDirs()
-		if status ~= nil and status.active then
-			local ndirs = 1
-			if status.directories ~= nil and #status.directories > 0 then
-				ndirs = #status.directories
-			end
-			local text
-			if ndirs > 1 then
-				text = string.format("Active: assets load from %d directories; new entries are created in %s.", ndirs, status.directories[1])
-			else
-				text = string.format("Active: this game's assets are loading from %s.", status.directory or "?")
-			end
-			if status.shadowedCount ~= nil and status.shadowedCount > 0 then
-				text = text .. string.format(" %d item(s) exist in multiple directories; the higher directory's copy wins.", status.shadowedCount)
-			end
-			if status.reloadRequired then
-				text = text .. " Directory changes are PENDING: reload the game to apply them."
-			end
-			return text
-		elseif #dirs > 0 then
-			return "Set, but not active yet: reload the game to activate."
-		else
-			return "Not set: this game uses cloud assets."
-		end
-	end
-
-	local statusLabel = gui.Label{
-		width = "90%",
-		height = "auto",
-		halign = "center",
-		fontSize = 14,
-		vmargin = 2,
-		italics = true,
-		text = StatusText(),
-		multimonitor = {"localassets:dirs", "localassets:dir"},
-		events = {
-			monitor = function(element)
-				element.text = StatusText()
-			end,
-		},
+--A compact button for the dense control rows in the local-assets section
+--(directory reordering, the file browser's toolbars). 'disabled' both dims it
+--(the theme gates hover feedback on ~disabled) and blocks the click.
+local function SmallButton(text, w, disabled, fn)
+	return gui.Button{
+		width = w,
+		height = 24,
+		fontSize = 12,
+		halign = "left",
+		valign = "center",
+		hmargin = 2,
+		text = text,
+		classes = {cond(disabled, "disabled")},
+		interactable = not disabled,
+		click = fn,
 	}
+end
 
-	local function SmallButton(text, w, disabled, fn)
-		return gui.Button{
-			width = w,
-			height = 24,
-			fontSize = 12,
-			halign = "left",
-			valign = "center",
-			hmargin = 2,
-			text = text,
-			classes = {cond(disabled, "disabled")},
-			interactable = not disabled,
-			click = fn,
-		}
-	end
+--The editable list of local asset directories: one row per directory (its
+--position, the path, Browse, and the Top/Up/Down/X controls) plus an "Add
+--Directory..." button. Shared by the per-game list and the Encounter of the
+--Week list, which differ only in where the list is stored and therefore which
+--settings a change must refresh on. Takes { getDirs, setDirs, monitor } and
+--returns the list panel and the add button.
+local function CreateDirectoryListPanels(args)
+	local GetDirs = args.getDirs
+	local SetDirs = args.setDirs
+	local monitorSettings = args.monitor
 
 	--One row per configured directory: position, editable path, Browse, and
 	--reordering controls. Rows are rebuilt whenever the setting changes, so
@@ -667,16 +579,20 @@ local function CreateLocalAssetsSection()
 		height = "auto",
 		flow = "vertical",
 		halign = "center",
-		multimonitor = {"localassets:dirs", "localassets:dir"},
+		multimonitor = monitorSettings,
 		events = {
 			monitor = function(element)
 				element.children = BuildDirRows()
 			end,
 		},
+
+		--Pass the rows as `children`, NOT by appending them onto this args
+		--table. `args[#args+1] = row` on a table built from named keys puts
+		--the numeric keys in Lua's HASH part, where enumeration order is
+		--undefined -- with exactly two rows 5.4 hands them back reversed,
+		--which showed up as the directory list rendering upside down.
+		children = BuildDirRows(),
 	}
-	for _,row in ipairs(BuildDirRows()) do
-		dirsListArgs[#dirsListArgs+1] = row
-	end
 	local dirsListPanel = gui.Panel(dirsListArgs)
 
 	local addButton = gui.Button{
@@ -700,6 +616,117 @@ local function CreateLocalAssetsSection()
 				end,
 			}
 		end,
+	}
+
+	return dirsListPanel, addButton
+end
+
+--Local assets: a per-game developer feature where the game's cloud assets are
+--replaced by one or more local directory trees of YAML files (see
+--LocalAssetDirectory in the engine and the /localassets macro). Multiple
+--directories form an ordered overlay: the FIRST is the "top" directory --
+--highest precedence, and the home for newly created entries. Returns a list
+--of panels for the Editing settings tab, or an empty list when the feature
+--does not apply (not in dev mode, or not in a real game).
+local function CreateLocalAssetsSection()
+	if dmhub.isLobbyGame or (not dmhub.GetSettingValue("dev")) then
+		return {}
+	end
+
+	--The directory list is stored newline-delimited in localassets:dirs, top
+	--directory first; the legacy single-path localassets:dir is honored as a
+	--fallback so games configured before the multi-directory feature keep
+	--working until the list is first edited here.
+	local function GetDirs()
+		local result = {}
+		local str = dmhub.GetSettingValue("localassets:dirs")
+		if str ~= nil and str ~= "" then
+			for line in string.gmatch(str, "[^\n]+") do
+				line = line:match("^%s*(.-)%s*$")
+				if line ~= "" then
+					result[#result+1] = line
+				end
+			end
+		end
+		if #result == 0 then
+			local legacy = dmhub.GetSettingValue("localassets:dir")
+			if legacy ~= nil and legacy ~= "" then
+				result[1] = legacy
+			end
+		end
+		return result
+	end
+
+	local function SetDirs(dirs)
+		dmhub.SetSettingValue("localassets:dirs", table.concat(dirs, "\n"))
+		if #dirs == 0 then
+			--clear the legacy single-dir setting too, or GetDirs would fall
+			--back to it and the feature would not actually turn off.
+			dmhub.SetSettingValue("localassets:dir", "")
+		end
+		--a pure reordering may apply live; other changes require a game
+		--reload. The status label reflects which via LocalAssetsStatus.
+		if dmhub.LocalAssetsApplyDirs ~= nil then
+			dmhub.LocalAssetsApplyDirs()
+		end
+	end
+
+	local function TopDir()
+		local dirs = GetDirs()
+		if dirs[1] == nil then
+			return ""
+		end
+		return dirs[1]
+	end
+
+	local function StatusText()
+		local status = dmhub.LocalAssetsStatus()
+		local dirs = GetDirs()
+		if status ~= nil and status.active then
+			local ndirs = 1
+			if status.directories ~= nil and #status.directories > 0 then
+				ndirs = #status.directories
+			end
+			local text
+			if ndirs > 1 then
+				text = string.format("Active: assets load from %d directories; new entries are created in %s.", ndirs, status.directories[1])
+			else
+				text = string.format("Active: this game's assets are loading from %s.", status.directory or "?")
+			end
+			if status.shadowedCount ~= nil and status.shadowedCount > 0 then
+				text = text .. string.format(" %d item(s) exist in multiple directories; the higher directory's copy wins.", status.shadowedCount)
+			end
+			if status.reloadRequired then
+				text = text .. " Directory changes are PENDING: reload the game to apply them."
+			end
+			return text
+		elseif #dirs > 0 then
+			return "Set, but not active yet: reload the game to activate."
+		else
+			return "Not set: this game uses cloud assets."
+		end
+	end
+
+	local statusLabel = gui.Label{
+		width = "90%",
+		height = "auto",
+		halign = "center",
+		fontSize = 14,
+		vmargin = 2,
+		italics = true,
+		text = StatusText(),
+		multimonitor = {"localassets:dirs", "localassets:dir"},
+		events = {
+			monitor = function(element)
+				element.text = StatusText()
+			end,
+		},
+	}
+
+	local dirsListPanel, addButton = CreateDirectoryListPanels{
+		getDirs = GetDirs,
+		setDirs = SetDirs,
+		monitor = {"localassets:dirs", "localassets:dir"},
 	}
 
 	local function DoExport()
@@ -1781,6 +1808,526 @@ local function CreateLocalAssetsSection()
 		return browserRoot
 	end
 
+	--------------------------------------------------------------------
+	--Cloud comparison: local assets mode is PER-CLIENT. The game's cloud
+	--assets keep arriving and keep being edited by everyone else playing,
+	--they are just not used here -- so content other people create is
+	--invisible while the local tree is masking it. This sub-section lists
+	--what the cloud has that your files do not (and, optionally, items that
+	--exist in both with different content) and lets you copy a selection
+	--down into the YAML tree. Only ever reads the cloud; nothing here
+	--writes back to it.
+	--------------------------------------------------------------------
+
+	local function CreateCloudDiffBrowser()
+		if dmhub.LocalAssetsCloudDiff == nil then
+			return nil --engine build predates the cloud-diff bridges.
+		end
+
+		local status = dmhub.LocalAssetsStatus()
+		if status == nil or (not status.active) then
+			return nil
+		end
+
+		local cloudStyles = {
+			gui.Style{
+				selectors = {"cdtree-row"},
+				bgcolor = "clear",
+			},
+			gui.Style{
+				selectors = {"cdtree-row", "hover"},
+				bgcolor = "#ffffff22",
+			},
+		}
+
+		--attached DIRECTLY to each triangle panel with a selector-less base
+		--rule; cascading rotate rules from an ancestor styles list does not
+		--apply (see the note in the file browser above).
+		local cloudTriangleStyles = {
+			gui.Style{
+				width = 10,
+				height = 10,
+				hmargin = 4,
+				valign = "center",
+				rotate = 90,
+			},
+			gui.Style{
+				selectors = {"expanded"},
+				rotate = 0,
+				transitionTime = 0.2,
+			},
+		}
+
+		local cloudRoot = nil
+		local m_diff = nil        --last LocalAssetsCloudDiff result
+		local m_selected = {}     --item key -> true
+		local m_selectedCount = 0
+		local m_includeDiffering = false
+		local downloadButton = nil
+		local summaryLabel = nil
+
+		local stateInfo = {
+			cloudOnly = { label = "cloud only", color = "#77cc77" },
+			differs = { label = "differs", color = "#ddbb55" },
+		}
+
+		local function ItemKey(item)
+			return string.format("%s\n%s\n%s", item.category, item.tableid or "", item.id)
+		end
+
+		--items the section acts on: cloud-only always, differing only when
+		--the user asks for them (with a large overlay the differing set is
+		--mostly incidental drift and would bury the genuinely missing rows).
+		local function VisibleItems(category)
+			local result = {}
+			for _,item in ipairs(category.items) do
+				if item.state == "cloudOnly" or (m_includeDiffering and item.state == "differs") then
+					result[#result+1] = item
+				end
+			end
+			return result
+		end
+
+		local function VisibleCategories()
+			local result = {}
+			if m_diff == nil or m_diff.categories == nil then
+				return result
+			end
+			for _,category in ipairs(m_diff.categories) do
+				local items = VisibleItems(category)
+				if #items > 0 then
+					result[#result+1] = { name = category.name, items = items }
+				end
+			end
+			return result
+		end
+
+		local function SummaryText()
+			if m_diff == nil then
+				return "Comparing..."
+			end
+			if not m_diff.available then
+				return "The game's cloud assets have not arrived yet. Try Refresh in a moment."
+			end
+			local counts = m_diff.counts or {}
+			local text = string.format("%d item(s) exist in the cloud game but not in your files.", counts.cloudOnly or 0)
+			if (counts.differs or 0) > 0 then
+				text = text .. string.format(" %d more exist in both with different content.", counts.differs)
+			end
+			if (counts.cloudOnly or 0) == 0 and (counts.differs or 0) == 0 then
+				text = "Your files hold everything the cloud game has."
+			end
+			return text
+		end
+
+		local function UpdateChrome()
+			if summaryLabel ~= nil and summaryLabel.valid then
+				summaryLabel.text = SummaryText()
+			end
+			if downloadButton ~= nil and downloadButton.valid then
+				downloadButton.text = m_selectedCount > 0
+					and string.format("Download %d Selected", m_selectedCount)
+					or "Download Selected"
+				downloadButton:SetClass("disabled", m_selectedCount == 0)
+				downloadButton.interactable = m_selectedCount > 0
+			end
+		end
+
+		local function SetSelected(key, selected)
+			if selected and not m_selected[key] then
+				m_selected[key] = true
+				m_selectedCount = m_selectedCount + 1
+			elseif (not selected) and m_selected[key] then
+				m_selected[key] = nil
+				m_selectedCount = m_selectedCount - 1
+			end
+		end
+
+		--drops selections for items that are no longer in the diff (they were
+		--just downloaded, or the cloud changed under us).
+		local function PruneSelection()
+			local live = {}
+			for _,category in ipairs(VisibleCategories()) do
+				for _,item in ipairs(category.items) do
+					live[ItemKey(item)] = true
+				end
+			end
+			for key,_ in pairs(m_selected) do
+				if not live[key] then
+					m_selected[key] = nil
+					m_selectedCount = m_selectedCount - 1
+				end
+			end
+		end
+
+		local function Refresh()
+			m_diff = dmhub.LocalAssetsCloudDiff(m_includeDiffering)
+			PruneSelection()
+			UpdateChrome()
+			if cloudRoot ~= nil and cloudRoot.valid then
+				cloudRoot:FireEventTree("cdtreeRebuild")
+			end
+		end
+
+		local function ItemRow(item)
+			local info = stateInfo[item.state] or { label = item.state, color = "#aaaaaa" }
+			local key = ItemKey(item)
+			--the row height follows the checkbox (30 by default), rather than
+			--the 22 the category headers use -- a fixed 22 clips the tick.
+			return gui.Panel{
+				classes = {"cdtree-row"},
+				flow = "horizontal",
+				width = "100%",
+				height = "auto",
+				bgimage = "panels/square.png",
+
+				--gui.Check always builds its own label from `text` (it is
+				--concatenated unconditionally), so the item name goes here
+				--rather than in a sibling Label -- which also makes the whole
+				--row clickable. The id is only in the tooltip: several items
+				--can share a display name (four objects here are all called
+				--"wardogfacility03").
+				gui.Check{
+					valign = "center",
+					hmargin = 4,
+					fontSize = 14,
+					text = item.displayName or item.id,
+					tooltip = item.id,
+					value = m_selected[key] == true,
+					change = function(element)
+						SetSelected(key, element.value)
+						UpdateChrome()
+					end,
+					create = function(element)
+						--rows are rebuilt on refresh/expand; re-read the
+						--selection so a rebuilt row keeps its tick.
+						element.value = m_selected[key] == true
+					end,
+				},
+
+				gui.Label{
+					width = "auto",
+					height = "auto",
+					fontSize = 11,
+					valign = "center",
+					hmargin = 8,
+					color = info.color,
+					text = info.label,
+				},
+			}
+		end
+
+		--item rows are capped per category; the cap is generous enough that
+		--only a wholesale divergence hits it, and it is reported when it does.
+		local MaxRowsPerCategory = 400
+
+		local function CategoryNode(category)
+			local expanded = false
+			local triangle = gui.Panel{
+				bgimage = "panels/triangle.png",
+				--inline, not in the styles list: the settings sheet's cascade
+				--overrides a style-rule bgcolor to black here.
+				bgcolor = "white",
+				styles = cloudTriangleStyles,
+			}
+			local childrenPanel = gui.Panel{
+				flow = "vertical",
+				width = "100%",
+				height = "auto",
+				lmargin = 16,
+			}
+
+			local function Items()
+				for _,c in ipairs(VisibleCategories()) do
+					if c.name == category.name then
+						return c.items
+					end
+				end
+				return {}
+			end
+
+			local function BuildChildren()
+				local rows = {}
+				local items = Items()
+				for i,item in ipairs(items) do
+					if i > MaxRowsPerCategory then
+						rows[#rows+1] = gui.Label{
+							width = "100%",
+							height = "auto",
+							fontSize = 12,
+							italics = true,
+							opacity = 0.6,
+							text = string.format("... and %d more (not shown; use Select All In Category to take them all).", #items - MaxRowsPerCategory),
+						}
+						break
+					end
+					rows[#rows+1] = ItemRow(item)
+				end
+				return rows
+			end
+
+			local countLabel = gui.Label{
+				width = "auto",
+				height = "auto",
+				fontSize = 12,
+				valign = "center",
+				hmargin = 6,
+				opacity = 0.6,
+				text = string.format("(%d)", #category.items),
+			}
+
+			--select/deselect every item in this category, including any beyond
+			--the display cap, so a big category can still be taken wholesale.
+			local selectAllButton = SmallButton("All", 44, false, function()
+				local items = Items()
+				local anyUnselected = false
+				for _,item in ipairs(items) do
+					if not m_selected[ItemKey(item)] then
+						anyUnselected = true
+						break
+					end
+				end
+				for _,item in ipairs(items) do
+					SetSelected(ItemKey(item), anyUnselected)
+				end
+				UpdateChrome()
+				if expanded then
+					childrenPanel.children = BuildChildren()
+				end
+			end)
+
+			local header = gui.Panel{
+				classes = {"cdtree-row"},
+				flow = "horizontal",
+				width = "100%",
+				height = 22,
+				bgimage = "panels/square.png",
+				click = function(element)
+					expanded = not expanded
+					triangle:SetClass("expanded", expanded)
+					if expanded then
+						childrenPanel.children = BuildChildren()
+					else
+						childrenPanel.children = {}
+					end
+				end,
+				triangle,
+				gui.Label{
+					width = "auto",
+					height = "auto",
+					fontSize = 14,
+					valign = "center",
+					text = category.name,
+				},
+				countLabel,
+				selectAllButton,
+			}
+
+			return gui.Panel{
+				flow = "vertical",
+				width = "100%",
+				height = "auto",
+				header,
+				childrenPanel,
+
+				--rebuilds are deferred a tick: the event arrives via
+				--FireEventTree and swapping children mid-traversal would let
+				--the same event reach just-destroyed rows.
+				cdtreeRebuild = function(element)
+					local items = Items()
+					countLabel.text = string.format("(%d)", #items)
+					if expanded then
+						dmhub.Schedule(0.05, function()
+							if element.valid and expanded then
+								childrenPanel.children = BuildChildren()
+							end
+						end)
+					end
+				end,
+			}
+		end
+
+		local treesPanel = gui.Panel{
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+			vmargin = 4,
+
+			cdtreeRebuild = function(element)
+				--the category SET changes when the differing filter flips or
+				--items are downloaded, so the node list itself is rebuilt.
+				dmhub.Schedule(0.05, function()
+					if element.valid then
+						local children = {}
+						for _,category in ipairs(VisibleCategories()) do
+							children[#children+1] = CategoryNode(category)
+						end
+						if #children == 0 then
+							children[1] = gui.Label{
+								width = "100%",
+								height = "auto",
+								fontSize = 12,
+								italics = true,
+								opacity = 0.6,
+								text = "Nothing to download.",
+							}
+						end
+						element.children = children
+					end
+				end)
+			end,
+		}
+
+		local function DoDownload()
+			local list = {}
+			for _,category in ipairs(VisibleCategories()) do
+				for _,item in ipairs(category.items) do
+					if m_selected[ItemKey(item)] then
+						list[#list+1] = { category = item.category, tableid = item.tableid, id = item.id }
+					end
+				end
+			end
+
+			if #list == 0 then
+				return
+			end
+
+			local result = dmhub.LocalAssetsImportFromCloud(list)
+			if result == nil then
+				gui.ModalMessage{
+					title = "Local Assets",
+					message = "Could not download: local assets mode is not active.",
+				}
+				return
+			end
+
+			local message = string.format("Downloaded %d item(s) into %s.", result.imported, result.directory)
+			if result.failed > 0 then
+				message = message .. string.format(" %d could not be downloaded; see the console for details.", result.failed)
+			end
+			gui.ModalMessage{
+				title = "Local Assets",
+				message = message,
+			}
+
+			--the items are now on disk, so they leave the diff. The sweep can
+			--take a moment to settle, so refresh again shortly after.
+			Refresh()
+			dmhub.Schedule(3, function()
+				if cloudRoot ~= nil and cloudRoot.valid then
+					Refresh()
+				end
+			end)
+		end
+
+		downloadButton = gui.Button{
+			width = 200,
+			height = 26,
+			fontSize = 14,
+			halign = "left",
+			valign = "center",
+			hmargin = 4,
+			text = "Download Selected",
+			classes = {"disabled"},
+			interactable = false,
+			click = function(element)
+				local dir = TopDir()
+				gui.ModalMessage{
+					title = "Download From Cloud",
+					message = string.format("Copy %d item(s) from the cloud game into your local files? Items you already have a file for are overwritten in place; new ones are created in %s. Nothing is written back to the cloud.", m_selectedCount, dir),
+					options = {
+						{ text = "Cancel" },
+						{ text = "Download", execute = DoDownload },
+					},
+				}
+			end,
+		}
+
+		summaryLabel = gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 12,
+			italics = true,
+			opacity = 0.8,
+			vmargin = 2,
+			text = "Comparing...",
+		}
+
+		local toolbar = gui.Panel{
+			flow = "horizontal",
+			width = "100%",
+			height = "auto",
+			vmargin = 2,
+
+			downloadButton,
+
+			gui.Check{
+				text = "Include Items That Differ",
+				value = m_includeDiffering,
+				halign = "left",
+				valign = "center",
+				hmargin = 8,
+				change = function(element)
+					m_includeDiffering = element.value
+					Refresh()
+				end,
+			},
+
+			SmallButton("Refresh", 80, false, function()
+				Refresh()
+			end),
+
+			SmallButton("Clear", 70, false, function()
+				m_selected = {}
+				m_selectedCount = 0
+				UpdateChrome()
+				if cloudRoot ~= nil and cloudRoot.valid then
+					cloudRoot:FireEventTree("cdtreeRebuild")
+				end
+			end),
+		}
+
+		cloudRoot = gui.Panel{
+			flow = "vertical",
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			vmargin = 6,
+			styles = cloudStyles,
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 16,
+				bold = true,
+				vmargin = 4,
+				text = "Cloud Assets You Are Masking",
+			},
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 12,
+				vmargin = 2,
+				text = "Local assets mode only changes THIS client. The cloud game's assets keep updating as other people play, they are just not used here -- so anything they create while this is on is invisible to you, and your edits never reach them. Pick items below to copy down into your files.",
+			},
+
+			summaryLabel,
+			toolbar,
+			treesPanel,
+
+			--`create` fires while gui.Panel is still constructing, so the
+			--cloudRoot local is not assigned yet; take it from the element or
+			--the first Refresh would have no tree to rebuild.
+			create = function(element)
+				cloudRoot = element
+				Refresh()
+			end,
+		}
+
+		return cloudRoot
+	end
+
 	local resultPanels = {
 		gui.Label{
 			width = "100%",
@@ -1821,7 +2368,201 @@ local function CreateLocalAssetsSection()
 		resultPanels[#resultPanels+1] = browserPanel
 	end
 
+	local cloudDiffPanel = CreateCloudDiffBrowser()
+	if cloudDiffPanel ~= nil then
+		resultPanels[#resultPanels+1] = cloudDiffPanel
+	end
+
 	return resultPanels
+end
+
+--Encounter of the Week assets: the same local-directory overlay as above, but
+--for a game that cannot be configured individually. An EotW game is created
+--fresh for each encounter, so its gameid is not known until it exists and a
+--per-game preference can never be set for it in advance. This list is GLOBAL
+--and follows whichever game occupies the account's EotW slot, which lets a
+--developer play the weekly encounter against the content they are authoring
+--on disk instead of the last published module version. Unlike the per-game
+--section this one is also shown at the titlescreen -- that is where you
+--configure it, before launching into the encounter.
+local function CreateEotwLocalAssetsSection()
+	if not dmhub.GetSettingValue("dev") then
+		return {}
+	end
+
+	--The mode itself is dev-gated; without it there is no EotW game for
+	--these directories to apply to, so the block would only be clutter.
+	--pcall-guarded because the setting is declared by the titlescreen EotW
+	--file, which an older core codex may not have.
+	local eotwEnabled = false
+	pcall(function() eotwEnabled = dmhub.GetSettingValue("dev:encounteroftheweek") == true end)
+	if not eotwEnabled then
+		return {}
+	end
+
+	local function GetDirs()
+		local result = {}
+		local str = dmhub.GetSettingValue("localassets:eotwdirs")
+		if str ~= nil and str ~= "" then
+			for line in string.gmatch(str, "[^\n]+") do
+				line = line:match("^%s*(.-)%s*$")
+				if line ~= "" then
+					result[#result+1] = line
+				end
+			end
+		end
+		return result
+	end
+
+	local function SetDirs(dirs)
+		dmhub.SetSettingValue("localassets:eotwdirs", table.concat(dirs, "\n"))
+		--only matters when the current game IS the EotW game; a pure
+		--reordering can apply live there, everything else needs a reload.
+		if dmhub.LocalAssetsApplyDirs ~= nil then
+			dmhub.LocalAssetsApplyDirs()
+		end
+	end
+
+	--The gameid in the account's EotW slot, or nil. Same signal the engine
+	--uses (AccountInfo.eotwGame) and the game codemod uses
+	--(EncounterOfTheWeekGame.IsEotwGame). pcall-guarded: the lobby global is
+	--absent on engine builds that predate it.
+	local function EotwGameid()
+		local result = nil
+		pcall(function() result = lobby.eotwGameid end)
+		if result == "" then
+			return nil
+		end
+		return result
+	end
+
+	local function StatusText()
+		local dirs = GetDirs()
+		local slot = EotwGameid()
+		local inEotwGame = slot ~= nil and slot == dmhub.gameid
+
+		if #dirs == 0 then
+			return "Not set: Encounter of the Week games use the module's assets."
+		end
+
+		if inEotwGame then
+			local status = dmhub.LocalAssetsStatus()
+			if status ~= nil and status.active then
+				local text = string.format("Active: this Encounter of the Week game is loading assets from %d directories; new entries are created in %s.", #(status.directories or {}), status.directory or "?")
+				if status.reloadRequired then
+					text = text .. " Directory changes are PENDING: reload the game to apply them."
+				end
+				return text
+			end
+			return "Set, but not active yet: reload the game to activate."
+		end
+
+		if slot ~= nil then
+			return string.format("Set: applies to your Encounter of the Week game (%s) the next time you load it.", slot)
+		end
+
+		return "Set: applies to the next Encounter of the Week game you create or join."
+	end
+
+	local statusLabel = gui.Label{
+		width = "90%",
+		height = "auto",
+		halign = "center",
+		fontSize = 14,
+		vmargin = 2,
+		italics = true,
+		text = StatusText(),
+		multimonitor = {"localassets:eotwdirs"},
+		events = {
+			monitor = function(element)
+				element.text = StatusText()
+			end,
+		},
+	}
+
+	local dirsListPanel, addButton = CreateDirectoryListPanels{
+		getDirs = GetDirs,
+		setDirs = SetDirs,
+		monitor = {"localassets:eotwdirs"},
+	}
+
+	--Convenience for the usual workflow: you author the encounter in a game
+	--that already has its own local asset directories, and want the weekly
+	--playtest to read the same files. Only offered when there is something to
+	--copy (i.e. in that authoring game, not at the titlescreen).
+	local function GameDirs()
+		if dmhub.isLobbyGame then
+			return {}
+		end
+		local result = {}
+		local str = dmhub.GetSettingValue("localassets:dirs")
+		if str == nil or str == "" then
+			str = dmhub.GetSettingValue("localassets:dir")
+		end
+		if str ~= nil and str ~= "" then
+			for line in string.gmatch(str, "[^\n]+") do
+				line = line:match("^%s*(.-)%s*$")
+				if line ~= "" then
+					result[#result+1] = line
+				end
+			end
+		end
+		return result
+	end
+
+	local copyButton = gui.Button{
+		width = 250,
+		height = 32,
+		fontSize = 16,
+		halign = "left",
+		valign = "center",
+		text = "Copy From This Game",
+		classes = {cond(#GameDirs() == 0, "collapsed")},
+		multimonitor = {"localassets:dirs", "localassets:dir"},
+		events = {
+			monitor = function(element)
+				element:SetClass("collapsed", #GameDirs() == 0)
+			end,
+		},
+		click = function(element)
+			SetDirs(GameDirs())
+		end,
+	}
+
+	return {
+		gui.Label{
+			width = "100%",
+			height = 40,
+			fontSize = 26,
+			bold = true,
+			vmargin = 8,
+			text = "Encounter of the Week Assets (Developer)",
+		},
+
+		gui.Label{
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			fontSize = 14,
+			vmargin = 4,
+			text = "Encounter of the Week games are created fresh for each encounter, so they cannot be configured one by one like the game above. These directories apply to whichever game currently occupies your Encounter of the Week slot: its assets load from the files on disk instead of the published module's, which is how you playtest content you are still authoring. They load below any directories set for that game itself, and they take effect when the game is next loaded. Everything the section above says applies here too -- in particular, edits made in-game are written back to these files, so point this at content you are happy to have a playtest write to.",
+		},
+
+		dirsListPanel,
+
+		gui.Panel{
+			flow = "horizontal",
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			vmargin = 4,
+			addButton,
+			gui.Panel{ width = 16, height = 1 },
+			copyButton,
+		},
+
+		statusLabel,
+	}
 end
 
 --Creator Organizations: create an organization (or convert your personal
@@ -5802,6 +6543,9 @@ function CreateSettingsScreen(dialog, args)
 						build = function()
 							local children = CreateImageEditorChooser()
 							for _,panel in ipairs(CreateLocalAssetsSection()) do
+								children[#children+1] = panel
+							end
+							for _,panel in ipairs(CreateEotwLocalAssetsSection()) do
 								children[#children+1] = panel
 							end
 							return children

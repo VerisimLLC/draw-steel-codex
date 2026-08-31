@@ -472,7 +472,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 end
 
                 --be careful not to put anything in here we don't want to transmit to the database.
-                local symbols = { spellname = options.symbols.spellname or ability.name, charges = options.symbols.charges, cast = options.symbols.cast, forcedMovementOrigin = options.symbols.forcedMovementOrigin }
+                local symbols = { spellname = options.symbols.spellname or ability.name, charges = options.symbols.charges, cast = options.symbols.cast, forcedMovementOrigin = options.symbols.forcedMovementOrigin, forcedMovementOriginTokenId = options.symbols.forcedMovementOriginTokenId }
 
                 --Opt-in only: 'attacker' (and other trigger-only symbols) do not
                 --normally cross the invoke boundary, since most invokes have no

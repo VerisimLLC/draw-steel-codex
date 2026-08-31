@@ -1119,6 +1119,63 @@ function ActivatedAbility:VerticalTargeting()
     return false
 end
 
+local function ResolveForcedMovementOrigin(symbols)
+    local originLoc = symbols.forcedMovementOrigin
+    local originToken = nil
+
+    local originTokenId = symbols.forcedMovementOriginTokenId
+    if originTokenId ~= nil then
+        originToken = dmhub.GetTokenById(originTokenId)
+        if originToken ~= nil and originToken.valid then
+            return originToken, originLoc or originToken.loc
+        end
+    end
+
+    --A saved location remains a valid fallback if its source token has left the map.
+    if originLoc ~= nil then
+        return nil, originLoc
+    end
+
+    local invoker = symbols.invoker
+    if type(invoker) == "function" then
+        invoker = invoker("self")
+    end
+
+    if type(invoker) == "table" then
+        originToken = dmhub.LookupToken(invoker)
+        if originToken ~= nil then
+            originLoc = originToken.loc
+        end
+    end
+
+    return originToken, originLoc
+end
+
+--Creature-origin forced movement is measured edge-to-edge so large tokens do
+--not gain legal diagonal pushes from the arbitrary anchor of their footprint.
+local function ForcedMovementOriginDistanceFunction(originToken, originLoc, movedToken)
+    if originToken ~= nil and originToken.valid then
+        local originLocs = originToken:LocsOccupyingWhenAt(originLoc)
+        return function(loc)
+            local result = nil
+            for _,sourceLoc in ipairs(originLocs) do
+                for _,targetLoc in ipairs(movedToken:LocsOccupyingWhenAt(loc)) do
+                    local distance = sourceLoc:DistanceInTiles(targetLoc)
+                    if result == nil or distance < result then
+                        result = distance
+                    end
+                end
+            end
+
+            return result or originLoc:DistanceInTiles(loc)
+        end
+    end
+
+    return function(loc)
+        return originLoc:DistanceInTiles(loc)
+    end
+end
+
 function ActivatedAbility:TargetLocMaxElevationChangeFunction(casterToken, symbols)
     --Teleport targeting: distance is Chebyshev -- max(|dx|, |dy|, |dz|) -- so a
     --"teleport 5" may end up to 5 squares above or below the creature's current
@@ -1141,65 +1198,45 @@ function ActivatedAbility:TargetLocMaxElevationChangeFunction(casterToken, symbo
     end
 
     if self:try_get("targeting") == "straightline" and (self.targetType == "emptyspace" or self.targetType == "anyspace") and symbols.invoker ~= nil then
-        local invoker = symbols.invoker
-        if type(invoker) == "function" then
-            invoker = invoker("self")
-        end
+        local originToken, originLoc = ResolveForcedMovementOrigin(symbols)
+        local forcedMovement = symbols.forcedmovement or self:try_get("forcedMovement")
+        if originLoc ~= nil then
+            local distanceFromOrigin = ForcedMovementOriginDistanceFunction(originToken, originLoc, casterToken)
+            local startingAltitudeDelta = casterToken.loc.altitude - originLoc.altitude
+            local distanceStart = math.max(startingAltitudeDelta, distanceFromOrigin(casterToken.loc))
 
-        if type(invoker) == "table" then
-            invoker = dmhub.LookupToken(invoker)
-        else
-            invoker = nil
-        end
+            if forcedMovement == "vertical_push" or forcedMovement == "vertical_pull" then
+                return function(loc)
+                    local min = nil
+                    local max = nil
+                    for i=-symbols.range,symbols.range do
+                        local moveDistance = loc:DistanceInTiles(casterToken.loc)
+                        local distanceFromPusher = distanceFromOrigin(loc)
+                        local altitudeDelta = (casterToken.loc.altitude + i) - originLoc.altitude
+                        distanceFromPusher = math.max(altitudeDelta, distanceFromPusher)
+                        moveDistance = math.max(moveDistance, math.abs(i))
 
-        if invoker ~= nil then
-            local startingAltitudeDelta = casterToken.loc.altitude - invoker.loc.altitude
-
-            local originLoc = symbols.forcedMovementOrigin
-
-            if originLoc == nil then
-                originLoc = invoker.loc
-            end
-
-
-            local forcedMovement = symbols.forcedmovement or self:try_get("forcedMovement")
-            if originLoc ~= nil then
- 
-                local distanceStart = math.max(startingAltitudeDelta, originLoc:DistanceInTiles(casterToken.loc))
-
-                if forcedMovement == "vertical_push" or forcedMovement == "vertical_pull" then
-                    return function(loc)
-                        local min = nil
-                        local max = nil
-                        for i=-symbols.range,symbols.range do
-                            local moveDistance = loc:DistanceInTiles(casterToken.loc)
-                            local distanceFromPusher = loc:DistanceInTiles(originLoc)
-                            local altitudeDelta = (casterToken.loc.altitude + i) - invoker.loc.altitude
-                            distanceFromPusher = math.max(altitudeDelta, distanceFromPusher)
-                            moveDistance = math.max(moveDistance, math.abs(i))
-
-                            local allowed
-                            if forcedMovement == "vertical_pull" then
-                                allowed = distanceFromPusher <= (distanceStart - moveDistance)
-                            else
-                                allowed = distanceFromPusher >= (distanceStart + moveDistance)
-                            end
-
-                            if allowed then
-                                if min == nil then
-                                    min = i
-                                end
-
-                                max = i
-                            end
-
+                        local allowed
+                        if forcedMovement == "vertical_pull" then
+                            allowed = distanceFromPusher <= (distanceStart - moveDistance)
+                        else
+                            allowed = distanceFromPusher >= (distanceStart + moveDistance)
                         end
-                        return (min or 0), (max or 0)
+
+                        if allowed then
+                            if min == nil then
+                                min = i
+                            end
+
+                            max = i
+                        end
+
                     end
-                elseif forcedMovement == "vertical_slide" then
-                    return function(loc)
-                        return -symbols.range, symbols.range
-                    end
+                    return (min or 0), (max or 0)
+                end
+            elseif forcedMovement == "vertical_slide" then
+                return function(loc)
+                    return -symbols.range, symbols.range
                 end
             end
         end
@@ -1229,32 +1266,16 @@ function ActivatedAbility:TargetLocPassesFilterPredicate(casterToken, symbols)
         end
     end
     if self:try_get("targeting") == "straightline" and (self.targetType == "emptyspace" or self.targetType == "anyspace") and symbols.invoker ~= nil then
-        local originLoc = symbols.forcedMovementOrigin
-
-        if originLoc == nil then
-            local invoker = symbols.invoker
-            if type(invoker) == "function" then
-                invoker = invoker("self")
-            end
-
-            if type(invoker) == "table" then
-                invoker = dmhub.LookupToken(invoker)
-            else
-                invoker = nil
-            end
-            
-            if invoker ~= nil then
-                originLoc = invoker.loc
-            end
-        end
+        local originToken, originLoc = ResolveForcedMovementOrigin(symbols)
 
         if originLoc ~= nil then
-            local distanceStart = originLoc:DistanceInTiles(casterToken.loc)
+            local distanceFromOrigin = ForcedMovementOriginDistanceFunction(originToken, originLoc, casterToken)
+            local distanceStart = distanceFromOrigin(casterToken.loc)
             local forcedMovement = symbols.forcedmovement or self:try_get("forcedMovement")
             if forcedMovement == "push" or forcedMovement == "pull" or forcedMovement == "vertical_push" or forcedMovement == "vertical_pull" then
                 return function(loc)
                     local moveDistance = loc:DistanceInTiles(casterToken.loc)
-                    local distanceFromPusher = loc:DistanceInTiles(originLoc)
+                    local distanceFromPusher = distanceFromOrigin(loc)
                     if forcedMovement == "push" or forcedMovement == "vertical_push" then
                         return distanceFromPusher >= (distanceStart + moveDistance)
                     else
@@ -5420,7 +5441,7 @@ function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targe
 					abilityClone.keywords = ability.keywords
 					abilityClone.notooltip = true
 					abilityClone.skippable = true
-					local invokeSymbols = { invoker = GenerateSymbols(casterToken.properties), cast = symbols.cast, forcedMovementOrigin = symbols.forcedMovementOrigin }
+					local invokeSymbols = { invoker = GenerateSymbols(casterToken.properties), cast = symbols.cast, forcedMovementOrigin = symbols.forcedMovementOrigin, forcedMovementOriginTokenId = symbols.forcedMovementOriginTokenId }
 					ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, abilityClone, target, "prompt", invokeSymbols, options)
 				end
 			end
@@ -5465,7 +5486,7 @@ function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targe
 				abilityClone.notooltip = true
 				abilityClone.skippable = true
 
-				local invokeSymbols = { invoker = GenerateSymbols(casterToken.properties), cast = symbols.cast, forcedMovementOrigin = symbols.forcedMovementOrigin }
+				local invokeSymbols = { invoker = GenerateSymbols(casterToken.properties), cast = symbols.cast, forcedMovementOrigin = symbols.forcedMovementOrigin, forcedMovementOriginTokenId = symbols.forcedMovementOriginTokenId }
 				ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, abilityClone, target, "prompt", invokeSymbols, options)
 			else
 				-- Fallback if standard ability template not found

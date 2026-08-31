@@ -7014,10 +7014,14 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 						cond._tmp_endAbility = ongoingEffect:GetEndAbility()
 						cond.casterInfo = casterInfo
 						cond.seq = highestSeq + 1
-						if options.stacks == nil then
-							cond.stacks = 1
+						--per-caster tracking decides WHICH instance we land on; once we have it,
+						--the effect's own stacking config still governs what happens to its stacks.
+						if ongoingEffect.stackable and not ongoingEffect.clearStacksWhenApplying then
+							cond.stacks = (cond.stacks or 1) + (options.stacks or 1)
+						elseif ongoingEffect.stackable then
+							cond.stacks = math.max((cond.stacks or 1), (options.stacks or 1))
 						else
-							cond.stacks = options.stacks
+							cond.stacks = options.stacks or 1
 						end
 						cond:Refresh(duration)
 						result = cond

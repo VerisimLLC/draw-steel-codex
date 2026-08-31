@@ -1408,10 +1408,14 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                             --When this panel is framed by another surface
                             --(the journal viewer's tree rail), picking a
                             --document navigates that host instead of
-                            --opening a second window.
+                            --opening a second window. Only real documents can
+                            --be navigated to -- a PDF/image id is an asset id,
+                            --not a row in the documents table, so the host
+                            --would find nothing and silently do nothing.
+                            local isDocument = member.nodeType == "custom" or member.nodeType == "negotiation"
                             local root = element:FindParentWithClass("journalPanelRoot")
                             local onPick = nil
-                            if root ~= nil and root.data ~= nil then
+                            if isDocument and root ~= nil and root.data ~= nil then
                                 onPick = root.data.onPick
                             end
                             if onPick ~= nil then

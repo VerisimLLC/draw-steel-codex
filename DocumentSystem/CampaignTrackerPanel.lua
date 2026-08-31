@@ -1417,6 +1417,10 @@ local function CreateAddPopup(element)
             bodyPanel:SetClass("collapsed", not arrow:HasClass("expanded"))
         end
         arrow = gui.ExpandoArrow {
+            --swallowPress: headerRow below also has press = Toggle, and the
+            --engine propagates press to ancestors, so without this a click on
+            --the arrow would toggle the folder twice and appear to do nothing.
+            swallowPress = true,
             press = Toggle,
         }
 

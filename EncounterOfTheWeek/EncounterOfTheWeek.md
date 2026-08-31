@@ -570,6 +570,96 @@ row**, not vertical rows (user direction 2026-08-28). All in
   **gating the UI on an image-load count makes the worst case worse**, whereas
   warming ahead of time has no worst case.
 
+## Opening the screen: the loading veil (DECIDED + BUILT 2026-08-30; UNTESTED)
+
+Pressing the titlescreen's `eotwTitlescreenLink` used to show the screen and
+then freeze for one to two seconds. That is the whole open happening inline:
+`ShowScreen` built the entire panel tree, opened the lobby connection and
+mounted the portrait warmer in one go, and the first frames afterwards paid
+for the layout and the texture decodes. The screen was on screen for all of
+it, so the stall read as the app hanging on a half-drawn page.
+
+The fix is to make the wait deliberate rather than to try to remove it: a
+**loading veil** goes up first, the screen is built behind it, and the two
+cross-fade once the build has settled. All of it is in
+`Codex Titlescreen/EncounterOfTheWeek.lua`.
+
+- `EncounterOfTheWeek.ShowScreen()` no longer builds anything. It mounts
+  `CreateLoadingVeil(root)` on `CodexTitlescreenRoot` and returns. The veil is
+  deliberately cheap -- a flat dark panel (`panels/square.png`) and two labels,
+  no streamed art of its own -- so it can be up and painted within a frame of
+  the click. It carries the screen's title at the screen's own authoring scale
+  (the `dialog.width / 1920` math copied from `CreateScreen`) plus the codex's
+  usual animated "Loading..." ticker.
+- The veil owns the whole opening sequence, because **every step has to be
+  scheduled from the end of the previous one**. `ScheduleEvent` is wall-clock,
+  so an event scheduled just before a frame-long stall fires on the first frame
+  after the stall ends. That is what makes the timings robust: a slow build
+  pushes the reveal back instead of uncovering a half-drawn screen.
+  1. `create` -> `buildScreen` after `VEIL_BUILD_DELAY_SECONDS` (0.15) -- long
+     enough for the veil to paint and finish its `create`-class fade-in.
+  2. `buildScreen` calls `CachePregens()` + `CreateScreen`, sets the class
+     `eotwOpening` on the result **before** parenting it (so it is never
+     parented visible), adds it to the root, and schedules `revealScreen` after
+     `VEIL_SETTLE_SECONDS` (0.35) -- a beat for layout and the first textures.
+  3. `revealScreen` sheds `eotwOpening` and puts `dying` on the veil; both
+     ramps run over `VEIL_CROSSFADE_SECONDS` (0.3), then the veil destroys
+     itself.
+- The screen fades via a new rule in its own `styles` list,
+  `{ selectors = { "framedPanel", "eotwOpening" }, opacity = 0, transitionTime
+  = VEIL_CROSSFADE_SECONDS }` -- the hero-card `born` pattern: the panel is
+  *created* carrying the class (so there is no transition to play on the way
+  in) and the rule's `transitionTime` governs the ramp back out when the class
+  is shed. Two selectors deliberately, to sit above the `framedPanel` rules in
+  DefaultStyles.
+- **The screen is invisible during the settle window but not inert.** It has to
+  render -- that is what makes its textures stream, which is the entire point
+  of building it early -- and a live panel takes raycasts whatever its opacity
+  (`interactable` is per-panel `raycastTarget`; `alphaHitTest` is opt-in, so a
+  fully transparent image still blocks). So `buildScreen` caps the screen with
+  a transparent `eotwOpeningBlocker` panel added LAST, which puts it above
+  everything in the screen including the floating close button -- which sits
+  roughly under the titlescreen link that opened us. `revealScreen` drops it;
+  it also self-destructs after 5s as a safety net.
+- The veil captures escape and cancels the open outright (destroying the
+  screen if it has been built), so changing your mind does not mean waiting
+  for the screen to arrive just to close it. It also blocks clicks on the
+  titlescreen beneath while it is up, and `ShowScreen` refuses to stack a
+  second veil if one is already in flight.
+- `SweepStaleScreen` now also destroys any `eotwLoadingVeil` left on the root
+  by a previous codemod generation. A stale veil is worse than a stale screen:
+  its scheduled `buildScreen` bails on `mod.unloaded`, so left alone it would
+  sit there opaque and inert.
+
+**Portrait warming is amortized to match.** `CreatePortraitWarmer` used to
+mount a panel for every eligible portrait in one tick, which made the engine
+stream and decode a dozen textures inside a single frame -- most of the hitch
+a cold open showed. It now mounts at most `PORTRAIT_WARM_BATCH` (3) per tick,
+`PORTRAIT_WARM_BATCH_SECONDS` (0.05) apart, coming straight back for the rest
+without spending one of its `PORTRAIT_WARM_PASSES`; a pass that does not fill
+its batch has drained the current eligible set and waits out the rescan
+interval as before. Its first pass is also pushed out to
+`PORTRAIT_WARM_START_SECONDS` (0.75), past the reveal, so no decode lands
+during the cross-fade.
+
+**Why this is not the rejected picker cover.** The Add-a-Hero "Loading..."
+cover (rejected above, 2026-08-29) gated the UI on an *image-load count* and
+so inherited the worst case of the slowest -- or never-arriving -- portrait.
+The veil is purely time-based and chained off completed work: its floor is
+~0.8s (0.15 + 0.35 + 0.3) and it has no dependence on any image ever loading.
+The lesson from that section holds -- never gate on a load count -- and this
+does not.
+
+**UNTESTED.** Written and syntax-checked, deployed (the codex git folder is
+the repo), but not yet exercised live: the running app was inside a real game
+and verifying this needs the titlescreen. What to check on the next
+titlescreen session: the veil appears within a frame of the click; the
+"Loading..." ticker animates rather than sitting frozen (if it freezes, the
+stall is longer than one think interval and the ticker is being starved -- not
+fatal, but worth knowing); the screen cross-fades in rather than popping; the
+Add-a-Hero grid still opens warm; escape during the veil cancels cleanly; and
+a second click on the link while the veil is up does nothing.
+
 ## One EotW game per account (DECIDED + BUILT 2026-08-27; worker DEPLOYED to staging, engine NEEDS BUILD, UNTESTED live)
 
 EotW games never appear in the CAMPAIGNS list and each account holds at most one at
@@ -785,6 +875,68 @@ How claimed heroes physically get from the titlescreen into an EotW game:
   destinations from an existing token's Loc (`ref.loc:dir(dx,dy)`) or pass
   `floorIndex` explicitly when constructing.
 
+## Heroes enter at exactly level 1 (DECIDED + BUILT 2026-08-31; UNTESTED)
+
+The weekly encounter is built and balanced for a **level-1 party**, but heroes
+arrive from wherever their owner built them -- a lobby hero can be any level,
+and a hero made through the Draw Steel "slow start" onboarding sits *below*
+level 1. So every hero is forced to exactly level 1 as it is placed.
+
+Two directions have to be corrected, and the level model makes each its own fix
+(`NormalizeHeroLevel` in `EncounterOfTheWeek/EncounterOfTheWeek.lua`, mirroring
+the character builder's level dropdown in `Draw Steel Character
+Builder/CharacterPanel.lua`):
+
+- **Above level 1.** `character:CharacterLevel()` is `max(sum of class entry
+  levels, levelOverride)`, so `levelOverride = 1` **alone cannot lower a level-6
+  hero** -- the class entries have to come down too. Both are set: every entry
+  in `classes` gets `level = 1`, and `levelOverride` is set to 1 when it is not
+  already (left absent if it was absent -- the getter already defaults to 1).
+- **Below level 1: the "Encounter 1..4" rungs.** The slow-start track is *not* a
+  level; it is `levelOverride = 1` plus `extraLevelInfo.encounter = 1..4` (the
+  builder's "First Encounter".."Fourth Encounter" options, and what
+  `/slowstartlevel` sets). In `Class:FillLevelsUpTo`, a non-nil `encounter`
+  hands out `tutoriallevel-1..encounter` and **skips `level-1` entirely** -- a
+  fraction of a level-1 hero. Clearing `extraLevelInfo.encounter` promotes the
+  hero to a full level 1 (all four `tutoriallevel-*` entries plus `level-1`),
+  which is exactly what the builder's "Level 1" option produces.
+
+Design points:
+
+- **It runs on the game's COPY of the hero, never the original.** The fix-up
+  lives in `ClaimPastedHero`, which only ever sees the pasted duplicate that
+  lives in the EotW game; the player's hero in their lobby game or campaign is
+  untouched, so nobody's character is retroactively de-levelled.
+- **A `ModifyProperties` patch, and only when something is wrong.** House rule:
+  property mutations outside the character sheet go through
+  `token:ModifyProperties{}`, so the clamp is its own patch issued right after
+  `ClaimPastedHero`'s `UploadToken` (which covers the token-level ownership
+  fields, not properties). Every condition is evaluated BEFORE opening the
+  modify block, so an already-level-1 hero produces no upload at all. The patch
+  is `undoable = false` -- this is setup, and an undo must not put a hero back
+  to a level the encounter is not balanced for.
+- **Every hero goes through it**, pregens included. Module pregens should
+  already be level 1, so it is a no-op for them -- but a mis-authored pregen
+  gets corrected rather than shipping an off-level hero into the encounter.
+- **Placement is the choke point**, so this happens once, at arrival. Heroes
+  skipped on re-entry (already recorded in `placedHeroes`) were normalized on
+  their first placement.
+- **Multiclassing is reported, not "fixed".** Draw Steel has no multiclassing,
+  so `classes` should hold exactly one entry; with two the level would sum to 2
+  and no per-entry clamp could fix it. Deleting a class is destructive, so the
+  case is logged (`printf`) and left alone.
+
+Known gap (accepted for now): a player who opens their character sheet and
+levels up **during the pre-combat positioning phase** is not re-normalized --
+nothing re-checks between placement and combat entry. If that turns out to be
+reachable in practice, the place to re-run it is per-client at combat start
+(the host cannot rewrite other players' hero properties without elevation).
+
+Open question for the user: **victories**. A hero carried in from a campaign
+keeps `victories`, which feeds the `victories` GoblinScript symbol and the
+encounter-strength maths. Zeroing them would be the same "start clean" spirit as
+the level clamp, but it was not asked for and is not done.
+
 ## Joiner-side module install race + Firebase permission denials (FOUND 2026-08-27, engine fix pending)
 
 Diagnosed from the first live 2-client Begin (game `DeathlessChainedSuperiorOrc`):
@@ -860,6 +1012,219 @@ launch protocol:
   Consequence: **the weekly module needs its encounter doc ticked under
   Compendium > documents -- nothing else; the `[[encounter]]` annotation (and its
   banked spawnlocs) rides inside the doc record** (see Encounter spawning above).
+
+## Publishing the weekly module headlessly (BUILT 2026-08-30)
+
+The week's module is published by a script, not by hand in ModShare:
+
+```bash
+python tools/eotw_publish/publish_eotw.py            # dry run: report only
+python tools/eotw_publish/publish_eotw.py --publish  # ship a new version
+```
+
+It needs neither DMHub nor Unity. Full design in
+[`tools/eotw_publish/README.md`](../../tools/eotw_publish/README.md); the
+points that matter to this feature:
+
+- **The authoring game is a Local game.** `e96656f3-a11c-477b-89f1-978452983324`
+  ("Encounter of the Week") has `GameInfo.storage == 3`, so its entire contents
+  live in `%USERPROFILE%/AppData/LocalLow/MCDM/Codex/local-games/{gameid}/game.db`.
+  The script copies that SQLite file and runs the real
+  `local-game-server-windows.exe` against the copy, then reads the assembled
+  stores over its REST API -- so the live database is never touched and the
+  documents are exactly what the engine would see. (The server only
+  materializes a game on a WebSocket connect, so the script opens one first;
+  that also hands it the whole `game` store, which *is* `GameDetails`.)
+- **The week's contents are derived, not re-ticked.** The map is found *by
+  name* (`Encounter`) because the id changes every week. (v4 shipped
+  `05ac910d`, which now reads "Goblin Guardians". That map belongs to
+  `venla-deliantomb` and is named "Goblin Guardians" *in the module*, so its
+  game-side rename to "Encounter" either was undone by hand or was reset when a
+  module version bump re-copied the snapshot -- which of the two is UNVERIFIED.
+  Either way, do not assume a rename sticks: check the name each week.) Everything else follows: the documents the
+  map can reach (see below), the `Start` keyword, every hero in the pregen
+  party
+  (`7870ffcb-c942-4db9-a831-bf0210aa11ea` -- adding a hero to that party is all
+  it takes to ship them), the pinned EncounterOfTheWeek + Monster AI codemods,
+  the dependency closure of all of it, and any codemod a dependency module
+  contributed (this is how DelianTomb ships).
+- **Finding the encounter document mirrors the runtime.** The publisher ports
+  `FindMapEncounter` (`EncounterOfTheWeek.lua:652`) and
+  `Encounter.GetEncountersOnCurrentMap` (`MCDMEncounter.lua:3607`) rather than
+  inventing a rule, because it has to ship exactly what the game will later look
+  for. Two routes reach a document from a map and the runtime prefers the first:
+  an **info bubble** on any floor (`floors[*].infoBubbles[*].document.docid` --
+  beware `sourceReference.docid`, a different namespace for PDFs), or the
+  **journal**, meaning any non-hidden document whose `parentFolder` chain roots
+  at the map id. A document *has an encounter* when its text contains a rich tag
+  whose annotation is a `RichEncounter` with a non-nil `encounter`; the text
+  reference is what counts, since orphaned annotations linger in records whose
+  tag was deleted. Take the text from `textStorage.sections` (keys sorted,
+  concatenated) and fall back to `content` only when `textStorage` is absent --
+  never union them, as `content` is a stale mirror that can still hold deleted
+  tags. Do **not** additionally require monsters: an island with none is the
+  normal half-authored state and the engine still treats it as the map's
+  encounter.
+- **Documents resolve against the MERGED table**, the game's rows plus every
+  installed module's -- 104 of the 105 info bubbles in the authoring game
+  resolve only through `venla-deliantomb`. A module-owned document is seeded but
+  cannot be shipped (`MergeSubset` reads the game store only,
+  `ModuleManager.cs:729`); seeding its guid is what makes the dependency pass
+  record the owning module, which is how the document actually arrives.
+- **A pure "trace the map" rule would have shipped a broken module**: the 9
+  pregens are not on the map and nothing references them, and codemods live in
+  the Firebase game record, outside the walked JSON. Hence the pinned extras.
+- **The port is verified against what the app published.**
+  `--verify-against <dataid>` rebuilds a past version and diffs it. Against v4
+  (`c1b80b60-...`, with `--map-name "Goblin Guardians"`) every key set matches
+  and every shared value is byte-identical after Firebase's null-stripping; the
+  only differences are real edits made to the game since. **Re-run this after
+  any engine change to the publish pipeline** -- structural drift is the signal
+  that `MergeSubset`, `ModuleDependencySearcher` or the snapshot builder moved
+  and the port must follow.
+- **Two engine quirks are reproduced deliberately** (marked `ENGINE QUIRK` in
+  `tools/eotw_publish/depsearch.py`): the dependency walk only descends into
+  dictionaries, never arrays (`Glowwave.Json` writes lists as JSON arrays and
+  the walker has no array branch); and `Search` clears the set it aliased from
+  the selection, making the engine's "modules containing a selected guid" pass
+  dead code.
+- **One deliberate improvement**: the engine's walk never sees floor contents
+  (a migrated map's floors live in the `MapDetails` store, so
+  `GameDetails.mapFloors` is empty), so objects placed on the map are never
+  discovered as dependencies. The script scans the week's floors too and
+  reports what only that scan found -- on the current Encounter map that is the
+  `GL_OvergroundDwarvenCityCenter_Original_Day` object, which the app would
+  have shipped a dangling reference to. `--no-floor-scan` restores strict
+  ModShare parity.
+- **The game's own `modulesPublished` record is deliberately not written.**
+  ModShare re-downloads `/Module/{id}` when it opens (`DownloadModuleInfo`) and
+  the game-side copy's `properties` are empty in practice, so leaving it alone
+  costs nothing and avoids writing into a live game database.
+- Dry run is the default. The script refuses `--publish` (without `--force`)
+  when the report warns that the result would not play -- no encounter document
+  under the map, no floors, fewer than three pregens, no `Start` keyword.
+
+### The store speaks Firebase, the payload must speak Glowwave (ROOT-CAUSED + FIXED 2026-08-30)
+
+Module version 5 installed as far as "install map ..." and then NRE'd inside
+`ModuleManager.InstallModuleCo`, leaving the game with no starting map and the
+loading screen stuck at "No starting map yet". The payload was malformed, and
+the reason generalizes to any tool that reads a game store directly:
+
+- **The server stores arrays as numeric-keyed objects.**
+  `normalizeForFirebaseCompat` (`cloudflare-game-server/src/json-patch.ts:69`)
+  rewrites every array to `{"0":x,"1":y}` on write, matching Firebase. The C#
+  client reverses that in `JsonDoc.StripMetaKeys` before any typed deserializer
+  runs (`DataStoreDurableObjects.GetFullStoreSnapshot`, `DataStore.cs:2729`),
+  which is why the shape is invisible in-game.
+- **Module payloads get no such pass.** `InstallModuleCo` hands the blob
+  straight to `Glowwave.Json.FromJson<ModuleVersionSnapshotData>`, and a
+  `List<T>` fed a Dictionary decodes to **null** after logging "Could not
+  convert Dictionary to list" (`GWSerialization.cs:959`). `MapManifest.floors`
+  was null, so `q.Value.floors.Contains(...)` in the mapFloors loop NRE'd. An
+  empty object (`{}`) decodes to null the same way.
+- **Firebase hides it.** RTDB coerces dense numeric-keyed objects back to
+  arrays on read and refuses to store empty objects, so `/ModuleVersions/{id}/
+  snapshot` reads back clean; only the gzipped GCS blob -- which the installer
+  *prefers* -- carries the bad shape. Never conclude a payload is fine from the
+  Firebase copy.
+- Version 4 was clean because those rows predated the server-side
+  normalization; the shape appears as rows are rewritten, so this was latent
+  and would have struck any later week regardless.
+
+Fixed in two places, and both matter:
+
+- `gamesource.strip_meta_keys` ports `JsonDoc.StripMetaKeys` and now runs on
+  the WebSocket game-store push and every REST store read, so everything
+  downstream of `LocalGameSource` is engine-shaped by construction (arrays
+  restored, `{}` dropped, `__del`/`__basis` stripped). Faithful to the C# down
+  to the details: 1-3 digit keys make an object array-shaped, holes become
+  null, and a value that is already a list is returned untouched.
+- `publish_eotw.validate_engine_shapes` preflights the outgoing snapshot and
+  streamed blobs for both shapes and **aborts the publish** (exit 3) like the
+  Firebase preflight, rather than warning. Replayed against the published v5
+  payload it reports 105 problems; after normalization, none.
+
+Engine side (NEEDS BUILD): the mapFloors loop in `ModuleManager.cs` now skips a
+manifest with a null `floors` and logs which module was malformed, so a bad
+payload can no longer wedge a game mid-install.
+
+## Playtesting against local asset directories (DECIDED + BUILT 2026-08-30; engine NEEDS BUILD, UNTESTED)
+
+Local-assets mode -- the dev feature that replaces a game's cloud `/assets`
+with an ordered overlay of YAML directory trees, hot-reloads external edits
+and writes in-game edits back to the files -- could never be pointed at an
+Encounter of the Week game, because it is configured through the *per-game*
+`localassets:dirs` preference and an EotW game is created fresh for each
+encounter: there is no gameid to configure until the game already exists.
+Playtesting therefore always ran against the last PUBLISHED module version,
+so every content fix cost a republish.
+
+The gap is closed by a second, GLOBAL list that follows the account's EotW
+slot rather than a gameid:
+
+- **Setting**: `localassets:eotwdirs` (`storage = "preference"`, declared in
+  `DMHub Titlescreen/Settings.lua`, no generic editor) -- newline-delimited
+  paths, top-most first, exactly the `localassets:dirs` format.
+- **Engine** (`Assets/Scripts/LocalAssetDirectory.cs`): `ReadConfiguredDirs`
+  appends `ReadEotwDirs(gameid)` AFTER the per-game list, so the EotW entries
+  are the LOWEST precedence and a per-game list (if one is ever set for that
+  game) still wins. `IsEotwGame` compares the gameid against
+  `LoginController.instance.accountInfo.eotwGame` -- the same slot the codex
+  reads as `lobby.eotwGameid` in `EncounterOfTheWeekGame.IsEotwGame`, written
+  by the titlescreen's create/join flows *before* the game is entered, so it
+  is already set when `GameController.Start` calls `MaybeActivate`. (The
+  codex's second signal -- the host's stamp on the shared state doc -- is not
+  readable that early and is not needed: these directories only ever matter
+  on the developer's own client, and their own slot is what points at the
+  game.) `ReadSettingString` grew a null-gameid mode for reading a global
+  setting: the pref-store fallback key is the bare setting id rather than
+  `{gameid}.{id}`, matching how `SettingsManager` writes it. That fallback is
+  what makes this work at all on a cold start, since settings are declared in
+  Lua and Lua has not necessarily loaded when the first game activates.
+  Nothing else changes: same overlay, same watcher, same write-back, and the
+  activation log names the EotW list when it contributed.
+- **UI**: a second block in Settings > Editing under the existing Local
+  Assets section -- "Encounter of the Week Assets (Developer)"
+  (`CreateEotwLocalAssetsSection` in `DMHub Titlescreen/SettingsScreen.lua`),
+  gated on `dev` + `dev:encounteroftheweek`. Unlike the per-game block it is
+  NOT hidden in the lobby game, because the titlescreen is where you set it
+  up -- before launching into the encounter. The row widgets (index, path,
+  Browse, Top/Up/Down/X, Add Directory) are now shared by both lists through
+  `CreateDirectoryListPanels`, and `SmallButton` moved to file scope since
+  the file browser and cloud-diff blocks also use it. Sharing the rows
+  surfaced a latent bug in them: the list was built by appending rows onto an
+  args table of named keys (`args[#args+1] = row`), which puts the numeric
+  keys in Lua's hash part where enumeration order is undefined -- 5.4 hands
+  back exactly two numeric keys REVERSED, so a two-directory list rendered
+  upside down (the index labels and the dimmed Top/Up/Down proved the data
+  was right and only the order was wrong). Now passed as `children = ...`.
+  **Copy From This Game**
+  fills the list from the current game's per-game dirs, which in the usual
+  workflow is the authoring game's own list. The status line reads the slot:
+  not set / set for a named slot game / active in this game / pending a
+  reload.
+
+Consequences worth knowing before using it:
+
+- **Module content still layers underneath.** Local-assets mode replaces only
+  the CurrentGame store, and store priority is Core < Module < CurrentGame,
+  so a local YAML item overrides the module's copy of the same guid while
+  everything you have not authored keeps coming from the module.
+- **Writes land on disk, not in the game.** An EotW session that writes an
+  asset rewrites the file in your directory instead of patching the cloud --
+  most plausibly the encounter DOCUMENT, since journal documents are rows of
+  the `documents` table under `/assets` and the host banks spawn locations
+  into the encounter annotation. It shows up as a git diff rather than
+  silently, but point the list at content you are happy to have a playtest
+  write to (a scratch clone, if that matters).
+- **Mod documents are unaffected.** The EotW shared state doc lives at
+  `/modDocuments/{modguid}/documents/...`, outside the intercepted
+  `/GameDetails/{gid}/assets` prefix, so all the runtime state the encounter
+  flow depends on syncs normally.
+- **It is per-client and one-way.** Everyone else in the encounter sees the
+  published module. This is an iteration tool, not a way to ship a fix
+  mid-week.
 
 ## In-game flow
 
@@ -1054,6 +1419,61 @@ hook plus leafy EotW code:
   has Start-zone tiles -> install restriction + overlay, else clear both. A
   poll (rather than event wiring) self-heals across Lua reloads, late
   `IsEotwGame` flips, and map loads.
+
+### Tooltip suppression during the pre-combat phase (DECIDED + BUILT 2026-08-30; engine NEEDS BUILD)
+
+User direction (2026-08-30): the same pre-combat window that confines heroes to
+the Start zone should also be quiet -- no tooltips, and in particular no
+movement cross-section diagram, while players shuffle their heroes around.
+Nothing in that phase is a rules decision a tooltip would help with, and the
+drag tooltip plus its diagram is a lot of chrome for "stand over there".
+
+Built as a **general** switch rather than an EotW special case, because
+"silence the tooltips for this phase" is a thing any mod may want:
+
+- **Engine flag: `dmhub.tooltipsSuppressed`** (`Assets/Scripts/LuaInterface.cs`,
+  next to the Movement Restriction bridge). A settable boolean. While true, no
+  tooltip is DISPLAYED anywhere on this client, whatever its source. Two choke
+  points cover the whole app:
+  1. `SheetPanel.ShowTooltip` (`Assets/Scripts/SheetPanel.cs`) -- the single
+     path behind both `panel.tooltip = ...` and `panel:FloatTooltipNearTile`,
+     so panel hover tooltips, map/tile tooltips and the token-drag movement
+     tooltip all pass through it. A refused tooltip panel is destroyed the same
+     way a replaced one is, so the caller's panel does not leak.
+  2. `GameCanvas.ShowTooltip` (both overloads) -- the legacy in-engine
+     `TooltipText` tooltips on prefab buttons, palette entries and context-menu
+     rows.
+  Setting it also dismisses whatever is already on screen
+  (`SheetPanel.DismissAllTooltips` + `GameCanvas.HideTooltip`), so a
+  suppression that begins under a resting mouse takes effect at once. The flag
+  lives on `GameController.instance.tooltipsSuppressed` -- exactly like
+  `movementRestrictionLocs` -- so it dies with the game session and a mod that
+  forgets to clear it can never break tooltips beyond that game.
+- **Core codex wrapper: `GameHud.SetTooltipsSuppressed(key, suppressed)` /
+  `GameHud.TooltipsSuppressed()`** (`DMHub Game Hud/GameHud.lua`, right under
+  `ClearMapTooltip`). Keyed, so several mods can hold the suppression
+  independently and tooltips return only when the last key is released;
+  releasing a key that was never held is a no-op, which is what makes it safe
+  to call every tick with a computed value. Beyond pushing the engine flag it
+  adds two Lua-side gates the engine one cannot do, because the engine only
+  refuses to *display* a finished panel:
+  - the `tiletooltip` handler returns early (next to the existing
+    `maptooltips` setting check), so the map tooltip is never built;
+  - the movement-diagram panel's `args` handler collapses (next to the existing
+    `showmovementcrosssection` check), so `dmhub.SetMovementCrossSection` is
+    never called and the offscreen render texture is never built for a tooltip
+    nobody would see.
+- **EotW use**: `UpdateStartZoneConfinement` (the existing 1s poll) calls
+  `GameHud.SetTooltipsSuppressed("eotw", desired)` with the same `desired` that
+  drives the movement restriction, so the quiet window is exactly the
+  confinement window: arrival -> initiative queue live, never again once
+  `combatStarted` is stamped. It is called BEFORE the Start-zone lookup, so a
+  map with no Start zone (no confinement possible) still gets the quiet, and
+  `ClearStartZoneConfinement` releases the key -- which is also the codemod's
+  unload path.
+
+Note this deliberately silences ALL tooltips for the phase, not only the map
+ones: the user's ask was "any tooltips in this phase".
 
 ### Player-host mode: the isDM / isDMOrPlayerHost split (DECIDED + BUILT 2026-08-29; engine NEEDS BUILD)
 
@@ -1565,8 +1985,91 @@ it"; UI asking "is this the user's token" needs the user-level read.
 Deliberately unchanged: the "Combat Settings" gear menu (Switch Side,
 Skip to Next Round, Revert Turn) is gated on `CanControlInitiative()` =
 `dmhub.isDM or permission:playersinitiative`, so it is already closed to
-a player host. The host can still physically drag monsters -- the
-accepted manual-recovery path.
+a player host. ~~The host can still physically drag monsters -- the
+accepted manual-recovery path.~~ SUPERSEDED 2026-08-30: the map-interaction
+fix below disables the monster's collider on a player host, so the host
+cannot drag it either; manual recovery is now the `eotw:showdirectorui`
+hatch.
+
+### Map interaction on a player host: monsters must not be selectable (ROOT-CAUSED + FIXED 2026-08-30; engine NEEDS BUILD, UNTESTED)
+
+Report (2026-08-30): in an EotW game the host can click a monster token on
+the map and select it -- and the moment it does, the map goes black.
+
+**Mechanism -- the sixth find in the player-host family, and the first one
+inside the engine's own mouse surface.** The black screen is not a vision
+bug; it is the correct vision pipeline being pointed at the wrong token:
+
+1. `CharacterToken._collider.enabled = canControl` (`UpdateRendering`).
+   That collider is the ONLY mouse surface a token has --
+   `CharacterTokenRaycaster` raycasts it for hover, click, drag and the
+   right-click menu. On a player host `canControl` is true for every token,
+   so monsters are clickable; for a plain player they have no collider at
+   all, which is why no player has ever hit this.
+2. Clicking selects, which sets `CharacterToken.currentToken` to the
+   monster, so `GameController.currentOrPrimaryCharacter` is now the
+   monster.
+3. `LightingMesh.BeginJob` builds `_reusablePartiesViewing` for a
+   non-DM-vision client from **that** character's party. With a monster
+   selected the list holds the monster party, so every hero token fails the
+   `_reusablePartiesViewing.Contains(...)` filter in the vision loop.
+4. Zero vision lights -> the floor is never added to
+   `LightingMesh.tokenVisionOnFloors` -> `GameController.LateUpdate` sets
+   `renderWorld = false` on the floor. Black map. (Monsters themselves are
+   excluded from vision one guard earlier, on empty `ownerId`, which is why
+   the host correctly gets no vision *from* the monster -- the user's
+   observation.)
+
+**The fix: `canControlAsUser` is now an engine-side gate, not just a Lua
+one.** The rule of thumb from the End Turn find -- `canControl` answers
+"may this machine do it", the user-level read answers "is this the user's
+token" -- applies to every USER-driven interaction, so those sites moved:
+
+- *`CharacterToken.cs`*: a C# `canControlAsUser` property mirroring
+  `canControl` (same `s_viewAsPlayerTokens` override, delegating to
+  `CharacterInfo.canControlAsUser`), then applied to the **collider enable**
+  (the root fix -- no collider means no hover, click, drag or right-click
+  menu, exactly a player's experience), the `Clicked()` selection gate, the
+  `MouseDown` press gate, the `UpdateDragging` drag branch, and the
+  rotation-handle activation.
+- *`RectSelectObjects.cs`*: rubber-band token select no longer sweeps in
+  monsters.
+- *`GameController.cs`*: `NextToken()` (the cycle-tokens hotkey) no longer
+  lands on a monster.
+- *`LuaInterface.cs`*: `dmhub.SelectToken` / `dmhub.AddTokenToSelection`
+  gate on `canControlAsUser`, which closes the codex-side selection paths
+  -- notably the initiative bar's entry click
+  (`MCDMInitiativeBar.lua:5912`), which would otherwise have selected a
+  monster from the bar. No codex change was needed for that. Stub docs
+  updated in `Definitions/dmhub.lua`. **`dmhub.selectedTokens` (the setter)
+  is deliberately NOT gated** -- it stays the capability-level entry point
+  for machine-driven flows (`spawnFromBestiary` -> `rollinitiative`).
+- *`OffScreenTokenTracker.cs`*: the off-screen "your token is over here"
+  arrows were tracking every monster the host controlled -- a monster
+  position radar. Now user-controlled tokens only.
+- *`LightingMesh.cs` (defence in depth)*: when
+  `currentOrPrimaryCharacter` is a token the user does not control in their
+  own right, the parties-viewing list falls back to the default party
+  instead of the monster's. Vision must not be one stray selection away
+  from a black screen, whatever future path sets the current token.
+
+All of these are bit-identical in any game that is not directorless
+(`canControlAsUser == canControl` there), so the blast radius is the player
+host only.
+
+**Accepted consequence: the "host can still physically drag monsters"
+manual-recovery path recorded in the End Turn section is REVOKED.** With
+the collider off, the host cannot touch a monster with the mouse at all.
+The recovery path is now the debug hatch: `/toggle eotw:showdirectorui`
+restores `isDM`, and with it the collider, the context menus and the rest
+of the Director experience.
+
+**Noted but deliberately NOT changed: `CharacterToken.CalculateCanSee`**
+still short-circuits to visible on `canControl`, so a player host *sees*
+every monster on the map regardless of fog -- an X-ray the host is not
+meant to have, but changing it decides a design question (should the
+machine running the AI watch the monsters it runs?) rather than fixing a
+defect. Raised for a decision; see Open Questions.
 
 ### Strict rules enforcement (DECIDED + BUILT 2026-08-28)
 
@@ -1779,6 +2282,73 @@ Codex titlescreen.
   the normal 5-minute TTL once members' leaves land, and the host's next
   screen open still shows the resume row with Abandon.
 
+### Dead heroes leave the battlefield (DECIDED + BUILT 2026-08-30; kill-path UNTESTED)
+
+User direction (2026-08-30): when a hero dies in an EotW game (truly dead,
+stamina at -winded -- not merely dying), once all their triggers are resolved
+they are removed from the battlefield exactly like a monster is.
+
+**Mechanism: a module-shipped global rule, no code.** The core Monster Death
+rule (`data/objectTables/globalrulemods/monster-death.yaml` in mcdm-drawsteel)
+is a `GlobalRuleMod` -- a row in the `globalRuleMods` table with a
+`creaturedeath`-triggered ability that delays, waits out "Cannot be Removed",
+and runs `ActivatedAbilityRemoveCreatureBehavior`. Global rules apply to every
+matching creature in any game whose merged table holds the row
+(`GlobalRuleMod.GetActiveRuleMods` walks the whole table;
+`creature:FillBaseActiveModifiers` gates on the apply* flags). So a rule
+shipped inside `mcdm-encounteroftheweek` applies in exactly the games that
+install the module -- EotW games and the authoring game -- which is the
+scoping the mode wants, with zero Lua.
+
+**The rule**: `C:\dev\eotw\objectTables\globalrulemods\hero-death.yaml`
+(id `a011c97a-b8d4-4f35-98a0-6ffb9f5a5993`, plus the folder's `_meta.yaml`
+declaring table id `globalRuleMods` -- the folder name alone is unreliable,
+it gets lowercased). Modeled on Monster Death with these deliberate deltas:
+
+- `applyCharacters: true`, everything else false (Monster Death is the
+  mirror image). Companions/retainers keep the normal rules.
+- Trigger `creaturedeath` fires only on the alive->dead transition
+  (`MCDMCreature.lua` TakeDamage + SetStaminaDirect), and for characters
+  `KillThresholdStamina` is `-BloodiedThreshold` -- so dying heroes are
+  untouched; only true death removes.
+- `mandatory: local`: resolves automatically on the client that processed
+  the killing damage, never prompts, never dispatches remotely.
+- Delay `1 + DelayDeath` then proceed on `Cannot be Removed = 0` (same
+  escape valves as monsters: the delay behavior's 120s backstop applies).
+- `waitForTriggers: true` on the remove behavior -- the removal waits for
+  the hero's pending non-hostile trigger prompts AND any executing casts to
+  finish (this is the "once all their triggers are resolved" requirement);
+  `waitForAbilitiesToFinish` (default true) additionally waits out other
+  in-flight reaping casts.
+- `leavesCorpse: true, dropsLoot: false`: a corpse object with the death
+  message drops, but hero inventory does not spill (unlike monsters).
+- `filterTarget: target.dead` re-checks at removal time, so a hero revived
+  during the delay window is spared.
+
+**Safety already in core**: `ActivatedAbilityRemoveCreatureBehavior:Cast`
+never hard-deletes an owned, non-summoned hero -- it sets
+`token.despawned = true` (the H5EEEYHX guard), the same removal a monster
+gets, keeping the character record intact. Defeat detection is unaffected:
+`LiveEncounter:CountLiveCombatants` counts `CurrentHitpoints() > 0`, and a
+dead hero contributes zero whether despawned or not.
+
+**Publisher change** (`tools/eotw_publish/publish_eotw.py`): global rules
+apply by existing, not by being referenced, so the dependency pass could
+never pull one into the payload. After `build_seed`, every `globalRuleMods`
+row in the (overlaid) game assets that is not hidden and not already
+provided by Core/mcdm-drawsteel or an installed module is now seeded
+(reason `global rule ("<name>")`). Core's own rules in the codex data tree
+stay excluded via `core_guids`, so only EotW-authored rules ship.
+
+**Verified live (authoring game, this machine)**: the local-assets watcher
+picked the YAML up without a restart; the row deserializes as a
+`GlobalRuleMod` with both behaviors typed; a hero (Human Censor) carries the
+"Hero Death (Encounter of the Week)" trigger modifier via
+`GetActiveModifiers` while a monster does not. NOT yet exercised: an actual
+hero kill (removal + corpse), and a publish carrying the rule (the seeding
+code compiles and the tree loader finds the row, but `--publish` has not
+run since).
+
 ### Custom interface: usurping the game hud (DECIDED + BUILT 2026-08-28)
 
 User direction (2026-08-28): the core app gains hooks for a mod to enforce a
@@ -1865,8 +2435,16 @@ registered in the EotW codemod at position 2 after EncounterOfTheWeek.lua):
   launching a real EotW game -- flips take effect within ~0.5s).
 - Suppresses: rails (both sides), the "Panels" titlebar menu, the
   "Compendium" panel, the "compendium" search bucket.
-- **Kept buttons (user direction 2026-08-28): Chat and Action Log survive
-  in the bottom-left corner** -- `railBottomPanel("left")` returns a strip
+- **Kept buttons: Journal, Chat and Action Log survive in the
+  bottom-left corner** (Chat + Action Log by user direction 2026-08-28;
+  the Journal button added 2026-08-30, user direction -- players need the
+  encounter's briefing/handout documents, and with the rails suppressed
+  there was no way in. It sits ABOVE the other two: the strip is a
+  vertical flow, so the list order `{"Journal", "Chat", "Action Log"}` is
+  top-to-bottom. Nothing else was needed -- the Journal panel is already
+  `dmonly = false`, so a player could always open it on a normal rail;
+  the takeover was the only thing hiding it.)
+  `railBottomPanel("left")` returns a strip
   of rail-style buttons (`CreatePanelButton`): 40px iconRailButton look
   (the wrapper's IconRailStyles makes the classes native), the panel's
   registered icon, its unread badge (hasNewContent/newContentCount/
@@ -1876,7 +2454,13 @@ registered in the EotW codemod at position 2 after EncounterOfTheWeek.lua):
   handler -> a normal rail window). Chat and Action Log share a window as
   tabs exactly as on the real rail. Verified live via the force toggle:
   buttons render bottom-left, chat opens with input focused, active class
-  lights, action log opens tabbed, toggle closes, zero errors.
+  lights, action log opens tabbed, toggle closes, zero errors. The
+  Journal button was verified the same way 2026-08-30: it renders as the
+  top button of the strip, opens a normal rail window showing the
+  document tree (My Private Documents / Shared Documents), lights its
+  active underline, the hover tooltip reads "Journal", a second click
+  closes it, and the console shows no new errors across the whole
+  sequence.
 - **Hero roster** on the right edge (REDESIGNED 2026-08-28, user
   direction: portraits ARE the card; moved from the left edge 2026-08-29,
   user direction -- `railPanel(side)` now answers for `"right"`, and the
@@ -2145,6 +2729,8 @@ Deliverable: full lobby loop up to pressing Begin.
 18. [X] Author 3+ pregen heroes as module content. VERIFIED against v2: 8 pregens ship with `IsHero()` true and resolvable classes -- Dwarf Fury, High Elf Tactician, Human Censor, Human Null, Human Talent, Orc Conduit, Polder Elementalist, Polder Shadow (only Wode Elf Troubadour of the 9 official pregens is absent).
 19. [X] Publish the module with the Monster AI codemod ticked in ModShare. VERIFIED in v2's snapshot.codemods: both the EotW stub codemod (`cdc19d98-...1428`) and Monster AI (`263594e2-aca1-4ce5-b70e-8d690695d7b4`) are bundled. (v1 lacked Monster AI; `ReconcileStartingModuleCodemods` repairs v1-created games as the version advances.) The install-side `codeModsFromModules` write is engine code proven by the Crowdex precedent; verify once the first game is created from the module.
 
+19b. [X] Automate publishing (`tools/eotw_publish/`, 2026-08-30). `publish_eotw.py` republishes the module headlessly -- no DMHub, no Unity -- reading the Local authoring game's SQLite through a throwaway copy of the real local game server, deriving the week's contents (map named `Encounter` + documents filed under it + `Start` keyword + pregen-party heroes + pinned codemods + dependency closure + dependency modules' codemods), and writing `/ModuleVersions`, the blob store and `/Module/{fullid}`. Verified against published v4 with `--verify-against`: identical payload modulo real edits since. Dry run by default; refuses to publish when the report warns the module would not play. Design + gotchas in "Publishing the weekly module headlessly" above and in `tools/eotw_publish/README.md`.
+
 Deliverable: manually creating a game from this module yields a playable encounter map with AI available. NOT YET MET -- the only remaining blocker is the step 17 empty-encounter gap. `STARTING_MODULE` in `Codex Titlescreen/EncounterOfTheWeek.lua` now points at `mcdm-encounteroftheweek` (swapped 2026-08-27), so the next game created through the EotW screen exercises the module end-to-end.
 
 ## Phase 6 -- Launch + in-game encounter flow
@@ -2342,7 +2928,21 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
   entering a new game destroying the previous one -- DO released -- and a resume
   row on the EotW screen. See "One EotW game per account" in Architecture Notes.
 - **Observers**: the spec says games can be observed. Join as a player with zero hero slots, or a true spectator mechanism? Affects permissions and the players list.
-- **Weekly rotation**: who publishes the new encounter each week, and does the module id stay stable (`mcdm-encounteroftheweek` with version bumps) or rotate? Version bumps + `ReconcileStartingModuleCodemods` suggests a stable id.
+- ~~**Weekly rotation**~~ RESOLVED (2026-08-30): the module id stays stable
+  (`mcdm-encounteroftheweek`, version bumps) and publishing is automated by
+  `tools/eotw_publish/publish_eotw.py` -- see "Publishing the weekly module
+  headlessly" in Architecture Notes. The weekly authoring job is now: build
+  the new map, name it `Encounter` (renaming last week's out of the way),
+  file its encounter document under it, and run the script.
+- **Does the player host see the monsters it runs?** (RAISED 2026-08-30)
+  `CharacterToken.CalculateCanSee` short-circuits to visible on `canControl`,
+  which on a player host is every token -- so the host sees every monster on
+  the map through fog and walls, while the map around them stays dark. The
+  Monster AI does not need it (it is data-driven), and a plain player would
+  see nothing, so converting it to `canControlAsUser` would close the X-ray.
+  Against: the host is the only person who can notice and intervene when the
+  AI wedges a monster somewhere, and they would be doing it blind. Not
+  changed pending a decision.
 - **Kick UX**: engine `KickPlayer` does not notify/disconnect the kicked client. Acceptable for v1, or add a watched-document notification?
 - **Unlisted module access for non-owners**: the module record has `published: false` /
   `dmhubCanUse: false` (unlisted). The owner can `DownloadModuleSnapshot` it and create
@@ -2370,6 +2970,129 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
 
 # Status
 
+- 2026-08-31 (latest): **Heroes are forced to exactly level 1 as they are placed. BUILT + syntax-checked; UNTESTED live.**
+  - `NormalizeHeroLevel(token)` in
+    `EncounterOfTheWeek/EncounterOfTheWeek.lua`, called from
+    `ClaimPastedHero` right after its `UploadToken`, on the pasted COPY --
+    the owner's original hero is never touched. It checks first and only
+    then opens an `undoable = false` `ModifyProperties` patch, so a hero
+    that is already level 1 uploads nothing.
+  - Clamps from ABOVE (`levelOverride = 1` **and** every `classes` entry to
+    `level = 1`, since `CharacterLevel()` is the max of the two) and from
+    BELOW (clears `extraLevelInfo.encounter`, the "First Encounter".."Fourth
+    Encounter" slow-start rungs that skip `level-1` altogether). Full design
+    in [Heroes enter at exactly level
+    1](#heroes-enter-at-exactly-level-1-decided--built-2026-08-31-untested).
+  - Verified live (read-only, game `DangerousRavenousBalefulMemonek`) that
+    the four pregens already read `levelOverride=1, encounter=nil, class
+    level=1`, i.e. the fields and accessors behave as the fix assumes and the
+    clamp is a no-op for correctly-authored pregens. What is still UNTESTED
+    is the correcting case: placing an above-level-1 lobby hero and a
+    slow-start hero into an EotW game and confirming both land on Level 1.
+  - Lua only, already live on disk (the codex git folder is the repo); needs
+    a Lua reload in the running app.
+- 2026-08-30: **Opening the EotW screen now plays a brief loading screen instead of freezing on a half-drawn page. BUILT + syntax-checked; UNTESTED (verifying it needs the titlescreen).**
+  - `EncounterOfTheWeek.ShowScreen()` mounts a cheap loading veil, builds
+    the screen behind it, and cross-fades once the build has settled. Every
+    step is scheduled off the END of the previous one, so a slow build
+    pushes the reveal back rather than uncovering a stalling screen. An
+    `eotwOpeningBlocker` keeps the invisible-but-live screen from taking
+    clicks during the settle, escape cancels the open, and
+    `SweepStaleScreen` cleans up veils left by a previous codemod
+    generation. Full design in [Opening the screen: the loading
+    veil](#opening-the-screen-the-loading-veil-decided--built-2026-08-30-untested).
+  - Portrait warming amortized in the same file: at most 3 panels per tick
+    instead of all of them at once, and the first pass pushed past the
+    reveal. That single-tick burst of texture decodes was most of the hitch
+    itself, so this shortens the wait as well as covering it.
+  - Lua only, in `Codex Titlescreen/EncounterOfTheWeek.lua` -- no engine
+    change, and already deployed (the codex git folder is the repo). The
+    verification checklist is at the end of that design section.
+- 2026-08-30: **The Journal is reachable during an EotW game. BUILT + verified live.**
+  - The custom interface's bottom-left corner strip now carries three
+    kept buttons instead of two: **Journal, Chat, Action Log**, top to
+    bottom (`CreateCornerButtonsPanel` in
+    `EncounterOfTheWeek/EncounterOfTheWeekHud.lua` -- a one-line list
+    change, since `CreatePanelButton` already builds any registered
+    dockable panel's rail button). Players get the encounter's briefing
+    and handout documents; with the rails suppressed there had been no
+    way to open the journal at all.
+  - No permission work was needed: the Journal panel registers with
+    `dmonly = false` (`DMHub Core Panels/Journal.lua`), so it was always
+    a player-visible panel -- only the rail takeover was hiding it.
+    Per-document visibility rules are unchanged, so a player still sees
+    only the documents shared with them.
+  - Verified live in the authoring game via `/toggle eotw:forcecustomui`:
+    the strip renders 3x40px buttons, the Journal button is the topmost,
+    clicking it opens the normal rail journal window with the document
+    tree, the active underline lights, the tooltip reads "Journal", a
+    second click closes it, zero new console errors.
+  - What players will actually find in there: the weekly module's own
+    journal rows (see [Module + codemod bundling](#module--codemod-bundling)
+    -- docs ship as `documents`-table rows and the publisher's seed carries
+    the encounter doc), plus whatever the game itself shares. NOT yet seen
+    in a real EotW game with a published module -- only in the authoring
+    game, whose journal holds the dev game's own documents.
+  - Lua-only; no engine change, nothing to rebuild.
+- 2026-08-30: **Dead heroes are removed from the battlefield like monsters. BUILT + partially verified live; the actual kill path and a publish carrying the rule are UNTESTED.**
+  - A `GlobalRuleMod` shipped as EotW module content, not code: `C:\dev\eotw\objectTables\globalrulemods\hero-death.yaml` (+ `_meta.yaml`), mirroring the core Monster Death rule with `applyCharacters: true`, `waitForTriggers: true` (removal waits for the hero's triggers to resolve), `leavesCorpse: true`, `dropsLoot: false`. Full design + verification detail in the new [Dead heroes leave the battlefield](#dead-heroes-leave-the-battlefield-decided--built-2026-08-30-kill-path-untested) section.
+  - Publisher taught to seed non-core `globalRuleMods` rows (`tools/eotw_publish/publish_eotw.py`, after `build_seed`) -- global rules are referenced by nothing, so the dependency closure could never ship one. Compiles; the tree loader finds the row; no publish run yet. **The rule reaches real EotW games only with the next module publish (v7+).**
+  - Verified in the running authoring game with no restart (local-assets watcher): row loads and deserializes, a hero carries the trigger modifier, a monster does not.
+- 2026-08-30: **Tooltips (and with them the movement cross-section diagram) are now silenced for the whole pre-combat phase, through a new general engine flag. BUILT; engine NEEDS BUILD.**
+  - Built as a general mechanism rather than an EotW special case: a new engine flag `dmhub.tooltipsSuppressed` gates every tooltip in the app at two choke points, and a keyed core-codex wrapper `GameHud.SetTooltipsSuppressed(key, value)` layers the map-tooltip and cross-section gates on top so neither is even built while it is held. Design in [Tooltip suppression during the pre-combat phase](#tooltip-suppression-during-the-pre-combat-phase-decided--built-2026-08-30-engine-needs-build).
+  - Engine (MSBuild-clean, NOT built): `tooltipsSuppressed` field on `Assets/Scripts/GameController.cs` (next to `movementRestrictionLocs`); the gate + `DismissAllTooltips` in `Assets/Scripts/SheetPanel.cs`; the legacy-tooltip gate + `HideTooltip` in `Assets/Scripts/GameCanvas.cs`; the `dmhub.tooltipsSuppressed` property in `Assets/Scripts/LuaInterface.cs`; stub in `Definitions/dmhub.lua`.
+  - Codex (deployed): the keyed API and the two gates in `DMHub Game Hud/GameHud.lua`; the `GameHud.SetTooltipsSuppressed("eotw", desired)` call in `UpdateStartZoneConfinement` / `ClearStartZoneConfinement` in `EncounterOfTheWeek/EncounterOfTheWeek.lua`.
+  - Verified live in the running client (Lua half only, since the engine is not built): a map tooltip shown through `gamehud:ShowTooltipNearLoc` appears, disappears while a key is held, and comes back when it is released; the keyed refcount holds across two keys and ignores the release of a key never held. Until the engine build lands, each flip logs "Could not set property 'tooltipsSuppressed'" to the console and panel hover tooltips are NOT suppressed -- per the no-stale-engine-guards rule the write is unguarded, so that noise is the expected pre-build state.
+  - UNTESTED: the engine half (all tooltip sources), and the suppression actually engaging in a live EotW pre-combat phase.
+
+- 2026-08-30: **Encounter of the Week games can now be played against local asset directories. BUILT; engine NEEDS BUILD, UNTESTED end to end.**
+  - Local-assets mode was per-game, and an EotW game is created fresh for each encounter, so it could never be aimed at one: playtests always ran the last published module. A global `localassets:eotwdirs` list now follows the account's EotW slot. Design and consequences in [Playtesting against local asset directories](#playtesting-against-local-asset-directories-decided--built-2026-08-30-engine-needs-build-untested).
+  - Engine: `ReadEotwDirs` + `IsEotwGame` in `Assets/Scripts/LocalAssetDirectory.cs` (appended below the per-game list; `ReadSettingString` gained a global-setting mode). MSBuild-clean, NOT built -- until the build lands, the setting can be configured but nothing consumes it.
+  - Codex (deployed): the setting in `DMHub Titlescreen/Settings.lua`, and `CreateEotwLocalAssetsSection` + the shared `CreateDirectoryListPanels`/`SmallButton` refactor in `DMHub Titlescreen/SettingsScreen.lua`.
+  - Verified live in the running client: the new block renders under the existing Local Assets section, Copy From This Game fills it from the game's own dirs, and the status line names the slot game. The per-game section still renders correctly after the widget refactor. What remains untested is the part the engine build gates -- an EotW game actually loading its assets from the directories.
+  - Fixed along the way (it bit the very first two-directory list): the shared directory rows were appended onto an args table of named keys, so Lua stored them in the hash part and 5.4's enumeration handed exactly two of them back reversed -- the list rendered upside down. Both lists now pass `children = ...`. The same pattern is latent elsewhere in the codex wherever such an args literal has no inline child.
+  - Set on this machine at the user's request: `C:\dev\eotw` (top, created empty) over `C:\dev\dmhub\draw-steel-codex\data`.
+
+- 2026-08-30: **The player host could select monster tokens, blacking out the map. FIXED (engine); NEEDS BUILD, UNTESTED.**
+  - Sixth find in the player-host `canControl`-is-capability family, and the first inside the engine's own mouse surface. Full write-up in [Map interaction on a player host](#map-interaction-on-a-player-host-monsters-must-not-be-selectable-root-caused--fixed-2026-08-30-engine-needs-build-untested).
+  - Chain: `_collider.enabled = canControl` makes monsters clickable for a player host -> click selects -> the monster becomes `currentOrPrimaryCharacter` -> `LightingMesh` takes the MONSTER's party as the party being viewed -> every hero fails the party filter -> zero vision lights -> the floor's `renderWorld` goes false. Black map.
+  - Fixed by making `canControlAsUser` an engine-side gate on every USER-driven interaction: the token collider, `Clicked()`, `MouseDown`, `UpdateDragging`, the rotation handle (`CharacterToken.cs`), rubber-band select (`RectSelectObjects.cs`), the cycle-tokens hotkey (`GameController.NextToken`), `dmhub.SelectToken`/`AddTokenToSelection` (`LuaInterface.cs`, which also closes the initiative bar's entry click), and the off-screen token arrows (`OffScreenTokenTracker.cs`). Plus a parties-viewing fallback in `LightingMesh.cs` so vision can never be one stray selection away from black. No codex changes were needed.
+  - Bit-identical in every non-directorless game, so the blast radius is the player host only. **Consequence to expect when testing: the host can no longer drag a monster by hand at all** -- `/toggle eotw:showdirectorui` is the recovery hatch.
+  - Left open for a decision: the host still SEES every monster through fog (`CalculateCanSee` short-circuits on `canControl`) -- see Open Questions.
+
+- 2026-08-30: **Module v5 shipped a payload the engine cannot read; publisher fixed, v6 PUBLISHED.**
+  - Symptom: entering an EotW game NRE'd in `ModuleManager+<InstallModuleCo>d__38.MoveNext`, then the loading screen sat forever at "No starting map yet" (`UpdateGameDetails: No starting map yet... False` on repeat). 24 "Could not convert Dictionary to list" errors preceded it.
+  - Cause: the publisher copied the local game server's Firebase-shaped JSON verbatim, so `mapManifests/{id}/floors` shipped as `{"0":...,"1":...}` and decoded to null. Full write-up in [The store speaks Firebase, the payload must speak Glowwave](#the-store-speaks-firebase-the-payload-must-speak-glowwave-root-caused--fixed-2026-08-30).
+  - Fixed: `gamesource.strip_meta_keys` normalizes on read; `publish_eotw.validate_engine_shapes` aborts a publish carrying either bad shape; `ModuleManager.cs` skips a null `floors` instead of NRE'ing (NEEDS BUILD).
+  - **Version 6 published** (`bb5c7389-2cc5-4218-9d5d-7c5ecad742af`, snapshot blob `SjQS+yd+cmsXQvj5jk//oQ==`), content set identical to v5 -- only the JSON shapes differ (139,677B vs 144,965B). Verified by re-downloading the live blob: `floors` is a real array and no array-shaped object survives anywhere. Published with `--force` for the warning below, as:
+    `python tools/eotw_publish/publish_eotw.py --assets-dir "D:/dev/eotw" --assets-dir "C:/dev/dmhub/draw-steel-codex/data" --publish --force`
+  - A game that hit the v5 crash does not heal: the install died before writing `modulesImported`, and the loading screen never gives up. **Create a fresh EotW game**; it installs v6 from scratch.
+  - Separate, pre-existing, NOT fixed: floor object `62b484a3` references asset `5939fe95` (`GL_OvergroundDwarvenCityCenter_Original_Day`, the map-art object), which lives only in the authoring game's frozen store -- local-assets mode replaces `assets`, so it cannot ship. Low severity in practice: the placed floor object embeds its own copy of the asset (`objects/{id}/asset`, imageId and all), so the art renders; only the objects-table row is missing. Exporting it to `D:\dev\eotw` would close it properly.
+
+- 2026-08-30 (later still): **EotW content split into its own local-assets directory, and the publisher taught to read it.**
+  - **Local-assets mode is ON for the authoring game.** `dmhub.LocalAssetsStatus()` reports `active: true` with dirs `D:\dev\eotw` (1, top) and `C:\dev\dmhub\draw-steel-codex\data` (2). This is why an earlier pass concluded the week's encounter document "did not exist": the engine replaces `/GameDetails/{gid}/assets` with the YAML trees and intercepts every asset write, so the game store froze and the document is a file on disk, not a row in the store. Nothing was lost.
+  - **Moved to `D:\dev\eotw`** (the only two EotW-authored files in the shared repo, confirmed by an 8-agent sweep over 6627 yaml files): `objectTables/documents/room-1.yaml` (the week's encounter, `645e4522`) and `objectTables/environmentalkeywords/start.yaml` (the Start keyword, `47ea72f9`). Both had been swept into `draw-steel-data` by a bulk export commit, not curated in. Their `_meta.yaml` container files were copied alongside so the table ids resolve (`environmentalkeywords` folder -> `environmentalKeywords` table). The deletions in the `draw-steel-data` submodule are STAGED, NOT COMMITTED -- restore with `git -C draw-steel-codex/data checkout HEAD -- <paths>` if the move needs undoing.
+  - **Deliberately NOT moved**: `goblin-guards-combat.yaml` (venla-deliantomb content from April, present in 14 games -- EotW only republished a fork), the encounter's monsters (Great Library bestiary), and the other environmental keywords (this week's map itself paints Concealing/Water/Difficult Terrain/Lava, all shared).
+  - **There are TWO "Start" keywords.** `27f8df28` shipped in module v4 and lives only in the frozen game store; `47ea72f9` is the file in the assets tree and is what this week's map actually paints. EotW resolves the keyword by NAME (`EncounterOfTheWeek.lua:191`), so the mode works against whichever the overlay supplies -- but the publisher must not ship the stale one, and now does not.
+  - **Publisher gained `--assets-dir`** (repeatable, highest precedence first) plus `tools/eotw_publish/localassets.py` and `coreassets.py`. Three non-obvious requirements, all found the hard way: the overlay REPLACES the store's assets rather than merging (merging resurrects the stale Start keyword); Core + `mcdm-drawsteel` guids must be excluded from the dependency universe the way ModShare's `knownAssetsInCore` does, or the closure goes from ~60 guids to ~700 and the payload from 17 KB to 3.1 MB; and table ids come from `_meta.yaml`, never the (lowercased) folder name. Also: DMHub writes vertical tabs into document text, which PyYAML's loaders reject outright -- libyaml first, tolerant pure-Python loader on failure.
+  - **Verified**: with both dirs, the publisher now finds the encounter document ("Room 1", islands: `encounter` with 10 monsters), ships keyword `47ea72f9` and not `27f8df28`, 68 guids, 15.8 KB streamed, no warnings -- it would publish. The v4 regression (run WITHOUT `--assets-dir`, against the frozen store) is unchanged: every key set and value matches except the four tokens added to the map since and one `_ntilesRefreshed` counter.
+  - **Dry run reviewed in depth (same day).** Two real defects found and fixed in the tool, one real defect found in the DATA:
+    - `coreassets.py` was reading only `/CoreAssetsCurrent` (17 objects). Core is two-tier -- `/CoreAssetsArchive` (1499 objects, 788 images, 322 monsters) plus that overlay, merged by `CloudAssetManager.CoreAssetsUpdate`. Now reads both; the core set went 5726 -> 9922. (The exclusion count did not move: `mcdm-drawsteel` already covered everything the trees hold.)
+    - New reference-resolution check (`payload.asset_references`): every asset the shipped map and its encounter point at -- placed objects' `assetid`, painted tile/wall ids, zone keywords, bubble docids, and the monster ids an `[[encounter]]` island would spawn (including per-hero-count `balancing` entries) -- must resolve in the payload, Core, or a dependency module. Deliberately a curated key list, not a guid-shaped-string sweep, which would flag object-instance/zone/bubble ids that resolve to nothing by design.
+    - **DATA DEFECT, UNFIXED: the Encounter map's art object `5939fe95-d642-467f-83f5-e02bb13d1e4a` (`GL_OvergroundDwarvenCityCenter_Original_Day`) resolves nowhere** -- not Core (neither tier), not any installed module, not either assets tree. It exists only in the frozen game store, which local-assets mode no longer loads. The publisher now refuses to publish over this. Likely already visibly broken in the app; verify by opening the map. Cause: switching local-assets mode to point at the shared codex repo (already populated, so no bootstrap export ran) orphaned the game's own asset table. The frozen store's other rows are fine -- all 7 audio assets resolve from Core, and the two objectTable rows are duplicated in the trees.
+    - The encounter's 6 distinct monsters all resolve from Core, so they need no shipping.
+  - Still not committed to git anywhere; still never actually published (`--publish` has never been run).
+- 2026-08-30 (later): **Encounter-document discovery rewritten to mirror the runtime, and this week's map diagnosed.** New `tools/eotw_publish/documents.py` ports `FindMapEncounter` / `GetEncountersOnCurrentMap` / `GetReferencedAnnotations` / `GetTextContent` / `IsDocInAccessibleRoot`; the publisher now finds documents via info bubbles on every floor as well as the `parentFolder` chain, resolves them against the merged game+module table, and tests for a *referenced* `RichEncounter`. Regression test against v4 still passes (`objectTables.documents MATCH`, values identical), and on last week's map the rule reports all three reachable documents and correctly picks "Goblin Guards Combat" (islands: `encounter` 8 monsters, `encounter:round2` 4) while ignoring the two module-owned ones with no encounter.
+  - **THIS WEEK IS BLOCKED BY LOST DATA, not by the publisher.** The Encounter map (`8d78cadf`) has one info bubble (`c64e02d1`, default name "Room 1") pointing at document `645e4522-ffeb-473f-9951-b23ace73edb2` -- **and that document does not exist anywhere**. Verified exhaustively: it appears exactly once across all 299 stores of the game's SQLite (the bubble itself), and is absent from 81 local game databases, 25+ backups of this game, 228 cached module payloads, all six installed modules' Firebase records, 8 versions of mcdm-drawsteel, all four published EotW versions, and both core-asset trees. Time-aligned backups pin it: the map backup written at `2026-8-30-5-27-37` has the bubble, and the game backup from the same instant still has only `04eae049` in `documents`. **The encounter document must be re-authored.** The rest of the map is ready -- art, 18 markup zones (the Start zone), no tokens, exactly as designed.
+  - **Engine bug found (unfixed):** `CreateInfoDocument` (`InfoDocument.lua:34-58`) writes the bubble to the floor and the document row to the asset table separately, so abandoning the create dialog leaves a bubble whose docid resolves to nothing -- and clicking it is a silent no-op (`InfoDocument.lua:843` guard falls through; `InfoBubbleController.cs:94-113` never validates the docid). That is almost certainly what happened here.
+  - **Latent risk recorded as a publisher warning:** `dmhub.infoBubbles` is gated on `isDMVision AND (isDM OR map:playerinfobubbles)` (`InfoBubbleController.cs:60-72`), and an EotW host runs with `isDM == false` outside a `hostPermission` block. If that gate closes, `FindMapEncounter`'s bubble route collapses and only the `parentFolder` route survives -- so the publisher now warns when the encounter document is reachable *only* via a bubble. Last week's document was reachable both ways, which is why v4 worked; this is unverified live and worth settling by running `for k,v in pairs(dmhub.infoBubbles) do ... end` as the EotW host.
+  - Also fixed: `name_for` read `doc.name`, which is never serialized (Lua-side alias for `description`, `DocumentSystem.lua:25`), so document names degraded to bare guids in the report. The stale "no journal document is filed under this week's map" warning was replaced -- it was wrong in both directions (a leftover "Room 1" would satisfy it with no encounter present, and it fires spuriously whenever the encounter document is module-owned, which is the normal case for an imported adventure map).
+- 2026-08-30: **Weekly publishing automated** (`tools/eotw_publish/`, Phase 5 step 19b; NOT committed to git yet). `publish_eotw.py` + `gamesource.py` + `depsearch.py` + `payload.py` + `README.md` republish `mcdm-encounteroftheweek` with the app closed. Design and every gotcha are in "Publishing the weekly module headlessly" (Architecture Notes) and the tool's README; the load-bearing facts:
+  - The authoring game `e96656f3-...` is a **Local** game (`storage == 3`), so its data is a SQLite file on this machine, not in Firebase or a Durable Object. The script copies it and runs the bundled `local-game-server-windows.exe` against the copy rather than reimplementing the shard layout.
+  - The map is found **by name**, because the id rotates weekly (v4 shipped `05ac910d`, which the user has since renamed "Goblin Guardians"; this week's `Encounter` is `8d78cadf-03cc-42f1-8c45-8764021b5fb6`). The 9 pregens are identified by pregen party `7870ffcb-c942-4db9-a831-bf0210aa11ea`, matching v4's ticked set exactly.
+  - Verified against published v4: all key sets match, all shared values byte-identical. Only real drift differs (4 tokens placed on the map since, one floor's `_ntilesRefreshed` counter).
+  - **Current blocker, surfaced by the tool**: this week's `Encounter` map (`8d78cadf-...`) has **no journal document filed under it**, so there is no encounter for the game-side Lua to spawn, and the script refuses to publish. This is the same step 17 gap, now on the new map. The author needs to write the encounter document with `parentFolder` set to `8d78cadf-...`.
+  - The floor scan (an improvement over the engine's walk, which never sees floor contents) found one dependency the app would have missed on this map: the `GL_OvergroundDwarvenCityCenter_Original_Day` object asset.
 - 2026-08-27: Plan written; architecture survey done (notes above). `/week` skill created at `.claude/skills/week/SKILL.md` (repo root).
 - 2026-08-27 (later): **Phase 1 complete and verified in the app** (harness boot at the real titlescreen; link clicked, shell opened/closed/reopened; setting toggled both ways live; no console errors).
   - Files: `Codex Titlescreen/EncounterOfTheWeek.lua` (new -- setting, `EncounterOfTheWeek` global, screen shell; registered in the Codex Titlescreen codemod at position 1, before `CodexTitlescreen.lua`); `Codex Titlescreen/CodexTitlescreen.lua` (the link button, id `eotwTitlescreenLink`); `EncounterOfTheWeek/EncounterOfTheWeek.lua` (now an intentionally-empty stub reserved for game-side logic -- its old copy of the code was moved out because separate codemods do not load at the titlescreen; see Architecture Notes).

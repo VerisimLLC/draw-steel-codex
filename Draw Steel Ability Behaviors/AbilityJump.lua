@@ -488,6 +488,9 @@ function ActivatedAbilityJumpBehavior:ExecuteJump(ability, casterToken, targetLo
 
     local landLoc = ActivatedAbilityJumpBehavior.ShortLandingLoc(casterToken.loc, targetLoc, dists[tier])
 
+    --Saved and restored rather than cleared outright so this never stomps a
+    --value an enclosing flow (e.g. a relocate) is relying on.
+    local previousFreeMovement = casterToken.properties:try_get("_tmp_freeMovement", false)
     casterToken.properties._tmp_freeMovement = true
 
     local path = casterToken:Move(landLoc, {
@@ -499,6 +502,8 @@ function ActivatedAbilityJumpBehavior:ExecuteJump(ability, casterToken, targetLo
         movementType = "jump",
         jumpHeight = heights[tier],
     })
+
+    casterToken.properties._tmp_freeMovement = previousFreeMovement
 
     if path ~= nil and path.numSteps ~= 0 then
         options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps

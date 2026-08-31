@@ -7127,6 +7127,16 @@ function CreateTitlescreen(dialog, options)
                                 element:FireEvent("refreshGame")
                             end,
 
+                            --the same thing, on the other way in: returning from a
+                            --game. This fires from inside the EnterLobbyGame callback
+                            --(see startMonitoring), i.e. once the lobby game really is
+                            --the current game, which is the only point at which
+                            --dmhub.GetAllCharacters() is guaranteed to be the lobby's
+                            --roster rather than the campaign's.
+                            returnFromGameComplete = function(element)
+                                element:FireEvent("lobbyGameLoaded")
+                            end,
+
                             refreshGame = function(element)
                                 local chars = table.values(dmhub.GetAllCharacters())
                                 table.sort(chars, function(a, b)
@@ -7152,12 +7162,17 @@ function CreateTitlescreen(dialog, options)
                             end,
 
                             startMonitoring = function(element)
+                                --NOTE: do not set monitorGame here. Until this callback
+                                --runs the campaign we just left is still the current
+                                --game, and a live /characters monitor refreshes this
+                                --list from dmhub.GetAllCharacters() -- which enumerates
+                                --the current game -- filling the hero slots with the
+                                --campaign's monsters and NPCs. The monitor is
+                                --established in returnFromGameComplete instead.
                                 lobby:EnterLobbyGame(function()
                                     print("LOBBYGAME:: ENTERED!")
                                     g_titlescreen:FireEventTree("returnFromGameComplete")
                                 end)
-
-                                element.monitorGame = "/characters"
                             end,
 
                             refreshLobby = function(element)

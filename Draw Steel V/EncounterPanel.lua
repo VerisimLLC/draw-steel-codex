@@ -267,6 +267,41 @@ local function ImplementationTooltip(info)
     return table.concat(lines, "\n")
 end
 
+--Fly out a monster's full stat block from the hovered element, mirroring the
+--bestiary panel's hover preview (CharacterPanel.lua). Call from a `linger`
+--handler. `halign` picks the side of the anchor the flyout opens on -- the
+--bestiary list sits on the left edge of the builder so its rows open "right",
+--while the roster entries sit in the right-hand pane and open "left".
+local function ShowMonsterStatBlockFlyout(element, monsterAsset, halign)
+    if monsterAsset == nil then
+        return
+    end
+
+    local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
+    --Reserved gutter: once the stat block overflows, the scroll viewport
+    --shrinks by the scrollbar's width while children are still laid out at
+    --the full 800, clipping the right-aligned header text. Mirrors the
+    --Bestiary tooltip in CharacterPanel.
+    local panel = monsterAsset:Render {
+        width = 800,
+        maxHeight = lockedHeight,
+        vscroll = true,
+        rpad = 12,
+        borderBox = true,
+    }
+
+    if panel ~= nil then
+        element.tooltip = gui.TooltipFrame(
+            panel,
+            {
+                halign = halign,
+                valign = "center",
+                interactable = true,
+            }
+        )
+    end
+end
+
 --The EV a single roster entry contributes, using the same minion math as
 --Encounter.CountEDS (minions contribute a quarter of their EV each).
 local function EntryEV(monsterAsset, quantity)
@@ -2000,29 +2035,7 @@ local function CreateBestiaryPane(party, addMonster)
                     return
                 end
 
-                local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
-                --Reserved gutter: once the stat block overflows, the scroll
-                --viewport shrinks by the scrollbar's width while children are
-                --still laid out at the full 800, clipping the right-aligned
-                --header text. Mirrors the Bestiary tooltip in CharacterPanel.
-                local panel = rowInfo.asset:Render {
-                    width = 800,
-                    maxHeight = lockedHeight,
-                    vscroll = true,
-                    rpad = 12,
-                    borderBox = true,
-                }
-
-                if panel ~= nil then
-                    element.tooltip = gui.TooltipFrame(
-                        panel,
-                        {
-                            halign = "right",
-                            valign = "center",
-                            interactable = true,
-                        }
-                    )
-                end
+                ShowMonsterStatBlockFlyout(element, rowInfo.asset, "right")
             end,
 
             imagePanel,
@@ -2280,6 +2293,22 @@ local function CreateGroupCard(args)
     local refresh = args.refresh
     local rebuild = args.rebuild
 
+    --Removing the last monster removes the group itself: an empty group has
+    --nothing to place, and the engine's click-to-place preview cannot handle
+    --one (it wedges DMSheetHud in a per-frame error). Mirrors the group
+    --delete button below, including the saved-mounts index repair.
+    local function RemoveMonsterFromGroup(monsterid)
+        group.monsters[monsterid] = nil
+        if next(group.monsters) == nil then
+            table.remove(encounter.groups, groupIndex)
+            encounter:RepairMountsAfterGroupRemoved(groupIndex)
+            if state.activeGroup == group then
+                state.activeGroup = encounter.groups[1]
+            end
+        end
+        rebuild()
+    end
+
     --sorted roster entries for stable display.
     local entries = {}
     for monsterid, quantity in pairs(group.monsters) do
@@ -2456,26 +2485,44 @@ local function CreateGroupCard(args)
                 height = "auto",
                 flow = "horizontal",
 
-                entryImagePanel,
-
+                --the token image and the name/meta text together make one
+                --hover target that flies out the monster's stat block, the
+                --same preview the bestiary rows give. Opens to the LEFT: this
+                --pane sits on the right-hand side of the builder.
                 gui.Panel {
-                    flow = "vertical",
-                    width = "100%-350",
+                    classes = { "hoverable" },
+                    flow = "horizontal",
+                    width = "100%-314",
                     height = "auto",
                     valign = "center",
+                    bgimage = true,
+                    bgcolor = "clear",
 
-                    gui.Label {
-                        classes = { "sizeS" },
-                        width = "100%",
-                        height = "auto",
-                        text = info.name,
-                    },
+                    linger = function(element)
+                        ShowMonsterStatBlockFlyout(element, monsterAsset, "left")
+                    end,
 
-                    gui.Label {
-                        classes = { "fgMuted", "sizeXxs" },
-                        width = "100%",
+                    entryImagePanel,
+
+                    gui.Panel {
+                        flow = "vertical",
+                        width = "100%-36",
                         height = "auto",
-                        text = info.meta,
+                        valign = "center",
+
+                        gui.Label {
+                            classes = { "sizeS" },
+                            width = "100%",
+                            height = "auto",
+                            text = info.name,
+                        },
+
+                        gui.Label {
+                            classes = { "fgMuted", "sizeXxs" },
+                            width = "100%",
+                            height = "auto",
+                            text = info.meta,
+                        },
                     },
                 },
 
@@ -2493,8 +2540,7 @@ local function CreateGroupCard(args)
                     end,
                     change = function(v)
                         if v <= 0 then
-                            group.monsters[monsterid] = nil
-                            rebuild()
+                            RemoveMonsterFromGroup(monsterid)
                         else
                             group.monsters[monsterid] = v
                             refresh()
@@ -2510,8 +2556,7 @@ local function CreateGroupCard(args)
                     classes = { "deleteButton", "sizeXs" },
                     valign = "center",
                     press = function(element)
-                        group.monsters[monsterid] = nil
-                        rebuild()
+                        RemoveMonsterFromGroup(monsterid)
                     end,
                 },
             },

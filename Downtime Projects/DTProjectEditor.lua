@@ -809,7 +809,7 @@ function DTProjectEditor:_createProjectForm()
     }
 
     -- Milestone field (label + input + suggestion button, DM only)
-    local milestoneInput = gui.Input {
+    local milestoneInput = isDM and gui.Input {
         classes = {"form"},
         width = "100%",
         textAlignment = "center",
@@ -853,11 +853,11 @@ function DTProjectEditor:_createProjectForm()
                 end)
             end
         end
-    }
+    } or nil
 
     --Carries the width so it can give back the space the suggestion button
     --takes, leaving the field its usual size when there is nothing to suggest.
-    local milestoneInputWrap = gui.Panel {
+    local milestoneInputWrap = isDM and gui.Panel {
         classes = {"milestoneInputWrap"},
         halign = "left",
         valign = "center",
@@ -877,12 +877,12 @@ function DTProjectEditor:_createProjectForm()
                 project ~= nil and DTBusinessRules.CalcNextMilestone(project) ~= nil)
         end,
 milestoneInput,
-    }
+    } or nil
 
     --Fills the milestone in for the Director in one click. The next stop is a
     --function of the goal and the progress, both of which move while the sheet
     --is open, so it is recomputed on every refresh rather than at build time.
-    local milestoneSuggestButton = gui.Button {
+    local milestoneSuggestButton = isDM and gui.Button {
         classes = {"sizeS", "collapsed"},
         icon = "phosphor/book-light.png",
         halign = "right",
@@ -930,7 +930,7 @@ milestoneInput,
                 DTShares.Touch()
             end)
         end
-    }
+    } or nil
 
     --The goal and the progress both move on other clients - a player rolling on
     --a shared project, the Director editing the goal from their own panel - and

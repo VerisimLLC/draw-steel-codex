@@ -2459,12 +2459,33 @@ function DTProjectEditor.PerformProjectRoll(args)
                 info, roller, heroToken, attrid, not isFirstRoll)
             isFirstRoll = false
 
-            options.title = baseTitle
-            options.explanation = baseTitle
-
             if not info.isCrit then
                 break
             end
+
+            --The crit earns another roll, so say so before asking for it: the
+            --prompt is otherwise identical to the one just answered and reads
+            --as the same dice being asked for twice.
+            DramaticBanner.Show{
+                tokenid = rollingToken.charid,
+                text = "Breakthrough!",
+                subtitle = string.format("%s rolled a breakthrough on %s",
+                    roller:GetName(), projectTitle),
+            }
+
+            --Held until the banner has cleared, so the roll dialog does not
+            --open over the announcement meant to explain it.
+            local remaining = DramaticBanner.TimeUntilDone()
+            while remaining > 0 do
+                coroutine.yield(math.min(remaining, 0.1))
+                remaining = DramaticBanner.TimeUntilDone()
+            end
+
+            --Names the next roll for what it is. Carries no forced-crit mark,
+            --so a rigged first roll cannot chain into a rigged second one.
+            local breakthroughTitle = string.format("Breakthrough - %s", projectTitle)
+            options.title = breakthroughTitle
+            options.explanation = breakthroughTitle
         end
 
         if #rolls > 0 and args.onRolls ~= nil then

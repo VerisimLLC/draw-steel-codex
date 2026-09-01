@@ -1813,12 +1813,25 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 	--(SendTriggerCastToController above, MCDModifyPowerRolls triggerOnUse).
 	--Runs immediately when no casts are active, so triggers fired outside a
 	--cast are unchanged.
-	ActivatedAbility.RunWhenCastsComplete(function()
-		if casterToken == nil or not casterToken.valid then
-			return
-		end
+	--
+	--EXCEPTION: when the caller is waiting on our completion (argOptions.complete
+	--~= nil -- the trigger-before accept flows, e.g. Vanguard's Parry shift), run
+	--immediately. The triggering cast holds its roll open until this trigger's
+	--before-action resolves (the ActiveTrigger.resolving hold in the roll
+	--dialogs), so deferring until casts complete would deadlock: the cast waits
+	--on us, we wait on the cast. The before-action presents through the action
+	--bar prompt rather than the roll dialog, so it can run alongside the held
+	--cast without contending for the sidebar's embedded dialog.
+	if argOptions.complete ~= nil then
 		dmhub.CoroutineSynchronous(TriggeredAbility.TriggerCo, self, targets, args.characterModifier, casterToken, args.creature, symbols, args.auraControllerToken, args.modContext, argOptions)
-	end)
+	else
+		ActivatedAbility.RunWhenCastsComplete(function()
+			if casterToken == nil or not casterToken.valid then
+				return
+			end
+			dmhub.CoroutineSynchronous(TriggeredAbility.TriggerCo, self, targets, args.characterModifier, casterToken, args.creature, symbols, args.auraControllerToken, args.modContext, argOptions)
+		end)
+	end
 
 	g_triggerDepth = g_triggerDepth - 1
 end

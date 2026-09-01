@@ -10088,6 +10088,12 @@ ActiveTrigger.triggered = false
 ActiveTrigger.dismissed = false
 ActiveTrigger.ping = false
 ActiveTrigger.retargetid = false
+--Set when a power-roll trigger with a trigger-before action (e.g. Vanguard's
+--Parry shift) is accepted, and cleared when that action finishes resolving on
+--the owner's client. While any player trigger has this set, the caster's roll
+--dialog holds the roll -- so the before-action completes before the tier
+--effects (damage, forced movement) execute.
+ActiveTrigger.resolving = false
 ActiveTrigger.text = "Trigger"
 --A multi-mode trigger (a TriggeredAbility with multipleModes) keeps mode 1 out
 --of the modes list: activateText/activateRules are its name and rules, and

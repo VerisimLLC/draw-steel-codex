@@ -1212,9 +1212,12 @@ function GameHud.CreateRollDialog(self)
                 if token ~= nil then
                     local tokenTriggers = token.properties:GetAvailableTriggers() or {}
                     local tokenTrigger = tokenTriggers[trigger.id]
-                    if tokenTrigger ~= nil and tokenTrigger.triggered ~= trigger.triggered then
+                    if tokenTrigger ~= nil and (tokenTrigger.triggered ~= trigger.triggered or tokenTrigger.resolving ~= trigger.resolving) then
                         trigger.triggered = tokenTrigger.triggered
                         trigger.retargetid = tokenTrigger.retargetid
+                        --carry resolving into our copy so the periodic re-dispatch
+                        --of this record can't clobber the owner's in-progress flag.
+                        trigger.resolving = tokenTrigger.resolving
                         trigger.dismissed = tokenTrigger.dismissed
                         needUpdate = true
 
@@ -2913,6 +2916,11 @@ function GameHud.CreateRollDialog(self)
                     if creature ~= nil and creature._tmp_aicontrol > 0 then
                         local TryToProceed
                         local m_timerState = nil
+                        --wait state for an accepted trigger whose before-action
+                        --(e.g. Vanguard's Parry shift) is still resolving on the
+                        --owner's client. Separate from m_timerState so the decision
+                        --window and the resolution wait each get their own clock.
+                        local m_resolveState = nil
 
 
                         TryToProceed = function()
@@ -2920,17 +2928,25 @@ function GameHud.CreateRollDialog(self)
                             if resultPanel.valid and showingDialog then
                                 local tokens = dmhub.allTokens
                                 local haveTriggers = false
+                                local resolvingTrigger = nil
+                                local resolvingToken = nil
 
                                 local q = dmhub.initiativeQueue
                                 if q ~= nil then
                                     for _,tok in ipairs(tokens) do
                                         local initiativeid = InitiativeQueue.GetInitiativeId(tok)
                                         if q:IsEntryPlayer(initiativeid) or tok.playerControlled then
-                                            local triggers = tok.properties:GetAvailableTriggers(true)
+                                            --include dismissed records: an accepted trigger-before
+                                            --trigger is dismissed from the panel but still resolving.
+                                            local triggers = tok.properties:GetAvailableTriggers()
                                             for _,trigger in pairs(triggers or {}) do
                                                 if trigger.powerRollModifier then
-                                                    haveTriggers = true
-                                                    break
+                                                    if trigger.resolving then
+                                                        resolvingTrigger = trigger
+                                                        resolvingToken = tok
+                                                    elseif not trigger.dismissed then
+                                                        haveTriggers = true
+                                                    end
                                                 end
                                             end
                                         end
@@ -2938,7 +2954,7 @@ function GameHud.CreateRollDialog(self)
                                 end
 
                                 --check to make sure we don't need to reroll.
-                                if not haveTriggers then
+                                if (not haveTriggers) and resolvingTrigger == nil then
                                     triggersContainer:FireEvent("charactersUpdated")
                                     CalculateRollText()
                                     local rerolling = RecalculateMultiTargets()
@@ -2952,6 +2968,63 @@ function GameHud.CreateRollDialog(self)
                                 end
 
                                 --print("AI:: Dialog haveTriggers =", haveTriggers, m_timerState)
+
+                                if resolvingTrigger ~= nil and (m_resolveState == nil or (dmhub.Time() < m_resolveState.expire) or m_resolveState.paused) then
+                                    --hold the roll while the accepted trigger's before-action
+                                    --plays out, so it lands before damage and forced movement.
+                                    --A 30s clock backstops a player who never finishes it; the
+                                    --Director can click the dice to pause or push through.
+                                    local t = dmhub.Time()
+                                    if m_resolveState == nil then
+                                        local ownerName = resolvingToken.name
+                                        if ownerName == nil or ownerName == "" then
+                                            ownerName = "a player"
+                                        end
+                                        local triggerName = nil
+                                        if resolvingTrigger.powerRollModifier then
+                                            triggerName = resolvingTrigger.powerRollModifier:try_get("name")
+                                        end
+                                        local waitText
+                                        if triggerName ~= nil and triggerName ~= "" then
+                                            waitText = string.format("Waiting for %s's %s trigger...", ownerName, triggerName)
+                                        else
+                                            waitText = string.format("Waiting for %s's trigger...", ownerName)
+                                        end
+                                        m_resolveState = {
+                                            start = t,
+                                            current = t,
+                                            expire = t + 30,
+                                            text = waitText .. " Click to pause.",
+                                            callback = function()
+                                                if m_resolveState ~= nil then
+                                                    if m_resolveState.paused then
+                                                        UpdateTriggerReactionPanel(nil)
+                                                        if proceedAfterRollButton.valid then
+                                                            proceedAfterRollButton:FireEventTree("press")
+                                                        end
+                                                        return
+                                                    else
+                                                        m_resolveState.text = waitText .. " Click to proceed."
+                                                        m_resolveState.paused = true
+                                                        UpdateTriggerReactionPanel(m_resolveState)
+                                                    end
+                                                end
+                                            end,
+                                        }
+                                    end
+
+                                    m_resolveState.current = t
+                                    UpdateTriggerReactionPanel(m_resolveState)
+                                    dmhub.Schedule(0.2, function()
+                                        TryToProceed()
+                                    end)
+                                    return
+                                elseif m_resolveState ~= nil and resolvingTrigger == nil then
+                                    --the before-action finished (or was cancelled): drop the
+                                    --wait state so a later one starts a fresh clock, and fall
+                                    --through to the normal decision below.
+                                    m_resolveState = nil
+                                end
 
                                 if haveTriggers and (m_timerState == nil or (dmhub.Time() < m_timerState.expire) or m_timerState.paused) then
                                     local t = dmhub.Time()

@@ -44,9 +44,19 @@ GameHud.RegisterBetweenTurnHandler{
     id = "Monster AI Villain Actions",
     priority = 50,
     run = function(context)
-        if MonsterAI.active then
+        if MonsterAI.active and MonsterAI.IsAIRunning() then
             local ai = MonsterAI.new{}
-            ai:HandleVillainActionWindow(context)
+            local ok, err = ai:RunYieldingFunction(function()
+                ai:HandleVillainActionWindow(context)
+            end)
+            if not ok then
+                pcall(function()
+                    ai:LogDecision("VILLAIN ACTION ERROR", {
+                        reason = tostring(err),
+                        result = "between-turn handler continuing",
+                    })
+                end)
+            end
         end
     end,
 }
@@ -75,6 +85,7 @@ local function MonsterAIThread(process)
     })
     MonsterAI.active = true
     g_status = nil
+    local failedTriggers = {}
     while true do
         g_thread = coroutine.running()
         coroutine.yield(0.1)
@@ -88,6 +99,10 @@ local function MonsterAIThread(process)
             return
         end
 
+        --Keep an unexpected selection, trigger, or camera error from killing the
+        --background process. Turn execution has its own narrower recovery guard.
+        local iterationOk, iterationErr = lifecycleAI:RunYieldingFunction(function()
+
         local queue = dmhub.initiativeQueue
 
 
@@ -95,12 +110,49 @@ local function MonsterAIThread(process)
         local handledTrigger = false
         if queue ~= nil and (not queue.hidden) then
             for _,token in ipairs(dmhub.allTokens) do
-                if not token.playerControlled then
+                if MonsterAI.TokenIsLiveCombatant(token) and not token.playerControlled then
                     local triggers = token.properties:GetAvailableTriggers()
                     if triggers ~= nil then
                         local ai = MonsterAI.new{token = token}
                         for _,trigger in pairs(triggers) do
-                            if ai:HandleAvailableTrigger(token, trigger) then
+                            local triggerKey = string.format("%s:%s",
+                                tostring(token.charid), tostring(trigger.id))
+                            local triggerHandled = false
+                            local ok = true
+                            local err = nil
+                            if not failedTriggers[triggerKey] then
+                                ok, err = ai:RunYieldingFunction(function()
+                                    triggerHandled = ai:HandleAvailableTrigger(token, trigger)
+                                end)
+                            end
+                            if not ok then
+                                failedTriggers[triggerKey] = true
+                                pcall(function()
+                                    if MonsterAI.TokenIsLiveCombatant(token) then
+                                        token:ModifyProperties{
+                                            description = "AI Trigger Recovery",
+                                            undoable = false,
+                                            execute = function()
+                                                local liveTriggers = token.properties:GetAvailableTriggers() or {}
+                                                local liveTrigger = liveTriggers[trigger.id]
+                                                if liveTrigger ~= nil and not liveTrigger.triggered
+                                                    and not liveTrigger.dismissed then
+                                                    liveTrigger.dismissed = true
+                                                    token.properties:DispatchAvailableTrigger(liveTrigger)
+                                                end
+                                            end,
+                                        }
+                                    end
+                                end)
+                                pcall(function()
+                                    ai:LogDecision("TRIGGER ERROR", {
+                                        category = "Triggered Action",
+                                        ability = trigger.abilityName,
+                                        reason = tostring(err),
+                                        result = "trigger dismissed and quarantined for this AI run",
+                                    })
+                                end)
+                            elseif triggerHandled then
                                 handledTrigger = true
                                 break
                             end
@@ -123,76 +175,92 @@ local function MonsterAIThread(process)
                 local entriesUnmoved = queue:EntriesUnmoved()
 
                 local bestScore = nil
+                local bestInitiativeId = nil
                 for k,_ in pairs(entriesUnmoved) do
                     if not queue:IsEntryPlayer(k) then
-
-                        local distance = nil
                         local tokens = GameHud.GetTokensForInitiativeId(GameHud.instance, GameHud.instance.initiativeInterface, k)
-                        local allTokens = dmhub.allTokens
-                        for _,tok in ipairs(allTokens) do
-                            if tok.playerControlled then
-                                for _,mtok in ipairs(tokens) do
-                                    local d = tok:Distance(mtok)
-                                    if distance == nil or d < distance then
-                                        distance = d
-                                    end
+                        local groupScore = nil
+                        local groupActor = nil
+                        for _,tok in ipairs(tokens) do
+                            if MonsterAI.TokenIsLiveCombatant(tok) then
+                                local candidateAI = MonsterAI.new{}
+                                candidateAI:SetLogContext(tok, {
+                                    turn = k,
+                                    round = queue.round,
+                                })
+                                local move = candidateAI:FindTurnEagernessMove(tok, queue)
+                                local baseEagerness = math.max(0, move.score or 0)
+                                local urgency = MonsterAI.TurnUrgency(tok)
+                                local heat = 1 + math.random()*0.5
+                                local eagerness = baseEagerness*(1 + urgency)*heat
+                                candidateAI:LogDecision("INITIATIVE ACTOR CANDIDATE", {
+                                    ability = move.abilityName,
+                                    move = move.moveId,
+                                    baseEagerness = baseEagerness,
+                                    urgency = urgency,
+                                    heat = heat,
+                                    score = eagerness,
+                                    plan = candidateAI.ScoringPlanLogName(move.scoringInfo),
+                                    reason = move.reason,
+                                    scoringErrors = move.scoringErrors,
+                                })
+
+                                if groupScore == nil or eagerness > groupScore
+                                    or (eagerness == groupScore
+                                        and tostring(tok.charid) < tostring(groupActor.charid)) then
+                                    groupScore = eagerness
+                                    groupActor = tok
                                 end
+                                --Full move planning includes pathfinding. Spread large
+                                --encounters across frames so initiative choice stays responsive.
+                                coroutine.yield(0.01)
                             end
                         end
 
-                        distance = distance or 0
-                        lifecycleAI:SetLogContext(nil, {
-                            turn = k,
-                            round = queue.round,
-                        })
-                        lifecycleAI:LogDecision("INITIATIVE CANDIDATE", {
-                            distance = distance,
-                            reason = "lower nearest-player distance acts first",
-                        })
-                        if bestScore == nil or distance < bestScore then
-                            bestScore = distance
-                            initiativeid = k
+                        if groupActor ~= nil then
+                            lifecycleAI:SetLogContext(groupActor, {
+                                turn = k,
+                                round = queue.round,
+                            })
+                            lifecycleAI:LogDecision("INITIATIVE CANDIDATE", {
+                                score = groupScore,
+                                reason = "highest individual eagerness in the initiative group",
+                            })
+                            if bestScore == nil or groupScore > bestScore
+                                or (groupScore == bestScore and tostring(k) < tostring(bestInitiativeId)) then
+                                bestScore = groupScore
+                                bestInitiativeId = k
+                            end
                         end
                     end
                 end
+                initiativeid = bestInitiativeId
 
-                if initiativeid ~= nil then
+                if initiativeid ~= nil and dmhub.initiativeQueue == queue
+                    and queue:ChoosingTurn() and not queue:IsPlayersTurn()
+                    and queue:EntriesUnmoved()[initiativeid] ~= nil then
                     lifecycleAI:SetLogContext(nil, {
                         turn = initiativeid,
                         round = queue.round,
                     })
                     lifecycleAI:LogDecision("INITIATIVE SELECTED", {
-                        distance = bestScore,
+                        score = bestScore,
                         result = "beginning non-player initiative entry",
                     })
                     dmhub.initiativeQueue:SelectTurn(initiativeid)
                     dmhub:UploadInitiativeQueue()
 
-                    local centerOn = nil
                     local tokens = GameHud.GetTokensForInitiativeId(GameHud.instance, GameHud.instance.initiativeInterface, initiativeid)
                     for i,tok in ipairs(tokens) do
                         if tok.properties ~= nil then
                             tok.properties:BeginTurn()
-                            if centerOn == nil or not tok.properties.minion then
-                                centerOn = tok
-                            end
                         end
-                    end
-
-                    if centerOn ~= nil then
-                        dmhub.CenterOnToken(centerOn.charid, {smooth = true})
-
-                        dmhub.SyncCamera{
-                            speed = 1,
-                        }
-
-                        MonsterAI.Sleep(1)
                     end
                 end
             else
                 local ai = MonsterAI.new{}
                 g_status = "Playing Turn"
-                ai:PlayTurnCoroutine(initiativeid)
+                ai:PlayTurnSafely(initiativeid)
                 g_status = nil
 
                 --center back on a player.
@@ -216,6 +284,18 @@ local function MonsterAIThread(process)
                     }
                 end
             end
+        end
+        end)
+
+        if not iterationOk then
+            g_status = nil
+            pcall(function()
+                lifecycleAI:LogDecision("AI ITERATION ERROR", {
+                    reason = tostring(iterationErr),
+                    result = "background process continuing",
+                })
+            end)
+            coroutine.yield(0.5)
         end
     end
 end

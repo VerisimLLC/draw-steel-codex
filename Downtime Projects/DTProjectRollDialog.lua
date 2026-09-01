@@ -400,19 +400,23 @@ function DTEventRollDialog.ShowDialog(args)
             flow = "horizontal",
             vmargin = 8,
 
-            gui.Button{
+            --Handing the roll to a player is the Director's move. A player who
+            --has been given these controls is already the one rolling, so they
+            --get the one button and it takes the middle of the row alone.
+            dmhub.isDM and gui.Button{
                 classes = {"sizeL"},
                 text = "Request Roll",
                 hmargin = 8,
                 click = function()
                     RequestRoll()
                 end,
-            },
+            } or nil,
 
             gui.Button{
                 classes = {"sizeL"},
                 text = "Roll",
                 hmargin = 8,
+                halign = (not dmhub.isDM) and "center" or nil,
                 click = function()
                     DirectorRoll()
                 end,

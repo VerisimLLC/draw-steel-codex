@@ -7,11 +7,11 @@ RSPPlayerRespitePanel = RegisterGameType("RSPPlayerRespitePanel")
 local INSTRUCTIONS = [[
 ### Participate
 
-Click one of your characters to take them in or out of the Respite.
+Click one of your characters to take them in or out of the Respite. Including the hero in the Respite means the game's mechanics like converting Victories to XP and resetting Recoveries and Stamina will apply to them.
 
-The Director sees your choices as you make them, and can change them too. Whoever chooses last is the one that stands.
+Heroes that do not participate in the Respite will%s be able to participate in downtime activities.
 
-Commit when you are happy with your answer. You can uncommit and change your mind until the Director starts the Respite.
+Commit to let your Director know that you're happy with your answer.
 ]]
 
 local IDLE_INSTRUCTIONS = [[
@@ -107,8 +107,12 @@ local function Instructions()
         available[1] = "None"
     end
 
+    -- The sentence about non-participants reads either way round, so it takes
+    -- a " not" rather than being written out twice.
+    local negation = RSPSession.NonParticipantsMayAct() and "" or " **not**"
+
     return string.format("%s\n\n**Available Activities**\n%s",
-        INSTRUCTIONS,
+        string.format(INSTRUCTIONS, negation),
         table.concat(available, "\n"))
 end
 

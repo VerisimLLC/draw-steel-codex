@@ -194,47 +194,6 @@ function RSPWidgets.CharacterRow(args)
         end,
     } or nil
 
-    -- status() returns nil for a row that carries no completion of its own,
-    -- which is how a follower sits under its hero without claiming a state.
-    -- The slot is still built, empty, so every row's trailing widgets line up
-    -- in a column rather than shuffling left on the rows that skip it.
-    -- The icon swallows its own press so toggling done never doubles as
-    -- selecting the row.
-    -- Spelled out rather than an and/or chain: a not-done row answers false,
-    -- and false collapses to the fallback, which would read as "no state".
-    local function StatusOf()
-        if args.status == nil then
-            return nil
-        end
-        return args.status(args.charid)
-    end
-
-    local status = args.status ~= nil and gui.Panel{
-        classes = {"rspStatus",
-            StatusOf() == nil and "hidden" or nil,
-            args.statusClick ~= nil and "hoverable" or nil,
-            StatusOf() and "done" or "pending"},
-        bgimage = StatusOf() and RSPConstants.iconDone or RSPConstants.iconNotDone,
-        width = RSPConstants.characterRowStatusSize,
-        height = RSPConstants.characterRowStatusSize,
-        halign = "right",
-        valign = "center",
-        hmargin = 2,
-        swallowPress = args.statusClick ~= nil,
-        press = args.statusClick ~= nil and function()
-            if StatusOf() ~= nil then
-                args.statusClick(args.charid)
-            end
-        end or nil,
-        respiteChanged = function(element)
-            local done = StatusOf()
-            element.bgimage = done and RSPConstants.iconDone or RSPConstants.iconNotDone
-            element:SetClass("hidden", done == nil)
-            element:SetClass("done", done == true)
-            element:SetClass("pending", done ~= true)
-        end,
-    } or nil
-
     -- The settings document above catches a project roll, which pings it, but
     -- not a fishing trip: that spends the roll by writing the holder's token
     -- and nothing else. A panel carries one monitorGame, so the token gets a
@@ -263,8 +222,8 @@ function RSPWidgets.CharacterRow(args)
     local attention = args.attention ~= nil and gui.Panel{
         classes = {"rspAttention", not args.attention(args.charid) and "hidden" or nil},
         bgimage = RSPConstants.iconAttention,
-        width = RSPConstants.characterRowStatusSize,
-        height = RSPConstants.characterRowStatusSize,
+        width = RSPConstants.characterRowAttentionSize,
+        height = RSPConstants.characterRowAttentionSize,
         halign = "right",
         valign = "center",
         hmargin = 0,
@@ -276,6 +235,28 @@ function RSPWidgets.CharacterRow(args)
         respiteChanged = function(element)
             element:SetClass("hidden", not args.attention(args.charid))
         end,
+    } or nil
+
+    -- Opens this character's own sheet. Swallows its own press so reaching for
+    -- the sheet never doubles as selecting the row.
+    -- Heroes only: a follower's sheet is not what anyone wants from this list.
+    -- The slot is still built, empty, on a follower's row, so every row's
+    -- trailing widgets stay in a column rather than shuffling left.
+    local isFollower = args.owner ~= nil
+
+    local sheet = args.sheet ~= nil and gui.Panel{
+        classes = {"rspSheet", isFollower and "hidden" or nil},
+        bgimage = RSPConstants.iconCharacterSheet,
+        width = RSPConstants.characterRowSheetSize,
+        height = RSPConstants.characterRowSheetSize,
+        halign = "right",
+        valign = "center",
+        hmargin = 4,
+        swallowPress = not isFollower,
+        linger = not isFollower and gui.Tooltip("Open character sheet") or nil,
+        press = not isFollower and function()
+            args.sheet(args.charid, args.owner)
+        end or nil,
     } or nil
 
     local lock = args.lock ~= nil and gui.Panel{
@@ -309,8 +290,11 @@ function RSPWidgets.CharacterRow(args)
             element:SetClass("selected", args.highlight ~= nil and args.highlight(args.charid))
         end,
 
+        -- The owner rides along so a caller can act on the hero a follower
+        -- belongs to. Rows that are not followers pass nil, and callers that
+        -- do not care simply ignore the second argument.
         press = args.click ~= nil and function()
-            args.click(args.charid)
+            args.click(args.charid, args.owner)
         end or nil,
 
         -- The indent shifts the image rather than padding the row: padding
@@ -325,7 +309,7 @@ function RSPWidgets.CharacterRow(args)
 
         gui.Label{
             classes = {"sizeM", "noBold"},
-            width = RSPConstants.CharacterRowNameWidth(TrailingCount(indicator, attention, rolls, status, lock), args.indent),
+            width = RSPConstants.CharacterRowNameWidth(TrailingCount(indicator, attention, rolls, sheet, lock), args.indent),
             height = "auto",
             halign = "left",
             valign = "center",
@@ -339,7 +323,7 @@ function RSPWidgets.CharacterRow(args)
         indicator,
         attention,
         rolls,
-        status,
+        sheet,
         lock,
 
         -- Last and zero-sized, and deliberately not counted among the trailing
@@ -356,6 +340,11 @@ end
 --- @param args {roster: string[]|function, highlight: fun(charid: string): boolean, click: nil|fun(charid: string), indicator: nil|fun(charid: string): string}
 --- @return Panel
 function RSPWidgets.CharacterList(args)
+    --Forward-declared: the token watchers below are built as children, so they
+    --need to reach the list that owns them.
+    local listPanel
+    local RebuildIfRosterMoved
+
     --- The roster as it stands now. Callers may pass a fixed list or a function
     --- for a roster that is not known when the list is built.
     --- @return table
@@ -378,6 +367,41 @@ function RSPWidgets.CharacterList(args)
         return entry, false, nil
     end
 
+    --- Followers are kept on their hero's token, so gaining or losing one
+    --- writes that token and nothing else - the Respite document never moves,
+    --- and a list that only listens for respiteChanged is never told. One
+    --- zero-sized watcher per hero closes that: the token pings it, and the
+    --- signature check decides whether the roster actually changed.
+    --- @return Panel[] watchers
+    local function HeroWatchers()
+        local seen = {}
+        local watchers = {}
+
+        for _, entry in ipairs(Roster()) do
+            local charid, _, owner = ReadEntry(entry)
+            local heroId = owner or charid
+
+            if not seen[heroId] then
+                seen[heroId] = true
+                local token = dmhub.GetCharacterById(heroId)
+                if token ~= nil then
+                    watchers[#watchers + 1] = gui.Panel{
+                        width = 0,
+                        height = 0,
+                        halign = "left",
+                        valign = "top",
+                        monitorGame = token.monitorPath,
+                        refreshGame = function()
+                            RebuildIfRosterMoved()
+                        end,
+                    }
+                end
+            end
+        end
+
+        return watchers
+    end
+
     local function BuildRows()
         local rows = {}
         for _, entry in ipairs(Roster()) do
@@ -390,13 +414,17 @@ function RSPWidgets.CharacterList(args)
                 indicator = args.indicator,
                 attention = args.attention,
                 rolls = args.rolls,
-                status = args.status,
-                statusClick = args.statusClick,
+                sheet = args.sheet,
                 lock = args.lock,
                 indent = indent,
                 owner = owner,
             }
         end
+
+        for _, watcher in ipairs(HeroWatchers()) do
+            rows[#rows + 1] = watcher
+        end
+
         return rows
     end
 
@@ -413,7 +441,21 @@ function RSPWidgets.CharacterList(args)
         return table.concat(parts, ",")
     end
 
-    return gui.Panel{
+    --Rebuilds only when the roster actually moved, so a token ping that changed
+    --something else costs a string compare and nothing more.
+    RebuildIfRosterMoved = function()
+        if listPanel == nil or not listPanel.valid then
+            return
+        end
+
+        local signature = Signature()
+        if signature ~= listPanel.data.signature then
+            listPanel.data.signature = signature
+            listPanel.children = BuildRows()
+        end
+    end
+
+    listPanel = gui.Panel{
         width = "100%",
         height = "100%",
         flow = "vertical",
@@ -428,16 +470,14 @@ function RSPWidgets.CharacterList(args)
             signature = Signature(),
         },
 
-        respiteChanged = function(element)
-            local signature = Signature()
-            if signature ~= element.data.signature then
-                element.data.signature = signature
-                element.children = BuildRows()
-            end
+        respiteChanged = function()
+            RebuildIfRosterMoved()
         end,
 
         children = BuildRows(),
     }
+
+    return listPanel
 end
 
 --- The terms of the Respite, for the right of a step's header. Every surface
@@ -482,6 +522,21 @@ function RSPWidgets.CustomStyles()
             selectors = {"checkbox", "sizeXs"},
             height = 18,
         },
+        -- Opens the character sheet. Dimmed until hovered so it reads as an
+        -- affordance rather than another state icon on the row.
+        {
+            selectors = {"rspSheet"},
+            bgcolor = "@fg",
+            opacity = 0.5,
+        },
+        {
+            selectors = {"rspSheet", "hover"},
+            opacity = 1,
+        },
+        {
+            selectors = {"rspSheet", "parent:selected"},
+            bgcolor = "@fgInverse",
+        },
         {
             selectors = {"rspLock"},
             bgcolor = "@fg",
@@ -493,20 +548,6 @@ function RSPWidgets.CustomStyles()
         {
             selectors = {"rspLock", "unlocked"},
             opacity = 0.35,
-        },
-        -- Completion reads at a glance: a quiet circle until the work is
-        -- done, then the scheme's success colour.
-        {
-            selectors = {"rspStatus"},
-            bgcolor = "@fg",
-        },
-        {
-            selectors = {"rspStatus", "pending"},
-            opacity = 0.35,
-        },
-        {
-            selectors = {"rspStatus", "done"},
-            bgcolor = "@success",
         },
         -- Something the Director has to act on. Left standing until the
         -- Respite is completed, so it is a state rather than a notification.

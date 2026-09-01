@@ -43,12 +43,11 @@ RSPConstants.characterRowIndicatorWidth = "32%"
 RSPConstants.characterRowRollsWidth = 26
 RSPConstants.characterRowRollsRightMargin = 0
 RSPConstants.characterRowLockSize = 20
-RSPConstants.characterRowStatusSize = 20
+RSPConstants.characterRowAttentionSize = 20
+RSPConstants.characterRowSheetSize = 20
 
 RSPConstants.iconUncommitted = "phosphor/lock-simple-open-duotone.png"
 RSPConstants.iconCommitted = "phosphor/lock-simple-fill.png"
-RSPConstants.iconNotDone = "phosphor/circle-duotone.png"
-RSPConstants.iconDone = "phosphor/check-circle.png"
 
 --- The name takes what the image, indent and trailing widgets leave. Pixels,
 --- not shares, so a new widget cannot push the row wider than its list.
@@ -90,11 +89,12 @@ RSPConstants.activityBodyHeight = "100%-56"
 RSPConstants.activitySheetButtonSize = 28
 RSPConstants.iconCharacterSheet = "ui-icons/character-sheet.png"
 RSPConstants.sheetTabBuilder = "Builder"    -- where a player goes to change a kit mid-Respite
+RSPConstants.sheetTabDowntime = "Downtime"  -- where the Director goes to read a hero's projects
 
 -- Activities step, Director: wider roster, it carries markers and roll counts
 RSPConstants.directorListWidth = "40%"
 RSPConstants.directorPaneWidth = "58%"
-RSPConstants.directorListHeight = "100%-32" -- what the completion count leaves
+RSPConstants.directorListHeight = "100%"
 RSPConstants.directorFooterCells = {20, 55, 25}  -- two checkboxes need more than a third
 
 -- Director feed

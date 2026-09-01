@@ -3,11 +3,9 @@ local mod = dmhub.GetModLoading()
 --- One character's standing in a Respite.
 --- @class RSPCharacter
 --- @field participating boolean
---- @field done boolean
 RSPCharacter = RegisterGameType("RSPCharacter")
 
 RSPCharacter.participating = false
-RSPCharacter.done = false
 
 --- @param args nil|table
 --- @return RSPCharacter
@@ -654,31 +652,6 @@ function RSPSession.Start()
     end)
 end
 
---- @param charid string
---- @return boolean
-function RSPSession.IsDone(charid)
-    local session = RSPSession.Active()
-    if session == nil then
-        return false
-    end
-    local entry = (session.characters or {})[charid]
-    return entry ~= nil and entry.done or false
-end
-
---- @param charid string
---- @param done boolean
-function RSPSession.SetDone(charid, done)
-    RSPSession.Mutate("Set respite completion", function(session)
-        session.characters = session.characters or {}
-        local entry = session.characters[charid]
-        if entry == nil then
-            entry = RSPCharacter.CreateNew{}
-            session.characters[charid] = entry
-        end
-        entry.done = done
-    end)
-end
-
 --- The heroes this Respite covers: everyone when non-participants may act,
 --- otherwise only those taking part.
 --- @param charids string[] the heroes to filter
@@ -756,6 +729,35 @@ end
 --- Heroes with their followers indented beneath them, ready for a list.
 --- @param charids string[] heroes, already in the order they should appear
 --- @return table[] entries {charid, indent}
+--- The rows a run step shows. Every covered hero with its followers beneath
+--- it, plus any hero the non-participants rule excluded who still has
+--- followers: followers may always act, and the hero row is what they hang
+--- under. Such a hero is listed but never paid, so its own count reads zero.
+--- A hero excluded with no followers is left out, which is the whole point of
+--- the setting.
+--- @param charids string[] the heroes to consider
+--- @return table[] entries
+function RSPSession.ActingEntries(charids)
+    local covered = {}
+    for _, charid in ipairs(RSPSession.CoveredHeroes(charids)) do
+        covered[charid] = true
+    end
+
+    local entries = {}
+    for _, charid in ipairs(charids) do
+        local followers = RSPSession.FollowersOf(charid)
+        if covered[charid] or #followers > 0 then
+            entries[#entries + 1] = {charid = charid, indent = false}
+            for _, followerId in ipairs(followers) do
+                entries[#entries + 1] = {charid = followerId, indent = true, owner = charid}
+            end
+        end
+    end
+    return entries
+end
+
+--- @param charids string[]
+--- @return table[] entries
 function RSPSession.EntriesWithFollowers(charids)
     local entries = {}
     for _, charid in ipairs(charids) do
@@ -901,10 +903,11 @@ function RSPSession.CombinedRolls(charid)
     return rolls
 end
 
---- Hand out downtime activities. Every covered hero and each of their
---- followers gets one roll per activity, so unticking non-participants narrows
---- who is paid as well as who appears. Takes an explicit count so extending a
---- Respite pays only the extension.
+--- Hand out downtime activities. Followers are always paid, whatever the
+--- non-participants setting says: that setting governs heroes only, and a
+--- hero sitting the Respite out does not stop their artisan working. A hero
+--- is paid only when the Respite covers them. Takes an explicit count so
+--- extending a Respite pays only the extension.
 --- @param amount nil|number defaults to the Respite's activity allowance
 function RSPSession.GrantActivityRolls(amount)
     if not dmhub.isDM then
@@ -916,11 +919,21 @@ function RSPSession.GrantActivityRolls(amount)
         return
     end
 
-    for _, heroId in ipairs(RSPSession.CoveredHeroes(RSPSession.Roster())) do
+    local roster = RSPSession.Roster()
+
+    local covered = {}
+    for _, heroId in ipairs(RSPSession.CoveredHeroes(roster)) do
+        covered[heroId] = true
+    end
+
+    for _, heroId in ipairs(roster) do
         local token = dmhub.GetCharacterById(heroId)
         local followerIds = RSPSession.FollowersOf(heroId)
+        local payHero = covered[heroId] == true
 
-        if token ~= nil and token.properties ~= nil then
+        -- An excluded hero with no followers has nothing owed, so the upload
+        -- their properties would cost is skipped entirely.
+        if token ~= nil and token.properties ~= nil and (payHero or #followerIds > 0) then
             token:ModifyProperties{
                 description = "Grant respite downtime rolls",
                 execute = function()
@@ -929,7 +942,9 @@ function RSPSession.GrantActivityRolls(amount)
                         return
                     end
 
-                    info:GrantRolls(count)
+                    if payHero then
+                        info:GrantRolls(count)
+                    end
                     for _, followerId in ipairs(followerIds) do
                         info:GrantFollowerRolls(followerId, count)
                     end

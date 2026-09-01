@@ -11,21 +11,12 @@ You may also open your character sheet to make changes there, like changing your
 If you lose this window, you can open it again with Game -> Respite.
 ]]
 
---- This player's covered heroes, each with its followers beneath it.
+--- This player's covered heroes, each with its followers beneath it. A hero
+--- the non-participants setting excluded still appears when they have
+--- followers, since followers may always act.
 --- @return table[] entries
 local function Entries()
-    local heroes = RSPSession.CoveredHeroes(RSPSession.MyCharacters())
-    return RSPSession.EntriesWithFollowers(heroes)
-end
-
---- Only heroes carry a completion state, so a follower's row shows no icon.
---- @param charid string
---- @return boolean|nil
-local function Completion(charid)
-    if not RSPSession.IsHeroInRespite(charid) then
-        return nil
-    end
-    return RSPSession.IsDone(charid)
+    return RSPSession.ActingEntries(RSPSession.MyCharacters())
 end
 
 --- The activities this Respite is offering, alphabetical. An activity the
@@ -285,7 +276,6 @@ local function BuildWorkingArea()
 
     list = RSPWidgets.CharacterList{
         roster = Entries,
-        status = Completion,
 
         -- A follower's rolls live on the hero it follows, so the entry's
         -- owner is what gets asked.
@@ -300,9 +290,7 @@ local function BuildWorkingArea()
             return list ~= nil and list.data.selected == charid
         end,
 
-        -- Selecting a row says "show me this one"; the icon is what marks
-        -- work finished, and it swallows its own press so the two never
-        -- collide.
+        -- Selecting a row says "show me this one".
         click = function(charid)
             if list ~= nil and list.valid then
                 list.data.selected = charid
@@ -310,12 +298,6 @@ local function BuildWorkingArea()
             end
             if pane ~= nil and pane.valid then
                 pane:FireEvent("selectionChanged")
-            end
-        end,
-
-        statusClick = function(charid)
-            if RSPSession.IsHeroInRespite(charid) then
-                RSPSession.SetDone(charid, not RSPSession.IsDone(charid))
             end
         end,
     }

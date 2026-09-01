@@ -321,7 +321,9 @@ every other token is silently ignored. The resolution, in `ResolveStatHero(token
    (cycle-guarded, capped at 16 hops).
 2. The root must be a hero (`token.properties:IsHero()`).
 3. The root must be an active combatant — it must appear in `GetBattleHeroTokens()`
-   (the deduped hero tokens in the live initiative queue). Membership confirms both
+   (the deduped hero tokens in the live initiative queue, plus onset heroes whose
+   tokens were despawned/deleted mid-fight — e.g. a dead hero removed from the
+   battlefield still counts as a participant). Membership confirms both
    "is a hero" and "is in this encounter".
 
 If any check fails, `IncrementStat` returns without writing. The stat is keyed by the

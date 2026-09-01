@@ -1126,7 +1126,7 @@ end
 --codemod, but never let a version mismatch break the host tick.
 local function EnsureAIRunning()
     pcall(function()
-        if MonsterAI.active ~= true then
+        if not MonsterAI.IsAIRunning() then
             printf("EotW: starting the Monster AI")
             MonsterAI.StartAI()
         end
@@ -1161,6 +1161,14 @@ end
 --time to replicate) before the screen takes over.
 local m_awardHoldTicks = 0
 local AWARD_HOLD_TICKS = 2
+
+--When the outcome condition was FIRST observed met (whether or not clients
+--were still ability-busy), so the award can linger a dramatic beat after the
+--killing blow before the banner takes over. This runs concurrently with the
+--prompt wait above -- a fight whose final prompts take longer than the
+--linger pays no extra delay. Reset whenever the condition reads unmet.
+local m_outcomeMetTime = nil
+local OUTCOME_LINGER_SECONDS = 5
 
 --Host only, every tick while combat is live: award victory/defeat once the
 --encounter's conditions are met (the existing evaluators the Director's
@@ -1219,12 +1227,18 @@ local function CheckEncounterOutcome(queue)
 
     if not victory and not defeat then
         m_awardHoldTicks = 0
+        m_outcomeMetTime = nil
         return
     end
 
-    --the condition is met: wait until no client has an ability prompting
-    --(local check is live; remote clients via their mirror stamps), then
-    --hold for AWARD_HOLD_TICKS consecutive idle ticks before awarding.
+    --the condition is met: stamp when we first saw it (the linger clock runs
+    --from here, busy or not), then wait until no client has an ability
+    --prompting (local check is live; remote clients via their mirror
+    --stamps), and hold for AWARD_HOLD_TICKS consecutive idle ticks.
+    if m_outcomeMetTime == nil then
+        m_outcomeMetTime = dmhub.serverTime
+    end
+
     local busy = false
     pcall(function() busy = AnyClientAbilityBusy() end)
     if busy then
@@ -1236,7 +1250,18 @@ local function CheckEncounterOutcome(queue)
     if m_awardHoldTicks < AWARD_HOLD_TICKS then
         return
     end
+    --cap the counter so later ticks re-enter here while the linger holds.
+    m_awardHoldTicks = AWARD_HOLD_TICKS
+
+    --idle hold satisfied; also let the moment breathe -- the banner waits
+    --OUTCOME_LINGER_SECONDS from the killing blow. math.abs so a serverTime
+    --rebase releases the wait rather than wedging it.
+    if math.abs(dmhub.serverTime - m_outcomeMetTime) < OUTCOME_LINGER_SECONDS then
+        return
+    end
+
     m_awardHoldTicks = 0
+    m_outcomeMetTime = nil
 
     if victory then
         printf("EotW: victory condition met; showing the victory screen")

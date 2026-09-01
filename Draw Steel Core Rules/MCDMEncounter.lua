@@ -1297,10 +1297,16 @@ function LiveEncounter:GetMonsterGroups()
     return result
 end
 
--- The hero tokens currently in the battle (every IsHero entry in the initiative queue,
--- deduped, including the dead -- fallen heroes stay in initiative). This is what the
--- victory screen displays, so heroes appear as long as combat is live, independent of
--- whether the onset snapshot was captured. Returns a list of tokens.
+-- The hero tokens in the battle: every IsHero entry in the initiative queue
+-- (deduped), plus any onset hero whose token the queue no longer resolves -- a
+-- dead hero can be removed from the battlefield entirely (e.g. the Encounter of
+-- the Week hero-death rule despawns them), and the victory screen and battle
+-- log must still show everyone who STARTED the fight, not just the survivors.
+-- Off-queue heroes resolve via GetCharacterById, which finds despawned tokens
+-- anywhere in the game; their stats and role history key off charid as normal.
+-- Heroes appear as long as combat is live even when the onset snapshot was
+-- never captured (the snapshot only adds the removed ones back). Returns a
+-- list of tokens.
 function LiveEncounter:GetBattleHeroTokens()
     local q = dmhub.initiativeQueue
     local result = {}
@@ -1317,6 +1323,18 @@ function LiveEncounter:GetBattleHeroTokens()
                     seen[token.charid] = true
                     result[#result + 1] = token
                 end
+            end
+        end
+    end
+
+    --onset heroes the queue no longer resolves (their token was despawned or
+    --deleted mid-fight); they still count as participants.
+    for _, h in ipairs(self:GetOnsetHeroes()) do
+        if not seen[h.charid] then
+            seen[h.charid] = true
+            local token = dmhub.GetCharacterById(h.charid)
+            if token ~= nil and token.valid and token.properties ~= nil and token.properties:IsHero() then
+                result[#result + 1] = token
             end
         end
     end

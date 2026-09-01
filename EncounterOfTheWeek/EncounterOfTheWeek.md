@@ -570,7 +570,7 @@ row**, not vertical rows (user direction 2026-08-28). All in
   **gating the UI on an image-load count makes the worst case worse**, whereas
   warming ahead of time has no worst case.
 
-## Opening the screen: the loading veil (DECIDED + BUILT 2026-08-30; UNTESTED)
+## Opening the screen: the loading veil (DECIDED + BUILT 2026-08-30; waits for the art since 2026-08-31)
 
 Pressing the titlescreen's `eotwTitlescreenLink` used to show the screen and
 then freeze for one to two seconds. That is the whole open happening inline:
@@ -600,9 +600,14 @@ cross-fade once the build has settled. All of it is in
      enough for the veil to paint and finish its `create`-class fade-in.
   2. `buildScreen` calls `CachePregens()` + `CreateScreen`, sets the class
      `eotwOpening` on the result **before** parenting it (so it is never
-     parented visible), adds it to the root, and schedules `revealScreen` after
-     `VEIL_SETTLE_SECONDS` (0.35) -- a beat for layout and the first textures.
-  3. `revealScreen` sheds `eotwOpening` and puts `dying` on the veil; both
+     parented visible), adds it to the root, and schedules `waitForImages`
+     after `VEIL_SETTLE_SECONDS` (0.35) -- a beat for layout, and long
+     enough for the portrait warmer to have mounted its first batches.
+  3. `waitForImages` polls `PortraitWarmupSettled()` every
+     `VEIL_WAIT_POLL_SECONDS` (0.1) until the art has settled or the
+     deadline passes, then fires `revealScreen`. See "Waiting for the art"
+     below.
+  4. `revealScreen` sheds `eotwOpening` and puts `dying` on the veil; both
      ramps run over `VEIL_CROSSFADE_SECONDS` (0.3), then the veil destroys
      itself.
 - The screen fades via a new rule in its own `styles` list,
@@ -638,27 +643,79 @@ a cold open showed. It now mounts at most `PORTRAIT_WARM_BATCH` (3) per tick,
 `PORTRAIT_WARM_BATCH_SECONDS` (0.05) apart, coming straight back for the rest
 without spending one of its `PORTRAIT_WARM_PASSES`; a pass that does not fill
 its batch has drained the current eligible set and waits out the rescan
-interval as before. Its first pass is also pushed out to
-`PORTRAIT_WARM_START_SECONDS` (0.75), past the reveal, so no decode lands
-during the cross-fade.
+interval as before. Its first pass fires `PORTRAIT_WARM_START_SECONDS` (0.05)
+after the warmer mounts -- i.e. immediately, **under the veil**. It used to be
+pushed out to 0.75s, past the reveal, on the theory that no decode should land
+during the cross-fade; that just moved the decodes onto a screen the player
+was already looking at, which is what the 2026-08-31 change fixes by having
+the veil wait for them instead.
 
-**Why this is not the rejected picker cover.** The Add-a-Hero "Loading..."
-cover (rejected above, 2026-08-29) gated the UI on an *image-load count* and
-so inherited the worst case of the slowest -- or never-arriving -- portrait.
-The veil is purely time-based and chained off completed work: its floor is
-~0.8s (0.15 + 0.35 + 0.3) and it has no dependence on any image ever loading.
-The lesson from that section holds -- never gate on a load count -- and this
-does not.
+### Waiting for the art (2026-08-31)
 
-**UNTESTED.** Written and syntax-checked, deployed (the codex git folder is
-the repo), but not yet exercised live: the running app was inside a real game
-and verifying this needs the titlescreen. What to check on the next
-titlescreen session: the veil appears within a frame of the click; the
-"Loading..." ticker animates rather than sitting frozen (if it freezes, the
-stall is longer than one think interval and the ticker is being starved -- not
-fatal, but worth knowing); the screen cross-fades in rather than popping; the
-Add-a-Hero grid still opens warm; escape during the veil cancels cleanly; and
-a second click on the link while the veil is up does nothing.
+The purely time-based veil above tested out as *too short*: it appeared,
+disappeared after its ~0.8s floor, and then the screen hitched as the
+portraits streamed in behind it (user report, 2026-08-31). Absorbing those
+decodes is the whole point of the veil, so it now **waits for the art rather
+than for a timer**.
+
+- The **portrait warmer is the tracking point**, not the screen's panels. The
+  only streamed art the screen shows is hero-card portraits and portrait
+  backgrounds (everything else is `panels/square.png`, phosphor icons and
+  `ui-icons`), and those are exactly the ids `CreatePortraitWarmer` already
+  mounts a 1x1 panel for. Warming an id makes the texture resident, so a hero
+  card built later -- when the lobby roster broadcast arrives, well after the
+  reveal -- paints from cache with nothing to stream. Tracking the warmer
+  therefore covers the screen without wrapping a single card.
+- Each warm panel reports itself: `mounted` is bumped where the panel is
+  added, `ready` in its `imageLoaded` (guarded by a per-panel `reported`
+  flag, since `imageLoaded` fires both for an instant cache hit and for a
+  later download). Both stamp `changed = dmhub.Time()`. The record is the
+  module-level `m_warmState`, replaced wholesale by each new warmer.
+- `PortraitWarmupSettled()` is true when the warmer is `drained` (a pass
+  found nothing new with the pregen cache landed, or the passes ran out --
+  either way no more panels are coming) **and** `ready >= mounted`; **or**
+  when nothing at all has moved for `VEIL_WAIT_IDLE_SECONDS` (0.5).
+- `waitForImages` polls it every `VEIL_WAIT_POLL_SECONDS` (0.1) and gives up
+  at `VEIL_WAIT_MAX_SECONDS` (4) past the settle. The `eotwOpeningBlocker`'s
+  self-destruct timeout is now derived from those constants rather than the
+  old hardcoded 5s, so it can never expire while a legitimate wait is still
+  running.
+
+**Why this is not the rejected picker cover**, even though it does now gate on
+images. The Add-a-Hero "Loading..." cover (rejected above, 2026-08-29) waited
+for a pending count to reach zero and nothing else, so one portrait whose
+record exists but whose texture never arrives -- it fires no `imageLoaded`,
+ever -- held the whole grid until the backstop on *every* open. Three things
+make the veil's wait different:
+
+1. **The idle rule, not the count, is the usual exit.** A dead portrait keeps
+   the count from balancing, but it produces no progress either, so 0.5s of
+   silence settles the veil. The worst case is "last arrival + 0.5s", not
+   "the slowest image".
+2. **The deadline is the second floor, not the first.** 4s, and it is only
+   reachable by art that keeps trickling in with real progress.
+3. **The veil is up regardless.** The rejected cover was extra UI erected
+   solely to hide loading; the veil already exists because building the
+   screen is slow, so waiting longer on it spends a beat of an
+   already-planned loading screen rather than adding a new stall.
+
+The floor is now ~1.3s (0.15 build + 0.35 settle + 0.5 idle + 0.3 cross-fade)
+in the common case where the pregen snapshot is already cached --
+`CachePregens` runs eagerly 5s after the titlescreen loads, so it normally is.
+If it is *not* cached, the eligible set is still growing when the idle rule
+fires and the late pregen portraits warm after the reveal. That is accepted
+deliberately: the alternative -- refusing to settle while `m_pregens == nil`
+-- would make an EotW module that never downloads cost the full 4s deadline on
+every single open.
+
+**Status: the veil itself is verified live** (it appears within a frame of the
+click and cross-fades; the 2026-08-31 report is about its length, not its
+behavior). **The wait is UNTESTED**: on disk and syntax-checked, needs a Lua
+reload and a titlescreen. What to check: opening the screen cold shows the
+veil for appreciably longer than before and the revealed screen no longer
+hitches as portraits pop in; a second open (everything warm) is still quick,
+~1.3s, not 4s; escape during the wait still cancels cleanly; and the
+Add-a-Hero grid still opens warm.
 
 ## One EotW game per account (DECIDED + BUILT 2026-08-27; worker DEPLOYED to staging, engine NEEDS BUILD, UNTESTED live)
 
@@ -1022,6 +1079,24 @@ python tools/eotw_publish/publish_eotw.py            # dry run: report only
 python tools/eotw_publish/publish_eotw.py --publish  # ship a new version
 ```
 
+The authoring game runs in local-assets mode, so in practice both of its
+directories must be passed (highest precedence first) or the tool reads a
+frozen store and ships stale content:
+
+```bash
+python tools/eotw_publish/publish_eotw.py --assets-dir "C:/dev/eotw" --assets-dir "C:/dev/dmhub/draw-steel-codex/data" --publish
+```
+
+**`C:\dev\eotw` is the EotW authoring directory** -- the one place the
+week's own content lives (the encounter document, the `Start` keyword, the
+Hero Death global rule), and the top entry of both the authoring game's
+`localassets:dirs` and the global `localassets:eotwdirs` playtest list. It is
+deliberately the SAME directory for both, so a playtest write-back and the
+authoring game edit the same files and the publisher cannot pick up a
+divergent copy. (A `D:\dev\eotw` existed briefly on 2026-08-30 and split the
+content in two -- see the 2026-08-31 status entry; it is retired and nothing
+should reference it.)
+
 It needs neither DMHub nor Unity. Full design in
 [`tools/eotw_publish/README.md`](../../tools/eotw_publish/README.md); the
 points that matter to this feature:
@@ -1064,7 +1139,11 @@ points that matter to this feature:
   never union them, as `content` is a stale mirror that can still hold deleted
   tags. Do **not** additionally require monsters: an island with none is the
   normal half-authored state and the engine still treats it as the map's
-  encounter.
+  encounter. **The `(N monster(s))` in the report counts monster ENTRIES, not
+  spawned tokens** (`island_monster_count`, `documents.py:105`, sums each
+  group's `monsters` map length and ignores the per-entry count), so a
+  3-group/12-token encounter built from 5 distinct monsters reports 5. A drop
+  in that number between weeks means fewer monster *kinds*, not a smaller fight.
 - **Documents resolve against the MERGED table**, the game's rows plus every
   installed module's -- 104 of the 105 info bubbles in the authoring game
   resolve only through `venla-deliantomb`. A module-owned document is seeded but
@@ -1230,7 +1309,7 @@ Consequences worth knowing before using it:
 
 - Map on entry: rather than forcing a map switch, **make "Encounter" the module's only (or lowest-ord) map** so the natural fallback selection (`GameController.cs:4871`) picks it with no extra loading beat. `executeOnArrive` on `lobby:EnterGame(gameid, fn)` (fires after loading completes, `GameController.cs:7170`) and `dmhub.RegisterEventHandler("EnterGame", ...)` are both available if forcing is needed; `map:Travel()` / `game.ChangeMap(map, floor)` do the switch.
 - Start zone: an `EnvironmentalKeyword` named "Start" -- the keyword is defined in the mcdm-encounteroftheweek module -- (compendium: Rules > Environmental Keywords; `EnvironmentalKeyword.lua`), painted as a markup zone (`floor.markupZones` records, `floor:SetMarkupZone`; schema at `MapMarkupPanel.lua:944-998`). Query tiles by scanning `floor.markupZones` for records with `keyword == startKeywordId` (skip `category == "surface"/"hole"`); resolve the id via `EnvironmentalKeyword.keywordsByName["start"]`. Per-square test: `game.GetAurasAtLoc(loc)` + `aura.auraInstance.aura:try_get("environmentalKeywordId")`. GoblinScript: `target.Environment has "Start"` works as a targetFilter.
-- Monster AI: lives in `Monster AI/` as a `dmonly` DockablePanel background process (`MonsterAIPanel.lua`). BUILT (2026-08-28): `MonsterAI.StartAI()` / `MonsterAI.StopAI()` / `MonsterAI.IsAIRunning()` exported from `MonsterAIPanel.lua`, wrapping the same StartProcess/StopProcess calls the panel button makes (the button now routes through them). `DockablePanel.StartProcess` is independent of panel visibility (verified in source), so the AI runs headless on a host whose dmonly panels are hidden. `MonsterAI.active` (default false in `MonsterAI.lua:21`) is the "is it running" read.
+- Monster AI: lives in `Monster AI/` as a `dmonly` DockablePanel background process (`MonsterAIPanel.lua`). BUILT (2026-08-28): `MonsterAI.StartAI()` / `MonsterAI.StopAI()` / `MonsterAI.IsAIRunning()` exported from `MonsterAIPanel.lua`, wrapping the same StartProcess/StopProcess calls the panel button makes (the button now routes through them). `DockablePanel.StartProcess` is independent of panel visibility (verified in source), so the AI runs headless on a host whose dmonly panels are hidden. `MonsterAI.active` is presentation/lifecycle state; `MonsterAI.IsAIRunning()` is the authoritative process-liveness read. As of 2026-08-31, `EnsureAIRunning` uses the latter so EotW restarts a process even if a catastrophic exit left the former stale. Normal turn, actor, move, trigger, and process-iteration failures are contained inside the Monster AI framework before that watchdog is needed.
 
 ### Automated combat entry + no Director (DECIDED + BUILT 2026-08-28; UNTESTED live)
 
@@ -2227,6 +2306,16 @@ Codex titlescreen.
   clients via fresh stamps) for 2 consecutive host ticks
   (`AWARD_HOLD_TICKS`) -- the hold lets the fight visibly settle and lets a
   just-started prompt's stamp replicate.
+- **The banner lingers a beat after the killing blow (ADDED 2026-08-31, user
+  direction: "wait a moment longer before the banner")**: alongside the idle
+  hold, the host stamps `m_outcomeMetTime` the first tick the outcome
+  condition reads met (busy or not) and refuses to award until
+  `OUTCOME_LINGER_SECONDS` (5) have passed since that stamp. The two waits
+  run CONCURRENTLY: a fight whose final prompts take longer than the linger
+  pays no extra delay, while an instantly-settled fight now breathes ~5-7s
+  before the screen takes over (vs ~2-4s before). Reset whenever the
+  condition reads unmet; `math.abs` on the elapsed check so a serverTime
+  rebase releases the wait rather than wedging it. UNTESTED live.
 - **Player Proceed (core hook)**: `DSVictoryScreen.RegisterProceedOverride{
   canProceed, proceed }` in `Draw Steel UI/DSVictoryScreen.lua`. Proceed-button
   visibility becomes `dmhub.isDM OR canProceed()` (pcall-guarded); the click
@@ -2332,6 +2421,18 @@ gets, keeping the character record intact. Defeat detection is unaffected:
 `LiveEncounter:CountLiveCombatants` counts `CurrentHitpoints() > 0`, and a
 dead hero contributes zero whether despawned or not.
 
+**Victory screen shows removed heroes anyway (ADDED 2026-08-31)**: a
+despawned hero drops out of the initiative queue's token resolution, so
+`LiveEncounter:GetBattleHeroTokens` (core, `MCDMEncounter.lua`) now merges
+in onset heroes the queue no longer resolves, via `dmhub.GetCharacterById`
+(finds despawned tokens anywhere in the game) -- mirroring what
+`GetMonsterGroups` already did for despawned monsters via the onset
+snapshot. Everyone who STARTED the encounter (hero or monster) therefore
+gets a stats/role card at the end regardless of survival, and the
+all-heroes-dead defeat no longer loses its battle-log record (it used to
+bail on `#heroTokens == 0`). Stats and role history key off charid, so
+nothing else changes.
+
 **Publisher change** (`tools/eotw_publish/publish_eotw.py`): global rules
 apply by existing, not by being referenced, so the dependency pass could
 never pull one into the payload. After `build_seed`, every `globalRuleMods`
@@ -2344,10 +2445,11 @@ stay excluded via `core_guids`, so only EotW-authored rules ship.
 picked the YAML up without a restart; the row deserializes as a
 `GlobalRuleMod` with both behaviors typed; a hero (Human Censor) carries the
 "Hero Death (Encounter of the Week)" trigger modifier via
-`GetActiveModifiers` while a monster does not. NOT yet exercised: an actual
-hero kill (removal + corpse), and a publish carrying the rule (the seeding
-code compiles and the tree loader finds the row, but `--publish` has not
-run since).
+`GetActiveModifiers` while a monster does not. **Shipped in module version 7
+(2026-08-31)** -- the seeding pass picked it up as
+`global rule ("Hero Death (Encounter of the Week)")` and the published
+payload carries the `globalRuleMods` row. NOT yet exercised: an actual hero
+kill (removal + corpse) in a game running v7.
 
 ### Custom interface: usurping the game hud (DECIDED + BUILT 2026-08-28)
 
@@ -2725,7 +2827,9 @@ Deliverable: full lobby loop up to pressing Begin.
 ## Phase 5 -- The mcdm-encounteroftheweek module
 
 16. [X] The "Start" EnvironmentalKeyword (playerVisible, no mechanical effects) is part of the module. VERIFIED in the published snapshot (2026-08-27): keyword `27f8df28-b662-4f81-826a-bd51be4521bb`, empty modifiers, no `defaultPlayerVisible` override (absent = visible); the painted zone record has `playerVisible: true`.
-17. [~] Build the first Encounter map. PARTIAL (re-inspected 2026-08-27 against v2, dataid `c0805b51-...`): the map named "Encounter" exists and is the module's only map (natural fallback selects it), in folder "Delian Tomb - Part 1", with the Start zone painted (19 tiles on floor `8de328e8`, zone `0ee1e996`). **GAP (still present in v2): the map has NO live encounter.** Its 5 map characters are all `despawned: true` -- 3 Goblin Snipers with 9 damage_taken and leftover combat paths (a played-out fight) plus 2 blank "Monster" strays. **The intended encounter is now known**: the source game's journal doc "Goblin Guards Combat" (docid `04eae049-3fdf-478c-a40f-d2376837e0fa`) specifies the tomb-exterior fight -- six **goblin warriors** at start (groups of two), round-2 reinforcements of two goblin warriors + two **goblin assassins** from the tomb entrance, with hero-count adjustments (6 heroes: +2 warriors; 4 heroes: -2; 3 heroes: -4), staged via `[[encounter]]` island widgets with a Place on Map button. Neither that document nor any encounter asset ships with the module yet. **DECIDED (2026-08-27): the encounter is spawned programmatically at game setup, scaled to hero count (Phase 6 step 20)** -- the map stays token-free by design. Remaining module work for this step (user, in the source game -- the how is now RESEARCHED, see "How journal documents ship" in Module + codemod bundling): tick the "Goblin Guards Combat" doc (docid `04eae049-3fdf-478c-a40f-d2376837e0fa`) under ModShare's Compendium > "documents" section, delete the despawned sniper/stray characters from the map, and republish (v3). No encounter asset is needed -- the `[[encounter]]` annotation with its banked spawn positions rides inside the doc record.
+17. [X] Build the first Encounter map. DONE as of module v7 (2026-08-31): the map named "Encounter" (`8d78cadf-03cc-42f1-8c45-8764021b5fb6`) ships with its Start zone painted, no tokens, and a reachable encounter document -- "Room 1" (`645e4522`, via info bubble `c64e02d1`), whose `encounter` island has 6 groups / 23 monsters with per-hero-count `balancing` entries and banked spawn locations. It is authored as a YAML file in `C:\dev\eotw` rather than as a game-store row, so it ships by being derived, not ticked. The rest of this entry is the 2026-08-27 history that led here.
+
+    ORIGINAL (re-inspected 2026-08-27 against v2, dataid `c0805b51-...`): the map named "Encounter" exists and is the module's only map (natural fallback selects it), in folder "Delian Tomb - Part 1", with the Start zone painted (19 tiles on floor `8de328e8`, zone `0ee1e996`). **GAP (still present in v2): the map has NO live encounter.** Its 5 map characters are all `despawned: true` -- 3 Goblin Snipers with 9 damage_taken and leftover combat paths (a played-out fight) plus 2 blank "Monster" strays. **The intended encounter is now known**: the source game's journal doc "Goblin Guards Combat" (docid `04eae049-3fdf-478c-a40f-d2376837e0fa`) specifies the tomb-exterior fight -- six **goblin warriors** at start (groups of two), round-2 reinforcements of two goblin warriors + two **goblin assassins** from the tomb entrance, with hero-count adjustments (6 heroes: +2 warriors; 4 heroes: -2; 3 heroes: -4), staged via `[[encounter]]` island widgets with a Place on Map button. Neither that document nor any encounter asset ships with the module yet. **DECIDED (2026-08-27): the encounter is spawned programmatically at game setup, scaled to hero count (Phase 6 step 20)** -- the map stays token-free by design. Remaining module work for this step (user, in the source game -- the how is now RESEARCHED, see "How journal documents ship" in Module + codemod bundling): tick the "Goblin Guards Combat" doc (docid `04eae049-3fdf-478c-a40f-d2376837e0fa`) under ModShare's Compendium > "documents" section, delete the despawned sniper/stray characters from the map, and republish (v3). No encounter asset is needed -- the `[[encounter]]` annotation with its banked spawn positions rides inside the doc record.
 18. [X] Author 3+ pregen heroes as module content. VERIFIED against v2: 8 pregens ship with `IsHero()` true and resolvable classes -- Dwarf Fury, High Elf Tactician, Human Censor, Human Null, Human Talent, Orc Conduit, Polder Elementalist, Polder Shadow (only Wode Elf Troubadour of the 9 official pregens is absent).
 19. [X] Publish the module with the Monster AI codemod ticked in ModShare. VERIFIED in v2's snapshot.codemods: both the EotW stub codemod (`cdc19d98-...1428`) and Monster AI (`263594e2-aca1-4ce5-b70e-8d690695d7b4`) are bundled. (v1 lacked Monster AI; `ReconcileStartingModuleCodemods` repairs v1-created games as the version advances.) The install-side `codeModsFromModules` write is engine code proven by the Crowdex precedent; verify once the first game is created from the module.
 
@@ -2970,7 +3074,97 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
 
 # Status
 
-- 2026-08-31 (latest): **Heroes are forced to exactly level 1 as they are placed. BUILT + syntax-checked; UNTESTED live.**
+- 2026-08-31 (latest): **Module version 8 PUBLISHED** -- the first version
+  carrying the re-authored encounter.
+  - dataid `d8b02254-b767-4bbc-9484-400a4df1070c`, streamed 16,029B, snapshot
+    139,379B, blobs `uIqrikBFqDAIX/LFuI1o1w==` (4,504B) and
+    `rPS499QYlOGXHZp/G1/+uw==` (24,732B). Published as
+    `python tools/eotw_publish/publish_eotw.py --assets-dir "C:/dev/eotw" --assets-dir "C:/dev/dmhub/draw-steel-codex/data" --publish --force`.
+  - **What changed vs v7**: only the encounter document. `room-1.yaml` was
+    re-authored after the v7 publish (3 groups / 12 spawn positions / 5 distinct
+    monsters, against v7's 6 groups); everything else -- map `8d78cadf`, the
+    9 pregens, the `Start` keyword `47ea72f9`, the Hero Death global rule, the
+    three codemods (EncounterOfTheWeek, Monster AI, DelianTomb), the
+    `venla-deliantomb` dependency -- is unchanged, which is why the report says
+    "identical content set to the last version": that line compares the guid
+    SET, and the encounter's monsters come from a dependency module rather than
+    from the payload, so re-authoring the fight moves no guids. The streamed
+    size (17,978B -> 16,029B) is the honest signal that content changed.
+  - `--force` was again needed for the same standing warning v6 and v7 shipped
+    under (floor object `62b484a3` -> asset `5939fe95`,
+    `GL_OvergroundDwarvenCityCenter_Original_Day`, which exists only in the
+    authoring game's frozen store; still UNFIXED, still low severity because
+    the placed object embeds its own copy of the asset).
+  - **Verified**: engine-shape and Firebase preflights passed, and
+    `--verify-against d8b02254-...` rebuilds the published payload with every
+    key set and every value matching (`snapshot.*`, `streamed tables`, and all
+    six object tables).
+  - UNTESTED: a game actually installing v8, and the Hero Death rule (shipped
+    since v7) firing on a real hero kill.
+
+- 2026-08-31: **Module version 7 PUBLISHED, and the split EotW authoring directory is consolidated on `C:\dev\eotw`.**
+  - **The authoring content had drifted into two directories.** `D:\dev\eotw`
+    was the authoring game's `localassets:dirs` top entry; `C:\dev\eotw` was the
+    global `localassets:eotwdirs` playtest list. Both ended up holding a
+    `room-1.yaml` (the week's encounter) and they had diverged -- C's 6 groups /
+    23 monsters, with a mount and a `minHeroes = 5` group, against D's 4 groups /
+    17 monsters -- while `start.yaml` lived only in D and `hero-death.yaml` only
+    in C. Publishing from D would have shipped a version content-identical to v6
+    and silently dropped the Hero Death rule. **User direction: C is correct and
+    is the authoring directory; D is retired.**
+  - **Consolidated** (files copied, nothing deleted): `C:\dev\eotw` now holds
+    `objectTables/documents/{_meta,room-1}.yaml`,
+    `objectTables/environmentalkeywords/{_meta,start}.yaml` and
+    `objectTables/globalrulemods/{_meta,hero-death}.yaml`. The authoring game's
+    `localassets:dirs` was repointed to `C:\dev\eotw` + the codex data tree,
+    matching `localassets:eotwdirs` exactly -- one directory for both authoring
+    and playtest, so a playtest write-back can no longer fork the content.
+    `dmhub.LocalAssetsApplyDirs()` returned `reload`: **the running client still
+    has D's overlay in memory until the game is reloaded.** `D:\dev\eotw` is left
+    on disk, unreferenced. All `D:/dev/eotw` references removed from this
+    document and `tools/eotw_publish/README.md`.
+  - **Version 7 published** (dataid `14627d5b-91fa-422d-bd05-f9e5b20b1094`,
+    streamed 17,978B, snapshot 139,379B), as
+    `python tools/eotw_publish/publish_eotw.py --assets-dir "C:/dev/eotw" --assets-dir "C:/dev/dmhub/draw-steel-codex/data" --publish --force`.
+    Content vs v6: +1 guid, the `globalRuleMods` row **Hero Death (Encounter of
+    the Week)** -- the first publish carrying it -- plus the 6-group encounter
+    document (the report's island count went 7 -> 10 monsters once C's copy was
+    the one being read). `--force` was needed for the same standing warning v6
+    shipped under (floor object `62b484a3` -> asset `5939fe95`,
+    `GL_OvergroundDwarvenCityCenter_Original_Day`, which exists only in the
+    authoring game's frozen store; still UNFIXED, still low severity because the
+    placed object embeds its own copy of the asset).
+  - **Verified**: both engine-shape and Firebase preflights passed, and
+    `--verify-against 14627d5b-...` rebuilds the published payload with every key
+    set and every value matching (`snapshot.*`, `streamed tables`, and all six
+    object tables including `globalRuleMods`). The GCS blob could not be
+    re-downloaded for an independent check -- `https://storage.googleapis.com/dmhub_images/{urlified-key}`
+    404s for v6's known-good key as well as v7's, so that URL form is stale
+    (likely the R2 migration); the upload endpoint returned 200 for both blobs.
+  - UNTESTED: a game actually installing v7, and the Hero Death rule firing on a
+    real hero kill.
+
+- 2026-08-31: **Victory/defeat banner lingers ~5s after the killing blow, and every combatant who STARTED the encounter now gets a victory-screen card. BUILT + syntax-checked + reloaded live; kill-path UNTESTED.**
+  - **Linger**: `OUTCOME_LINGER_SECONDS = 5` in
+    `EncounterOfTheWeek/EncounterOfTheWeek.lua` (`CheckEncounterOutcome`) --
+    stamped when the outcome condition is first observed met, checked after
+    the existing 2-tick idle hold; the two waits run concurrently so
+    prompt-heavy endings pay no extra delay. Design folded into
+    "Victory/defeat auto-detection" (the linger bullet).
+  - **Full roster**: `LiveEncounter:GetBattleHeroTokens`
+    (`Draw Steel Core Rules/MCDMEncounter.lua`) merges in onset heroes whose
+    tokens the queue no longer resolves (despawned by the hero-death rule),
+    via `dmhub.GetCharacterById` -- the hero-side mirror of
+    `GetMonsterGroups`' onset merge, which already covered monsters. Also
+    fixes the all-heroes-dead defeat losing its battle-log record. Design in
+    "Dead heroes leave the battlefield"; `LIVE_ENCOUNTER.md` stat-attribution
+    note updated.
+  - Verified live after a Lua reload (51 mods, no errors): the roster
+    function runs, and `GetCharacterById` resolves an unspawned hero with
+    every field the card reads (portrait, `IsDead`, hitpoints). UNTESTED:
+    an actual kill -> despawn -> victory/defeat screen showing the removed
+    hero's card, and the felt timing of the linger.
+- 2026-08-31: **Heroes are forced to exactly level 1 as they are placed. BUILT + syntax-checked; UNTESTED live.**
   - `NormalizeHeroLevel(token)` in
     `EncounterOfTheWeek/EncounterOfTheWeek.lua`, called from
     `ClaimPastedHero` right after its `UploadToken`, on the pasted COPY --
@@ -2991,7 +3185,24 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
     slow-start hero into an EotW game and confirming both land on Level 1.
   - Lua only, already live on disk (the codex git folder is the repo); needs
     a Lua reload in the running app.
-- 2026-08-30: **Opening the EotW screen now plays a brief loading screen instead of freezing on a half-drawn page. BUILT + syntax-checked; UNTESTED (verifying it needs the titlescreen).**
+- 2026-08-31: **The loading veil now waits for the screen's portraits instead of revealing on a timer. BUILT + syntax-checked; UNTESTED (needs a Lua reload at the titlescreen).**
+  - Reported: the veil "shows very briefly and disappears but then there are
+    still hitches as all images are streamed in". Correct -- the veil was
+    purely time-based (~0.8s floor) and the portrait warmer deliberately
+    started 0.75s in, i.e. *after* the reveal, so its texture decodes landed
+    on the visible screen.
+  - Fix, all in `Codex Titlescreen/EncounterOfTheWeek.lua`: the warmer starts
+    immediately (under the veil) and reports mounted/ready per warm panel
+    into `m_warmState`; the veil's new `waitForImages` step polls
+    `PortraitWarmupSettled()` until the art has arrived, with an
+    idle-for-0.5s exit so a never-arriving texture cannot hold it, and a 4s
+    hard deadline. Design and the anti-regression rationale in [Waiting for
+    the art](#waiting-for-the-art-2026-08-31).
+  - Floor rises from ~0.8s to ~1.3s. That is intended: the veil is supposed
+    to be what the player waits on.
+  - Lua only, already live on disk (the codex git folder is the repo); needs
+    a Lua reload in the running app.
+- 2026-08-30: **Opening the EotW screen now plays a brief loading screen instead of freezing on a half-drawn page. BUILT + syntax-checked; the veil is verified live, its image wait is the 2026-08-31 entry above.**
   - `EncounterOfTheWeek.ShowScreen()` mounts a cheap loading veil, builds
     the screen behind it, and cross-fades once the build has settled. Every
     step is scheduled off the END of the previous one, so a slow build
@@ -3000,11 +3211,12 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
     clicks during the settle, escape cancels the open, and
     `SweepStaleScreen` cleans up veils left by a previous codemod
     generation. Full design in [Opening the screen: the loading
-    veil](#opening-the-screen-the-loading-veil-decided--built-2026-08-30-untested).
+    veil](#opening-the-screen-the-loading-veil-decided--built-2026-08-30-waits-for-the-art-since-2026-08-31).
   - Portrait warming amortized in the same file: at most 3 panels per tick
-    instead of all of them at once, and the first pass pushed past the
-    reveal. That single-tick burst of texture decodes was most of the hitch
-    itself, so this shortens the wait as well as covering it.
+    instead of all of them at once. That single-tick burst of texture decodes
+    was most of the hitch itself, so this shortens the wait as well as
+    covering it. (The first pass was also pushed past the reveal here;
+    2026-08-31 moved it back under the veil -- see the entry above.)
   - Lua only, in `Codex Titlescreen/EncounterOfTheWeek.lua` -- no engine
     change, and already deployed (the codex git folder is the repo). The
     verification checklist is at the end of that design section.
@@ -3065,13 +3277,13 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
   - Cause: the publisher copied the local game server's Firebase-shaped JSON verbatim, so `mapManifests/{id}/floors` shipped as `{"0":...,"1":...}` and decoded to null. Full write-up in [The store speaks Firebase, the payload must speak Glowwave](#the-store-speaks-firebase-the-payload-must-speak-glowwave-root-caused--fixed-2026-08-30).
   - Fixed: `gamesource.strip_meta_keys` normalizes on read; `publish_eotw.validate_engine_shapes` aborts a publish carrying either bad shape; `ModuleManager.cs` skips a null `floors` instead of NRE'ing (NEEDS BUILD).
   - **Version 6 published** (`bb5c7389-2cc5-4218-9d5d-7c5ecad742af`, snapshot blob `SjQS+yd+cmsXQvj5jk//oQ==`), content set identical to v5 -- only the JSON shapes differ (139,677B vs 144,965B). Verified by re-downloading the live blob: `floors` is a real array and no array-shaped object survives anywhere. Published with `--force` for the warning below, as:
-    `python tools/eotw_publish/publish_eotw.py --assets-dir "D:/dev/eotw" --assets-dir "C:/dev/dmhub/draw-steel-codex/data" --publish --force`
+    `python tools/eotw_publish/publish_eotw.py --assets-dir "C:/dev/eotw" --assets-dir "C:/dev/dmhub/draw-steel-codex/data" --publish --force`
   - A game that hit the v5 crash does not heal: the install died before writing `modulesImported`, and the loading screen never gives up. **Create a fresh EotW game**; it installs v6 from scratch.
-  - Separate, pre-existing, NOT fixed: floor object `62b484a3` references asset `5939fe95` (`GL_OvergroundDwarvenCityCenter_Original_Day`, the map-art object), which lives only in the authoring game's frozen store -- local-assets mode replaces `assets`, so it cannot ship. Low severity in practice: the placed floor object embeds its own copy of the asset (`objects/{id}/asset`, imageId and all), so the art renders; only the objects-table row is missing. Exporting it to `D:\dev\eotw` would close it properly.
+  - Separate, pre-existing, NOT fixed: floor object `62b484a3` references asset `5939fe95` (`GL_OvergroundDwarvenCityCenter_Original_Day`, the map-art object), which lives only in the authoring game's frozen store -- local-assets mode replaces `assets`, so it cannot ship. Low severity in practice: the placed floor object embeds its own copy of the asset (`objects/{id}/asset`, imageId and all), so the art renders; only the objects-table row is missing. Exporting it to `C:\dev\eotw` would close it properly.
 
 - 2026-08-30 (later still): **EotW content split into its own local-assets directory, and the publisher taught to read it.**
-  - **Local-assets mode is ON for the authoring game.** `dmhub.LocalAssetsStatus()` reports `active: true` with dirs `D:\dev\eotw` (1, top) and `C:\dev\dmhub\draw-steel-codex\data` (2). This is why an earlier pass concluded the week's encounter document "did not exist": the engine replaces `/GameDetails/{gid}/assets` with the YAML trees and intercepts every asset write, so the game store froze and the document is a file on disk, not a row in the store. Nothing was lost.
-  - **Moved to `D:\dev\eotw`** (the only two EotW-authored files in the shared repo, confirmed by an 8-agent sweep over 6627 yaml files): `objectTables/documents/room-1.yaml` (the week's encounter, `645e4522`) and `objectTables/environmentalkeywords/start.yaml` (the Start keyword, `47ea72f9`). Both had been swept into `draw-steel-data` by a bulk export commit, not curated in. Their `_meta.yaml` container files were copied alongside so the table ids resolve (`environmentalkeywords` folder -> `environmentalKeywords` table). The deletions in the `draw-steel-data` submodule are STAGED, NOT COMMITTED -- restore with `git -C draw-steel-codex/data checkout HEAD -- <paths>` if the move needs undoing.
+  - **Local-assets mode is ON for the authoring game.** `dmhub.LocalAssetsStatus()` reports `active: true` with dirs `C:\dev\eotw` (1, top) and `C:\dev\dmhub\draw-steel-codex\data` (2). This is why an earlier pass concluded the week's encounter document "did not exist": the engine replaces `/GameDetails/{gid}/assets` with the YAML trees and intercepts every asset write, so the game store froze and the document is a file on disk, not a row in the store. Nothing was lost.
+  - **Moved to `C:\dev\eotw`** (the only two EotW-authored files in the shared repo, confirmed by an 8-agent sweep over 6627 yaml files): `objectTables/documents/room-1.yaml` (the week's encounter, `645e4522`) and `objectTables/environmentalkeywords/start.yaml` (the Start keyword, `47ea72f9`). Both had been swept into `draw-steel-data` by a bulk export commit, not curated in. Their `_meta.yaml` container files were copied alongside so the table ids resolve (`environmentalkeywords` folder -> `environmentalKeywords` table). The deletions in the `draw-steel-data` submodule are STAGED, NOT COMMITTED -- restore with `git -C draw-steel-codex/data checkout HEAD -- <paths>` if the move needs undoing.
   - **Deliberately NOT moved**: `goblin-guards-combat.yaml` (venla-deliantomb content from April, present in 14 games -- EotW only republished a fork), the encounter's monsters (Great Library bestiary), and the other environmental keywords (this week's map itself paints Concealing/Water/Difficult Terrain/Lava, all shared).
   - **There are TWO "Start" keywords.** `27f8df28` shipped in module v4 and lives only in the frozen game store; `47ea72f9` is the file in the assets tree and is what this week's map actually paints. EotW resolves the keyword by NAME (`EncounterOfTheWeek.lua:191`), so the mode works against whichever the overlay supplies -- but the publisher must not ship the stale one, and now does not.
   - **Publisher gained `--assets-dir`** (repeatable, highest precedence first) plus `tools/eotw_publish/localassets.py` and `coreassets.py`. Three non-obvious requirements, all found the hard way: the overlay REPLACES the store's assets rather than merging (merging resurrects the stale Start keyword); Core + `mcdm-drawsteel` guids must be excluded from the dependency universe the way ModShare's `knownAssetsInCore` does, or the closure goes from ~60 guids to ~700 and the payload from 17 KB to 3.1 MB; and table ids come from `_meta.yaml`, never the (lowercased) folder name. Also: DMHub writes vertical tabs into document text, which PyYAML's loaders reject outright -- libyaml first, tolerant pure-Python loader on failure.
@@ -3637,3 +3849,21 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
     (e) the edge/bane boxes do not respond, (f) the card's close X is offered
     before the cost is paid and gone afterwards, and ESC matches it, and
     (g) a Director sees the unrestricted dialog throughout.
+
+- **2026-08-31: Monster AI failures no longer strand EotW initiative.** A live
+  EotW turn exposed a despawn race: a War Walker selected Knockback against a
+  hero that Grasping Claws had just killed; the delayed hero removal completed
+  during the move's speech, its stale target then reached `TargetPassesFilter`,
+  and the uncaught error killed the background AI process before turn cleanup.
+  The core Monster AI now refreshes combatants each cycle, rejects invalid or
+  dead targets immediately before targeting/casting, and contains failures at
+  move, actor, whole-turn, trigger, and process-iteration boundaries using the
+  yield-aware child-coroutine runner. Failed moves are quarantined per actor so
+  a lower-scoring move can run instead of selecting the same broken move again;
+  failed triggers are best-effort dismissed so their roll can proceed; actor
+  control/prompt state is always restored; an escaped turn error advances only
+  when the failed initiative is still current. EotW's watchdog now checks
+  `MonsterAI.IsAIRunning()` rather than the possibly stale `MonsterAI.active`.
+  Files: `Monster AI/MonsterAI.lua`, `Monster AI/MonsterAIPanel.lua`,
+  `EncounterOfTheWeek/EncounterOfTheWeek.lua`. Lua syntax and ASCII checks pass;
+  runtime fault-injection verification remains to be done.

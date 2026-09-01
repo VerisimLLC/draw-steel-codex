@@ -1299,20 +1299,23 @@ function CharSheet.PortraitSelectionPanel()
             think = function(element)
                 element:FireEvent("imageLoaded")
             end,
---[[
-           imageLoaded = function(element)
+
+            --Size the frame to the displayed image's aspect ratio, long edge at 200.
+            --autosizeimage alone doesn't reliably re-layout when the portrait is
+            --swapped at runtime, leaving the new image stretched into the old box;
+            --the think above re-fires this so the frame corrects within 0.2s.
+            imageLoaded = function(element)
                 if element.bgsprite == nil then
                     return
                 end
 
-                local maxDim = max(element.bgsprite.dimensions.x, element.bgsprite.dimensions.y)
+                local dim = element.bgsprite.dimensions
+                local maxDim = max(dim.x, dim.y)
                 if maxDim > 0 then
-                    local yratio = element.bgsprite.dimensions.x / maxDim
-                    local xratio = element.bgsprite.dimensions.y / maxDim
-                    element.selfStyle.imageRect = { x1 = 0, y1 = 1 - yratio, x2 = xratio, y2 = 1 }
+                    element.selfStyle.width = 200 * dim.x / maxDim
+                    element.selfStyle.height = 200 * dim.y / maxDim
                 end
             end,
-]]
             refreshAppearance = function(element, info)
                 element.SetValue(element, info.token.offTokenPortrait, false)
                 element:FireEvent("imageLoaded")

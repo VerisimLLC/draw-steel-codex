@@ -407,9 +407,30 @@ UploadTimeBasis = function()
 	end
 end
 
-function MoveGameTime(days)
+--- Advance the calendar by `days`, animating at most `visible` of them.
+--- The lighting seeks from g_dateAndTime toward the real time, so a jump of a
+--- week used to sweep through every dawn in between. Moving the value it seeks
+--- FROM up to the last day leaves the calendar untouched and shows one dawn
+--- instead of seven; the seek still converges on the real time as it always did.
+--- @param days number days to advance; negative moves the calendar back
+--- @param visible nil|number days of animation to allow, default 1
+function MoveGameTime(days, visible)
 	currentGameDateAndTime = currentGameDateAndTime + days
 	UploadTimeBasis()
+
+	--Never animate further than the move itself, or the seek would start past
+	--its own target and walk backwards to reach it. Zero days animates nothing,
+	--which is what a no-op move should look like.
+	visible = math.min(visible or 1, math.abs(days))
+
+	--nil means the lighting has not sampled yet, and its first sample snaps to
+	--the real time - already what is wanted here.
+	if g_dateAndTime ~= nil then
+		--Any override belongs to the seek this replaces; leaving it set would
+		--animate the short hop at a speed calculated for the long one.
+		g_seekSpeedOverride = nil
+		g_dateAndTime = currentGameDateAndTime - (days >= 0 and visible or -visible)
+	end
 end
 
 local g_lightingColor = core.Color { r = 1, g = 1, b = 1 }

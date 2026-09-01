@@ -528,7 +528,10 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			--not clamp it to the creature's remaining strict:movement budget. Without it, a
 			--caster that already used its movement this turn has a negative budget and the
 			--engine rejects the move outright (report 7BE97X9P).
-			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true })
+			--forced tells the engine the creature is being pushed, pulled or slid. The engine
+			--already spots a straight-line shove on its own; this covers a forced move aimed
+			--around a corner, which walks its path like any other move.
+			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true, forced = (options.symbols.forcedmovement ~= nil or ability:try_get("forcedMovement") ~= nil) })
 
             --A nil path means the engine refused the move outright (no route, or a budget/legality
             --clamp). There is nothing to fall back on here, but the cast used to continue in total

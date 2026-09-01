@@ -7332,6 +7332,35 @@ function creature:ApplyTemporaryEffect(effect)
     return result
 end
 
+--Removes EVERY copy of a temporary effect, unlike the single-slot cancel that
+--ApplyTemporaryEffect hands back. Use this when the owner of an effect wants it
+--gone regardless of how many times it was applied -- an ability whose cast ran
+--more than once can leave a copy behind whose cancel nobody holds any more, and
+--_tmp_ state is invisible to the character sheet, so a stray copy is otherwise
+--unreachable for the rest of the session.
+--- @param effect any the effect object that was passed to ApplyTemporaryEffect
+--- @return number how many copies were removed
+function creature:PurgeTemporaryEffect(effect)
+    local list = self:try_get("_tmp_temporaryEffects")
+    if list == nil then
+        return 0
+    end
+
+    local removed = 0
+    for i = #list, 1, -1 do
+        if list[i] == effect then
+            table.remove(list, i)
+            removed = removed + 1
+        end
+    end
+
+    if removed > 0 then
+        self:Invalidate()
+    end
+
+    return removed
+end
+
 function creature:ApplyMomentaryEffect(effect)
 	local momentaryEffects = self:get_or_add("_tmp_momentaryEffects", {})
 	momentaryEffects[#momentaryEffects+1] = effect

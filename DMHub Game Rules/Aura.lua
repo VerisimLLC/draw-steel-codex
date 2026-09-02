@@ -2024,6 +2024,17 @@ end
 --- @param targets table
 --- @param options table
 function ActivatedAbilityAuraBehavior:Cast(ability, casterToken, targets, options)
+    --The aura payload is only created when the author opens "Edit Aura" in the
+    --behavior editor, so content that sets only the duration ships with no aura
+    --field at all. Reading it would raise ("Attempt to read unknown field aura
+    --in type ActivatedAbilityBehavior") and kill the cast coroutine, taking
+    --every later behavior of the ability down with it. There is nothing to
+    --place, so log it for the author and let the rest of the cast resolve.
+    if not self:has_key("aura") then
+        print(string.format("AURA:: '%s' has a Create Aura behavior with no aura configured; skipping it.", tostring(ability.name)))
+        return
+    end
+
     --Purge before placing anything. This lives here rather than in CastOnArea
     --because one cast can cover several areas (targetAreaList), and purging
     --per-area would make a multi-area cast delete its own earlier areas.
@@ -2146,9 +2157,12 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
             end
         end
 
+        --"none" is the Aura default meaning "no object" (see Aura.objectid);
+        --passing it through to SpawnObjectLocal just logs a spawn failure.
         local obj = nil
-        if self.aura.objectid ~= nil then
-            obj = targetFloor:SpawnObjectLocal(self.aura.objectid)
+        local auraObjectId = self.aura:try_get("objectid", "none")
+        if auraObjectId ~= nil and auraObjectId ~= "none" then
+            obj = targetFloor:SpawnObjectLocal(auraObjectId)
             if obj ~= nil then
                 auraInstance.object = {
                     floorid = obj.floorid,

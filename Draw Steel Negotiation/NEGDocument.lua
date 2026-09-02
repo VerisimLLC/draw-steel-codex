@@ -137,16 +137,19 @@ function NEGDocument:DisplayPanel(args)
     }
 end
 
-CustomDocument.Register{
-    id = "dsnegotiation",
-    text = "New Negotiation",
-    docType = "negotiation",
-    icon = "phosphor/handshake.png",
-    create = function()
-        return NEGDocument.new{
-            description = "New Negotiation",
-            content = "",
-            annotations = {},
-        }
-    end,
-}
+--Off with the menu entry; the module move decides whether the journal gets one.
+if false then
+    CustomDocument.Register{
+        id = "dsnegotiation",
+        text = "New Negotiation",
+        docType = "negotiation",
+        icon = "phosphor/handshake.png",
+        create = function()
+            return NEGDocument.new{
+                description = "New Negotiation",
+                content = "",
+                annotations = {},
+            }
+        end,
+    }
+end

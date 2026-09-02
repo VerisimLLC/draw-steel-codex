@@ -13,13 +13,15 @@ end
 
 local CreateNegotiationDialog
 
---The negotiation feature flag. The flag itself has to stay: NegotiationRules.lua
---still reads it to decide whether to register the journal's "New Negotiation"
---document type.
+--The negotiation feature flag. It lives HERE, not in NegotiationRules.lua,
+--because main.lua loads this file first and the flag has to exist before either
+--registration reads it.
 --
---Both menu surfaces it used to gate are now switched off unconditionally. The
---Game menu's Negotiation entry belongs to Draw Steel Negotiation/NEGDialog.lua,
---and two entries called "Negotiation" is worse than either alone.
+--It is a SWITCH, not a toggle: ON registers the new doc-driven stage + rail
+--runner (NegotiationRules.lua) and this old dialog stays out of the menu; OFF
+--registers only this one. Never both - two menu entries called "Negotiation"
+--is worse than either alone. Defaults OFF: the old dialog is what ships until
+--the new panel is turned on deliberately.
 NegotiationPanelSetting = setting{
 	id = "negotiationPanel",
 	description = "Negotiation panel (new)",
@@ -30,8 +32,7 @@ NegotiationPanelSetting = setting{
 	editor = "check",
 }
 
---Replaced by Draw Steel Negotiation/NEGDialog.lua.
-if false then
+if not NegotiationPanelSetting:Get() then
 	LaunchablePanel.Register {
 		name = "Negotiation",
 		menu = "game",

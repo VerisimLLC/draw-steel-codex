@@ -40,6 +40,106 @@ function creature:SetCompanionName(companionType, name)
     self:get_or_add("companionNames", {})[companionType] = name
 end
 
+--- The token fields that make up a companion's saved look. Read by both the
+--- capture pass in RefreshToken and the reapply on spawn, so a field added
+--- here starts persisting on both sides at once.
+local COMPANION_APPEARANCE_FIELDS = {
+    "portrait",
+    "portraitFrame",
+    "portraitFrameHueShift",
+    "portraitFrameSaturation",
+    "portraitFrameBrightness",
+    "portraitBackground",
+    "portraitRibbon",
+    "portraitOffset",
+    "portraitZoom",
+    "offTokenPortrait",
+    "popoutScale",
+    "tokenScale",
+    "hideShadow",
+}
+
+--- The look fields as they currently stand on a live companion token.
+--- @param token CharacterToken
+--- @return table look
+local function ReadCompanionLook(token)
+    local look = {}
+    for _, field in ipairs(COMPANION_APPEARANCE_FIELDS) do
+        look[field] = token[field]
+    end
+    return look
+end
+
+--- A comparable string for a look, so the per-update compare never rests on
+--- table identity or on an engine value type implementing equality.
+--- @param look table|nil
+--- @return string
+local function CompanionLookSignature(look)
+    if look == nil then
+        return ""
+    end
+
+    local parts = {}
+    for _, field in ipairs(COMPANION_APPEARANCE_FIELDS) do
+        parts[#parts + 1] = tostring(look[field])
+    end
+    return table.concat(parts, "|")
+end
+
+--- Return the beastheart's sticky appearance override for a given companion
+--- type, or nil if none is set. Keyed by bestiary GUID alongside the name, so
+--- switching companion species swaps the look without losing the other one's.
+--- @param companionType string bestiary id of an AnimalCompanion
+--- @return table|nil
+function creature:GetCompanionAppearance(companionType)
+    if companionType == nil or companionType == "" then
+        return nil
+    end
+    local stored = self:try_get("companionAppearances", {})[companionType]
+    if stored == nil or next(stored) == nil then
+        return nil
+    end
+    return stored
+end
+
+--- Write the beastheart's sticky appearance override for a given companion
+--- type. An empty/nil look clears the override (next spawn keeps whatever the
+--- bestiary stat block looks like). Caller is responsible for wrapping this in
+--- ModifyProperties when invoked on a live token.
+--- @param companionType string bestiary id of an AnimalCompanion
+--- @param look table|nil
+function creature:SetCompanionAppearance(companionType, look)
+    if companionType == nil or companionType == "" then
+        return
+    end
+    if look ~= nil and next(look) == nil then
+        look = nil
+    end
+    self:get_or_add("companionAppearances", {})[companionType] = look
+end
+
+--- Reapply the beastheart's saved look onto a freshly spawned companion token.
+--- Does not upload: the caller's UploadToken carries the appearance, which
+--- ModifyProperties would not.
+--- @param companionType string bestiary id of an AnimalCompanion
+--- @param token CharacterToken the spawned companion
+function creature:ApplyCompanionAppearance(companionType, token)
+    if token == nil then
+        return
+    end
+
+    local look = self:GetCompanionAppearance(companionType)
+    if look == nil then
+        return
+    end
+
+    for _, field in ipairs(COMPANION_APPEARANCE_FIELDS) do
+        if look[field] ~= nil then
+            token[field] = look[field]
+        end
+    end
+end
+
 function creature:GetCompanionToken()
     local companionid = self.companionid
     if not companionid then
@@ -599,6 +699,34 @@ function AnimalCompanion:RefreshToken(token)
                     end)
                 end
                 self._tmp_lastSyncedName = currentName
+            end
+
+            --The appearance tab's fields get the same sticky treatment: an
+            --in-session restyle is written back to the beastheart so the next
+            --Call restores it. Compared by signature because a look holds
+            --engine value types that need not compare equal by identity.
+            if bestiaryId ~= nil then
+                local currentLook = ReadCompanionLook(token)
+                local currentSignature = CompanionLookSignature(currentLook)
+                if self:try_get("_tmp_lastSyncedLook") ~= currentSignature then
+                    local storedLook = summonerToken.properties:GetCompanionAppearance(bestiaryId)
+                    if CompanionLookSignature(storedLook) ~= currentSignature then
+                        local capturedSummoner = summonerToken
+                        local capturedBestiaryId = bestiaryId
+                        local capturedLook = currentLook
+                        dmhub.Schedule(0, function()
+                            if mod.unloaded then return end
+                            if not capturedSummoner.valid then return end
+                            capturedSummoner:ModifyProperties{
+                                description = "Sync companion appearance",
+                                execute = function()
+                                    capturedSummoner.properties:SetCompanionAppearance(capturedBestiaryId, capturedLook)
+                                end,
+                            }
+                        end)
+                    end
+                    self._tmp_lastSyncedLook = currentSignature
+                end
             end
         end
     else

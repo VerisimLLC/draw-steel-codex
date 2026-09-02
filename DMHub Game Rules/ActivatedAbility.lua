@@ -3170,6 +3170,36 @@ function ActivatedAbility:GetMovementType(token, symbols)
     return nil
 end
 
+--- The display name of what this behavior PLACES in the ability's targeted
+--- square -- a summoned creature, a conjured object -- or nil when the behavior
+--- places nothing. Square-targeted abilities preview as a movement by default
+--- ("Movement: 3 squares"), which is wrong for an ability that moves nobody, so
+--- behaviors that put something new on the map name it here and the targeting
+--- prompt and hovered-square label speak about placement instead.
+--- @param casterToken CharacterToken
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbilityBehavior:BehaviorPlacementName(casterToken, symbols)
+    return nil
+end
+
+--- The name of the creature/object this ability places in its targeted square,
+--- or nil if it places nothing (or places something whose identity is not known
+--- until the caster picks during the cast).
+--- @param casterToken CharacterToken
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbility:GetPlacementName(casterToken, symbols)
+    for _,behavior in ipairs(self:try_get("behaviors", {})) do
+        local name = behavior:BehaviorPlacementName(casterToken, symbols)
+        if name ~= nil then
+            return name
+        end
+    end
+
+    return nil
+end
+
 --- Per-tier targeting rings drawn while this behavior's ability is being
 --- targeted, or nil for ordinary single-ring targeting. Each entry:
 --- {tier: integer, tiles: integer, height: integer, radius: number,

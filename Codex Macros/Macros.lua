@@ -246,7 +246,30 @@ Commands.RegisterMacro{
 --  "endnextround"     -- ends when the next round ends
 --  "until_rest"       -- ends on a respite or a long rest
 --  "until_long_rest"  -- ends on a long rest only
-local g_heroEffectDuration = "save_ends"
+local g_heroEffectDuration = nil
+
+--Duration keywords /heroeffect accepts as an argument, mapped to the values
+--above. "indefinite" is the odd one out: it means nil, so it needs a name here
+--rather than being passed straight through like the rest.
+local g_heroEffectDurationKeywords = {
+    indefinite = true,
+    eoe = true,
+    eoe_or_dying = true,
+    save_ends = true,
+    end_of_next_turn = true,
+    endround = true,
+    endnextround = true,
+    until_rest = true,
+    until_long_rest = true,
+}
+
+--Turn a duration keyword into the value ApplyOngoingEffect wants.
+local function durationFromKeyword(keyword)
+    if keyword == "indefinite" then
+        return nil
+    end
+    return keyword
+end
 
 --Look up an ongoing effect by its display name (case-insensitive). Returns the
 --effect's table id, or nil if nothing matches.
@@ -262,7 +285,7 @@ end
 Commands.RegisterMacro{
     name = "heroeffect",
     summary = "apply an ongoing effect to every hero",
-    doc = "Usage: /heroeffect <effect name> [map|party]\nApplies the given ongoing effect to every hero. Defaults to 'party': all heroes in the player party, whether or not they are on the current map. Pass 'map' to limit it to heroes on the current map.",
+    doc = "Usage: /heroeffect <effect name> [map|party] [duration]\nApplies the given ongoing effect to every hero. Scope defaults to 'party': all heroes in the player party, whether or not they are on the current map; pass 'map' to limit it to heroes on the current map. Duration defaults to 'indefinite'; the others are eoe, eoe_or_dying, save_ends, end_of_next_turn, endround, endnextround, until_rest and until_long_rest. Scope and duration may be given in either order.",
     completions = function(args, argIndex)
         if argIndex == 1 then
             return ongoingEffectCompletions(args, argIndex)
@@ -270,6 +293,15 @@ Commands.RegisterMacro{
         return {
             {text = "party", summary = "every hero in the player party (default)"},
             {text = "map", summary = "only heroes on the current map"},
+            {text = "indefinite", summary = "never expires on its own (default)"},
+            {text = "eoe", summary = "ends when the encounter ends"},
+            {text = "eoe_or_dying", summary = "ends at end of encounter, or when the target starts dying"},
+            {text = "save_ends", summary = "target rolls to shake it off at the end of each of its turns"},
+            {text = "end_of_next_turn", summary = "ends at the end of the target's next turn"},
+            {text = "endround", summary = "ends when the current round ends"},
+            {text = "endnextround", summary = "ends when the next round ends"},
+            {text = "until_rest", summary = "ends on a respite or a long rest"},
+            {text = "until_long_rest", summary = "ends on a long rest only"},
         }
     end,
     command = function(str)
@@ -280,24 +312,42 @@ Commands.RegisterMacro{
 
         local text = trim(str or "")
         local scope = "party"
+        local duration = g_heroEffectDuration
+        local durationLabel = "indefinite"
 
         --Match the whole argument as an effect name first, so an effect that
-        --genuinely ends in "map" or "party" still resolves. Only when that fails
-        --do we treat a trailing keyword as the scope.
+        --genuinely ends in a keyword still resolves. Only when that fails do we
+        --peel recognised trailing keywords off the end, one at a time, so scope
+        --and duration can be given in either order. An unrecognised trailing
+        --word stops the peeling and is reported as part of the bad name.
         local effectid = findOngoingEffectByName(string.lower(text))
-        if effectid == nil then
-            local head, tail = string.match(text, "^(.-)%s+(%S+)$")
-            if head ~= nil then
-                local keyword = string.lower(tail)
-                if keyword == "map" or keyword == "party" then
-                    scope = keyword
-                    effectid = findOngoingEffectByName(string.lower(trim(head)))
-                end
+        local remainder = text
+        local haveScope = false
+        local haveDuration = false
+        while effectid == nil do
+            local head, tail = string.match(remainder, "^(.-)%s+(%S+)$")
+            if head == nil then
+                break
             end
+
+            local keyword = string.lower(tail)
+            if (keyword == "map" or keyword == "party") and not haveScope then
+                scope = keyword
+                haveScope = true
+            elseif g_heroEffectDurationKeywords[keyword] and not haveDuration then
+                duration = durationFromKeyword(keyword)
+                durationLabel = keyword
+                haveDuration = true
+            else
+                break
+            end
+
+            remainder = trim(head)
+            effectid = findOngoingEffectByName(string.lower(remainder))
         end
 
         if effectid == nil then
-            dmhub.Log(string.format("/heroeffect: no ongoing effect named '%s'. Usage: /heroeffect <effect name> [map|party]", text))
+            dmhub.Log(string.format("/heroeffect: no ongoing effect named '%s'. Usage: /heroeffect <effect name> [map|party] [duration]", text))
             return
         end
 
@@ -326,14 +376,14 @@ Commands.RegisterMacro{
                 description = "Apply Ongoing Effect",
                 combine = true,
                 execute = function()
-                    token.properties:ApplyOngoingEffect(effectid, g_heroEffectDuration)
+                    token.properties:ApplyOngoingEffect(effectid, duration)
                 end,
             }
         end
 
         local effectName = dmhub.GetTable("characterOngoingEffects")[effectid].name
-        dmhub.Log(string.format("/heroeffect: applied %s to %d hero%s (%s).",
-            effectName, #targets, cond(#targets == 1, "", "es"), scope))
+        dmhub.Log(string.format("/heroeffect: applied %s to %d hero%s (%s, %s).",
+            effectName, #targets, cond(#targets == 1, "", "es"), scope, durationLabel))
     end,
 }
 

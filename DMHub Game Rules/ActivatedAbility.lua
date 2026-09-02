@@ -6123,6 +6123,11 @@ local g_helpCasting = {
 		type = "creature",
 		desc = "The creature that caused this ability to be invoked. Only valid for abilities invoked from another ability.",
 	},
+	parenttarget = {
+		name = "Parent Target",
+		type = "creature",
+		desc = "The target from the parent ability paired with this invocation. Only valid for abilities invoked from another ability.",
+	},
 }
 
 local g_helpSymbols = {

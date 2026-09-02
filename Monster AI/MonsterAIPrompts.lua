@@ -541,18 +541,24 @@ MonsterAI:RegisterPrompt{
     prompts = {"Decrepit Skeleton:Invoked Ability"},
 
     handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        --For Bone Bow's per-minion invoke, casterToken is the squad member making
+        --this follow-up choice; invokerToken is the parent effect's source.
+        local actingToken = casterToken
         local range = abilityClone:GetRange(casterToken.properties)
 
         local forbiddenTokens = {}
         for _,p in ipairs(symbols.targetPairs or {}) do
-            if p.a == invokerToken.charid then
+            if p.a == actingToken.charid then
                 forbiddenTokens[p.b] = true
             end
         end
 
         local possibleTokens = {}
         for _,tok in ipairs(dmhub.allTokens) do
-            if (not forbiddenTokens[tok.charid]) and (not tok:IsFriend(invokerToken)) and invokerToken:Distance(tok) <= range then
+            if (not forbiddenTokens[tok.charid])
+                and (not tok:IsFriend(actingToken))
+                and actingToken:Distance(tok) <= range
+                and abilityClone:TargetPassesFilter(actingToken, tok, symbols or {}) then
                 possibleTokens[#possibleTokens+1] = tok
             end
         end

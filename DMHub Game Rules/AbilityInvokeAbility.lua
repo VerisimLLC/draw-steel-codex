@@ -171,6 +171,20 @@ local function GetParentCurrentTargetTokenId(options, currentToken)
     return GetParentPrimaryTargetTokenId(options)
 end
 
+local function GetParentCurrentTargetToken(options, currentToken)
+    local tokenId = GetParentCurrentTargetTokenId(options, currentToken)
+    if tokenId == nil then
+        return nil
+    end
+
+    local token = dmhub.GetTokenById(tokenId)
+    if token == nil or not token.valid or token.properties == nil then
+        return nil
+    end
+
+    return token
+end
+
 --Pulls every ActivatedAbility granted by a feature's "activated" modifiers into result,
 --stamping each clone with the class metadata that the chooseClassAbility filter reads.
 --- @param feature CharacterFeature
@@ -459,6 +473,11 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     rangeOriginTokenId = GetParentCurrentTargetTokenId(options, target.token)
                 end
 
+                --ParentTarget follows this invocation's squad pairing without changing
+                --where the child measures its range. Non-squad invokes use the parent's
+                --primary target through GetParentCurrentTargetToken's fallback.
+                local parentTargetToken = GetParentCurrentTargetToken(options, target.token)
+
                 --In a squad coordinated strike, the invoked effect (e.g. a forced-
                 --movement push/pull, or an inflicted condition) should be SOURCED
                 --from the main minion for THIS creature -- the first minion to
@@ -473,6 +492,9 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                 --be careful not to put anything in here we don't want to transmit to the database.
                 local symbols = { spellname = options.symbols.spellname or ability.name, charges = options.symbols.charges, cast = options.symbols.cast, forcedMovementOrigin = options.symbols.forcedMovementOrigin, forcedMovementOriginTokenId = options.symbols.forcedMovementOriginTokenId }
+                if parentTargetToken ~= nil then
+                    symbols.parenttarget = GenerateSymbols(parentTargetToken.properties)
+                end
 
                 --Opt-in only: 'attacker' (and other trigger-only symbols) do not
                 --normally cross the invoke boundary, since most invokes have no
@@ -504,6 +526,9 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     local cast = SerializeEventValue(options.symbols.cast)
                     cast.ability = nil
                     symbols.cast = cast
+                    if parentTargetToken ~= nil then
+                        symbols.parenttarget = SerializeEventValue(parentTargetToken.properties)
+                    end
 
                     local subjectid
                     if options.symbols.subject ~= nil then
@@ -620,13 +645,14 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             local allParameters = {}
                             AbilityUtils.ExtractAbilityParameters(abilityClone, allParameters)
 
-                            local symbols = table.union(options.symbols, {
+                            local parameterSymbols = table.union(options.symbols, {
                                 target = GenerateSymbols(target.token.properties),
                                 invoker = GenerateSymbols(casterToken.properties),
+                                parenttarget = symbols.parenttarget,
                             })
                             for k,v in pairs(self:try_get("standardAbilityParams", {})) do
                                 allParameters[k] = nil
-                                local str = AbilityUtils.SubstituteAbilityParameters(v, casterToken.properties:LookupSymbol(symbols))
+                                local str = AbilityUtils.SubstituteAbilityParameters(v, casterToken.properties:LookupSymbol(parameterSymbols))
                                 AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", str)
                             end
                             for k,_ in pairs(allParameters) do
@@ -1012,6 +1038,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                             local filterSymbols = {
                                 target = GenerateSymbols(target.token.properties),
                                 caster = GenerateSymbols(casterToken.properties),
+                                parenttarget = symbols.parenttarget,
                             }
                             passesFilter = GoblinScriptTrue(ExecuteGoblinScript(subsetFilter, invokerToken.properties:LookupSymbol(filterSymbols), 0, "Invoke Subset Filter"))
                         end
@@ -1046,13 +1073,14 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             elseif targeting == "formula" then
                 targets = {}
                 local allTokens = dmhub.allTokens
-                local symbols = table.shallow_copy(options.symbols)
-                symbols.invoker = invokerToken.properties
-                symbols.caster = casterToken.properties
+                local formulaSymbols = table.shallow_copy(options.symbols)
+                formulaSymbols.invoker = invokerToken.properties
+                formulaSymbols.caster = casterToken.properties
+                formulaSymbols.parenttarget = symbols.parenttarget
 
                 for _,token in ipairs(allTokens) do
-                    symbols.target = token.properties
-                    if GoblinScriptTrue(ExecuteGoblinScript(options.targetingFormula, invokerToken.properties:LookupSymbol(symbols), 0)) then
+                    formulaSymbols.target = token.properties
+                    if GoblinScriptTrue(ExecuteGoblinScript(options.targetingFormula, invokerToken.properties:LookupSymbol(formulaSymbols), 0)) then
                         targets[#targets+1] = { token = token }
                     end
                 end
@@ -1534,7 +1562,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
                 self.targetingFormula = element.value
             end,
             documentation = {
-                help = "For 'Creatures Matching Formula' targeting, selects which creatures are targeted. For 'Prompt Player (Inherit)' targeting, an optional filter narrowing the inherited target subset -- leave blank for no filter. Sees Target and Caster; e.g. Target.PassesPotency(\"M\", Caster.Average).",
+                help = "For 'Creatures Matching Formula' targeting, selects which creatures are targeted. For 'Prompt Player (Inherit)' targeting, an optional filter narrowing the inherited target subset -- leave blank for no filter. Sees Target, Caster, and Parent Target; e.g. Target != ParentTarget.",
                 output = "boolean",
                 subject = creature.helpSymbols,
 				subjectDescription = "The creature invoking the ability",
@@ -1543,6 +1571,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
                     target = {name = "Target", type = "creature", desc = "The candidate target of the ability"},
                     caster = {name = "Caster", type = "creature", desc = "The creature casting the invoked ability."},
                     invoker = {name = "Invoker", type = "creature", desc = "The creature invoking the ability. The same as Self."},
+                    parenttarget = {name = "Parent Target", type = "creature", desc = "The target from the parent ability paired with this invocation."},
                 }
             }
         },
@@ -1610,6 +1639,12 @@ function AbilityInvocation:Invoke()
 	if invokerToken == nil or casterToken == nil then
 		return false
 	end
+
+    --Remote invokes deserialize creature refs as properties tables. Wrap ParentTarget
+    --the same way as the local path before substitutions or targeting formulas use it.
+    if self.symbols.parenttarget ~= nil and type(self.symbols.parenttarget) ~= "function" then
+        self.symbols.parenttarget = GenerateSymbols(self.symbols.parenttarget)
+    end
 
     if self:has_key("subjectid") then
         local subjectToken = dmhub.GetTokenById(self.subjectid)

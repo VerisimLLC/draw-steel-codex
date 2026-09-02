@@ -237,6 +237,129 @@ local function SaveFileSurfacingErrors(args)
     end
 end
 
+--The blank sheet is downloaded the first time someone exports one. Exporting used to
+--look like it had done nothing until you clicked a second time, so wait for the
+--download instead of giving up on it.
+
+--How long to keep waiting before telling the user to check their connection.
+local g_fillTimeoutSeconds = 600
+
+--True when the sheet simply has not finished downloading. Any other error is real
+--and gets shown to the user.
+local function IsStillDownloading(err)
+    if err == nil then
+        return false
+    end
+    err = string.lower(tostring(err))
+    return string.find(err, "still downloading", 1, true) ~= nil
+        or string.find(err, "could not fill the pdf form", 1, true) ~= nil
+end
+
+--Shows a "downloading" dialog, but only once the export is slow enough to need one.
+--An already-downloaded sheet is done in about a second and should not flash a dialog
+--on screen. Close() is safe to call twice; cancelled tells a late reply to stop.
+local function ShowFillProgress(delaySeconds)
+    local handle = { cancelled = false, closed = false, panel = nil }
+
+    handle.Close = function()
+        if handle.closed then
+            return
+        end
+        handle.closed = true
+        if handle.panel ~= nil and handle.panel.valid then
+            handle.panel:FireEvent("close")
+        end
+        handle.panel = nil
+    end
+
+    dmhub.Schedule(delaySeconds, function()
+        --finished or cancelled while we waited, so no dialog is needed.
+        if handle.closed or handle.cancelled then
+            return
+        end
+
+        handle.panel = gamehud:ModalDialog{
+            title = "Preparing Character Sheet",
+            width = 500,
+            height = 220,
+            flow = "vertical",
+            buttons = {
+                {
+                    text = "Cancel",
+                    escapeActivates = true,
+                    click = function()
+                        handle.cancelled = true
+                        handle.closed = true
+                        handle.panel = nil
+                    end,
+                },
+            },
+            children = {
+                gui.Label{
+                    width = "100%",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    textAlignment = "center",
+                    text = "Downloading the blank character sheet...\n\nThis only happens the first time you export one.",
+                },
+            },
+        }
+    end)
+
+    return handle
+end
+
+--Fills the sheet with the hero's data and passes the finished file to onready,
+--waiting for the download first if it has not arrived yet.
+local function FillWithDownloadWait(doc, fields, onready)
+    local progress = ShowFillProgress(1.5)
+    local deadline = dmhub.Time() + g_fillTimeoutSeconds
+
+    local Attempt
+    Attempt = function()
+        if progress.cancelled then
+            return
+        end
+
+        doc:FillForm{
+            fields = fields,
+            callback = function(bytes, err)
+                if progress.cancelled then
+                    return
+                end
+
+                if bytes ~= nil then
+                    progress.Close()
+                    onready(bytes)
+                    return
+                end
+
+                --not downloaded yet, so wait a moment and ask again.
+                if IsStillDownloading(err) and dmhub.Time() < deadline then
+                    dmhub.Schedule(1, Attempt)
+                    return
+                end
+
+                progress.Close()
+                if IsStillDownloading(err) then
+                    gui.ModalMessage{
+                        title = "Export Failed",
+                        message = "The character sheet PDF is taking too long to download. Check your connection and try again.",
+                    }
+                else
+                    gui.ModalMessage{
+                        title = "Export Failed",
+                        message = err or "Could not fill the PDF character sheet.",
+                    }
+                end
+            end,
+        }
+    end
+
+    Attempt()
+end
+
 --The complete export flow: resolve the template's PDF asset, extract the hero's
 --fields, fill the form, and offer a save dialog for the result.
 function CharSheetPDFExport.Export(token, templateId)
@@ -263,24 +386,17 @@ function CharSheetPDFExport.Export(token, templateId)
     end
 
     local fields = CharSheetPDFExport.BuildFields(template, token)
+    local filename = string.format("%s - Character Sheet.pdf", SanitizeFilename(token.name))
 
-    docAsset.doc:FillForm{
-        fields = fields,
-        callback = function(bytes, err)
-            if bytes == nil then
-                gui.ModalMessage{ title = "Export Failed", message = err or "Could not fill the PDF character sheet." }
-                return
-            end
-
-            SaveFileSurfacingErrors{
-                data = bytes,
-                filename = string.format("%s - Character Sheet.pdf", SanitizeFilename(token.name)),
-                extensions = {"pdf"},
-                title = "Export Character Sheet",
-                message = "Choose where to save the character sheet",
-            }
-        end,
-    }
+    FillWithDownloadWait(docAsset.doc, fields, function(bytes)
+        SaveFileSurfacingErrors{
+            data = bytes,
+            filename = filename,
+            extensions = {"pdf"},
+            title = "Export Character Sheet",
+            message = "Choose where to save the character sheet",
+        }
+    end)
 end
 
 --Dev helper: dumps every form field in a template's PDF to the console. Useful when

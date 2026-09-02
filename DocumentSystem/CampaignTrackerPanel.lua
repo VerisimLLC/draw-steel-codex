@@ -1417,7 +1417,7 @@ local function CreateAddPopup(element)
             bodyPanel:SetClass("collapsed", not arrow:HasClass("expanded"))
         end
         arrow = gui.ExpandoArrow {
-            press = Toggle,
+            interactable = false,
         }
 
         local headerRow = gui.Panel {

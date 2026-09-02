@@ -65,6 +65,26 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
     local finished = false
     local canceled = false
 
+    --Persistent recasts whose every target is already dead or gone have nothing
+    --left to maintain; end them now, before the persistence cost is settled, so
+    --the caster is not charged essence for them. Multi-target entries survive
+    --while any target still lives (see creature:PersistentAbilityTargetsAllDead).
+    local autoEnded = casterToken.properties:AutoEndPersistentAbilitiesWithDeadTargets()
+    if #autoEnded > 0 then
+        casterToken:ModifyProperties{
+            description = "Persistent Ability Ended",
+            undoable = false,
+            execute = function()
+                casterToken.properties:FloatLabel(string.format(tr("%s ended: target dead"), table.concat(autoEnded, ", ")), "#C49A5A")
+            end,
+        }
+    end
+
+    --Nothing left to decide: behave as if the trigger had never fired.
+    if #(casterToken.properties:try_get("persistentAbilities") or {}) == 0 then
+        return
+    end
+
     local caster = casterToken:GetCreature()
     local casterClasses = caster:GetClassesAndSubClasses()
     local startOfTurnHeroicResource = 0

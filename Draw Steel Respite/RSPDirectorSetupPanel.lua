@@ -10,7 +10,7 @@ Set the terms of the Respite.
 
 **Days Elapsed** is how much time passes. Changing it sets **Downtime Activities** to match; change that separately if the two should differ.
 
-**Downtime Activities** is the number of downtime activities each participant and their followers will be granted. Each Downtime Activity enables a single project roll or fishing trip.
+**Downtime Activities** is the number of downtime activities granted - one count for heroes, one for their followers. Each Downtime Activity enables a single project roll or fishing trip.
 
 Leave **Non-participants** ticked to let characters who sit the Respite out still run downtime activities.
 
@@ -155,11 +155,31 @@ local function BuildWorkingArea()
             max = RSPConstants.daysMax,
         }),
 
-        RSPWidgets.FormRow("# Downtime Activities", RSPWidgets.Stepper{
-            get = RSPSession.ActivityCount,
-            set = RSPSession.SetActivityCount,
-            min = RSPConstants.activitiesMin,
-            max = RSPConstants.activitiesMax,
+        --Two allowances side by side. The linkage - followers tracks heroes
+        --while the two match - lives in the session setters, not here.
+        RSPWidgets.FormRow("# Downtime Activities", gui.Panel{
+            width = 261,
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
+
+            RSPWidgets.Stepper{
+                label = "HEROES",
+                get = RSPSession.ActivityCount,
+                set = RSPSession.SetActivityCount,
+                min = RSPConstants.activitiesMin,
+                max = RSPConstants.activitiesMax,
+            },
+
+            RSPWidgets.Stepper{
+                label = "FOLLOWERS",
+                lmargin = 45,
+                get = RSPSession.FollowerActivityCount,
+                set = RSPSession.SetFollowerActivityCount,
+                min = RSPConstants.activitiesMin,
+                max = RSPConstants.activitiesMax,
+            },
         }),
 
         gui.Panel{

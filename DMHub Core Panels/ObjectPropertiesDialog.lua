@@ -6,6 +6,14 @@ mod.shared.objectDragAcceptors = {}
 --addressed by floor id + object id. This is the executable form recorded by
 --the command builder's lightning icons on the property dialog's command
 --buttons, so journal macro buttons can drive specific objects.
+--
+--Codex Macros/Macros.lua already registers an 'objectcommand' with the older
+--keyword form, /objectcommand <keyword[.component]> <command>, and this file
+--loads after it, so registering the same name here replaces it. Capture the
+--previous implementation and fall back to it for the two-argument keyword
+--form, so journal buttons written against the old syntax keep working.
+local legacyObjectCommand = Commands.objectcommand
+
 Commands.RegisterMacro{
     name = "objectcommand",
     summary = "execute a command on a map object",
@@ -13,6 +21,11 @@ Commands.RegisterMacro{
     command = function(str)
         local floorid, objid, cmdName = string.match(str or "", "^%s*(%S+)%s+(%S+)%s+(.-)%s*$")
         if floorid == nil or cmdName == nil or cmdName == "" then
+            --not the three-field form; hand it to the older keyword form.
+            if legacyObjectCommand ~= nil then
+                return legacyObjectCommand(str)
+            end
+
             dmhub.Log("objectcommand: usage: /objectcommand <floorid> <objectid> <command>")
             return
         end

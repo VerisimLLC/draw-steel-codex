@@ -337,6 +337,90 @@ function ActivatedAbilitySummonBehavior:SummarizeBehavior(ability, creatureLooku
 	return "Summon Creatures"
 end
 
+--Memo for SummonedCreatureName below. The bestiary sweep is a full
+--assets.monsters scan with a GoblinScript evaluation per monster, and the
+--callers (the targeting prompt, the hovered-square label) run on every
+--targeting refresh. Keyed by monster type + filter + caster, since a filter may
+--reference the caster. Only invalidated by a reload; the value is display text
+--on a targeting prompt, so a bestiary edit mid-session going unnoticed is
+--acceptable.
+local g_summonNameCache = {}
+
+--- The name of the creature this behavior will summon, when that is knowable
+--- before the cast: nil when the filter matches several creatures (the caster
+--- picks one during the cast, so no single name is right yet) or when this is a
+--- duplicate-token behavior.
+--- @param casterToken CharacterToken
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbilitySummonBehavior:SummonedCreatureName(casterToken, symbols)
+    if self.duplicateMode or casterToken == nil then
+        return nil
+    end
+
+    if self.monsterType ~= "custom" then
+        local monster = assets.monsters[self.monsterType]
+        if monster == nil then
+            return nil
+        end
+        return monster.properties:try_get("monster_type")
+    end
+
+    local key = string.format("%s|%s|%s", tostring(self.monsterType), tostring(self.bestiaryFilter), tostring(casterToken.id))
+    local cached = g_summonNameCache[key]
+    if cached ~= nil then
+        return cached.name
+    end
+
+    --Mirror the candidate sweep in Cast (same filter, same beast symbol), but
+    --stop at the second match: we only care whether exactly one creature can be
+    --summoned. A malformed filter must not take the targeting UI down with it.
+    local name = nil
+    pcall(function()
+        local extra = {}
+        if symbols ~= nil then
+            for k,v in pairs(symbols) do
+                extra[k] = v
+            end
+        end
+
+        local found = nil
+        for k,monster in pairs(assets.monsters) do
+            if not assets:GetMonsterNode(k).hidden then
+                extra.beast = GenerateSymbols(monster.properties)
+                if monster.properties:has_key("monster_type") and ExecuteGoblinScript(self.bestiaryFilter, GenerateSymbols(casterToken.properties, extra), 0, string.format("Bestiary filter naming summons for filter %s", self.bestiaryFilter)) ~= 0 then
+                    if found ~= nil then
+                        --more than one candidate; the caster chooses at cast time.
+                        found = nil
+                        break
+                    end
+                    found = monster.properties:try_get("monster_type")
+                end
+            end
+        end
+
+        name = found
+    end)
+
+    g_summonNameCache[key] = { name = name }
+    return name
+end
+
+--- @param casterToken CharacterToken
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbilitySummonBehavior:BehaviorPlacementName(casterToken, symbols)
+    --Only the squares the ability itself targets are named here. When
+    --choosePlacement is set the behavior runs its own "Place creature N of M"
+    --prompt during the cast instead, and the ability's own target is something
+    --else entirely (often the caster).
+    if self.choosePlacement or self.replaceCaster then
+        return nil
+    end
+
+    return self:SummonedCreatureName(casterToken, symbols)
+end
+
 --Returns the live encounter squad data used when a non-Summoner ability opts
 --into squad choice. Rules-level Summoners keep using their private roster.
 local function GetEncounterMinionSquads(monsterType)

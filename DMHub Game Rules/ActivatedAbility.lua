@@ -2978,6 +2978,20 @@ local g_deferredCastCompleteActions = {}
 local g_deferredCastSweepScheduled = false
 local g_lastDeferredStallLog = 0
 
+--A cast coroutine parked on a prompt that never resolves stays "suspended"
+--forever: it is only removed from coroutineStorage by its atexit, which never
+--runs. Without a deadline the deferred action behind it waits for the rest of
+--the session, and -- worse -- every LATER trigger re-snapshots the same zombie,
+--so one stranded invoke silently disables all automated triggered abilities on
+--the client (no start-of-combat heroic resources, no summon prompts, no
+--"survive at 1 Stamina" traits; the cost is charged before the deferral, so the
+--player is billed for each one). Once an entry has been blocked this long we
+--give up on its blockers. Releasing early can let a deferred prompt land while
+--a real cast is still resolving -- the exact thing the deferral exists to
+--prevent -- so the deadline is deliberately generous rather than tight: a
+--slightly out-of-order prompt beats losing every trigger for the session.
+local DEFERRED_CAST_ABANDON_SECONDS = 30
+
 local function ScheduleDeferredCastSweep()
     --backstop in case a cast coroutine dies without its atexit running.
     if g_deferredCastSweepScheduled then
@@ -3022,6 +3036,41 @@ function ActivatedAbility.RunWhenCastsComplete(fn)
 end
 
 function ActivatedAbility.FlushCastCompleteActions()
+    --Abandon casts that have blocked a deferred action past the deadline. The
+    --eviction from coroutineStorage is the load-bearing part: dropping the
+    --coroutine from just this entry's set would leave the zombie visible to
+    --every future RunWhenCastsComplete snapshot, turning "triggers are dead"
+    --into "every trigger is DEFERRED_CAST_ABANDON_SECONDS late, forever".
+    --Evicting it also unblocks any other entry waiting on the same cast, stops
+    --it inflating CountActiveCasts/TokenHasOtherActiveCasts, and is safe for
+    --the readers of coroutineStorage: every CurrentCastInfo() caller is
+    --nil-guarded. The abort flags mirror the restoreFromBackup teardown so the
+    --cast unwinds through FinishCast at its next behavior boundary if it ever
+    --does wake up.
+    local abandonNow = dmhub.Time()
+    for _,entry in ipairs(g_deferredCastCompleteActions) do
+        if entry.time ~= nil and abandonNow - entry.time > DEFERRED_CAST_ABANDON_SECONDS then
+            for co,_ in pairs(entry.casts) do
+                local info = ActivatedAbility.coroutineStorage[co]
+                if info ~= nil and coroutine.status(co) ~= "dead" then
+                    local age = "?"
+                    if info.startTime ~= nil then
+                        age = string.format("%d", math.floor(abandonNow - info.startTime))
+                    end
+                    printf("CASTSTALL:: abandoning stalled cast %s (caster=%s age=%ss) after it blocked a deferred action for %ds",
+                        tostring(info.ability ~= nil and info.ability.name or "?"),
+                        tostring(info.casterToken ~= nil and info.casterToken.valid and info.casterToken.name or "?"),
+                        age, math.floor(abandonNow - entry.time))
+                    ActivatedAbility.coroutineStorage[co] = nil
+                    if info.options ~= nil then
+                        info.options.abort = true
+                        info.options.stopProcessing = true
+                    end
+                end
+            end
+        end
+    end
+
     local i = 1
     while i <= #g_deferredCastCompleteActions do
         local entry = g_deferredCastCompleteActions[i]
@@ -3115,6 +3164,36 @@ function ActivatedAbility:GetMovementType(token, symbols)
         local movementType = behavior:BehaviorMovementType(symbols)
         if movementType ~= nil then
             return movementType
+        end
+    end
+
+    return nil
+end
+
+--- The display name of what this behavior PLACES in the ability's targeted
+--- square -- a summoned creature, a conjured object -- or nil when the behavior
+--- places nothing. Square-targeted abilities preview as a movement by default
+--- ("Movement: 3 squares"), which is wrong for an ability that moves nobody, so
+--- behaviors that put something new on the map name it here and the targeting
+--- prompt and hovered-square label speak about placement instead.
+--- @param casterToken CharacterToken
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbilityBehavior:BehaviorPlacementName(casterToken, symbols)
+    return nil
+end
+
+--- The name of the creature/object this ability places in its targeted square,
+--- or nil if it places nothing (or places something whose identity is not known
+--- until the caster picks during the cast).
+--- @param casterToken CharacterToken
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbility:GetPlacementName(casterToken, symbols)
+    for _,behavior in ipairs(self:try_get("behaviors", {})) do
+        local name = behavior:BehaviorPlacementName(casterToken, symbols)
+        if name ~= nil then
+            return name
         end
     end
 
@@ -3825,8 +3904,28 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
         local companionid = casterToken.properties:try_get("companionid", false)
         if companionid then
             local companionToken = dmhub.GetTokenById(companionid)
+
+            --A companionid naming a character that no longer exists used to
+            --leave this empty, and every behavior downstream (replenish above
+            --all) drops out silently on an empty target list. Ask the game
+            --system's resolver, which can recover the companion from its
+            --token-side back-link. pcall because this branch is generic rules
+            --and the resolver belongs to the Beastheart module.
+            if companionToken == nil or not companionToken.valid then
+                pcall(function()
+                    companionToken = casterToken.properties:GetCompanionToken()
+                end)
+            end
+
             if companionToken ~= nil and companionToken.valid then
                 result[#result+1] = { token = companionToken }
+            else
+                --Not silent: a caster that claims a companion and resolves to
+                --nothing is the shape of report EXY2RYBS, which took a server
+                --state dump to diagnose because it left no trace.
+                dmhub.Debug(string.format(
+                    "COMPANION:: applyto caster_companion resolved 0 targets; caster %s has companionid %s",
+                    tostring(casterToken.charid), tostring(companionid)))
             end
         end
     elseif self.applyto == 'caster_including_squad' then

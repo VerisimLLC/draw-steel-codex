@@ -6,7 +6,10 @@ RSPWidgets = RegisterGameType("RSPWidgets")
 --- A "- [n] +" stepper over a bounded integer held in the session.
 --- The well never holds the value: it repaints from get() on every
 --- respiteChanged, and every edit routes through set().
---- @param args {get: fun(): number, set: fun(n: number), min: number, max: number}
+--- Pass label to cap the well with a small centered header. The header is a
+--- fixed line above an untouched strip: well-wide, indented one button, so it
+--- spans exactly the well's run and centers over the text box.
+--- @param args {get: fun(): number, set: fun(n: number), min: number, max: number, width: nil|number|string, label: nil|string, lmargin: nil|number}
 --- @return Panel
 function RSPWidgets.Stepper(args)
     local well
@@ -36,17 +39,19 @@ function RSPWidgets.Stepper(args)
         end,
     }
 
-    return gui.Panel{
+    local strip = gui.Panel{
         classes = {"form"},
-        width = RSPConstants.stepperWidth,
+        width = args.width or RSPConstants.stepperWidth,
         height = "auto",
         flow = "horizontal",
         halign = "left",
         valign = "center",
+        lmargin = args.label == nil and args.lmargin or nil,
 
         gui.Button{
             classes = {"sizeS"},
-            width = RSPConstants.stepperButtonWidth,
+            width = RSPConstants.stepperButtonSize,
+            height = RSPConstants.stepperButtonSize,
             text = "-",
             valign = "center",
             press = function()
@@ -58,13 +63,40 @@ function RSPWidgets.Stepper(args)
 
         gui.Button{
             classes = {"sizeS"},
-            width = RSPConstants.stepperButtonWidth,
+            width = RSPConstants.stepperButtonSize,
+            height = RSPConstants.stepperButtonSize,
             text = "+",
             valign = "center",
             press = function()
                 Commit(args.get() + 1)
             end,
         },
+    }
+
+    if args.label == nil then
+        return strip
+    end
+
+    --The themed input does not honor a requested width, so nothing here is
+    --sized from constants. The wrapper hugs whatever the strip really renders
+    --as, and the label centers over it as an element - the buttons flanking
+    --the well are equal, so the strip's center IS the well's center.
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        lmargin = args.lmargin,
+
+        gui.Label{
+            --Not "form": the {label, form} rule pins color to @fgStrong and,
+            --being two selectors, outranks single-selector fgMuted.
+            classes = {"label", "fgMuted", "sizeXxs"},
+            halign = "center",
+            text = args.label,
+        },
+
+        strip,
     }
 end
 
@@ -489,10 +521,17 @@ function RSPWidgets.RespiteSummary()
         mayText = "may"
     end
 
+    --One number while the two allowances agree; both spelled out once split.
+    local activitiesText = string.format("**%d**", RSPSession.ActivityCount())
+    if RSPSession.FollowerActivityCount() ~= RSPSession.ActivityCount() then
+        activitiesText = string.format("**%d** heroes / **%d** followers",
+            RSPSession.ActivityCount(), RSPSession.FollowerActivityCount())
+    end
+
     local summary = string.format(
-        "Days Elapsed: **%d** | Downtime Activities: **%d** | Non participants **%s** do downtime.",
+        "Days Elapsed: **%d** | Downtime Activities: %s | Non participants **%s** do downtime.",
         RSPSession.DaysElapsed(),
-        RSPSession.ActivityCount(),
+        activitiesText,
         mayText)
 
     local location = RSPSession.Location()

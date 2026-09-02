@@ -3904,8 +3904,28 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
         local companionid = casterToken.properties:try_get("companionid", false)
         if companionid then
             local companionToken = dmhub.GetTokenById(companionid)
+
+            --A companionid naming a character that no longer exists used to
+            --leave this empty, and every behavior downstream (replenish above
+            --all) drops out silently on an empty target list. Ask the game
+            --system's resolver, which can recover the companion from its
+            --token-side back-link. pcall because this branch is generic rules
+            --and the resolver belongs to the Beastheart module.
+            if companionToken == nil or not companionToken.valid then
+                pcall(function()
+                    companionToken = casterToken.properties:GetCompanionToken()
+                end)
+            end
+
             if companionToken ~= nil and companionToken.valid then
                 result[#result+1] = { token = companionToken }
+            else
+                --Not silent: a caster that claims a companion and resolves to
+                --nothing is the shape of report EXY2RYBS, which took a server
+                --state dump to diagnose because it left no trace.
+                dmhub.Debug(string.format(
+                    "COMPANION:: applyto caster_companion resolved 0 targets; caster %s has companionid %s",
+                    tostring(casterToken.charid), tostring(companionid)))
             end
         end
     elseif self.applyto == 'caster_including_squad' then

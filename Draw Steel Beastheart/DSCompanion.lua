@@ -140,6 +140,37 @@ function creature:ApplyCompanionAppearance(companionType, token)
     end
 end
 
+--- Find this beastheart's companion by the token-side back-link instead of the
+--- forward one. Reports EXY2RYBS and its duplicate both had a companionid
+--- naming a character that no longer exists in the game while summonerid still
+--- pointed home, which killed every hero-to-companion effect silently. Two
+--- deliberate limits: a second match is refused rather than guessed at (an
+--- unrelated summon sharing an AnimalCompanion stat block must not be
+--- adopted), and nothing is written back - repairing companionid from a read
+--- called by GoblinScript symbols would mean cloud writes from inside refresh.
+--- @param selfToken CharacterToken the beastheart
+--- @return CharacterToken|nil
+local function FindCompanionBySummoner(selfToken)
+    local found = nil
+
+    for _, tok in ipairs(dmhub.GetTokens{haveProperties = true}) do
+        if tok.valid and tok.summonerid == selfToken.charid
+            and tok.properties:IsCompanion() then
+            if found ~= nil then
+                --Ambiguous: which one is "the" companion is unknowable here.
+                return nil
+            end
+            found = tok
+        end
+    end
+
+    return found
+end
+
+--- The companion token, or nil. Reached by the forward companionid link first;
+--- a link that names nothing falls back to the back-link scan above, which is
+--- the only case whose behaviour changes (it returned nil before).
+--- @return CharacterToken|nil
 function creature:GetCompanionToken()
     local companionid = self.companionid
     if not companionid then
@@ -151,7 +182,23 @@ function creature:GetCompanionToken()
         return token
     end
 
-    return nil
+    --Only a set-but-dangling link scans, so a hero with no companion at all
+    --never pays for this on the GoblinScript refresh path.
+    local selfToken = dmhub.LookupToken(self)
+    if selfToken == nil or not selfToken.valid then
+        return nil
+    end
+
+    local recovered = FindCompanionBySummoner(selfToken)
+    if recovered ~= nil then
+        --Logged rather than repaired: nobody has been able to explain how these
+        --links go stale, and the stale-vs-found pair is the evidence for that.
+        dmhub.Debug(string.format(
+            "COMPANION:: recovered by summonerid; %s had stale companionid %s, using %s",
+            tostring(selfToken.charid), tostring(companionid), tostring(recovered.charid)))
+    end
+
+    return recovered
 end
 
 --GoblinScript symbol so formulas can write `Caster.Companion.X` (or

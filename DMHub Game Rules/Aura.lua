@@ -973,6 +973,7 @@ function Aura:GenerateEditor(options)
                     {id = "all", text = "All Movement"},
                     {id = "nonshift", text = "Non-Shifting Movement"},
                     {id = "forced", text = "Forced Movement Only"},
+                    {id = "willing", text = "Willing Movement Only"},
                 },
                 idChosen = self:try_get("movementDamageFilter") or (self:try_get("shiftAvoidsDamage", false) and "nonshift" or "all"),
                 change = function(element)

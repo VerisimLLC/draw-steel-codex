@@ -25,7 +25,7 @@ local mod = dmhub.GetModLoading()
 --- @field dispels string[]|nil Ids (environmentalKeywords table keys) of keywords this keyword dispels. Painting a zone of this keyword deletes the overlap from zones of a dispelled keyword (and a dispelled keyword cannot be painted over this one); an aura carrying this keyword suppresses zones of dispelled keywords beneath it for as long as the aura covers them. No class default: assigned per instance by the editor (a class-level default table would be shared-mutable).
 --- @field movedamage string Damage type dealt to creatures moving through an area with this keyword, or "none" for no damage. Uses the same field names as Aura so the values copy straight onto zone auras.
 --- @field damage number Damage dealt per tile of the area a creature moves through (only meaningful when movedamage is not "none").
---- @field movementDamageFilter string Which movement the damage applies to: "all", "nonshift" (shifting avoids it), or "forced" (forced movement only).
+--- @field movementDamageFilter string Which movement the damage applies to: "all", "nonshift" (shifting avoids it), "forced" (forced movement only), or "willing" (anything but forced movement or a teleport).
 --- @field powerRollEnabled boolean If true, a 2d10 + powerRollBonus power roll is made against any creature entering the area or starting its turn there. Same field names as Aura; copied onto zone auras.
 --- @field powerRollBonus number The X in the 2d10 + X power roll.
 --- @field powerRollTiers string[]|nil The three power table tier texts (tier 1 = 11 or less, tier 2 = 12-16, tier 3 = 17+). No class default: assigned per instance by the editor.
@@ -2380,6 +2380,7 @@ local SetData = function(tableName, keywordPanel, keyid)
 				{id = "all", text = "All Movement"},
 				{id = "nonshift", text = "Non-Shifting Movement"},
 				{id = "forced", text = "Forced Movement Only"},
+				{id = "willing", text = "Willing Movement Only"},
 			},
 			change = function(element)
 				keyword.movementDamageFilter = element.idChosen

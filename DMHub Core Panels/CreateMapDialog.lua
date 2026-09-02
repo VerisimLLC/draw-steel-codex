@@ -1979,7 +1979,7 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 movingImagePanel.y = ny
                 movingImagePanel.selfStyle.width = nw
                 movingImagePanel.selfStyle.height = nh
-                movingImagePanel.opacity = newFloorOpacity
+                movingImagePanel.selfStyle.opacity = newFloorOpacity
                 children[#children+1] = movingImagePanel
             end
 

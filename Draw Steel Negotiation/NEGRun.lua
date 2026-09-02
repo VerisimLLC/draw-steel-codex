@@ -80,6 +80,9 @@ NEGLive.open = false
 --- is made. The rules bar a second read until then.
 NEGLive.learnLocked = false
 
+--- The journal page that launched this, so ending it can tick that Run row.
+NEGLive.launchedFromDocid = ""
+
 --- Heroes on the map, and only those. The engine's prompt gate tests
 --- `dmhub.GetTokenById(tokid) ~= nil` OUTSIDE its forceuserid disjunct
 --- (Draw Steel UI/DSRequestRollsDialog.lua), and that call is loaded-map only,
@@ -105,13 +108,6 @@ function NEGLive.EligibleParticipants()
         end
     end
     return result
-end
-
---- Whether this hero can be asked to roll. Checked live, not from setup.
---- @param charid string
---- @return boolean
-function NEGRun.CanBePrompted(charid)
-    return dmhub.GetTokenById(charid) ~= nil
 end
 
 --- A negotiation ready to be set up. The language bonus is applied at Start,
@@ -217,6 +213,13 @@ function NEGRun.DocPath()
     return mod:GetDocumentPath(NEGConstants.activeRunDoc)
 end
 
+--- Whether this hero can be asked to roll. Checked live, not from setup.
+--- @param charid string
+--- @return boolean
+function NEGRun.CanBePrompted(charid)
+    return dmhub.GetTokenById(charid) ~= nil
+end
+
 --- @param description string
 --- @param fn fun(doc: table)
 function NEGRun.Mutate(description, fn)
@@ -248,8 +251,9 @@ end
 
 --- Open a prepared negotiation's setup step. One negotiation at a time.
 --- @param defid string
+--- @param docid nil|string the journal page that launched it
 --- @return boolean whether it opened
-function NEGRun.BeginSetup(defid)
+function NEGRun.BeginSetup(defid, docid)
     if NEGRun.Active() ~= nil then
         return false
     end
@@ -260,10 +264,36 @@ function NEGRun.BeginSetup(defid)
     end
 
     local live = NEGLive.FromDefinition(def)
+    live.launchedFromDocid = docid or ""
+
     NEGRun.Mutate("Begin negotiation setup", function(data)
         data.live = live
     end)
     return true
+end
+
+--- Tick the Run row for the page that launched this negotiation, if it came
+--- from one. RunAgenda loads late, hence the rawget.
+--- @param docid string
+local function MarkRunItemDone(docid)
+    local agenda = rawget(_G, "RunAgenda")
+    if agenda == nil or docid == nil or docid == "" then
+        return
+    end
+
+    local items = agenda.GetItems()
+    local touched = false
+
+    for _, item in ipairs(items) do
+        if item.docid == docid and item.done ~= true then
+            item.done = true
+            touched = true
+        end
+    end
+
+    if touched then
+        agenda.SetItems(items, "Negotiation complete")
+    end
 end
 
 --- @param charid string
@@ -744,6 +774,10 @@ function NEGRun.End()
             data.live.resolution = nil
         end
     end)
+
+    if live ~= nil then
+        MarkRunItemDone(live:try_get("launchedFromDocid", ""))
+    end
 end
 
 --==============================================================================

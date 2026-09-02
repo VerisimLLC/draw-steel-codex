@@ -4786,6 +4786,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                         }
                                         local filterFormula = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetFilter")
                                         local targets = {}
+                                        local retargetReasons = {}
                                         for _,potential in ipairs(dmhub.allTokens) do
                                             symbols.target = potential.properties:LookupSymbol{}
                                             if trim(filterFormula) == "" or GoblinScriptTrue(ExecuteGoblinScript(filterFormula, potential.properties:LookupSymbol(symbols), 1)) then
@@ -4802,12 +4803,19 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                         elseif rangeType == "distance" then
                                             range = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetDistance", 10)
                                         end
+                                        --the new target must be one the striking creature could actually
+                                        --hit: inside the strike's distance and in its line of effect.
+                                        if rangeType == "ability" then
+                                            RuleUtils.AddRetargetRangeReasons(targets, retargetReasons, sourceToken, range)
+                                        end
 
                                         print("ChooseTarget:: A")
                                         gamehud.actionBarPanel:FireEventTree("chooseTarget", {
                                             sourceToken = sourceToken,
                                             radius = range,
                                             targets = targets,
+                                            reasons = retargetReasons,
+                                            prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType),
                                             choose = function(newTargetToken)
                                                 if token == nil then
                                                     return
@@ -4974,6 +4982,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                             }
                                             local filterFormula = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetFilter")
                                             local targets = {}
+                                            local retargetReasons = {}
                                             for _,potential in ipairs(dmhub.allTokens) do
                                                 symbols.target = potential.properties:LookupSymbol{}
                                                 if trim(filterFormula) == "" or GoblinScriptTrue(ExecuteGoblinScript(filterFormula, potential.properties:LookupSymbol(symbols), 1)) then
@@ -4990,12 +4999,19 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                             elseif rangeType == "distance" then
                                                 range = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetDistance", 10)
                                             end
+                                            --the new target must be one the striking creature could actually
+                                            --hit: inside the strike's distance and in its line of effect.
+                                            if rangeType == "ability" then
+                                                RuleUtils.AddRetargetRangeReasons(targets, retargetReasons, sourceToken, range)
+                                            end
 
                                         print("ChooseTarget:: B")
                                             gamehud.actionBarPanel:FireEventTree("chooseTarget", {
                                                 sourceToken = sourceToken,
                                                 radius = range,
                                                 targets = targets,
+                                                reasons = retargetReasons,
+                                                prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType),
                                                 choose = function(newTargetToken)
                                                     if token == nil then
                                                         return

@@ -11371,14 +11371,9 @@ CreateAbilityController = function()
                                 --The ability moves nobody -- it PLACES something in the hovered
                                 --square (a summon). The default "Movement: 3 squares" reads as the
                                 --caster walking there and quotes a movement cost that is never
-                                --spent, so name what actually arrives. GetPlacementName's definition
-                                --lives in a not-yet-merged PR (removed from main in e9a9ac38), and a
-                                --missing method on a game type raises rather than reading nil, so
-                                --pcall-guard: without the definition we keep the old wording.
-                                local placementName = nil
-                                pcall(function()
-                                    placementName = g_currentAbility:GetPlacementName(g_token, g_currentSymbols)
-                                end)
+                                --spent, so name what actually arrives. GetPlacementName is nil for
+                                --any other nil-movement ability, which keeps the old wording.
+                                local placementName = g_currentAbility:GetPlacementName(g_token, g_currentSymbols)
                                 if placementName ~= nil then
                                     diagramLabel = placementName
                                     diagramTextOverride = string.format(tr("%s appears here"), placementName)

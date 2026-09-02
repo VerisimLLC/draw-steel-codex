@@ -880,6 +880,18 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
 
 	local casting = false
 
+    --Backstop for a cast that begins and never finishes. The action bar can drop
+    --a begun cast without ever firing a finish handler -- e.g. the invoke prompt
+    --is displaced by the caster activating another ability directly from the
+    --ability menu -- which leaves `casting` stuck true and parks this coroutine
+    --forever. That zombie used to starve every deferred trigger on the client;
+    --FlushCastCompleteActions now evicts a blocker like this after
+    --DEFERRED_CAST_ABANDON_SECONDS, so the visible starvation is already
+    --contained and this cap only has to stop the coroutine leaking for the rest
+    --of the session. Deliberately far longer than any real prompt interaction:
+    --it must never cut off a player who is just taking their time deciding.
+    local INVOKE_WAIT_TIMEOUT_SECONDS = 300
+
 	symbols.invoker = symbols.invoker or GenerateSymbols(invokerToken.properties)
     local invoker = symbols.invoker
     if type(invoker) == "function" then
@@ -1096,6 +1108,8 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         end
 
         local lastWaitDiag = 0
+        local waitStarted = dmhub.Time()
+        local timedOut = false
         coroutine.safe_sleep_while(function()
 
             local isCasting = casting
@@ -1114,8 +1128,23 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                     tostring(isPreparing ~= false and isPreparing ~= nil), now))
             end
 
+            if (isCasting or isPreparing) and now - waitStarted > INVOKE_WAIT_TIMEOUT_SECONDS then
+                printf("INVOKEDIAG:: giving up on %s after %ds (casting=%s preparing=%s) -- treating the invoke as cancelled",
+                    tostring(abilityClone.name), math.floor(now - waitStarted),
+                    tostring(isCasting), tostring(isPreparing ~= false and isPreparing ~= nil))
+                timedOut = true
+                casting = false
+                return false
+            end
+
             return isCasting or isPreparing
         end)
+
+        if timedOut then
+            --Unwind the same way a cancel does rather than re-prompting.
+            canceled = true
+            break
+        end
 
         if castCount <= 1 then
             --this looks like a direct cancel out of casting so we just break out.

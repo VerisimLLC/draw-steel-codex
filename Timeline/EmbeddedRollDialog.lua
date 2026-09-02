@@ -4880,6 +4880,24 @@ function GameHud.CreateEmbeddedRollDialog()
     --Used by the dmhub.Roll complete callback, the OnBeforeTableRoll synthetic
     --path, and the override flow.
     SetProceedForRollInfo = function(rollInfo)
+        --The dialog can be destroyed while the dice are still physically rolling
+        --("RollDialog:: DESTROY" with the roll still in flight). The completion
+        --path then ran straight into the dead panel here -- SetClass, SetFocus
+        --and .data all threw -- so the Proceed handler below was never installed
+        --and NOTHING could resume the cast waiting on this roll: no button to
+        --press and no error the player could see. That parked the cast coroutine
+        --alive forever, which in turn starved every deferred trigger on the
+        --client. The roll itself did complete, so hand the result straight to
+        --completeRoll instead; consumers only record it (see the `rollComplete`
+        --spin in AbilityReplenish, which otherwise yields for the whole session).
+        if m_tableRoll_proceedButton == nil or not m_tableRoll_proceedButton.valid then
+            local deadOptions = m_tableRoll_state ~= nil and m_tableRoll_state.options or nil
+            if deadOptions ~= nil and deadOptions.completeRoll ~= nil then
+                deadOptions.completeRoll(rollInfo)
+            end
+            return
+        end
+
         m_tableRoll_proceedButton:SetClass("collapsed", false)
         gui.SetFocus(m_tableRoll_proceedButton)
         local options = m_tableRoll_state.options

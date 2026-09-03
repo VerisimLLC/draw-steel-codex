@@ -1210,11 +1210,15 @@ local function ColorizeLinks(content, link)
     end)
     -- bare [Label]: remaining balanced single-bracket spans. The (!?) prefix
     -- keeps image alt text ([..] right after a !) from being matched on its own.
+    -- A bare link uses the bracket text as BOTH the display and the target, so
+    -- styling it in place would corrupt the target. Emit the explicit
+    -- [display](target) form instead, keeping the untouched label as the target.
     content = content:gsub("(!?)(%b[])", function(bang, disp)
         if bang == "!" then return nil end
-        local styled = wrap(disp:sub(2, -2))
+        local label = disp:sub(2, -2)
+        local styled = wrap(label)
         if styled == nil then return nil end
-        return "[" .. styled .. "]"
+        return "[" .. styled .. "](" .. label .. ")"
     end)
     return content
 end
@@ -3022,6 +3026,30 @@ local function GlossaryMarkSegment(seg, index, washed)
     return table.concat(out)
 end
 
+--Glossary-mark one line, leaving link TARGETS alone. Markdown links are still
+--plain text at this point -- the engine turns them into <link=...> tags later --
+--so a hint injected into a target ends up inside the tag and the whole link
+--renders as literal markup. The display half of [display](target) is safe and
+--still gets hinted; a bare [Label] is its own target, so it is left whole.
+local function GlossaryMarkLine(line, index, washed)
+    local out = {}
+    local pos = 1
+    while true do
+        --Match on "](target)" rather than the whole link: the caller has already
+        --split the text on <...> tags, so a styled link arrives as the display
+        --run and the "](target)" tail in separate segments.
+        local s, e = string.find(line, "%]%b()", pos)
+        if s == nil then
+            out[#out + 1] = GlossaryMarkSegment(string.sub(line, pos), index, washed)
+            break
+        end
+        out[#out + 1] = GlossaryMarkSegment(string.sub(line, pos, s - 1), index, washed)
+        out[#out + 1] = string.sub(line, s, e)
+        pos = e + 1
+    end
+    return table.concat(out)
+end
+
 --Tag-aware pass over a label's final rich text. Skips <...> tag runs,
 --anything inside an existing <link> or <size> run (size = skinned
 --headings), and raw markdown heading lines (# ...) which the engine
@@ -3078,7 +3106,7 @@ local function ApplyGlossaryHints(text)
                     if atLineStart and string.match(line, "^#+[ \t]") ~= nil then
                         segOut[#segOut + 1] = line
                     else
-                        segOut[#segOut + 1] = GlossaryMarkSegment(line, index, washed)
+                        segOut[#segOut + 1] = GlossaryMarkLine(line, index, washed)
                     end
                     if nl ~= nil then
                         segOut[#segOut + 1] = "\n"

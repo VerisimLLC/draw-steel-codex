@@ -1176,6 +1176,59 @@ local function ForcedMovementOriginDistanceFunction(originToken, originLoc, move
     end
 end
 
+local function MovementConstraintPredicate(symbols, movedToken)
+    local constraint = symbols.movementconstraint
+    if type(constraint) ~= "table" then
+        return nil
+    end
+
+    local anchors = {}
+    for _,anchorid in ipairs(constraint.anchorids or {}) do
+        local anchorToken = dmhub.GetTokenById(anchorid)
+        if anchorToken ~= nil and anchorToken.valid and anchorToken.loc ~= nil then
+            local distanceFromAnchor = ForcedMovementOriginDistanceFunction(anchorToken,
+                anchorToken.loc, movedToken)
+            anchors[#anchors+1] = {
+                distance = distanceFromAnchor,
+                start = distanceFromAnchor(movedToken.loc),
+            }
+        end
+    end
+
+    if #anchors == 0 then
+        return function()
+            return false
+        end
+    end
+
+    local mode = constraint.mode or "not_closer"
+    return function(loc)
+        local distanceMoved = loc:DistanceInTiles(movedToken.loc)
+
+        if mode == "toward" then
+            for _,anchor in ipairs(anchors) do
+                if anchor.start - anchor.distance(loc) >= distanceMoved then
+                    return true
+                end
+            end
+            return false
+        end
+
+        for _,anchor in ipairs(anchors) do
+            local destinationDistance = anchor.distance(loc)
+            if mode == "away" then
+                if destinationDistance - anchor.start < distanceMoved then
+                    return false
+                end
+            elseif destinationDistance < anchor.start then
+                return false
+            end
+        end
+
+        return true
+    end
+end
+
 function ActivatedAbility:TargetLocMaxElevationChangeFunction(casterToken, symbols)
     --Teleport targeting: distance is Chebyshev -- max(|dx|, |dy|, |dz|) -- so a
     --"teleport 5" may end up to 5 squares above or below the creature's current
@@ -1283,6 +1336,13 @@ function ActivatedAbility:TargetLocPassesFilterPredicate(casterToken, symbols)
                     end
                 end
             end
+        end
+    end
+
+    if self.targetType == "emptyspace" or self.targetType == "anyspace" then
+        local movementConstraint = MovementConstraintPredicate(symbols, casterToken)
+        if movementConstraint ~= nil then
+            return movementConstraint
         end
     end
 

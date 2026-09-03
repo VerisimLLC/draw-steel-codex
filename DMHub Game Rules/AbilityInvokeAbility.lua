@@ -185,6 +185,179 @@ local function GetParentCurrentTargetToken(options, currentToken)
     return token
 end
 
+local g_movementConstraintOptions = {
+    { id = "none", text = "None" },
+    { id = "toward", text = "Move Toward" },
+    { id = "away", text = "Move Away" },
+    { id = "not_closer", text = "Cannot End Closer" },
+}
+
+local g_movementConstraintAnchorOptions = {
+    { id = "caster", text = "Invoking Ability's Caster" },
+    { id = "attacker", text = "Triggering Attacker" },
+    { id = "parent_target", text = "Parent Target" },
+    { id = "nearest_creature", text = "Nearest Creature" },
+    { id = "nearest_enemy", text = "Nearest Enemy" },
+    { id = "all_matching", text = "All Matching Creatures" },
+}
+
+local function ResolveMovementConstraintToken(value)
+    if type(value) == "function" then
+        value = value("self")
+    end
+
+    if value == nil then
+        return nil
+    end
+
+    local token = dmhub.LookupToken(value)
+    if token == nil or not token.valid or token.properties == nil then
+        return nil
+    end
+
+    return token
+end
+
+local function MovementConstraintCandidateIsLiving(candidate, movedToken)
+    return candidate ~= nil
+        and candidate.valid
+        and candidate.properties ~= nil
+        and candidate.charid ~= movedToken.charid
+        and candidate.hasTokenOnThisMap
+        and not candidate.properties:IsDead()
+end
+
+local function MovementConstraintCandidatePassesFilter(behavior, candidate, casterToken, movedToken, parentTargetToken, options)
+    local filter = behavior:try_get("movementConstraintFilter", "")
+    if trim(filter) == "" then
+        return true
+    end
+
+    local formulaSymbols = table.shallow_copy(options.symbols or {})
+    formulaSymbols.target = GenerateSymbols(candidate.properties)
+    formulaSymbols.caster = GenerateSymbols(casterToken.properties)
+    formulaSymbols.invoker = GenerateSymbols(casterToken.properties)
+    formulaSymbols.mover = GenerateSymbols(movedToken.properties)
+    if parentTargetToken ~= nil then
+        formulaSymbols.parenttarget = GenerateSymbols(parentTargetToken.properties)
+    end
+
+    return GoblinScriptTrue(ExecuteGoblinScript(filter,
+        casterToken.properties:LookupSymbol(formulaSymbols), 0, "Movement Constraint Anchor Filter"))
+end
+
+local function CollectMovementConstraintCandidates(behavior, anchorType, casterToken, movedToken, parentTargetToken, options)
+    local candidates = {}
+    local maxDistance = tonumber(behavior:try_get("movementConstraintAnchorDistance"))
+
+    for _,candidate in ipairs(dmhub.allTokens) do
+        local include = MovementConstraintCandidateIsLiving(candidate, movedToken)
+        if include and anchorType == "nearest_enemy" then
+            include = not IsFriendForTargeting(casterToken, candidate)
+        end
+        if include and maxDistance ~= nil and movedToken:Distance(candidate) > maxDistance then
+            include = false
+        end
+        if include and not MovementConstraintCandidatePassesFilter(behavior, candidate, casterToken,
+                movedToken, parentTargetToken, options) then
+            include = false
+        end
+        if include then
+            candidates[#candidates+1] = candidate
+        end
+    end
+
+    return candidates
+end
+
+local function ChooseNearestMovementConstraintAnchor(behavior, casterToken, movedToken, candidates)
+    local nearestDistance = nil
+    local nearest = {}
+    for _,candidate in ipairs(candidates) do
+        local distance = movedToken:Distance(candidate)
+        if nearestDistance == nil or distance < nearestDistance then
+            nearestDistance = distance
+            nearest = { candidate }
+        elseif distance == nearestDistance then
+            nearest[#nearest+1] = candidate
+        end
+    end
+
+    if #nearest <= 1 then
+        return nearest[1]
+    end
+
+    local chosen = nil
+    local waiting = true
+    GameHud.instance.actionBarPanel:FireEventTree("chooseTargetToken", {
+        sourceToken = casterToken,
+        targets = nearest,
+        prompt = behavior:try_get("movementConstraintPrompt", "Choose the movement target"),
+        choose = function(targetToken)
+            chosen = targetToken
+            waiting = false
+        end,
+        cancel = function()
+            waiting = false
+        end,
+    })
+
+    while waiting do
+        coroutine.yield(0.1)
+        if casterToken == nil or not casterToken.valid or movedToken == nil or not movedToken.valid then
+            waiting = false
+        end
+    end
+
+    return chosen
+end
+
+-- Resolves the rule-facing anchor description once, before the invoked movement
+-- is handed to the action bar. The child cast receives only token ids, so the
+-- constraint is safe to serialize and cannot leak into later movement.
+local function ResolveMovementConstraint(behavior, casterToken, movedToken, parentTargetToken, options)
+    local mode = behavior:try_get("movementConstraint", "none")
+    if mode == "none" or mode == "" then
+        return nil, nil
+    end
+
+    local anchorType = behavior:try_get("movementConstraintAnchor", "caster")
+    local anchors = {}
+
+    if anchorType == "caster" then
+        anchors[1] = casterToken
+    elseif anchorType == "attacker" then
+        anchors[1] = ResolveMovementConstraintToken(options.symbols.attacker)
+    elseif anchorType == "parent_target" then
+        anchors[1] = parentTargetToken
+    elseif anchorType == "nearest_creature" or anchorType == "nearest_enemy" then
+        local candidates = CollectMovementConstraintCandidates(behavior, anchorType, casterToken,
+            movedToken, parentTargetToken, options)
+        anchors[1] = ChooseNearestMovementConstraintAnchor(behavior, casterToken, movedToken, candidates)
+    elseif anchorType == "all_matching" then
+        anchors = CollectMovementConstraintCandidates(behavior, anchorType, casterToken,
+            movedToken, parentTargetToken, options)
+    end
+
+    local anchorids = {}
+    local primaryAnchor = nil
+    for _,anchor in ipairs(anchors) do
+        if anchor ~= nil and anchor.valid then
+            primaryAnchor = primaryAnchor or anchor
+            anchorids[#anchorids+1] = anchor.id
+        end
+    end
+
+    if #anchorids == 0 then
+        return false, nil
+    end
+
+    return {
+        mode = mode,
+        anchorids = anchorids,
+    }, primaryAnchor
+end
+
 --Pulls every ActivatedAbility granted by a feature's "activated" modifiers into result,
 --stamping each clone with the class metadata that the chooseClassAbility filter reads.
 --- @param feature CharacterFeature
@@ -494,6 +667,19 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 --primary target through GetParentCurrentTargetToken's fallback.
                 local parentTargetToken = GetParentCurrentTargetToken(options, target.token)
 
+                if self:try_get("rememberMovementConstraintTarget", false) then
+                    options.symbols.movementconstrainttargetid = nil
+                    options.symbols.movementtargetvalid = false
+                end
+                local movementConstraint, movementConstraintTarget = ResolveMovementConstraint(self,
+                    casterToken, target.token, parentTargetToken, options)
+                local skipInvoke = movementConstraint == false
+
+                if movementConstraintTarget ~= nil and self:try_get("rememberMovementConstraintTarget", false) then
+                    options.symbols.movementconstrainttargetid = movementConstraintTarget.id
+                    options.symbols.movementtargetvalid = true
+                end
+
                 --In a squad coordinated strike, the invoked effect (e.g. a forced-
                 --movement push/pull, or an inflicted condition) should be SOURCED
                 --from the main minion for THIS creature -- the first minion to
@@ -507,9 +693,31 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 end
 
                 --be careful not to put anything in here we don't want to transmit to the database.
-                local symbols = { spellname = options.symbols.spellname or ability.name, charges = options.symbols.charges, cast = options.symbols.cast, forcedMovementOrigin = options.symbols.forcedMovementOrigin, forcedMovementOriginTokenId = options.symbols.forcedMovementOriginTokenId }
+                local symbols = { spellname = options.symbols.spellname or ability.name, charges = options.symbols.charges, cast = options.symbols.cast, forcedMovementOrigin = options.symbols.forcedMovementOrigin, forcedMovementOriginTokenId = options.symbols.forcedMovementOriginTokenId, movementtargetvalid = options.symbols.movementtargetvalid }
                 if parentTargetToken ~= nil then
                     symbols.parenttarget = GenerateSymbols(parentTargetToken.properties)
+                end
+
+                if movementConstraint ~= nil and movementConstraint ~= false then
+                    symbols.movementconstraint = movementConstraint
+                end
+
+                local rememberedMovementTargetId = options.symbols.movementconstrainttargetid
+                local rememberedMovementTarget = nil
+                if movementConstraintTarget ~= nil then
+                    rememberedMovementTarget = movementConstraintTarget
+                elseif rememberedMovementTargetId ~= nil then
+                    rememberedMovementTarget = dmhub.GetTokenById(rememberedMovementTargetId)
+                end
+                if rememberedMovementTarget ~= nil and rememberedMovementTarget.valid
+                        and rememberedMovementTarget.properties ~= nil then
+                    symbols.movementtarget = GenerateSymbols(rememberedMovementTarget.properties)
+                end
+
+                if movementConstraintTarget ~= nil
+                        and self:try_get("movementConstraintAsForcedMovementOrigin", false) then
+                    symbols.forcedMovementOrigin = nil
+                    symbols.forcedMovementOriginTokenId = movementConstraintTarget.id
                 end
 
                 --Opt-in only: 'attacker' (and other trigger-only symbols) do not
@@ -529,7 +737,9 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 --chooseClassAbility is excluded alongside custom: both resolve to an
                 --ability object that only exists on this client, so there is nothing
                 --the remote controller could look up from a serialized invocation.
-                if self.runOnController and target.token.activeControllerId ~= nil and self.abilityType ~= "custom" and self.abilityType ~= "chooseClassAbility" then
+                if skipInvoke then
+                    print("INVOKE:: No valid movement constraint anchor; skipping", ability.name)
+                elseif self.runOnController and target.token.activeControllerId ~= nil and self.abilityType ~= "custom" and self.abilityType ~= "chooseClassAbility" then
 
                     --Clean out the ability so we don't copy too much, and make the
                     --cast serialization-safe: it holds live objects (targets[].token
@@ -544,6 +754,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     symbols.cast = cast
                     if parentTargetToken ~= nil then
                         symbols.parenttarget = SerializeEventValue(parentTargetToken.properties)
+                    end
+                    if rememberedMovementTarget ~= nil and rememberedMovementTarget.valid
+                            and rememberedMovementTarget.properties ~= nil then
+                        symbols.movementtarget = SerializeEventValue(rememberedMovementTarget.properties)
                     end
 
                     local subjectid
@@ -579,6 +793,9 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                     if rangeOriginTokenId ~= nil then
                         invocation.abilityAttr.rangeOriginTokenId = rangeOriginTokenId
+                    end
+                    if self:try_get("movementConstraintStraightLine", false) then
+                        invocation.abilityAttr.targeting = "straightpath"
                     end
 
                     --Held back until the casts currently resolving on this
@@ -686,6 +903,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         if self.inheritRange then
                             abilityClone.range = ability.range
                             abilityClone.rangeUsesInvoker = true
+                        end
+
+                        if self:try_get("movementConstraintStraightLine", false) then
+                            abilityClone.targeting = "straightpath"
                         end
 
                         if self:try_get("inheritKeywords", false) then
@@ -1656,6 +1877,109 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 		end,
 	}
 
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Movement Constraint:",
+        },
+        gui.Dropdown{
+            classes = {"formDropdown"},
+            options = g_movementConstraintOptions,
+            idChosen = self:try_get("movementConstraint", "none"),
+            change = function(element)
+                self.movementConstraint = element.idChosen
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Movement Anchor:",
+        },
+        gui.Dropdown{
+            classes = {"formDropdown"},
+            options = g_movementConstraintAnchorOptions,
+            idChosen = self:try_get("movementConstraintAnchor", "caster"),
+            change = function(element)
+                self.movementConstraintAnchor = element.idChosen
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Anchor Filter:",
+        },
+        gui.GoblinScriptInput{
+            classes = {"formInput"},
+            value = self:try_get("movementConstraintFilter", ""),
+            change = function(element)
+                self.movementConstraintFilter = element.value
+            end,
+            documentation = {
+                help = "Optional filter for nearest or all-matching movement anchors. Target is the candidate anchor and Mover is the creature being moved.",
+                output = "boolean",
+                subject = creature.helpSymbols,
+                subjectDescription = "The caster of the invoking ability",
+                symbols = {
+                    target = { name = "Target", type = "creature", desc = "The candidate movement anchor." },
+                    mover = { name = "Mover", type = "creature", desc = "The creature being moved." },
+                    caster = { name = "Caster", type = "creature", desc = "The caster of the invoking ability." },
+                    parenttarget = { name = "Parent Target", type = "creature", desc = "The target of the parent ability." },
+                },
+            },
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Maximum Anchor Distance:",
+        },
+        gui.Input{
+            classes = {"formInput"},
+            text = tostring(self:try_get("movementConstraintAnchorDistance", "")),
+            change = function(element)
+                local value = tonumber(element.text)
+                if value == nil then
+                    self.movementConstraintAnchorDistance = nil
+                else
+                    self.movementConstraintAnchorDistance = math.max(0, value)
+                end
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Check{
+        text = "Movement Must Be in a Straight Line",
+        value = self:try_get("movementConstraintStraightLine", false),
+        change = function(element)
+            self.movementConstraintStraightLine = element.value
+        end,
+    }
+
+    result[#result+1] = gui.Check{
+        text = "Use Anchor as Forced Movement Origin",
+        value = self:try_get("movementConstraintAsForcedMovementOrigin", false),
+        change = function(element)
+            self.movementConstraintAsForcedMovementOrigin = element.value
+        end,
+    }
+
+    result[#result+1] = gui.Check{
+        text = "Remember Anchor as MovementTarget",
+        value = self:try_get("rememberMovementConstraintTarget", false),
+        change = function(element)
+            self.rememberMovementConstraintTarget = element.value
+        end,
+    }
+
 	result[#result+1] = gui.Check{
 		text = "Compel Destination Toward Attacker",
 		value = self:try_get("compelTowardAttacker", false),
@@ -1689,6 +2013,9 @@ function AbilityInvocation:Invoke()
     --the same way as the local path before substitutions or targeting formulas use it.
     if self.symbols.parenttarget ~= nil and type(self.symbols.parenttarget) ~= "function" then
         self.symbols.parenttarget = GenerateSymbols(self.symbols.parenttarget)
+    end
+    if self.symbols.movementtarget ~= nil and type(self.symbols.movementtarget) ~= "function" then
+        self.symbols.movementtarget = GenerateSymbols(self.symbols.movementtarget)
     end
 
     if self:has_key("subjectid") then

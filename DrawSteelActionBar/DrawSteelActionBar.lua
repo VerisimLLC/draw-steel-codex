@@ -5147,29 +5147,38 @@ OVERVIEW.ROLE_COLORS = {
 }
 OVERVIEW.ROLE_COLOR_DEFAULT = "#D7D9DA"
 
---Field test 36 (Ricky): the earlier prose here was authored play-pattern
---copy, NOT source text, and it contradicted actual kits (an ambusher
---with no escape tools "slips away"). These are now the Monster Basics
---role and organization descriptions from Draw Steel: Monsters (p4-5),
---lightly trimmed to tooltip length, so the hover always matches the
---book a Director has open. No invented tactics.
-local OVERVIEW_ROLE_PROSE = {
-    ambusher   = "Ambushers are melee warriors who can slip by beefier heroes to reach squishier targets in the back lines.",
-    artillery  = "Artillery creatures fight best from afar, and can use their most powerful abilities at great distance.",
-    brute      = "Brutes are hardy creatures who have lots of Stamina and deal lots of damage. Their abilities and traits make them difficult to ignore, hard to get away from, and let them push enemies around.",
-    controller = "Controllers are creatures who change the battlefield, often with magic or psionics. They reposition foes and alter terrain to make it advantageous for their allies. Often on the squishier side, so they need protection.",
-    defender   = "Defenders are tough creatures able to take a lot of damage, and who can force enemies to attack them instead of squishier targets.",
-    harrier    = "Harriers are mobile warriors who make definitive use of hit-and-run tactics. Their traits allow them to make the most of their positioning on the battlefield.",
-    hexer      = "Hexers specialize in debuffing enemies using conditions and other effects. They are generally squishy and rely on others to defend them.",
-    mount      = "Mounts are mobile creatures meant to be ridden in combat, and who make their riders even more dangerous.",
-    support    = "Support creatures specialize in aiding their allies by providing buffs, healing, movement, or action options.",
-    leader     = "A Leader is a powerful monster who buffs their allies and grants them additional actions.",
-    solo       = "A solo creature is an encounter all on their own. They have a special set of rules within their stat block.",
-    minion     = "Minions are weaker enemies who are made to die fast and threaten heroes en masse.",
-    horde      = "Horde creatures are more fragile than any other monsters except minions.",
-    platoon    = "Platoons are highly organized and usually self-sufficient armies, well equipped to handle most combat objectives. A single platoon creature is a decent threat to a hero of the same level.",
-    elite      = "Elite monsters are hardy and can usually stand up to 2 heroes of the same level.",
-}
+--The role / organization hover prose is glossary CONTENT, not Lua: the
+--glossaryTerms table (data/objectTables/glossaryterms) carries one term per
+--role word ("Ambusher", "Horde", ...) holding the Monster Basics text from
+--Draw Steel: Monsters p4-5, with a page reference. Field test 36: prose
+--composed in code contradicted real kits, so the hover only ever shows
+--book text, editable in the compendium like any other glossary entry.
+--A role word with no glossary term simply gets no hover prose.
+--Cache: lowercase term name -> definition, dropped whenever tables refresh.
+OVERVIEW.roleProse = nil
+dmhub.RegisterEventHandler("refreshTables", function(keys)
+    OVERVIEW.roleProse = nil
+end)
+
+local function OverviewRoleProse(word)
+    if word == nil then
+        return nil
+    end
+    if OVERVIEW.roleProse == nil then
+        local index = {}
+        local dataTable = dmhub.GetTable("glossaryTerms")
+        if dataTable ~= nil then
+            for _, term in unhidden_pairs(dataTable) do
+                local definition = term:try_get("definition", "")
+                if definition ~= "" then
+                    index[string.lower(term.name or "")] = definition
+                end
+            end
+        end
+        OVERVIEW.roleProse = index
+    end
+    return OVERVIEW.roleProse[string.lower(word)]
+end
 
 --The stat block's role for the footer: line = the role line with the ROLE
 --WORD first and emphasised ("<b>Controller</b>  Level 1 Horde"; a
@@ -5224,11 +5233,13 @@ local function OverviewRoleInfo(tok)
 
     --The book text opens with the role word itself, so no "Role:" prefix.
     local prose = {}
-    if roleWord ~= nil and OVERVIEW_ROLE_PROSE[roleWord] ~= nil then
-        prose[#prose + 1] = OVERVIEW_ROLE_PROSE[roleWord]
+    local roleProse = OverviewRoleProse(roleWord)
+    if roleProse ~= nil then
+        prose[#prose + 1] = roleProse
     end
-    if orgWord ~= nil and OVERVIEW_ROLE_PROSE[orgWord] ~= nil then
-        prose[#prose + 1] = OVERVIEW_ROLE_PROSE[orgWord]
+    local orgProse = OverviewRoleProse(orgWord)
+    if orgProse ~= nil then
+        prose[#prose + 1] = orgProse
     end
 
     return {

@@ -1343,19 +1343,8 @@ end
 function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
     local filters = self:try_get("abilityFilters", {})
 
-    --HideGate diagnostics: the Hide maneuver's cover/concealment gate is easy to
-    --break silently (a GoblinScript error in a filter formula evaluates to the
-    --default of 1 = pass), so trace its evaluation to the console.
-    local diag = self.name == "Hide"
-    if diag then
-        print(string.format("HideGate:: evaluating %d filter(s) on %s", #filters, self.name))
-    end
-
     for _,filter in ipairs(filters) do
         local result = ExecuteGoblinScript(filter.formula, casterCreature:LookupSymbol{}, 1, "Test ability filter")
-        if diag then
-            print("HideGate:: formula [", filter.formula, "] ->", result, "pass =", GoblinScriptTrue(result))
-        end
         if not GoblinScriptTrue(result) then
             return StringInterpolateGoblinScript(filter.reason, casterCreature), filter
         end

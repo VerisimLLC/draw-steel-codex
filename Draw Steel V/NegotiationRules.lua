@@ -3702,9 +3702,7 @@ local function CreateNegotiationRunner()
     return runnerPanel
 end
 
---Replaced by Draw Steel Negotiation/NEGDialog.lua, which is where the
---Director's negotiation surface lives now.
-if false then
+if NegotiationPanelSetting:Get() then
     DockablePanel.Register{
         name = "Negotiation",
         icon = "icons/standard/Icon_App_Negotiation.png",

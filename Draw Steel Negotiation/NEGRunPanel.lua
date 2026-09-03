@@ -915,97 +915,106 @@ function NEGRunPanel.Create(args)
 
     --The NPC sits beside the board on the players' window: they are looking at
     --a person, not a form. The Director's window has no room for it and does
-    --not need it - the NPC is named in the header.
-    --Fills its column and takes its height from that width, so the 2:3 can
-    --never push it outside the column it lives in. "image" keeps it
-    --true-colour - the theme root tints a bare bgimage panel - and "bordered"
-    --is the standard frame, so there is no hand-rolled border here.
-    --Fills its column outright. The 2:3 comes from the column being two thirds
-    --of the working area's height.
-    local portrait = gui.Panel{
-        classes = { "image", "bordered" },
-        interactable = false,
-        width = "100%",
-        height = "100%",
-        halign = "left",
-        valign = "top",
-    }
+    --not need it - the NPC is named in the header. Neither these nor the
+    --ending pane exist on the Director's window, so neither is built for it.
+    local portrait
+    local portraitColumn
+    local endingVerdict
+    local endingOffer
+    local endingPanel
 
-    local portraitColumn = gui.Panel{
-        classes = { "collapsed" },
-        width = NEGConstants.playerPortraitWidth,
-        height = "100%",
-        flow = "vertical",
-        halign = "left",
-        valign = "top",
-        rmargin = NEGConstants.playerPortraitGap,
+    if not director then
+        --Fills its column and takes its height from that width, so the 2:3 can
+        --never push it outside the column it lives in. "image" keeps it
+        --true-colour - the theme root tints a bare bgimage panel - and "bordered"
+        --is the standard frame, so there is no hand-rolled border here.
+        --Fills its column outright. The 2:3 comes from the column being two thirds
+        --of the working area's height.
+        portrait = gui.Panel{
+            classes = { "image", "bordered" },
+            interactable = false,
+            width = "100%",
+            height = "100%",
+            halign = "left",
+            valign = "top",
+        }
 
-        portrait,
-    }
+        portraitColumn = gui.Panel{
+            classes = { "collapsed" },
+            width = NEGConstants.playerPortraitWidth,
+            height = "100%",
+            flow = "vertical",
+            halign = "left",
+            valign = "top",
+            rmargin = NEGConstants.playerPortraitGap,
 
-    --Two panels on one line: the NPC at a fixed width, the form taking the
-    --rest.
-    local endingVerdict = gui.Label{
-        classes = { "sizeL" },
-        width = "98%",
-        height = "auto",
-        halign = "left",
-        valign = "top",
-        tmargin = 8,
-        textWrap = true,
-        text = "",
-    }
+            portrait,
+        }
 
-    local endingOffer = gui.Label{
-        classes = { "sizeS", "noBold" },
-        width = "98%",
-        height = "auto",
-        halign = "left",
-        valign = "top",
-        tmargin = 6,
-        textWrap = true,
-        markdown = true,
-        text = "",
-    }
-
-    --Shown to the table when the negotiation closes. The final offer is theirs
-    --to read whatever was shared during play.
-    local endingPanel = gui.Panel{
-        classes = { "collapsed" },
-        width = "100% available",
-        height = "100%",
-        flow = "vertical",
-        halign = "left",
-        valign = "top",
-
-        gui.Label{
+        --Two panels on one line: the NPC at a fixed width, the form taking the
+        --rest.
+        endingVerdict = gui.Label{
             classes = { "sizeL" },
             width = "98%",
             height = "auto",
             halign = "left",
             valign = "top",
-            text = "The negotiation is over.",
-        },
+            tmargin = 8,
+            textWrap = true,
+            text = "",
+        }
 
-        endingVerdict,
-
-        gui.MCDMDivider{
-            width = NEGConstants.sectionWidth,
-            halign = "left",
-            vmargin = 10,
-        },
-
-        gui.Label{
-            classes = { "sizeS" },
+        endingOffer = gui.Label{
+            classes = { "sizeS", "noBold" },
             width = "98%",
             height = "auto",
             halign = "left",
             valign = "top",
-            text = "Their Final Offer",
-        },
+            tmargin = 6,
+            textWrap = true,
+            markdown = true,
+            text = "",
+        }
 
-        endingOffer,
-    }
+        --Shown to the table when the negotiation closes. The final offer is theirs
+        --to read whatever was shared during play.
+        endingPanel = gui.Panel{
+            classes = { "collapsed" },
+            width = "100% available",
+            height = "100%",
+            flow = "vertical",
+            halign = "left",
+            valign = "top",
+
+            gui.Label{
+                classes = { "sizeL" },
+                width = "98%",
+                height = "auto",
+                halign = "left",
+                valign = "top",
+                text = "The negotiation is over.",
+            },
+
+            endingVerdict,
+
+            gui.MCDMDivider{
+                width = NEGConstants.sectionWidth,
+                halign = "left",
+                vmargin = 10,
+            },
+
+            gui.Label{
+                classes = { "sizeS" },
+                width = "98%",
+                height = "auto",
+                halign = "left",
+                valign = "top",
+                text = "Their Final Offer",
+            },
+
+            endingOffer,
+        }
+    end
 
     local liveBody
     if director then
@@ -1180,7 +1189,6 @@ function NEGRunPanel.Create(args)
             summaryPanel:SetClass("collapsed", false)
             offerPanel:SetClass("collapsed", false)
 
-            portraitColumn:SetClass("collapsed", director)
 
             local summary = def ~= nil and def:try_get("summary", "") or ""
             summaryLabel.text = summary
@@ -1208,6 +1216,8 @@ function NEGRunPanel.Create(args)
                 local language = NEGRules.LanguageName(langid)
                 languageLabel.text = cond(language ~= "", language, "None set")
             else
+                portraitColumn:SetClass("collapsed", false)
+
                 local portraitid = def ~= nil and def:try_get("portraitid", "") or ""
                 portrait:SetClass("collapsed", portraitid == "")
                 if portraitid ~= "" then

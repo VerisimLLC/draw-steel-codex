@@ -23,7 +23,8 @@ function creature:RequestProjectRoll(casterToken, options)
     
     local attrid = options.attrid or "mgt"
     local explanation = options.explanation or "Project Roll"
-    explanation = explanation..string.format(" (%s)", attrid)
+    explanation = explanation..string.format(" (%s)",
+        DTConstants.GetDisplayText(DTConstants.CHARACTERISTICS, attrid))
     local title = options.title or explanation
 
     local check = RollCheck.new{
@@ -469,3 +470,79 @@ function DTEventRollDialog.ShowDialog(args)
 
     gui.ShowModal(dlg:Root())
 end
+
+RollCheck.RegisterCustom{
+    id = "project_power_roll",
+    rollType = "power_roll_custom",
+    Describe = function(check, isplayer)
+        return check.info.explanation
+    end,
+    GetRoll = function(check, creature)
+        return "2d10 + " .. creature:AttributeMod(check.info.attrid)
+    end,
+    GetModifiers = function(check, creature)
+        --Modifiers included from the Roll
+        local rollModifiers = check:try_get("modifiers", {})
+        local result = creature:GetModifiersForPowerRoll(check:GetRoll(creature), "project_roll", {attribute = check.info.attrid, skills = check.skills})
+
+        local skillsTable = GetTableCached("Skills")
+        for _, skillid in ipairs(check.skills or {}) do
+            local skill = skillsTable[skillid]
+            if creature:ProficientInSkill(skill) then
+                for _,mod in ipairs(result) do
+                    if mod.modifier.name == "Skilled" then
+                        mod.hint.result = true
+                    end
+                end
+            end
+        end
+
+        local langs = creature:LanguagesKnown()
+        local languagesTable = GetTableCached("languages")
+        local relatedLanguages = GetTableCached("languageRelations")
+
+        local languageKnown = false
+        local languageRelated = false
+
+        for _, lang in ipairs(check.languages or {}) do
+            if langs[lang] then
+                languageKnown = true
+                break
+            elseif relatedLanguages[lang] then
+                for related, _ in pairs(relatedLanguages[lang].related) do
+                    if langs[related] then
+                        languageRelated = true
+                        break
+                    end
+                end
+            end
+        end
+
+        for _, mod in pairs(result) do
+            if not languageKnown and not languageRelated then
+                if mod.modifier.name == "Unknown Language" then
+                    mod.hint.result = true
+                    mod.hint.justification = {"<color=#FF0000>You do not know the language(s) of the project source.</color>"}
+                end
+            elseif not languageKnown and languageRelated then
+                if mod.modifier.name == "Related Language" then
+                    mod.hint.result = true
+                    mod.hint.justification = {"<color=#FF0000>You do not know the project source language(s), but you know a related language.</color>"}
+                end
+            end
+        end
+
+        --Add roll modifiers to the result
+        for _, mod in pairs(rollModifiers ) do
+            result[#result+1] = mod
+        end
+
+        return result
+    end,
+    ShowDialog = function(check, dialogOptions)
+        dialogOptions.rollProperties = RollProperties.new{
+            type = "project_power_roll",
+        }
+        return GameHud.instance.rollDialog.data.ShowDialog(dialogOptions)
+    end,
+}

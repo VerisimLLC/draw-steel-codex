@@ -225,7 +225,6 @@ function NEGDialog.Create()
                 text = "Reset",
                 halign = "center",
                 valign = "center",
-                requireConfirm = true,
                 hover = gui.Tooltip("Throw the whole negotiation away and go back to the library"),
                 click = function()
                     NEGRun.Clear()
@@ -442,19 +441,19 @@ GameHud.RegisterPresentableDialog{
     create = NEGDialog.RaiseForPlayer,
 }
 
---LaunchablePanel.Register is keyed by name, so this takes over the Negotiation
---entry rather than sitting beside it. The old registration in Draw Steel V is
---switched off as well, so the outcome does not depend on load order.
-LaunchablePanel.Register{
-    name = NEGConstants.panelName,
-    menu = "game",
-    icon = NEGConstants.icon,
-    halign = "center",
-    valign = "center",
-    content = function()
-        if dmhub.isDM then
-            return NEGDialog.Create()
-        end
-        return NEGDialog.CreatePlayerView()
-    end,
-}
+--Off while baseline owns the "Negotiation" menu name; the module move renames ours.
+if false then
+    LaunchablePanel.Register{
+        name = NEGConstants.panelName,
+        menu = "game",
+        icon = NEGConstants.icon,
+        halign = "center",
+        valign = "center",
+        content = function()
+            if dmhub.isDM then
+                return NEGDialog.Create()
+            end
+            return NEGDialog.CreatePlayerView()
+        end,
+    }
+end

@@ -92,8 +92,16 @@ function RSPJournal.Build()
 
     lines[#lines + 1] = string.format("**Days Elapsed:** %d",
         RSPSession.DaysElapsed())
-    lines[#lines + 1] = string.format("**Downtime Activities:** %d",
-        RSPSession.ActivityCount())
+    local heroActivities = RSPSession.ActivityCount()
+    local followerActivities = RSPSession.FollowerActivityCount()
+    if followerActivities == heroActivities then
+        lines[#lines + 1] = string.format("**Downtime Activities:** %d",
+            heroActivities)
+    else
+        lines[#lines + 1] = string.format(
+            "**Downtime Activities:** %d heroes, %d followers",
+            heroActivities, followerActivities)
+    end
 
     local activities = OfferedActivities()
     local names = {}

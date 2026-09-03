@@ -1510,15 +1510,15 @@ function DTProjectEditor:_createRollsPanel()
                     self:_createRollButton({
                         --The hero owns this project and holds the rolls, so
                         --both sides of the record are the sheet's own token.
-                        confirm = function(rolls, controller, roller)
-                            local token = getToken()
+                        confirm = function(rolls, context, roller)
+                            local token = context.heroToken
                             if token == nil then
                                 return
                             end
 
                             DTProjectEditor.RecordProjectRolls{
                                 projectToken = token,
-                                projectId = controller.data.project:GetID(),
+                                projectId = context.project:GetID(),
                                 rolls = rolls,
                                 rollHolderToken = token,
                                 rollerCharid = roller:GetTokenID(),
@@ -1722,10 +1722,12 @@ function DTProjectEditor:_createRollButton(options)
         end,
 
         refreshToken = function(element)
-            --The roll is addressed to whoever controls the token, which the
-            --Director never is.
+            --The Director always gets this button: the request goes to whoever
+            --controls the token, and the summary window it raises lets them
+            --take the roll themselves. Players get it while the game hands
+            --rolling to them.
             element:SetClass("collapsed",
-                dmhub.isDM or not DTCharSheetTab.RollingFromSheetEnabled())
+                not (dmhub.isDM or DTCharSheetTab.RollingFromSheetEnabled()))
 
             local isEnabled = false
             element.data.tooltipText = "Project not found?"
@@ -1775,14 +1777,34 @@ function DTProjectEditor:_createRollButton(options)
             --brings titles, complications and kit modifiers to bear on them.
             --The roll itself lives in PerformProjectRoll so the Respite can
             --run the same one for a roller it has already chosen.
+            --The roll outlives the sheet - the Director's is closed below - so
+            --the completion path is handed captured values rather than the
+            --controller panel and a fresh getToken(), both of which are gone by
+            --the time the roll comes back.
+            local rollContext = {
+                project = project,
+                heroToken = token,
+            }
+
             local function showRollDialog(roller)
+                --The Director's roll raises the summary window, which is a
+                --floating panel: the full-screen sheet covers it completely.
+                --Scheduled rather than immediate because the context-menu
+                --callers below still touch their popup on this frame.
+                if dmhub.isDM then
+                    dmhub.Schedule(0, function()
+                        if mod.unloaded then return end
+                        dmhub.CloseCharacterSheet()
+                    end)
+                end
+
                 DTProjectEditor.PerformProjectRoll{
                     project = project,
                     roller = roller,
                     heroToken = token,
                     onRolls = function(rolls)
                         if confirmCallback then
-                            confirmCallback(rolls, controller, roller)
+                            confirmCallback(rolls, rollContext, roller)
                         end
                     end,
                 }
@@ -1980,16 +2002,16 @@ function DTProjectEditor:_createSharedProjectButtons(ownerName, ownerId)
         --The progress goes to the project's owner; the roll comes off the
         --roller's own hero, which is the sheet this is being viewed from. On a
         --shared project those are two different people.
-        confirm = function(rolls, controller, roller)
+        confirm = function(rolls, context, roller)
             local ownerToken = dmhub.GetCharacterById(ownerId)
-            local heroToken = getToken()
+            local heroToken = context.heroToken
             if ownerToken == nil or heroToken == nil then
                 return
             end
 
             DTProjectEditor.RecordProjectRolls{
                 projectToken = ownerToken,
-                projectId = controller.data.project:GetID(),
+                projectId = context.project:GetID(),
                 rolls = rolls,
                 rollHolderToken = heroToken,
                 rollerCharid = roller:GetTokenID(),
@@ -2430,9 +2452,11 @@ function DTProjectEditor.PerformProjectRoll(args)
         skills = {},
         languages = project:GetProjectSourceLanguages(),
         modifiers = {},
-        --Awaited headlessly rather than through the roll summary window, which
-        --would open behind the surface that launched it.
-        silent = true,
+        --The Director rolls through the summary window, which shows the roll
+        --they just asked for and offers Take Roll to make it themselves. A
+        --player has nothing to watch there, so their request is awaited
+        --headlessly as before.
+        silent = not dmhub.isDM,
     }
 
     --Testing only. Marks the first roll so the OnBeforeRoll hook at the end of

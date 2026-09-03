@@ -3026,26 +3026,42 @@ local function GlossaryMarkSegment(seg, index, washed)
     return table.concat(out)
 end
 
---Glossary-mark one line, leaving link TARGETS alone. Markdown links are still
---plain text at this point -- the engine turns them into <link=...> tags later --
---so a hint injected into a target ends up inside the tag and the whole link
---renders as literal markup. The display half of [display](target) is safe and
---still gets hinted; a bare [Label] is its own target, so it is left whole.
-local function GlossaryMarkLine(line, index, washed)
+--Glossary-mark one chunk of text, hinting nothing inside a markdown link.
+--Links are still markdown here -- the engine turns them into <link=...> tags
+--later -- so neither half may be touched: a hint in the TARGET ends up inside
+--the tag value and the link renders as literal markup, while a hint in the
+--DISPLAY nests a glossary link inside the document link and the outer link
+--stops responding to clicks. Matches the seamless editor, which blanks whole
+--link constructs before its own glossary scan.
+--
+--`state` carries the position across calls, because the caller has split the
+--text on <...> tags: a styled link arrives as "[", the display run, and the
+--"](target)" tail in three separate segments.
+local function GlossaryMarkChunk(chunk, index, washed, state)
     local out = {}
     local pos = 1
-    while true do
-        --Match on "](target)" rather than the whole link: the caller has already
-        --split the text on <...> tags, so a styled link arrives as the display
-        --run and the "](target)" tail in separate segments.
-        local s, e = string.find(line, "%]%b()", pos)
-        if s == nil then
-            out[#out + 1] = GlossaryMarkSegment(string.sub(line, pos), index, washed)
-            break
+    local n = #chunk
+    while pos <= n do
+        if state.mode == "target" then
+            local close = string.find(chunk, ")", pos, true)
+            out[#out + 1] = string.sub(chunk, pos, close or n)
+            pos = (close or n) + 1
+            if close ~= nil then state.mode = "normal" end
+        elseif state.mode == "display" then
+            local close = string.find(chunk, "]", pos, true)
+            out[#out + 1] = string.sub(chunk, pos, close or n)
+            pos = (close or n) + 1
+            if close ~= nil then
+                state.mode = string.sub(chunk, pos, pos) == "(" and "target" or "normal"
+            end
+        else
+            local open = string.find(chunk, "[", pos, true)
+            out[#out + 1] = GlossaryMarkSegment(string.sub(chunk, pos, (open or n + 1) - 1), index, washed)
+            if open == nil then break end
+            out[#out + 1] = "["
+            pos = open + 1
+            state.mode = "display"
         end
-        out[#out + 1] = GlossaryMarkSegment(string.sub(line, pos, s - 1), index, washed)
-        out[#out + 1] = string.sub(line, s, e)
-        pos = e + 1
     end
     return table.concat(out)
 end
@@ -3070,6 +3086,9 @@ local function ApplyGlossaryHints(text)
     local n = #text
     local washed = {}
     local atLineStart = true
+    --tracks whether we are inside a markdown link's display or target; the
+    --tag-splitting below cuts one link into several segments.
+    local linkState = { mode = "normal" }
     while i <= n do
         local ch = string.sub(text, i, i)
         if ch == "<" then
@@ -3106,7 +3125,7 @@ local function ApplyGlossaryHints(text)
                     if atLineStart and string.match(line, "^#+[ \t]") ~= nil then
                         segOut[#segOut + 1] = line
                     else
-                        segOut[#segOut + 1] = GlossaryMarkLine(line, index, washed)
+                        segOut[#segOut + 1] = GlossaryMarkChunk(line, index, washed, linkState)
                     end
                     if nl ~= nil then
                         segOut[#segOut + 1] = "\n"

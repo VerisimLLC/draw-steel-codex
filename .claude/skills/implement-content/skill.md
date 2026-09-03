@@ -373,6 +373,7 @@ All reference docs live in the `data/` submodule under `data/docs/`.
 | File | What it contains |
 |---|---|
 | `data/docs/RULES_REFERENCE.md` | Draw Steel game rules (combat, conditions, power rolls, monster/encounter building) |
+| `data/docs/reference/IMPLEMENTATION-PATTERNS.md` | Recurring YAML shapes: potency gates, movement, triggers |
 | `data/monsters/<uuid>.yaml` | Example monster files -- study for exact YAML patterns |
 | `data/objectTables/<tablefolder>/` | Example compendium entries by type |
 
@@ -396,6 +397,8 @@ The most common errors:
 9. **Feature `tags:` are required metadata** on every CharacterFeature you author -- see
    "Feature Tags" below. An untagged feature renders as a normal visible feature row, which
    is wrong for ability-grant wrappers and plumbing carriers.
+10. **Potency gates need `filterTarget`** -- `not Cast.PassesPotency(Target, "M", "Average")`.
+    There is no `potencyAttr` field, and the `not` matters
 
 ### Modifier Name Must Match Parent Feature
 
@@ -644,6 +647,20 @@ For complex conditions, use a separate `ActivatedAbilityApplyOngoingEffectBehavi
   ongoingEffect: <effect-uuid>
   duration: save_ends
 ```
+
+### Gating a Behavior Behind a Potency Check
+
+A behavior with `tiersSelected` applies to **every** target of those tiers. If the rules
+text gates the effect on a potency check ("I<{Average}, cursed"), add the gate yourself:
+
+```yaml
+  filterTarget: not Cast.PassesPotency(Target, "I", "Average")
+```
+
+`Cast.PassesPotency` returns true when the target RESISTS, so the gate is nearly always
+negated. There is no `potencyAttr` field. Standard conditions need none of this -- the
+parser resolves `M<{Weak}, prone` from tier text natively. Details in
+`data/docs/reference/MONSTERS.md`, "Potency with ongoing effects".
 
 ## Damage Formulas
 

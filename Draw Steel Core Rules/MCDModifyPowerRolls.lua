@@ -1733,6 +1733,11 @@ CharacterModifier.TypeInfo.power = {
             end
 
 
+            --Legacy/imported power modifiers may never have been through
+            --TypeInfo.power.init, so modtype can be absent; default it the
+            --same way init does rather than hard-erroring on the read.
+            local modtypeValue = modifier:try_get("modtype", "none")
+
             children[#children+1] = gui.Panel{
                 classes = {"formPanel"},
                 gui.Label{
@@ -1744,7 +1749,7 @@ CharacterModifier.TypeInfo.power = {
                     styles = ThemeEngine.GetStyles(),
                     options = ActivatedAbilityPowerRollBehavior.s_modificationTypes,
                     valign = "center",
-                    idChosen = modifier.modtype,
+                    idChosen = modtypeValue,
                     change = function(element)
                         modifier.modtype = element.idChosen
                         Refresh()
@@ -1753,10 +1758,10 @@ CharacterModifier.TypeInfo.power = {
             }
 
             children[#children+1] = gui.Panel{
-                classes = {"formPanel", cond(modifier.modtype ~= "replaceroll" and modifier.modtype ~= "appendroll", 'collapsed-anim')},
+                classes = {"formPanel", cond(modtypeValue ~= "replaceroll" and modtypeValue ~= "appendroll", 'collapsed-anim')},
                 gui.Label{
                     classes = {"formLabel"},
-                    text = cond(modifier.modtype == "replaceroll", "Replace roll with:", "Append to roll:"),
+                    text = cond(modtypeValue == "replaceroll", "Replace roll with:", "Append to roll:"),
                 },
                 gui.Input{
                     classes = {"formInput"},

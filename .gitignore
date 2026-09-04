@@ -47,3 +47,32 @@ Definitions/version.txt
 # Claude Code local overrides
 .claude.local.md
 site/
+.mcp.json 
+
+# Compendium content 
+compendium/*
+
+# Crowdex is its own git repository
+/Crowdex/
+
+# Content
+RedRoad/*
+Updatedcompendium/*
+monsterjson/*
+
+# Superpowers workflow docs (specs, plans, decision requests)
+docs/superpowers/
+
+# Tooling caches
+.superpowers/
+.understand-anything/
+
+# Agent scratch and local working files
+.agents/
+.claude/acolyte-source.txt
+biglua.txt
+emmylua_patch.py
+*_tactician_raw.txt
+
+# Source rulebook PDFs -- large and not ours to redistribute
+*.pdf

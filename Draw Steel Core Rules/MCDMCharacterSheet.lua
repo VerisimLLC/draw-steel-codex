@@ -214,7 +214,7 @@ end
 
 function MCDMCharacterSheet()
     return gui.Panel{
-        styles = g_styles,
+        styles = ThemeEngine.MergeStyles(g_styles),
 
         width = "100%",
         height = "100%",

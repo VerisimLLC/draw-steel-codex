@@ -48,11 +48,21 @@ Additional named symbols depend on the formula's location: `Caster`, `Target`, `
 
 Symbol lookup is case-insensitive and ignores spaces in names.
 
+**Convention: write identifiers WITHOUT spaces** (`MaximumStamina`, `CoverFromAllEnemies`).
+Spaced multi-word identifiers (`Maximum Stamina`) are supported for compatibility and remain
+throughout older content, but they are deprecated for new formulas: if any word of a spaced
+identifier is a reserved operator word (`has`, `is`, `not`, `and`, `or`, `when`, `where`,
+`else`), the tokenizer reads that word as the operator instead -- the formula still compiles
+and silently computes the wrong thing. Example: `Has Cover > 0` parses `has` as the
+containment operator and never resolves the `Has Cover` attribute; `HasCover > 0` is a
+single identifier and resolves normally, since lookup strips spaces and case.
+
 ### Expression Types
 
 **Literals:** Numbers (`42`, `3.5`) and quoted strings (`"Artillery"`).
 
-**Symbol references:** Bare identifiers. Multi-word identifiers are merged (`Maximum Stamina`).
+**Symbol references:** Bare identifiers. Adjacent words merge into one identifier
+(`Maximum Stamina`) -- legacy support; prefer the space-less spelling (`MaximumStamina`).
 
 **Dot access:** `Subject.Field` -- resolves left side to an object, looks up right side on it.
 
@@ -395,6 +405,7 @@ Available during ability resolution (after power roll, while applying effects).
 | Tier | Number | Power roll tier (1, 2, or 3) |
 | Tier For Target | Number | Tier for a specific target |
 | Target Count | Number | Creatures targeted |
+| Duplicate Target Count | Function | `Duplicate Target Count(target)` -- times a creature was selected as a target |
 | Spaces Moved | Number | Squares moved during ability |
 | Damage Dealt | Number | Total damage dealt |
 | Damage Raw | Number | Damage before reductions |

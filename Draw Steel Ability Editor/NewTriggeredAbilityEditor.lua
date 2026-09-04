@@ -1,0 +1,7182 @@
+local mod = dmhub.GetModLoading()
+
+-- Nav column width matches the New Ability Editor's layout so the shared
+-- nae-nav-button rule (width = NAV_WIDTH - 24 = 196) fits inside the padded
+-- column. Hpad/vpad also mirror AbilityEditor's LAYOUT.COL_HPAD/VPAD.
+local LAYOUT = {
+    NAV_WIDTH = 220,
+    COL_HPAD = 16,
+    COL_VPAD = 16,
+    -- Mirrors AbilityEditor's LAYOUT.PREVIEW_WIDTH. The preview column is
+    -- always visible in the sectioned editor; fixed-width so the card has
+    -- a consistent rendering target.
+    PREVIEW_WIDTH = 440,
+    -- Reserved gutter on the right of the preview scroll area so the
+    -- vertical scrollbar doesn't visually overlap card borders. Cards
+    -- are widened to PREVIEW_WIDTH - 2*COL_HPAD - SCROLL_GUTTER so the
+    -- scroll track sits in the empty strip at the far right.
+    SCROLL_GUTTER = 14,
+}
+
+-- C6a: Test Trigger popout registry. Each entry maps ability identity (guid
+-- or synthetic key) -> the floating popout root panel. Populated when the
+-- user clicks "Pop out" inside the in-editor Test Trigger card; cleared
+-- when the popout's destroy event fires. Survives the editor closing
+-- because the popout is parented to gamehud.mainDialogPanel via
+-- gui.ShowDialog, not to any editor-owned dialog.
+--
+-- File-scope locals (not stashed on `mod` -- the CodeModInterface rejects
+-- arbitrary property assignment with "Could not set property"). On a Lua
+-- hot-reload, gui.ShowDialog's mod-unload teardown destroys any open
+-- popouts before this file re-runs, so resetting the registry here is
+-- correct rather than a leak.
+--
+-- PERF: deliberately no idle subscriptions. The popout's test card runs
+-- discoverTestInputs / runTriggerTest only on Run-click, so an open-but-
+-- unused popout costs zero per-frame work. Multiple popouts are O(N) only
+-- in the click path. Do NOT add a thinkTime poll or monitorGame here --
+-- that's the trap the [PERFORMANCE_PREVIEW_REBUILD] note in
+-- TRIGGERED_ABILITY_EDITOR_DESIGN.md warns about.
+local g_openTestPopouts = {}
+local g_popoutSpawnCount = 0
+
+-- Forward-declare so buildTestTriggerCard's "Pop out" press handler can
+-- reference it. The implementation is assigned below buildTestTriggerCard
+-- via `function openTestTriggerPopout(...)` (which writes to this local
+-- rather than creating a new one). Per CLAUDE.md, self-referencing /
+-- mutually-referencing locals must be forward-declared so they're in
+-- lexical scope at parse time.
+local openTestTriggerPopout
+
+
+-- Theme-resolved color snapshot for inline panel constructors that can't
+-- carry @-tokens directly (those only resolve in cascade rules). One-shot
+-- snapshot at file load; chip / title labels are short-lived enough to
+-- accept that on theme switches they re-resolve next open.
+local function _resolveThemeColor(token)
+    return ThemeEngine.MergeTokens({{selectors = {"_resolve"}, color = token}})[1].color
+end
+local g_themeFgInverse = _resolveThemeColor("@fgInverse")
+
+-- Ordered section list. IDs stable; labels can change later. (Setup was
+-- renamed from Response 2026-04-24 when the trigger-level Target Type +
+-- companion targeting fields landed inside it -- "Response" no longer fit.)
+local SECTIONS = {
+    { id = "trigger",  label = "Trigger" },
+    { id = "setup",    label = "Setup" },
+    { id = "effects",  label = "Effects" },
+    { id = "display",  label = "Display" },
+}
+
+-- Inherit the full New Ability Editor style pack. Covers nav buttons, section
+-- headings, field rows, checkbox skinning, button chrome, form-widget label
+-- alignment, and everything else the two editors should look identical in.
+-- Fall back to the bare Styles.Form if AbilityEditor is unavailable (should
+-- not happen in practice -- both files live in the same mod -- but keeps the
+-- editor renderable if load order shifts).
+local function buildStyles()
+    local AE = rawget(_G, "AbilityEditor")
+    local styles
+    if AE ~= nil and AE.GetEditorStyles ~= nil then
+        styles = AE.GetEditorStyles()
+    else
+        styles = {}
+    end
+
+    -- Classic-code alignment fixup. The upstream appearancePanel inside
+    -- ActivatedAbility:IconEditorPanel (DMHub Compendium/ActivatedAbilityEditor.lua
+    -- line ~1203) is width="auto" with no halign, so a vertical-flow parent
+    -- centers it. Pinning by its "appearance" class pulls it left without
+    -- touching classic code.
+    styles[#styles + 1] = {
+        selectors = {"appearance"},
+        priority = 3,
+        halign = "left",
+    }
+    -- Note: the classic TargetTypeEditor's abilityFilterPanel (DMHub Compendium
+    -- ActivatedAbilityEditor.lua line ~1825) has no halign and no class hook,
+    -- so its "Add Ability Filter" button still renders centered. Same story
+    -- for the Reasoned Filter wrapper at line ~2260. Fix lands naturally in
+    -- phase 2 when we replace BehaviorEditor with sectioned behavior cards.
+
+    return styles
+end
+
+-- Simple vertical row with a label above a child element. Matches the
+-- Character Builder / New Ability Editor stacked-field convention so the
+-- detail column reads cleanly without horizontal label wrapping.
+local function fieldRow(labelText, child, hintText)
+    local children = {
+        gui.Label{
+            classes = {"nae-field-label"},
+            text = labelText,
+        },
+        child,
+    }
+    if hintText ~= nil and hintText ~= "" then
+        children[#children + 1] = gui.Label{
+            classes = {"nae-field-hint"},
+            text = hintText,
+        }
+    end
+    return gui.Panel{
+        classes = {"nae-field-row"},
+        children = children,
+    }
+end
+
+local function sectionHeading(text)
+    return gui.Label{
+        classes = {"nae-section-heading"},
+        text = text,
+    }
+end
+
+--[[
+    ============================================================================
+    Trigger section
+    ============================================================================
+    Fields: Name, Trigger Event, Trigger Subject, When Active, Requires
+    Condition (+ inflicted-by), Trigger Range, Triggers Only When.
+    Icon and Description now live in the Display section.
+]]
+local SUBJECT_OPTIONS = {
+    {id = "self",           text = "Self"},
+    {id = "any",            text = "Self or Any Creature"},
+    {id = "selfandheroes",  text = "Self or a Hero"},
+    {id = "otherheroes",    text = "Any Hero (Not Self)"},
+    {id = "selfandallies",  text = "Self or an Ally"},
+    {id = "allies",         text = "Any Ally (Not Self)"},
+    {id = "enemy",          text = "Any Enemy"},
+    {id = "other",          text = "Any Creature (Not Self)"},
+}
+
+local WHEN_ACTIVE_OPTIONS = {
+    {id = "always", text = "Always Active"},
+    {id = "combat", text = "Only During Combat"},
+}
+
+-- Corrected display labels per the design doc. The underlying ids ("remove"
+-- and "corpse") match TriggeredAbility.DespawnBehaviors; we only override the
+-- display text so the classic editor keeps its original labels unaffected.
+local DESPAWN_OPTIONS = {
+    {id = "remove", text = "Skip Despawned Targets"},
+    {id = "corpse", text = "Retarget to Corpse"},
+}
+
+--[[
+    ============================================================================
+    Trigger Event picker metadata
+    ============================================================================
+    Categorized metadata for each registered trigger id. Bands, approved
+    display renames, and per-id descriptions come from the design doc's
+    "Trigger Event picker modal" section.
+
+    The Common band uses sortOrder for priority ordering; all others sort
+    alphabetically on the resolved display label.
+
+    The `label` field overrides the registered `text` (used only for the
+    approved renames); `description` renders under the title on each card;
+    `tags` are searchable alongside id/label/description; `group` picks
+    the band.
+
+    Ids the picker must not show:
+      * miss, attacked -- 5e-only, registered via dnd5e.lua but no DS usage
+        for new authoring (attacked still loads from existing content).
+      * fumble -- has a hide() predicate gated on power-roll outcome structure
+        that DS never satisfies; the standard filter already drops it.
+      * hit -- deregistered in MCDMRules.lua:1277.
+      * Aura-specific ids (onenter, casterstartturnaura, casterendturnaura)
+        never hit the main picker because they live in Aura.lua and are only
+        surfaced in the aura-embed editor (which falls through to classic
+        dispatch).
+]]
+local TRIGGER_METADATA = {
+    -- Common (priority-sorted)
+    losehitpoints = {
+        label = "Take Damage",
+        description = "Fires when the creature loses stamina from damage.",
+        tags = {"damage", "hit", "hurt", "retaliate", "stamina"},
+        group = "common",
+        sortOrder = 1,
+    },
+    dealdamage = {
+        label = "Damage an Enemy",
+        description = "Fires when the creature deals damage.",
+        tags = {"damage", "deal", "on-hit", "rider"},
+        group = "common",
+        sortOrder = 2,
+    },
+    rollpower = {
+        label = "Roll Power",
+        description = "Fires on any power roll, with the 2d10 results available as symbols.",
+        tags = {"power", "roll", "2d10", "tier", "crit", "natural"},
+        group = "common",
+        sortOrder = 3,
+    },
+    inflictcondition = {
+        label = "Condition Applied",
+        description = "Fires when a condition is inflicted on the subject.",
+        tags = {"condition", "status", "dazed", "prone", "grabbed"},
+        group = "common",
+        sortOrder = 4,
+    },
+    useability = {
+        label = "Use an Ability",
+        description = "Fires when the creature uses any ability.",
+        tags = {"ability", "cast", "use", "economy"},
+        group = "common",
+        sortOrder = 5,
+    },
+    beginturn = {
+        label = "Start of Turn",
+        description = "Fires at the start of the creature's turn.",
+        tags = {"turn", "begin", "round", "ongoing", "aura"},
+        group = "common",
+        sortOrder = 6,
+    },
+
+    -- Combat (alphabetical)
+    attack = {
+        label = "Attack an Enemy",
+        description = "Fires when the creature makes an attack against an enemy.",
+        tags = {"attack", "strike", "enemy"},
+        group = "combat",
+    },
+    dying = {
+        label = "Become Dying (Heroes Only)",
+        description = "Fires when a hero drops to dying.",
+        tags = {"dying", "hero", "death saves"},
+        group = "combat",
+    },
+    winded = {
+        label = "Become Winded",
+        description = "Fires when the creature becomes winded.",
+        tags = {"winded", "half", "bloodied", "stamina"},
+        group = "combat",
+    },
+    fallenon = {
+        label = "Creature Lands On You",
+        description = "Fires when a falling creature lands on this creature.",
+        tags = {"fall", "land", "impact", "above"},
+        group = "combat",
+    },
+    creaturedeath = {
+        label = "Death",
+        description = "Fires when the creature dies.",
+        tags = {"death", "die", "dead", "kill"},
+        group = "combat",
+    },
+    zerohitpoints = {
+        label = "Drop to Zero Stamina",
+        description = "Fires when the creature reaches zero stamina.",
+        tags = {"zero", "stamina", "down", "defeated"},
+        group = "combat",
+    },
+    gaintempstamina = {
+        label = "Gain Temporary Stamina",
+        description = "Fires when the creature gains temporary stamina.",
+        tags = {"temporary", "stamina", "shield", "buffer"},
+        group = "combat",
+    },
+    kill = {
+        label = "Kill a Creature",
+        description = "Fires when the creature kills another creature.",
+        tags = {"kill", "slay", "finisher"},
+        group = "combat",
+    },
+    saveagainstdamage = {
+        label = "Made Reactive Roll Against damage",
+        description = "Fires when the creature makes a reactive roll to reduce damage.",
+        tags = {"save", "reactive", "roll", "reduce"},
+        group = "combat",
+    },
+    regainhitpoints = {
+        label = "Regain Stamina",
+        description = "Fires when the creature regains stamina.",
+        tags = {"heal", "regain", "stamina", "recover"},
+        group = "combat",
+    },
+
+    -- Abilities & Power Rolls (alphabetical)
+    finishability = {
+        label = "Finish Using an Ability",
+        description = "Fires after the creature finishes resolving an ability.",
+        tags = {"ability", "finish", "end", "resolve"},
+        group = "abilities",
+    },
+    targetwithability = {
+        label = "Targeted by an Ability",
+        description = "Fires when the creature is targeted by another creature's ability.",
+        tags = {"targeted", "target", "ability", "by"},
+        group = "abilities",
+    },
+    castsignature = {
+        label = "Use Signature Attack or Area",
+        description = "Fires when the creature uses a signature Strike or Area ability.",
+        tags = {"signature", "strike", "area", "cast"},
+        group = "abilities",
+    },
+
+    -- Movement (alphabetical)
+    departadjacent = {
+        label = "Move Away From Adjacent Creature",
+        description = "Fires on the moving creature for each adjacent enemy it willingly moves away from. Shifting and forced movement do not trigger it.",
+        tags = {"adjacent", "depart", "move", "away", "leave", "opportunity", "cunning"},
+        group = "movement",
+    },
+    leaveadjacent = {
+        label = "Adjacent Creature Moves Away",
+        description = "Fires when a creature adjacent to this one moves away.",
+        tags = {"adjacent", "leave", "move", "away", "opportunity"},
+        group = "movement",
+    },
+    leaveadjacentorshift = {
+        label = "Adjacent Creature Moves or Shifts Away",
+        description = "Fires when a creature adjacent to this one moves away, including by shifting. Forced movement does not trigger it.",
+        tags = {"adjacent", "leave", "move", "shift", "away"},
+        group = "movement",
+    },
+    move = {
+        label = "Begin Movement",
+        description = "Fires at the start of the creature's movement.",
+        tags = {"move", "begin", "start"},
+        group = "movement",
+    },
+    wallbreak = {
+        label = "Break Through a Wall",
+        description = "Fires when the creature breaks through a wall.",
+        tags = {"wall", "break", "smash", "burst"},
+        group = "movement",
+    },
+    collide = {
+        label = "Collide with a Creature or Object",
+        description = "Fires when the creature collides with something during forced movement.",
+        tags = {"collide", "crash", "impact", "forced"},
+        group = "movement",
+    },
+    finishmove = {
+        label = "Complete Movement",
+        description = "Fires when the creature finishes moving.",
+        tags = {"move", "complete", "finish", "end"},
+        group = "movement",
+    },
+    forcemove = {
+        label = "Force Moved",
+        description = "Fires when the creature is pushed, pulled, or slid.",
+        tags = {"push", "pull", "slide", "forced", "move"},
+        group = "movement",
+    },
+    fall = {
+        label = "Land From a Fall",
+        description = "Fires when the creature lands after a fall.",
+        tags = {"fall", "land", "drop"},
+        group = "movement",
+    },
+    movethrough = {
+        label = "Move Through Creature",
+        description = "Fires when the creature moves through another creature's space.",
+        tags = {"move", "through", "pass", "phase"},
+        group = "movement",
+    },
+    pressureplate = {
+        label = "Stepped on a Pressure Plate",
+        description = "Fires when a creature steps on a pressure plate tile.",
+        tags = {"pressure", "plate", "trap", "step"},
+        group = "movement",
+    },
+    pressureplateoff = {
+        label = "Stepped off a Pressure Plate",
+        description = "Fires when a creature steps off a pressure plate tile.",
+        tags = {"pressure", "plate", "trap", "step", "off"},
+        group = "movement",
+    },
+    teleport = {
+        label = "Teleport",
+        description = "Fires when the creature teleports.",
+        tags = {"teleport", "blink", "instant"},
+        group = "movement",
+    },
+
+    -- Resources & Victory
+    earnvictory = {
+        label = "Earn Victory",
+        description = "Fires when the creature earns victories.",
+        tags = {"victory", "earn", "heroic"},
+        group = "resources",
+    },
+    gainresource = {
+        label = "Gain Resource",
+        description = "Fires when the creature gains a resource.",
+        tags = {"resource", "gain", "heroic"},
+        group = "resources",
+    },
+    useresource = {
+        label = "Use Resource",
+        description = "Fires when the creature spends a resource.",
+        tags = {"resource", "use", "spend", "heroic"},
+        group = "resources",
+    },
+
+    -- Turn & Game Mode
+    prestartturn = {
+        label = "Before Start of Turn",
+        description = "Fires just before the start of the creature's turn.",
+        tags = {"turn", "before", "pre", "start"},
+        group = "turn",
+    },
+    rollinitiative = {
+        label = "Draw Steel",
+        description = "Fires when the creature rolls initiative.",
+        tags = {"initiative", "draw steel", "start", "combat"},
+        group = "turn",
+    },
+    endcombat = {
+        label = "End of Combat",
+        description = "Fires when combat ends.",
+        tags = {"end", "combat", "over"},
+        group = "turn",
+    },
+    endrespite = {
+        label = "End Respite",
+        description = "Fires when a respite ends.",
+        tags = {"respite", "end", "rest"},
+        group = "turn",
+    },
+    endturn = {
+        label = "End Turn",
+        description = "Fires when the creature ends its turn.",
+        tags = {"turn", "end"},
+        group = "turn",
+    },
+    startdowntime = {
+        label = "Start Downtime",
+        description = "Fires when downtime begins.",
+        tags = {"downtime", "start"},
+        group = "turn",
+    },
+    beginround = {
+        label = "Start of Round",
+        description = "Fires at the start of each round.",
+        tags = {"round", "begin", "start"},
+        group = "turn",
+    },
+    startrespite = {
+        label = "Start Respite",
+        description = "Fires when a respite begins.",
+        tags = {"respite", "start", "rest"},
+        group = "turn",
+    },
+
+    -- Custom
+    custom = {
+        label = "Custom Trigger",
+        description = "Fires on a named custom trigger raised by a macro or behavior.",
+        tags = {"custom", "macro", "event", "named"},
+        group = "custom",
+    },
+}
+
+local TRIGGER_GROUPS = {
+    {id = "common",    label = "Common"},
+    {id = "combat",    label = "Combat"},
+    {id = "abilities", label = "Abilities & Power Rolls"},
+    {id = "movement",  label = "Movement"},
+    {id = "resources", label = "Resources & Victory"},
+    {id = "turn",      label = "Turn & Game Mode"},
+    {id = "custom",    label = "Custom"},
+}
+
+-- Ids excluded from the picker. Items with hide() predicates (fumble in DS)
+-- are filtered separately via the standard hide-check below.
+local EXCLUDED_TRIGGER_IDS = {
+    miss     = true,  -- 5e-only, registered via dnd5e.lua
+    attacked = true,  -- 5e-only; existing content loads but no new authoring
+}
+
+local function getTriggerLabel(triggerId)
+    if triggerId == nil then
+        return "(none)"
+    end
+    local meta = TRIGGER_METADATA[triggerId]
+    if meta ~= nil and meta.label ~= nil then
+        return meta.label
+    end
+    local info = TriggeredAbility.GetTriggerById(triggerId)
+    if info ~= nil then
+        return info.text or triggerId
+    end
+    return triggerId
+end
+
+local function _filterTriggers(query, entries)
+    local results = {}
+    for _, entry in ipairs(entries) do
+        local match = true
+        if query ~= nil and query ~= "" then
+            match = false
+            local q = string.lower(query)
+            if string.find(string.lower(entry.label), q, 1, true) then
+                match = true
+            elseif string.find(string.lower(entry.id), q, 1, true) then
+                match = true
+            elseif string.find(string.lower(entry.description or ""), q, 1, true) then
+                match = true
+            else
+                for _, tag in ipairs(entry.tags or {}) do
+                    if string.find(string.lower(tag), q, 1, true) then
+                        match = true
+                        break
+                    end
+                end
+            end
+        end
+        if match then
+            results[#results + 1] = entry
+        end
+    end
+    return results
+end
+
+-- Picker-specific style extras appended to the modal's cascade root via
+-- ThemeEngine.MergeTokens. Keeps the picker's "dark fill" card look but
+-- routes the colors through @-tokens so the cards re-color with the
+-- active scheme. Border comes from the {bordered} class composed on
+-- consuming panels.
+local function _pickerStyles()
+    return {
+        {
+            selectors = {"picker-card"},
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            borderBox = true,
+        },
+    }
+end
+
+local function _makeTriggerCard(entry, onSelect)
+    return gui.Panel{
+        classes = {"picker-card", "bordered"},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        hpad = 10,
+        vpad = 6,
+        bmargin = 4,
+        press = function()
+            onSelect(entry.id)
+        end,
+        gui.Label{
+            classes = {"sizeS", "bold"},
+            width = "100%",
+            height = "auto",
+            textAlignment = "left",
+            text = entry.label,
+        },
+        gui.Label{
+            classes = {"sizeXs"},
+            width = "100%",
+            height = "auto",
+            italics = true,
+            textAlignment = "left",
+            text = entry.description or "",
+        },
+    }
+end
+
+local function _buildTriggerGroupPanel(groupDef, entries, onSelect)
+    if groupDef.id == "common" then
+        table.sort(entries, function(a, b)
+            local sa = a.sortOrder or 99
+            local sb = b.sortOrder or 99
+            if sa ~= sb then return sa < sb end
+            return a.label < b.label
+        end)
+    else
+        table.sort(entries, function(a, b) return a.label < b.label end)
+    end
+
+    local cards = {}
+    for _, entry in ipairs(entries) do
+        cards[#cards + 1] = _makeTriggerCard(entry, onSelect)
+    end
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        bmargin = 12,
+        bgcolor = "clear",
+        children = {
+            gui.Label{
+                classes = {"sizeM", "bold"},
+                width = "100%",
+                height = "auto",
+                textAlignment = "left",
+                bmargin = 4,
+                text = groupDef.label,
+            },
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                bgcolor = "clear",
+                children = cards,
+            },
+        },
+    }
+end
+
+local function openTriggerEventPicker(currentId, onChosen)
+    -- Build the filtered entry list from the live trigger registry. Skip
+    -- excluded ids, items whose hide() predicate returns true, and
+    -- unrecognised entries (they would end up with no description and no
+    -- group). The last case is effectively an authoring bug alert: add
+    -- metadata to TRIGGER_METADATA above.
+    local entries = {}
+    for _, trig in ipairs(TriggeredAbility.triggers) do
+        if not EXCLUDED_TRIGGER_IDS[trig.id]
+                and (trig.hide == nil or not trig.hide()) then
+            local meta = TRIGGER_METADATA[trig.id]
+            if meta ~= nil then
+                entries[#entries + 1] = {
+                    id = trig.id,
+                    label = meta.label or trig.text,
+                    description = meta.description,
+                    tags = meta.tags,
+                    group = meta.group,
+                    sortOrder = meta.sortOrder,
+                }
+            end
+        end
+    end
+
+    local function onSelect(triggerId)
+        gui.CloseModal()
+        onChosen(triggerId)
+    end
+
+    local searchInput
+    local resultsPanel
+
+    searchInput = gui.SearchInput{
+        width = "100%",
+        height = 30,
+        borderBox = true,
+        placeholderText = "Search trigger events...",
+        bmargin = 8,
+        editlag = 0.15,
+        edit = function(element)
+            resultsPanel:FireEvent("updateResults")
+        end,
+        create = function(element)
+            element.hasFocus = true
+        end,
+    }
+
+    resultsPanel = gui.Panel{
+        width = "100%",
+        height = "100%-80",
+        flow = "vertical",
+        vscroll = true,
+        bgcolor = "clear",
+        halign = "left",
+        valign = "top",
+
+        create = function(element)
+            element:FireEvent("updateResults")
+        end,
+
+        updateResults = function(element)
+            local rawQuery = searchInput.text or ""
+            local query = rawQuery
+            if query == "" then query = nil end
+
+            local children = {}
+            local filtered = _filterTriggers(query, entries)
+
+            for _, groupDef in ipairs(TRIGGER_GROUPS) do
+                local groupEntries = {}
+                for _, entry in ipairs(filtered) do
+                    if entry.group == groupDef.id then
+                        groupEntries[#groupEntries + 1] = entry
+                    end
+                end
+                if #groupEntries > 0 then
+                    children[#children + 1] = _buildTriggerGroupPanel(groupDef, groupEntries, onSelect)
+                end
+            end
+
+            if #filtered == 0 and query ~= nil then
+                children[#children + 1] = gui.Label{
+                    classes = {"sizeS"},
+                    width = "100%",
+                    height = "auto",
+                    italics = true,
+                    textAlignment = "center",
+                    vmargin = 24,
+                    text = "No trigger events match \"" .. rawQuery .. "\"",
+                }
+            end
+
+            element.children = children
+        end,
+    }
+
+    local dialogPanel = gui.Panel{
+        classes = {"framedPanel", "bordered"},
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(_pickerStyles()) },
+        width = 600,
+        height = 600,
+        flow = "vertical",
+        pad = 16,
+        borderBox = true,
+        halign = "center",
+        valign = "center",
+        children = {
+            gui.Label{
+                classes = {"sizeXl", "bold"},
+                halign = "left",
+                bmargin = 8,
+                text = "Select Trigger Event",
+            },
+            searchInput,
+            resultsPanel,
+            gui.Button{
+                classes = {"closeButton"},
+                halign = "right",
+                valign = "top",
+                floating = true,
+                escapeActivates = true,
+                escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+                click = function()
+                    gui.CloseModal()
+                end,
+            },
+        },
+    }
+
+    gui.ShowModal(dialogPanel)
+end
+
+-- Summarise the GoblinScript payload symbols a trigger event injects, for
+-- the hint label under the Trigger Event field. Returns nil when the event
+-- declares no symbols (the hint row is omitted entirely -- ambient symbols
+-- like Subject/Self/Caster are always available and not worth restating on
+-- every event). Handles both declaration forms (keyed map and bare array;
+-- see discoverTestInputs) and sorts by display name so the label is stable
+-- across rebuilds despite pairs() iteration order.
+local function triggerSymbolsHint(triggerId)
+    local trigger = TriggeredAbility.GetTriggerById(triggerId)
+    if trigger == nil or type(trigger.symbols) ~= "table" then return nil end
+    local names = {}
+    for k, def in pairs(trigger.symbols) do
+        if type(def) == "table" then
+            local nm = def.name
+            if (nm == nil or nm == "") and type(k) == "string" then
+                nm = k
+            end
+            if nm ~= nil and nm ~= "" then
+                if def.type ~= nil and def.type ~= "" then
+                    names[#names + 1] = string.format("%s (%s)", nm, def.type)
+                else
+                    names[#names + 1] = nm
+                end
+            end
+        end
+    end
+    if #names == 0 then return nil end
+    table.sort(names)
+    return "Adds script arguments: " .. table.concat(names, ", ")
+end
+
+-- Trigger Event field: shows the current event's display label with an
+-- inline "Change" button that opens the picker modal. Mirrors the Ability
+-- Editor's "Advanced Target..." convention (label + action button) rather
+-- than miming a dropdown with modal behaviour. TriggeredAbility.Create
+-- always sets a default trigger id ("losehitpoints"), so the field never
+-- needs an empty state.
+local function makeTriggerEventButton(ability, refreshSection, fireChange)
+    return gui.Panel{
+        width = "auto",
+        height = 30,
+        flow = "horizontal",
+        halign = "left",
+        valign = "center",
+        bgcolor = "clear",
+        children = {
+            gui.Panel{
+                width = "auto",
+                height = 28,
+                flow = "horizontal",
+                halign = "left",
+                valign = "center",
+                rmargin = 12,
+                bgcolor = "clear",
+                children = {
+                    gui.Panel{
+                        width = 3,
+                        height = 20,
+                        halign = "left",
+                        valign = "center",
+                        rmargin = 10,
+                        bgimage = true,
+                        classes = {"bgAccent"},
+                    },
+                    gui.Label{
+                        width = "auto",
+                        height = "auto",
+                        valign = "center",
+                        textAlignment = "left",
+                        classes = {"fg", "sizeS", "bold"},
+                        text = getTriggerLabel(ability.trigger),
+                    },
+                },
+            },
+            gui.Button{
+            	classes = {"sizeS"},
+                text = "Change",
+                width = 100,
+                height = 28,
+                halign = "left",
+                valign = "center",
+                click = function()
+                    openTriggerEventPicker(ability.trigger, function(triggerId)
+                        ability.trigger = triggerId
+                        -- refreshSection() rebuilds the Trigger section so the
+                        -- event label updates; fireChange() fires refreshAbility
+                        -- tree-wide so the Target Type dropdown in the Setup
+                        -- section recomputes its valid options for the new event.
+                        refreshSection()
+                        if fireChange ~= nil then fireChange() end
+                    end)
+                end,
+            },
+        },
+    }
+end
+
+local function buildTriggerSection(ability, refreshSection, fireChange, editorOptions)
+    -- ctx marks a modifier-fired custom trigger (e.g. a Modify Power Rolls
+    -- modifier's custom trigger). Those fire directly when the modifier is
+    -- used, never through trigger-event dispatch, so the event-dispatch
+    -- fields (Trigger Event, Trigger Subject, When Active) are collapsed.
+    local ctx = editorOptions and editorOptions.customTriggerContext
+
+    -- The standard subject field must stay "self" or "any" here, or the
+    -- runtime subject gates in TriggeredAbility:Trigger silently kill the
+    -- trigger. Normalize legacy values on open; the Setup section's Target
+    -- dropdown keeps them in sync from then on.
+    if ctx ~= nil then
+        if ctx.subjectOptions then
+            -- Mark the trigger so the Setup Target dropdown offers the
+            -- contextual creatures (see GetDisplayedTargetTypeOptions).
+            ability.modifierCustomTrigger = true
+        end
+        -- Subject-hood always belongs to the owner for a custom trigger:
+        -- Requires Condition checks the owner and Subject in formulas is the
+        -- owner. The contextual creatures are plain target types instead.
+        if ability:try_get("subject", "self") ~= "self" then
+            ability.subject = "self"
+        end
+        -- Migrate the short-lived subject-based scheme: a contextual choice
+        -- stored as "subject" targeting becomes the equivalent target type.
+        if ability.targetType == "subject" then
+            local choice = ability:try_get("customTriggerSubject", "self")
+            if ctx.subjectOptions and choice ~= "self" then
+                ability.targetType = choice
+            else
+                ability.targetType = "self"
+            end
+        end
+        if ability:has_key("customTriggerSubject") then
+            ability.customTriggerSubject = nil
+        end
+    end
+
+    local children = {}
+
+    children[#children + 1] = sectionHeading("Trigger")
+
+    -- Name
+    children[#children + 1] = fieldRow("Name",
+        gui.Input{
+            classes = {"formInput"},
+            width = 280,
+            placeholderText = "Enter trigger name...",
+            text = ability.name or "",
+            change = function(element)
+                ability.name = element.text
+            end,
+        })
+
+    if ctx ~= nil then
+        -- A custom trigger has no event to pick: it fires whenever the
+        -- owning modifier is used. Show a static note in the event's place.
+        -- The contextual creatures (Ability Caster / Ability Target /
+        -- Triggerer) are offered in the Setup section's Target dropdown.
+        children[#children + 1] = fieldRow("Trigger",
+            gui.Label{
+                width = "100%",
+                height = "auto",
+                fontSize = 14,
+                color = "@fg",
+                textAlignment = "left",
+                text = ctx.note or "Fires automatically when this modifier is used.",
+            })
+    else
+    -- Trigger Event -- categorized picker modal (phase 2). The hint lists
+    -- the GoblinScript symbols this event injects; refreshSection() rebuilds
+    -- this section on trigger change, so it stays in sync with the picker.
+    children[#children + 1] = fieldRow("Trigger Event",
+        makeTriggerEventButton(ability, refreshSection, fireChange),
+        triggerSymbolsHint(ability.trigger))
+
+    -- Trigger Subject
+    children[#children + 1] = fieldRow("Trigger Subject",
+        gui.Dropdown{
+            classes = {"formDropdown"},
+            width = 280,
+            height = 30,
+            options = SUBJECT_OPTIONS,
+            idChosen = ability:try_get("subject", "self"),
+            change = function(element)
+                ability.subject = element.idChosen
+                -- Subject also gates valid target types (e.g. "subject"),
+                -- so refresh the Setup section's Target dropdown tree-wide.
+                refreshSection()
+                if fireChange ~= nil then fireChange() end
+            end,
+        },
+        "Who the editor is listening for the trigger event to occur on.")
+
+    -- When Active
+    children[#children + 1] = fieldRow("When Active",
+        gui.Dropdown{
+            classes = {"formDropdown"},
+            width = 280,
+            height = 30,
+            options = WHEN_ACTIVE_OPTIONS,
+            idChosen = ability:try_get("whenActive", "always"),
+            change = function(element)
+                ability.whenActive = element.idChosen
+            end,
+        })
+    end
+
+    -- Requires Condition
+    local conditionOptions = {
+        {id = "none", text = "None"},
+    }
+    CharacterCondition.FillDropdownOptions(conditionOptions)
+    children[#children + 1] = fieldRow("Requires Condition",
+        gui.Dropdown{
+            classes = {"formDropdown"},
+            width = 280,
+            height = 30,
+            hasSearch = true,
+            options = conditionOptions,
+            idChosen = ability:try_get("characterConditionRequired", "none"),
+            change = function(element)
+                if element.idChosen == "none" then
+                    ability.characterConditionRequired = nil
+                else
+                    ability.characterConditionRequired = element.idChosen
+                end
+                refreshSection()
+            end,
+        })
+
+    if ability:try_get("characterConditionRequired", "none") ~= "none" then
+        children[#children + 1] = gui.Check{
+            text = "Condition must be inflicted by you",
+            value = ability:try_get("characterConditionInflictedBySelf", false),
+            vmargin = 6,
+            change = function(element)
+                ability.characterConditionInflictedBySelf = element.value
+            end,
+        }
+    end
+
+    -- Trigger Range (GoblinScript) -- hidden when Subject is Self, and for
+    -- custom triggers entirely (their subject is always the owner; gate on
+    -- another creature's distance via Target Filter or Triggers Only When).
+    if ctx == nil and ability:try_get("subject", "self") ~= "self" then
+        children[#children + 1] = fieldRow("Trigger Range",
+            gui.GoblinScriptInput{
+                value = ability:try_get("subjectRange", ""),
+                change = function(element)
+                    ability.subjectRange = element.value
+                end,
+                documentation = {
+                    help = "GoblinScript used to determine the range at which this triggered ability can activate.",
+                    output = "number",
+                    subject = creature.helpSymbols,
+                    subjectDescription = "The creature the ability will trigger on",
+                    symbols = {
+                        subject = {
+                            name = "Subject",
+                            type = "creature",
+                            desc = "The creature that the event occurred on. This will be the same as Self for triggered abilities that only affect self.",
+                        },
+                    },
+                },
+            })
+    end
+
+    -- Triggers Only When (GoblinScript condition formula)
+    local helpSymbols = {
+        subject = {
+            name = "Subject",
+            type = "creature",
+            desc = "The creature that the event occurred on. This will be the same as Self for triggered abilities that only affect self.",
+        },
+    }
+    local examples = {
+        {
+            script = "hitpoints < 5",
+            text = "The triggered ability only activates when stamina is below 5.",
+        },
+    }
+    if ctx ~= nil then
+        -- Custom triggers get the symbols the modifier installs at fire
+        -- time instead of the (never consulted) trigger event's symbols.
+        for k, v in pairs(ctx.symbols or {}) do
+            helpSymbols[k] = v
+        end
+    else
+        helpSymbols.caster = {
+            name = "Caster",
+            type = "creature",
+            desc = "The creature that controls the aura triggering this ability.\n\n<color=#ffaaaa><i>This field is only available for triggered abilities that are triggered by an aura.</i></color>",
+        }
+        local triggerInfo = TriggeredAbility.GetTriggerById(ability.trigger)
+        if triggerInfo ~= nil then
+            for k, v in pairs(triggerInfo.symbols or {}) do
+                if type(v) == "table" and v.name then
+                    k = string.lower(string.gsub(v.name, "%s+", ""))
+                end
+                helpSymbols[k] = v
+            end
+            for _, example in ipairs(triggerInfo.examples or {}) do
+                examples[#examples + 1] = example
+            end
+        end
+    end
+
+    children[#children + 1] = fieldRow("Triggers Only When",
+        gui.GoblinScriptInput{
+            value = ability.conditionFormula,
+            change = function(element)
+                ability.conditionFormula = element.value
+            end,
+            documentation = {
+                help = "GoblinScript used to determine whether the triggered ability activates.",
+                output = "boolean",
+                examples = examples,
+                subject = creature.helpSymbols,
+                subjectDescription = "The creature the ability will trigger on",
+                symbols = helpSymbols,
+            },
+        })
+
+    -- Implementation Status + Implementation Notes. Lifted from the New
+    -- Ability Editor via AbilityEditor.BuildImplementationBlock so both
+    -- surfaces write the same `implementation` / `implementationDetails`
+    -- fields (TriggeredAbility derives from ActivatedAbility) with the same
+    -- layout and the same "notes collapse when status is Unimplemented"
+    -- behaviour. fireChange (not refreshSection) is the right hook: the
+    -- notes row reacts via its own refreshAbility handler, which fireChange
+    -- fires tree-wide -- refreshSection would rebuild the whole section and
+    -- drop focus out of whatever field the author was editing.
+    if AbilityEditor and AbilityEditor.BuildImplementationBlock then
+        local implChildren = AbilityEditor.BuildImplementationBlock(ability,
+            fireChange or refreshSection)
+        for _, c in ipairs(implChildren) do
+            children[#children + 1] = c
+        end
+    end
+
+    -- Modes & Variations (No Modes / Multiple Modes / Ability Variations).
+    -- Parity with the classic editor, which surfaced these via
+    -- BehaviorEditor -> TargetTypeEditor. Real-world usage is sparse (1
+    -- ability in the bestiary uses variations) but the flow exists so
+    -- authors have access without dropping back to the classic editor.
+    -- Injected here rather than in Setup per 2026-04-24 feedback -- Modes
+    -- are a trigger-level concept, not a firing / targeting concern.
+    if AbilityEditor and AbilityEditor.BuildModesSection then
+        -- fireChange (cross-editor preview + mech view refresh) is the
+        -- right hook here; refreshSection would only rebuild the Trigger
+        -- section locally. Modes visibility + preview both care about
+        -- multipleModes state changes globally.
+        local modesChildren = AbilityEditor.BuildModesSection(ability, fireChange or refreshSection)
+        for _, c in ipairs(modesChildren) do
+            children[#children + 1] = c
+        end
+    end
+
+    return children
+end
+
+--[[
+    ============================================================================
+    Setup section (formerly Response, renamed 2026-04-24)
+    ============================================================================
+    Holds everything that shapes how the trigger fires + where it lands:
+    Trigger Mode, Prompt Text, Resource Cost, Action Used, Manual Version,
+    full Target Type / Range / numTargets / AOE / proximity stack lifted
+    from the New Ability Editor, then When Target Despawns at the bottom.
+]]
+
+-- Trigger Mode values. The two common ones are surfaced as a segmented
+-- toggle; the three advanced ones live under an expander with radios.
+-- Labels come from the design doc's Trigger Mode table.
+local TRIGGER_MODE_COMMON = {
+    {id = false, label = "Prompt the Player"},
+    {id = true,  label = "Occurs Automatically"},
+}
+
+local TRIGGER_MODE_ADVANCED = {
+    {id = "local",                       label = "Occurs Automatically (Local Only)"},
+    {id = "prompt_remote",               label = "Prompt Remote Player, Auto for Local"},
+    {id = "game:heroicresourcetriggers", label = "Automatic Heroic Resource Setting"},
+}
+
+local function isAdvancedMode(value)
+    for _, opt in ipairs(TRIGGER_MODE_ADVANCED) do
+        if opt.id == value then return true end
+    end
+    return false
+end
+
+local function buildTriggerModeControl(ability, refreshSection)
+    local currentMode = ability.mandatory
+
+    -- Segmented-toggle button for a common mode. Highlights gold when this
+    -- id matches the current value.
+    local function segmentedButton(option)
+        local selected = (option.id == currentMode)
+        return gui.Panel{
+            width = 160,
+            height = 30,
+            flow = "horizontal",
+            halign = "center",
+            valign = "center",
+            hpad = 8,
+            vpad = 4,
+            borderBox = true,
+            bgimage = true,
+            classes = {selected and "bgAccent" or "bgAlt", "border", "bordered"},
+            press = function()
+                if ability.mandatory ~= option.id then
+                    ability.mandatory = option.id
+                    refreshSection()
+                end
+            end,
+            children = {
+                gui.Label{
+                    width = "100%",
+                    height = "100%",
+                    textAlignment = "center",
+                    classes = {selected and "fgInverse" or "fg", "sizeS"},
+                    bold = selected,
+                    text = option.label,
+                },
+            },
+        }
+    end
+
+    local segmented = gui.Panel{
+        width = "auto",
+        height = 30,
+        flow = "horizontal",
+        halign = "left",
+        valign = "center",
+        bgcolor = "clear",
+        children = {
+            segmentedButton(TRIGGER_MODE_COMMON[1]),
+            segmentedButton(TRIGGER_MODE_COMMON[2]),
+        },
+    }
+
+    -- Radio-row for an advanced mode. A filled circle when selected, a ring
+    -- otherwise. Clicking sets the mode.
+    local function advancedRadio(option)
+        local selected = (option.id == currentMode)
+        return gui.Panel{
+            width = "auto",
+            height = 24,
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
+            vmargin = 2,
+            bgcolor = "clear",
+            press = function()
+                if ability.mandatory ~= option.id then
+                    ability.mandatory = option.id
+                    refreshSection()
+                end
+            end,
+            children = {
+                gui.Panel{
+                    classes = selected and {"bordered", "bgAccent"} or {"bordered"},
+                    width = 14,
+                    height = 14,
+                    cornerRadius = 7, -- half height/width to ensure circular
+                    rmargin = 8,
+                    halign = "left",
+                    valign = "center",
+                    bgcolor = (not selected) and "clear" or nil,
+                },
+                gui.Label{
+                    width = "auto",
+                    height = "auto",
+                    textAlignment = "left",
+                    classes = {"fg", "sizeS"},
+                    text = option.label,
+                },
+            },
+        }
+    end
+
+    local advancedChildren = {}
+    for _, opt in ipairs(TRIGGER_MODE_ADVANCED) do
+        advancedChildren[#advancedChildren + 1] = advancedRadio(opt)
+    end
+
+    -- Start the foldout open when the current value is an advanced one so
+    -- the author sees which radio is active.
+    local startExpanded = isAdvancedMode(currentMode)
+
+    local advancedPanel
+    advancedPanel = gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        classes = {cond(startExpanded, nil, "collapsed-anim")},
+        bgcolor = "clear",
+        children = advancedChildren,
+    }
+
+    -- Match the Ability Editor's Targeting-section "More options" foldout
+    -- styling (nae-more-options-row / -label / -chevron), left-aligned to
+    -- sit flush under the segmented toggle. collapsed-anim on the content
+    -- panel animates height to 0 so no dead space is reserved when hidden.
+    local moreChevron
+    moreChevron = gui.Panel{
+        classes = {"nae-more-options-chevron", cond(startExpanded, nil, "nae-collapsed")},
+    }
+    local moreRow = gui.Panel{
+        classes = {"nae-more-options-row"},
+        halign = "left",
+        tmargin = 6,
+        press = function()
+            local wasCollapsed = advancedPanel:HasClass("collapsed-anim")
+            advancedPanel:SetClass("collapsed-anim", not wasCollapsed)
+            moreChevron:SetClass("nae-collapsed", not wasCollapsed)
+        end,
+        gui.Label{
+            classes = {"nae-more-options-label"},
+            text = "Advanced modes",
+        },
+        moreChevron,
+    }
+
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        bgcolor = "clear",
+        children = {segmented, moreRow, advancedPanel},
+    }
+end
+
+-- Setup section (renamed from Response 2026-04-24). Holds everything that
+-- shapes how the trigger fires and where it lands: Trigger Mode + cost +
+-- action (the "how it fires" half), the full Target Type / Range /
+-- numTargets / AOE / proximity stack lifted from the New Ability Editor
+-- (the "what it hits" half), and the Despawn cleanup field.
+local function buildSetupSection(ability, refreshSection, fireChange, editorOptions)
+    -- ctx marks a modifier-fired custom trigger; see buildTriggerSection.
+    local ctx = editorOptions and editorOptions.customTriggerContext
+    local children = {}
+
+    children[#children + 1] = sectionHeading("Setup")
+
+    -- Trigger Mode (progressive disclosure: segmented toggle + advanced
+    -- expander). The control writes directly to ability.mandatory so
+    -- existing IsMandatory / MayBePrompted helpers keep working unchanged.
+    children[#children + 1] = fieldRow("Trigger Mode",
+        buildTriggerModeControl(ability, refreshSection))
+
+    -- Prompt Text -- hidden when the chosen mode doesn't allow prompting.
+    if ability:MayBePrompted() then
+        children[#children + 1] = fieldRow("Prompt Text",
+            gui.Input{
+                classes = {"formInput"},
+                -- Fill the row so all 300 characters are visible without
+                -- scrolling. The detail column is wider than the original
+                -- 360px, and the prompt is content the author needs to
+                -- proofread in full -- truncation hid mid-prompt errors.
+                width = "100%",
+                characterLimit = 300,
+                placeholderText = "Prompt shown to the player...",
+                text = ability:try_get("triggerPrompt", ""),
+                change = function(element)
+                    ability.triggerPrompt = element.text
+                end,
+            })
+
+        -- Resource Cost (numeric). Only relevant when prompting is possible.
+        children[#children + 1] = fieldRow("Resource Cost",
+            gui.Input{
+                classes = {"formInput"},
+                width = 80,
+                placeholderText = "Cost...",
+                characterLimit = 3,
+                text = cond(ability.resourceCost == "none", "", ability.resourceNumber),
+                change = function(element)
+                    local text = trim(element.text)
+                    if tonumber(text) ~= nil then
+                        ability.resourceCost = character.resourceid
+                        ability.resourceNumber = tonumber(text)
+                    else
+                        ability.resourceCost = "none"
+                        ability.resourceNumber = nil
+                    end
+                    element.text = cond(ability.resourceCost == "none", "", ability.resourceNumber)
+                end,
+            })
+    end
+
+    -- Action Used
+    local actionOptions = CharacterResource.GetActionOptions()
+    actionOptions[#actionOptions + 1] = {id = "none", text = "None"}
+    children[#children + 1] = fieldRow("Action Used",
+        gui.Dropdown{
+            classes = {"formDropdown"},
+            width = 260,
+            height = 30,
+            idChosen = ability:ActionResource() or "none",
+            options = actionOptions,
+            change = function(element)
+                if element.idChosen == "none" then
+                    ability.actionResourceId = nil
+                else
+                    ability.actionResourceId = element.idChosen
+                end
+            end,
+        })
+
+    -- Manual Version checkbox. Hidden for custom triggers: manual versions
+    -- are generated only from the creature's triggered-abilities list (see
+    -- FillTriggeredAbilities), which never includes a modifier-embedded
+    -- custom trigger, so the field does nothing there.
+    if ctx == nil then
+        children[#children + 1] = gui.Check{
+            text = "Create manual version of this trigger",
+            value = ability:try_get("hasManualVersion", false),
+            vmargin = 6,
+            change = function(element)
+                ability.hasManualVersion = element.value
+            end,
+        }
+    end
+
+    -- Hostile Trigger checkbox. A hostile trigger is a harmful prompt forced
+    -- on the creature (e.g. Bleeding damage) rather than a beneficial
+    -- reaction offer: its prompt shows a red icon, never ages out, and must
+    -- be manually activated or dismissed.
+    children[#children + 1] = gui.Check{
+        text = "Hostile trigger (harmful prompt; never expires, must be manually dismissed)",
+        value = ability:try_get("hostile", false),
+        vmargin = 6,
+        change = function(element)
+            ability.hostile = element.value
+        end,
+    }
+
+    -- Targeting block (Target Type + Range + numTargets + AOE shape +
+    -- proximity + Affects + Can Target Self + Object ID + Target Filter +
+    -- Range Text + Target Text + "More options" -> Ability Filters /
+    -- Reasoned Filters). Lifted from the New Ability Editor via
+    -- AbilityEditor.BuildTargetingSection so the conditional-visibility
+    -- behaviour and all the per-targetType companion fields stay
+    -- consistent with the active-ability surface authors already know.
+    -- Target Type options are event-aware via ability:GetDisplayedTargetTypeOptions
+    -- which filters TriggeredAbility.TargetTypes by each entry's
+    -- condition(ability) predicate (e.g. "attacker" only valid for
+    -- attacked / hit / losehitpoints / inflictcondition / winded / dying;
+    -- "pathmoved" / "pathmovednodest" only for finishmove; "aura" only
+    -- for the caster-turn aura triggers (casterstartturnaura /
+    -- casterendturnaura); "subject" only when subject ~= self -- the
+    -- last shows as "The Trigger Subject" per design doc gotcha 6).
+    local targetingChildren = AbilityEditor.BuildTargetingSection(ability, fireChange)
+    for _, c in ipairs(targetingChildren) do
+        children[#children + 1] = c
+    end
+
+    -- When Target Despawns (cleanup field, kept at the bottom of the
+    -- section so it reads as the last "what if something goes wrong"
+    -- step after firing + targeting are configured).
+    children[#children + 1] = fieldRow("When Target Despawns",
+        gui.Dropdown{
+            classes = {"formDropdown"},
+            width = 280,
+            height = 30,
+            idChosen = ability.despawnBehavior,
+            options = DESPAWN_OPTIONS,
+            change = function(element)
+                ability.despawnBehavior = element.idChosen
+            end,
+        },
+        "If a target leaves the map before the trigger resolves, skip them or retarget to their corpse.")
+
+    return children
+end
+
+--[[
+    ============================================================================
+    Effects section
+    ============================================================================
+    Per-behaviour cards (nae-behavior-item) lifted from the New Ability
+    Editor via AbilityEditor.BuildEffectsSection + an inline "+ Add Behavior"
+    button that opens the shared behaviour picker modal. This replaces the
+    classic ability:BehaviorEditor() renderer (which leaked centered
+    alignment on the Add Ability Filter / Add Reasoned Filter buttons).
+
+    ability.Types / ability.TypesById resolve to TriggeredAbility.Types for
+    TriggeredAbility instances (via the RegisterGameType inheritance chain),
+    so the momentary behaviour entry reaches both the picker and the
+    createBehavior lookup here without any special-casing.
+]]
+local function buildEffectsSection(ability, refreshSection, fireChange)
+    local children = {}
+    children[#children + 1] = sectionHeading("Effects")
+
+    -- AbilityEditor.BuildEffectsSection returns a children array containing
+    -- the behaviour list panel. The list's refreshAbility handler is
+    -- key-guarded on add/remove/reorder so per-field edits inside a card
+    -- won't tear down the section. + Add Behavior / Paste Behavior live in
+    -- the fixed bottom bar (see generateSectionedEditor), not inline here.
+    local effectsChildren = AbilityEditor.BuildEffectsSection(ability, fireChange)
+    for _, c in ipairs(effectsChildren) do
+        children[#children + 1] = c
+    end
+    return children
+end
+
+--[[
+    ============================================================================
+    Display section
+    ============================================================================
+    Icon + Description (presentation fields lifted from the classic right
+    column) + per-field card overrides (phase 7). Each override stores to a
+    `display*` field on the TriggeredAbility; blank passes through to
+    derivation in buildTriggerPreviewCard. Card Type is the only override
+    without a derived default -- the dropdown picks one of three values.
+]]
+
+local CARD_TYPE_OPTIONS = {
+    {id = "trigger", text = "Triggered Action"},
+    {id = "free",    text = "Free Triggered Action"},
+    {id = "passive", text = "Passive"},
+}
+
+-- Keyword picker for the Display section's Keywords row. Writes to
+-- ability.displayKeywords as a set table (keys are keyword ids, values
+-- are truthy) -- same shape as ActivatedAbility.keywords. Mirrors the
+-- classic ActivatedAbilityEditor keyword picker pattern (dropdown to
+-- add, chip rows with delete buttons to show + remove). Kept local to
+-- the Display section because the fields it writes to (`displayKeywords`)
+-- are preview-card overrides, not the ability's real `keywords` field.
+local function buildKeywordsPicker(ability, fireChange)
+    local panel
+    panel = gui.Panel{
+        flow = "vertical",
+        width = 280,
+        height = "auto",
+        halign = "left",
+    }
+
+    local function rebuild()
+        local chosen = ability:try_get("displayKeywords") or {}
+        local children = {}
+
+        -- Chip rows, sorted by canonical display name.
+        local chipItems = {}
+        for id, v in pairs(chosen) do
+            if v then
+                local text = (rawget(_G, "ActivatedAbility") and ActivatedAbility.CanonicalKeyword)
+                    and ActivatedAbility.CanonicalKeyword(id) or id
+                chipItems[#chipItems + 1] = { id = id, text = text }
+            end
+        end
+        table.sort(chipItems, function(a, b) return a.text < b.text end)
+
+        for _, item in ipairs(chipItems) do
+            local itemId = item.id
+            -- Chip row: label + delete button sit flush next to each other
+            -- (no halign=right on the bin) so the chip reads as a single
+                -- "keyword [x]" unit. Font + icon shrunk per 2026-04-24
+            -- feedback so the chip list doesn't overwhelm the section.
+            children[#children + 1] = gui.Panel{
+                halign = "left",
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                valign = "center",
+                vmargin = 2,
+                bgcolor = "clear",
+                gui.Label{
+                	classes = {"sizeXs", "bold"},
+                    text = item.text,
+                    halign = "left",
+                    valign = "center",
+                    width = "auto",
+                    height = "auto",
+                    rmargin = 4,
+                },
+                gui.Button{
+                    classes = {"deleteButton", "sizeXxs"},
+                    halign = "left",
+                    valign = "center",
+                    click = function(element)
+                        local set = ability:get_or_add("displayKeywords", {})
+                        set[itemId] = nil
+                        rebuild()
+                        if fireChange then fireChange() end
+                    end,
+                },
+            }
+        end
+
+        -- Add-dropdown with remaining keywords. Collapsed if nothing left
+        -- to pick, same UX as the classic keyword picker.
+        local options = {}
+        if rawget(_G, "GameSystem") and GameSystem.abilityKeywords then
+            for kw, _ in pairs(GameSystem.abilityKeywords) do
+                if not chosen[kw] then
+                    local text = (rawget(_G, "ActivatedAbility") and ActivatedAbility.CanonicalKeyword)
+                        and ActivatedAbility.CanonicalKeyword(kw) or kw
+                    options[#options + 1] = { id = kw, text = text }
+                end
+            end
+            table.sort(options, function(a, b) return a.text < b.text end)
+        end
+
+        if #options > 0 then
+            children[#children + 1] = gui.Dropdown{
+                classes = {"formDropdown"},
+                sort = false,
+                textOverride = "Add keyword...",
+                hasSearch = true,
+                idChosen = "none",
+                options = options,
+                halign = "left",
+                width = 240,
+                change = function(element)
+                    if element.idChosen ~= "none" then
+                        local set = ability:get_or_add("displayKeywords", {})
+                        set[element.idChosen] = true
+                        rebuild()
+                        if fireChange then fireChange() end
+                    end
+                end,
+            }
+        end
+
+        panel.children = children
+    end
+
+    rebuild()
+    return panel
+end
+
+-- Build a one-line text input that writes back to ability[fieldName].
+-- placeholderText shows the derived fallback ("(auto: <value>)" or just
+-- the derived value as a hint) so authors see what blank means.
+local function buildOverrideInput(ability, fieldName, placeholder, fireChange, opts)
+    opts = opts or {}
+    return gui.Input{
+        classes = {"formInput"},
+        width = opts.width or "100%",
+        height = opts.height or "auto",
+        minHeight = opts.minHeight or nil,
+        multiline = opts.multiline or false,
+        textAlignment = opts.multiline and "topleft" or "left",
+        placeholderText = placeholder or "",
+        characterLimit = opts.characterLimit or 1024,
+        text = ability:try_get(fieldName) or "",
+        change = function(element)
+            ability[fieldName] = element.text
+            if fireChange then fireChange() end
+        end,
+    }
+end
+
+local function buildDisplaySection(ability, refreshSection, fireChange)
+    local children = {}
+
+    children[#children + 1] = sectionHeading("Display")
+
+    children[#children + 1] = fieldRow("Icon", ability:IconEditorPanel())
+
+    children[#children + 1] = fieldRow("Description",
+        gui.Input{
+            classes = {"formInput"},
+            placeholderText = "Enter ability details...",
+            multiline = true,
+            width = "100%",
+            height = "auto",
+            minHeight = 120,
+            textAlignment = "topleft",
+            characterLimit = 8192,
+            text = ability.description or "",
+            change = function(element)
+                ability.description = element.text
+                if fireChange then fireChange() end
+            end,
+        })
+
+    -- Card overrides. Each row maps to a Trigger Preview card row; blank
+    -- passes through to derivation. Keep this group below the Icon/Description
+    -- pair so the "core" presentation fields stay together.
+
+    children[#children + 1] = fieldRow("Display Name",
+        buildOverrideInput(ability, "displayName",
+            ability:try_get("name") or "Triggered Ability", fireChange),
+        "Override the card title. Blank uses the ability Name.")
+
+    children[#children + 1] = fieldRow("Card Type",
+        gui.Dropdown{
+            classes = {"formDropdown"},
+            width = 280,
+            height = 30,
+            idChosen = ability:try_get("displayCardType") or "trigger",
+            options = CARD_TYPE_OPTIONS,
+            change = function(element)
+                ability.displayCardType = element.idChosen
+                if fireChange then fireChange() end
+            end,
+        },
+        "Card title-bar colour and Type row label.")
+
+    children[#children + 1] = fieldRow("Cost",
+        buildOverrideInput(ability, "displayCost",
+            "Free text shown in the card title, e.g. '1 Heroic Resource'",
+            fireChange),
+        "Blank uses the numeric resource cost as a fallback.")
+
+    children[#children + 1] = fieldRow("Keywords",
+        buildKeywordsPicker(ability, fireChange),
+        "Shown in the Keywords row on the card.")
+
+    children[#children + 1] = fieldRow("Distance",
+        buildOverrideInput(ability, "displayDistance",
+            "Blank = derived from behaviour range", fireChange),
+        nil)
+
+    children[#children + 1] = fieldRow("Target",
+        buildOverrideInput(ability, "displayTarget",
+            "Blank = derived from behaviour target", fireChange),
+        nil)
+
+    children[#children + 1] = fieldRow("Flavor",
+        buildOverrideInput(ability, "displayFlavor",
+            "Optional italic flavour line above the card body", fireChange,
+            {multiline = true, minHeight = 50}),
+        nil)
+
+    children[#children + 1] = fieldRow("Trigger",
+        buildOverrideInput(ability, "displayTriggerProse",
+            "Blank = auto-derived from event + condition", fireChange,
+            {multiline = true, minHeight = 60, characterLimit = 2048}),
+        "Card only -- the Mechanical View always shows the raw formula.")
+
+    children[#children + 1] = fieldRow("Effect",
+        buildOverrideInput(ability, "displayEffectProse",
+            "Blank = auto-derived from behaviour list", fireChange,
+            {multiline = true, minHeight = 60, characterLimit = 2048}),
+        nil)
+
+    return children
+end
+
+local SECTION_BUILDERS = {
+    trigger  = buildTriggerSection,
+    setup    = buildSetupSection,
+    effects  = buildEffectsSection,
+    display  = buildDisplaySection,
+}
+
+local function makeNavButton(sectionDef, onSelect)
+    return gui.Label{
+        classes = {"nae-nav-button"},
+        id = "ts_nav_" .. sectionDef.id,
+        text = sectionDef.label,
+        data = {sectionId = sectionDef.id},
+        click = function(element)
+            onSelect(sectionDef.id)
+        end,
+    }
+end
+
+local function makeSectionContent(sectionDef, ability, fireChange, editorOptions)
+    local content
+    content = gui.Panel{
+        classes = {"nae-section-content", "inactive"},
+        id = "ts_section_" .. sectionDef.id,
+        data = {sectionId = sectionDef.id},
+    }
+
+    -- Rebuild helper lets change handlers drive conditional fields (e.g.
+    -- Prompt Text visibility keyed off the Trigger Mode value). fireChange
+    -- is the broader "structural change happened" dispatcher that fires
+    -- refreshAbility across the whole root (used by the Effects section
+    -- so the bottom-bar paste button and the behaviour list both react).
+    -- editorOptions carries caller context (e.g. customTriggerContext);
+    -- builders that don't use it just ignore the extra argument.
+    local function refresh()
+        local builder = SECTION_BUILDERS[sectionDef.id]
+        content.children = builder(ability, refresh, fireChange, editorOptions)
+    end
+    refresh()
+
+    return content
+end
+
+-- Helpers for the Effects bottom bar paste button. Mirror the ones in
+-- AbilityEditor.GenerateEditor (not exposed there, so we duplicate the
+-- 4-line logic rather than couple editors through another public hook).
+local function clipboardHasBehavior()
+    local item = dmhub.GetInternalClipboard()
+    if item == nil then return false end
+    local tn = item.typeName or ""
+    return string.starts_with(tn, "ActivatedAbility") and string.ends_with(tn, "Behavior")
+end
+
+--[[
+    ============================================================================
+    Trigger Preview card
+    ============================================================================
+    Mirrors TriggeredAbilityDisplay:Render (DSModifyTriggerDisplay.lua:321) --
+    the classic on-sheet trigger card authors recognise -- but derives every
+    slot from the TriggeredAbility fields instead of a separate display
+    object. Phase 7 will layer per-field overrides on top (Display section's
+    override fields fill any slot the author wants to diverge from).
+
+    Visual mapping (TriggeredAbility field -> card slot):
+      name              -> title
+      resourceNumber    -> title cost in parens (numeric, no resource name --
+                            lacks caster context at edit time)
+      conditionFormula  -> Trigger row, via GoblinScriptProse.Render
+      behaviors[]       -> Effect row, comma-joined type names until the
+                            behaviour prose engine (opt-in #5) lands
+      flavor, keywords, -> blank placeholders until phase 7 overrides ship
+      distance, target,
+      card type
+]]
+
+local TRIGGER_TYPE_LABELS = {
+    trigger = "Triggered Action",
+    free = "Free Triggered Action",
+    passive = "Passive",
+}
+
+local function getTitleBarColor(cardType)
+    local T = rawget(_G, "Styles") and Styles.Triggers or nil
+    if T == nil then
+        return "#aaaa00" -- fallback to the trigger gold
+    end
+    if cardType == "free" then return T.freeColorAgainstText end
+    if cardType == "passive" then return T.passiveColorAgainstText end
+    return T.triggerColorAgainstText
+end
+
+-- Render the ability's behaviour list as a chained prose sentence using the
+-- behaviour prose engine (opt-in #5; see BEHAVIOUR_PROSE.md). Falls back to
+-- per-behaviour SummarizeBehavior comma-join if the engine is unavailable.
+local function behaviorsFallbackText(ability)
+    local GSP = rawget(_G, "GoblinScriptProse")
+    if GSP ~= nil and type(GSP.RenderBehaviourList) == "function" then
+        local ok, text, isEmpty = pcall(GSP.RenderBehaviourList, ability)
+        if ok and not isEmpty then return text end
+        if ok and isEmpty then return "" end
+    end
+    local behaviors = ability:try_get("behaviors")
+    if behaviors == nil or #behaviors == 0 then return "" end
+    local names = {}
+    for _, b in ipairs(behaviors) do
+        local label
+        local ok, summary = pcall(function() return b:SummarizeBehavior(ability) end)
+        if ok and type(summary) == "string" and summary ~= "" then
+            label = summary
+        else
+            local typeId = b:try_get("behavior") or b:try_get("typeName") or "?"
+            local typeEntry = ability.TypesById and ability.TypesById[typeId] or nil
+            label = (typeEntry and typeEntry.text) or typeId
+        end
+        names[#names + 1] = label
+    end
+    return table.concat(names, ", ")
+end
+
+-- Trigger row composition. Pulls subject + event template + optional
+-- condition prose through GoblinScriptProse.RenderTriggerSentence so the
+-- player-facing sentence reads like a real card ("At the start of your
+-- turn.", "When any enemy takes damage, if the damage is at least 5.").
+-- Falls back to the raw condition formula if the engine is unavailable;
+-- returns empty string for abilities with neither a trigger id nor a
+-- condition formula so the card leaves the row blank instead of showing
+-- a synthesised "When the creature triggers." placeholder.
+local function renderTriggerProse(ability)
+    local triggerId = ability:try_get("trigger") or ""
+    local formula = ability:try_get("conditionFormula") or ""
+    if triggerId == "" and formula == "" then return "" end
+    local GSP = rawget(_G, "GoblinScriptProse")
+    if GSP == nil or GSP.RenderTriggerSentence == nil then
+        return formula
+    end
+    return GSP.RenderTriggerSentence(ability)
+end
+
+-- Build a single Trigger Preview card from the current TriggeredAbility
+-- state. Called on every refreshPreview event; cheap to rebuild from
+-- scratch so we don't bother with diffing children.
+-- Empty / nil / whitespace-only strings count as "no override".
+local function nonBlank(s)
+    if type(s) ~= "string" then return false end
+    if s == "" then return false end
+    return string.find(s, "%S") ~= nil
+end
+
+-- Pick the override when present, otherwise the derived value. Both are
+-- treated as opaque strings; nil / blank derived just produces nil so the
+-- caller's blank-renderer can show its placeholder.
+local function pickOverride(override, derived)
+    if nonBlank(override) then return override end
+    if derived == nil or derived == "" then return nil end
+    return derived
+end
+
+-- ctx is the customTriggerContext when editing a modifier-fired custom
+-- trigger; the derived trigger prose becomes the context note since the
+-- stored event id is never consulted for those.
+local function buildTriggerPreviewCard(ability, ctx)
+    local CARD_WIDTH = LAYOUT.PREVIEW_WIDTH - 2 * LAYOUT.COL_HPAD - LAYOUT.SCROLL_GUTTER
+
+    -- Card Type: explicit override only (no derivation; the dropdown picks
+    -- one of three values, default "trigger" for new abilities).
+    local cardType = ability:try_get("displayCardType") or "trigger"
+    if TRIGGER_TYPE_LABELS[cardType] == nil then cardType = "trigger" end
+    local titleColor = getTitleBarColor(cardType)
+
+    -- Display Name override -> falls back to ability.name. Cost is a
+    -- free-text override that renders IN the title bar parens alongside
+    -- the name (mirroring the classic TriggeredAbilityDisplay card; see
+    -- 2026-04-24 feedback). When displayCost is blank, fall back to the
+    -- numeric resourceNumber value as a last-resort derivation.
+    local displayName = pickOverride(ability:try_get("displayName"),
+                                     ability:try_get("name") or "Triggered Ability")
+                        or "Triggered Ability"
+    local displayCostText = ability:try_get("displayCost")
+    local costInTitle
+    if nonBlank(displayCostText) then
+        costInTitle = displayCostText
+    else
+        local costNumber = ability:try_get("resourceNumber")
+        if type(costNumber) == "number" and costNumber ~= 0 then
+            costInTitle = tostring(costNumber)
+        end
+    end
+    local titleText = costInTitle
+        and string.format("%s (%s)", displayName, costInTitle)
+        or displayName
+
+    -- Keywords row composition. `displayKeywords` is a set table (keys
+    -- are keyword ids, values are truthy) mirroring ActivatedAbility.keywords
+    -- shape. Render as comma-joined display names via CanonicalKeyword so
+    -- the row reads "Keywords: Melee, Strike" rather than showing raw ids.
+    local function renderKeywordList(kw)
+        if type(kw) ~= "table" then return nil end
+        local parts = {}
+        for id, v in pairs(kw) do
+            if v then
+                local text = (rawget(_G, "ActivatedAbility") and ActivatedAbility.CanonicalKeyword)
+                    and ActivatedAbility.CanonicalKeyword(id) or id
+                parts[#parts + 1] = text
+            end
+        end
+        if #parts == 0 then return nil end
+        table.sort(parts)
+        return table.concat(parts, ", ")
+    end
+
+    -- Per-row overrides. `pickOverride` returns nil when both override and
+    -- derived are blank, which the existing blank-renderers turn into a
+    -- grey italic dash / "(no condition)" placeholder.
+    local flavorText   = ability:try_get("displayFlavor")
+    local keywordsText = renderKeywordList(ability:try_get("displayKeywords"))
+
+    -- Distance derives from the trigger-level subject range: self-subject
+    -- reads as "Self"; any other subject with a non-blank subjectRange
+    -- reads as "Ranged <value>". displayDistance override beats both.
+    local function deriveDistance()
+        local subj = ability:try_get("subject") or "self"
+        if subj == "self" then return "Self" end
+        local sr = ability:try_get("subjectRange")
+        if nonBlank(sr) then return "Ranged " .. sr end
+        return nil
+    end
+    local distText = pickOverride(ability:try_get("displayDistance"), deriveDistance())
+
+    -- Target derives from the Setup-section Target Type + companion
+    -- fields via DescribeTarget(), which handles all the combinations
+    -- (AOE -> "Each enemy" / "Each creature"; target -> "1 creature" /
+    -- "N creatures"; self -> "None/self"; emptyspace, etc). Per-behaviour
+    -- applyto is not used here: the preview card rolls up the trigger's
+    -- overall target, not per-behaviour. displayTarget in the Display
+    -- section overrides this derivation.
+    local function deriveTarget()
+        local ok, phrase = pcall(function() return ability:DescribeTarget() end)
+        if ok and nonBlank(phrase) then return phrase end
+        return nil
+    end
+    local targetText = pickOverride(ability:try_get("displayTarget"), deriveTarget())
+    local derivedProse
+    if ctx ~= nil then
+        derivedProse = ctx.note or "Fires automatically when this modifier is used."
+    else
+        derivedProse = renderTriggerProse(ability)
+    end
+    local triggerProse = pickOverride(ability:try_get("displayTriggerProse"),
+                                      derivedProse)
+    local effectText   = pickOverride(ability:try_get("displayEffectProse"),
+                                      behaviorsFallbackText(ability))
+
+    local BLANK = "-"
+
+    local function derivedOrBlank(value)
+        if value == nil or value == "" then
+            return gui.Label{
+            	classes = {"fgMuted", "sizeS"},
+                text = BLANK,
+                italics = true,
+                height = "auto",
+                width = "auto",
+                halign = "left",
+            }
+        end
+        return gui.Label{
+        	classes = {"fg", "sizeS"},
+            text = value,
+            height = "auto",
+            width = "auto",
+            halign = "left",
+        }
+    end
+
+    -- Build a single key+value segment. The value label is width-bounded
+    -- and textWrap=true so long values (e.g. a long keywords list) wrap
+    -- to a new line INSIDE the segment instead of bleeding into the right
+    -- half. `valueMax` is "100%-<keyLabelWidth>" -- tuned per key so the
+    -- wider "Keywords:" / "Distance:" keys still leave room for a short
+    -- value on the same line.
+    local function segment(key, value, valueMax, align)
+        local valueLabel
+        if value == nil or value == "" then
+            valueLabel = gui.Label{
+            	classes = {"fgMuted", "sizeS"},
+                text = BLANK,
+                italics = true,
+                height = "auto",
+                width = "auto",
+                halign = "left",
+                valign = "top",
+            }
+        else
+            valueLabel = gui.Label{
+            	classes = {"fg", "sizeS"},
+                text = value,
+                height = "auto",
+                width = valueMax,
+                textWrap = true,
+                halign = "left",
+                valign = "top",
+            }
+        end
+        return gui.Panel{
+            width = "50%",
+            height = "auto",
+            flow = "horizontal",
+            halign = align,
+            bgcolor = "clear",
+            children = {
+                gui.Label{
+                	classes = {"fgStrong", "bold", "sizeS"},
+                    text = key,
+                    height = "auto",
+                    width = "auto",
+                    rmargin = 4,
+                    valign = "top",
+                },
+                valueLabel,
+            },
+        }
+    end
+
+    -- kvRow composes two segments side by side. hpad = 6 (matched with
+    -- borderBox) indents the row to line up with the Display Name in the
+    -- title bar + flavour text -- both of which sit at x = content_left + 6
+    -- because of their own hpad=6. Without this, Keywords/Distance labels
+    -- hugged the card's padding edge and looked misaligned with the title.
+    local function kvRow(leftKey, leftValue, rightKey, rightValue)
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            bgcolor = "clear",
+            hpad = 6,
+            borderBox = true,
+            children = {
+                segment(leftKey, leftValue, "100%-90", "left"),
+                segment(rightKey, rightValue, "100%-60", "left"),
+            },
+        }
+    end
+
+    local function fullRow(key, value, isProse)
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            bgcolor = "clear",
+            tmargin = 4,
+            hpad = 6,
+            borderBox = true,
+            children = {
+                gui.Label{
+                	classes = {"fgStrong", "bold", "sizeS"},
+                    text = key,
+                    height = "auto",
+                    width = "auto",
+                    rmargin = 4,
+                    valign = "top",
+                },
+                (value == nil or value == "") and gui.Label{
+                	classes = {"fgMuted", "sizeS", "fg", "sizeS"},
+                    text = isProse and "(no condition)" or BLANK,
+                    italics = true,
+                    height = "auto",
+                    width = CARD_WIDTH - 96,
+                    halign = "left",
+                    textWrap = true,
+                } or gui.Label{
+                    text = value,
+                    height = "auto",
+                    width = CARD_WIDTH - 96,
+                    halign = "left",
+                    textWrap = true,
+                },
+            },
+        }
+    end
+
+    return gui.Panel{
+    	classes = {"bgAlt", "bordered"},
+        width = CARD_WIDTH,
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        -- bgimage required for bgcolor + borderColor to paint; bgcolor alone
+        -- is a no-op in the DMHub GUI runtime.
+        bgimage = true,
+        vpad = 10,
+        hpad = 12,
+        borderBox = true,
+        children = {
+            gui.Label{
+            	classes = {"bold", "sizeM"},
+                text = titleText,
+                color = g_themeFgInverse,
+                bgimage = true,
+                bgcolor = titleColor,
+                width = "100%",
+                height = "auto",
+                hpad = 6,
+                vpad = 4,
+                borderBox = true,
+                textAlignment = "left",
+            },
+            -- Flavor row -- collapsed (no layout space) when blank. hpad
+            -- matches the title label's hpad so the italic text lines up
+            -- with where the title text sits inside the yellow bar (per
+            -- 2026-04-24 feedback that flavour was offset slightly).
+            gui.Label{
+            	classes = {"fg", "sizeS"},
+                text = flavorText or "",
+                italics = true,
+                width = "100%",
+                height = "auto",
+                hpad = 6,
+                tmargin = 4,
+                wrap = true,
+                borderBox = true,
+                collapsed = not nonBlank(flavorText),
+            },
+            kvRow("Keywords:", keywordsText, "Type:", TRIGGER_TYPE_LABELS[cardType]),
+            kvRow("Distance:", distText, "Target:", targetText),
+            -- Divider
+            gui.Panel{
+            	classes = {"bgFg"},
+                width = "100%",
+                height = 1,
+                bgimage = true,
+                tmargin = 6,
+                bmargin = 4,
+            },
+            fullRow("Trigger:", triggerProse, true),
+            fullRow("Effect:", effectText, false),
+        },
+    }
+end
+
+--[[
+    ============================================================================
+    Mechanical View pane (phase 4)
+    ============================================================================
+    Diagnostic mirror below the Trigger Preview card. Tells the author whether
+    the trigger is wired up correctly in a single glance:
+      * rollup header ("Trigger ready" / "N issues")
+      * six rows (Event / Subject / Triggers When / Behaviours / Mode / When
+        Active) with the raw value and an optional status chip when something
+        is wrong
+      * two-clause Trigger Summary at the bottom ("Triggers when: ... / Then:
+        ...") -- the when-clause reuses GoblinScriptProse.RenderTriggerSentence.
+
+    Static structural validation only at launch. Runtime log-hook integration
+    (gotcha 10 -- subject mismatch, missing attacker, etc.) is deferred to a
+    follow-up pass that parses actual Lua log entries.
+]]
+
+local VALID_SUBJECT_IDS = {
+    self = true, any = true, selfandheroes = true, otherheroes = true,
+    selfandallies = true, allies = true, enemy = true, other = true,
+}
+
+-- Subjects that include the caster in their match set. For truly global
+-- events (no creature-context dispatched via symbols.subject) the
+-- TriggeredAbility.lua:746 resolver rejects any other subject filter, so
+-- an author picking e.g. subject=enemy on `beginround` would silently
+-- never fire.
+local CASTER_INCLUSIVE_SUBJECTS = {
+    self = true, any = true, selfandallies = true, selfandheroes = true,
+}
+
+-- Triggers that fire without a specific creature context -- the engine
+-- dispatches them once globally rather than via DispatchEventOnOthers,
+-- so symbols.subject is nil in the ability's evaluation context. For
+-- these, only caster-inclusive subjects evaluate sensibly; pick an
+-- exclusive subject like `enemy` and the ability never fires. List is
+-- conservative -- add here only if verified from runtime dispatch.
+local GLOBAL_SUBJECTLESS_TRIGGERS = {
+    beginround = true,
+    endcombat = true,
+    rollinitiative = true,
+}
+
+local MODE_LABELS = {
+    [false]                           = "prompt the player",
+    [true]                            = "occurs automatically",
+    ["local"]                         = "occurs automatically (local only)",
+    ["prompt_remote"]                 = "prompt remote player, auto for local",
+    ["game:heroicresourcetriggers"]   = "automatic heroic resource setting",
+}
+
+local WHEN_ACTIVE_LABELS = {
+    always = "always active",
+    combat = "only during combat",
+}
+
+-- Check whether the trigger event id is registered. Uses GetTriggerById
+-- because it walks the full TriggeredAbility.triggers table (populated by
+-- both inline definitions in TriggeredAbility.lua and RegisterTrigger
+-- calls in MCDMRules.lua / elsewhere).
+local function isValidTriggerId(id)
+    if id == nil or id == "" then return false end
+    return TriggeredAbility.GetTriggerById(id) ~= nil
+end
+
+-- Compile the condition formula. Returns (ok, errorMessage). Empty formula
+-- is considered valid -- the condition is optional, many triggers omit it.
+--
+-- PERFORMANCE: results are cached by formula string to avoid recompiling
+-- on every preview rebuild. dmhub.CompileGoblinScriptDeterministic
+-- allocates a fresh Lua function every call (per dmhub.lua:664 it returns
+-- "a reusable Lua function for efficient repeated evaluation" -- callers
+-- are expected to cache the return value), so without this cache every
+-- Mechanical View rebuild paid the full compile cost. The cache is
+-- module-local and bounded in practice -- formulas are short strings and
+-- the cardinality of distinct formulas across an editing session is
+-- small. Cache eviction is implicit via Lua's GC reaching the module
+-- table only on module unload, which is fine for the use case.
+local _conditionCompileCache = {}
+local function compileCondition(formula)
+    if formula == nil or formula == "" then return true, nil end
+    local cached = _conditionCompileCache[formula]
+    if cached ~= nil then
+        return cached.ok, cached.err
+    end
+    local out = {}
+    local ok = pcall(function()
+        dmhub.CompileGoblinScriptDeterministic(formula, out)
+    end)
+    local err
+    if not ok then
+        err = "compile error"
+        ok = false
+    elseif out.error then
+        err = tostring(out.error)
+        ok = false
+    else
+        ok = true
+    end
+    _conditionCompileCache[formula] = { ok = ok, err = err }
+    return ok, err
+end
+
+-- Normalise a symbol name for matching against allowed-reference sets:
+-- lowercase + strip spaces. The runtime injects symbols under this form
+-- (Creature.lua:1999 sets `symbols.damagetype` for a "Damage Type" symbol)
+-- and creature.helpSymbols keys follow the same convention.
+local function normaliseSymbolReference(name)
+    if name == nil then return "" end
+    return string.lower((string.gsub(tostring(name), "%s+", "")))
+end
+
+-- Build the allowed top-level reference set for a trigger event:
+--   * Ambient (Subject / Self / Caster) -- always present.
+--   * Event-payload symbols declared on the trigger (keyed map AND bare
+--     array forms; see discoverTestInputs comment for why both exist).
+--   * Bare creature properties accessible without a `Self.` prefix
+--     (resolved against the receiver token's properties at evaluation).
+-- A reference not in this set is almost certainly a typo or a leftover
+-- from copying a formula off a different trigger event.
+--
+-- PERF: both creature.helpSymbols (~294 entries) and trigger.symbols are
+-- static config per (creature global state, triggerId) pair, so the merged
+-- result returned for a given triggerId is invariant across an editing
+-- session. Caching by triggerId avoids the helpSymbols walk + per-name
+-- normalisation entirely on the hot Mech-View refresh path.
+--
+-- Staleness contract: if a custom attribute registers mid-session via
+-- RegisterCustomSymbol, the new symbol shows a false-positive "Unknown"
+-- chip in the Mech View until the editor closes and reopens (the cache
+-- only resets on Lua reload). Same staleness profile as
+-- _conditionCompileCache. Mid-session attribute registration is rare;
+-- the chip is a soft warning, not a runtime gate, so a stale chip is
+-- annoying but never causes execution failure.
+--
+-- INVARIANT: the returned `allowed` table is shared across calls. Consumers
+-- must NOT mutate it. unknownReferences (the only call site today) reads
+-- via membership check only -- verified safe.
+local _allowedReferencesCache = {}
+local function buildAllowedReferences(triggerId)
+    local cacheKey = triggerId or ""
+    local cached = _allowedReferencesCache[cacheKey]
+    if cached ~= nil then return cached end
+    local allowed = { subject = true, self = true, caster = true }
+    local trigger = TriggeredAbility.GetTriggerById(triggerId)
+    if trigger ~= nil and type(trigger.symbols) == "table" then
+        for k, def in pairs(trigger.symbols) do
+            if type(def) == "table" then
+                if type(k) == "string" then
+                    allowed[normaliseSymbolReference(k)] = true
+                end
+                if def.name ~= nil then
+                    allowed[normaliseSymbolReference(def.name)] = true
+                end
+            end
+        end
+    end
+    if creature ~= nil and type(creature.helpSymbols) == "table" then
+        for k, def in pairs(creature.helpSymbols) do
+            if type(k) == "string" and not k:find("^__") then
+                allowed[normaliseSymbolReference(k)] = true
+                if type(def) == "table" and def.name ~= nil then
+                    allowed[normaliseSymbolReference(def.name)] = true
+                end
+            end
+        end
+    end
+    _allowedReferencesCache[cacheKey] = allowed
+    return allowed
+end
+
+-- Return the list of references in `formula` that are not in `allowed`.
+-- Used by the Mech View's Triggers When row to flag typos / unrecognised
+-- symbols ("Trigger ready" lying when the formula references something
+-- the trigger event never exposes).
+local function unknownReferences(formula, allowed)
+    if formula == nil or formula == "" then return {} end
+    local list = GoblinScriptProse.ListReferencedSymbols(formula)
+    local unknown = {}
+    for _, name in ipairs(list) do
+        if allowed[normaliseSymbolReference(name)] == nil then
+            unknown[#unknown + 1] = name
+        end
+    end
+    return unknown
+end
+
+-- Canonical-table lookup for unknown-literal validation.
+-- Each entry: {labelSingular, lookup(literal) -> bool found, source}
+-- `lookup` does case-insensitive name matching against the canonical table.
+-- Damage types use lowercase comparison since the runtime injects the
+-- lowercase form (Resource.lua mirrors this for resources). The other
+-- categories normalise to lowercase before comparison so author casing
+-- doesn't false-positive ("Grabbed" matches "grabbed" in the table).
+local LITERAL_VALIDATORS = {
+    characterOngoingEffects = {
+        label = "ongoing effect",
+        lookup = function(literal)
+            local needle = string.lower(literal or "")
+            local t = dmhub.GetTable("characterOngoingEffects") or {}
+            for _, e in pairs(t) do
+                if not e:try_get("hidden") and e.name and string.lower(e.name) == needle then
+                    return true
+                end
+            end
+            return false
+        end,
+    },
+    charConditions = {
+        label = "condition",
+        lookup = function(literal)
+            local needle = string.lower(literal or "")
+            local t = dmhub.GetTable("charConditions") or {}
+            for _, c in pairs(t) do
+                if not c:try_get("hidden") and c.name and string.lower(c.name) == needle then
+                    return true
+                end
+            end
+            return false
+        end,
+    },
+    damageTypes = {
+        label = "damage type",
+        lookup = function(literal)
+            local needle = string.lower(literal or "")
+            local t = dmhub.GetTable(DamageType.tableName) or {}
+            for _, v in pairs(t) do
+                if not v:try_get("hidden") and v.name and string.lower(v.name) == needle then
+                    return true
+                end
+            end
+            return false
+        end,
+    },
+    characterResources = {
+        label = "resource",
+        lookup = function(literal)
+            local needle = string.lower(literal or "")
+            local t = dmhub.GetTable("characterResources") or {}
+            for _, r in pairs(t) do
+                if r.name and string.lower(r.name) == needle then return true end
+            end
+            return false
+        end,
+    },
+}
+
+-- Resolve a `hasEq` / `isEq` LHS atom to a canonical-table source id.
+-- Returns the source key ("characterOngoingEffects", "charConditions",
+-- "damageTypes", "characterResources") or nil if the LHS isn't a known
+-- canonical-set field.
+--
+-- Two dispatch paths:
+--   1. Dotted-tail or bare ident matching a canonical-set creature
+--      property (Ongoing Effects, Conditions). Match by the last
+--      identifier component, normalised.
+--   2. Top-level ident matching a trigger.symbols entry that carries
+--      `valueOptionsSource` (post-C3). Match by the symbol name.
+local SET_TAIL_TO_SOURCE = {
+    ongoingeffects = "characterOngoingEffects",
+    conditions = "charConditions",
+}
+
+local function resolveLiteralSource(lhs, triggerId, op)
+    if lhs == nil then return nil end
+    if lhs.kind ~= "ident" and lhs.kind ~= "dotted" then return nil end
+
+    local parts = lhs.parts or { lhs.name }
+    -- Dotted-tail OR bare set field (Ongoing Effects, Conditions): only
+    -- meaningful for the `has` operator (set membership).
+    if op == "has" then
+        local tail = parts[#parts]
+        if tail then
+            local key = normaliseSymbolReference(tail)
+            local source = SET_TAIL_TO_SOURCE[key]
+            if source then return source end
+        end
+    end
+
+    -- Top-level trigger.symbols match: only the bare-ident case (dotted
+    -- LHS like Subject.DamageType doesn't apply here; `Damage Type` lives
+    -- as a top-level event payload symbol). Look up valueOptionsSource on
+    -- the symbol declaration.
+    if (op == "is" or op == "=" or op == "!=") and #parts == 1 then
+        local trigger = TriggeredAbility.GetTriggerById(triggerId)
+        if trigger == nil or type(trigger.symbols) ~= "table" then return nil end
+        local target = normaliseSymbolReference(parts[1])
+        for k, def in pairs(trigger.symbols) do
+            if type(def) == "table" then
+                local nameKey = def.name and normaliseSymbolReference(def.name) or nil
+                local declKey = type(k) == "string" and normaliseSymbolReference(k) or nil
+                if (nameKey == target or declKey == target) and def.valueOptionsSource then
+                    return def.valueOptionsSource
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
+-- Walks `formula` for hasEq / isEq leaves whose string-literal RHS isn't
+-- present in the canonical table for that LHS. Returns a list of
+-- `{label, literal}` entries -- e.g. `{label = "ongoing effect", literal = "Invasable"}`.
+-- Mech View renders the first entry as a gold "Unknown <label>: <literal>"
+-- chip alongside the existing red "Unknown: <ident>" chip system.
+local function unknownLiterals(formula, triggerId)
+    if formula == nil or formula == "" then return {} end
+    local results = {}
+    GoblinScriptProse.WalkLiteralComparisons(formula, function(info)
+        local sourceKey = resolveLiteralSource(info.lhs, triggerId, info.op)
+        if sourceKey == nil then return end
+        local validator = LITERAL_VALIDATORS[sourceKey]
+        if validator == nil then return end
+        if not validator.lookup(info.rhs) then
+            results[#results + 1] = { label = validator.label, literal = info.rhs }
+        end
+    end)
+    return results
+end
+
+-- Detect bare-ident RHS literals on is/has comparisons that the engine
+-- silently MIS-handles. Single-word bare RHS (`Resource is Recovery`) is
+-- treated by the engine as an implicit string literal -- works correctly.
+-- Multi-word bare RHS (`Resource is Main Action`) is NOT treated as a
+-- string literal -- the engine returns 0 and the comparison silently
+-- fails. Authors writing this form think it works (it reads like the
+-- single-word form) but it's a content bug. Surfaces as a Mech View
+-- chip so the author sees the issue at edit time and can quote the RHS.
+--
+-- Returns a list of `{rhs, op}` entries for each broken comparison.
+-- Empty list means no issues. Detection is purely structural -- we don't
+-- need the trigger context here.
+local function multiWordBareRhsIssues(formula)
+    if formula == nil or formula == "" then return {} end
+    local results = {}
+    GoblinScriptProse.WalkLiteralComparisons(formula, function(info)
+        if info.rhsKind ~= "ident" then return end
+        if type(info.rhs) ~= "string" then return end
+        if string.find(info.rhs, "%s") then
+            results[#results + 1] = { rhs = info.rhs, op = info.op }
+        end
+    end)
+    return results
+end
+
+-- Collapse the behaviour list using the behaviour prose engine (opt-in #5;
+-- BEHAVIOUR_PROSE.md). Falls back to per-behaviour SummarizeBehavior +
+-- type-label comma join if the engine is unavailable. Returns (text, isEmpty).
+local function summariseBehaviours(ability)
+    local GSP = rawget(_G, "GoblinScriptProse")
+    if GSP ~= nil and type(GSP.RenderBehaviourList) == "function" then
+        local ok, text, isEmpty = pcall(GSP.RenderBehaviourList, ability)
+        if ok then return text, isEmpty end
+    end
+    local behaviors = ability:try_get("behaviors")
+    if behaviors == nil or #behaviors == 0 then return "", true end
+    local parts = {}
+    for _, b in ipairs(behaviors) do
+        local label
+        local ok, summary = pcall(function() return b:SummarizeBehavior(ability) end)
+        if ok and type(summary) == "string" and summary ~= "" then
+            label = summary
+        else
+            local typeId = b:try_get("behavior") or b:try_get("typeName") or "?"
+            local typeEntry = ability.TypesById and ability.TypesById[typeId] or nil
+            label = (typeEntry and typeEntry.text) or typeId
+        end
+        parts[#parts + 1] = label
+    end
+    return table.concat(parts, ", "), false
+end
+
+-- Builds the Mechanical View card body and returns (card, rollupInfo).
+-- The caller lifts rollupInfo (text + color) into the pane sub-heading so
+-- the chip reads as part of the "How This Triggers" label row instead of
+-- taking its own row inside the card.
+-- ctx is the customTriggerContext when editing a modifier-fired custom
+-- trigger: the Event/Subject/When Active rows are replaced or dropped since
+-- event dispatch never runs for those triggers.
+local function buildMechanicalView(ability, ctx)
+    local CARD_WIDTH = LAYOUT.PREVIEW_WIDTH - 2 * LAYOUT.COL_HPAD - LAYOUT.SCROLL_GUTTER
+
+    -- Gather row values + validation status in one pass so the rollup chip
+    -- can report the total issue count without a second walk.
+    local rows = {}
+    local issueCount = 0
+
+    -- Chip can be either:
+    --   nil                      -- no issue
+    --   string                   -- legacy red/amber chip ("Unknown: foo")
+    --   { text, color }          -- explicit color (gold for unknown literals)
+    local function addRow(label, value, chipText)
+        local hasIssue = chipText ~= nil
+        if hasIssue then issueCount = issueCount + 1 end
+        rows[#rows + 1] = {
+            label = label,
+            value = value,
+            chip = chipText,
+            hasIssue = hasIssue,
+        }
+    end
+
+    -- Event
+    local triggerId = ability:try_get("trigger") or ""
+    if ctx ~= nil then
+        addRow("Event", "Custom (fired by modifier)", nil)
+    else
+        addRow("Event", triggerId ~= "" and triggerId or "(unset)",
+            triggerId == "" and "Missing" or (not isValidTriggerId(triggerId) and "Unregistered" or nil))
+    end
+
+    -- Subject. Two failure modes surfaced as chips:
+    --   * Unknown subject id (data corruption / schema change)
+    --   * Compatibility: trigger fires globally (no creature context) and
+    --     author picked a subject that excludes the caster. At runtime
+    --     this silently never fires -- the resolver at
+    --     TriggeredAbility.lua:746 rejects. Warn at author time.
+    if ctx ~= nil then
+        addRow("Subject", "Self (Owner of this Modifier)", nil)
+    else
+    local subjectId = ability:try_get("subject") or "self"
+    local subjectChip
+    if not VALID_SUBJECT_IDS[subjectId] then
+        subjectChip = "Unknown"
+    elseif GLOBAL_SUBJECTLESS_TRIGGERS[triggerId] and not CASTER_INCLUSIVE_SUBJECTS[subjectId] then
+        subjectChip = "Never fires"
+    end
+    addRow("Subject", subjectId, subjectChip)
+    end
+
+    -- Target. The set of valid target types is gated by the trigger event
+    -- (and subject) via each TargetTypes entry's condition(). A target picked
+    -- for one event can therefore become invalid after the event is changed,
+    -- silently producing a trigger that targets nothing valid. Surface the
+    -- chosen target and warn (amber) when it is no longer valid for the event.
+    local chosenTargetId = ability:GetChosenTargetTypeInDropdown()
+    local validTargetOptions = ability:GetDisplayedTargetTypeOptions()
+    local targetLabel
+    local targetValid = false
+    for _, opt in ipairs(validTargetOptions) do
+        if opt.id == chosenTargetId then
+            targetLabel = opt.text
+            targetValid = true
+            break
+        end
+    end
+    if not targetValid then
+        -- Not valid for the current event: still describe what is selected by
+        -- scanning the unfiltered target-type list (condition ignored).
+        for _, opt in ipairs(ability.TargetTypes or {}) do
+            if opt.id == chosenTargetId then
+                targetLabel = opt.text
+                break
+            end
+        end
+    end
+    -- Event-based validity is meaningless for a custom trigger (the stored
+    -- event id is never consulted), so skip the chip there.
+    addRow("Target", targetLabel or chosenTargetId or "(unset)",
+        (not targetValid and ctx == nil) and { text = "Invalid for event", class = "bgWarning" } or nil)
+
+    -- Triggers When (condition). Two failure modes:
+    --   * Compile error -- formula is malformed.
+    --   * Undeclared symbol -- formula references a name that is not an
+    --     ambient role, an event-payload symbol on this trigger, or a
+    --     creature property. GoblinScript compiles unknown identifiers
+    --     leniently (returns nil/0 at evaluation), so the runtime would
+    --     silently never match. Author probably typed a symbol that
+    --     belongs to a different trigger event.
+    local condition = ability:try_get("conditionFormula") or ""
+    local condOk, condErr = compileCondition(condition)
+    -- Custom triggers reference the symbols the modifier installs at fire
+    -- time (ctx.symbols), not the stored event's symbols -- extend a copy
+    -- of the allowed set so those don't flag as unknown.
+    local allowedRefs = buildAllowedReferences(triggerId)
+    if ctx ~= nil and ctx.symbols ~= nil then
+        allowedRefs = table.shallow_copy(allowedRefs)
+        for k, def in pairs(ctx.symbols) do
+            allowedRefs[normaliseSymbolReference(k)] = true
+            if type(def) == "table" and def.name ~= nil then
+                allowedRefs[normaliseSymbolReference(def.name)] = true
+            end
+        end
+    end
+    local condChip
+    if not condOk then
+        condChip = "Error: " .. (condErr or "compile failed")
+    else
+        local unknown = unknownReferences(condition, allowedRefs)
+        if #unknown > 0 then
+            condChip = "Unknown: " .. unknown[1]
+        else
+            -- Multi-word bare-ident RHS check first -- this is a hard
+            -- runtime bug (engine returns 0; comparison silently fails),
+            -- so it outranks the typo-class literal chip. Author needs to
+            -- quote the RHS: `Resource is "Main Action"` instead of bare.
+            -- Chip text is plain-language and shows the fix directly --
+            -- earlier wording ("Quote multi-word RHS: is X") was correct
+            -- but unreadable for anyone who doesn't already know the
+            -- problem.
+            local broken = multiWordBareRhsIssues(condition)
+            if #broken > 0 then
+                local first = broken[1]
+                local extra = #broken > 1 and string.format(" +%d more", #broken - 1) or ""
+                condChip = {
+                    text = string.format('Add quotes: "%s"%s', first.rhs, extra),
+                    class = "bgDanger",  -- red: this is a runtime bug, not just a typo
+                }
+            else
+                -- Edit-time canonical-table validation. Catches typos in string
+                -- literals on hasEq / isEq leaves where the LHS is a known
+                -- canonical-set field (Ongoing Effects, Conditions, Damage
+                -- Type, Resource). Chip uses a gold warning color to
+                -- distinguish from the red "Unknown: <ident>" chip; the latter
+                -- represents a structural problem (formula references a
+                -- symbol that doesn't exist on this trigger), the former a
+                -- typo-class issue (literal won't match anything at runtime).
+                local literals = unknownLiterals(condition, triggerId)
+                if #literals > 0 then
+                    local first = literals[1]
+                    local extra = #literals > 1 and string.format(" +%d more", #literals - 1) or ""
+                    condChip = {
+                        text = string.format('Unknown %s: "%s"%s', first.label, first.literal, extra),
+                        class = "bgWarning",
+                    }
+                end
+            end
+        end
+    end
+    addRow("Triggers When", condition ~= "" and condition or "(none)", condChip)
+
+    -- Behaviours
+    local behText, behEmpty = summariseBehaviours(ability)
+    local silent = ability:try_get("silent")
+    addRow("Behaviours", behEmpty and "(empty)" or behText,
+        (behEmpty and not silent) and "Empty" or nil)
+
+    -- Mode
+    local modeId = ability:try_get("mandatory")
+    if modeId == nil then modeId = false end
+    addRow("Mode", MODE_LABELS[modeId] or tostring(modeId),
+        MODE_LABELS[modeId] == nil and "Unknown" or nil)
+
+    -- When Active -- only consulted by event dispatch, so dropped for
+    -- custom triggers.
+    if ctx == nil then
+        local whenActive = ability:try_get("whenActive") or "always"
+        addRow("When Active", WHEN_ACTIVE_LABELS[whenActive] or whenActive,
+            WHEN_ACTIVE_LABELS[whenActive] == nil and "Unknown" or nil)
+    end
+
+    -- Rollup chip text and colour.
+    local rollupText = (issueCount == 0) and "Trigger ready"
+        or string.format("%d issue%s", issueCount, issueCount == 1 and "" or "s")
+    local rollupClass = (issueCount == 0) and "bgSuccess" or "bgWarning"
+
+    -- Trigger Summary (when / then clauses). When-clause goes through the
+    -- prose engine's RenderTriggerSentence so we get the same composition
+    -- as the card's Trigger row. Then-clause uses the behaviour-summary
+    -- fallback until opt-in #5 ships.
+    local GSP = rawget(_G, "GoblinScriptProse")
+    local whenClause = ""
+    if ctx ~= nil then
+        whenClause = ctx.note or "Fires automatically when this modifier is used."
+    elseif GSP ~= nil and GSP.RenderTriggerSentence then
+        local ok, sentence = pcall(GSP.RenderTriggerSentence, ability)
+        if ok and sentence ~= nil then whenClause = sentence end
+    end
+    -- Reuse the behaviour summary computed for the Behaviours row above
+    -- instead of running RenderBehaviourList over the same behaviour list a
+    -- second time. The output is identical; the prose engine has no state
+    -- to drift between calls.
+    local thenClause = behEmpty and "(no behaviours)" or behText
+
+    -- Row renderer. Label left-aligned in a fixed-width column so values
+    -- line up across rows; chip pinned to the right.
+    -- Chip can be a string (legacy, defaults to bgWarning) or
+    -- {text, class} (themed status-bg class: bgDanger / bgWarning / bgInfo
+    -- / bgSuccess). The class supplies bgcolor + bgimage via DefaultStyles
+    -- cascade; the chip Label only needs the class + the inverse text color.
+    local function buildRow(entry)
+        local chipText, chipClass
+        if type(entry.chip) == "string" then
+            chipText = entry.chip
+            chipClass = "bgWarning"
+        elseif type(entry.chip) == "table" then
+            chipText = entry.chip.text
+            chipClass = entry.chip.class or "bgWarning"
+        end
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
+            bgcolor = "clear",
+            vpad = 3,
+            borderBox = true,
+            children = {
+                gui.Label{
+                	classes = {"fgStrong", "bold", "sizeS"},
+                    text = entry.label,
+                    width = 110,
+                    height = "auto",
+                    halign = "left",
+                },
+                gui.Label{
+                	classes = {"sizeS", entry.hasIssue and "disabled" or nil},
+                    text = entry.value,
+                    width = CARD_WIDTH - 110 - (chipText and 140 or 0),
+                    height = "auto",
+                    halign = "left",
+                    textWrap = true,
+                },
+                -- Chip is width-bounded with textWrap so longer text
+                -- ("Unknown: <symbol>", "Error: <reason>") wraps to a
+                -- second line inside the card rather than overflowing
+                -- the right border.
+                chipText ~= nil and gui.Label{
+                    classes = {chipClass, "sizeXs", "bold", "fgInverse"},
+                    text = chipText,
+                    width = 130,
+                    height = "auto",
+                    hpad = 6,
+                    vpad = 2,
+                    halign = "right",
+                    textWrap = true,
+                    borderBox = true,
+                } or nil,
+            },
+        }
+    end
+
+    local rowPanels = {}
+    for _, r in ipairs(rows) do
+        rowPanels[#rowPanels + 1] = buildRow(r)
+    end
+
+    local card = gui.Panel{
+    	classes = {"bgAlt", "bordered"},
+        width = CARD_WIDTH,
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        -- bgimage required for bgcolor + borderColor to paint; bgcolor alone
+        -- is a no-op in the DMHub GUI runtime.
+        bgimage = true,
+        vpad = 10,
+        hpad = 12,
+        borderBox = true,
+        children = {
+            -- Rows
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                bgcolor = "clear",
+                children = rowPanels,
+            },
+            -- Divider
+            gui.Panel{
+            	classes = {"bgFg"},
+                width = "100%",
+                height = 1,
+                bgimage = true,
+                tmargin = 8,
+                bmargin = 8,
+            },
+            -- Trigger Summary. Markdown is enabled so the "Triggers when:"
+            -- and "Then:" leads render bold (Unity rich-text <b> tags) while
+            -- the rest of the clause stays regular weight.
+            gui.Label{
+            	classes = {"fg", "sizeS"},
+                text = "<b>Triggers when:</b> " .. (whenClause ~= "" and whenClause or "(no trigger set)"),
+                markdown = true,
+                italics = true,
+                width = "100%",
+                height = "auto",
+                wrap = true,
+                halign = "left",
+                bmargin = 4,
+            },
+            gui.Label{
+            	classes = {"fg", "sizeS"},
+                text = "<b>Then:</b> " .. thenClause,
+                markdown = true,
+                italics = true,
+                width = "100%",
+                height = "auto",
+                wrap = true,
+                halign = "left",
+            },
+        },
+    }
+
+    return card, { text = rollupText, class = rollupClass }
+end
+
+--[[
+    ============================================================================
+    Test Trigger card (Phase 6)
+    ============================================================================
+    Compiles + evaluates the condition formula against author-supplied inputs
+    using existing GoblinScript eval. No new eval infrastructure -- reuses
+    dmhub.CompileGoblinScriptDeterministic + ExecuteGoblinScript with
+    casterToken.properties:LookupSymbol(symbols) the same way
+    TriggeredAbility.lua:864 does at runtime.
+
+    Two states:
+      * Collapsed strip (default) -- 32px row matching the other panes' sub-
+        heading style: "Test Trigger" label + last-run chip + "Run Test" button.
+      * Expanded card -- gold-bordered card with role slots from real scene
+        tokens, per-symbol input widgets keyed off trigger.symbols, result
+        block (with sub-clause attribution on AND-fail), and behaviour preview.
+
+    No scenario persistence -- last-run state is closure-local, lost on editor
+    close (per design rev 3 / open question 2).
+]]
+
+-- Subject filter applied to scene-token dropdowns in role slots. Mirrors the
+-- runtime resolver's allegiance checks at TriggeredAbility.lua:814-851.
+local function tokenMatchesSubjectFilter(subjectToken, casterToken, subjectId)
+    if subjectToken == nil then return false end
+    -- Subjects ending in "...notself" semantics (allies / otherheroes /
+    -- other) must exclude the caster itself, otherwise the auto-pick on
+    -- the test panel hands back the caster (since IsFriend(self,self) is
+    -- true) and the user sees "Subject = caster" for an "any ally" filter.
+    local isCaster = casterToken ~= nil and subjectToken.id == casterToken.id
+    if subjectId == "self" then
+        return isCaster
+    elseif subjectId == "any" then
+        return true
+    elseif subjectId == "other" then
+        return not isCaster
+    elseif subjectId == "selfandallies" then
+        if casterToken == nil then return true end
+        return casterToken:IsFriend(subjectToken)
+    elseif subjectId == "allies" then
+        if casterToken == nil then return not isCaster end
+        return (not isCaster) and casterToken:IsFriend(subjectToken)
+    elseif subjectId == "enemy" then
+        if casterToken == nil then return not isCaster end
+        return (not isCaster) and (not casterToken:IsFriend(subjectToken))
+    elseif subjectId == "selfandheroes" then
+        local props = subjectToken.properties
+        return props ~= nil and props.IsHero ~= nil and props:IsHero()
+    elseif subjectId == "otherheroes" then
+        local props = subjectToken.properties
+        return (not isCaster) and props ~= nil and props.IsHero ~= nil and props:IsHero()
+    end
+    return true
+end
+
+-- Preferred-list detection. Returns true if `token` has a triggered ability
+-- defined on its modifier chain that matches `ability`.
+--
+-- Walks the UNFILTERED modifier set (FillBaseActiveModifiers +
+-- FillTemporalActiveModifiers + FillModifiersFromModifiers) -- bypassing
+-- FilterModifiers which would gate out conditional grants. A monster with
+-- a triggered ability whose filterCondition is currently false (e.g. See
+-- Through with `Ongoing Effects has "Invisible"`) is still an "owner" of
+-- the ability for caster-default purposes -- the ability lives on this
+-- creature, the runtime just hasn't activated the modifier yet.
+-- GetActiveModifiers / GetTriggeredAbilities both run the filter step and
+-- would miss conditional grants entirely.
+--
+-- Three matching layers because the editor's `ability` instance is not
+-- always the same Lua table as the live runtime instance:
+--   1. Identity     -- editor opened the live modifier directly.
+--   2. Guid         -- both sides carry a stable guid (use try_get since
+--                      it's not a declared field).
+--   3. Name+trigger -- last-resort content match for compendium-driven
+--                      edits that fork the ability out of the modifier.
+--                      Collisions on a single creature are vanishingly
+--                      rare (two distinct triggered abilities sharing
+--                      BOTH name and trigger event).
+--
+-- PERF: an optional `memo` arg ({[token.id] = bool}) lets callers share
+-- per-token results across multiple categoriseSceneTokens invocations
+-- inside one refresh. Each token check otherwise pays three Fill*
+-- modifier-list builds plus a linear scan -- expensive on busy maps. The
+-- memo is meant to be allocated fresh at the top of a synchronous refresh
+-- (e.g. buildExpanded) and discarded when the refresh ends, so cross-
+-- frame staleness is impossible: a token's modifier chain cannot change
+-- inside one synchronous Lua block.
+local function tokenHasTriggeredAbility(token, ability, memo)
+    if token == nil or token.properties == nil or ability == nil then return false end
+    local memoKey
+    if memo ~= nil and token.id ~= nil then
+        memoKey = token.id
+        local cached = memo[memoKey]
+        if cached ~= nil then return cached end
+    end
+    local props = token.properties
+    local entries = {}
+    pcall(function() props:FillBaseActiveModifiers(entries) end)
+    pcall(function() props:FillTemporalActiveModifiers(entries) end)
+    pcall(function() props:FillModifiersFromModifiers(entries) end)
+    local agid = ability:try_get("guid")
+    local aname = ability:try_get("name")
+    local atrig = ability:try_get("trigger")
+    local found = false
+    for _, entry in ipairs(entries) do
+        local m = entry and entry.mod
+        if m ~= nil and m.has_key ~= nil and m:has_key("triggeredAbility") then
+            local a = m.triggeredAbility
+            if a == ability then found = true; break end
+            if agid ~= nil then
+                local bgid = a:try_get("guid")
+                if bgid ~= nil and bgid == agid then found = true; break end
+            end
+            if aname ~= nil and atrig ~= nil
+                    and a:try_get("name") == aname
+                    and a:try_get("trigger") == atrig then
+                found = true
+                break
+            end
+        end
+    end
+    if memoKey ~= nil then memo[memoKey] = found end
+    return found
+end
+
+-- Categorise scene tokens into preferred (have this triggered ability) and
+-- secondary (everyone else), filtered by the subject id constraint when
+-- supplied. Caster filter applies the subject filter relative to the
+-- chosen caster token. Returns two arrays of tokens.
+--
+-- PERF: optional `memo` is forwarded to tokenHasTriggeredAbility so per-
+-- token modifier walks are cached across calls within one refresh. See
+-- tokenHasTriggeredAbility's comment for the staleness contract.
+local function categoriseSceneTokens(ability, casterToken, subjectId, memo)
+    local preferred, secondary = {}, {}
+    local tokens = dmhub.allTokens or {}
+    for _, tok in ipairs(tokens) do
+        local matches = (subjectId == nil) or tokenMatchesSubjectFilter(tok, casterToken, subjectId)
+        if matches then
+            if tokenHasTriggeredAbility(tok, ability, memo) then
+                preferred[#preferred + 1] = tok
+            else
+                secondary[#secondary + 1] = tok
+            end
+        end
+    end
+    return preferred, secondary
+end
+
+-- Resolve the human-readable display name for a token. For minions
+-- (squad members), the per-token name is typically blank or a generic
+-- placeholder; the squad name (e.g. "Goblin Squad 1") is what users
+-- recognise -- mirrors how minions are named everywhere else in DS
+-- (initiative queue, action bar, chat). Falls back to tok.name for
+-- non-minions and pcall-wraps the MinionSquad() lookup since not every
+-- token type guarantees the method.
+local function tokenDisplayName(tok)
+    if tok == nil then return "" end
+    local props = tok.properties
+    if props ~= nil and type(props.MinionSquad) == "function" then
+        local ok, squad = pcall(props.MinionSquad, props)
+        if ok and type(squad) == "string" and squad ~= "" then
+            return squad
+        end
+    end
+    return tok.name or ""
+end
+
+-- Build a modal picker that lists tokens with their portrait next to the
+-- name. Preferred group appears first (tokens that already have this
+-- triggered ability), followed by a divider and the secondary group.
+-- onSelect is invoked with the chosen token's id and the modal closes.
+local function openTokenPicker(title, preferred, secondary, currentId, onSelect)
+    -- Themed: row chrome and text colors come from the cascade rules below
+    -- so the modal follows the active scheme. press-handler (not click),
+    -- cornerRadius stays inline because the cascade rule doesn't declare it.
+    -- Selected row picks up the {tokenPickerRow, selected} cascade variant
+    -- for a brighter border so the current choice is obvious.
+    local function buildTokenRow(tok)
+        local selected = tok.id == currentId
+        return gui.Panel{
+            classes = selected and {"bordered", "tokenPickerRow", "selected"} or {"bordered", "tokenPickerRow"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
+            bgimage = true,
+            hpad = 10,
+            vpad = 6,
+            bmargin = 4,
+            borderBox = true,
+            press = function()
+                gui.CloseModal()
+                onSelect(tok.id)
+            end,
+            children = {
+                gui.CreateTokenImage(tok, {
+                    width = 42,
+                    height = 42,
+                    halign = "left",
+                    valign = "center",
+                }),
+                gui.Label{
+                    classes = {"tokenPickerRowName", "sizeM"},
+                    text = tokenDisplayName(tok),
+                    bold = selected,
+                    width = "100%-54",
+                    height = "auto",
+                    halign = "left",
+                    valign = "center",
+                    lmargin = 12,
+                    textWrap = true,
+                },
+            },
+        }
+    end
+
+    local function buildGroupHeader(text)
+        return gui.Label{
+            classes = {"tokenPickerGroupHeader", "bold", "sizeS"},
+            text = text,
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            tmargin = 8,
+            bmargin = 4,
+        }
+    end
+
+    local rows = {}
+    if #preferred > 0 then
+        rows[#rows + 1] = buildGroupHeader("Tokens with this ability")
+        for _, tok in ipairs(preferred) do rows[#rows + 1] = buildTokenRow(tok) end
+    end
+    if #secondary > 0 then
+        rows[#rows + 1] = buildGroupHeader(#preferred > 0 and "Other tokens on this map" or "Tokens on this map")
+        for _, tok in ipairs(secondary) do rows[#rows + 1] = buildTokenRow(tok) end
+    end
+    if #rows == 0 then
+        rows[#rows + 1] = gui.Label{
+            classes = {"tokenPickerEmpty", "sizeS"},
+            text = "No tokens on this map.",
+            italics = true,
+            width = "100%",
+            height = "auto",
+            halign = "left",
+        }
+    end
+
+    -- Flat white gradient: the engine multiplies bgcolor by the gradient
+    -- color per pixel. The base Styles.Panel framedPanel rule sets a
+    -- near-black gradient, which would multiply our themed @bg to near
+    -- black. A flat white gradient lets bgcolor paint as-is. Mirrors the
+    -- pattern at AbilityEditor.lua:1401-1413.
+    local flatGradient = gui.Gradient{
+        point_a = {x = 0, y = 0},
+        point_b = {x = 1, y = 1},
+        stops = {
+            {position = 0, color = "#ffffff"},
+            {position = 1, color = "#ffffff"},
+        },
+    }
+
+    -- Themed cascade rules for the token picker. @-tokens are resolved
+    -- up front via MergeTokens because the modal's styles list is consumed
+    -- without a second MergeStyles pass (matches the outer dialog title
+    -- pattern at ActivatedAbilityEditor.lua:4940-4948). Spliced alongside
+    -- Styles.Default + Styles.Panel as siblings -- those are gui.Style
+    -- userdata which MergeTokens cannot process.
+    local stylesList = {Styles.Default, Styles.Panel}
+    for _, rule in ipairs(ThemeEngine.MergeTokens({
+        -- Override the base framedPanel rule so the modal frame paints
+        -- the active scheme's @bg surface and @accent border instead of
+        -- the legacy near-black default. priority=3 beats the default rule.
+        -- Border comes from the {bordered} class composed on the dialog
+        -- panel itself (drops borderWidth / borderColor inline).
+        {
+            selectors = {"framedPanel"},
+            priority = 3,
+            bgimage = true,
+            bgcolor = "@bg",
+            gradient = flatGradient,
+        },
+        {
+            selectors = {"label", "compendiumDialogTitle"},
+            color = "@fgStrong",
+            priority = 4,
+        },
+        {
+            selectors = {"label", "tokenPickerGroupHeader"},
+            color = "@fgMuted",
+            priority = 4,
+        },
+        {
+            selectors = {"label", "tokenPickerEmpty"},
+            color = "@fgMuted",
+            priority = 4,
+        },
+        {
+            selectors = {"label", "tokenPickerRowName"},
+            color = "@fg",
+            priority = 4,
+        },
+        {
+            selectors = {"panel", "tokenPickerRow"},
+            bgcolor = "@bgAlt",
+            priority = 4,
+        },
+    })) do
+        stylesList[#stylesList+1] = rule
+    end
+
+    local dialogPanel = gui.Panel{
+        classes = {"framedPanel", "bordered"},
+        styles = stylesList,
+        width = 480,
+        height = 560,
+        flow = "vertical",
+        pad = 16,
+        borderBox = true,
+        halign = "center",
+        valign = "center",
+        fontFace = "Berling",
+        children = {
+            gui.Label{
+                classes = {"compendiumDialogTitle", "sizeL", "bold"},
+                text = title,
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                bmargin = 8,
+            },
+            gui.Panel{
+                width = "100%",
+                height = "100%-40",
+                vscroll = true,
+                bgcolor = "clear",
+                halign = "left",
+                valign = "top",
+                -- Inner auto-height wrapper so rows stack tightly at the
+                -- top of the viewport rather than distributing across the
+                -- scroll area. Mirrors the New Ability dialog's content
+                -- panel pattern (AbilityEditorTemplates.lua:1436-1453).
+                children = {
+                    gui.Panel{
+                        width = "100%",
+                        height = "auto",
+                        flow = "vertical",
+                        bgcolor = "clear",
+                        halign = "left",
+                        valign = "top",
+                        children = rows,
+                    },
+                },
+            },
+            gui.Button{
+                classes = {"closeButton", "sizeM"},
+                halign = "right",
+                valign = "top",
+                floating = true,
+                escapeActivates = true,
+                escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+                click = function() gui.CloseModal() end,
+            },
+        },
+    }
+
+    gui.ShowModal(dialogPanel)
+end
+
+-- Picker button showing the current token's portrait + name, opens the
+-- modal picker on click. Replaces the dropdown as the primary role-slot
+-- control so authors can tell tokens apart visually (two goblins with
+-- the same name become distinguishable by portrait).
+local function buildTokenPickerButton(ability, casterToken, subjectFilter, currentId, onSelect, pickerTitle, memo)
+    local preferred, secondary = categoriseSceneTokens(ability, casterToken, subjectFilter, memo)
+
+    if #preferred == 0 and #secondary == 0 then
+        return gui.Label{
+        	classes = {"fgMuted", "sizeXs"},
+            text = subjectFilter
+                and ("No tokens on this map match the " .. subjectFilter .. " filter.")
+                or "No tokens on this map.",
+            italics = true,
+            width = "100%-100",
+            height = "auto",
+            halign = "left",
+            textWrap = true,
+        }
+    end
+
+    -- Resolve the current token from the combined list; fall back to the
+    -- first preferred (or secondary) token if the stored id isn't in scope.
+    local function findToken(id)
+        for _, t in ipairs(preferred) do if t.id == id then return t end end
+        for _, t in ipairs(secondary) do if t.id == id then return t end end
+        return nil
+    end
+    local tok = findToken(currentId)
+    if tok == nil then
+        tok = preferred[1] or secondary[1]
+        if tok ~= nil then onSelect(tok.id) end
+    end
+
+    return gui.Panel{
+    	classes = {"bgAlt", "bordered"},
+        width = "100%-100",
+        height = 36,
+        flow = "horizontal",
+        halign = "left",
+        valign = "center",
+        bgimage = true,
+        hpad = 6,
+        vpad = 2,
+        borderBox = true,
+        click = function()
+            openTokenPicker(pickerTitle or "Choose Token",
+                preferred, secondary, currentId, onSelect)
+        end,
+        children = {
+            tok and gui.CreateTokenImage(tok, {
+                width = 28, height = 28,
+                halign = "left", valign = "center",
+            }) or gui.Panel{ width = 28, height = 28, bgcolor = "clear" },
+            gui.Label{
+                classes = {"sizeS", tok and "fg" or "fgMuted"},
+                text = tok and tokenDisplayName(tok) or "(choose a token)",
+                width = "100%-40",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                lmargin = 8,
+                textWrap = false,
+            },
+        },
+    }
+end
+
+-- Discover which role slots and per-symbol inputs the current trigger
+-- requires. Returns { roleSlots = {...}, symbolInputs = {...} } where:
+--   roleSlot  = { id, name, isSubject, defaultSubjectFilter }
+--   symbolInp = { id, name, kind = "number"|"text"|"boolean"|"set"|"unsupported", desc, displayType }
+-- The Subject slot is included only when ability.subject ~= "self" since
+-- self triggers always resolve subject = caster automatically.
+local function discoverTestInputs(ability)
+    local roleSlots = {}
+    local symbolInputs = {}
+    local trigger = TriggeredAbility.GetTriggerById(ability:try_get("trigger") or "")
+    local subjectId = ability:try_get("subject") or "self"
+
+    -- Always include the Subject role slot when subject is non-self -- the
+    -- behaviour list will need a concrete subject token to make sense.
+    if subjectId ~= "self" then
+        roleSlots[#roleSlots + 1] = {
+            id = "subject",
+            name = "Subject",
+            isSubject = true,
+            defaultSubjectFilter = subjectId,
+        }
+    end
+
+    if trigger == nil or trigger.symbols == nil then
+        return { roleSlots = roleSlots, symbolInputs = symbolInputs }
+    end
+
+    -- Only surface symbols the condition actually references, so the panel
+    -- doesn't drown the user in inputs they don't care about. Always include
+    -- all creature-typed symbols though, since they may be needed by the
+    -- behaviour list even when the condition doesn't reference them.
+    local condition = ability:try_get("conditionFormula") or ""
+    local _, refSet = GoblinScriptProse.ListReferencedSymbols(condition)
+
+    -- Trigger symbol declarations come in two forms:
+    --   keyed map:    `damagetype = { name = "Damage Type", type = "text" }`
+    --   bare array:   `{ name = "Damage Type", type = "text" }`
+    -- The runtime always injects under a key that's lowercase + space-stripped
+    -- of the symbol's natural NAME -- e.g. `symbols.damagetype = damageType`
+    -- (Creature.lua:1999) or `symbols.usedability = self` (ActivatedAbility.lua:1669).
+    -- The keyed-map declaration's key is INTENDED to match this convention but
+    -- isn't enforced -- e.g. `targetwithability` declares `ability = { name =
+    -- "Used Ability", ... }` where the runtime key is actually `usedability`.
+    -- Always derive from `def.name` so our id agrees with the runtime injection
+    -- identity AND with how the formula references the symbol (`Used Ability`
+    -- normalises to `usedability` regardless of which declaration form was used).
+    -- Falls back to the raw key only if `def.name` is missing.
+    local function evalKey(rawKey, def)
+        local nm = def and def.name
+        if nm and nm ~= "" then
+            return string.lower((string.gsub(nm, "%s+", "")))
+        end
+        if type(rawKey) == "string" then return rawKey end
+        return tostring(rawKey)
+    end
+
+    -- C4: dotted-access discovery. For symbols whose type is itself a
+    -- nested object (ability, spellcast, path, loc), the formula can only
+    -- reach into the object via dotted access (e.g. `Used Ability.Keywords
+    -- has "Melee"`, `Path.Forced`, `Cast.tierfortarget`). The bare head is
+    -- not a leaf-comparable value -- there's nothing to type into a text
+    -- input. Instead we surface one row per (head, tail) pair the formula
+    -- actually references, with the input widget chosen by operator hint
+    -- (has -> set, =/is -> text, >/>= -> number, bare -> boolean).
+    local dottedAccesses = GoblinScriptProse.ListReferencedDottedAccesses(condition)
+    local function dottedTailsForLookupKey(lookupKey)
+        for _, entry in pairs(dottedAccesses) do
+            if entry.lookupKey == lookupKey then return entry end
+        end
+        return nil
+    end
+    local function kindFromOpHint(opHint)
+        if opHint == "has" then return "set" end
+        if opHint == "compare-num" then return "number" end
+        if opHint == "bool" then return "boolean" end
+        return "text"  -- compare-str, default
+    end
+
+    -- Look up the declared type of a dotted leaf on a typed object symbol.
+    -- Used to upgrade the opHint-derived widget kind when we have richer
+    -- type info -- e.g. `cast.PrimaryTarget` is creature-typed (per
+    -- ActivatedAbilityCast.helpSymbols), so the comparison `cast.PrimaryTarget = self`
+    -- needs a creature picker rather than a text input.
+    local OBJECT_LEAF_HELPSYMBOLS = {
+        ability = function() return rawget(_G, "ActivatedAbility") and ActivatedAbility.helpSymbols end,
+        spellcast = function() return rawget(_G, "ActivatedAbilityCast") and ActivatedAbilityCast.helpSymbols end,
+        path = function() return rawget(_G, "PathMoved") and PathMoved.helpSymbols end,
+    }
+    local function leafDeclaredType(symType, tailKey)
+        local source = OBJECT_LEAF_HELPSYMBOLS[symType]
+        if source == nil then return nil end
+        local syms = source()
+        if type(syms) ~= "table" then return nil end
+        -- Lookup keys in helpSymbols mirror the runtime injection identity
+        -- (lowercase + space-stripped). The dotted-walker passes tailKey as
+        -- lowercase (may contain space for multi-word). Try both forms.
+        local def = syms[tailKey]
+        if def == nil then
+            local stripped = string.gsub(tailKey, "%s+", "")
+            def = syms[stripped]
+        end
+        if type(def) ~= "table" then return nil end
+        return def.type
+    end
+
+    for symKey, symDef in pairs(trigger.symbols) do
+        if type(symDef) == "table" then
+            local symName = symDef.name or tostring(symKey)
+            local symType = symDef.type or "text"
+            local id = evalKey(symKey, symDef)
+            local referenced = refSet[string.lower(id)] ~= nil
+                or refSet[string.lower(symName)] ~= nil
+
+            if symType == "creature" then
+                -- Only surface a role slot when the condition formula
+                -- actually references it. The trigger event declares
+                -- many creature symbols (Attacker, Pusher, Target, ...)
+                -- but most conditions touch zero or one of them; showing
+                -- the whole set adds noise the author has to mentally
+                -- filter. Subject is the always-required exception and is
+                -- added unconditionally above.
+                if referenced then
+                    roleSlots[#roleSlots + 1] = {
+                        id = id,
+                        name = symName,
+                        isSubject = false,
+                        desc = symDef.desc,
+                    }
+                end
+            elseif symType == "ability" or symType == "spellcast"
+                    or symType == "path" or symType == "loc" then
+                -- Object-typed symbols: surface one input row per dotted
+                -- tail referenced. No bare-head row (nothing meaningful
+                -- to type at the head level).
+                local entry = dottedTailsForLookupKey(id)
+                if entry ~= nil then
+                    for tailKey, tailInfo in pairs(entry.tails) do
+                        -- Prefer the leaf's declared type from the object's
+                        -- helpSymbols when we recognise the field; fall back
+                        -- to the operator-hint heuristic. This upgrades
+                        -- compare-str on `cast.PrimaryTarget` to a creature
+                        -- picker (declared type "creature") instead of a
+                        -- bare text input.
+                        local declared = leafDeclaredType(symType, tailKey)
+                        local leafKind
+                        if declared == "creature" then
+                            leafKind = "creature-leaf"
+                        elseif declared == "number" then
+                            leafKind = "number"
+                        elseif declared == "boolean" then
+                            leafKind = "boolean"
+                        elseif declared == "set" then
+                            leafKind = "set"
+                        else
+                            leafKind = kindFromOpHint(tailInfo.opHint)
+                        end
+                        -- C4 followup: if the tail is a known bounded-set
+                        -- field, attach a valueOptionsSource so the panel
+                        -- renders a dropdown instead of a free-text input.
+                        -- Today's only entry: ability keyword sets
+                        -- (Used Ability.Keywords / Ability.Keywords / Cast.Keywords).
+                        -- Add more here when the runtime exposes other
+                        -- bounded-vocabulary set fields on object symbols.
+                        local tailValueSource = nil
+                        if tailKey == "keywords" and leafKind == "set"
+                                and (symType == "ability" or symType == "spellcast") then
+                            tailValueSource = "abilityKeywords"
+                        end
+                        symbolInputs[#symbolInputs + 1] = {
+                            id = id .. "." .. tailKey,
+                            name = symName .. "." .. tailInfo.displayTail,
+                            kind = leafKind,
+                            desc = symDef.desc,
+                            displayType = symType .. "." .. tailInfo.displayTail,
+                            valueOptionsSource = tailValueSource,
+                            -- Mark for buildEvalContext so it knows to bundle
+                            -- this leaf under a stub object keyed by `id`.
+                            dottedHead = id,
+                            dottedTail = tailKey,
+                        }
+                    end
+                end
+            elseif referenced then
+                local kind = "text"
+                if symType == "number" then kind = "number"
+                elseif symType == "boolean" then kind = "boolean"
+                elseif symType == "set" then kind = "set"
+                elseif symType == "creaturelist" then
+                    kind = "unsupported"
+                end
+                symbolInputs[#symbolInputs + 1] = {
+                    id = id,
+                    name = symName,
+                    kind = kind,
+                    desc = symDef.desc,
+                    displayType = symType,
+                    valueOptionsSource = symDef.valueOptionsSource,
+                }
+            end
+        end
+    end
+
+    -- Stable order for symbol inputs (pairs() iteration is undefined in Lua).
+    table.sort(symbolInputs, function(a, b) return a.name < b.name end)
+    table.sort(roleSlots, function(a, b)
+        if a.isSubject ~= b.isSubject then return a.isSubject end
+        return a.name < b.name
+    end)
+
+    return { roleSlots = roleSlots, symbolInputs = symbolInputs }
+end
+
+-- Bounded-value option builders for symbols carrying a `valueOptionsSource`.
+-- Each builder returns a list of `{id, text}` records suitable for gui.Dropdown.
+-- The `id` field MUST equal what the runtime injects into the symbol context for
+-- that trigger event (so authoring formulas like `Damage Type is "fire"` match
+-- when a user picks "fire" from the dropdown). Identity per category was
+-- verified during C3 implementation:
+--   damageTypes              -> lowercase damage type name (e.g. "fire") --
+--                               matches YAML convention.
+--   charConditions           -> conditionInfo.name (PascalCase, e.g. "Grabbed")
+--                               -- see MCDMCreature.lua:3114.
+--   characterResources       -> string.lower(resourceInfo.name) -- see
+--                               Resource.lua:624.
+-- Patterns follow the existing inline builders at:
+--   damageTypes              -> CharacterSheet.lua:2090
+--   charConditions           -> Condition.lua:79 (FillDropdownOptions; we
+--                               REJECT its GUID-as-id format because GoblinScript
+--                               compares against the name, not the GUID)
+--   characterResources       -> ActivatedAbilityEditor.lua:76 (we drop the
+--                               "None" sentinel since the test panel uses a
+--                               blank value for "unspecified")
+local TEST_OPTION_BUILDERS = {
+    damageTypes = function()
+        local options = {}
+        local t = dmhub.GetTable(DamageType.tableName) or {}
+        for _, v in unhidden_pairs(t) do
+            local name = string.lower(v.name)
+            options[#options + 1] = { id = name, text = name }
+        end
+        table.sort(options, function(a, b) return a.text < b.text end)
+        return options
+    end,
+    charConditions = function()
+        local options = {}
+        local t = dmhub.GetTable("charConditions") or {}
+        for _, c in unhidden_pairs(t) do
+            options[#options + 1] = { id = c.name, text = c.name }
+        end
+        table.sort(options, function(a, b) return a.text < b.text end)
+        return options
+    end,
+    characterResources = function()
+        local options = {}
+        local t = dmhub.GetTable("characterResources") or {}
+        for _, r in pairs(t) do
+            -- Include all groupings (incl. "Actions") -- the runtime
+            -- dispatches `useresource` events for action resources too,
+            -- so formulas like `Resource is Main Action`/`Resource is
+            -- Maneuver`/`Resource is Trigger` need the picker to surface
+            -- those names. Only filter row-hidden resources.
+            if not r:try_get("hidden", false) then
+                options[#options + 1] = { id = string.lower(r.name), text = r.name }
+            end
+        end
+        table.sort(options, function(a, b) return a.text < b.text end)
+        return options
+    end,
+    -- C4: Ability keyword set. ~25 keywords registered via
+    -- GameSystem.RegisterAbilityKeyword (Air, Magic, Melee, Ranged, ...).
+    -- Single-select dropdown -- the formula `Used Ability.Keywords has "X"`
+    -- only references one literal at a time, so picking one keyword
+    -- simulates a stub ability whose keyword set contains exactly that
+    -- entry. Multi-keyword stubs aren't needed for any current bestiary
+    -- formula; if real authoring patterns demand it, swap to a multi-pick
+    -- widget later. Id is lowercased to match GoblinScript's case-insensitive
+    -- string comparison and the StringSet wrapping in buildEvalContext.
+    abilityKeywords = function()
+        local options = {}
+        for keyword, _ in pairs(GameSystem.abilityKeywords or {}) do
+            options[#options + 1] = { id = string.lower(keyword), text = keyword }
+        end
+        table.sort(options, function(a, b) return a.text < b.text end)
+        return options
+    end,
+}
+
+-- Convert a per-symbol typed input into the value GoblinScript will see at
+-- the corresponding slot. Strings stay strings, numbers parse, booleans
+-- map to true/false, sets parse comma-separated text into a {key=true} map.
+local function coerceSymbolInputValue(kind, raw)
+    if kind == "number" then
+        local n = tonumber(raw)
+        return n or 0
+    elseif kind == "boolean" then
+        return raw == true or raw == "true"
+    elseif kind == "set" then
+        local s = {}
+        if type(raw) == "string" and raw ~= "" then
+            for piece in string.gmatch(raw, "([^,]+)") do
+                local trimmed = piece:gsub("^%s+", ""):gsub("%s+$", "")
+                if trimmed ~= "" then s[trimmed] = true end
+            end
+        end
+        return s
+    end
+    return raw or ""
+end
+
+-- Render a "satisfying" value back into the raw input form the editor's
+-- inputs expect. Numeric stays numeric, string stays string, boolean -> bool,
+-- set table ({Melee=true, Ranged=true}) -> comma-joined keys ("Melee, Ranged").
+local function satisfyingValueToRaw(kind, value)
+    if value == nil then return nil end
+    if kind == "set" then
+        if type(value) ~= "table" then return nil end
+        local keys = {}
+        for k in pairs(value) do keys[#keys + 1] = tostring(k) end
+        table.sort(keys)
+        return table.concat(keys, ", ")
+    end
+    if kind == "boolean" then
+        return value == true
+    end
+    if kind == "number" then
+        return tonumber(value) or 0
+    end
+    -- text/string
+    return tostring(value)
+end
+
+-- Build the symbols table that mirrors what the runtime would pass to
+-- ExecuteGoblinScript. casterToken provides the LookupSymbol receiver;
+-- subjectToken (if separate) populates symbols.subject; per-symbol inputs
+-- + role tokens populate the rest.
+-- Path C: build the augmented StringSet for a given (head, set) override.
+-- Returns a fresh StringSet that contains the real creature's set entries
+-- plus any overridden values the author has ticked. The original creature
+-- properties are NEVER mutated -- we copy `realSet.strings` then add.
+-- realFn is the lookupSymbols entry (e.g. props.lookupSymbols["conditions"]);
+-- props is passed to it as the receiver.
+--
+-- Defined ABOVE buildEvalContext because Lua locals must be in lexical
+-- scope at the point a function references them -- declaring helpers
+-- after their consumer treats the reference as a global lookup, which
+-- is nil at runtime.
+local function buildAugmentedSet(realFn, props, overrideValues)
+    local merged = {}
+    if realFn ~= nil and props ~= nil then
+        local ok, realSet = pcall(realFn, props)
+        if ok and type(realSet) == "table" and type(realSet.strings) == "table" then
+            for _, s in ipairs(realSet.strings) do merged[#merged + 1] = s end
+        end
+    end
+    local newSet = StringSet.new{ strings = merged }
+    for _, value in ipairs(overrideValues) do
+        if not newSet:Has(value) then newSet:Add(value) end
+    end
+    return newSet
+end
+
+-- Path C: collect a list of override values currently ticked for the given
+-- (head, set). Walks state.formulaOverrides keyed by "<head>:<set>:<value>".
+-- Defined above buildEvalContext for the same lexical-scope reason as
+-- buildAugmentedSet.
+local function collectOverrideValues(formulaOverrides, head, setName)
+    local out = {}
+    local prefix = head .. ":" .. setName .. ":"
+    for key, on in pairs(formulaOverrides or {}) do
+        if on and string.sub(key, 1, #prefix) == prefix then
+            out[#out + 1] = string.sub(key, #prefix + 1)
+        end
+    end
+    return out
+end
+
+local function buildEvalContext(ability, scenario)
+    local symbols = {}
+    symbols.mode = 1
+
+    -- Path C: in-formula state overrides. When the author has ticked
+    -- "Pretend X has condition Y" in the test panel, we inject the
+    -- augmented StringSet via GenerateSymbols(props, overrideTable).
+    -- The compiled GoblinScript at dot-access checks
+    -- `if type(symbols) == 'table' then symbols = GenerateSymbols(symbols)`
+    -- -- providing a callable already short-circuits that wrap and our
+    -- override table takes precedence over the real lookupSymbols entry.
+    -- See discoverInFormulaOverrides + buildAugmentedSet.
+    -- Normalise a condition/effect name to the lookupSymbols key shape
+    -- the runtime uses: lowercase + strip spaces. e.g. "Spell Resistance"
+    -- -> "spellresistance". Keeps the override compatible with the bare
+    -- boolean access form (`Subject.SpellResistance`).
+    local function normaliseSymbolKey(name)
+        if type(name) ~= "string" then return "" end
+        return string.lower((string.gsub(name, "%s+", "")))
+    end
+
+    local function buildOverrideSymbolTable(headKey, props)
+        local fo = scenario.formulaOverrides
+        if fo == nil or props == nil then return nil end
+        local condValues = collectOverrideValues(fo, headKey, "Conditions")
+        local oeValues   = collectOverrideValues(fo, headKey, "OngoingEffects")
+        local boolValues = collectOverrideValues(fo, headKey, "Booleans")
+        -- Numeric overrides store the raw value alongside the key. Collect
+        -- separately so we preserve the typed value (number) instead of the
+        -- collected key form.
+        local numericOverrides = {}
+        local hasNumeric = false
+        local numericPrefix = headKey .. ":Numbers:"
+        for key, value in pairs(fo) do
+            if string.sub(key, 1, #numericPrefix) == numericPrefix then
+                local name = string.sub(key, #numericPrefix + 1)
+                local n = tonumber(value)
+                if n ~= nil then
+                    numericOverrides[name] = n
+                    hasNumeric = true
+                end
+            end
+        end
+        -- Resource overrides. Same shape as numeric: stored as raw text
+        -- under "<head>:Resources:<resourceName>"; parsed at injection time
+        -- and folded into a stub CharacterResourceCollection that mirrors
+        -- the real one but returns the override value for the named
+        -- resource(s). Empty/blank entries fall through to the real value.
+        local resourceOverrides = {}
+        local hasResource = false
+        local resourcePrefix = headKey .. ":Resources:"
+        for key, value in pairs(fo) do
+            if string.sub(key, 1, #resourcePrefix) == resourcePrefix then
+                local name = string.sub(key, #resourcePrefix + 1)
+                local n = tonumber(value)
+                if n ~= nil then
+                    resourceOverrides[name] = n
+                    hasResource = true
+                end
+            end
+        end
+        if #condValues == 0 and #oeValues == 0 and #boolValues == 0
+                and not hasNumeric and not hasResource then
+            return nil
+        end
+        local tbl = {}
+        if #condValues > 0 then
+            -- Set-membership form: Subject.Conditions has "Flanked"
+            tbl.conditions = buildAugmentedSet(
+                props.lookupSymbols and props.lookupSymbols["conditions"],
+                props, condValues)
+            -- Bare-boolean form: Subject.Flanked. Inject a per-value
+            -- override that returns true so the dot access resolves to a
+            -- truthy value via GenerateSymbols' symbolTable check (it
+            -- returns the value as-is, no call). Same condition can be
+            -- written either way; this covers both.
+            for _, value in ipairs(condValues) do
+                local key = normaliseSymbolKey(value)
+                if key ~= "" then tbl[key] = true end
+            end
+        end
+        if #oeValues > 0 then
+            tbl.ongoingeffects = buildAugmentedSet(
+                props.lookupSymbols and props.lookupSymbols["ongoingeffects"],
+                props, oeValues)
+            for _, value in ipairs(oeValues) do
+                local key = normaliseSymbolKey(value)
+                if key ~= "" then tbl[key] = true end
+            end
+        end
+        -- P2: bare-boolean creature-property overrides (Hero, Dying,
+        -- Captain, Your Turn, ...). Per-value boolean only -- there's no
+        -- StringSet to augment. The same key shape resolves both bare
+        -- (`Hero`) and dotted (`Self.Hero`) access at evaluation time.
+        for _, value in ipairs(boolValues) do
+            local key = normaliseSymbolKey(value)
+            if key ~= "" then tbl[key] = true end
+        end
+        -- P3: numeric creature-property overrides (Subject.Stamina,
+        -- Resources.Recovery, Combat Round, ...). Same per-key injection
+        -- but the value is the parsed number rather than `true`.
+        for name, n in pairs(numericOverrides) do
+            local key = normaliseSymbolKey(name)
+            if key ~= "" then tbl[key] = n end
+        end
+        -- Chained resource overrides (Subject.Resources.Recovery,
+        -- Resources.Surges, ...). Build a stub CharacterResourceCollection
+        -- whose lookupSymbols mirror the real collection's BUT shadow the
+        -- overridden resource quantities. The stub is set as tbl.resources;
+        -- when GoblinScript dot-accesses it via Subject.Resources.<X>, the
+        -- compiled access path wraps the stub with GenerateSymbols(stub),
+        -- which then calls stub.lookupSymbols[<x>](stub) -- our shadow
+        -- function ignores the receiver and returns the override.
+        if hasResource then
+            local realResourcesFn = props.lookupSymbols and props.lookupSymbols["resources"]
+            local realCollection = nil
+            if realResourcesFn ~= nil then
+                local ok, c = pcall(realResourcesFn, props)
+                if ok then realCollection = c end
+            end
+            local stub = { lookupSymbols = {} }
+            if realCollection ~= nil and type(realCollection.lookupSymbols) == "table" then
+                for k, fn in pairs(realCollection.lookupSymbols) do
+                    stub.lookupSymbols[k] = function(_) return fn(realCollection) end
+                end
+            end
+            for name, n in pairs(resourceOverrides) do
+                -- Match the runtime's resource-symbol normalisation:
+                -- lowercase + non-word stripped (matches Resource.lua:1104
+                -- `string.gsub(string.lower(resourceInfo.name), "%W", "")`).
+                local key = string.gsub(string.lower(name), "%W", "")
+                if key ~= "" then
+                    stub.lookupSymbols[key] = function(_) return n end
+                end
+            end
+            tbl.resources = stub
+        end
+        return tbl
+    end
+
+    if scenario.subjectToken ~= nil and scenario.casterToken ~= nil
+            and scenario.subjectToken.id ~= scenario.casterToken.id then
+        local props = scenario.subjectToken.properties
+        local overrideTable = buildOverrideSymbolTable("subject", props)
+        if overrideTable ~= nil then
+            symbols.subject = GenerateSymbols(props, overrideTable)
+        else
+            symbols.subject = props
+        end
+    end
+
+    -- Self overrides: "Self" resolves against the caster (the receiver of
+    -- LookupSymbol). We can override by setting symbols.self -- the lookup
+    -- callable checks symbolTable first. If no Self overrides are set, we
+    -- leave symbols.self nil so the runtime falls through to caster props.
+    --
+    -- ALSO copy ALL override values into the OUTER symbols table so bare
+    -- references resolve through the top-level lookup callable. The
+    -- runtime treats bare refs (`Flanked`, `Conditions has "X"`,
+    -- `Ongoing Effects has "X"`) as implicit Self.X access, which means
+    -- the bare ident is looked up against the OUTER symbols table, not
+    -- against the wrapped Self callable's internal symbolTable. So:
+    --   - per-value booleans (tbl.flanked = true) cover bare-boolean
+    --     refs like `Flanked`
+    --   - augmented StringSets (tbl.conditions / tbl.ongoingeffects)
+    --     cover bare set-membership refs like `Conditions has "X"` or
+    --     `Ongoing Effects has "X"`
+    -- All keys from the override table are copied wholesale -- the
+    -- runtime semantics for outer-symbol lookup match what GenerateSymbols
+    -- returns for the wrapped form (return the value as-is, no fn call).
+    if scenario.casterToken ~= nil then
+        local casterProps = scenario.casterToken.properties
+        local selfOverrideTable = buildOverrideSymbolTable("self", casterProps)
+        if selfOverrideTable ~= nil then
+            symbols.self = GenerateSymbols(casterProps, selfOverrideTable)
+            for k, v in pairs(selfOverrideTable) do
+                symbols[k] = v
+            end
+        end
+    end
+
+    for symKey, tok in pairs(scenario.roleTokens or {}) do
+        if symKey ~= "subject" and tok ~= nil and tok.properties ~= nil then
+            symbols[symKey] = tok.properties
+            -- Trigger symbol pairs (attacker / hasattacker) commonly co-vary;
+            -- if a hasX boolean is declared and we have X set, default it true.
+            local hasKey = "has" .. symKey
+            if scenario.symbolValues and scenario.symbolValues[hasKey] == nil then
+                symbols[hasKey] = true
+            end
+        end
+    end
+
+    -- C4: dotted-access leaves are stored under composite keys like
+    -- "usedability.keywords". Group them by head, build a stub table
+    -- per head, and wrap with GenerateSymbols(nil, stub) so GoblinScript
+    -- treats it as a callable on dot access. Set-typed leaves must use
+    -- StringSet (not a plain table) for the `has` operator to work --
+    -- that's the dispatch shape ActivatedAbility's keywords symbol uses
+    -- (see ActivatedAbility.lua:4997).
+    local stubTables = {}
+    for symKey, info in pairs(scenario.symbolValues or {}) do
+        local dot = string.find(symKey, ".", 1, true)
+        if dot ~= nil then
+            local head = string.sub(symKey, 1, dot - 1)
+            local tail = string.sub(symKey, dot + 1)
+            -- Runtime injection identity for multi-word dotted access:
+            -- GoblinScript merges `Primary Target` into a single IDENT
+            -- "Primary Target" but the dot-access lookup normalises to
+            -- lowercase + space-stripped (`primarytarget`). Stored stub
+            -- keys must match that form -- otherwise a tail like
+            -- "primary target" (with embedded space, lowercased) won't be
+            -- found. Verified empirically: `obj.Primary Target` resolves
+            -- via `symbols("primarytarget")`. Head is already normalised
+            -- by ListReferencedDottedAccesses' lookupKey (no space).
+            tail = string.gsub(tail, "%s+", "")
+            stubTables[head] = stubTables[head] or {}
+            local v = info.value
+            if info.kind == "set" then
+                if type(v) == "table" then
+                    local s = StringSet.new()
+                    for k, _ in pairs(v) do
+                        s:Add(string.lower(tostring(k)))
+                    end
+                    v = s
+                end
+            end
+            stubTables[head][tail] = v
+        else
+            symbols[symKey] = info.value
+        end
+    end
+    for head, fields in pairs(stubTables) do
+        symbols[head] = GenerateSymbols(nil, fields)
+    end
+
+    return symbols
+end
+
+-- Evaluate the Required Condition gate against the chosen subject token.
+-- Mirrors `TriggeredAbility:subjectHasRequiredCondition` semantics. Returns:
+--   { kind = "no-gate" | "pass-auto" | "pass-override" | "fail-auto",
+--     conditionId, conditionName,
+--     requireInflictedBy = bool,
+--     inflicterTokenName = string?,   -- name of who actually inflicted, if known
+--     autoState = "no-condition" | "wrong-inflicter" | nil }
+-- "no-gate"        : ability has no Required Condition set; gate is a no-op.
+-- "pass-auto"      : the subject token actually has the condition (and the
+--                    inflicter matches if requireInflictedBy is true).
+-- "pass-override"  : auto-derived would have failed, but the user ticked the
+--                    "Pretend subject has X" override.
+-- "fail-auto"      : auto-derived fail, override not set.
+local function evaluateRequiredConditionGate(ability, subjectToken, casterToken, override)
+    local conditionId = ability:try_get("characterConditionRequired", "none")
+    if conditionId == "none" or conditionId == nil then
+        return { kind = "no-gate" }
+    end
+
+    local conditionsTable = dmhub.GetTable(CharacterCondition.tableName) or {}
+    local conditionInfo = conditionsTable[conditionId]
+    local conditionName = conditionInfo and conditionInfo.name or conditionId
+    local requireInflictedBy = ability:try_get("characterConditionInflictedBySelf", false) and true or false
+
+    local result = {
+        conditionId = conditionId,
+        conditionName = conditionName,
+        requireInflictedBy = requireInflictedBy,
+    }
+
+    -- No subject token resolved -> nothing to evaluate. Treat as auto-fail
+    -- so the user sees the gate exists; the override still works.
+    if subjectToken == nil or subjectToken.properties == nil then
+        if override then
+            result.kind = "pass-override"
+        else
+            result.kind = "fail-auto"
+            result.autoState = "no-condition"
+        end
+        return result
+    end
+
+    local conditionCaster = subjectToken.properties:HasCondition(conditionId)
+    if conditionCaster == false or conditionCaster == nil then
+        if override then
+            result.kind = "pass-override"
+        else
+            result.kind = "fail-auto"
+            result.autoState = "no-condition"
+        end
+        return result
+    end
+
+    -- Subject has the condition. Inflicter check if required.
+    if requireInflictedBy then
+        local casterId = casterToken and dmhub.LookupTokenId(casterToken) or nil
+        if conditionCaster ~= casterId then
+            -- Try to resolve the actual inflicter's display name for the
+            -- detail line. conditionCaster is a token id (or `true` for
+            -- legacy entries with no casterInfo).
+            local inflicterName = nil
+            if type(conditionCaster) == "string" then
+                local tokens = dmhub.allTokens or {}
+                for _, t in ipairs(tokens) do
+                    if t.id == conditionCaster then
+                        inflicterName = tokenDisplayName(t)
+                        break
+                    end
+                end
+            end
+            result.inflicterTokenName = inflicterName
+            if override then
+                result.kind = "pass-override"
+            else
+                result.kind = "fail-auto"
+                result.autoState = "wrong-inflicter"
+            end
+            return result
+        end
+    end
+
+    result.kind = "pass-auto"
+    return result
+end
+
+-- Run the test against the supplied scenario. Returns a result struct:
+--   { kind = "pass"|"fail"|"error"|"empty"|"no-caster"|"gate-fail",
+--     value, errorMsg, attribution, symbols, casterToken, subjectToken,
+--     gate = <evaluateRequiredConditionGate result> | nil }
+-- "empty" = condition formula is blank (always fires).
+-- "no-caster" = could not resolve a caster token (no scene / no tokens).
+-- "gate-fail" = the Required Condition gate auto-failed and the user has
+--               not enabled the manual override.
+-- attribution is the GoblinScriptProse.AttributeFailure result, may be nil.
+-- gate is the result of evaluateRequiredConditionGate; populated for any
+-- ability that has a Required Condition set, regardless of whether the
+-- gate passed (so the result block / resolved-values grid can surface it).
+local function runTriggerTest(ability, scenario)
+    local result = {
+        casterToken = scenario.casterToken,
+        subjectToken = scenario.subjectToken,
+    }
+
+    if scenario.casterToken == nil then
+        result.kind = "no-caster"
+        return result
+    end
+
+    -- Path C: structural failure when the trigger requires a non-self
+    -- Subject but no token on the map matches the subject filter. Today
+    -- the test panel runs anyway against whatever fallback the engine
+    -- resolves (often the caster itself), producing confusing results.
+    -- Surface this as a top-level "you can't run this test yet" message
+    -- the same way no-caster does, with the exact filter named so the
+    -- author knows what kind of token they need to add.
+    local subjectId = ability:try_get("subject") or "self"
+    if subjectId ~= "self" and scenario.subjectToken == nil then
+        result.kind = "no-subject"
+        result.subjectFilter = subjectId
+        return result
+    end
+
+    -- Evaluate Required Condition gate first, mirroring the runtime order
+    -- at TriggeredAbility.lua:767 (gate runs before conditionFormula).
+    local gate = evaluateRequiredConditionGate(
+        ability, scenario.subjectToken, scenario.casterToken, scenario.gateOverride)
+    result.gate = gate
+    if gate.kind == "fail-auto" then
+        result.kind = "gate-fail"
+        return result
+    end
+
+    local condition = ability:try_get("conditionFormula") or ""
+    -- Path C: stash the formula on the result so buildResultBlock can
+    -- detect creature-state references for the hint-text fallback.
+    result.formula = condition
+    if condition == "" then
+        result.kind = "empty"
+        return result
+    end
+
+    local symbols = buildEvalContext(ability, scenario)
+    result.symbols = symbols
+
+    local ctx = scenario.casterToken.properties:LookupSymbol(symbols)
+
+    local ok, value = pcall(function()
+        return ExecuteGoblinScript(condition, ctx, 0, "Test Trigger")
+    end)
+
+    if not ok then
+        result.kind = "error"
+        result.errorMsg = tostring(value)
+        return result
+    end
+
+    result.value = value
+
+    if tonumber(value) == 0 or value == false or value == nil then
+        result.kind = "fail"
+        local attribution = GoblinScriptProse.AttributeFailure(
+            condition,
+            { subject = ability:try_get("subject") or "self", trigger = ability:try_get("trigger") or "" },
+            function(leafSrc)
+                local lok, lv = pcall(function()
+                    return ExecuteGoblinScript(leafSrc, ctx, 0, "Test Trigger leaf")
+                end)
+                if not lok then return nil, tostring(lv) end
+                return lv, nil
+            end
+        )
+        result.attribution = attribution
+        return result
+    end
+
+    result.kind = "pass"
+    return result
+end
+
+-- Path C: discover in-formula state-override opportunities.
+--
+-- Returns the set of (head, set, value) tuples that the test panel can
+-- offer the author as "Pretend ... has ..." overrides. Detects three
+-- formula shapes:
+--   1. `<head>.Conditions has "X"` / `<head>.OngoingEffects has "X"` --
+--      set-membership form; X is the literal RHS.
+--   2. `<head>.<X>` -- bare-boolean dotted form, where X matches a
+--      condition or ongoing-effect name registered in DMHub.
+--      e.g. `Subject.Flanked` resolves to the subject's flanked state.
+--   3. `<X>` -- bare ident with no head prefix. GoblinScript resolves
+--      bare references against the lookup receiver, which is the caster
+--      (Self) for trigger conditions. So `Flanked` is shorthand for
+--      `Self.Flanked`. Discovered as a "self" override.
+--
+-- All three shapes unify into the same {head, set, value} result so the
+-- override section displays a single checkbox per condition/effect
+-- regardless of which shape the author used. The eval-time injection
+-- (buildEvalContext / buildOverrideSymbolTable) covers all forms:
+--   - Augmented StringSet for `<head>.Conditions has "X"`
+--   - Per-value boolean inside the wrapped Self/Subject for `<head>.<X>`
+--   - Per-value boolean copied to OUTER symbols for bare `<X>`
+--
+-- Returns:
+--   { subject = { Conditions = {"Flanked", "Grabbed"},
+--                 OngoingEffects = {"Bleeding"} },
+--     self    = { Conditions = {...} } }
+-- Empty groups are omitted; an empty result table means "nothing to offer".
+--
+-- Other patterns (`.Stamina < 5`, custom attributes, generic creature
+-- properties that aren't conditions/effects) fall to the "apply on the
+-- map" hint text -- per-property override widgets are out of scope.
+local function discoverInFormulaOverrides(ability)
+    local condition = ability:try_get("conditionFormula") or ""
+    if condition == "" then return {} end
+
+    local result = {}
+
+    -- Shared helper: append a value under (head, set) with case-insensitive
+    -- de-duplication so the same condition referenced via both forms only
+    -- gets one checkbox.
+    local function addOverride(headLower, setName, value)
+        result[headLower] = result[headLower] or {}
+        result[headLower][setName] = result[headLower][setName] or {}
+        local list = result[headLower][setName]
+        for _, existing in ipairs(list) do
+            if string.lower(existing) == string.lower(value) then return end
+        end
+        list[#list + 1] = value
+    end
+
+    -- Shape 1: <head>.Conditions has "X" / <head>.OngoingEffects has "X"
+    --
+    -- WalkLiteralComparisons callbacks pass `info.lhs` as an AST atom
+    -- ({kind = "ident"|"dotted"|"call", parts = {...} | name = ...}),
+    -- NOT as a string. See GoblinScriptProse.lua:1175-1180 for the schema
+    -- and resolveLiteralSource (this file, ~l.2290) for the existing
+    -- consumer pattern.
+    --
+    -- Tail normalisation: GoblinScript identifiers may include spaces
+    -- (e.g. "Ongoing Effects" parses as a single tail token with a space),
+    -- and the runtime injection key is always lowercase + space-stripped.
+    -- So compare against the normalised form, not just lowercase -- the
+    -- earlier `string.lower("Ongoing Effects")` produced "ongoing effects"
+    -- which didn't match "ongoingeffects" and silently dropped the
+    -- override surface for spaced authoring.
+    local function normaliseTail(s)
+        if type(s) ~= "string" then return "" end
+        return string.lower((string.gsub(s, "%s+", "")))
+    end
+
+    pcall(function()
+        GoblinScriptProse.WalkLiteralComparisons(condition, function(info)
+            if info == nil or info.op ~= "has" then return end
+            if type(info.rhs) ~= "string" then return end
+            local lhs = info.lhs
+            if type(lhs) ~= "table" then return end
+
+            -- LHS can be either dotted (`Subject.Conditions`) or bare
+            -- ident (`Conditions`, `Ongoing Effects`). Bare LHS is
+            -- shorthand for the implicit Self head -- GoblinScript
+            -- resolves bare refs against the LookupSymbol receiver,
+            -- which is the caster (Self) for trigger conditions.
+            local headNorm, setName
+            if lhs.kind == "dotted" then
+                local parts = lhs.parts
+                if type(parts) ~= "table" or #parts < 2 then return end
+                local head = parts[1]
+                setName = parts[#parts]
+                if type(head) ~= "string" or type(setName) ~= "string" then return end
+                headNorm = normaliseTail(head)
+                if headNorm ~= "subject" and headNorm ~= "self" then return end
+            elseif lhs.kind == "ident" then
+                -- Bare ident LHS: implicit Self.
+                setName = lhs.name or (lhs.parts and lhs.parts[1])
+                if type(setName) ~= "string" then return end
+                headNorm = "self"
+            else
+                return
+            end
+
+            local setNorm = normaliseTail(setName)
+            if setNorm ~= "conditions" and setNorm ~= "ongoingeffects" then return end
+
+            local canonicalSet = (setNorm == "conditions") and "Conditions" or "OngoingEffects"
+            addOverride(headNorm, canonicalSet, info.rhs)
+        end)
+    end)
+
+    -- Build canonical-name lookup tables once for shapes 2 and 3.
+    -- Conditions take precedence over effects when a name appears in both
+    -- (rare but possible) -- conditions are the more common authoring
+    -- pattern. Both lookups are case-insensitive AND space-insensitive
+    -- so `SpellResistance` and `Spell Resistance` both match a condition
+    -- named "Spell Resistance".
+    local conditionByLowerName = {}
+    local effectByLowerName = {}
+    pcall(function()
+        local conditionsTable = dmhub.GetTable(CharacterCondition.tableName) or {}
+        for _, cond in pairs(conditionsTable) do
+            if cond and cond.name then
+                conditionByLowerName[string.lower(cond.name)] = cond.name
+                local stripped = string.lower(string.gsub(cond.name, "%s+", ""))
+                if stripped ~= string.lower(cond.name) then
+                    conditionByLowerName[stripped] = cond.name
+                end
+            end
+        end
+        local effectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+        for _, eff in pairs(effectsTable) do
+            if eff and eff.name then
+                effectByLowerName[string.lower(eff.name)] = eff.name
+                local stripped = string.lower(string.gsub(eff.name, "%s+", ""))
+                if stripped ~= string.lower(eff.name) then
+                    effectByLowerName[stripped] = eff.name
+                end
+            end
+        end
+    end)
+
+    -- P2: helpSymbol boolean lookup. Real bestiary content references
+    -- bare creature properties without `Self.` prefix (`Hero`, `Dying`,
+    -- `Captain`, `Taken Turn`, `Your Turn`, ...) and dotted (`Subject.Solo`,
+    -- `Subject.Leader`). These resolve at runtime via creature:LookupSymbol
+    -- against the receiver, but the test panel had no way to flip them on
+    -- without setting up actual game state. Now they get a "Pretend X is Y"
+    -- checkbox per referenced boolean.
+    --
+    -- P3: same idea, but for numeric-typed helpSymbols (`Subject.Stamina`,
+    -- `Subject.Maximum Stamina`, `Resources.Recovery`, `Combat Round`, ...).
+    -- Surfaces a numeric input row instead of a checkbox.
+    --
+    -- Lookup keyed by both the helpSymbol's lowercase name AND the
+    -- space-stripped form, so authors who write `YourTurn` or `Your Turn`
+    -- both match the canonical entry.
+    local helpSymbolBoolByLowerName = {}
+    local helpSymbolNumByLowerName = {}
+    pcall(function()
+        if creature == nil or type(creature.helpSymbols) ~= "table" then return end
+        for k, def in pairs(creature.helpSymbols) do
+            if type(k) == "string" and not k:find("^__") and type(def) == "table" then
+                local displayName = def.name or k
+                local target
+                if def.type == "boolean" then
+                    target = helpSymbolBoolByLowerName
+                elseif def.type == "number" then
+                    target = helpSymbolNumByLowerName
+                end
+                if target ~= nil then
+                    target[string.lower(displayName)] = displayName
+                    local stripped = string.lower(string.gsub(displayName, "%s+", ""))
+                    if stripped ~= string.lower(displayName) then
+                        target[stripped] = displayName
+                    end
+                    -- Also key by the lookup-table key itself so authors
+                    -- writing the lookup key form (e.g. `yourturn`) match.
+                    if string.lower(k) ~= string.lower(displayName) then
+                        target[string.lower(k)] = displayName
+                    end
+                end
+            end
+        end
+    end)
+
+    -- Resolver: given a (head, identifier) pair, look up the canonical
+    -- name across all four tables (conditions, ongoing effects, boolean
+    -- helpSymbols, numeric helpSymbols) and add the override under the
+    -- matching category. Used by both shape 2 (dotted) and shape 3 (bare).
+    -- Conditions/effects take precedence over helpSymbols when a name
+    -- appears in both -- the override mechanism for conditions has
+    -- richer semantics (set membership + bare boolean) and matches
+    -- author intent for compendium-defined state.
+    local function tryAddByCanonicalName(headLower, identLower)
+        local condName = conditionByLowerName[identLower]
+        if condName then
+            addOverride(headLower, "Conditions", condName)
+            return
+        end
+        local effName = effectByLowerName[identLower]
+        if effName then
+            addOverride(headLower, "OngoingEffects", effName)
+            return
+        end
+        local boolName = helpSymbolBoolByLowerName[identLower]
+        if boolName then
+            addOverride(headLower, "Booleans", boolName)
+            return
+        end
+        local numName = helpSymbolNumByLowerName[identLower]
+        if numName then
+            addOverride(headLower, "Numbers", numName)
+        end
+    end
+
+    -- Shape 2: <head>.<X> bare-boolean dotted access where X matches a
+    -- known condition or ongoing-effect name.
+    pcall(function()
+        local accesses = GoblinScriptProse.ListReferencedDottedAccesses(condition)
+        for headKey, entry in pairs(accesses or {}) do
+            local headLower = string.lower(headKey)
+            if headLower == "subject" or headLower == "self" then
+                for tailKey, _ in pairs(entry.tails or {}) do
+                    local tailLower = string.lower(tailKey)
+                    -- Skip the set-form LHS tails -- shape 1 already
+                    -- handles those (and offering them as boolean
+                    -- overrides would be nonsense, since they're sets).
+                    if tailLower ~= "conditions" and tailLower ~= "ongoingeffects" then
+                        tryAddByCanonicalName(headLower, tailLower)
+                    end
+                end
+            end
+        end
+    end)
+
+    -- Shape 3: bare ident references with no head prefix. GoblinScript
+    -- resolves bare refs via the LookupSymbol receiver, which is the
+    -- caster (Self) for trigger condition formulas. So `Flanked` is
+    -- shorthand for `Self.Flanked` -- treat as a self override.
+    --
+    -- ListReferencedSymbols already filters out dotted-tail idents
+    -- (so the "Conditions" in "Subject.Conditions" doesn't surface here)
+    -- and function-call idents (so "Distance" in "Distance(...)" is
+    -- skipped). We further filter to identifiers whose normalised form
+    -- matches a known condition/effect name -- preserves authoring
+    -- intent when a creature property happens to share a name (vanishingly
+    -- rare, but the canonical-name match is the discriminator).
+    pcall(function()
+        local list = GoblinScriptProse.ListReferencedSymbols(condition)
+        for _, ident in ipairs(list or {}) do
+            local identLower = string.lower(ident)
+            -- Skip head reserved words. They wouldn't match a condition
+            -- table anyway, but explicit skip keeps the intent clear.
+            if identLower ~= "self" and identLower ~= "subject" and identLower ~= "caster" then
+                tryAddByCanonicalName("self", identLower)
+                -- Also try the space-stripped form so `SpellResistance`
+                -- bare matches a condition named "Spell Resistance".
+                local stripped = string.lower(string.gsub(ident, "%s+", ""))
+                if stripped ~= identLower then
+                    tryAddByCanonicalName("self", stripped)
+                end
+            end
+        end
+    end)
+
+    -- Shape 4: chained resource access. Real bestiary content uses
+    -- `Subject.Resources.Recovery > 0`, `Resources.Surges >= 5`, etc. --
+    -- the middle segment "Resources" returns a CharacterResourceCollection
+    -- whose lookupSymbols expose per-resource numeric quantities. The
+    -- 2-deep dotted walker doesn't surface these because the trailing
+    -- ".Recovery" is buried under the chain. Detect explicitly here.
+    --
+    -- Two head shapes:
+    --   <head>.Resources.<X>   -- head in {subject, self, caster}
+    --   Resources.<X>          -- bare; implicit Self
+    -- Resources.<X> already produces a 2-deep dotted access entry with
+    -- head="Resources", but that head isn't subject/self so shape 2 above
+    -- skipped it. Pick it up here and re-attribute to the implicit "self"
+    -- head so the eval-time injection (tbl.resources = stub) lands on the
+    -- caster side.
+    pcall(function()
+        local chains = GoblinScriptProse.ListReferencedChainedAccesses(condition)
+        for _, c in ipairs(chains or {}) do
+            local headLower = c.headLookup
+            local midLower = c.midLookup
+            if midLower == "resources"
+                    and (headLower == "subject" or headLower == "self" or headLower == "caster") then
+                addOverride(headLower, "Resources", c.tail)
+            end
+        end
+        -- Bare Resources.<X> -> 2-deep entry under head "resources". The
+        -- main shape-2 walk skipped it because head isn't subject/self.
+        -- Re-emit as a self-side resource override.
+        local accesses = GoblinScriptProse.ListReferencedDottedAccesses(condition)
+        for headKey, entry in pairs(accesses or {}) do
+            if string.lower(headKey) == "resources" then
+                for _, tailInfo in pairs(entry.tails or {}) do
+                    addOverride("self", "Resources", tailInfo.displayTail)
+                end
+            end
+        end
+    end)
+
+    return result
+end
+
+-- Stringify a runtime value for display in the resolved-values grid.
+local function describeValueForDisplay(v)
+    if v == nil then return "nil" end
+    if v == true then return "true" end
+    if v == false then return "false" end
+    if type(v) == "number" then return tostring(v) end
+    if type(v) == "string" then return '"' .. v .. '"' end
+    if type(v) == "table" then
+        local keys = {}
+        for k, _ in pairs(v) do keys[#keys + 1] = tostring(k) end
+        if #keys == 0 then return "{}" end
+        table.sort(keys)
+        return "{" .. table.concat(keys, ", ") .. "}"
+    end
+    return tostring(v)
+end
+
+-- Builds the Test Trigger card body. Returns the panel; persistence of the
+-- expanded/collapsed state and the last-run summary lives on the panel's
+-- data field so refreshTest can rebuild without losing UI state.
+--
+-- opts (optional):
+--   mode = "editor" (default) | "popout"
+--     "editor" -- card mounts inside the editor's preview column, has a
+--                strip/expanded toggle, and polls a fingerprint each tick
+--                so upstream edits propagate.
+--     "popout" -- card mounts inside the C6a floating window. Always
+--                expanded, no fingerprint poll (zero idle cost), no Pop
+--                out button, no Close header (the popout chrome owns
+--                close). Inputs re-discover on every Run Test click,
+--                which is the popout's only refresh trigger.
+--   initialState -- optional table to seed state with (deep-copied at
+--                   the call site before being passed in). Used to inherit
+--                   role picks / symbol values / override toggles from
+--                   the editor card at popout time so the user doesn't
+--                   reconfigure on detach.
+--   reopen -- C6b: optional closure forwarded from
+--             TriggeredAbility:GenerateEditor's options.reopen. Captured
+--             by the Pop out press handler so the floating popout can
+--             show an "Open Editor" button that re-navigates to the
+--             original entry point. Editor-mode only; popout-mode passes
+--             reopen through to its own openTestTriggerPopout call (no-op
+--             since popout instances don't recurse).
+local function buildTestTriggerCard(ability, opts)
+    opts = opts or {}
+    local mode = opts.mode or "editor"
+    local isPopout = (mode == "popout")
+    local reopen = opts.reopen
+    local CARD_WIDTH = LAYOUT.PREVIEW_WIDTH - 2 * LAYOUT.COL_HPAD - LAYOUT.SCROLL_GUTTER
+
+    -- State carried across rebuilds. roleSelections and symbolValues survive
+    -- because the card's data table is preserved across refreshTest.
+    -- `lastPrefillKey` tracks the formula + trigger the prefill was built
+    -- from; if the author edits the condition, we clear symbolValues so the
+    -- fresh pre-fill lands (otherwise the stale values from the old formula
+    -- stick around).
+    local state
+    if opts.initialState ~= nil then
+        -- Caller already deep-copied; we own the table from here on.
+        state = opts.initialState
+    else
+        state = {
+            expanded = false,
+            lastRun = nil,
+            roleSelections = {},   -- [roleId] = tokenId
+            symbolValues = {},      -- [symKey] = { raw = ..., kind = ... }
+            lastPrefillKey = nil,
+            gateOverride = false,  -- C5: "Pretend subject has the required condition"
+            -- Path C: in-formula state overrides. Keyed by "<head>:<set>:<value>"
+            -- e.g. "subject:Conditions:Flanked" -> true means "pretend the
+            -- Subject has the Flanked condition for this test only".
+            -- Discovered from the conditionFormula via WalkLiteralComparisons;
+            -- injected at eval time via GenerateSymbols(props, overrideTable)
+            -- in buildEvalContext. See buildOverridesSection / buildEvalContext.
+            formulaOverrides = {},
+        }
+    end
+    -- Popout mode is always expanded; the floating window has no strip.
+    if isPopout then
+        state.expanded = true
+    end
+
+    local cardPanel
+    local function refreshTest()
+        if cardPanel == nil then return end
+        cardPanel:FireEvent("refreshTest")
+    end
+
+    -- Resolve a token by id from the active scene. Returns nil if the
+    -- token has been deleted/moved off scene since the dropdown filled.
+    local function tokenById(id)
+        if id == nil or id == "__divider__" then return nil end
+        local tokens = dmhub.allTokens or {}
+        for _, t in ipairs(tokens) do
+            if t.id == id then return t end
+        end
+        return nil
+    end
+
+    -- Builds the current scenario from state + the role/symbol declarations.
+    -- `memo` is the per-refresh tokenHasTriggeredAbility cache; threaded
+    -- through so categoriseSceneTokens calls inside this scenario build
+    -- share modifier-walk results with the caller's other categorisation
+    -- calls (buildCasterSlotRow, buildRoleSlotRow / buildTokenPickerButton).
+    local function buildScenario(inputs, memo)
+        local scenario = { roleTokens = {}, symbolValues = {} }
+
+        -- Caster selection. Default = first preferred token; falls back to
+        -- first scene token via tokensOnScene.
+        local preferredAll, secondaryAll = categoriseSceneTokens(ability, nil, nil, memo)
+        local casterId = state.roleSelections.__caster
+        local casterToken = casterId and tokenById(casterId) or nil
+        if casterToken == nil then
+            casterToken = preferredAll[1] or secondaryAll[1]
+            if casterToken ~= nil then
+                state.roleSelections.__caster = casterToken.id
+            end
+        end
+        scenario.casterToken = casterToken
+
+        -- Subject and per-symbol creature roles. Subject defaults to the
+        -- first preferred matching the subject filter; per-symbol roles
+        -- (Attacker, Pusher, Target) default to the first scene token that
+        -- is not the caster, preferring enemies of the caster -- the runtime
+        -- meaning of these roles is "the other party", so auto-filling with
+        -- the caster's own token produces nonsensical test scenarios (the
+        -- attacker in a Take Damage trigger is almost never the victim).
+        local function pickOtherToken(caster)
+            local tokens = dmhub.allTokens or {}
+            local fallback
+            for _, t in ipairs(tokens) do
+                if caster == nil or t.id ~= caster.id then
+                    if fallback == nil then fallback = t end
+                    if caster ~= nil and caster.IsFriend and not caster:IsFriend(t) then
+                        return t
+                    end
+                end
+            end
+            return fallback or tokens[1]
+        end
+        for _, slot in ipairs(inputs.roleSlots) do
+            local tokId = state.roleSelections[slot.id]
+            local tok = tokId and tokenById(tokId) or nil
+            if tok == nil then
+                if slot.isSubject then
+                    local pref, sec = categoriseSceneTokens(ability, casterToken, slot.defaultSubjectFilter, memo)
+                    tok = pref[1] or sec[1]
+                else
+                    tok = pickOtherToken(casterToken)
+                end
+                if tok ~= nil then state.roleSelections[slot.id] = tok.id end
+            end
+            if slot.isSubject then
+                scenario.subjectToken = tok
+            end
+            scenario.roleTokens[slot.id] = tok
+        end
+
+        if scenario.subjectToken == nil then
+            scenario.subjectToken = casterToken
+        end
+
+        -- Pre-fill from satisfying values so the default scenario satisfies
+        -- the condition (Passes). The author can then edit values to explore
+        -- failure modes, rather than starting at "Fails" and having to guess
+        -- what the condition wants. Satisfying map is keyed by symbol name
+        -- as written in the formula; we match case-insensitively against
+        -- both the symbol id and display name.
+        --
+        -- When the author edits the condition formula (or changes the trigger
+        -- event, which changes which symbols are available), we reset
+        -- symbolValues so the fresh prefill lands -- otherwise stale values
+        -- from the previous formula stick around and the panel shows a
+        -- Fails state that doesn't match the current formula.
+        local conditionFormula = ability:try_get("conditionFormula") or ""
+        local triggerId = ability:try_get("trigger") or ""
+        local prefillKey = triggerId .. "|" .. conditionFormula
+        if state.lastPrefillKey ~= prefillKey then
+            state.symbolValues = {}
+            state.lastPrefillKey = prefillKey
+        end
+        local satisfying = GoblinScriptProse.ExtractSatisfyingValues(conditionFormula)
+        local satisfyingLower = {}
+        for k, val in pairs(satisfying) do
+            satisfyingLower[string.lower(k)] = val
+        end
+
+        for _, sym in ipairs(inputs.symbolInputs) do
+            local v = state.symbolValues[sym.id]
+            if v == nil then
+                local hint = satisfyingLower[string.lower(sym.id)]
+                    or satisfyingLower[string.lower(sym.name)]
+                local raw
+                if hint ~= nil then
+                    raw = satisfyingValueToRaw(sym.kind, hint)
+                end
+                if raw == nil then
+                    raw = (sym.kind == "boolean" and false)
+                        or (sym.kind == "number" and 0)
+                        or ""
+                end
+                v = { raw = raw, kind = sym.kind }
+                state.symbolValues[sym.id] = v
+            end
+            local effectiveValue
+            if sym.kind == "creature-leaf" then
+                -- Creature-typed dotted leaf (cast.PrimaryTarget = self,
+                -- ...) -- v.raw is a token id chosen via the picker; resolve
+                -- to the live token's properties for object-identity
+                -- comparison at eval time. Picker fills v.raw with the
+                -- first scene token by default; nil falls through to no
+                -- override (the leaf evaluates to nil, mirroring runtime
+                -- behaviour when the cast object lacks the field).
+                local pickedToken = tokenById(v.raw)
+                effectiveValue = pickedToken and pickedToken.properties or nil
+            else
+                effectiveValue = coerceSymbolInputValue(sym.kind, v.raw)
+            end
+            scenario.symbolValues[sym.id] = {
+                value = effectiveValue,
+                raw = v.raw,
+                kind = sym.kind,  -- C4: needed by buildEvalContext to know
+                                  -- whether to wrap a "set" leaf as StringSet.
+            }
+        end
+
+        scenario.gateOverride = state.gateOverride
+        -- Path C: thread the in-formula override map through to
+        -- buildEvalContext so it can wrap subject/self in
+        -- GenerateSymbols(props, overrideTable).
+        scenario.formulaOverrides = state.formulaOverrides
+
+        return scenario
+    end
+
+    -- ---------------------------------------------------------------------
+    -- Sub-builders (collapsed strip + expanded card body)
+    -- ---------------------------------------------------------------------
+
+    -- Returns { text, class } where class is one of the DefaultStyles
+    -- status-bg utilities (bgSuccess / bgDanger / bgInfo). The chip
+    -- renderer applies the class so the chip background follows the
+    -- active theme's @success / @danger / @info tokens automatically.
+    local function lastRunChip()
+        if state.lastRun == nil then
+            return { text = "Not yet run", class = "bgInfo" }
+        end
+        if state.lastRun.kind == "pass" then return { text = "Passes", class = "bgSuccess" } end
+        if state.lastRun.kind == "empty" then return { text = "Passes (no condition)", class = "bgSuccess" } end
+        if state.lastRun.kind == "fail" then return { text = "Fails", class = "bgDanger" } end
+        if state.lastRun.kind == "error" then return { text = "Error", class = "bgDanger" } end
+        if state.lastRun.kind == "no-caster" then return { text = "No tokens", class = "bgInfo" } end
+        return { text = tostring(state.lastRun.kind), class = "bgInfo" }
+    end
+
+    -- Strip view: rendered when state.expanded == false. Mirrors the
+    -- subHeading row layout used by the other two panes so the column
+    -- reads as three uniform sub-headings stacked vertically.
+    local function buildStrip()
+        local chip = lastRunChip()
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
+            bgcolor = "clear",
+            children = {
+                gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    flow = "horizontal",
+                    halign = "left",
+                    valign = "center",
+                    bgcolor = "clear",
+                    children = {
+                        gui.Label{
+                        	classes = {"bold", "sizeM", "fgStrong", "bold"},
+                            text = "Test Trigger",
+                            width = "auto",
+                            height = "auto",
+                            halign = "left",
+                            valign = "center",
+                        },
+                        gui.Label{
+                            classes = {chip.class, "bold", "sizeXs"},
+                            text = chip.text,
+                            color = g_themeFgInverse,
+                            width = "auto",
+                            height = "auto",
+                            hpad = 8,
+                            vpad = 2,
+                            lmargin = 10,
+                            halign = "left",
+                            valign = "center",
+                        },
+                    },
+                },
+                gui.Button{
+                	classes = {"sizeS"},
+                    text = "Run Test",
+                    width = 110,
+                    height = 28,
+                    halign = "right",
+                    valign = "center",
+                    press = function()
+                        state.expanded = true
+                        refreshTest()
+                    end,
+                },
+            },
+        }
+    end
+
+    local function buildResultBlock(result)
+        local lines = {}
+        if result.kind == "no-caster" then
+            lines[#lines + 1] = gui.Label{
+            	classes = {"fgMuted", "sizeS"},
+                text = "Open a map with at least one token to test this trigger.",
+                italics = true,
+                width = "100%",
+                height = "auto",
+            }
+            return lines
+        end
+
+        -- Path C: no-subject early exit. Mirrors the no-caster path -- a
+        -- structural failure that prevents the test from being meaningful.
+        -- Filter wording matches the SUBJECT_OPTIONS dropdown so the author
+        -- can map the message back to the value they chose.
+        if result.kind == "no-subject" then
+            local filterPhrase = result.subjectFilter or "a non-self"
+            lines[#lines + 1] = gui.Label{
+                classes = {"danger", "sizeS"},
+                text = string.format(
+                    "<b>Cannot test</b> -- this trigger requires a Subject (filter: %s) but no token on the map matches.",
+                    filterPhrase),
+                markdown = true,
+                width = "100%",
+                height = "auto",
+                wrap = true,
+            }
+            lines[#lines + 1] = gui.Label{
+            	classes = {"fgMuted", "sizeS"},
+                text = "Add a token of that type to the map and re-run the test.",
+                width = "100%",
+                height = "auto",
+                wrap = true,
+                tmargin = 2,
+            }
+            return lines
+        end
+
+        if result.kind == "empty" then
+            -- The Required Condition gate is itself a precondition. When set,
+            -- "no condition" is wrong -- the trigger only fires when the
+            -- subject has the required condition. Phrase accordingly so the
+            -- author isn't told their gate has no effect.
+            local g = result.gate
+            local headline
+            if g and g.kind == "pass-auto" then
+                headline = string.format(
+                    "<b>Passes</b> -- the required condition (%s) is present on the subject; this trigger has no other condition formula.",
+                    g.conditionName or "?")
+            elseif g and g.kind == "pass-override" then
+                headline = string.format(
+                    "<b>Passes</b> -- simulating the required condition (%s) via override; this trigger has no other condition formula.",
+                    g.conditionName or "?")
+            else
+                headline = "<b>Passes</b> -- this trigger has no condition, so it fires whenever the event occurs."
+            end
+            lines[#lines + 1] = gui.Label{
+                classes = {"success", "sizeS"},
+                text = headline,
+                markdown = true,
+                width = "100%",
+                height = "auto",
+                wrap = true,
+            }
+            return lines
+        end
+
+        if result.kind == "error" then
+            lines[#lines + 1] = gui.Label{
+                classes = {"danger", "sizeS"},
+                text = "<b>Error</b> -- " .. (result.errorMsg or "evaluation failed"),
+                markdown = true,
+                width = "100%",
+                height = "auto",
+                wrap = true,
+            }
+            return lines
+        end
+
+        -- C5: Required Condition gate auto-failed (subject doesn't have the
+        -- required condition, or wrong inflicter). Headline mirrors the
+        -- runtime's gate check; detail names the subject + condition + (if
+        -- relevant) the actual inflicter, so the author sees exactly which
+        -- precondition tripped before the conditionFormula even ran. The
+        -- override checkbox in the body explains how to bypass for testing.
+        if result.kind == "gate-fail" then
+            local g = result.gate or {}
+            local subjectName = (result.subjectToken and tokenDisplayName(result.subjectToken)) or "the subject"
+            local condName = g.conditionName or "the required condition"
+            local headline
+            local detail
+            if g.autoState == "wrong-inflicter" then
+                headline = string.format(
+                    "<b>Blocked</b> -- needed %s on %s, inflicted by the trigger owner.",
+                    condName, subjectName)
+                if g.inflicterTokenName then
+                    detail = string.format("%s has %s, but it was inflicted by %s.",
+                        subjectName, condName, g.inflicterTokenName)
+                else
+                    detail = string.format("%s has %s, but not from the trigger owner.",
+                        subjectName, condName)
+                end
+            else
+                headline = string.format("<b>Blocked</b> -- needed %s on %s.",
+                    condName, subjectName)
+                detail = string.format("%s does not currently have %s.",
+                    subjectName, condName)
+            end
+            lines[#lines + 1] = gui.Label{
+                classes = {"danger", "sizeS"},
+                text = headline,
+                markdown = true,
+                width = "100%",
+                height = "auto",
+                wrap = true,
+            }
+            lines[#lines + 1] = gui.Label{
+            	classes = {"fgMuted", "sizeS"},
+                text = detail .. " Tick \"Pretend subject has condition\" above to bypass for this test.",
+                width = "100%",
+                height = "auto",
+                wrap = true,
+                tmargin = 2,
+            }
+            return lines
+        end
+
+        if result.kind == "pass" then
+            local valueNote = ""
+            if result.value ~= true and result.value ~= 1 and tonumber(result.value) ~= 1 then
+                valueNote = string.format(" (returned %s)", describeValueForDisplay(result.value))
+            end
+            lines[#lines + 1] = gui.Label{
+                classes = {"success", "sizeS"},
+                text = "<b>Passes</b>" .. valueNote,
+                markdown = true,
+                width = "100%",
+                height = "auto",
+                wrap = true,
+            }
+            return lines
+        end
+
+        -- Fail: build attribution-aware feedback so the author sees which
+        -- clause caused the trip rather than just "Fails". Headline leads
+        -- with the prose form (plain-English rephrasing of the author's
+        -- clause); detail line shows the raw formula + concrete value.
+        -- Backticks trigger TextMeshPro code-span rendering in DMHub
+        -- (characters get letter-spaced); use <i>...</i> for emphasis
+        -- and keep the raw formula text in the lower-weight detail line.
+        -- Headline uses markdown-enabled <b> for the Fails label; detail
+        -- wraps the raw formula text in <i> for emphasis against regular
+        -- surrounding copy. Markdown needs to be enabled on both labels
+        -- (see renderer below).
+        -- Prose-engine "failingDetail" / per-leaf "detail" semantics:
+        --   nil    -> fall back to the generic "Formula clause ... evaluated to ..." line
+        --   ""     -> intentionally suppress the detail line (headline self-sufficient)
+        --   string -> use verbatim
+        local headline
+        local detail
+        local attr = result.attribution
+        if attr == nil then
+            headline = "<b>Fails</b> -- the condition was not met."
+        elseif attr.kind == "and" then
+            local prose = attr.failingProse or attr.failingSrc or "one of the clauses"
+            headline = "<b>Fails</b> -- needed " .. prose .. "."
+            if attr.failingDetail == nil then
+                detail = string.format("Formula clause <i>%s</i> evaluated to %s.",
+                    attr.failingSrc or "?", describeValueForDisplay(attr.failingValue))
+            elseif attr.failingDetail ~= "" then
+                detail = attr.failingDetail
+            end
+        elseif attr.kind == "or" then
+            local proseParts = {}
+            for _, c in ipairs(attr.clauses or {}) do
+                proseParts[#proseParts + 1] = c.prose or c.src or "?"
+            end
+            headline = "<b>Fails</b> -- needed at least one of: " .. table.concat(proseParts, "; ") .. "."
+            local srcParts = {}
+            for _, c in ipairs(attr.clauses or {}) do
+                -- P6: if the clause is itself a compound (AND / nested OR /
+                -- not-compound), prefer the per-leaf attribution from its
+                -- subAttr -- it tells the user *which* sub-clause inside
+                -- that compound failed, not just "the AND was false".
+                if c.subAttr ~= nil and c.subAttr.kind == "and"
+                        and c.subAttr.failingProse ~= nil then
+                    srcParts[#srcParts + 1] = string.format(
+                        "<i>%s</i> failed at <i>%s</i>",
+                        c.src or "?", c.subAttr.failingSrc or c.subAttr.failingProse)
+                elseif c.detail and c.detail ~= "" then
+                    srcParts[#srcParts + 1] = c.detail
+                elseif c.detail == nil then
+                    srcParts[#srcParts + 1] = string.format("<i>%s</i> (%s)",
+                        c.src or "?", describeValueForDisplay(c.value))
+                end
+            end
+            if #srcParts > 0 then
+                detail = "All clauses were false: " .. table.concat(srcParts, ", ")
+                if not detail:match("%.$") then detail = detail .. "." end
+            end
+        elseif attr.kind == "leaf" then
+            local prose = attr.prose or attr.src or "the condition"
+            headline = "<b>Fails</b> -- needed " .. prose .. "."
+            if attr.detail == nil then
+                detail = string.format("Formula <i>%s</i> evaluated to %s.",
+                    attr.src or "?", describeValueForDisplay(attr.value))
+            elseif attr.detail ~= "" then
+                detail = attr.detail
+            end
+        elseif attr.kind == "not-compound" then
+            -- P6: not(or/and) failed because the inner expression was true.
+            -- List the clauses inside the inner that were truthy -- those
+            -- are what the user must flip off (or apply via override).
+            local proseParts = {}
+            local detailParts = {}
+            for _, c in ipairs(attr.trueClauses or {}) do
+                proseParts[#proseParts + 1] = c.prose or c.src or "?"
+                detailParts[#detailParts + 1] = string.format("<i>%s</i> (%s)",
+                    c.src or "?", describeValueForDisplay(c.value))
+            end
+            if #proseParts == 0 then
+                headline = "<b>Fails</b> -- the inner expression was true."
+            else
+                headline = "<b>Fails</b> -- needed " .. table.concat(proseParts, " and ")
+                    .. " to be false."
+            end
+            if #detailParts > 0 then
+                detail = "These clauses were true: " .. table.concat(detailParts, ", ")
+                if not detail:match("%.$") then detail = detail .. "." end
+            end
+        else
+            headline = "<b>Fails</b> -- the condition was not met."
+        end
+
+        lines[#lines + 1] = gui.Label{
+            classes = {"danger", "sizeS"},
+            text = headline,
+            markdown = true,
+            width = "100%",
+            height = "auto",
+            wrap = true,
+        }
+        if detail ~= nil then
+            lines[#lines + 1] = gui.Label{
+            	classes = {"fgMuted", "sizeS"},
+                text = detail,
+                markdown = true,
+                width = "100%",
+                height = "auto",
+                wrap = true,
+                tmargin = 2,
+            }
+        end
+
+        -- Path C hint-text fallback. When the formula references creature
+        -- state we can't offer overrides for (e.g. `.Stamina < 5`,
+        -- `.IsHero`, custom attributes), append a helpful nudge. We detect
+        -- dotted accesses via ListReferencedDottedAccesses and skip the
+        -- ones that DO have override toggles (Conditions / OngoingEffects).
+        -- The hint is suppressed when every dotted access is already
+        -- override-eligible -- the override section above already gives
+        -- the author the right tools.
+        local condition = (result.formula) or ""
+        if condition ~= "" and GoblinScriptProse and GoblinScriptProse.ListReferencedDottedAccesses then
+            local ok, accesses = pcall(GoblinScriptProse.ListReferencedDottedAccesses, condition)
+            if ok and type(accesses) == "table" then
+                local hasUnsupported = false
+                for _, entry in pairs(accesses) do
+                    for tailKey, _ in pairs(entry.tails or {}) do
+                        local t = string.lower(tailKey)
+                        if t ~= "conditions" and t ~= "ongoingeffects" then
+                            hasUnsupported = true
+                            break
+                        end
+                    end
+                    if hasUnsupported then break end
+                end
+                if hasUnsupported then
+                    lines[#lines + 1] = gui.Label{
+                    	classes = {"fgMuted", "sizeS"},
+                        text = "Tip: if the failure is because the subject lacks a particular state (a stat threshold, a custom attribute, etc.), apply that state to the token on the map and re-run the test.",
+                        italics = true,
+                        width = "100%",
+                        height = "auto",
+                        wrap = true,
+                        tmargin = 6,
+                    }
+                end
+            end
+        end
+        return lines
+    end
+
+    -- Resolved-values grid. Shows symbol id + concrete value in a tight
+    -- two-column layout. Helps the author cross-reference which input
+    -- caused the result without re-reading every form row.
+    local function buildResolvedValues(scenario, inputs, gate)
+        local hasGate = gate ~= nil and gate.kind ~= "no-gate"
+        if #inputs.symbolInputs == 0 and #inputs.roleSlots == 0 and not hasGate then
+            return nil
+        end
+        local rows = {}
+        for _, slot in ipairs(inputs.roleSlots) do
+            local tok = scenario.roleTokens[slot.id]
+            rows[#rows + 1] = { label = slot.name, value = tok and tok.name or "(none)" }
+        end
+        if hasGate then
+            local gateValue
+            if gate.kind == "pass-auto" then
+                gateValue = (gate.conditionName or "?") .. " present (auto)"
+            elseif gate.kind == "pass-override" then
+                gateValue = (gate.conditionName or "?") .. " (overridden)"
+            elseif gate.autoState == "wrong-inflicter" then
+                gateValue = (gate.conditionName or "?") .. " present, wrong inflicter"
+            else
+                gateValue = (gate.conditionName or "?") .. " missing"
+            end
+            rows[#rows + 1] = { label = "Required Condition", value = gateValue }
+        end
+        for _, sym in ipairs(inputs.symbolInputs) do
+            local v = scenario.symbolValues[sym.id]
+            rows[#rows + 1] = {
+                label = sym.name,
+                value = v and describeValueForDisplay(v.value) or "?",
+            }
+        end
+        local rowPanels = {}
+        for _, r in ipairs(rows) do
+            rowPanels[#rowPanels + 1] = gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                halign = "left",
+                valign = "center",
+                bgcolor = "clear",
+                vpad = 1,
+                children = {
+                    gui.Label{
+                    	classes = {"fgStrong", "sizeXs"},
+                        text = r.label,
+                        width = 100,
+                        height = "auto",
+                        halign = "left",
+                    },
+                    gui.Label{
+                    	classes = {"fg", "sizeXs"},
+                        text = r.value,
+                        width = "100%-100",
+                        height = "auto",
+                        halign = "left",
+                        textWrap = true,
+                    },
+                },
+            }
+        end
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
+            bgcolor = "clear",
+            tmargin = 6,
+            children = {
+                gui.Label{
+                	classes = {"fgStrong", "bold", "sizeS"},
+                    text = "Resolved values",
+                    width = "auto",
+                    height = "auto",
+                    bmargin = 2,
+                },
+                gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "vertical",
+                    halign = "left",
+                    bgcolor = "clear",
+                    children = rowPanels,
+                },
+            },
+        }
+    end
+
+    -- Field row with consistent label + control width inside the card body.
+    local function fieldRow(labelText, control)
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
+            bgcolor = "clear",
+            vpad = 2,
+            children = {
+                gui.Label{
+                	classes = {"fgStrong", "sizeS"},
+                    text = labelText,
+                    width = 100,
+                    height = "auto",
+                    halign = "left",
+                    valign = "center",
+                },
+                control,
+            },
+        }
+    end
+
+    local function buildRoleSlotRow(slot, casterToken, memo)
+        local subjectFilter = slot.isSubject and slot.defaultSubjectFilter or nil
+        local control = buildTokenPickerButton(
+            ability, casterToken, subjectFilter,
+            state.roleSelections[slot.id],
+            function(tokenId)
+                state.roleSelections[slot.id] = tokenId
+                refreshTest()
+            end,
+            "Choose " .. slot.name,
+            memo
+        )
+        return fieldRow(slot.name, control)
+    end
+
+    local function buildCasterSlotRow(memo)
+        -- Single-token scenes auto-fill the Trigger Owner silently -- no
+        -- visible row, no picker. Bail out before constructing the wrapper
+        -- panels so we don't leak orphaned panels (the caller's gate that
+        -- used to live here -- `#(dmhub.allTokens or {}) > 1` -- discarded
+        -- the built row, leaking every gui.Panel/Label inside it and
+        -- triggering "Panel ID-XXX was created but not attached to a
+        -- parent" warnings on every test panel expansion).
+        if #(dmhub.allTokens or {}) <= 1 then return nil end
+        local preferred, secondary = categoriseSceneTokens(ability, nil, nil, memo)
+        if #preferred == 0 and #secondary == 0 then return nil end
+        local control = buildTokenPickerButton(
+            ability, nil, nil,
+            state.roleSelections.__caster,
+            function(tokenId)
+                state.roleSelections.__caster = tokenId
+                refreshTest()
+            end,
+            "Choose Trigger Owner",
+            memo
+        )
+        return fieldRow("Trigger Owner", control)
+    end
+
+    -- C5: Required Condition gate row. Renders only when the ability has a
+    -- Required Condition set (gate.kind != "no-gate"). Hybrid behaviour:
+    -- when the chosen Subject token actually has the condition, the gate
+    -- auto-passes and we show the green status without any control. When
+    -- it doesn't, we show the red status + a "Pretend subject has X"
+    -- override checkbox so the author can still exercise the rest of the
+    -- trigger (formula + behaviours) without manually applying the
+    -- condition to a real token first.
+    local function buildGateRow(gate)
+        if gate == nil or gate.kind == "no-gate" then return nil end
+
+        local condName = gate.conditionName or "(unknown)"
+        local labelText = "Required Condition"
+
+        local statusText
+        local statusClass
+        if gate.kind == "pass-auto" then
+            statusText = condName .. " (auto)"
+            statusClass = "success"
+        elseif gate.kind == "pass-override" then
+            statusText = condName .. " (overridden)"
+            statusClass = "warning"
+        else
+            -- fail-auto. Add a hint about whether the wrong-inflicter case
+            -- is what's blocking, so the override label below makes sense.
+            if gate.autoState == "wrong-inflicter" then
+                statusText = condName .. " (needs Trigger Owner as inflicter)"
+            else
+                statusText = condName .. " (subject doesn't have it)"
+            end
+            statusClass = "danger"
+        end
+
+        local statusRow = gui.Label{
+            classes = {statusClass"sizeS"},
+            text = statusText,
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            textWrap = true,
+        }
+
+        -- Only show the override checkbox when auto-derived state would
+        -- block the gate. Once auto-pass, the toggle is irrelevant noise.
+        -- Match the existing gui.Check pattern (e.g. lines 923, 1280) --
+        -- no explicit width/height; the widget self-sizes from its text.
+        -- Setting width = "100%" stretches the check box graphic to fill
+        -- the row, which is how the original revision blew the panel up.
+        local children = { statusRow }
+        if gate.kind == "fail-auto" or gate.kind == "pass-override" then
+            local toggle = gui.Check{
+                text = "Pretend subject has " .. condName,
+                value = state.gateOverride == true,
+                vmargin = 4,
+                change = function(element)
+                    state.gateOverride = element.value
+                    refreshTest()
+                end,
+            }
+            children[#children + 1] = toggle
+        end
+
+        return fieldRow(labelText, gui.Panel{
+            width = "100%-100",
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
+            valign = "center",
+            bgcolor = "clear",
+            children = children,
+        })
+    end
+
+    -- Path C + P2 + P3: in-formula state-override section. Renders one
+    -- group per head (Subject / Trigger Owner) split into three subgroups:
+    --   * "Pretend X has:"  -- conditions + ongoing effects (existing)
+    --   * "Pretend X is:"   -- bare-boolean creature-property overrides (P2)
+    --   * "Pretend X stats:"-- numeric creature-property overrides (P3)
+    -- Conditions/OngoingEffects merge under one heading because the engine
+    -- derives many conditions from effects (Creature.lua:7892) and surfacing
+    -- the split confuses authors. Booleans and Numbers are physically
+    -- separate categories so each gets its own subgroup.
+    --
+    -- State lives in state.formulaOverrides keyed by "<head>:<set>:<value>".
+    -- Boolean overrides store `true`; numeric overrides store the raw
+    -- string (parsed at injection time). Eval-time injection via
+    -- buildEvalContext + buildOverrideSymbolTable handles the storage shape
+    -- per category.
+    --
+    -- Returns nil when no overrides are available so the caller can skip
+    -- the whole section (matching buildGateRow's "no-gate -> nil" pattern).
+    local function buildOverridesSection(overrideOpts)
+        if overrideOpts == nil or next(overrideOpts) == nil then return nil end
+
+        -- Stable iteration order: subject before self.
+        local headOrder = { "subject", "self" }
+        local headLabels = { subject = "Subject", self = "Trigger Owner" }
+
+        -- Helper: build a "Pretend <head> has:" subgroup for the merged
+        -- Conditions + OngoingEffects values (existing behaviour). Returns
+        -- nil if no values for either set.
+        local function buildHasGroup(head, headOpts)
+            local entriesByKey = {}
+            local entryOrder = {}
+            for _, setName in ipairs({"Conditions", "OngoingEffects"}) do
+                local values = headOpts[setName]
+                if values ~= nil then
+                    for _, value in ipairs(values) do
+                        local dedupKey = string.lower(value)
+                        local entry = entriesByKey[dedupKey]
+                        if entry == nil then
+                            entry = { value = value, setNames = {} }
+                            entriesByKey[dedupKey] = entry
+                            entryOrder[#entryOrder + 1] = entry
+                        end
+                        local already = false
+                        for _, existing in ipairs(entry.setNames) do
+                            if existing == setName then
+                                already = true
+                                break
+                            end
+                        end
+                        if not already then
+                            entry.setNames[#entry.setNames + 1] = setName
+                        end
+                    end
+                end
+            end
+            if #entryOrder == 0 then return nil end
+            table.sort(entryOrder, function(a, b)
+                return string.lower(a.value) < string.lower(b.value)
+            end)
+            local heading = string.format("Pretend %s has:", headLabels[head])
+            local checks = {
+                gui.Label{
+                	classes = {"fgStrong", "sizeS", "bold"},
+                    text = heading,
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    bmargin = 2,
+                },
+            }
+            for _, entry in ipairs(entryOrder) do
+                local initialOn = false
+                for _, setName in ipairs(entry.setNames) do
+                    local key = head .. ":" .. setName .. ":" .. entry.value
+                    if state.formulaOverrides[key] == true then
+                        initialOn = true
+                        break
+                    end
+                end
+                local entryRef = entry
+                checks[#checks + 1] = gui.Check{
+                    text = entry.value,
+                    value = initialOn,
+                    vmargin = 2,
+                    lmargin = 12,
+                    change = function(element)
+                        for _, setName in ipairs(entryRef.setNames) do
+                            local key = head .. ":" .. setName .. ":" .. entryRef.value
+                            state.formulaOverrides[key] = element.value
+                        end
+                        refreshTest()
+                    end,
+                }
+            end
+            return gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                bgcolor = "clear",
+                tmargin = 6,
+                children = checks,
+            }
+        end
+
+        -- P2: build a "Pretend <head> is:" subgroup for bare-boolean
+        -- creature-property overrides (Hero, Dying, Captain, Your Turn,
+        -- Solo, Leader, ...). One checkbox per referenced helpSymbol.
+        local function buildIsGroup(head, headOpts)
+            local boolValues = headOpts.Booleans
+            if boolValues == nil or #boolValues == 0 then return nil end
+            -- Dedup case-insensitively in case the same name appeared via
+            -- both bare and dotted forms.
+            local seen = {}
+            local sorted = {}
+            for _, value in ipairs(boolValues) do
+                local k = string.lower(value)
+                if not seen[k] then
+                    seen[k] = true
+                    sorted[#sorted + 1] = value
+                end
+            end
+            table.sort(sorted, function(a, b) return string.lower(a) < string.lower(b) end)
+            local heading = string.format("Pretend %s is:", headLabels[head])
+            local checks = {
+                gui.Label{
+                	classes = {"fgStrong", "sizeS", "bold"},
+                    text = heading,
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    bmargin = 2,
+                },
+            }
+            for _, value in ipairs(sorted) do
+                local key = head .. ":Booleans:" .. value
+                local initialOn = state.formulaOverrides[key] == true
+                local valueRef = value
+                checks[#checks + 1] = gui.Check{
+                    text = value,
+                    value = initialOn,
+                    vmargin = 2,
+                    lmargin = 12,
+                    change = function(element)
+                        local k = head .. ":Booleans:" .. valueRef
+                        state.formulaOverrides[k] = element.value
+                        refreshTest()
+                    end,
+                }
+            end
+            return gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                bgcolor = "clear",
+                tmargin = 6,
+                children = checks,
+            }
+        end
+
+        -- P3: build a "Pretend <head> stats:" subgroup for numeric
+        -- creature-property overrides (Stamina, Maximum Stamina, Combat
+        -- Round, Resources.Recovery, ...). One numeric input per referenced
+        -- numeric helpSymbol. Empty value falls through to the real token
+        -- value at evaluation time.
+        local function buildStatsGroup(head, headOpts)
+            local numValues = headOpts.Numbers
+            if numValues == nil or #numValues == 0 then return nil end
+            local seen = {}
+            local sorted = {}
+            for _, value in ipairs(numValues) do
+                local k = string.lower(value)
+                if not seen[k] then
+                    seen[k] = true
+                    sorted[#sorted + 1] = value
+                end
+            end
+            table.sort(sorted, function(a, b) return string.lower(a) < string.lower(b) end)
+            local heading = string.format("Pretend %s stats:", headLabels[head])
+            local rows = {
+                gui.Label{
+                	classes = {"fgStrong", "sizeS", "bold"},
+                    text = heading,
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    bmargin = 2,
+                },
+            }
+            for _, value in ipairs(sorted) do
+                local key = head .. ":Numbers:" .. value
+                local initialRaw = state.formulaOverrides[key]
+                if type(initialRaw) ~= "string" and type(initialRaw) ~= "number" then
+                    initialRaw = ""
+                end
+                local valueRef = value
+                local row = gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+                    halign = "left",
+                    valign = "center",
+                    vmargin = 2,
+                    lmargin = 12,
+                    bgcolor = "clear",
+                    children = {
+                        gui.Label{
+                        	classes = {"fg", "sizeS"},
+                            text = value .. ":",
+                            width = 200,
+                            height = "auto",
+                            halign = "left",
+                            valign = "center",
+                            rmargin = 6,
+                        },
+                        gui.Input{
+                        	classes = {"sizeS"},
+                            text = tostring(initialRaw or ""),
+                            placeholderText = "(use real value)",
+                            characterLimit = 12,
+                            width = 80,
+                            height = 22,
+                            change = function(element)
+                                local raw = element.text or ""
+                                local k = head .. ":Numbers:" .. valueRef
+                                if raw == "" then
+                                    state.formulaOverrides[k] = nil
+                                else
+                                    state.formulaOverrides[k] = raw
+                                end
+                                refreshTest()
+                            end,
+                        },
+                    },
+                }
+                rows[#rows + 1] = row
+            end
+            return gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                bgcolor = "clear",
+                tmargin = 6,
+                children = rows,
+            }
+        end
+
+        -- Chained resource overrides (Subject.Resources.Recovery, ...).
+        -- Same widget shape as buildStatsGroup but the bucket is "Resources"
+        -- and the heading reads "Pretend X resources:". Shares the same
+        -- numeric-input semantics: blank value falls through to the real
+        -- token's resource quantity at evaluation time.
+        local function buildResourcesGroup(head, headOpts)
+            local resValues = headOpts.Resources
+            if resValues == nil or #resValues == 0 then return nil end
+            local seen = {}
+            local sorted = {}
+            for _, value in ipairs(resValues) do
+                local k = string.lower(value)
+                if not seen[k] then
+                    seen[k] = true
+                    sorted[#sorted + 1] = value
+                end
+            end
+            table.sort(sorted, function(a, b) return string.lower(a) < string.lower(b) end)
+            local heading = string.format("Pretend %s resources:", headLabels[head])
+            local rows = {
+                gui.Label{
+                	classes = {"fgStrong", "sizeS", "bold"},
+                    text = heading,
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    bmargin = 2,
+                },
+            }
+            for _, value in ipairs(sorted) do
+                local key = head .. ":Resources:" .. value
+                local initialRaw = state.formulaOverrides[key]
+                if type(initialRaw) ~= "string" and type(initialRaw) ~= "number" then
+                    initialRaw = ""
+                end
+                local valueRef = value
+                local row = gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "horizontal",
+                    halign = "left",
+                    valign = "center",
+                    vmargin = 2,
+                    lmargin = 12,
+                    bgcolor = "clear",
+                    children = {
+                        gui.Label{
+                        	classes = {"fg", "sizeS"},
+                            text = value .. ":",
+                            width = 200,
+                            height = "auto",
+                            halign = "left",
+                            valign = "center",
+                            rmargin = 6,
+                        },
+                        gui.Input{
+                        	classes = {"sizeS"},
+                            text = tostring(initialRaw or ""),
+                            placeholderText = "(use real value)",
+                            characterLimit = 12,
+                            width = 80,
+                            height = 22,
+                            change = function(element)
+                                local raw = element.text or ""
+                                local k = head .. ":Resources:" .. valueRef
+                                if raw == "" then
+                                    state.formulaOverrides[k] = nil
+                                else
+                                    state.formulaOverrides[k] = raw
+                                end
+                                refreshTest()
+                            end,
+                        },
+                    },
+                }
+                rows[#rows + 1] = row
+            end
+            return gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                bgcolor = "clear",
+                tmargin = 6,
+                children = rows,
+            }
+        end
+
+        local groups = {}
+        for _, head in ipairs(headOrder) do
+            local headOpts = overrideOpts[head]
+            if headOpts ~= nil then
+                local hasGroup = buildHasGroup(head, headOpts)
+                if hasGroup ~= nil then groups[#groups + 1] = hasGroup end
+                local isGroup = buildIsGroup(head, headOpts)
+                if isGroup ~= nil then groups[#groups + 1] = isGroup end
+                local statsGroup = buildStatsGroup(head, headOpts)
+                if statsGroup ~= nil then groups[#groups + 1] = statsGroup end
+                local resGroup = buildResourcesGroup(head, headOpts)
+                if resGroup ~= nil then groups[#groups + 1] = resGroup end
+            end
+        end
+
+        if #groups == 0 then return nil end
+
+        local section = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
+            bgcolor = "clear",
+            tmargin = 8,
+            children = groups,
+        }
+        return section
+    end
+
+    local function buildSymbolInputRow(sym)
+        local v = state.symbolValues[sym.id]
+        if v == nil then
+            v = { raw = (sym.kind == "boolean" and false) or (sym.kind == "number" and 0) or "", kind = sym.kind }
+            state.symbolValues[sym.id] = v
+        end
+
+        if sym.kind == "boolean" then
+            local toggle = gui.Check{
+                text = "",
+                value = v.raw == true,
+                width = 20,
+                height = 20,
+                change = function(element)
+                    v.raw = element.value
+                    refreshTest()
+                end,
+            }
+            return fieldRow(sym.name, toggle)
+        end
+
+        -- Creature-typed dotted leaf on an object symbol (e.g.
+        -- cast.PrimaryTarget, cast.FirstTarget). Picks a scene token --
+        -- buildScenario resolves the stored token id to props for the
+        -- eval-time stub. Reuses buildTokenPickerButton like the role
+        -- slots so the UI is identical.
+        if sym.kind == "creature-leaf" then
+            local pickerTitle = "Choose Token for " .. sym.name
+            local control = buildTokenPickerButton(
+                ability, nil, nil, v.raw,
+                function(tokenId)
+                    v.raw = tokenId
+                    refreshTest()
+                end,
+                pickerTitle, nil)
+            return fieldRow(sym.name, control)
+        end
+
+        if sym.kind == "unsupported" then
+            return fieldRow(sym.name, gui.Label{
+            	classes = {"fgMuted", "sizeXs"},
+                text = "(" .. (sym.displayType or "complex") .. " input not yet supported in test panel)",
+                italics = true,
+                width = "100%-100",
+                height = "auto",
+                halign = "left",
+                textWrap = true,
+            })
+        end
+
+        -- Bounded-value dropdown: the trigger.symbols declaration carries a
+        -- valueOptionsSource hint, so render a dropdown over the canonical
+        -- table for that category instead of a free-text input. Uses
+        -- hasSearch only when the option count justifies it (currently just
+        -- nothing -- 33 conditions and 12 damage types and ~30 resources are
+        -- all comfortable in a flat dropdown).
+        -- Single-select bounded-value dropdown for kind == "text" only:
+        -- the trigger.symbols declaration carries a valueOptionsSource hint,
+        -- so render a dropdown over the canonical table for that category
+        -- instead of a free-text input. (Set-typed bounded inputs use the
+        -- multi-select picker further below.)
+        if sym.kind == "text" and sym.valueOptionsSource and TEST_OPTION_BUILDERS[sym.valueOptionsSource] then
+            local options = TEST_OPTION_BUILDERS[sym.valueOptionsSource]()
+            local current = tostring(v.raw or "")
+            local lowerCurrent = string.lower(current)
+            local hasMatch = false
+            local matchedId = nil
+            -- Case-insensitive match: real-world formulas use both
+            -- `Condition is "Grabbed"` and `Condition is "grabbed"` (and the
+            -- runtime injection is case-insensitive at GoblinScript level).
+            -- Normalise so the satisfying-value pre-fill latches onto the
+            -- dropdown entry regardless of author casing.
+            for _, opt in ipairs(options) do
+                if string.lower(opt.id) == lowerCurrent then
+                    hasMatch = true
+                    matchedId = opt.id
+                    break
+                end
+            end
+            if hasMatch and matchedId ~= current then
+                -- Sync stored raw to the canonical id so subsequent reads
+                -- compare cleanly; preserves the user's eventual choice.
+                v.raw = matchedId
+                current = matchedId
+            end
+            -- Prepend a "(none)" sentinel so the user can clear the value;
+            -- chosen explicitly because trigger.symbols rarely default to a
+            -- specific category value, and the test panel must support an
+            -- unset state for the "what if this symbol is missing" path.
+            local items = { { id = "", text = "(none)" } }
+            for _, opt in ipairs(options) do items[#items + 1] = opt end
+            local dropdown = gui.Dropdown{
+                classes = {"nae-field-input"},
+                width = "100%-100",
+                options = items,
+                idChosen = hasMatch and current or "",
+                change = function(element)
+                    v.raw = element.idChosen or ""
+                    refreshTest()
+                end,
+            }
+            return fieldRow(sym.name, dropdown)
+        end
+
+        -- Multi-select bounded-value picker for kind == "set" with a
+        -- valueOptionsSource (currently: ability keywords). Real-world
+        -- formulas like `Used Ability.Keywords has "magic" or Used Ability.
+        -- Keywords has "psionic"` test multiple alternative keywords -- a
+        -- single-select dropdown can't represent the case where an author
+        -- wants to verify a stub ability bearing both. Pattern mirrors
+        -- buildKeywordsPicker (chip rows + Add dropdown).
+        --
+        -- Storage: v.raw is the comma-separated lowercase string the
+        -- existing coerceSymbolInputValue("set", ...) parses. Prefill
+        -- comes through satisfyingValueToRaw which joins {Melee=true,
+        -- Magic=true} as "Magic, Melee" -- we lowercase + canonicalise
+        -- on read so subsequent UI ticks compare cleanly against the
+        -- options table's lowercase ids.
+        if sym.kind == "set" and sym.valueOptionsSource and TEST_OPTION_BUILDERS[sym.valueOptionsSource] then
+            local options = TEST_OPTION_BUILDERS[sym.valueOptionsSource]()
+            local optionById = {}
+            for _, opt in ipairs(options) do
+                optionById[string.lower(opt.id)] = opt
+            end
+
+            -- Parse current raw into a chosen-set keyed by lowercase id.
+            local function parseChosen(raw)
+                local chosen = {}
+                if type(raw) ~= "string" then return chosen end
+                for piece in string.gmatch(raw, "([^,]+)") do
+                    local trimmed = piece:gsub("^%s+", ""):gsub("%s+$", "")
+                    if trimmed ~= "" then
+                        chosen[string.lower(trimmed)] = true
+                    end
+                end
+                return chosen
+            end
+            local function joinChosen(chosen)
+                local parts = {}
+                for id, on in pairs(chosen) do
+                    if on then parts[#parts + 1] = id end
+                end
+                table.sort(parts)
+                return table.concat(parts, ", ")
+            end
+
+            -- Wrapping panel rebuilds in place when chosen set changes.
+            local picker
+            local function rebuild()
+                local chosen = parseChosen(v.raw)
+                local children = {}
+
+                -- Chip rows for each selected keyword, sorted alphabetically
+                -- by display label so the order stays stable across rebuilds.
+                local chipItems = {}
+                for id, on in pairs(chosen) do
+                    if on then
+                        local opt = optionById[id]
+                        chipItems[#chipItems + 1] = {
+                            id = id,
+                            text = opt and opt.text or id,
+                        }
+                    end
+                end
+                table.sort(chipItems, function(a, b) return a.text < b.text end)
+
+                for _, item in ipairs(chipItems) do
+                    local itemId = item.id
+                    children[#children + 1] = gui.Panel{
+                        halign = "left",
+                        width = "auto",
+                        height = "auto",
+                        flow = "horizontal",
+                        valign = "center",
+                        vmargin = 2,
+                        bgcolor = "clear",
+                        gui.Label{
+                        	classes = {"sizeS", "bold"},
+                            text = item.text,
+                            halign = "left",
+                            valign = "center",
+                            width = "auto",
+                            height = "auto",
+                            rmargin = 4,
+                        },
+                        gui.Button{
+                            classes = {"deleteButton", "sizeXxs"},
+                            halign = "left",
+                            valign = "center",
+                            click = function()
+                                local cur = parseChosen(v.raw)
+                                cur[itemId] = nil
+                                v.raw = joinChosen(cur)
+                                rebuild()
+                                refreshTest()
+                            end,
+                        },
+                    }
+                end
+
+                -- "Add keyword..." dropdown lists only the unchosen options.
+                -- Hidden once everything's been picked (matches the existing
+                -- buildKeywordsPicker UX so the row collapses cleanly).
+                local addOptions = {}
+                for _, opt in ipairs(options) do
+                    if not chosen[string.lower(opt.id)] then
+                        addOptions[#addOptions + 1] = opt
+                    end
+                end
+
+                if #addOptions > 0 then
+                    children[#children + 1] = gui.Dropdown{
+                        classes = {"formDropdown"},
+                        sort = false,
+                        textOverride = "Add keyword...",
+                        hasSearch = true,
+                        idChosen = "none",
+                        options = addOptions,
+                        halign = "left",
+                        width = 200,
+                        change = function(element)
+                            if element.idChosen and element.idChosen ~= "none" then
+                                local cur = parseChosen(v.raw)
+                                cur[string.lower(element.idChosen)] = true
+                                v.raw = joinChosen(cur)
+                                rebuild()
+                                refreshTest()
+                            end
+                        end,
+                    }
+                end
+
+                picker.children = children
+            end
+
+            picker = gui.Panel{
+                flow = "vertical",
+                width = "100%-100",
+                height = "auto",
+                halign = "left",
+                bgcolor = "clear",
+            }
+            rebuild()
+            return fieldRow(sym.name, picker)
+        end
+
+        local placeholder = ""
+        if sym.kind == "number" then placeholder = "0"
+        elseif sym.kind == "set" then placeholder = "comma,separated,values"
+        end
+
+        local input = gui.Input{
+            classes = {"nae-field-input"},
+            text = tostring(v.raw or ""),
+            placeholderText = placeholder,
+            width = "100%-100",
+            change = function(element)
+                v.raw = element.text
+                refreshTest()
+            end,
+        }
+        return fieldRow(sym.name, input)
+    end
+
+    local function buildBehaviourPreview()
+        local text = behaviorsFallbackText(ability)
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            halign = "left",
+            bgcolor = "clear",
+            tmargin = 8,
+            children = {
+                gui.Label{
+                	classes = {"fgStrong", "bold", "sizeS"},
+                    halign = "left",
+                    text = "If it fires, then:",
+                    width = "auto",
+                    height = "auto",
+                    bmargin = 2,
+                },
+                gui.Label{
+                	classes = {"fg", "sizeS"},
+                    text = text,
+                    italics = true,
+                    width = "100%",
+                    height = "auto",
+                    wrap = true,
+                    halign = "left",
+                },
+            },
+        }
+    end
+
+    -- Expanded card body. Re-runs the test, captures last-run state, and
+    -- assembles the full child list including the close button.
+    local function buildExpanded()
+        -- PERF: per-refresh tokenHasTriggeredAbility cache. Threaded through
+        -- every categoriseSceneTokens call below (buildScenario,
+        -- buildCasterSlotRow, buildRoleSlotRow / buildTokenPickerButton) so
+        -- the modifier-chain walks happen at most once per scene token per
+        -- refresh. Discarded when buildExpanded returns -- can never go
+        -- stale because Lua/DMHub run synchronously inside this block.
+        local hasAbilityMemo = {}
+        local inputs = discoverTestInputs(ability)
+        local scenario = buildScenario(inputs, hasAbilityMemo)
+        local result = runTriggerTest(ability, scenario)
+        state.lastRun = result
+
+        local children = {}
+
+        -- Header row with title (kept in body so the close button has a
+        -- consistent home; the strip view's title row is omitted when
+        -- expanded since the card itself carries the visual weight).
+        --
+        -- Popout mode skips this row entirely -- the popout's chrome
+        -- title bar already shows the ability name, and the Close button
+        -- here would collapse the card body which is meaningless in a
+        -- floating window (there's no strip view to fall back to).
+        if not isPopout then
+            children[#children + 1] = gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                halign = "left",
+                valign = "center",
+                bgcolor = "clear",
+                bmargin = 6,
+                children = {
+                    gui.Label{
+                    	classes = {"bold", "sizeS", "fgStrong", "bold"},
+                        text = "Test Trigger",
+                        width = "100%-70",
+                        height = "auto",
+                        halign = "left",
+                    },
+                    gui.Button{
+                    	classes = {"sizeXs"},
+                        text = "Close",
+                        width = 60,
+                        height = 24,
+                        halign = "right",
+                        press = function()
+                            state.expanded = false
+                            refreshTest()
+                        end,
+                    },
+                },
+            }
+        end
+
+        -- Path C: scope note. Single sentence, sized to be legible
+        -- alongside the Mech View body text (13pt). The earlier longer
+        -- copy ("Apply the condition or use the override below...") was
+        -- redundant once the override section is visible -- it self-
+        -- documents through the "Pretend X has Y" checkbox labels.
+        children[#children + 1] = gui.Label{
+        	classes = {"fgMuted", "sizeXs"},
+            text = "Tests the trigger condition only, not its effects.",
+            italics = true,
+            width = "100%",
+            height = "auto",
+            wrap = true,
+            bmargin = 8,
+        }
+
+        if result.kind == "no-caster" or result.kind == "no-subject" then
+            for _, line in ipairs(buildResultBlock(result)) do
+                children[#children + 1] = line
+            end
+            return children
+        end
+
+        -- Caster slot only renders when there's something to choose between
+        -- (more than one scene token); single-token scenes auto-fill silently.
+        -- The token-count gate now lives inside buildCasterSlotRow so the
+        -- row's panels aren't constructed at all in the single-token case
+        -- (avoids orphaning them when the gate trips).
+        local casterRow = buildCasterSlotRow(hasAbilityMemo)
+        if casterRow ~= nil then
+            children[#children + 1] = casterRow
+        end
+
+        for _, slot in ipairs(inputs.roleSlots) do
+            children[#children + 1] = buildRoleSlotRow(slot, scenario.casterToken, hasAbilityMemo)
+        end
+
+        -- C5: Required Condition gate row. Sits between role slots and
+        -- per-symbol inputs because the gate is conceptually about which
+        -- token has which condition (role-adjacent), not about formula
+        -- inputs. Renders nil for abilities with no Required Condition.
+        local gateRow = buildGateRow(result.gate)
+        if gateRow ~= nil then
+            children[#children + 1] = gateRow
+        end
+
+        -- Path C: in-formula state-override section. Sits below the gate
+        -- row (both are "pretend the world were like X" controls) and
+        -- above the per-symbol inputs (formula values). Renders nil when
+        -- the conditionFormula has no Conditions/OngoingEffects literals
+        -- we can offer overrides for.
+        local overrideOpts = discoverInFormulaOverrides(ability)
+        local overrideSection = buildOverridesSection(overrideOpts)
+        if overrideSection ~= nil then
+            children[#children + 1] = overrideSection
+        end
+
+        if #inputs.symbolInputs > 0 then
+            children[#children + 1] = gui.Panel{
+                classes = {"bgFg"},
+                width = "100%", height = 1,
+                tmargin = 6, bmargin = 6,
+            }
+            for _, sym in ipairs(inputs.symbolInputs) do
+                children[#children + 1] = buildSymbolInputRow(sym)
+            end
+        end
+
+        children[#children + 1] = gui.Panel{
+            classes = {"bgFg"},
+            width = "100%", height = 1,
+            tmargin = 8, bmargin = 8,
+        }
+
+        for _, line in ipairs(buildResultBlock(result)) do
+            children[#children + 1] = line
+        end
+
+        local resolved = buildResolvedValues(scenario, inputs, result.gate)
+        if resolved ~= nil then children[#children + 1] = resolved end
+
+        children[#children + 1] = buildBehaviourPreview()
+
+        local actionRow = {
+            gui.Button{
+            	classes = {"sizeS"},
+                text = "Run Test",
+                width = 110,
+                height = 28,
+                halign = "left",
+                press = function()
+                    refreshTest()
+                end,
+            },
+        }
+        -- C6a: "Pop out" only in editor mode. Detaches the test card into
+        -- a draggable floating window that survives the editor closing.
+        -- State (role picks, symbol values, override toggles, last-run)
+        -- is deep-copied at popout time so the two cards diverge cleanly.
+        if not isPopout then
+            actionRow[#actionRow + 1] = gui.Button{
+            	classes = {"sizeS"},
+                text = "Pop out",
+                width = 100,
+                height = 28,
+                halign = "left",
+                hmargin = 8,
+                press = function()
+                    if openTestTriggerPopout == nil then return end
+                    -- Inherit user-input fields only. state.lastRun
+                    -- contains live token refs and a buildEvalContext-
+                    -- wrapped symbols table -- DeepCopy would either
+                    -- throw or produce garbage on those. The popout
+                    -- runs runTriggerTest fresh on first refreshTest
+                    -- so lastRun is regenerated immediately anyway.
+                    local seed = dmhub.DeepCopy({
+                        roleSelections = state.roleSelections,
+                        symbolValues = state.symbolValues,
+                        lastPrefillKey = state.lastPrefillKey,
+                        gateOverride = state.gateOverride,
+                        formulaOverrides = state.formulaOverrides,
+                    })
+                    seed.expanded = true
+                    seed.lastRun = nil
+                    -- C6b: forward the editor's reopen closure (if any).
+                    -- The popout will surface an "Open Editor" button when
+                    -- reopen is non-nil; otherwise that button is hidden.
+                    openTestTriggerPopout(ability, seed, reopen)
+                end,
+            }
+        end
+        children[#children + 1] = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
+            bgcolor = "clear",
+            tmargin = 8,
+            children = actionRow,
+        }
+
+        return children
+    end
+
+    -- Fingerprint of the ability fields the card is sensitive to. Per-field
+    -- text inputs (conditionFormula, subject, trigger) don't dispatch
+    -- refreshAbility, so we poll and compare -- mirrors the previewSlot's
+    -- thinkTime poll pattern. Only fires a refreshTest when a watched field
+    -- actually changed, so the GoblinScript eval doesn't re-run every tick.
+    local function fingerprint()
+        local behaviors = ability:try_get("behaviors")
+        local behaviorCount = behaviors and #behaviors or 0
+        return string.format("%s|%s|%s|%d",
+            ability:try_get("trigger") or "",
+            ability:try_get("subject") or "",
+            ability:try_get("conditionFormula") or "",
+            behaviorCount)
+    end
+    local lastFingerprint = fingerprint()
+
+    -- Popout mode mounts the card inside a floating window; the editor's
+    -- preview-column padding doesn't apply, and we want the popout body
+    -- to fill its parent so the chrome wraps it tightly. The card also
+    -- skips its inset border in popout mode (the popout's frame already
+    -- carries the visual separation; doubled borders look noisy).
+    local panelArgs = {
+        id = "tsTestTriggerCard",
+        width = CARD_WIDTH,
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        bgcolor = "clear",
+        tmargin = isPopout and 0 or 14,
+        refreshTest = function(element)
+            -- Sync the fingerprint here too so an upstream refreshAbility
+            -- dispatch doesn't also trigger a redundant think-poll rebuild.
+            lastFingerprint = fingerprint()
+            -- Card chrome only when expanded inside the editor (not in the
+            -- popout, which carries its own outer border). Toggle theme
+            -- classes for border + bg surface; padding stays imperative.
+            local cardChrome = state.expanded and not isPopout
+            element:SetClass("bordered", cardChrome)
+            element:SetClass("bgAlt", cardChrome)
+            element.borderBox = true
+            element.vpad = cardChrome and 10 or 0
+            element.hpad = cardChrome and 12 or 0
+            element.children = state.expanded and buildExpanded() or { buildStrip() }
+        end,
+    }
+    -- PERF: think handler is editor-mode-only. The popout deliberately
+    -- has no idle subscription -- it refreshes inputs on Run-click only.
+    -- Multiple popouts open simultaneously thus cost zero per-frame work
+    -- when idle. See [PERFORMANCE_PREVIEW_REBUILD] in
+    -- TRIGGERED_ABILITY_EDITOR_DESIGN.md for the perf design rationale.
+    if not isPopout then
+        panelArgs.thinkTime = 0.25
+        panelArgs.think = function(element)
+            local fp = fingerprint()
+            if fp ~= lastFingerprint then
+                lastFingerprint = fp
+                element:FireEvent("refreshTest")
+            end
+        end
+        -- Re-evaluate when any ability field changes upstream. Discovery
+        -- of inputs (referenced symbols, role slots) needs to refresh as
+        -- the author edits the trigger event / condition / behaviours.
+        -- Popouts don't subscribe to fireChange (the editor's fireChange
+        -- closure goes out of scope when the editor closes anyway), so
+        -- they refresh inputs on Run-click via the natural rebuild path.
+        panelArgs.refreshAbility = function(element)
+            element:FireEvent("refreshTest")
+        end
+    end
+    cardPanel = gui.Panel(panelArgs)
+
+    cardPanel:FireEvent("refreshTest")
+    return cardPanel
+end
+
+-- C6a: open (or focus) a floating Test Trigger popout for `ability`.
+--
+-- Behaviour:
+--   - One popout per ability identity (guid, fallback to tostring(ability)).
+--     Re-clicking Pop out for the same ability nudges the existing window
+--     back to a visible position rather than spawning a duplicate.
+--   - State is seeded from `initialState` (the caller deep-copies the
+--     editor card's state at click time) so role picks / symbol values /
+--     override toggles carry over.
+--   - Popout root is draggable -- clicking and dragging anywhere on the
+--     window moves it (4px threshold so button clicks still fire as
+--     clicks). Pattern lifted from RestDialog.lua:173-177.
+--   - Lifecycle: parented directly to gamehud.parentPanel via AddChild,
+--     then promoted to last-sibling via SetAsLastSibling so it renders
+--     above the editor's modal layer. A 1-second `think` on the chrome
+--     (NOT on the inner test card -- the test card stays think-free per
+--     the perf rule) keeps the popout on top after sub-modals open
+--     (token picker, condition picker, etc.) -- those call
+--     `gamehud.modalPanel:SetAsLastSibling()` via Hud.ShowModal, which
+--     would otherwise demote the popout below the modal layer
+--     permanently. The think is one cheap sibling-reorder call per
+--     popout per second.
+--
+--     Why not gui.ShowModal? It puts the popout in modalPanel as a
+--     sibling of the editor's modal, which makes the editor
+--     non-interactive (modal-stack exclusivity blocks clicks to lower
+--     modals) -- the explicit user-reported bug "you cannot click on
+--     the Close menu of the editor" while the popout is open.
+--
+--     Why not gui.ShowDialog or gamehud.popupPanel? Both sit BELOW
+--     modalPanel in parentPanel.children -- and Hud.ShowModal aggressively
+--     re-promotes modalPanel via SetAsLastSibling on every modal open.
+--     The popout would render under the editor.
+--
+--     The popout's destroy event clears its registry slot. Mod-unload
+--     teardown is wired manually because parentPanel:AddChild doesn't
+--     register an unload handler the way gui.ShowDialog does.
+--   - blocksGameInteraction = false on the popout root so clicks on
+--     the map (areas outside the popout's visible body) fall through to
+--     game elements. Default true would block map clicks across the
+--     popout's full bounding box -- not the floating-utility-window
+--     behaviour we want.
+--
+-- PERF (read before adding any subscription):
+--   - The popout's body card has no thinkTime, no monitorGame, no
+--     fireEvent listeners that arm timers. Idle cost = zero.
+--   - Multiple popouts therefore cost zero per-frame work when idle.
+--   - The only path that re-evaluates the ability is Run Test (user
+--     click), which goes through discoverTestInputs -> buildScenario ->
+--     runTriggerTest exactly once.
+-- C6b: `reopen` (optional) is the closure originally passed to
+-- TriggeredAbility:GenerateEditor as `options.reopen`. When non-nil, the
+-- popout surfaces an "Open Editor" button in its title bar that calls
+-- `reopen()` (wrapped in pcall) to re-navigate the user to the editor's
+-- original entry context. When nil (no caller provided one), the button
+-- is omitted entirely -- no broken affordance.
+function openTestTriggerPopout(ability, initialState, reopen)
+    if ability == nil then return end
+    local key = ability:try_get("guid") or tostring(ability)
+    local abilityName = ability:try_get("name") or "Triggered Ability"
+
+    -- Cascade so subsequent popouts don't stack invisibly. Position is
+    -- relative to the parent's centre (halign/valign center on the root)
+    -- so an offset of 0,0 puts the window in the middle of the screen.
+    -- Total spawn count drives the offset rather than current-open count
+    -- so closing-and-reopening doesn't reset to the centre.
+    g_popoutSpawnCount = g_popoutSpawnCount + 1
+    local cascadeIndex = (g_popoutSpawnCount - 1) % 8
+    local cascadeOffset = cascadeIndex * 30
+
+    -- If a popout for this ability already exists and is still alive,
+    -- just nudge it onscreen instead of spawning a duplicate. The user
+    -- may have dragged it offscreen; a click on Pop out should always
+    -- result in a visible window.
+    local existing = g_openTestPopouts[key]
+    if existing ~= nil and existing.valid then
+        existing.x = cascadeOffset
+        existing.y = cascadeOffset
+        return
+    end
+    g_openTestPopouts[key] = nil
+
+    local POPOUT_WIDTH = LAYOUT.PREVIEW_WIDTH - 2 * LAYOUT.COL_HPAD - LAYOUT.SCROLL_GUTTER + 24
+
+    -- Construct the inner card first so we can parent it inside the
+    -- chrome below. mode = "popout" disables the think handler and the
+    -- nested Close/Pop-out buttons; initialState carries over the user's
+    -- in-editor configuration.
+    local innerCard = buildTestTriggerCard(ability, {
+        mode = "popout",
+        initialState = initialState,
+    })
+
+    -- Forward-declared so the close button's press handler can reach it.
+    local popoutRoot
+
+    -- C6b: build title-bar children. Label always present; "Open Editor"
+    -- button appears only when reopen is non-nil; close X always present.
+    -- Label width adjusts so the row never overflows: 100% - close button
+    -- (~32px) - optional Open Editor button (~96px including margin).
+    local titleChildren = {}
+    local labelWidthDelta = 32  -- close button + halign breathing room
+    if reopen ~= nil then
+        labelWidthDelta = labelWidthDelta + 96
+    end
+    titleChildren[#titleChildren + 1] = gui.Label{
+    	classes = {"bold", "sizeS", "fgStrong", "bold"},
+        text = "Test Trigger - " .. abilityName,
+        width = string.format("100%%-%d", labelWidthDelta),
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        textWrap = false,
+        textOverflow = "ellipsis",
+    }
+    -- Forward-declared so the Open Editor press handler can reference the
+    -- banner panel that's constructed below.
+    local banner
+    if reopen ~= nil then
+        titleChildren[#titleChildren + 1] = gui.Button{
+        	classes = {"sizeXxs"},
+            text = "Open Editor",
+            width = 88,
+            height = 22,
+            halign = "right",
+            valign = "center",
+            hmargin = 4,
+            press = function()
+                -- C6c: pcall the reopen closure and surface failures via
+                -- the banner. Failures here mean the original entry
+                -- context is gone (deleted compendium entry, removed
+                -- feature, unmounted parent panel). The banner gives
+                -- the user actionable feedback rather than a silent
+                -- no-op that looks like a broken button.
+                local ok, err = pcall(reopen)
+                if not ok and banner ~= nil and banner.valid then
+                    banner:FireEvent("showError",
+                        "Could not reopen the editor. The source entry may have been deleted or the parent panel unmounted.")
+                end
+            end,
+        }
+    end
+    titleChildren[#titleChildren + 1] = gui.Button{
+        classes = {"closeButton", "sizeS"},
+        halign = "right",
+        valign = "center",
+        -- Modal-layer escape priority so Esc closes the top-of-stack
+        -- modal (this popout) rather than fighting with the editor's
+        -- own EXIT_MODAL_DIALOG handler.
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        press = function()
+            if popoutRoot ~= nil and popoutRoot.valid then
+                popoutRoot:DestroySelf()
+            end
+        end,
+    }
+
+    local titleBar = gui.Panel{
+    	classes = {"bgAlt", "featureCardHeader", "expanded"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        valign = "top",
+        bmargin = 6,
+        hpad = 8,
+        vpad = 6,
+        children = titleChildren,
+    }
+
+    -- C6c: stale-state banner. Sits between the title bar and the body.
+    -- Hidden by default; surfaces a one-line warning + dismiss X when an
+    -- action fails (today: reopen-pcall failure; future: ability-existence
+    -- check failures). Panel is always present in the tree so we don't
+    -- have to manage attach/detach across the chrome -- just toggle the
+    -- "hidden" class via the showError / hideError events.
+    -- (`local banner` was forward-declared above so the Open Editor
+    -- press handler can reference it; here we assign the actual panel.)
+    banner = gui.Panel{
+        classes = {"ds-test-trigger-popout-banner", "hidden", "bordered", "borderDanger"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        valign = "top",
+        bgimage = true,
+        -- Muted "danger" surface -- darker than the bright @danger tone so
+        -- the banner reads as recoverable error rather than fatal alarm.
+        -- Border picks up the scheme's danger color so the banner re-themes
+        -- under the active scheme.
+        bgcolor = "#3a1414",
+        bmargin = 6,
+        hpad = 8,
+        vpad = 6,
+        borderBox = true,
+        showError = function(element, msg)
+            element:RemoveClass("hidden")
+            element.children = {
+                gui.Label{
+                    text = msg,
+                    classes = {"fg", "sizeXs"},
+                    width = "100%-24",
+                    height = "auto",
+                    halign = "left",
+                    valign = "center",
+                    wrap = true,
+                },
+                gui.Button{
+                    classes = { "close-button", "closeButton", "sizeXs" },
+                    halign = "right",
+                    valign = "center",
+                    press = function()
+                        if banner ~= nil and banner.valid then
+                            banner:AddClass("hidden")
+                            banner.children = {}
+                        end
+                    end,
+                },
+            }
+        end,
+    }
+
+    -- Body holds the test card inside a vscroll container so tall content
+    -- (lots of overrides, long behaviour previews) doesn't push the
+    -- window past the screen edge.
+    local body = gui.Panel{
+        width = "100%",
+        height = "100%-44",
+        halign = "left",
+        valign = "top",
+        flow = "vertical",
+        vscroll = true,
+        hpad = 12,
+        vpad = 8,
+        borderBox = true,
+        children = { innerCard },
+    }
+
+    popoutRoot = gui.Panel{
+        classes = {"ds-test-trigger-popout", "bgAlt", "bordered"},
+        width = POPOUT_WIDTH,
+        height = 600,
+        halign = "center",
+        valign = "center",
+        flow = "vertical",
+        bgimage = true,
+        borderBox = true,
+        x = cascadeOffset,
+        y = cascadeOffset,
+        -- Apply the editor's themed styles to the popout subtree so
+        -- gui.Button / gui.Input / gui.Check / gui.Dropdown render with
+        -- the gold/cream chrome users see in the in-editor card. Without
+        -- this, the popout's controls fall back to engine-default style
+        -- (visibly different from the editor's). GetStyles provides the
+        -- cached theme cascade; buildStyles() supplies the AbilityEditor
+        -- themed pack on top via MergeTokens (resolves @-tokens only).
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(buildStyles()) },
+        -- See block-comment above: don't block map/token clicks for areas
+        -- outside the popout's visible body. The popout is a floating
+        -- utility, not a screen-blocking modal.
+        blocksGameInteraction = false,
+        -- Drag-the-window pattern -- mirrors RestDialog.lua:173-177.
+        -- 4px dragThreshold (engine default) means clicks on inner
+        -- buttons / inputs still fire as clicks; only sustained motion
+        -- starts the drag.
+        draggable = true,
+        drag = function(element)
+            element.x = element.xdrag
+            element.y = element.ydrag
+        end,
+        -- Keep the popout above the editor's modal even after sub-modals
+        -- re-promote modalPanel. Cheap O(1) sibling reorder per popout
+        -- per second; chrome-only, the inner test card stays think-free
+        -- per the perf rule.
+        --
+        -- Orphan self-destruct: if our registry slot doesn't point to us
+        -- (file-scope `g_openTestPopouts` was reset on Lua hot-reload, OR
+        -- the slot was overwritten by a newer popout), we're stale --
+        -- destroy ourselves so we don't sit on screen blocking clicks
+        -- and constantly reordering the panel tree. In production
+        -- (no hot-reloads) this branch is unreachable; in dev it
+        -- guarantees orphans clean themselves up within 1s of a reload.
+        --
+        -- Sub-modal guard: if modalPanel has more than one child (editor
+        -- + at least one sub-modal like a token picker), DO NOT promote.
+        -- Promoting under a sub-modal would route clicks intended for
+        -- the sub-modal to the popout instead -- the user-reported
+        -- "had to F5 to click on anything" symptom. Skipping promotion
+        -- while a sub-modal is up means popout is hidden behind it
+        -- (acceptable since sub-modals are short-lived). Once the
+        -- sub-modal closes (modalPanel.children drops to 1), the next
+        -- think tick promotes us back above the editor.
+        thinkTime = 1.0,
+        think = function(element)
+            if g_openTestPopouts[key] ~= element then
+                element:DestroySelf()
+                return
+            end
+            local modalChildren = gamehud.modalPanel and gamehud.modalPanel.children
+            if modalChildren and #modalChildren > 1 then
+                return
+            end
+            element:SetAsLastSibling()
+        end,
+        destroy = function(element)
+            -- Clear registry slot so the next Pop out for this ability
+            -- spawns fresh rather than focus-existing on a stale ref.
+            if g_openTestPopouts[key] == element then
+                g_openTestPopouts[key] = nil
+            end
+        end,
+        -- Banner sits between titleBar and body. When hidden it
+        -- contributes 0 height (height = "auto" with no children +
+        -- "hidden" class). When showError fires, it grows to fit the
+        -- message; body's "100%-44" height accommodates the title bar
+        -- only, so the banner pushes the body's vscroll-area down by
+        -- the banner's height -- acceptable, the test card scrolls
+        -- the lost area without breaking layout.
+        children = { titleBar, banner, body },
+    }
+
+    g_openTestPopouts[key] = popoutRoot
+    -- Parent directly to gamehud.parentPanel (the root of the gamehud
+    -- panel tree) so we sit at the same nesting level as modalPanel
+    -- itself, not inside it. SetAsLastSibling promotes us above
+    -- modalPanel so we render on top of any open editor. The thinkTime
+    -- handler keeps us promoted as sub-modals open and call
+    -- modalPanel:SetAsLastSibling.
+    gamehud.parentPanel:AddChild(popoutRoot)
+    popoutRoot:SetAsLastSibling()
+    popoutRoot:PulseClass("fadein")
+    -- AddChild doesn't register an unload handler the way gui.ShowDialog
+    -- does, so wire mod.unloadHandlers manually. Mirrors the pattern at
+    -- DMHub Core UI\Gui.lua:111-115.
+    mod.unloadHandlers[#mod.unloadHandlers + 1] = function()
+        if popoutRoot ~= nil and popoutRoot.valid then
+            popoutRoot:DestroySelf()
+        end
+    end
+end
+
+-- Preview column + slot factory. Returns (colPanel, previewSlot). The slot
+-- listens for refreshPreview and rebuilds its single child on demand.
+--
+-- PERFORMANCE-CRITICAL: read this before changing the think handler.
+-- See [PERFORMANCE_PREVIEW_REBUILD] in TRIGGERED_ABILITY_EDITOR_DESIGN.md.
+--
+-- The slot polls every 0.25s but uses a *fingerprint check* to gate the
+-- actual rebuild. The previous implementation called schedulePreviewRefresh
+-- unconditionally on every tick, which caused the entire preview subtree --
+-- including condition compile, AST walks, prose rendering, and dozens of
+-- panel allocations -- to be reconstructed every ~0.4s regardless of
+-- whether anything had changed. With multiple editors open this stacked
+-- noticeably and degraded responsiveness across long sessions.
+--
+-- The fingerprint is dmhub.ToJson(ability) -- the same change-detection
+-- idiom used elsewhere in the codebase (see DamageTypes.lua:95,
+-- Condition.lua:144). Cheap relative to the full preview rebuild and
+-- catches edits that bypass fireChange (notably per-field edits inside
+-- behaviour cards, plus a number of top-level handlers in
+-- buildTriggerSection that don't call fireChange today).
+--
+-- DO NOT replace the think gate with an unconditional schedule call. If
+-- you need a new preview-affecting field, either:
+--   (a) wire its change handler to call fireChange() (preferred for
+--       top-level fields), or
+--   (b) ensure dmhub.ToJson serialises it -- transient _tmp_ fields are
+--       skipped, so anything that the engine considers persistent state
+--       will be picked up automatically.
+-- C6b: `editorOptions.reopen` (optional) is the closure callers pass when
+-- they want the popout's "Open Editor" button to re-navigate the user
+-- back to the original entry point. Threaded through to buildTestTriggerCard
+-- so the Pop out press handler can capture it for openTestTriggerPopout.
+local function makePreviewColumn(ability, schedulePreviewRefresh, editorOptions)
+    local ctx = editorOptions and editorOptions.customTriggerContext
+    -- Heading rows (subHeading below) need to match the cards' width so the
+    -- right-aligned rollup chip aligns with the card's right border instead
+    -- of bleeding into the scroll gutter.
+    local CARD_WIDTH = LAYOUT.PREVIEW_WIDTH - 2 * LAYOUT.COL_HPAD - LAYOUT.SCROLL_GUTTER
+
+    -- Fingerprint of the last-rendered ability state. Initialised here so
+    -- the first think tick after construction never spuriously fires a
+    -- rebuild -- the explicit FireEvent("refreshPreview") at editor
+    -- construction time (generateSectionedEditor) seeds this via the
+    -- refreshPreview handler.
+    local lastFingerprint = ""
+    local function fingerprintAbility()
+        local ok, json = pcall(dmhub.ToJson, ability)
+        if ok and type(json) == "string" then return json end
+        -- Fail-open: on any serialisation error, return a sentinel that
+        -- forces a rebuild. We'd rather waste one rebuild than freeze the
+        -- preview on a malformed ability.
+        return "__fingerprint_error__" .. tostring(dmhub.GetTime and dmhub.GetTime() or 0)
+    end
+
+    local previewSlot
+    previewSlot = gui.Panel{
+        id = "triggerPreviewSlot",
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        flow = "vertical",
+        bgcolor = "clear",
+        thinkTime = 0.25,
+        think = function(element)
+            -- Fingerprint-gated polling. Only schedules a rebuild when the
+            -- ability's serialised state has actually changed. See block
+            -- comment at the top of makePreviewColumn for rationale.
+            local fp = fingerprintAbility()
+            if fp == lastFingerprint then return end
+            lastFingerprint = fp
+            if schedulePreviewRefresh ~= nil then
+                schedulePreviewRefresh()
+            end
+        end,
+        -- Defensive: explicit teardown of closure-captured state. Engine
+        -- auto-destroys orphaned panels (Panel.lua:15) and stops firing
+        -- scheduled events on destroyed panels (Panel.lua:141), so this
+        -- is belt-and-braces -- it ensures the closures held by `think`
+        -- and `refreshPreview` release their references promptly even if
+        -- something exotic in a future refactor delays GC.
+        destroy = function(element)
+            schedulePreviewRefresh = nil
+            lastFingerprint = nil
+        end,
+        refreshPreview = function(element)
+            -- Sync the fingerprint so an upstream fireChange-driven refresh
+            -- doesn't also trigger a redundant think-poll rebuild on the
+            -- next tick.
+            lastFingerprint = fingerprintAbility()
+            local children = {}
+
+            -- Sub-heading helper. Each preview pane gets a bold gold label
+            -- above its card container so the column reads as a set of
+            -- distinct sections. Optional trailing chip (right-aligned on
+            -- the same row) lets the Mechanical View surface its rollup
+            -- status without giving it its own row inside the card.
+            local function subHeading(title, topMargin, rollup)
+                local titleLabel = gui.Panel{
+                    width = "50%-6",
+                    height = "auto",
+                    flow = "horizontal",
+                    halign = "left",
+                    valign = "center",
+                    bgcolor = "clear",
+                    children = {
+                        gui.Label{
+                            text = title,
+                            classes = {"fgStrong", "bold", "sizeM"},
+                            width = "auto",
+                            height = "auto",
+                            halign = "left",
+                        },
+                    },
+                }
+                local chipLabel
+                if rollup ~= nil then
+                    chipLabel = gui.Panel{
+                        width = "50%-6",
+                        height = "auto",
+                        flow = "horizontal",
+                        halign = "right",
+                        valign = "center",
+                        bgcolor = "clear",
+                        children = {
+                            gui.Label{
+                                classes = {rollup.class, "bold", "sizeXs", "fgInverse"},
+                                text = rollup.text,
+                                width = "auto",
+                                height = "auto",
+                                hpad = 10,
+                                vpad = 3,
+                                halign = "right",
+                                borderBox = true,
+                            },
+                        },
+                    }
+                end
+                return gui.Panel{
+                    width = CARD_WIDTH,
+                    height = "auto",
+                    flow = "horizontal",
+                    halign = "left",
+                    valign = "center",
+                    bgcolor = "clear",
+                    tmargin = topMargin or 0,
+                    bmargin = 6,
+                    children = chipLabel and { titleLabel, chipLabel } or { titleLabel },
+                }
+            end
+
+            -- Trigger Preview
+            children[#children + 1] = subHeading("Trigger Preview", 0, nil)
+            local cardOk, cardOrErr = pcall(buildTriggerPreviewCard, ability, ctx)
+            if cardOk and cardOrErr ~= nil then
+                children[#children + 1] = cardOrErr
+            else
+                children[#children + 1] = gui.Label{
+                    width = "100%",
+                    height = "auto",
+                    italics = true,
+                    classes = {"fgMuted", "sizeS"},
+                    text = "(no preview available)",
+                }
+            end
+
+            -- Mechanical View pane (labelled "How This Triggers" per the
+            -- 2026-04-24 polish pass -- the diagnostic-style sub-title is
+            -- self-explanatory, the earlier "will this trigger?" subtitle
+            -- became redundant once the chip moved inline).
+            local mechOk, mechRes, mechRollup = pcall(buildMechanicalView, ability, ctx)
+            local mechPane, rollup
+            if mechOk and mechRes ~= nil then
+                mechPane, rollup = mechRes, mechRollup
+            end
+            children[#children + 1] = subHeading("How This Triggers", 14, rollup)
+            if mechPane ~= nil then
+                children[#children + 1] = mechPane
+            end
+
+            element.children = children
+        end,
+    }
+
+    -- Test Trigger card lives outside previewSlot so its expanded/collapsed
+    -- state and per-input values survive the previewSlot's frequent
+    -- refreshPreview rebuilds. It listens for refreshAbility internally to
+    -- re-discover referenced symbols when the trigger event or condition
+    -- formula change.
+    -- C6b: pass editorOptions.reopen through so the in-editor card's Pop
+    -- out press handler can forward it to the floating popout's "Open
+    -- Editor" button. Nil-safe; popout omits the button when reopen is nil.
+    -- Custom triggers get no Test Trigger card: the tester simulates from
+    -- the stored trigger event's metadata, which is never consulted for a
+    -- modifier-fired trigger.
+    local testTriggerCard
+    if ctx == nil then
+        testTriggerCard = buildTestTriggerCard(ability, {
+            mode = "editor",
+            reopen = editorOptions and editorOptions.reopen or nil,
+        })
+    end
+
+    local scrollArea = gui.Panel{
+        classes = {"nae-preview-body"},
+        id = "triggerPreviewScroll",
+        vscroll = true,
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        bgcolor = "clear",
+        children = { previewSlot, testTriggerCard },
+    }
+
+    -- Column heading intentionally omitted: each pane carries its own
+    -- sub-heading now ("Trigger Preview" / "Mechanical View" / Test
+    -- Trigger in phase 6). A single "Preview" umbrella was a misfit --
+    -- only the first pane is actually a preview.
+    local colPanel = gui.Panel{
+        classes = {"nae-preview-col"},
+        id = "tsPreviewCol",
+        width = LAYOUT.PREVIEW_WIDTH,
+        height = "100%",
+        flow = "vertical",
+        valign = "top",
+        hpad = LAYOUT.COL_HPAD,
+        vpad = LAYOUT.COL_VPAD,
+        borderBox = true,
+        children = { scrollArea },
+    }
+
+    return colPanel, previewSlot
+end
+
+local function generateSectionedEditor(ability, options)
+
+    local navButtons = {}
+    local sectionContents = {}
+    local rootPanel
+    local detailScroll
+    local effectsBottomBar
+    local previewSlot
+
+    -- Preview debounce state. Mirrors AbilityEditor's 0.15s coalescing
+    -- pattern so rapid edits (keystrokes in a text field, slider drags)
+    -- collapse into a single card rebuild per window. The slot's own
+    -- think (thinkTime=0.25) is the polling fallback; fireChange uses
+    -- this direct path for immediate invalidation on structural changes.
+    local _previewDirty = false
+    local _previewTimerActive = false
+    local function schedulePreviewRefresh()
+        _previewDirty = true
+        if _previewTimerActive then return end
+        _previewTimerActive = true
+        dmhub.Schedule(0.15, function()
+            if mod.unloaded then return end
+            _previewTimerActive = false
+            if not _previewDirty then return end
+            _previewDirty = false
+            if previewSlot ~= nil then
+                previewSlot:FireEvent("refreshPreview")
+            end
+        end)
+    end
+
+    -- Structural-change dispatcher. Fires refreshAbility across the root
+    -- subtree so: (a) the Effects behaviour-list panel's key-guarded
+    -- rebuild picks up add/remove/reorder, (b) the paste button's
+    -- visibility handler re-reads the clipboard, (c) the preview card
+    -- rebuilds with the new field state via the debounced scheduler.
+    -- Per-field edits inside a behaviour card use refreshBehavior instead
+    -- and don't reach here; the preview still catches them via its
+    -- thinkTime poll.
+    local function fireChange()
+        if rootPanel == nil then return end
+        rootPanel:FireEventTree("refreshAbility")
+        schedulePreviewRefresh()
+    end
+
+    local function pasteBehavior()
+        local item = dmhub.GetInternalClipboard()
+        if item == nil then return end
+        local tn = item.typeName or ""
+        if not (string.starts_with(tn, "ActivatedAbility") and string.ends_with(tn, "Behavior")) then
+            return
+        end
+        local copy = DeepCopy(item)
+        copy.guid = dmhub.GenerateGuid()
+        ability.behaviors[#ability.behaviors + 1] = copy
+        fireChange()
+    end
+
+    local function selectSection(sectionId)
+        if rootPanel == nil then return end
+        rootPanel.data.selectedSectionId = sectionId
+        for _, btn in ipairs(navButtons) do
+            btn:SetClass("selected", btn.data.sectionId == sectionId)
+        end
+        for _, content in ipairs(sectionContents) do
+            content:SetClass("inactive", content.data.sectionId ~= sectionId)
+        end
+        -- Effects tab gets the fixed Add/Paste bottom bar (42px reserved);
+        -- other tabs collapse the bar and reclaim the scroll height.
+        if effectsBottomBar ~= nil and detailScroll ~= nil then
+            local isEffects = (sectionId == "effects")
+            effectsBottomBar:SetClass("collapsed", not isEffects)
+            detailScroll.height = isEffects and "100%-42" or "100%"
+        end
+    end
+
+    for _, sectionDef in ipairs(SECTIONS) do
+        navButtons[#navButtons + 1] = makeNavButton(sectionDef, function(id)
+            selectSection(id)
+        end)
+        sectionContents[#sectionContents + 1] = makeSectionContent(sectionDef, ability, fireChange, options)
+    end
+
+    -- Nav buttons sit inside an auto-sized inner container so the group can
+    -- be vertically centered within the full-height nav column. A direct
+    -- valign=center on a vertical-flow parent with multiple children doesn't
+    -- reliably center the stack; wrapping in an auto-height inner panel does.
+    local navCol = gui.Panel{
+        classes = {"nae-nav-col"},
+        id = "tsNavCol",
+        width = LAYOUT.NAV_WIDTH,
+        height = "100%",
+        flow = "vertical",
+        halign = "left",
+        valign = "center",
+        hpad = LAYOUT.COL_HPAD,
+        vpad = LAYOUT.COL_VPAD,
+        borderBox = true,
+        children = {
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                halign = "center",
+                valign = "center",
+                bgcolor = "clear",
+                children = navButtons,
+            },
+        },
+    }
+
+    -- Scroll wrapper so the Add/Paste bottom bar can stay anchored outside
+    -- the scrolling region. selectSection shrinks this to 100%-42 when the
+    -- Effects tab is active and the bar is visible.
+    detailScroll = gui.Panel{
+        id = "tsDetailScroll",
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        bgcolor = "clear",
+        vscroll = true,
+        hpad = LAYOUT.COL_HPAD,
+        vpad = LAYOUT.COL_VPAD,
+        borderBox = true,
+        children = sectionContents,
+    }
+
+    -- Paste Behavior: visible only when the internal clipboard holds a
+    -- behaviour. Listens to both refreshAbility (fired on our dispatch)
+    -- and internalClipboardChanged (fired by the engine when the user
+    -- copies a behaviour from elsewhere while this editor is open).
+    local pasteButton = gui.Button{
+        text = "Paste Behavior",
+        width = 160,
+        height = 34,
+        halign = "center",
+        classes = {cond(not clipboardHasBehavior(), "collapsed-anim")},
+        press = function()
+            pasteBehavior()
+        end,
+        refreshAbility = function(element)
+            element:SetClass("collapsed-anim", not clipboardHasBehavior())
+        end,
+        internalClipboardChanged = function(element)
+            element:SetClass("collapsed-anim", not clipboardHasBehavior())
+        end,
+    }
+
+    -- Inner auto-width container so the two buttons cluster in the center
+    -- of the bar rather than spreading across its full 100% width.
+    effectsBottomBar = gui.Panel{
+        id = "tsEffectsBottomBar",
+        classes = {"nae-effects-bottom-bar", "collapsed"},
+        children = {
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "center",
+                valign = "center",
+                bgcolor = "clear",
+                children = {
+                    gui.Button{
+                        text = "+ Add Behavior",
+                        width = 160,
+                        height = 34,
+                        press = function()
+                            AbilityEditor.OpenBehaviorPicker(ability, function(typeId)
+                                local typeEntry = ability.TypesById[typeId]
+                                if typeEntry and typeEntry.createBehavior then
+                                    ability.behaviors[#ability.behaviors + 1] = typeEntry.createBehavior()
+                                    AbilityEditor._trackRecentBehavior(typeId)
+                                    fireChange()
+                                end
+                            end)
+                        end,
+                    },
+                    pasteButton,
+                },
+            },
+        },
+    }
+
+    -- Outer detail column: non-scrolling vertical container holding the
+    -- scroll area and the effects bottom bar. Padding lives on detailScroll
+    -- (not here) so the bottom bar can anchor flush to the column floor.
+    local detailCol = gui.Panel{
+        classes = {"nae-detail-col"},
+        id = "tsDetailCol",
+        width = string.format("100%%-%d", LAYOUT.NAV_WIDTH + LAYOUT.PREVIEW_WIDTH + 24),
+        height = "100%",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+        borderBox = true,
+        children = {detailScroll, effectsBottomBar},
+    }
+
+    -- Preview column (phase 5). Auto-derives the Trigger row through the
+    -- GoblinScriptProse engine; other slots stay blank until phase 7's
+    -- Display overrides land. Kept to the right of the detail column.
+    local previewCol
+    previewCol, previewSlot = makePreviewColumn(ability, schedulePreviewRefresh, options)
+
+    rootPanel = gui.Panel{
+        classes = {"nae-root", "bg", "bordered"},
+        id = "triggeredAbilityEditorRoot",
+        styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(buildStyles()) },
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        flow = "horizontal",
+        borderBox = true,
+        bgimage = true,
+        data = {
+            ability = ability,
+            selectedSectionId = SECTIONS[1].id,
+        },
+        children = {navCol, detailCol, previewCol},
+    }
+
+    selectSection(SECTIONS[1].id)
+    -- Fire an initial preview build so the card is populated immediately
+    -- rather than waiting for the first thinkTime tick (0.25s).
+    if previewSlot ~= nil then
+        previewSlot:FireEvent("refreshPreview")
+    end
+    return rootPanel
+end
+
+--[[
+    ============================================================================
+    Dispatch
+    ============================================================================
+    Always renders the new sectioned editor. The aura-embed path uses
+    TriggeredAbility:GenerateEmbeddedEditor (defined below) instead of going
+    through this dispatch.
+]]
+function TriggeredAbility:GenerateEditor(options)
+    options = options or {}
+    return generateSectionedEditor(self, options)
+end
+
+--[[
+    ============================================================================
+    Embedded editor (Aura.lua)
+    ============================================================================
+    Inline editor for an aura-embedded TriggeredAbility. Renders only the
+    fields that survive the legacy excludeTriggerCondition + excludeAppearance
+    + excludeActivationSavingThrows exclusion set:
+
+      Name | Action | Despawned Target | Condition (GoblinScript) | Behaviors
+
+    Returns a single panel suitable for nesting inside another panel
+    (no full-screen modal chrome, no anchored bottom bar). Replaces the
+    legacy `trigger.ability:GenerateEditor{ exclude... }` call from Aura.lua.
+]]
+function TriggeredAbility:GenerateEmbeddedEditor()
+    local resultPanel
+    local Refresh
+
+    Refresh = function()
+        local children = {}
+
+        children[#children+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{ text = "Name:", classes = {"formLabel"} },
+            gui.Input{
+                classes = "formInput",
+                placeholderText = "Enter Trigger Name...",
+                text = self.name,
+                change = function(element)
+                    self.name = element.text
+                end,
+            },
+        }
+
+        local actionOptions = CharacterResource.GetActionOptions()
+        actionOptions[#actionOptions+1] = { id = "none", text = "None" }
+        children[#children+1] = gui.Panel{
+            classes = {"abilityInfo", "formPanel"},
+            gui.Label{ classes = "formLabel", text = "Action:" },
+            gui.Dropdown{
+                classes = "formDropdown",
+                idChosen = self:ActionResource() or "none",
+                options = actionOptions,
+                change = function(element)
+                    if element.idChosen == "none" then
+                        self.actionResourceId = nil
+                    else
+                        self.actionResourceId = element.idChosen
+                    end
+                end,
+            },
+        }
+
+        children[#children+1] = gui.Panel{
+            classes = {"abilityInfo", "formPanel"},
+            gui.Label{ classes = "formLabel", text = "Despawned Target:" },
+            gui.Dropdown{
+                classes = "formDropdown",
+                idChosen = self.despawnBehavior,
+                options = self.DespawnBehaviors,
+                change = function(element)
+                    self.despawnBehavior = element.idChosen
+                end,
+            },
+        }
+
+        --Trigger Mode. Aura triggers used to always fire automatically, since
+        --TriggeredAbility.mandatory defaults to true and the embedded editor
+        --never surfaced it. This is the same setting the standalone trigger
+        --editor writes, so IsMandatory / MayBePrompted keep working unchanged.
+        local promptTextPanel
+        local hostileCheck
+
+        --Prompt Text and Hostile only do anything on the prompt path; hide
+        --them when the chosen mode fires without asking.
+        local RefreshPromptVisibility = function()
+            local mayPrompt = self:MayBePrompted()
+            promptTextPanel:SetClass("collapsed", not mayPrompt)
+            hostileCheck:SetClass("collapsed", not mayPrompt)
+        end
+
+        children[#children+1] = gui.Panel{
+            classes = {"abilityInfo", "formPanel"},
+            gui.Label{ classes = "formLabel", text = "Triggering:" },
+            gui.Dropdown{
+                classes = "formDropdown",
+                idChosen = self.mandatory,
+                options = TriggeredAbility.mandatoryTriggerSettings,
+                change = function(element)
+                    self.mandatory = element.idChosen
+                    RefreshPromptVisibility()
+                end,
+            },
+        }
+
+        promptTextPanel = gui.Panel{
+            classes = {"abilityInfo", "formPanel"},
+            gui.Label{ classes = "formLabel", text = "Prompt Text:" },
+            gui.Input{
+                classes = "formInput",
+                characterLimit = 300,
+                placeholderText = "Prompt shown to the player...",
+                text = self:try_get("triggerPrompt", ""),
+                change = function(element)
+                    self.triggerPrompt = element.text
+                end,
+            },
+        }
+        children[#children+1] = promptTextPanel
+
+        --A hostile trigger is a harmful prompt forced on the creature (e.g.
+        --an aura that burns anything standing in it) rather than a beneficial
+        --reaction offer: red prompt icon, never ages out at end of turn, and
+        --must be manually activated or dismissed.
+        hostileCheck = gui.Check{
+            halign = "left",
+            text = "Hostile trigger (harmful prompt; never expires, must be manually dismissed)",
+            value = self:try_get("hostile", false),
+            change = function(element)
+                self.hostile = element.value
+            end,
+        }
+        children[#children+1] = hostileCheck
+
+        RefreshPromptVisibility()
+
+        local helpSymbols = {
+            caster = {
+                name = "Caster",
+                type = "creature",
+                desc = "The creature that controls the aura triggering this ability.",
+            },
+            subject = {
+                name = "Subject",
+                type = "creature",
+                desc = "The creature that the event occurred on. This will be the same as Self for triggered abilities that only affect self.",
+            },
+        }
+        local examples = {
+            {
+                script = "hitpoints < 5",
+                text = "The triggered ability only activates when hitpoints are below 5.",
+            },
+        }
+        local triggerInfo = TriggeredAbility.GetTriggerById(self.trigger)
+        if triggerInfo ~= nil then
+            for k,v in pairs(triggerInfo.symbols or {}) do
+                if type(v) == "table" and v.name then
+                    k = string.lower(string.gsub(v.name, "%s+", ""))
+                end
+                helpSymbols[k] = v
+            end
+            for _,example in ipairs(triggerInfo.examples or {}) do
+                examples[#examples+1] = example
+            end
+        end
+
+        children[#children+1] = gui.Panel{
+            classes = {"abilityInfo", "formPanel"},
+            gui.Label{ classes = {"formLabel"}, text = "Condition:" },
+            gui.GoblinScriptInput{
+                value = self.conditionFormula,
+                change = function(element)
+                    self.conditionFormula = element.value
+                end,
+                documentation = {
+                    help = "This GoblinScript is used to determine whether the triggered ability activates.",
+                    output = "boolean",
+                    examples = examples,
+                    subject = creature.helpSymbols,
+                    subjectDescription = "The creature the ability will trigger on",
+                    symbols = helpSymbols,
+                },
+            },
+        }
+
+        children[#children+1] = self:BehaviorEditor()
+
+        resultPanel.children = children
+    end
+
+    resultPanel = gui.Panel{
+        styles = {
+            ThemeEngine.GetStyles(),
+            { classes = {"formPanel"}, width = 340 },
+            { classes = {"formLabel"}, halign = "left", valign = "center" },
+        },
+        height = "auto",
+        width = "100%",
+        flow = "vertical",
+        valign = "top",
+    }
+
+    Refresh()
+    return resultPanel
+end
+

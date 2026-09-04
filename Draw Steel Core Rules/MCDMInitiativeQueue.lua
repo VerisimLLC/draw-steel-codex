@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 -- The InitiativeQueue records the initiative of any tokens that have been given initiative. It is
 -- stored in the Game Document and thus networked between systems. The initiative queue can be nil,
 -- which means that there is currently no initiative and players move with free movement.
@@ -29,6 +40,11 @@ InitiativeQueue.GameModesById = {}
 InitiativeQueue.gameMode = "exploration"
 InitiativeQueue.playersGoFirst = true
 InitiativeQueue.playersTurn = false
+
+--The live encounter (a LiveEncounter object, see MCDMEncounter.lua) associated
+--with this initiative queue, or false if there is no live encounter. How the
+--queue actually acquires a LiveEncounter is handled in a subsequent step.
+InitiativeQueue.liveEncounter = false
 
 function InitiativeQueue.RegisterGameMode(info)
     local targetIndex = #InitiativeQueue.GameModes + 1
@@ -91,6 +107,12 @@ InitiativeQueueEntry.turnsTaken = 0
 --Create a new empty initiative queue. Called when the DM starts initiative.
 function InitiativeQueue.Create()
 	local playersGoFirst = math.random(1, 2) == 1
+
+	-- New encounter -> clear per-encounter villain action consumption.
+	if VillainActionState ~= nil then
+		VillainActionState.ResetAll()
+	end
+
 	return InitiativeQueue.new{
 		guid = dmhub.GenerateGuid(),
         playersGoFirst = playersGoFirst,
@@ -101,6 +123,13 @@ function InitiativeQueue.Create()
 		hidden = false,
         gameMode = "combat",
 		entries = CreateTable(),
+		--every new queue carries at least a basic empty live encounter (see
+		--LiveEncounter.CreateEmpty), so combat systems can rely on the field
+		--being a LiveEncounter. The "Draw Steel!" flow replaces it with one
+		--built from the chosen authored encounter, or with a seeded empty one
+		--for Custom combats (DSInitiativeRoll.lua). Old queues from before
+		--this change can still hold false/nil, so readers stay defensive.
+		liveEncounter = LiveEncounter.CreateEmpty(),
 	}
 end
 
@@ -119,21 +148,64 @@ function InitiativeQueue.GetTokensForInitiativeId(initiativeid, allTokens)
 		local monsterType = string.sub(initiativeid, 9, -1)
 
 		for k,tok in pairs(allTokens) do
-			if tok.properties ~= nil and (tok.properties:GetMonsterType() == monsterType or tok.properties:MinionSquad() == monsterType) and (dmhub.isDM or not tok.invisibleToPlayers) then
+			--IsDMOrPlayerHost: this list is also the mechanical token set for
+			--turn processing and the Monster AI on the host, so an invisible
+			--monster must not drop out of it there. (Trade-off: the player
+			--host's own initiative bar can show an invisible monster's face.)
+			if tok.properties ~= nil and (tok.properties:GetMonsterType() == monsterType or tok.properties:MinionSquad() == monsterType) and (IsDMOrPlayerHost() or not tok.invisibleToPlayers) then
 				result[#result+1] = tok
 			end
 		end
     end
 
     local token = dmhub.GetTokenById(initiativeid)
-    if token ~= nil and token.properties.initiativeGrouping ~= initiativeid then
+    if token ~= nil and token.properties ~= nil and token.properties.initiativeGrouping ~= initiativeid then
         result[#result+1] = token
     end
 
     for k,tok in pairs(allTokens) do
-        if tok.properties.initiativeGrouping == initiativeid then
+        if tok.properties ~= nil and tok.properties.initiativeGrouping == initiativeid then
             result[#result+1] = tok
         end
+    end
+
+    --Every display surface (initiative bar card, turn tooltip, center-on,
+    --action-log start-of-turn card) uses result[1] as the group's face, but
+    --the list is built in pairs() order, so a group entry could wear any
+    --member's portrait - a Goblin Monarch grouped with its Runners showed a
+    --Runner as "whose turn it is". Order the group so its natural leader
+    --comes first: non-minions before minions, then by organization weight
+    --(solo/leader above elite/platoon/horde), then by name/id so the pick is
+    --at least deterministic. Callers that iterate the whole list are
+    --unaffected; no caller could rely on the old order, since pairs() never
+    --guaranteed one.
+    if #result > 1 then
+        local orgWeight = { solo = 6, leader = 5, elite = 4, platoon = 3, horde = 2, minion = 1 }
+        local function DisplayRank(tok)
+            local rank = 0
+            pcall(function()
+                if not tok.properties.minion then
+                    rank = rank + 10
+                end
+                local org = tok.properties:Organization()
+                rank = rank + (orgWeight[org] or 0)
+            end)
+            return rank
+        end
+        local ranks = {}
+        for _, tok in ipairs(result) do
+            ranks[tok.charid] = DisplayRank(tok)
+        end
+        table.sort(result, function(a, b)
+            local ra, rb = ranks[a.charid], ranks[b.charid]
+            if ra ~= rb then
+                return ra > rb
+            end
+            if a.name ~= b.name then
+                return (a.name or "") < (b.name or "")
+            end
+            return a.charid < b.charid
+        end)
     end
 
 	return result
@@ -224,6 +296,7 @@ function InitiativeQueue:SelectTurn(initiativeid)
 
 	entry.turn = self.turn
 	self.turn = self.turn + 1
+	entry.startTurnTimestamp = ServerTimestamp()
 
 	self.currentTurn = initiativeid
 end
@@ -231,6 +304,14 @@ end
 --for a token give the initiative id. This is the token id if the token is a
 --unique character, or the monster type if the token is a monster.
 function InitiativeQueue.GetInitiativeId(token)
+    if token == nil or token.properties == nil then
+        return nil
+    end
+
+    --initiativeGrouping wins so the DM can deliberately put several squads (or a
+    --squad plus other tokens) on a single shared initiative. Forming a squad
+    --clears initiativeGrouping on its members so they fall through to the shared
+    --squad id below unless explicitly grouped again.
     if token.properties.initiativeGrouping then
         return token.properties.initiativeGrouping
     end
@@ -300,20 +381,92 @@ function InitiativeQueue.NextTurn(self, initiativeid)
 	--find this entry and increment the round it moves at.
 	local entry = self.entries[initiativeid]
 	if entry ~= nil then
+        local startTimestamp = entry:try_get("startTurnTimestamp")
+        local turnDuration = (startTimestamp ~= nil and type(startTimestamp) == "number") and TimestampAgeInSeconds(startTimestamp) or nil
+
+        local isPlayer = self:IsEntryPlayer(initiativeid)
+        local tokenName = "unknown"
+        local isHero = false
+        local tokens = self.GetTokensForInitiativeId(initiativeid)
+        if tokens ~= nil and #tokens > 0 then
+            local tok = tokens[1]
+            if tok.properties:IsHero() then
+                isHero = true
+                local classInfo = tok.properties:GetClass()
+                tokenName = classInfo and classInfo.name or "hero"
+            else
+                tokenName = tok.properties:try_get("monster_type", "monster")
+            end
+        end
+
+        track("turn_end", {
+            turnDurationSeconds = turnDuration and math.floor(turnDuration) or nil,
+            tokenName = tokenName,
+            isHero = isHero,
+            isDirector = isPlayer == false,
+            roundNumber = self.round,
+            turnInRound = entry.turn,
+            dailyLimit = 100,
+        })
+
         InitiativeQueue.SetTurnTaken(self, entry)
+
+        --Per-encounter monster-group stat: this group completed a real turn.
+        --Runs once here (on the client that ends the turn) for non-player
+        --entries only; the "Set Has Moved" skip path calls SetTurnTaken
+        --directly and so deliberately records nothing, which is what lets the
+        --victory screen detect groups that died before ever acting.
+        if self:IsEntryPlayer(initiativeid) == false then
+            LiveEncounter.TrackMonsterGroupTurn(initiativeid)
+        end
 	end
 
 	self.currentTurn = false
 
 	self.playersTurn = not self.playersTurn
 
-    local allTokens = dmhub.allTokens
-	--are there any more tokens that are going to move this round?
-	--if not then increment the current round.
+	return self:AdvanceRoundIfComplete()
+end
+
+--Are there any entries still to move this round? If not, increment the round.
+--Returns true if the round was advanced.
+--
+--Any code path that marks an entry as having moved -- or removes it from the
+--queue -- must call this, not just NextTurn: otherwise the last outstanding
+--entry can be cleared with the round counter left behind (and NextRound's
+--malice/villain-action/round-start side effects never fire).
+--
+--An entry only holds the round open if it has at least one LIVE token. Dead
+--tokens are still returned by GetTokensForInitiativeId (they stay on the map),
+--so a wiped monster group would otherwise block the round forever -- which is
+--what forces Directors to reach for "Set Has Moved" in the first place.
+--creature:IsDead defaults to false, so an unrecognised token type is treated as
+--live and blocks the round rather than being silently skipped.
+function InitiativeQueue:AdvanceRoundIfComplete()
+	local allTokens = dmhub.allTokens
+	local haveLiveEntries = false
+
 	for k,v in pairs(self.entries) do
-		if #self.GetTokensForInitiativeId(k, allTokens) > 0 and v.round <= self.round then
-			return false
+		local live = false
+		for _,tok in ipairs(self.GetTokensForInitiativeId(k, allTokens)) do
+			if tok.properties ~= nil and not tok.properties:IsDead() then
+				live = true
+				break
+			end
 		end
+
+		if live then
+			if v.round <= self.round then
+				return false
+			end
+			haveLiveEntries = true
+		end
+	end
+
+	--Everything in the queue is dead or gone: combat is over, so don't award
+	--malice or announce a new round.
+	if not haveLiveEntries then
+		return false
 	end
 
 	self:NextRound()
@@ -476,6 +629,82 @@ function InitiativeQueue:HasHadTurn(initiativeid)
 	return entry.round > self.round
 end
 
+--Claim-turn helpers.
+--
+--Historically the whole "claim this entry's turn" sequence lived inline in the
+--initiative bar's per-entry click closure (MCDMInitiativeBar selectinitiative),
+--so nothing else could reuse it. It is pulled out here so other surfaces (e.g.
+--the Director's multi-monster overview) can gate and perform a claim through
+--one code path. The bar now calls these; the observable behaviour is unchanged.
+--
+--Claiming is a BROADCAST and is not reversible: it uploads the queue to every
+--client, runs BeginTurn (start-of-turn triggers) for every token in the entry,
+--and posts a player-visible start-of-turn chat card. Callers must therefore only
+--claim at a genuine commit point, never from a browse/preview click.
+--
+--CanClaimTurn(initiativeid, options): true when a claim of this entry is legal
+--right now. Mirrors the bar's gate exactly: with control of initiative the
+--claim is always allowed; without it, the queue must be choosing a turn, it must
+--be the players' side to act, the entry must be unmoved this round, and the
+--entry must be a player entry. options.canControlInitiative lets the caller
+--supply the control check (the bar's setting-backed one); it defaults to
+--dmhub.isDM.
+function InitiativeQueue.CanClaimTurn(initiativeid, options)
+	local q = dmhub.initiativeQueue
+	if q == nil or q.hidden then
+		return false
+	end
+
+	--default is the real hosting check: programmatic callers (the AI, the
+	--EotW host automation) pass no options and must be able to claim monster
+	--entries on a player host. UI callers all pass the setting-backed check.
+	local canControl = IsDMOrPlayerHost()
+	if options ~= nil and options.canControlInitiative ~= nil then
+		canControl = options.canControlInitiative
+	end
+
+	if canControl == false and ((not q:ChoosingTurn()) or (not q:IsPlayersTurn()) or (not q:EntriesUnmoved()[initiativeid]) or (not q:IsEntryPlayer(initiativeid))) then
+		return false
+	end
+
+	return true
+end
+
+--ClaimTurn(initiativeid, options): performs the claim. Returns true if the claim
+--was carried out, false if CanClaimTurn refused it. Uses the live queue
+--(dmhub.initiativeQueue), never a captured one, because a captured queue can be
+--stale after a turn transition and would make SelectTurn a silent no-op.
+--options.canControlInitiative is forwarded to CanClaimTurn.
+function InitiativeQueue.ClaimTurn(initiativeid, options)
+	if not InitiativeQueue.CanClaimTurn(initiativeid, options) then
+		return false
+	end
+
+	local q = dmhub.initiativeQueue
+	q:SelectTurn(initiativeid)
+	dmhub:UploadInitiativeQueue()
+
+	--Every token sharing this initiative id begins its turn (a minion squad or
+	--monster group claims as one). Use the initiative id itself rather than any
+	--per-entry initiativeid field: group entries do not populate the latter.
+	local tokens = InitiativeQueue.GetTokensForInitiativeId(initiativeid, dmhub.allTokens)
+	local tokenIds = {}
+	for _,tok in ipairs(tokens) do
+		if tok.properties ~= nil then
+			tok.properties:BeginTurn()
+			tokenIds[#tokenIds+1] = tok.charid
+		end
+	end
+
+	if #tokenIds > 0 and StartOfTurnChatMessage ~= nil then
+		chat.SendCustom(StartOfTurnChatMessage.new{
+			tokenids = tokenIds,
+		})
+	end
+
+	return true
+end
+
 function InitiativeQueue:CurrentInitiativeId()
 	if self.hidden or self:ChoosingTurn() then
 		return nil
@@ -535,7 +764,7 @@ function InitiativeQueue:GetTurnId()
 		return nil
 	end
 
-	return string.format("%s-%s", self:GetRoundId(), entry.initiativeid)
+	return string.format("%s-%s-%d", self:GetRoundId(), entry.initiativeid, entry.turnsTaken)
 end
 
 --called by DMHub to query the current combat round. zero-based result.

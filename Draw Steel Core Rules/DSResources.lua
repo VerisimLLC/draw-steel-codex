@@ -12,6 +12,7 @@ CharacterResource.villainActionId = "67f15a17-523c-4a30-8f1a-a27e4f122605"
 CharacterResource.recoveryResourceId = "5bd90f9b-46be-4cf2-8ca6-a96430d62949"
 CharacterResource.freeManeuverResourceId = "d81ce1e9-96a3-4705-9180-1c80f72a86cf"
 CharacterResource.respiteActivityId = "5758da29-8660-47d3-805b-7c6038f476a1"
+CharacterResource.rampageId = "9f418676-96be-402b-92da-0f50294146b3"
 
 monster.resourceid = CharacterResource.maliceResourceId
 character.resourceid = CharacterResource.heroicResourceId
@@ -41,6 +42,11 @@ function character:GetHeroicOrMaliceResources()
     if resources ~= nil then
         local heroicResource = resources[CharacterResource.heroicResourceId]
         if heroicResource ~= nil then
+            local q = dmhub.initiativeQueue
+            if q == nil or q.hidden or q.guid ~= heroicResource.combatid then
+                return 0
+            end
+
             return heroicResource.unbounded or 0
         end
     end
@@ -62,12 +68,97 @@ function CharacterResource.SetMalice(amount, message)
     CharacterResource.SetGlobalResource(CharacterResource.maliceResourceId, amount, message)
 end
 
+function CharacterResource.CanSpendMalice(cost)
+    cost = tonumber(cost) or 0
+    return cost <= 0 or CharacterResource.GetMalice() >= cost
+end
+
+function CharacterResource.SpendMalice(cost, message)
+    cost = tonumber(cost) or 0
+    if cost <= 0 then
+        return true
+    end
+
+    if not CharacterResource.CanSpendMalice(cost) then
+        return false
+    end
+
+    CharacterResource.SetMalice(CharacterResource.GetMalice() - cost, message)
+    return true
+end
+
 function CharacterResource.GetVillainActions()
     return CharacterResource.GetGlobalResource(CharacterResource.villainActionId)
 end
 
 function CharacterResource.SetVillainActions(amount, note)
     CharacterResource.SetGlobalResource(CharacterResource.villainActionId, amount, note)
+end
+
+-- =====================================================================
+-- VillainActionState: per-encounter tracking of which villain actions
+-- have been consumed. Lives in a shared document so all clients see
+-- the same state in real time. Reset on encounter start (hooked from
+-- InitiativeQueue.Create in MCDMInitiativeQueue.lua).
+--
+-- Keys:
+--   tokenid          - the charid of the Leader/Solo that owns the VA
+--   villainActionKey - the ability's `villainAction` field value
+--                      ("Villain Action 1" | "Villain Action 2" | ...)
+-- =====================================================================
+VillainActionState = {}
+VillainActionState.docId = "dsVillainActions"
+
+mod:RegisterDocumentForCheckpointBackups(VillainActionState.docId)
+
+function VillainActionState.GetDocPath()
+    return mod:GetDocumentPath(VillainActionState.docId)
+end
+
+function VillainActionState.HasUsed(tokenid, villainActionKey)
+    if tokenid == nil or villainActionKey == nil then return false end
+    local doc = mod:GetDocumentSnapshot(VillainActionState.docId)
+    local used = doc.data.used
+    if used == nil then return false end
+    local entry = used[tokenid]
+    if entry == nil then return false end
+    return entry[villainActionKey] == true
+end
+
+function VillainActionState.MarkUsed(tokenid, villainActionKey)
+    if tokenid == nil or villainActionKey == nil then return end
+    local doc = mod:GetDocumentSnapshot(VillainActionState.docId)
+    doc:BeginChange()
+    if doc.data.used == nil then doc.data.used = {} end
+    if doc.data.used[tokenid] == nil then doc.data.used[tokenid] = {} end
+    doc.data.used[tokenid][villainActionKey] = true
+    doc:CompleteChange("Villain Action used: " .. villainActionKey)
+end
+
+function VillainActionState.ClearUsed(tokenid, villainActionKey)
+    if tokenid == nil or villainActionKey == nil then return end
+    local doc = mod:GetDocumentSnapshot(VillainActionState.docId)
+    if doc.data.used == nil or doc.data.used[tokenid] == nil then return end
+    doc:BeginChange()
+    doc.data.used[tokenid][villainActionKey] = nil
+    doc:CompleteChange("Villain Action reset: " .. villainActionKey, {undoable = false})
+end
+
+function VillainActionState.ClearForToken(tokenid)
+    if tokenid == nil then return end
+    local doc = mod:GetDocumentSnapshot(VillainActionState.docId)
+    if doc.data.used == nil or doc.data.used[tokenid] == nil then return end
+    doc:BeginChange()
+    doc.data.used[tokenid] = nil
+    doc:CompleteChange("Villain Action state cleared for token", {undoable = false})
+end
+
+function VillainActionState.ResetAll()
+    local doc = mod:GetDocumentSnapshot(VillainActionState.docId)
+    if doc.data.used == nil then return end
+    doc:BeginChange()
+    doc.data.used = {}
+    doc:CompleteChange("Villain Action state reset (new encounter)", {undoable = false})
 end
 
 function creature:GetHeroTokens()

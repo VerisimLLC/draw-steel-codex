@@ -203,59 +203,15 @@ dmhub.RegisterEventHandler("refreshTables", function()
 
 end)
 
-local LibraryStyles = {
-	{
-		classes = {'mainContentPanel'},
-		width = 1200,
-		height = '95%',
-		halign = 'left',
-		flow = 'vertical',
-		pad = 20,
-	},
-	{
-		classes = {'label'},
-		color = 'white',
-		fontSize = 22,
-		width = 'auto',
-		height = 'auto',
-	},
-	{
-		classes = {"formLabel"},
-		width = 240,
-		textAlignment = "left",
-	},
-	{
-		classes = {'input'},
-		width = 200,
-		height = 26,
-		fontSize = 18,
-		color = 'white',
-	},
-	{
-		classes = {'formPanel'},
-		flow = 'horizontal',
-		width = 'auto',
-		height = 'auto',
-		halign = 'left',
-		vmargin = 2,
-	},
-}
-
 local ShowSkillsPanel = function(parentPanel)
 
 	local skillPanel = gui.Panel{
-		classes = 'skills-panel',
-		styles = {
-			{
-				classes = {'skills-panel'},
-				width = 1200,
-				height = '100%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "100%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local SetSkill = function(skillid)
@@ -270,16 +226,15 @@ local ShowSkillsPanel = function(parentPanel)
 		--the ID of the skill.
 		if devmode() then
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {"formStackedRow"},
 				gui.Label{
-					text = 'ID:',
-					valign = 'center',
-					minWidth = 100,
+					classes = {"formStacked"},
+					text = "ID:",
 				},
 				gui.Input{
+					classes = {"formStacked"},
 					text = skill.id,
 					editable = false,
-					width = "auto",
 				},
 			}
    		end
@@ -287,13 +242,13 @@ local ShowSkillsPanel = function(parentPanel)
 		--the name of the skill.
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Name:",
 			},
 			gui.Input{
+				classes = {"formStacked"},
 				text = skill.name,
 				change = function(element)
 					skill.name = element.text
@@ -305,16 +260,13 @@ local ShowSkillsPanel = function(parentPanel)
 		--the attribute of the skill.
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Attribute:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Attribute:",
 			},
 			gui.Dropdown{
-				width = 200,
-				height = 40,
-				fontSize = 20,
+				classes = {"formStacked"},
 				options = creature.attributeDropdownOptions,
 				idChosen = skill.attribute,
 				change = function(element)
@@ -325,33 +277,29 @@ local ShowSkillsPanel = function(parentPanel)
 		}
 
 		--whether this skill has a passive associated with it.
-		children[#children+1] = gui.Check{
-			text = "Has Passive",
-			halign = "left",
-			fontSize = 22,
-			value = cond(skill.hasPassive, true, false),
-			change = function(element)
-				skill.hasPassive = element.value
-				UploadSkill()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Has Passive",
+				value = cond(skill.hasPassive, true, false),
+				change = function(element)
+					skill.hasPassive = element.value
+					UploadSkill()
+				end,
+			},
 		}
 
 		--Skill description..
 		children[#children + 1] = gui.Panel {
-			classes = { 'formPanel' },
-			height = 'auto',
+			classes = { "formStackedRow" },
 			gui.Label {
+				classes = { "formStacked" },
 				text = "Description:",
-				valign = "center",
-				width = 135,
 			},
 			gui.Input {
+				classes = { "formStacked" },
 				text = skill.description or "",
 				multiline = true,
-				minHeight = 50,
-				height = 'auto',
-				width = 400,
-				textAlignment = "topleft",
 				change = function(element)
 					skill.description = element.text
 					UploadSkill()
@@ -360,9 +308,8 @@ local ShowSkillsPanel = function(parentPanel)
 		}
 
 		children[#children+1] = gui.Label{
+			classes = {"sizeXl", "bold"},
 			vmargin = 6,
-			fontSize = 24,
-			bold = true,
 			text = "Specializations",
 			width = "auto",
 			height = "auto",
@@ -390,7 +337,7 @@ local ShowSkillsPanel = function(parentPanel)
 							id = s.id,
 						},
 						gui.Label{
-							fontSize = 14,
+							classes = {"sizeS"},
 							width = 180,
 							height = "auto",
 							valign = "center",
@@ -405,7 +352,8 @@ local ShowSkillsPanel = function(parentPanel)
 								end
 							end,
 						},
-						gui.CloseButton{
+						gui.Button{
+							classes = {"closeButton"},
 							valign = "center",
 							click = function(element)
 								local itemPanel = element.parent

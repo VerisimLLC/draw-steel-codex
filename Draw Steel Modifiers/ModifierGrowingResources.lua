@@ -40,7 +40,7 @@ CharacterModifier.TypeInfo.growingresources = {
             for i,row in ipairs(modifier.progression) do
 
                 children[#children+1] = gui.Panel{
-                    classes = {"formPanel"},
+                    classes = {"formPanel", "formPanel-inline"},
                     gui.Label{
                         classes = {"formLabel"},
                         text = "Level:",
@@ -54,7 +54,8 @@ CharacterModifier.TypeInfo.growingresources = {
                             Refresh()
                         end,
                     },
-                    gui.DeleteItemButton{
+                    gui.Button{
+                        classes = {"deleteButton"},
                         click = function(element)
                             table.remove(modifier.progression, i)
                             Refresh()

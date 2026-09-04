@@ -18,7 +18,65 @@ local g_validFeatureTypes = {
 }
 
 local IsCharacterFeatureType = function(item)
-	return item ~= nil and g_validFeatureTypes[item.typeName] == true
+	-- The internal clipboard is a single app-wide value which can legitimately hold a
+	-- scalar (e.g. GoblinScriptEditor's "Copy" copies a numeric result value), so we
+	-- can only index it after checking it is indexable.
+	local t = type(item)
+	if t ~= "table" and t ~= "userdata" then
+		return false
+	end
+	return g_validFeatureTypes[item.typeName] == true
+end
+
+-- Class/ancestry editor search filter. The shared Search.MatchesObject caps its
+-- recursive walk at depth 6, but feature NAMES in deeply-nested structures (a
+-- level's "Domain Feature" choice -> a domain list -> the feature) land at depth
+-- 7. That made deep features (Censor "Blessing of Iron", elementalist wards)
+-- fail this filter and get hidden entirely. This is a private, editor-only copy
+-- of that matcher with a deeper cap so those features match. It is the SAME
+-- algorithm as Search.MatchesObject (verbatim needle, lowered haystack, the same
+-- multi-term AND split), only with a higher depth limit -- so every match the
+-- old filter found is still found, plus the deep ones. The shared
+-- Search.MatchesObject is deliberately NOT changed, so no other consumer (the
+-- compendium-browser list filter, language picker, ...) shifts behaviour or pays
+-- the extra walk cost. Cap 10 covers the deepest real nesting (7) with headroom
+-- (a choice inside a domain feature would be 9); names never sit deeper.
+local FEATURE_SEARCH_DEPTH = 10
+
+local function MatchesFeatureNeedleSingle(obj, needle, depth)
+	depth = depth or 0
+	if depth > FEATURE_SEARCH_DEPTH then
+		return false
+	end
+	if type(obj) == "table" then
+		for k,v in pairs(obj) do
+			if MatchesFeatureNeedleSingle(k, needle, depth+1) or MatchesFeatureNeedleSingle(v, needle, depth+1) then
+				return true
+			end
+		end
+	elseif type(obj) == "string" then
+		if string.find(string.lower(obj), needle, 1, true) ~= nil then
+			return true
+		end
+	end
+	return false
+end
+
+-- Drop-in replacement for the old MatchesSearchRecursive(obj, search) calls in
+-- this editor.
+-- Mirrors Search.MatchesObject's contract exactly (needle used verbatim, terms
+-- AND-matched) so it is a strict superset of the previous behaviour.
+local function MatchesFeatureSearch(obj, search)
+	local terms = Search.SplitTerms(search)
+	if terms == nil then
+		return MatchesFeatureNeedleSingle(obj, search, 0)
+	end
+	for _,term in ipairs(terms) do
+		if not MatchesFeatureNeedleSingle(obj, term, 0) then
+			return false
+		end
+	end
+	return true
 end
 
 local CreateFeatureSummary = function(feature, featuresList, index, parentPanel, DescribeFeature, options)
@@ -32,7 +90,6 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 		pointsCostPanel = gui.Input{
 			width = 60,
 			height = 20,
-			fontSize = 16,
 			characterLimit = 3,
 			placeholderText = "Points...",
 			text = tostring(feature:try_get("pointsCost", "")),
@@ -55,10 +112,8 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
     local importedLabel = nil
     if feature:try_get("imported", false) then
         importedLabel = gui.Label{
-            classes = {cond(feature:try_get("importOverride", false), "override", "imported")},
+            classes = {cond(feature:try_get("importOverride", false), "accent", ""), "sizeM", "bold"},
             text = cond(feature:try_get("importOverride", false), "Overwrite", "Imported"),
-            bold = true,
-            fontSize = 16,
             halign = "right",
             valign = "center",
             width = 100,
@@ -71,7 +126,7 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 	local featurePanel
 	featurePanel =  gui.Panel{
 		classes = {"formPanel", "hideOnSearchMismatch"},
-		width = 600,
+		width = "70%",
 		refreshModifier = function(element)
 			element:FireEventTree("refreshFeatures")
 			parentPanel:FireEvent("change")
@@ -85,7 +140,7 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
             end
 
             element:SetClassTree("searching", true)
-            if MatchesSearchRecursive(feature, text) then
+            if MatchesFeatureSearch(feature, text) then
                 element:SetClassTree("matchSearch", true)
             else
                 element:SetClassTree("matchSearch", false)
@@ -97,20 +152,19 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 			refreshFeatures = function(element)
 				element.text = DescribeFeature(feature)
 			end,
-            classes = {cond(feature:try_get("imported", false), cond(feature:try_get("importOverride", false), "override", "imported"))},
-			fontSize = 20,
-			valign = 'center',
-			halign = 'left',
+            classes = {cond(feature:try_get("imported", false), cond(feature:try_get("importOverride", false), "accent", "")), "sizeL"},
+			valign = "center",
+			halign = "left",
 			width = 340,
 			textWrap = true,
-			height = 'auto',
+			height = "auto",
 
             create = function(element)
             end,
 
 			rightClick = function(element)
 				local clipboardItem = dmhub.GetInternalClipboard()
-				if clipboardItem ~= nil then
+				if type(clipboardItem) == "table" then
 					clipboardItem.guid = dmhub.GenerateGuid()
 				end
 
@@ -200,16 +254,16 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 			end,
 		},
 
-		gui.SettingsButton{
-			width = 16,
-			height = 16,
+		gui.Button{
+			classes = {"settingsButton", "sizeXs"},
 			halign = "right",
+			valign = "center",
 			hmargin = 12,
 			click = function(element)
 				local fn = function(element, feature)
 					local editor = feature:PopupEditor()
 					editor.data.notifyElement = featurePanel --will receive refreshModifier events.
-					element.root:AddChild(editor)	
+					element.root:AddChild(editor)
 				end
 
 				print("Compendium:: Firing...")
@@ -219,11 +273,11 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 			end,
 		},
 
-		gui.DeleteItemButton{
+		gui.Button{
+			classes = {"deleteButton", "sizeXs"},
 			halign = "right",
-			width = 16,
-			height = 16,
-            requireConfirm = true,
+			valign = "center",
+			requireConfirm = true,
 			click = function(element)
 				table.remove(featuresList, index)
 				parentPanel:FireEvent("change")
@@ -238,14 +292,15 @@ end
 local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, classOrRace, options)
 
 	local pointsCostPanel = nil
-	
+
     local points = options.points
     options.points = nil
+    local nested = options.nested
+    options.nested = nil
 	if points then
 		pointsCostPanel = gui.Input{
 			width = 60,
 			height = 20,
-			fontSize = 16,
 			characterLimit = 3,
 			placeholderText = "Points...",
 			text = tostring(feature:try_get("pointsCost", "")),
@@ -266,27 +321,31 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 
 
 	local resultPanel
+	local m_lastSearch = ""
 
 	local children = {}
 	--some kind of choice.
 
-	local tri = gui.Panel{
-		classes = {"triangle"},
-		height = "30%",
-		width = "100% height",
-		hmargin = 4,
-		styles = Styles.triangleStyles,
+	local tri = gui.ExpandoArrow{
+		floating = true,
+		halign = "left",
+		valign = "center",
+		x = 2,
 	}
 
 	local body
+	-- Captured so the searchCompendium handler can toggle its expanded state when
+	-- auto-expanding along a matched path (mirrors the level card's header).
+	local headerPanel
 
 	local nameLabel = gui.Label{
-            classes = {cond(feature:try_get("imported", false), cond(feature:try_get("importOverride", false), "override", "imported"))},
-			fontSize = 18,
-			bold = true,
-			width = 400,
-			height = 'auto',
+            classes = {cond(feature:try_get("imported", false), cond(feature:try_get("importOverride", false), "accent", "")), "sizeL", "bold"},
+			width = 320,
+			lmargin = 20,
+			height = "auto",
+			halign = "left",
 			valign = "center",
+			textWrap = true,
             textAlignment = "left",
 			text = feature:Describe(),
 		}
@@ -294,10 +353,8 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
     local importedLabel = nil
     if feature:try_get("imported", false) then
         importedLabel = gui.Label{
-            classes = {cond(feature:try_get("importOverride", false), "override", "imported")},
+            classes = {cond(feature:try_get("importOverride", false), "accent", ""), "sizeM", "bold"},
             text = cond(feature:try_get("importOverride", false), "Overwrite", "Imported"),
-            bold = true,
-            fontSize = 16,
             halign = "right",
             valign = "center",
             width = 100,
@@ -305,36 +362,18 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
         }
     end
 
-	children[#children+1] = gui.Panel{
-
-		bgimage = "panels/square.png",
-		styles = {
-			{
-				selectors = {"header"},
-				bgcolor = "black",
-			},
-			{
-				selectors = {"header","hover"},
-				bgcolor = "#664444ff",
-			},
-		},
-
-		classes = {"header"},
-
-		hmargin = 8,
-
-		flow = "horizontal",
-		height = 30,
-		width = 600,
+	headerPanel = gui.Panel{
+		classes = {"featureCardHeader"},
 		tri,
 		nameLabel,
         pointsCostPanel,
         importedLabel,
 
-		gui.DeleteItemButton{
+		gui.Button{
+			classes = {"deleteButton", "sizeXs"},
 			halign = "right",
-			width = 16,
-			height = 16,
+			valign = "center",
+			hmargin = 8,
             requireConfirm = true,
 			click = function(element)
 				resultPanel:FireEvent("delete")
@@ -342,14 +381,19 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 		},
 
 		click = function(element)
+			if body:HasClass('collapsed-anim') and body.data ~= nil and body.data.EnsureBuilt ~= nil then
+				--expanding: build the deferred body now.
+				body.data.EnsureBuilt()
+			end
 			body:SetClass('collapsed-anim', not body:HasClass('collapsed-anim'))
 			tri:SetClass("expanded", not tri:HasClass("expanded"))
+			element:SetClass("expanded", tri:HasClass("expanded"))
 		end,
 
 		rightClick = function(element)
 
 			local clipboardItem = dmhub.GetInternalClipboard()
-			if clipboardItem ~= nil then
+			if type(clipboardItem) == "table" then
 				clipboardItem.guid = dmhub.GenerateGuid()
 			end
 
@@ -438,118 +482,66 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 		end,
 	}
 
-	local tagEditor = nil
+	children[#children+1] = headerPanel
+
+	-- The body's sub-editors are constructed by builder functions invoked from
+	-- BuildChoiceBody (lazily, on first expansion). Constructing them eagerly
+	-- here would orphan them when the body never builds: the engine warns about
+	-- (and never garbage-collects) panels created but not attached to a parent.
+	local BuildTagEditor = nil
 	if feature.typeName == "CharacterFeatChoice" then
 
-        tagEditor = gui.Panel{
-            width = "auto",
-            height = "auto",
-            flow = "vertical",
-        }
-
-
-        local RefreshTags
-
-        RefreshTags = function()
-            local tags = {
-                feat = true,
-            }
-
-            local featsTable = dmhub.GetTable(CharacterFeat.tableName) or {}
-
-            for k,feat in pairs(featsTable) do
-                if not feat:try_get("hidden", false) then
-                    for _,tag in ipairs(feat:Tags()) do
-                        tags[string.lower(tag)] = true
+        BuildTagEditor = function()
+            local tagOptions = (function()
+                local tags = { feat = true }
+                local featsTable = dmhub.GetTable(CharacterFeat.tableName) or {}
+                for _,feat in pairs(featsTable) do
+                    if not feat:try_get("hidden", false) then
+                        for _,tag in ipairs(feat:Tags()) do
+                            tags[string.lower(tag)] = true
+                        end
                     end
                 end
-            end
+                local result = {}
+                for k,_ in pairs(tags) do
+                    result[#result+1] = { id = k, text = k }
+                end
+                table.sort(result, function(a,b) return a.text < b.text end)
+                return result
+            end)()
 
-            local options = {}
-            for k,_ in pairs(tags) do
-                options[#options+1] = {
-                    id = k,
-                    text = k,
-                }
-            end
+            local tagValue = (function()
+                local v = {}
+                for _,tag in ipairs(feature:Tags()) do
+                    v[string.lower(tag)] = true
+                end
+                return v
+            end)()
 
-            table.sort(options, function(a,b) return a.text < b.text end)
+            return gui.Panel{
+                classes = {"formStackedRow"},
+                gui.Label{
+                    classes = {"formStacked"},
+                    text = "Tags:",
+                },
+                gui.Multiselect{
+                    classes = {"formStacked"},
+                    addItemText = "Add Tag...",
+                    options = tagOptions,
+                    value = tagValue,
+                    change = function(element, value)
+                        local newTags = {}
+                        for tag,_ in pairs(value) do
+                            newTags[#newTags+1] = tag
+                        end
+                        table.sort(newTags)
+                        feature.tag = string.join(newTags, ",")
+                        resultPanel:FireEvent("change")
+                    end,
+                },
+            }
+        end
 
-            local element = tagEditor
-            element.children = {}
-
-            local currentTags = feature:Tags()
-                    print("TAGS:: REFRESH", feature.tag, "is", currentTags)
-            for _,tag in ipairs(currentTags) do
-                local tagPanel = gui.Panel{
-                    classes = {"formPanel"},
-                    gui.Label{
-                        text = "Tag:",
-                        classes = {"formLabel"},
-                        minWidth = 160,
-                    },
-                    gui.Dropdown{
-                        width = 240,
-                        options = options,
-                        idChosen = tag,
-                        change = function(element)
-                            local newTags = {}
-                            for _,tag in ipairs(currentTags) do
-                                if tag ~= element.idChosen then
-                                    newTags[#newTags+1] = tag
-                                else
-                                    newTags[#newTags+1] = element.idChosen
-                                end
-                            end
-                            feature.tag = string.join(newTags,",")
-                            resultPanel:FireEvent("change")
-                            RefreshTags()
-                        end,
-                    },
-
-                    gui.DeleteItemButton{
-                        classes = cond(#currentTags == 1, {"hidden"}),
-                        floating = true,
-                        halign = "right",
-                        valign = "center",
-                        x = 16,
-                        width = 12,
-                        height = 12,
-                        requireConfirm = true,
-                        click = function(element)
-                            local newTags = {}
-                            for _,t in ipairs(currentTags) do
-                                if t ~= tag then
-                                    newTags[#newTags+1] = t
-                                end
-                            end
-                            feature.tag = string.join(newTags,",")
-                            resultPanel:FireEvent("change")
-                            RefreshTags()
-                        end,
-                    }
-                }
-                element:AddChild(tagPanel)
-            end
-
-            element:AddChild(gui.Dropdown{
-                width = 240,
-                halign = "right",
-                textOverride = "Add Tag...",
-                options = options,
-                change = function(element)
-                    local newTags = DeepCopy(currentTags)
-                    newTags[#newTags+1] = element.idChosen
-                    feature.tag = string.join(newTags,",")
-                    print("TAGS:: SET", feature.tag, "HAVE", feature:Tags())
-                    resultPanel:FireEvent("change")
-                    RefreshTags()
-                end,
-            })
-        end --end of RefreshTags function.
-
-        RefreshTags()
-       
 	elseif feature.typeName == "CharacterSingleFeat" then
 
 		local options = {
@@ -582,7 +574,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 				classes = {"formPanel"},
 				gui.Label{
 					text = "Feat:",
-					classes = {"formLabel"},
+					classes = {"form"},
 					minWidth = 160,
 				},
 				gui.Dropdown{
@@ -601,97 +593,137 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 	end
 
 	local prerequisitesEditor = nil
+	local BuildPrerequisitesEditor = nil
 	if feature.typeName == "CharacterFeatureList" then
-		local dropdown = gui.Dropdown{
-			height = 30,
-			width = 220,
-			fontSize = 14,
-			halign = "left",
+		BuildPrerequisitesEditor = function()
+			local dropdown = gui.Dropdown{
+				height = 30,
+				width = 220,
+				halign = "left",
 
-			idChosen = "none",
-			options = CharacterPrerequisite.options, 
-			change = function(element)
-				if element.idChosen ~= 'none' then
-					feature:get_or_add("prerequisites", {})
-					feature.prerequisites[#feature.prerequisites+1] = CharacterPrerequisite.Create{
-						type = element.idChosen,
-					}
-					resultPanel:FireEvent("change")
-
-					element.idChosen = 'none'
-					prerequisitesEditor:FireEvent("create")
-				end
-			end,
-		}
-
-		prerequisitesEditor = gui.Panel{
-			width = "100%",
-			height = "auto",
-			flow = "vertical",
-
-			children = {dropdown},
-
-			create = function(element)
-				local children = {dropdown}
-
-				for i,pre in ipairs(feature:try_get("prerequisites", {})) do
-					children[#children+1] = pre:Editor{
-						change = function(element)
-							resultPanel:FireEvent("change")
-						end,
-						delete = function(element)
-							table.remove(feature.prerequisites, i)
-							resultPanel:FireEvent("change")
-							prerequisitesEditor:FireEvent('create')
-						end
-					}
-				end
-
-				element.children = children
-			end,
-		}
-	end
-
-	local rulesTextEditor = nil
-
-	if feature:try_get("rulesText") ~= nil then
-		rulesTextEditor = gui.Panel{
-			classes = {"formPanel"},
-			gui.Label{
-				text = "Rules Text:",
-				classes = {"formLabel"},
-				minWidth = 160,
-			},
-			gui.Input{
-				width = 400,
-				text = feature.rulesText,
-				placeholderText = "Enter text...",
+				idChosen = "none",
+				options = CharacterPrerequisite.options,
 				change = function(element)
-					feature.rulesText = element.text
-					resultPanel:FireEvent("change")
+					if element.idChosen ~= 'none' then
+						feature:get_or_add("prerequisites", {})
+						feature.prerequisites[#feature.prerequisites+1] = CharacterPrerequisite.Create{
+							type = element.idChosen,
+						}
+						resultPanel:FireEvent("change")
+
+						element.idChosen = 'none'
+						prerequisitesEditor:FireEvent("create")
+					end
 				end,
 			}
-		}
+
+			prerequisitesEditor = gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+
+				children = {dropdown},
+
+				create = function(element)
+					local children = {dropdown}
+
+					for i,pre in ipairs(feature:try_get("prerequisites", {})) do
+						children[#children+1] = pre:Editor{
+							change = function(element)
+								resultPanel:FireEvent("change")
+							end,
+							delete = function(element)
+								table.remove(feature.prerequisites, i)
+								resultPanel:FireEvent("change")
+								prerequisitesEditor:FireEvent('create')
+							end
+						}
+					end
+
+					element.children = children
+				end,
+			}
+
+			return prerequisitesEditor
+		end
+	end
+
+	local BuildRulesTextEditor = nil
+
+	if feature:try_get("rulesText") ~= nil then
+		BuildRulesTextEditor = function()
+			return gui.Panel{
+				classes = {"formPanel"},
+				gui.Label{
+					text = "Rules Text:",
+					classes = {"form"},
+					minWidth = 160,
+				},
+				gui.Input{
+					width = 400,
+					text = feature.rulesText,
+					placeholderText = "Enter text...",
+					change = function(element)
+						feature.rulesText = element.text
+						resultPanel:FireEvent("change")
+					end,
+				}
+			}
+		end
 	end
 
 
 	if body == nil then
-		body = gui.Panel{
-			width = "100%",
-			height = "auto",
-			hmargin = 40,
-			flow = "vertical",
-			classes = {'collapsed-anim'},
+		-- Lazy body build: defer creating the body's editor panels (including the
+		-- recursive feature/choice editor subtree) until first expansion. See the
+		-- matching comment in ClassLevel:CreateEditor -- the engine pays a large
+		-- per-panel layout cost inside vscroll containers, and collapsed bodies
+		-- are most of the class editor's panel count.
+		local BuildChoiceBody
 
-			gui.Panel{
-				classes = {"formPanel"},
+		body = gui.Panel{
+			classes = {"featureCardBody", "collapsed-anim"},
+			data = {},
+
+			create = function(element)
+				if element:HasClass("collapsed-anim") then
+					element.data.pendingBuild = true
+					return
+				end
+				element.data.pendingBuild = false
+				BuildChoiceBody(element)
+				-- See ClassLevel:CreateEditor's create: re-apply any filter that
+				-- was broadcast before this deferred build ran.
+				if m_lastSearch ~= "" then
+					element:FireEventTree("searchCompendium", m_lastSearch)
+				end
+			end,
+		}
+
+		body.data.EnsureBuilt = function(searchText)
+			if not body.data.pendingBuild then
+				return false
+			end
+			body.data.pendingBuild = false
+			BuildChoiceBody(body)
+			local s = searchText or m_lastSearch
+			if s ~= nil and s ~= "" then
+				body:FireEventTree("searchCompendium", s)
+			end
+			return true
+		end
+
+		BuildChoiceBody = function(element)
+			local bodyChildren = {}
+
+			bodyChildren[#bodyChildren+1] = gui.Panel{
+				classes = {"formStackedRow"},
 				gui.Label{
+					classes = {"formStacked"},
 					text = "Name:",
-					classes = {"formLabel"},
-					minWidth = 160,
 				},
 				gui.Input{
-					width = 240,
+					classes = {"formStacked"},
 					text = feature.name,
 					change = function(element)
 						feature.name = element.text
@@ -699,62 +731,85 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 						nameLabel.text = feature:Describe()
 					end,
 				}
-			},
+			}
 
+			if BuildPrerequisitesEditor ~= nil then
+				bodyChildren[#bodyChildren+1] = BuildPrerequisitesEditor()
+			end
+			if BuildTagEditor ~= nil then
+				bodyChildren[#bodyChildren+1] = BuildTagEditor()
+			end
+			if BuildRulesTextEditor ~= nil then
+				bodyChildren[#bodyChildren+1] = BuildRulesTextEditor()
+			end
 
-			prerequisitesEditor,
+			bodyChildren[#bodyChildren+1] = gui.Panel{
+				classes = {"formStackedRow"},
+				gui.Label{
+					classes = {"formStacked"},
+					text = "Description:",
+				},
+				gui.Input{
+					classes = {"formStacked"},
+					multiline = true,
+					height = 'auto',
+					minHeight = 30,
+					placeholderText = "Enter prompt text...",
+					text = feature.description,
+					characterLimit = 2000,
 
-			tagEditor,
+					change = function(element)
+						feature.description = element.text
+						resultPanel:FireEvent("change")
+					end,
+				},
+			}
 
-			rulesTextEditor,
-
-
-			gui.Input{
-				multiline = true,
-				height = 'auto',
-				minHeight = 30,
-				width = 540,
-				placeholderText = "Enter prompt text...",
-				text = feature.description,
-				characterLimit = 2000,
-
-				change = function(element)
-					feature.description = element.text
-					resultPanel:FireEvent("change")
-				end,
-
-			},
-
-			feature:CreateEditor(classOrRace, {
+			bodyChildren[#bodyChildren+1] = feature:CreateEditor(classOrRace, {
 				change = function(element)
 					resultPanel:FireEvent("change")
 				end
-			}),
-		}
+			})
+
+			element.children = bodyChildren
+		end
 	end
 
 	children[#children+1] = body
 
 	local args = {
-        classes = {"hideOnSearchMismatch"},
-		flow = "vertical",
-		width = "auto",
+        classes = nested and {"featureCard", "featureCardNested", "hideOnSearchMismatch"} or {"featureCard", "hideOnSearchMismatch"},
 		height = "auto",
 		children = children,
 
+        -- Mirror the level card's filter (see ClassLevel:CreateEditor): element-only
+        -- SetClass (NOT SetClassTree) so a matching choice does NOT force-show its
+        -- non-matching option cards -- each option card sets its own matchSearch via
+        -- its own handler, and the hide rule {hideOnSearchMismatch, searching,
+        -- ~matchSearch} collapses the misses. On a match we also auto-expand the body
+        -- so the buried feature is actually visible: EnsureBuilt builds the deferred
+        -- body (if lazy) and re-fires the filter into the freshly built children, so
+        -- the reveal cascades down the matched path (choice -> option -> feature).
         searchCompendium = function(element, text)
+            m_lastSearch = text or ""
             if text == "" then
-                element:SetClassTree("searching", false)
-                element:SetClassTree("matchSearch", false)
+                element:SetClass("searching", false)
+                element:SetClass("matchSearch", false)
+                body:SetClass("collapsed-anim", true)
+                tri:SetClass("expanded", false)
+                headerPanel:SetClass("expanded", false)
                 return
             end
 
-            element:SetClassTree("searching", true)
-            if MatchesSearchRecursive(feature, text) then
-                element:SetClassTree("matchSearch", true)
-            else
-                element:SetClassTree("matchSearch", false)
+            element:SetClass("searching", true)
+            local matched = MatchesFeatureSearch(feature, text)
+            element:SetClass("matchSearch", matched)
+            if matched and body.data ~= nil and body.data.EnsureBuilt ~= nil then
+                body.data.EnsureBuilt(text)
             end
+            body:SetClass("collapsed-anim", not matched)
+            tri:SetClass("expanded", matched)
+            headerPanel:SetClass("expanded", matched)
         end,
 	}
 
@@ -764,6 +819,20 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 
 	resultPanel = gui.Panel(args)
 	return resultPanel
+end
+
+--A feature added from a prefab or pasted from the clipboard is a clone, so it
+--misses the canHavePrerequisites flag that the plain "Feature" option sets,
+--and its editor then hides the prerequisite dropdown. Creature templates gate
+--features by level (retainer advancement), so the flag is restored there.
+--Everywhere else keeps the previous behavior: only the plain "Feature" option
+--offers prerequisites.
+local function AllowPrerequisites(feature, container)
+	if feature ~= nil and feature.typeName == "CharacterFeature"
+		and container ~= nil and container.typeName == "CharacterTemplate" then
+		feature.canHavePrerequisites = true
+	end
+	return feature
 end
 
 function ClassLevel:CreateEditor(classOrRace, levelNum, params)
@@ -776,6 +845,8 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 	end
 
 	local resultPanel
+	local m_lastSearch = ""
+	local BuildBody
 
 	local DescribeFeature = function(feature)
 		local isupgrade = false
@@ -800,25 +871,20 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 	local args = {
 		width = "100%",
 		height = "auto",
-		bgimage = "panels/square.png",
-		bgcolor = "black",
 		flow = "vertical",
 
-		styles = {
-			Styles.ImplementationIcon,
-            {
-                selectors = {"imported"},
-                color = "#999999",
-            },
-            {
-                selectors = {"imported", "hover"},
-                color = "#bbbbbb",
-            },
-            {
-                selectors = {"override"},
-                color = "#77bb77",
-            },
-		},
+		-- No per-level styles: re-declaring the full theme stylesheet on every
+		-- level editor costs ~265ms/14-panels vs ~4ms inheriting the class-editor
+		-- root's cascade. (The dominant class-open cost was panel volume under
+		-- vscroll, addressed by the lazy body build below -- but keep inheriting.)
+		-- CALLER CONTRACT: this editor carries no theme of its own, so whatever
+		-- host mounts it MUST own the theme cascade (via ThemeEngine.MergeStyles).
+		-- Every current caller does -- Class.CreateEditor, RaceEditor, and the
+		-- compendium library-panel that hosts the Feat / GlobalRuleMod / Career /
+		-- Title / etc. editors. A new standalone host must add the cascade too,
+		-- or the editor will render unstyled.
+
+		data = {},
 
 		paste = function(element, item, index)
 			item = DeepCopy(item)
@@ -829,7 +895,52 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 			element:FireEvent("create")
 		end,
 
+		-- Track the active compendium filter so a lazily-built body can apply it
+		-- to its freshly created children (they were not mounted when the filter
+		-- was broadcast across the tree).
+		searchCompendium = function(element, text)
+			m_lastSearch = text or ""
+		end,
+
+		-- Lazy body build: when this editor is a collapsed level body, defer
+		-- building its feature cards until first expansion. The engine pays a
+		-- large constant layout cost PER PANEL inside a vscroll container
+		-- (measured ~3ms/panel, ~40x the cost outside vscroll), and ~98% of the
+		-- class editor's panels live inside collapsed bodies the user may never
+		-- open. Building them upfront froze the UI ~20s for a large class.
 		create = function(element)
+			if element:HasClass("collapsed-anim") then
+				element.data.pendingBuild = true
+				return
+			end
+			element.data.pendingBuild = false
+			BuildBody(element)
+			-- A search broadcast may already have expanded this body before
+			-- create fired (create runs at end of frame, after SetClass fires
+			-- searchCompendium). Re-apply it so the new children filter.
+			if m_lastSearch ~= "" then
+				element:FireEventTree("searchCompendium", m_lastSearch)
+			end
+		end,
+	}
+
+	-- Builds the body now if it was deferred. Returns true if it built.
+	-- searchText (optional) is applied to the new children; falls back to the
+	-- last broadcast filter.
+	args.data.EnsureBuilt = function(searchText)
+		if resultPanel == nil or not resultPanel.data.pendingBuild then
+			return false
+		end
+		resultPanel.data.pendingBuild = false
+		BuildBody(resultPanel)
+		local s = searchText or m_lastSearch
+		if s ~= nil and s ~= "" then
+			resultPanel:FireEventTree("searchCompendium", s)
+		end
+		return true
+	end
+
+	BuildBody = function(element)
 			local children = {}
 
 			for i,feature in ipairs(self.features) do
@@ -917,13 +1028,12 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 
 			children[#children+1] = gui.Dropdown{
 
-				idChosen = 'none',
+				idChosen = "none",
 				options = featureOptions,
 
 				width = 340,
 				height = 30,
-				fontSize = 16,
-				
+
 				change = function(element)
                     if g_registeredCharacterChoices[element.idChosen] ~= nil then
                         local t = g_registeredCharacterChoices[element.idChosen].type
@@ -967,7 +1077,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 						local clone = DeepCopy(clipboardItem)
 						clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 						clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-						self.features[#self.features+1] = clone
+						self.features[#self.features+1] = AllowPrerequisites(clone, classOrRace)
 						resultPanel:FireEvent("change", self)
 					else
 						local prefab = CharacterFeaturePrefabs.FindPrefab(element.idChosen)
@@ -976,7 +1086,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 							clone.prefab = element.idChosen
 							clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 							clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-							self.features[#self.features+1] = clone
+							self.features[#self.features+1] = AllowPrerequisites(clone, classOrRace)
 							resultPanel:FireEvent("change", self)
 						end
 					end
@@ -987,8 +1097,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 			}
 
 			element.children = children
-		end,
-	}
+	end
 
 	for k,v in pairs(params) do
 		args[k] = v
@@ -998,8 +1107,10 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 	return resultPanel
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMClass.lua:312
 function Class:CustomEditor(UploadFn, panels)
 end
+--]==]
 
 local SetClass = function(tableName, classPanel, classid)
 	local classTable = dmhub.GetTable(tableName) or {}
@@ -1032,14 +1143,11 @@ local SetClass = function(tableName, classPanel, classid)
 		halign = "right",
 		valign = "top",
 		gui.IconEditor{
+		classes = {"portraitImage"},
 		value = class.portraitid,
 		library = "Avatar",
-		width = 196,
-		height = "150% width",
 		autosizeimage = true,
 		allowPaste = true,
-		borderColor = Styles.textColor,
-		borderWidth = 2,
 		change = function(element)
 			class.portraitid = element.value
 			UploadClass()
@@ -1047,24 +1155,23 @@ local SetClass = function(tableName, classPanel, classid)
 		},
 
 		gui.Label{
+			classes = {"sizeXs"},
 			text = "1000x1500 image",
 			width = "auto",
 			height = "auto",
 			halign = "center",
-			color = Styles.textColor,
-			fontSize = 12,
 		},
 	}
 
 	--the name of the class.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			classes = {"formLabel"},
-			minWidth = 160,
+			classes = {"formStacked"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = class.name,
 			change = function(element)
 				class.name = string.gsub(element.text, "[-+%d]", "")
@@ -1088,7 +1195,6 @@ local SetClass = function(tableName, classPanel, classid)
 				idChosen = tostring(class.hit_die),
 				width = 200,
 				height = 40,
-				fontSize = 20,
 				change = function(element)
 					class.hit_die = tonumber(element.idChosen)
 					UploadClass()
@@ -1120,18 +1226,15 @@ local SetClass = function(tableName, classPanel, classid)
 		end
 
 		children[#children+1] = gui.Panel{
-			classes = {"formPanel"},
+			classes = {"formStackedRow"},
 			gui.Label{
+				classes = {"formStacked"},
 				text = "Primary Class:",
-				valign = "center",
-				minWidth = 160,
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = options,
 				idChosen = class.primaryClassId,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					class.primaryClassId = element.idChosen
 					class:ForceDomains()
@@ -1143,20 +1246,21 @@ local SetClass = function(tableName, classPanel, classid)
 
 	--class details.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Label{
+			classes = {"formStacked"},
 			text = "Description:",
-			valign = "center",
-			minWidth = 240,
 		},
 		gui.Input{
-			text = class.details,
+			classes = {"formStacked"},
 			multiline = true,
-			minHeight = 50,
-			height = 'auto',
-			width = 400,
+			height = "auto",
+			minHeight = 30,
+			maxHeight = 300,
+			vscroll = true,
 			textAlignment = "topleft",
+			characterLimit = 4000,
+			text = class.details,
 			change = function(element)
 				class.details = element.text
 				UploadClass()
@@ -1167,10 +1271,9 @@ local SetClass = function(tableName, classPanel, classid)
 	class:CustomEditor(UploadClass, children)
 
     children[#children+1] = gui.Label{
-        fontSize = 22,
+        classes = {"sizeXl", "bold"},
         width = "auto",
         height = "auto",
-        bold = true,
         text = "Tutorial",
     }
 
@@ -1178,10 +1281,9 @@ local SetClass = function(tableName, classPanel, classid)
 
 
     children[#children+1] = gui.Label{
-        fontSize = 22,
+        classes = {"sizeXl", "bold"},
         width = "auto",
         height = "auto",
-        bold = true,
         text = "Levels",
     }
 
@@ -1205,31 +1307,29 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 			text = string.format("Level %d", i)
 		end
 
-		local tri = gui.Panel{
-			classes = {"triangle"},
-			height = "30%",
-			width = "100% height",
-			styles = Styles.triangleStyles,
+		local tri = gui.ExpandoArrow{
+			floating = true,
+			halign = "left",
+			valign = "center",
+			x = 2,
 		}
 
 		local classLevel = class:GetLevel(i, subkey)
 
 		local summaryLabel = gui.Label{
-			fontSize = 20,
-			color = "white",
+			classes = {"sizeL"},
 			halign = "left",
 			valign = "center",
 			width = "auto",
 			height = "auto",
-			text = cond(#classLevel.features > 0, string.format("(%d %s)", #classLevel.features, cond(#classLevel.features > 1, "features", "feature")), ''),
+			text = cond(#classLevel.features > 0, string.format("(%d %s)", #classLevel.features, cond(#classLevel.features > 1, "features", "feature")), ""),
 			update = function(element)
-				element.text = cond(#classLevel.features > 0, string.format("(%d %s)", #classLevel.features, cond(#classLevel.features > 1, "features", "feature")), '')
+				element.text = cond(#classLevel.features > 0, string.format("(%d %s)", #classLevel.features, cond(#classLevel.features > 1, "features", "feature")), "")
 			end,
 		}
 
 		local editorPanel = classLevel:CreateEditor(class, i, {
-			classes = {"collapsed-anim"},
-			hmargin = 40,
+			classes = {"featureCardBody", "collapsed-anim"},
 			change = function(element)
 				class:ForceDomains()
 				UploadClass()
@@ -1238,26 +1338,12 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 		})
 
 		local header = gui.Panel{
-			classes = {"header"},
-			height = 30,
-			width = "100%",
-			flow = "horizontal",
-			bgimage = "panels/square.png",
-			styles = {
-				{
-					selectors = {"header"},
-					bgcolor = "black",
-				},
-				{
-					selectors = {"header","hover"},
-					bgcolor = "#664444ff",
-				},
-			},
+			classes = {"featureCardHeader"},
 			tri,
 			gui.Label{
-                classes = {"searchableLabel"},
+				classes = {"searchableLabel", "sizeL", "bold"},
+				lmargin = 20,
 				hmargin = 8,
-				fontSize = 20,
 				halign = "left",
 				valign = "center",
 				width = "auto",
@@ -1268,32 +1354,65 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
 			summaryLabel,
 
 			click = function(element)
+				if editorPanel:HasClass("collapsed-anim") then
+					--expanding: build the deferred body now.
+					editorPanel.data.EnsureBuilt()
+				end
 				editorPanel:SetClass("collapsed-anim", not editorPanel:HasClass("collapsed-anim"))
 				tri:SetClass("expanded", not editorPanel:HasClass("collapsed-anim"))
+				element:SetClass("expanded", tri:HasClass("expanded"))
 			end,
 
-            searchCompendium = function(element, text)
-                if text == "" then
-                    element:SetClassTree("searching", false)
-                    element:SetClassTree("matchSearch", false)
-                    return
-                end
+			searchCompendium = function(element, text)
+				if text == "" then
+					element:SetClassTree("searching", false)
+					element:SetClassTree("matchSearch", false)
+					return
+				end
 
-                element:SetClassTree("searching", true)
-                if MatchesSearchRecursive(classLevel, text) then
-                    element:SetClassTree("matchSearch", true)
-                else
-                    element:SetClassTree("matchSearch", false)
-                end
-            end,
-
+				element:SetClassTree("searching", true)
+				if MatchesFeatureSearch(classLevel, text) then
+					element:SetClassTree("matchSearch", true)
+				else
+					element:SetClassTree("matchSearch", false)
+				end
+			end,
 		}
 
 		local panel = gui.Panel{
-			height = 'auto',
+			classes = {"featureCard", "hideOnSearchMismatch"},
+			height = "auto",
 			width = 1100,
-			flow = 'vertical',
 			halign = "left",
+
+			-- Collapse the whole level card when no feature in this level matches
+			-- the filter. SetClass (element-only, NOT SetClassTree) so a matching
+			-- level does not force-show its non-matching inner feature cards --
+			-- those keep collapsing individually via their own handler. A matching
+			-- level also auto-expands its body so the matched feature is actually
+			-- visible (the body is collapsed by default); clearing the filter
+			-- restores the default collapsed state.
+			searchCompendium = function(element, text)
+				if text == "" then
+					element:SetClass("searching", false)
+					element:SetClass("matchSearch", false)
+					editorPanel:SetClass("collapsed-anim", true)
+					tri:SetClass("expanded", false)
+					header:SetClass("expanded", false)
+					return
+				end
+
+				element:SetClass("searching", true)
+				local matched = MatchesFeatureSearch(classLevel, text)
+				element:SetClass("matchSearch", matched)
+				if matched then
+					--auto-expanding to show the match: build the deferred body.
+					editorPanel.data.EnsureBuilt(text)
+				end
+				editorPanel:SetClass("collapsed-anim", not matched)
+				tri:SetClass("expanded", matched)
+				header:SetClass("expanded", matched)
+			end,
 
 			header,
 			editorPanel,
@@ -1335,44 +1454,22 @@ function Class.CreateEditor()
 
 		vscroll = true,
 		classes = 'class-panel',
-		styles = {
+		-- The class-editor root owns the theme cascade ONCE; all descendant
+		-- level/feature editors inherit it instead of each re-declaring the full
+		-- stylesheet. In the compendium the library-panel host already provides
+		-- the cascade, but merging it here keeps the editor self-sufficient in any
+		-- standalone host without re-introducing the per-panel cost.
+		styles = ThemeEngine.MergeStyles({
 			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
+				classes = {"class-panel"},
 				width = "100%-160",
-				height = '90%',
+				height = "90%",
 				maxWidth = 1200,
-				halign = 'left',
-				flow = 'vertical',
+				halign = "left",
+				flow = "vertical",
 				pad = 20,
 			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
-			Styles.ImplementationIcon,
-		},
+		}),
 	}
 
 	return classPanel
@@ -1407,15 +1504,15 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 			local children = {}
 
 			children[#children+1] = gui.Panel{
-				classes = {"formPanel"},
+				classes = {"formStackedRow"},
 				gui.Label{
-					classes = {"formLabel"},
+					classes = {"formStacked"},
 					text = "Choices:",
-					valign = "center",
 				},
 				gui.GoblinScriptInput{
-					width = 180,
+					classes = {"formStacked"},
 					value = self.numChoices,
+					multiline = false,
 					change = function(element)
 						self.numChoices = element.value
 						resultPanel:FireEvent('create')
@@ -1445,7 +1542,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 
 			children[#children+1] = gui.Check{
 				text = "Allow Duplicate Choices",
-				classes = {cond(tonumber(self.numChoices) ~= 1, nil, "hidden")},
+				classes = {cond(tonumber(self.numChoices) ~= 1, nil, "collapsed")},
 				value = self.allowDuplicateChoices,
 				change = function(element)
 					self.allowDuplicateChoices = element.value
@@ -1481,13 +1578,13 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
                     local label = nil
                     if resolved == nil then
                         label = gui.Label{
+                            classes = {"danger"},
                             text = "Inheriting choices from an invalid reference.",
-                            color = "#ff5555",
                         }
                     else
                         label = gui.Label{
+                            classes = {"success"},
                             text = string.format("Inheriting choices from: %s", resolved.name),
-                            color = "#55ff55",
                         }
                     end
 
@@ -1496,20 +1593,19 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
                         width = "auto",
                         height = "auto",
                         label,
-                        gui.DeleteItemButton{
+                        gui.Button{
+                            classes = {"deleteButton", "sizeXs"},
                             floating = true,
                             halign = "right",
                             valign = "center",
                             x = 16,
-                            width = 12,
-                            height = 12,
                             requireConfirm = true,
                             click = function(element)
                                 table.remove(self.inheritChoice, i)
-                                resultPanel:FireEvent('create')
-                                resultPanel:FireEvent('change')
+                                resultPanel:FireEvent("create")
+                                resultPanel:FireEvent("change")
                             end,
-                        }
+                        },
                     }
                 end
             end
@@ -1542,19 +1638,61 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
                 end
             end
 
-			children[#children+1] = gui.Input{
-				width = 200,
-				height = 24,
-				fontSize = 20,
-				characterLimit = 32,
-				placeholderText = "Enter name of points...",
-				classes = {cond(tonumber(self.numChoices) ~= 1 and self.costsPoints, nil, "collapsed")},
-				text = self.pointsName,
+			children[#children+1] = gui.Panel{
+				classes = {"formStackedRow", cond(tonumber(self.numChoices) ~= 1 and self.costsPoints, nil, "collapsed")},
+				gui.Label{
+					classes = {"formStacked"},
+					text = "Points name:",
+				},
+				gui.Input{
+					classes = {"formStacked"},
+					characterLimit = 32,
+					placeholderText = "Enter name of points...",
+					text = self.pointsName,
+					change = function(element)
+						self.pointsName = element.text
+						resultPanel:FireEvent('change')
+					end,
+				},
+			}
+
+			--prerequisites gating this whole choice. Until they are met the
+			--choice is hidden from the builder and grants nothing.
+			children[#children+1] = gui.Dropdown{
+				height = 30,
+				width = 220,
+				fontSize = 14,
+				halign = "left",
+				vmargin = 4,
+
+				idChosen = "none",
+				options = CharacterPrerequisite.options,
 				change = function(element)
-					self.pointsName = element.text
-					resultPanel:FireEvent('change')
+					if element.idChosen ~= 'none' then
+						self:get_or_add("prerequisites", {})
+						self.prerequisites[#self.prerequisites+1] = CharacterPrerequisite.Create{
+							type = element.idChosen,
+						}
+						element.idChosen = 'none'
+						resultPanel:FireEvent('create')
+						resultPanel:FireEvent('change')
+					end
 				end,
 			}
+
+			for i,pre in ipairs(self:try_get("prerequisites", {})) do
+				local index = i
+				children[#children+1] = pre:Editor{
+					change = function(element)
+						resultPanel:FireEvent('change')
+					end,
+					delete = function(element)
+						table.remove(self.prerequisites, index)
+						resultPanel:FireEvent('create')
+						resultPanel:FireEvent('change')
+					end,
+				}
+			end
 
 			for i,feature in ipairs(self.options) do
 				local index = i
@@ -1563,6 +1701,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 				else
 					children[#children+1] = CreateChoiceEditor(feature, self.options, index, resultPanel, classOrRace, {
                         points = self.costsPoints,
+                        nested = true,
 						change = function(element)
 							resultPanel:FireEvent("change")
 						end,
@@ -1620,16 +1759,16 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 			CharacterFeaturePrefabs.FillDropdownOptions(featureOptions)
 
 
-			children[#children+1] = gui.Dropdown{
+			children[#children+1] = gui.Panel{
+				classes = {"formStackedRow"},
+				tmargin = 12,
+				gui.Dropdown{
+					classes = {"formStacked"},
 
-				idChosen = 'none',
-				options = featureOptions,
+					idChosen = 'none',
+					options = featureOptions,
 
-				width = 160,
-				height = 30,
-				fontSize = 16,
-				
-				change = function(element)
+					change = function(element)
 					if element.idChosen == 'feature' then
 						self.options[#self.options+1] = CharacterFeature.Create{
 							source = classOrRace:FeatureSourceName(),
@@ -1657,7 +1796,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 						local clone = DeepCopy(clipboardItem)
 						clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 						clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-						self.options[#self.options+1] = clone
+						self.options[#self.options+1] = AllowPrerequisites(clone, classOrRace)
 						resultPanel:FireEvent("change", self)
 					else
 						local prefab = CharacterFeaturePrefabs.FindPrefab(element.idChosen)
@@ -1666,7 +1805,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 							clone.prefab = element.idChosen
 							clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 							clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-							self.options[#self.options+1] = clone
+							self.options[#self.options+1] = AllowPrerequisites(clone, classOrRace)
 							resultPanel:FireEvent("change", self)
 						end
 					end
@@ -1674,14 +1813,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 					--recreate this panel.
 					resultPanel:FireEvent("create")
 				end
-			}
-
-			children[#children+1] = gui.Panel{
-				bgimage = "panels/square.png",
-				width = 300,
-				height = 1,
-				bgcolor = "#999999",
-				vmargin = 8,
+				},
 			}
 
 			element.children = children
@@ -1712,96 +1844,23 @@ function CharacterSubclassChoice:CreateEditor(class, params)
 			local subclassesTable = dmhub.GetTable("subclasses") or {}
 			for k,subclass in pairs(subclassesTable) do
 				if subclass.primaryClassId == self.classid and subclass:try_get("hidden", false) == false then
+					local rowClass = (#children % 2 == 0) and "evenRow" or "oddRow"
 					children[#children+1] = gui.Panel{
-						width = '100%',
+						classes = {"row", rowClass},
+						width = "100%",
 						height = 20,
 
 						gui.Label{
+							classes = {"sizeM"},
 							text = subclass.name,
-							height = 'auto',
-							width = 'auto',
+							height = "auto",
+							width = "auto",
 							minWidth = 200,
-							fontSize = 16,
-							color = 'white',
-							valign = 'center',
+							valign = "center",
 						},
 					}
 				end
 			end
-
---		local subclassesTable = dmhub.GetTable("subclasses") or {}
---		for i,option in ipairs(self.options) do
---			local index = i
---			local subclass = subclassesTable[option]
---			if subclass ~= nil then
---				children[#children+1] = gui.Panel{
---					width = '100%',
---					height = 20,
---					flow = 'horizontal',
---
---					gui.Label{
---						text = subclass.name,
---						height = 'auto',
---						width = 'auto',
---						minWidth = 200,
---						fontSize = 16,
---						color = 'white',
---						valign = 'center',
---					},
---
---					gui.DeleteItemButton{
---						width = 16,
---						height = 16,
---						valign = 'center',
---						click = function(element)
---							table.remove(self.options, index)
---							resultPanel:FireEvent('create')
---							resultPanel:FireEvent('change')
---						end,
---					},
---				}
---			end
---		end
---
---		local options = {
---			{
---				id = 'none',
---				text = 'Add Choice...',
---			}
---		}
---
---		for k,subclass in pairs(subclassesTable) do
---			local alreadyHas = false
---			for i,option in ipairs(self.options) do
---				if option == k then
---					alreadyHas = true
---				end
---			end
---
---			if alreadyHas == false then
---				options[#options+1] = {
---					id = k,
---					text = subclass.name,
---				}
---			end
---		end
---
---		local dropdown = gui.Dropdown{
---			options = options,
---			idChosen = 'none',
---			width = 160,
---			height = 30,
---			fontSize = 16,
---			change = function(element)
---				if element.idChosen ~= 'none' then
---					self.options[#self.options+1] = element.idChosen
---					resultPanel:FireEvent('create')
---					resultPanel:FireEvent('change')
---				end
---			end,
---		}
---
---		children[#children+1] = dropdown
 
 			element.children = children
 		end,
@@ -1883,22 +1942,19 @@ mod.shared.StartingEquipmentEditor = function(options)
 
 			local entryChildren = {
 				gui.Label{
-					fontSize = 22,
-					underline = true,
+					classes = {"sizeXl", "bold", "underline"},
 					text = string.format(tr("Starting Equipment %d"), i),
-					bold = true,
 					halign = "left",
 					width = "auto",
 					height = "auto",
 
-					gui.DeleteItemButton{
+					gui.Button{
+						classes = {"deleteButton", "sizeXs"},
 						floating = true,
 						x = 32,
-						width = 16,
-						height = 16,
 						valign = "top",
 						halign = "right",
-                        requireConfirm = true,
+						requireConfirm = true,
 						click = function(element)
 							table.remove(startingEquipment, i)
 							Change()
@@ -1910,20 +1966,19 @@ mod.shared.StartingEquipmentEditor = function(options)
 			for j,option in ipairs(equipmentEntry.options) do
 				if #equipmentEntry.options > 1 then
 					entryChildren[#entryChildren+1] = gui.Label{
-						fontSize = 18,
+						classes = {"sizeL"},
 						text = string.format(tr("Option %d"), j),
 						halign = "left",
 						width = "auto",
 						height = "auto",
 
-						gui.DeleteItemButton{
+						gui.Button{
+							classes = {"deleteButton", "sizeXs"},
 							floating = true,
 							x = 16,
-							width = 16,
-							height = 16,
 							valign = "top",
 							halign = "right",
-                            requireConfirm = true,
+							requireConfirm = true,
 							click = function(element)
 								table.remove(equipmentEntry.options, j)
 								Change()
@@ -1939,7 +1994,7 @@ mod.shared.StartingEquipmentEditor = function(options)
 						width = "100%",
 						height = 32,
 						gui.Label{
-							fontSize = 16,
+							classes = {"sizeM"},
 							halign = "left",
 							valign = "center",
 							width = 200,
@@ -1947,7 +2002,6 @@ mod.shared.StartingEquipmentEditor = function(options)
 							text = (inventoryTable[itemEntry.itemid] or equipmentCategoriesTable[itemEntry.itemid] or currencyTable[itemEntry.itemid]).name,
 						},
 						gui.Input{
-							fontSize = 16,
 							width = 60,
 							height = 20,
 							valign = "center",
@@ -1963,11 +2017,11 @@ mod.shared.StartingEquipmentEditor = function(options)
 								end
 								Change()
 							end,
-						}
+						},
 					}
 				end
 
-				
+
 				entryChildren[#entryChildren+1] = gui.Dropdown{
 					options = itemOptions,
 					idChosen = "add",
@@ -1990,7 +2044,7 @@ mod.shared.StartingEquipmentEditor = function(options)
 			end
 
 			entryChildren[#entryChildren+1] = gui.Button{
-				fontSize = 18,
+				classes = {"sizeS"},
 				vmargin = 8,
 				text = "Add Option",
 				click = function(element)
@@ -2015,7 +2069,7 @@ mod.shared.StartingEquipmentEditor = function(options)
 		end
 
 		children[#children+1] = gui.Button{
-			fontSize = 18,
+			classes = {"sizeS"},
 			text = "Add Equipment",
 			click = function(element)
 				startingEquipment[#startingEquipment+1] = {

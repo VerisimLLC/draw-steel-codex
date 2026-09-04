@@ -107,8 +107,10 @@ function CBCharPanel._statusItem(selector)
             local available = 0
             local selected = 0
             for _,entry in pairs(element.data.statusEntries) do
-                available = available + entry.available
-                selected = selected + entry.selected
+                if not entry.excludeFromTotals then
+                    available = available + entry.available
+                    selected = selected + entry.selected
+                end
             end
             local parent = element:FindParentWithClass("panelStatusController")
             if parent then
@@ -752,6 +754,7 @@ function CBCharPanel._detailPanel()
         vpad = 4,
         flow = "horizontal",
         bgimage = true,
+        bgcolor = "clear",
         borderColor = CBStyles.COLORS.GOLD03,
         border = { y2 = 0, y1 = 1, x2 = 0, x1 = 0 },
         children = tabButtons,
@@ -872,34 +875,36 @@ function CBCharPanel._headerPanel()
         end,
     }
 
-    local characterName = gui.Label {
-        classes = {"builder-base", "label", "charname"},
-        text = "calculating...",
-        editable = true,
-        data = {
-            text = "",
-        },
+    local characterName = gui.Input{
+        classes = {"builder-base", "input", "primary", "charname"},
+        placeholderText = "Character Name",
+        editlag = 0.5,
         change = function(element)
-            if element.data.text ~= element.text then
-                element.data.text = element.text
-                local token = _getToken(element)
-                if token then
-                    if token.name ~= element.data.text then
-                        token.name = element.data.text
-                        _fireControllerEvent("tokenDataChanged")
-                    end
-                end
+            local token = _getToken(element)
+            if token and token.name ~= element.text then
+                token.name = element.text
+                token:UploadAppearance()
             end
+        end,
+        edit = function(element)
+            element:FireEvent("change")
         end,
         refreshBuilderState = function(element, state)
             local token = _getToken()
-            element.data.text = (token and token.name and #token.name > 0) and token.name or "Unnamed Character"
-            element.text = string.upper(element.data.text)
+            if token and token.name and #token.name > 0 then
+                element.text = token.name
+            else
+                element.text = ""
+            end
         end,
     }
 
     local level = gui.Dropdown{
-        classes = {"panel-base", "dropdown", "charlevel"},
+        classes = {"dropdown", "charlevel"},
+        width = 240,
+        height = 32,
+        halign = "center",
+        tmargin = 4,
         fontSize = 26,
         options = {
             { id = "first", text = "First Encounter",},
@@ -1007,6 +1012,15 @@ function CBCharPanel.CreatePanel()
         valign = "center",
         bgimage = true,
         flow = "vertical",
+
+        refreshBuilderState = function(element, state)
+            local kind = state:Get("tokenKind") or "hero"
+            local visible = kind == "hero"
+            element:SetClass("collapsed", not visible)
+            if not visible then
+                element:HaltEventPropagation()
+            end
+        end,
 
         headerPanel,
         detailPanel,

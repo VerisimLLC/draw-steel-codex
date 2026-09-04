@@ -9,6 +9,12 @@ function ModuleDependency.CompareVersionNum(a, b)
 	-- dummy implementation for documentation purposes only
 end
 
+--- Clone
+--- @return any
+function ModuleDependency:Clone()
+	-- dummy implementation for documentation purposes only
+end
+
 --- Equals
 --- @param other any
 --- @return boolean

@@ -139,7 +139,10 @@ local function createListItem(options)
                     if m_search ~= nil then
                         local libraryPanel = element:FindParentWithClass('library-panel')
                         if libraryPanel ~= nil then
-                            libraryPanel:FireEventTree("searchCompendium", m_search)
+                            local contentPanels = libraryPanel:GetChildrenWithClass('content-panel')
+                            for _,cp in ipairs(contentPanels) do
+                                cp:FireEventTree("searchCompendium", m_search)
+                            end
                         end
                     end
                 end,
@@ -155,7 +158,7 @@ local function createListItem(options)
                     else
                         element:SetClass("searching", true)
                         if options.contentType ~= nil then
-                            element:SetClass("matchSearch", #SearchTableForText(dmhub.GetTable(options.contentType), text, options.contentType == "charConditions") > 0)
+                            element:SetClass("matchSearch", SearchTableHasMatch(dmhub.GetTable(options.contentType), text))
 
 	                    elseif options.tableName ~= nil and options.key ~= nil then
 		                    local table = dmhub.GetTable(options.tableName)
@@ -398,48 +401,45 @@ function LanguageRelation.SetLanguage(editor, langId)
 
     local children = {}
 
-    -- Language name - static, read only
-    children[#children + 1] = gui.Label {
-        text = string.format("Related Languages for %s:", lang.name),
-        height = "auto",
-        minWidth = "240",
-    }
-
-    -- Multiselect = related languages
-    children[#children + 1] = gui.Multiselect {
-        options = candidateLangs,
-        width = 240,
-        halign = "left",
-        vmargin = 4,
-        textDefault = "Select related languages...",
-        sort = true,
-        data = {
-            lastSelected = selected,
+    children[#children + 1] = gui.Panel {
+        classes = {"formStackedRow"},
+        gui.Label {
+            classes = {"formStacked"},
+            text = string.format("Related Languages for %s:", lang.name),
         },
-		create = function(element)
-			-- Convert array to dictionary for UI
-			local selectedDict = {}
-			for _, id in ipairs(element.data.lastSelected) do
-				selectedDict[id] = true
-			end
-			element.value = selectedDict
-		end,
-        change = function(element)
-            local newSelectedDict = element.value
-            local lastSelected = element.data.lastSelected
-            -- Convert dictionary to array
-            local newSelectedArray = {}
-            for id, flag in pairs(newSelectedDict) do
-                if flag then
-                    newSelectedArray[#newSelectedArray + 1] = id
+        gui.Multiselect {
+            classes = {"formStacked"},
+            options = candidateLangs,
+            textDefault = "Select related languages...",
+            sort = true,
+            data = {
+                lastSelected = selected,
+            },
+            create = function(element)
+                -- Convert array to dictionary for UI
+                local selectedDict = {}
+                for _, id in ipairs(element.data.lastSelected) do
+                    selectedDict[id] = true
                 end
-            end
-            local changed = syncArrays(lastSelected, newSelectedArray)
-            if changed then
-                element.data.lastSelected = newSelectedArray
-                LanguageRelation.SyncRelated(langId, newSelectedArray)
-            end
-        end,
+                element.value = selectedDict
+            end,
+            change = function(element)
+                local newSelectedDict = element.value
+                local lastSelected = element.data.lastSelected
+                -- Convert dictionary to array
+                local newSelectedArray = {}
+                for id, flag in pairs(newSelectedDict) do
+                    if flag then
+                        newSelectedArray[#newSelectedArray + 1] = id
+                    end
+                end
+                local changed = syncArrays(lastSelected, newSelectedArray)
+                if changed then
+                    element.data.lastSelected = newSelectedArray
+                    LanguageRelation.SyncRelated(langId, newSelectedArray)
+                end
+            end,
+        },
     }
 
     editor.children = children
@@ -454,42 +454,12 @@ function LanguageRelation.CreateEditor()
             end
         },
         vscroll = true,
-        classes = {"class-panel"},
-        styles = {
-			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
-				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-        }
+        width = 1200,
+        height = "90%",
+        halign = "left",
+        flow = "vertical",
+        pad = 20,
+        borderBox = true,
     }
     return editor
 end

@@ -2,7 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class ActivatedAbilityReplenishBehavior:ActivatedAbilityBehavior
 --- @field resourceid string Id of the CharacterResource to replenish.
---- @field quantity nil|number Amount to restore; nil means restore to full.
+--- @field quantity nil|number|string|table Amount to restore; nil means restore to full.
 --- Behavior that replenishes a resource (such as hit points, spell slots, or action points) on the target.
 ActivatedAbilityReplenishBehavior = RegisterGameType("ActivatedAbilityReplenishBehavior", "ActivatedAbilityBehavior")
 
@@ -47,11 +47,60 @@ function ResourceChatMessage:GetResource()
     return resourceTable[self.resourceid]
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel V\ResourceChat.lua:3
 function ResourceChatMessage.Render(selfInput, message)
-    return gui.Panel{
-        width = 0, height = 0,
+    local token = selfInput:GetToken()
+    local resource = selfInput:GetResource()
+
+    if token == nil or (not token.valid) then
+        return gui.Panel{
+            width = 0, height = 0,
+        }
+    end
+
+    local resourceName = "Resource"
+    if resource ~= nil then
+        resourceName = resource.name
+    end
+
+    local modeText
+    if selfInput.mode == "replenish" then
+        modeText = string.format("+%d %s", selfInput.quantity, resourceName)
+    else
+        modeText = string.format("-%d %s", selfInput.quantity, resourceName)
+    end
+
+    local reasonLabel = nil
+    if selfInput.reason ~= "" then
+        reasonLabel = gui.Label{
+            classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
+            text = selfInput.reason,
+        }
+    end
+
+    local detailLabel = gui.Label{
+        classes = {"action-log-detail", "sizeXs", "fg"},
+        text = modeText,
     }
+
+    local card = CreateActionLogCard{
+        token = token,
+        content = {detailLabel, reasonLabel},
+    }
+
+    local resultPanel = gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        refreshMessage = function(element, message)
+        end,
+        card,
+    }
+
+    return resultPanel
 end
+--]==]
 
 function ResourceChatMessage:Undo(message)
     local token = self:GetToken()
@@ -87,6 +136,59 @@ function ResourceChatMessage:Undo(message)
     message:UploadProperties(self)
 end
 
+--- @class HealChatMessage
+--- @field tokenid string
+--- @field amount number
+--- @field text string
+HealChatMessage = RegisterGameType("HealChatMessage")
+
+HealChatMessage.tokenid = ""
+HealChatMessage.amount = 0
+HealChatMessage.text = ""
+
+--- Gets the token for this message.
+--- @return nil|CharacterToken
+function HealChatMessage:GetToken()
+    return dmhub.GetCharacterById(self.tokenid)
+end
+
+function HealChatMessage.Render(selfInput, message)
+    local token = selfInput:GetToken()
+    if token == nil or (not token.valid) then
+        return gui.Panel{
+            width = 0, height = 0,
+        }
+    end
+
+    local detailLabel = gui.Label{
+        classes = {"action-log-detail", "sizeXs", "fg"},
+        text = string.format("Regained %d Stamina", selfInput.amount),
+    }
+
+    local reasonLabel = nil
+    if selfInput.text ~= "" then
+        reasonLabel = gui.Label{
+            classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
+            text = selfInput.text,
+        }
+    end
+
+    local card = CreateActionLogCard{
+        token = token,
+        content = {detailLabel, reasonLabel},
+    }
+
+    return gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        refreshMessage = function(element, message)
+        end,
+        card,
+    }
+end
+
 ActivatedAbilityReplenishBehavior.summary = 'Replenish Resources'
 ActivatedAbilityReplenishBehavior.mode = 'replenish'
 ActivatedAbilityReplenishBehavior.quantity = '1'
@@ -105,7 +207,7 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
     if self.chooseResourceFromList then
         local resourceNames = {}
         for _,resourceid in ipairs(self:try_get("resourceOptions", {})) do
-            local resourceInfo = resourceTable[self.resourceid]
+            local resourceInfo = resourceTable[resourceid]
             if resourceInfo ~= nil then
                 resourceNames[#resourceNames+1] = resourceInfo.name
             end
@@ -135,28 +237,12 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
         end
         quantity = safe_toint(roll)
     else
-        local dialog
-        local existingEmbedded = CharacterPanel.FindEmbeddedRollDialog()
-        if existingEmbedded ~= nil then
-            dialog = existingEmbedded
-        else
-            local displayed = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true})
-            if displayed then
-                options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
-                options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function()
-                    CharacterPanel.HideAbility(ability)
-                end
-            end
-
-            local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
-            if embeddedDialog ~= nil then
-                dialog = embeddedDialog
-                for j=1,4 do
-                    coroutine.yield(0.01)
-                end
-            else
-                dialog = GameHud.instance.rollDialog
-            end
+        --Acquire the embedded roll dialog, queuing behind any other ability
+        --roll in progress. The helper installs the cast-aware HideAbility
+        --OnFinishCast handler. See CharacterPanel.AcquireAbilityRollDialog.
+        local dialog = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
+        if dialog == nil or (not dialog.valid) or dialog.data == nil then
+            return
         end
 
         dialog.data.ShowDialog{
@@ -165,6 +251,10 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
             roll = roll,
             creature = casterToken.properties,
             skipDeterministic = true,
+            --Keep the dialog up after the dice settle so the roll ends with an
+            --Accept Result / Re-roll step, consistent with power rolls.
+            showDialogDuringRoll = true,
+            amendable = true,
             cancelRoll = function()
                 rollCanceled = true
             end,
@@ -269,6 +359,11 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
 
                 for i,resourceid in ipairs(self:try_get("resourceOptions", {})) do
                     local resourceInfo = resourceTable[resourceid]
+                    if resourceInfo == nil then
+                        dmhub.CloudError(string.format("AbilityReplenish: no resourceInfo for resourceid=%s ability=%s (resourceOptions dialog)",
+                            tostring(resourceid), tostring(ability and ability.name)))
+                        goto continue_opts
+                    end
 
                     local iconid = resourceInfo.iconid
                     if resourceInfo.hasLargeDisplay then
@@ -290,8 +385,8 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                         width = "auto",
                         height = 160,
 
-                        gui.PagingArrow{
-                            facing = -1,
+                        gui.Button{
+                            classes = {"pagingArrow"},
                             height = "30%",
                             refreshResources = function(element)
                                 element:SetClass("hidden", resourceidToQuantity[resourceid] <= 0)
@@ -348,8 +443,8 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                             }
                         },
 
-                        gui.PagingArrow{
-                            facing = 1,
+                        gui.Button{
+                            classes = {"pagingArrow", "right"},
                             height = "30%",
                             refreshResources = function(element)
                                 element:SetClass("hidden", resourceidToQuantity[resourceid] >= quantity)
@@ -361,6 +456,7 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                             end,
                         },
                     }
+                    ::continue_opts::
                 end
 
                 dialogPanel = gui.Panel{
@@ -376,7 +472,8 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                         RecalculateResources()
                     end,
 
-                    gui.CloseButton{
+                    gui.Button{
+                        classes = {"closeButton"},
                         floating = true,
                         halign = "right",
                         valign = "top",
@@ -444,10 +541,10 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
 
                         },
 
-                        gui.Divider{
+                        gui.MCDMDivider{
                         },
 
-                        gui.PrettyButton{
+                        gui.Button{
                             text = "Confirm",
                             click = function()
                                 finished = true
@@ -520,6 +617,11 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
 
                         for resourceid,quantity in pairs(resourceidToQuantity) do
                             local resourceInfo = resourceTable[resourceid]
+                            if resourceInfo == nil then
+                                dmhub.CloudError(string.format("AbilityReplenish: no resourceInfo for resourceid=%s ability=%s mode=%s quantity=%s",
+                                    tostring(resourceid), tostring(ability and ability.name), tostring(self.mode), tostring(quantity)))
+                                goto continue
+                            end
                             if self.mode == "replenish" then
 
                                 if not self:try_get("chatonly", false) then
@@ -542,6 +644,7 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                                 end
 
                             end
+                            ::continue::
                         end
 
                     end,
@@ -598,9 +701,8 @@ function ActivatedAbilityReplenishBehavior:EditorItems(parentPanel)
                         text = resourceInfo.name,
                     },
 
-                    gui.DeleteItemButton{
-                        width = 12,
-                        height = 12,
+                    gui.Button{
+                        classes = {"deleteButton", "sizeXs"},
                         click = function(element)
                             local options = self:try_get("resourceOptions", {})
                             table.remove(options, index)

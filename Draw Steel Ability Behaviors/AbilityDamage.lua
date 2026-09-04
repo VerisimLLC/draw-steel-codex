@@ -89,7 +89,8 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 		local symbols = DeepCopy(options.symbols or {})
 
 		if #targets == 1 and targets[1].token ~= nil and targets[1].token.properties ~= nil then
-			symbols.target = targets[1].token.properties:LookupSymbol()
+			--Set target as creature properties
+			symbols.target = targets[1].token.properties
 		end
 
 		--target hints for the dialog to set up. These show things like expected damage.
@@ -155,31 +156,17 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
         end
 
         local rollStr = dmhub.EvalGoblinScript(targetGroup.roll, casterToken.properties:LookupSymbol(symbols), string.format("Damage roll for %s", ability.name))
+        local isRolledDamage = not dmhub.IsRollDeterministic(rollStr)
+        local damageDice = GameSystem.GetDamageDiceInRoll(rollStr)
 		local rollid = nil
         print("ROLL:: SHOW", rollStr)
 
-		local dialog
-		local existingEmbedded = CharacterPanel.FindEmbeddedRollDialog()
-		if existingEmbedded ~= nil then
-			dialog = existingEmbedded
-		else
-			local displayed = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true})
-			if displayed then
-				options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
-				options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function()
-					CharacterPanel.HideAbility(ability)
-				end
-			end
-
-			local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
-			if embeddedDialog ~= nil then
-				dialog = embeddedDialog
-				for j=1,4 do
-					coroutine.yield(0.01)
-				end
-			else
-				dialog = GameHud.instance.rollDialog
-			end
+		--Acquire the embedded roll dialog, queuing behind any other ability
+		--roll in progress. The helper installs the cast-aware HideAbility
+		--OnFinishCast handler. See CharacterPanel.AcquireAbilityRollDialog.
+		local dialog = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
+		if dialog == nil or (not dialog.valid) or dialog.data == nil then
+			return false
 		end
 
 		rollid = dialog.data.ShowDialog{
@@ -192,6 +179,10 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 			delayInstant = cond(hasProjectile, 2, 0),
 			skipDeterministic = true,
 			type = 'damage',
+			--Keep the dialog up after the dice settle so the roll ends with an
+			--Accept Result / Re-roll step, consistent with power rolls.
+			showDialogDuringRoll = true,
+			amendable = true,
 			cancelRoll = function()
 				rollCanceled = true
 			end,
@@ -243,6 +234,34 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 					local damageEntries = {}
 
 					for catName,value in pairs(rollInfo.categories) do
+
+						--Patron damage handling (Acolyte class). If the behavior's
+						--damageType is "patron" (or the roll categorized damage as
+						--"patron"), substitute the caster's patron-element damage
+						--type and tag this damage event with patrondamage=true.
+						--Falls back to "untyped" if the caster has no patron set.
+						local catPatronDamage = false
+						local effectiveCatName = catName
+						if string.lower(tostring(catName)) == "patron" then
+							catPatronDamage = true
+							local resolved = nil
+							if casterToken.properties.PatronDamageType ~= nil then
+								resolved = casterToken.properties:PatronDamageType()
+							end
+							if type(resolved) == "string" and resolved ~= "" then
+								effectiveCatName = string.lower(resolved)
+							else
+								effectiveCatName = "untyped"
+								local cast = options.symbols and options.symbols.cast
+								if cast == nil or not cast:try_get("_tmp_patronDamageWarned", false) then
+									if cast ~= nil then cast._tmp_patronDamageWarned = true end
+									print(string.format(
+										"PATRON DAMAGE:: caster has no patron_damage_type set; emitting untyped for AbilityDamage on %s.",
+										ability.name
+									))
+								end
+							end
+						end
 
 						for j=1,target.count do
 
@@ -297,16 +316,17 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
                             if damageAmount > 0 then
                                 damageEntries[#damageEntries+1] = {
                                     amount = damageAmount,
-                                    catName = catName,
+                                    catName = effectiveCatName,
+                                    patrondamage = catPatronDamage,
                                     desc = string.format("%s's %s%s", casterName, ability.name, info.saveText),
                                 }
 
                                 if logMessage ~= nil then
                                     logMessage.amount = damageAmount
-                                    if catName == "untyped" then
+                                    if effectiveCatName == "untyped" then
                                         logMessage.damageType = nil
                                     else
-                                        logMessage.damageType = catName
+                                        logMessage.damageType = effectiveCatName
                                     end
                                 end
                             end
@@ -327,8 +347,8 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 						description = "Damaged",
 						execute = function()
 							for _,entry in ipairs(damageEntries) do
-								local res = targetCreature:InflictDamageInstance(entry.amount, entry.catName, ability.keywords, entry.desc, {attacker = casterToken.properties, ability = ability, hasability = true, pusher = options.symbols.pusher, cannotBeReduced = self:try_get("cannotBeReduced"), doesNotTrigger = self:try_get("doesNotTrigger")})
-								options.symbols.cast:CountDamage(target.token, res.damageDealt, entry.amount)
+								local res = targetCreature:InflictDamageInstance(entry.amount, entry.catName, ability.keywords, entry.desc, {attacker = casterToken.properties, ability = ability, hasability = true, pusher = options.symbols.pusher, cannotBeReduced = self:try_get("cannotBeReduced"), doesNotTrigger = self:try_get("doesNotTrigger"), hasrolleddamage = isRolledDamage, damagedice = damageDice, cast = options.symbols.cast, patrondamage = entry.patrondamage})
+								options.symbols.cast:CountDamage(target.token, res.damageDealt, entry.amount, isRolledDamage, entry.patrondamage)
                                 print("DAMAGE:: COUNT", res.damageDealt)
 							end
 
@@ -388,11 +408,7 @@ ActivatedAbilityDamageChatMessage.casterid = ""
 ActivatedAbilityDamageChatMessage.targetids = {}
 
 function ActivatedAbilityDamageChatMessage:Render(message)
-    local resultPanel
-
     local token = self:GetCasterToken()
-    local targets = self:GetTargetTokens()
-
 
     if token == nil or (not token.valid) then
         return gui.Panel{
@@ -400,26 +416,14 @@ function ActivatedAbilityDamageChatMessage:Render(message)
         }
     end
 
-    local resultPanel
-
-    local tokenPanel = gui.CreateTokenImage(token,{
-        scale = 0.9,
-        valign = "center",
-        halign = "left",
-
-        interactable = true,
-        hover = gui.Tooltip(token.name),
-    })
-
     local targetTokenPanels = {}
     for _,tok in ipairs(self:GetTargetTokens()) do
         if tok.valid then
             targetTokenPanels[#targetTokenPanels+1] = gui.CreateTokenImage(tok, {
-                width = 32,
-                height = 32,
+                width = 28,
+                height = 28,
                 valign = "center",
                 halign = "left",
-
                 interactable = true,
                 hover = gui.Tooltip(tok.name),
             })
@@ -433,66 +437,46 @@ function ActivatedAbilityDamageChatMessage:Render(message)
 
     local messageText = string.format("%d%s damage", self.amount, damageTypeText)
 
-    resultPanel = gui.Panel{
-        classes = {"chat-message-panel"},
+    local detailLabel = gui.Label{
+        classes = {"action-log-detail", "sizeXs", "fg"},
+        text = self.chatMessage,
+    }
 
- 
+    local damageLabel = gui.Label{
+        classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
+        text = messageText,
+    }
+
+    local targetsPanel = nil
+    if #targetTokenPanels > 0 then
+        targetsPanel = gui.Panel{
+            floating = true,
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "top",
+            flow = "horizontal",
+            wrap = true,
+            maxWidth = 90,
+            rmargin = 6,
+            tmargin = 2,
+            children = targetTokenPanels,
+        }
+    end
+
+    local card = CreateActionLogCard{
+        token = token,
+        content = {detailLabel, damageLabel, targetsPanel},
+    }
+
+    local resultPanel = gui.Panel{
+        classes = {"chat-message-panel"},
         flow = "vertical",
         width = "100%",
         height = "auto",
-
         refreshMessage = function(element, message)
         end,
-
-        gui.Panel{
-			classes = {'separator'},
-		},
-
-        gui.Panel{
-
-            width = "100%",
-            height = "auto",
-            flow = "horizontal",
-
-            tokenPanel,
-
-            gui.Panel{
-                flow = "vertical",
-                width = "100%-80",
-                height = "auto",
-                halign = "right",
-                valign = "top",
-
-                gui.Label{
-                    fontSize = 14,
-                    width = "auto",
-                    height = "auto",
-                    maxWidth = 420,
-                    halign = "left",
-                    valign = "top",
-                    text = string.format("<b>%s</b>\n%s", self.chatMessage, messageText),
-                    hover = function(element)
-                        local token = self:GetCasterToken()
-                        if token == nil then
-                            return
-                        end
-	                    local dock = element:FindParentWithClass("dock")
-	                    element.tooltipParent = dock
-
-                        --TODO: show a more detailed breakdown of damage messaging.
-                    end,
-                },
-
-                gui.Panel{
-                    width = "50%",
-                    height = "auto",
-                    halign = "left",
-                    flow = "horizontal",
-                    wrap = true,
-                    children = targetTokenPanels,
-                }
-            },
-        },
+        card,
     }
 
     return resultPanel

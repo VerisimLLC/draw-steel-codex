@@ -109,8 +109,8 @@ end
 --- @return table languages Flag table of language ID's
 function DTBusinessRules.GetGlobalLanguages()
     local languages = {}
-    local globalRules = dmhub.GetTable(GlobalRuleMod.TableName)
-    for _, rule in pairs(globalRules) do
+    --Includes the currently-live encounter's rules, applied in the same way as global rules.
+    for _, rule in ipairs(GlobalRuleMod.GetActiveRuleMods()) do
         if rule:try_get("modifierInfo") and rule.modifierInfo:try_get("features") then
             for _, feature in pairs(rule.modifierInfo.features) do
                 if feature.typeName == "CharacterFeature" and feature:try_get("modifiers") then
@@ -278,4 +278,80 @@ function DTBusinessRules.ExtractLanguagesToIds(text)
     end
 
     return langIds
+end
+
+--- Applies a selected source (crafting item or downtime activity) onto a project,
+--- populating the project's fields. The caller is responsible for wrapping this in
+--- token:ModifyProperties and for refreshing the UI afterward.
+--- @param project DTProject The project to populate
+--- @param sourceType string Either "crafting" or "activity"
+--- @param selectedId string The GUID of the chosen equipment item or downtime activity
+--- @return DTProject|nil project The populated project, or nil if nothing was applied
+function DTBusinessRules.ApplySourceToProject(project, sourceType, selectedId)
+    if not project or not selectedId or #selectedId == 0 then
+        return nil
+    end
+
+    if sourceType == "crafting" then
+        local item = dmhub.GetTable(equipment.tableName)[selectedId]
+        if item then
+            project:SetTitle(item.name)
+                :SetItemID(selectedId)
+                :SetActivityID("")
+                :SetItemPrerequisite(item.itemPrerequisite)
+                :SetProjectSource(item.projectSource)
+                :SetProjectGoal(tonumber(item.projectGoal:match("^%d+")))
+                :SetTestCharacteristics(DTHelpers.FlagListToList(item.projectRollCharacteristic))
+                :SetProjectSourceLanguages(DTBusinessRules.ExtractLanguagesToIds(item.projectSource))
+            return project
+        end
+    elseif sourceType == "activity" then
+        local activity = dmhub.GetTable(DowntimeActivity.tableName)[selectedId]
+        if activity then
+            project:SetTitle(activity:GetName())
+                :SetActivityID(selectedId)
+                :SetItemID("")
+                :SetItemPrerequisite(activity:GetItemPrerequisite())
+                :SetProjectSource(activity:GetProjectSource())
+                :SetProjectGoal(tonumber(activity:GetProjectGoal():match("^%d+")))
+                :SetTestCharacteristics(activity:GetTestCharacteristics())
+                :SetProjectSourceLanguages(activity:GetProjectSourceLanguages())
+            return project
+        end
+    end
+
+    return nil
+end
+
+--- Calculates the next milestone stop for a project.
+--- A goal of 30 or less has no milestone stops. Larger goals stop at fixed
+--- fractions of the goal, always rounded down, and the next stop is the lowest
+--- one the project has not yet passed.
+--- @param project DTProject The project to evaluate
+--- @return number|nil milestone The next milestone stop, nil if there is none
+function DTBusinessRules.CalcNextMilestone(project)
+    if not project then return nil end
+    if project:GetStatus() == DTConstants.STATUS.COMPLETE.key then return nil end
+
+    local goal = project:GetProjectGoal() or 0
+    if goal <= 30 then return nil end
+
+    --Numerator and denominator rather than a decimal, because a third of an
+    --exact multiple of three has to land on the multiple and 0.33 * 300 does not.
+    local stops
+    if goal <= 200 then
+        stops = {{1, 2}}
+    elseif goal <= 999 then
+        stops = {{1, 3}, {2, 3}}
+    else
+        stops = {{1, 4}, {1, 2}, {3, 4}}
+    end
+
+    local progress = project:GetProgress()
+    for _, stop in ipairs(stops) do
+        local threshold = math.floor(goal * stop[1] / stop[2])
+        if threshold > progress then return threshold end
+    end
+
+    return nil
 end

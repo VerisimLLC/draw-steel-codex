@@ -24,9 +24,9 @@ CharacterModifier.TypeInfo.modrider = {
 
 		children[#children+1] = modifier:FilterConditionEditor()
 
-        children[#children+1] = gui.PrettyButton{
+        children[#children+1] = gui.Button{
+            classes = {"sizeL"},
 			width = 200,
-			height = 50,
 			text = "Edit Modifiers",
 			click = function(element)
 				element.root:AddChild(modifier.feature:PopupEditor())

@@ -17,7 +17,8 @@ LaunchablePanel.Register{
 BackupsDialog = function()
     local resultPanel
     resultPanel = gui.Panel{
-        width = 1200,
+        styles = ThemeEngine.GetStyles(),
+        width = 600,
         height = 800,
         pad = 16,
         flow = "vertical",
@@ -25,7 +26,7 @@ BackupsDialog = function()
         valign = "center",
 
         gui.Label{
-            classes = {"title"},
+            classes = {"dialogTitle"},
             valign = "top",
             halign = "center",
             text = "Backups",
@@ -67,16 +68,14 @@ BackupsDialog = function()
                 flow = "vertical",
 
                 gui.Button{
+                    classes = {"sizeL"},
                     data = {
                         fname = "",
                         type = "",
                     },
-                    fontSize = 28,
                     text = "Restore Backup",
                     halign = "center",
                     valign = "center",
-                    width = 240,
-                    height = 40,
                     startRestore = function(element, fname, type)
                         element.data.fname = fname
                         element.data.type = type
@@ -103,12 +102,10 @@ BackupsDialog = function()
                 },
 
                 gui.Button{
-                    fontSize = 28,
+                    classes = {"sizeL"},
                     text = "Cancel",
                     halign = "center",
                     valign = "center",
-                    width = 240,
-                    height = 40,
 
                     click = function(element)
                         resultPanel:FireEventTree("cancelRestore")
@@ -116,7 +113,6 @@ BackupsDialog = function()
                 },
 
                 gui.Label{
-                    fontSize = 16,
                     valign = "bottom",
                     halign = "left",
                     width = "auto",
@@ -143,7 +139,7 @@ BackupsDialog = function()
             },
 
             gui.Panel{
-                flow = "horizontal",
+                flow = "vertical",
                 width = "100%",
                 height = 740,
 
@@ -155,17 +151,14 @@ BackupsDialog = function()
                     element:SetClass("collapsed", false)
                 end,
 
-                --game backups.
                 gui.Panel{
                     flow = "vertical",
-                    halign = "left",
-                    width = 520,
+                    width = "100%",
                     height = "100%",
 
                     gui.Label{
-                        classes = {"title"},
+                        classes = {"dialogTitle"},
                         text = "Game Backups",
-                        fontSize = 28,
                         width = "auto",
                         height = "auto",
                         halign = "center",
@@ -174,7 +167,7 @@ BackupsDialog = function()
                     gui.Panel{
                         vscroll = true,
 
-                        width = 520,
+                        width = "100%",
                         height = 600,
                         halign = "left",
                         valign = "center",
@@ -186,10 +179,11 @@ BackupsDialog = function()
                         refreshBackups = function(element)
                             local children = {}
                             local manifest = backup.manifest
-                            for _,entry in ipairs(manifest.entries) do
+                            for i,entry in ipairs(manifest.entries) do
                                 children[#children+1] = gui.Panel{
+                                    classes = {"row", cond(i%2 == 0, "evenRow", "oddRow")},
                                     flow = "horizontal",
-                                    width = 400,
+                                    width = "100%-6",
                                     height = 40,
                                     halign = "left",
                                     gui.Panel{
@@ -203,8 +197,6 @@ BackupsDialog = function()
                                             valign = "center",
                                             width = "auto",
                                             height = "auto",
-                                            fontSize = 16,
-                                            color = Styles.textColor,
                                         },
                                         gui.Label{
                                             text = DescribeServerTimestamp(entry.timestamp),
@@ -212,25 +204,22 @@ BackupsDialog = function()
                                             valign = "center",
                                             width = "auto",
                                             height = "auto",
-                                            fontSize = 16,
-                                            color = Styles.textColor,
                                         },
                                     },
 
                                     gui.Button{
+                                        classes = {"sizeS"},
                                         text = "Restore",
-                                        fontSize = 14,
                                         halign = "right",
                                         valign = "center",
                                         click = function()
                                             resultPanel:FireEventTree("startRestore", entry.fname, "game")
-                                            --backup.RestoreGame(entry.fname)
                                         end,
                                     },
 
                                     gui.Button{
+                                        classes = {"sizeS"},
                                         text = "Delete",
-                                        fontSize = 14,
                                         halign = "right",
                                         valign = "center",
                                         click = function()
@@ -268,12 +257,11 @@ BackupsDialog = function()
 
                     gui.Panel{
                         flow = "horizontal",
-                        width = 520,
+                        width = "100%",
                         height = 40,
                         halign = "left",
                         valign = "bottom",
                         gui.Label{
-                            fontSize = 18,
                             valign = "center",
                             text = "Auto-backup every",
                             width = "auto",
@@ -282,9 +270,10 @@ BackupsDialog = function()
 
                         gui.Input{
                             width = 40,
-                            height = 30,
-                            fontSize = 18,
+                            -- height = 30,
+                            hmargin = 8,
                             valign = "center",
+                            textAlignment = "center",
                             text = tostring(backup.autoBackupInterval),
                             change = function(element)
                                 local val = tonumber(element.text)
@@ -298,9 +287,8 @@ BackupsDialog = function()
                         },
 
                         gui.Label{
-                            fontSize = 18,
                             valign = "center",
-                            text = "minutes",
+                            text = "minutes.",
                             width = "auto",
                             height = "auto",
                         },
@@ -308,133 +296,11 @@ BackupsDialog = function()
                     },
 
                     gui.Button{
+                        classes = {"sizeM"},
                         valign = "bottom",
-                        fontSize = 18,
                         text = "Backup Game",
                         click = function(element)
                             backup.BackupGame()
-                            resultPanel:FireEventTree("refreshBackups")
-                        end,
-                    },
-                },
-
-                --map backups.
-                gui.Panel{
-                    flow = "vertical",
-                    halign = "right",
-                    width = 520,
-                    height = "100%",
-
-                    gui.Label{
-                        classes = {"title"},
-                        text = "Map Backups",
-                        fontSize = 28,
-                        width = "auto",
-                        height = "auto",
-                        halign = "center",
-                    },
-
-                    gui.Panel{
-                        vscroll = true,
-
-                        width = 520,
-                        height = 600,
-                        halign = "left",
-                        valign = "center",
-                        flow = "vertical",
-
-                        create = function(element)
-                            element:FireEvent("refreshBackups")
-                        end,
-                        refreshBackups = function(element)
-                            local children = {}
-                            local manifest = backup.mapManifest
-                            for _,entry in ipairs(manifest.entries) do
-                                children[#children+1] = gui.Panel{
-                                    flow = "horizontal",
-                                    width = 400,
-                                    height = 40,
-                                    halign = "left",
-                                    gui.Panel{
-                                        flow = "vertical",
-                                        width = "auto",
-                                        height = "auto",
-                                        halign = "left",
-                                        gui.Label{
-                                            text = entry.fname,
-                                            halign = "left",
-                                            valign = "center",
-                                            width = "auto",
-                                            height = "auto",
-                                            fontSize = 16,
-                                            color = Styles.textColor,
-                                        },
-                                        gui.Label{
-                                            text = DescribeServerTimestamp(entry.timestamp),
-                                            halign = "left",
-                                            valign = "center",
-                                            width = "auto",
-                                            height = "auto",
-                                            fontSize = 16,
-                                            color = Styles.textColor,
-                                        },
-                                    },
-
-                                    gui.Button{
-                                        text = "Restore",
-                                        fontSize = 14,
-                                        halign = "right",
-                                        valign = "center",
-                                        click = function()
-                                            resultPanel:FireEventTree("startRestore", entry.fname, "map")
-                                            --backup.RestoreGame(entry.fname)
-                                        end,
-                                    },
-
-                                    gui.Button{
-                                        text = "Delete",
-                                        fontSize = 14,
-                                        halign = "right",
-                                        valign = "center",
-                                        click = function()
-                                            GameHud.instance:ModalMessage{
-                                                title = "Delete Backup",
-                                                message = "Are you sure you want to delete this backup?",
-                                                options = {
-                                                    {
-                                                        text = "Cancel",
-                                                    },
-                                                    {
-                                                        text = "Delete",
-                                                        execute = function()
-                                                            backup.DeleteBackup(entry.fname)
-                                                            resultPanel:FireEventTree("refreshBackups")
-                                                        end,
-                                                    },
-                                                }
-                                            }
-                                        end,
-                                    },
-
-                                }
-                            end
-
-                            local c = {}
-                            for i = #children, 1, -1 do
-                                c[#c+1] = children[i]
-                            end
-
-                            element.children = c
-                        end,
-                    },
-
-                    gui.Button{
-                        valign = "bottom",
-                        halign = "right",
-                        fontSize = 18,
-                        text = "Backup Map",
-                        click = function(element)
-                            backup.BackupMap()
                             resultPanel:FireEventTree("refreshBackups")
                         end,
                     },

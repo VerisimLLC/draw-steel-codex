@@ -4,6 +4,7 @@
 --- @field maxGamePasswordLength number The maximum allowed length for a game password.
 --- @field gamesRevision number A revision counter that increments whenever the games list is updated.
 --- @field games LuaGameInfo[] Returns a list of LuaGameInfo objects for all non-deleted games the current user belongs to.
+--- @field eotwGameid nil|string The id of the player's current Encounter of the Week game, or nil. EotW games live in a dedicated account slot (one per account) rather than the games list, so they never appear in the campaigns lobby.
 --- @field createdGameId nil|string The ID of the most recently created game, or nil if none has been created.
 --- @field createdGameIdAge number The time in seconds since the last game was created or joined.
 --- @field deletedGameId nil|string The ID of the most recently deleted game, or nil if none has been deleted.
@@ -15,9 +16,85 @@ function lobby:EnterLobbyGame(callback)
 	-- dummy implementation for documentation purposes only
 end
 
+--- ClearEotwGame: Clears the account's Encounter of the Week slot if it currently points at the given game id. Use when the slot's game turns out to be deleted or missing; joining/creating a new EotW game overwrites the slot on its own.
+--- @param gameid string
+--- @return nil
+function lobby:ClearEotwGame(gameid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetVisibleGames: Declares the set of games currently shown on screen. The engine keeps a live metadata subscription open only for these games (plus always-on games such as the lobby); games scrolled off-screen keep their last-fetched snapshot but stop receiving live updates. Pass a Lua array of game id strings. All of the user's games are still loaded once at startup, so the full lobby list, search, and pagination keep working regardless of what is reported here.
+--- @param gameids string[] Array of game id strings currently visible on screen.
+function lobby:SetVisibleGames(gameids)
+	-- dummy implementation for documentation purposes only
+end
+
+--- FetchGameContent: Fetches the content (compendium tables and, on demand, characters) of another game the user belongs to, for browsing and importing into the current game. Returns a LuaRemoteGameContent immediately; options may contain 'ready' (called with the content object once fetched) and 'error' (called with an error message string).
+--- @param gameid string The id of the source game.
+--- @param options table Options with optional 'ready' and 'error' callback fields.
+--- @return LuaRemoteGameContent
+function lobby:FetchGameContent(gameid, options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- MigrateGameToDurableObjects: Migrate an existing Firebase-backed game to Cloudflare Durable Objects. Options table can contain 'progress' (function called with status and progress 0-1) and 'complete' (function called with success bool and optional error string).
+--- @param gameid string The id of the game to migrate.
+--- @param options table Options with optional 'progress' and 'complete' callback fields.
+function lobby:MigrateGameToDurableObjects(gameid, options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- MigrateGameToStagingDurableObjects: Migrate an existing Firebase-backed game to the staging Cloudflare Durable Object. Same semantics as MigrateGameToDurableObjects, but targets the staging Worker rather than release. Options table can contain 'progress' (function called with status and progress 0-1) and 'complete' (function called with success bool and optional error string).
+--- @param gameid string The id of the game to migrate.
+--- @param options table Options with optional 'progress' and 'complete' callback fields.
+function lobby:MigrateGameToStagingDurableObjects(gameid, options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CloneFirebaseGameToStagingDO: Clone a Firebase-backed game into a new game backed by the staging Durable Object. The source game is left untouched. Options table can contain 'progress' (function called with status and progress 0-1) and 'complete' (function called with success bool, new gameid string, and optional error string).
+--- @param gameid string The id of the source Firebase game to clone.
+--- @param options table Options with optional 'progress' and 'complete' callback fields.
+function lobby:CloneFirebaseGameToStagingDO(gameid, options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CloneDOGameToOtherEnvironment: Clone a Durable-Object-backed game (release or staging) into a new game backed by the OTHER DO environment. The source game is left untouched. Options table can contain 'progress' (function called with status and progress 0-1) and 'complete' (function called with success bool, new gameid string, and optional error string).
+--- @param gameid string The id of the source DO game to clone.
+--- @param options table Options with optional 'progress' and 'complete' callback fields.
+function lobby:CloneDOGameToOtherEnvironment(gameid, options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CloneGameToLocal: Clone a game (Firebase or Durable-Object-backed) into a new offline (Local) game hosted by the bundled local-game-server. The source game is left untouched. Options table can contain 'progress' (function called with status and progress 0-1) and 'complete' (function called with success bool, new gameid string, and optional error string).
+--- @param gameid string The id of the source game to clone.
+--- @param options table Options with optional 'progress' and 'complete' callback fields.
+function lobby:CloneGameToLocal(gameid, options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- CreateGame: Creates a new game with the given options table. The options table may contain 'create' and 'error' callback functions. Rate-limited to one creation every 3 seconds.
 --- @param options table Options with optional 'create' and 'error' callback fields.
 function lobby:CreateGame(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PromoteLocalGame: Promote a local game to Durable Objects. Generates a new game id, copies all data to the cloud, verifies it, and then deletes the local copy. Options: 'gameid' (string, required - the local game's id), 'staging' (bool, optional - target the staging DO server instead of release), 'progress' (function(status, pct)), 'complete' (function(success, newGameid, error)).
+--- @param options table Options table with 'gameid', optional 'staging', 'progress', and 'complete' fields.
+function lobby:PromoteLocalGame(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ListRollbackBookmarks: List rollback bookmarks for a Durable-Object-backed game (storage=DurableObjects or DurableObjectsStaging). The callback receives (bookmarks, error). On success, bookmarks is a list of {id, name, bookmark, createdAt, kind, note, createdBy} tables; on failure bookmarks is nil and error is a string. The bookmarks table lives inside the DO's SQLite and shares its PITR window -- entries from before the most recent rollback may not be present.
+--- @param gameid string The id of the game.
+--- @param callback function Callback receiving (bookmarks, error).
+function lobby:ListRollbackBookmarks(gameid, callback)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PerformRollback: Roll back a Durable-Object-backed game to a prior point in time using Cloudflare's SQLite Point-in-Time Recovery. The DO is aborted after scheduling the restore; the live WebSocket reconnects automatically and clients receive the full restored state. Options must include exactly one rollback target: 'name' (string -- most recent bookmark with this name), 'bookmarkId' (number -- a row id from lobby:ListRollbackBookmarks), 'bookmark' (string -- raw Cloudflare bookmark token), or 'timestampMs' (number -- ms since epoch, snapped to nearest internal snapshot). Optional fields: 'note' (string), 'progress' (function(status, pct)), 'complete' (function(success, errorOrUndoBookmark)). On success the captured pre-rollback bookmark is recorded as kind='auto-undo' in the bookmarks table.
+--- @param gameid string The id of the game.
+--- @param options table Target + callbacks.
+function lobby:PerformRollback(gameid, options)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -39,5 +116,12 @@ end
 --- @param gameid string
 --- @return nil
 function lobby:JoinGame(gameid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- JoinGameEotw: Joins an Encounter of the Week game by ID. Identical to JoinGame except the game is recorded in the account's dedicated Encounter of the Week slot instead of the games list, so it never appears in the campaigns lobby. Overwrites any previous slot value -- destroy or leave the previous EotW game first (see LuaGameInfo.DeleteAndReleaseStorage).
+--- @param gameid string
+--- @return nil
+function lobby:JoinGameEotw(gameid)
 	-- dummy implementation for documentation purposes only
 end

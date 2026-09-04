@@ -2,7 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- @class ActivatedAbilityDelayBehavior:ActivatedAbilityBehavior
 --- @field summary string Short label shown in behavior lists.
---- @field delay number Delay in seconds before the next behavior fires.
+--- @field delay number|string|table Delay in seconds before the next behavior fires.
 ActivatedAbilityDelayBehavior = RegisterGameType("ActivatedAbilityDelayBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilityDelayBehavior.summary = 'Delay'
@@ -33,7 +33,28 @@ function ActivatedAbilityDelayBehavior:Cast(ability, casterToken, targets, optio
 
         print("DELAY:: PROCEED...")
     if self:try_get("proceedCondition", "") ~= "" then
-        while not GoblinScriptTrue(ExecuteGoblinScript(self.proceedCondition, casterToken.properties:LookupSymbol(options.symbols), "Proceed condition")) do
+        --Bounded wait: a stale blocker must not park this cast forever. The
+        --Monster Death rule waits here on "Cannot be Removed = 0", and a
+        --"Cannot Be Removed" effect leaked by a canceled invoke (e.g. Dread
+        --March) used to block the dead creature's removal permanently --
+        --creaturedeath only fires on the alive->dead transition, so there is
+        --no retry. After the cap we proceed rather than abandon the cast.
+        local proceedDeadline = dmhub.Time() + 120
+        while true do
+            --The caster can be despawned by another client (or another cast)
+            --while we wait; its .properties goes nil and the condition can no
+            --longer be evaluated (report 25KUGPFC crashed here).
+            if not casterToken.valid or casterToken.properties == nil then
+                print("DELAY:: caster gone while waiting on proceed condition, proceeding")
+                break
+            end
+            if GoblinScriptTrue(ExecuteGoblinScript(self.proceedCondition, casterToken.properties:LookupSymbol(options.symbols), "Proceed condition")) then
+                break
+            end
+            if dmhub.Time() > proceedDeadline then
+                print("DELAY:: proceed condition still false after 120s, proceeding anyway")
+                break
+            end
             coroutine.yield(0.1)
         end
     end

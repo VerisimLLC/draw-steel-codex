@@ -90,6 +90,81 @@ function gui.ChildHasFocus(panel)
 	return panel ~= nil and panel.valid and panel.enabled and m_focus ~= nil and m_focus.valid and m_focus:IsDescendantOf(panel)
 end
 
+--- If this panel, or anything below it, currently owns an open popup.
+---
+--- Popups are not children - they live in the overlay layer and are reachable
+--- only through their owner's .popup - so this walks the subtree looking for
+--- owners rather than looking at the popup layer.
+--- @param panel nil|Panel
+--- @return boolean
+function gui.SubtreeHasPopup(panel)
+	if panel == nil or panel.valid == false then
+		return false
+	end
+
+	if panel.popup ~= nil then
+		return true
+	end
+
+	for _,child in ipairs(panel.children) do
+		if gui.SubtreeHasPopup(child) then
+			return true
+		end
+	end
+
+	return false
+end
+
+--- Run rebuild(panel) now, unless a popup is open somewhere beneath panel - in
+--- which case park the rebuild and replay it once the popup closes.
+---
+--- Lists that rebuild their children wholesale from a monitor have a hazard:
+--- destroying a panel destroys any popup it owns, and a monitor fires on the
+--- round trip of OUR OWN write as readily as on another client's edit. So a
+--- refresh can land while the user has a context menu or popout open and yank
+--- it out from under the cursor - the popup appears to open and immediately
+--- close again. Guarding the rebuild with this leaves the list momentarily
+--- stale, but stale-and-matching-the-popup beats correct-and-gone.
+---
+--- The parked rebuild re-reads state when it finally runs, so a second park
+--- simply replaces the first: several coalesced updates cost one rebuild.
+---
+--- Panels using this must declare a `data` table and route their 'think' event
+--- to gui.ThinkDeferredRebuild. thinkTime is armed only while a rebuild is
+--- parked, so a panel with nothing parked costs nothing.
+--- @param panel Panel
+--- @param rebuild fun(panel:Panel):nil
+function gui.RebuildDeferringPopups(panel, rebuild)
+	if gui.SubtreeHasPopup(panel) then
+		panel.data.deferredRebuild = rebuild
+		panel.thinkTime = 0.25
+		return
+	end
+
+	panel.data.deferredRebuild = nil
+	panel.thinkTime = nil
+	rebuild(panel)
+end
+
+--- The 'think' half of gui.RebuildDeferringPopups: replays the parked rebuild
+--- as soon as the popup that blocked it is gone, and disarms the poll.
+--- @param panel Panel
+function gui.ThinkDeferredRebuild(panel)
+	local rebuild = panel.data.deferredRebuild
+	if rebuild == nil then
+		panel.thinkTime = nil
+		return
+	end
+
+	if gui.SubtreeHasPopup(panel) then
+		return
+	end
+
+	panel.data.deferredRebuild = nil
+	panel.thinkTime = nil
+	rebuild(panel)
+end
+
 --- Get the main dialog panel which dialogs can be parented to.
 --- @return Panel
 function gui.DialogPanel()
@@ -137,22 +212,43 @@ function gui.ShowDialogOverMap(mod, dialog)
 end
 
 
---- Show a modal dialog.
+--- Show a modal dialog. options.owner routes the modal: when the owner
+--- element lives in a native popout window, the modal appears inside THAT
+--- OS window (in the window's own modal layer) instead of the main app
+--- window. Returns the modal layer used -- a dialog that closes itself
+--- should capture it and close via gui.CloseModalInLayer, which stays
+--- correct even if the owner element is destroyed while the dialog is up
+--- (gui.CloseModal(owner) re-resolves through the owner and falls back to
+--- the global layer once the owner is gone).
 --- @param panel Panel
---- @options {nofade: nil|boolean}
+--- @options {nofade: nil|boolean, owner: nil|Panel}
+--- @return Panel
 function gui.ShowModal(panel, options)
-	gamehud:ShowModal(panel, options)
+	return gamehud:ShowModal(panel, options)
 end
 
---- Close the modal dialog that is currently displayed.
-function gui.CloseModal()
-	gamehud:CloseModal()
+--- Close the topmost modal in the given modal layer (as returned by
+--- gui.ShowModal). The layer-addressed twin of gui.CloseModal.
+--- @param layer nil|Panel
+function gui.CloseModalInLayer(layer)
+	gamehud:CloseModalInLayer(layer)
 end
 
---- Get the currently displayed modal dialog.
+--- Close the modal dialog that is currently displayed. owner (optional)
+--- routes the close the same way gui.ShowModal routes the open: pass the
+--- owner the modal was shown with to close a popout-window modal.
+--- @param owner nil|Panel
+function gui.CloseModal(owner)
+	gamehud:CloseModal(owner)
+end
+
+--- Get the currently displayed modal dialog. owner (optional) asks about
+--- the modal layer of the window that owner lives in; nil asks about the
+--- main window's global layer.
+--- @param owner nil|Panel
 --- @return nil|Panel
-function gui.GetModal()
-	return gamehud:GetModal()
+function gui.GetModal(owner)
+	return gamehud:GetModal(owner)
 end
 
 --- Display a modal message dialog.
@@ -168,11 +264,299 @@ function gui.UploadDialog(args)
 end
 
 
+--- The single placement-prompt banner currently on screen, if any. A new call
+--- to gui.ShowPlacementBanner replaces it so prompts never stack.
+local g_placementBanner = nil
 
---- Create a button.
+--- Show a floating "click the map to place ..." prompt banner for an engine
+--- placement flow, and (in mode 1) enter that placement mode.
+---
+--- The engine's placement hooks (dmhub.GetSelectedMonster /
+--- GetSelectedCharacters / GetSelectedEncounter) read placement data off the
+--- CURRENTLY FOCUSED panel, so entering placement mode is a matter of focusing
+--- a panel that carries the right data field (monsterid / charid / encounter).
+--- This helper covers the two shapes that arise:
+---
+---   1. The banner itself is the focus target. Pass `data` (e.g.
+---      {monsterid = ...}); the banner carries it and this helper focuses it,
+---      so the engine enters placement mode. Bestiary / global-search flow.
+---   2. Some other panel is the focus target (it already carries the data and
+---      the caller has already focused it). Pass `watch = thatPanel`; the
+---      banner is passive and just displays the prompt while that panel holds
+---      focus. Encounter-widget flow, where the widget carries data.encounter.
+---
+--- The banner removes itself as soon as the focus target loses focus (Esc and
+--- right-click both clear focus natively), or when `complete` (if given)
+--- returns true (single-placement flows that end when the token lands).
+---
+--- @param options {text?: string, name?: string, data?: table, watch?: Panel, complete?: fun():boolean}
+---   text     full prompt text (may contain <b>..</b> markup). Takes priority.
+---   name     when text is omitted, the placed thing's name; formatted into the
+---            standard "Click the map to place <b>NAME</b>. ..." house phrasing.
+---   data     placement data the banner should carry and be focused (mode 1).
+---   watch    external focus-target panel to follow (mode 2). When set, this
+---            helper does NOT change focus -- the caller focuses the target.
+---   complete optional predicate polled each tick; when true the banner clears
+---            focus and removes itself.
+--- @return nil|Panel the banner, or nil if it could not be created.
+function gui.ShowPlacementBanner(options)
+	options = options or {}
+
+	--replace any banner already showing so we never stack prompts.
+	if g_placementBanner ~= nil and g_placementBanner.valid then
+		g_placementBanner:DestroySelf()
+	end
+	g_placementBanner = nil
+
+	--the title bar is a stable fullscreen-width surface to float from;
+	--floating means the banner does not participate in the bar's layout.
+	local topBar = gui.GetSheetById("topBar")
+	if topBar == nil then
+		return nil
+	end
+
+	local text = options.text
+	if text == nil and options.name ~= nil then
+		text = string.format("Click the map to place <b>%s</b>. Right-click or Esc to cancel.", options.name)
+	end
+	text = text or "Click the map to place. Right-click or Esc to cancel."
+
+	local watch = options.watch
+	local complete = options.complete
+
+	local banner
+	banner = gui.Label{
+		id = "placementBanner",
+		floating = true,
+		text = text,
+		width = "auto",
+		height = "auto",
+		maxWidth = 700,
+		halign = "center",
+		valign = "top",
+		y = 60,
+		fontSize = 20,
+		color = "#ffffff",
+		bgimage = true,
+		bgcolor = "#000000dd",
+		pad = 12,
+		borderBox = true,
+
+		--mode 1: the engine's placement hooks read this off the focused panel
+		--(the banner). nil in mode 2, where the watched panel carries the data.
+		data = options.data,
+
+		--the focus target is the banner (mode 1) or the watched panel (mode 2).
+		--the engine exits placement when that target loses focus (Esc and
+		--right-click clear it natively); follow it by removing the banner.
+		thinkTime = 0.1,
+		think = function(element)
+			local target = watch or element
+			if mod.unloaded or target == nil or not target.valid or gui.GetFocus() ~= target then
+				if g_placementBanner == element then
+					g_placementBanner = nil
+				end
+				element:DestroySelf()
+				return
+			end
+			if complete ~= nil and complete() then
+				if g_placementBanner == element then
+					g_placementBanner = nil
+				end
+				gui.SetFocus(nil)
+				element:DestroySelf()
+			end
+		end,
+	}
+
+	topBar:AddChild(banner)
+	g_placementBanner = banner
+
+	--mode 1: focus the banner so it becomes the placement focus target. In
+	--mode 2 the caller has already focused the external target panel.
+	if watch == nil then
+		gui.SetFocus(banner)
+	end
+
+	return banner
+end
+
+
+--- Classes that, when present in `options.classes`, signal that gui.Button
+--- should take the icon-only (panel-based) render path. The theme rule for
+--- the kind class (e.g. `{iconButton, addButton}`) supplies the bgimage.
+--- Each entry's value is a config table whose recognized fields are:
+---   escapeActivates = bool       -- sets args.escapeActivates
+---   escapePriority  = string     -- resolved as EscapePriority[name] at call time
+---   pressSoundEvent = string     -- when caller supplies `press`, wraps it to
+---                                  fire this audio event before the user's press
+---   confirm         = table      -- when caller supplies `requireConfirm = true`
+---                                  AND a click/press handler, wraps it with a
+---                                  gui.ModalMessage. Fields: title, message,
+---                                  actionText.
+--- An empty table means "no kind-specific behavior" (just the icon path).
+--- Mods may add to this table.
+gui.iconButtonClasses = {
+	addButton = {},
+	closeButton = {
+		escapeActivates = true,
+		escapePriority  = "EXIT_DIALOG",
+		pressSoundEvent = "UI.WindowClose",
+	},
+	copyButton = {},
+	deleteButton = {
+		confirm = {
+			title      = "Confirm Delete",
+			message    = "Are you sure you want to delete this item?",
+			actionText = "Delete",
+		},
+	},
+	maximizeButton = {},
+	pagingArrow = {},
+	settingsButton = {},
+	customiseAbilityButton = {},
+}
+
+--- Create a button. Three render shapes:
+---  - text only, or text + icon -> a {label, button} (existing chrome).
+---  - icon-only via `icon = "path"` (no text) -> a panel themed by `iconButton`.
+---  - icon-only via a kind class registered in `gui.iconButtonClasses`
+---    (e.g. `classes = {"addButton"}`) -> a panel themed by `iconButton`,
+---    with the bgimage supplied by the kind's theme rule and any kind config
+---    (escape activation, press sound) applied from `gui.iconButtonClasses`.
+--- The icon-only paths bypass the {label, button} cascade entirely so the
+--- icon's bgimage/bgcolor don't fight chrome rules.
 --- @param options LabelArgs
---- @return Label
+--- @return Label|Panel
 function gui.Button(options)
+	-- Detect class-based icon-only mode: any class in options.classes that is
+	-- registered in gui.iconButtonClasses triggers the panel path.
+	local kindConfig = nil
+	if options.classes ~= nil then
+		for _,c in ipairs(options.classes) do
+			if gui.iconButtonClasses[c] then
+				kindConfig = gui.iconButtonClasses[c]
+				break
+			end
+		end
+	end
+
+	-- Icon-only path: return a panel themed via iconButton. The optional
+	-- `color` param overrides the @fg tint for status-accented icons. The
+	-- bgimage may come from `options.icon` (callsite) or from a kind-class
+	-- theme rule (e.g. `{iconButton, addButton}` -> `bgimage = "..."`).
+	if (options.icon ~= nil and options.text == nil) or kindConfig ~= nil then
+		-- Pre-extract `requireConfirm` so it doesn't leak into args via the
+		-- generic merge below. Used by kinds whose config has a `confirm` table
+		-- (e.g. deleteButton) to wrap click/press with a confirmation modal.
+		local requireConfirm = options.requireConfirm
+		options.requireConfirm = nil
+
+		local args = {
+			classes = {"iconButton"},
+		}
+
+		-- Inner icon panel owns the bgimage and tint so chrome (border, hit
+		-- target, selected/hover state) can sit on the outer iconButton panel
+		-- and the icon can be insetted independently (e.g. 90% when bordered).
+		-- Kind-class buttons (addButton, deleteButton, ...) leave bgimage nil
+		-- and let `{panel, buttonIcon, parent:kindName}` rules paint it.
+		local iconPanel = gui.Panel{
+			classes = {"buttonIcon"},
+			bgcolor = options.color,
+			bgimage = options.icon,
+		}
+		args[#args+1] = iconPanel
+
+		-- Apply kind-config defaults BEFORE merging options so callers can
+		-- still override (e.g. pass their own escapeActivates = false).
+		if kindConfig ~= nil then
+			if kindConfig.escapeActivates ~= nil then
+				args.escapeActivates = kindConfig.escapeActivates
+			end
+			if kindConfig.escapePriority and EscapePriority then
+				args.escapePriority = EscapePriority[kindConfig.escapePriority]
+			end
+		end
+
+		if options.tooltip ~= nil then
+			options.events = options.events or {}
+			options.events.hover = gui.Tooltip(options.tooltip)
+			options.tooltip = nil
+		end
+
+		if options.classes ~= nil then
+			for _,c in ipairs(options.classes) do
+				if c ~= "iconButton" then
+					args.classes[#args.classes+1] = c
+				end
+			end
+			options.classes = nil
+		end
+
+		for k,v in pairs(options) do
+			if k ~= "icon" and k ~= "color" then
+				args[k] = v
+			end
+		end
+
+		-- setIcon: swap the glyph at runtime. The image lives on the inner
+		-- buttonIcon child, not on the outer iconButton the caller holds, so
+		-- callers fire this event instead of assigning bgimage on `element`.
+		-- Usage: element:FireEvent("setIcon", "path/to/icon.png")
+		-- Assigned after the options merge so the framework's setIcon is
+		-- authoritative and cannot be silently clobbered by a caller.
+		args.setIcon = function(_, iconPath)
+			iconPanel.bgimage = iconPath
+		end
+
+		-- Confirmation wrap: when the caller supplied `requireConfirm = true`
+		-- AND the kind has a `confirm` config AND a click/press handler, wrap
+		-- it with a gui.ModalMessage. Replicates gui.DeleteItemButton's logic.
+		if kindConfig and kindConfig.confirm and requireConfirm then
+			local cfg = kindConfig.confirm
+			for _, clickid in ipairs({"click", "press"}) do
+				if args[clickid] then
+					local oldClick = args[clickid]
+					args[clickid] = function(element)
+						gui.ModalMessage{
+							title = cfg.title,
+							message = cfg.message,
+							options = {
+								{
+									text = "Cancel",
+									execute = function()
+										gui.CloseModal()
+									end,
+								},
+								{
+									text = cfg.actionText,
+									execute = function()
+										oldClick(element)
+										gui.CloseModal()
+									end,
+								},
+							},
+						}
+					end
+				end
+			end
+		end
+
+		-- Press-sound default: install a sound-firing press handler ONLY when
+		-- the caller did not provide their own. If the caller supplied `press`,
+		-- leave it untouched -- the caller has opted to handle the press fully
+		-- and own its audio behavior.
+		if kindConfig and kindConfig.pressSoundEvent and args.press == nil then
+			local soundEvent = kindConfig.pressSoundEvent
+			args.press = function(element)
+				audio.FireSoundEvent(soundEvent)
+			end
+		end
+
+		return gui.Panel(args)
+	end
+
 	local args = {
 		classes = {'button'},
 	}
@@ -192,10 +576,11 @@ function gui.Button(options)
 	end
 
 	if options.icon ~= nil then
+		args.classes[#args.classes+1] = "hasIcon"
+
 		args[#args+1] = gui.Panel{
-			width = "100%",
-			height = "100%",
-			bgcolor = options.color or "white",
+			classes = {"buttonIcon"},
+			bgcolor = options.color,
 			bgimage = options.icon,
 		}
 
@@ -218,16 +603,15 @@ function gui.DiamondButton(options)
 	options.icon = nil
 
 	local iconPanel = gui.Panel{
-			width = "70%",
-			height = "70%",
-			bgimage = icon,
-			bgcolor = options.color or "white",
-			halign = "center",
-			valign = "center",
-		}
-	
-	options.color = nil
+		width = "70%",
+		height = "70%",
+		bgimage = icon,
+		bgcolor = options.color or "white",
+		halign = "center",
+		valign = "center",
+	}
 
+	options.color = nil
 
 	local params = {
 		flow = "none",
@@ -282,13 +666,23 @@ function gui.DiamondButton(options)
 	return gui.Panel(params)
 end
 
+local throttleAddDeprecated = 0
 --- A little "plus" button for adding new items.
 --- @param options PanelArgs
 --- @return Panel
 function gui.AddButton(options)
+	if false and devmode() and dmhub.Time() - throttleAddDeprecated >= 60 then
+		throttleAddDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.AddButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
 
 	local args = {
-		classes = {'plus-button', "addButton"},
+		classes = {'plusButton', "addButton"},
 		bgimage = 'ui-icons/Plus.png',
 		bgcolor = "white",
 	}
@@ -320,7 +714,7 @@ end
 function gui.SimpleIconButton(options)
 	local args = {
 		classes = {'close-button', "closeButton", "iconButton"},
-		bgimage = 'ui-icons/close.png',
+		bgimage = 'phosphor/x-bold.png',
 	}
 
 	if options.classes ~= nil then
@@ -339,13 +733,27 @@ function gui.SimpleIconButton(options)
 end
 
 
+local throttleCloseDeprecated = 0
 --- An "x" button for closing out dialogs.
 --- @param options PanelArgs
 --- @return Panel
 function gui.CloseButton(options)
+	if false and devmode() and dmhub.Time() - throttleCloseDeprecated >= 60 then
+		throttleCloseDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.CloseButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local args = {
 		classes = {'close-button', "closeButton"},
-		bgimage = 'ui-icons/close.png',
+		--phosphor X, matching the themed closeButton kind rule in
+		--DefaultStyles -- legacy call sites keep visual parity with
+		--the canonical close while they await migration.
+		bgimage = 'phosphor/x-bold.png',
 		escapeActivates = true,
 		escapePriority = EscapePriority.EXIT_DIALOG,
 	}
@@ -459,10 +867,21 @@ function gui.DeleteItemButton(options)
 	return gui.Panel(args)
 end
 
+local throttleCopyDeprecated = 0
 --- A "copy" button for copying items to the clipboard.
 --- @param options PanelArgs
 --- @return Panel
 function gui.CopyButton(options)
+	if false and devmode() and dmhub.Time() - throttleCopyDeprecated >= 60 then
+		throttleCopyDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.CopyButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local args = {
 		classes = {"iconButton"},
 		bgimage = "icons/icon_app/icon_app_108.png",
@@ -475,10 +894,21 @@ function gui.CopyButton(options)
 	return gui.Panel(args)
 end
 
+local throttleSettingsDeprecated = 0
 --- A "gear" settings button.
 --- @param options PanelArgs
 --- @return Panel
 function gui.SettingsButton(options)
+	if false and devmode() and dmhub.Time() - throttleSettingsDeprecated >= 60 then
+		throttleSettingsDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.SettingsButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local args = {
 		classes = {'iconButton', "settingsButton"},
 		bgimage = 'ui-icons/skills/98.png',
@@ -503,10 +933,21 @@ function gui.SettingsButton(options)
 	return gui.Panel(args)
 end
 
+local throttleHudIconDeprecated = 0
 --- A little icon button to show in the hud.
 --- @param options PanelArgs
 --- @return Panel
 function gui.HudIconButton(options)
+	if false and devmode() and dmhub.Time() - throttleHudIconDeprecated >= 60 then
+		throttleHudIconDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.HudIconButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local args = {
 		classes = {"hudIconButton"},
 		children = {
@@ -594,10 +1035,21 @@ local iconButtonIconStyleFlipped = gui.Style{
 	scale = {x = -1, y = 1},
 }
 
+local throttleIconButtonDeprecated = 0
 --- A small button with an icon on it.
 --- @param args PanelArgs
 --- @return Panel
 function gui.IconButton(args)
+	if false and devmode() and dmhub.Time() - throttleIconButtonDeprecated >= 60 then
+		throttleIconButtonDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.IconButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local iconPanel = gui.Panel{
 						bgimage = args.icon,
 						styles = {
@@ -728,10 +1180,21 @@ local prettyButtonStyles = {
 	},
 }
 
+local throttleFancyDeprecated = 0
 --- A fancy looking button
 --- @param options PanelArgs
 --- @return Panel
 function gui.FancyButton(options)
+	if false and devmode() and dmhub.Time() - throttleFancyDeprecated >= 60 then
+		throttleFancyDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.FancyButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	options = DeepCopy(options or {})
 
 	local text = options.text or ''
@@ -810,7 +1273,17 @@ local PrettyButtonBackgroundStyles = {
 --- A pretty looking button
 --- @param options PanelArgs
 --- @return Panel
+local throttlePBDeprecated = 0
 function gui.PrettyButton(args)
+	if false and devmode() and dmhub.Time() - throttlePBDeprecated >= 60 then
+		throttlePBDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.PrettyButton() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
 	local classes = args.classes or {}
 	if type(classes) == "string" then
 		classes = {classes}
@@ -818,55 +1291,6 @@ function gui.PrettyButton(args)
 	classes[#classes+1] = "prettyButton"
 	args.classes = classes
 	return gui.Button(args)
-
---local mainPanel = gui.Panel({
---	bgimage = 'panels/ButtonBackground.png',
---	interactable = false,
---	style = {
---		width = '100%',
---		height = '100%',
---		bgslice = 12,
---		margin = 0,
---	},
-
---	children = {
---		gui.Panel{
---			bgimage = 'panels/ButtonForegroundRed.png',
---			styles = PrettyButtonBackgroundStyles,
-
---			children = {
---				gui.Label{
---					classes = {'pretty-button-label'},
---					text = args.text or 'TEXT',
---					fontSize = args.fontSize or "100%",
---					settext = function(element, t)
---						element.text = t
---					end,
---				}
---			}
---		}
---	}
---})
-
---local style = DeepCopy(args.style) or {}
-
---style.margin = style.margin or 0
---style.pad = style.pad or 0
---style.flow = 'none'
---style.bgcolor = style.bgcolor or 'white'
-
---local options = DeepCopy(args)
---if type(options.classes) == "string" then
---	options.classes = {options.classes}
---end
---options.classes = options.classes or {}
---options.classes[#options.classes+1] = 'pretty-button'
---options.text = nil
---options.style = style
---options.children = { mainPanel }
---options.interactable = false
-
---return gui.Panel(options)
 end
 
 -- diamond
@@ -884,27 +1308,25 @@ function gui.Diamond(options)
 	options.editable = nil
 
 	local fill = 
-				gui.Panel{
-				
-					classes = {cond(options.value, "on")},
-					width = 20,
-					height = 20,
-					halign = "center",
-					valign = "center",
-					bgimage = "panels/square.png",
-				
-					styles = {
-						{
-							bgcolor = "clear",
-						},
-						
-						{
-							selectors = {"on"},
-							transitionTime = 0.15,
-							bgcolor = options.fillColor or Styles.textColor,
-						},
-					},
-				}
+		gui.Panel{
+			classes = {cond(options.value, "on")},
+			width = 20,
+			height = 20,
+			halign = "center",
+			valign = "center",
+			bgimage = "panels/square.png",
+
+			styles = {
+				{
+					bgcolor = "clear",
+				},
+				{
+					selectors = {"on"},
+					transitionTime = 0.15,
+					bgcolor = options.fillColor or Styles.textColor,
+				},
+			},
+		}
 				
 	options.fillColor = nil
 	options.value = nil
@@ -995,7 +1417,7 @@ function gui.Check(args)
 	options.value = nil
 
 	local checkMark = gui.Panel{
-		classes = {'check-mark'},
+		classes = {'checkMark'},
 		hmargin = 0,
 		vmargin = 0,
         floating = true,
@@ -1005,12 +1427,16 @@ function gui.Check(args)
 		return checked
 	end
 
+	--Programmatic assignment (element.value = x) must NOT fire change: refresh
+	--handlers sync controls from the model, and echoing change back mutates the
+	--model (see the ShopAdmin dicePreview wipe). Only an explicit
+	--SetValue(val, true) -- or real user interaction via press below -- fires.
 	options.SetValue = function(element, val, firechange)
 		checkMark:SetClass('hidden', not val)
 
 		if checked ~= val then
 			checked = val
-			if firechange ~= false then
+			if firechange == true then
 				element:FireEvent('change')
 			end
 		end
@@ -1019,7 +1445,7 @@ function gui.Check(args)
 	checkMark:SetClass('hidden', not checked)
 
 	local checkPanel = gui.Panel{
-		classes = {'check-background'},
+		classes = {'checkBackground'},
 
 		children = {
 			checkMark
@@ -1030,7 +1456,7 @@ function gui.Check(args)
 	options.text = nil
 
 	local label = gui.Label{
-		classes = {'checkbox-label', cond(placement == "right", "rightAlign")},
+		classes = {'checkboxLabel', cond(placement == "right", "rightAlign")},
 		text = text .. colon,
 		fontSize = fontSize,
 	}
@@ -1055,7 +1481,9 @@ function gui.Check(args)
 		if resultPanel:HasClass("disabled") then
 			return
 		end
+		--Value assignment is silent; a user click is the one place change fires.
 		element.value = not checked
+		element:FireEvent('change')
 	end
 
 	options.events.keybind = function(element, key)
@@ -1075,11 +1503,14 @@ function gui.Check(args)
 		label.text = text .. colon
 	end
 
-
+	-- TODO: THEME_PATCH
+	if ThemeEngine.ForceSafety() then
+		if options.styles == nil then options.styles = {} end
+		options.styles = ThemeEngine.MergeStyles(options.styles)
+	end
 	resultPanel = gui.Panel(options)
 	return resultPanel
 end
-
 
 local PercentSliderStyles = {
 	gui.Style{
@@ -1221,10 +1652,10 @@ end
 --- @field fillColor nil|string|Color
 --- @field notchAlign nil|string
 
---- Slider. Fires 'change' whenever the value changes and 'confirm' when a change is completed
+--- Slider. Fires 'change' whenever the user changes the value and 'confirm' when a change is completed
 --- through editing (through dragging and finishing the drag or through editing the label).
---- change is fired if the value is changed programmatically but data.setValueNoEvent() is provided
---- to allow calling without firing change.
+--- Programmatic assignment (element.value = x) does NOT fire change; it repositions the
+--- handle/label silently. Use data.setValue(x) to change the value AND fire change.
 --- also fires 'preview' specifically when dragging, and guaranteed to have a 'confirm' once dragging finishes.
 --- @param args SliderArgs
 --- @return Panel
@@ -1239,7 +1670,7 @@ function gui.Slider(args)
 	local notchHeight = args.notchHeight or 2
 	args.notchHeight = nil
 
-	local notchColor = args.notchColor or 'grey'
+	local notchColor = args.notchColor
 	args.notchColor = nil
 
 	local fillColor = args.fillColor or '#880000'
@@ -1297,6 +1728,11 @@ function gui.Slider(args)
 		return (value - minValue) / (maxValue - minValue)
 	end
 
+	-- sliderWidth is now a fallback used only before the slider has rendered
+	-- (renderedWidth is 0 until then) and as the default outer width when the
+	-- caller didn't supply one. Once the track has a real renderedWidth, every
+	-- piece of pixel math reads it dynamically so the slider tracks parent
+	-- layout changes.
 	local sliderWidth = options.sliderWidth or 100
 	options.sliderWidth = nil
 
@@ -1305,6 +1741,20 @@ function gui.Slider(args)
 
 	local labelFormat = options.labelFormat
 	options.labelFormat = nil
+
+	-- Forward-declared so the trackWidth helper closes over it before sliderPanel
+	-- is actually constructed below.
+	local sliderPanel
+
+	-- Returns the current pixel width of the track. Reads sliderPanel.renderedWidth
+	-- when available; falls back to the legacy sliderWidth argument during the
+	-- brief window before the first render completes.
+	local function trackWidth()
+		if sliderPanel ~= nil and sliderPanel.valid and sliderPanel.renderedWidth ~= nil and sliderPanel.renderedWidth > 0 then
+			return sliderPanel.renderedWidth
+		end
+		return sliderWidth
+	end
 
 	options.events = options.events or {}
 
@@ -1318,6 +1768,13 @@ function gui.Slider(args)
 
 	options.flow = 'horizontal'
 
+	-- Outer width comes from the caller. They can set it top-level
+	-- (`width = X` on the slider call), via `style = { width = X }`, or via
+	-- a `styles = { { width = X } }` cascade rule. The slider does not set a
+	-- default width here -- that would be selfStyle and would override any
+	-- cascade rule the caller supplied. The inner track (sliderPanel) below
+	-- uses "100%-(labelWidth+4)" so it fills whatever mainPanel ends up being.
+
 	local mainPanel
 
 	if options.doubleclick == nil then
@@ -1328,7 +1785,8 @@ function gui.Slider(args)
 
 		options.doubleclick = function(element)
 			if defaultValue ~= nil then
-				element.value = defaultValue
+				--Reset-to-default is a user action, so it fires change.
+				mainPanel.data.setValue(defaultValue)
 			end
 		end
 	end
@@ -1387,7 +1845,17 @@ function gui.Slider(args)
 	end
 
 	mainPanel.GetValue = mainPanel.data.getValue
-	mainPanel.SetValue = function(element, val, fireevent) mainPanel.data.setValue(val, fireevent) end
+	--Programmatic assignment (element.value = x) arrives here with fireevent nil
+	--and must NOT fire change (only reposition the handle/label); an explicit
+	--SetValue(val, true) or user interaction (drag/click/label edit/doubleclick,
+	--which call data.setValue directly) fires change.
+	mainPanel.SetValue = function(element, val, fireevent)
+		if fireevent == true then
+			mainPanel.data.setValue(val)
+		else
+			mainPanel.data.setValueNoEvent(val)
+		end
+	end
 
 	handleItem = gui.Panel{
 		height = handleSize,
@@ -1414,6 +1882,9 @@ function gui.Slider(args)
 
 
 	local handley = cond(notchAlign == "top", 4, 0)
+	-- Tracks the last track width we saw so the think tick can detect resize
+	-- and refresh dragBounds + re-fire updateValue (to reposition handle/fill).
+	local lastTrackWidth = 0
 	local handle = gui.Panel({
 		id = 'slider-handle',
 		draggable = true,
@@ -1433,24 +1904,40 @@ function gui.Slider(args)
 			handleItem,
 		},
 
+		thinkTime = 0.1,
+
 		events = {
 			setwrap = function(element, val)
 				wrap = val
 				element.dragxwrap = val
 			end,
 
+			-- Track parent resize. When the track's renderedWidth changes
+			-- (most importantly: 0 -> N on first render, or parent column
+			-- resize), refresh dragBounds so the handle's drag travel matches
+			-- the new track, and re-fire updateValue so the handle x and fill
+			-- width snap to the new pixel positions.
+			think = function(element)
+				local w = trackWidth()
+				if w ~= lastTrackWidth and w > 0 then
+					lastTrackWidth = w
+					element.dragBounds = { x1 = 0, y1 = handley, x2 = w, y2 = handley }
+					mainPanel:FireEventTree('updateValue')
+				end
+			end,
+
 			drag = function(element)
-				--mainPanel.data.setNormalizedValue(clamp(element.xdrag / sliderWidth, 0, 1))
+				--mainPanel.data.setNormalizedValue(clamp(element.xdrag / trackWidth(), 0, 1))
 				mainPanel.data.setNormalizedValue(NormalizedValue())
 				mainPanel:FireEvent('confirm')
 			end,
 			dragging = function(element)
-				mainPanel.data.setNormalizedValue(clamp(element.xdrag / sliderWidth, 0, 1))
+				mainPanel.data.setNormalizedValue(clamp(element.xdrag / trackWidth(), 0, 1))
 				mainPanel:FireEvent('preview')
 			end,
 			updateValue = function(element)
 				if element.dragging == false then
-					element.x = sliderWidth * NormalizedValue()
+					element.x = trackWidth() * NormalizedValue()
 				end
 			end
 		},
@@ -1459,28 +1946,28 @@ function gui.Slider(args)
 	mainPanel.data.handle = handleItem
 
 	sliderFill = gui.Panel{
+		classes = {"sliderFill"},
 		id = 'slider-fill',
-		bgimage = 'panels/square.png',
 		selfStyle = {
 			width = 1,
-			height = 2,
-			borderWidth = 0,
-			bgcolor = "white",
-			halign = 'left',
 			valign = notchAlign,
 		},
 		events = {
 			updateValue = function(element)
-				element.selfStyle.width = math.floor(sliderWidth * NormalizedValue())
+				element.selfStyle.width = math.floor(trackWidth() * NormalizedValue())
 			end,
 		},
 	}
 
-	local sliderPanel = gui.Panel({
+	-- Inner track is responsive. If there's a value label to its right, carve
+	-- out room for it (labelWidth + 2px hmargin on each side = labelWidth+4).
+	local sliderTrackWidth = labelWidth and ("100%-" .. (labelWidth + 4)) or "100%"
+
+	sliderPanel = gui.Panel({
 		id = 'slider-panel',
 		style = {
 			cornerRadius = 0,
-			width = sliderWidth,
+			width = sliderTrackWidth,
 			height = '100%',
 			halign = 'left',
 			pad = 0,
@@ -1492,15 +1979,12 @@ function gui.Slider(args)
 		children = {
 			--the slider notch.
 			gui.Panel{
+				classes = {"sliderNotch"},
 				id = 'slider-notch',
-				bgimage = 'panels/square.png',
 				style = {
-					width = '100%',
 					height = notchHeight,
-					borderWidth = 0,
 					bgcolor = notchColor,
 					valign = notchAlign,
-					halign = 'center',
 				}
 			},
 
@@ -1544,6 +2028,7 @@ function gui.Slider(args)
 			classes = {"sliderLabel"},
 			editable = true,
 			format = formatStr,
+            textWrap = false,
 			style = {
 				halign = 'right',
 				valign = 'center',
@@ -1635,8 +2120,6 @@ function gui.ColorPicker(args)
 
 	local color = core.Color(options.value)
 	options.value = nil
-
-	options.className = 'color-picker'
 
 	if options.data == nil then
 		options.data = {}
@@ -2025,6 +2508,9 @@ function gui.ColorPicker(args)
 
 	options.styles = styles
 
+	options.classes = options.classes or {}
+	options.classes[#options.classes + 1] = "colorPicker"
+
 	if options.selfStyle == nil then
 		options.selfStyle = {}
 	end
@@ -2076,6 +2562,7 @@ gui.TriangleStyles = triangleStyles
 --- @field editable nil|boolean
 --- @field characterLimit nil|integer
 --- @field collapsedClass nil|string (Default="collapsed") set to make this use a different class to indicate collapsed.
+--- @field headerExtraClasses nil|string[] extra CSS classes to add to the header panel
 
 --- Create a node in a tree. When collapsed, its contentPanel will be hidden.
 --- @param args TreeNodeArgs
@@ -2104,6 +2591,9 @@ function gui.TreeNode(args)
 
 	local collapsedClass = options.collapsedClass or "collapsed"
 	options.collapsedClass = nil
+
+	local headerExtraClasses = options.headerExtraClasses or {}
+	options.headerExtraClasses = nil
 
 	if contentPanel == nil then
 		dmhub.Error('gui.TreeNode must have a contentPanel')
@@ -2149,9 +2639,21 @@ function gui.TreeNode(args)
 				},
 			})
 
+	local headerClasses = {"folder"}
+	for _, cls in ipairs(headerExtraClasses) do
+		headerClasses[#headerClasses+1] = cls
+	end
+
+    local headerClick = nil
+    if options.click == nil and options.press == nil then
+        headerClick = function(element)
+            triangle:FireEvent("toggle")
+        end
+    end
+
 	local headerPanel = gui.Panel({
-		
-		classes = {"folder"},
+
+		classes = headerClasses,
 		bgimage = 'panels/square.png',
 
 		dragTarget = dragTarget,
@@ -2176,6 +2678,7 @@ function gui.TreeNode(args)
 		},
 
 		events = {
+            click = headerClick,
 			rightClick = function(element)
 				resultPanel:FireEvent('contextMenu')
 			end,
@@ -2232,10 +2735,6 @@ function gui.TreeNode(args)
 
 	options.setempty = function(element, val)
 		triangle:SetClass("empty", val)
-	end
-
-	options.click = function(element)
-		triangle:FireEvent("toggle")
 	end
 
 	options.children = {
@@ -2498,7 +2997,7 @@ function gui.ContextMenuItem(args, params)
 			end)
 		end
 		arrow = gui.Panel{
-			classes = {'arrow'},
+			classes = {'contextMenuArrow'},
 			bgimage = 'panels/triangle.png',
 			selfStyle = { rotate = 90 },
 		}
@@ -2510,12 +3009,14 @@ function gui.ContextMenuItem(args, params)
 	local checkPanel = nil
 	local iconPanel = nil
 	if args.check ~= nil then
-		labelClass = "have-check"
+		labelClass = "hasCheck"
 
 		checkPanel = gui.Panel{
-			classes = {"context-menu-check", cond(args.check, "checked"), cond(args.check == "partial", "partial")},
+			classes = {"contextMenuCheck", cond(args.check, "checked"), cond(args.check == "partial", "partial")},
 			halign = "left",
-			bgimage = "icons/icon_common/icon_common_29.png",
+			--phosphor's geometric check rather than the hand-drawn
+			--icon_common_29 tick, matching the icon set used elsewhere.
+			bgimage = "phosphor/check-bold.png",
 			width = 16,
 			height = 16,
 			valign = "center",
@@ -2524,9 +3025,9 @@ function gui.ContextMenuItem(args, params)
 	end
 
 	if args.icon ~= nil then
-		labelClass = "have-icon"
+		labelClass = "hasIcon"
 		iconPanel = gui.Panel{
-			classes = {"context-menu-icon", cond(args.check == false, "context-menu-icon-unchecked")},
+			classes = {"contextMenuIcon", cond(args.check == false, "contextMenuIconUnchecked")},
 			bgimage = args.icon,
 		}
 	end
@@ -2534,7 +3035,7 @@ function gui.ContextMenuItem(args, params)
 	local bindLabel = nil
 	if args.bind ~= nil then
 		bindLabel = gui.Label{
-			classes = {"context-menu-bind", cond(args.disabled, "disabled")},
+			classes = {"contextMenuBind", cond(args.disabled, "disabled")},
 			text = args.bind,
 		}
 	end
@@ -2546,8 +3047,7 @@ function gui.ContextMenuItem(args, params)
 
 	return gui.Panel{
 		id = args.id,
-		bgimage = 'panels/square.png',
-		classes = {'context-menu-item', cond(args.hidden, "collapsed")},
+		classes = {'contextMenuItem', cond(args.hidden, "collapsed")},
 		swallowPress = true,
 
 		events = {
@@ -2576,7 +3076,7 @@ function gui.ContextMenuItem(args, params)
 			hover = function(element)
 				if not args.disabled then
 					element.parent:FireEvent('hoverChild')
-					element:SetClass('hover-linger', true)
+					element:SetClass('hoverLinger', true)
 
 					if args.tooltip ~= nil then
 						gui.Tooltip(args.tooltip)(element)
@@ -2589,7 +3089,7 @@ function gui.ContextMenuItem(args, params)
 			checkPanel,
 			iconPanel,
 			gui.Label{
-				classes = {"context-menu-label", labelClass, cond(args.disabled, "disabled")},
+				classes = {"contextMenuLabel", labelClass, cond(args.disabled, "disabled")},
 				text = args.text,
 				newContentMarker,
 			},
@@ -2613,7 +3113,7 @@ function gui.ContextMenu(args)
 			--add a divider if we are going to a different group
 			if i > 1 and i < #args.entries and args.entries[i+1] ~= nil and entry.group ~= args.entries[i+1].group then
 				items[#items+1] = gui.Panel{
-					classes = {'context-menu-div'},
+					classes = {'contextMenuDiv'},
 				}
 			end
 		end
@@ -2630,22 +3130,10 @@ function gui.ContextMenu(args)
 	end
 
 	return gui.Panel{
-		x = args.x or 0,
-		floating = args.floating or false,
-		classes = {'context-menu', cond(args.submenu, 'context-menu-sub', 'context-menu-parent')},
-		vscroll = cond(args.submenu, true),
-		halign = halign,
-        valign = args.valign,
-		styles = {
+		styles = ThemeEngine.MergeStyles({
 			{
-				selectors = {'context-menu'},
-				bgimage = 'panels/square.png',
-				bgcolor = "white",
-				gradient = Styles.dialogGradient,
-				borderColor = Styles.textColor,
-				border = 2,
+				selectors = {'contextMenu'},
 				pad = 8,
-
 				margin = 4,
 				width = "auto",
 				height = 'auto',
@@ -2654,47 +3142,24 @@ function gui.ContextMenu(args)
 				valign = 'bottom',
 			},
 			{
-				selectors = {'context-menu-sub'},
+				selectors = {'contextMenuSub'},
 				valign = 'top',
 				hidden = 1,
 				maxHeight = 400,
 			},
 			{
-				selectors = {'context-menu-sub','parent:hover-linger'},
+				selectors = {'contextMenuSub','parent:hoverLinger'},
 				hidden = 0,
 			},
-
 			{
-				selectors = {'context-menu-label'},
-				color = Styles.textColor,
-				fontFace = "dubai",
-				fontSize = 18,
+				selectors = {'contextMenuLabel'},
 				textAlignment = 'left',
 				hmargin = 2,
 				height = "auto",
 				width = "auto",
 			},
 			{
-				selectors = {'context-menu-label', 'disabled'},
-				color = "#777777",
-			},
-			{
-				selectors = {'context-menu-label', 'have-check'},
-				--hmargin = 20,
-			},
-			{
-				selectors = {'context-menu-label', 'have-icon'},
-				--hmargin = 20,
-			},
-			{
-				selectors = {'context-menu-label', 'parent:hover'},
-				color = "black",
-			},
-			{
-				selectors = {'context-menu-bind'},
-				color = Styles.textColor,
-				fontFace = "dubai",
-				fontSize = 16,
+				selectors = {'contextMenuBind'},
 				textAlignment = 'right',
 				hmargin = 2,
 				height = "auto",
@@ -2702,108 +3167,81 @@ function gui.ContextMenu(args)
 				halign = "right",
 			},
 			{
-				selectors = {'context-menu-bind', 'disabled'},
-				color = "#777777",
-			},
-			{
-				selectors = {'context-menu-bind', 'parent:hover'},
-				color = "black",
-			},
-			{
-				selectors = {'context-menu-icon'},
+				selectors = {'contextMenuIcon'},
 				width = 16,
 				height = 16,
 				valign = "center",
 				halign = "left",
 				hmargin = 2,
-				bgcolor = Styles.textColor,
 			},
-
 			{
-				selectors = {'context-menu-icon-unchecked'},
+				selectors = {'contextMenuIconUnchecked'},
 				opacity = 0.1,
 			},
-
+			--invisible when unchecked, NOT faintly visible: a ghost check on
+			--every row reads as noise in long menus (e.g. Panels). The panel
+			--keeps its 16px slot so labels stay aligned, and the parent:hover
+			--rule below still previews the check on the hovered row.
 			{
-				selectors = {'context-menu-check'},
-				bgcolor = Styles.textColor,
-				opacity = 0.1,
+				selectors = {'contextMenuCheck'},
+				opacity = 0,
 			},
 			{
-				selectors = {'context-menu-check', 'checked'},
+				selectors = {'contextMenuCheck', 'checked'},
 				opacity = 1,
 			},
 			{
-				selectors = {'context-menu-check', 'partial'},
+				selectors = {'contextMenuCheck', 'partial'},
 				opacity = 0.4,
 			},
 			{
-				selectors = {'context-menu-check', '~checked', '~partial', 'parent:hover'},
+				selectors = {'contextMenuCheck', '~checked', '~partial', 'parent:hover'},
 				opacity = 0.4,
 			},
-
 			{
-				selectors = {'context-menu-icon', 'parent:hover'},
-				bgcolor = "black",
+				selectors = {'contextMenuIcon', 'parent:hover'},
 				opacity = 1,
 			},
-
 			{
-				selectors = {'context-menu-check', 'parent:hover'},
-				bgcolor = "black",
-			},
-
-			{
-				selectors = {'context-menu-item'},
-				bgimage = 'panels/context-menu-background.png',
+				selectors = {'contextMenuItem'},
 				height = 'auto',
 				minWidth = args.width or 200,
 				width = "auto",
 				halign = 'left',
 				valign = 'top',
-				borderWidth = 0,
-				borderColor = 'white',
-				bgcolor = '#ffffff00',
-				color = 'white',
 				vmargin = 0,
 				hmargin = 0,
 				pad = 2,
 				flow = 'horizontal',
 			},
 			{
-				selectors = {'context-menu-item','hover'},
-				bgimage = 'panels/square.png',
-				bgcolor = 'white',
-				color = "black",
-			},
-			{
-				selectors = {'context-menu-item','press'},
-				bgcolor = '#aaaaaa66',
-			},
-			{
-				selectors = {'context-menu-div'},
-				bgimage = "panels/square.png",
+				selectors = {'contextMenuDiv'},
 				hmargin = 0,
 				width = args.width or 200,
 				halign = "center",
 				height = 1,
 				opacity = 1,
-				bgcolor = Styles.textColor,
 			},
 			{
-				selectors = {'arrow'},
+				selectors = {'contextMenuArrow'},
 				halign = 'right',
 				valign = 'center',
 				width = 10,
 				height = 10,
-				bgcolor = Styles.textColor,
 			},
-		},
+		}),
+		x = args.x or 0,
+		floating = args.floating or false,
+		classes = {'contextMenu', cond(args.submenu, 'contextMenuSub', 'contextMenuParent')},
+		vscroll = cond(args.submenu, true),
+		halign = halign,
+        valign = args.valign,
+		flow = "vertical",
 
 		events = {
 			hoverChild = function(element)
 				for i,child in ipairs(element.children) do
-					child:SetClass('hover-linger', false)
+					child:SetClass('hoverLinger', false)
 				end
 			end,
 		},
@@ -2816,19 +3254,19 @@ end
 --- @param args PanelArgs
 --- @return Panel
 function gui.ProgressBar(args)
+    local m_resultPanel
+
 	args = DeepCopy(args)
 
 	local value = args.value or 0
 	args.value = nil
 
 	local fillPanel = gui.Panel{
-		bgimage = "panels/progressbar/endcap.png",
-		bgcolor = "white",
+		bgimage = true,
+		bgcolor = Styles.Gold03,
 		flow = "horizontal",
 		halign = "left",
 		height = "100%",
-		bgslice = {x1 = 0, x2 = 128, y1 = 0, y2 = 0},
-		border = {x1 = 0, x2 = 32, y1 = 0, y2 = 0},
 
 		refresh = function(element)
 			element.selfStyle.width = string.format("%f%%", value*100)
@@ -2836,8 +3274,8 @@ function gui.ProgressBar(args)
 	}
 
 	local innerPanel = gui.Panel{
-		width = "100%-60",
-		height = "100%-16",
+		width = "100%-4",
+		height = "100%-4",
 		halign = "center",
 		valign = "center",
 		flow = "none",
@@ -2846,30 +3284,76 @@ function gui.ProgressBar(args)
 			height = "100%",
 			width = "100%",
 			halign = "left",
-			flow = "horizontal",
+			flow = "none",
 			fillPanel,
-		},
 
-		gui.Label{
-			fontFace = "SupernaturalKnight",
-			halign = "center",
-			valign = "center",
-			width = "30%",
-			height = "auto",
-			textAlignment = "center",
-			color = "#ffedcf",
-			fontSize = args.fontSize or 30,
-			text = "TEST",
+            gui.Label{
+                halign = "center",
+                valign = "center",
+                width = "30%",
+                height = "auto",
+                textAlignment = "center",
+                color = Styles.Gold03,
+                fontSize = args.fontSize or 30,
+                text = "TEST",
 
-			refresh = function(element)
-				element.text = string.format("%d%%", math.floor(value*100))
-			end,
+                thinkTime = 0.001,
+                think = function(element)
+                    element.selfStyle.halign = "left"
+                    local w = m_resultPanel.renderedWidth - 4
+                    element.selfStyle.x = w/2 - w*0.15
+                    element.selfStyle.width = w/3
+                end,
+
+                refresh = function(element)
+                    element.text = string.format("%d%%", math.floor(value*100.5))
+                end,
+            },
+
+            gui.Panel{
+                bgimage = true,
+                clip = true,
+                clipHidden = true,
+                height = "100%",
+                halign = "left",
+
+                refresh = function(element)
+                    element.selfStyle.width = string.format("%f%%", value*100)
+                end,
+
+                gui.Label{
+                    halign = "left",
+                    valign = "center",
+                    width = 100,
+                    height = "auto",
+                    textAlignment = "center",
+                    color = "black",
+                    fontSize = args.fontSize or 30,
+                    text = "TEST",
+
+                    thinkTime = 0.001,
+                    think = function(element)
+                        local w = m_resultPanel.renderedWidth - 4
+                        element.selfStyle.x = w/2 - w*0.15
+                        element.selfStyle.width = w/3
+                    end,
+
+                    refresh = function(element)
+                        element.text = string.format("%d%%", math.floor(value*100.5))
+                        element:FireEvent("think")
+                    end,
+                },
+            }
 		},
 	}
 
 	local params = {
 		flow = "none",
 		idprefix = "ProgressBar",
+        bgimage = true,
+        borderWidth = 2,
+        borderColor = Styles.Gold03,
+        bgcolor = "clear",
 
 		create = function(element)
 			element:FireEventTree("refresh")
@@ -2886,22 +3370,14 @@ function gui.ProgressBar(args)
 		end,
 
 		innerPanel,
-		gui.Panel{
-			classes = {"progressBarFrame"},
-			bgimage = "panels/progressbar/frame.png",
-			bgcolor = "white",
-			width = "100%",
-			height = "100%",
-			bgslice = {x1 = 200, x2 = 200, y1 = 32, y2 = 32},
-			border = {x1 = 50, x2 = 50, y1 = 8, y2 = 8},
-		},
 	}
 
 	for k,v in pairs(args) do
 		params[k] = v
 	end
 
-	return gui.Panel(params)
+	m_resultPanel = gui.Panel(params)
+    return m_resultPanel
 end
 
 --- @return Panel
@@ -2917,6 +3393,10 @@ local MakeSpectrumSamplePanel = function()
 		cornerRadius = 1.5,
 	}
 end
+
+--Sounds uploaded during this session, newest first. Floated to the top of
+--the audio picker so a just-uploaded clip isn't buried on the last page.
+local g_recentAudioUploads = {}
 
 --- Creates a panel for picking an audio asset. Use the 'value' field to query the assetid of the audio selected.
 --- @param args PanelArgs
@@ -2937,9 +3417,16 @@ function gui.AudioEditor(args)
 	args.autoplay = nil
 
 	local autoplayVolume = args.autoplayvolume
+	args.autoplayvolume = nil
 	if autoplayVolume == nil then
 		autoplayVolume = 1
 	end
+
+	--Optional mix group the autoplay preview is routed through (e.g. "anthem"), so the
+	--preview obeys the same personal fader / DM broadcast level / ducking as the real
+	--playback of that sound rather than sounding at raw master volume.
+	local autoplayMixGroup = args.autoplaymixgroup
+	args.autoplaymixgroup = nil
 
 	local StopAutoplay = function()
 		if autoplayInstance ~= nil then
@@ -2967,6 +3454,9 @@ function gui.AudioEditor(args)
 				autoplayInstance = asset:Play()
 				autoplayInstance.volume = autoplayVolume
                 autoplayInstance.solo = true
+				if autoplayMixGroup ~= nil then
+					autoplayInstance.mixGroupId = autoplayMixGroup
+				end
 				spectrumPanel:FireEvent("play")
 				resultPanel:SetClassTree("playing", true)
 			end
@@ -2979,15 +3469,9 @@ function gui.AudioEditor(args)
 		bgimage = "icons/icon_media/icon_media_5.png",
 		halign = "center",
 		valign = "center",
-		styles = {
-			{
-				bgcolor = Styles.textColor,
-			},
-			{
-				selectors = {"parent:hover"},
-				bgcolor = "black",
-				transitionTime = 0.2,
-			},
+		styles = ThemeEngine.MergeTokens{
+			{ bgcolor = "@fg" },
+			{ selectors = {"parent:hover"}, bgcolor = "@fgInverse", transitionTime = 0.2 },
 		},
 	}
 
@@ -3072,20 +3556,16 @@ function gui.AudioEditor(args)
 			autoplayVolume = vol
 		end,
 
-		styles = {
-			{
-				selectors = {"audioPanel"},
-				borderWidth = 2,
-				borderColor = Styles.textColor,
-				bgimage = "panels/square.png",
-				bgcolor = "black",
-			},
-			{
-				selectors = {"audioPanel", "hover"},
-				bgcolor = Styles.textColor,
-				transitionTime = 0.2,
-				brightness = 1.2,
-			},
+		styles = ThemeEngine.MergeTokens{
+			{ selectors = {"audioPanel"},
+			  borderWidth = 2,
+			  borderColor = "@border",
+			  bgimage = true,
+			  bgcolor = "@bg" },
+			{ selectors = {"audioPanel", "hover"},
+			  bgcolor = "@bgAlt",
+			  transitionTime = 0.2,
+			  brightness = 1.2 },
 		},
 
 		musicIcon,
@@ -3100,22 +3580,17 @@ function gui.AudioEditor(args)
 			textAlignment = "center",
 			text = "Sound",
 			fontSize = 16 * scaling,
+            characterLimit = 48,
 
-			styles = {
-				{
-					color = Styles.textColor,
-				},
-				{
-					selectors = {"parent:hover"},
-					color = "black",
-					transitionTime = 0.2,
-				}
+			styles = ThemeEngine.MergeTokens{
+				{ color = "@fg" },
+				{ selectors = {"parent:hover"}, color = "@fgInverse", transitionTime = 0.2 },
 			},
 			create = function(element)
 				if value == nil or assets.audioTable[value] == nil then
 					element.text = "(No Sound)"
 				else
-					element.text = assets.audioTable[value].description
+					element.text = string.sub(assets.audioTable[value].description or "", 1, 48)
 				end
 			end,
 			changeValue = function(element)
@@ -3126,30 +3601,57 @@ function gui.AudioEditor(args)
 		press = function(element)
 
 			local popupPanel = nil
+			local searchText = ''
+			-- Reassigned once searchInput exists; lets a row trigger a full
+			-- re-search (so a just-deleted sound drops out of the list).
+			local RefreshList = function() end
 
 			local CreateEntry = function()
 
 				local audioAsset = nil
 				local playingEvent = nil
 				local label = gui.Label{
-					fontSize = 16,
-					color = "white",
+					classes = {"sizeM"},
 					halign = "left",
 					textAlignment = "left",
 					width = "auto",
 					height = "auto",
+					lmargin = 14,
+					interactable = false,
+				}
+
+				--Green "play" chip: a solid accent background with the icon
+				--centered on top. The filled chip guarantees contrast against
+				--the row (a flat tinted icon blended into the background), and
+				--it's matched to the trash button's footprint.
+				local playIcon = gui.Panel{
+					bgimage = "ui-icons/AudioPlayButton.png",
+					bgcolor = "white",
+					width = "62%",
+					height = "62%",
+					halign = "center",
+					valign = "center",
 					interactable = false,
 				}
 
 				local playButton
-				playButton = gui.IconButton{
-					icon = "ui-icons/AudioPlayButton.png",
-					style = {
-						width = 32,
-						height = 32,
-						valign = "center",
-						halign = "right",
-						vmargin = 4,
+				playButton = gui.Panel{
+					width = 20,
+					height = 20,
+					cornerRadius = 10,
+					valign = "center",
+					halign = "right",
+					hmargin = 6,
+					bgcolor = "#43b06f",
+					borderWidth = 1,
+					borderColor = "#cdeedd",
+					styles = {
+						{ selectors = {"hover"}, bgcolor = "#5fd98c", brightness = 1.15, transitionTime = 0.1 },
+						{ selectors = {"press"}, brightness = 0.6 },
+					},
+
+					children = {
+						playIcon,
 					},
 
 					think = function(element)
@@ -3160,7 +3662,7 @@ function gui.AudioEditor(args)
 
 						if not playingEvent.playing then
 							playingEvent = nil
-							playButton.data.SetIcon("ui-icons/AudioPlayButton.png")
+							playIcon.bgimage = "ui-icons/AudioPlayButton.png"
 							element.thinkTime = nil
 						end
 					end,
@@ -3169,11 +3671,11 @@ function gui.AudioEditor(args)
 						if playingEvent ~= nil then
 							playingEvent:Stop()
 							playingEvent = nil
-							playButton.data.SetIcon("ui-icons/AudioPlayButton.png")
+							playIcon.bgimage = "ui-icons/AudioPlayButton.png"
 							element.thinkTime = nil
 						elseif audioAsset ~= nil then
 							playingEvent = audioAsset:Play()
-							playButton.data.SetIcon("panels/square.png")
+							playIcon.bgimage = "panels/square.png"
 							element.thinkTime = 0.1
 						end
 					end,
@@ -3191,9 +3693,9 @@ function gui.AudioEditor(args)
 					flow = "horizontal",
 					halign = "center",
 					width = "90%",
-					height = 40,
+					height = 44,
 					cornerRadius = 8,
-					bgimage = "panels/square.png",
+					bgimage = true,
 					click = function(element)
 						if audioAsset ~= nil then
 							value = audioAsset.id
@@ -3206,20 +3708,129 @@ function gui.AudioEditor(args)
 						resultPanel.popup = nil
 					end,
 
-					styles = {
-						{
-							selectors = {"audioEntry"},
-							bgcolor = "black",
-						},
-						{
-							selectors = {"audioEntry", "hover"},
-							bgcolor = "#770000",
-						},
+					--right-click a sound to delete it (with confirmation),
+					--mirroring DMHub's audio manager. The 'none' row has no asset.
+					rightClick = function(element)
+						if audioAsset == nil then
+							return
+						end
+						local assetId = audioAsset.id
+						local assetName = audioAsset.description or ""
+						element.popup = gui.ContextMenu{
+							width = 180,
+							entries = {
+								{
+									text = "Rename",
+									click = function()
+										element.popup = nil
+
+										local renameInput = gui.Input{
+											width = 220,
+											height = 30,
+											text = assetName,
+											hasFocus = true,
+										}
+
+										element.popup = gui.Panel{
+											classes = {"framedPanel"},
+											styles = ThemeEngine.GetStyles(),
+											flow = "vertical",
+											width = 260,
+											height = "auto",
+											pad = 12,
+											gui.Label{
+												classes = {"sizeM"},
+												text = "Rename sound",
+												width = "auto",
+												height = "auto",
+												vmargin = 4,
+											},
+											renameInput,
+											gui.Panel{
+												flow = "horizontal",
+												width = "auto",
+												height = "auto",
+												halign = "right",
+												tmargin = 8,
+												gui.Button{
+													classes = {"sizeM"},
+													text = "Cancel",
+													width = 90,
+													height = 36,
+													hmargin = 4,
+													click = function()
+														element.popup = nil
+													end,
+												},
+												gui.Button{
+													classes = {"sizeM"},
+													text = "Save",
+													width = 90,
+													height = 36,
+													hmargin = 4,
+													click = function()
+														local newName = renameInput.text
+														element.popup = nil
+														local asset = assets.audioTable[assetId]
+														if asset ~= nil and newName ~= nil and newName ~= "" then
+															asset.description = newName
+															asset:Upload()
+														end
+														RefreshList()
+													end,
+												},
+											},
+										}
+									end,
+								},
+								{
+									text = "Delete",
+									click = function()
+										element.popup = nil
+										gui.ModalMessage{
+											title = "Confirm Delete",
+											message = string.format('Delete the sound "%s"?', assetName),
+											options = {
+												{
+													text = "Cancel",
+													execute = function()
+														gui.CloseModal()
+													end,
+												},
+												{
+													text = "Delete",
+													execute = function()
+														gui.CloseModal()
+														if value == assetId then
+															value = nil
+															resultPanel:FireEvent("change", value)
+															resultPanel:FireEventTree("changeValue", value)
+														end
+														local asset = assets.audioTable[assetId]
+														if asset ~= nil then
+															asset.hidden = true
+															asset:Upload()
+														end
+														RefreshList()
+													end,
+												},
+											},
+										}
+									end,
+								},
+							},
+						}
+					end,
+
+					styles = ThemeEngine.MergeTokens{
+						{ selectors = {"audioEntry"}, bgcolor = "clear" },
+						{ selectors = {"audioEntry", "hover"}, bgcolor = "@bgAlt" },
 					},
 
 					data = {
 						SetId = function(id)
 							if id == "none" then
+								audioAsset = nil
 								playButton:SetClass("hidden", true)
 								label.text = "(No Sound)"
 							else
@@ -3263,9 +3874,9 @@ function gui.AudioEditor(args)
 				wrap = true,
 				margin = 0,
 				pad = 0,
-				width = 400,
-				height = rows*40,
-
+				width = 560,
+				height = rows*44,
+				tmargin = 12,
 				halign = 'center',
 
 				children = sounds,
@@ -3288,187 +3899,172 @@ function gui.AudioEditor(args)
 
 			local pagingPanel = gui.Panel{
 				id = 'paging-panel',
+				width = 'auto',
+				height = 32,
+				flow = 'horizontal',
+				halign = "center",
 				styles = {
 					{
-						width = '100%',
-						height = 32,
-						flow = 'horizontal',
-					},
-					{
-						selectors = {'hover', 'paging-arrow'},
-						brightness = 2,
-					},
-					{
-						selectors = {'press', 'paging-arrow'},
-						brightness = 0.7,
+						selectors = {'paging-arrow'},
+						height = '100%',
+						width = '50% height',
+						halign = 'left',
+						hmargin = 20,
 					},
 				},
 
 				children = {
-					gui.Panel{
-						bgimage = 'panels/InventoryArrow.png',
+					gui.Button{
+						icon = 'panels/InventoryArrow.png',
 						className = 'paging-arrow',
-						style = {
-							height = '100%',
-							width = '50% height',
-							halign = 'left',
-							hmargin = 40,
-						},
-
-						events = {
-							refreshSearch = function(element)
-								element:SetClass('hidden', npage == 1)
-							end,
-
-							click = function(element)
-								npage = npage - 1
-								if npage < 1 then
-									npage = 1
-								end
-								popupPanel:FireEventTree('refreshSearch')
-							end,
-						},
-
+						refreshSearch = function(element)
+							element:SetClass('hidden', npage == 1)
+						end,
+						click = function(element)
+							npage = npage - 1
+							if npage < 1 then
+								npage = 1
+							end
+							popupPanel:FireEventTree('refreshSearch')
+						end,
 					},
 
 					gui.Panel{
-						style = {
-							flow = 'horizontal',
+						flow = 'horizontal',
+						width = 'auto',
+						height = 'auto',
+						halign = 'center',
+						valign = "center",
+						gui.Label{
+							classes = {"sizeM"},
 							width = 'auto',
 							height = 'auto',
 							halign = 'center',
-						},
-
-						gui.Label{
-							style = {
-								fontSize = '35%',
-								color = 'white',
-								width = 'auto',
-								height = 'auto',
-								halign = 'center',
-							},
 							text = 'Page',
 						},
-
-						--padding.
-						gui.Panel{
-							style = {
-								height = 1,
-								width = 8,
-							},
-						},
-
 						gui.Label{
+							classes = {"sizeM"},
 							editable = true,
-							style = {
-								fontSize = '35%',
-								color = 'white',
-								width = 'auto',
-								height = 'auto',
-								halign = 'center',
-							},
-							events = {
-								refreshSearch = function(element)
-									element.text = string.format('%d', math.tointeger(npage))
-								end,
-								change = function(element)
-									local newPage = tonumber(element.text)
-									if newPage == nil or newPage < 1 or newPage > GetNumPages() then
-										newPage = npage
-									end
+							width = 'auto',
+							height = 'auto',
+							halign = 'center',
+							lmargin = 8,
+							refreshSearch = function(element)
+								element.text = string.format('%d', math.tointeger(npage))
+							end,
+							change = function(element)
+								local newPage = tonumber(element.text)
+								if newPage == nil or newPage < 1 or newPage > GetNumPages() then
+									newPage = npage
+								end
 
-									npage = newPage
-									popupPanel:FireEventTree('refreshSearch')
+								npage = newPage
+								popupPanel:FireEventTree('refreshSearch')
 
-								end,
-							}
+							end,
 						},
 
 						gui.Label{
-							style = {
-								fontSize = '35%',
-								color = 'white',
-								width = 'auto',
-								height = 'auto',
-								halign = 'center',
-							},
-							events = {
-								refreshSearch = function(element)
-									element.text = string.format('/%d', math.tointeger(GetNumPages()))
-								end,
-							}
+							classes = {"sizeM"},
+							width = 'auto',
+							height = 'auto',
+							halign = 'center',
+							lmargin = 8,
+							refreshSearch = function(element)
+								element.text = string.format('/ %d', math.tointeger(GetNumPages()))
+							end,
 						},
 
 					},
 
-					gui.Panel{
-						bgimage = 'panels/InventoryArrow.png',
-						className = 'paging-arrow',
-						style = {
-							scale = {x = -1, y = 1},
-							height = '100%',
-							width = '50% height',
-							halign = 'right',
-							hmargin = 40,
-						},
-
-						events = {
-							refreshSearch = function(element)
-								element:SetClass('hidden', npage == GetNumPages())
-							end,
-
-							click = function(element)
-								npage = npage + 1
-								if npage > GetNumPages() then
-									npage = GetNumPages()
-								end
-								popupPanel:FireEventTree('refreshSearch')
-							end,
-						},
+					gui.Button{
+						icon = 'panels/InventoryArrow.png',
+						classes = {'paging-arrow', "flipped"},
+						refreshSearch = function(element)
+							element:SetClass('hidden', npage == GetNumPages())
+						end,
+						click = function(element)
+							npage = npage + 1
+							if npage > GetNumPages() then
+								npage = GetNumPages()
+							end
+							popupPanel:FireEventTree('refreshSearch')
+						end,
 					},
 
 				},
 			}
 
-			local searchInput = gui.Input{
+			local searchInput = gui.SearchInput{
 				placeholderText = 'Search for sounds...',
 				hasFocus = true,
-				style = {
-					width = 200,
-					height = 30,
-					fontSize = '40%',
-					bgcolor = 'black',
-					hmargin = 8,
-				},
+				width = 200,
+				height = 30,
+				search = function(element, text)
+					searchText = text
+					--dmhub.SearchSounds returns hidden (deleted) assets too,
+					--so filter them out — otherwise a just-deleted sound is
+					--handed straight back by the refresh and never disappears.
+					local visibleSet = {}
+					local visible = {}
+					for _,id in ipairs(dmhub.SearchSounds(text)) do
+						local asset = assets.audioTable[id]
+						if asset ~= nil and not asset.hidden then
+							visibleSet[id] = true
+							visible[#visible+1] = id
+						end
+					end
 
-				events = {
-					change = function(element)
-						soundIds = dmhub.SearchSounds(element.text)
-						table.insert(soundIds, 1, "none")
-						npage = 1
-						popupPanel:FireEventTree('refreshSearch')
-					end,
-				},
+					--base order: alphabetical by name.
+					table.sort(visible, function(a, b)
+						local da = assets.audioTable[a].description or ""
+						local db = assets.audioTable[b].description or ""
+						return string.lower(da) < string.lower(db)
+					end)
+
+					--float this session's uploads to the top, newest first.
+					local ordered = {}
+					local pinned = {}
+					for _,id in ipairs(g_recentAudioUploads) do
+						if visibleSet[id] and not pinned[id] then
+							pinned[id] = true
+							ordered[#ordered+1] = id
+						end
+					end
+					for _,id in ipairs(visible) do
+						if not pinned[id] then
+							ordered[#ordered+1] = id
+						end
+					end
+
+					soundIds = ordered
+					table.insert(soundIds, 1, "none")
+					npage = 1
+					popupPanel:FireEventTree('refreshSearch')
+				end,
 			}
 
-			local uploadButton = gui.PrettyButton{
+			--now searchInput exists: a row's delete can re-run the search to
+			--rebuild the list without the (now hidden) deleted sound.
+			RefreshList = function()
+				searchInput:FireEvent('search', searchText)
+			end
+
+			local uploadButton = gui.Button{
+				classes = {"sizeM"},
 				text = 'Upload Audio',
-				width = "auto",
-				height = "auto",
 				width = 200,
 				height = 44,
-				fontSize = 20,
 				hmargin = 12,
 				vmargin = 12,
 				halign = "left",
 				valign = "bottom",
-				events = {
-					click = function(element)
+				click = function(element)
 					
 						local uploadDialog = nil
 						dmhub.OpenFileDialog{
 							id = 'AudioAssets',
-							extensions = {'ogg', 'mp3', 'wav', 'flac'},
+							extensions = {'ogg', 'mp3', 'wav', 'flac', 'm4a'},
 							multiFiles = true,
 							prompt = "Choose audio to load",
 							open = function(path)
@@ -3493,6 +4089,9 @@ function gui.AudioEditor(args)
 											operation.progress = 1
 											operation:Update()
 										end
+
+										--remember this upload so it sorts to the top of the picker.
+										table.insert(g_recentAudioUploads, 1, id)
 
 										--set this asset as the chosen one.
 										value = id
@@ -3522,33 +4121,37 @@ function gui.AudioEditor(args)
 							end,
 						}
 					end,
-				},
+			}
+
+			local closeButton = gui.Button{
+				classes = {"closeButton"},
+				floating = true,
+				halign = "right",
+				valign = "top",
+				click = function(element)
+					resultPanel.popup = nil
+				end,
 			}
 			
 			popupPanel = gui.Panel{
 				classes = {"framedPanel"},
-				styles = {
-					Styles.Default,
-					Styles.Panel,
-					{
-						flow = 'vertical',
-						halign = 'left',
-						valign = 'center',
-						width = 600,
-						height = 820,
-						borderWidth = 0,
-						bgcolor = 'white',
-					},
-				},
+				styles = ThemeEngine.GetStyles(),
+				flow = 'vertical',
+				halign = 'left',
+				valign = 'top',
+				pad = 8,
+				width = 600,
+				height = 820,
 				children = {
 					searchInput,
 					soundsGrid,
 					pagingPanel,
 					uploadButton,
+					closeButton,
 				},
 			}
 
-			searchInput:FireEvent('change')
+			searchInput:FireEvent('search', '')
 
 			resultPanel.popupPositioning = 'panel'
 			resultPanel.popup = popupPanel
@@ -3600,7 +4203,7 @@ function gui.CreateTokenImage(tokenArg, options)
 
 	local portraitPanel = gui.Panel{
 		idprefix = "token-portrait",
-		classes = 'token-image-portrait',
+		classes = {'token-image-portrait', 'tokenImagePortrait'},
 		interactable = false,
 
 		bgimage = bgimage,
@@ -3634,7 +4237,7 @@ function gui.CreateTokenImage(tokenArg, options)
 	local framePanel = gui.Panel{
 		idprefix = "token-frame",
 		floating = true,
-		classes = 'token-image-frame',
+		classes = {'token-image-frame', 'tokenImageFrame'},
 		bgcolor = 'white',
 		interactable = options.interactable or false,
 
@@ -3647,7 +4250,7 @@ function gui.CreateTokenImage(tokenArg, options)
 	
 	local info = {
 		idprefix = "token-image",
-		classes = 'token-image',
+		classes = {'token-image', 'tokenImage'},
 		children = {portraitPanel, framePanel},
 		token = function(element, tok)
 			token = tok
@@ -3763,10 +4366,44 @@ function gui.CollapseArrow(options)
 		height = 16,
 		width = "200% height",
 		bgimage = "panels/hud/down-arrow.png",
-		bgcolor = "white",
 	}
 
 	for k,v in pairs(options) do
+		args[k] = gui.CombineFields(args[k], v)
+	end
+
+	return gui.Panel(args)
+end
+
+local g_expandoArrowStyles = {
+	{
+		selectors = {"expandoArrow"},
+		rotate = 90,
+	},
+	{
+		selectors = {"expandoArrow", "expanded"},
+		rotate = 0,
+		transitionTime = 0.2,
+	},
+}
+
+--- An expand/collapse triangle. Closed (right-pointing) by default.
+--- Toggle by setting the "expanded" class on the returned panel.
+---
+--- Carries the "triangle" theme class so bgcolor / sizing / hover come
+--- from the active ThemeEngine cascade. The rotate transition lives on
+--- the panel's own styles because cascade-level rotate doesn't animate
+--- in DMHub's UI.
+--- @param options PanelArgs
+--- @return Panel
+function gui.ExpandoArrow(options)
+	local args = {
+		classes = {"triangle", "expandoArrow"},
+		styles = g_expandoArrowStyles,
+		bgimage = "panels/triangle.png",
+	}
+
+	for k,v in pairs(options or {}) do
 		args[k] = gui.CombineFields(args[k], v)
 	end
 
@@ -3785,10 +4422,21 @@ local g_pagingArrowStyles = {
 --- @class PagingArrowArgs:PanelArgs
 --- @field facing nil|-1|1 Choose if the arrow faces left or right.
 
+local throttlePagingArrowDeprecated = 0
 --- An arrow suitable for paging through different sections.
 --- @param options PagingArrowArgs
 --- @return Panel
 function gui.PagingArrow(options)
+	if false and devmode() and dmhub.Time() - throttlePagingArrowDeprecated >= 60 then
+		throttlePagingArrowDeprecated = dmhub.Time()
+		local caller = debug.getinfo(2, "Sl")
+		local location = "unknown location"
+		if caller ~= nil then
+			location = string.format("%s:%d", caller.short_src, caller.currentline)
+		end
+		SendTitledChatMessage(string.format("gui.PagingArrow() - use gui.Button() instead. See theming guide. Called from %s", location), "deprecated", "#cc6666")
+	end
+
 	local facing = options.facing or 1
 	options.facing = nil
 	local args = {
@@ -3825,7 +4473,13 @@ function gui.SearchInput(options)
 	local args = {
 		classes = {"searchInput"},
 		placeholderText = "Search...",
-        hpad = 24,
+		--room for the magnifier: hpad, not lpad/rpad -- inputs only
+		--honor the symmetric form (harness-verified 2026-08-20: lpad
+		--left the placeholder under the icon). The LOOK (frame, type,
+		--radius) lives in DefaultStyles' searchInput rules -- the one
+		--canonical search-field appearance; surfaces must not re-style
+		--it locally (Control Zoo decision 2026-08-20).
+		hpad = 24,
 		editlag = 0.25,
 
 		edit = function(element)
@@ -3835,21 +4489,86 @@ function gui.SearchInput(options)
 			element:FireEvent("search", ParseString(element.text))
 		end,
 
+		--the magnifier, inside the field's left edge. floating and the
+		--offset are structural, so they stay inline (the engine does not
+		--honor floating through the cascade); the tint comes from the
+		--searchInputIcon rule. Floating children anchor to the CONTENT
+		--box (inside the style's hpad 24), so the negative x walks the
+		--icon back into the padding: 24 - 18 = 6px from the field edge,
+		--ending at 21px, just clear of the text at 24
+		--(harness-verified 2026-08-20).
 		gui.Panel{
-			bgimage = "icons/icon_tool/icon_tool_42.png",
+			classes = {"searchInputIcon"},
+			bgimage = "phosphor/magnifying-glass-bold.png",
 			floating = true,
-            x = -20,
-			vmargin = 0,
 			halign = "left",
 			valign = "center",
-			height = "90%",
-			width = "100% height",
-            bgcolor = cond(dmhub.whiteLabel == "mcdm", "white", "black"),
+			x = -18,
+			width = 15,
+			height = 15,
+		},
+
+		--the clear x, inside the field's right edge: the mirror of the
+		--magnifier (x = +18 walks it into the right hpad, 6px from the
+		--field edge). Hidden while the field is empty; the edit/change
+		--wrappers below keep it in sync however the text changes. The
+		--tint comes from the searchInputClear rules.
+		gui.Panel{
+			classes = {"searchInputClear", "hidden"},
+			bgimage = "phosphor/x-bold.png",
+			floating = true,
+			halign = "right",
+			valign = "center",
+			x = 18,
+			width = 13,
+			height = 13,
+			create = function(element)
+				element:FireEvent("refreshSearchClear")
+			end,
+			refreshSearchClear = function(element)
+				element:SetClass("hidden", (element.parent.text or "") == "")
+			end,
+			press = function(element)
+				local input = element.parent
+				input.text = ""
+				input.hasFocus = true
+				--fire both text events: call sites listen to either (or
+				--both -- their handlers are idempotent searches, so a
+				--double run is harmless), and the wrappers below then
+				--re-hide this x.
+				input:FireEvent("edit")
+				input:FireEvent("change")
+			end,
 		},
 	}
 
 	for k,v in pairs(options) do
 		args[k] = v
+	end
+
+	--keep the clear x in sync with the text without requiring call
+	--sites to cooperate: wrap whichever edit/change handlers ended up
+	--in effect (the defaults above or the caller's overrides).
+	local function withClearRefresh(handler)
+		return function(element, ...)
+			if handler ~= nil then
+				handler(element, ...)
+			end
+			element:FireEventTree("refreshSearchClear")
+		end
+	end
+	args.edit = withClearRefresh(args.edit)
+	args.change = withClearRefresh(args.change)
+	--some call sites pass handlers via the legacy events = {} table
+	--instead; wrap those in place so precedence between the two forms
+	--stays whatever the engine already does.
+	if type(args.events) == "table" then
+		if args.events.edit ~= nil then
+			args.events.edit = withClearRefresh(args.events.edit)
+		end
+		if args.events.change ~= nil then
+			args.events.change = withClearRefresh(args.events.change)
+		end
 	end
 
 	return gui.Input(args)
@@ -3920,10 +4639,10 @@ end
 
 gui.ImplementationStatusValues = {
 	[0] = "Narrative",
-	[1] = "Unimplemented",
-	[2] = "Bronze",
-	[3] = "Silver",
-	[4] = "Gold",
+	[1] = "Not Automated",
+	[2] = "Partly Automated",
+	[3] = "Mostly Automated",
+	[4] = "Fully Automated",
 }
 
 gui.ImplementationStatus = {
@@ -3961,18 +4680,22 @@ function gui.ImplementationStatusPanel(options)
 
 	local types = gui.ImplementationStatusValues
 
+	local function implClass(num)
+		return "implStatus" .. tostring(num)
+	end
+
 	local textLabel = gui.Label{
-		width = 110,
-		height = 24,
-		fontSize = 14,
-		color = "white",
+		classes = {"sizeM", implClass(value)},
+		width = 180,
 		text = types[value],
 		textAlignment = "center",
 		halign = "center",
+		valign = "center",
 	}
 
 
 	resultPanel = {
+		styles = ThemeEngine.ForceSafety() and ThemeEngine.GetStyles() or nil,
 		width = 148,
 		height = 32,
 		flow = "horizontal",
@@ -3983,6 +4706,9 @@ function gui.ImplementationStatusPanel(options)
 
 		SetValue = function(element, val, firechange)
 			local num = ClampValue(val)
+			for i = 0, 4 do
+				textLabel:SetClass(implClass(i), i == num)
+			end
 			textLabel.text = types[num]
 			value = num
 			if firechange then
@@ -3991,9 +4717,8 @@ function gui.ImplementationStatusPanel(options)
 		end,
 
 
-		gui.Panel{
-			bgimage = 'panels/InventoryArrow.png',
-			bgcolor = "white",
+		gui.Button{
+			icon = 'panels/InventoryArrow.png',
 			halign = "left",
 			valign = "center",
 			height = 24,
@@ -4006,13 +4731,12 @@ function gui.ImplementationStatusPanel(options)
 
 		textLabel,
 
-		gui.Panel{
-			bgimage = 'panels/InventoryArrow.png',
-			scale = {x = -1, y = 1},
-			bgcolor = "white",
+		gui.Button{
+			icon = 'panels/InventoryArrow.png',
+			classes = {"flipped"},
 			halign = "right",
 			valign = "center",
-			height = 32,
+			height = 24,
 			width = "50% height",
 			press = function(element)
 				resultPanel.value = value+1
@@ -4483,24 +5207,18 @@ end
 --- A panel suitable for maximizing a dockable panel.
 --- @return Panel
 function gui.DockablePanelMaximizeButton()
-	return gui.Panel{
-		bgimage = "panels/hud/down-arrow.png",
-		width = 256/8,
-		height = 128/8,
-		bgcolor = "white",
+	-- Themed icon button: the "maximizeButton" kind paints the down-arrow on
+	-- the inner buttonIcon (tinted @fg so it follows the active scheme) and
+	-- the "maximized" class flips it vertically. Hover/press feedback comes
+	-- from the shared iconButton chrome rules. width/height stay inline as
+	-- layout: the arrow art is 2:1, so the button is wider than it is tall.
+	return gui.Button{
+		classes = {"maximizeButton"},
+		width = 32,
+		height = 16,
 		halign = "center",
 		valign = "top",
 		vmargin = 4,
-		styles = {
-			{
-				selectors = {"hover"},
-				brightness = 1.5,
-			},
-			{
-				selectors = {"maximized"},
-				scale = {x = 1, y = -1},
-			},
-		},
 
 		minimize = function(element)
 			element:SetClass("maximized", false)
@@ -4522,6 +5240,11 @@ function gui.DockablePanelMaximizeButton()
 end
 
 --- A panel for alerting to new content.
+--- args.count: with a count of 2 or more the marker shows the number
+--- inside it (capped at a single digit -- 9); nil, 0, or 1 shows the
+--- plain marker. The marker is the same size either way.
+--- args.size: diameter of the circle (default 10); the digit scales
+--- with it.
 --- @param args PanelArgs
 --- @return Panel
 function gui.NewContentAlert(args)
@@ -4529,18 +5252,45 @@ function gui.NewContentAlert(args)
 	local info = args.info
 	args.info = nil
 
+	local count = args.count
+	args.count = nil
+
+	local size = args.size or 10
+	args.size = nil
+
 	local params = {
 		halign = "right",
 		valign = "center",
 		floating = true,
-		width = 6,
-		height = 6,
+		width = size,
+		height = size,
 		bgimage = "panels/square.png",
-		bgcolor = Styles.textColor,
-		cornerRadius = 3,
+		--solid red, undoctored by brightness, so the alert reads at a
+		--glance against both the dark rail and light panel surfaces.
+		bgcolor = "#ee4444",
+		cornerRadius = size/2,
 		x = 14,
-		brightness = 1.5,
+		flow = "none",
 	}
+
+	if type(count) == "number" and count > 1 then
+		if count > 9 then
+			count = 9
+		end
+		params[1] = gui.Label{
+			text = tostring(count),
+			fontSize = math.floor(size * 0.9 + 0.5),
+			fontWeight = "black",
+			color = "white",
+			width = "100%",
+			height = "auto",
+			textAlignment = "center",
+			halign = "center",
+			valign = "center",
+			interactable = false,
+			textWrap = false,
+		}
+	end
 
 	for k,v in pairs(args) do
 		params[k] = v
@@ -4548,6 +5298,43 @@ function gui.NewContentAlert(args)
 
 
 	return gui.Panel(params)
+end
+
+--- Counts the entries recorded as novel content for the given content type.
+--- @param contentType string
+--- @return number
+function gui.NovelContentCount(contentType)
+	local t = module.GetNovelContent(contentType)
+	if t == nil then
+		return 0
+	end
+	local count = 0
+	for _ in pairs(t) do
+		count = count + 1
+	end
+	return count
+end
+
+--- Clears every entry recorded as novel content for the given content type,
+--- retiring the alerts driven by it in one act. Returns the number cleared.
+--- The keys are gathered up front rather than removed during the traversal:
+--- RemoveNovelContent mutates the table it hands back, and drops the content
+--- type entirely once it empties.
+--- @param contentType string
+--- @return number
+function gui.ClearNovelContent(contentType)
+	local t = module.GetNovelContent(contentType)
+	if t == nil then
+		return 0
+	end
+	local keys = {}
+	for k, _ in pairs(t) do
+		keys[#keys+1] = k
+	end
+	for _, k in ipairs(keys) do
+		module.RemoveNovelContent(contentType, k)
+	end
+	return #keys
 end
 
 --- Will create a new content alert if the key within the given kind of content has new content. Otherwise returns nil.
@@ -4845,13 +5632,13 @@ function gui.MCDMDivider(options)
 	options.bgimage = nil
 
 	local args = {
+		classes = {"mcdmDivider"},
 		tmargin = 4,
 		bmargin = 0,
 		height = 1,
 		width = "80%",
 		halign = "center",
-		bgimage = "panels/square.png",
-		bgcolor = Styles.textColor,
+		bgimage = true,
 	}
 
 	if layout and mcdmLayouts[layout] then
@@ -4860,24 +5647,31 @@ function gui.MCDMDivider(options)
 			args[k] = v
 		end
 		args.height = (args.height and args.height > 1) and args.height or 12
-		args.tmargin = 0
+		-- Laid-out dividers default to no top margin, but a caller that asks
+		-- for one keeps it: the plain divider's tmargin of 4 is the wrong
+		-- default here, not a value to force on everybody.
+		args.tmargin = options.tmargin or 0
 		args.bgimage = nil
 		args.gradient = nil
 		args.flow = "horizontal"
-		
-		local lineWidth = "50%-" .. math.floor(args.height/2)
-		local bgcolor = args.bgcolor or Styles.textColor
+
+		-- Inner panels share the cascade rule via the same class.  If the
+		-- caller passed an explicit bgcolor, propagate it inline so it still
+		-- wins over the cascade.
+		local innerBgcolor = options.bgcolor
 		local leftPanel = gui.Panel{
+			classes = {"mcdmDivider"},
 			height = args.height,
-			width = lineWidth,
+			width = "50%-" .. math.floor(args.height/2),
 			halign = "right",
 			valign = "center",
 			pad = 0,
 			margin = 0,
 			bgimage = mod.images.line,
-			bgcolor = bgcolor
+			bgcolor = innerBgcolor,
 		}
 		local midPanel = gui.Panel{
+			classes = {"mcdmDivider"},
 			height = args.height,
 			width = args.height,
 			halign = "center",
@@ -4885,17 +5679,18 @@ function gui.MCDMDivider(options)
 			pad = 0,
 			margin = 0,
 			bgimage = mod.images[layout],
-			bgcolor = bgcolor
+			bgcolor = innerBgcolor,
 		}
 		local rightPanel = gui.Panel{
+			classes = {"mcdmDivider"},
 			height = args.height,
-			width = lineWidth,
+			width = "50%-" .. math.floor(args.height/2),
 			halign = "left",
 			valign = "center",
 			pad = 0,
 			margin = 0,
 			bgimage = mod.images.line,
-			bgcolor = bgcolor
+			bgcolor = innerBgcolor,
 		}
 
 		args.children = {

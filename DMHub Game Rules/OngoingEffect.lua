@@ -269,6 +269,16 @@ function TimePoint:RoundsSince()
 	local initiativeEntry = initiativeQueue:GetFirstInitiativeEntry()
 	local currentlyOurTurn = initiativeEntry ~= nil and initiativeEntry.initiativeid == self:try_get("initiativeid")
 
+	--While a creature's "Before Start of Turn" (prestartturn) trigger is firing, its turn
+	--has not "really" begun yet (see creature:BeginTurn). The round counter has already
+	--incremented, so rewind a full round step for this creature's own effects so that
+	--ones expiring "at the start of its turn" (duration 0) remain active through the
+	--trigger and only expire once the flag clears. Gated on currentlyOurTurn so effects
+	--on other creatures are never affected.
+	if currentlyOurTurn and initiativeQueue:try_get("_tmp_prestartInitiativeId") == self:try_get("initiativeid") then
+		roundsPassed = roundsPassed - 1
+	end
+
 	local turnPassed = false
 	local turnPending = false
 
@@ -296,7 +306,7 @@ end
 --- @field ongoingEffectid string
 --- @field duration nil|number time in rounds
 --- @field time TimePoint time when effect was added.
---- @field endAbility nil|ActivatedAbility which ends the action
+--- @field _tmp_endAbility nil|ActivatedAbility which ends the action (transient, never serialized)
 --- @field countdowns nil|table<string,number> a map of string -> count which is a trigger id -> number of triggers left. Used to keep track of triggers
 ---                        which will expire this effect when they hit their limit. If any are 0 then this effect expires.
 --- @field casterInfo nil|{tokenid: string, concentrationid: nil|string}
@@ -346,6 +356,14 @@ function CharacterOngoingEffectInstance.Create(options)
 	elseif options.duration == "end_of_next_turn" then
 		options.duration = nil
 		options.removeAtNextTurnEnd = true
+	elseif options.duration == "end_of_next_turn_from_turnstart" then
+		--Like end_of_next_turn, but survives the turn it is applied in. Use when the
+		--effect is applied at the START of the affected creature's own turn (e.g. a
+		--begin-turn aura): plain end_of_next_turn would count THIS turn's end as the
+		--"next turn end" and expire immediately. removeAtNextTurnEnd=2 skips one
+		--turn-end (see creature:EndTurn), so it expires at the end of their next turn.
+		options.duration = nil
+		options.removeAtNextTurnEnd = 2
     elseif options.duration == "endround" then
 		options.duration = nil
 		options.removeAtRoundEnd = true
@@ -404,6 +422,9 @@ function CharacterOngoingEffectInstance:Refresh(duration)
         elseif duration == "end_of_next_turn" then
             self.duration = nil
             self.removeAtNextTurnEnd = true
+        elseif duration == "end_of_next_turn_from_turnstart" then
+            self.duration = nil
+            self.removeAtNextTurnEnd = 2
         elseif duration == "endround" then
             self.duration = nil
             self.removeAtRoundEnd = true
@@ -465,6 +486,16 @@ function CharacterOngoingEffectInstance:Expired()
 	end
 
 	if self:has_key('duration') then
+		if self.time:try_get('queueguid') == nil then
+			--this effect was created outside of combat, so it should expire immediately.
+			return true
+		end
+		--Defensive: legacy data may have stored an unrecognized duration string
+		--(e.g. "endturn") that should have been normalized at apply time. Treat
+		--such instances as expired so the spam stops and they get cleaned up.
+		if type(self.duration) ~= "number" then
+			return true
+		end
 		return self.time:RoundsSince() > self.duration
 	end
 

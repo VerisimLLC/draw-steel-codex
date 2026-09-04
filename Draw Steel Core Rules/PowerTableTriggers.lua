@@ -84,6 +84,67 @@ for _,choice in ipairs(g_triggerChoices) do
     g_idToTriggerChoice[choice.id] = choice
 end
 
+--Apply the controlling creature's Modify Abilities modifiers to the trigger's
+--effective range. Only the "range" attribute flows through (other Modify
+--Abilities aspects don't apply to triggers, by design).
+--
+--Keyword filter: the Modify Abilities mod's keyword set must be a subset of the
+--trigger's powerRollModifier.keywords (the keywords describing what abilities
+--the trigger reacts to). Empty keyword filter matches every trigger.
+--
+--filterAbility GoblinScript: if set on the Modify Abilities mod, the mod is
+--skipped -- triggers aren't abilities, so the filter can't be evaluated.
+local function ComputeTriggerRange(modifier, creature)
+    local range = modifier.range
+    if range == nil or range == "" then
+        return range
+    end
+
+    local triggerKeywords = modifier.powerRollModifier:try_get("keywords", {})
+
+    local modifiers = creature:GetActiveModifiers()
+    for _, modContext in ipairs(modifiers) do
+        local m = modContext.mod
+        if m.behavior == "modifyability"
+            and m:try_get("filterAbility", "") == ""
+            and m:try_get("applyToPowerRollTriggers", false) then
+            local pass = true
+            for kw, _ in pairs(m:try_get("keywords", {})) do
+                if not triggerKeywords[kw] then
+                    pass = false
+                    break
+                end
+            end
+
+            if pass then
+                for _, attr in ipairs(m:try_get("attributes", {})) do
+                    if attr.id == "range" then
+                        local value = dmhub.EvalGoblinScript(attr.value,
+                            GenerateSymbols(creature), "Calculate Trigger Range Modifier")
+                        local val = nil
+                        if attr.operation == "Set" then
+                            val = tonumber(value)
+                        elseif attr.operation == "Multiply" then
+                            val = tonum(range) * tonum(value)
+                        else
+                            if type(range) == "string" and tonumber(range) == nil then
+                                val = string.format("(%s) + (%s)", range, value)
+                            else
+                                val = tonum(range) + tonum(value)
+                            end
+                        end
+                        if val ~= nil then
+                            range = val
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return range
+end
+
 CharacterModifier.RegisterType("powertabletrigger", "Power Roll Trigger")
 
 CharacterModifier.TypeInfo.powertabletrigger = {
@@ -157,10 +218,11 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             end
         end
 
-        if not selfIsTarget then
-            --range check.
+        if not selfIsTarget and self.range ~= "" then
+            --range check (with Modify Abilities range mods applied).
+            local effectiveRange = ComputeTriggerRange(self, token.properties)
             local distance = token:Distance(triggerTarget)
-            if tonumber(distance) > ExecuteGoblinScript(self.range, token.properties:LookupSymbol{}, 0) then
+            if tonumber(distance) > ExecuteGoblinScript(effectiveRange, token.properties:LookupSymbol{}, 0) then
                 return
             end
         end
@@ -187,7 +249,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         end
 
         if selfClone.powerRollModifier:try_get("resourceCostType") == "cost" then
-            if token.properties:GetHeroicOrMaliceResources() < ExecuteGoblinScript(selfClone.powerRollModifier:try_get("resourceCostAmount", "1"), token.properties:LookupSymbol(symbols), 1) then
+            if token.properties:GetHeroicOrMaliceResourcesAvailableToSpend() < ExecuteGoblinScript(selfClone.powerRollModifier:try_get("resourceCostAmount", "1"), token.properties:LookupSymbol(symbols), 1) then
                 return false
             end
         elseif selfClone.powerRollModifier:try_get("resourceCostType") == "epic" then
@@ -210,7 +272,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             entry.epicResourceCost = tonumber(selfClone.powerRollModifier:try_get("resourceCostAmount", 1))
         end
 
-        if self.abilityTargets ~= "" then
+        if self:try_get("abilityTargets", "") ~= "" then
             local targets = ExecuteGoblinScript(self.abilityTargets, token.properties:LookupSymbol(symbols), 0)
             entry.params.targetcount = targets
         end
@@ -226,6 +288,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
     --- @param castOptions table A table of options that go to an ability cast.
     applyTriggerToPowerRoll = function(self, token, casterToken, targetToken, ability, rollProperties, castOptions)
         local triggerInfo = g_idToTriggerChoice[self.trigger]
+        print("TRIGGER::", self.trigger, "->", triggerInfo)
         local triggerTarget = casterToken
         castOptions = castOptions or {}
         local symbols = castOptions.symbols or {}
@@ -248,7 +311,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         end
 
         if self.powerRollModifier:try_get("resourceCostType") == "cost" then
-            if (tonumber(token.properties:GetHeroicOrMaliceResources()) or 0) < (tonumber(self.powerRollModifier:try_get("resourceCostAmount", 1)) or 0) then
+            if (tonumber(token.properties:GetHeroicOrMaliceResourcesAvailableToSpend()) or 0) < (tonumber(self.powerRollModifier:try_get("resourceCostAmount", 1)) or 0) then
                 return false
             end
         elseif self.powerRollModifier:try_get("resourceCostType") == "epic" then
@@ -294,10 +357,11 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             end
         end
 
-        if not selfIsTarget then
-            --range check.
+        if not selfIsTarget and self.range ~= "" then
+            --range check (with Modify Abilities range mods applied).
+            local effectiveRange = ComputeTriggerRange(self, token.properties)
             local distance = token:Distance(triggerTarget)
-            if tonumber(distance) > ExecuteGoblinScript(self.range, token.properties:LookupSymbol{}, 0) then
+            if tonumber(distance) > ExecuteGoblinScript(effectiveRange, token.properties:LookupSymbol{}, 0) then
                 return false
             end
         end
@@ -327,6 +391,20 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         if self.trigger == "forcemove" or self.trigger == "forcemoved" then
             --check that the roll does some kind of forced movement.
             if not rollProperties:HasForcedMovement() then
+                return false
+            end
+        end
+
+        local abilityFilter = self:try_get("abilityFilter", "")
+        if abilityFilter ~= "" then
+            local filter = ExecuteGoblinScript(abilityFilter, token.properties:LookupSymbol{
+                caster = casterToken.properties,
+                target = targetToken.properties,
+                triggerer = token.properties,
+                ability = ability,
+                cast = symbols.cast,
+            }, 0)
+            if not GoblinScriptTrue(filter) then
                 return false
             end
         end
@@ -413,6 +491,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     text = "Action:",
                 },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = g_abilityTypeChoices,
                     idChosen = modifier.type,
                     change = function(element)
@@ -429,6 +508,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     text = "Target:",
                 },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = g_targetChoices,
                     idChosen = modifier.targetType,
                     change = function(element)
@@ -445,6 +525,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     text = "Multi-target:",
                 },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = {
                         {
                             id = "one",
@@ -470,6 +551,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     text = "Trigger:",
                 },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = g_triggerChoices,
                     idChosen = modifier.trigger,
                     change = function(element)
@@ -489,6 +571,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                         text = "Damage Type:",
                     },
                     gui.Dropdown{
+                        styles = ThemeEngine.GetStyles(),
                         options = {
                             {
                                 id = "all",
@@ -670,6 +753,67 @@ CharacterModifier.TypeInfo.powertabletrigger = {
 
             end
 
+            if modifier.trigger ~= "casting" then
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel"},
+                    gui.Label{
+                        classes = {"formLabel"},
+                        text = "Ability Filter:",
+                    },
+                    gui.GoblinScriptInput{
+                        value = modifier:try_get("abilityFilter", ""),
+                        change = function(element)
+                            modifier.abilityFilter = element.value
+                            Refresh()
+                        end,
+                        documentation = {
+                            domains = modifier:Domains(),
+                            help = "This GoblinScript is used to filter which abilities can fire this trigger. Leave blank to allow all abilities.",
+                            output = "boolean",
+                            examples = {
+                                {
+                                    script = 'Ability.Keywords has "Melee"',
+                                    text = "Only melee abilities can fire this trigger.",
+                                },
+                                {
+                                    script = 'Ability.Keywords has "Strike"',
+                                    text = "Only strikes can fire this trigger.",
+                                },
+                            },
+                            subject = creature.helpSymbols,
+                            subjectDescription = "The creature who the modifying trigger comes from.",
+                            symbols = {
+                                {
+                                    name = "Caster",
+                                    type = "creature",
+                                    desc = "The creature who is casting the ability.",
+                                },
+                                {
+                                    name = "Target",
+                                    type = "creature",
+                                    desc = "The target of the ability.",
+                                },
+                                {
+                                    name = "Triggerer",
+                                    type = "creature",
+                                    desc = "The creature who triggered the ability.",
+                                },
+                                {
+                                    name = "Ability",
+                                    type = "ability",
+                                    desc = "The ability being cast.",
+                                },
+                                {
+                                    name = "Cast",
+                                    type = "spellcast",
+                                    desc = "The cast context of the ability being cast.",
+                                },
+                            }
+                        }
+                    },
+                }
+            end
+
             if modifier.targetType ~= "self" then
 
                 children[#children+1] = gui.Panel{
@@ -748,6 +892,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             end
 
             children[#children+1] = gui.Check{
+                styles = ThemeEngine.GetStyles(),
                 text = "Force Re-roll",
                 value = modifier:try_get("forceReroll", false),
                 change = function(element)
@@ -775,12 +920,11 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     tmargin = 16,
                     width = "auto",
                     height = "auto",
-                    gui.DeleteItemButton{
+                    gui.Button{
+                        classes = {"deleteButton", "sizeXs"},
                         halign = "right",
                         valign = "center",
                         x = 30,
-                        width = 12,
-                        height = 12,
                         requireConfirm = true,
                         press = function()
                             local items = modifier:try_get("additionalCostModifiers", {})
@@ -791,6 +935,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                 }
 
                 children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
                     text = "Override Base",
                     value = powerRollModifier:try_get("overrideBase", false),
                     change = function(element)
@@ -854,9 +999,13 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             end
 
             children[#children+1] = gui.Button{
-                width = 260,
-                height = 26,
-                fontSize = 18,
+                width = "auto",
+                height = "auto",
+                minWidth = 260,
+                hpad = 16,
+                vpad = 6,
+                borderBox = true,
+                fontSize = 16,
                 text = "Add Additional Cost Modifier",
                 click = function(element)
 

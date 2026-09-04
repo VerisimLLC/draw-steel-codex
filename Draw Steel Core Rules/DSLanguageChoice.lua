@@ -4,7 +4,7 @@ local mod = dmhub.GetModLoading()
 --- @field name string Display name ("Language").
 --- @field description string Prompt shown to the player.
 --- @field categories string[] Language category ids to filter available languages (currently unused).
---- @field numChoices number Number of languages the player may choose.
+--- @field numChoices number|string|table Number of languages the player may choose.
 CharacterLanguageChoice = RegisterGameType("CharacterLanguageChoice", "CharacterChoice")
 
 CharacterLanguageChoice.name = "Language"
@@ -29,10 +29,12 @@ end
 
 local g_tagCache = {}
 local g_optCache = {}
+local g_languageVersion = 0
 
 dmhub.RegisterEventHandler("refreshTables", function(keys)
 	g_tagCache = {}
     g_optCache = {}
+    g_languageVersion = g_languageVersion + 1
 end)
 
 function CharacterLanguageChoice:_cache()
@@ -90,11 +92,18 @@ function CharacterLanguageChoice:CanRepeat()
 end
 
 function CharacterLanguageChoice:GetLanguageFeatures()
-    if self:try_get("_tmp_languageFeatures") ~= nil and (dmhub.DeepEqual(self:try_get("_tmp_languageFeaturesKey"), self.categories)) then
+    local cachedKey = self:try_get("_tmp_languageFeaturesKey")
+    if self:try_get("_tmp_languageFeatures") ~= nil
+        and cachedKey ~= nil
+        and cachedKey.version == g_languageVersion
+        and dmhub.DeepEqual(cachedKey.categories, self.categories) then
         return self._tmp_languageFeatures
     end
 
-    self._tmp_languageFeaturesKey = DeepCopy(self.categories)
+    self._tmp_languageFeaturesKey = {
+        version = g_languageVersion,
+        categories = DeepCopy(self.categories),
+    }
 
     self._tmp_languageFeatures = {}
 
@@ -143,7 +152,7 @@ function CharacterLanguageChoice:FillFeaturesRecursive(choices, result)
     local languageFeatures = self:GetLanguageFeatures()
     for _,choiceid in ipairs(choiceidList) do
         for _,f in ipairs(languageFeatures) do
-            if choiceid.guid == choiceid then
+            if f.guid == choiceid then
                 f:FillFeaturesRecursive(choices, result)
             end
         end
@@ -165,16 +174,17 @@ function CharacterLanguageChoice:CreateEditor(classOrRace, params)
         flow = "vertical",
 
         gui.Panel{
-            classes = {"formPanel"},
+            classes = {"formStackedRow"},
             gui.Label{
-                classes = {"formLabel"},
-                text = "Languages",
+                classes = {"formStacked"},
+                text = "Languages:",
             },
             gui.Input{
+                classes = {"formStacked"},
                 width = 180,
                 text = tonumber(self.numChoices),
                 characterLimit = 2,
-
+                numeric = true,
                 change = function(element)
                     local n = math.max(1, round(tonumber(element.text) or self.numChoices))
                     self.numChoices = n

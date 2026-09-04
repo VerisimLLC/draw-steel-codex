@@ -11,6 +11,7 @@ local mod = dmhub.GetModLoading()
 --- @field searchHidden nil|boolean If true, hides the search.
 --- @field categoriesHidden nil|boolean if true, hides the categories. The user will *have to* select from the image library and cannot switch to a different image library.
 --- @field restrictImageType nil|string
+--- @field liveEdit nil|boolean If set, a right-click "Live Edit" option opens the current image in an external editor and replaces the underlying image asset in place on commit (patron-gated).
 
 --- @class IconEditorPanel:Panel
 --- @field value nil|string The assetid of the image.
@@ -54,9 +55,13 @@ function gui.IconEditor(args)
 	local restrictImageType = args.restrictImageType
 	args.restrictImageType = nil
 
+	local allowLiveEdit = args.liveEdit or false
+	args.liveEdit = nil
+
 	local resultPanel = nil
 
 	local category = ''
+	local useBuiltinIcons = false
 
 	local stretch = args.stretch
 	args.stretch = nil
@@ -67,7 +72,6 @@ function gui.IconEditor(args)
 
 	local imageDim = 96
 	local iconImageStyle = {
-		bgcolor = 'white',
 		maxWidth = imageDim-4,
 		maxHeight = imageDim*aspect-4,
 		width = cond(stretch, imageDim-4, "auto"),
@@ -88,11 +92,84 @@ function gui.IconEditor(args)
 		imageType = ImageTypeMapping[library]
 	end
 
+	--Live-edit: open the currently-selected image in the external editor and, on commit, replace the
+	--underlying image asset in place (same asset id, new image bytes) so every use of it updates --
+	--mirrors the map-object "Live Edit" flow but driven from this picker. Patron-gated.
+	local function StartIconLiveEdit()
+		local val = resultPanel.value
+		if val == nil or val == '' then
+			return
+		end
+
+		--The widget value is an image-asset guid for library images, or a raw image id for some uses.
+		--Resolve it to the underlying image id to open in the editor; fall back to the value itself.
+		local imageId = val
+		local node = assets.imagesTable[val]
+		if node ~= nil then
+			imageId = node.imageid
+		end
+
+		if imageId == nil or imageId == '' then
+			return
+		end
+
+		local originalImageId = imageId
+
+		--Force the bgimage to re-resolve the (now repointed) asset: the setter short-circuits on an
+		--unchanged value, so bounce through the concrete image id first, then restore the value.
+		local function refreshTo(displayImageId)
+			if not resultPanel.valid then return end
+			resultPanel.bgimage = "md5:" .. displayImageId
+			resultPanel.bgimage = val
+			resultPanel:FireEvent("change")
+		end
+
+		local function beginEdit()
+			dmhub.StartLiveEditImage{
+				guid = imageId,
+				name = "Edit Image",
+				commit = function(newImageId)
+					if mod.unloaded or not resultPanel.valid then return end
+					if newImageId == nil or newImageId == '' then return end
+					if dmhub.SetImageAssetImage(val, newImageId) then
+						refreshTo(newImageId)
+					else
+						--No editable asset behind this value (e.g. a raw image id): swap the widget
+						--directly to the edited image.
+						resultPanel.value = "md5:" .. newImageId
+					end
+				end,
+				revert = function()
+					if mod.unloaded or not resultPanel.valid then return end
+					if dmhub.SetImageAssetImage(val, originalImageId) then
+						refreshTo(originalImageId)
+					end
+				end,
+			}
+		end
+
+		if dmhub.ImageEditorNeedsSetup() then
+			dmhub.PromptImageEditorSetup(beginEdit)
+		else
+			beginEdit()
+		end
+	end
+
 	if args.rightClick == nil then
 
 		args.rightClick = function(element)
 
             local entries = {}
+
+            if allowLiveEdit and dmhub.patronTier > 0 and resultPanel.value ~= nil and resultPanel.value ~= '' then
+                entries[#entries+1] = {
+                    text = "Live Edit",
+                    click = function()
+                        element.popup = nil
+                        StartIconLiveEdit()
+                    end,
+                }
+            end
 
             entries[#entries+1] = {
                 text = "Copy Image",
@@ -125,6 +202,16 @@ function gui.IconEditor(args)
                         dmhub.OpenImageAssetURL(resultPanel.value)
                     end,
                 }
+
+                entries[#entries+1] = {
+                    text = "Copy Image ID",
+                    click = function()
+                        element.popup = nil
+                        if resultPanel.value ~= nil then
+                            dmhub.CopyToClipboard(resultPanel.value)
+                        end
+                    end,
+                }
             end
 
 			element.popup = gui.ContextMenu{
@@ -144,21 +231,21 @@ function gui.IconEditor(args)
 		local CreateImage = function()
 			local m_imageid = nil
 			local iconImage = gui.Panel{
-				classes = {"icon-image"},
+				classes = {"iconImage", "image"},
 				style = iconImageStyle,
 			}
 
 			local resultImage
 			resultImage = gui.Panel{
-				bgimage = 'panels/square.png',
-				classes = {'hidden', 'image-background'},
+				-- bgimage = true,
+				classes = {"hidden"},
 				styles = {
 					{
-						bgcolor = 'black',
+						-- bgcolor = "white",
 						width = imageDim,
 						height = imageDim*aspect,
-						halign = 'center',
-						valign = 'center',
+						halign = "center",
+						valign = "center",
 					},
 				},
 				selfStyle = {
@@ -167,8 +254,27 @@ function gui.IconEditor(args)
 				data = {
 					setImage = function(imageid)
 						m_imageid = imageid
-						iconImage.bgimage = imageid
-						iconImage:SetClass("deleted", false)
+                        print("SETIMAGE::", json(imageid))
+
+                        if imageid == "" then
+                            iconImage.bgimage = "panels/square.png"
+                            iconImage.selfStyle.bgcolor = "black"
+                            iconImage.selfStyle.autosizeimage = false
+                            iconImage.selfStyle.width = imageDim-4
+                            iconImage.selfStyle.height = imageDim-4
+                            element.data.none = true
+                        else
+                            iconImage.bgimage = imageid
+                            if element.data.none then
+                                iconImage.selfStyle.bgcolor = "white"
+                                iconImage.selfStyle.autosizeimage = true
+                                iconImage.selfStyle.width = "auto"
+                                iconImage.selfStyle.height = "auto"
+                                element.data.none = false
+                            end
+                        end
+
+                        iconImage:SetClass("deleted", false)
                         resultImage:SetClass("selected", m_imageid == value)
 					end,
 				},
@@ -243,7 +349,6 @@ function gui.IconEditor(args)
 			height = "auto",
 			maxWidth = 300,
 			fontSize = 14,
-			color = Styles.textColor,
 			refreshSearch = function(element)
 				if #imageIds > 0 or library ~= "secret" then
 					element:SetClass("collapsed", true)
@@ -287,165 +392,107 @@ function gui.IconEditor(args)
 		}
 
 		local pagingPanel = gui.Panel{
-			id = 'paging-panel',
-			styles = {
-				{
-					width = '100%',
-					height = 32,
-					flow = 'horizontal',
-				},
-				{
-					selectors = {'hover', 'paging-arrow'},
-					brightness = 2,
-				},
-				{
-					selectors = {'press', 'paging-arrow'},
-					brightness = 0.7,
-				},
-			},
+			id = "paging-panel",
+			width = "100%",
+			height = 32,
+			flow = "horizontal",
 
 			children = {
-				gui.Panel{
-					bgimage = 'panels/InventoryArrow.png',
-					className = 'paging-arrow',
-					style = {
-						height = '100%',
-						width = '50% height',
-						halign = 'left',
-						hmargin = 40,
-					},
-
-					events = {
-						refreshSearch = function(element)
-							element:SetClass('hidden', npage == 1)
-						end,
-
-						click = function(element)
-							npage = npage - 1
-							if npage < 1 then
-								npage = 1
-							end
-							popupPanel:FireEventTree('refreshSearch')
-						end,
-					},
-
+				gui.Button{
+					classes = {"pagingArrow"},
+					hmargin = 40,
+					refreshSearch = function(element)
+						element:SetClass("hidden", npage == 1)
+					end,
+					click = function(element)
+						npage = npage - 1
+						if npage < 1 then
+							npage = 1
+						end
+						popupPanel:FireEventTree("refreshSearch")
+					end,
 				},
 
 				gui.Panel{
-					style = {
-						flow = 'horizontal',
-						width = 'auto',
-						height = 'auto',
-						halign = 'center',
-					},
+					flow = "horizontal",
+					width = "auto",
+					height = "auto",
+					halign = "center",
+					valign = "center",
 
 					gui.Label{
-						style = {
-							fontSize = '35%',
-							color = 'white',
-							width = 'auto',
-							height = 'auto',
-							halign = 'center',
-						},
-						text = 'Page',
+						width = "auto",
+						height = "auto",
+						halign = "center",
+						valign = "center",
+						text = "Page",
 					},
 
 					--padding.
 					gui.Panel{
-						style = {
-							height = 1,
-							width = 8,
-						},
+						height = 1,
+						width = 8,
 					},
 
 					gui.Label{
 						editable = true,
-						style = {
-							fontSize = '35%',
-							color = 'white',
-							width = 'auto',
-							height = 'auto',
-							halign = 'center',
-                            minWidth = 16,
-						},
-						events = {
-							refreshSearch = function(element)
-								element.text = string.format('%d', math.tointeger(npage))
-							end,
-							change = function(element)
-								local newPage = tonumber(element.text)
-								if newPage == nil or newPage < 1 or newPage > GetNumPages() then
-									newPage = npage
-								end
+						width = "auto",
+						height = "auto",
+						halign = "center",
+						valign = "center",
+						minWidth = 16,
+						refreshSearch = function(element)
+							element.text = string.format("%d", math.tointeger(npage))
+						end,
+						change = function(element)
+							local newPage = tonumber(element.text)
+							if newPage == nil or newPage < 1 or newPage > GetNumPages() then
+								newPage = npage
+							end
 
-								npage = newPage
-								popupPanel:FireEventTree('refreshSearch')
-
-							end,
-						}
+							npage = newPage
+							popupPanel:FireEventTree("refreshSearch")
+						end,
 					},
 
 					gui.Label{
-						style = {
-							fontSize = '35%',
-							color = 'white',
-							width = 'auto',
-							height = 'auto',
-							halign = 'center',
-						},
-						events = {
-							refreshSearch = function(element)
-								element.text = string.format('/%d', math.tointeger(GetNumPages()))
-							end,
-						}
-					},
-
-				},
-
-				gui.Panel{
-					bgimage = 'panels/InventoryArrow.png',
-					className = 'paging-arrow',
-					style = {
-						scale = {x = -1, y = 1},
-						height = '100%',
-						width = '50% height',
-						halign = 'right',
-						hmargin = 40,
-					},
-
-					events = {
+						width = "auto",
+						height = "auto",
+						halign = "center",
+						valign = "center",
 						refreshSearch = function(element)
-							element:SetClass('hidden', npage == GetNumPages())
-						end,
-
-						click = function(element)
-							npage = npage + 1
-							if npage > GetNumPages() then
-								npage = GetNumPages()
-							end
-							popupPanel:FireEventTree('refreshSearch')
+							element.text = string.format("/%d", math.tointeger(GetNumPages()))
 						end,
 					},
 				},
 
+				gui.Button{
+					classes = {"pagingArrow", "right"},
+					hmargin = 40,
+					refreshSearch = function(element)
+						element:SetClass("hidden", npage == GetNumPages())
+					end,
+					click = function(element)
+						npage = npage + 1
+						if npage > GetNumPages() then
+							npage = GetNumPages()
+						end
+						popupPanel:FireEventTree("refreshSearch")
+					end,
+				},
 			},
 		}
 
 		local lastSearch = nil
-		local searchInput = gui.Input{
-			placeholderText = 'Search for images...',
+		local searchInput = gui.SearchInput{
+			placeholderText = "Search for images...",
 			hasFocus = true,
-			style = {
-				width = 200,
-				height = 30,
-				fontSize = '40%',
-				bgcolor = 'black',
-				hmargin = 8,
-			},
-
+			width = "80%",
+			height = 24,
+			hmargin = 8,
 			editlag = 0.2,
 
-			events = {
+			-- events = {
 				change = function(element)
 					if element.text == lastSearch then
 						return
@@ -453,7 +500,20 @@ function gui.IconEditor(args)
 
 					lastSearch = element.text
 
-					imageIds = dmhub.SearchImages((category or "") .. element.text, library)
+					if useBuiltinIcons then
+						local filter = string.lower(element.text or "")
+						imageIds = {}
+						for _, item in ipairs(assets.devOnlyBuiltinImagesList) do
+							if item.path and type(item.path) == "string" and #item.path > 0 then
+								if #filter == 0 or string.lower(item.path):find(filter, 1, true) then
+									imageIds[#imageIds + 1] = item.path
+								end
+							end
+						end
+						table.sort(imageIds)
+					else
+						imageIds = dmhub.SearchImages((category or "") .. element.text, library)
+					end
 					if allowNone and element.text == "" then
 						table.insert(imageIds, 1, '')
 					end
@@ -473,7 +533,7 @@ function gui.IconEditor(args)
 				edit = function(element)
 					element:FireEvent("change")
 				end,
-			},
+			-- },
 		}
 
 		if searchHidden then
@@ -557,6 +617,22 @@ function gui.IconEditor(args)
 				search = "",
 				library = "coverart",
 			},
+			--map-dressing art: zone appearance fill/edge textures and per-tile
+			--sprites (the Environmental Keyword Edit Appearance dialog uploads
+			--and browses here).
+			{
+				text = "Zone Art",
+				id = "zoneart",
+				search = "",
+				library = "zoneart",
+			},
+		}
+
+		options[#options+1] = {
+			text = "Built-in Icons",
+			id = "builtinIcons",
+			search = "",
+			builtinIcons = true,
 		}
 
 		if dmhub.GetSettingValue("popoutavatars") then
@@ -626,50 +702,40 @@ function gui.IconEditor(args)
 
 
 		local categoriesPanel = gui.Panel{
-			classes = {cond(categoriesHidden, "collapsed")},
-			style = {
-				width = 'auto',
-				height = 30,
-				fontSize = '40%',
-				bgcolor = 'white',
-				hmargin = 8,
-				flow = 'horizontal',
-			},
+			classes = {"formPanel", cond(categoriesHidden, "collapsed")},
 			children = {
 				gui.Label{
-					text = 'Category:',
-					style = {
-						width = 'auto',
-						height = 'auto',
-					},
+					classes = {"form"},
+					text = "Category:",
 				},
 				gui.Dropdown{
+					classes = {"form"},
 					options = options,
 					idChosen = library or "equipment",
-					width = 260,
-					height = "100%",
 
 					events = {
 						change = function(element)
 							lastSearch = nil
-							library = optionMap[element.idChosen].library
-							category = optionMap[element.idChosen].search
+							local selected = optionMap[element.idChosen]
+							library = selected.library
+							category = selected.search
+							useBuiltinIcons = selected.builtinIcons == true
 							imageType = ImageTypeMapping[library]
-							searchInput:FireEvent('change')
+							searchInput:FireEvent("change")
 						end,
 					},
-
 				},
 			},
 		}
 
-		local uploadButton = gui.PrettyButton{
-			text = 'Upload Image',
-			width = 200,
-			height = 44,
-			fontSize = 20,
+		local uploadButton = gui.Button{
+			classes = {"sizeM"},
+			text = "Upload Image",
 			hmargin = 12,
 			events = {
+				refreshSearch = function(element)
+					element:SetClass("collapsed", useBuiltinIcons)
+				end,
 				click = function(element)
 					dmhub.Debug(string.format("IMAGETYPE:: Upload image with type = %s", json(imageType)))
 					dmhub.OpenFileDialog{
@@ -700,49 +766,53 @@ function gui.IconEditor(args)
 							}
 
 							popupPanel.children = {
-								gui.Label{
-									text = 'Uploading Image...',
-									thinkTime = 0.1,
-									events = {
-										think = function(element)
-											if assets.imagesTable[assetid] ~= nil then
-												resultPanel.value = assetid
-												resultPanel.popup = nil
-											end
-										end,
-									},
+								gui.Panel{
+									width = "100%",
+									height = "100%",
+									gui.Label{
+										classes = {"uploadingImageLabel"},
+										text = "Uploading Image...",
+										thinkTime = 0.1,
+										events = {
+											think = function(element)
+												if assets.imagesTable[assetid] ~= nil then
+													resultPanel.value = assetid
+													resultPanel.popup = nil
+												end
+											end,
+										},
 
-									style = {
-										fontSize = '70%',
-										width = 'auto',
-										height = 'auto',
-										textAlignment = 'center',
-										color = 'white',
-										halign = 'center',
-										valign = 'center',
+										style = {
+											fontSize = 24,
+											width = "auto",
+											height = "auto",
+											textAlignment = "center",
+											halign = "center",
+											valign = "center",
+										},
 									},
 								}
 							}
 						end,
-						
+
 					}
 				end,
 			},
 		}
 
 		local pasteButton = nil
-		
+
 		if allowPaste then
-			pasteButton = gui.PrettyButton{
-				text = 'Paste Image',
-				width = 200,
-				height = 44,
+			pasteButton = gui.Button{
+				text = "Paste Image",
 				hmargin = 12,
 				vmargin = 12,
-				fontSize = 20,
-				classes = {cond(dmhub.HaveImageInClipboard(), nil, 'disabled')},
+				classes = {"sizeM", cond(dmhub.HaveImageInClipboard(), nil, "disabled")},
 				thinkTime = 0.2,
 				events = {
+					refreshSearch = function(element)
+						element:SetClass("collapsed", useBuiltinIcons)
+					end,
 					think = function(element)
 						element:SetClassTree("disabled", not dmhub.HaveImageInClipboard())
 					end,
@@ -773,26 +843,30 @@ function gui.IconEditor(args)
 						}
 
 						popupPanel.children = {
-							gui.Label{
-								text = 'Uploading Image...',
-								thinkTime = 0.1,
-								events = {
-									think = function(element)
-										if assets.imagesTable[assetid] ~= nil then
-											resultPanel.value = assetid
-											resultPanel.popup = nil
-										end
-									end,
-								},
+							gui.Panel{
+								width = "100%",
+								height = "100%",
+								gui.Label{
+									classes = {"uploadingImageLabel"},
+									text = "Uploading Image...",
+									thinkTime = 0.1,
+									events = {
+										think = function(element)
+											if assets.imagesTable[assetid] ~= nil then
+												resultPanel.value = assetid
+												resultPanel.popup = nil
+											end
+										end,
+									},
 
-								style = {
-									fontSize = '70%',
-									width = 'auto',
-									height = 'auto',
-									textAlignment = 'center',
-									color = 'white',
-									halign = 'center',
-									valign = 'center',
+									style = {
+										fontSize = 24,
+										width = "auto",
+										height = "auto",
+										textAlignment = "center",
+										halign = "center",
+										valign = "center",
+									},
 								},
 							}
 						}
@@ -805,34 +879,36 @@ function gui.IconEditor(args)
 		
 		popupPanel = gui.Panel{
 			classes = {"framedPanel"},
-			styles = {
-				Styles.Default,
-				Styles.Panel,
+			styles = ThemeEngine.MergeStyles({
 				{
-					flow = 'vertical',
-					halign = 'left',
-					valign = 'center',
-					width = 600,
-					height = 860,
-					borderWidth = 0,
-					bgcolor = 'white',
+					selectors = {"imageBackground", "hover"},
+					borderWidth = 2,
+					borderColor = "@accent",
 				},
 				{
-					selectors = {'image-background', 'selected'},
+					selectors = {"imageBackground", "selected"},
 					borderWidth = 2,
-					borderColor = '#ffffff88',
-                },
-				{
-					selectors = {'image-background', 'hover'},
-					borderWidth = 2,
-					borderColor = 'white',
+					borderColor = "@fgStrong",
 				},
 				{
-					selectors = {'icon-image', 'deleted'},
+					selectors = {"iconImage", "deleted"},
 					brightness = 0.2,
 				},
-			},
+				{
+					selectors = {"label", "uploadingImageLabel"},
+					color = "@fgStrong",
+				},
+			}),
+			flow = "vertical",
+			halign = "center",
+			valign = "top",
+			width = 600,
+			height = "auto",
+			pad = 16,
+			borderBox = true,
+
 			children = {
+				gui.Label{ classes = {"modalTitle"}, text = "Choose Image" },
 				searchInput,
 				categoriesPanel,
 				imagesGrid,
@@ -840,6 +916,15 @@ function gui.IconEditor(args)
 				pagingPanel,
 				uploadButton,
 				pasteButton,
+				gui.Button{
+					classes = {"closeButton"},
+					halign = "right",
+					valign = "top",
+					floating = true,
+					escapeActivates = true,
+					escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+					click = function() resultPanel.popup = nil end,
+				},
 			},
 		}
 
@@ -967,6 +1052,7 @@ function gui.IconEditor(args)
 	end
 
 	args.SetValue = function(element, val, firechange)
+		local changed = (val ~= value)
         value = val
 		if val == nil or val == '' then
 			if noneImage ~= nil then
@@ -985,12 +1071,14 @@ function gui.IconEditor(args)
 			noneLabel:SetClass("hidden", true)
 		end
 
-		if firechange ~= false then
+		if changed and firechange ~= false then
 			element:FireEvent('change')
 		end
         
 	end
 
+	if args.classes == nil then args.classes = {} end
+	args.classes[#args.classes+1] = "image"
 	resultPanel = gui.Panel(args)
 
 	args.SetValue(resultPanel, value, false)

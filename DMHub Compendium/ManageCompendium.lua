@@ -11,6 +11,20 @@ local function DescribeModuleName(moduleid)
 	end
 end
 
+--collect the row's action buttons into a dense array. Either may be nil, and a
+--nil in the middle of a positional child list holes the array and silently
+--drops everything after it, so build the list explicitly.
+local function ActionButtons(...)
+	local result = {}
+	for i=1,select("#", ...) do
+		local button = select(i, ...)
+		if button ~= nil then
+			result[#result+1] = button
+		end
+	end
+	return result
+end
+
 local function CreateMonsterTableView()
 	local guids = {}
 
@@ -203,8 +217,10 @@ local function CreateMonsterTableView()
 								element.text = cond(entry.hidden, "deleted", "")
 							end,
 						},
-						revertButton,
-						undeleteButton,
+						gui.Panel{
+							classes = {"entryActions"},
+							children = ActionButtons(revertButton, undeleteButton),
+						},
 					}
 				end
 
@@ -423,8 +439,10 @@ local function CreateObjectTableView(tableName)
 								element.text = cond(rawget(entry, "hidden"), "deleted", "")
 							end,
 						},
-						revertButton,
-						undeleteButton,
+						gui.Panel{
+							classes = {"entryActions"},
+							children = ActionButtons(revertButton, undeleteButton),
+						},
 					}
 				end
 
@@ -630,6 +648,8 @@ local function GetDataSources(dependenciesList)
 			version = m.loadedVersion,
 			latest = m.latestVersion or "?",
 			ismodule = true,
+			deprecated = m.deprecated,
+			deprecationMessage = m.deprecationMessage,
 			indent = indent,
 		}
 	end
@@ -645,8 +665,8 @@ end
 local CreateSourcesPanel = function(options)
 
 	local args = {
-		width = 400,
-		height = 800,
+		width = 320,
+		height = "100%-16",
 		vmargin = 8,
 		vscroll = true,
 		hmargin = 16,
@@ -690,9 +710,12 @@ local CreateSourcesPanel = function(options)
 			if source.version ~= nil then
 				name = string.format("%s (ver %s/%s)", name, source.version, source.latest)
 			end
+			if source.deprecated then
+				name = string.format("%s [DEPRECATED]", name)
+			end
 			dataSourceRows[#dataSourceRows+1] = gui.Label{
 				classes = {"row"},
-				width = 300,
+				width = "100%-16",
 				fontSize = 14,
 				height = 18,
 				bgimage = "panels/square.png",
@@ -736,6 +759,22 @@ local CreateSourcesPanel = function(options)
 					end
 
 					sourcesPanel:FireEvent("change", items)
+				end,
+
+				hover = function(element)
+					if not source.deprecated then
+						return
+					end
+
+					--deprecation only sets the default: say so, and say which
+					--side of it this game is currently on.
+					local m = module.GetModule(source.moduleid)
+					local suffix = "\n\nIt is disabled in your games. Right click to enable it again anyway."
+					if source.ismodule and m ~= nil and m.deprecationOverridden then
+						suffix = "\n\nYou have chosen to enable it in this game anyway. Right click to disable it."
+					end
+
+					gui.Tooltip(string.format("DEPRECATED: %s%s", source.deprecationMessage, suffix))(element)
 				end,
 
 				rightClick = function(element)
@@ -804,8 +843,8 @@ local CreateModManager = function()
 
 	objectsTree = gui.Panel{
 		vscroll = true,
-		width = 1200,
-		height = 800,
+		width = "100%-352",
+		height = "100%",
 		valign = "top",
 		halign = "left",
 		vscroll = true,
@@ -814,8 +853,8 @@ local CreateModManager = function()
 	}
 
 	resultPanel = gui.Panel{
-		width = 1600,
-		height = 1024,
+		width = "100%-32",
+		height = "100%-32",
 		valign = "top",
 		halign = "left",
 		vmargin = 16,
@@ -849,9 +888,25 @@ local CreateModManager = function()
 				fontSize = 14,
 				minFontSize = 8,
 				height = 18,
-				width = 300,
+				width = 180,
 				halign = "left",
 				textAlignment = "left",
+			},
+			{
+				selectors = {"entryLabel", "history"},
+				width = "100%-436",
+			},
+			{
+				selectors = {"entryLabel", "status"},
+				width = 64,
+			},
+			{
+				selectors = {"entryActions"},
+				flow = "horizontal",
+				width = 176,
+				height = 20,
+				halign = "left",
+				valign = "center",
 			},
 			{
 				selectors = {"triangle"},

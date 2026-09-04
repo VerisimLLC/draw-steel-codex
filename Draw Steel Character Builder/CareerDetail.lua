@@ -159,7 +159,7 @@ function CBCareerDetail._navPanel()
         data = { category = INITIAL_CATEGORY },
     })
 
-    local changeButton = gui.PrettyButton{
+    local changeButton = gui.Button{
         classes = {"changeCareer", "builder-base", "button", "selector", "destructive"},
         width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
         height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,
@@ -178,7 +178,7 @@ function CBCareerDetail._navPanel()
         end,
     }
 
-    local selectButton = gui.PrettyButton{
+    local selectButton = gui.Button{
         classes = {"changeCareer", "builder-base", "button", "selector"},
         width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
         height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,

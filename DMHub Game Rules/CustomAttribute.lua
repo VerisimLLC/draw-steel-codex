@@ -7,7 +7,7 @@ local mod = dmhub.GetModLoading()
 --- @field attributeType string Value type: "number", "string", or "creatureSet".
 --- @field category string UI category label (e.g. "Custom").
 --- @field classid string Restriction to a class id, or "global" for all classes.
---- @field baseValue string GoblinScript formula for the base value.
+--- @field baseValue string|number|table GoblinScript formula for the base value.
 --- @field attributeInfoByLookupSymbol table<string, CustomAttribute> Lookup map by normalized symbol name.
 CustomAttribute = RegisterGameType("CustomAttribute")
 
@@ -65,10 +65,32 @@ AttributeTypeStringSet = RegisterGameType("AttributeTypeStringSet", "AttributeTy
 --- @class AttributeTypeCreatureSet:AttributeType
 AttributeTypeCreatureSet = RegisterGameType("AttributeTypeCreatureSet", "AttributeType")
 
+--bestiary filter expression instead of picking a category/subtype/race."
+AttributeTypeCreatureSet.FilterSentinelId = "__filter__"
+
+--A modifier value of the form "filter:<goblinscript>" represents a bestiary filter expression.
+--Bare strings represent lowercased monster categories, subtypes, or race names.
+function AttributeTypeCreatureSet.IsFilterValue(v)
+	return type(v) == "string" and string.sub(v, 1, 7) == "filter:"
+end
+
+function AttributeTypeCreatureSet.GetFilterExpression(v)
+	if AttributeTypeCreatureSet.IsFilterValue(v) then
+		return string.sub(v, 8)
+	end
+	return ""
+end
+
+function AttributeTypeCreatureSet.MakeFilterValue(expr)
+	return "filter:" .. (expr or "")
+end
+
 --- @class CreatureSet
---- @field creatures string[] List of token ids in this set.
+--- @field creatures string[] Token ids of live creatures explicitly added at runtime (e.g. by AbilityCreatureSet).
+--- @field bestiaryids string[] Bestiary GUIDs (keys in `assets.monsters`) resolved from modifier values at modify time.
 CreatureSet = RegisterGameType("CreatureSet")
 CreatureSet.creatures = {}
+CreatureSet.bestiaryids = {}
 CreatureSet.helpSymbols = {}
 
 --- Removes all creatures from the set.
@@ -118,29 +140,71 @@ function CreatureSet:Has(creature)
     return false
 end
 
+--- Returns true if the given value is in this set:
+---  * a string is matched (case-insensitively) against the display names of bestiary entries in the set;
+---  * a token id matches if it is in `creatures`;
+---  * a creature matches if its source `bestiaryId` is in `bestiaryids`, or if its properties
+--- @param other any
+--- @return boolean
+function CreatureSet:Contains(other)
+    if type(other) == "function" then
+        other = other("self")
+    end
+
+    if type(other) == "string" then
+        local needle = string.lower(other)
+        for _,id in ipairs(self.bestiaryids) do
+            local entry = assets.monsters[id]
+            if entry ~= nil and entry.properties ~= nil then
+                local nm = entry.properties:try_get("monster_type")
+                if nm ~= nil and string.lower(nm) == needle then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    if type(other) ~= "table" then
+        return false
+    end
+
+    --live token id check
+    local tokenid = dmhub.LookupTokenId(other)
+    if tokenid ~= nil and self:Has(tokenid) then
+        return true
+    end
+
+    --bestiary id check via the token's source bestiary id (for instantiated/summoned creatures)
+    local bid = other:try_get("bestiaryId")
+    if bid ~= nil and table.contains(self.bestiaryids, bid) then
+        return true
+    end
+
+    --identity check: is `other` the properties table of one of our bestiary entries?
+    for _,id in ipairs(self.bestiaryids) do
+        local entry = assets.monsters[id]
+        if entry ~= nil and entry.properties == other then
+            return true
+        end
+    end
+
+    return false
+end
+
 CreatureSet.lookupSymbols = {
 	debuginfo = function(c)
-		return string.format("{%d creatures}", #c.creatures)
+		return string.format("{creatures=%d, bestiary=%d}", #c.creatures, #c.bestiaryids)
 	end,
     size = function(c)
         return #c.creatures
     end,
+    bestiarycount = function(c)
+        return #c.bestiaryids
+    end,
     __is__ = function(c)
         return function(other)
-            if type(other) == "function" then
-                other = other("self")
-            end
-
-            if type(other) == "table" then
-                local tokenid = dmhub.LookupTokenId(other)
-                if tokenid == nil then
-                    return false
-                end
-
-                return c:Has(tokenid)
-            end
-
-            return false
+            return c:Contains(other)
         end
     end,
 }
@@ -165,6 +229,18 @@ RegisterGoblinScriptSymbol(CreatureSet, {
             end
 
             return result or 0
+        end
+    end,
+})
+
+RegisterGoblinScriptSymbol(CreatureSet, {
+    name = "Matches",
+    type = "boolean",
+    desc = "Returns true if the given creature is in this set (matched by live token id, source bestiary id, or bestiary entry identity). Use this in bestiary filters where `is`/`has` does not dispatch (i.e. when comparing two creatures).",
+    examples = {"SignatureSummons.Matches(Beast)"},
+    calculate = function(c)
+        return function(other)
+            return c:Contains(other)
         end
     end,
 })
@@ -270,8 +346,88 @@ function AttributeType:ApplyOperation(currentValue, mod, op)
 	end
 end
 
+--Resolves a modifier value (a category name, subtype, race name, or "filter:<goblinscript>"
+--expression) to a list of bestiary GUIDs by walking `assets.monsters` once.
+--- @param value string
+--- @return string[]
+function AttributeTypeCreatureSet.ResolveValueToBestiaryIds(value)
+	local result = {}
+	if type(value) ~= "string" or value == "" then
+		return result
+	end
+
+	if AttributeTypeCreatureSet.IsFilterValue(value) then
+		local expr = AttributeTypeCreatureSet.GetFilterExpression(value)
+		if expr == "" then
+			return result
+		end
+		for k,monster in pairs(assets.monsters) do
+			--GetMonsterNode can return nil mid-import/reload; skip rather than throw.
+			local node = assets:GetMonsterNode(k)
+			if node ~= nil and not node.hidden and monster.properties ~= nil then
+				local symbols = GenerateSymbols(monster.properties, { beast = GenerateSymbols(monster.properties) })
+				local r = ExecuteGoblinScript(expr, symbols, 0, "CreatureSet:ResolveValueToBestiaryIds")
+				if r ~= nil and r ~= 0 and r ~= false then
+					result[#result+1] = k
+				end
+			end
+		end
+		return result
+	end
+
+	--bare-string value: monster category, subtype, or race name (lowercased).
+	local needle = string.lower(value)
+	for k,monster in pairs(assets.monsters) do
+		local node = assets:GetMonsterNode(k)
+		if node ~= nil and not node.hidden and monster.properties ~= nil then
+			local props = monster.properties
+			local matched = false
+
+			for _,cat in ipairs(props:GetMonsterCategoryList(true)) do
+				if string.lower(cat) == needle then
+					matched = true
+					break
+				end
+			end
+
+			if not matched then
+				local sub = props:try_get("monster_subtype")
+				if sub ~= nil and string.lower(sub) == needle then
+					matched = true
+				end
+			end
+
+			if matched then
+				result[#result+1] = k
+			end
+		end
+	end
+	return result
+end
+
 function AttributeTypeCreatureSet:ApplyOperation(currentValue, mod, op)
-	currentValue[mod] = true
+	if type(mod) ~= "string" or mod == "" then
+		return currentValue
+	end
+
+	local resolvedIds = AttributeTypeCreatureSet.ResolveValueToBestiaryIds(mod)
+	if #resolvedIds == 0 then
+		--a modifier value that matches nothing in the bestiary is almost always a bug
+		--(e.g. resolving during an asset reload), not a legitimate result.
+		dmhub.CloudError(string.format("AttributeTypeCreatureSet: modifier value %q resolved to 0 bestiary ids", mod))
+		return currentValue
+	end
+
+	if #currentValue.bestiaryids == 0 then
+		currentValue.bestiaryids = {}
+	end
+
+	for _,id in ipairs(resolvedIds) do
+		if not table.contains(currentValue.bestiaryids, id) then
+			currentValue.bestiaryids[#currentValue.bestiaryids+1] = id
+		end
+	end
+
 	return currentValue
 end
 
@@ -313,6 +469,9 @@ end
 
 function CustomAttribute:CalculateBaseValue(creature)
 	local typeInfo = self.GetAttributeType(self.id)
+	if typeInfo == nil then
+		return 0
+	end
 	if type(self.baseValue) == "string" and trim(self.baseValue) == "" then
 		return typeInfo:DefaultValue()
 	end
@@ -332,13 +491,13 @@ function CustomAttribute:GenerateEditor(options)
 	if devmode() then
 		--the category of the attribute.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'GUID:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "GUID:",
 			},
 			gui.Input{
+				classes = {"formStacked"},
 				text = self.id,
 				editable = false,
 			},
@@ -347,13 +506,13 @@ function CustomAttribute:GenerateEditor(options)
 
 	--the category of the attribute.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Category:',
-			valign = 'center',
-			minWidth = 100,
+			classes = {"formStacked"},
+			text = "Category:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = self.category,
 			change = function(element)
                 element.text = trim(element.text)
@@ -368,13 +527,13 @@ function CustomAttribute:GenerateEditor(options)
 
 	--the name of the attribute.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 100,
+			classes = {"formStacked"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = self.name,
 			change = function(element)
 				self.name = element.text
@@ -386,16 +545,13 @@ function CustomAttribute:GenerateEditor(options)
 	--the type of the attribute.
 
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Type:',
-			valign = 'center',
-			minWidth = 100,
+			classes = {"formStacked"},
+			text = "Type:",
 		},
 		gui.Dropdown{
-			width = 200,
-			height = 40,
-			fontSize = 20,
+			classes = {"formStacked"},
 			options = self.types,
 			idChosen = self.attributeType,
 			change = function(element)
@@ -427,16 +583,13 @@ function CustomAttribute:GenerateEditor(options)
 
 	--the class for the attribute. Hidden until we fix this and make it work.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel', 'collapsed'},
+		classes = {"formStackedRow", "collapsed"},
 		gui.Label{
-			text = 'Class:',
-			valign = 'center',
-			minWidth = 100,
+			classes = {"formStacked"},
+			text = "Class:",
 		},
 		gui.Dropdown{
-			width = 200,
-			height = 40,
-			fontSize = 20,
+			classes = {"formStacked"},
 			options = classOptions,
 			idChosen = self.classid,
 			change = function(element)
@@ -447,17 +600,17 @@ function CustomAttribute:GenerateEditor(options)
 	}
 
 	children[#children+1] = gui.Panel{
-		classes = {"formPanel", cond(self.attributeType ~= "number", "collapsed-anim")},
+		classes = {"formStackedRow", cond(self.attributeType ~= "number", "collapseAnim")},
 		refreshType = function(element)
-			element:SetClass("collapsed-anim", self.attributeType ~= "number")
+			element:SetClass("collapseAnim", self.attributeType ~= "number")
 		end,
 		gui.Label{
+			classes = {"formStacked"},
 			text = "Base Value:",
-			valign = "center",
-			minWidth = 100,
 		},
 
 		gui.GoblinScriptInput{
+			classes = {"formStacked"},
 			value = self.baseValue,
 			change = function(element)
 				self.baseValue = element.value
@@ -474,76 +627,78 @@ function CustomAttribute:GenerateEditor(options)
 	}
 
 	children[#children+1] = gui.Panel{
-		classes = {cond(self.attributeType ~= "stringset", "collapsed-anim")},
-		flow = "vertical",
-		width = 400,
-		height = "auto",
-
-		styles = {
-			{
-				selectors = {"optionLabel"},
-				width = 300,
-				height = "auto",
-				fontSize = 16,
-			}
-		},
-
-		data = {
-			labelPanels = {}
-		},
+		classes = {"formStackedRow", cond(self.attributeType ~= "stringset", "collapseAnim")},
 
 		refreshType = function(element)
-			element:SetClass("collapsed-anim", self.attributeType ~= "stringset")
+			element:SetClass("collapseAnim", self.attributeType ~= "stringset")
 		end,
 
-		create = function(element)
-			element:FireEvent("refreshSet")
-		end,
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Strings:",
+		},
 
-		refreshSet = function(element)
-			if self.attributeType ~= "stringset" then
-				return
-			end
+		gui.Panel{
+			flow = "horizontal",
+			wrap = true,
+			width = "100%",
+			height = "auto",
 
-			local currentChildren = element.children
-			local children = {}
-			local labelPanels = element.data.labelPanels
-			local newLabelPanels = {}
+			data = {
+				labelPanels = {}
+			},
 
-			for _,val in ipairs(self:GetPossibleStringValues()) do
-				local label = labelPanels[val] or gui.Label{
-					classes = {"optionLabel"},
-					text = val,
+			create = function(element)
+				element:FireEvent("refreshSet")
+			end,
 
-					gui.DeleteItemButton{
-						halign = "right",
-						width = 12,
-						height = 12,
-						click = function(element)
-							self:RemovePossibleStringValue(val)
-							resultPanel:FireEventTree("refreshSet")
-							resultPanel:FireEvent("change")
-						end,
+			refreshSet = function(element)
+				if self.attributeType ~= "stringset" then
+					return
+				end
+
+				local labelPanels = element.data.labelPanels
+				local newLabelPanels = {}
+				local newChildren = {}
+				local sorted = {}
+				for _,v in ipairs(self:GetPossibleStringValues()) do
+					sorted[#sorted+1] = v
+				end
+				table.sort(sorted, function(a,b) return a < b end)
+
+				for _,val in ipairs(sorted) do
+					local chip = labelPanels[val] or gui.Panel{
+						classes = {"multiselectChip"},
+						gui.Label{
+							classes = {"multiselectChipText"},
+							text = val,
+						},
+						gui.Panel{
+							classes = {"multiselectChipRemove"},
+							press = function()
+								self:RemovePossibleStringValue(val)
+								resultPanel:FireEventTree("refreshSet")
+								resultPanel:FireEvent("change")
+							end,
+							gui.Label{
+								classes = {"multiselectChipRemove"},
+								text = "X",
+							},
+						},
 					}
-				}
 
-				newLabelPanels[val] = label
-				children[#children+1] = label
-			end
+					newLabelPanels[val] = chip
+					newChildren[#newChildren+1] = chip
+				end
 
-			table.sort(children, function(a,b) return a.text < b.text end)
-			
-			children[#children+1] = currentChildren[#currentChildren]
-
-			element.data.labelPanels = newLabelPanels
-
-			element.children = children
-		end,
+				element.data.labelPanels = newLabelPanels
+				element.children = newChildren
+			end,
+		},
 
 		gui.Input{
 			width = 300,
 			height = 22,
-			fontSize = 16,
 			placeholderText = "Enter possible value...",
 			change = function(element)
 				if element.text == "" or self:HasPossibleStringValue(element.text) then
@@ -564,19 +719,14 @@ function CustomAttribute:GenerateEditor(options)
 	}
 
     children[#children+1] = gui.Panel{
-        classes = {"formPanel"},
+        classes = {"formStackedRow"},
         gui.Label{
-            classes = {"formLabel"},
+            classes = {"formStacked"},
             text = "Documentation:",
         },
         gui.Input{
-            width = 400,
-            textAlignment = "topleft",
-            halign = "left",
-            classes = {"formInput"},
+            classes = {"formStacked"},
             multiline = true,
-            height = "auto",
-            minHeight = 60,
             characterLimit = 512,
             text = self:try_get("documentation", ""),
             change = function(element)
@@ -830,7 +980,7 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
 	end
 
 	local racesTable = dmhub.GetTable(Race.tableName)
-	for k,race in pairs(racesTable) do
+	for k,race in unhidden_pairs(racesTable) do
 		local raceName = string.lower(race.name)
 		AttributeTypeCreatureSet.races[raceName] = {
 			text = race.name,
@@ -853,14 +1003,19 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
 		}
 	end
 
-	for k,race in pairs(racesTable) do
+	for _,race in pairs(racesTable) do
 		AttributeTypeCreatureSet.dropdownOptions[#AttributeTypeCreatureSet.dropdownOptions+1] = {
-			id = k,
+			id = string.lower(race.name),
 			text = race.name,
 		}
 	end
 
 	table.sort(AttributeTypeCreatureSet.dropdownOptions, function(a,b) return a.text < b.text end)
+
+	AttributeTypeCreatureSet.dropdownOptions[#AttributeTypeCreatureSet.dropdownOptions+1] = {
+		id = AttributeTypeCreatureSet.FilterSentinelId,
+		text = "Bestiary Filter...",
+	}
 
 
 

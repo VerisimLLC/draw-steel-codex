@@ -121,7 +121,7 @@ local BrushFieldEditors = {
 				styles = {
 					{
 						bgimage = "icons/icon_tool/icon_tool_79.png",
-						bgcolor = "#ffffff88",
+						bgcolor = "#999999",
 					},
 					{
 						selectors = {"visible"},
@@ -150,6 +150,11 @@ local BrushFieldEditors = {
 					args.paramsPanel:FireEventTree("refreshParameter")
 				end,
 			}
+
+			--pass this out so BrushField can place it at the right edge of
+			--the formPanel (alongside displayIcon/formLabel/editorPanel),
+			--rather than next to the slider control.
+			args.penIcon = penIcon
 
 			--pass this out to display below us.
 			args.paramsPanel = gui.Panel{
@@ -288,7 +293,8 @@ local BrushFieldEditors = {
 			height = 20,
 			width = 180,
 			valign = "center",
-			halign = "right",
+			halign = "left",
+			lmargin = 12,
 			style = {
 				fontSize = 14,
 			},
@@ -318,15 +324,7 @@ local BrushFieldEditors = {
 			classes = {"formValue"},
 			width = "auto",
 			height = "auto",
-			gui.Panel{
-				flow = "horizontal",
-				width = "auto",
-				height = "auto",
-				gui.Slider(sliderArgs),
-				penIcon,
-			},
-
-
+			gui.Slider(sliderArgs),
 		}
 
 		return resultPanel
@@ -350,7 +348,7 @@ local BrushField = function(args)
 			styles = {
 				{
 					bgimage = "icons/icon_tool/icon_tool_60.png",
-					bgcolor = "#ffffff88",
+					bgcolor = "#999999",
 				},
 				{
 					selectors = {"visible"},
@@ -391,6 +389,7 @@ local BrushField = function(args)
 			},
 
 			editorPanel,
+			args.penIcon,
 			data = {
 				asset = asset,
 			},
@@ -622,20 +621,22 @@ mod.shared.BrushEditorPanel = function(settingid)
 		hmargin = 8,
 		vmargin = 4,
 
-		styles = {
+		styles = ThemeEngine.MergeTokens({
 			{
 				selectors = {"brushPanel"},
 				width = 64,
 				height = 64,
 				cornerRadius = 8,
 				saturation = 0.5,
-				bgcolor = 'white',
-				bgimage = "panels/hud/button_09_frame_custom.png",
+				bgimage = true,
+				border = 1,
+				borderColor = "@border",
 			},
 			{
 				selectors = {"brushPanel", "selected"},
 				brightness = 2.5,
 				saturation = 1.4,
+				borderColor = "@borderInverse",
 			},
 			{
 				selectors = {"brushPanel", "hover"},
@@ -655,7 +656,7 @@ mod.shared.BrushEditorPanel = function(settingid)
 				halign = "center",
 				valign = "center",
 			},
-		},
+		}),
 
 		gui.Panel{
 			width = 320,
@@ -700,7 +701,8 @@ mod.shared.BrushEditorPanel = function(settingid)
 				table.sort(children, function(a,b) return a.data.asset.ord < b.data.asset.ord end)
 
 				if addPanel == nil then
-					addPanel = gui.AddButton{
+					addPanel = gui.Button{
+						classes = {"addButton"},
 						width = 64,
 						height = 64,
 						click = function(element)
@@ -735,7 +737,15 @@ mod.shared.BrushEditorPanel = function(settingid)
 				selectors = {"formLabel"},
 				halign = "left",
 				valign = "center",
-				width = 80,
+				width = "auto",
+				minWidth = 0,
+				hmargin = 0,
+			},
+			{
+				selectors = {"formValue"},
+				halign = "left",
+				width = "auto",
+				hmargin = 4,
 			},
 		},
 
@@ -785,12 +795,27 @@ mod.shared.BrushEditorPanel = function(settingid)
 		flow = "vertical",
 		width = "auto",
 		height = "auto",
+		styles = {
+			{
+				selectors = {"sliderNotch"},
+				bgimage = true,
+				bgcolor = "#A0A0A0",
+				width = "100%",
+				halign = "center",
+				borderWidth = 0,
+			},
+		},
 		palettePanel,
 		brushPropertiesPanel,
 	}
 
 	return resultPanel
 end
+
+--Cross-module export. mod.shared is per-module, so a module other than this
+--one (the Map Markup panel's Elevation mode) cannot reach the strip above.
+--Same pattern as Compendium.InventoryEditor in ItemCompendium.lua.
+BrushEditorPanel = mod.shared.BrushEditorPanel
 
 
 --a full brush editor dialog.
@@ -881,7 +906,7 @@ mod.shared.ShowBrushEditor = function(brushid, startingValues)
 			height = "auto",
 		},
 
-		styles = {
+		styles = ThemeEngine.MergeStyles{
 
 			Styles.Panel,
 			Styles.Form,
@@ -900,7 +925,8 @@ mod.shared.ShowBrushEditor = function(brushid, startingValues)
 
 		children = {
 			dialogPanel,
-			gui.CloseButton{
+			gui.Button{
+            	classes = {"closeButton"},
 				floating = true,
 				valign = "top",
 				halign = "right",

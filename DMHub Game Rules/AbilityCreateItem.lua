@@ -3,7 +3,7 @@ local mod = dmhub.GetModLoading()
 --- @class ActivatedAbilityCreateItemBehavior:ActivatedAbilityBehavior
 --- @field summary string Short label shown in behavior lists.
 --- @field itemid string Id of the equipment item to create ("none" if unset).
---- @field quantity string|number Number of items to create (can be a dice expression).
+--- @field quantity string|number|table Number of items to create (can be a dice expression).
 ActivatedAbilityCreateItemBehavior = RegisterGameType("ActivatedAbilityCreateItemBehavior", "ActivatedAbilityBehavior")
 
 

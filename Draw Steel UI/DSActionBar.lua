@@ -349,7 +349,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
         for i,ray in ipairs(rays) do
             local key = string.format("%s-%s", ray.a.id, ray.b.id)
                                             print("MARK:: BBB")
-            t[key] = m_targetLineOfSightRays[key] or dmhub.MarkLineOfSight(ray.a, ray.b)
+            t[key] = m_targetLineOfSightRays[key] or dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls())
             m_targetLineOfSightRays[key] = nil
         end
 
@@ -1119,12 +1119,12 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 					refreshSpell = function(element)
 						element:SetClass("expended", not costInfo.canAfford)
-						element.bgimage = spell.iconid
-						element.selfStyle = spell.display
+						element.bgimage = spell:GetIcon()
+						element.selfStyle = spell:GetIconDisplay()
                         if not costInfo.canAfford then
                             element.selfStyle.brightness = 0.1
                         else
-                            element.selfStyle.brightness = spell.display.brightness or 1
+                            element.selfStyle.brightness = spell:GetIconDisplay().brightness or 1
                         end
 					end,
 				}
@@ -1540,8 +1540,12 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 									canTarget = false
 								end
 
-								if creature == targetToken.properties and (spell.targetType == 'target' or spell.targetType == 'all') and spell:try_get("selfTarget", false) == false then
-									canTarget = false
+								if creature == targetToken.properties and (spell.targetType == 'target' or spell.targetType == 'all') then
+									-- "Can Target Self" flag lets the caster target itself alongside its other
+									-- candidates even when the ability is not selfTarget (compelled free strike).
+									if spell:try_get("selfTarget", false) == false and creature:CalculateNamedCustomAttribute("Can Target Self") <= 0 then
+										canTarget = false
+									end
 								end
 
 								if currentSymbols ~= nil and currentSymbols.forbiddentargets ~= nil and currentSymbols.forbiddentargets[targetToken.charid] then
@@ -1791,6 +1795,13 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 						pointTargetLabelsAtPathEnd = nil
 					end
 
+					if pointTargetLabelsAtThroughCreatures ~= nil then
+						for _, marker in ipairs(pointTargetLabelsAtThroughCreatures) do
+							marker:Destroy()
+						end
+						pointTargetLabelsAtThroughCreatures = nil
+					end
+
 					if gameUpdateCameWhileCastingSpell then
 						actionBar:FireEvent("refreshGame")
 					end
@@ -1826,7 +1837,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                         for _,ray in ipairs(rays) do
                             if ray.b.id == targetToken.id and m_targetLineOfSightRays[string.format("%s-%s", ray.a.id, ray.b.id)] == nil then
                                 print("MARK:: CCC")
-                                m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b)
+                                m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls())
                                 m_markLineOfSightToken = targetToken
                                 m_markLineOfSightSourceToken = token
                                 break
@@ -1835,7 +1846,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                     else
                         --we just target from the source to the target.
                                 print("MARK:: DDD")
-                        m_markLineOfSight = dmhub.MarkLineOfSight(token, targetToken)
+                        m_markLineOfSight = dmhub.MarkLineOfSight(token, targetToken, token.properties:GetPierceWalls())
                         if m_markLineOfSight ~= nil then
                             m_markLineOfSightToken = targetToken
                             m_markLineOfSightSourceToken = token
@@ -2057,6 +2068,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 						m_pointTargetFallingShape = nil
 					end
 					local destroyLabelsBeforeReturning = pointTargetLabelsAtPathEnd ~= nil
+					local destroyThroughCreatureLabels = pointTargetLabelsAtThroughCreatures ~= nil
                     local pathfinding = false
 					if point ~= nil then
 						local radius = spell:GetRadius(token.properties, currentSymbols)
@@ -2093,7 +2105,10 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 							showingMovementArrow = true
 							clearMovementArrow = false
 						elseif (shape == 'emptyspace' or shape == 'anyspace') and (targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures") then
-							local movementInfo = token:MarkMovementArrow(loc, {straightline = true, ignorecreatures = (targetingType == "straightpathignorecreatures") })
+							local throughCreatures = currentSpell:try_get("forcedMovementThroughCreatures", false)
+							local reboundOptions = token.properties:GetForcedPushOptions()
+							local isVerticalSlidePreview = (currentSymbols.forcedmovement or currentSpell:try_get("forcedMovement")) == "vertical_slide"
+							local movementInfo = token:MarkMovementArrow(loc, {straightline = true, ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures), rebound = reboundOptions.rebound, maxBounces = reboundOptions.maxBounces, slide = isVerticalSlidePreview })
 							showingMovementArrow = true
 							clearMovementArrow = false
 
@@ -2206,6 +2221,142 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 									end
 								end
 
+								--show damage indicators at each rebound bounce point.
+								if movementInfo.bounceCollisions ~= nil and #movementInfo.bounceCollisions > 0 and currentSpell:try_get("targeting", "direct") == "straightline" and token.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
+									local prevPathEnd = pointTargetShapePathEnd
+									destroyLabelsBeforeReturning = false
+									pointTargetShapePathEnd = pointTargetShapePathEnd or {}
+									local bounceTextLabels = {}
+
+									for _, collision in ipairs(movementInfo.bounceCollisions) do
+										local bounceCollideWith = collision.collideWith or {}
+										local bounceDamage = collision.speed
+										local bounceIsObject = #bounceCollideWith == 0
+										if bounceIsObject then
+											bounceDamage = bounceDamage + 2
+										end
+
+										local bounceDestPoint = collision.destination.point3
+										if token.creatureDimensions.x % 2 == 0 then
+											local offset = (token.creatureDimensions.x - 1) * 0.5
+											bounceDestPoint = core.Vector3(bounceDestPoint.x + offset, bounceDestPoint.y + offset, bounceDestPoint.z)
+										end
+
+										pointTargetShapePathEnd[#pointTargetShapePathEnd + 1] = dmhub.CalculateShape {
+											shape = cond(token.creatureDimensions.x % 2 == 1, "radius", "cylinder"),
+											token = spell:GetRangeSource(token),
+											targetPoint = bounceDestPoint,
+											range = spell:GetRange(token.properties, currentSymbols),
+											radius = token.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
+										}
+
+										bounceTextLabels[#bounceTextLabels + 1] = {
+											point = bounceDestPoint,
+											text = string.format("-%d<color=#00000000>-</color>", bounceDamage),
+										}
+
+										for _, collideToken in ipairs(bounceCollideWith) do
+											pointTargetShapePathEnd[#pointTargetShapePathEnd + 1] = dmhub.CalculateShape {
+												shape = cond(collideToken.creatureDimensions.x % 2 == 1, "radius", "radiusfromintersection"),
+												token = collideToken,
+												targetPoint = collideToken:PosAtLoc(),
+												range = 0,
+												radius = collideToken.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
+											}
+											bounceTextLabels[#bounceTextLabels + 1] = {
+												point = collideToken:PosAtLoc(),
+												text = string.format("-%d<color=#00000000>-</color>", bounceDamage),
+											}
+										end
+									end
+
+									local needRedraw = prevPathEnd == nil or #prevPathEnd ~= #pointTargetShapePathEnd
+									if needRedraw then
+										if pointTargetLabelsAtPathEnd ~= nil then
+											for _, marker in ipairs(pointTargetLabelsAtPathEnd) do
+												marker:Destroy()
+											end
+											destroyLabelsBeforeReturning = false
+										end
+
+										pointTargetLabelsAtPathEnd = pointTargetLabelsAtPathEnd or {}
+										for i, shape in ipairs(pointTargetShapePathEnd) do
+											pointTargetLabelsAtPathEnd[#pointTargetLabelsAtPathEnd + 1] =
+												shape:Mark { color = "red", video = "divinationline.webm", showLocs = false }
+										end
+										for i, info in ipairs(bounceTextLabels) do
+											pointTargetLabelsAtPathEnd[#pointTargetLabelsAtPathEnd + 1] = dmhub.CreateCanvasOnMap {
+												point = info.point,
+												sheet = gui.Label {
+													interactable = false,
+													halign = "center",
+													valign = "center",
+													color = "red",
+													width = "auto",
+													height = "auto",
+													fontSize = 0.5,
+													text = info.text,
+												}
+											}
+										end
+									end
+								end
+
+								--show damage indicators on creatures passed through.
+								if throughCreatures and path.steps ~= nil then
+									local throughTextLabels = {}
+									local throughShapes = {}
+									local hitIds = {}
+									for _, step in ipairs(path.steps) do
+										local tokensAtLoc = game.GetTokensAtLoc(step)
+										for _, tok in ipairs(tokensAtLoc or {}) do
+											if tok.id ~= token.id and hitIds[tok.id] == nil then
+												hitIds[tok.id] = true
+												throughShapes[#throughShapes + 1] = dmhub.CalculateShape {
+													shape = cond(tok.creatureDimensions.x % 2 == 1, "radius", "radiusfromintersection"),
+													token = tok,
+													targetPoint = tok:PosAtLoc(),
+													range = 0,
+													radius = tok.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
+												}
+												throughTextLabels[#throughTextLabels + 1] = {
+													point = tok:PosAtLoc(),
+													text = string.format("-%d<color=#00000000>-</color>", 1),
+												}
+											end
+										end
+									end
+
+									if #throughShapes > 0 then
+										destroyThroughCreatureLabels = false
+										if pointTargetLabelsAtThroughCreatures ~= nil then
+											for _, marker in ipairs(pointTargetLabelsAtThroughCreatures) do
+												marker:Destroy()
+											end
+										end
+										pointTargetLabelsAtThroughCreatures = {}
+										for i, shape in ipairs(throughShapes) do
+											pointTargetLabelsAtThroughCreatures[#pointTargetLabelsAtThroughCreatures + 1] =
+												shape:Mark { color = "red", video = "divinationline.webm", showLocs = false }
+										end
+										for i, info in ipairs(throughTextLabels) do
+											pointTargetLabelsAtThroughCreatures[#pointTargetLabelsAtThroughCreatures + 1] = dmhub.CreateCanvasOnMap {
+												point = info.point,
+												sheet = gui.Label {
+													interactable = false,
+													halign = "center",
+													valign = "center",
+													color = "red",
+													width = "auto",
+													height = "auto",
+													fontSize = 0.5,
+													text = info.text,
+												}
+											}
+										end
+									end
+								end
+
 								--falling.
 								local fallInfo = token:GetFallInfoFromLoc(loc)
 								if fallInfo ~= nil then
@@ -2296,7 +2447,9 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 					local targetTokens = self.tokenInfo.TokensInShape(pointTargetShape)
                     if not pathfinding then
                         for k,tok in pairs(targetTokens) do
-                            if (selfTarget or tok.charid ~= token.charid) and spell:TargetPassesFilter(token, tok, currentSymbols) then
+                            -- "Can Target Self" flag lets the caster appear among its own candidates
+                            -- alongside others (self OR adjacent in one prompt); see ActivatedAbility:TargetPassesFilter.
+                            if (selfTarget or tok.charid ~= token.charid or token.properties:CalculateNamedCustomAttribute("Can Target Self") > 0) and spell:TargetPassesFilter(token, tok, currentSymbols) then
                                 filteredTargets[k] = tok
                             end
                         end
@@ -2418,6 +2571,13 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 						pointTargetLabelsAtPathEnd = nil
 						pointTargetShapePathEnd = nil
+					end
+
+					if destroyThroughCreatureLabels and pointTargetLabelsAtThroughCreatures ~= nil then
+						for _, marker in ipairs(pointTargetLabelsAtThroughCreatures) do
+							marker:Destroy()
+						end
+						pointTargetLabelsAtThroughCreatures = nil
 					end
                     local _ = g_profileMapHover.End
 
@@ -2562,13 +2722,11 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 		height = "auto",
 	}
 
-	skipButton = gui.PrettyButton{
+	skipButton = gui.Button{
+		classes = {"sizeL", "collapsed"},
 		halign = "center",
 		width = 120,
-		height = 60,
-		fontSize = 22,
 		text = "Skip",
-		classes = { 'collapsed' },
 		events = {},
 	}
 
@@ -2823,17 +2981,13 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
             },
 
         },
-
-
     }
 
-	castButton = gui.PrettyButton{
+	castButton = gui.Button{
+		classes = {"sizeL", "collapsed"},
 		halign = "center",
 		width = 120,
-		height = 60,
-		fontSize = 22,
 		text = "Confirm",
-		classes = { 'collapsed' },
 		events = {},
 	}
 
@@ -4130,7 +4284,10 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
     --TODO: show actions somewhere in DS.
 	--actionResourcesBar = CreateResourcesBar({"Actions"}, { halign = "left", resourceSize = cond(ActionBar.resourcesWithBars, 16, 40), iconSize = cond(ActionBar.resourcesWithBars, 16, 40), flow = cond(ActionBar.resourcesWithBars, "vertical", "horizontal") })
 
-	local searchInput = gui.Input{
+	--the canonical search field; look comes from DefaultStyles'
+	--searchInput rules, borderBox keeps its hpad 24 inside the width.
+	local searchInput = gui.SearchInput{
+		borderBox = true,
 		width = 120,
 		height = 22,
 		placeholderText = "Search...",
@@ -4199,7 +4356,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 			searchInput,
 
-			gui.CloseButton{
+			gui.Button{
+            	classes = {"closeButton"},
 				escapeActivates = true,
 				escapePriority = EscapePriority.DMHUB_POPUP,
 				click = function(element)
@@ -4636,7 +4794,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                         end
 
                                         local sourceToken = token
-                                        local range = tonumber(trigger.powerRollModifier.range)
+                                        local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, token.properties:LookupSymbol(symbols), 10))
                                         local rangeType = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetRange", "none")
                                         if rangeType == "ability" then
                                             sourceToken = dmhub.GetTokenById(trigger.casterid)
@@ -4681,6 +4839,11 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                         dismiss = true
                                     end
 
+                                    --set when we start a trigger-before action below: the accept then
+                                    --flags the record as resolving, holding the caster's roll until
+                                    --the complete callback clears it.
+                                    local waitingOnTriggerBefore = false
+
                                     if (not trigger.triggered) and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                         --if we trigger some action before the trigger.
                                         local triggerBefore = trigger.powerRollModifier.powerRollModifier:try_get("triggerBefore")
@@ -4688,6 +4851,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
                                         --we commit to it if we use the trigger so we disappear the trigger.
                                         dismiss = true
+                                        waitingOnTriggerBefore = true
 
                                         triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{}, nil, { mod = trigger.powerRollModifier }, {
                                             complete = function()
@@ -4731,6 +4895,26 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                                         end
                                                     end
                                                 end
+
+                                                --The caster's roll dialog holds its roll while the record's
+                                                --resolving flag is set, so the trigger-before action (e.g.
+                                                --Parry's shift) lands before damage and forced movement.
+                                                --Clear it now that the action has fully resolved -- even if
+                                                --the panel has since closed.
+                                                if triggerToken.valid then
+                                                    local live = triggerToken.properties:GetAvailableTriggers() or {}
+                                                    local liveTrigger = live[key]
+                                                    if liveTrigger ~= nil and liveTrigger.resolving then
+                                                        triggerToken:ModifyProperties{
+                                                            undoable = false,
+                                                            description = "Trigger",
+                                                            execute = function()
+                                                                liveTrigger.resolving = false
+                                                                triggerToken.properties:DispatchAvailableTrigger(liveTrigger)
+                                                            end,
+                                                        }
+                                                    end
+                                                end
                                             end,
                                         })
                                     end
@@ -4747,6 +4931,13 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                                 trigger.retargetid = nil
                                             else
                                                 trigger.triggered = true
+                                            end
+
+                                            --the trigger-before action (e.g. Parry's shift) is still
+                                            --running: mark the record so the caster's roll dialog holds
+                                            --the roll until the complete callback clears this.
+                                            if waitingOnTriggerBefore then
+                                                trigger.resolving = true
                                             end
 											token.properties:DispatchAvailableTrigger(trigger)
 										end,
@@ -4791,7 +4982,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                             end
 
                                             local sourceToken = token
-                                            local range = tonumber(trigger.powerRollModifier.range)
+                                            local range = tonumber(ExecuteGoblinScript(trigger.powerRollModifier.range, token.properties:LookupSymbol(symbols), 10))
                                             local rangeType = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetRange", "none")
                                             if rangeType == "ability" then
                                                 sourceToken = dmhub.GetTokenById(trigger.casterid)
@@ -4905,7 +5096,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                         local target = dmhub.GetTokenById(targetid)
                                         if target ~= nil then
                                             print("MARK:: AAA")
-                                            local ray = dmhub.MarkLineOfSight(token, target)
+                                            local ray = dmhub.MarkLineOfSight(token, target, token.properties:GetPierceWalls())
                                             element.data.rays[#element.data.rays+1] = ray
                                         end
                                     end
@@ -5621,6 +5812,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 		id = "actionBarResultPanel",
 		styles = {
 			styles,
+            ThemeEngine.GetStyles(),
 			{
 				selectors = {"hideWhenInvoking", "invokingAbility"},
 				priority = 20,
@@ -5680,19 +5872,45 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                 element.parent:SetClass("customActionBar", g_customActionBarFunction ~= nil)
                 element:SetClass("collapsed", g_customActionBarFunction == nil)
             end,
-            create = function(element)
+
+            --The bar's scale: the aspect-ratio fit it always had, times the
+            --Font Size setting as a flat zoom in icon-rail mode, the rails'
+            --way (PanelDocument.WindowUIScale -- the engine holds font
+            --magnification at 1 there, so scaling the root is how the bar
+            --follows the setting at all). Clamped so the scaled bar can
+            --never grow wider than the dock-free screen width.
+            setBarScale = function(element)
                 local dockareaAsPercentOfHeight = (380*2)/1080
                 local defaultRatio = (1920 - 1080*dockareaAsPercentOfHeight)/1080
                 local dim = dmhub.screenDimensionsBelowTitlebar
                 local screenRatio = (dim.x - dim.y*dockareaAsPercentOfHeight)/dim.y
 
+                --the scale at which the bar exactly fills the dock-free width.
+                local maxScale = screenRatio / defaultRatio
+
                 local uiscaleRatio = 0.9
 
-                if screenRatio < defaultRatio then
-                    element.selfStyle.uiscale = uiscaleRatio*screenRatio / defaultRatio
-                else
-                    element.selfStyle.uiscale = uiscaleRatio*1
+                local scale = uiscaleRatio
+                if maxScale < 1 then
+                    scale = uiscaleRatio * maxScale
                 end
+
+                scale = scale * PanelDocument.WindowUIScale()
+                if scale > maxScale then
+                    scale = maxScale
+                end
+
+                element.selfStyle.uiscale = scale
+            end,
+
+            --a live Font Size (or rail mode) change re-applies the zoom.
+            multimonitor = {"fontsize", "iconrail"},
+            monitor = function(element)
+                element:FireEvent("setBarScale")
+            end,
+
+            create = function(element)
+                element:FireEvent("setBarScale")
 
                 g_customActionBar = element
                 element:FireEvent("customActionBar")
@@ -5992,8 +6210,8 @@ function GameHud:CreateReactionBar(dialog, tokenInfo)
 							if ability == nil then
 								return
 							end
-							element.bgimage = ability.iconid
-							element.selfStyle = ability.display
+							element.bgimage = ability:GetIcon()
+							element.selfStyle = ability:GetIconDisplay()
 						end,
 					},
 
@@ -6292,7 +6510,8 @@ function GameHud:ShowActionBarEditDialog(creature, actionBar, pagingPanels)
 
 		pagesParent,
 
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,

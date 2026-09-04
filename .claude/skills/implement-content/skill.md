@@ -1,62 +1,67 @@
 ---
 name: implement-content
-description: Implement compendium content for DMHub -- monsters, items, ongoing effects, abilities, and other game data. Use when asked to "implement a monster", "create a creature", "build an item", "add a compendium entry", or generate any Draw Steel game content as importable YAML.
+description: Implement compendium content for DMHub -- monsters, items, ongoing effects, abilities, and other game data. Use when asked to "implement a monster", "create a creature", "build an item", "add a compendium entry", or generate any Draw Steel game content as YAML data.
 metadata:
   author: draw-steel-codex
-  version: "1.0.0"
+  version: "1.1.0"
   argument-hint: <content-description>
 ---
 
 # Compendium Content Implementation
 
-You implement Draw Steel game content as importable YAML files for DMHub. This includes monsters, ongoing effects, items, conditions, abilities, and anything else stored in the compendium.
+You implement Draw Steel game content as YAML files in DMHub's live `data/` content store.
+This includes monsters, ongoing effects, items, conditions, abilities, and anything else
+stored in the compendium.
 
 ## Workflow
 
 1. **Discuss**: When the user asks to implement content, first discuss the design. What should the abilities do? What's the best player experience? What behaviors/modifiers will achieve the desired automation?
-2. **Generate**: Write YAML files to `compendium/import/<name>.yaml` for all importable
-   content. Use `compendium/temp/` for working files like extracted PDF content, analysis
-   reports, and implementation plans that aren't meant for direct import.
-3. **Validate**: Run `python validate_yaml.py <name>.yaml` from the repo root to check for
-   errors. Fix ALL errors before proceeding. The validator catches missing required fields,
-   wrong table names, malformed UUIDs, and structural issues. Zero errors required.
-4. **Instruct**: Tell the user to type `/import <name>.yaml` in DMHub to load it.
-   The in-app `/import` also validates and refuses to import if errors are found.
-5. **Iterate**: The user tests in-app, reports issues, and you refine the YAML
+2. **Implement directly in `data/`**: `data/` is the live content store (see "Where Content
+   Lives" below). Create or edit the YAML file directly in the correct `data/` subfolder.
+   There is NO import step -- the file you write IS the content.
+3. **Validate**: Run `python validate_yaml.py --base-dir . data/<path>/<file>.yaml` from the
+   repo root to check for errors. Fix ALL errors before proceeding. The validator catches
+   missing required fields, wrong table names, malformed UUIDs, and structural issues. Zero
+   errors required.
+4. **It applies live**: Editing a file in `data/` takes effect in the running DMHub instance
+   automatically -- no `/import`, no `dmhub.ImportFile`, no upload. Do NOT tell the user to
+   import anything.
+5. **Iterate**: The user tests in-app, reports issues, and you refine the same file in
+   `data/`, then they test again.
 
-## File Placement Rules
+## Where Content Lives: the `data/` Submodule
 
-**CRITICAL: Always write importable YAML to `compendium/import/`, never edit files in
-`compendium/tables/` directly.** The `tables/` directory is the canonical export of what's
-already in the cloud database. The `import/` directory is the staging area for new or
-updated content that gets loaded via `/import`.
+`data/` is a **git submodule** (the standalone `draw-steel-data` repo -- the export of the
+master "Great Library" game). It holds ALL compendium content as human-readable YAML, and
+the running dev instance reads it live. **Editing a file here is completely safe:** because
+it is its own git repo, any change can be reverted with `git -C data checkout <file>` (or
+inspected with `git -C data diff`). Edit freely.
 
-- **New content**: Write to `compendium/import/<name>.yaml`
-- **Updates to existing content**: Copy the file from `compendium/tables/<category>/<name>.yaml`
-  to `compendium/import/<name>.yaml`, make changes there, then import
-- **Batch imports**: Create a manifest file (e.g., `complications-all.yaml`) using `_bundle`
-  with `_include` directives referencing other files in `import/`
-- **Working files**: Use `compendium/temp/` for PDFs, analysis, plans, drafts
+**Layout:**
 
-**Bundle include syntax** (for manifest files that pull in multiple YAML files):
-```yaml
-_bundle:
-  - _include: "outlaw.yaml"
-  - _include: "mundane.yaml"
-  - _include: "vow-of-duty.yaml"
-```
+| Content | Location |
+|---|---|
+| Monsters/creatures | `data/monsters/<uuid>.yaml` (one MonsterAsset per file) |
+| Table entries (conditions, ongoing effects, items, abilities, classes, kits, titles, etc.) | `data/objectTables/<tablefolder>/<slug-or-uuid>.yaml` |
+| Reference documentation | `data/docs/` (see "Key References" below) |
 
-Each `_include` resolves relative to `compendium/import/`. The included file can be a
-single entry or a bundle itself. Circular includes are detected and skipped.
+**Folder name vs `_table:` casing.** Under `data/objectTables/`, folder names are
+**lowercased** (e.g. `characterongoingeffects/`, `charconditions/`, `tbl-gear/`), but the
+`_table:` metadata field inside each file keeps the **canonical mixed-case** name
+(`characterOngoingEffects`, `charConditions`, `tbl_Gear`). Always set `_table:` to the
+canonical name from `data/docs/reference/CORE.md`, not the lowercased folder name.
 
-**The `/import` macro** supports multiple space-separated files:
-```
-/import outlaw.yaml mundane.yaml vow-of-duty.yaml
-```
-Or use a manifest:
-```
-/import complications-all.yaml
-```
+**Creating vs editing:**
+- **New content**: The most reliable way is to **copy the nearest existing file in the
+  target folder as a template** and modify it (fresh `id`, name, stats, behaviors) -- this
+  guarantees you carry the full envelope (all required fields) correctly. Name the new file
+  with a human slug (`my-monster.yaml`) or a UUID; the authoritative id is the `id:` field
+  inside, not the filename.
+- **Editing existing content**: Find the file in `data/` (by slug filename, or grep for its
+  `id:`/name) and edit it in place. It is already the live content.
+
+**Working files** (extracted PDF text, analysis, implementation plans -- NOT content): keep
+these OUT of the `data/` submodule. Use `compendium/temp/` or your scratchpad.
 
 ## Automation Principle
 
@@ -83,8 +88,16 @@ Floating text that says "Artifact Appears" is not automation -- it's a sticky no
 - **Float text is NOT automation.** If a behavior's only runtime effect is displaying
   a message, that mechanic is unautomated. The tier should reflect what actually happens
   in the game engine, not what text appears on screen.
-- **"Implementation: 0" or "implementation: 2" markers** in the YAML indicate the original
+- **"Implementation: 1" or "implementation: 2" markers** in the YAML indicate the original
   author already flagged this as unimplemented or partially implemented. Respect those flags.
+- **`effectImplemented` is DEPRECATED and must be completely ignored.** Do NOT read it, set
+  it, or reference it in any YAML output. Use the `implementation` field exclusively.
+  Its scale comes from `gui.ImplementationStatus` in `DMHub Core UI/Gui.lua` and maps
+  directly onto the tier names above: 0 = won't implement/narrative, 1 = unimplemented
+  (the default), 2 = Bronze, 3 = Silver, **4 = Gold**. Fully automated content must be
+  marked `implementation: 4` -- marking it 3 displays as Silver in the app. If you
+  encounter `effectImplemented` in existing YAML, ignore it -- the `implementation`
+  field is authoritative.
 - **Assess benefit AND drawback separately.** A complication with a fully automated drawback
   but a text-only benefit (or vice versa) is at best SILVER, not GOLD.
 - **Conditional modifiers count as automated** only if the condition can actually be evaluated
@@ -141,11 +154,18 @@ blocker appears across many items.
 - **1-2**: Speculative, may not be possible without C# engine changes
 
 **The report should:**
-1. Research the actual Lua codebase (not just reference docs) for each change
-2. Identify the specific functions, files, and mechanisms involved
-3. Find existing patterns that prove the approach works (or highlight why it might not)
-4. Rank changes by effort-to-impact ratio so the user can prioritize
-5. Recommend an implementation order (quick wins first)
+1. **Delegate research to the `Explore` subagent** -- give it the list of
+   candidate changes and ask it to return, per change: specific
+   functions/files/mechanisms involved, an existing pattern that proves the
+   approach works (or a note on why it might not), and any risks. Your job
+   is to synthesize Explore's findings into the report -- do not read the
+   Lua files yourself. See "Investigating Automation Paths" below for how
+   to shape the Explore prompt.
+2. Identify the specific functions, files, and mechanisms involved (from Explore).
+3. Find existing patterns that prove the approach works -- or highlight why
+   it might not -- from Explore's findings.
+4. Rank changes by effort-to-impact ratio so the user can prioritize.
+5. Recommend an implementation order (quick wins first).
 
 ### Always Offer Full Automation
 
@@ -156,69 +176,106 @@ investigate a Lua implementation. Present three tiers:
 2. **YAML + creative workaround**: Approximate the mechanic using existing tools (e.g.,
    `Ability.HasPotency and Ability.Inflicts("Frightened")` as an activation condition
    to approximate "when an ability inflicts frightened via potency").
-3. **Lua implementation** (most complete): Offer to implement a new GoblinScript symbol,
-   behavior, or modifier type. State the effort level (small = new RegisterSymbol,
-   medium = new behavior type, large = engine change). Ask the user if they want to
-   proceed with the Lua approach.
+3. **Lua implementation** (most complete): Offer to extend the engine -- a new
+   GoblinScript symbol, behavior type, modifier type, trigger, or custom attribute.
+   State the effort level (small = new RegisterSymbol, medium = new behavior type,
+   large = engine change). If the user accepts, delegate the Lua work to a subagent
+   per the "Lua Implementation Handoff Protocol" below -- do NOT implement it inline.
+   Your context should stay focused on YAML and rules logic.
 
-### Proactively Investigate the Codebase for Automation Paths
+### Lua Implementation Handoff Protocol
 
-Before declaring something PARTIAL or TEXT-ONLY, **always search the Lua codebase** for
-existing mechanisms that might solve the problem. The reference docs may not cover
-everything -- the engine has many features that are only discoverable by reading code.
+When the user accepts a Tier-3 Lua implementation, hand the work off to a subagent.
+Your context should stay focused on YAML and rules logic -- do not read or edit
+Lua source files yourself.
 
-**When you hit an automation gap, follow this investigation checklist:**
+**Use the `general-purpose` Agent** with a prompt that explicitly directs it to
+invoke the right existing skill:
+- **New GoblinScript symbol** (most common case) -- direct the agent to invoke
+  the `goblinscript` skill.
+- **New behavior, modifier, trigger, custom attribute, or anything else** --
+  direct the agent to invoke the `codexmod` skill.
 
-1. **Search for existing triggers** that might fire at the right time:
-   ```
-   grep for "RegisterTrigger" in Draw Steel Core Rules/*.lua and DMHub Game Rules/*.lua
-   ```
-   Every `RegisterTrigger{id = "...", symbols = {...}}` defines a trigger with its
-   available GoblinScript symbols. There may be a trigger you don't know about that
-   solves your problem (e.g., `targetwithability` fires per-target with the ability
-   and target as symbols).
+**The handoff prompt MUST include:**
 
-2. **Search for existing GoblinScript symbols** on the relevant object:
-   ```
-   grep for "RegisterSymbol" or "RegisterGoblinScriptSymbol" or "helpSymbols" in *.lua
-   ```
-   Check `help` tables in registrations -- they document name, type, and description.
-   Key files:
-   - Abilities: `MCDMActivatedAbility.lua`, `ActivatedAbility.lua`
-   - Creatures: `MCDMCreature.lua`, `Creature.lua`
-   - Cast context: `ActivatedAbilityCast.lua`, `MCDMActivatedAbilityCast.lua`
-   - Power rolls: `MCDMAbilityRollBehavior.lua`
-   - Conditions: `Condition.lua`
+1. **Blocker**: the YAML feature that's currently inexpressible, in one sentence.
+2. **Proposed extension shape**: what kind of Lua addition you're requesting
+   (new symbol with a specific name and arguments / new behavior `__typeName` /
+   new trigger id / new custom attribute key).
+3. **Acceptance criteria**: a YAML snippet showing what should work after the
+   change. This is the contract.
+4. **Skill instruction**: "Invoke the `goblinscript` skill" or "Invoke the
+   `codexmod` skill" depending on the kind of work.
+5. **Return contract**: tell the subagent what to report back -- the final
+   symbol name and arguments (or behavior `__typeName` and fields), and any
+   caveats or naming differences from what you proposed.
 
-3. **Search for existing custom attributes** that control the mechanic:
-   ```
-   grep for the mechanic name in compendium/tables/customattributes/_table.yaml
-   ```
-   Many mechanics are controlled by custom attributes (e.g., `cannotregainstamina`,
-   `ignoredifficultterrain`, `immunityfromopportunityattack`).
+**Example handoff prompt:**
 
-4. **Search for how similar existing content solves the same problem:**
-   ```
-   grep for the mechanic in compendium/bestiary/ or compendium/tables/
-   ```
-   If another monster or class feature does something similar, study its YAML.
+> Blocker: a power-roll modifier needs to check whether an ability inflicted a
+> named condition via a potency check that succeeded, not just whether the
+> ability lists the condition.
+>
+> Proposed extension: a new GoblinScript symbol on `Ability` named
+> `InflictsBasedOnPotency(conditionName)` returning boolean.
+>
+> Acceptance criteria -- this YAML should work after your change:
+> ```yaml
+> activationCondition: 'Ability.InflictsBasedOnPotency("Frightened")'
+> ```
+>
+> Invoke the `goblinscript` skill to implement this. When done, report: the
+> final symbol name (in case it had to differ), its argument signature, and
+> any edge cases the YAML author should know about (e.g., what it returns
+> if potency wasn't rolled).
 
-5. **Check the DispatchEvent calls** in the Lua code:
-   ```
-   grep for "DispatchEvent" in DMHub Game Rules/*.lua
-   ```
-   Every DispatchEvent creates an event that triggers can listen for. The event name
-   maps to a trigger ID.
+Once the subagent reports back, wire the new API into the YAML and re-run
+`python validate_yaml.py`. Trust the subagent's report -- do not re-read the
+Lua files to verify. If runtime behavior doesn't match expectations, re-engage
+the implementation subagent with the specific failure case, or send a follow-up
+Explore query if you need to understand a related mechanic.
 
-6. **Check what symbols are passed to lookup functions** in modifier evaluation code:
-   ```
-   grep for "LookupSymbol" in the relevant modifier/behavior code
-   ```
-   This shows exactly what GoblinScript context is available.
+### Investigating Automation Paths (Lua Research)
 
-**The reference docs are a starting point, not the final answer.** The Lua codebase is
-the source of truth. When the docs say "PARTIAL" or "TEXT-ONLY", that's a prompt to
-investigate whether the engine already has a solution that wasn't documented.
+Before declaring something PARTIAL or TEXT-ONLY, investigate whether the engine
+already has a mechanism that solves the problem. The reference docs don't cover
+everything -- many features are only discoverable in Lua source.
+
+**Delegate Lua research to the `Explore` subagent.** Keep your own context focused
+on YAML and rules logic. Inline grep is acceptable only for a single targeted
+lookup ("does the symbol `Ability.InflictsBasedOnPotency` exist?"). Anything
+beyond ~2 reads, or any open-ended question ("how does push interact with
+stability?"), goes to Explore.
+
+**Question-shaping rules for Explore prompts.** A poorly scoped delegation
+wastes a round-trip. Each Explore prompt must:
+
+1. State the YAML feature you're trying to express in one sentence (the *blocker*).
+2. Ask a specific, answerable question -- not "how does X work" but "is there
+   a trigger that fires when a creature is reduced to 0 stamina, and what
+   GoblinScript symbols does it expose?"
+3. Tell Explore what shape of answer you need: symbol name + arguments, or
+   trigger id + symbols, or "the file/line where the existing pattern lives."
+4. Cap the response: "report in under 150 words; include only what's needed
+   to write the YAML."
+
+**Where to point Explore (pick the one that matches the question -- do not
+list all of these in a single prompt):**
+
+| Question | Where Explore should look |
+|---|---|
+| Is there a trigger for event X? | `RegisterTrigger` calls in `Draw Steel Core Rules/*.lua`, `DMHub Game Rules/*.lua` |
+| Is there a GoblinScript symbol Y on object Z? | `RegisterSymbol` / `helpSymbols` in `MCDMActivatedAbility.lua`, `ActivatedAbility.lua`, `MCDMCreature.lua`, `Creature.lua`, `ActivatedAbilityCast.lua`, `MCDMActivatedAbilityCast.lua`, `MCDMAbilityRollBehavior.lua`, `Condition.lua` |
+| Does a custom attribute control mechanic X? | `data/objectTables/customattributes/` |
+| Does similar content already solve this? | `data/monsters/`, `data/objectTables/` |
+| What event fires at point X? | `DispatchEvent` calls in `DMHub Game Rules/*.lua` |
+| What symbols are passed to a modifier formula? | `LookupSymbol` calls in the relevant modifier/behavior code |
+
+The Lua codebase is the source of truth -- but it's Explore's job to read it,
+not yours. Your job is to ask the right question and translate the answer into
+YAML. If Explore's answer reveals that no existing mechanism solves the
+problem, that's the cue to offer Tier-3 (see "Always Offer Full Automation")
+and, if the user accepts, follow the "Lua Implementation Handoff Protocol".
 
 ### Ability Targeting Must Match Rules Text
 
@@ -278,47 +335,53 @@ symbol like `Ability.InflictsBasedOnPotency("Frightened")` via Lua.
 
 Read SELECTIVELY based on what you're implementing:
 
+All reference docs live in the `data/` submodule under `data/docs/`.
+
 **Always read:**
 | File | What it contains |
 |---|---|
-| `compendium/reference/CORE.md` | **READ FIRST.** Common pitfalls, UUID maps, table names, GoblinScript booleans, import workflow |
+| `data/docs/reference/CORE.md` | **READ FIRST.** Common pitfalls, UUID maps, table names, GoblinScript booleans |
 
 **For monsters/abilities:**
 | File | What it contains |
 |---|---|
-| `compendium/reference/MONSTERS.md` | Monster YAML, all behavior types, targeting, power rolls, auras, modifiers, triggers, ongoing effects, rules engine commands |
+| `data/docs/reference/MONSTERS.md` | Monster YAML, all behavior types, targeting, power rolls, auras, modifiers, triggers, ongoing effects, rules engine commands |
 
 **For character options (classes, ancestries, kits, etc.):**
 | File | What it contains |
 |---|---|
-| `compendium/reference/CHARACTERS.md` | Classes, subclasses, ancestries, kits, complications, titles, treasures -- YAML structures and feature types |
+| `data/docs/reference/CHARACTERS.md` | Classes, subclasses, ancestries, kits, complications, titles, treasures -- YAML structures and feature types |
 
 **For GoblinScript formulas:**
 | File | What it contains |
 |---|---|
-| `compendium/reference/GOBLINSCRIPT-SYMBOLS.md` | **ALL creature symbols** (200+): stats, characteristics, resources, conditions, movement, custom attributes |
-| `compendium/reference/GOBLINSCRIPT-ABILITY-SYMBOLS.md` | **ALL non-creature symbols**: Ability, Cast, Kit, Equipment, Attack (100+ across 14 types) |
-| `compendium/reference/GOBLINSCRIPT-CONTEXTS.md` | **Which symbols are available WHERE**: maps every YAML formula field to its available symbols |
-| `GoblinScript_Guide.md` | GoblinScript syntax, operators, evaluation model |
+| `data/docs/reference/GOBLINSCRIPT-SYMBOLS.md` | **ALL creature symbols** (200+): stats, characteristics, resources, conditions, movement, custom attributes |
+| `data/docs/reference/GOBLINSCRIPT-ABILITY-SYMBOLS.md` | **ALL non-creature symbols**: Ability, Cast, Kit, Equipment, Attack (100+ across 14 types) |
+| `data/docs/reference/GOBLINSCRIPT-CONTEXTS.md` | **Which symbols are available WHERE**: maps every YAML formula field to its available symbols |
+| `data/GoblinScript_Guide.md` | GoblinScript syntax, operators, evaluation model |
 
 **CRITICAL:** When writing ANY GoblinScript formula, ALWAYS:
 1. Check GOBLINSCRIPT-CONTEXTS.md to know what symbols are available in that specific field
-2. Check GOBLINSCRIPT-SYMBOLS.md for the exact symbol name (with spaces!)
+2. Check GOBLINSCRIPT-SYMBOLS.md for the exact symbol name -- then write it WITHOUT
+   spaces in the formula (`MaximumStamina`, not `Maximum Stamina`). Lookup strips spaces
+   and case, and spaced spellings silently mis-parse when a word collides with a reserved
+   operator (`has`, `is`, `not`, `and`, `or`, `when`, `where`, `else`)
 3. Understand what "Self" means in that context (the creature being evaluated, NOT always the caster)
 4. NEVER guess symbol names -- always verify against the reference
 
 **Other references (read as needed):**
 | File | What it contains |
 |---|---|
-| `compendium/RULES_REFERENCE.md` | Draw Steel game rules (combat, conditions, power rolls, monster/encounter building) |
-| `compendium/bestiary/<name>.yaml` | Example monster files -- study for exact YAML patterns |
-| `compendium/tables/` | Example compendium entries by type |
+| `data/docs/RULES_REFERENCE.md` | Draw Steel game rules (combat, conditions, power rolls, monster/encounter building) |
+| `data/docs/reference/IMPLEMENTATION-PATTERNS.md` | Recurring YAML shapes: potency gates, movement, triggers |
+| `data/monsters/<uuid>.yaml` | Example monster files -- study for exact YAML patterns |
+| `data/objectTables/<tablefolder>/` | Example compendium entries by type |
 
 ## Critical Rules
 
 ### Critical Pitfalls (Read First!)
 
-Before generating any YAML, review the "Common Pitfalls" section in `compendium/REFERENCE.md`.
+Before generating any YAML, review the "Common Pitfalls" section in `data/docs/reference/CORE.md`.
 The most common errors:
 
 1. **Table names are case-sensitive** -- `characterOngoingEffects` not `characterongoingeffects`
@@ -331,31 +394,154 @@ The most common errors:
 6. **`display` table is REQUIRED** on CharacterOngoingEffect
 7. **`reasonedFilters` replaces `targetFilter`** -- don't use both for the same restriction
 8. **`ongoingEffectCustom`** is editor-only state; has NO runtime effect
+9. **Feature `tags:` are required metadata** on every CharacterFeature you author -- see
+   "Feature Tags" below. An untagged feature renders as a normal visible feature row, which
+   is wrong for ability-grant wrappers and plumbing carriers.
+10. **Potency gates need `filterTarget`** -- `not Cast.PassesPotency(Target, "M", "Average")`.
+    There is no `potencyAttr` field, and the `not` matters
+
+### Modifier Name Must Match Parent Feature
+
+**Every `CharacterModifier`'s `name` field MUST match its parent `CharacterFeature.name`
+verbatim.** The character-sheet bonus-listing UI groups modifiers by name. If a feature
+"Gift of Elder Sorcery" has children named "Speed Bonus", "Range Bonus", "Stamina Bonus",
+they appear as scattered rows in the bonus list instead of one clean block under the
+feature heading.
+
+```yaml
+# CORRECT
+- __typeName: CharacterFeature
+  name: Gift of Elder Sorcery
+  modifiers:
+    - __typeName: CharacterModifier
+      behavior: attribute
+      name: Gift of Elder Sorcery     # matches feature
+      attribute: speed
+      value: 1
+    - __typeName: CharacterModifier
+      behavior: power
+      name: Gift of Elder Sorcery     # matches feature
+      damageModifier: "2"
+      keywords: { Ranged: true }
+
+# WRONG -- separate rows in the bonus listing
+- __typeName: CharacterFeature
+  name: Gift of Elder Sorcery
+  modifiers:
+    - __typeName: CharacterModifier
+      name: Speed Bonus               # diverges -> ungrouped
+    - __typeName: CharacterModifier
+      name: Ranged Damage Bonus       # diverges -> ungrouped
+```
+
+**Scope and exceptions:**
+
+- Applies to `behavior: attribute`, `behavior: power`, `behavior: resource`,
+  `behavior: trigger`, `behavior: activated`, `behavior: proficiency` -- any direct
+  child of `CharacterFeature.modifiers[]`.
+- For `behavior: trigger`, only the **outer** `CharacterModifier.name` matches the
+  feature. The inner `triggeredAbility.name` is a separate display label (used in
+  chat / triggerPrompt) and is allowed to differ. Example: feature "Focus" -> outer
+  `CharacterModifier.name: Focus` -> inner `triggeredAbility.name: "Draw Steel"`
+  (Tactician's start-of-combat trigger).
+- For `behavior: activated`, same pattern -- outer modifier name matches the feature,
+  the inner `activatedAbility.name` is the ability's display name.
+- Modifiers nested deeper (e.g. inline `ActivatedAbility.modifiers[]` for per-ability
+  roll-dialog options like a "1 Zeal" damage rider) follow a different convention --
+  those surface as roll-dialog checkboxes and are typically labelled descriptively.
+  This rule only applies to direct `CharacterFeature.modifiers[]` children.
 
 ### ASCII Only
 All YAML content must be pure ASCII (bytes 0-127). No em dashes, curly quotes, ellipses, or Unicode. Use `-` not `--`, `"` not curly quotes, `...` not ellipsis.
+
+**Caveat for existing `data/` files:** some exported content already contains Unicode (e.g.
+curly apostrophes in ability names), so `validate_yaml.py` may report a non-ASCII error on a
+line you never touched when you edit an existing file. That's a pre-existing export artifact,
+not something your edit introduced -- keep your OWN additions ASCII, and don't churn unrelated
+Unicode lines just to silence the check.
 
 ### UUID Generation
 Generate fresh UUIDs for all new entities. Format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` (lowercase hex). Maintain internal consistency -- if an ability references an ongoing effect, the UUIDs must match.
 
 ### Reference Existing UUIDs
-For standard conditions, damage types, action resources, and common ongoing effects, use the UUIDs from the reference maps in `compendium/REFERENCE.md`. Never generate new UUIDs for these -- always reference the existing ones.
+For standard conditions, damage types, action resources, and common ongoing effects, use the UUIDs from the reference maps in `data/docs/reference/CORE.md`. Never generate new UUIDs for these -- always reference the existing ones.
 
 ### Monster YAML Format
-Monsters use the `MonsterAsset` C# struct format with `info:` at the top level. Study existing monsters in `compendium/bestiary/` for exact structure. Key fields:
+Monsters live in `data/monsters/<uuid>.yaml`, one `MonsterAsset` per file, with `info:` at the
+top level. **Copy an existing `data/monsters/*.yaml` as a template** for a new monster -- the
+envelope has many required fields, and copying guarantees you get them all. Key fields:
+- `info.properties.monster_type` -- **the monster's display name** (e.g. `Sprite Olyender`).
+  NOTE: in the live `data/` format, the top-level `description` is `null` -- the name is here,
+  not in `description`.
 - `info.properties.innateActivatedAbilities` -- the monster's abilities
 - `info.properties.characterFeatures` -- traits (passive features using CharacterModifier)
 - `info.properties.attributes` -- characteristic scores
 - `info.properties.keywords` -- creature keywords
-- `description` -- the monster's display name
-- `id` -- unique UUID for this monster
+- `info.properties.innateLanguages` -- the languages the creature speaks (see
+  "Languages Are Not Optional" below -- do NOT leave this out)
+- `parentFolder` -- UUID of the containing folder under `data/monsterFolders/` (carry over
+  the template's value, or set to an existing monster folder's id)
+- `id` -- unique UUID for this monster (also used as the filename when UUID-named)
+
+### Languages Are Not Optional
+
+**Every creature you implement must end up with `innateLanguages` set.** This has been the
+single most consistently forgotten field -- most hand-authored monster groups in `data/`
+have no languages at all, because only the JSON importer ever filled it in. Do not add to
+that pile.
+
+**Where the rules text puts languages.** Draw Steel monster *stat blocks* do NOT carry a
+Languages line. Languages are stated **once per monster group**, in the group's opening
+section, immediately **before the group's Malice features**. That's the sentence to go
+find. Named/unique creatures (villains, solos) additionally get their own languages in
+their write-up, which takes precedence over the group line for that creature.
+
+**Read the group sentence carefully -- it usually encodes two tiers.** A typical line
+reads: *"Most shadow elves speak Illyvric, though platoon leaders might speak some Caelian
+or Hyrallic."* That means:
+
+- **All** members of the group get the baseline language (Illyvric).
+- Only the **Leader / Solo / boss**-role members additionally get the hedged ones
+  (Caelian, Hyrallic). Minions, platoon rank-and-file, and retainers do not.
+
+Check `info.properties.role` to decide which tier a given creature falls into. "might
+speak some X" is permission for the leaders, not a fact about the whole group.
+
+**How to get the value:**
+
+1. **Try the rules text first.** Look for the group's opening section in
+   `monster-reference.md` (repo root) or the relevant `data/pdfDocuments/*.yaml`. If the
+   sentence is there, use it.
+2. **Cross-check the languages table.** `data/objectTables/languages/*.yaml` entries carry
+   a `speakers:` field (e.g. `illyvric.yaml` -> `speakers: Shadow elves`). This is a good
+   confirmation, and a usable fallback for an ancestry whose group text you can't locate.
+3. **If it isn't easily findable, ASK THE USER.** Say which group you're implementing and
+   that you need the "Most X speak ..." line from the book. Do NOT guess a language, do
+   NOT invent one, and do NOT quietly ship the monster with the field missing.
+
+**Format** -- a map of language UUID to `true`, under `info.properties`, conventionally
+placed right after `creatureSize`:
+
+```yaml
+    creatureSize: 1M
+    innateLanguages:
+      10b7a97c-65d7-4778-a007-9a1664119201: true # Illyvric
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true # Caelian
+```
+
+**Looking up the UUID -- watch for dead duplicates.** Several languages have two entries in
+`data/objectTables/languages/` (a live one and a legacy one). The **live** entry is the one
+WITHOUT `hidden: true`; it also has `group:` and `speakers:` fields. The legacy entry has
+`hidden: true` and little else. Always grep the folder and pick the non-hidden id -- e.g.
+Hyrallic is `f3951673-4de6-42ad-be86-d3158c40365c` (live), not
+`8137aba8-bec9-468d-b10c-df3c26dc897b` (hidden).
 
 ### Table Entry YAML Format
 Table entries (ongoing effects, conditions, items, etc.) must include a `_table:` metadata field.
 
 **CRITICAL: Table names are case-sensitive.** Always look up the exact name from
-`compendium/REFERENCE.md` "Common Table Names". Do NOT guess from directory names
-(directories are lowercased, but table names have mixed casing).
+`data/docs/reference/CORE.md` "Table Names". Do NOT guess from the `data/objectTables/`
+folder names (those folders are lowercased, but the `_table:` value has mixed casing).
 
 Common table names: `characterOngoingEffects`, `charConditions`, `standardAbilities`,
 `tbl_Gear`, `MonsterGroup`, `Skills`, `globalRuleMods`, `customAttributes`, `Deities`.
@@ -367,19 +553,14 @@ id: <uuid>
 ...
 ```
 
-### Bundle Format
-For content that requires multiple entries (e.g., a monster + custom ongoing effects):
-```yaml
-_bundle:
-  - info:
-      ...
-    description: "Monster Name"
-    id: <uuid>
-  - _table: characterOngoingEffects
-    __typeName: CharacterOngoingEffect
-    id: <uuid>
-    ...
-```
+### Multiple Related Entries
+When content requires more than one entry (e.g., a monster plus a custom ongoing effect it
+applies), each entry is its **own file in its own `data/` folder** -- there is no `_bundle`
+wrapper in the direct-edit workflow. Keep the cross-referenced UUIDs consistent between them:
+
+- Monster -> `data/monsters/<monster-uuid>.yaml` (references the effect's UUID in its ability)
+- Custom ongoing effect -> `data/objectTables/characterongoingeffects/<effect-slug>.yaml`
+  (with `_table: characterOngoingEffects` and matching `id: <effect-uuid>`)
 
 ## Power Roll Tiers
 
@@ -396,26 +577,90 @@ Draw Steel abilities use power rolls (2d10 + characteristic) with three tiers of
 ```
 
 ### Tier String Syntax
-Tier strings describe outcomes using semicolons to separate effects:
+
+Tier strings (and DrawSteelCommand rule strings) describe outcomes built from clauses joined by separators. **Choose the separator deliberately -- the parser distinguishes them.**
+
+#### Separators (CRITICAL)
+
+| Separator | Meaning | Example |
+|---|---|---|
+| `;` | **Hard break** between disjoint clauses. Each side resolves independently. | `5 damage; push 3; M<{Weak}, prone` |
+| `,` *or* a bare space | **Soft link** binding a potency gate to its conditional effect. | `M < {Weak}, grabbed` or `M<[Weak] prone` |
+| `:` | **NEVER use as a separator.** Silently misparses -- the parser treats it as a hard break, severing the gate from its effect, so the condition either fires unconditionally or is dropped. No validation error fires. | WRONG: `M < {Weak}: grabbed` |
+
+**Rule of thumb:** `;` is for "and also" between independent things; `,` (or space) is for "if the gate, then the effect" inside a single potency clause.
+
+#### Difficulty threshold tokens
+
+Inside a potency gate, the threshold value should be one of:
+- `{Weak}` / `{Average}` / `{Strong}` -- curly-brace substitution (recommended)
+- `[Weak]` / `[Average]` / `[Strong]` -- square-bracket substitution (also valid; matches the Avalanche Rush convention)
+- A bare integer like `2` -- only when you want a literal numeric threshold (rare; the named tokens scale with target tier and are what the rules text uses)
+
+**Avoid** bare unbracketed words: `M < Weak prone` may be evaluated as a symbol lookup against `Weak`, which is undefined and silently evaluates to 0. Always wrap difficulty names in `{...}` or `[...]`.
+
+#### Clause vocabulary
+
 - `X damage` -- deal X damage
 - `X [type] damage` -- deal typed damage (e.g., `8 fire damage`)
 - `push/pull/slide X` -- forced movement
 - `vertical push X` -- vertical forced movement
 - `[condition] (save ends)` -- apply condition with save ends duration
 - `[condition] (EoT)` -- apply condition until end of target's next turn
-- `A<X [effect]` -- apply effect only if target's Agility < X (potency check)
+- `A<X [effect]` -- apply effect only if target's Agility < X (potency check); X is `{Weak}`/`{Average}`/`{Strong}` or a literal int
 - `M<X [effect]` -- Might potency check
 - `I<X [effect]` -- Intuition potency check
 - `P<X [effect]` -- Presence potency check
+- `R<X [effect]` -- Reason potency check
+
+#### Worked examples
+
+```
+6 + M damage; M < {Weak}, grabbed
+```
+"Deal 6+M damage, AND if target fails an M<Weak potency check, also grab them."
+
+```
+{3 + Might} damage; push 2; M<[Average] prone
+```
+"Deal 3+Might damage, push 2, AND if target fails M<Average, also knock prone." (Note: same potency clause uses space; could equivalently be `M<[Average], prone`.)
+
+```
+9 cold damage; slide 2
+```
+"Deal 9 cold damage AND slide 2 squares." (No potency gate -- both happen unconditionally.)
+
+```
+13 cold damage; slide 4
+```
+"Tier 3 form -- same shape, escalated numbers."
+
+#### Anti-pattern audit
+
+If you ever write a tier or rule string, sanity-check it does NOT contain `:` -- the parser will accept it without complaining but the gated effect will detach from its gate at runtime.
 
 ### Separate Condition Application
 For complex conditions, use a separate `ActivatedAbilityApplyOngoingEffectBehavior` with `tiersSelected`:
 ```yaml
 - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
-  tiersSelected: [2, 1]        # Apply on tiers 1 and 2 only (0-indexed)
+  tiersSelected: [1, 2]        # Apply on tiers 1 and 2 only (1-indexed)
   ongoingEffect: <effect-uuid>
   duration: save_ends
 ```
+
+### Gating a Behavior Behind a Potency Check
+
+A behavior with `tiersSelected` applies to **every** target of those tiers. If the rules
+text gates the effect on a potency check ("I<{Average}, cursed"), add the gate yourself:
+
+```yaml
+  filterTarget: not Cast.PassesPotency(Target, "I", "Average")
+```
+
+`Cast.PassesPotency` returns true when the target RESISTS, so the gate is nearly always
+negated. There is no `potencyAttr` field. Standard conditions need none of this -- the
+parser resolves `M<{Weak}, prone` from tier text natively. Details in
+`data/docs/reference/MONSTERS.md`, "Potency with ongoing effects".
 
 ## Damage Formulas
 
@@ -571,6 +816,78 @@ characterFeatures:
               damageType: force
 ```
 
+## Feature Tags (Required Metadata)
+
+Every `CharacterFeature` carries a `tags:` map that declares how it renders on the
+character sheet, tac panel, and the companion monster builder. Set it deliberately on
+every feature you author -- untagged means "normal visible feature row".
+
+```yaml
+- __typeName: CharacterFeature
+  name: "Prickly Situation"
+  tags:
+    Trigger: true
+```
+
+**Vocabulary** (exact strings, case-sensitive):
+
+- **Display-kind tags** -- at most ONE per feature; precedence `Hidden` > `Trigger` > `Ability`:
+  - `Hidden` -- not shown; for pure plumbing/stat carriers with no book text of their own.
+  - `Trigger` -- renders as a triggered-action card.
+  - `Ability` -- renders as an ability card.
+  - *(untagged)* -- normal visible feature (traits, book prose).
+- **Pillar tags** -- `Combat`, `Exploration`, `Montage`, `Negotiation`, `Respite`.
+  Filter chips on HERO content only; multiple allowed. Never on monster features.
+- **`Core Feature`** -- NEVER apply without explicit user sign-off. Policy is one per
+  qualifying class and the list is deliberately held at exactly 3 (Tactician Mark,
+  Censor Judgment, Talent Clarity). Propose it if a new class's base mechanic seems to
+  qualify; do not set it yourself.
+
+Note: feature `tags:` are unrelated to the ability `categorization:` field
+(`Hidden`/`Trait`/etc. on ActivatedAbility) -- set both where applicable.
+
+**Monster features** (display-kind only, no pillars):
+
+| Feature shape | Tag |
+|---|---|
+| Trigger display card, `type: trigger` or `free` | `Trigger` |
+| Trigger display card, `type: passive` (or no `type`, book trait) | untagged |
+| Wraps an activated ability -- by the wrapped `actionResourceId`: Triggered / Free Triggered action | `Trigger` |
+| Wraps an activated ability: Main / Maneuver / Villain / Free Maneuver | `Ability` |
+| Bare trigger modifier with a manual-version card | `Trigger` |
+| Bare trigger modifier, no card | untagged |
+| Pure stat/plumbing carrier (modifiers only, no book text) | `Hidden` |
+| Real content NOT printed on the statblock (e.g. a dragon's Domain) | untagged (visible) |
+| Any feature on a `treatAsObject` monster | no tags at all |
+
+**Hero content** (classes, subclasses, ancestries, kits, perks, titles, complications):
+
+- **Book-statblock gate**: tag `Ability`/`Trigger` ONLY when the book prints the granted
+  ability as an actual stat block (its own keywords/action-type block). Trigger vs
+  Ability follows the IMPLEMENTATION's action resource, not the book's grant wording.
+- Book **prose** that happens to be implemented as a trigger or ability stays untagged
+  (visible) with pillar tags -- the book's presentation wins the display.
+- **Exception**: out-of-combat-utility ability wrappers (e.g. utility perks) stay
+  visible with pillar tags even when the book prints a stat block.
+- `Hidden`: one-time grants (Renown, Wealth, trinkets, recovery-count or characteristic
+  increases), skill/language grants, per-option choice instances, plumbing carriers.
+- **Pillar tags go on visible rows only** -- a row suppressed by `Hidden`/`Trigger`/`Ability`
+  gets NO pillar tags. Tag `Combat` whenever the effect operates in combat (multi-tag is
+  normal, e.g. Respite + Combat). `Negotiation` only when the formal negotiation system
+  engages (patience/interest/motivation effects); intimidation is the threat lane, not
+  Negotiation; informal social interaction is `Exploration`.
+
+**When a call is genuinely ambiguous**, do NOT guess a suppressing tag:
+
+- **No statblock/book reference was given** (homebrew spec'd in chat, unextracted
+  supplement): STOP AND ASK before writing the YAML -- request the printed statblock, or
+  a display-kind ruling, stating the implementation shape you plan ("implementing this as
+  a trigger with a display card; is it printed as a stat block or prose?").
+- **Reference in hand but prose-vs-statblock is unclear**: leave the feature untagged
+  (visible is the safe default) and flag it as an open tag call in your completion
+  summary, quoting the source text and describing the implementation shape so the user
+  can rule.
+
 ## Flat Damage Bonuses
 
 Use `damageModifier` on a power modifier to add flat damage:
@@ -629,7 +946,36 @@ Use `ActivatedAbilityAuraBehavior` to create persistent map zones with terrain e
 custom object to the Auras folder in DMHub and update the ability to use it.
 
 Other aura options: `movedamage`/`damage` (damage per square moved), `blocks_line_of_effect`
-(cover), `blocks_movement` (wall). See `compendium/REFERENCE.md` for full field list.
+(cover), `blocks_movement` (wall). See `data/docs/reference/MONSTERS.md` for full field list.
+
+**Split-audience zones (sub-auras):** When one zone needs different effects for different
+audiences (e.g. difficult terrain for enemies AND a buff for allies), do NOT create two
+`ActivatedAbilityAuraBehavior` entries -- that spawns two map objects and doubles engine
+work. Instead give the single aura a `subauras` list. Each sub-aura is a full `Aura`
+payload (its own `applyto`, `creatureFilter`, `modifiers`, `triggers`, terrain flags,
+`movedamage`) but shares the parent's area, caster, duration, and removal. Sub-auras
+never set `objectid`, icon/display, relocate fields, or nested `subauras`, and have no
+independent duration. A `destroyaura` trigger on a sub-aura destroys the whole aura.
+
+```yaml
+  aura:
+    __typeName: Aura
+    name: "Zone Name"
+    guid: <uuid>
+    objectid: "c994501f-85ec-475e-b9f6-8113a814f8d1"
+    difficult_terrain: true
+    applyto: enemies             # parent payload: difficult terrain for enemies
+    modifiers: []
+    triggers: []
+    subauras:
+      - __typeName: Aura
+        name: "Zone Name (Allies)"
+        guid: <uuid>
+        applyto: selfandfriends  # child payload: buff for allies, same area/lifetime
+        modifiers:
+          - ...
+        triggers: []
+```
 
 ## Power Table Effects (DrawSteelCommandBehavior)
 
@@ -648,10 +994,50 @@ shift (`shift 2`), teleport (`teleport 5`), conditions (`slowed (eot)`),
 potency gates (`M<2 prone`), surges, heroic resources, and more.
 
 **GoblinScript interpolation:** `{expression}` anywhere -- e.g., `push {Reason}`, `{Might} damage`.
+Interpolated against the **target** of the rule (per `applyto`), so `applyto: caster` evaluates
+against the caster, `applyto: caster_companion` against the companion, etc.
 
 **Compound rules:** Separate with `;` -- e.g., `2 damage; A<2 prone; push 3`.
 
-See `compendium/REFERENCE.md` "Power Table Effect / Rules Engine Commands" for full syntax.
+See `data/docs/reference/MONSTERS.md` "Power Table Effect / Rules Engine Commands" for full syntax.
+
+### Movement: ALWAYS Prefer Rule Strings Over RelocateCreatureBehavior / ForcedMovementBehavior
+
+For ANY movement -- shift, teleport, move, push, pull, slide -- default to a
+`DrawSteelCommandBehavior` rule string. Do NOT wrap movement in
+`InvokeAbility{customAbility{targetType:emptyspace,RelocateCreatureBehavior}}`
+boilerplate, and do NOT use `ActivatedAbilityForcedMovementBehavior`. Both reinvent
+what the rules engine already does and bypass shift/forced-movement restrictions
+(slowed, grabbed, stability, etc.).
+
+| Rule string | Replaces |
+|---|---|
+| `shift {N}` (with `applyto: caster` or `caster_companion`) | InvokeAbility wrapping a customAbility with `RelocateCreatureBehavior movementType: shift` |
+| `teleport {N}` | InvokeAbility wrapping a customAbility with `RelocateCreatureBehavior movementType: teleport` and `targetType: emptyspace` (rule string invokes the standard Teleport ability which already prompts for destination) |
+| `move {N}` | RelocateCreatureBehavior with `movementType: move` |
+| `push {N}` / `pull {N}` / `slide {N}` (with `applyto: targets`) | `ActivatedAbilityForcedMovementBehavior` |
+
+Interpolation cheat sheet for movement:
+- `shift {Intuition}` -- caster's Intuition (when `applyto: caster`)
+- `shift {Movement Speed}` -- caster's Movement Speed
+- `shift {Cast.Spaces Moved}` -- the slide/push distance from the triggering ability (use in trigger callbacks like Herd the Sheep)
+- `push {Caster.Might + 1}` -- caster's Might + 1 (when `applyto: targets`)
+- `shift {Caster.Companion.Speed}` -- the caster's companion's Speed (cross-actor lookup)
+
+**Reserve raw `RelocateCreatureBehavior` only for these cases:**
+- **Cross-actor relocate to a SPECIFIC creature's loc** (e.g., "your companion teleports
+  into your space" -- destination is the summoner's loc, not a player-picked square).
+  Use `applyto: caster_summoner` or `caster_companion` on the relocate; the destination
+  resolves to that creature's loc.
+- **`swapCreatures: true`** -- swap two creatures' positions (no rule string for this).
+- **Auto-routed movement to a vicinity/filter** (e.g., `targetMoveVicinity: true,
+  vicinityFilter: Enemy` to move adjacent to nearest enemy).
+
+**Reserve raw `ForcedMovementBehavior` only for** behavior-level fields the rule string
+can't express (almost never -- `push/pull/slide N` rules cover virtually all cases).
+
+See `feedback_prefer_drawsteelcommand_for_movement.md` for the full rationale and
+before/after examples.
 
 ## Design Philosophy
 

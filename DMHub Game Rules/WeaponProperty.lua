@@ -111,13 +111,6 @@ function WeaponProperty.CreateEditor()
 
     resultPanel = gui.Panel{
         classes = {"hidden"},
-        styles = {
-            Styles.Form,
-            {
-                selectors = {"formPanel"},
-                width = 400,
-            },
-        },
 
         flow = "vertical",
         width = 1000,
@@ -146,8 +139,8 @@ function WeaponProperty.CreateEditor()
         end,
 
         gui.Label{
+            classes = {"sizeM"},
             text = "This is a built-in property.",
-            fontSize = 16,
             width = "auto",
             height = "auto",
             halign = "left",
@@ -157,38 +150,34 @@ function WeaponProperty.CreateEditor()
         },
 
         gui.Panel{
-            classes = {"formPanel"},
+            classes = {"formStackedRow"},
             gui.Label{
-                classes = {"formLabel"},
+                classes = {"formStacked"},
                 text = "Equipment Type:",
             },
 
-            gui.Panel{
-                width = 500,
-                height = "auto",
-                gui.Dropdown{
-                    options = WeaponProperty.itemTypes,
-                    editItem = function(element, item)
-                        element.idChosen = item.itemType
-                    end,
-                    change = function(element)
-                        m_item.itemType = element.idChosen
-                        OnChange()
-                    end,
-                },
+            gui.Dropdown{
+                classes = {"formStacked"},
+                options = WeaponProperty.itemTypes,
+                editItem = function(element, item)
+                    element.idChosen = item.itemType
+                end,
+                change = function(element)
+                    m_item.itemType = element.idChosen
+                    OnChange()
+                end,
             },
         },
 
         gui.Panel{
-            classes = {"formPanel"},
+            classes = {"formStackedRow"},
             gui.Label{
-                classes = {"formLabel"},
+                classes = {"formStacked"},
                 text = "Name:",
             },
 
             gui.Input{
-                classes = {"formInput"},
-                width = 500,
+                classes = {"formStacked"},
                 editItem = function(element, item)
                     element.text = item.name
                 end,
@@ -200,18 +189,15 @@ function WeaponProperty.CreateEditor()
         },
 
         gui.Panel{
-            classes = {"formPanel"},
+            classes = {"formStackedRow"},
             gui.Label{
-                classes = {"formLabel"},
+                classes = {"formStacked"},
                 text = "Details:",
             },
 
             gui.Input{
-                classes = {"formInput"},
+                classes = {"formStacked"},
                 multiline = true,
-                height = "auto",
-                width = 500,
-                maxHeight = 60,
                 placeholderText = "Enter rules text...",
                 editItem = function(element, item)
                     element.text = item.details
@@ -222,52 +208,61 @@ function WeaponProperty.CreateEditor()
             },
         },
 
-        gui.Check{
-            text = "Has Value",
-            editItem = function(element, item)
-                element.value = item.hasValue
-            end,
-            change = function(element)
-                m_item.hasValue = element.value
-            end,
+        gui.Panel{
+            classes = {"formStackedRow"},
+            gui.Check{
+                text = "Has Value",
+                editItem = function(element, item)
+                    element.value = item.hasValue
+                end,
+                change = function(element)
+                    m_item.hasValue = element.value
+                end,
+            },
         },
 
 
 
-        gui.Check{
-            text = "Modifies Attacks",
+        gui.Panel{
+            classes = {"formStackedRow"},
             editItem = function(element, item)
                 element:SetClass("collapsed", item.itemType ~= "weapon")
-                element.value = item.modifiesAttacks
             end,
-            change = function(element)
-                if m_item.modifiesAttacks == element.value then
-                    return
-                end
+            gui.Check{
+                text = "Modifies Attacks",
+                editItem = function(element, item)
+                    element.value = item.modifiesAttacks
+                end,
+                change = function(element)
+                    if m_item.modifiesAttacks == element.value then
+                        return
+                    end
 
-                m_item.modifiesAttacks = element.value
+                    m_item.modifiesAttacks = element.value
 
-                if m_item.modifiesAttacks and m_item:try_get("attackModifier") == nil then
+                    if m_item.modifiesAttacks and m_item:try_get("attackModifier") == nil then
 
-					local augmentation = CharacterModifier.new{
-						behavior = 'modifyability',
-						guid = dmhub.GenerateGuid(),
-						name = "Weapon Modification",
-						source = "Weapon Property",
-						description = "Weapon modifiers",
-						unconditional = true,
-					}
+                        local augmentation = CharacterModifier.new{
+                            behavior = 'modifyability',
+                            guid = dmhub.GenerateGuid(),
+                            name = "Weapon Modification",
+                            source = "Weapon Property",
+                            description = "Weapon modifiers",
+                            unconditional = true,
+                        }
 
-					CharacterModifier.TypeInfo.modifyability.init(augmentation)
-					m_item.attackModifier = augmentation
-                end
+                        CharacterModifier.TypeInfo.modifyability.init(augmentation)
+                        m_item.attackModifier = augmentation
+                    end
 
-                OnChange()
-            end,
+                    OnChange()
+                end,
+            },
         },
 
 		gui.Panel{
 			id = "weaponBehaviorPanel",
+			classes = {"bordered"},
 			styles = {
 				CharacterFeature.ModifierStyles,
 				{
@@ -284,10 +279,6 @@ function WeaponProperty.CreateEditor()
 			height = "auto",
 			halign = "left",
 			flow = "vertical",
-			bgimage = "panels/square.png",
-			bgcolor = "clear",
-			borderWidth = 1,
-			borderColor = "white",
 			pad = 4,
 
             editItem = function(element, item)

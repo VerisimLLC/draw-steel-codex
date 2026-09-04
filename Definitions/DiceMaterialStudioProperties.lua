@@ -13,6 +13,22 @@ function DiceMaterialStudioProperties:ToDebugString()
 	-- dummy implementation for documentation purposes only
 end
 
+--- TryGetFloat
+--- @param s string
+--- @param f any
+--- @return boolean
+function DiceMaterialStudioProperties:TryGetFloat(s, f)
+	-- dummy implementation for documentation purposes only
+end
+
+--- TryGetColor
+--- @param s string
+--- @param col any
+--- @return boolean
+function DiceMaterialStudioProperties:TryGetColor(s, col)
+	-- dummy implementation for documentation purposes only
+end
+
 --- GetFloat
 --- @param s string
 --- @param defaultValue any
@@ -86,5 +102,12 @@ end
 --- @param numFaces number
 --- @return number
 function DiceMaterialStudioProperties.DiceFacesToIndex(numFaces)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DiceFacesToSurfaceMaterialIndex
+--- @param numFaces number
+--- @return number
+function DiceMaterialStudioProperties.DiceFacesToSurfaceMaterialIndex(numFaces)
 	-- dummy implementation for documentation purposes only
 end

@@ -1,5 +1,9 @@
 --- @class editor Deprecated Lua interface for DM sheet HUD operations. Use LuaInterface instead.
 --- @field currentTerrainFill nil|string Gets the current terrain fill asset name for the active floor, or nil if no fill is set.
+--- @field mouseEditSurfacePoint Vector3 The mouse position converted onto the current floor's edit surface: floor-space coordinates on the terrain the map-editing tools draw on, accounting for parallax from raised/lowered ground (the same projection wall rendering uses). Use this instead of the maphover/mappress point when comparing against wall or map geometry coordinates.
+--- @field markupDoorDebug string Diagnostic dump of the markup door (openable wall) system: controller liveness, registered doors, icon pool state, and a raw per-operation filter trace. For debugging only.
+--- @field supportsObjectPlacementPreview boolean True when this build supports the object placement preview for the markup object-editing filter: the object tool shows its placement ghost but does NOT place on click while the filter is active (the Map Markup panel owns placement), and the ghost's position is readable via objectPlacementPreviewPos.
+--- @field objectPlacementPreviewPos nil|Vector2 The (snapped) map position of the object tool's placement preview ('ghost'), or nil when no preview is showing. While the markup object-editing filter is active, place at exactly this position so the placed object lands under the ghost.
 editor = {}
 
 --- FillTerrain: Fills the current map floor with the given terrain type. Pass nil to clear the terrain fill.

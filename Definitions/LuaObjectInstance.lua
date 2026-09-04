@@ -1,6 +1,7 @@
 --- @class LuaObjectInstance 
 --- @field id string 
 --- @field imageid string 
+--- @field displayImageId string The object's current base image id in a form usable as a bgimage. Unlike imageid (which returns the source blueprint/asset id for blueprinted objects), this always reflects the object's actual current image, so a preview using it updates after a live-edit upload or a Replace Image.
 --- @field assetid string 
 --- @field parentid string 
 --- @field childids any 
@@ -23,16 +24,59 @@
 --- @field locked any 
 --- @field attachedRulesObjects any 
 --- @field area any 
+--- @field mapAlignmentDiagnostic any 
 --- @field valid boolean 
 --- @field components any 
 --- @field path string 
 LuaObjectInstance = {}
+
+--- SetBaseImageFromAsset
+--- @param imageAssetId string
+--- @return boolean
+function LuaObjectInstance:SetBaseImageFromAsset(imageAssetId)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CenterCamera: Centre the camera on this map object. Pass {smooth=true} to pan instead of jump.
+--- @param args any
+--- @return nil
+function LuaObjectInstance:CenterCamera(args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ShowRadiusMarker: Show a falloff radius ring centred on this map object (single shared marker; replaces any existing). Optional args {color="#rrggbb"}.
+--- @param radius number
+--- @param args any
+--- @return nil
+function LuaObjectInstance:ShowRadiusMarker(radius, args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearRadiusMarker: Clear the shared falloff radius ring shown by ShowRadiusMarker.
+--- @return nil
+function LuaObjectInstance:ClearRadiusMarker()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PlaySquishAnimation: Play a brief, purely visual squash-and-stretch wobble on this map object -- click feedback for squishy things. Local-only: never serialized or networked, so callers that want other clients to see it must broadcast it themselves. Probe inside pcall: older engine builds lack this method.
+--- @param args nil|{intensity: nil|number, duration: nil|number} intensity is the peak scale deflection (default 0.06 = 6%), duration in seconds (default 0.4).
+--- @return nil
+function LuaObjectInstance:PlaySquishAnimation(args)
+	-- dummy implementation for documentation purposes only
+end
 
 --- AddComponentFromJson
 --- @param id any
 --- @param json any
 --- @return nil
 function LuaObjectInstance:AddComponentFromJson(id, json)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ApplyMapCalibration
+--- @param calibration any
+--- @return nil
+function LuaObjectInstance:ApplyMapCalibration(calibration)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -95,6 +139,20 @@ end
 --- @param cmdgroupid string?
 --- @return nil
 function LuaObjectInstance:Upload(cmdgroupid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LiveEdit: Starts a live-edit session for this object's image, opening it in the configured external image editor; the live-edit dialog then tracks the session. No-op if the object is not on a currently loaded floor.
+--- @return nil
+function LuaObjectInstance:LiveEdit()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ReplaceImageFromFile: Replaces this object's image with the image file at the given path, uploading it to the cloud and pointing the object at the new image. If provided, onError is called with a message string if the file cannot be read or the upload fails.
+--- @param filePath string
+--- @param onError any?
+--- @return nil
+function LuaObjectInstance:ReplaceImageFromFile(filePath, onError)
 	-- dummy implementation for documentation purposes only
 end
 

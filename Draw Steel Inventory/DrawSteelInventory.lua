@@ -229,9 +229,10 @@ local QuantityPopup = function(options)
 					return num
 				end,
 			}
-	return gui.Panel{
+	local resultPanel
+	resultPanel = gui.Panel{
 		classes = {"framedPanel"},
-		styles = {Styles.Default, Styles.Panel},
+		styles = ThemeEngine.GetStyles(),
 		selfStyle = {
 			halign = 'center',
 			valign = 'center',
@@ -239,9 +240,24 @@ local QuantityPopup = function(options)
 			height = "auto",
 			flow = 'vertical',
 		},
+		data = {},
+		create = function(element)
+			element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+				if element.valid then
+					element.styles = ThemeEngine.GetStyles()
+				end
+			end)
+		end,
+		destroy = function(element)
+			if element.data.themeListener ~= nil then
+				element.data.themeListener:Deregister()
+				element.data.themeListener = nil
+			end
+		end,
 		children = {
 
-			gui.CloseButton{
+			gui.Button{
+				classes = {"closeButton"},
 				halign = "right",
 				valign = "top",
 				floating = true,
@@ -252,12 +268,12 @@ local QuantityPopup = function(options)
 
 			gui.Label{
 				text = options.title or 'Quantity',
+				classes = {"sizeXl"},
 				selfStyle = {
 					vmargin = 16,
 					height = 'auto',
 					width = 'auto',
 					halign = 'center',
-					fontSize = 24,
 				}
 			},
 
@@ -265,9 +281,9 @@ local QuantityPopup = function(options)
 
 			gui.Button{
 				text = 'Confirm',
+				classes = {"sizeM"},
 				vmargin = 16,
 				halign = 'center',
-				fontSize = 16,
 				events = {
 					click = function(element)
 						options.confirm(round(slider.value))
@@ -276,6 +292,7 @@ local QuantityPopup = function(options)
 			},
 		}
 	}
+	return resultPanel
 end
 
 function CreateItemTooltip(item, options, token)
@@ -283,29 +300,24 @@ function CreateItemTooltip(item, options, token)
 	options = options or {}
 
     options.noninteractive = true
+	options.maxHeight = "50%"
+	options.vscroll = true
 
-	local tooltipResult = gui.TooltipFrame(gui.Panel{
+	local tooltipPanel = gui.Panel{
 		id = 'inventory-item-tooltip',
-		styles = {
-			{
-				textWrap = true,
-				halign = options.tooltipAlign or 'left',
-				valign = 'top',
-				height = 'auto',
-				width = options.width or 400,
-				bgcolor = 'black',
-				flow = 'vertical',
-				color = 'white',
-				margin = 0,
-			},
-		},
-
+		textWrap = true,
+		halign = options.tooltipAlign or 'left',
 		valign = "center",
-		maxHeight = 1080,
+		height = "auto",
+		width = options.width or 400,
+		flow = 'vertical',
+		margin = 0,
+		maxHeight = "80%", --1080,
 
 		item:Render(options, token),
+	}
 
-	}, {
+	local tooltipResult = gui.TooltipFrame(tooltipPanel, {
 		halign = options.tooltipAlign or 'left',
 		valign = options.valign or 'center',
 	})
@@ -345,7 +357,7 @@ local CreateInventorySlot = function(dmhud, options)
 	local testVisibilityFunction = nil
 
 	local highlightPanel = gui.Panel{
-        classes = {"slotHighlight"},
+        classes = {"slotHighlight", "transparent"},
 		interactable = false,
 
 		styles = g_SlotHighlightStyles,
@@ -353,6 +365,7 @@ local CreateInventorySlot = function(dmhud, options)
 
 	local iconPanel = gui.Panel{
 		id = 'inventory-slot-icon',
+		classes = {"image"},
 		draggable = false,
 
 		canDragOnto = function(element, target)
@@ -376,7 +389,7 @@ local CreateInventorySlot = function(dmhud, options)
 
                 if slotInfo.type == "trinket" and EquipmentCategory.IsTrinket(item) then
                     return true
-                elseif slotInfo.type == "leveled" and EquipmentCategory.IsLeveledTreasure(item) then
+                elseif slotInfo.type == "leveled" and (EquipmentCategory.IsLeveledTreasure(item) or EquipmentCategory.IsArtifact(item)) then
                     return true
                 end
 
@@ -479,6 +492,7 @@ local CreateInventorySlot = function(dmhud, options)
 
 	local iconEffectPanel = gui.Panel{
 		id = 'inventory-slot-effect',
+		classes = {"image"},
 		selfStyle = {},
 		styles = {
 			{
@@ -494,6 +508,7 @@ local CreateInventorySlot = function(dmhud, options)
 
 	local quantityLabel = gui.Label{
 		id = 'inventory-slot-quantity',
+		classes = {"bold"},
 		editable = true,
 		halign = "right",
 		valign = "bottom",
@@ -501,7 +516,6 @@ local CreateInventorySlot = function(dmhud, options)
 			{
 				width = 30,
 				height = 20,
-				bold = true,
 				margin = 4,
 				color = 'white',
 				fontSize = '40%',
@@ -555,7 +569,7 @@ local CreateInventorySlot = function(dmhud, options)
 
 
 				local quantity = tonumber(element.text)
-				if quantity ~= nil and token ~= nil and token.valid then
+				if quantity ~= nil and item ~= nil and token ~= nil and token.valid then
 					quantity = round(quantity)
 
 					--work out the new total quantity of this item
@@ -576,11 +590,11 @@ local CreateInventorySlot = function(dmhud, options)
 	local priceDisplayCurrency = nil
 	local priceLabel = gui.Label{
 		id = 'inventory-slot-price',
+		classes = {"bold"},
 		editable = true,
 		minWidth = 14,
 		width = "auto",
 		height = 20,
-		bold = true,
 		margin = 4,
 		color = '#ffff99ff',
 		fontSize = '40%',
@@ -1166,7 +1180,7 @@ local CreateInventorySlot = function(dmhud, options)
 									dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
 									token:BeginChanges()
 									token.properties:GiveItem(imbueTarget.id, 1)
-									token.properties:SetItemQuantity(imbueItem.id, 0, slotPanel.data.inventoryIndex)
+									token.properties:SetItemQuantity(imbueItem.id, token.properties:GetItemQuantity(imbueItem.id) - 1, slotPanel.data.inventoryIndex)
 									token:CompleteChanges("Imbue mundane item")
 								end
 								return message
@@ -1184,7 +1198,7 @@ local CreateInventorySlot = function(dmhud, options)
 								if imbueTarget then
 									dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
 									token:BeginChanges()
-									token.properties:SetItemQuantity(imbueItem.id, 0, slotPanel.data.inventoryIndex)
+									token.properties:SetItemQuantity(imbueItem.id, token.properties:GetItemQuantity(imbueItem.id) - 1, slotPanel.data.inventoryIndex)
 									token:CompleteChanges('Imbue Item')
 								end
 							end
@@ -1384,6 +1398,8 @@ local CreateInventorySlot = function(dmhud, options)
 end
 
 function GameHud.LootAll(token, tokenTradingWith, inventoryDialog)
+	if token.properties == nil or tokenTradingWith.properties == nil then return end
+
 	token:BeginChanges()
 	tokenTradingWith:BeginChanges()
 
@@ -1422,6 +1438,26 @@ function GameHud.CreateInventoryDialog(self, options)
 
 	local dialogWidth = options.dialogWidth or 350
 	local dialogHeight = options.dialogHeight or 680
+
+	-- The inventory dialog owns its ThemeEngine cascade: the character-sheet
+	-- harness and the HUD root are both legacy, so theme classes only resolve
+	-- under this self-rooted GetStyles(). The slot-grid tables (component-
+	-- specific selectors) ride on top of the theme cascade; rebuilt here so the
+	-- OnThemeChanged handler can re-resolve the whole array on a scheme switch.
+	local function BuildInventoryDialogStyles()
+		return {
+			ThemeEngine.GetStyles(),
+			{
+				width = dialogWidth,
+				height = dialogHeight,
+				halign = 'center',
+				valign = 'center',
+				flow = 'none',
+			},
+			SlotStyles,
+			g_InventoryStyles,
+		}
+	end
 
 	options = options or {}
 	local permanentOptions = options
@@ -1495,6 +1531,10 @@ function GameHud.CreateInventoryDialog(self, options)
 
 	local hasAddItem = playerInventory
 
+    if dmhub.GetSettingValue("strict:inventory") and (not dmhub.isDM) then
+        hasAddItem = false
+    end
+
 	local addItemSlot = nil
 	local partyItemsSlot = nil
 	local generateShopSlot = nil
@@ -1504,12 +1544,100 @@ function GameHud.CreateInventoryDialog(self, options)
 
 	if hasAddItem then
 		if dmhub.isDM then
-			--generateShopSlot = CreateInventorySlot(self, options)
-			refreshShopSlot = CreateInventorySlot(self, options)
+			generateShopSlot = gui.Button{
+				icon = "ui-icons/d20.png",
+				classes = {"iconButton", "sizeXl"},
+				tooltip = "Generate Inventory from Table",
+				hmargin = 4,
+				click = function(element)
+					if token == nil then
+						return
+					end
+					local clearInventoryCheck
+					clearInventoryCheck = {
+						text = "Clear existing inventory",
+						value = dmhub.GetSettingValue("inventory:generationclears"),
+						change = function(val)
+							dmhub.SetSettingValue("inventory:generationclears", val)
+						end,
+					}
+					ShowRollableTableSelectionDialog{
+						root = resultPanel.root,
+						tableName = "lootTables",
+						checkboxes = {
+							clearInventoryCheck,
+						},
+						click = function(element, items)
+							token:BeginChanges()
+							token.properties:RollLoot{
+								lootTable = items[1],
+								clear = dmhub.GetSettingValue("inventory:generationclears"),
+								newItems = newItems,
+							}
+							token:CompleteChanges('Generate loot')
+							resultPanel:FireEventTree('refreshInventory')
+						end,
+					}
+				end,
+			}
+			refreshShopSlot = gui.Button{
+				icon = "panels/hud/clockwise-rotation.png",
+				classes = {"iconButton", "sizeXl"},
+				hmargin = 4,
+				hover = function(element)
+					local text = "Regenerate Loot"
+					if token ~= nil and token.properties:has_key("lootTable") then
+						local dataTable = dmhub.GetTableVisible("lootTables")
+						local lootTable = dataTable[token.properties.lootTable.key]
+						if lootTable ~= nil then
+							text = string.format("Re-roll Loot: %s", lootTable:Describe(token.properties.lootTable.choiceIndex))
+						end
+					end
+					gui.Tooltip(text)(element)
+				end,
+				click = function(element)
+					if token == nil then
+						return
+					end
+					token:BeginChanges()
+					token.properties:RollLoot{
+						clear = true,
+						newItems = newItems,
+					}
+					token:CompleteChanges('Generate loot')
+					resultPanel:FireEventTree('refreshInventory')
+				end,
+			}
 		end
 
-		partyItemsSlot = CreateInventorySlot(self, options)
-		addItemSlot = CreateInventorySlot(self, options)
+		partyItemsSlot = gui.Button{
+			icon = "icons/icon_app/icon_app_18.png",
+			classes = {"iconButton", "sizeXl"},
+			hmargin = 4,
+			tooltip = "Access Party Inventory",
+			click = function(element)
+				if token == nil or token.partyid == nil then
+					return
+				end
+				local basicInventoryDialog = GetBasicInventoryDialog(element) or self.basicInventoryDialog
+				local tradeInventoryDialog = GetTradeInventoryDialog(element) or self.tradeInventoryDialog
+				local partyInfo = dmhub.GetPartyInfo(token.partyid)
+				basicInventoryDialog.data.close()
+				tradeInventoryDialog.data.toggleOpen(partyInfo, { isobject = true, partyinventory = true, title = 'Party Inventory', tradewith = token })
+			end,
+		}
+		addItemSlot = gui.Button{
+			icon = "ui-icons/Plus.png",
+			classes = {"iconButton", "sizeXl"},
+			hmargin = 4,
+			tooltip = "Add Items",
+			click = function(element)
+				local basicInventoryDialog = GetBasicInventoryDialog(element) or self.basicInventoryDialog
+				local tradeInventoryDialog = GetTradeInventoryDialog(element) or self.tradeInventoryDialog
+				tradeInventoryDialog.data.close()
+				basicInventoryDialog.data.toggleOpen()
+			end,
+		}
 		addItemsPanel = gui.Panel{
 			id = "addItemsPanel",
 			halign = "right",
@@ -1599,91 +1727,12 @@ function GameHud.CreateInventoryDialog(self, options)
 
 		newItems = {}
 
-		if addItemSlot ~= nil then
-			addItemSlot.data.SetAdd()
-		end
-
-		if refreshShopSlot ~= nil and token ~= nil then
-			refreshShopSlot.data.SetAdd(false, nil, {
-				testVisible = function()
-					return token ~= nil and token.properties:has_key("lootTable")
-				end,
-				click = function()
-					token:BeginChanges()
-
-					token.properties:RollLoot{
-						clear = true,
-						newItems = newItems,
-					}
-
-					token:CompleteChanges('Generate loot')
-					resultPanel:FireEventTree('refreshInventory')
-				end,
-
-				tooltip = function()
-					if token ~= nil and token.properties:has_key("lootTable") then
-						local dataTable = dmhub.GetTableVisible("lootTables")
-
-						local lootTable = dataTable[token.properties.lootTable.key]
-						if lootTable ~= nil then
-							return string.format("Re-roll Loot: %s", lootTable:Describe(token.properties.lootTable.choiceIndex))
-						end
-					end
-
-					return "Regenerate Loot"
-				end,
-				icon = "panels/hud/clockwise-rotation.png",
-			})
-		end
-
-		if generateShopSlot ~= nil and token ~= nil then
-			generateShopSlot.data.SetAdd(false, nil, {
-				click = function()
-					local clearInventoryCheck
-					clearInventoryCheck = {
-						text = "Clear existing inventory",
-						value = dmhub.GetSettingValue("inventory:generationclears"),
-						change = function(val)
-							dmhub.SetSettingValue("inventory:generationclears", val)
-						end,
-					}
-					ShowRollableTableSelectionDialog{
-						root = resultPanel.root,
-						tableName = "lootTables",
-						checkboxes = {
-							clearInventoryCheck,
-						},
-
-						--items is a list of {key -> val, choiceIndex -> val}. There will be at least one
-						--item and here we only use one.
-						click = function(element, items)
-					printf("CLEAR:: CHECK = %s", json(clearInventoryCheck))
-							local dataTable = dmhub.GetTableVisible("lootTables")
-							token:BeginChanges()
-
-							token.properties:RollLoot{
-								lootTable = items[1],
-								clear = dmhub.GetSettingValue("inventory:generationclears"),
-								newItems = newItems,
-							}
-
-							token:CompleteChanges('Generate loot')
-							resultPanel:FireEventTree('refreshInventory')
-						end,
-					}
-				end,
-				tooltip = "Generate Inventory from Table",
-				icon = "ui-icons/d20.png",
-			})
+		if refreshShopSlot ~= nil then
+			refreshShopSlot:SetClass("collapsed", not (token ~= nil and token.properties:has_key("lootTable")))
 		end
 
 		if partyItemsSlot ~= nil then
-			if token == nil or token.partyid == nil then
-				partyItemsSlot:SetClass("collapsed", true)
-			else
-				partyItemsSlot:SetClass("collapsed", false)
-				partyItemsSlot.data.SetAdd(true, token)
-			end
+			partyItemsSlot:SetClass("collapsed", token == nil or token.partyid == nil)
 		end
 	end
 
@@ -1866,7 +1915,7 @@ function GameHud.CreateInventoryDialog(self, options)
 			dragTarget = true,
 			interactable = false,
 
-			styles = {
+			styles = ThemeEngine.MergeTokens{
 				{
 					width = '100%',
 					height = '100%',
@@ -1875,12 +1924,12 @@ function GameHud.CreateInventoryDialog(self, options)
 				{
 					selectors = 'drag-target',
                     borderWidth = 2,
-                    borderColor = "#FFFFFF88",
+                    borderColor = "@accent",
 				},
 				{
 					selectors = 'drag-target-hover',
                     borderWidth = 2,
-                    borderColor = "#FFFFFFFF",
+                    borderColor = "@accentHover",
 				},
 
 			},
@@ -1922,39 +1971,53 @@ function GameHud.CreateInventoryDialog(self, options)
 
 		searchInput = gui.Panel{
 			style = {
-				width = '80%',
+				--NOT a percentage: the enclosing 'inventory-main' column is a
+				--fixed 500 wide, deliberately wider than the dialog frame so
+				--the category paging arrows hang outside it. A percentage
+				--width here inherits that overhang and pushes the search field
+				--out through the frame. Match the slot grid instead -- the
+				--widest thing that is actually inside the frame -- so the field
+				--lines up with the slots below it.
+				width = NumCols*SlotDim,
 				fontSize = '30%',
 				height = 20,
 				halign = 'center',
 				valign = 'top',
-				bgcolor = 'black',
-				color = 'white',
 				vmargin = 0,
 			},
 			children = {
-				gui.Input{
+				--the canonical search field; look comes from DefaultStyles'
+				--searchInput rules, borderBox keeps its hpad 24 inside the
+				--width. Height 20 is the minimum for the pill's cornerRadius 9.
+				--
+				--edit/change go in as TOP-LEVEL args, not in an events = {}
+				--table: gui.SearchInput installs its own top-level edit and
+				--change defaults, and when both forms are present the winner is
+				--whichever key the arg table happens to iterate last -- so the
+				--events form loses search-as-you-type at random, leaving only
+				--the change on Enter. Top level overwrites the default inside
+				--gui.SearchInput's merge loop, which is deterministic.
+				gui.SearchInput{
 					id = 'search-input',
 					placeholderText = 'Search...',
-					selfStyle = {
-						borderWidth = 1,
-						bgcolor = 'black',
-						height = 14,
-					},
+					borderBox = true,
+					width = '100%',
+					height = 20,
 					editlag = 0.25,
-					events = {
-						edit = function(element)
+					edit = function(element)
+						if search ~= element.text then
 							npage = 1
 							search = element.text
 							resultPanel:FireEventTree('refreshInventory')
-						end,
-						change = function(element)
-							if search ~= element.text then
-								npage = 1
-								search = element.text
-								resultPanel:FireEventTree('refreshInventory')
-							end
-						end,
-					},
+						end
+					end,
+					change = function(element)
+						if search ~= element.text then
+							npage = 1
+							search = element.text
+							resultPanel:FireEventTree('refreshInventory')
+						end
+					end,
 				},
 
 			}
@@ -1988,7 +2051,7 @@ function GameHud.CreateInventoryDialog(self, options)
 			children = {
 				gui.Panel{
 					bgimage = 'panels/InventoryArrow.png',
-					className = 'paging-arrow',
+					classes = {'paging-arrow', 'image'},
 					style = {
 						height = '100%',
 						width = '50% height',
@@ -2015,7 +2078,6 @@ function GameHud.CreateInventoryDialog(self, options)
 				gui.Label{
 					style = {
 						fontSize = '35%',
-						color = 'white',
 						width = 'auto',
 						height = 'auto',
 						halign = 'center',
@@ -2032,7 +2094,7 @@ function GameHud.CreateInventoryDialog(self, options)
 
 				gui.Panel{
 					bgimage = 'panels/InventoryArrow.png',
-					className = 'paging-arrow',
+					classes = {'paging-arrow', 'image'},
 					style = {
 						scale = {x = -1, y = 1},
 						height = '100%',
@@ -2062,14 +2124,14 @@ function GameHud.CreateInventoryDialog(self, options)
 	end
 
 	local newItemButton = nil
-	
+
 	if basicInventory then
-		newItemButton = gui.AddButton{
+		newItemButton = gui.Button{
+			classes = {"addButton", "sizeL"},
 			id = 'create-item-inventory-button',
-			width = 32,
-			height = 32,
 			halign = 'right',
 			valign = 'bottom',
+			floating = true,
 			events = {
 				hover = gui.Tooltip('Add New Item'),
 				click = function(element)
@@ -2079,15 +2141,13 @@ function GameHud.CreateInventoryDialog(self, options)
 		}
 	end
 
-
 	if options.currency then
-
 
 		local CreateCurrencyIcon = function(id, iconid)
 
 			return gui.Panel{
 				bgimage = iconid,
-				styles = {
+				styles = ThemeEngine.MergeTokens{
 					{
 						height = '100%',
 						width = '100% height',
@@ -2095,7 +2155,7 @@ function GameHud.CreateInventoryDialog(self, options)
 					},
 					{
 						selectors = {"cannotAfford"},
-						bgcolor = "#880000",
+						bgcolor = "@danger",
 					},
 
 				},
@@ -2356,23 +2416,11 @@ function GameHud.CreateInventoryDialog(self, options)
 				childItems[#childItems+1] = CreateCurrencyEntry(input)
 			end
 
-			childItems[#childItems+1] = gui.Panel{
+			childItems[#childItems+1] = gui.Button{
 				id = "normalizeInventoryButton",
-				bgimage = "ui-icons/icon-rotate.png",
-				width = 16,
-				height = 16,
+				classes = {"sizeS"},
+				icon = "ui-icons/icon-rotate.png",
 				valign = "center",
-
-				styles = {
-					{
-						bgcolor = Styles.textColor,
-					},
-					{
-						selectors = {"hover"},
-						bgcolor = "white",
-					}
-				},
-
 
 				press = function(element)
 					local val = {}
@@ -2449,17 +2497,20 @@ function GameHud.CreateInventoryDialog(self, options)
 				bgimage = mod.images.weight,
 				width = 20,
 				height = 20,
-				bgcolor = Styles.textColor,
+				styles = ThemeEngine.MergeTokens{
+					{
+						bgcolor = "@fg",
+					},
+				},
 				halign = "left",
 			},
 
 			gui.Label{
+				classes = {"sizeM"},
 				height = "auto",
 				width = "auto",
-				fontSize = 16,
 				halign = "left",
 				hmargin = 4,
-				color = Styles.textColor,
 				text = "Encumbrance",
 				refreshInventory = function(element)
 					if permanentOptions.isshop then
@@ -2470,14 +2521,10 @@ function GameHud.CreateInventoryDialog(self, options)
 					local weight = token.properties:GetInventoryWeight()
 					if capacity ~= nil then
 						element.text = string.format("%s/%s", tostring(math.floor(weight)), tostring(capacity))
-						if weight > capacity then
-							element.selfStyle.color = "red"
-						else
-							element.selfStyle.color = Styles.textColor
-						end
+						element:SetClass("danger", weight > capacity)
 					else
 						element.text = tostring(weight)
-						element.selfStyle.color = Styles.textColor
+						element:SetClass("danger", false)
 					end
 				end,
 			},
@@ -2501,10 +2548,10 @@ function GameHud.CreateInventoryDialog(self, options)
 				end,
 
 				gui.Label{
+					classes = {"sizeM"},
 					textAlignment = "right",
 					width = 40,
 					height = "100%",
-					fontSize = 16,
 					characterLimit = 4,
 					halign = "left",
 					editable = true,
@@ -2527,9 +2574,9 @@ function GameHud.CreateInventoryDialog(self, options)
 					end,
 				},
 				gui.Label{
+					classes = {"sizeM"},
 					width = "auto",
 					height = "100%",
-					fontSize = 16,
 					halign = "left",
 					text = "% Discount",
 
@@ -2547,10 +2594,10 @@ function GameHud.CreateInventoryDialog(self, options)
 	if tradeInventory then
 		takeAllButton = gui.Button{
             text = "<<Take All",
+            classes = {"sizeS"},
             width = "auto",
             height = "auto",
             pad = 2,
-            fontSize = 14,
 			events = {
 				refreshInventory = function(element)
 					if not _opened then
@@ -2614,10 +2661,27 @@ function GameHud.CreateInventoryDialog(self, options)
 
 	local slotBorder
 	local inventoryTitleLabel
+	local closeButton
 	if not options.charsheet then
 		slotBorder = SlotBorder{}
+		closeButton = gui.Button{
+			classes = {"closeButton"},
+			floating = true,
+			halign = 'right',
+			valign = 'top',
+			refreshInventory = function(element)
+				if not _opened then
+					return
+				end
+				element:SetClass('hidden', tradeInventory)
+			end,
+			click = function(element)
+				resultPanel.data.close()
+			end,
+		}
 		inventoryTitleLabel = gui.Label{
 			id = 'inventory-title',
+			classes = {"bold"},
 			text = '',
 			style = {
 				textAlignment = 'center',
@@ -2627,8 +2691,6 @@ function GameHud.CreateInventoryDialog(self, options)
 				height = 'auto',
 				halign = 'center',
 				valign = 'top',
-				color = 'white',
-				bold = true,
 			},
 
 			events = {
@@ -2644,22 +2706,6 @@ function GameHud.CreateInventoryDialog(self, options)
 				end,
 			},
 
-			children = {
-
-				gui.CloseButton{
-					halign = 'right',
-					refreshInventory = function(element)
-						if not _opened then
-							return
-						end
-						element:SetClass('hidden', tradeInventory)
-					end,
-					click = function(element)
-						resultPanel.data.close()
-					end,
-				},
-
-			},
 		}
 	end
 
@@ -2667,26 +2713,18 @@ function GameHud.CreateInventoryDialog(self, options)
 
 	resultPanel = gui.Panel{
 		id = 'inventory-dialog',
-		bgimage = cond(options.charsheet, nil, 'panels/InventorySlot_Background.png'),
         blurBackground = true,
 
-		classes = {'hidden'},
+		-- {framedPanel} gives the standard themed dialog chrome (surface gradient
+		-- + @fg border) so this dialog matches the rest of the app. The charsheet-
+		-- embedded inventory has no frame: it lives inside the character sheet's
+		-- own background, so it stays a bare transparent container.
+		classes = cond(options.charsheet, {'hidden'}, {'hidden', 'framedPanel'}),
 
 		captureEscape = not options.charsheet,
 		escapePriority = EscapePriority.EXIT_INVENTORY_DIALOG,
 
-		styles = {
-			{
-				width = dialogWidth,
-				height = dialogHeight,
-				halign = 'center',
-				valign = 'center',
-				bgcolor = 'white',
-				flow = 'none',
-			},
-			SlotStyles,
-            g_InventoryStyles,
-		},
+		styles = BuildInventoryDialogStyles(),
 
 		events = {
 			escape = function(element)
@@ -2739,6 +2777,21 @@ function GameHud.CreateInventoryDialog(self, options)
 			refreshGame = function(element)
 				--the token we have been modifying has changed, so refresh us.
 				element:FireEventTree('refreshInventory')
+			end,
+
+			create = function(element)
+				element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+					if element.valid then
+						element.styles = BuildInventoryDialogStyles()
+					end
+				end)
+			end,
+
+			destroy = function(element)
+				if element.data.themeListener ~= nil then
+					element.data.themeListener:Deregister()
+					element.data.themeListener = nil
+				end
 			end,
 
 		},
@@ -2915,6 +2968,7 @@ function GameHud.CreateInventoryDialog(self, options)
 		children = {
 
 			slotBorder,
+			closeButton,
 
 			gui.Panel{
 				id = 'inventory-main',
@@ -2960,7 +3014,7 @@ function GameHud.CreateInventoryDialog(self, options)
 						children = {
 							gui.Panel{
 								bgimage = 'panels/InventoryArrow.png',
-								className = 'paging-arrow',
+								classes = {'paging-arrow', 'image'},
 								style = {
 									height = '100%',
 									width = '50% height',
@@ -2987,7 +3041,6 @@ function GameHud.CreateInventoryDialog(self, options)
 							gui.Label{
 								style = {
 									fontSize = '35%',
-									color = 'white',
 									width = 'auto',
 									height = 'auto',
 									halign = 'center',
@@ -3004,7 +3057,7 @@ function GameHud.CreateInventoryDialog(self, options)
 
 							gui.Panel{
 								bgimage = 'panels/InventoryArrow.png',
-								className = 'paging-arrow',
+								classes = {'paging-arrow', 'image'},
 								style = {
 									scale = {x = -1, y = 1},
 									height = '100%',
@@ -3030,11 +3083,10 @@ function GameHud.CreateInventoryDialog(self, options)
 
 						},
 					},
-
-					newItemButton,
-
 				},
 			},
+
+			newItemButton,
 
 			equipmentPanel,
 			encumbrancePanel,
@@ -3059,7 +3111,6 @@ function GameHud.CreateAddItemDialog(self, options)
 
 	local mainFormPanel = gui.Panel{
 		style = {
-			bgcolor = 'white',
 			pad = 0,
 			margin = 0,
 			width = 1060,
@@ -3081,13 +3132,9 @@ function GameHud.CreateAddItemDialog(self, options)
 			},
 
 			children = {
-				gui.PrettyButton{
+				gui.Button{
 					text = 'Create',
-					style = {
-						height = 60,
-						width = 160,
-						bgcolor = 'white',
-					},
+					classes = {"sizeL"},
 					events = {
 						click = function(element)
 							--Add the new item and upload it to the game.
@@ -3101,15 +3148,11 @@ function GameHud.CreateAddItemDialog(self, options)
 						end,
 					},
 				},
-				gui.PrettyButton{
+				gui.Button{
 					text = 'Cancel',
+					classes = {"sizeL"},
                     escapeActivates = true,
                     escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
-					style = {
-						height = 60,
-						width = 160,
-						bgcolor = 'white',
-					},
 					events = {
 						click = function(element)
 							resultPanel.data.close()
@@ -3131,11 +3174,9 @@ function GameHud.CreateAddItemDialog(self, options)
 			},
 
 			children = {
-				gui.PrettyButton{
+				gui.Button{
 					text = 'Close',
-					fontSize = 24,
-					hpad = 10,
-					vpad = 6,
+					classes = {"sizeL"},
 					escapeActivates = true,
 					escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
 					events = {
@@ -3157,16 +3198,29 @@ function GameHud.CreateAddItemDialog(self, options)
 		id = "createItemDialog",
 		classes = {'framedPanel', 'hidden'},
 		style = {
-			bgcolor = 'white',
 			width = dialogWidth,
 			height = dialogHeight,
 			halign = 'center',
 			valign = 'center',
 		},
 		styles = {
+			ThemeEngine.GetStyles(),
 			SlotStyles,
-			Styles.Panel,
 		},
+
+		create = function(element)
+			element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+				if element.valid then
+					element.styles = { ThemeEngine.GetStyles(), SlotStyles }
+				end
+			end)
+		end,
+		destroy = function(element)
+			if element.data.themeListener ~= nil then
+				element.data.themeListener:Deregister()
+				element.data.themeListener = nil
+			end
+		end,
 
 		data = {
 			show = function(notify, editItem)
@@ -3243,7 +3297,7 @@ local CreateEquipmentSlot = function(dmhud, options)
 	local slotName = options.slot
 
 	local highlightPanel = gui.Panel{
-        classes = {"slotHighlight"},
+        classes = {"slotHighlight", "transparent"},
 		id = 'equipment-slot-' .. options.slot,
 		interactable = false,
 		dragTarget = true,
@@ -3306,6 +3360,7 @@ local CreateEquipmentSlot = function(dmhud, options)
 
 	local iconEffectPanel = gui.Panel{
 		id = 'inventory-slot-effect',
+		classes = {"image"},
 		selfStyle = {},
 		styles = {
 			{
@@ -3346,6 +3401,7 @@ local CreateEquipmentSlot = function(dmhud, options)
     
     iconPanel = gui.Panel{
         id = 'inventory-slot-icon',
+        classes = {"image"},
         bgimage = icon,
         draggable = false,
 
@@ -3611,6 +3667,7 @@ function GameHud.CreateEquipmentDialog(self, options)
 	local avatarPanel
 	if not options.charsheet then
 		avatarPanel = gui.Panel{
+			classes = {"image"},
 
 			selfStyle = {},
 			
@@ -3639,13 +3696,13 @@ function GameHud.CreateEquipmentDialog(self, options)
 
 	local titleLabel = gui.Label{
 		text = 'Equipped Treasures',
+		classes = {"bold"},
 		selfStyle = {
 			width = 'auto',
 			height = 'auto',
 			halign = 'center',
 			valign = 'top',
 			fontSize = '70%',
-			bold = true,
 		}
 	}
 
@@ -3707,11 +3764,10 @@ function GameHud.CreateEquipmentDialog(self, options)
 			avatarPanel,
 
             gui.Label{
+                classes = {"bold", "sizeM"},
                 width = "auto",
                 height = "auto",
                 halign = "center",
-                bold = true,
-                fontSize = 16,
                 text = "Leveled Treasures",
                 valign = "top",
                 tmargin = 8,
@@ -3721,11 +3777,10 @@ function GameHud.CreateEquipmentDialog(self, options)
             leveledSlotsArea,
 
             gui.Label{
+                classes = {"bold", "sizeM"},
                 width = "auto",
                 height = "auto",
                 halign = "center",
-                bold = true,
-                fontSize = 16,
                 text = "Trinkets",
                 valign = "top",
                 tmargin = 8,
@@ -3844,7 +3899,7 @@ local CreateCharSheetInventory = function()
 
 	local resultPanel
 	resultPanel = gui.Panel{
-		classes = {"characterSheetPanel", "hidden"},
+		classes = {"characterSheetPanel", "hidden", "surfaceRadial"},
 		width = "100%",
 		height = "100%",
 		flow = "none",
@@ -3854,7 +3909,22 @@ local CreateCharSheetInventory = function()
             tradeInventoryDialog = tradeInventoryDialog,
         },
 
-        styles = g_InventoryStyles,
+		styles = { ThemeEngine.GetStyles(), g_InventoryStyles },
+
+		create = function(element)
+			element.data.themeListener = ThemeEngine.OnThemeChanged(mod, function()
+				if element.valid then
+					element.styles = { ThemeEngine.GetStyles(), g_InventoryStyles }
+				end
+			end)
+		end,
+
+		destroy = function(element)
+			if element.data.themeListener ~= nil then
+				element.data.themeListener:Deregister()
+				element.data.themeListener = nil
+			end
+		end,
 
 		charsheetActivate = function(element, val)
 			if not val then

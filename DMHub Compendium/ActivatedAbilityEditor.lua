@@ -19,10 +19,12 @@ function CreateCompendiumItemTooltip(spell, options)
 		pad = 0,
 		cornerRadius = 0,
 		bgimage = 'panels/square.png',
-		bgcolor = '#000000fb',
+		--Opaque, themed surface (no blur). Resolved to the active scheme's @bg
+		--hex at call time so it tracks scheme changes on the next render.
+		bgcolor = ThemeEngine.ResolveTokens('@bg'),
 		borderWidth = 0,
 		borderFade = false,
-        blurBackground = true,
+        blurBackground = false,
         opacity = 1,
     }
 
@@ -62,1025 +64,16 @@ ActivatedAbility.CatHelpSymbols = function(a,b)
 	return res
 end
 
-function ActivatedAbility:GenerateEditor()
+function ActivatedAbility:GenerateEditor(opts)
 
-	local resourceOptions = {}
-	local resultPanel
-
-	local resourceTable = dmhub.GetTable("characterResources")
-	for k,resource in pairs(resourceTable) do
-		if resource.grouping ~= "Actions" and not resource:try_get("hidden", false) then
-			resourceOptions[#resourceOptions+1] = {
-				id = k,
-				text = resource.name,
-			}
-		end
+	-- Route to the sectioned Draw Steel ability editor.
+	-- AbilityEditor is defined in Draw Steel Ability Editor/AbilityEditor.lua
+	-- which loads after this module, so we use rawget for the lookup.
+	local abilityEditor = rawget(_G, "AbilityEditor")
+	if abilityEditor ~= nil then
+		return abilityEditor.GenerateEditor(self, opts)
 	end
 
-	table.sort(resourceOptions, function(a,b) return a.text < b.text end)
-	table.insert(resourceOptions, 1, {
-		id = "none",
-		text = "None",
-	})
-
-	local spellGuidField = nil
-	if devmode() then
-		spellGuidField = gui.Panel{
-			classes = "formPanel",
-			gui.Label{
-				classes = "formLabel",
-				text = "GUID:",
-			},
-			gui.Input{
-				classes = "formInput",
-				text = self.guid,
-				editable = false,
-			},
-		}
-	end
-
-	local attrPanel = nil
-
-	if self.typeName ~= 'Spell' and GameSystem.abilitiesHaveAttribute then
-		local options = {
-			{
-				id = "no_attribute",
-				text = "None",
-			},
-			{
-				id = "none",
-				text = "Spellcasting Modifier",
-			},
-			{
-				id = "multiple",
-				text = "Multiple (use highest)",
-			},
-		}
-
-		for i,attrid in ipairs(creature.attributeIds) do
-			options[#options+1] = {
-				id = attrid,
-				text = creature.attributesInfo[attrid].description,
-			}
-		end
-
-		--the panel to tell which attribute to use for this ability, including support of multiple possible attributes.
-		attrPanel = gui.Panel{
-			id = {"attributesPanel"},
-			classes = {"abilityInfo"},
-			width = "auto",
-			height = "auto",
-			flow = "vertical",
-
-			gui.Panel{
-				classes = {"formPanel"},
-				gui.Label{
-					classes = "formLabel",
-					text = "Attribute:",
-				},
-
-				gui.Dropdown{
-					classes = "formDropdown",
-					options = options,
-					idChosen = self:try_get("attributeOverride", "none"),
-					change = function(element)
-						local val = element.idChosen
-						if val == "none" then
-							val = nil
-						end
-
-						if val ~= "multiple" then
-							self.attributeOverrideMulti = nil
-						elseif not self:has_key("attributeOverrideMulti") then
-							self.attributeOverrideMulti = {"str"}
-						end
-
-						self.attributeOverride = val
-						resultPanel:FireEventTree("refreshAbility")
-					end,
-				},
-			},
-
-			--If we have multiple possible attributes we can list them all here.
-			gui.Panel{
-				width = "auto",
-				height = "auto",
-				flow = "vertical",
-				data = {
-					numAttr = -1,
-				},
-				create = function(element)
-					element:FireEvent("refreshAbility")
-				end,
-				refreshAbility = function(element)
-					local multiattr = self:try_get("attributeOverrideMulti", {})
-					if element.data.numAttr == #multiattr then
-						return
-					end
-
-					local children = {}
-
-					element.data.numAttr = #multiattr
-
-					for i,attr in ipairs(multiattr) do
-
-						local options = {
-							{
-								id = "none",
-								text = "(Remove)",
-							},
-						}
-						for i,attrid in ipairs(creature.attributeIds) do
-							options[#options+1] = {
-								id = attrid,
-								text = creature.attributesInfo[attrid].description,
-							}
-						end
-
-						children[#children+1] = gui.Panel{
-							classes = {"formPanel"},
-							gui.Label{
-								classes = "formLabel",
-								text = "Attr. Choice:",
-							},
-
-							gui.Dropdown{
-								classes = "formDropdown",
-								options = options,
-								idChosen = attr,
-								change = function(element)
-									local val = element.idChosen
-									if val == "none" then
-										table.remove(self.attributeOverrideMulti, i)
-									else
-										self.attributeOverrideMulti[i] = val
-									end
-									resultPanel:FireEventTree("refreshAbility")
-								end,
-							},
-						}
-						
-					end
-
-					if self:try_get("attributeOverride") == "multiple" then
-
-						local options = {
-							{
-								id = "none",
-								text = "Add Attribute...",
-							},
-						}
-						for i,attrid in ipairs(creature.attributeIds) do
-							options[#options+1] = {
-								id = attrid,
-								text = creature.attributesInfo[attrid].description,
-							}
-						end
-
-						children[#children+1] = gui.Panel{
-							classes = {"formPanel"},
-							gui.Label{
-								classes = "formLabel",
-								text = "Attr. Choice:",
-							},
-
-							gui.Dropdown{
-								classes = "formDropdown",
-								options = options,
-								idChosen = "none",
-								change = function(element)
-									local val = element.idChosen
-									if val == "none" then
-										return
-									else
-										local multi = self:get_or_add("attributeOverrideMulti", {})
-										multi[#multi+1] = val
-									end
-									resultPanel:FireEventTree("refreshAbility")
-								end,
-							},
-						}
-					end
-
-					element.children = children
-				end,
-			},
-		}
-	end
-
-	local ActionIsReaction = function()
-		local resourceid = self:ActionResource() or "none"
-		local resourceTable = dmhub.GetTable("characterResources") or {}
-		local resourceInfo = resourceTable[resourceid]
-		if resourceInfo ~= nil then
-			return resourceInfo.isreaction
-		end
-
-		return false
-	end
-
-	local ActionHasQuantity = function()
-		local resourceid = self:ActionResource() or "none"
-		local resourceTable = dmhub.GetTable("characterResources") or {}
-		local resourceInfo = resourceTable[resourceid]
-		if resourceInfo ~= nil then
-			return resourceInfo.useQuantity
-		end
-
-		return false
-	end
-
-	local ResourceHasQuantity = function()
-		local resourceid = self.resourceCost
-		local resourceTable = dmhub.GetTable("characterResources") or {}
-		local resourceInfo = resourceTable[resourceid]
-		if resourceInfo ~= nil then
-			return resourceInfo.useQuantity
-		end
-
-		return false
-	end
-
-	local castEffectOptions = {
-		{
-			id = "none",
-			text = "(None)",
-		},
-	}
-
-	for k,emoji in pairs(assets.emojiTable) do
-		if emoji.emojiType == "Spellcasting" then
-			castEffectOptions[#castEffectOptions+1] = {
-				id = emoji.description,
-				text = emoji.description,
-			}
-		end
-	end
-
-	local categorizationPanel = nil
-	if GameSystem.hasAbilityCategorization then
-		local options = {}
-		for category,_ in pairs(GameSystem.abilityCategories) do
-			options[#options+1] = {
-				id = category,
-				text = category,
-			}
-		end
-		categorizationPanel = gui.Panel{
-			classes = {"abilityInfo", "formPanel"},
-			gui.Label{
-				classes = "formLabel",
-				text = "Category:",
-			},
-			gui.Dropdown{
-				classes = "formDropdown",
-				idChosen = self.categorization,
-				options = options,
-				sort = true,
-				change = function(element)
-					self.categorization = element.idChosen
-					resultPanel:FireEventTree("refreshAbility")
-				end,
-			},
-		}
-	end
-
-    local villainActionPanel = gui.Panel{
-        classes = {"formPanel", cond(self:try_get("categorization") == "Villain Action", nil, "collapsed-anim")},
-        refreshAbility = function(element)
-            element:SetClass("collapsed-anim", self:try_get("categorization") ~= "Villain Action")
-        end,
-        gui.Label{
-            classes = "formLabel",
-            text = "Villain Action:",
-        },
-        gui.Dropdown{
-            classes = "formDropdown",
-            idChosen = self:try_get("villainAction", "none"),
-            options = {
-                {
-                    id = "none",
-                    text = "None",
-                },
-                {
-                    id = "Villain Action 1",
-                    text = "Villain Action 1",
-                },
-                {
-                    id = "Villain Action 2",
-                    text = "Villain Action 2",
-                },
-                {
-                    id = "Villain Action 3",
-                    text = "Villain Action 3",
-                },
-            },
-            change = function(element)
-                self.villainAction = element.idChosen
-                resultPanel:FireEventTree("refreshAbility")
-            end,
-        },
-    }
-
-    local m_source = self:try_get("sourceReference")
-    if m_source == nil then
-        m_source = SourceReference.new{}
-    end
-
-	local keywordsPanel = nil
-	if GameSystem.hasAbilityKeywords then
-
-		local addDropdown = gui.Dropdown{
-			classes = "formDropdown",
-			sort = true,
-			textOverride = "Add Keyword...",
-            hasSearch = true,
-			idChosen = "none",
-			create = function(element)
-				local keywordOptions = {}
-
-				for keyword,_ in pairs(GameSystem.abilityKeywords) do
-					if not self.keywords[keyword] then
-						keywordOptions[#keywordOptions+1] = {
-							id = keyword,
-							text = keyword,
-						}
-					end
-				end
-				element.options = keywordOptions
-				element:SetClass("collapsed", #keywordOptions == 0)
-			end,
-			refreshKeywords = function(element)
-				element:FireEvent("create")
-			end,
-			change = function(element)
-				if element.idChosen ~= "none" then
-					self:AddKeyword(element.idChosen)
-				end
-
-				resultPanel:FireEventTree("refreshKeywords")
-			end,
-		}
-
-		keywordsPanel = gui.Panel{
-			flow = "vertical",
-			width = "auto",
-			height = "auto",
-
-			addDropdown,
-
-			create = function(element)
-				local children = {}
-
-				for keyword,_ in pairs(self.keywords) do
-					children[#children+1] = gui.Panel{
-						classes = {"formPanel"},
-						data = {
-							ord = keyword,
-						},
-						gui.Label{
-							classes = "formLabel",
-							text = keyword,
-						},
-						gui.DeleteItemButton{
-							halign = "right",
-							width = 16,
-							height = 16,
-							click = function(element)
-								self:RemoveKeyword(keyword)
-								resultPanel:FireEventTree("refreshKeywords")
-							end,
-						},
-					}
-				end
-
-				table.sort(children, function(a,b) return a.data.ord < b.data.ord end)
-	
-				children[#children+1] = addDropdown
-				element.children = children
-			end,
-
-			refreshKeywords = function(element)
-				element:FireEvent("create")
-			end,
-		}
-	end
-
-    print("PROPERTIES: ", ActivatedAbility.registeredProperties)
-    local propertyEditorPanel = gui.SetEditor{
-        value = self:try_get("properties"),
-        addItemText = "Add Special Property...",
-        options = ActivatedAbility.registeredProperties,
-        change = function(element, value)
-            self.properties = value
-        end,
-    }
-
-	resultPanel = gui.Panel{
-		id = "abilityEditorPanel",
-		classes = "abilityEditor",
-		styles = {
-			Styles.Form,
-
-			{
-				classes = {"formPanel"},
-				width = 340,
-			},
-			{
-				classes = {"formLabel"},
-				halign = "left",
-			},
-			{
-				classes = {"abilityEditor"},
-				width = '100%',
-				height = 'auto',
-				flow = "horizontal",
-				valign = "top",
-			},
-			{
-				classes = "mainPanel",
-				width = "40%",
-				height = "auto",
-				flow = "vertical",
-				valign = "top",
-			},
-			{
-				classes = {"effectInput"},
-				width = "80%",
-				height = "auto",
-				halign = "center",
-				margin = 8,
-				minHeight = 20,
-				textAlignment = "topleft",
-			},
-
-		},
-
-		gui.Panel{
-			id = "leftPanel",
-			width = "50%",
-			classes = "mainPanel",
-			spellGuidField,
-
-			gui.Panel{
-				classes = {"abilityInfo", "formPanel"},
-				gui.Label{
-					classes = "formLabel",
-					text = "Name:",
-				},
-				gui.Input{
-					classes = "formInput",
-					text = self.name,
-					change = function(element)
-						self.name = element.text
-					end,
-				},
-			},
-
-			categorizationPanel,
-            villainActionPanel,
-
-			gui.Panel{
-				classes = {"abilityInfo", "formPanel"},
-				gui.Label{
-					classes = "formLabel",
-					text = "Action:",
-				},
-				gui.Dropdown{
-					classes = "formDropdown",
-					idChosen = self:ActionResource() or "none",
-					options = CharacterResource.GetActionOptions(),
-					change = function(element)
-						self.actionResourceId = element.idChosen
-						resultPanel:FireEventTree("refreshAbility")
-					end,
-				},
-			},
-
-			--reaction/trigger panel.
-			gui.Panel{
-				classes = {"abilityInfo", "formPanel", cond(not ActionIsReaction(), "collapsed-anim")},
-				width = "100%",
-				height = "auto",
-
-				data = {
-					init = false,
-				},
-
-				create = function(element)
-					element:FireEvent("refreshAbility")
-				end,
-
-				refreshAbility = function(element)
-					local isreaction = ActionIsReaction()
-					element:SetClass("collapsed-anim", not isreaction)
-					if not isreaction then
-						return
-					end
-
-					if element.data.init == false then
-						element.data.init = true
-
-						element.children = {
-							gui.Panel{
-								classes = {"abilityInfo", "formPanel"},
-								gui.Label{
-									classes = "formLabel",
-									text = "Reaction Trigger:",
-								},
-								gui.Dropdown{
-									classes = "formDropdown",
-									idChosen = self:GetReactionInfo().type,
-									options = ActivatedAbilityReaction.types,
-									change = function(element)
-										self:GetOrAddReactionInfo().type = element.idChosen
-										resultPanel:FireEventTree("refreshAbility")
-									end,
-								}
-							}
-						}
-					end
-
-					
-				end,
-			},
-
-			gui.Panel{
-				classes = {"abilityInfo", "formPanel", cond(not ActionHasQuantity(), "collapsed-anim")},
-				refreshAbility = function(element)
-					element:SetClass("collapsed-anim", not ActionHasQuantity())
-				end,
-
-				gui.Label{
-					classes = "formLabel",
-					text = "Num. Actions:",
-				},
-
-				gui.GoblinScriptInput{
-					classes = "formInput",
-					value = tostring(self.actionNumber),
-					width = 200,
-					change = function(element)
-						if type(element.value) == "string" and tonumber(element.value) ~= nil then
-							self.actionNumber = tonumber(element.value)
-							element.value = tostring(self.actionNumber)
-						else
-							self.actionNumber = element.value
-						end
-						resultPanel:FireEventTree("refreshAbility")
-					end,
-
-
-					documentation = {
-						domains = self.domains,
-						help = "This GoblinScript is used to determine how many actions an <color=#00FFFF><link=ability>ability</link></color> costs. It is typically a flat number, but sometimes you may want to calculate the number of actions based on a formula or table.",
-						output = "number",
-						examples = {
-							{
-								script = "1",
-								text = "The ability costs 1 action to use.",
-							},
-							{
-								script = "1 + 1 when level <= 5",
-								text = "The ability costs 2 to use when the character's level is 5 or less, otherwise it only costs one action to use.",
-							},
-						},
-						subject = creature.helpSymbols,
-						subjectDescription = "The creature that is using the ability.",
-						symbols = {
-							mode = ActivatedAbility.helpCasting.mode,
-						},
-					},
-				},
-
-			},
-
-			keywordsPanel,
-
-            propertyEditorPanel,
-
-            gui.Check{
-                classes = {cond(self:HasKeyword("Melee") and self:HasKeyword("Ranged"), nil, "collapsed-anim")},
-                text = "Split into Melee and Ranged",
-                value = not self.disableSplitIntoMeleeAndRanged,
-                change = function(element)
-                    self.disableSplitIntoMeleeAndRanged = not element.value
-                    resultPanel:FireEventTree("refreshAbility")
-                end,
-                refreshKeywords = function(element)
-                    element:SetClass("collapsed-anim", not self:HasKeyword("Melee") or not self:HasKeyword("Ranged"))
-                end,
-            },
-
-			gui.Panel{
-				classes = {"abilityInfo", "formPanel"},
-				gui.Label{
-					classes = "formLabel",
-					text = "Resource Cost:",
-				},
-
-				gui.Dropdown{
-					classes = "formDropdown",
-					idChosen = self.resourceCost,
-					options = resourceOptions,
-					change = function(element)
-						self.resourceCost = element.idChosen
-						resultPanel:FireEventTree("refreshAbility")
-					end,
-				},
-
-			},
-
-
-			gui.Panel{
-				classes = {"abilityInfo", "formPanel", cond(not ResourceHasQuantity(), "collapsed-anim")},
-				refreshAbility = function(element)
-					element:SetClass("collapsed-anim", not ResourceHasQuantity())
-				end,
-				gui.Label{
-					classes = "formLabel",
-					text = "Num. Resources:",
-				},
-
-				gui.GoblinScriptInput{
-					classes = "formInput",
-					halign = "right",
-					width = 240,
-					value = self:try_get("resourceNumber", "1"),
-					change = function(element)
-						self.resourceNumber = element.value
-						resultPanel:FireEventTree("refreshAbility")
-					end,
-
-					documentation = {
-						domains = self.domains,
-						help = "This GoblinScript is used to determine the resource cost of an Ability. It is typically a flat number, but sometimes you may want to calculate the cost based on a formula or table.",
-						output = "number",
-						examples = {
-							{
-								script = "3",
-								text = "The ability cost 3 of the selected resource.",
-							},
-							{
-								script = "Mode = 2 then 3 else 1",
-								text = "If the Mode selected is 2, the ability costs 3 resources, otherwise it costs 1.",
-							},
-						},
-						subject = creature.helpSymbols,
-						subjectDescription = "The creature using the ability.",
-						symbols = {
-							mode = {
-								name = "Mode",
-								type = "number",
-								desc = "When using an ability that has multiple modes, this is the number of the mode the player chose when using the ability. You can set an ability up with modes on the ability's property page. Mode will be equal to 1 if the player chose the first mode, 2 for the second mode, and so forth. Mode is always 1 for abilities that don't have multiple modes.",
-							},
-						},
-					},
-				},
-
-			},
-
-			gui.Panel{
-				classes = {"abilityInfo", "formPanel"},
-				gui.Label{
-					classes = "formLabel",
-					text = "Channel Resource:",
-				},
-
-				gui.Dropdown{
-					classes = "formDropdown",
-					idChosen = self.channeledResource,
-					options = resourceOptions,
-					change = function(element)
-						self.channeledResource = element.idChosen
-						resultPanel:FireEventTree("refreshAbility")
-					end,
-				},
-			},
-
-			gui.Panel{
-				classes = {"abilityInfo", "formPanel", cond(self.channeledResource == "none", "collapsed-anim")},
-				refreshAbility = function(element)
-					element:SetClass("collapsed-anim", self.channeledResource == "none")
-				end,
-				gui.Label{
-					classes = "formLabel",
-					text = "Max Channel:",
-				},
-
-				gui.GoblinScriptInput{
-					classes = "formInput",
-					halign = "right",
-					width = 240,
-					value = self:try_get("maxChannel", ""),
-					change = function(element)
-						self.maxChannel = element.value
-						resultPanel:FireEventTree("refreshAbility")
-					end,
-
-					documentation = {
-						domains = self.domains,
-						help = "This GoblinScript is used to determine the maximum amount of a resource that can be channeled. It is typically a flat number, but sometimes you may want to calculate the maximum amount based on a formula or table. You may leave it blank to have no limit.",
-						output = "number",
-						examples = {
-							{
-								script = "3",
-								text = "A maximum of 3 resources can be channeled.",
-							},
-							{
-								script = "Level",
-								text = "A number of resources equal to your level can be channeled.",
-							},
-						},
-						subject = creature.helpSymbols,
-						subjectDescription = "The creature using the ability.",
-					},
-				},
-			},
-
-			gui.Panel{
-				classes = {"abilityInfo", "formPanel", cond(self.channeledResource == "none", "collapsed-anim")},
-				refreshAbility = function(element)
-					element:SetClass("collapsed-anim", self.channeledResource == "none")
-				end,
-				gui.Label{
-					classes = "formLabel",
-					text = "Cost per Charge:",
-				},
-
-                gui.Input{
-                    classes = "formInput",
-                    text = self.channelIncrement,
-                    characterLimit = 2,
-                    change = function(element)
-                        self.channelIncrement = tonumber(element.text)
-                        element.text = self.channelIncrement
-                    end,
-                },
-			},
-
-
-			gui.Panel{
-				classes = {"abilityInfo", "formPanel", cond(self.channeledResource == "none", "collapsed")},
-				refreshAbility = function(element)
-					element:SetClass("collapsed-anim", self.channeledResource == "none")
-				end,
-				gui.Label{
-					classes = "formLabel",
-					text = "Description:",
-				},
-
-				gui.Input{
-					classes = "formInput",
-					width = 240,
-					characterLimit = 160,
-					text = self.channelDescription,
-					placeholderText = "Describe the channeling...",
-					change = function(element)
-						self.channelDescription = element.text
-						resultPanel:FireEventTree("refreshAbility")
-					end,
-
-				},
-			},
-
-			attrPanel,
-
-
-			self:BehaviorEditor(),
-		},
-
-		gui.Panel{
-			id = "rightPanel",
-			classes = "mainPanel",
-
-			self:IconEditorPanel(),
-
-			gui.Panel{
-				classes = {"formPanel"},
-				gui.Label{
-					classes = "formLabel",
-					text = "Flavor Text:",
-				},
-			},
-
-			gui.Panel{
-				classes = {"formPanel"},
-				gui.Input{
-					classes = "formInput",
-					placeholderText = "Enter Flavor Text...",
-					multiline = true,
-					width = "80%",
-					height = "auto",
-					halign = "center",
-					margin = 8,
-					minHeight = 20,
-					textAlignment = "topleft",
-					text = self.flavor,
-					change = function(element)
-						self.flavor = element.text
-					end,
-				},
-			},
-
-
-			gui.Panel{
-				classes = {"formPanel"},
-				gui.Label{
-					classes = "formLabel",
-					text = "Effect Before Power Roll:",
-				},
-			},
-
-			gui.Panel{
-				classes = {"formPanel"},
-				gui.Input{
-					classes = {"effectInput","formInput"},
-					multiline = true,
-					characterLimit = 2000,
-					placeholderText = "Enter Effect Details...",
-					text = self:try_get("preDescription", ""),
-					change = function(element)
-						self.preDescription = element.text
-					end,
-				},
-			},
-
-			gui.Panel{
-				classes = {"formPanel"},
-				gui.Label{
-					classes = "formLabel",
-					text = "Effect After Power Roll:",
-				},
-			},
-
-			gui.Panel{
-				classes = {"formPanel"},
-				gui.Input{
-					classes = {"effectInput","formInput"},
-					multiline = true,
-					characterLimit = 2000,
-					placeholderText = "Enter Effect Details...",
-					text = self.description,
-					change = function(element)
-						self.description = element.text
-					end,
-				},
-			},
-
-            gui.Panel{
-                classes = {"formPanel"},
-                create = function(element)
-                    --element:SetClass("collapsed", self.effectImplemented)
-                end,
-                gui.Label{
-                    classes = "formLabel",
-                    text = "Implementation:",
-                },
-                gui.ImplementationStatusPanel{
-                    value = self:try_get("implementation", 1),
-                    change = function(element)
-                        self.implementation = element.value
-						resultPanel:FireEventTree("refreshImplementation")
-                    end,
-                },
-            },
-
-			gui.Panel{
-				classes = {"formPanel", cond(self:try_get("implementation", 1) == 1, "collapsed-anim")},
-				refreshAbility = function(element)
-					element:SetClass("collapsed-anim", self:try_get("implementation", 1) == 1)
-				end,
-				refreshImplementation = function(element)
-					element:SetClass("collapsed-anim", self:try_get("implementation", 1) == 1)
-				end,
-				gui.Input{
-					classes = "formInput",
-					placeholderText = "Enter Implementation Details...",
-					multiline = true,
-					width = "80%",
-					height = "auto",
-					halign = "center",
-					margin = 8,
-					minHeight = 60,
-                    characterLimit = 2048,
-					textAlignment = "topleft",
-					text =self:try_get("implementationDetails"),
-					change = function(element)
-						self.implementationDetails = element.text
-					end,
-				},
-			},
-
-            m_source:Editor{
-                object = self,
-                change = function(element)
-                    self.sourceReference = m_source
-                end,
-            },
-
-			gui.Panel{
-				classes = "formPanel",
-				gui.Label{
-					classes = "formLabel",
-					text = "Display Order:",
-				},
-				gui.Input{
-					classes = "formInput",
-					text = tostring(self.displayOrder),
-					change = function(element)
-						if tonumber(element.text) ~= nil then
-							self.displayOrder = tonumber(element.text)
-						end
-
-						element.text = tostring(self.displayOrder)
-					end,
-				},
-			},
-
-			gui.Panel{
-				classes = "formPanel",
-				gui.Label{
-					classes = "formLabel",
-					text = "Cast Effect:",
-				},
-				gui.Dropdown{
-					classes = "formDropdown",
-					options = castEffectOptions,
-					idChosen = self:try_get("castingEmote", "none"),
-					change = function(element)
-						if element.idChosen == "none" then
-							self.castingEmote = nil
-						else
-							self.castingEmote = element.idChosen
-						end
-					end,
-				},
-			},
-
-			gui.Panel{
-				classes = "formPanel",
-				gui.Label{
-					classes = "formLabel",
-					text = "Impact Effect:",
-				},
-				gui.Dropdown{
-					classes = "formDropdown",
-					options = castEffectOptions,
-					idChosen = self:try_get("impactEmote", "empty"),
-					change = function(element)
-						if element.idChosen == "empty" then
-							self.impactEmote = nil
-						else
-							self.impactEmote = element.idChosen
-						end
-					end,
-				},
-			},
-
-			gui.Panel{
-				classes = "formPanel",
-				gui.Label{
-					classes = "formLabel",
-					text = "Projectile:",
-				},
-				gui.Dropdown{
-					classes = "formDropdown",
-					create = function(element)
-						local options = {
-							{
-								id = "none",
-								text = "Choose Projectile...",
-							},
-						}
-
-						local projectileFolderId = "14d073f8-d00a-4ab4-b184-0545124c9940"
-						local objectProjectilesFolder = assets:GetObjectNode(projectileFolderId);
-						for i,projectileObject in ipairs(objectProjectilesFolder.children) do
-							if not projectileObject.isfolder then
-								options[#options+1] = {
-									id = projectileObject.id,
-									text = projectileObject.description,
-								}
-							end
-						end
-
-						element.options = options
-						element.idChosen = self.projectileObject
-
-					end,
-					change = function(element)
-						self.projectileObject = element.idChosen
-					end,
-				},
-			},
-		},
-	}
-
-	resultPanel:FireEventTree("refreshAbility")
-
-	return resultPanel
-	
 end
 
 function ActivatedAbility:IconEditorPanel()
@@ -1089,7 +82,7 @@ function ActivatedAbility:IconEditorPanel()
 	--the spell's icon.
 	local iconEditor = gui.IconEditor{
 		library = "abilities",
-		bgcolor = self.display['bgcolor'] or '#ffffffff',
+		bgcolor = "white",
 		margin = 20,
 		width = 64,
 		height = 64,
@@ -1100,6 +93,7 @@ function ActivatedAbility:IconEditorPanel()
 			self.iconid = element.value
 		end,
 		create = function(element)
+			element.selfStyle.bgcolor = self.display['bgcolor'] or 'white'
 			element.selfStyle.hueshift = self.display['hueshift']
 			element.selfStyle.saturation = self.display['saturation']
 			element.selfStyle.brightness = self.display['brightness']
@@ -1108,21 +102,23 @@ function ActivatedAbility:IconEditorPanel()
 	}
 
 	local iconColorPicker = gui.ColorPicker{
-		value = self.display['bgcolor'] or '#ffffffff',
+		value = self.display['bgcolor'] or 'white',
 		hmargin = 8,
 		width = 24,
 		height = 24,
 		halign = "left",
 		valign = 'center',
-		borderWidth = 2,
-		borderColor = '#999999ff',
-
+		-- borderWidth = 2,
+		-- borderColor = '#999999ff',
+		create = function(element)
+			element:FireEvent("change")
+		end,
 		confirm = function(element)
 			iconEditor.selfStyle.bgcolor = element.value
 			self.display['bgcolor'] = element.value
 		end,
-
 		change = function(element)
+			print("THC:: COLORCHANGE::")
 			iconEditor.selfStyle.bgcolor = element.value
 		end,
 	}
@@ -1180,31 +176,51 @@ function ActivatedAbility:IconEditorPanel()
 		iconColorPicker,
 	}
 
-	local appearancePanel = gui.Panel{
+    local appearancePanel
+    local customIconCheck = gui.Check{
+        value = self.hasCustomIcon,
+        text = "Custom Icon",
+        change = function(element)
+            self.hasCustomIcon = element.value
+            appearancePanel:FireEventTree("updateCustomIcon")
+        end,
+    }
+
+	appearancePanel = gui.Panel{
 		classes = {"appearance"},
 		width = "auto",
 		height = "auto",
 		flow = "vertical",
-		iconPanel,
+        customIconCheck,
         gui.Panel{
-            classes = {"formPanel"},
-            gui.Label{
-                classes = {"formLabel"},
-                text = "Gradient:",
+            classes = {cond(not self.hasCustomIcon, "collapsed-anim")},
+            flow = "vertical",
+            height = "auto",
+            width = "auto",
+            updateCustomIcon = function(element)
+                element:SetClass("collapsed-anim", not self.hasCustomIcon)
+            end,
+            iconPanel,
+            gui.Panel{
+                classes = {"formPanel"},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "Gradient:",
+                },
+                gui.Dropdown{
+                    classes = {"formDropdown"},
+                    options = DisplayGradients.GetOptions(),
+                    idChosen = self:try_get("iconGradient", "none"),
+                    change = function(element)
+                        self.iconGradient = element.idChosen
+                        iconEditor:FireEvent('create')
+                    end,
+                }
             },
-            gui.Dropdown{
-                classes = {"formDropdown"},
-                options = DisplayGradients.GetOptions(),
-                idChosen = self:try_get("iconGradient", "none"),
-                change = function(element)
-                    self.iconGradient = element.idChosen
-					iconEditor:FireEvent('create')
-                end,
-            }
+            CreateDisplaySlider{ label = "Hue:", attr = 'hueshift', minValue = 0, maxValue = 1, },
+            CreateDisplaySlider{ label = "Saturation:", attr = 'saturation', minValue = 0, maxValue = 2, },
+            CreateDisplaySlider{ label = "Brightness:", attr = 'brightness', minValue = 0, maxValue = 2, },
         },
-		CreateDisplaySlider{ label = "Hue:", attr = 'hueshift', minValue = 0, maxValue = 1, },
-		CreateDisplaySlider{ label = "Saturation:", attr = 'saturation', minValue = 0, maxValue = 2, },
-		CreateDisplaySlider{ label = "Brightness:", attr = 'brightness', minValue = 0, maxValue = 2, },
 	}
 	
 	return appearancePanel
@@ -1430,12 +446,29 @@ ActivatedAbility.ForcedMovementTypes = {
 }
 
 --This gets a full list of options to display in the dropdown
+--Contextual target choices for a modifier-fired custom trigger (an ability
+--with modifierCustomTrigger set). Real target types: TriggeredAbility's
+--targeting resolves each id from the symbols the modifier installs at fire
+--time. Subject-hood stays with the owner; these only pick who the effect
+--lands on.
+local g_customTriggerTargetOptions = {
+    {id = "abilitycaster", text = "Ability Caster"},
+    {id = "abilitytarget", text = "Ability Target"},
+    {id = "triggerer",     text = "Triggerer"},
+}
+
 function ActivatedAbility:GetDisplayedTargetTypeOptions()
     local targetTypes = self:GetTargetTypes()
 
+    --A modifier-fired custom trigger swaps the generic "The Trigger Subject"
+    --entry for explicit contextual creatures, appended after the loop.
+    local customTrigger = self:try_get("modifierCustomTrigger", false)
+
     local result = {}
     for _,option in ipairs(targetTypes) do
-        result[#result+1] = option
+        if not (customTrigger and option.id == "subject") then
+            result[#result+1] = option
+        end
 
         --just "target" means "target" with objectTarget = false.
         if option.id == "target" then
@@ -1468,6 +501,21 @@ function ActivatedAbility:GetDisplayedTargetTypeOptions()
                 text = "Dead Creature",
             }
         end
+    end
+
+    if customTrigger then
+        for _,option in ipairs(g_customTriggerTargetOptions) do
+            result[#result+1] = option
+        end
+    end
+
+    --The departadjacent trigger carries the enemy that was left as a symbol, so
+    --an ability on that trigger can aim straight at it instead of prompting.
+    if self:try_get("trigger", "") == "departadjacent" then
+        result[#result+1] = {
+            id = "departedcreature",
+            text = "The Departed Creature",
+        }
     end
 
     return result
@@ -1619,10 +667,9 @@ function ActivatedAbility:TargetTypeEditor()
 									resultPanel:FireEventTree("refreshAbility")
 								end,
 							},
-							gui.DeleteItemButton{
+							gui.Button{
+								classes = {"deleteButton", "sizeXxs"},
 								halign = "right",
-								width = 16,
-								height = 16,
 								click = function(element)
 									table.remove(self.modeList, i)
 									resultPanel:FireEventTree("refreshAbility")
@@ -1683,6 +730,13 @@ function ActivatedAbility:TargetTypeEditor()
 									},
 									subject = creature.helpSymbols,
 									subjectDescription = "The creature using the ability.",
+									symbols = {
+										subject = {
+											name = "Subject",
+											type = "creature",
+											desc = "The creature that the event occurred on. For triggered abilities this is the creature that triggered the event; for self-only triggers this is the same as Self.",
+										},
+									},
 								},
 							},
 
@@ -1746,11 +800,9 @@ function ActivatedAbility:TargetTypeEditor()
 					},
 
 					--this delete item button is always hidden and kept for easy consistent alignment.
-					gui.DeleteItemButton{
-						classes = {"hidden"},
+					gui.Button{
+						classes = {"deleteButton", "sizeXxs", "hidden"},
 						halign = "right",
-						width = 16,
-						height = 16,
 					},
 				}
 
@@ -1826,10 +878,9 @@ function ActivatedAbility:TargetTypeEditor()
                         },
                     },
 
-                    gui.DeleteItemButton{
+                    gui.Button{
+                        classes = {"deleteButton", "sizeXxs"},
                         halign = "right",
-                        width = 12,
-                        height = 12,
                         click = function(element)
                             table.remove(abilityFilters, i)
                             abilityFilterPanel:FireEvent("refreshFilters")
@@ -2046,10 +1097,22 @@ function ActivatedAbility:TargetTypeEditor()
                         id = "enemy",
                         text = "Enemy Creatures",
                     },
+                    --targetAllegiance = "dead". An area already picks up corpse
+                    --objects (TokensInShape always walks object tokens), and
+                    --TargetPassesFilter swaps each corpse for the creature that
+                    --died there, so the target filter sees the dead creature.
+                    {
+                        id = "dead",
+                        text = "Dead Creatures",
+                    },
                 },
-				idChosen = cond(self.objectTarget, "all_and_objects",
+				--"dead" is checked first. objectTarget is false for it, so without this
+				--the dropdown reads back as "Creatures" and the next change to it would
+				--silently clear targetAllegiance and break the ability's targeting.
+				idChosen = cond(self.targetAllegiance == "dead", "dead",
+                           cond(self.objectTarget, "all_and_objects",
                            cond(self.targetAllegiance == "ally", "ally",
-                           cond(self.targetAllegiance == "enemy", "enemy", "all"))),
+                           cond(self.targetAllegiance == "enemy", "enemy", "all")))),
 				change = function(element)
                     if element.idChosen == "all" then
                         self.objectTarget = false
@@ -2063,6 +1126,9 @@ function ActivatedAbility:TargetTypeEditor()
                     elseif element.idChosen == "enemy" then
                         self.objectTarget = false
                         self.targetAllegiance = "enemy"
+                    elseif element.idChosen == "dead" then
+                        self.objectTarget = false
+                        self.targetAllegiance = "dead"
                     else
                         self.objectTarget = false
                         self.targetAllegiance = nil
@@ -2126,6 +1192,18 @@ function ActivatedAbility:TargetTypeEditor()
 			end,
 		},
 
+		gui.Check{
+			classes = {cond(self:try_get("targeting") ~= "contiguous_wall" or (self.targetType ~= "emptyspace" and self.targetType ~= "anyspace"), "collapsed")},
+			text = "Allow Stacking",
+			value = self:try_get("wallStacking", false),
+			change = function(element)
+				self.wallStacking = element.value
+			end,
+			refreshAbility = function(element)
+				element:SetClass("collapsed", self:try_get("targeting") ~= "contiguous_wall" or (self.targetType ~= "emptyspace" and self.targetType ~= "anyspace"))
+			end,
+		},
+
 		gui.Panel{
 			classes = {"formPanel", cond(self:try_get("targeting") ~= "straightline", 'collapsed')},
 			gui.Label{
@@ -2147,6 +1225,17 @@ function ActivatedAbility:TargetTypeEditor()
 			end,
 		},
 
+		gui.Check{
+			classes = {cond(self:try_get("targeting") ~= "straightline", "collapsed")},
+			text = "Through Creatures",
+			value = self:try_get("forcedMovementThroughCreatures", false),
+			change = function(element)
+				self.forcedMovementThroughCreatures = element.value
+			end,
+			refreshAbility = function(element)
+				element:SetClass("collapsed", self:try_get("targeting") ~= "straightline")
+			end,
+		},
 
         gui.Panel{
             classes = {"formPanel"},
@@ -2223,10 +1312,9 @@ function ActivatedAbility:TargetTypeEditor()
                             },
                         },
 
-                        gui.DeleteItemButton{
+                        gui.Button{
+                            classes = {"deleteButton", "sizeXxs"},
                             halign = "right",
-                            width = 16,
-                            height = 16,
                             click = function(element)
                                 table.remove(reasonedFilters, filterIndex)
                                 resultPanel:FireEventTree("refreshAbility")
@@ -2341,10 +1429,10 @@ function ActivatedAbility:TargetTypeEditor()
 					element:FireEvent("refreshAbility")
 				end,
 				refreshAbility = function(element)
-					if self.targetType == 'line' then
+                    if self.targetType == 'cube' then
+						element.text = 'Size:'
+					elseif self.targetType == 'line' then
 						element.text = 'Width:'
-					elseif self.targetType == 'cube' then
-						element.text = 'Edge:'
 					else
 						element.text = 'Radius:'
 					end
@@ -2688,6 +1776,7 @@ function ActivatedAbility:BehaviorEditor(options)
     }
 
 	local dropdown = gui.Dropdown{
+		styles = ThemeEngine.GetStyles(),
 			classes = "formDropdown",
 			textOverride = "Add Behavior...",
 			width = 240,
@@ -2824,6 +1913,18 @@ function ActivatedAbilityBehavior:ApplyToEditor(parentPanel, list)
 			text = "Caster's Riders",
 		},
 		{
+			id = "caster_mount",
+			text = "Caster's Mount",
+		},
+		{
+			id = "caster_summoner",
+			text = "Caster's Summoner",
+		},
+		{
+			id = "caster_companion",
+			text = "Caster's Companion",
+		},
+		{
 			id = "caster_including_squad",
 			text = "Caster (including Squad)",
 		},
@@ -2866,7 +1967,10 @@ function ActivatedAbilityBehavior:ApplyToEditor(parentPanel, list)
 	}
 
 	for _,applyto in ipairs(GameSystem.ApplyToTargetsList) do
-		if ((not firstBehavior) and (not applyto.deprecated)) or self.applyto == applyto.id then
+		--roll-group options depend on an earlier roll, so they are hidden on the
+		--first behavior. Options with their own resolve function do not, so they
+		--are always shown.
+		if (((not firstBehavior) or applyto.resolve ~= nil) and (not applyto.deprecated)) or self.applyto == applyto.id then
 			dropdownOptions[#dropdownOptions+1] = {
 				id = applyto.id,
 				text = applyto.text,
@@ -3039,7 +2143,8 @@ function ActivatedAbilityBehavior:AttackTypeEditor(parentPanel, list)
 						classes = {"formLabel"},
 						text = property.name,
 					},
-					gui.DeleteItemButton{
+					gui.Button{
+						classes = {"deleteButton", "sizeXxs"},
 						halign = 'right',
 						valign = 'center',
 						click = function(element)
@@ -3176,8 +2281,8 @@ function ActivatedAbilityBehavior:ModifiersEditor(parentPanel, list)
 				gui.Label{
 					classes = {'modifierHeadingLabel'},
 					text = CharacterModifier.TypesById[mod.behavior].text,
-					gui.DeleteItemButton{
-						classes = {cond(mod:try_get("deletable") == false, "hidden")},
+					gui.Button{
+						classes = {"deleteButton", "sizeXxs", cond(mod:try_get("deletable") == false, "hidden")},
 						floating = true,
 						halign = 'right',
 						valign = 'center',
@@ -3536,7 +2641,7 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
 		editEffectButton = gui.Button{
 			width = 120,
 			height = 28,
-			halign = "right",
+			halign = "left",
 			text = "Edit Effect",
 			fontSize = 16,
 			click = function(element)
@@ -3565,7 +2670,7 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
 	end
 
 	list[#list+1] = gui.Panel{
-		classes = "formPanel",
+		classes = {"formPanel", "formPanel-inline"},
 		gui.Label{
 			classes = "formLabel",
 			text = "Ongoing Effect:",
@@ -3758,6 +2863,10 @@ function ActivatedAbilityBehavior:AuraEditor(parentPanel, list)
                     id = "eoe",
                     text = "Until End of Encounter",
                 },
+                {
+                    id = "persistence",
+                    text = "While Persisting",
+                },
             },
 			idChosen = self.duration,
 			change = function(element)
@@ -3789,6 +2898,15 @@ function ActivatedAbilityBehavior:AuraEditor(parentPanel, list)
         value = not self:try_get("aliveafterdeath", false),
         change = function(element)
             self.aliveafterdeath = not element.value
+			parentPanel:FireEvent('refreshBehavior')
+        end,
+    }
+
+    list[#list+1] = gui.Check{
+        text = "Replace Previous Cast",
+        value = self:try_get("replacePrevious", false),
+        change = function(element)
+            self.replacePrevious = element.value
 			parentPanel:FireEvent('refreshBehavior')
         end,
     }
@@ -3948,6 +3066,22 @@ function ActivatedAbilityBehavior:ForcedMovementEditor(parentPanel, list)
 
 		},
 	}
+
+	list[#list+1] = gui.Panel{
+		classes = "formPanel",
+		gui.Label{
+			classes = "formLabel",
+			text = "Prompt Text:",
+		},
+		gui.Input{
+			classes = "formInput",
+			text = self:try_get("promptText", ""),
+			placeholderText = "You may pull the target 4 squares",
+			change = function(element)
+				self.promptText = element.text
+			end,
+		},
+	}
 end
 
 --'half'/'none'
@@ -4064,9 +3198,8 @@ function ActivatedAbilityCastSpellBehavior.AbilityModifierEditor(self, parentPan
 						width = 200,
 						text = name,
 					},
-					gui.DeleteItemButton{
-						width = 16,
-						height = 16,
+					gui.Button{
+						classes = {"deleteButton", "sizeXxs"},
 						click = function(element)
 							self.spells[k] = nil
 							parentPanel:FireEventTree("refreshCastSpell")
@@ -4146,10 +3279,9 @@ function ActivatedAbilityBehavior:CheckTypeEditor(parentPanel, title, attributeN
 		local deleteItem = nil
 
 		if #attributes > 1 then
-			deleteItem = gui.DeleteItemButton{
+			deleteItem = gui.Button{
+				classes = {"deleteButton", "sizeXxs"},
 				halign = "right",
-				width = 16,
-				height = 16,
 				click = function(element)
 					table.remove(attributes, i)
 					parentPanel:FireEvent('refreshBehavior')
@@ -4207,7 +3339,7 @@ local g_modalPanelStyles = {
 
         borderWidth = 2,
         halign = "left",
-        bgimage = "panels/square.png",
+        bgimage = true,
         borderColor = Styles.backgroundColor,
         bgcolor = Styles.backgroundColor,
         bold = true,
@@ -4227,7 +3359,7 @@ local g_modalPanelStyles = {
     },
     gui.Style{
         selectors = {"label", "selected", "disabled"},
-        bgcolor = "#ff4444",
+        bgcolor = "@danger",
     },
     gui.Style{
         selectors = {"label", "hover"},
@@ -4528,10 +3660,9 @@ function ActivatedAbilityBehavior:CreateEditor(parentAbility, options)
 
 			end,
 		},
-		gui.DeleteItemButton{
+		gui.Button{
+			classes = {"deleteButton", "sizeXxs"},
 			halign = "right",
-			width = 16,
-			height = 16,
 			click = function(element)
 				resultPanel:FireEvent("delete")
 			end,
@@ -4673,11 +3804,13 @@ function ActivatedAbilityCastSpellBehavior:EditorItems(parentPanel)
 	return result
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\DSAugmentAbilities.lua:159
 function ActivatedAbilityAugmentedAbilityBehavior:EditorItems(parentPanel)
 	local result = {}
 	self:AbilityModifierEditor(parentPanel, result)
 	return result
 end
+--]==]
 
 function ActivatedAbilityAuraBehavior:EditorItems(parentPanel)
 	local result = {}
@@ -4721,23 +3854,50 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 
 	local activatedAbility = self
 
-	local dialogWidth = 1200
-	local dialogHeight = 980
-
 	local resultPanel = nil
 
+	-- The sectioned ability editor is always active; theme the outer dialog
+	-- chrome -- frame background, title, Create/Cancel/Delete/Close buttons --
+	-- to match the gold/cream palette of the inner editor.
+	local abilityEditor = rawget(_G, "AbilityEditor")
+	local themed = abilityEditor ~= nil
+	local c = themed and abilityEditor.COLORS or nil
+
+	-- The sectioned editor renders as a full-screen modal; the classic
+	-- editor keeps its original compact dialog dimensions.
+	local dialogWidth = themed and "100%" or 1200
+	local dialogHeight = themed and "100%" or 980
+
+	-- mainFormPanel hosts the editor body (classic or sectioned). When the
+	-- sectioned editor is active it fills the full-screen dialog minus
+	-- room for the title strip (~40px) and the Create/Close button row
+	-- (60px height + margins). The classic editor keeps its original
+	-- 1100x840 canvas. In themed mode the background is transparent so the
+	-- inner editor's themed surface shows through and we get a single
+	-- consistent background colour from the active scheme.
 	local styles = {
 		{
-			bgcolor = 'white',
+			bgcolor = themed and "clear" or 'white',
 			pad = 0,
 			margin = 0,
-			width = 1100,
-			height = 840,
+			width = themed and "100%" or 1100,
+			height = themed and "100%-120" or 840,
 		},
 	}
 
 	local title = options.title or "Edit Ability"
 	options.title = nil
+
+	local hideEffectsSection = options.hideEffectsSection
+	options.hideEffectsSection = nil
+
+	--Custom-trigger context: set when editing a trigger fired directly by a
+	--modifier (e.g. a power roll modifier's custom trigger) rather than by a
+	--trigger event. The sectioned triggered-ability editor collapses the
+	--event-dispatch fields when this is present. Consumed here so the
+	--args-copy loop below doesn't leak it onto the dialog panel.
+	local customTriggerContext = options.customTriggerContext
+	options.customTriggerContext = nil
 
 
 	if options.hide ~= nil then
@@ -4761,18 +3921,17 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 	local deleteButton = nil
 	if options.delete ~= nil then
 		--we have a delete handler so show a delete button.
-		deleteButton = gui.PrettyButton{
-			floating = true,
+		deleteButton = gui.Button{
+			classes = {"sizeL"},
 			styles = {
 				{
-					selectors = {"pretty-button-label"},
+					selectors = {"label"},
 					color = "red",
 				},
 			},
 			text = "DELETE",
 			halign = "right",
-			valign = "bottom",
-			vmargin = 60,
+			valign = "center",
 			click = function(element)
 				resultPanel:FireEvent("delete")
 				resultPanel.data.close()
@@ -4794,7 +3953,8 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 
 	if options.add ~= nil then
 
-		closePanel:AddChild(gui.PrettyButton{
+		closePanel:AddChild(gui.Button{
+			classes = {"sizeL"},
 			text = 'Create',
 			events = {
 				click = function(element)
@@ -4804,7 +3964,8 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 			},
 		})
 
-		closePanel:AddChild(gui.PrettyButton{
+		closePanel:AddChild(gui.Button{
+			classes = {"sizeL"},
 			text = 'Cancel',
 			events = {
 				click = function(element)
@@ -4816,7 +3977,8 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 
 	else
 
-		closePanel:AddChild(gui.PrettyButton{
+		closePanel:AddChild(gui.Button{
+			classes = {"sizeL"},
 			text = 'Close',
 			events = {
 				click = function(element)
@@ -4832,18 +3994,62 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 	end
 
 	local titleLabel = gui.Label{
+		classes = themed and {"compendiumDialogTitle"} or nil,
 		text = title,
 		valign = 'top',
 		halign = 'center',
 		width = 'auto',
 		height = 'auto',
-		color = 'white',
+		-- Themed mode: color comes from the cascade rule below so it follows
+		-- the active scheme. Classic mode: stay white.
+		color = (not themed) and 'white' or nil,
+		fontFace = themed and "Berling" or nil,
 		fontSize = 28,
 	}
 
+	-- Themed overrides that beat the base Styles.Panel and prettyButton
+	-- defaults. Applied only when the sectioned editor is active.
+	-- Splice in the shared themed-dialog pack (framedPanel + prettyButton
+	-- chrome, widget skins, form pattern, modifier/behavior chrome). The
+	-- previous inlined overrides lived here before the pack existed; the
+	-- pack owns them now so future editors get the same chrome with one
+	-- helper call.
+	local themeStyles = Styles.Panel
+	if themed then
+		themeStyles = {}
+		for _, rule in ipairs(Styles.Panel) do
+			themeStyles[#themeStyles+1] = rule
+		end
+		for _, rule in ipairs(abilityEditor.GetThemedDialogStyles(c)) do
+			themeStyles[#themeStyles+1] = rule
+		end
+		-- Outer dialog title -- routed through the cascade so its color
+		-- follows the active scheme. MergeTokens resolves @-tokens up
+		-- front because themeStyles is consumed without a second
+		-- MergeStyles pass.
+		for _, rule in ipairs(ThemeEngine.MergeTokens({
+			{
+				selectors = {"label", "compendiumDialogTitle"},
+				color = "@fgStrong",
+				priority = 4,
+			},
+		})) do
+			themeStyles[#themeStyles+1] = rule
+		end
+	end
+
+	-- The inner editor's framed surface is painted by the themed
+	-- framedPanel cascade rule (bgimage, bgcolor, borderColor, borderWidth,
+	-- gradient). The dialog panel below carries `classes = {"framedPanel"}`
+	-- so it picks those up automatically -- inline overrides have been
+	-- removed so the active scheme drives the colour. cornerRadius stays
+	-- inline because the cascade rule doesn't declare it.
 	local args = {
 		style = {
-			bgcolor = 'white',
+			-- Lua short-circuit: `themed and nil or 'white'` always yields
+			-- 'white' (nil is falsy). Use `not themed` so themed mode
+			-- omits bgcolor and falls through to the framedPanel cascade.
+			bgcolor = (not themed) and 'white' or nil,
 			width = dialogWidth,
 			height = dialogHeight,
 			halign = 'center',
@@ -4851,7 +4057,8 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 		},
 
 		classes = {"framedPanel"},
-		styles = Styles.Panel,
+		styles = themeStyles,
+		cornerRadius = themed and 6 or nil,
 
 		floating = true,
 
@@ -4865,8 +4072,13 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 			show = function(editItem)
 				newItem = nil
 
+				-- C6b: forward options.reopen to the inner editor.
+				-- Triggered ability editor reads this to surface an
+				-- "Open Editor" button on its Test Trigger popout that
+				-- re-navigates the user to the original entry point.
+				-- Other GenerateEditor variants ignore the field.
 				mainFormPanel.children = {
-					editItem:GenerateEditor(),
+					editItem:GenerateEditor({reopen = options.reopen, hideEffectsSection = hideEffectsSection, customTriggerContext = customTriggerContext}),
 				}
 
 			end,

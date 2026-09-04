@@ -7,7 +7,7 @@ TokenUI.ClearAllIcons()
 --this registers a setting in DMHub. We want this setting to control whether the wounded icon shows.
 local woundedIconSetting = setting{
 	id = "showwoundedicon",
-	description = "Show wounded icon",
+	description = "Show winded icon",
 	editor = "check",
 	default = true,
 
@@ -27,7 +27,16 @@ TokenUI.RegisterIcon{
     icon = "ui-icons/wounded-border.png",
     Filter = function(creature)
         --this controls if the icon should display.
-	    return creature.damage_taken >= creature:MaxHitpoints()/2 and woundedIconSetting:Get()
+        --MaxHitpoints can transiently come back nil while a Lua reload is in
+        --progress (e.g. a dialog's destroy handler triggers game.Refresh()
+        --mid-reload, rebuilding token huds before the rules mods finish
+        --loading). Treat that as "not wounded" instead of crashing the
+        --whole hud build.
+        local maxhp = creature:MaxHitpoints()
+        if maxhp == nil then
+            return false
+        end
+	    return creature.damage_taken >= maxhp/2 and woundedIconSetting:Get()
     end,
 
     --Only show to those who can't see the health bar.
@@ -65,6 +74,7 @@ TokenUI.RegisterIcon{
 
         --get the movetype of the creature and return an icon entry based on it.
 		local movetype = creature:CurrentMoveTypeInfo()
+		if movetype == nil then return nil end
 
         if creature:CurrentMoveType() == "walk" then
             --'walk' is the regular way a creature moves, so don't display an icon.

@@ -103,6 +103,11 @@ function CreateInfoBubble(info)
 					return
 				end
 
+				--players may be able to see bubbles (map setting) but never move them.
+				if not dmhub.isDM then
+					return
+				end
+
 				printf("LOCKED: %s", json(info.locked))
 				if not info.locked then
 					info:BeginDragging()
@@ -122,6 +127,11 @@ function CreateInfoBubble(info)
 			end,
 			rightClick = function(element)
 				if not element:HasClass("currentFloor") then
+					return
+				end
+
+				--only the DM can delete bubbles.
+				if not dmhub.isDM then
 					return
 				end
 				dmhub.Debug('right click')

@@ -40,6 +40,12 @@ Keybinds.RegisterSection{
     name = tr("System"),
 }
 
+Keybinds.RegisterSection{
+    key = "settings",
+    name = tr("Settings"),
+    hideUnlessBound = true,
+}
+
 
 
 Keybinds.binds = {}
@@ -84,17 +90,172 @@ function Keybinds.GetBindings()
         end
     end
 
+    --any boolean setting can be bound to the engine's "toggle <id>" command by
+    --right-clicking its checkbox in the settings dialog. The section is
+    --hideUnlessBound, so only settings the user has actually bound are listed.
+    for id,info in pairs(Settings) do
+        if info.editor == "check" and result[string.format("toggle %s", id)] == nil then
+            result[#result+1] = {
+                command = string.format("toggle %s", id),
+                name = info.description or id,
+                section = "settings",
+            }
+        end
+    end
+
     return result
 end
 
-function Keybinds.GetCurrentBinding(binds, keystroke)
-    for k,bind in pairs(binds) do
-        if dmhub.GetCommandBinding(bind.command) == keystroke then
-            return k
+--Find the binding, if any, that a keystroke is already assigned to. The engine gives
+--a keystroke to exactly one command, so binding a key that is already taken silently
+--unbinds whatever had it -- callers use this to warn first.
+--@param binds table: bindings to search, as returned by Keybinds.GetBindings().
+--@param keystroke nil|string: the keystroke being assigned.
+--@param ignoreCommand nil|string: the command being rebound. Re-pressing the key a
+--       command already has is not a conflict, so it is excluded from the search.
+--@return nil|table the bind entry that currently owns the keystroke.
+function Keybinds.FindConflictingBind(binds, keystroke, ignoreCommand)
+    if keystroke == nil then
+        return nil
+    end
+
+    for _,bind in pairs(binds) do
+        if bind.command ~= ignoreCommand and dmhub.GetCommandBinding(bind.command) == keystroke then
+            return bind
         end
     end
 
     return nil
+end
+
+--Assign a keystroke to a command, first releasing the keystroke the command already
+--had so a command never ends up answering to two keys.
+--@param command string: the command to bind.
+--@param keystroke nil|string: the keystroke to bind it to, or nil to just unbind.
+function Keybinds.SetBinding(command, keystroke)
+    local previousKeystroke = dmhub.GetCommandBinding(command)
+    if previousKeystroke ~= nil then
+        dmhub.SetCommandBinding(previousKeystroke, nil)
+    end
+
+    if keystroke ~= nil then
+        dmhub.SetCommandBinding(keystroke, command)
+    end
+end
+
+--Ask the user before taking a keystroke away from the command that already owns it.
+--
+--In a game this must go through gui.ModalMessage: the hud's modal layer is the only
+--thing that reliably receives pointer input above the settings screen (which is itself
+--hosted inside the hud). A panel merely AddChild'd into the hud tree draws fine but
+--never gets clicks. The shortcuts settings are also reachable from the titlescreen,
+--where there is no game hud at all, so fall back to an overlay on the settings screen's
+--own sheet -- the same two-branch approach SettingsScreen.lua uses for its own messages.
+--@param args table
+--@field args.element Panel: a panel in the keybind UI; the titlescreen overlay is
+--       parented to its root.
+--@field args.keystroke string: the keystroke being taken over.
+--@field args.conflictName string: name of the command that currently owns the keystroke.
+--@field args.confirm function: called if the user chooses Continue.
+--@field args.cancel nil|function: called if the user cancels.
+function Keybinds.ShowRebindConflictDialog(args)
+    local title = "Key Already Bound"
+    local message = string.format("%s is already bound to %s.", args.keystroke, args.conflictName)
+    local confirm = args.confirm
+    local cancel = args.cancel
+
+    if rawget(_G, "gamehud") ~= nil then
+        gui.ModalMessage{
+            title = title,
+            message = message,
+            options = {
+                { text = "Cancel", execute = cancel },
+                { text = "Continue", execute = confirm },
+            },
+        }
+        return
+    end
+
+    local root = nil
+    if args.element ~= nil and args.element.valid then
+        root = args.element.root
+    end
+    if root == nil then
+        return
+    end
+
+    local overlay
+    overlay = gui.Panel{
+        styles = ThemeEngine.GetStyles(),
+        floating = true,
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "#000000cc",
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+
+        escape = function(element)
+            element:DestroySelf()
+            if cancel ~= nil then
+                cancel()
+            end
+        end,
+
+        gui.Panel{
+            classes = {"framedPanel"},
+            width = 520,
+            height = 220,
+            halign = "center",
+            valign = "center",
+            flow = "vertical",
+
+            gui.Label{
+                classes = {"modalTitle"},
+                text = title,
+            },
+
+            gui.Label{
+                classes = {"modalMessage"},
+                width = "90%",
+                height = "auto",
+                textWrap = true,
+                text = message,
+            },
+
+            gui.Panel{
+                width = "90%",
+                height = 40,
+                halign = "center",
+                valign = "bottom",
+                vmargin = 16,
+                flow = "horizontal",
+
+                gui.Button{
+                    classes = {"sizeL"},
+                    halign = "left",
+                    text = "Cancel",
+                    click = function(element)
+                        overlay:FireEvent("escape")
+                    end,
+                },
+
+                gui.Button{
+                    classes = {"sizeL"},
+                    halign = "right",
+                    text = "Continue",
+                    click = function(element)
+                        overlay:DestroySelf()
+                        confirm()
+                    end,
+                },
+            },
+        },
+    }
+
+    root:AddChild(overlay)
 end
 
 for key,bind in pairs(dmhub.GetBuiltinBindings()) do
@@ -226,9 +387,15 @@ Keybinds.Register{
 
 Keybinds.Register{
     command = "togglevisibility",
-    name = tr("Toggle Visibility of Tokens and Objects"),
+    name = tr("Toggle Invisibility of Tokens and Objects"),
     section = "editor",
     dmonly = true,
+}
+
+Keybinds.Register{
+    command = "toggleparallax",
+    name = tr("Toggle parallax"),
+    section = "camera",
 }
 
 Keybinds.Register{
@@ -367,9 +534,49 @@ Keybinds.Register{
 }
 
 Keybinds.Register{
+    command = "toggle gmbroadcastmouse",
+    name = tr("Toggle Broadcast Director Mouse Cursor"),
+    section = "system",
+}
+
+Keybinds.Register{
     command = "console",
     name = tr("Debug Console"),
     section = "system",
+}
+
+--Rows in each keybind section sort by "ord" (falling back to name). "Go Down a Floor"
+--would otherwise sort above "Go Up a Floor" alphabetically, so give them explicit ords to
+--list Up above Down.
+--Not dmonly: the director uses these to move the active floor, and a player uses the same
+--keybind to look up/down through the floors above their token (see FloorNavigation in
+--Floors.lua). The command itself branches on dmhub.isDM.
+Keybinds.Register{
+    command = "floorup",
+    name = tr("Go Up a Floor"),
+    ord = "Go 1",
+    section = "camera",
+}
+
+Keybinds.Register{
+    command = "floordown",
+    name = tr("Go Down a Floor"),
+    ord = "Go 2",
+    section = "camera",
+}
+
+Keybinds.Register{
+    command = "toggle vision:shared",
+    name = tr("Toggle Players Shared Vision"),
+    dmonly = true,
+    section = "gameplay",
+}
+
+Keybinds.Register{
+    command = "toggle autofloorvisibility",
+    name = tr("Toggle Auto-hide Floors"),
+    dmonly = true,
+    section = "camera",
 }
 
 
@@ -377,8 +584,9 @@ local g_KeybindStyles = {
     {
         selectors = {"sectionPanel"},
         flow = "vertical",
-        width = "100%",
+        width = "100%-6",
         height = "auto",
+        halign = "left",
     },
     {
         selectors = {"sectionDivider"},
@@ -391,26 +599,17 @@ local g_KeybindStyles = {
         flow = "horizontal",
         width = "100%",
         height = 40,
-        bgimage = "panels/square.png",
+        bgimage = true,
         bgcolor = "clear",
         border = {x1 = 0, x2 = 0, y1 = 0, y2 = 1},
-        borderColor = "#ffffff77"
-    },
-    {
-        selectors = {"sectionTitle"},
-        width = "auto",
-        height = "auto",
-        fontSize = 32,
-        halign = "left",
-        hmargin = 6,
-        color = Styles.textColor,
+        borderColor = "@border",
     },
     {
         selectors = {"bindLabel"},
         width = 400,
         height = "100%",
         fontSize = 18,
-        color = Styles.textColor,
+        color = "@fg",
         halign = "left",
         valign = "center",
         hmargin = 6,
@@ -418,27 +617,29 @@ local g_KeybindStyles = {
     },
     {
         selectors = {"shortcutLabel"},
-        bgimage = "panels/square.png",
-        bgcolor = "#ffffff22",
+        bgimage = true,
+        bgcolor = "@bgAlt",
+        color = "@fg",
         width = "100%-412",
         height = "100%",
         fontSize = 18,
         textAlignment = "center",
-        color = Styles.textColor,
+        border = {x1 = 0, x2 = 0, y1 = 0, y2 = 1},
+        borderColor = "@border",
     },
     {
         selectors = {"shortcutLabel", "hover"},
-        bgcolor = "#ffffff44",
+        brightness = 1.5,
         transitionTime = 0.1,
     },
     {
         selectors = {"shortcutLabel", "press"},
-        bgcolor = "#ffffff77",
+        brightness = 0.7,
         transitionTime = 0.1,
     },
     {
         selectors = {"shortcutLabel", "active"},
-        bgcolor = "#aaaaff99",
+        bgcolor = "@fgPending",
         transitionTime = 0.1,
     },
 }
@@ -476,7 +677,7 @@ CreateKeybindsSettingsPanel = function()
                                     create = function() return gui.Panel{
                                         width = "auto",
                                         height = "auto",
-                                        styles = g_KeybindStyles,
+                                        styles = ThemeEngine.MergeTokens(g_KeybindStyles),
                                         children = {createfn()},
                                     } end,
                                     shown = string.find(string.lower(bind.name), string.lower(text)),
@@ -495,16 +696,31 @@ CreateKeybindsSettingsPanel = function()
                                     if element:HasClass("active") then
                                         local keystroke = dmhub.DetectBindableKeystroke()
                                         if keystroke ~= nil then
-                                            print("Bindable:: Got", keystroke)
-                                            --local current = Keybinds.GetCurrentBinding(keystroke)
+                                            local conflict = Keybinds.FindConflictingBind(binds, keystroke, bind.command)
 
-                                            local previousKeystroke = dmhub.GetCommandBinding(bind.command)
-                                            if previousKeystroke ~= nil then
-                                                dmhub.SetCommandBinding(previousKeystroke, nil)
+                                            --stop listening for keys either way, so the row is not
+                                            --still capturing while the prompt is up. The row keeps
+                                            --showing its old binding until the rebind is confirmed.
+                                            local root = element.root
+                                            root:FireEventTree("clearKeybinds")
+
+                                            if conflict ~= nil then
+                                                Keybinds.ShowRebindConflictDialog{
+                                                    element = element,
+                                                    keystroke = keystroke,
+                                                    conflictName = conflict.name or conflict.command,
+                                                    confirm = function()
+                                                        Keybinds.SetBinding(bind.command, keystroke)
+                                                        if root.valid then
+                                                            root:FireEventTree("clearKeybinds")
+                                                        end
+                                                    end,
+                                                }
+                                                return
                                             end
 
-                                            dmhub.SetCommandBinding(keystroke, bind.command)
-                                            element.root:FireEventTree("clearKeybinds")
+                                            Keybinds.SetBinding(bind.command, keystroke)
+                                            root:FireEventTree("clearKeybinds")
                                             return
                                         end
                                         element:ScheduleEvent("process", 0.01)
@@ -525,17 +741,12 @@ CreateKeybindsSettingsPanel = function()
                                     element.text = "Press key..."
                                     element.captureEscape = true
                                     element.children = {
-                                        gui.DeleteItemButton{
-                                            width = 16,
-                                            height = 16,
+                                        gui.Button{
+                                            classes = {"deleteButton", "sizeS"},
                                             halign = "right",
                                             valign = "top",
                                             press = function(element)
-                                                local previousKeystroke = dmhub.GetCommandBinding(bind.command)
-                                                if previousKeystroke ~= nil then
-                                                    dmhub.SetCommandBinding(previousKeystroke, nil)
-                                                end
-
+                                                Keybinds.SetBinding(bind.command, nil)
                                                 element.root:FireEventTree("clearKeybinds")
                                             end,
                                         }
@@ -555,7 +766,11 @@ CreateKeybindsSettingsPanel = function()
         if #sectionChildren > 0 then
             table.sort(sectionChildren, function(a,b) return a.data.ord < b.data.ord end)
             table.insert(sectionChildren, 1, gui.Label{
-                classes = {"sectionTitle"},
+                classes = {"sizeL", "bold"},
+                width = "auto",
+                height = "auto",
+                fontSize = 24,
+                bmargin = 0,
                 text = section.name,
             })
 
@@ -573,13 +788,12 @@ CreateKeybindsSettingsPanel = function()
         end
     end
 
-    children[#children+1] = gui.PrettyButton{
+    children[#children+1] = gui.Button{
+        classes = {"sizeL"},
         halign = "right",
         valign = "bottom",
         margin = 8,
         width = 220,
-        height = 30,
-        fontSize = 22,
         text = "Reset to Defaults",
         click = function(element)
             dmhub.ResetKeybindings()
@@ -591,7 +805,7 @@ CreateKeybindsSettingsPanel = function()
         flow = "vertical",
         width = "100%",
         height = "auto",
-        styles = g_KeybindStyles,
+        styles = ThemeEngine.MergeTokens(g_KeybindStyles),
 
         children = children,
     }
@@ -603,24 +817,51 @@ end
 --@param args table: Configuration options for the popup.
 --@field args.command string: the command being bound.
 --@field args.name string: the name of the command being bound.
+--@field args.halign nil|string: which way the popup extends from its anchor
+--       panel (popup placement semantics, like gui.ContextMenu: "right"
+--       opens rightward of it). Default "center" -- centered on the
+--       anchor, which suits mid-screen hosts but overlaps hosts at a
+--       screen edge (the icon rail passes "right"/"left" instead).
+--@field args.valign nil|string: vertical counterpart. Default "center".
+--@field args.close nil|fun(): when provided, the dialog gets an explicit
+--       Close button that invokes it -- the host clearing its popup.
+--       Click-away dismissal works regardless; the button makes it
+--       discoverable.
 function Keybinds.ShowBindPopup(args)
     local resultPanel
 
+    local closeButton = nil
+    if args.close ~= nil then
+        closeButton = gui.Button{
+            classes = {"sizeL"},
+            --floating: the dialog's children place themselves with
+            --alignment rather than flow, and this must not disturb them.
+            floating = true,
+            halign = "right",
+            valign = "bottom",
+            margin = 12,
+            text = "Close",
+            click = function(element)
+                args.close()
+            end,
+        }
+    end
+
     resultPanel = gui.Panel{
-        styles = {Styles.Panel, g_KeybindStyles},
+        styles = {ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_KeybindStyles)},
         classes = {"framedPanel"},
         width = 600,
         height = 300,
-        halign = "center",
-        valign = "center",
+        halign = args.halign or "center",
+        valign = args.valign or "center",
+        constrainToScreen = true,
         destroy = args.destroy,
         gui.Label{
+            classes = {"sizeXl", "bold"},
             halign = "center",
             valign = "top",
             vmargin = 8,
-            fontSize = 24,
             minFontSize = 10,
-            bold = true,
             maxWidth = 500,
             width = "auto",
             height = "auto",
@@ -646,15 +887,31 @@ function Keybinds.ShowBindPopup(args)
                     if element:HasClass("active") then
                         local keystroke = dmhub.DetectBindableKeystroke()
                         if keystroke ~= nil then
-                            --local current = Keybinds.GetCurrentBinding(keystroke)
+                            local conflict = Keybinds.FindConflictingBind(Keybinds.GetBindings(), keystroke, args.command)
 
-                            local previousKeystroke = dmhub.GetCommandBinding(args.command)
-                            if previousKeystroke ~= nil then
-                                dmhub.SetCommandBinding(previousKeystroke, nil)
+                            --stop listening for keys either way, so the row is not still
+                            --capturing while the prompt is up. The row keeps showing its
+                            --old binding until the rebind is confirmed.
+                            local root = element.root
+                            root:FireEventTree("clearKeybinds")
+
+                            if conflict ~= nil then
+                                Keybinds.ShowRebindConflictDialog{
+                                    element = element,
+                                    keystroke = keystroke,
+                                    conflictName = conflict.name or conflict.command,
+                                    confirm = function()
+                                        Keybinds.SetBinding(args.command, keystroke)
+                                        if root.valid then
+                                            root:FireEventTree("clearKeybinds")
+                                        end
+                                    end,
+                                }
+                                return
                             end
 
-                            dmhub.SetCommandBinding(keystroke, args.command)
-                            element.root:FireEventTree("clearKeybinds")
+                            Keybinds.SetBinding(args.command, keystroke)
+                            root:FireEventTree("clearKeybinds")
                             return
                         end
                         element:ScheduleEvent("process", 0.01)
@@ -675,17 +932,12 @@ function Keybinds.ShowBindPopup(args)
                     element.text = "Press key..."
                     element.captureEscape = true
                     element.children = {
-                        gui.DeleteItemButton{
-                            width = 16,
-                            height = 16,
+                        gui.Button{
+                            classes = {"deleteButton", "sizeS"},
                             halign = "right",
                             valign = "top",
                             press = function(element)
-                                local previousKeystroke = dmhub.GetCommandBinding(args.command)
-                                if previousKeystroke ~= nil then
-                                    dmhub.SetCommandBinding(previousKeystroke, nil)
-                                end
-
+                                Keybinds.SetBinding(args.command, nil)
                                 element.root:FireEventTree("clearKeybinds")
                             end,
                         }
@@ -697,7 +949,7 @@ function Keybinds.ShowBindPopup(args)
             },
         },
 
-
+        closeButton,
     }
 
     return resultPanel

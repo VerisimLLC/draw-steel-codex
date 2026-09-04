@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 --- @class follower:monster
 --- @field availableRolls number Number of rolls this follower has available.
 --- @field followerType string Follower sub-type: "artisan", "sage", or "retainer".
@@ -22,9 +33,11 @@ Commands.RegisterMacro{
                         description = "Convert to follower",
                         execute = function()
                             local creature = token.properties
+                            local monsterRole = creature:try_get("role", "") or ""
+                            local isRetainer = monsterRole ~= "" and string.lower(monsterRole) ~= "none"
                             creature.__typeName = "follower"
-                            creature.role = creature.role or "follower"
-                            creature.followerType = cond(creature.retainer, "retainer", "artisan")
+                            creature.followerType = cond(isRetainer, "retainer", "artisan")
+                            creature.role = "follower"
                             creature.availableRolls = 0
                         end,
                     }
@@ -125,11 +138,13 @@ end
 ---@param followerid string
 function character:RemoveFollowerFromMentor(followerid)
     local token = dmhub.LookupToken(self)
+    local dti = self:GetDowntimeInfo()
     token:ModifyProperties{
         description = "Remove Follower",
         execute = function()
             local followers = self:EnsureFollowers()
             followers[followerid] = nil
+            dti:SetFollowerRolls(followerid, 0)
         end,
     }
 end
@@ -139,8 +154,10 @@ end
 ---@param mentorToken Token[]
 local SetFollowerPartyInfo = function(follower, followerInfo, mentorToken)
     follower.name = followerInfo.name
+    --Assign partyId before ownerId: the partyId setter forces ownerId to "PARTY",
+    --so ownerId must be written last to preserve a specific-player owner.
+    follower.partyId = mentorToken.partyId
     follower.ownerId = mentorToken.ownerId
-    follower.partyId = mentorToken.partyId        
 end
 
 ---@param followerInfo table[]
@@ -157,14 +174,23 @@ CreateFollowerMonster = function(followerInfo, followerType, mentorToken, option
         return
     end
 
+    --A follower normally appears next to its mentor. If the mentor has no token on
+    --the map we're looking at -- e.g. the sheet was opened from the party panel --
+    --there is nowhere to put it, so loc stays nil and the follower is created
+    --unplaced: it still joins the mentor's party, and the Director can drop it on a
+    --map later like any other character.
     local locs = mentorToken.properties:AdjacentLocations()
-    local loc = #locs and locs[1] or mentorToken.properties.locsOccupying[1]
+    local loc = locs[1] or mentorToken.locsOccupying[1]
     local newCharId
     local newFollower
 
     dmhub.Coroutine(function()
         if followerType == "premaderetainer" and (pregenid and pregenid ~= "none") then
-            newFollower = game.SpawnTokenFromBestiaryLocally(pregenid, loc, {fitLocatoin = true})
+            newFollower = game.SpawnTokenFromBestiaryLocally(pregenid, loc, {fitLocation = true})
+            if newFollower == nil then
+                --The retainer isn't in the bestiary any more, so there is nothing to create.
+                return
+            end
             newCharId = newFollower.charid
 
             SetFollowerPartyInfo(newFollower, followerInfo, mentorToken)
@@ -227,16 +253,32 @@ CreateFollowerMonster = function(followerInfo, followerType, mentorToken, option
                     --Set skills and languages for followers
                     newFollowerCreature.skillRatings = followerInfo.skills or {}
                     newFollowerCreature.innateLanguages = followerInfo.languages or {}
-                    
+
+                    track("character_create", {
+                        ancestry = ancestry and ancestry.name or "",
+                        class = followerType or "",
+                        kit = "",
+                        method = "follower",
+                        dailyLimit = 5,
+                    })
+
                     newFollower:UploadToken()
                     game.UpdateCharacterTokens()
-                    newFollower:ChangeLocation(core.Loc{x = loc.x, y = loc.y})
+                    if loc ~= nil then
+                        newFollower:ChangeLocation(core.Loc{x = loc.x, y = loc.y})
+                    end
                     break
                 end
                 coroutine.yield(0.1)
             end
         end
-        local newFollower = dmhub.GetTokenById(newCharId)
+        --Look the follower up by character id, not token id: a follower that wasn't
+        --placed has no token on the map, and GetTokenById only finds placed ones.
+        local newFollower = dmhub.GetCharacterById(newCharId)
+        if newFollower == nil then
+            return
+        end
+
         mentorToken.properties:AddFollowerToMentor(newFollower.id)
         
         if open ~= false then
@@ -397,62 +439,66 @@ function buildRetainerList()
     return retainerTypes, retainerLookup
 end
 
-local DialogStyles = {
-    gui.Style{
-        selectors = { "avatarPanel"},
-        borderColor = Styles.textColor,
-        borderWidth = 2,
-        width = 90,
-        height = 120,
-        halign = "left",
-        valign = "top",
-        bgcolor = "white",
-    },
-    gui.Style{
-        selectors = { "followerLabel"},
-        height = 25,
-        minWidth = 120,
-        valign = "center",
-        fontSize = 20,
-        bold = true,
-        fontFace = "Berling",
-    },
-    gui.Style{
-        selectors = { "followersListLabel"},
-        height = 20,
-        width = 180,
-        valign = "center",
-        fontSize = 16,
-        fontFace = "Berling",
-    },
-    gui.Style{
-        selectors = { "followerDropdown"},
-        width = 190,
-        valign = "top",
-        fontFace = "Berling",
-    },
-    gui.Style{
-        selectors = { "followerMultiselect" },
-        valign ="top",
-        fontFace = "Berling",
-    },
-    gui.Style{
-        selectors = { "followerNameLabel"},
-        width = "50%",
-        height = 25,
-        fontSize = 32,
-        bold = true,
-        color = Styles.textColor,
-        fontFace = "Berling",
-    },
-    gui.Style{
-        selectors = {"saveButton"},
-        fontSize = 22,
-        textAlignment = "center",
-        bold = true,
-        height = 35,
-    }
-}
+-- Follower editor dialog styles. Built fresh per call so @-token references
+-- resolve against the active scheme.
+local function BuildDialogStyles()
+    return ThemeEngine.MergeTokens({
+        {
+            selectors = { "avatarPanel" },
+            borderColor = "@fgStrong",
+            borderWidth = 2,
+            width = 90,
+            height = 120,
+            halign = "left",
+            valign = "top",
+            bgcolor = "white",
+        },
+        {
+            selectors = { "followerLabel" },
+            height = 25,
+            minWidth = 120,
+            valign = "center",
+            fontSize = 20,
+            bold = true,
+            fontFace = "Berling",
+        },
+        {
+            selectors = { "followersListLabel" },
+            height = 20,
+            width = 180,
+            valign = "center",
+            fontSize = 16,
+            fontFace = "Berling",
+        },
+        {
+            selectors = { "followerDropdown" },
+            width = 190,
+            valign = "top",
+            fontFace = "Berling",
+        },
+        {
+            selectors = { "followerMultiselect" },
+            valign = "top",
+            fontFace = "Berling",
+        },
+        {
+            selectors = { "followerNameLabel" },
+            width = "50%",
+            height = 25,
+            fontSize = 32,
+            bold = true,
+            color = "@fgStrong",
+            fontFace = "Berling",
+        },
+        {
+            selectors = { "saveButton" },
+            fontSize = 22,
+            textAlignment = "center",
+            bold = true,
+            height = 35,
+        },
+    })
+end
 
 function CreateFollowerEditorDialog(follower, options)
     local types = {
@@ -749,7 +795,8 @@ function CreateFollowerEditorDialog(follower, options)
         height = "auto",
         children = {
             namePanel,
-            gui.CloseButton {
+            gui.Button{
+                classes = {"closeButton"},
                 halign = "right",
                 valign = "top",
                 press = function()
@@ -760,7 +807,7 @@ function CreateFollowerEditorDialog(follower, options)
     }
 
     editorPanel = gui.Panel {
-        styles = DialogStyles,
+        styles = BuildDialogStyles(),
         classes = {"editorPanel"},
 
         halign = "center",
@@ -774,7 +821,7 @@ function CreateFollowerEditorDialog(follower, options)
         children = {
             gui.Panel {
                 classes = {"framedPanel"},
-                styles = { Styles.Default, Styles.Panel },
+                styles = ThemeEngine.GetStyles(),
                 halign = "center",
                 width = "100%",
                 height = "100%",

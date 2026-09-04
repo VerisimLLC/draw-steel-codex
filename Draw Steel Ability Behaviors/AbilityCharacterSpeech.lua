@@ -34,27 +34,23 @@ function ActivatedAbilityCharacterSpeechBehavior:Cast(ability, casterToken, targ
             self._tmp_shuffle[#self._tmp_shuffle] = nil
 
             local language = tok.properties:CurrentlySpokenLanguage()
-
-            if language ~= nil then
-                tok:ModifyProperties{
-                    description = "Speech",
-                    undoable = false,
-                    execute = function()
-                        tok.properties:CharacterSpeech{
-                            text = text,
-                            langid = language, 
-                        }
-                    end,
-                }
-            elseif self:has_key("fallbackText") then
-                tok:ModifyProperties{
-                    description = "Float text",
-                    undoable = false,
-                    execute = function()
-                        tok.properties:FloatLabel(self.fallbackText, "white")
-                    end,
-                }
+            if language == nil then
+                local fallback = self:try_get("fallbackText")
+                if fallback == nil or fallback == "" then
+                    fallback = "..."
+                end
+                text = fallback
             end
+            tok:ModifyProperties{
+                description = "Speech",
+                undoable = false,
+                execute = function()
+                    tok.properties:CharacterSpeech{
+                        text   = text,
+                        langid = language,
+                    }
+                end,
+            }
         end
     end
 end
@@ -90,9 +86,8 @@ function ActivatedAbilityCharacterSpeechBehavior:EditorItems(parentPanel)
                     end,
                 },
 
-                gui.DeleteItemButton{
-                    width = 12,
-                    height = 12,
+                gui.Button{
+                    classes = {"deleteButton", "sizeXs"},
                     press = function()
                         table.remove(self.variations, i)
                         Refresh()

@@ -5,6 +5,7 @@ local mod = dmhub.GetModLoading()
 
 DataTables.tbl_Gear = {}
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSInventoryEditor.lua:8
 function DataTables.tbl_Gear.ReadSQL(row)
 	local type = row.Get("type")
 
@@ -81,7 +82,9 @@ function DataTables.tbl_Gear.ReadSQL(row)
 		}
 	end
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSInventoryEditor.lua:85
 function DataTables.tbl_Gear.WriteSQL(obj)
 	local category = rawget(obj, "category")
 	if category == nil then
@@ -118,7 +121,9 @@ function DataTables.tbl_Gear.WriteSQL(obj)
 		ModifierLimit = rawget(obj, "dexterityLimit"),
 	}
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSInventoryEditor.lua:122
 function DataTables.tbl_Gear.CreateNew()
 	return weapon.new{
 		name = 'New Item',
@@ -133,7 +138,9 @@ function DataTables.tbl_Gear.CreateNew()
 		damageType = 'slashing',
 	}
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSInventoryEditor.lua:137
 function DataTables.tbl_Gear.Input(document, text, attr, options)
 	local x = 0
 	local y = 0
@@ -183,7 +190,9 @@ function DataTables.tbl_Gear.Input(document, text, attr, options)
 		},
 	})
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSInventoryEditor.lua:187
 function DataTables.tbl_Gear.Dropdown(document, text, attr, options, unused, onchange)
 
 	if onchange == nil then
@@ -222,6 +231,7 @@ function DataTables.tbl_Gear.Dropdown(document, text, attr, options, unused, onc
 		}
 	})
 end
+--]==]
 
 function DataTables.tbl_Gear.GetAvailableProperties(document)
 
@@ -237,6 +247,7 @@ function DataTables.tbl_Gear.GetAvailableProperties(document)
 	return options
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSInventoryEditor.lua:238
 function DataTables.tbl_Gear.DescribeProperties(document)
 	local properties = DataTables.tbl_Gear.GetAvailableProperties(document)
 	local result = {}
@@ -246,10 +257,13 @@ function DataTables.tbl_Gear.DescribeProperties(document)
 
 	return result
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSInventoryEditor.lua:248
 function DataTables.tbl_Gear.DeleteProperty(document, propid)
 	document[propid] = nil
 end
+--]==]
 
 local SetEquipmentType = function(document, typeStr)
 
@@ -1020,7 +1034,8 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 								end,
 							},
 
-							gui.DeleteItemButton{
+							gui.Button{
+								classes = {"deleteButton"},
 								press = function(element)
 									table.remove(document.packItems, i)
 									Refresh()
@@ -1545,9 +1560,8 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 					['collapsed'] = (document.type ~= 'Gear' or document:try_get('consumable') == nil),
 				},
 
-				child = gui.PrettyButton{
-					width = 240,
-					height = 60,
+				child = gui.Button{
+					classes = {"sizeL"},
 					text = "Consumable Ability",
 					click = function(element)
 						element.root:AddChild(document.consumable:ShowEditActivatedAbilityDialog())
@@ -2010,7 +2024,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 									},
 
 									gui.Panel{
-										bgimage = 'ui-icons/close.png',
+										bgimage = 'phosphor/x-bold.png',
 										styles = {
 											{
 												halign = 'center',
@@ -2252,13 +2266,11 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 				end,
 			},
 
-			gui.PrettyButton{
+			gui.Button{
+				classes = {"sizeM", cond((not document:try_get("displayOnToken", true)) or ((not document:CanWield()) and (not document:try_get("equipOnBelt", false))), "collapsed")},
 				width = 160,
 				height = 50,
 				text = "Edit Object",
-				classes = {
-					['collapsed'] = (not document:try_get("displayOnToken", true)) or ((not document:CanWield()) and (not document:try_get("equipOnBelt", false)))
-				},
 				refresh = function(element)
 					element:SetClass("collapsed", (not document:try_get("displayOnToken", true)) or ((not document:CanWield()) and (not document:try_get("equipOnBelt", false))))
 				end,
@@ -2476,6 +2488,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 	return resultPanel
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSInventoryEditor.lua:2137
 function DataTables.tbl_Gear.GenerateForm(dialog, document)
 
 	local description = 'Create Item'
@@ -2485,3 +2498,4 @@ function DataTables.tbl_Gear.GenerateForm(dialog, document)
 	end
 	dialog.sheet = DataTables.tbl_Gear.GenerateEditor(document, { description = description })
 end
+--]==]

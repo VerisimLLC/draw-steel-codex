@@ -9,10 +9,10 @@ local mod = dmhub.GetModLoading()
 --- @field override_hitpoints_note string Note explaining the hitpoints override.
 --- @field skillProficiencies table<string, boolean|string> Map of skill id to proficiency level (true, false, or a proficiency key string).
 --- @field savingThrowProficiencies table<string, boolean|string> Map of saving throw id to proficiency level.
---- @field inventory table<string, {quantity: number}> Map of item id to quantity info.
+--- @field inventory table<string, {quantity: number, slots: nil|{slot: number, quantity: nil|number}[], price: nil|number}> Map of item id to quantity info (optional slots/price for equipped or priced items).
 --- @field equipment table<string, string> Map of equipment slot id to item id.
 --- @field classes {classid: string, level: number}[] List of class assignments with levels.
---- @field levelChoices table<string, string> Map of choice guid to the player's selected option for that choice.
+--- @field levelChoices table<string, string|string[]|table> Map of choice guid to the player's selected option. Values may be a single string (simple choice), an array of strings (multi-select), or a nested table (e.g. kitBonusChoices).
 --- @field characterFeatures CharacterFeature[] Custom features added directly to this character.
 --- @field darkvision nil|number Darkvision range override in feet, or nil to derive from ancestry.
 --- @field extraLevelInfo table Additional level-specific data keyed by class feature id.
@@ -545,6 +545,7 @@ function character.ToggleSavingThrowProficiency(self, attr)
 	self.savingThrowProficiencies[attr] = newValue
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2713
 function character:BaseHitpoints()
 	if self.override_hitpoints then
 		return self.max_hitpoints
@@ -587,6 +588,7 @@ function character:BaseHitpoints()
 
 	return result
 end
+--]==]
 
 --Called from DMHub to allow initialization of a token
 function CreateToken(token)
@@ -608,7 +610,7 @@ function character:GetDarkvision()
 		darkvision = override
 	end
 
-	darkvision = self:CalculateAttribute("darkvision", darkvision)
+	darkvision = self:CalculateAttribute("darkvision", darkvision) or 0
 	if darkvision <= 0 then
 		return nil
 	end
@@ -687,6 +689,7 @@ end
 --- Returns all CharacterFeature objects active on this character from all sources.
 --- @param options nil|table
 --- @return CharacterFeature[]
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCustomRules.lua:33
 function character:GetClassFeatures(options)
 	options = options or {}
 	local result = {}
@@ -732,9 +735,11 @@ function character:GetClassFeatures(options)
 
 	return result
 end
+--]==]
 
 
 --returns a list of { class/race/background/characterType = Class/Race/Background, levels = {list of ints}, feature = CharacterFeature or CharacterChoice }
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCustomRules.lua:131
 function character:GetClassFeaturesAndChoicesWithDetails()
 	local result = {}
 
@@ -772,6 +777,7 @@ function character:GetClassFeaturesAndChoicesWithDetails()
 
 	return result
 end
+--]==]
 
 --- Returns all features on this character (custom + class features).
 --- @return CharacterFeature[]
@@ -825,12 +831,14 @@ end
 
 --- Returns true if the character is dead.
 --- @return boolean
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMCreature.lua:2036
 function character:IsDead()
     if self:IsHero() then
         return self:CurrentHitpoints() <= -self:BloodiedThreshold()
     end
 	return self:CurrentHitpoints() <= 0
 end
+--]==]
 
 function creature:IsStable()
 	return self:CurrentHitpoints() <= 0 and self:GetNumDeathSavingThrowSuccesses() >= 3
@@ -925,6 +933,17 @@ character.lookupSymbols = {
 
 	never = function(c)
 		return 0
+	end,
+
+	--characters have no monster_type, so the base creature 'name' symbol is blank.
+	--prefer the token's display name (e.g. "Mighty Oak") when one is set, otherwise
+	--fall back to the base creature behavior.
+	name = function(c)
+		local token = dmhub.LookupToken(c)
+		if token ~= nil and token.name ~= nil and token.name ~= '' then
+			return token.name
+		end
+		return creature.lookupSymbols.name(c)
 	end,
 
 	level = function(c)

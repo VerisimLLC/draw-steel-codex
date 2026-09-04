@@ -5,6 +5,7 @@ local mod = dmhub.GetModLoading()
 --- @field dropsLoot boolean If true, the removed creature drops its loot.
 --- @field leavesCorpse boolean If true, a corpse object is left behind.
 --- @field waitForAbilitiesToFinish boolean If true, waits for other ability animations to complete before removing.
+--- @field waitForTriggers boolean If true, waits for any pending triggered abilities on the target (both UI trigger prompts and executing trigger-ability coroutines) to finish before removing.
 ActivatedAbilityRemoveCreatureBehavior = RegisterGameType("ActivatedAbilityRemoveCreatureBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
@@ -21,6 +22,7 @@ ActivatedAbilityRemoveCreatureBehavior.summary = 'Remove Creatures'
 ActivatedAbilityRemoveCreatureBehavior.dropsLoot = false
 ActivatedAbilityRemoveCreatureBehavior.leavesCorpse = false
 ActivatedAbilityRemoveCreatureBehavior.waitForAbilitiesToFinish = true
+ActivatedAbilityRemoveCreatureBehavior.waitForTriggers = false
 
 function ActivatedAbilityRemoveCreatureBehavior:SummarizeBehavior(ability, creatureLookup)
 	return "Remove Creatures"
@@ -220,33 +222,110 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
     local charids = {}
     for i,target in ipairs(targets) do
 
-        local targetPasses = true
-        if self.waitForAbilitiesToFinish and (not target.token.properties.minion) then
+        --A target can be destroyed/despawned before we get here (e.g. by an earlier
+        --target in this same loop, or another concurrent cast): the token reference
+        --survives but .valid is false and .properties is nil. Require live properties
+        --before dereferencing them below -- same guard this function already applies
+        --after the wait loop (see the .valid / .properties check further down).
+        local targetPasses = target.token ~= nil and target.token.valid and target.token.properties ~= nil
+        if targetPasses and self.waitForAbilitiesToFinish then
+            --Minions deliberately do NOT wait on unrelated casts: their death is
+            --confirmed by clicking the skull, usually while the killing cast is
+            --still resolving, and making the corpse wait for that would feel
+            --broken. They must still not vanish while they are themselves the
+            --CASTER of a live cast, though: abilities that invoke off the struck
+            --target run with the target as caster (e.g. the Censor's "Your Allies
+            --Cannot Save You!", where each enemy adjacent to the minion is pushed
+            --away FROM the minion). Despawning mid-prompt strands that cast --
+            --ActivatedAbilityDrawSteelCommandBehavior:Cast breaks out of its
+            --"prompt for the next target" loop as soon as it sees a gone caster,
+            --so the remaining pushes are silently dropped. Same 120s backstop as
+            --the general wait below so a stuck cast can't park the corpse forever.
+            local minion = target.token.properties.minion
             local castInfo = ActivatedAbility.CurrentCastInfo() or {}
             castInfo.activity = "reaping"
 
             local startTime = dmhub.Time()
-            while startTime < dmhub.Time() + 120 and ActivatedAbility.CountActiveCasts{reaping = true} > 0 do
-                coroutine.yield(0.1)
-            end
 
-            if dmhub.Time() > startTime + 0.5 then
-                --wait a little longer just to clear up any forced moves/etc
-                coroutine.yield(0.5)
+            if minion then
+                while dmhub.Time() < startTime + 120
+                    and target.token.valid and target.token.properties ~= nil
+                    and ActivatedAbility.TokenHasOtherActiveCasts(target.token) do
+                    coroutine.yield(0.1)
+                end
+            else
+                while dmhub.Time() < startTime + 120 and ActivatedAbility.CountActiveCasts{reaping = true} > 0 do
+                    coroutine.yield(0.1)
+                end
+
+                if dmhub.Time() > startTime + 0.5 then
+                    --wait a little longer just to clear up any forced moves/etc
+                    coroutine.yield(0.5)
+                end
             end
 
             castInfo.activity = nil
 
-            --make sure we still pass the filter.
-            local filterTarget = trim(self.filterTarget)
-            if filterTarget ~= "" then
-                local symbols = table.shallow_copy(options.symbols or {})
-                symbols.target = target.token.properties
-                symbols.caster = casterToken.properties
-                symbols.targetnumber = i
-                symbols.numberoftargets = #targets
+            --guard against token being destroyed/despawned during the coroutine yield.
+            if not target.token.valid or target.token.properties == nil then
+                targetPasses = false
+            end
 
-                targetPasses = GoblinScriptTrue(ExecuteGoblinScript(filterTarget, target.token.properties:LookupSymbol(symbols), 1, "Filter remove creature"))
+            --make sure we still pass the filter.
+            if targetPasses then
+                local filterTarget = trim(self.filterTarget)
+                if filterTarget ~= "" then
+                    local symbols = table.shallow_copy(options.symbols or {})
+                    symbols.target = target.token.properties
+                    symbols.caster = casterToken.properties
+                    symbols.targetnumber = i
+                    symbols.numberoftargets = #targets
+
+                    targetPasses = GoblinScriptTrue(ExecuteGoblinScript(filterTarget, target.token.properties:LookupSymbol(symbols), 1, "Filter remove creature"))
+                end
+            end
+        end
+
+        --Wait for any pending triggered abilities on the target to finish
+        --Signals:
+        --  hasPrompt = target has entries in availableTriggers (UI prompt
+        --              queue for non-mandatory TriggeredAbilities).
+        --  hasCast   = target has a CastCoroutine running (ability is
+        --              actively executing on/by the target).
+        if targetPasses and self.waitForTriggers and target.token.valid and target.token.properties ~= nil then
+            local idleRequired = 0.3
+            local waitStart = dmhub.Time()
+            local waitDeadline = waitStart + 45
+            local idleSince = nil
+            while dmhub.Time() < waitDeadline do
+                if not target.token.valid or target.token.properties == nil then
+                    break
+                end
+                --Hostile prompts (e.g. pending Bleeding damage) never age out,
+                --so they must not hold the removal open; only ordinary prompts
+                --(which resolve within the trigger window) are waited on.
+                local hasPrompt = false
+                for _,pendingTrigger in pairs(target.token.properties:GetAvailableTriggers() or {}) do
+                    if not pendingTrigger.hostile then
+                        hasPrompt = true
+                        break
+                    end
+                end
+                local hasCast = ActivatedAbility.TokenHasOtherActiveCasts(target.token)
+                if (not hasPrompt) and (not hasCast) then
+                    idleSince = idleSince or dmhub.Time()
+                    if dmhub.Time() - idleSince >= idleRequired then
+                        break
+                    end
+                else
+                    idleSince = nil
+                end
+                coroutine.yield(0.1)
+            end
+
+            --re-validate after the wait.
+            if not target.token.valid or target.token.properties == nil then
+                targetPasses = false
             end
         end
 
@@ -267,7 +346,22 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
             if target.token.properties:IsMonster() then
                 target.token.despawned = true
             else
-                charids[#charids+1] = target.token.charid
+                --Never hard-delete a player's hero: game.DeleteCharacters
+                --bypasses the engine's despawn-instead-of-delete guard for
+                --owned characters (GameLua passes deletePlayerChars=true), so
+                --a hero fed through it loses its character record entirely. A
+                --hero can end up targeted here via cast target-list bugs
+                --(report H5EEEYHX: cancelling Explosive Parade's summon step
+                --left the self-targeted caster in the list). Owned,
+                --non-summoned heroes despawn instead, mirroring the engine
+                --guard; summons (summonerid set) still delete as before.
+                local ownerId = target.token.ownerId or ""
+                local summonerid = target.token.summonerid or ""
+                if ownerId ~= "" and summonerid == "" then
+                    target.token.despawned = true
+                else
+                    charids[#charids+1] = target.token.charid
+                end
             end
         end
 
@@ -305,8 +399,16 @@ function ActivatedAbilityRemoveCreatureBehavior:EditorItems(parentPanel)
     result[#result+1] = gui.Check{
         text = "Wait for Abilities to Finish",
         value = self.waitForAbilitiesToFinish,
-        change = function(element) 
+        change = function(element)
             self.waitForAbilitiesToFinish = element.value
+        end,
+    }
+
+    result[#result+1] = gui.Check{
+        text = "Wait for Triggers",
+        value = self.waitForTriggers,
+        change = function(element)
+            self.waitForTriggers = element.value
         end,
     }
 
@@ -318,17 +420,88 @@ CorpseComponent = RegisterGameType("CorpseComponent")
 
 CorpseComponent.charid = "none"
 
+-- Diagnostic logger used by both the kill (LeaveCorpse path) and the revive
+-- (Respawn). Tagged "[CORPSE_REVIVE]" so it's easy to grep out of the logs
+-- on either client. Snapshots the fields that matter for the desync where
+-- some monsters (Essence of Change, an Elite Mount) revive locally on the
+-- DM but never re-appear on player clients despite the corpse-delete arriving.
+local function _dumpCorpseTokenState(tag, charid, token)
+    if token == nil then
+        print(string.format("[CORPSE_REVIVE] %s charid=%s token=NIL", tostring(tag), tostring(charid)))
+        return
+    end
+    local props = token.properties
+    local mtype = props and props:try_get("monster_type") or "(non-monster)"
+    local locInfo = token.locInfo
+    local mountedOn = locInfo and locInfo.mountedOn or ""
+    local mountedOnObject = locInfo and locInfo.mountedOnObject or ""
+    local mapid = locInfo and locInfo.mapid or "(nil)"
+    local mountedByCount = 0
+    if token.mountedBy ~= nil then
+        for _ in pairs(token.mountedBy) do mountedByCount = mountedByCount + 1 end
+    end
+    local x, y, fi = "?", "?", "?"
+    if token.loc ~= nil then x = token.loc.x; y = token.loc.y; fi = token.loc.floorIndex end
+    print(string.format(
+        "[CORPSE_REVIVE] %s charid=%s name=%s monster=%s despawned=%s inactive=%s mapid=%s loc=%s,%s,%s mountedOn=%s mountedOnObject=%s mountedByCount=%d valid=%s",
+        tostring(tag), tostring(charid), tostring(token.name), tostring(mtype),
+        tostring(token.despawned), tostring(token.invisibleToPlayers), tostring(mapid),
+        tostring(x), tostring(y), tostring(fi),
+        tostring(mountedOn), tostring(mountedOnObject), mountedByCount,
+        tostring(token.valid)))
+end
+
 function CorpseComponent:Respawn(obj)
+    print(string.format("[CORPSE_REVIVE] Respawn invoked: corpseObjid=%s storedCharid=%s",
+        tostring(obj and obj.id), tostring(self.charid)))
     local token = dmhub.GetCharacterById(self.charid)
+    _dumpCorpseTokenState("BEFORE", self.charid, token)
     if token ~= nil then
+        -- Order matters here. We must clear `despawned` BEFORE any
+        -- ChangeLocation, not after.
+        --
+        -- ChangeLocation routes through GameController.SummonTokens, which
+        -- (a) locally sets charInfo.locInfo.despawned = false on the
+        -- caller and (b) ships a single PATCH of the entire locInfo
+        -- object. LocationInfo.despawned is tagged
+        -- [NoSerializeValue(false)], so the serialized patch OMITS the
+        -- field, and PatchObject's class-merge path on the receiver
+        -- preserves the receiver's existing `despawned = true` (set at
+        -- kill time). Worse, by the time we then try to set
+        -- `token.despawned = false` here, the setter sees the local copy
+        -- already false (mutated by SummonTokens) and short-circuits the
+        -- upload entirely -- so the despawn=false PUT is never sent and
+        -- player clients leave the token hidden.
+        --
+        -- Writing despawned=false first guarantees the leaf PUT to
+        -- /locInfo/despawned goes through (the setter's diff check sees a
+        -- real change), and the subsequent SummonTokens PATCH lands on a
+        -- receiver whose `despawned` is already false -- the merge then
+        -- correctly preserves it.
+        --
+        -- Affects size>=2 tokens (mounts): for size 1 the corpse position
+        -- equals token.loc and ChangeLocation is skipped, so the explicit
+        -- setter call has always carried the despawn=false write. Mounts
+        -- like the Essence of Change tripped this because the corpse is
+        -- at the visual centre (token.pos), not the anchor (token.loc).
+        print("[CORPSE_REVIVE] writing token.despawned = false (pre-move)")
+        token.despawned = false
+
         if obj ~= nil then
             local x = round(obj.x)
             local y = round(obj.y)
             if token.loc.x ~= x or token.loc.y ~= y then
+                print(string.format("[CORPSE_REVIVE] ChangeLocation -> %d,%d floor %d (was %s,%s,%s)",
+                    x, y, obj.floorIndex,
+                    tostring(token.loc.x), tostring(token.loc.y), tostring(token.loc.floorIndex)))
                 token:ChangeLocation(core.Loc{x = x, y = y, floorIndex = obj.floorIndex}:WithGroundLevelAltitude())
+            else
+                print("[CORPSE_REVIVE] ChangeLocation skipped (same x,y)")
             end
         end
-        token.despawned = false
+        _dumpCorpseTokenState("AFTER", self.charid, token)
+    else
+        print("[CORPSE_REVIVE] WARNING: no token resolved for corpse charid -- nothing to revive")
     end
 end
 

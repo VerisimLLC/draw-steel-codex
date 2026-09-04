@@ -193,9 +193,9 @@ function Spell:Render(options)
 
 			gui.Panel{
 				halign = "right",
-				bgimage = self.iconid,
+				bgimage = self:GetIcon(),
 				classes = "icon",
-				selfStyle = self.display,
+				selfStyle = self:GetIconDisplay(),
 				loadingImage = function(element)
 					element:AddChild(gui.LoadingIndicator{})
 				end,
@@ -288,8 +288,8 @@ local CreateSpellPanel = function(dmhud, options)
 		refreshSpell = function(element, s)
 			spell = s
 			iconPanel:SetClass('hidden', false)
-			iconPanel.bgimage = spell.iconid
-			iconPanel.selfStyle = spell.display
+			iconPanel.bgimage = spell:GetIcon()
+			iconPanel.selfStyle = spell:GetIconDisplay()
 		end,
 
 		clearSpell = function(element)
@@ -1540,8 +1540,6 @@ function Spell.CompendiumEditor()
 				textAlignment = "left",
 				hmargin = 4,
 			},
-
-			Styles.ImplementationIcon,
 		},
 	}
 
@@ -1959,8 +1957,8 @@ local CreateSpellRow = function(options)
 			classes = {"spellIcon", "icon"},
 			halign = "left",
 			refreshSpell = function(element)
-				element.bgimage = m_spell.iconid
-				element.selfStyle = m_spell.display
+				element.bgimage = m_spell:GetIcon()
+				element.selfStyle = m_spell:GetIconDisplay()
 			end,
 		},
 
@@ -3048,8 +3046,8 @@ local CreateCharSheetSpells = function()
 		halign = "center",
 		flow = "horizontal",
 
-		gui.PagingArrow{
-			facing = -1,
+		gui.Button{
+			classes = {"pagingArrow"},
 			click = function(element)
 				m_page = max(1, m_page-1)
 				RenderSpellList()
@@ -3058,8 +3056,8 @@ local CreateCharSheetSpells = function()
 
 		pageLabel,
 
-		gui.PagingArrow{
-			facing = 1,
+		gui.Button{
+			classes = {"pagingArrow", "right"},
 			click = function(element)
 				m_page = min(NumPages(), m_page+1)
 				RenderSpellList()
@@ -3309,7 +3307,6 @@ local CreateCharSheetSpells = function()
 		flow = "vertical",
 		styles = {
 			SpellStyles,
-			Styles.ImplementationIcon,
 		},
 
 		tabsPanel,

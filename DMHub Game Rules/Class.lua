@@ -1146,15 +1146,18 @@ function CharacterFeatureList:NumChoices(creature)
 	return 0
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMPrerequisite.lua:159
 function CharacterFeatureList:FillChoice(choices, result)
 	for i,feature in ipairs(self.features) do
 		feature:FillChoice(choices, result)
 	end
 end
+--]==]
 
 function CharacterFeatureList:FillFeats(choices, result)
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMPrerequisite.lua:178
 function CharacterFeatureList:FillFeaturesRecursive(choices, result)
 	result[#result+1] = self
 
@@ -1162,6 +1165,7 @@ function CharacterFeatureList:FillFeaturesRecursive(choices, result)
 		feature:FillFeaturesRecursive(choices, result)
 	end
 end
+--]==]
 
 function CharacterFeatureList:VisitRecursive(fn)
 	fn(self)

@@ -16,7 +16,7 @@ local mod = dmhub.GetModLoading()
 ```
 This gives access to the current module interface. The `mod` object is used to track module lifecycle (e.g., `mod.unloaded`).
 
-**IMPORTANT: Do not create new Lua files.** Lua files are registered through the DMHub module system and will not auto-load just by being placed on disk. Adding a `require` in `main.lua` for a file that hasn't been registered will cause a load failure. If new code is needed, add it to an existing file in the appropriate module. If a new file is truly necessary, ask the user to create and register it through the DMHub module system.
+**IMPORTANT: New top-level Lua files must be registered through the DMHub MCP CodeMod workflow.** A file placed on disk is not part of its CodeMod, and manually adding a `require` to `main.lua` is not a substitute for registration. While DMHub is running, call `mcp__dmhub__register_lua_file` with a path of the form `<mod directory>/<file>.lua` (and optional `before` or `after` ordering), then confirm that Firebase persistence succeeded. Prefer registering the safe baseline before substantive edits; the tool preserves an existing local file if work has already begun. Do not hand-edit `main.lua` to register a new file. If the MCP bridge is unavailable, stop and ask the user rather than falling back to a manual `require`.
 
 ## Repository Structure
 
@@ -39,6 +39,10 @@ Each top-level directory is a "mod" (module) loaded by DMHub. Key layers:
 | `DMHub Compendium/` | Compendium browser and editors for game content. |
 | `DMHub CharacterSheet Base/` | Base character sheet framework. |
 | `DocumentSystem/` | Rich document/journal system with Markdown, images, embedded dice rolls, etc. |
+
+## Crows
+
+**Crows** is a separate MCDM playtest game (not Draw Steel) implemented as the `Crowdex/` module, layered on top of the Draw Steel codex by wrapping/overriding its types and functions. **All Crows-specific Lua changes must be made in `Crowdex/`** -- keep shared Draw Steel files generic, adding only minimal generic hooks there when an override point is genuinely needed. The Crows rules and documentation are the official MCDM playtest booklets in `Crowdex/` as `.md` files (e.g. `01 MCDM Crows The Rules Booklet...`, `02 ...Characters...`, `03 ...Monsters...`); content imported into the compendium lives in `compendium/import/crows-*.yaml`.
 
 ## Core Architecture Patterns
 
@@ -134,7 +138,9 @@ mod:RegisterDocumentForCheckpointBackups("myDocId")
 ### UI (gui panels)
 UI is built with `gui.Panel(args)`, `gui.Label(args)`, `gui.Input(args)`, etc. Panels are declarative tables with style properties and event callbacks (`click`, `change`, `create`, `think`, `refreshGame`). Panels that need to react to data changes use `monitorstate` or `monitor` fields.
 
-See **[UI_BEST_PRACTICES.md](UI_BEST_PRACTICES.md)** for detailed guidelines on building UI (rendering, performance, events, styling, layout, etc.).
+**Important:** When using padding (`hpad`, `vpad`, `pad`), always set `borderBox = true` so that padding is included in the declared width/height rather than added on top. This prevents overflow and matches CSS border-box behavior. See the Spacing section in UI_BEST_PRACTICES.md for details.
+
+See **[UI_BEST_PRACTICES.md](UI_BEST_PRACTICES.md)** and **[ThemeEngine.md](ThemeEngine.md)** for detailed guidelines on building UI (rendering, performance, events, styling, layout, etc.). For the canonical color tokens, gradient tokens, and class vocabulary registered by `DefaultStyles.lua` — and prescriptive guidance on which token/class to reach for — see **[DefaultStyles.md](DefaultStyles.md)**. For the panel-level design language — row grammar, section headers, separators, hover/selected states, iconography, and the checklist for bringing an old panel onto it — see **[STYLE_GUIDE.md](STYLE_GUIDE.md)**.
 
 ### GoblinScript
 GoblinScript is an expression language (evaluates formula strings) used for ability costs, damage formulas, prerequisites, etc. Compile with `GoblinScript.Compile(formula, symbolTable)` and evaluate with `GoblinScript.Execute(compiled, context)`. See **[GoblinScript_Guide.md](GoblinScript_Guide.md)** for the full language reference including semantics, operator precedence, evaluation model, all available symbols, and real examples.
@@ -160,9 +166,76 @@ local mySetting = setting{
 }
 ```
 
+### Panel Background Processes
+A dockable panel can keep work running after the panel itself is closed by registering a **background process** -- a coroutine tracked by the panel framework. While any process for a panel is running, the panel's icon-rail button shows a small spinning gear (accent-colored) in its bottom-left corner, whether the panel is open or not. The first client is the Monster AI: Start AI registers a process, and closing the panel does not stop the AI.
+
+```lua
+local process = DockablePanel.StartProcess{
+    panel = "Monster AI",          -- the DockablePanel.Register name
+    id = "monster-ai",             -- unique per panel; restarting an id replaces it
+    coroutine = function(process)  -- runs as a dmhub.Coroutine
+        while true do
+            coroutine.yield(0.1)
+            if mod.unloaded or process.stopRequested then
+                return
+            end
+            -- do work
+        end
+    end,
+}
+```
+
+Stopping is **cooperative**: `DockablePanel.StopProcess(panelName, id)` (or `process:Stop()`) only sets `process.stopRequested`; the coroutine must poll it -- and its own `mod.unloaded` -- and return. `DockablePanel.HasActiveProcess(panelName)` reports liveness (it is what the rail gear reads), and `DockablePanel.GetProcess(panelName, id)` returns the handle. Full details in the "Panel background processes" section of `DMHub Core UI/DockablePanel.lua`.
+
 ## Lua File Constraints
 
-**ASCII only.** The DMHub Lua runtime does not handle non-ASCII characters in source files. All Lua files — including comments and EmmyLua annotations — must contain only ASCII characters (bytes 0–127). Never use em dashes (`—`), curly quotes (`""`), ellipses (`…`), or any other Unicode punctuation. Use plain ASCII equivalents instead: `-` or `:` instead of `—`, `"` instead of curly quotes, `...` instead of `…`.
+**Syntax-check before you deploy.** The repo ships a Lua 5.4.7 interpreter built from the
+same source as the engine's `lua54.dll` — do not go looking for one elsewhere:
+
+```bash
+../dependencies/lua/bin/luac.exe -p SomeFile.lua
+```
+
+`-p` parses without executing, so it works on files full of engine globals. Actually
+*running* a codex file with `lua.exe` will fail on the first `import`/`dmhub`/`gui`
+reference; that is expected. One false positive to know about: a raw `luac -p` reports
+`unexpected symbol near '@'` on the two files using the engine's `@if`/`@else`/`@end`
+preprocessor directives — that is not a real error. See "Checking Lua Yourself" in the
+root [`CLAUDE.md`](../CLAUDE.md) for the preprocessor-aware sweep command.
+
+**ASCII only.** The DMHub Lua runtime does not handle non-ASCII characters in source files. All Lua files — including comments and EmmyLua annotations — must contain only ASCII characters (bytes 0-127). Never use em dashes, curly quotes, ellipses, or any other Unicode punctuation. Use plain ASCII equivalents instead: `-` or `:` instead of em dashes, `"` instead of curly quotes, `...` instead of ellipses.
+
+**Forward-declare self-referencing locals.** In Lua, `local x = expr` does not bring `x` into scope until `expr` finishes evaluating. If a closure inside the initializer needs to reference the variable (common with gui panel event handlers like `click`, `change`, `think`), you must split declaration and assignment:
+```lua
+-- WRONG: panelVar is not in scope inside the click handler
+local panelVar = gui.Panel{ click = function() panelVar:SetClass("hidden", true) end }
+
+-- RIGHT: forward-declare, then assign
+local panelVar
+panelVar = gui.Panel{ click = function() panelVar:SetClass("hidden", true) end }
+```
+
+**Reading a missing method on a game-typed instance raises.** Instances created with `RegisterGameType` error on reads of undefined fields AND undefined methods (e.g. `props.GetImplementationStatus` raises "Attempt to read unknown field ... in type creature" when props is creature-typed). Do not use the `props.SomeMethod == nil` presence-check pattern unless the instance's type is guaranteed. The stored `typeName` field is NOT a reliable gate either -- some compendium monster assets report `typeName == "monster"` while their properties actually bind as plain `creature`. The dependable guard is `pcall`:
+```lua
+local value = nil
+pcall(function() value = props:SomeMonsterOnlyMethod() end)
+if value == nil then --[[ not available ]] end
+```
+
+**`cond(a, b, c)` is a function, not a ternary -- it does NOT short-circuit.** It is defined as `function cond(a,b,c) if a then return b else return c end`, so Lua evaluates `a`, `b`, AND `c` before the call. Never put an expression that can error in the branch you expect to be skipped:
+```lua
+-- WRONG: "The " .. token.name is evaluated even when canSeeName is false,
+-- so a nil name throws "concatenate a nil value (field 'name')" regardless.
+local s = cond(token.canLocalPlayerSeeName, "The " .. token.name, "This creature")
+
+-- RIGHT: use a real if/else when either branch can error (e.g. nil concat/index)
+local s = "This creature"
+if token.canLocalPlayerSeeName and token.name ~= nil then s = "The " .. token.name end
+```
+
+## Comment Style
+
+Write comments (and notes on multiline changes) for a junior dev unfamiliar with this system: concise, plain language, 1-3 lines max. Never simply restate what the code does -- explain what is happening, how to use it, or why it exists. A comment documenting a new function and its variables may run longer than 3 lines.
 
 ## Monster Reference Documentation
 
@@ -178,3 +251,26 @@ Key stubs:
 - `game.lua` — the `game` global
 - `GameRules.lua` — `GameRules` global
 - `module.lua` — `module` global for mod management
+
+## Editing Files
+
+Always edit files in the **main copy** of the repository (the clone this file lives in), not in any git worktree under `.claude\worktrees\`. Worktrees are used for isolated agent work only; the user works directly from the main copy.
+
+Do NOT edit `C:\MCDM\dmhubclient\draw-steel-codex\` -- that is a separate, stale fork of the codex embedded in the DMHub client project. It is not what the app loads and changes there go nowhere.
+
+## Deploying Changes to the Running Codex
+
+**Editing the repo alone does not change what the app runs.** The Codex reads checked-out mod source, file by file, from its dev-mod "git folder". The location is the `gitfolder` value in `%USERPROFILE%\AppData\LocalLow\MCDM\Codex\mods\settings.json` (e.g. `C:\Users\theli\codex-dev-mods`). Inside it, each checked-out module is a folder named exactly like the repo's module directory:
+
+```
+<gitfolder>\Draw Steel V\EncounterPanel.lua
+```
+
+Verify what the app actually loaded by searching `%USERPROFILE%\AppData\LocalLow\MCDM\Codex\Player.log` for `MOD:: READ CONTENTS FOR MOD` lines.
+
+**Use `deploy.ps1` at the repo root**: `.\deploy.ps1` copies every git-modified `.lua` file into its module folder in the git folder; `-Check` dry-runs it; passing repo-relative paths deploys specific files. Run it after any Lua change, then restart or reload the Codex. Rules:
+
+- **Deploy ALL changed files together.** A partial deploy is worse than none: if a UI file is deployed without the rules file it now depends on, the feature errors at runtime with a nil function call and silently fails to appear.
+- A module the app has never checked out may not load from the git folder even after its folder is created; if the app still runs the old version after a restart, check the module out for git editing in the Codex's mod tools, then re-run the script.
+- Do NOT deploy to `%USERPROFILE%\AppData\LocalLow\MCDM\Codex\mods\<Module_XXXX>\` -- that is the app's own cache, written by the app, and copying files there does nothing.
+- The git folder does not sync back to the repo; the repo remains the source of truth for git history.

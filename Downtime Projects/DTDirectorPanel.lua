@@ -1,90 +1,21 @@
 local mod = dmhub.GetModLoading()
 
--- Triangle icon styles for character expand/collapse (based on QuestTrackerPanel pattern)
-local characterTriangleStyles = {
-    gui.Style{
-        selectors = {"character-triangle"},
-        bgimage = "panels/triangle.png",
-        bgcolor = "white",
-        hmargin = 4,
-        halign = "left",
-        valign = "center",
-        height = 12,
-        width = 12,
-        rotate = 90,
-    },
-    gui.Style{
-        selectors = {"character-triangle", "expanded"},
-        rotate = 0,
-        transitionTime = 0.2,
-    },
-    gui.Style{
-        selectors = {"character-triangle", "hover"},
-        bgcolor = "yellow",
-    },
-    gui.Style{
-        selectors = {"character-triangle", "press"},
-        bgcolor = "gray",
-    },
-}
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
 
 --- Downtime Director Panel - Main dockable panel for downtime project management
 --- Provides the primary interface for directors to manage downtime projects and settings
 --- @class DTDirectorPanel
 --- @field downtimeSettings DTSettings The downtime settings for shared data management
 DTDirectorPanel = RegisterGameType("DTDirectorPanel")
-
---- Clean toggle-style tab styles (no backgrounds, borders, or lines)
-DTDirectorPanel.TabsStyles = {
-    gui.Style{
-        selectors = {"dtTabContainer"},
-        height = 24,
-        width = "100%",
-        flow = "horizontal",
-        halign = "left",
-        valign = "center",
-        hmargin = 5,
-    },
-    gui.Style{
-        selectors = {"dtTab"},
-        fontFace = "Berling",
-        bold = false,
-        valign = "center",
-        halign = "center",
-        hpad = 6,
-        vpad = 4,
-        width = 75,
-        height = "100%",
-        hmargin = 8,
-        bgimage = "panels/square.png",
-        borderColor = Styles.textColor,
-        border = { y1 = 0, y2 = 0, x1 = 0, x2 = 0 },
-        color = "#666666",
-        textAlignment = "center",
-        fontSize = 12,
-        transitionTime = 0.2,
-    },
-    gui.Style{
-        selectors = {"dtTab", "hover"},
-        color = "#aaaaaa",
-        borderColor = "#aaaaaa",
-        border = { y1 = 1, y2 = 0, x1 = 0, x2 = 0 },
-        transitionTime = 0.2,
-    },
-    gui.Style{
-        selectors = {"dtTab", "important"},
-        color = "orange"
-    },
-    gui.Style{
-        selectors = {"dtTab", "selected"},
-        color = "#ffffff",
-        border = { y1 = 1, y2 = 0, x1 = 0, x2 = 0 },
-        borderColor = "#ffffff",
-        bold = true,
-        fontSize = 12,
-        transitionTime = 0.2,
-    },
-}
 
 --- Registers the dockable panel with the Codex UI system
 --- Creates and configures the main downtime director interface
@@ -95,7 +26,12 @@ function DTDirectorPanel:Register()
         icon = mod.images.downtimeProjects,
         minHeight = 100,
         maxHeight = 600,
+        hideObjectsOutOfScroll = false,
         content = function()
+            track("panel_open", {
+                panel = "Downtime Projects",
+                dailyLimit = 30,
+            })
             local panel = directorPanel:_buildMainPanel()
             directorPanel.panelElement = panel
             return panel
@@ -115,267 +51,8 @@ function DTDirectorPanel:_buildMainPanel()
         refreshGame = function(element)
             directorPanel:_refreshPanelContent(element)
         end,
-        children = {
-            self:_buildHeaderPanel(),
-            self:_buildContentPanel()
-        }
+        self:_buildContentPanel(),
     }
-end
-
---- Builds the header panel containing title and settings summary
---- @return table panel The header panel with title and settings summary
-function DTDirectorPanel:_buildHeaderPanel()
-    local isPaused = self.downtimeSettings:GetPauseRolls()
-    local pauseReason = self.downtimeSettings:GetPauseRollsReason()
-
-    local statusText = string.format("Rolling: %s", isPaused and "Paused" or "Enabled")
-
-    return gui.Panel {
-        width = "100%",
-        height = "40",
-        flow = "horizontal",
-        halign = "left",
-        valign = "center",
-        styles = DTHelpers.GetDialogStyles(),
-        children = {
-            -- Settings panel - edit button & state
-            gui.Panel {
-                width = "50%",
-                height = "100%",
-                flow = "horizontal",
-                halign = "left",
-                valign = "center",
-                children = {
-                    gui.SettingsButton {
-                        width = 20,
-                        height = 20,
-                        halign = "right",
-                        valign = "center",
-                        hmargin = 5,
-                        classes = {"downtime-edit-button"},
-                        linger = function(element)
-                            gui.Tooltip("Edit downtime settings")(element)
-                        end,
-                        press = function()
-                            self:_showSettingsDialog()
-                        end
-                    },
-                    gui.Panel {
-                        width = "100%-20",
-                        height = "100%",
-                        flow = "vertical",
-                        halign = "left",
-                        valign = "center",
-                        children = {
-                            gui.Label {
-                                text = statusText,
-                                classes = {"DTLabel", "DTBase"},
-                                width = "auto",
-                                height = "auto",
-                                halign = "left",
-                                valign = "center"
-                            },
-                            gui.Label {
-                                text = pauseReason,
-                                classes = {"DTLabel", "DTBase", (not isPaused) and "collapsed" or nil},
-                                fontSize = 12,
-                                width = "auto",
-                                height = "auto",
-                                halign = "left",
-                                valign = "center"
-                            }
-                        },
-                    },
-                }
-            },
-            -- Buttons panel - Grant rolls
-            gui.Panel{
-                width = "50%",
-                height = "100%",
-                -- flow = "horizontal",
-                halign = "right",
-                valign = "center",
-                children = {
-                    gui.EnhIconButton {
-                        bgimage = "panels/initiative/initiative-dice.png",
-                        width = "30",
-                        height = "30",
-                        halign = "right",
-                        valign = "center",
-                        hmargin = 5,
-                        borderWidth = 0,
-                        hoverColor = "#00cccc",
-                        pressColor = "#00aaaa",
-                        linger = function(element)
-                            gui.Tooltip("Grant rolls")(element)
-                        end,
-                        click = function()
-                            DTGrantRollsDialog.new{}:ShowDialog()
-                        end,
-                    },
-                }
-            },
-        }
-    }
-end
-
---- Shows the settings edit dialog for downtime configuration
---- Allows editing pause rolls setting and reason
-function DTDirectorPanel:_showSettingsDialog()
-    local isPaused = self.downtimeSettings:GetPauseRolls()
-    local pauseReason = self.downtimeSettings:GetPauseRollsReason()
-
-    local settingsDialog = gui.Panel{
-        classes = {"dtSettingsController", "DTDialog"},
-        width = 500,
-        height = 300,
-        styles = DTHelpers.GetDialogStyles(),
-
-        saveAndClose = function(element)
-            local chkPause = element:Get("chkPauseRolls")
-            local txtReason = element:Get("txtPauseReason")
-            if chkPause and txtReason then
-                self.downtimeSettings:SetData(chkPause.value, txtReason.text)
-                gui.CloseModal()
-            end
-        end,
-
-        validateForm = function(element)
-            local enabled = false
-            local chkPause = element:Get("chkPauseRolls")
-            if chkPause and not chkPause.value then
-                enabled = true
-            else
-                local txtReason = element:Get("txtPauseReason")
-                enabled = (txtReason and txtReason.text) and #txtReason.text > 0
-            end
-            element:FireEventTree("enableConfirm", enabled)
-        end,
-
-        create = function(element)
-            element:FireEvent("validateForm")
-        end,
-
-        escape = function(element)
-            gui.CloseModal()
-        end,
-
-        children = {
-            gui.Label{
-                text = "Edit Downtime Settings",
-                width = "100%",
-                height = 30,
-                fontSize = "24",
-                classes = {"DTLabel", "DTBase"},
-                textAlignment = "center",
-                halign = "center",
-                valign = "top",
-            },
-            gui.Divider { width = "50%" },
-
-            -- Content
-            gui.Panel {
-                classes = {"DTPanel", "DTBase"},
-                height = "100%-124",
-                width = "98%",
-                valign="top",
-                flow = "vertical",
-                borderColor = "red",
-                children = {
-                    gui.Panel {
-                        classes = {"DTPanelRow", "DTPanel", "DTBase"},
-                        width = "98%",
-                        borderColor = "blue",
-                        children = {
-                            DTUIComponents.CreateLabeledCheckbox({
-                                id = "chkPauseRolls",
-                                text = "Pause Rolls",
-                                value = isPaused,
-                                change = function(element)
-                                    local controller = element:FindParentWithClass("dtSettingsController")
-                                    if controller then
-                                        controller:FireEvent("validateForm")
-                                    end
-                                end
-                            }, {
-                                halign = "left",
-                                height = "auto",
-                            }),
-                        }
-                    },
-
-                    gui.Panel {
-                        classes = {"DTPanelRow", "DTPanel", "DTBase"},
-                        width = "98%",
-                        borderColor = "blue",
-                        children = {
-                            DTUIComponents.CreateLabeledInput("Pause Reason", {
-                                id = "txtPauseReason",
-                                text = pauseReason,
-                                placeholderText = "Enter reason for pausing rolls...",
-                                lineType = "Single",
-                                editlag = 0.5,
-                                change = function(element)
-                                    element:FireEvent("edit")
-                                end,
-                                edit = function(element)
-                                    local controller = element:FindParentWithClass("dtSettingsController")
-                                    if controller then
-                                        controller:FireEvent("validateForm")
-                                    end
-                                end,
-                            }, {}),
-                        }
-                    }
-                }
-            },
-
-            -- Footer
-            gui.Panel{
-                classes = {"DTPanel", "DTBase"},
-                width = "100%",
-                height = 40,
-                vmargin = 10,
-                halign = "center",
-                valign = "bottom",
-                flow = "horizontal",
-                borderColor = "red",
-                children = {
-                    -- Cancel button
-                    gui.Button{
-                        text = "Cancel",
-                        width = 120,
-                        valign = "bottom",
-                        classes = {"DTButton", "DTBase"},
-                        click = function(element)
-                            gui.CloseModal()
-                        end
-                    },
-                    -- Confirm button
-                    gui.Button{
-                        text = "Confirm",
-                        width = 120,
-                        valign = "bottom",
-                        classes = {"DTButton", "DTBase", "DTDisabled"},
-                        interactable = false,
-                        enableConfirm = function(element, enabled)
-                            element:SetClass("DTDisabled", not enabled)
-                            element.interactable = enabled
-                        end,
-                        click = function(element)
-                            if not element.interactable then return end
-                            local controller = element:FindParentWithClass("dtSettingsController")
-                            if controller then
-                                controller:FireEvent("saveAndClose")
-                            end
-                        end
-                    }
-                }
-            }
-        },
-    }
-
-    gui.ShowModal(settingsDialog)
 end
 
 --- Gets all hero characters in the game that have downtime projects
@@ -441,7 +118,7 @@ function DTDirectorPanel:_categorizeDowntimeProjects()
                         progress = project:GetProgress(),
                         goal = project:GetProjectGoal(),
                         milestoneThreshold = project:GetMilestoneThreshold(),
-                        pauseRollsReason = project:GetStatusReason(),
+                        statusReason = project:GetStatusReason(),
                     }
 
                     local status = project:GetStatus()
@@ -483,85 +160,70 @@ function DTDirectorPanel:_buildCharacterHeader(characterInfo, contentPanel, tabT
         playerDisplay = string.format(" (<color=%s>%s</color>) [Rolls: %d]", color, token.playerNameOrNil, characterInfo.rolls)
     end
 
-    local triangle = gui.Panel{
-        classes = {"character-triangle", isExpanded and "expanded" or nil},
-        styles = characterTriangleStyles,
+    local triangle = gui.ExpandoArrow{
+        classes = isExpanded and {"expanded"} or nil,
         click = function(element)
-            local isExpanded = not element:HasClass("expanded")
-            element:SetClass("expanded", isExpanded)
+            local nowExpanded = not element:HasClass("expanded")
+            element:SetClass("expanded", nowExpanded)
             if contentPanel then
-                contentPanel:SetClass("collapsed", not isExpanded)
+                contentPanel:SetClass("collapsed", not nowExpanded)
             end
-            dmhub.SetPref(prefKey, isExpanded)
+            dmhub.SetPref(prefKey, nowExpanded)
         end
     }
 
     return gui.Panel{
         width = "98%",
-        height = 30,
+        height = 24,
+        tmargin = 6,
+        valign = "top",
         flow = "horizontal",
-        classes = {"character-header"},
-        children = {
-            triangle,
-            -- Character token
-            gui.Panel {
-                width = 20,
-                height = 20,
-                valign = "center",
-                hmargin = 4,
-                borderWidth = 1,
-                borderColor = Styles.textColor,
-                children = token and {
-                    gui.CreateTokenImage(token, {
-                        width = 24,
-                        height = 24,
-                        halign = "center",
-                        valign = "center",
-                        refresh = function(element)
-                            if token == nil or not token.valid then return end
-                            element:FireEventTree("token", token)
-                        end,
-                    })
-                } or {}
-            },
-            -- Character name + player name
-            gui.Label{
-                text = characterName .. playerDisplay,
-                classes = {"DTLabel", "DTBase"},
-                width = "70%",
-                height = "100%",
-                valign = "center",
-                hmargin = 4,
-                fontSize = 14
-            },
-            -- Settings button (right-aligned)
-            gui.Panel{
-                width = "30",
-                height = "100%",
-                flow = "horizontal",
-                halign = "right",
-                valign = "center",
-                children = {
-                    gui.SettingsButton {
-                        width = 20,
-                        height = 20,
-                        halign = "right",
-                        valign = "center",
-                        hmargin = 5,
-                        classes = {"character-edit-button"},
-                        linger = function(element)
-                            gui.Tooltip("Open character sheet")(element)
-                        end,
-                        press = function()
-                            local character = dmhub.GetCharacterById(characterId)
-                            if character then
-                                character:ShowSheet("Downtime")
-                            end
-                        end
-                    }
-                }
-            }
-        }
+        triangle,
+        -- Character token
+        gui.Panel {
+            classes = {"bordered"},
+            width = 20,
+            height = 20,
+            valign = "center",
+            hmargin = 4,
+            children = token and {
+                gui.CreateTokenImage(token, {
+                    width = 24,
+                    height = 24,
+                    halign = "center",
+                    valign = "center",
+                    refresh = function(element)
+                        if token == nil or not token.valid then return end
+                        element:FireEventTree("token", token)
+                    end,
+                })
+            } or {}
+        },
+        -- Character name + player name
+        gui.Label{
+            classes = {"sizeS", "bold"},
+            text = characterName .. playerDisplay,
+            width = "70%",
+            height = "auto",
+            valign = "center",
+            hmargin = 4,
+        },
+        -- Settings button (right-aligned)
+        gui.Button {
+            classes = {"settingsButton", "sizeS"},
+            halign = "right",
+            valign = "center",
+            hmargin = 5,
+            linger = function(element)
+                gui.Tooltip("Open character sheet")(element)
+            end,
+            press = function()
+                local character = dmhub.GetCharacterById(characterId)
+                if character then
+                    character:ShowSheet("Downtime")
+                end
+            end
+        },
     }
 end
 
@@ -579,8 +241,8 @@ function DTDirectorPanel:_buildProjectDetail(projectEntry, tabType)
     local detailParts = {projectTitle, progressText}
 
     -- Add tab-specific field
-    if tabType == "attention" and projectEntry.pauseRollsReason and projectEntry.pauseRollsReason ~= "" then
-        detailParts[#detailParts + 1] = projectEntry.pauseRollsReason
+    if tabType == "attention" and projectEntry.statusReason and projectEntry.statusReason ~= "" then
+        detailParts[#detailParts + 1] = projectEntry.statusReason
     elseif tabType == "milestones" and projectEntry.milestoneThreshold and projectEntry.milestoneThreshold > 0 then
         detailParts[#detailParts + 1] = string.format("Milestone: %d", projectEntry.milestoneThreshold)
     end
@@ -599,19 +261,15 @@ function DTDirectorPanel:_buildProjectDetail(projectEntry, tabType)
         width = "100%",
         height = 25,
         flow = "horizontal",
-        classes = {"project-detail"},
-        children = {
-            gui.Label{
-                text = displayText,
-                classes = {"DTLabel", "DTBase"},
-                width = "100%",
-                height = "100%",
-                valign = "center",
-                hmargin = 20,
-                fontSize = 12,
-                wrap = true
-            }
-        }
+        gui.Label{
+            classes = {"sizeXxs"},
+            text = displayText,
+            width = "100%",
+            height = "100%",
+            valign = "center",
+            hmargin = 20,
+            wrap = true,
+        },
     }
 end
 
@@ -626,7 +284,7 @@ function DTDirectorPanel:_buildCharacterSection(characterInfo, characterProjects
     for i, projectEntry in ipairs(characterProjects) do
         -- Add divider before project (except first one)
         if i > 1 then
-            projectChildren[#projectChildren + 1] = gui.Divider { width = "90%" }
+            projectChildren[#projectChildren + 1] = gui.MCDMDivider { width = "90%" }
         end
         projectChildren[#projectChildren + 1] = self:_buildProjectDetail(projectEntry, tabType)
     end
@@ -636,18 +294,14 @@ function DTDirectorPanel:_buildCharacterSection(characterInfo, characterProjects
     local prefKey = string.format("dt_char_expanded:%s:%s:%s", tabType, characterId, dmhub.gameid or "default")
     local isExpanded = dmhub.GetPref(prefKey) or false
 
-    -- Build content panel with conditional collapsed class
-    local classes = {"character-content"}
-    if not isExpanded then
-        table.insert(classes, "collapsed")
-    end
-
+    -- Build content panel — `collapsed` is the theme primitive toggled
+    -- by the triangle's click handler.
     local contentPanel = gui.Panel{
+        classes = not isExpanded and {"collapsed"} or nil,
         width = "100%",
         height = "auto",
         flow = "vertical",
-        classes = classes,
-        children = projectChildren
+        children = projectChildren,
     }
 
     -- Build header with reference to content panel
@@ -657,11 +311,9 @@ function DTDirectorPanel:_buildCharacterSection(characterInfo, characterProjects
         width = "100%",
         height = "auto",
         flow = "vertical",
-        classes = {"character-section"},
-        children = {
-            headerPanel,
-            contentPanel
-        }
+        valign = "top",
+        headerPanel,
+        contentPanel,
     }
 end
 
@@ -674,14 +326,12 @@ function DTDirectorPanel:_buildTabContent(categorizedProjects, tabType)
 
     if #categorizedProjects == 0 then
         tabChildren[#tabChildren + 1] = gui.Label {
+            classes = {"sizeS", "bold"},
             text = "No projects in this category.",
-            classes = {"DTLabel", "DTBase"},
             width = "100%",
             height = "100%",
             halign = "center",
             valign = "top",
-            textAlignment = "center",
-            fontSize = 14
         }
     else
         -- Group projects by character
@@ -706,7 +356,7 @@ function DTDirectorPanel:_buildTabContent(categorizedProjects, tabType)
         for _, characterData in pairs(projectsByCharacter) do
             if hasCharacters then
                 -- Add spacing between characters
-                tabChildren[#tabChildren + 1] = gui.Divider { width = "95%" }
+                tabChildren[#tabChildren + 1] = gui.MCDMDivider { width = "95%" }
             end
             tabChildren[#tabChildren + 1] = self:_buildCharacterSection(
                 characterData.characterInfo,
@@ -721,8 +371,8 @@ function DTDirectorPanel:_buildTabContent(categorizedProjects, tabType)
         width = "100%",
         height = "auto",
         flow = "vertical",
-        styles = self:_getTabContentStyles(),
-        children = tabChildren
+        valign = "top",
+        children = tabChildren,
     }
 end
 
@@ -808,114 +458,117 @@ function DTDirectorPanel:_buildContentPanel()
 
     -- Use the same categorized data for counts (already calculated above)
 
+    -- Compact tab sizing — inline overrides on each tab label preserve
+    -- the 75x24 / fontSize 9.5 look while everything else (themed bg,
+    -- hover, selected, warning) flows from the theme's {tab} cascade.
+    local function tabClasses(name, important)
+        return {
+            "tab",
+            selectedTab == name and "selected" or nil,
+            important and "warning" or nil,
+        }
+    end
+
     -- Create tabs panel
     tabsPanel = gui.Panel{
-        classes = {"dtTabContainer"},
-        styles = {DTDirectorPanel.TabsStyles},
-        children = {
-            gui.Label{
-                classes = {
-                    "dtTab",
-                    selectedTab == "Attention" and "selected" or nil,
-                    #categorized.attention > 0 and "important" or nil,
-                },
-                text = string.format("Attention (%d)", #categorized.attention),
-                data = {tabName = "Attention"},
-                press = function() selectTab("Attention") end,
-            },
-            gui.Label{
-                classes = {
-                    "dtTab",
-                    selectedTab == "Milestones" and "selected" or nil,
-                    #categorized.milestones > 0 and "important" or nil},
-                text = string.format("Milestones (%d)", #categorized.milestones),
-                data = {tabName = "Milestones"},
-                press = function() selectTab("Milestones") end,
-            },
-            gui.Label{
-                classes = {"dtTab", selectedTab == "Active" and "selected" or nil},
-                text = string.format("Active (%d)", #categorized.active),
-                data = {tabName = "Active"},
-                press = function() selectTab("Active") end,
-            },
-            gui.Label{
-                classes = {"dtTab", selectedTab == "Completed" and "selected" or nil},
-                text = string.format("Completed (%d)", #categorized.completed),
-                data = {tabName = "Completed"},
-                press = function() selectTab("Completed") end,
-            }
-        }
+        classes = {"tabBar"},
+        width = "100%",
+        height = 24,
+        gui.Label{
+            classes = tabClasses("Attention", #categorized.attention > 0),
+            text = string.format("Attention (%d)", #categorized.attention),
+            width = "25%",
+            height = "100%",
+            fontSize = 9.5,
+            data = {tabName = "Attention"},
+            press = function() selectTab("Attention") end,
+        },
+        gui.Label{
+            classes = tabClasses("Milestones", #categorized.milestones > 0),
+            text = string.format("Milestones (%d)", #categorized.milestones),
+            width = "25%",
+            height = "100%",
+            fontSize = 9.5,
+            data = {tabName = "Milestones"},
+            press = function() selectTab("Milestones") end,
+        },
+        gui.Label{
+            classes = tabClasses("Active", false),
+            text = string.format("Active (%d)", #categorized.active),
+            width = "25%",
+            height = "100%",
+            fontSize = 9.5,
+            data = {tabName = "Active"},
+            press = function() selectTab("Active") end,
+        },
+        gui.Label{
+            classes = tabClasses("Completed", false),
+            text = string.format("Completed (%d)", #categorized.completed),
+            width = "25%",
+            height = "100%",
+            fontSize = 9.5,
+            data = {tabName = "Completed"},
+            press = function() selectTab("Completed") end,
+        },
     }
 
-    return gui.Panel {
+    local outerPanel = gui.Panel {
         width = "100%",
         height = "auto",
         flow = "vertical",
-        styles = {DTDirectorPanel.TabsStyles},
-        children = {
-            tabsPanel,
-            contentPanel
-        }
+        styles = ThemeEngine.GetStyles(),
+        tabsPanel,
+        contentPanel,
     }
+
+    -- Refresh the cascade when the active theme/scheme changes so the
+    -- panel and all descendants retint without rebuilding.
+    ThemeEngine.OnThemeChanged(mod, function()
+        if outerPanel and outerPanel.valid then
+            outerPanel.styles = ThemeEngine.GetStyles()
+        end
+    end)
+
+    return outerPanel
 end
 
 --- Refreshes the panel content (used by both refreshGame and show events)
 --- @param element table The main panel element to refresh
 function DTDirectorPanel:_refreshPanelContent(element)
-    local headerPanel = self:_buildHeaderPanel()
-    local contentPanel = self:_buildContentPanel()
-    element.children = {headerPanel, contentPanel}
+    element.children = {self:_buildContentPanel()}
 end
 
---- Gets styling for tab content elements
---- @return table styles Array of GUI styles for tab content
-function DTDirectorPanel:_getTabContentStyles()
-    return {
-        -- Character section styling
-        gui.Style {
-            selectors = {"character-section"},
-            width = "100%",
-            margin = 2
-        },
-        gui.Style {
-            selectors = {"character-header"},
-            bgcolor = Styles.backgroundColor,
-            borderWidth = 1,
-            borderColor = Styles.textColor,
-            height = 30,
-            margin = 1
-        },
-        gui.Style {
-            selectors = {"character-header", "hover"},
-            bgcolor = Styles.textColor,
-            color = Styles.backgroundColor,
-            brightness = 0.9
-        },
-        -- Character content styling
-        gui.Style {
-            selectors = {"character-content"},
-            width = "98%",
-            halign = "right",
-            transitionTime = 0.2
-        },
-        gui.Style {
-            selectors = {"character-content", "collapsed"},
-            height = 0,
-            hidden = 1
-        },
-        -- Project detail styling
-        gui.Style {
-            selectors = {"project-detail"},
-            bgcolor = Styles.backgroundColor,
-            borderWidth = 1,
-            borderColor = Styles.textColor,
-            margin = 1
-        },
-        gui.Style {
-            selectors = {"project-detail", "hover"},
-            bgcolor = Styles.textColor,
-            color = Styles.backgroundColor,
-            brightness = 0.9
-        }
+
+--- Downtime projects' key in the Respite's activity registry. Fixed, so a
+--- reload refreshes the entry rather than adding a second one.
+local RESPITE_ACTIVITY_KEY = "8dc3365d-df3c-4b88-aff9-90980caa6758"
+
+--- Offers downtime projects to the Respite, if the Respite module is
+--- installed. Nothing to configure per Respite, so no paint function.
+local function RegisterWithRespite()
+    if mod.unloaded then
+        return
+    end
+
+    -- Reading an unset global raises, and the Respite module is not
+    -- guaranteed to be installed alongside this one.
+    local registry = rawget(_G, "RSPActivity")
+    if registry == nil then
+        return
+    end
+
+    registry.Register{
+        key = RESPITE_ACTIVITY_KEY,
+        name = "Downtime Projects",
+        paintPlayer = DTProjectEditor.PaintRespiteProjects,
+        paintDirector = DTProjectEditor.PaintRespiteDirectorFeed,
+        needsAttention = DTProjectEditor.RespiteNeedsAttention,
+        journalSummary = DTProjectEditor.RespiteJournalSummary,
     }
 end
+
+-- The Respite module loads after this one, so it announces its registry and
+-- we answer. Must match RSPConstants.registryEvent. The direct call covers
+-- the reverse load order, where the registry is already up.
+dmhub.RegisterEventHandler("rspActivityRegistry", RegisterWithRespite)
+RegisterWithRespite()

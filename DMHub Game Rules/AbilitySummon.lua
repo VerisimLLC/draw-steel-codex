@@ -24,7 +24,55 @@ ActivatedAbilitySummonBehavior.hasReplaceCaster = true --display 'replace caster
 ActivatedAbilitySummonBehavior.replaceCaster = false
 ActivatedAbilitySummonBehavior.casterControls = true
 ActivatedAbilitySummonBehavior.casterChoosesCreatures = true
+ActivatedAbilitySummonBehavior.changeCreatureWhileCasting = false
 ActivatedAbilitySummonBehavior.groupInitiativeWithCaster = true
+ActivatedAbilitySummonBehavior.shareSurgesWithSummoner = false
+ActivatedAbilitySummonBehavior.shareHeroicResourceWithSummoner = false
+--Prompt for an existing same-type minion squad or a fresh squad even when
+--the caster is not a rules-level Summoner. This does not enable Summoner
+--limits or roster bookkeeping.
+ActivatedAbilitySummonBehavior.chooseSquad = false
+ActivatedAbilitySummonBehavior.choosePlacement = false
+ActivatedAbilitySummonBehavior.summonRange = "1"
+
+--optional context text prepended to the "Place minion N of M" placement
+--prompt, e.g. "Lingering Hunger Trait:" so the user knows which ability or
+--trait is asking them to place creatures. "" (the default) shows no prefix.
+ActivatedAbilitySummonBehavior.placementPrompt = ""
+
+--GoblinScript: damage_taken applied to each summoned creature right after it
+--spawns, letting a summon start below its maximum Stamina. Applied as a
+--direct property set (NOT InflictDamage), so no damage triggers fire.
+--"0" (the default) or "" means summons spawn at full Stamina. Clamped so a
+--summon never spawns already dead (at least 1 Stamina remains).
+ActivatedAbilitySummonBehavior.initialDamageTaken = "0"
+
+--When a non-summoner caster summons minions (no squad-selection UI), the
+--minions of one cast join a single FRESH squad by default so their shared
+--stamina pool never silently merges with an unrelated same-type squad
+--already on the map. Set true to restore the old behavior of falling into
+--the default "<monster type> Squad 1" squad (reinforcement-style content).
+ActivatedAbilitySummonBehavior.joinExistingSquad = false
+
+--tweak placement: summons are auto-placed around each target (hidden from
+--players), then the user rearranges them within tweakRadius of the anchor and
+--presses Continue to reveal them. See AbilityTweakCreaturePlacement.lua.
+--choosePlacement takes precedence over tweakPlacement if both are set.
+--
+--tweakAnchor:
+--  "target" (default) -- placement anchors on each of the ability's targets.
+--  "casterstart" -- placement anchors on the squares the caster occupied at
+--                   the START of the cast, before any behavior moved them
+--                   (e.g. "minions appear in the space the caster leaves
+--                   behind" after a teleport). tweakRadius 0 restricts
+--                   placement to exactly those squares.
+--tweakMessage: optional override for the text after the creature names in the
+--rearrange prompt; default is "placed around targets. Rearrange positions
+--before continuing."
+ActivatedAbilitySummonBehavior.tweakPlacement = false
+ActivatedAbilitySummonBehavior.tweakRadius = "1"
+ActivatedAbilitySummonBehavior.tweakAnchor = "target"
+ActivatedAbilitySummonBehavior.tweakMessage = ""
 
 --duplicate mode fields
 ActivatedAbilitySummonBehavior.duplicateMode = false
@@ -36,6 +84,237 @@ ActivatedAbilitySummonBehavior.copyResistances = false
 ActivatedAbilitySummonBehavior.copyAbilities = false
 ActivatedAbilitySummonBehavior.copyTriggers = false
 ActivatedAbilitySummonBehavior.duplicateTargetOrigin = "duplicate"
+
+--Custom looks for the creatures a caster summons. Keyed by monster_type
+--(several bestiary entries can share one monster_type; monsters without one
+--fall back to their bestiary id). In each entry, nil means "not customized":
+--the summon keeps its bestiary value, except portraitFrame where nil means
+--"copy the caster's frame" and "" means "no frame".
+--- @field creature.summonAppearances table Map of look key -> { portrait, portraitFrame, portraitFrameHueShift, tokenScale, portraitZoom, portraitOffset }
+creature.summonAppearances = {}
+
+--- Returns the caster's custom look for this look key, or nil.
+--- @param lookKey string
+--- @return table|nil
+function creature:GetSummonAppearance(lookKey)
+    local t = self:try_get("summonAppearances")
+    if t == nil then
+        return nil
+    end
+    return t[lookKey]
+end
+
+--Every creature type this caster has ever summoned. The Summons tab lists these.
+--- @field creature.summonHistory table Map of look key -> true.
+creature.summonHistory = {}
+
+--- Records a summoned creature type. Call from inside ModifyProperties.
+--- @param lookKey string
+function creature:RecordSummonHistory(lookKey)
+    local t = self:get_or_add("summonHistory", {})
+    t[lookKey] = true
+end
+
+--- Returns the look key for a bestiary monster: its monster_type, or its id if it has none.
+--- @param monster any Entry of assets.monsters.
+--- @param monsterid string
+--- @return string
+function ActivatedAbilitySummonBehavior.SummonLookKey(monster, monsterid)
+    return monster.properties:try_get("monster_type") or monsterid
+end
+
+--- Finds the bestiary entry for a look key. When several entries share the
+--- monster_type, prefers one that is not hidden.
+--- @param lookKey string
+--- @return string|nil monsterid
+--- @return any|nil monster
+function ActivatedAbilitySummonBehavior.ResolveSummonLookMonster(lookKey)
+    local best = nil
+    for k,monster in pairs(assets.monsters) do
+        if monster.properties:try_get("monster_type") == lookKey then
+            if best == nil or assets:GetMonsterNode(best.monsterid).hidden then
+                best = { monsterid = k, monster = monster }
+            end
+        end
+    end
+    if best ~= nil then
+        return best.monsterid, best.monster
+    end
+
+    --the key may be a bestiary id for a monster with no monster_type.
+    local direct = assets.monsters[lookKey]
+    if direct ~= nil then
+        return lookKey, direct
+    end
+    return nil, nil
+end
+
+--- Applies the caster's custom look to a summoned token. With no custom look,
+--- falls back to copying the caster's frame. Does not upload the token.
+--- @param casterToken CharacterToken
+--- @param token CharacterToken
+--- @param lookKey string
+function ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, token, lookKey)
+    --A summon cast by a since-removed caster: a defunct token handle still
+    --answers simple getters (.charid, .description) but its .properties reads
+    --nil. Both the custom-look read below and the frame-copy fallback at the
+    --bottom need a live caster, so skip look copying entirely rather than
+    --crash.
+    if casterToken == nil or casterToken.properties == nil then
+        return
+    end
+
+    local custom = casterToken.properties:GetSummonAppearance(lookKey)
+    if custom ~= nil then
+        if custom.portrait ~= nil and custom.portrait ~= "" then
+            token.portrait = custom.portrait
+        end
+        if custom.portraitFrame ~= nil then
+            token.portraitFrame = custom.portraitFrame
+        end
+        if custom.portraitFrameHueShift ~= nil then
+            token.portraitFrameHueShift = custom.portraitFrameHueShift
+        end
+        if custom.tokenScale ~= nil then
+            token.tokenScale = custom.tokenScale
+        end
+        if custom.portraitZoom ~= nil then
+            token.portraitZoom = custom.portraitZoom
+        end
+        if custom.portraitOffset ~= nil then
+            token.portraitOffset = custom.portraitOffset
+        end
+        return
+    end
+
+    --if the caster controls the summoned tokens then they mimic its appearance.
+    local summonerHasFrame = casterToken.portraitFrame ~= nil and casterToken.portraitFrame ~= ""
+    local tokenHasFrame = token.portraitFrame ~= nil and token.portraitFrame ~= ""
+
+    if summonerHasFrame == tokenHasFrame then
+        token.portraitFrame = casterToken.portraitFrame
+        token.portraitFrameHueShift = casterToken.portraitFrameHueShift
+    end
+end
+
+--- Returns the creatures this caster can customize, as a sorted list of
+--- { key, monsterid, monster }: their summon history, plus anything with a
+--- stored look, plus their live summons on the current map.
+--- @param casterToken CharacterToken
+--- @return table[]
+function ActivatedAbilitySummonBehavior.GetCustomizableSummons(casterToken)
+    local props = casterToken.properties
+    if props == nil then
+        return {}
+    end
+
+    local byType = {}
+    for k,monster in pairs(assets.monsters) do
+        local t = monster.properties:try_get("monster_type")
+        if t ~= nil then
+            if byType[t] == nil or (assets:GetMonsterNode(byType[t].monsterid).hidden and not assets:GetMonsterNode(k).hidden) then
+                byType[t] = { monsterid = k, monster = monster }
+            end
+        end
+    end
+
+    local seen = {}
+    local result = {}
+
+    local function AddKey(lookKey)
+        if lookKey == nil or seen[lookKey] ~= nil then
+            return
+        end
+        local entry = byType[lookKey]
+        if entry == nil then
+            local monster = assets.monsters[lookKey]
+            if monster == nil then
+                return
+            end
+            entry = { monsterid = lookKey, monster = monster }
+        end
+        seen[lookKey] = true
+        result[#result+1] = { key = lookKey, monsterid = entry.monsterid, monster = entry.monster }
+    end
+
+    for lookKey,_ in pairs(props:try_get("summonHistory") or {}) do
+        AddKey(lookKey)
+    end
+
+    --anything with a stored look is listed so it can be reverted.
+    for lookKey,_ in pairs(props:try_get("summonAppearances") or {}) do
+        AddKey(lookKey)
+    end
+
+    --live summons on the current map.
+    for _,tok in ipairs(dmhub.GetTokens()) do
+        if tok.valid and tok.summonerid == casterToken.charid and tok.properties ~= nil then
+            AddKey(tok.properties:try_get("monster_type"))
+        end
+    end
+
+    table.sort(result, function(a,b) return (a.monster.name or "") < (b.monster.name or "") end)
+    return result
+end
+
+--- Updates the caster's live summons of this creature type on the current map:
+--- reset to the bestiary look, then apply the current custom look, then upload.
+--- @param casterToken CharacterToken
+--- @param lookKey string
+function ActivatedAbilitySummonBehavior.RestyleLiveSummons(casterToken, lookKey)
+    local monsterid, monster = ActivatedAbilitySummonBehavior.ResolveSummonLookMonster(lookKey)
+    if monster == nil then
+        return
+    end
+    local monsterType = monster.properties:try_get("monster_type", lookKey)
+
+    for _,tok in ipairs(dmhub.GetTokens()) do
+        if tok.valid and tok.summonerid == casterToken.charid and tok.properties ~= nil and tok.properties:try_get("monster_type") == monsterType then
+            tok.portrait = monster.info.portrait
+            tok.portraitFrame = monster.info.portraitFrame
+            tok.portraitFrameHueShift = monster.info.portraitFrameHueShift
+            tok.tokenScale = monster.info.tokenScale
+            tok.portraitZoom = monster.info.portraitZoom
+            tok.portraitOffset = monster.info.portraitOffset
+            ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, tok, lookKey)
+            tok:UploadAppearance()
+        end
+    end
+end
+
+--- Deletes all summoned minion characters (live or despawned) and their
+--- corpse objects on the current map. Called when combat ends.
+function ActivatedAbilitySummonBehavior.RemoveSummonsAtEndOfCombat()
+    local minionCharids = {}
+    for charid,tok in pairs(dmhub.GetAllCharacters()) do
+        local summonerid = tok.summonerid
+        if summonerid ~= nil and summonerid ~= "" and tok.properties ~= nil and tok.properties.minion then
+            minionCharids[charid] = true
+        end
+    end
+
+    if next(minionCharids) == nil then
+        return
+    end
+
+    local map = game.currentMap
+    if map ~= nil then
+        for _,floor in ipairs(map.floors or {}) do
+            for _,obj in pairs(floor.objects or {}) do
+                local corpse = obj:GetComponent("Corpse")
+                if corpse ~= nil and corpse.properties ~= nil and minionCharids[corpse.properties.charid] then
+                    obj:Destroy()
+                end
+            end
+        end
+    end
+
+    local charids = {}
+    for charid,_ in pairs(minionCharids) do
+        charids[#charids+1] = charid
+    end
+    game.DeleteCharacters(charids)
+end
 
 
 setting{
@@ -58,6 +337,415 @@ function ActivatedAbilitySummonBehavior:SummarizeBehavior(ability, creatureLooku
 	return "Summon Creatures"
 end
 
+--Memo for SummonedCreatureName below. The bestiary sweep is a full
+--assets.monsters scan with a GoblinScript evaluation per monster, and the
+--callers (the targeting prompt, the hovered-square label) run on every
+--targeting refresh. Keyed by monster type + filter + caster, since a filter may
+--reference the caster. Only invalidated by a reload; the value is display text
+--on a targeting prompt, so a bestiary edit mid-session going unnoticed is
+--acceptable.
+local g_summonNameCache = {}
+
+--- The name of the creature this behavior will summon, when that is knowable
+--- before the cast: nil when the filter matches several creatures (the caster
+--- picks one during the cast, so no single name is right yet) or when this is a
+--- duplicate-token behavior.
+--- @param casterToken CharacterToken
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbilitySummonBehavior:SummonedCreatureName(casterToken, symbols)
+    if self.duplicateMode or casterToken == nil then
+        return nil
+    end
+
+    if self.monsterType ~= "custom" then
+        local monster = assets.monsters[self.monsterType]
+        if monster == nil then
+            return nil
+        end
+        return monster.properties:try_get("monster_type")
+    end
+
+    local key = string.format("%s|%s|%s", tostring(self.monsterType), tostring(self.bestiaryFilter), tostring(casterToken.id))
+    local cached = g_summonNameCache[key]
+    if cached ~= nil then
+        return cached.name
+    end
+
+    --Mirror the candidate sweep in Cast (same filter, same beast symbol), but
+    --stop at the second match: we only care whether exactly one creature can be
+    --summoned. A malformed filter must not take the targeting UI down with it.
+    local name = nil
+    pcall(function()
+        local extra = {}
+        if symbols ~= nil then
+            for k,v in pairs(symbols) do
+                extra[k] = v
+            end
+        end
+
+        local found = nil
+        for k,monster in pairs(assets.monsters) do
+            if not assets:GetMonsterNode(k).hidden then
+                extra.beast = GenerateSymbols(monster.properties)
+                if monster.properties:has_key("monster_type") and ExecuteGoblinScript(self.bestiaryFilter, GenerateSymbols(casterToken.properties, extra), 0, string.format("Bestiary filter naming summons for filter %s", self.bestiaryFilter)) ~= 0 then
+                    if found ~= nil then
+                        --more than one candidate; the caster chooses at cast time.
+                        found = nil
+                        break
+                    end
+                    found = monster.properties:try_get("monster_type")
+                end
+            end
+        end
+
+        name = found
+    end)
+
+    g_summonNameCache[key] = { name = name }
+    return name
+end
+
+--- @param casterToken CharacterToken
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbilitySummonBehavior:BehaviorPlacementName(casterToken, symbols)
+    --Only the squares the ability itself targets are named here. When
+    --choosePlacement is set the behavior runs its own "Place creature N of M"
+    --prompt during the cast instead, and the ability's own target is something
+    --else entirely (often the caster).
+    if self.choosePlacement or self.replaceCaster then
+        return nil
+    end
+
+    return self:SummonedCreatureName(casterToken, symbols)
+end
+
+--Returns the live encounter squad data used when a non-Summoner ability opts
+--into squad choice. Rules-level Summoners keep using their private roster.
+local function GetEncounterMinionSquads(monsterType)
+    local squadsByType = {}
+    local allSquads = {}
+    local liveEntries = {}
+
+    for _,token in ipairs(dmhub.GetTokens{haveProperties = true}) do
+        local props = token.properties
+        if token.valid and props ~= nil and props.minion and not props:IsDeadOrDying() then
+            local squadName = props:MinionSquad()
+            local entryMonsterType = props:try_get("monster_type")
+            if squadName ~= nil then
+                liveEntries[#liveEntries+1] = {
+                    charid = token.charid,
+                    squad = squadName,
+                    monsterType = entryMonsterType,
+                }
+
+                local allInfo = allSquads[squadName]
+                if allInfo == nil then
+                    allInfo = { monsterType = entryMonsterType, count = 0, charids = {} }
+                    allSquads[squadName] = allInfo
+                end
+                allInfo.count = allInfo.count + 1
+                allInfo.charids[#allInfo.charids+1] = token.charid
+
+                if entryMonsterType == monsterType then
+                    local typeInfo = squadsByType[squadName]
+                    if typeInfo == nil then
+                        typeInfo = { monsterType = entryMonsterType, count = 0, charids = {} }
+                        squadsByType[squadName] = typeInfo
+                    end
+                    typeInfo.count = typeInfo.count + 1
+                    typeInfo.charids[#typeInfo.charids+1] = token.charid
+                end
+            end
+        end
+    end
+
+    return squadsByType, allSquads, liveEntries
+end
+
+--- Displays the squad-selection dialog for a summoning caster.
+--- Returns nil if cancelled, otherwise a result table with the chosen squad and warning flags.
+--- @param casterToken CharacterToken
+--- @param monsterType string The canonical monster_type of the creature being summoned.
+--- @param numSummons number How many creatures will be summoned into this squad.
+--- @param maxMinions number MaximumMinions attribute (0 means unlimited).
+--- @param maxSquads number MaxMinionSquads attribute (0 means unlimited).
+--- @param useEncounterSquads boolean|nil Use all live same-type minion squads instead of the caster's Summoner roster.
+--- @return table|nil result { squadName, isNew, exceededMinions, exceededSquads } or nil if cancelled.
+function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monsterType, numSummons, maxMinions, maxSquads, useEncounterSquads)
+    local SQUAD_CAP = 8
+
+    local caster = casterToken.properties
+    local squadsByType
+    local allSquads
+    local liveEntries
+    if useEncounterSquads then
+        squadsByType, allSquads, liveEntries = GetEncounterMinionSquads(monsterType)
+    else
+        squadsByType = caster:GetSummonedSquadsByType(monsterType)
+        allSquads = caster:GetSummonedSquadsByType(nil)
+        liveEntries = caster:GetLiveSummonedEntries()
+    end
+
+    local existingSquadNames = {}
+    for name,_ in pairs(squadsByType) do
+        existingSquadNames[#existingSquadNames+1] = name
+    end
+    table.sort(existingSquadNames)
+
+    local totalSquadCount = 0
+    for _ in pairs(allSquads) do
+        totalSquadCount = totalSquadCount + 1
+    end
+
+    local currentMinionCount = #liveEntries
+
+    -- If no same-type squad exists the caster has no choice but to open a new squad,
+    -- so we skip the dialog entirely and auto-assign a fresh squad name.
+    local hasExistingSameTypeSquad = #existingSquadNames > 0
+    if not hasExistingSameTypeSquad then
+        local autoSquadName = monster.FindFreshSquadName(monsterType)
+        local exceededMinions = (maxMinions > 0 and currentMinionCount + numSummons > maxMinions)
+        return {
+            squadName = autoSquadName,
+            isNew = true,
+            exceededMinions = exceededMinions,
+            exceededSquads = false,
+        }
+    end
+
+    local chosenSquadName = nil
+    local chosenIsNew = false
+    local canceled = false
+    local finished = false
+    local optionPanels = {}
+
+    local function ComputeWarnings()
+        local exceededMinions = false
+        local exceededSquads = false
+        if maxMinions > 0 and currentMinionCount + numSummons > maxMinions then
+            exceededMinions = true
+        end
+        if chosenIsNew and hasExistingSameTypeSquad and maxSquads > 0 and totalSquadCount + 1 > maxSquads then
+            exceededSquads = true
+        end
+        return exceededMinions, exceededSquads
+    end
+
+    local minionStatusLabel
+    local squadStatusLabel
+
+    local function FormatMinionStatus()
+        local projected = currentMinionCount + numSummons
+        if maxMinions > 0 then
+            return string.format("Minions: %d -> %d / %d", currentMinionCount, projected, maxMinions), projected > maxMinions
+        end
+        return string.format("Minions: %d -> %d", currentMinionCount, projected), false
+    end
+
+    local function FormatSquadStatus(isNewSelection)
+        local projected = totalSquadCount + (isNewSelection and 1 or 0)
+        local exceeded = isNewSelection and hasExistingSameTypeSquad and maxSquads > 0 and projected > maxSquads
+        if maxSquads > 0 then
+            return string.format("Squads: %d -> %d / %d", totalSquadCount, projected, maxSquads), exceeded
+        end
+        return string.format("Squads: %d -> %d", totalSquadCount, projected), exceeded
+    end
+
+    local function RefreshStatusLabels()
+        if minionStatusLabel ~= nil and minionStatusLabel.valid then
+            local text, exceeded = FormatMinionStatus()
+            minionStatusLabel.text = text
+            minionStatusLabel:SetClass("exceeded", exceeded)
+        end
+        if squadStatusLabel ~= nil and squadStatusLabel.valid then
+            local text, exceeded = FormatSquadStatus(chosenIsNew)
+            squadStatusLabel.text = text
+            squadStatusLabel:SetClass("exceeded", exceeded)
+        end
+    end
+
+    local function BuildOptionRow(labelText, noteText, isNew, squadName, warn)
+        local row
+        row = gui.Panel{
+            classes = {"squadOption", cond(warn, "warn")},
+            flow = "horizontal",
+            gui.Label{
+                classes = {"sizeM"},
+                text = labelText,
+                textAlignment = "left",
+                halign = "left",
+                width = "60%",
+                height = "auto",
+            },
+            gui.Label{
+                classes = {"sizeS", "squadOptionNote"},
+                text = noteText or "",
+                textAlignment = "left",
+                halign = "left",
+                width = "auto",
+                height = "auto",
+            },
+            press = function(element)
+                for _,p in ipairs(optionPanels) do
+                    p:SetClass("selected", p == element)
+                end
+                chosenSquadName = squadName
+                chosenIsNew = isNew
+                RefreshStatusLabels()
+            end,
+        }
+        return row
+    end
+
+    local exceedsMinionCap = (maxMinions > 0 and currentMinionCount + numSummons > maxMinions)
+
+    for _,name in ipairs(existingSquadNames) do
+        local info = squadsByType[name]
+        local newTotal = info.count + numSummons
+        local warn = newTotal > SQUAD_CAP or exceedsMinionCap
+        local note = string.format("(%d/%d minions)", info.count, SQUAD_CAP)
+        local row = BuildOptionRow(name, note, false, name, warn)
+        optionPanels[#optionPanels+1] = row
+    end
+
+    local newSquadName = monster.FindFreshSquadName(monsterType)
+    local newWarn = exceedsMinionCap or (hasExistingSameTypeSquad and maxSquads > 0 and totalSquadCount + 1 > maxSquads)
+    local newRow = BuildOptionRow(string.format("New squad: %s", newSquadName), nil, true, newSquadName, newWarn)
+    optionPanels[#optionPanels+1] = newRow
+
+    -- Default selection: the first existing same-type squad (if any), otherwise the new-squad option.
+    -- Over-cap squads are still selectable; the warning colors communicate the state.
+    local defaultIndex
+    if #existingSquadNames > 0 then
+        defaultIndex = 1
+        chosenSquadName = existingSquadNames[1]
+        chosenIsNew = false
+    else
+        defaultIndex = #optionPanels
+        chosenSquadName = newSquadName
+        chosenIsNew = true
+    end
+    optionPanels[defaultIndex]:SetClass("selected", true)
+
+    local initialMinionText, initialMinionExceeded = FormatMinionStatus()
+    local initialSquadText, initialSquadExceeded = FormatSquadStatus(chosenIsNew)
+
+    minionStatusLabel = gui.Label{
+        classes = {"sizeS", "statusLabel", cond(initialMinionExceeded, "exceeded")},
+        text = initialMinionText,
+        textAlignment = "center",
+        halign = "center",
+        valign = "top",
+        width = 560,
+        height = "auto",
+        vmargin = 2,
+    }
+
+    squadStatusLabel = gui.Label{
+        classes = {"sizeS", "statusLabel", cond(initialSquadExceeded, "exceeded")},
+        text = initialSquadText,
+        textAlignment = "center",
+        halign = "center",
+        valign = "top",
+        width = 560,
+        height = "auto",
+        vmargin = 2,
+    }
+
+    gamehud:ModalDialog{
+        title = "Assign to Squad",
+        buttons = {
+            {
+                text = "Assign",
+                click = function()
+                    finished = true
+                end,
+            },
+            {
+                text = "Cancel",
+                escapeActivates = true,
+                click = function()
+                    finished = true
+                    canceled = true
+                end,
+            },
+        },
+
+        styles = ThemeEngine.MergeTokens{
+            {
+                selectors = {"squadOption"},
+                height = 28,
+                width = 560,
+                halign = "center",
+                valign = "top",
+                hmargin = 20,
+                vmargin = 2,
+                vpad = 4,
+                bgimage = true,
+                bgcolor = "clear",
+            },
+            { selectors = {"squadOption","warn"},            bgcolor = "@danger" },
+            { selectors = {"squadOption","hover"},           bgcolor = "@bgAlt" },
+            { selectors = {"squadOption","warn","hover"},    bgcolor = "@danger", brightness = 1.3 },
+            { selectors = {"squadOption","selected"},        bgcolor = "@accent" },
+            { selectors = {"squadOption","warn","selected"}, bgcolor = "@danger", brightness = 1.5 },
+
+            { selectors = {"statusLabel"},                   color = "@fgMuted" },
+            { selectors = {"statusLabel","exceeded"},        color = "@danger" },
+
+            { selectors = {"squadOptionNote"},               color = "@fgMuted" },
+            { selectors = {"squadOptionNote","parent:warn"}, color = "@warning" },
+        },
+
+        width = 650,
+        height = 500,
+        flow = "vertical",
+
+
+        children = {
+            gui.Label{
+                classes = {"sizeM"},
+                text = string.format("Summoning %d %s%s - choose a squad:", numSummons, monsterType, cond(numSummons == 1, "", "s")),
+                textAlignment = "center",
+                halign = "center",
+                valign = "top",
+                width = 600,
+                height = "auto",
+                vmargin = 6,
+            },
+            minionStatusLabel,
+            squadStatusLabel,
+            gui.Panel{
+                flow = "vertical",
+                vscroll = true,
+                valign = "top",
+                width = 600,
+                halign = "center",
+                height = 340,
+                children = optionPanels,
+            },
+        },
+    }
+
+    while not finished do
+        coroutine.yield(0.1)
+    end
+
+    if canceled then
+        return nil
+    end
+
+    local exceededMinions, exceededSquads = ComputeWarnings()
+    return {
+        squadName = chosenSquadName,
+        isNew = chosenIsNew,
+        exceededMinions = exceededMinions,
+        exceededSquads = exceededSquads,
+    }
+end
+
 function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialogOptions)
 	dialogOptions = dialogOptions or {}
 	local chosenOption = nil
@@ -70,15 +758,27 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 	local maxPrettyCR = "0"
 
 	local allSameCheck = nil
-	if dialogOptions.index ~= nil and dialogOptions.index < dialogOptions.numSummons and (not dialogOptions.allCreaturesTheSame) then
+	--offerAllSame is passed when the dialog runs before the number of summons
+	--is known (the pre-pick before the numSummons roll); otherwise the check
+	--shows whenever there are more summons after this one.
+	local showAllSame = dialogOptions.offerAllSame
+		or (dialogOptions.index ~= nil and dialogOptions.numSummons ~= nil and dialogOptions.index < dialogOptions.numSummons)
+	if showAllSame and (not dialogOptions.allCreaturesTheSame) then
+		local checkText
+		if dialogOptions.offerAllSame then
+			checkText = "Use this choice for all summons"
+		else
+			checkText = string.format("Use this choice for all %s summons", json(1+dialogOptions.numSummons - dialogOptions.index))
+		end
+
+		--shown in the bottom row, left of the Summon/Cancel buttons.
 		allSameCheck = gui.Check{
-			halign = "right",
-			valign = "bottom",
-			hmargin = 32,
-			fontSize = 14,
-			width = 460,
+			classes = {"sizeS"},
+			vmargin = 0,
+			hmargin = 8,
+			width = 330,
 			height = 30,
-			text = string.format("Use this choice for all %s summons", json(1+dialogOptions.numSummons - dialogOptions.index)),
+			text = checkText,
 			value = dmhub.GetSettingValue("summonallsame"),
 			change = function(element)
 				dmhub.SetSettingValue("summonallsame", element.value)
@@ -98,27 +798,44 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 		end
 	end
 
+	--statblock preview of the currently selected creature, shown beside the list.
+	local statblockPanel = nil
+	local function RefreshStatblock()
+		if statblockPanel == nil or not statblockPanel.valid then
+			return
+		end
+		local children = {}
+		if chosenOption ~= nil then
+			local ok, rendered = pcall(function()
+				return chosenOption.properties:Render({width = 480}, {asset = chosenOption})
+			end)
+			if ok and rendered ~= nil then
+				children[#children+1] = rendered
+			end
+		end
+		statblockPanel.children = children
+	end
+
 	for i,option in ipairs(choices) do
 		local panel = gui.Panel{
 			classes = {"option"},
-			bgimage = "panels/square.png",
 			flow = "horizontal",
 			data = {
 				CR = option.properties:CR()
 			},
 			gui.Label{
+				classes = {"sizeM"},
 				text = option.properties.monster_type,
 				textAlignment = "left",
 				halign = "left",
-				fontSize = 16,
 				width = "60%",
 				height = "auto",
 			},
 			gui.Label{
+				classes = {"sizeM"},
 				text = string.format("Level %s", option.properties:PrettyCR()),
 				textAlignment = "left",
 				halign = "left",
-				fontSize = 16,
 				width = "auto",
 				height = "auto",
 			},
@@ -128,6 +845,7 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 				end
 
 				chosenOption = choices[i]
+				RefreshStatblock()
 			end,
 		}
 
@@ -151,83 +869,157 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 
 	ShowMaxCROnly(dmhub.GetSettingValue("summoncrcheck"))
 
-	gamehud:ModalDialog{
-		classes = {"framedPanel"},
-        bgimage = 'panels/square.png',
-        bgcolor = Styles.backgroundColor,
-        borderColor = Styles.textColor,
-		title = dialogOptions.title or "Summon Creature",
-		buttons = {
-			{
-				text = dialogOptions.buttonText or "Summon",
-				click = function()
-					finished = true
-				end,
-			},
-			{
-				text = "Cancel",
-				escapeActivates = true,
-				click = function()
-					finished = true
-					canceled = true
-				end,
-			},
-		},
+	local dialogPanel = nil
+	local function CloseDialog()
+		if dialogPanel ~= nil and dialogPanel.valid then
+			dialogPanel:FireEvent("close")
+		end
+	end
 
-		styles = {
+	--buttons live in our own bottom row (checks on the left, buttons on the
+	--right) instead of ModalDialog's button strip, so pass no dialog buttons.
+	dialogPanel = gamehud:ModalDialog{
+		title = dialogOptions.title or "Summon Creature",
+        valign = "top",
+        tmargin = 12,
+		buttons = {},
+
+		styles = ThemeEngine.MergeTokens{
 			{
 				selectors = {"option"},
 				height = 24,
-				width = 500,
+				width = 480,
 				halign = "center",
 				valign = "top",
 				hmargin = 20,
 				vmargin = 0,
 				vpad = 4,
-				bgcolor = "#00000000",
+				bgimage = true,
+				bgcolor = "clear",
 			},
-			{
-				selectors = {"option","hover"},
-				bgcolor = "#ffff0088",
-			},
-			{
-				selectors = {"option","selected"},
-				bgcolor = "#ff000088",
-			},
+			{ selectors = {"option","hover"},    bgcolor = "@bgAlt" },
+			{ selectors = {"option","selected"}, bgcolor = "@accent" },
+			--retint text inside the selected row so it stays legible against
+			--the accent fill (same convention as drag-target labels).
+			{ selectors = {"label", "parent:selected"}, priority = 5, color = "@fgInverse" },
 		},
 
-		width = 650,
+		width = 1100,
 		height = 700,
-
 		flow = "vertical",
 
 		children = {
-			
+
+			--explicitly-sized client area (ModalDialog's client panel has no
+			--real size of its own): two uniform columns filling most of the
+			--dialog, with a bottom row anchored beneath them.
 			gui.Panel{
-				flow = "vertical",
-				vscroll = true,
-				valign = "top",
-				width = 600,
+				width = 1060,
+				height = 627,
 				halign = "center",
-				height = 500,
-				children = optionPanels,
+				valign = "top",
+				flow = "none",
+
+				--the creature list on the left and a statblock preview of the
+				--selected creature on the right.
+				gui.Panel{
+					width = "100%",
+					height = 555,
+					halign = "center",
+					valign = "top",
+					flow = "horizontal",
+
+					gui.Panel{
+						classes = {"bordered"},
+						width = 520,
+						height = "100%",
+						valign = "top",
+						vpad = 8,
+						flow = "vertical",
+						vscroll = true,
+						children = optionPanels,
+					},
+
+					gui.Panel{
+						classes = {"bordered"},
+						width = 520,
+						height = "100%",
+						hmargin = 10,
+						valign = "top",
+						vpad = 8,
+						flow = "vertical",
+						vscroll = true,
+						create = function(element)
+							statblockPanel = element
+							RefreshStatblock()
+						end,
+					},
+				},
+
+				--bottom row: option checks on the left, buttons on the right.
+				gui.Panel{
+					width = "100%",
+					height = 40,
+					halign = "center",
+					valign = "bottom",
+					flow = "none",
+
+					gui.Panel{
+						width = "auto",
+						height = "auto",
+						halign = "left",
+						valign = "center",
+						flow = "horizontal",
+
+						gui.Check{
+							--"collapsed" (not "hidden"): hidden panels still occupy
+							--layout space, which would misalign the row.
+							classes = {"sizeS", cond(minCR == maxCR, "collapsed")},
+							vmargin = 0,
+							hmargin = 8,
+							width = 330,
+							height = 30,
+							text = string.format("Show only Level %s creatures", maxPrettyCR),
+							value = dmhub.GetSettingValue("summoncrcheck"),
+							change = function(element)
+								dmhub.SetSettingValue("summoncrcheck", element.value)
+								ShowMaxCROnly(element.value)
+							end,
+						},
+						allSameCheck,
+					},
+
+					gui.Panel{
+						width = "auto",
+						height = "auto",
+						halign = "right",
+						valign = "center",
+						flow = "horizontal",
+
+						gui.Button{
+							classes = {"sizeL"},
+							text = dialogOptions.buttonText or "Summon",
+							hmargin = 8,
+							click = function(element)
+								finished = true
+								CloseDialog()
+							end,
+						},
+						gui.Button{
+							classes = {"sizeL"},
+							text = "Cancel",
+							escapeActivates = true,
+							escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+							hmargin = 8,
+							click = function(element)
+								finished = true
+								canceled = true
+								CloseDialog()
+							end,
+						},
+					},
+				},
 			},
-			gui.Check{
-				classes = {cond(minCR == maxCR, "hidden")},
-				halign = "right",
-				valign = "bottom",
-				hmargin = 32,
-				fontSize = 14,
-				width = 460,
-				height = 30,
-				text = string.format("Show only Level %s creatures", maxPrettyCR),
-				value = dmhub.GetSettingValue("summoncrcheck"),
-				change = function(element)
-					dmhub.SetSettingValue("summoncrcheck", element.value)
-					ShowMaxCROnly(element.value)
-				end,
-			},
-			allSameCheck,
 		}
 	}
 
@@ -239,8 +1031,12 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 		return nil
 	end
 
-	if allSameCheck ~= nil and allSameCheck.valid then
-		dialogOptions.allSame = allSameCheck.value
+	--the confirm click may have destroyed the dialog (and the check panel)
+	--before this coroutine wakes, so don't read the panel: the change handler
+	--mirrors the checkbox into the summonallsame setting, and the checkbox is
+	--initialized from it, so the setting is always the checkbox's state.
+	if allSameCheck ~= nil then
+		dialogOptions.allSame = dmhub.GetSettingValue("summonallsame")
 	end
 
 	return chosenOption
@@ -290,7 +1086,7 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
                 goto continue_duplicate
             end
 
-            token = game.SpawnTokenFromBestiaryLocally(bestiaryId, loc, {
+            token = game.SpawnTokenFromBestiaryLocally(bestiaryId, loc.withGroundAltitude, {
                 fitLocation = true,
             })
 
@@ -325,6 +1121,14 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
 
             local srcProps = sourceToken.properties
             local srcMaxHp = srcProps:MaxHitpoints()
+
+            --size and squad membership are part of the duplicate's identity:
+            --a duplicated minion keeps the source's size and joins its squad.
+            props.creatureSize = srcProps.creatureSize
+            props.minion = srcProps.minion
+            if srcProps.minion then
+                props.minionSquad = srcProps:MinionSquad()
+            end
             if self.copyStamina then
                 props.damage_taken = srcProps.damage_taken
                 props.max_hitpoints = srcMaxHp
@@ -354,10 +1158,10 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
                 props.availableTriggers = DeepCopy(srcProps:try_get("availableTriggers", {}))
             end
             if self.copyConditions then
-                props.inflictedConditions = DeepCopy(sourceToken.properties.inflictedConditions)
+                props.inflictedConditions = DeepCopy(sourceToken.properties:try_get("inflictedConditions", {}))
             end
             if self.copyEffects then
-                props.ongoingEffects = DeepCopy(sourceToken.properties.ongoingEffects)
+                props.ongoingEffects = DeepCopy(sourceToken.properties:try_get("ongoingEffects", {}))
             end
 
             props.isDuplicate = true
@@ -365,7 +1169,7 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
 
             newChar:UploadToken()
             game.UpdateCharacterTokens()
-            newChar:ChangeLocation(core.Loc{x = loc.x, y = loc.y})
+            newChar:ChangeLocation(core.Loc{x = loc.x, y = loc.y}.withGroundAltitude)
 
             --wait for the token to be fully created and available on the map,
             --following the same pattern as follower creation in DSFollower.lua.
@@ -406,10 +1210,14 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
                         token.properties.max_hitpoints = srcMaxHp
                     end
                     if self.copyConditions then
-                        token.properties.inflictedConditions = DeepCopy(srcProps.inflictedConditions)
+                        token.properties.inflictedConditions = DeepCopy(srcProps:try_get("inflictedConditions", {}))
                     end
                     if self.copyEffects then
-                        token.properties.ongoingEffects = DeepCopy(srcProps.ongoingEffects)
+                        token.properties.ongoingEffects = DeepCopy(srcProps:try_get("ongoingEffects", {}))
+                    end
+                    if srcProps.minion then
+                        token.properties.minion = true
+                        token.properties.minionSquad = srcProps:MinionSquad()
                     end
                     if self.copyFeatures then
                         token.properties.attributes = DeepCopy(srcProps.attributes)
@@ -521,17 +1329,608 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
     ability:CommitToPaying(casterToken, args)
 end
 
+--- Prompts the user to place summons. When squadCtx is provided, also renders an
+--- inline squad chip bar.
+--- @param casterToken CharacterToken
+--- @param rangeTiles number max distance in tiles from casterToken.loc.
+--- @param index number which summon
+--- @param total number total summons being placed.
+--- @param isMinion boolean true if the creature being placed is a minion.
+--- @param squadCtx table|nil persistent squad-selection state (see Cast()).
+--- @param creatureCtx table|nil persistent creature-selection state with .choices and .selectedCreature.
+--- @return Loc|nil pickedLoc, table|nil squadResult, table|nil pickedCreature.
+function ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, index, total, isMinion, squadCtx, creatureCtx, ability, promptPrefix)
+    --optional context text shown before "Place minion N of M", e.g.
+    --"Lingering Hunger Trait:". Normalized here so every prompt variant
+    --below can just concatenate it.
+    if promptPrefix == nil or promptPrefix == "" then
+        promptPrefix = ""
+    else
+        promptPrefix = promptPrefix .. " "
+    end
+    local SQUAD_CAP = 8
+
+    --measure range from the token's full footprint, not just its anchor square.
+    --GetLocsWithinRadius includes every tile the token occupies, so Size 2+ casters
+    --radiate range from all their squares instead of only the bottom-left corner.
+    local validLocs = casterToken:GetLocsWithinRadius(rangeTiles)
+    local occupiedLocs = casterToken:LocsOccupyingWhenAt(casterToken.loc)
+
+    local pickedLoc = nil
+    local pickedSquadResult = nil
+    local pickedCreature = nil
+    local cancelled = false
+
+    local rangeMarker = dmhub.MarkLocs{
+        locs = validLocs,
+        color = "#22cc66",
+    }
+    local hoverMarker = nil
+
+    local function destroyHoverMarker()
+        if hoverMarker ~= nil then
+            hoverMarker:Destroy()
+            hoverMarker = nil
+        end
+    end
+
+    local function isInRange(loc)
+        if loc == nil then
+            return false
+        end
+        for _,o in ipairs(occupiedLocs) do
+            if o:DistanceInTiles(loc) <= rangeTiles then
+                return true
+            end
+        end
+        return false
+    end
+
+    local pickerContent
+    local commitWithSquadSelection
+
+    if squadCtx == nil then
+        pickerContent = gui.Label{
+            halign = "center",
+            width = "auto",
+            minWidth = 200,
+            textAlignment = "center",
+            height = "auto",
+            bold = true,
+            fontSize = 16,
+            text = promptPrefix .. string.format("Place %s %d of %d (Esc to cancel)", isMinion and "minion" or "creature", index, total),
+        }
+    else
+        local headerLabel
+        local statusLabel
+        local squadBarPanel
+
+        local function CurrentCreatureName()
+            if creatureCtx ~= nil and creatureCtx.selectedCreature ~= nil then
+                return creatureCtx.selectedCreature.properties.monster_type or (isMinion and "minion" or "creature")
+            end
+            return isMinion and "minion" or "creature"
+        end
+
+        local function SyncMonsterTypeFromCreatureCtx()
+            if creatureCtx ~= nil and creatureCtx.selectedCreature ~= nil then
+                local newType = creatureCtx.selectedCreature.properties.monster_type
+                if squadCtx.monsterType ~= newType then
+                    squadCtx.monsterType = newType
+                    squadCtx.nextFreshName = nil
+                end
+            end
+        end
+
+        -- Build (or rebuild) the squad chip list, status text, and commit closure
+        -- based on the current squadCtx.monsterType. Returns the chip panels.
+        local function BuildSquadView()
+            local caster = casterToken.properties
+            local squadsByType
+            local allSquads
+            local liveEntries
+            if squadCtx.useEncounterSquads then
+                squadsByType = squadCtx.encounterSquadsByType
+                allSquads = squadCtx.encounterAllSquads
+                liveEntries = squadCtx.encounterLiveEntries
+            else
+                squadsByType = caster:GetSummonedSquadsByType(squadCtx.monsterType)
+                allSquads = caster:GetSummonedSquadsByType(nil)
+                liveEntries = caster:GetLiveSummonedEntries()
+            end
+
+            local baselineMinionCount = #liveEntries
+            local baselineSquadCount = 0
+            for _ in pairs(allSquads) do baselineSquadCount = baselineSquadCount + 1 end
+
+            local totalPlacedSoFar = 0
+            for _,c in pairs(squadCtx.placedBySquad) do totalPlacedSoFar = totalPlacedSoFar + c end
+            local newSquadsOpenedSoFar = 0
+            for _ in pairs(squadCtx.newSquadsOpened) do newSquadsOpenedSoFar = newSquadsOpenedSoFar + 1 end
+
+            local projectedMinionsAfterThis = baselineMinionCount + totalPlacedSoFar + 1
+            local exceedsMinionCap = (squadCtx.maxMinions > 0 and projectedMinionsAfterThis > squadCtx.maxMinions)
+
+            local sameTypeNames = {}
+            local sameTypeBaselineCount = {}
+            for name,info in pairs(squadsByType) do
+                sameTypeNames[#sameTypeNames+1] = name
+                sameTypeBaselineCount[name] = info.count
+            end
+            for name,_ in pairs(squadCtx.newSquadsOpened) do
+                if squadsByType[name] == nil and squadCtx.newSquadsType[name] == squadCtx.monsterType then
+                    sameTypeNames[#sameTypeNames+1] = name
+                    sameTypeBaselineCount[name] = 0
+                end
+            end
+            table.sort(sameTypeNames)
+
+            if squadCtx.nextFreshName == nil then
+                squadCtx.nextFreshName = monster.FindFreshSquadName(squadCtx.monsterType)
+            end
+            local newSquadName = squadCtx.nextFreshName
+
+            local hasExistingSameTypeNow = #sameTypeNames > 0
+
+            local optionPanels = {}
+            local sameTypePanelByName = {}
+
+            for _,name in ipairs(sameTypeNames) do
+                local placedHere = squadCtx.placedBySquad[name] or 0
+                local currentCount = sameTypeBaselineCount[name] + placedHere
+                local projectedSquad = currentCount + 1
+                local capturedName = name
+                local warnLines = {}
+                if projectedSquad > SQUAD_CAP then
+                    warnLines[#warnLines+1] = string.format("Squad would have %d minions, exceeding the cap of %d.", projectedSquad, SQUAD_CAP)
+                end
+                if exceedsMinionCap then
+                    warnLines[#warnLines+1] = string.format("Total minions would be %d, exceeding your maximum of %d.", projectedMinionsAfterThis, squadCtx.maxMinions)
+                end
+                local warnText = table.concat(warnLines, "\n")
+                local warn = warnText ~= ""
+                local rowArgs = {
+                    classes = {"advantage-element", cond(warn, "summon-squad-warn")},
+                    text = string.format("%s (%d/%d)", name, currentCount, SQUAD_CAP),
+                    press = function(element)
+                        squadCtx.selectedSquadName = capturedName
+                        squadCtx.selectedIsNew = false
+                        for _,p in ipairs(optionPanels) do p:SetClass("selected", false) end
+                        element:SetClass("selected", true)
+                    end,
+                }
+                if warn then
+                    rowArgs.hover = function(element)
+                        gui.Tooltip{ text = warnText, color = "#ff6666", textAlignment = "center" }(element)
+                    end
+                end
+                local panel = gui.Label(rowArgs)
+                optionPanels[#optionPanels+1] = panel
+                sameTypePanelByName[name] = panel
+            end
+
+            local newWarnLines = {}
+            if hasExistingSameTypeNow and squadCtx.maxSquads > 0 and (baselineSquadCount + newSquadsOpenedSoFar + 1) > squadCtx.maxSquads then
+                newWarnLines[#newWarnLines+1] = string.format("Opening this squad would put you at %d squads, exceeding your maximum of %d.", baselineSquadCount + newSquadsOpenedSoFar + 1, squadCtx.maxSquads)
+            end
+            if exceedsMinionCap then
+                newWarnLines[#newWarnLines+1] = string.format("Total minions would be %d, exceeding your maximum of %d.", projectedMinionsAfterThis, squadCtx.maxMinions)
+            end
+            local newWarnText = table.concat(newWarnLines, "\n")
+            local newWarn = newWarnText ~= ""
+            local newRowArgs = {
+                classes = {"advantage-element", cond(newWarn, "summon-squad-warn")},
+                text = "+ New squad",
+                press = function(element)
+                    squadCtx.selectedSquadName = newSquadName
+                    squadCtx.selectedIsNew = true
+                    for _,p in ipairs(optionPanels) do p:SetClass("selected", false) end
+                    element:SetClass("selected", true)
+                end,
+            }
+            if newWarn then
+                newRowArgs.hover = function(element)
+                    gui.Tooltip{ text = newWarnText, color = "#ff6666", textAlignment = "center" }(element)
+                end
+            else
+                local capturedName = newSquadName
+                newRowArgs.hover = function(element)
+                    gui.Tooltip(string.format("Open a new squad: %s", capturedName))(element)
+                end
+            end
+            local newPanel = gui.Label(newRowArgs)
+            optionPanels[#optionPanels+1] = newPanel
+
+            -- Reconcile carried-over selection: a previous "+ New" pick may now be an existing
+            -- same-type chip; or the previously-selected name may not exist for this monster type.
+            if squadCtx.selectedSquadName ~= nil and squadCtx.selectedIsNew then
+                if sameTypePanelByName[squadCtx.selectedSquadName] ~= nil then
+                    squadCtx.selectedIsNew = false
+                elseif squadCtx.selectedSquadName ~= newSquadName then
+                    squadCtx.selectedSquadName = nil
+                    squadCtx.selectedIsNew = false
+                end
+            end
+            if squadCtx.selectedSquadName ~= nil and not squadCtx.selectedIsNew and sameTypePanelByName[squadCtx.selectedSquadName] == nil then
+                squadCtx.selectedSquadName = nil
+            end
+
+            if squadCtx.selectedSquadName == nil then
+                if #sameTypeNames > 0 then
+                    squadCtx.selectedSquadName = sameTypeNames[1]
+                    squadCtx.selectedIsNew = false
+                else
+                    squadCtx.selectedSquadName = newSquadName
+                    squadCtx.selectedIsNew = true
+                end
+            end
+
+            if squadCtx.selectedIsNew then
+                newPanel:SetClass("selected", true)
+            elseif sameTypePanelByName[squadCtx.selectedSquadName] ~= nil then
+                sameTypePanelByName[squadCtx.selectedSquadName]:SetClass("selected", true)
+            end
+
+            local minionPart
+            if squadCtx.maxMinions > 0 then
+                minionPart = string.format("Minions: %d -> %d / %d", baselineMinionCount + totalPlacedSoFar, projectedMinionsAfterThis, squadCtx.maxMinions)
+            else
+                minionPart = string.format("Minions: %d -> %d", baselineMinionCount + totalPlacedSoFar, projectedMinionsAfterThis)
+            end
+            local squadPart
+            if squadCtx.maxSquads > 0 then
+                squadPart = string.format("Squads: %d / %d", baselineSquadCount + newSquadsOpenedSoFar, squadCtx.maxSquads)
+            else
+                squadPart = string.format("Squads: %d", baselineSquadCount + newSquadsOpenedSoFar)
+            end
+            local statusText = string.format("%s    %s", minionPart, squadPart)
+
+            commitWithSquadSelection = function()
+                if squadCtx.selectedSquadName == nil then
+                    return nil
+                end
+                local exceededMinions = exceedsMinionCap
+                local exceededSquads = squadCtx.selectedIsNew and hasExistingSameTypeNow and squadCtx.maxSquads > 0 and (baselineSquadCount + newSquadsOpenedSoFar + 1) > squadCtx.maxSquads
+                return {
+                    squadName = squadCtx.selectedSquadName,
+                    isNew = squadCtx.selectedIsNew,
+                    exceededMinions = exceededMinions,
+                    exceededSquads = exceededSquads,
+                }
+            end
+
+            return optionPanels, statusText
+        end
+
+        local function ApplyCreatureChange()
+            SyncMonsterTypeFromCreatureCtx()
+            local optionPanels, statusText = BuildSquadView()
+            if squadBarPanel ~= nil and squadBarPanel.valid then
+                squadBarPanel.children = optionPanels
+            end
+            if statusLabel ~= nil and statusLabel.valid then
+                statusLabel.text = statusText
+            end
+            if headerLabel ~= nil and headerLabel.valid then
+                headerLabel.text = promptPrefix .. string.format("Place %s %d of %d", CurrentCreatureName(), index, total)
+            end
+        end
+
+        SyncMonsterTypeFromCreatureCtx()
+        local initialOptionPanels, initialStatusText = BuildSquadView()
+
+        local creatureBarPanel = nil
+        if creatureCtx ~= nil and #creatureCtx.choices > 1 then
+            local creatureChips = {}
+            for _,opt in ipairs(creatureCtx.choices) do
+                local capturedOpt = opt
+                local optName = opt.properties.monster_type or "creature"
+                local hoverText = nil
+                if opt.properties.PrettyCR ~= nil then
+                    hoverText = string.format("Level %s", opt.properties:PrettyCR())
+                end
+                local chipArgs = {
+                    classes = {"advantage-element", cond(creatureCtx.selectedCreature == opt, "selected")},
+                    text = optName,
+                    press = function(element)
+                        if creatureCtx.selectedCreature == capturedOpt then
+                            return
+                        end
+                        creatureCtx.selectedCreature = capturedOpt
+                        for _,c in ipairs(creatureChips) do c:SetClass("selected", false) end
+                        element:SetClass("selected", true)
+                        ApplyCreatureChange()
+                    end,
+                }
+                if hoverText ~= nil then
+                    chipArgs.hover = function(element)
+                        gui.Tooltip(hoverText)(element)
+                    end
+                end
+                creatureChips[#creatureChips+1] = gui.Label(chipArgs)
+            end
+            creatureBarPanel = gui.Panel{
+                classes = {"advantage-bar"},
+                width = "auto",
+                maxWidth = 760,
+                height = "auto",
+                halign = "center",
+                flow = "horizontal",
+                wrap = true,
+                bgcolor = "clear",
+                vmargin = 4,
+                children = creatureChips,
+            }
+        end
+
+        headerLabel = gui.Label{
+            halign = "center",
+            width = "auto",
+            height = "auto",
+            bold = true,
+            fontSize = 16,
+            textAlignment = "center",
+            text = promptPrefix .. string.format("Place %s %d of %d", CurrentCreatureName(), index, total),
+            vmargin = 2,
+        }
+        statusLabel = gui.Label{
+            halign = "center",
+            width = "auto",
+            height = "auto",
+            fontSize = 13,
+            color = "#cccccc",
+            textAlignment = "center",
+            text = initialStatusText,
+            vmargin = 2,
+        }
+        squadBarPanel = gui.Panel{
+            classes = {"advantage-bar"},
+            width = "auto",
+            maxWidth = 760,
+            height = "auto",
+            halign = "center",
+            flow = "horizontal",
+            wrap = true,
+            bgcolor = "clear",
+            vmargin = 6,
+            children = initialOptionPanels,
+        }
+
+        local pickerChildren = { headerLabel, statusLabel }
+        if creatureBarPanel ~= nil then
+            pickerChildren[#pickerChildren+1] = creatureBarPanel
+        end
+        pickerChildren[#pickerChildren+1] = squadBarPanel
+        pickerChildren[#pickerChildren+1] = gui.Label{
+            halign = "center",
+            width = "auto",
+            height = "auto",
+            fontSize = 10,
+            color = "#888888",
+            textAlignment = "center",
+            text = "Esc to cancel",
+            vmargin = 2,
+        }
+
+        pickerContent = gui.Panel{
+            width = "auto",
+            height = "auto",
+            flow = "vertical",
+            halign = "center",
+            valign = "center",
+            interactable = true,
+            styles = {
+                Styles.AdvantageBar,
+                {
+                    selectors = {"advantage-element"},
+                    width = "auto",
+                    minWidth = 120,
+                    maxWidth = 220,
+                    height = 26,
+                    fontSize = 14,
+                    hpad = 12,
+                    margin = 3,
+                },
+                {
+                    selectors = {"advantage-element","summon-squad-warn"},
+                    color = "#ffaa66",
+                },
+                {
+                    selectors = {"advantage-element","summon-squad-warn","hover","~selected"},
+                    bgcolor = "#ffaa6644",
+                },
+                {
+                    selectors = {"advantage-element","summon-squad-warn","press"},
+                    bgcolor = "#ffaa66",
+                    color = "black",
+                },
+            },
+            children = pickerChildren,
+        }
+    end
+
+    local picker
+    picker = gui.Panel{
+        floating = true,
+        width = "100%",
+        height = "100%",
+        halign = "left",
+        valign = "top",
+        bgcolor = "clear",
+        interactable = true,
+        mapfocus = true,
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_DIALOG,
+
+        gui.TooltipFrame(pickerContent, { vmargin = 85 }),
+
+        mappress = function(element, loc, point)
+            if commitWithSquadSelection ~= nil then
+                local r = commitWithSquadSelection()
+                if r == nil then
+                    return
+                end
+                pickedSquadResult = r
+            end
+            if creatureCtx ~= nil then
+                pickedCreature = creatureCtx.selectedCreature
+            end
+            pickedLoc = loc
+        end,
+
+        maphover = function(element, loc, point)
+            destroyHoverMarker()
+            if loc == nil then
+                return
+            end
+            hoverMarker = dmhub.MarkLocs{
+                locs = { loc },
+                color = isInRange(loc) and "#ffffffcc" or "#cc2222cc",
+            }
+        end,
+
+        escape = function(element)
+            cancelled = true
+        end,
+
+        destroy = function(element)
+            destroyHoverMarker()
+            if rangeMarker ~= nil then
+                rangeMarker:Destroy()
+                rangeMarker = nil
+            end
+        end,
+    }
+
+    gamehud.popupPanel:AddChild(picker)
+
+    while pickedLoc == nil and not cancelled and picker.valid do
+        coroutine.yield(0.1)
+    end
+
+    --the picker being destroyed externally (not by our own DestroySelf below)
+    --means the placement UI was torn down under us, e.g. a HUD rebuild or the
+    --caster being removed mid-cast. Report it distinctly from a user cancel
+    --so the caller can auto-place instead of stranding the summons.
+    local abandoned = (pickedLoc == nil) and (not cancelled) and (not picker.valid)
+
+    if picker.valid then
+        picker:DestroySelf()
+    end
+
+    if cancelled then
+        return nil, nil, nil, "cancelled"
+    end
+    if abandoned then
+        return nil, nil, nil, "abandoned"
+    end
+    return pickedLoc, pickedSquadResult, pickedCreature
+end
+
 function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args)
     if self.duplicateMode then
         self:CastDuplicate(ability, casterToken, targets, args)
         return
     end
 
+    -- Register a post-cast handler that force-dismisses the tooltip card.
+    args.OnFinishCastHandlers = args.OnFinishCastHandlers or {}
+    args.OnFinishCastHandlers[#args.OnFinishCastHandlers+1] = function()
+        if GameHud == nil or GameHud.instance == nil then return end
+        if rawget(GameHud.instance, "abilityDisplay") == nil then return end
+        local panel = GameHud.instance.abilityDisplay
+        if panel ~= nil and panel.valid then
+            panel:FireEvent("hideAbility")
+        end
+    end
+
+    --accumulate every summoned token across all outer targets so we can inject
+    --them into the cast's target list once, after the outer loop completes. This
+    --avoids mutating the `targets` table while it is still being iterated.
+    local allSummonedTokens = {}
+
+    --tweak-placement mode: summons are auto-placed around each outer target and
+    --spawned hidden from players; after the outer loop the user rearranges them
+    --within each group's radius and confirms. One group per outer target.
+    local tweakGroups = {}
+
     for _,target in ipairs(targets) do
         local newOwner = ""
         if self.casterControls then
             newOwner = casterToken.ownerId
         end
+
+        --build the candidate creature list first, before rolling numSummons or
+        --asking for placement, so we can expose the chosen creature as a symbol
+        local choices = {}
+        if self.monsterType == "custom" then
+            for k,monster in pairs(assets.monsters) do
+                --GetMonsterNode can return nil mid-import/reload; skip rather than throw.
+                local node = assets:GetMonsterNode(k)
+                if node ~= nil and not node.hidden and monster.properties ~= nil then
+                    args.symbols.beast = GenerateSymbols(monster.properties)
+                    if monster.properties:has_key("monster_type") and ExecuteGoblinScript(self.bestiaryFilter, GenerateSymbols(casterToken.properties, args.symbols), 0, string.format("Bestiary filter for %s summons filter %s", ability.name, monster.properties.monster_type)) ~= 0 then
+                        choices[#choices+1] = monster
+                    end
+                end
+            end
+        else
+            local monster = assets.monsters[self.monsterType]
+            if monster ~= nil then
+                choices[#choices+1] = monster
+            end
+        end
+
+        args.symbols.beast = nil
+
+        dmhub.Debug(string.format("SUMMON:: CHOICES: %d", #choices))
+        if #choices == 0 then
+            --Abandoning the summon must stop the whole cast: args.targets still
+            --holds the pre-summon target list (for a self-targeted ability that
+            --is the caster), and later behaviors -- e.g. Remove Creature --
+            --must not run against it. Same guard on every abandonment return
+            --below.
+            args.stopProcessing = true
+            return
+        end
+
+        table.sort(choices, function(a,b) return a.properties.monster_type < b.properties.monster_type end)
+
+        local preCheckSummonerMaxMinions = casterToken.properties:CalculateNamedCustomAttribute("MaximumMinions")
+        local preCheckSummonerMaxSquads = casterToken.properties:CalculateNamedCustomAttribute("MaxMinionSquads")
+        local preCheckIsSummoner = (not casterToken.properties.minion) and (preCheckSummonerMaxMinions > 0 or preCheckSummonerMaxSquads > 0)
+        local willPickCreatureInline = preCheckIsSummoner and self.casterChoosesCreatures and self.choosePlacement and (not self.replaceCaster) and #choices > 1 and self.changeCreatureWhileCasting
+
+        --pre-pick the chosen creature so its symbols are available to numSummons
+        --and to subsequent behaviors
+        local allSame = false
+        local chosenOption
+        if #choices == 1 then
+            chosenOption = choices[1]
+        elseif willPickCreatureInline then
+            --skip the upfront modal; the player will pick each creature inline during placement.
+            --use the first sorted choice as a default so symbols and numSummons can resolve.
+            chosenOption = choices[1]
+        elseif self.casterChoosesCreatures then
+            --the number of summons is not rolled yet (its formula may reference
+            --the chosen creature), so offer a countless "all summons" check.
+            local dialogOptions = { index = 1, numSummons = 1, allCreaturesTheSame = self.allCreaturesTheSame, offerAllSame = true }
+            chosenOption = ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialogOptions)
+            if chosenOption == nil then
+                --abandoned: stop the whole cast (see the guard note above).
+                args.stopProcessing = true
+                return
+            end
+            if dialogOptions.allSame then
+                allSame = true
+            end
+        else
+            chosenOption = choices[math.random(#choices)]
+        end
+
+        --expose the chosen creature on the shared symbol table so numSummons
+        --and subsequent behaviors can reference Summon.<attribute>.
+        args.symbols.summon = GenerateSymbols(chosenOption.properties)
 
         local finishedRoll = false
         local numSummons = nil
@@ -558,41 +1957,73 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
         dmhub.Debug(string.format("SUMMON:: %s", json(numSummons)))
         if numSummons == nil or numSummons <= 0 then
+            --abandoned: stop the whole cast (see the guard note above).
+            args.stopProcessing = true
             return
         end
 
+        local manualPlacement = self.choosePlacement and (not self.replaceCaster)
+        local rangeTiles = 0
+        if manualPlacement then
+            rangeTiles = dmhub.EvalGoblinScript(self.summonRange, GenerateSymbols(casterToken.properties, args.symbols), 0, string.format("Summon placement range for %s", ability.name)) or 0
+            rangeTiles = math.max(0, math.floor(rangeTiles))
+            if rangeTiles <= 0 then
+                manualPlacement = false
+            end
+        end
 
-        local choices = {}
-        if self.monsterType == "custom" then
-            for k,monster in pairs(assets.monsters) do
-                if not assets:GetMonsterNode(k).hidden then
-                    args.symbols.beast = GenerateSymbols(monster.properties)
-                    if monster.properties:has_key("monster_type") and ExecuteGoblinScript(self.bestiaryFilter, GenerateSymbols(casterToken.properties, args.symbols), 0, string.format("Bestiary filter for %s summons filter %s", ability.name, monster.properties.monster_type)) ~= 0 then
-                        choices[#choices+1] = monster
-                    end
+        local tweakPlacement = self.tweakPlacement and (not manualPlacement) and (not self.replaceCaster)
+        local tweakRadius = 1
+        local tweakStartLocs = nil
+        if tweakPlacement then
+            tweakRadius = dmhub.EvalGoblinScript(self.tweakRadius, GenerateSymbols(casterToken.properties, args.symbols), 1, string.format("Tweak placement radius for %s", ability.name)) or 1
+            tweakRadius = math.max(0, math.floor(tweakRadius))
+
+            if self.tweakAnchor == "casterstart" then
+                tweakStartLocs = args.casterStartLocs
+                if tweakStartLocs == nil or #tweakStartLocs == 0 then
+                    tweakStartLocs = casterToken:LocsOccupyingWhenAt(casterToken.loc)
                 end
             end
-        else
-            local monster = assets.monsters[self.monsterType]
-            if monster ~= nil then
-                choices[#choices+1] = monster
-            end
         end
-
-        args.symbols.beast = nil
-
-        dmhub.Debug(string.format("SUMMON:: CHOICES: %d", #choices))
-        if #choices == 0 then
-            return
-        end
-
-        table.sort(choices, function(a,b) return a.properties.monster_type < b.properties.monster_type end)
 
         local summonedTokens = {}
+        local summonerEntries = {}
+        local summonedMonsterids = {}
 
-        local chosenOption = choices[1]
+        local summonerMaxMinions = casterToken.properties:CalculateNamedCustomAttribute("MaximumMinions")
+        local summonerMaxSquads = casterToken.properties:CalculateNamedCustomAttribute("MaxMinionSquads")
+        local isSummoner = (not casterToken.properties.minion) and (summonerMaxMinions > 0 or summonerMaxSquads > 0)
+        local chooseSquad = self:try_get("chooseSquad", false)
+        local usesSquadChooser = isSummoner or chooseSquad
+        local useEncounterSquads = chooseSquad and not isSummoner
+        local cachedSquadResult = nil
+        local placementSquadCtx = nil
+        local placementCreatureCtx = nil
+        local warningExceededMinions = false
+        local warningExceededSquads = false
 
-        local allSame = false
+        --set when the placement UI is torn down externally mid-cast: the
+        --remaining summons auto-place near the target/caster instead of
+        --prompting, so the summons are never stranded.
+        local autoPlaceSummons = false
+
+        --minions summoned with no squad-selection UI (non-summoner casters)
+        --all join ONE fresh squad opened for this cast, so they never merge
+        --into an unrelated same-type squad's shared stamina pool.
+        local freshSquadName = nil
+
+        --fresh-squad minion spawns with their evaluated initial damage; used
+        --to seed the new squad's shared pool after the spawn loop, once the
+        --final member count is known.
+        local freshSquadSpawns = {}
+
+        -- For Summoner casters with manual placement, fold the creature-type choice
+        -- into the inline placement picker so it can change per-summon.
+        local creatureChoiceInline = isSummoner and manualPlacement and self.casterChoosesCreatures and #choices > 1 and self.changeCreatureWhileCasting
+
+        --note: allSame is declared at pre-pick time above, so the pre-pick
+        --dialog's "use this choice for all summons" carries into this loop.
 
         local initiativeGrouping = nil
         if self.groupInitiativeWithCaster then
@@ -601,8 +2032,14 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
 
         for j=1,numSummons do
 
-            if j ~= 1 and (self.allCreaturesTheSame or allSame) then
+            if j == 1 then
+                --use the pre-picked chosenOption from before the numSummons roll.
+
+            elseif self.allCreaturesTheSame or allSame then
                 --all creatures are the same so just maintain the chosen option.
+
+            elseif creatureChoiceInline then
+                --creature is picked inside the inline placement picker below.
 
             elseif #choices > 1 and not self.casterChoosesCreatures then
                 chosenOption = choices[math.random(#choices)]
@@ -611,6 +2048,8 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 local dialogOptions = { index = j, numSummons = numSummons, allCreaturesTheSame = self.allCreaturesTheSame }
                 chosenOption = ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialogOptions)
                 if chosenOption == nil then
+                    --abandoned: stop the whole cast (see the guard note above).
+                    args.stopProcessing = true
                     return
                 end
 
@@ -619,17 +2058,208 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 end
             end
 
-            local loc = target.loc
+            local squadNameForSpawn = nil
+
+            local loc
             if self.replaceCaster then
+                if usesSquadChooser then
+                    local squadResult
+                    if cachedSquadResult ~= nil then
+                        squadResult = cachedSquadResult
+                    else
+                        local shared = self.allCreaturesTheSame or allSame
+                        local dialogCount = shared and numSummons or 1
+                        squadResult = ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, chosenOption.properties.monster_type, dialogCount, summonerMaxMinions, summonerMaxSquads, useEncounterSquads)
+                        if squadResult == nil then
+                            --abandoned: stop the whole cast (see the guard note above).
+                            args.stopProcessing = true
+                            return
+                        end
+                        if shared then
+                            cachedSquadResult = squadResult
+                        end
+                        if squadResult.exceededMinions then warningExceededMinions = true end
+                        if squadResult.exceededSquads then warningExceededSquads = true end
+                    end
+                    squadNameForSpawn = squadResult.squadName
+                end
                 loc = casterToken.loc
+            elseif manualPlacement then
+                local squadCtxArg = nil
+                if usesSquadChooser then
+                    if placementSquadCtx == nil then
+                        local encounterSquadsByType = nil
+                        local encounterAllSquads = nil
+                        local encounterLiveEntries = nil
+                        if useEncounterSquads then
+                            encounterSquadsByType, encounterAllSquads, encounterLiveEntries = GetEncounterMinionSquads(chosenOption.properties.monster_type)
+                        end
+                        placementSquadCtx = {
+                            maxMinions = summonerMaxMinions,
+                            maxSquads = summonerMaxSquads,
+                            useEncounterSquads = useEncounterSquads,
+                            encounterSquadsByType = encounterSquadsByType,
+                            encounterAllSquads = encounterAllSquads,
+                            encounterLiveEntries = encounterLiveEntries,
+                            selectedSquadName = nil,
+                            selectedIsNew = false,
+                            placedBySquad = {},
+                            newSquadsOpened = {},
+                            newSquadsType = {},
+                            nextFreshName = nil,
+                        }
+                    end
+                    placementSquadCtx.monsterType = chosenOption.properties.monster_type
+                    squadCtxArg = placementSquadCtx
+                end
+                local creatureCtxArg = nil
+                if creatureChoiceInline then
+                    if placementCreatureCtx == nil then
+                        placementCreatureCtx = {
+                            choices = choices,
+                            selectedCreature = chosenOption,
+                        }
+                    end
+                    creatureCtxArg = placementCreatureCtx
+                end
+                local isMinion = chosenOption ~= nil and chosenOption.properties ~= nil and chosenOption.properties:try_get("minion", false)
+                local pickedLoc = nil
+                local squadResult = nil
+                local pickedCreature = nil
+                if not autoPlaceSummons then
+                    local promptResult
+                    pickedLoc, squadResult, pickedCreature, promptResult = ActivatedAbilitySummonBehavior.PromptPlacementLoc(casterToken, rangeTiles, j, numSummons, isMinion, squadCtxArg, creatureCtxArg, ability, self.placementPrompt)
+                    if pickedLoc == nil then
+                        if promptResult == "abandoned" then
+                            --the placement UI was torn down externally (e.g.
+                            --the caster was removed mid-cast): never strand
+                            --the summons. Auto-place this and every remaining
+                            --summon near the target/caster instead; the spawn
+                            --uses fitLocation so they settle on free squares
+                            --and can be dragged afterward.
+                            autoPlaceSummons = true
+                        else
+                            --user cancelled; stop placing further summons but keep what's already there.
+                            --If nothing has been summoned at all this is a full abandonment:
+                            --stop the whole cast (see the guard note above).
+                            if #summonedTokens == 0 and #allSummonedTokens == 0 then
+                                args.stopProcessing = true
+                            end
+                            break
+                        end
+                    end
+                end
+                if autoPlaceSummons then
+                    loc = target.loc
+                    if loc == nil and casterToken.valid then
+                        loc = casterToken.loc
+                    end
+                    if loc == nil then
+                        break
+                    end
+                else
+                    loc = pickedLoc
+                end
+                if pickedCreature ~= nil then
+                    chosenOption = pickedCreature
+                    args.symbols.summon = GenerateSymbols(chosenOption.properties)
+                end
+                if squadResult ~= nil then
+                    squadNameForSpawn = squadResult.squadName
+                    if squadResult.exceededMinions then warningExceededMinions = true end
+                    if squadResult.exceededSquads then warningExceededSquads = true end
+                    placementSquadCtx.placedBySquad[squadResult.squadName] = (placementSquadCtx.placedBySquad[squadResult.squadName] or 0) + 1
+                    if squadResult.isNew and not placementSquadCtx.newSquadsOpened[squadResult.squadName] then
+                        placementSquadCtx.newSquadsOpened[squadResult.squadName] = true
+                        placementSquadCtx.newSquadsType[squadResult.squadName] = placementSquadCtx.monsterType
+                        placementSquadCtx.nextFreshName = nil
+                    end
+                end
+            else
+                if usesSquadChooser then
+                    local squadResult
+                    if cachedSquadResult ~= nil then
+                        squadResult = cachedSquadResult
+                    else
+                        local shared = self.allCreaturesTheSame or allSame
+                        local dialogCount = shared and numSummons or 1
+                        squadResult = ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, chosenOption.properties.monster_type, dialogCount, summonerMaxMinions, summonerMaxSquads, useEncounterSquads)
+                        if squadResult == nil then
+                            --abandoned: stop the whole cast (see the guard note above).
+                            args.stopProcessing = true
+                            return
+                        end
+                        if shared then
+                            cachedSquadResult = squadResult
+                        end
+                        if squadResult.exceededMinions then warningExceededMinions = true end
+                        if squadResult.exceededSquads then warningExceededSquads = true end
+                    end
+                    squadNameForSpawn = squadResult.squadName
+                end
+                if tweakStartLocs ~= nil then
+                    --anchor on the caster's starting footprint: cycle summons
+                    --through those squares (the caster has typically vacated
+                    --them by now, e.g. via an earlier teleport behavior).
+                    loc = tweakStartLocs[((j - 1) % #tweakStartLocs) + 1]
+                else
+                    loc = target.loc
+                end
             end
 
-            local token = game.SpawnTokenFromBestiaryLocally(chosenOption.id, loc, {
+            local token = game.SpawnTokenFromBestiaryLocally(chosenOption.id, loc.withGroundAltitude, {
                 fitLocation = not self.replaceCaster,
             })
+
+            if tweakPlacement then
+                --spawn hidden from players; the tweak mode reveals on Continue.
+                --Meanwhile the token renders ghosted (40% alpha) to the director.
+                token.invisibleToPlayers = true
+            end
+
             token.ownerId = newOwner
 
             token.summonerid = casterToken.charid
+
+            if self.shareSurgesWithSummoner then
+                token.properties.sharesSurgesWithSummoner = true
+            end
+
+            if self.shareHeroicResourceWithSummoner then
+                token.properties.sharesHeroicResourceWithSummoner = true
+            end
+
+            if squadNameForSpawn ~= nil then
+                token.properties.minionSquad = squadNameForSpawn
+                if isSummoner then
+                    summonerEntries[#summonerEntries+1] = {
+                        charid = token.charid,
+                        squad = squadNameForSpawn,
+                        monsterType = chosenOption.properties.monster_type,
+                    }
+                end
+            elseif token.properties.minion and (not self.joinExistingSquad) then
+                --minion spawned with no squad-selection UI (non-summoner
+                --caster): creature:MinionSquad() would default it into
+                --"<type> Squad 1", silently merging it -- and its shared
+                --stamina pool -- with any unrelated same-type squad already
+                --on the map. Open ONE fresh squad for this cast's minions
+                --instead. Set joinExistingSquad on the behavior to restore
+                --the old merging for content that wants reinforcements to
+                --join an existing squad.
+                if freshSquadName == nil then
+                    local monsterType = token.properties:try_get("monster_type", "Minion")
+                    local findFresh = rawget(monster, "FindFreshSquadName")
+                    if findFresh ~= nil then
+                        freshSquadName = findFresh(monsterType)
+                    else
+                        --game systems without squad-name bookkeeping still get
+                        --a unique squad per cast.
+                        freshSquadName = string.format("%s Squad %s", monsterType, string.sub(dmhub.GenerateGuid(), 1, 8))
+                    end
+                end
+                token.properties.minionSquad = freshSquadName
+            end
 
             if initiativeGrouping ~= nil then
                 token.properties.initiativeGrouping = initiativeGrouping
@@ -641,49 +2271,312 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 text = string.format("Summoned by %s", casterToken.description),
             }
 
+            --optionally start the summon below max Stamina. Direct property
+            --set (before the upload below), so no damage triggers fire.
+            local initialDamageFormula = trim(self:try_get("initialDamageTaken", "0"))
+            if initialDamageFormula ~= "" and initialDamageFormula ~= "0" then
+                local initialDamage = dmhub.EvalGoblinScript(initialDamageFormula, GenerateSymbols(casterToken.properties, args.symbols), 0, string.format("Initial damage taken for %s summons", ability.name))
+                initialDamage = math.floor(tonumber(initialDamage) or 0)
+                if initialDamage > 0 then
+                    --never spawn the summon already dead.
+                    local maxhp = token.properties:MaxHitpoints()
+                    if initialDamage >= maxhp then
+                        initialDamage = maxhp - 1
+                    end
+                end
+                if initialDamage > 0 then
+                    if freshSquadName ~= nil and token.properties.minion and token.properties:try_get("minionSquad") == freshSquadName then
+                        --minions share a squad stamina pool derived from the
+                        --damage_taken_seq fan-out (see RefreshSquadInfo), so
+                        --a bare per-token damage_taken write is invisible to
+                        --it. Collect the amount instead; the fresh squad's
+                        --pool is seeded after the spawn loop, once the final
+                        --member count is known.
+                        freshSquadSpawns[#freshSquadSpawns+1] = { charid = token.charid, damage = initialDamage }
+                    else
+                        token.properties.damage_taken = token.properties.damage_taken + initialDamage
+                    end
+                end
+            end
+
             summonedTokens[#summonedTokens+1] = token
 
             if self.casterControls then
-                --if the caster controls the summoned tokens then they mimic its appearance.
-                local summonerHasFrame = casterToken.portraitFrame ~= nil and casterToken.portraitFrame ~= ""
-                local tokenHasFrame = token.portraitFrame ~= nil and token.portraitFrame ~= ""
+                local lookKey = ActivatedAbilitySummonBehavior.SummonLookKey(chosenOption, chosenOption.id)
 
-                if summonerHasFrame == tokenHasFrame then
-                    token.portraitFrame = casterToken.portraitFrame
-                    token.portraitFrameHueShift = casterToken.portraitFrameHueShift
+                ActivatedAbilitySummonBehavior.ApplySummonLook(casterToken, token, lookKey)
+                summonedMonsterids[lookKey] = true
+
+                --if the caster controls the summoned tokens then they inherit
+                --the caster's party. Skipped when the caster token went
+                --defunct mid-cast (e.g. a minion removed while its triggered
+                --summon was still resolving).
+                if casterToken.valid then
+                    token.partyid = casterToken.partyid
                 end
-
-                --if the caster controls the summoned tokens then they inherit the caster's party.
-                token.partyid = casterToken.partyid
             end
 
             token:UploadToken("Summon Creature")
             game.UpdateCharacterTokens()
-
-            --assign the token to the target so we can refer to it in subsequent behaviors.
-            local tok = dmhub.GetTokenById(token.charid)
-            target.token = tok
-            print("TOKEN:: ASSIGN", tok)
         end
 
-        if ability:RequiresConcentration() and casterToken.properties:HasConcentration() then
-            casterToken:ModifyProperties{
-                description = "Concentrate on summons",
-                execute = function()
-                    local concentration = casterToken.properties:MostRecentConcentration()
-                    local summonid = concentration:get_or_add("summonid", {})
-                    for _,token in ipairs(summonedTokens) do
-                        summonid[#summonid+1] = token.charid
+        --seed the fresh squad's shared stamina pool with the summons' initial
+        --damage. Squad stamina is derived from the member carrying the
+        --highest damage_taken_seq (see RefreshSquadInfo in MCDMCreature.lua),
+        --so every member gets the pool total, a seq of 1 and the member
+        --count -- exactly the shape real squad damage fans out.
+        if #freshSquadSpawns > 0 then
+            local poolDamage = 0
+            for _,entry in ipairs(freshSquadSpawns) do
+                poolDamage = poolDamage + entry.damage
+            end
+
+            local memberCount = 0
+            for _,tok in ipairs(summonedTokens) do
+                if tok.valid and tok.properties ~= nil and tok.properties.minion and tok.properties:try_get("minionSquad") == freshSquadName then
+                    memberCount = memberCount + 1
+                end
+            end
+
+            if poolDamage > 0 and memberCount > 0 then
+                for _,tok in ipairs(summonedTokens) do
+                    if tok.valid and tok.properties ~= nil and tok.properties.minion and tok.properties:try_get("minionSquad") == freshSquadName then
+                        tok:ModifyProperties{
+                            description = "Initial summon damage",
+                            undoable = false,
+                            combine = true,
+                            execute = function()
+                                tok.properties.damage_taken = poolDamage
+                                tok.properties.damage_taken_seq = 1
+                                tok.properties.damage_taken_minion_count = memberCount
+                            end,
+                        }
                     end
-                end,
+                end
+            end
+        end
+
+        --remember every token summoned for this outer target so we can inject them
+        --all into the cast target list after the outer loop finishes.
+        for _,summoned in ipairs(summonedTokens) do
+            allSummonedTokens[#allSummonedTokens+1] = summoned
+        end
+
+        if tweakPlacement and #summonedTokens > 0 then
+            local anchorToken = target.token
+            if anchorToken == nil or not anchorToken.valid then
+                anchorToken = casterToken
+            end
+            local groupTokens = {}
+            for _,summoned in ipairs(summonedTokens) do
+                groupTokens[#groupTokens+1] = summoned
+            end
+            tweakGroups[#tweakGroups+1] = {
+                tokens = groupTokens,
+                anchorToken = anchorToken,
+                anchorLocs = tweakStartLocs, --nil unless tweakAnchor is "casterstart"
+                radius = tweakRadius,
             }
         end
 
-        dmhub.Debug(string.format("SUMMON:: DONE"))
+        if #summonedTokens > 0 then
+            --the caster can be removed mid-cast (e.g. a minion skull-killed
+            --while its triggered summon resolves): a defunct token still
+            --answers simple getters (.charid, .description) but .properties
+            --reads nil. Skip caster-side bookkeeping in that case while still
+            --finishing the cast; CommitToPaying self-guards against a defunct
+            --caster inside FireUseAbility.
+            local casterAlive = casterToken ~= nil and casterToken.valid and casterToken.properties ~= nil
+
+            if casterAlive and ability:RequiresConcentration() and casterToken.properties:HasConcentration() then
+                casterToken:ModifyProperties{
+                    description = "Concentrate on summons",
+                    execute = function()
+                        local concentration = casterToken.properties:MostRecentConcentration()
+                        local summonid = concentration:get_or_add("summonid", {})
+                        for _,token in ipairs(summonedTokens) do
+                            summonid[#summonid+1] = token.charid
+                        end
+                    end,
+                }
+            end
+
+            if casterAlive and isSummoner and #summonerEntries > 0 then
+                casterToken:ModifyProperties{
+                    description = "Register summons",
+                    execute = function()
+                        for _,entry in ipairs(summonerEntries) do
+                            casterToken.properties:RegisterSummonedMinion(entry.charid, entry.squad, entry.monsterType)
+                        end
+                    end,
+                }
+            end
+
+            if casterAlive then
+                --add newly summoned creature types to the caster's summon history.
+                local newHistory = {}
+                local existingHistory = casterToken.properties:try_get("summonHistory")
+                for monsterid,_ in pairs(summonedMonsterids) do
+                    if existingHistory == nil or existingHistory[monsterid] == nil then
+                        newHistory[#newHistory+1] = monsterid
+                    end
+                end
+                if #newHistory > 0 then
+                    casterToken:ModifyProperties{
+                        description = "Record summon history",
+                        undoable = false,
+                        execute = function()
+                            for _,monsterid in ipairs(newHistory) do
+                                casterToken.properties:RecordSummonHistory(monsterid)
+                            end
+                        end,
+                    }
+                end
+            end
+
+            if warningExceededMinions then
+                chat.Send(string.format("%s exceeded their MaximumMinions limit of %d.", casterToken.description, summonerMaxMinions))
+            end
+            if warningExceededSquads then
+                chat.Send(string.format("%s exceeded their MaxMinionSquads limit of %d.", casterToken.description, summonerMaxSquads))
+            end
+
+            dmhub.Debug(string.format("SUMMON:: DONE"))
+            game.UpdateCharacterTokens()
+
+            --we summoned, so consume resources.
+            ability:CommitToPaying(casterToken, args)
+
+            if self.replaceCaster and casterAlive then
+                casterToken:ModifyProperties{
+                    description = "Replace caster",
+                    execute = function()
+                        casterToken.despawned = true
+                    end,
+                }
+            end
+        end
+    end
+
+    --tweak-placement mode: all summons are on the map (hidden from players).
+    --Show the rearrange UI and block until the user presses Continue, which
+    --reveals them. If the tweaker module is unavailable, just reveal immediately.
+    if #tweakGroups > 0 then
+        game.UpdateCharacterTokens()
+        coroutine.yield(0.1)
+
+        local groups = {}
+        local nameCounts = {}
+        local nameOrder = {}
+        for _,g in ipairs(tweakGroups) do
+            local groupTokens = {}
+            for _,tok in ipairs(g.tokens) do
+                local resolved = dmhub.GetTokenById(tok.charid)
+                if resolved ~= nil and resolved.valid then
+                    groupTokens[#groupTokens+1] = resolved
+                    local name = resolved.description
+                    if name == nil or name == "" then
+                        name = "creature"
+                    end
+                    if nameCounts[name] == nil then
+                        nameCounts[name] = 0
+                        nameOrder[#nameOrder+1] = name
+                    end
+                    nameCounts[name] = nameCounts[name] + 1
+                end
+            end
+
+            if #groupTokens > 0 and g.anchorLocs ~= nil then
+                --anchored on fixed squares (e.g. the caster's starting footprint):
+                --derive the valid area from the anchor locs directly.
+                local seen = {}
+                local validLocs = {}
+                for _,anchorLoc in ipairs(g.anchorLocs) do
+                    for dx = -g.radius, g.radius do
+                        for dy = -g.radius, g.radius do
+                            local l = anchorLoc:dir(dx, dy)
+                            local key = string.format("%d,%d,%d", l.x, l.y, l.floor)
+                            if not seen[key] then
+                                seen[key] = true
+                                validLocs[#validLocs+1] = l
+                            end
+                        end
+                    end
+                end
+                groups[#groups+1] = {
+                    tokens = groupTokens,
+                    anchorLocs = g.anchorLocs,
+                    radius = g.radius,
+                    validLocs = validLocs,
+                }
+            elseif #groupTokens > 0 and g.anchorToken ~= nil and g.anchorToken.valid then
+                groups[#groups+1] = {
+                    tokens = groupTokens,
+                    anchorLocs = g.anchorToken:LocsOccupyingWhenAt(g.anchorToken.loc),
+                    radius = g.radius,
+                    validLocs = g.anchorToken:GetLocsWithinRadius(g.radius),
+                }
+            end
+        end
+
+        local tweaker = rawget(_G, "CreaturePlacementTweaker")
+        if tweaker ~= nil and #groups > 0 then
+            local nameParts = {}
+            for _,name in ipairs(nameOrder) do
+                local count = nameCounts[name]
+                if count > 1 then
+                    nameParts[#nameParts+1] = string.format("%d %ss", count, name)
+                else
+                    nameParts[#nameParts+1] = string.format("1 %s", name)
+                end
+            end
+            local messageSuffix = self.tweakMessage
+            if messageSuffix == nil or messageSuffix == "" then
+                messageSuffix = tr("placed around targets. Rearrange positions before continuing.")
+            end
+            local message = string.format("%s %s", table.concat(nameParts, ", "), messageSuffix)
+            tweaker.Run{
+                groups = groups,
+                message = message,
+            }
+        else
+            for _,g in ipairs(tweakGroups) do
+                for _,tok in ipairs(g.tokens) do
+                    local resolved = dmhub.GetTokenById(tok.charid)
+                    if resolved ~= nil and resolved.valid then
+                        resolved.invisibleToPlayers = false
+                    end
+                end
+            end
+            game.UpdateCharacterTokens()
+        end
+    end
+
+    --inject ALL summoned tokens into the cast target list so subsequent behaviors
+    --(e.g. ActivatedAbilityApplyOngoingEffectBehavior with applyto: targets) act on
+    --every summoned creature instead of only the last one. Previously a single
+    --shared target.token was overwritten once per spawn, so only the final summon
+    --survived in the target list. We mirror the duplicate-summon injection pattern.
+    --This runs after the outer target loop so we never mutate `targets` mid-iteration.
+    if #allSummonedTokens > 0 and args.targets ~= nil then
+        --ensure all spawned tokens are fully available before resolving them.
+        game.UpdateCharacterTokens()
+        coroutine.yield(0.2)
         game.UpdateCharacterTokens()
 
-        --we summoned, so consume resources.
-        ability:CommitToPaying(casterToken, args)
+        --replace the original placement targets with one entry per summoned token.
+        for i = #args.targets, 1, -1 do
+            args.targets[i] = nil
+        end
+
+        for _,summoned in ipairs(allSummonedTokens) do
+            local resolved = dmhub.GetTokenById(summoned.charid)
+            if resolved ~= nil then
+                args.targets[#args.targets+1] = {token = resolved, loc = resolved.loc}
+            else
+                print("SUMMON:: could not resolve token for target injection", summoned.charid)
+            end
+        end
     end
 end
 
@@ -817,6 +2710,14 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 	options = options or {}
 
 	if options.numSummons then
+		local numSummonsHelpSymbols = DeepCopy(ActivatedAbility.helpCasting)
+		numSummonsHelpSymbols.summon = {
+			name = "Summon",
+			type = "creature",
+			desc = "The creature being summoned. Resolved from the player's selection (or random pick) before this script runs, so its custom attributes (e.g. Summon.SummonNum, Summon.SummonCost) are available here.",
+			examples = {"Summon.SummonNum", "Summon.SummonCost + 1"},
+		}
+
 		list[#list+1] = gui.Panel{
 			classes = "formPanel",
 			gui.Label{
@@ -842,12 +2743,183 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 							script = "3 + upcast",
 							text = "3 creatures will be summoned with an additional creature for every level the spell slot used for this spell is above the spell's level.",
 						},
+						{
+							script = "Summon.SummonNum",
+							text = "Number of summons is read from the chosen creature's 'Summon Num' custom attribute. Useful for Heroic summons where each stat block defines its own party size.",
+						},
+					},
+					subject = creature.helpSymbols,
+					subjectDescription = "The creature using the ability",
+					symbols = numSummonsHelpSymbols,
+				},
+
+			},
+		}
+
+		list[#list+1] = gui.Panel{
+			classes = "formPanel",
+			gui.Label{
+				classes = "formLabel",
+				text = "Initial Dmg Taken:",
+			},
+			gui.GoblinScriptInput{
+				value = self:try_get("initialDamageTaken", "0"),
+				change = function(element)
+					self.initialDamageTaken = element.value
+				end,
+
+				documentation = {
+					domains = parentPanel.data.parentAbility.domains,
+					help = string.format("This GoblinScript determines how much damage each summoned creature has already taken when it appears, letting a summon start below its maximum Stamina. It is applied as a direct stat change (not an attack), so no damage triggers fire. Clamped so the summon never spawns dead. Leave as 0 to spawn at full Stamina."),
+					output = "number",
+					examples = {
+						{
+							script = "0",
+							text = "Summons appear at full Stamina.",
+						},
+						{
+							script = "4",
+							text = "Each summon appears with 4 damage already taken (e.g. at 4 Stamina for an 8 Stamina creature).",
+						},
+					},
+					subject = creature.helpSymbols,
+					subjectDescription = "The creature using the ability",
+					symbols = numSummonsHelpSymbols,
+				},
+			},
+		}
+
+		list[#list+1] = gui.Check{
+			text = "Choose placement for each creature",
+			value = self.choosePlacement,
+			minWidth = 300,
+			change = function(element)
+				self.choosePlacement = element.value
+				element.parent:FireEventTree("refreshChoosePlacement")
+			end,
+		}
+
+		list[#list+1] = gui.Panel{
+			classes = {"formPanel", cond(not self.choosePlacement, "collapsed")},
+			refreshChoosePlacement = function(element)
+				element:SetClass("collapsed", not self.choosePlacement)
+			end,
+			gui.Label{
+				classes = "formLabel",
+				text = "Range:",
+			},
+			gui.GoblinScriptInput{
+				value = self.summonRange,
+				change = function(element)
+					self.summonRange = element.value
+				end,
+
+				documentation = {
+					domains = parentPanel.data.parentAbility.domains,
+					help = string.format("This GoblinScript is used to determine the maximum distance, in squares, from the caster within which the player may place each summoned creature."),
+					output = "number",
+					examples = {
+						{
+							script = "3",
+							text = "The player chooses placement for each creature within 3 squares of the caster.",
+						},
+						{
+							script = "1 + Charges",
+							text = "The play can place 1 creature + the number of channeled resources used.",
+						},
 					},
 					subject = creature.helpSymbols,
 					subjectDescription = "The creature using the ability",
 					symbols = ActivatedAbility.helpCasting,
 				},
+			},
+		}
 
+		list[#list+1] = gui.Panel{
+			classes = {"formPanel", cond(not self.choosePlacement, "collapsed")},
+			refreshChoosePlacement = function(element)
+				element:SetClass("collapsed", not self.choosePlacement)
+			end,
+			gui.Label{
+				classes = "formLabel",
+				text = "Prompt Prefix:",
+			},
+			gui.Input{
+				classes = "formInput",
+				text = self.placementPrompt,
+				placeholderText = "e.g. Lingering Hunger Trait:",
+				characterLimit = 120,
+				change = function(element)
+					self.placementPrompt = element.text
+				end,
+			},
+		}
+
+		list[#list+1] = gui.Check{
+			text = "Auto-place, then rearrange",
+			value = self.tweakPlacement,
+			minWidth = 300,
+			change = function(element)
+				self.tweakPlacement = element.value
+				element.parent:FireEventTree("refreshTweakPlacement")
+			end,
+		}
+
+		list[#list+1] = gui.Panel{
+			classes = {"formPanel", cond(not self.tweakPlacement, "collapsed")},
+			refreshTweakPlacement = function(element)
+				element:SetClass("collapsed", not self.tweakPlacement)
+			end,
+			gui.Label{
+				classes = "formLabel",
+				text = "Radius:",
+			},
+			gui.GoblinScriptInput{
+				value = self.tweakRadius,
+				change = function(element)
+					self.tweakRadius = element.value
+				end,
+
+				documentation = {
+					domains = parentPanel.data.parentAbility.domains,
+					help = string.format("This GoblinScript is used with auto-placement: summons are placed around each target automatically, then the user may rearrange them within this many squares of the target before confirming. If 'Choose placement for each creature' is also checked, that takes precedence."),
+					output = "number",
+					examples = {
+						{
+							script = "1",
+							text = "Summons appear in spaces adjacent to each target and may be rearranged within 1 square of the target.",
+						},
+						{
+							script = "3",
+							text = "Summons may be rearranged within 3 squares of each target (e.g. a 3 burst).",
+						},
+					},
+					subject = creature.helpSymbols,
+					subjectDescription = "The creature using the ability",
+					symbols = ActivatedAbility.helpCasting,
+				},
+			},
+		}
+
+		list[#list+1] = gui.Panel{
+			classes = {"formPanel", cond(not self.tweakPlacement, "collapsed")},
+			refreshTweakPlacement = function(element)
+				element:SetClass("collapsed", not self.tweakPlacement)
+			end,
+			gui.Label{
+				classes = "formLabel",
+				text = "Anchor:",
+			},
+			gui.Dropdown{
+				classes = {"formDropdown"},
+				options = {
+					{ id = "target", text = "Around each target" },
+					{ id = "casterstart", text = "Caster's starting space" },
+				},
+				idChosen = self.tweakAnchor,
+				change = function(element)
+					self.tweakAnchor = element.idChosen
+				end,
 			},
 		}
 	end
@@ -903,13 +2975,9 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 	end
 
 	list[#list+1] = gui.Panel{
-		classes = {"formPanel", cond(self.monsterType ~= "custom", "hidden")},
+		classes = {"formPanel", cond(self.monsterType ~= "custom", "collapsed")},
         refreshMonsterType = function(element)
-            if self.monsterType == "custom" then
-                element:SetClass("hidden", false)
-            else
-                element:SetClass("hidden", true)
-            end
+            element:SetClass("collapsed", self.monsterType ~= "custom")
         end,
 		gui.Label{
 			classes = "formLabel",
@@ -963,12 +3031,32 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 		end,
 	}
 
+	if not options.haveTargetCreature then
+		list[#list+1] = gui.Check{
+			text = "Change Creature Choice While Casting",
+			value = self.changeCreatureWhileCasting,
+	        minWidth = 300,
+			change = function(element)
+				self.changeCreatureWhileCasting = element.value
+			end,
+		}
+	end
+
 	list[#list+1] = gui.Check{
 		text = "All creatures the same",
 		value = self.allCreaturesTheSame,
         minWidth = 300,
 		change = function(element)
 			self.allCreaturesTheSame = element.value
+		end,
+	}
+
+	list[#list+1] = gui.Check{
+		text = "Choose minion squad during casting",
+		value = self:try_get("chooseSquad", false),
+		minWidth = 300,
+		change = function(element)
+			self.chooseSquad = element.value
 		end,
 	}
 
@@ -988,6 +3076,24 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
             value = self.groupInitiativeWithCaster,
             change = function(element)
                 self.groupInitiativeWithCaster = element.value
+            end,
+        }
+
+        list[#list+1] = gui.Check{
+            text = "Summons Share Surges",
+            minWidth = 300,
+            value = self.shareSurgesWithSummoner,
+            change = function(element)
+                self.shareSurgesWithSummoner = element.value
+            end,
+        }
+
+        list[#list+1] = gui.Check{
+            text = "Summons Share Heroic Resource",
+            minWidth = 300,
+            value = self.shareHeroicResourceWithSummoner,
+            change = function(element)
+                self.shareHeroicResourceWithSummoner = element.value
             end,
         }
 	end

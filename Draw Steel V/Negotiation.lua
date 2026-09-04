@@ -1,20 +1,52 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 local CreateNegotiationDialog
 
-LaunchablePanel.Register {
-	name = "Negotiation",
-    menu = "game",
-	icon = "icons/standard/Icon_App_Negotiation.png",
-	halign = "center",
-	valign = "center",
-	--filtered = function()
-	--	return not dmhub.isDM
-	--end,
-	content = function(options)
-		return CreateNegotiationDialog(options)
-	end,
+--The negotiation feature flag. It lives HERE, not in NegotiationRules.lua,
+--because main.lua loads this file first and the flag has to exist before either
+--registration reads it.
+--
+--It is a SWITCH, not a toggle: ON registers the new doc-driven stage + rail
+--runner (NegotiationRules.lua) and this old dialog stays out of the menu; OFF
+--registers only this one. Never both - two menu entries called "Negotiation"
+--is worse than either alone. Defaults OFF: the old dialog is what ships until
+--the new panel is turned on deliberately.
+NegotiationPanelSetting = setting{
+	id = "negotiationPanel",
+	description = "Negotiation panel (new)",
+	help = "The new negotiation prep page, shared stage, and Director's rail runner. Off keeps the classic negotiation dialog. Takes effect after a reload.",
+	storage = "preference",
+	section = "general",
+	default = false,
+	editor = "check",
 }
+
+if not NegotiationPanelSetting:Get() then
+	LaunchablePanel.Register {
+		name = "Negotiation",
+		menu = "game",
+		icon = "icons/standard/Icon_App_Negotiation.png",
+		halign = "center",
+		valign = "center",
+		--filtered = function()
+		--	return not dmhub.isDM
+		--end,
+		content = function(options)
+			return CreateNegotiationDialog(options)
+		end,
+	}
+end
 
 
 CreateNegotiationDialog = function(options)
@@ -49,6 +81,21 @@ CreateNegotiationDialog = function(options)
 
 	local revealed = false
 
+	local negotiationStartInterest = token.properties.negotiation.interest
+	local negotiationStartPatience = token.properties.negotiation.patience
+
+	local participantCount = 0
+	for _, t in ipairs(dmhub.allTokens) do
+		if t.properties:IsHero() then
+			participantCount = participantCount + 1
+		end
+	end
+
+	track("negotiation_start", {
+		participants = participantCount,
+		dailyLimit = 5,
+	})
+
 	local dialog
 
 
@@ -58,6 +105,27 @@ CreateNegotiationDialog = function(options)
 		monitorGame = token.monitorPath,
 		refreshGame = function(self)
 			self:FireEventTree("characterupdated")
+		end,
+
+		destroy = function(self)
+			local negotiation = token.properties.negotiation
+			local interest = negotiation and negotiation.interest or 0
+			local patience = negotiation and negotiation.patience or 0
+			local interestDelta = interest - negotiationStartInterest
+			local patienceDelta = patience - negotiationStartPatience
+			local result = "unknown"
+			if interest >= 5 then
+				result = "full_interest"
+			elseif patience <= 0 then
+				result = "out_of_patience"
+			elseif interestDelta > 0 then
+				result = "partial_interest"
+			end
+			track("negotiation_end", {
+				result = result,
+				rounds = math.abs(interestDelta) + math.abs(patienceDelta),
+				dailyLimit = 5,
+			})
 		end,
 
 		revealed = function(self)
@@ -354,9 +422,8 @@ CreateNegotiationDialog = function(options)
 
 					},
 
-					gui.AddButton {
-
-						classes = { "hideForPlayers" },
+					gui.Button {
+						classes = { "addButton", "hideForPlayers" },
 						halign = "center",
 						tmargin = 5,
 						tooltip = "Add Motivation",
@@ -617,12 +684,8 @@ CreateNegotiationDialog = function(options)
 
 					},
 
-
-
-
-					gui.AddButton {
-
-						classes = { "hideForPlayers" },
+					gui.Button {
+						classes = { "addButton", "hideForPlayers" },
 						halign = "center",
 						tmargin = 5,
 						tooltip = "Add Pitfall",

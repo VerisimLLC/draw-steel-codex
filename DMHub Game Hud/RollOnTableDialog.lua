@@ -94,6 +94,17 @@ function GameHud.CreateRollOnTableDialog(self)
 	local OnHide = function()
 		if m_shown > 0 then
 		    chat.PreviewChat('')
+			--The show handler seeds resting preview dice via chat.PreviewChat('/roll ...').
+			--chat.PreviewChat('') above only clears them while NO unarmed registered dice
+			--cage exists (the engine's empty-text path is guarded so chat typing can't wipe
+			--a roll dialog's dice); otherwise they are orphaned and pin __previewdice=true,
+			--hiding the action bar for the rest of the session (same leak as bug XPWBKEQA
+			--in DSRollDialog). Clear them explicitly, scoped so armed try-dice tiles (Dice
+			--dock, shop) are untouched; after a completed roll this is a no-op since the
+			--real roll consumed the preview dice. pcall for older binaries -- no global
+			--CancelCurrentRoll fallback here, since wiping the Dice dock's resting dice on
+			--every table-roll close is worse than the (rare) stale preview it would cover.
+			pcall(function() dmhub.ClearChatPreviewDice() end)
 			chat.events:Unlisten(resultPanel)
 			--chat.events:Pop()
 			m_shown = m_shown-1
@@ -134,7 +145,8 @@ function GameHud.CreateRollOnTableDialog(self)
 		end,
 	}
 
-	local cancelButton = gui.CloseButton{
+	local cancelButton = gui.Button{
+		classes = {"closeButton"},
 		floating = true,
 		halign = "right",
 		valign = "top",
@@ -165,6 +177,7 @@ function GameHud.CreateRollOnTableDialog(self)
 		events = {
 			click = function(element)
 				rollDiceButton:SetClass("collapsed", true)
+				m_rolls = {}
 
 				m_hasClose = true
 
@@ -172,9 +185,47 @@ function GameHud.CreateRollOnTableDialog(self)
 				if m_options.creature ~= nil then
 					tokenid = dmhub.LookupTokenId(m_options.creature)
 				end
-                
+
                 m_options.rollProperties.tableRef = m_options.tableRef
                 print("ROLL PROPERTIES:", json(m_options.rollProperties))
+
+				-- Hook for external mods to intercept table rolls
+				if RollDialog.OnBeforeTableRoll then
+					local rollFormula = m_table:CalculateRollInfo().roll
+					local hookResult = RollDialog.OnBeforeTableRoll({
+						roll = rollFormula,
+						description = string.format("Roll on %s", m_table.name),
+						creature = m_options.creature,
+						tokenid = tokenid,
+						properties = m_options.rollProperties,
+						tableRef = m_options.tableRef,
+						tableName = m_table.name,
+						guid = m_guid,
+						completeWithResult = function(total)
+							local syntheticRollInfo = {
+								total = total,
+								boons = 0,
+								banes = 0,
+								rolls = {},
+								properties = m_options.rollProperties,
+							}
+							local rowIndex = m_table:RowIndexFromDiceResult(total)
+							tablePanel:FireEvent("previewRoll", rowIndex)
+							proceedButton:SetClass("collapsed", false)
+							gui.SetFocus(proceedButton)
+							proceedButton.data.onclick = function()
+								if m_options.completeRoll ~= nil then
+									m_options.completeRoll(syntheticRollInfo)
+								end
+								tablePanel:FireEvent("completeRoll", syntheticRollInfo)
+							end
+						end,
+					})
+					if hookResult == "intercept" then
+						chat.PreviewChat{''}
+						return
+					end
+				end
 
 				dmhub.Roll{
 					guid = m_guid,
@@ -457,6 +508,21 @@ function GameHud.CreateRollOnTableDialog(self)
 				OnShow()
                 resultPanel:FireEventTree("show", m_options)
             end,
+
+            --External teardown entry point used by the restoreFromBackup event
+            --handler. Mirrors the cancelButton's click logic: when the roll has
+            --already happened (m_hasClose), just hide without re-firing the
+            --cancel callback; when the dialog is still pre-roll, run the full
+            --CancelRollDialog path.
+            Cancel = function()
+                if resultPanel:HasClass('hidden') then return end
+                if m_hasClose then
+                    resultPanel:SetClass('hidden', true)
+                    OnHide()
+                else
+                    CancelRollDialog()
+                end
+            end,
         },
 
 		gui.Panel{
@@ -516,7 +582,8 @@ end
 RegisterGameType("RollOnTableProperties", "RollProperties")
 
 function RollOnTableProperties:GetOutcome(rollInfo)
-    local total = rollInfo.total
+    --overrideRollTotal is set by the Timeline override flow.
+    local total = self:try_get("overrideRollTotal") or rollInfo.total
     local tableRef = self.tableRef
     if tableRef == nil then
         return nil
@@ -554,6 +621,26 @@ function RollOnTableProperties:CustomPanel(message)
 
     local m_finished = false
 
+    --"Player overrode the result" banner; collapses when no override.
+    local overrideLabel = gui.Label{
+        classes = { "collapsed" },
+        width = "100%-8",
+        height = "auto",
+        halign = "center",
+        fontSize = 14,
+        textWrap = true,
+        color = Styles.textColor,
+        text = "",
+        setOverride = function(element, text)
+            if text ~= nil and text ~= "" then
+                element.text = text
+                element:SetClass("collapsed", false)
+            else
+                element:SetClass("collapsed", true)
+            end
+        end,
+    }
+
     return gui.Panel{
         width = "100%",
         height = "auto",
@@ -564,20 +651,34 @@ function RollOnTableProperties:CustomPanel(message)
         refreshInfo = function(element, catInfo, diceStyle, complete, message)
             if complete then
                 m_finished = true
-                local t = self.tableRef:GetTable()
+
+                --Read from message.properties, not the captured `self` --
+                --UploadProperties may replace the message's properties with a
+                --fresh object, leaving the closure-captured `self` stale.
+                local props = (message ~= nil and message.properties) or self
+                local t = props.tableRef:GetTable()
                 if t == nil then
                     return nil
                 end
 
-                local rowIndex = t:RowIndexFromDiceResult(message.total)
+                local total = props:try_get("overrideRollTotal") or message.total
+                local rowIndex = t:RowIndexFromDiceResult(total)
                 if rowIndex == nil or rowIndex < 1 or rowIndex > #t.rows then
                     return nil
                 end
+
+                overrideLabel:FireEvent("setOverride", props:try_get("overrideMessage"))
 
                 local row = t.rows[rowIndex]
                 for _,item in ipairs(row.value.items) do
                     local s = item:ToString()
                     if s ~= nil then
+                        if message.tokenid ~= nil then
+                            local token = dmhub.GetCharacterById(message.tokenid)
+                            if token ~= nil then
+                                s = StringInterpolateGoblinScript(s, token.properties)
+                            end
+                        end
                         element:FireEventTree("setText", s)
                         break
                     end
@@ -597,6 +698,22 @@ function RollOnTableProperties:CustomPanel(message)
                 end,
 
             },
+            overrideLabel,
         },
     }
 end
+
+--On reset-turn / backup-restore, close the main roll dialog. The embedded
+--dialog and standalone table host are handled in Timeline\AbilitySidebar.lua.
+dmhub.RegisterEventHandler("restoreFromBackup", function()
+    local hud = GameHud.instance
+    if hud == nil then return end
+
+    --rollDialog.Cancel does not self-guard against the hidden state, so check
+    --IsShown first to avoid re-firing a stale cancelRoll closure.
+    if hud.rollDialog ~= nil and hud.rollDialog.valid
+       and hud.rollDialog.data ~= nil and hud.rollDialog.data.Cancel ~= nil
+       and hud.rollDialog.data.IsShown ~= nil and hud.rollDialog.data.IsShown() then
+        hud.rollDialog.data.Cancel()
+    end
+end)

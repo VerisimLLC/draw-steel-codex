@@ -4,6 +4,15 @@ print("CHECKPOINT:: CREATE APPEARANCE")
 local g_previewToken = nil
 local g_previewTokenId = nil
 
+--Dev gate for the Teleportation animation picker on the character sheet. Off by default so
+--the average player doesn't see it; flip on with /set dev:customizeteleport true.
+local g_customizeTeleportSetting = setting{
+    id = "dev:customizeteleport",
+    description = "Show the Teleportation animation picker on the character sheet.",
+    default = false,
+    storage = "preference",
+}
+
 local AppearanceStyles = {
     {
         selectors = { "#appearancePanel" },
@@ -73,22 +82,50 @@ local AppearanceStyles = {
 
     {
         selectors = { "selectionPanel" },
-        bgimage = "panels/square.png",
+        bgimage = true,
         bgcolor = "clear",
     },
     {
         selectors = { "selectionPanel", "hover" },
-        borderColor = "grey",
+        borderColor = "@border",
         borderWidth = 2,
     },
     {
         selectors = { "selectionPanel", "press" },
-        borderColor = "black",
+        borderColor = "@fgStrong",
     },
     {
         selectors = { "selectionPanel", "selected" },
-        borderColor = "white",
+        borderColor = "@accent",
         borderWidth = 2,
+    },
+
+    {
+        selectors = { "appearancePreviewFrame" },
+        borderColor = "@border",
+        borderWidth = 2,
+    },
+    {
+        selectors = { "appearanceDivider" },
+        bgcolor = "@border",
+    },
+    {
+        selectors = { "appearanceIconFrame" },
+        borderColor = "@border",
+        borderWidth = 2,
+    },
+
+    -- Privacy (eye) toggle beside the character name.  Its bgimage comes from
+    -- the character sheet framework's {"privacyIcon"} rule, but its bgcolor
+    -- cannot: this panel's style set is the one carrying the theme cascade, and
+    -- the theme's generic {"panel"} rule paints bgcolor with @bg.  Sitting
+    -- closer to the icon than the framework's rule, it wins at equal
+    -- specificity -- which tinted the white eye PNG the exact colour of the
+    -- surface behind it.  Re-state the tint here so it resolves in the same set
+    -- and wins on order, matching what the Draw Steel sheet already uses.
+    {
+        selectors = { "privacyIcon" },
+        bgcolor = "@fgStrong",
     },
 
     {
@@ -154,10 +191,9 @@ local AppearanceStyles = {
         width = "auto",
         height = "auto",
         uppercase = true,
+        color = "@fgStrong",
     },
 }
-
-gui.RegisterTheme("charsheet", "Appearance", AppearanceStyles)
 
 function CharSheet.CharacterNameLabel()
     return gui.Label {
@@ -298,7 +334,6 @@ function CharSheet.RibbonSelectionPanel()
     resultPanel = gui.Panel {
         id = "ribbonSelectionPanel",
         vscroll = true,
-        bgimage = "panels/square.png",
 
         gui.Label {
             classes = { "statsLabel", "titleLabel" },
@@ -312,7 +347,6 @@ function CharSheet.RibbonSelectionPanel()
             halign = "center",
             valign = "top",
             wrap = true,
-            bgimage = "panels/square.png",
 
             refreshAppearance = function(element, info)
                 if created == false then
@@ -351,11 +385,11 @@ function CharSheet.RibbonSelectionPanel()
                     data = { ord = -1000000 },
 
                     gui.Label {
+                        classes = {"sizeS"},
                         text = "(None)",
                         halign = "center",
                         width = "auto",
                         height = "auto",
-                        fontSize = 12,
                         interactable = false,
                     },
 
@@ -417,7 +451,6 @@ function CharSheet.FrameSelectionPanel()
 
     resultPanel = gui.Panel {
         id = "frameSelectionPanel",
-        bgimage = "panels/square.png",
 
         gui.IconEditor {
             library = "AvatarFrame",
@@ -575,12 +608,11 @@ function CharSheet.FramePreviewPanel()
 
                         element.children = {
                             gui.Panel {
+                                classes = {"appearancePreviewFrame"},
                                 bgimage = "#MapPreview" .. previewFloor.floorid,
                                 bgcolor = "white",
                                 width = "100%",
                                 height = "100%",
-                                borderColor = Styles.textColor,
-                                borderWidth = 2,
                                 destroy = function(element)
                                     local args = {
                                         currentMap = true,
@@ -664,8 +696,8 @@ function CharSheet.FramePreviewPanel()
 
         --separator.
         gui.Panel {
-            bgimage = "panels/square.png",
-            bgcolor = Styles.textColor,
+            classes = {"appearanceDivider"},
+            bgimage = true,
             width = "100%",
             height = 1.5,
             vmargin = 48,
@@ -939,7 +971,6 @@ function CharSheet.FramePreviewPanel()
                     style = {
                         height = 30,
                         width = 420,
-                        fontSize = 14,
                     },
 
 
@@ -952,19 +983,23 @@ function CharSheet.FramePreviewPanel()
                     unclamped = true,
                     sliderWidth = 340,
                     labelWidth = 50,
-                    minValue = 0,
+                    -- Hard minimum: a tokenScale below 0.3 shrinks the rendered token
+                    -- to (near) nothing, making it invisible-but-selectable. The engine
+                    -- also clamps to 0.3 (CharacterAppearance.MinTokenScaling) as a backstop.
+                    minValue = 0.3,
                     maxValue = 2,
                     events = {
                         change = function(element)
+                            local v = math.max(0.3, element.value)
                             if g_previewToken ~= nil and g_previewToken.valid then
-                                g_previewToken.tokenScale = element.value
+                                g_previewToken.tokenScale = v
                                 game.Refresh {
                                     tokens = { g_previewTokenId },
                                 }
                             end
                         end,
                         confirm = function(element)
-                            CharacterSheet.instance.data.info.token.tokenScale = element.value
+                            CharacterSheet.instance.data.info.token.tokenScale = math.max(0.3, element.value)
                             CharacterSheet.instance.data.info.token:UploadAppearance()
                             CharacterSheet.instance:FireEvent("refreshAll")
                         end,
@@ -983,7 +1018,6 @@ function CharSheet.FramePreviewPanel()
                     style = {
                         height = 30,
                         width = 420,
-                        fontSize = 14,
                     },
 
 
@@ -1027,8 +1061,8 @@ function CharSheet.FramePreviewPanel()
             },
 
             gui.Button {
+                classes = {"sizeM"},
                 halign = "center",
-                fontSize = 16,
                 vmargin = 12,
                 text = "Reset Placement",
                 click = function(element)
@@ -1039,6 +1073,36 @@ function CharSheet.FramePreviewPanel()
                     CharacterSheet.instance:FireEvent("refreshAll")
                 end,
             },
+        },
+
+        --Unframed tokens shape their drop shadow from the portrait image's alpha, so an
+        --opaque (non-transparent) image casts a full square shadow. Let the user turn the
+        --shadow off. Only shown for unframed, non-popout tokens (framed/popout shadows are
+        --masked to the frame and never square).
+        gui.Check {
+            id = "castShadowCheck",
+            text = "Cast Shadow",
+            halign = "center",
+            vmargin = 8,
+            refreshAppearance = function(element, info)
+                local hasFrame = info.token.portraitFrame ~= nil and info.token.portraitFrame ~= ''
+                local unframed = (not hasFrame) and (not info.token.popoutPortrait)
+                element:SetClass("collapsed", not unframed)
+                element.value = (info.token.hideShadow == false)
+                if g_previewToken ~= nil and g_previewToken.valid then
+                    g_previewToken.hideShadow = info.token.hideShadow
+                end
+            end,
+            change = function(element)
+                local info = CharacterSheet.instance.data.info
+                info.token.hideShadow = (element.value == false)
+                if g_previewToken ~= nil and g_previewToken.valid then
+                    g_previewToken.hideShadow = info.token.hideShadow
+                    game.Refresh { tokens = { g_previewTokenId } }
+                end
+                info.token:UploadAppearance()
+                CharacterSheet.instance:FireEvent("refreshAll")
+            end,
         },
 
         --some padding.
@@ -1083,7 +1147,6 @@ function CharSheet.FramePreviewPanel()
             style = {
                 height = 30,
                 width = 260,
-                fontSize = 14,
             },
 
             halign = "center",
@@ -1194,6 +1257,18 @@ local mountOptions = {
         id = "17",
         text = "Seventeen Saddles",
     },
+    {
+        id = "18",
+        text = "Eighteen Saddles",
+    },
+    {
+        id = "19",
+        text = "Nineteen Saddles",
+    },
+    {
+        id = "20",
+        text = "Twenty Saddles",
+    },
 }
 
 function CharSheet.PortraitSelectionPanel()
@@ -1206,12 +1281,11 @@ function CharSheet.PortraitSelectionPanel()
         flow = "vertical",
 
         gui.IconEditor {
+            classes = {"appearanceIconFrame"},
             id = "avatarIconEditor",
             library = "Avatar",
             restrictImageType = "Avatar",
             allowPaste = true,
-            borderColor = Styles.textColor,
-            borderWidth = 2,
             width = "auto",
             height = "auto",
             autosizeimage = true,
@@ -1225,20 +1299,23 @@ function CharSheet.PortraitSelectionPanel()
             think = function(element)
                 element:FireEvent("imageLoaded")
             end,
---[[
-           imageLoaded = function(element)
+
+            --Size the frame to the displayed image's aspect ratio, long edge at 200.
+            --autosizeimage alone doesn't reliably re-layout when the portrait is
+            --swapped at runtime, leaving the new image stretched into the old box;
+            --the think above re-fires this so the frame corrects within 0.2s.
+            imageLoaded = function(element)
                 if element.bgsprite == nil then
                     return
                 end
 
-                local maxDim = max(element.bgsprite.dimensions.x, element.bgsprite.dimensions.y)
+                local dim = element.bgsprite.dimensions
+                local maxDim = max(dim.x, dim.y)
                 if maxDim > 0 then
-                    local yratio = element.bgsprite.dimensions.x / maxDim
-                    local xratio = element.bgsprite.dimensions.y / maxDim
-                    element.selfStyle.imageRect = { x1 = 0, y1 = 1 - yratio, x2 = xratio, y2 = 1 }
+                    element.selfStyle.width = 200 * dim.x / maxDim
+                    element.selfStyle.height = 200 * dim.y / maxDim
                 end
             end,
-]]
             refreshAppearance = function(element, info)
                 element.SetValue(element, info.token.offTokenPortrait, false)
                 element:FireEvent("imageLoaded")
@@ -1253,12 +1330,11 @@ function CharSheet.PortraitSelectionPanel()
         },
 
         gui.Label {
-            classes = { "statsLabel", "titleLabel" },
+            classes = {"statsLabel", "titleLabel", "sizeXl"},
             uppercase = false,
             text = "Portrait",
             halign = "center",
             valign = "bottom",
-            fontSize = 26,
             bmargin = 40,
         },
     }
@@ -1305,11 +1381,10 @@ function CharSheet.AvatarSelectionPanel()
             halign = "center",
 
             gui.IconEditor {
+                classes = {"appearanceIconFrame"},
                 library = "Avatar",
                 restrictImageType = "Avatar",
                 allowPaste = true,
-                borderColor = Styles.textColor,
-                borderWidth = 2,
                 cornerRadius = 200,
                 width = 400,
                 height = 400,
@@ -1319,6 +1394,25 @@ function CharSheet.AvatarSelectionPanel()
                 bgcolor = "white",
 
                 children = { popoutAvatar, },
+
+                rightClick = function(element)
+                    if not dmhub.GetSettingValue("dev") then return end
+                    element.popup = gui.ContextMenu{
+                        entries = {
+                            {
+                                text = "Open URL",
+                                click = function()
+                                    element.popup = nil
+                                    local imageid = element.value
+                                    if (imageid == nil or imageid == "") and popoutAvatar.bgimage ~= nil and popoutAvatar.bgimage ~= "" then
+                                        imageid = popoutAvatar.bgimage
+                                    end
+                                    dmhub.OpenImageAssetURL(imageid)
+                                end,
+                            }
+                        },
+                    }
+                end,
 
                 thinkTime = 0.2,
                 think = function(element)
@@ -1390,17 +1484,17 @@ function CharSheet.AvatarSelectionPanel()
             },
 
             gui.ColorPicker {
-                styles = {
+                styles = ThemeEngine.MergeTokens{
                     {
                         width = 24,
                         height = 24,
                         cornerRadius = 12,
                         borderWidth = 1,
-                        borderColor = "#aaaaaa",
+                        borderColor = "@border",
                     },
                     {
                         selectors = { "hover" },
-                        borderColor = "white",
+                        borderColor = "@accent",
                     }
                 },
                 vmargin = 4,
@@ -1411,6 +1505,19 @@ function CharSheet.AvatarSelectionPanel()
                     dmhub.SetSettingValue("playercolor", element.value)
                 end,
             },
+        },
+
+        gui.Label{
+            classes = {"link"},
+            fontSize = 16,
+            text = "TitanCraft Token Builder",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "bottom",
+            click = function(element)
+                dmhub.OpenURL("https://titancraft.com/?ref=codex")
+            end,
         },
 
     }
@@ -1480,41 +1587,863 @@ function CharSheet.MountablePanel()
     }
 end
 
+--Builds a plain table with the monster's appearance plus the custom look on
+--top, in the shape gui.CreateTokenImage's "token" event expects.
+local function MakeSummonLookToken(monster, look)
+    local info = monster.info
+    local fake = {
+        portrait = info.portrait,
+        portraitFrame = info.portraitFrame,
+        portraitFrameHueShift = info.portraitFrameHueShift,
+        portraitRect = info.portraitRect,
+        popoutPortrait = false,
+    }
+
+    if look ~= nil then
+        if look.portrait ~= nil and look.portrait ~= "" then
+            fake.portrait = look.portrait
+            fake.portraitRect = { x1 = 0, y1 = 0, x2 = 1, y2 = 1 }
+        end
+        if look.portraitFrame ~= nil then
+            fake.portraitFrame = look.portraitFrame
+        end
+        if look.portraitFrameHueShift ~= nil then
+            fake.portraitFrameHueShift = look.portraitFrameHueShift
+        end
+    end
+
+    return fake
+end
+
+local function SummonMonsterName(monster)
+    local name = monster.name
+    if name == nil or name == "" then
+        name = monster.properties:try_get("monster_type", "Summon")
+    end
+    return name
+end
+
+--Per-character cache of the customizable-summons list. Cleared when the
+--Appearance tab is opened so newly summoned creatures show up.
+local g_summonListCacheCharid = nil
+local g_summonListCache = nil
+
+local function GetCustomizableSummonsCached(token)
+    if ActivatedAbilitySummonBehavior == nil then
+        return {}
+    end
+    if g_summonListCache == nil or g_summonListCacheCharid ~= token.charid then
+        g_summonListCacheCharid = token.charid
+        g_summonListCache = ActivatedAbilitySummonBehavior.GetCustomizableSummons(token)
+    end
+    return g_summonListCache
+end
+
+local function InvalidateSummonListCache()
+    g_summonListCache = nil
+end
+
+--Which summon is selected in the Summons sub-tab. File-scope because the
+--editor panel and the right-column preview panel both use it. Changes are
+--broadcast sheet-wide via the "refreshSummonLook" event.
+local g_summonSelectedKey = nil
+local g_summonSelectedMonster = nil
+
+local function GetSummonLook()
+    if g_summonSelectedKey == nil then
+        return nil
+    end
+    return CharacterSheet.instance.data.info.token.properties:GetSummonAppearance(g_summonSelectedKey)
+end
+
+local function SaveSummonLook(mutator)
+    if g_summonSelectedKey == nil then
+        return
+    end
+    local lookKey = g_summonSelectedKey
+    local tok = CharacterSheet.instance.data.info.token
+    tok:ModifyProperties{
+        description = "Change summon appearance",
+        execute = function()
+            local t = tok.properties:get_or_add("summonAppearances", {})
+            local look = t[lookKey] or {}
+            mutator(look)
+            if next(look) == nil then
+                look = nil
+            end
+            t[lookKey] = look
+
+            --so the creature stays listed after its live summons are gone.
+            tok.properties:RecordSummonHistory(lookKey)
+        end,
+    }
+    ActivatedAbilitySummonBehavior.RestyleLiveSummons(tok, lookKey)
+    CharacterSheet.instance:FireEvent("refreshAll")
+    CharacterSheet.instance:FireEventTree("refreshSummonLook")
+end
+
+local function RevertSummonLook(lookKey)
+    local tok = CharacterSheet.instance.data.info.token
+    tok:ModifyProperties{
+        description = "Change summon appearance",
+        execute = function()
+            local t = tok.properties:try_get("summonAppearances")
+            if t ~= nil then
+                t[lookKey] = nil
+            end
+        end,
+    }
+    ActivatedAbilitySummonBehavior.RestyleLiveSummons(tok, lookKey)
+    CharacterSheet.instance:FireEvent("refreshAll")
+    CharacterSheet.instance:FireEventTree("refreshSummonLook")
+end
+
+--The "Summons" sub-tab: swatch list of summoned creatures on the left, editor
+--for the selected one (avatar, frame, hue, revert) on the right.
+function CharSheet.SummonsAppearancePanel()
+    local resultPanel
+
+    local m_swatchPanels = {}
+
+    local function UpdateSelectionClasses()
+        for key,panel in pairs(m_swatchPanels) do
+            panel:SetClassTree("selected", key == g_summonSelectedKey)
+        end
+    end
+
+    local swatchContainer = gui.Panel{
+        flow = "horizontal",
+        wrap = true,
+        width = 220,
+        height = "auto",
+        halign = "center",
+        valign = "top",
+    }
+
+    local listPanel = gui.Panel{
+        width = 240,
+        height = "100%",
+        valign = "top",
+        halign = "left",
+        flow = "vertical",
+
+        gui.Label{
+            classes = { "statsLabel", "titleLabel" },
+            halign = "center",
+            vmargin = 8,
+            text = "Summons",
+            linger = function(element)
+                gui.Tooltip("Customize how the creatures you summon look.")(element)
+            end,
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "100%-40",
+            valign = "top",
+            vscroll = true,
+            swatchContainer,
+        },
+    }
+
+    local previewPanel
+    previewPanel = gui.Panel{
+        width = 140,
+        height = 140,
+        halign = "center",
+        vmargin = 8,
+
+        gui.CreateTokenImage(nil, {
+            width = 130,
+            height = 130,
+            halign = "center",
+            valign = "center",
+        }),
+
+        refreshSummonLook = function(element)
+            if g_summonSelectedMonster == nil then
+                return
+            end
+            element:FireEventTree("token", MakeSummonLookToken(g_summonSelectedMonster, GetSummonLook()))
+        end,
+
+        --live preview while the hue slider is dragged, before confirm.
+        previewHue = function(element, value)
+            if g_summonSelectedMonster == nil then
+                return
+            end
+            local fake = MakeSummonLookToken(g_summonSelectedMonster, GetSummonLook())
+            fake.portraitFrameHueShift = value
+            element:FireEventTree("token", fake)
+        end,
+    }
+
+    local editorPanel = gui.Panel{
+        width = "100%-260",
+        height = "100%",
+        halign = "right",
+        valign = "top",
+        flow = "vertical",
+
+        refreshSummonLook = function(element)
+            element:SetClass("hidden", g_summonSelectedKey == nil)
+        end,
+
+        gui.Label{
+            classes = { "statsLabel", "titleLabel" },
+            halign = "center",
+            vmargin = 8,
+            text = "",
+            refreshSummonLook = function(element)
+                if g_summonSelectedMonster ~= nil then
+                    element.text = SummonMonsterName(g_summonSelectedMonster)
+                end
+            end,
+        },
+
+        previewPanel,
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "center",
+            tmargin = 12,
+
+            gui.Panel{
+                width = "50%",
+                height = "auto",
+                flow = "vertical",
+
+                gui.IconEditor{
+                    library = "Avatar",
+                    restrictImageType = "Avatar",
+                    allowPaste = true,
+                    cornerRadius = 100,
+                    width = 200,
+                    height = 200,
+                    halign = "center",
+                    bgcolor = "white",
+                    refreshSummonLook = function(element)
+                        if g_summonSelectedMonster == nil then
+                            return
+                        end
+                        local look = GetSummonLook()
+                        local value = g_summonSelectedMonster.info.portrait
+                        if look ~= nil and look.portrait ~= nil and look.portrait ~= "" then
+                            value = look.portrait
+                        end
+                        element.SetValue(element, value, false)
+                    end,
+                    change = function(element)
+                        SaveSummonLook(function(look)
+                            if element.value == nil or element.value == "" or (g_summonSelectedMonster ~= nil and element.value == g_summonSelectedMonster.info.portrait) then
+                                look.portrait = nil
+                            else
+                                look.portrait = element.value
+                            end
+                        end)
+                    end,
+                },
+
+                gui.Label{
+                    classes = { "statsLabel", "titleLabel" },
+                    halign = "center",
+                    tmargin = 6,
+                    text = "Avatar",
+                },
+            },
+
+            gui.Panel{
+                width = "50%",
+                height = "auto",
+                flow = "vertical",
+
+                gui.IconEditor{
+                    library = "AvatarFrame",
+                    allowNone = true,
+                    width = 200,
+                    height = 200,
+                    halign = "center",
+                    bgcolor = "white",
+                    refreshSummonLook = function(element)
+                        if g_summonSelectedMonster == nil then
+                            return
+                        end
+                        local look = GetSummonLook()
+                        local value = g_summonSelectedMonster.info.portraitFrame
+                        if look ~= nil and look.portraitFrame ~= nil then
+                            value = look.portraitFrame
+                        end
+                        element.SetValue(element, value, false)
+                    end,
+                    change = function(element)
+                        SaveSummonLook(function(look)
+                            look.portraitFrame = element.value or ""
+                        end)
+                    end,
+                },
+
+                gui.Label{
+                    classes = { "statsLabel", "titleLabel" },
+                    halign = "center",
+                    tmargin = 6,
+                    text = "Frame",
+                },
+            },
+        },
+
+        gui.Panel{
+            classes = { "formPanel", "appearanceSlider" },
+            halign = "center",
+            tmargin = 12,
+
+            gui.Label{
+                classes = { "statsLabel", "sliderLabel" },
+                text = "Hue:",
+            },
+            gui.Slider{
+                style = {
+                    height = 30,
+                    width = 420,
+                },
+                valign = "center",
+                labelFormat = "percent",
+                sliderWidth = 340,
+                labelWidth = 50,
+                minValue = 0,
+                maxValue = 1,
+                refreshSummonLook = function(element)
+                    if g_summonSelectedMonster == nil then
+                        return
+                    end
+                    local look = GetSummonLook()
+                    local value = g_summonSelectedMonster.info.portraitFrameHueShift or 0
+                    if look ~= nil and look.portraitFrameHueShift ~= nil then
+                        value = look.portraitFrameHueShift
+                    end
+                    element.value = value
+                end,
+                events = {
+                    change = function(element)
+                        previewPanel:FireEvent("previewHue", element.value)
+                    end,
+                    confirm = function(element)
+                        SaveSummonLook(function(look)
+                            look.portraitFrameHueShift = element.value
+                        end)
+                    end,
+                },
+            },
+        },
+
+        gui.Button{
+            text = "Revert to Default",
+            width = 180,
+            height = 40,
+            halign = "center",
+            tmargin = 16,
+            click = function(element)
+                if g_summonSelectedKey ~= nil then
+                    RevertSummonLook(g_summonSelectedKey)
+                end
+            end,
+        },
+    }
+
+    resultPanel = gui.Panel{
+        id = "summonsAppearancePanel",
+        classes = { "collapsed" },
+        width = "100%",
+        height = "100%-30",
+        valign = "bottom",
+        flow = "horizontal",
+
+        styles = ThemeEngine.MergeTokens{
+            {
+                selectors = { "variation" },
+                width = 80,
+                height = 80,
+                vmargin = 6,
+                hmargin = 6,
+                halign = "center",
+            },
+            {
+                selectors = { "variationBorder" },
+                borderColor = "@border",
+                border = 3,
+                bgimage = true,
+                bgcolor = "clear",
+                cornerRadius = 40,
+                width = "100%",
+                height = "100%",
+                brightness = 0.7,
+            },
+            {
+                selectors = { "variationBorder", "parent:hover" },
+                brightness = 1.5,
+            },
+            {
+                selectors = { "variationBorder", "parent:selected" },
+                borderColor = "@accent",
+                border = 4,
+                brightness = 1.5,
+            },
+            {
+                selectors = { "variationBorder", "parent:customized" },
+                borderColor = "@accent",
+            },
+            {
+                selectors = { "token-image", "parent:hover" },
+                brightness = 1.5,
+            },
+            {
+                selectors = { "token-image", "parent:selected" },
+                brightness = 1.5,
+            },
+        },
+
+        listPanel,
+        editorPanel,
+
+        --clear the cache when the Appearance tab opens so new summons show up.
+        charsheetActivate = function(element, active)
+            if active then
+                InvalidateSummonListCache()
+            end
+        end,
+
+        refreshAppearance = function(element, info)
+            local list = GetCustomizableSummonsCached(info.token)
+
+            --keep the selection valid; default to the first summon.
+            local found = false
+            for _,entry in ipairs(list) do
+                if entry.key == g_summonSelectedKey then
+                    g_summonSelectedMonster = entry.monster
+                    found = true
+                    break
+                end
+            end
+            if not found then
+                g_summonSelectedKey = nil
+                g_summonSelectedMonster = nil
+                if #list > 0 then
+                    g_summonSelectedKey = list[1].key
+                    g_summonSelectedMonster = list[1].monster
+                end
+            end
+
+            local newSwatchPanels = {}
+            local children = {}
+            for _,entry in ipairs(list) do
+                local lookKey = entry.key
+                local monster = entry.monster
+                local panel = m_swatchPanels[lookKey] or gui.Panel{
+                    flow = "vertical",
+                    width = "auto",
+                    height = "auto",
+
+                    press = function(element)
+                        g_summonSelectedKey = lookKey
+                        g_summonSelectedMonster = monster
+                        UpdateSelectionClasses()
+                        CharacterSheet.instance:FireEventTree("refreshSummonLook")
+                    end,
+
+                    rightClick = function(element)
+                        local tok = CharacterSheet.instance.data.info.token
+                        if tok.properties:GetSummonAppearance(lookKey) == nil then
+                            return
+                        end
+                        element.popup = gui.ContextMenu {
+                            entries = {
+                                {
+                                    text = "Revert",
+                                    click = function()
+                                        element.popup = nil
+                                        RevertSummonLook(lookKey)
+                                    end,
+                                }
+                            }
+                        }
+                    end,
+
+                    linger = function(element)
+                        gui.Tooltip(string.format("%s - right-click to revert.", SummonMonsterName(monster)))(element)
+                    end,
+
+                    gui.Panel{
+                        classes = { "variation" },
+                        gui.CreateTokenImage(monster.info, {
+                            halign = "center",
+                            valign = "center",
+                            width = 94,
+                            height = 94,
+                        }),
+
+                        gui.Panel { classes = { "variationBorder" } },
+                    },
+
+                    gui.Label{
+                        classes = {"sizeS"},
+                        textAlignment = "center",
+                        halign = "center",
+                        width = 84,
+                        height = "auto",
+                        text = SummonMonsterName(monster),
+                    },
+                }
+                newSwatchPanels[lookKey] = panel
+
+                local look = info.token.properties:GetSummonAppearance(lookKey)
+                panel:FireEventTree("token", MakeSummonLookToken(monster, look))
+                panel:SetClassTree("customized", look ~= nil)
+
+                children[#children+1] = panel
+            end
+
+            m_swatchPanels = newSwatchPanels
+            swatchContainer.children = children
+
+            UpdateSelectionClasses()
+            element:FireEventTree("refreshSummonLook")
+        end,
+    }
+
+    return resultPanel
+end
+
+--Right column for the Summons sub-tab: an in-game preview of the selected
+--summon plus Scale/Zoom sliders that save into its look. The preview floor
+--only exists while this sub-tab is visible.
+function CharSheet.SummonPreviewPanel()
+    local resultPanel
+
+    local m_floor = nil
+    local m_tokenid = nil
+    local m_token = nil
+    local m_tabSelected = false
+    local m_creatureSize = 1
+
+    local function RecalculateCamera()
+        if m_floor == nil then
+            return
+        end
+
+        local x = 0
+        local y = 0
+        if m_creatureSize == 2 then
+            x = 0.5
+            y = 0.5
+            m_floor.cameraSize = 1.5
+        elseif m_creatureSize == 3 then
+            x = 1
+            y = 1
+            m_floor.cameraSize = 2
+        elseif m_creatureSize == 4 then
+            x = 1.5
+            y = 1.5
+            m_floor.cameraSize = 2
+        elseif m_creatureSize >= 5 then
+            x = 2.0
+            y = 2.0
+            m_floor.cameraSize = 2.5
+        else
+            m_floor.cameraSize = 1
+        end
+
+        m_floor.cameraPos = { x = 0 + x, y = -4 + y }
+    end
+
+    local mapImagePanel = gui.Panel{
+        classes = {"appearancePreviewFrame"},
+        bgcolor = "white",
+        width = "100%",
+        height = "100%",
+    }
+
+    local function PopulatePreview()
+        if m_floor == nil or m_token == nil or (not m_token.valid) then
+            return
+        end
+        if g_summonSelectedKey == nil then
+            return
+        end
+        local monsterid, monster = ActivatedAbilitySummonBehavior.ResolveSummonLookMonster(g_summonSelectedKey)
+        if monster == nil then
+            return
+        end
+
+        m_token.properties = DeepCopy(monster.properties)
+
+        --bestiary defaults first, then the custom look, same as a real spawn.
+        m_token.portrait = monster.info.portrait
+        m_token.portraitFrame = monster.info.portraitFrame
+        m_token.portraitFrameHueShift = monster.info.portraitFrameHueShift
+        m_token.tokenScale = monster.info.tokenScale
+        m_token.portraitZoom = monster.info.portraitZoom
+        m_token.portraitOffset = monster.info.portraitOffset
+        ActivatedAbilitySummonBehavior.ApplySummonLook(CharacterSheet.instance.data.info.token, m_token, g_summonSelectedKey)
+
+        game.Refresh {
+            floors = { m_floor.floorid },
+            tokens = { m_tokenid },
+        }
+
+        local creatureSizeInfo = dmhub.rules.CreatureSizes[m_token.creatureSizeNumber]
+        m_creatureSize = creatureSizeInfo.tiles
+        RecalculateCamera()
+    end
+
+    local function DestroyPreview()
+        if m_floor == nil then
+            return
+        end
+        local args = {
+            currentMap = true,
+            floors = { m_floor.floorid },
+            tokens = { m_tokenid },
+        }
+        game.currentMap:DestroyPreviewFloor(m_floor)
+        game.Refresh(args)
+        m_floor = nil
+        m_tokenid = nil
+        m_token = nil
+        mapImagePanel.bgimage = nil
+    end
+
+    local function CreatePreview()
+        if m_floor ~= nil then
+            return
+        end
+        m_floor = game.currentMap:CreatePreviewFloor("ObjectPreview")
+        m_floor.cameraPos = { x = 0, y = -4 }
+        m_floor.cameraSize = 1
+
+        m_tokenid = m_floor:CreateToken(0, -4)
+
+        game.Refresh {
+            currentMap = true,
+            floors = { m_floor.floorid },
+            tokens = { m_tokenid },
+        }
+
+        m_token = dmhub.GetTokenById(m_tokenid)
+        mapImagePanel.bgimage = "#MapPreview" .. m_floor.floorid
+
+        PopulatePreview()
+    end
+
+    resultPanel = gui.Panel {
+        id = "summonPreviewPanel",
+        classes = { "collapsed" },
+        width = "90%",
+        height = "100%",
+        flow = "vertical",
+        hmargin = 8,
+        vmargin = 32,
+        halign = "center",
+
+        gui.Panel {
+            width = math.floor(1920 / 4),
+            height = math.floor(1080 / 4),
+            vmargin = 8,
+            flow = "vertical",
+            halign = "center",
+
+            mapImagePanel,
+
+            gui.Label {
+                text = "This is what your summon looks like in-game",
+                classes = { "statsLabel" },
+                halign = "center",
+                valign = "top",
+            },
+        },
+
+        --separator.
+        gui.Panel {
+            classes = {"appearanceDivider"},
+            bgimage = true,
+            width = "100%",
+            height = 1.5,
+            vmargin = 48,
+            halign = "center",
+        },
+
+        gui.Panel {
+            classes = { "formPanel", "appearanceSlider" },
+            gui.Label {
+                classes = { "statsLabel", "sliderLabel" },
+                text = "Scale:",
+            },
+            gui.Slider {
+                style = {
+                    height = 30,
+                    width = 420,
+                },
+                valign = "center",
+                labelFormat = "rawpercent",
+                unclamped = true,
+                sliderWidth = 340,
+                labelWidth = 50,
+                --below 0.3 the token becomes too small to see; engine clamps there too.
+                minValue = 0.3,
+                maxValue = 2,
+                refreshSummonLook = function(element)
+                    if g_summonSelectedMonster == nil then
+                        return
+                    end
+                    local look = GetSummonLook()
+                    local value = g_summonSelectedMonster.info.tokenScale or 1
+                    if look ~= nil and look.tokenScale ~= nil then
+                        value = look.tokenScale
+                    end
+                    element.value = value
+                end,
+                events = {
+                    change = function(element)
+                        if m_token ~= nil and m_token.valid then
+                            m_token.tokenScale = math.max(0.3, element.value)
+                            game.Refresh {
+                                tokens = { m_tokenid },
+                            }
+                        end
+                    end,
+                    confirm = function(element)
+                        local v = math.max(0.3, element.value)
+                        SaveSummonLook(function(look)
+                            look.tokenScale = v
+                        end)
+                    end,
+                },
+            },
+        },
+
+        gui.Panel {
+            classes = { "formPanel", "appearanceSlider" },
+            gui.Label {
+                classes = { "statsLabel", "sliderLabel" },
+                text = "Zoom:",
+            },
+            gui.Slider {
+                style = {
+                    height = 30,
+                    width = 420,
+                },
+                valign = "center",
+                labelFormat = "rawpercent",
+                unclamped = true,
+                sliderWidth = 340,
+                labelWidth = 50,
+                minValue = 0,
+                maxValue = 2,
+                refreshSummonLook = function(element)
+                    if g_summonSelectedMonster == nil then
+                        return
+                    end
+                    local look = GetSummonLook()
+                    local value = g_summonSelectedMonster.info.portraitZoom or 1
+                    if look ~= nil and look.portraitZoom ~= nil then
+                        value = look.portraitZoom
+                    end
+                    element.value = value
+                end,
+                events = {
+                    change = function(element)
+                        if m_token ~= nil and m_token.valid then
+                            m_token.portraitZoom = element.value
+                            game.Refresh {
+                                tokens = { m_tokenid },
+                            }
+                        end
+                    end,
+                    confirm = function(element)
+                        local v = element.value
+                        SaveSummonLook(function(look)
+                            look.portraitZoom = v
+                        end)
+                    end,
+                },
+            },
+        },
+
+        gui.Button {
+            classes = {"sizeM"},
+            halign = "center",
+            vmargin = 12,
+            text = "Reset Placement",
+            click = function(element)
+                SaveSummonLook(function(look)
+                    look.tokenScale = nil
+                    look.portraitZoom = nil
+                    look.portraitOffset = nil
+                end)
+            end,
+        },
+
+        --fired by the sub-tab bar when this sub-tab is entered or left.
+        summonsTabSelected = function(element, val)
+            m_tabSelected = val
+            element:SetClass("collapsed", not val)
+            if val then
+                CreatePreview()
+                element:FireEventTree("refreshSummonLook")
+            else
+                DestroyPreview()
+            end
+        end,
+
+        --fired when the Appearance tab as a whole is shown or hidden.
+        charsheetActivate = function(element, val)
+            if not val then
+                DestroyPreview()
+            elseif m_tabSelected then
+                CreatePreview()
+                element:FireEventTree("refreshSummonLook")
+            end
+        end,
+
+        refreshSummonLook = function(element)
+            PopulatePreview()
+        end,
+
+        destroy = function(element)
+            DestroyPreview()
+        end,
+    }
+
+    return resultPanel
+end
+
 function CharSheet.AppearancePanel()
     local divider = gui.Panel {
+        classes = {"appearanceDivider"},
         height = "100%-64",
         valign = "center",
         halign = "center",
         width = 1,
-        bgimage = "panels/square.png",
-        bgcolor = Styles.textColor,
+        bgimage = true,
         hmargin = 0,
     }
 
     local m_tokenPanels = {}
 
 
-    local addVariationButton = gui.Panel {
+    local addVariationButton = gui.Button {
+        classes = {"addButton"},
         halign = "center",
-        width = 80,
-        height = 80,
+        width = 64,
+        height = 64,
         vmargin = 6,
         hmargin = 6,
-        hover = gui.Tooltip("Add a variation to this creature's appearance"),
-        gui.AddButton {
-            halign = "center",
-            valign = "center",
-            width = 64,
-            height = 64,
-
-            refreshAppearance = function(element, info)
-                element:SetClass("hidden", info.token.numAppearanceVariations > 7)
-            end,
-
-
-        },
-        gui.Panel { classes = { "variationBorder" } },
-
+        linger = function(element)
+            gui.Tooltip("Add a variation to this creature's appearance")(element)
+        end,
+        refreshAppearance = function(element, info)
+            element:SetClass("hidden", info.token.numAppearanceVariations > 7)
+        end,
         press = function(element)
             local info = CharacterSheet.instance.data.info
             info.token:SwitchAppearanceVariation(info.token.numAppearanceVariations)
@@ -1539,18 +2468,13 @@ function CharSheet.AppearancePanel()
             width = "100%",
             flow = "horizontal",
 
-            CharSheet.AvatarSelectionPanel(),
-
-            --only valid if we are using a popout avatar.
-            CharSheet.PortraitSelectionPanel(),
-
             --panel allowing variation selection.
             gui.Panel {
                 height = "auto",
                 width = "auto",
                 flow = "vertical",
                 valign = "top",
-                halign = "right",
+                halign = "left",
                 minWidth = 200,
 
 
@@ -1561,7 +2485,7 @@ function CharSheet.AppearancePanel()
                     halign = "center",
                     wrap = true,
 
-                    styles = {
+                    styles = ThemeEngine.MergeTokens{
                         {
                             selectors = { "variation" },
                             width = 80,
@@ -1572,10 +2496,10 @@ function CharSheet.AppearancePanel()
                         },
                         {
                             selectors = { "variationBorder" },
-                            borderColor = Styles.textColor,
+                            borderColor = "@border",
                             border = 3,
 
-                            bgimage = "panels/square.png",
+                            bgimage = true,
                             bgcolor = "clear",
                             cornerRadius = 40,
                             width = "100%",
@@ -1589,6 +2513,8 @@ function CharSheet.AppearancePanel()
                         },
                         {
                             selectors = { "variationBorder", "parent:selected" },
+                            borderColor = "@accent",
+                            border = 4,
                             brightness = 1.5,
                         },
                         {
@@ -1620,7 +2546,7 @@ function CharSheet.AppearancePanel()
                                         CharacterSheet.instance:FireEvent("refreshAll")
                                     end,
                                     rightClick = function(element)
-                                        if element:HasClass("selected") then
+                                        if nvariations <= 1 then
                                             return
                                         end
 
@@ -1629,8 +2555,18 @@ function CharSheet.AppearancePanel()
                                                 {
                                                     text = "Delete",
                                                     click = function()
-                                                        CharacterSheet.instance.data.info.token
-                                                            :DeleteAppearanceVariation(index - 1)
+
+                                                        if element:HasClass("selected") then
+                                                            local targetIndex = 1
+                                                            if index == 1 then
+                                                                targetIndex = 2
+                                                            end
+
+                                                            local info = CharacterSheet.instance.data.info
+                                                            info.token:SwitchAppearanceVariation(targetIndex-1)
+                                                        end
+
+                                                        CharacterSheet.instance.data.info.token :DeleteAppearanceVariation(index - 1)
                                                         element.popup = nil
                                                         CharacterSheet.instance:FireEvent("refreshAll")
                                                     end,
@@ -1665,6 +2601,16 @@ function CharSheet.AppearancePanel()
 
                         local alternateAppearances = info.token.properties:GetAlternateAppearances()
 
+                        --If an alternate appearance is currently selected but the modifier that
+                        --granted it is no longer active, revert to the variation we were on. This
+                        --replaces a per-panel 'disable' handler that fired whenever the panel was
+                        --collapsed/hidden/scrolled out of view (Unity OnDisable), silently reverting
+                        --the user's selection on tab-switch or sheet close.
+                        local alternateOverride = info.token.alternateAppearanceOverride
+                        if alternateOverride ~= nil and (alternateAppearances == nil or alternateAppearances[alternateOverride] == nil) then
+                            info.token:SwitchAppearanceVariation(info.token.appearanceVariationIndex)
+                        end
+
                         local newAlternateAppearancePanels = {}
                         if alternateAppearances ~= nil then
 
@@ -1676,14 +2622,6 @@ function CharSheet.AppearancePanel()
                                     flow = "vertical",
                                     width = "auto",
                                     height = "auto",
-                                    disable = function(element)
-                                        if element:HasClass("selected") then
-                                            local info = CharacterSheet.instance.data.info
-                                            if info ~= nil and info.token ~= nil and info.token.valid then
-                                                info.token:SwitchAppearanceVariation(0)
-                                            end
-                                        end
-                                    end,
                                     press = function(element)
                                         local defaultToken = nil
                                         local monster = assets.monsters[appearanceInfo.monsterDefault]
@@ -1723,9 +2661,9 @@ function CharSheet.AppearancePanel()
                                     },
 
                                     gui.Label{
+                                        classes = {"sizeS"},
                                         textAlignment = "center",
                                         halign = "center",
-                                        fontSize = 14,
                                         width = 84,
                                         height = "auto",
                                         text = key,
@@ -1760,6 +2698,11 @@ function CharSheet.AppearancePanel()
                     end,
                 },
             },
+
+            CharSheet.AvatarSelectionPanel(),
+
+            --only valid if we are using a popout avatar.
+            CharSheet.PortraitSelectionPanel(),
         },
 
         gui.Panel {
@@ -1781,7 +2724,17 @@ function CharSheet.AppearancePanel()
                     valign = "center",
                     hmargin = 32,
                     autoplay = true,
+                    --Route the audition through the anthem bus so it obeys the player's
+                    --Anthem volume setting (and the DM's anthem broadcast level) exactly
+                    --like real anthem playback in the initiative bar does.
+                    autoplaymixgroup = "anthem",
                     refreshAppearance = function(element, info)
+                        --Seed the preview volume with the token's own anthemVolume BEFORE
+                        --setting the value, since assigning the value is what starts
+                        --playback. Without this the audition always started at full
+                        --volume and only picked up the slider once it was dragged.
+                        local anthemVolume = CharacterSheet.instance.data.info.token.anthemVolume
+                        element:FireEvent("volume", anthemVolume or 1)
                         element.value = CharacterSheet.instance.data.info.token.anthem
                     end,
                     change = function(element)
@@ -1861,7 +2814,6 @@ function CharSheet.AppearancePanel()
                         style = {
                             height = 30,
                             width = 420,
-                            fontSize = 14,
                         },
 
 
@@ -1903,7 +2855,6 @@ function CharSheet.AppearancePanel()
                         style = {
                             height = 30,
                             width = 420,
-                            fontSize = 14,
                         },
 
 
@@ -1945,7 +2896,6 @@ function CharSheet.AppearancePanel()
                         style = {
                             height = 30,
                             width = 420,
-                            fontSize = 14,
                         },
 
 
@@ -1981,6 +2931,186 @@ function CharSheet.AppearancePanel()
         },
     }
 
+    --Per-token dice: which dice this token rolls with, rather than simply using
+    --whatever the rolling player has equipped in their own inventory. Stored on the
+    --creature as 'diceLoadout' -- absent = "use my dice", the default for every
+    --token. See the Per-token dice preference section of Creature.lua for the shape
+    --and for how entitlement is enforced.
+    --
+    --Three rows, one per slot of the loadout the engine understands: the token's
+    --dice, an optional different second power d10 (so a 2d10 power roll can show a
+    --mixed pair -- or the same die twice, by leaving it on "Same as Dice"), and an
+    --optional different d3/d6. Each row carries a live spinning render of the die
+    --that row will actually roll, using the same pooled
+    --"#DicePreview:<set>:<seq>:<scale>:<spin>:<faces>" scene as the shop's equip
+    --panel. Setting the first row back to "Use My Dice" drops the whole loadout, so
+    --the other two rows only exist while the token is customized.
+    local g_tokenDiceSlots = {
+        { key = "model", seq = "tokendice1", faces = 10, text = "Dice:",
+          inheritText = "Use My Dice",
+          tooltip = "The dice this token rolls with. On 'Use My Dice' it simply uses whatever dice the rolling player has equipped." },
+        { key = "model2", seq = "tokendice2", faces = 10, text = "2nd Power Die:",
+          inheritText = "Same as Dice",
+          tooltip = "Rolls with multiple d10s -- power rolls included -- alternate between this token's dice and this set, so the pair is mismatched. Leave it on 'Same as Dice' to roll two of the same." },
+        { key = "modelD6", seq = "tokendiced6", faces = 6, text = "D3 / D6:",
+          inheritText = "Same as Dice",
+          tooltip = "A different set for this token's d3 and d6 rolls." },
+    }
+
+    --The dice set the account has equipped for a slot -- what an uncustomized token
+    --actually rolls, and so what its preview shows.
+    local function EquippedDiceForSlot(key)
+        local equipped = dmhub.GetSettingValue("diceequipped")
+        if equipped == nil or equipped == "" then
+            equipped = "Default"
+        end
+
+        if key == "model" then
+            return equipped
+        end
+
+        local id = dmhub.GetSettingValue(cond(key == "model2", "diceequipped2", "diceequippedd6"))
+        if id == nil or id == "" then
+            return equipped
+        end
+        return id
+    end
+
+    --Options for a slot's picker: the slot's "inherit" entry, then every dice set
+    --this account owns. Only owned sets are offered -- and at roll time the ROLLING
+    --player's ownership is what counts (creature:ResolveDiceLoadout), so a DM
+    --customizing a monster can never hand out dice a player has not bought.
+    local function TokenDiceOptions(slot)
+        local sets = {}
+        --pcall: an engine build without the bridge just offers the inherit entry.
+        local ok, list = pcall(function() return dice.GetAvailableDice() end)
+        if ok and type(list) == "table" then
+            for _,entry in ipairs(list) do
+                if entry ~= nil and entry.value ~= nil and entry.value ~= "" then
+                    sets[#sets+1] = { id = entry.value, text = entry.text or entry.value }
+                end
+            end
+        end
+        table.sort(sets, function(a, b) return a.text < b.text end)
+
+        local options = { { id = "", text = slot.inheritText } }
+        for _,entry in ipairs(sets) do
+            options[#options+1] = entry
+        end
+        return options
+    end
+
+    local function SaveTokenDice(key, assetid)
+        local tok = CharacterSheet.instance.data.info.token
+        tok:ModifyProperties{
+            description = "Change token dice",
+            execute = function()
+                tok.properties:SetDiceLoadoutSlot(key, assetid)
+            end,
+        }
+        CharacterSheet.instance:FireEvent("refreshAll")
+    end
+
+    local function MakeTokenDiceRow(slot)
+        --Live 3D die for this slot (pooled preview scene -- the same mechanism as the
+        --shop's equip columns). The RT is premultiplied with reconstructed alpha. The
+        --trailing key segments are dice scale, spin-axis angle, and the die geometry;
+        --an engine build that predates the faces segment ignores it and shows a d10.
+        --bgimage is only re-set when the key actually changes, so the die does not
+        --restart every time the sheet refreshes.
+        local diePanel = gui.Panel{
+            interactable = false,
+            bgcolor = "white",
+            blend = "premultiplied",
+            width = 48,
+            height = 48,
+            halign = "left",
+            valign = "center",
+            hmargin = 4,
+            data = { dieKey = nil },
+        }
+
+        local dropdown = gui.Dropdown{
+            width = 180,
+            valign = "center",
+            halign = "right",
+            options = {},
+            change = function(element)
+                SaveTokenDice(slot.key, element.idChosen or "")
+            end,
+        }
+
+        return gui.Panel{
+            flow = "horizontal",
+            width = 400,
+            height = 56,
+            halign = "center",
+            valign = "top",
+
+            linger = function(element)
+                gui.Tooltip{
+                    text = slot.tooltip,
+                    halign = "center",
+                    valign = "top",
+                }(element)
+            end,
+
+            refreshAppearance = function(element, info)
+                local loadout = info.token.properties:GetDiceLoadout()
+
+                --The override rows only make sense once the token has dice of its own.
+                if slot.key ~= "model" then
+                    element:SetClass("collapsed", loadout.model == nil)
+                end
+
+                dropdown.options = TokenDiceOptions(slot)
+                dropdown.idChosen = loadout[slot.key] or ""
+
+                --The die this row will actually roll: the token's own choice, the
+                --token's primary set for an un-overridden 2nd/d6 row, or the account's
+                --equipped set while the token is uncustomized.
+                local previewSet = loadout[slot.key] or loadout.model
+                if previewSet == nil then
+                    previewSet = EquippedDiceForSlot(slot.key)
+                end
+
+                local dieKey = string.format("#DicePreview:%s:%s:%.2f:%.2f:%d",
+                    tostring(previewSet), slot.seq, 3.0, 0, slot.faces)
+                if diePanel.data.dieKey ~= dieKey then
+                    diePanel.data.dieKey = dieKey
+                    diePanel.bgimage = dieKey
+                end
+            end,
+
+            diePanel,
+
+            gui.Label{
+                classes = {"sizeM"},
+                text = slot.text,
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                hmargin = 8,
+            },
+
+            dropdown,
+        }
+    end
+
+    local tokenDicePanel = gui.Panel{
+        width = 400,
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        valign = "top",
+        vmargin = 16,
+
+        MakeTokenDiceRow(g_tokenDiceSlots[1]),
+        MakeTokenDiceRow(g_tokenDiceSlots[2]),
+        MakeTokenDiceRow(g_tokenDiceSlots[3]),
+    }
+
     local effectsPanel = gui.Panel {
         width = "100%",
         height = "100%-30",
@@ -1995,19 +3125,17 @@ function CharSheet.AppearancePanel()
             width = 400,
             height = 24,
             gui.Label {
+                classes = {"sizeM"},
                 text = "Light Style:",
                 width = "auto",
                 height = "auto",
-                fontSize = 16,
                 halign = "left",
                 valign = "center",
             },
             gui.Dropdown {
                 width = 180,
-                height = 26,
                 valign = "center",
                 halign = "right",
-                fontSize = 20,
                 options = {},
                 change = function(element)
                     local info = CharacterSheet.instance.data.info
@@ -2038,23 +3166,107 @@ function CharSheet.AppearancePanel()
                         
                     end
 
+                    local token = info.token
+                    local light = token.properties:GetEquippedLightSource()
+                    local lightEntry = nil
+                    if light ~= nil then
+                        lightEntry = equipmentTable[light]
+                    end
+
+                    --Always offer whatever the token actually has equipped, even when it
+                    --didn't pass the filter above. If the equipment category caches came up
+                    --empty this session, filtering the equipped item out would present a
+                    --perfectly valid light source as "(Invalid)".
+                    if lightEntry ~= nil then
+                        local haveEquipped = false
+                        for _, option in ipairs(options) do
+                            if option.id == light then
+                                haveEquipped = true
+                                break
+                            end
+                        end
+
+                        if not haveEquipped then
+                            options[#options + 1] = {
+                                id = light,
+                                text = lightEntry.name,
+                            }
+                        end
+                    end
+
                     table.sort(options, function(a, b)
                         return a.text < b.text
                     end)
                     table.insert(options, 1, { id = "none", text = "None" })
                     element.options = options
 
-                    local token = info.token
-                    local light = token.properties:GetEquippedLightSource()
-
-                    if light == nil or equipmentTable[light] == nil then
+                    if lightEntry == nil then
                         element.idChosen = "none"
                     else
                         element.idChosen = light
                     end
                 end,
             }
-        }
+        },
+
+        gui.Panel {
+            vmargin = 16,
+            flow = "horizontal",
+            halign = "center",
+            valign = "top",
+            width = 400,
+            height = 24,
+            --Gated behind the dev:customizeteleport setting -- on every sheet refresh we
+            --re-check the setting so flipping it via /set takes effect on the next sheet open.
+            refreshAppearance = function(element, info)
+                element:SetClass("collapsed", not g_customizeTeleportSetting:Get())
+            end,
+            gui.Label {
+                classes = {"sizeM"},
+                text = "Teleportation:",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+            },
+            gui.Dropdown {
+                width = 180,
+                valign = "center",
+                halign = "right",
+                options = {},
+                change = function(element)
+                    local info = CharacterSheet.instance.data.info
+                    info.token.teleportAnimation = element.idChosen or ""
+                    info.token:UploadAppearance()
+                    CharacterSheet.instance:FireEvent("refreshAll")
+                end,
+                refreshAppearance = function(element, info)
+                    local options = {}
+                    local registry = dmhub.tokenAnimations and dmhub.tokenAnimations.teleportAnimations
+                    if registry ~= nil then
+                        for id, entry in pairs(registry) do
+                            --Entries flagged hidden are styles owned by something else (e.g. the
+                            --"stairwell" style a teleporter object imposes), not personal token
+                            --styles, so they don't belong in this picker.
+                            if not entry.hidden then
+                                options[#options+1] = { id = id, text = entry.name or id }
+                            end
+                        end
+                    end
+                    table.sort(options, function(a, b) return a.text < b.text end)
+                    element.options = options
+
+                    --Mirror the engine's fallback: a token with no explicit teleportAnimation
+                    --plays the "default" entry. Show that as the selected option so the dropdown
+                    --doesn't read as "(Invalid)" for never-set tokens.
+                    local current = info.token.teleportAnimation or ""
+                    if current == "" then current = "default" end
+                    element.idChosen = current
+                end,
+            }
+        },
+
+        tokenDicePanel,
     }
 
     local m_currentPreviewLighting = 1
@@ -2080,13 +3292,16 @@ function CharSheet.AppearancePanel()
     }
 
 
-    local m_tabs = { avatarPanel, effectsPanel }
+    local summonsPanel = CharSheet.SummonsAppearancePanel()
+
+    --right column: character preview for Avatar/Effects, summon preview for Summons.
+    local framePreviewPanel = CharSheet.FramePreviewPanel()
+    local summonPreviewPanel = CharSheet.SummonPreviewPanel()
+
+    local m_tabs = { avatarPanel, effectsPanel, summonsPanel }
 
     local appearanceTabPanel = gui.Panel {
-        flow = "horizontal",
-        width = "auto",
-        height = "auto",
-        halign = "center",
+        classes = {"tabBar"},
         valign = "top",
         vmargin = 6,
 
@@ -2096,16 +3311,19 @@ function CharSheet.AppearancePanel()
             end
         end,
 
-        styles = Styles.Tabs,
-
         selectTab = function(element, tab)
             for i, child in ipairs(element.children) do
-                if child == tab then
+                if child == tab and m_previewLighting[i] ~= nil then
                     m_currentPreviewLighting = i
                 end
                 child:SetClass("selected", child == tab)
                 m_tabs[i]:SetClass("collapsed", child ~= tab)
             end
+
+            --the Summons sub-tab swaps the right column to the summon preview.
+            local isSummons = (tab == element.children[3])
+            framePreviewPanel:SetClass("collapsed", isSummons)
+            summonPreviewPanel:FireEvent("summonsTabSelected", isSummons)
 
             CharacterSheet.instance:FireEventTree("refreshPreviewLighting")
         end,
@@ -2124,6 +3342,22 @@ function CharSheet.AppearancePanel()
                 element.parent:FireEvent("selectTab", element)
             end,
         },
+        gui.Label {
+            classes = { "tab" },
+            text = "Summons",
+            --hidden for characters with no summons to customize.
+            refreshAppearance = function(element, info)
+                local list = GetCustomizableSummonsCached(info.token)
+                local none = (#list == 0)
+                element:SetClass("collapsed", none)
+                if none and element:HasClass("selected") then
+                    element.parent:FireEvent("selectTab", element.parent.children[1])
+                end
+            end,
+            press = function(element)
+                element.parent:FireEvent("selectTab", element)
+            end,
+        },
     }
 
     local leftPanel = gui.Panel {
@@ -2137,6 +3371,7 @@ function CharSheet.AppearancePanel()
         appearanceTabPanel,
         avatarPanel,
         effectsPanel,
+        summonsPanel,
     }
 
     local rightPanel = gui.Panel {
@@ -2148,19 +3383,14 @@ function CharSheet.AppearancePanel()
         flow = "vertical",
 
 
-        CharSheet.FramePreviewPanel(),
+        framePreviewPanel,
+        summonPreviewPanel,
     }
 
 
-    return gui.Panel {
-        theme = "charsheet.Appearance",
-        id = "appearancePanel",
-        classes = { "characterSheetParentPanel", "appearance", "hidden" },
-        floating = true,
-        flow = "horizontal",
-        bgimage = "panels/square.png",
-
-        styles = {
+    local function buildAppearanceStyles()
+        return ThemeEngine.MergeStyles{
+            AppearanceStyles,
             {
                 selectors = { "sliderLabel" },
                 minWidth = 120,
@@ -2173,13 +3403,30 @@ function CharSheet.AppearancePanel()
                 halign = "center",
                 valign = "top",
                 flow = "horizontal",
-                bgimage = "panels/square.png",
+                bgimage = true,
                 bgcolor = "clear",
                 border = { y1 = 2, x1 = 0, x2 = 0, y2 = 0 },
-                borderColor = Styles.textColor,
+                borderColor = "@border",
+            },
+            {
+                selectors = { "sliderNotch" },
+                bgimage = true,
+                bgcolor = "@fgMuted",
+                width = "100%",
+                halign = "center",
+                borderWidth = 0,
+            },
+        }
+    end
 
-            }
-        },
+    local appearancePanel
+    appearancePanel = gui.Panel {
+        id = "appearancePanel",
+        classes = { "characterSheetParentPanel", "appearance", "hidden", "surfaceRadial" },
+        floating = true,
+        flow = "horizontal",
+
+        styles = buildAppearanceStyles(),
 
         leftPanel,
         divider,
@@ -2207,6 +3454,14 @@ function CharSheet.AppearancePanel()
         },
 
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if appearancePanel ~= nil and appearancePanel.valid then
+            appearancePanel.styles = buildAppearanceStyles()
+        end
+    end)
+
+    return appearancePanel
 end
 
 CharSheet.RegisterTab {

@@ -7,18 +7,18 @@ local mod = dmhub.GetModLoading()
 --- @field name string Display name of the modifier.
 --- @field description string Human-readable description of what this modifier does.
 --- @field guid string Unique identifier for this modifier instance.
---- @field sourceguid string GUID of the source object (e.g. a feature) that created this modifier.
---- @field source string Human-readable source name (e.g. "Fighter", "Magic Item").
+--- @field sourceguid string|nil GUID of the source object (e.g. a feature) that created this modifier.
+--- @field source string|nil Human-readable source name (e.g. "Fighter", "Magic Item").
 --- @field behavior string The type of modifier behavior (registered via RegisterType).
---- @field numCharges string GoblinScript formula for the number of charges/uses.
---- @field resourceRefreshType string When resources provided by this modifier refresh ("none", "shortrest", "longrest", etc.).
---- @field resourceCostId string The resource id used for tracking charges; defaults to guid.
+--- @field numCharges string|nil|number|table GoblinScript formula for the number of charges/uses.
+--- @field resourceRefreshType string|nil When resources provided by this modifier refresh ("none", "shortrest", "longrest", etc.).
+--- @field resourceCostId string|nil The resource id used for tracking charges; defaults to guid.
 --- @field resourceCost string The resource cost string for activating this modifier ("none" or a resource id).
---- @field deletable boolean If true the modifier can be deleted by the user in the UI.
---- @field domains table<string, boolean> Domain strings this modifier belongs to.
+--- @field deletable boolean|nil If true the modifier can be deleted by the user in the UI.
+--- @field domains table<string, boolean>|nil Domain strings this modifier belongs to.
 --- @field activatedAbility nil|ActivatedAbility For "activated" behavior modifiers, the ability to cast.
---- @field resourceCostUpcastable boolean If true the resource cost can be upcasted.
---- @field StandardModifiers CharacterModifier[] Class-level default modifiers applied to all creatures.
+--- @field resourceCostUpcastable boolean|nil If true the resource cost can be upcasted.
+--- @field StandardModifiers table<string, CharacterModifier> Class-level default modifiers applied to all creatures.
 --- @field valueTypes {id: string, text: string, get: fun(c: creature): number}[] Available value type descriptors.
 --- @field Types {id: string, text: string}[] Ordered list of all registered modifier types.
 --- @field TypesById table<string, {id: string, text: string}> Registered modifier types keyed by id.
@@ -199,6 +199,7 @@ function CharacterModifier:ResourceCostEditor(options)
 		local resourceInfo = resourceTable[resourceid]
 		if resourceInfo ~= nil and resourceInfo:GetSpellSlot() ~= nil then
 			upcastableCheck = gui.Check{
+				styles = ThemeEngine.GetStyles(),
 				value = self:try_get("resourceCostUpcastable", false),
 				width = 140,
 				valign = "center",
@@ -216,9 +217,10 @@ function CharacterModifier:ResourceCostEditor(options)
 
 
 	local args = {
-		classes = "formPanel",
-	
+		classes = {"formPanel", "formPanel-inline"},
+
 		gui.Dropdown{
+			styles = ThemeEngine.GetStyles(),
 			classes = "formDropdown",
 			idChosen = self:try_get("resourceCost", "none"),
 			options = resourceOptions,
@@ -260,9 +262,10 @@ function CharacterModifier:UsageLimitEditor(options)
 	options.perspell = nil
 
 	local args = {
-		classes = {'formPanel'},
+		classes = {'formPanel', 'formPanel-inline'},
 		children = {
 			gui.Dropdown{
+				styles = ThemeEngine.GetStyles(),
 				selfStyle = {
 					height = 30,
 					width = 160,
@@ -365,6 +368,7 @@ function CharacterModifier:UsageLimitEditor(options)
 			height = "auto",
 			gui.Panel(args),
 			gui.Check{
+				styles = ThemeEngine.GetStyles(),
 				classes = {cond(self:GetResourceRefreshType() == "none" and self:try_get("multicharge", false) == false, "collapsed")},
 				text = "Can use multiple charges",
 				value = self:try_get("multicharge", false),
@@ -453,44 +457,51 @@ CharacterModifier.TypeInfo.icon = {
 
 			children[#children+1] = modifier:FilterConditionEditor()
 
+			local iconEditor = gui.IconEditor{
+				styles = ThemeEngine.GetStyles(),
+				library = "ongoingEffects",
+				bgcolor = "white",
+				margin = 10,
+				width = 48,
+				height = 48,
+				halign = "left",
+				value = modifier:try_get("statusIcon", "none"),
+				change = function(element)
+					modifier.statusIcon = element.value
+					Refresh()
+				end,
+				create = function(element)
+					element.selfStyle.bgcolor = modifier:try_get("iconColor", "#ffffffff")
+				end,
+			}
+
+			local iconColorPicker = gui.ColorPicker{
+				value = modifier:try_get("iconColor", "#ffffffff"),
+				hmargin = 8,
+				width = 24,
+				height = 24,
+				halign = "left",
+				valign = "center",
+				borderWidth = 2,
+				borderColor = "#999999ff",
+				create = function(element)
+					element:FireEvent("change")
+				end,
+				confirm = function(element)
+					iconEditor.selfStyle.bgcolor = element.value
+					modifier.iconColor = element.value
+				end,
+				change = function(element)
+					iconEditor.selfStyle.bgcolor = element.value
+				end,
+			}
+
 			children[#children+1] = gui.Panel{
 				width = "auto",
 				height = "auto",
 				flow = "horizontal",
-				gui.IconEditor{
-					library = "ongoingEffects",
-					bgcolor = modifier:try_get("iconColor", "#ffffffff"),
-					margin = 10,
-					width = 48,
-					height = 48,
-					halign = "left",
-					value = modifier:try_get("statusIcon", "none"),
-					change = function(element)
-						modifier.statusIcon = element.value
-						Refresh()
-					end,
-					iconcolor = function(element, color)
-						element.selfStyle.bgcolor = color
-					end,
-				},
-				gui.ColorPicker{
-					value = modifier:try_get("iconColor", "#ffffffff"),
-					hmargin = 8,
-					width = 24,
-					height = 24,
-					halign = "left",
-					valign = "center",
-					borderWidth = 2,
-					borderColor = '#999999ff',
-
-					confirm = function(element)
-						modifier.iconColor = element.value
-						Refresh()
-					end,
-					change = function(element)
-						element.parent.parent:FireEventTree("iconcolor", element.value)
-					end,
-				},
+				iconEditor,
+				iconColorPicker,
 			}
 
 			element.children = children
@@ -503,10 +514,20 @@ CharacterModifier.TypeInfo.icon = {
 
 CharacterModifier.RegisterType('attribute', 'Modify Attribute')
 
+--Keyword options for 'add' attribute modifiers. When two add modifiers share a non-nil
+--keyword and target the same attribute, only the highest positive value and the most
+--negative value contribute (per keyword, per attribute). New keywords can be appended here.
+CharacterModifier.attributeAddKeywords = {
+	{ id = "none", text = "None" },
+	{ id = "Treasure", text = "Treasure" },
+}
+
 --an 'attribute' modifier has the following properties:
 --  - operation (default = 'add') -- 'add', 'set', 'max', 'min'
 --  - attribute (default = 'armorClass') -- the attribute to modify.
 --  - value (default = 1) -- a number or GoblinScript string describing the modification.
+--  - keyword (optional, only meaningful when operation == 'add') -- groups stacking adds; see
+--    CharacterModifier.FilterAttributeModifiersByKeyword.
 CharacterModifier.TypeInfo.attribute = {
 	init = function(modifier)
 		modifier.attribute = "armorClass"
@@ -611,6 +632,7 @@ CharacterModifier.TypeInfo.attribute = {
 						classes = {'formLabel'},
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						selfStyle = {
 							height = 30,
 							width = 300,
@@ -686,6 +708,7 @@ CharacterModifier.TypeInfo.attribute = {
 						classes = {'formLabel'},
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						selfStyle = {
 							height = 30,
 							width = 300,
@@ -713,6 +736,7 @@ CharacterModifier.TypeInfo.attribute = {
 						classes = {'formLabel'},
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						selfStyle = {
 							height = 30,
 							width = 300,
@@ -739,7 +763,37 @@ CharacterModifier.TypeInfo.attribute = {
 				}
 			}
 
+			--if the selected attribute has documentation, show it beneath the attribute selection.
+			local attrDocumentation = nil
+			if attrInfo ~= nil then
+				attrDocumentation = attrInfo.documentation
+				if attrDocumentation == nil and attrInfo.attr ~= nil then
+					attrDocumentation = attrInfo.attr:try_get("documentation")
+				end
+				if attrDocumentation == "" then
+					attrDocumentation = nil
+				end
+			end
+
+			if attrDocumentation ~= nil then
+				children[#children+1] = gui.Label{
+					fontSize = 14,
+					italics = true,
+					width = '100%',
+					height = 'auto',
+					maxWidth = 560,
+					text = attrDocumentation,
+				}
+			end
+
 			if attributeType.enum then
+				local isCreatureSetFilter = AttributeTypeCreatureSet.IsFilterValue(modifier.value)
+
+				local dropdownIdChosen = modifier.value
+				if isCreatureSetFilter then
+					dropdownIdChosen = AttributeTypeCreatureSet.FilterSentinelId
+				end
+
 				children[#children+1] = gui.Panel{
 					classes = {'formPanel'},
 					children = {
@@ -748,18 +802,63 @@ CharacterModifier.TypeInfo.attribute = {
 							classes = {'formLabel'},
 						},
 						gui.Dropdown{
+							styles = ThemeEngine.GetStyles(),
 							height = 30,
 							width = 240,
 							fontSize = 16,
 							options = attributeType:GetDropdownOptions(attrInfo),
-							idChosen = modifier.value,
+							idChosen = dropdownIdChosen,
 							change = function(element)
-								modifier.value = element.idChosen
+								if element.idChosen == AttributeTypeCreatureSet.FilterSentinelId then
+									if not AttributeTypeCreatureSet.IsFilterValue(modifier.value) then
+										modifier.value = AttributeTypeCreatureSet.MakeFilterValue("")
+									end
+								else
+									modifier.value = element.idChosen
+								end
 								Refresh()
 							end,
 						},
 					}
 				}
+
+				if isCreatureSetFilter then
+					children[#children+1] = gui.Panel{
+						classes = {'formPanel'},
+						children = {
+							gui.Label{
+								text = 'Filter:',
+								classes = {'formLabel'},
+							},
+							gui.GoblinScriptInput{
+								value = AttributeTypeCreatureSet.GetFilterExpression(modifier.value),
+								change = function(element)
+									modifier.value = AttributeTypeCreatureSet.MakeFilterValue(element.value)
+								end,
+								documentation = {
+									help = "This GoblinScript is evaluated against each monster in the bestiary. Monsters for which the script returns true are considered part of this creature set.",
+									output = "boolean",
+									examples = {
+										{
+											script = "Beast.Keywords has \"Signature\" and Beast.name = \"Elemental Mote\"",
+											text = "Match the Elemental Mote bestiary entry tagged with the Signature keyword.",
+										},
+									},
+									subject = creature.helpSymbols,
+									subjectDescription = "The monster from the Bestiary that is being examined is found as the additional field, Beast.",
+									symbols = {
+										{
+											name = "Beast",
+											type = "creature",
+											desc = "The monster from the Bestiary being examined for membership in this creature set.",
+											examples = {"Beast.Keywords has \"Signature\""},
+										},
+									},
+								},
+							},
+						}
+					}
+				end
 			else
 
 				children[#children+1] = gui.Panel{
@@ -802,6 +901,41 @@ CharacterModifier.TypeInfo.attribute = {
 				}
 			end
 
+			if modifier:try_get('operation', 'add') == 'add' then
+				children[#children+1] = gui.Panel{
+					classes = {'formPanel'},
+					children = {
+						gui.Label{
+							text = 'Keyword:',
+							classes = {'formLabel'},
+						},
+						gui.Dropdown{
+							styles = ThemeEngine.GetStyles(),
+							selfStyle = {
+								height = 30,
+								width = 300,
+								fontSize = 16,
+							},
+							options = CharacterModifier.attributeAddKeywords,
+							idChosen = modifier:try_get('keyword') or 'none',
+							events = {
+								change = function(element)
+									if element.idChosen == 'none' then
+										modifier.keyword = nil
+									else
+										modifier.keyword = element.idChosen
+									end
+									Refresh()
+								end,
+								linger = function(element)
+									gui.Tooltip("If multiple modifiers share a keyword, only the highest positive and the most negative values apply (per attribute).")(element)
+								end,
+							},
+						},
+					}
+				}
+			end
+
 			local attrText = ""
 			for i,option in ipairs(CustomAttribute.modifiableAttributes) do
 				if option.id == modifier:try_get("attribute", "armorClass") then
@@ -820,6 +954,7 @@ CharacterModifier.TypeInfo.attribute = {
 			}
 
 			children[#children+1] = gui.Check{
+				styles = ThemeEngine.GetStyles(),
 				text = "Display Icon When Active",
 				value = modifier:try_get("displayIcon", false),
 				change = function(element)
@@ -834,6 +969,7 @@ CharacterModifier.TypeInfo.attribute = {
 					height = "auto",
 					flow = "horizontal",
 					gui.IconEditor{
+						-- styles = ThemeEngine.GetStyles(),
 						library = "ongoingEffects",
 						bgcolor = modifier:try_get("iconColor", "#ffffffff"),
 						margin = 10,
@@ -911,7 +1047,7 @@ CharacterModifier.TypeInfo.resistance = {
 		local itemsDesc = string.format("%s%s", nonmagicText, pretty_join_list(items))
 
 		if modifier.resistances[1].apply == 'Damage Reduction' then
-			return string.format("Damage from %s attacks is reduced by %s.", itemsDesc, modifier.resistances[1].dr)
+			return string.format("Damage from %s attacks is reduced by %s.", itemsDesc, GoblinScriptTable.tostring(modifier.resistances[1].dr))
 		elseif modifier.resistances[1].apply == 'Percent Reduction' then
 			return string.format("Damage from %s attacks is reduced by %d%%.", itemsDesc, math.floor(modifier.resistances[1].dr*100))
 
@@ -924,8 +1060,11 @@ CharacterModifier.TypeInfo.resistance = {
 	getResistances = function(modifier, creature, resistanceList)
 		for i,entry in ipairs(modifier.resistances) do
 			local e = table.shallow_copy_with_meta(entry)
-			if type(e:try_get("dr")) == "string" then
-				e.dr = ExecuteGoblinScript(e.dr, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), 0, "Damage Resistance")
+			--dr may be a number, a GoblinScript string, or a GoblinScriptTable (Custom Table).
+			--Evaluate the latter two down to a number; ExecuteGoblinScript handles both.
+			local dr = e:try_get("dr")
+			if type(dr) == "string" or type(dr) == "table" then
+				e.dr = ExecuteGoblinScript(dr, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), 0, "Damage Resistance")
 			end
 
             e.source = modifier.name
@@ -933,6 +1072,25 @@ CharacterModifier.TypeInfo.resistance = {
             if e.dr ~= 0 then
 			    resistanceList[#resistanceList+1] = e
             end
+		end
+	end,
+
+	fillStatusIcons = function(self, creature, result)
+		if self:try_get("displayIcon", false) and self:has_key("statusIcon") then
+			local hoverText = self.name
+			local description = self:try_get("description", "")
+			if description ~= "" then
+				hoverText = string.format("<b>%s</b>\n%s", self.name, description)
+			end
+			result[#result+1] = {
+				id = self.name,
+				icon = self.statusIcon,
+				hoverText = hoverText,
+				style = {
+					bgcolor = self:try_get("iconColor", "#ffffffff"),
+				},
+				statusIcon = true,
+			}
 		end
 	end,
 
@@ -952,9 +1110,10 @@ CharacterModifier.TypeInfo.resistance = {
 
 			children[#children+1] = gui.Panel{
 				id = 'resistance-apply-container',
-				classes = {'formPanel', cond(#ResistanceEntry.types <= 1, "collapsed")},
+				classes = {'formPanel', 'formPanel-inline', cond(#ResistanceEntry.types <= 1, "collapsed")},
 				children = {
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						id = 'resistance-apply-dropdown',
 						selfStyle = {
 							height = 30,
@@ -996,7 +1155,9 @@ CharacterModifier.TypeInfo.resistance = {
 					},
 
 					gui.GoblinScriptInput{
-						value = tostring(modifier.resistances[1].dr),
+						--pass the raw value (number, GoblinScript string, or GoblinScriptTable)
+						--so a Custom Table round-trips instead of stringifying to "table: 0x...".
+						value = modifier.resistances[1].dr,
 						change = function(element)
 							for _,entry in ipairs(modifier.resistances) do
 								entry.dr = element.value
@@ -1027,6 +1188,7 @@ CharacterModifier.TypeInfo.resistance = {
 				}
 
                 children[#children+1] = gui.Check{
+					styles = ThemeEngine.GetStyles(),
                     text = "Stacks with other Damage Reduction",
                     value = modifier.resistances[1].stacks,
                     change = function(element)
@@ -1080,21 +1242,20 @@ CharacterModifier.TypeInfo.resistance = {
                     if val == true then
                         keywordsFound[keyword] = true
                         children[#children+1] = gui.Panel{
-                            classes = {"formPanel"},
+                            classes = {"formPanel", "formPanel-inline"},
                             data = {ord = keyword},
                             width = 200,
                             height = 14,
                             minHeight = 14,
                             gui.Label{
-                                text = keyword,
+                                text = ActivatedAbility.CanonicalKeyword(keyword),
                                 width = "auto",
                                 height = 14,
                                 fontSize = 14,
                                 color = Styles.textColor,
                             },
-                            gui.DeleteItemButton{
-                                width = 12,
-                                height = 12,
+                            gui.Button{
+								classes = {"deleteButton", "sizeXs"},
                                 halign = "right",
                                 click = function(element)
                                     modifier.resistances[1].keywords[keyword] = nil
@@ -1116,6 +1277,7 @@ CharacterModifier.TypeInfo.resistance = {
                 end
 
                 children[#children+1] = gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
                     selfStyle = {
                         height = 30,
                         width = 240,
@@ -1135,6 +1297,7 @@ CharacterModifier.TypeInfo.resistance = {
 
 			else
 				children[#children+1] = gui.Check{
+					styles = ThemeEngine.GetStyles(),
 					id = 'non-magical-checkbox',
 					text = 'Non-Magical',
 					style = {
@@ -1186,6 +1349,7 @@ CharacterModifier.TypeInfo.resistance = {
 
 			for i,r in ipairs(modifier.resistances) do
 				children[#children+1] = gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
 					selfStyle = {
 						height = 30,
 						width = 240,
@@ -1216,6 +1380,7 @@ CharacterModifier.TypeInfo.resistance = {
 
 			if #options > 0 and (#modifier.resistances == 0 or modifier.resistances[1].damageType ~= 'all') then
 				children[#children+1] = gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
 					selfStyle = {
 						height = 30,
 						width = 240,
@@ -1236,6 +1401,58 @@ CharacterModifier.TypeInfo.resistance = {
 				}
 			end
 
+			children[#children+1] = gui.Check{
+				styles = ThemeEngine.GetStyles(),
+				text = "Display Icon When Active",
+				value = modifier:try_get("displayIcon", false),
+				change = function(element)
+					modifier.displayIcon = element.value
+					Refresh()
+				end,
+			}
+
+			if modifier:try_get("displayIcon", false) then
+				children[#children+1] = gui.Panel{
+					width = "auto",
+					height = "auto",
+					flow = "horizontal",
+					gui.IconEditor{
+						library = "ongoingEffects",
+						bgcolor = modifier:try_get("iconColor", "#ffffffff"),
+						margin = 10,
+						width = 48,
+						height = 48,
+						halign = "left",
+						value = modifier:try_get("statusIcon", "none"),
+						change = function(element)
+							modifier.statusIcon = element.value
+							Refresh()
+						end,
+						iconcolor = function(element, color)
+							element.selfStyle.bgcolor = color
+						end,
+					},
+					gui.ColorPicker{
+						value = modifier:try_get("iconColor", "#ffffffff"),
+						hmargin = 8,
+						width = 24,
+						height = 24,
+						halign = "left",
+						valign = "center",
+						borderWidth = 2,
+						borderColor = '#999999ff',
+
+						confirm = function(element)
+							modifier.iconColor = element.value
+							Refresh()
+						end,
+						change = function(element)
+							element.parent.parent:FireEventTree("iconcolor", element.value)
+						end,
+					},
+				}
+			end
+
 			element.children = children
 		end
 
@@ -1247,6 +1464,12 @@ CharacterModifier.RegisterType('conditionimmunity', "Condition Immunity")
 
 --a 'conditionimmunity' modifier has the following properties:
 --  - conditions: a list of condition id's which we are immune to.
+--conditionimmunity: grants immunity to the conditions listed in modifier.conditions
+--(a list of condition ids). Optional field: modifier.immunityMessage -- when set to
+--a non-empty string, creature:GetConditionImmunityMessage reads it (via try_get) so
+--the immunity-blocked speech can be overridden with a context-specific line instead
+--of the generic "I can't be <Name>!". Used e.g. by Olothec transformation effects
+--that block hiding.
 CharacterModifier.TypeInfo.conditionimmunity = {
 	init = function(modifier)
 		modifier.conditions = {}
@@ -1302,9 +1525,8 @@ CharacterModifier.TypeInfo.conditionimmunity = {
 						classes = {'formLabel'},
 						width = 200,
 						height = 30,
-						gui.DeleteItemButton{
-							width = 16,
-							height = 16,
+						gui.Button{
+							classes = {"deleteButton", "sizeS"},
 							valign = 'center',
 							halign = 'right',
 							click = function(element)
@@ -1347,6 +1569,7 @@ CharacterModifier.TypeInfo.conditionimmunity = {
 				classes = {'formPanel'},
 				children = {
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						selfStyle = {
 							height = 30,
 							width = 160,
@@ -1474,6 +1697,7 @@ CharacterModifier.TypeInfo.rollsattacking = {
 					text = "Roll Type:",
 				},
 				gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
 					options = {
 						{
 							id = "attack",
@@ -1674,6 +1898,7 @@ CharacterModifier.TypeInfo.attackattribute = {
 					text = "Attribute:",
 				},
 				gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
 					options = creature.attributeDropdownOptions,
 					idChosen = modifier:try_get("attribute", "dex"),
 					change = function(element)
@@ -1794,19 +2019,41 @@ CharacterModifier.TypeInfo.trigger = {
 
                 end,
             }
-			children[#children+1] = gui.PrettyButton{
+			children[#children+1] = gui.Button{
+				classes = {"sizeL"},
 				width = 200,
-				height = 50,
 				text = "Edit Ability",
 				click = function(element)
 					local fn = function(element, modifier, savefn)
-						element.root:AddChild(modifier.triggeredAbility:ShowEditActivatedAbilityDialog{
-                            destroy = savefn,
-                        })
+						-- C6b: `mount` is a re-entrant builder for the
+						-- editor dialog so the popout's "Open Editor"
+						-- button can re-invoke it. element.root is the
+						-- parent at first-click time; if the user
+						-- navigated away (modifier editor closed,
+						-- character sheet closed) element is destroyed
+						-- and element.root is unreachable. We fall back
+						-- to gamehud.parentPanel (always alive) so the
+						-- new editor still mounts -- mirrors the
+						-- top-level mount-target the original click
+						-- naturally resolves to since element.root
+						-- IS gamehud.parentPanel for elements inside
+						-- modal-mounted dialogs. Per-mount reopen=mount
+						-- so the cycle persists across many opens.
+						local mount
+						mount = function()
+							local root =
+								(element ~= nil and element.valid and element.root)
+								or gamehud.parentPanel
+							root:AddChild(modifier.triggeredAbility:ShowEditActivatedAbilityDialog{
+                                destroy = savefn,
+                                reopen = mount,
+                            })
+						end
+						mount()
 					end
-	
+
 					element.root:FireEventTree("editCompendiumFeature", modifier, fn)
-	
+
 					fn(element, modifier)
 				end,
 			}
@@ -1840,6 +2087,32 @@ CharacterModifier.TypeInfo.activated = {
     modifyAbility = function(modifier, creature, ability)
         local suppresses = modifier:try_get("suppressOthers", false)
         if suppresses and ability.name == modifier.activatedAbility.name and ability.guid ~= modifier.activatedAbility.guid then
+            --If the incoming ability is itself granted by a suppressOthers 'activated'
+            --modifier that occurs LATER in the modifier list (i.e. from a higher class
+            --level), let it live -- otherwise two upgraded versions of the same ability
+            --would suppress each other and the ability would vanish entirely.
+            local myGuid = modifier:try_get("guid")
+            local myIndex = nil
+            local otherIndex = nil
+            local otherSuppresses = false
+            for i,entry in ipairs(creature:GetActiveModifiers()) do
+                local m = entry.mod
+                if myIndex == nil and myGuid ~= nil and m:try_get("guid") == myGuid then
+                    myIndex = i
+                end
+                if otherIndex == nil and m:try_get("behavior") == "activated" then
+                    local grantedAbility = m:try_get("activatedAbility")
+                    if grantedAbility ~= nil and grantedAbility.guid == ability.guid then
+                        otherIndex = i
+                        otherSuppresses = m:try_get("suppressOthers", false)
+                    end
+                end
+            end
+
+            if otherSuppresses and myIndex ~= nil and otherIndex ~= nil and otherIndex > myIndex then
+                return ability
+            end
+
             return nil
         end
 
@@ -1889,15 +2162,16 @@ CharacterModifier.TypeInfo.activated = {
 			}
 
             children[#children+1] = gui.Check{
+				styles = ThemeEngine.GetStyles(),
                 value = modifier:try_get("suppressOthers", false),
                 text = "Suppress Other Abilities With Same Name",
                 change = function(element)
                     modifier.suppressOthers = element.value
                 end,
             }
-			children[#children+1] = gui.PrettyButton{
+			children[#children+1] = gui.Button{
+				classes = {"sizeL"},
 				width = 200,
-				height = 50,
 				text = "Edit Ability",
 				click = function(element)
 					local fn = function(element, modifier, savefn)
@@ -2005,6 +2279,7 @@ CharacterModifier.TypeInfo.spell = {
 					text = "Spell:",
 				},
 				gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
 					options = options,
 					idChosen = modifier.spell,
 					hasSearch = true,
@@ -2062,6 +2337,7 @@ CharacterModifier.TypeInfo.spell = {
 					text = "Attribute:",
 				},
 				gui.Dropdown{
+					styles = ThemeEngine.GetStyles(),
 					options = creature.attributeDropdownOptions,
 					idChosen = modifier:try_get("attribute", "int"),
 					change = function(element)
@@ -2103,7 +2379,9 @@ CharacterModifier.TypeInfo.transform = {
 			if self:try_get("gainCreatureVisuals") ~= false then
 				creature._tmp_appearance = monsterInfo.appearance
 			end
-			creature._tmp_creaturesize = monsterInfo.info.creatureSize
+			if self:try_get("transformSize") ~= false then
+				creature._tmp_creaturesize = monsterInfo.properties:GetBaseCreatureSize()
+			end
 		end
 	end,
 
@@ -2251,6 +2529,7 @@ CharacterModifier.TypeInfo.transform = {
 		return self:try_get("banequipment")
 	end,
 
+
 	createEditor = function(modifier, element)
 		local Refresh
 		Refresh = function()
@@ -2283,6 +2562,7 @@ CharacterModifier.TypeInfo.transform = {
 
 			for i,attr in ipairs(attributes) do
 				children[#children+1] = gui.Check{
+					styles = ThemeEngine.GetStyles(),
 					halign = "left",
 					text = string.format("Transform %s", attr.name),
 
@@ -2297,6 +2577,11 @@ CharacterModifier.TypeInfo.transform = {
 				{
 					id = "gainCreatureVisuals",
 					text = "Gain Creature Visuals",
+				},
+				{
+					id = "transformSize",
+					text = "Transform Size",
+					defaultTrue = true,
 				},
 				{
 					id = "overrideMovement",
@@ -2326,10 +2611,14 @@ CharacterModifier.TypeInfo.transform = {
 
 			for i,capability in ipairs(capabilities) do
 				children[#children+1] = gui.Check{
+					styles = ThemeEngine.GetStyles(),
 					halign = "left",
 					text = capability.text,
 
-					value = modifier:try_get(capability.id) == true,
+					value = cond(capability.defaultTrue,
+						modifier:try_get(capability.id) ~= false,
+						modifier:try_get(capability.id) == true
+					),
 					change = function(element)
 						modifier[capability.id] = element.value
 					end,
@@ -2430,6 +2719,7 @@ CharacterModifier.TypeInfo.resource = {
 						classes = {'formLabel'},
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						selfStyle = {
 							height = 30,
 							width = 250,
@@ -2579,7 +2869,11 @@ function CharacterModifier:PriorityEditor()
 
 end
 
-function CharacterModifier:FilterConditionEditor(fieldName)
+--onChange: optional callback invoked after the field is updated. Editors that
+--render conditionally on the filter value (e.g. Modify Abilities hides its
+--"Apply to Power Roll Triggers" toggle when filterAbility is set) can pass
+--their Refresh() to live-update when the user edits the GoblinScript.
+function CharacterModifier:FilterConditionEditor(fieldName, onChange)
 	fieldName = fieldName or "filterCondition"
 
 	local documentation = nil
@@ -2638,6 +2932,9 @@ function CharacterModifier:FilterConditionEditor(fieldName)
 					self[fieldName] = nil
 				else
 					self[fieldName] = element.value
+				end
+				if onChange ~= nil then
+					onChange()
 				end
 			end,
 
@@ -2841,6 +3138,17 @@ function CharacterModifier:PopupEditor()
 								events = {
 									change = function(element)
 										self.behavior = element.idChosen
+
+										--A leftover triggeredAbility from a previous "trigger"
+										--behavior would linger on the modifier forever (and has
+										--historically lingered half-initialized, breaking
+										--consumers that expect a game-typed ability). Delete it
+										--when the behavior is no longer "trigger"; switching back
+										--to "trigger" re-creates a fresh one via init below.
+										if self.behavior ~= "trigger" and self:has_key("triggeredAbility") then
+											self.triggeredAbility = nil
+										end
+
 										local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
 										if typeInfo.init then
 											--initialize our new behavior type.
@@ -2908,6 +3216,87 @@ end
 --how it behaves in various circumstances.
 
 
+--- Filters a list of active modifiers for a single attribute, applying keyword grouping.
+--- For "attribute"-behavior add modifiers that target this attribute and have a non-nil
+--- keyword, only the entry with the highest positive value and the entry with the most
+--- negative value (per keyword) are kept. Other modifiers (different behavior, different
+--- attribute, different operation, or no keyword) are passed through unchanged. The mods
+--- list is not mutated; a new list is returned.
+--- @param creature creature
+--- @param mods table The mods list (entries shaped like creature:GetActiveModifiers()).
+--- @param attributeName string The attribute being calculated.
+--- @return table The filtered mods list.
+function CharacterModifier.FilterAttributeModifiersByKeyword(creature, mods, attributeName)
+	local best = nil
+
+	for i, modContext in ipairs(mods) do
+		local m = modContext.mod
+		if m.behavior == "attribute"
+			and m:try_get("attribute", "armorClass") == attributeName
+			and m:try_get("operation", "add") == "add" then
+			local keyword = m:try_get("keyword")
+			if keyword ~= nil and keyword ~= "" and keyword ~= "none" then
+				local attributeType = CustomAttribute.GetAttributeType(m.attribute)
+				if attributeType ~= nil and not attributeType.enum then
+					m:InstallSymbolsFromContext(modContext)
+					local value = ExecuteGoblinScript(m.value, GenerateSymbols(creature, m:try_get("_tmp_symbols")), 0,
+						string.format("Keyword filter %s on %s", m.name, attributeName))
+					if type(value) == "number" and value ~= 0 then
+						best = best or {}
+						local entry = best[keyword]
+						if entry == nil then
+							entry = {}
+							best[keyword] = entry
+						end
+						if value > 0 then
+							if entry.positive == nil or value > entry.positive.value then
+								entry.positive = { idx = i, value = value }
+							end
+						else
+							if entry.negative == nil or value < entry.negative.value then
+								entry.negative = { idx = i, value = value }
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
+	if best == nil then
+		return mods
+	end
+
+	local kept = {}
+	for _, group in pairs(best) do
+		if group.positive ~= nil then
+			kept[group.positive.idx] = true
+		end
+		if group.negative ~= nil then
+			kept[group.negative.idx] = true
+		end
+	end
+
+	local result = {}
+	for i, modContext in ipairs(mods) do
+		local m = modContext.mod
+		local skip = false
+		if m.behavior == "attribute"
+			and m:try_get("attribute", "armorClass") == attributeName
+			and m:try_get("operation", "add") == "add" then
+			local keyword = m:try_get("keyword")
+			if keyword ~= nil and keyword ~= "" and keyword ~= "none" and not kept[i] then
+				skip = true
+			end
+		end
+		if not skip then
+			result[#result+1] = modContext
+		end
+	end
+
+	return result
+end
+
 --- Applies this modifier to the given attribute on the creature, returning the new value.
 --- @param modContext table The modifier context (includes bound symbol values).
 --- @param creature creature
@@ -2918,7 +3307,10 @@ function CharacterModifier:Modify(modContext, creature, attribute, currentValue)
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior]
 	if typeInfo == nil then
 		print("No modify function for behavior: " .. self.behavior .. " in behavior " .. json(self))
-            return
+		--an unregistered behavior must leave the value alone. Returning nil here poisons
+		--the whole attribute calculation: creature:CalculateAttribute latches the nil, so
+		--e.g. MaxHitpoints() returns nil and every arithmetic/comparison on it errors.
+		return currentValue
 	end
 	local modify = typeInfo.modify
 	if modify then
@@ -3215,12 +3607,22 @@ function CharacterModifier:ConsumeResourceInternal(creature, modContext)
 
 
 	local result = false
-	local resourceCost = creature:ResourceToConsume(self.resourceCost)
-	if resourceCost ~= nil then
-		local resourcesTable = dmhub.GetTable("characterResources")
-		local resourceInfo = resourcesTable[resourceCost]
-		creature:ConsumeResource(self:try_get("consumeResourceOverride", resourceCost), resourceInfo.usageLimit)
-		result = true
+	--The legacy `resourceCost` field is a separate, older per-modifier cost
+	--mechanism from the modern `resourceCostType` ("cost"/"epic"/"surges"/etc.)
+	--power-roll-modifier cost system handled above. A modifier that specifies
+	--`resourceCostType` has already had its cost charged by that path; running
+	--this legacy block as well would double-charge the resource (e.g. a power
+	--modifier chip with both `resourceCostType: cost` and `resourceCost: <heroic
+	--resource guid>` would deduct the heroic resource twice for a single use).
+	--Only honour the legacy field when the modern cost system is inactive.
+	if costType == "none" then
+		local resourceCost = creature:ResourceToConsume(self.resourceCost)
+		if resourceCost ~= nil then
+			local resourcesTable = dmhub.GetTable("characterResources")
+			local resourceInfo = resourcesTable[resourceCost]
+			creature:ConsumeResource(self:try_get("consumeResourceOverride", resourceCost), resourceInfo.usageLimit)
+			result = true
+		end
 	end
 
 	local refreshType = self:GetResourceRefreshType()
@@ -3424,6 +3826,13 @@ end
 --- @param targetsOther boolean|nil
 --- @param localFilter nil|string nil = all triggers, "localOnly" = only local-only triggers, "skipLocal" = skip local-only triggers
 function CharacterModifier:HasTriggeredEvent(creature, eventName, targetsOther, localFilter)
+	--Only the "trigger" behavior owns triggeredAbility. A modifier whose
+	--behavior was switched away from "trigger" can retain a stale copy of the
+	--sub-object, which must not register as a live trigger.
+	if self.behavior ~= "trigger" then
+		return false
+	end
+
 	if self:has_key('triggeredAbility') and self.triggeredAbility.trigger == eventName then
 
         -- Filter by local-only status if requested.
@@ -3467,6 +3876,12 @@ end
 --modContext is a 'mod context' as returned by creature.GetActiveModifiers(). We use it to affect the ongoing effect or other context.
 --localFilter: nil = all triggers, "localOnly" = only local-only triggers, "skipLocal" = skip local-only triggers
 function CharacterModifier:TriggerEvent(creature, eventName, info, modContext, debugLog, localFilter)
+	--See HasTriggeredEvent: a stale triggeredAbility left behind by a
+	--behavior switch must never auto-fire.
+	if self.behavior ~= "trigger" then
+		return false
+	end
+
 	if self:has_key('triggeredAbility') and self.triggeredAbility.trigger == eventName then
         -- Filter by local-only status if requested.
         if localFilter == "localOnly" and not self.triggeredAbility:IsLocalOnly() then
@@ -3512,7 +3927,7 @@ function CharacterModifier:TriggerEvent(creature, eventName, info, modContext, d
 			return false
 		end
 
-        if  ((not self.triggeredAbility:IsMandatory()) and (not creature:TriggeredAbilityEnabled(self.triggeredAbility))) then
+        if  ((not self.triggeredAbility:IsMandatory(creatureToken)) and (not creature:TriggeredAbilityEnabled(self.triggeredAbility))) then
             if debugLog ~= nil then
                 debugLog[#debugLog+1] = {
                     name = self.triggeredAbility.name,
@@ -3530,7 +3945,12 @@ function CharacterModifier:TriggerEvent(creature, eventName, info, modContext, d
 				info[k] = v
 			end
 		end
-		self.triggeredAbility:Trigger(self, creature, info, nil, modContext, {debugLog = debugLog})
+
+		--apply the creature's Modify Abilities pass so an auto-fired trigger
+		--respects the same modifications as the manual-cast / display version
+		--(GetActivatedAbilities{manualTriggers=true} already does this).
+		local ability = creature:ApplyAbilityModifiers(self.triggeredAbility, nil, "triggered") or self.triggeredAbility
+		ability:Trigger(self, creature, info, nil, modContext, {debugLog = debugLog, remote = (localFilter == "skipLocal")})
 		return true
 	end
 
@@ -3538,12 +3958,33 @@ function CharacterModifier:TriggerEvent(creature, eventName, info, modContext, d
 end
 
 function CharacterModifier:FillTriggeredAbilities(modContext, creature, result)
+	--Only the "trigger" behavior owns triggeredAbility. A modifier whose
+	--behavior was switched away from "trigger" can retain a stale copy of the
+	--sub-object, which must not register as a live trigger.
+	if self.behavior ~= "trigger" then
+		return
+	end
+
 	if self:has_key("triggeredAbility") then
+		--A modifier whose behavior was switched away from "trigger" can retain a
+		--stale, half-initialized triggeredAbility that deserializes as a plain Lua
+		--table with no game type, so it has no try_get/IsLocalOnly. Handing it to
+		--callers breaks GetActivatedAbilities{manualTriggers=true}, which aborts the
+		--action bar refresh and leaves the player unable to act. Skip such entries.
+		--pcall: reading a missing field on a game-typed instance raises, so a plain
+		--nil-check is not safe here (same pattern as creature:ApplyAbilityModifiers).
+		local ability = self.triggeredAbility
+		local tryGet = nil
+		pcall(function() tryGet = ability.try_get end)
+		if tryGet == nil then
+			return
+		end
+
 		result[#result+1] = {
 			modifier = self,
 			available = self:HasResourcesAvailable(creature),
 			resources = self:DescribeResourceAvailability(creature),
-			ability = self.triggeredAbility,
+			ability = ability,
 		}
 	end
 end
@@ -3806,9 +4247,11 @@ function CharacterModifier.OnDeserialize(self)
 	end
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDModifyPowerRolls.lua:2419
 function CharacterModifier:ApplyToRoll(context, casterCreature, targetCreature, rollType, roll)
 	return roll
 end
+--]==]
 
 function CharacterModifier:ModifyRollProperties(context, creature, rollProperties, targetCreature)
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}

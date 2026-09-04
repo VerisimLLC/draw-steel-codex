@@ -1,7 +1,16 @@
 local mod = dmhub.GetModLoading()
 
---if the effect has been implemented by the importer.
+--effectImplemented is deprecated. Use the 'implementation' field instead.
+--kept as a default so old serialized data doesn't error on access.
 ActivatedAbility.effectImplemented = true
+
+--hideSightlines: while this ability waits at its cast confirmation prompt, the
+--action bar draws red sight-line arrows from every enemy with a clear view of
+--the caster -- the same arrows the Hide maneuver's cover-or-concealment gate
+--shows on hover. Set it on "you may hide" prompt abilities (e.g. the one Black
+--Ash Teleport invokes after the teleport) so the player can see who would spot
+--them before deciding to hide.
+ActivatedAbility.hideSightlines = false
 
 local g_settingTargetObjects = setting {
     id = "targetobjects",
@@ -9,76 +18,54 @@ local g_settingTargetObjects = setting {
     storage = "preference",
 }
 
-local g_hoverableGradient = gui.Gradient {
-    point_a = { x = 0, y = 0 },
-    point_b = { x = 1, y = 1 },
-    stops = {
-        {
-            position = 0,
-            color = Styles.backgroundColor,
-        },
-        {
-            position = 12,
-            color = Styles.textColor,
-        },
-    },
-}
-
-local g_highlightGradient = gui.Gradient {
-    point_a = { x = 0, y = 0 },
-    point_b = { x = 1, y = 1 },
-    stops = {
-        {
-            position = 0,
-            color = Styles.backgroundColor,
-        },
-        {
-            position = 4,
-            color = Styles.textColor,
-        },
-    },
-}
-
+-- Custom rules for the spellInfo / roll-dialog panel. Plain rule tables (NOT
+-- gui.Style objects) because they are routed through ThemeEngine.MergeStyles,
+-- which iterates each rule with pairs() to resolve @tokens. All colors use
+-- scheme @tokens so the panel tracks the active color scheme.
 SpellRenderStyles = {
-    gui.Style {
+    -- The ability card itself: simple rounded card, matching the monster
+    -- sheet's ms-card grammar.
+    {
         selectors = "#spellInfo",
         width = "100%",
         height = 'auto',
         flow = 'vertical',
         halign = 'left',
         valign = 'center',
+        bgcolor = "@bgAlt",
+        border = 1,
+        borderColor = "@border",
+        cornerRadius = 6,
+        vmargin = 4,
     },
-    gui.Style {
+    {
         selectors = { "hoverable", "#spellInfo" },
-        bgcolor = "white",
-        gradient = g_hoverableGradient,
+        bgcolor = "@bgAlt",
     },
-    gui.Style {
+    {
         selectors = { "hoverable", "hovered", "#spellInfo" },
-        gradient = g_highlightGradient,
+        brightness = 1.5,
         transitionTime = 0.2,
     },
 
-    gui.Style {
+    {
         selectors = { "heading", "hovered" },
         brightness = 3,
     },
 
-    gui.Style {
+    {
         classes = { "label" },
         fontSize = 14,
-        color = 'white',
+        color = '@fg',
         width = '100%',
-        textAlignment = "left",
         height = 'auto',
         halign = 'left',
-
         textAlignment = 'left',
     },
 
-    gui.Style {
+    {
         classes = { "label", "#spellName" },
-        color = 'white',
+        color = '@fg',
         bgimage = "panels/square.png",
         bgcolor = "clear",
         fontSize = 14,
@@ -91,18 +78,18 @@ SpellRenderStyles = {
         fontWeight = "black",
     },
 
-    gui.Style {
+    {
         classes = { "subheading" },
-        color = '#bb6666',
+        color = '@danger',
         fontSize = 24,
         bold = true,
     },
 
-    gui.Style {
+    {
         classes = { "label", "#spellSummary" },
 
         italics = true,
-        color = 'white',
+        color = '@fgMuted',
         fontSize = 12,
         width = 'auto',
         height = 'auto',
@@ -110,111 +97,343 @@ SpellRenderStyles = {
         valign = 'top',
     },
 
-    gui.Style {
+    {
         classes = { "divider" },
 
         bgimage = 'panels/square.png',
-        bgcolor = '#666666',
-        halign = "left",
+        bgcolor = '@border',
         width = '100%',
         height = 1,
         halign = 'center',
         valign = 'top',
         vmargin = 4,
     },
-    gui.Style {
+    {
         classes = { "description" },
-        color = 'white',
+        color = '@fg',
         width = '96%',
     },
-    gui.Style {
+    {
+        classes = { "label", "highlight" },
+        color = '@fgInverse',
+    },
+    {
         classes = { "abilitySection" },
         bgimage = true,
         bgcolor = "clear",
     },
-    gui.Style {
+    {
         classes = { "abilitySection", "highlight" },
-        bgcolor = "#6666ff",
+        bgcolor = "@accent",
+        color = "@fgInverse",
+    },
+
+
+    -- MCDM tab graphics: tab background tinted to the scheme accent. NOTE the
+    -- tab art (TabBGImage) is a gold-baked PNG, so the accent tint multiplies
+    -- rather than cleanly recolors; a white-silhouette asset would tint cleanly.
+    {
+        selectors = { "goldTab" },
+        bgcolor = "@accent",
+    },
+    {
+        selectors = { "goldTabLabel" },
+        color = "@fgInverse",
     },
 
     -- Implementation chip styles
-    gui.Style {
+    {
         classes = { "implementationChip" },
         height = "auto",
         width = "auto",
         lmargin = 3,
         fontSize = 14,
         bgimage = "panels/square.png",
-        --borderColor = "blue",
         bgcolor = "clear",
         bold = false,
-        --border = 1,
-        --cornerRadius = 2,
-        color = "black",
+        color = "@fg",
         valign = "top",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "wontimplement" },
-        --bgcolor = Styles.ImplementationStatusColors[0],
-        color = Styles.ImplementationStatusColors[0],
+        color = "@implStatus0",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "unimplemented" },
-        --bgcolor = Styles.ImplementationStatusColors[1],
-        color = Styles.ImplementationStatusColors[1],
+        color = "@implStatus1",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "bronze" },
-        --bgcolor = Styles.ImplementationStatusColors[2],
-        color = Styles.ImplementationStatusColors[2],
+        color = "@implStatus2",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "silver" },
-        --bgcolor = Styles.ImplementationStatusColors[3],
-        color = Styles.ImplementationStatusColors[3],
+        color = "@implStatus3",
     },
-    gui.Style {
+    {
         classes = { "implementationChip", "gold" },
-        --bgcolor = Styles.ImplementationStatusColors[4],
-        color = Styles.ImplementationStatusColors[4],
+        color = "@implStatus4",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "wontimplemented" },
-        bgcolor = Styles.ImplementationStatusColors[0],
-
+        bgcolor = "@implStatus0",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "unimplemented" },
-        bgcolor = Styles.ImplementationStatusColors[1],
-
+        bgcolor = "@implStatus1",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "bronze" },
-        bgcolor = Styles.ImplementationStatusColors[2],
-
+        bgcolor = "@implStatus2",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "silver" },
-        bgcolor = Styles.ImplementationStatusColors[3],
-
+        bgcolor = "@implStatus3",
     },
-    gui.Style {
+    {
         classes = { "implementationDiamond", "gold" },
-        bgcolor = Styles.ImplementationStatusColors[4],
-
+        bgcolor = "@implStatus4",
     },
 
 }
 
+-- The action color key used to color-code ability title bands across the app
+-- (the monster sheet cards and the ability card header). Deliberately
+-- scheme-independent literals rather than theme tokens: the key is a fixed
+-- semantic code (Main Action = red, Maneuver = blue, Triggered = green,
+-- Move = orange, No Action = black, Traits/Other = purple) and must not
+-- drift when a theme remaps its status colors.
+ActivatedAbility.actionColorKey = {
+    ["ms-action-main"] = "#8E2B2B",
+    ["ms-action-maneuver"] = "#2C5F8A",
+    ["ms-action-triggered"] = "#2E7048",
+    ["ms-action-move"] = "#B97A24",
+    ["ms-action-none"] = "#1C1C1C",
+    ["ms-action-other"] = "#5E3A78",
+    --The malice cost diamond's inner-diamond red (see RichResource.lua /
+    --the action bar costDiamond), so malice features match the icon.
+    ["ms-action-malice"] = "#DE1E47",
+}
+
+--- Which color-key class this ability's title band gets, from its action
+--- economy. Villain actions count as main actions. A real action economy
+--- (main/maneuver/triggered) wins over a malice cost -- a malice-costing
+--- maneuver is still a maneuver -- so malice red is reserved for malice
+--- features with no action of their own.
+--- @return string
+function ActivatedAbility:ActionColorKeyClass()
+    if self:has_key("villainAction") or self.categorization == "Villain Action" then
+        return "ms-action-main"
+    end
+
+    local rid = self:ActionResource()
+    if rid == CharacterResource.actionResourceId then
+        return "ms-action-main"
+    elseif rid == CharacterResource.maneuverResourceId then
+        return "ms-action-maneuver"
+    elseif rid == CharacterResource.triggerResourceId then
+        return "ms-action-triggered"
+    end
+
+    if self.categorization == "Malice" then
+        return "ms-action-malice"
+    end
+
+    if self.categorization == "Move" then
+        return "ms-action-move"
+    end
+
+    --Free actions: no action resource at all, or the free-maneuver pseudo
+    --resource.
+    if rid == nil or rid == CharacterResource.freeManeuverResourceId then
+        return "ms-action-none"
+    end
+
+    return "ms-action-other"
+end
+
+--- The key color rendered as TEXT rather than as a band behind white text.
+---
+--- Each key color is picked to sit BEHIND white, so as text it is far too dark:
+--- the traits purple (#5E3A78) scores about 2.2:1 on the near-black panel
+--- surface, under the 3:1 floor even at 15pt bold. This rescales every channel
+--- by the same factor until the brightest one reaches 200 -- a value lift in
+--- HSV terms, so hue and saturation survive and it still reads as the same
+--- color. (Mixing toward white instead washes the purple out to grey-lavender.)
+--- A color already that bright, and a light color scheme, are both left alone.
+--- @param color string "#RRGGBB"
+--- @return string
+function ActivatedAbility.ActionColorKeyAsText(color)
+    local r, g, b = color:match("^#(%x%x)(%x%x)(%x%x)")
+    if r == nil then return color end
+    local bg = tostring(ThemeEngine.ResolveTokens("@bg"))
+    local br, bg2, bb = bg:match("^#(%x%x)(%x%x)(%x%x)")
+    if br ~= nil then
+        --Perceived brightness; exact luminance is more than this needs.
+        local brightness = 0.299 * tonumber(br, 16) + 0.587 * tonumber(bg2, 16)
+            + 0.114 * tonumber(bb, 16)
+        --Light scheme: the key colors are dark, which is what reads there.
+        if brightness >= 128 then return color end
+    end
+    r, g, b = tonumber(r, 16), tonumber(g, 16), tonumber(b, 16)
+    local mx = math.max(r, g, b)
+    if mx <= 0 or mx >= 200 then return color end
+    local k = 200 / mx
+    local function scale(c) return math.max(0, math.min(255, math.floor(c * k + 0.5))) end
+    return string.format("#%02X%02X%02X", scale(r), scale(g), scale(b))
+end
+
+--- One NAME-color rule per color-key class: on a quiet header the key that
+--- used to paint the band paints the ability name instead. priority beats the
+--- plain "name on a band" rule.
+---
+--- `scope` says where the key class sits. "parent" (the default) is for a band
+--- that carries the class itself, as the tac panel cards do. "self" is for a
+--- card whose band is class-less when quiet and puts the key on the label --
+--- which is what keeps the LOUD ability card unaffected by these rules.
+--- @param nameClass string The label class carrying the ability name
+--- @param scope? string "parent" (default) or "self"
+--- @return table[]
+function ActivatedAbility.ActionColorKeyTextStyles(nameClass, scope)
+    local result = {}
+    for class, color in pairs(ActivatedAbility.actionColorKey) do
+        result[#result+1] = {
+            selectors = cond(scope == "self",
+                {"label", nameClass, class},
+                {"label", nameClass, "parent:" .. class}),
+            color = ActivatedAbility.ActionColorKeyAsText(color),
+            priority = 5,
+        }
+    end
+    return result
+end
+
+--- One bgcolor rule per color-key class, for panels carrying the given band
+--- class. Append to a style list routed through ThemeEngine.
+--- @param bandClass string
+--- @return table[]
+function ActivatedAbility.ActionColorKeyStyles(bandClass)
+    local result = {}
+    for class, color in pairs(ActivatedAbility.actionColorKey) do
+        result[#result+1] = {
+            selectors = {"panel", bandClass, class},
+            bgcolor = color,
+        }
+    end
+    return result
+end
+
+-- Color-keyed title band on the ability card. The band colors are fixed dark
+-- literals, so the name on it is fixed light rather than a theme token.
+SpellRenderStyles[#SpellRenderStyles+1] = {
+    selectors = {"panel", "abilityHeadBand"},
+    --Inset by 1px on the left, right and top: the card's own 1px border is drawn
+    --inside its rect, so a full-bleed band paints straight over the outline.
+    width = "100%-2",
+    height = "auto",
+    flow = "horizontal",
+    halign = "center",
+    valign = "top",
+    tmargin = 1,
+    bgimage = "panels/square.png",
+    bgcolor = "clear",
+    hpad = 14,
+    vpad = 8,
+    --Top corners only, tucked just inside the card's radius-6 border.
+    cornerRadius = {x1 = 5, y1 = 5, x2 = 0, y2 = 0},
+    --Hairline dividing the header from the body. In this framework y1 is the
+    --BOTTOM edge and y2 the top (x1 left, x2 right); always give all four, and
+    --never add a blanket borderWidth -- that overrides the per-edge widths.
+    border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
+    borderColor = "@border",
+    borderBox = true,
+}
+for _, rule in ipairs(ActivatedAbility.ActionColorKeyStyles("abilityHeadBand")) do
+    SpellRenderStyles[#SpellRenderStyles+1] = rule
+end
+SpellRenderStyles[#SpellRenderStyles+1] = {
+    selectors = {"label", "abilityName", "parent:abilityHeadBand"},
+    color = "#FFFFFF",
+}
+
+--The quiet band: same geometry, no color key behind it. Hosts that embed the
+--card in a panel rather than floating it over the map (the tac panel sections)
+--pass params.quietTitleBand, which drops the band to a palette surface and
+--moves the key color onto the name -- where it is applied via the key class on
+--the LABEL, so the loud card above keeps its white-on-color header untouched.
+SpellRenderStyles[#SpellRenderStyles+1] = {
+    selectors = {"panel", "abilityHeadBand", "quietBand"},
+    bgcolor = "@bg",
+    priority = 5,
+}
+for _, rule in ipairs(ActivatedAbility.ActionColorKeyTextStyles("abilityName", "self")) do
+    SpellRenderStyles[#SpellRenderStyles+1] = rule
+end
+
+-- Themed style rules for the ability-improvement pills (routed through
+-- ThemeEngine.MergeStyles at render time so they track the active scheme).
+local g_improvementPillStyles = {
+    {
+        selectors = { "improvementPill" },
+        borderColor = "@border",
+        borderWidth = 2,
+        cornerRadius = 5,
+        width = "auto",
+        height = "auto",
+        pad = 4,
+        flow = "horizontal",
+        bgimage = true,
+        bgcolor = "@bgAlt",
+        tmargin = 4,
+    },
+    {
+        selectors = { "improvementPill", "~selected" },
+        borderColor = "@borderInverse",
+    },
+    {
+        selectors = { "improvementLabel" },
+        opacity = 0.95,
+        color = "@fg",
+        fontSize = 16,
+        width = "auto",
+        height = "auto",
+        valign = "center",
+    },
+    {
+        selectors = { "improvementLabel", "~selected" },
+        color = "@fgMuted",
+    },
+    {
+        selectors = { "improvementLabel", "unaffordable", "selected" },
+        color = "@danger",
+    },
+    {
+        selectors = { "improvementLabel", "parent:hover" },
+        brightness = 1.5,
+    },
+    {
+        selectors = { "improvementPill", "hover" },
+        brightness = 1.5,
+    },
+}
+
+-- Semantic damage-type tints, resolved through ThemeEngine.ResolveTokens at the
+-- markup site so they follow the active color scheme.
 local g_damageTypeColors = {
-    sonic = "#ff0088",
-    fire = "#ff8888",
-    lightning = "#ff8800",
+    sonic = "@info",
+    fire = "@danger",
+    lightning = "@warning",
 }
 
 ActivatedAbility.KeywordRemappings = {
     Attack = "Strike",
 }
+
+-- Returns the canonical display name for a keyword, applying any alias remapping.
+-- Use this whenever showing a keyword string to the user.
+function ActivatedAbility.CanonicalKeyword(keyword)
+    return ActivatedAbility.KeywordRemappings[keyword] or keyword
+end
 
 function ActivatedAbility.OnDeserialize(self)
     if not self:has_key("behaviors") then
@@ -244,6 +463,22 @@ function ActivatedAbility:RemoveKeyword(keyword)
     self.keywords = DeepCopy(self.keywords)
     keyword = ActivatedAbility.KeywordRemappings[keyword] or keyword
     self.keywords[keyword] = nil
+end
+
+--- Whether this ability is the Knockback maneuver (or a variant of it, such as
+--- the Elementalist's Practical Magic knockback). Knockback abilities are
+--- identified by firing the BeginKnockback custom trigger. The "Knockback
+--- Caster Size" / "Knockback Target Size" attributes apply only to these
+--- abilities, not to other forced movement.
+--- @return boolean
+function ActivatedAbility:IsKnockbackManeuver()
+    for _, behavior in ipairs(self:try_get("behaviors", {})) do
+        if behavior.typeName == "ActivatedAbilityCustomTriggerBehavior" and behavior:try_get("triggerName") == "BeginKnockback" then
+            return true
+        end
+    end
+
+    return false
 end
 
 RegisterGoblinScriptSymbol(ActivatedAbility, {
@@ -300,6 +535,43 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
         end
 
         return false
+    end,
+})
+
+--Counts the end-of-turn condition clauses in the power table, e.g. the "(eot)" in
+--"M<2 slowed (eot)". Drives both the surge cost and the display condition of effects
+--that upgrade those durations (Shadow Elf's Manifold Piercer).
+--
+--The count is the LARGEST SINGLE TIER's, not the sum across tiers: exactly one tier
+--resolves per power roll, so summing would charge for conditions that never land.
+--A clause covering several conditions ("dazed and slowed (eot)") carries one "(eot)"
+--and so counts once.
+RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "eotconditions",
+    type = "number",
+    desc = "The number of end-of-turn condition clauses in this ability's power table.",
+    calculate = function(c)
+        local pattern = "^(?<prefix>.*?)\\((?:eot|EoT)\\)(?<postfix>.*)$"
+        local most = 0
+        for _, behavior in ipairs(c.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                for _, entry in ipairs(behavior:try_get("tiers", {})) do
+                    local count = 0
+                    local rest = entry
+                    local match = regex.MatchGroups(rest, pattern)
+                    while match ~= nil do
+                        count = count + 1
+                        rest = match.postfix
+                        match = regex.MatchGroups(rest, pattern)
+                    end
+                    if count > most then
+                        most = count
+                    end
+                end
+            end
+        end
+
+        return most
     end,
 })
 
@@ -449,6 +721,57 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
 
 })
 
+RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "Has Rolled Damage",
+    type = "boolean",
+    desc = "Returns true if this ability has rolled damage.",
+    examples = { "Ability.HasRolledDamage" },
+    calculate = function(c)
+        for _, behavior in ipairs(c.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                local tiers = behavior.tiers
+                for _, entry in ipairs(tiers) do
+                    if regex.MatchGroups(entry, " damage") ~= nil then
+                        return true
+                    end
+                end
+            end
+        end
+
+        return false
+    end,
+})
+
+RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "Characteristics",
+    type = "set",
+    desc = "Returns the characteristics of this ability.",
+    examples = { 'Ability.Characteristics has "Might"', 'Ability.Characteristics has "Highest"' },
+    calculate = function(c)
+        local result = {}
+        for _, behavior in ipairs(c.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                local roll = behavior:try_get("roll", "")
+                if roll ~= "" then
+                    local rollLower = string.lower(roll)
+                    for desc, id in pairs(creature.descriptionToAttribute) do
+                        if string.find(rollLower, string.lower(desc)) then
+                            result[#result+1] = desc
+                        end
+                    end
+                    if string.find(rollLower, "highest characteristic") then
+                        result[#result+1] = "Highest"
+                    end
+                end
+            end
+        end
+
+        return StringSet.new{
+            strings = result,
+        }
+    end,
+})
+
 function ActivatedAbility:HasAttack()
     return self:HasKeyword("Strike")
 end
@@ -467,6 +790,14 @@ end
 
 --- @return boolean Whether this ability's tooltip render changes depending on the mode.
 function ActivatedAbility:RenderVariesWithDifferentModes()
+    --a mode that carries a full variation ability replaces the whole render
+    --(name, tiers, description) when switched to, not just a behavior subset.
+    for _, mode in ipairs(self:try_get("modeList", {})) do
+        if mode.variation ~= nil then
+            return true
+        end
+    end
+
     for _, behavior in ipairs(self.behaviors) do
         if behavior.typeName == "ActivatedAbilityPowerRollBehavior" and #behavior:try_get("modesSelected", {}) > 0 then
             return true
@@ -494,7 +825,129 @@ function ActivatedAbility:AbilityTypeDescription()
 end
 
 function ActivatedAbility.TabBGImage()
-    return mod.images.tabbg
+    return "drawsteel/power_roll_tab.png"
+end
+
+--How far the scrolling ability card's clip rect is allowed to bleed past the
+--card's LEFT edge. The card and the embedded roll dialog hang decorative
+--bookmark "tabs" off that edge as floating panels at negative x (-26 on the
+--card's own gold tab, -39 on the roll dialog's Roll Dice / Results tabs, -46 on
+--the Effect tab), so they live entirely outside the card's rect. A scrolling
+--panel is a Unity stencil mask that erases everything drawn outside its own
+--rect, so without this bleed every one of those tabs vanishes the moment the
+--card becomes scrollable. Worst case reach is about -46 + the body's left
+--inset; 60 clears it with room to spare.
+local g_abilityScrollBleedLeft = 60
+
+--Wrap the ability card's body in the panel that actually scrolls, when (and
+--only when) a caller supplied a maxHeight. Kept separate from the body so the
+--clip rect can be WIDER than the body: the frame overhangs to the left by
+--g_abilityScrollBleedLeft and is right-aligned to the card, while the body
+--inside keeps the card's true bounds. That way the tabs fall inside the mask
+--but nothing else shifts. Returns the body unchanged when not scrolling, so
+--the non-scrolling tooltip path keeps its original single-panel shape.
+---
+--- bleedLeft is 0 for a card rendered without tabs (params.hideTabs): with
+--- nothing hanging off the left edge the overhang has nothing to protect, and
+--- an invisible raycast target reaching 60px past the card would sit over
+--- whatever the host has drawn there.
+--- @param maxHeight number|nil
+--- @param bleedLeft number
+--- @param bodyPanel Panel
+--- @return Panel
+local function WrapAbilityBodyInScrollFrame(maxHeight, bleedLeft, bodyPanel)
+    if maxHeight == nil then
+        return bodyPanel
+    end
+
+    return gui.Panel {
+        id = "abilityScrollFrame",
+        flow = "vertical",
+        width = cond(bleedLeft > 0, string.format("100%%+%d", bleedLeft), "100%"),
+        height = "auto",
+        halign = "right",
+        valign = "top",
+
+        --Present-but-invisible graphic: this panel is the scroller now, and the
+        --wheel only reaches a panel that is a raycast target.
+        bgimage = true,
+        bgcolor = "clear",
+
+        maxHeight = maxHeight,
+        vscroll = true,
+
+        --Hosts make the whole card non-interactive so the map behind it stays
+        --clickable, but a non-interactive scroll body lets the wheel through to
+        --the map as well: scrolling a long ability also zooms the map. Claim the
+        --wheel back, but only once we know the body really did overflow -- an
+        --ability that fits must stay click-through exactly as before.
+        --renderedHeight is not known until a frame has been laid out, hence the
+        --deferred check.
+        create = function(element)
+            element:ScheduleEvent("checkScrollOverflow", 0.05)
+        end,
+
+        checkScrollOverflow = function(element)
+            element.interactable = (element.renderedHeight or 0) >= maxHeight - 1
+        end,
+
+        bodyPanel,
+    }
+end
+
+--- A copy of a style rule list with every size multiplied.
+---
+--- The card's sizes are a fixed pixel ladder tuned for the card floating over
+--- the map; params.cardScale shrinks the whole thing for hosts that embed it in
+--- a narrow panel. The rule lists are shared module state, so this copies rather
+--- than mutating -- the map card and an embedded card render in the same frame.
+--- @param styles table list of plain style rule tables
+--- @param scale number 1 leaves the list untouched
+--- @return table
+local function ScaleStyleSizes(styles, scale)
+    if scale == 1 then
+        return styles
+    end
+    local result = {}
+    for i, rule in ipairs(styles) do
+        local copy = {}
+        for k, v in pairs(rule) do
+            copy[k] = v
+        end
+        --Type and the padding around it, so a shrunk card does not sit in
+        --full-size margins. Margins and borders are deliberately left alone:
+        --they are card chrome, not a function of the text size.
+        for _, key in ipairs({"fontSize", "minFontSize", "pad", "hpad", "vpad",
+                             "lpad", "rpad", "tpad", "bpad"}) do
+            if type(copy[key]) == "number" then
+                copy[key] = copy[key] * scale
+            end
+        end
+        result[i] = copy
+    end
+    return result
+end
+
+--- One of the card's gold bookmark tabs, or an inert stand-in.
+---
+--- The tabs float OUTSIDE the card's left edge (x = -26 to -46), which only
+--- works for a card floating over the map. Embedded in a panel they hang over
+--- whatever sits to the card's left, so those hosts pass params.hideTabs.
+---
+--- A stand-in rather than nil: these are positional children, and a nil in the
+--- middle of a table constructor makes the list length ambiguous, which can
+--- silently drop the siblings after it.
+--- @param hide boolean
+--- @param buildArgs fun(): table builds the gui.Panel args for the real tab. A
+--- function, not a table: a table constructor is evaluated before the call, so
+--- it would build the tab's child panels even when hidden, leaving them
+--- orphaned (the engine warns about panels created with no parent).
+--- @return Panel
+local function CardBookmarkTab(hide, buildArgs)
+    if hide then
+        return gui.Panel{ width = 0, height = 0, floating = true }
+    end
+    return gui.Panel(buildArgs())
 end
 
 function ActivatedAbility:Render(options, params)
@@ -508,6 +961,31 @@ function ActivatedAbility:Render(options, params)
 
     local paramMaxHeight = params.maxHeight
     params.maxHeight = nil
+
+    --Stripped like maxHeight: params is handed down to the behaviors, and a
+    --presentation flag has no business reaching them.
+    local quietTitleBand = params.quietTitleBand
+    params.quietTitleBand = nil
+
+    local hideTabs = params.hideTabs
+    params.hideTabs = nil
+
+    --Stripped like the flags above. One knob for the card's whole size ladder:
+    --the floating map card leaves it at 1, a host embedding the card in a narrow
+    --panel passes something smaller so the card stops dwarfing its neighbours.
+    local cardScale = params.cardScale or 1
+    params.cardScale = nil
+
+    --Scale a size from the card's ladder. Rounded, and never below 1px.
+    local function sc(n)
+        if cardScale == 1 then
+            return n
+        end
+        return math.max(1, math.floor(n * cardScale + 0.5))
+    end
+
+    --The clip-rect overhang exists only to keep the bookmark tabs visible.
+    local scrollBleedLeft = cond(hideTabs, 0, g_abilityScrollBleedLeft)
 
     local summary = options.summary
     options.summary = nil
@@ -539,7 +1017,10 @@ function ActivatedAbility:Render(options, params)
             break
         elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and behavior.abilityType == "custom" then
             --if we invoke a power roll ability try to pull that out.
-            for _, subbehavior in ipairs(behavior.customAbility.behaviors) do
+            --customAbility has no class default and may be unset even when
+            --abilityType resolves to "custom" (the class default), so read it safely.
+            local customAbility = behavior:try_get("customAbility")
+            for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
                 if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
                     powerTableBehavior = subbehavior
                 end
@@ -547,10 +1028,278 @@ function ActivatedAbility:Render(options, params)
         end
     end
 
+    -- Apply active Modify Power Roll modifiers to a deep copy of the power-table
+    -- tiers for display purposes. Each tier is fully pre-evaluated first
+    -- (damage expressions, potency markers, GoblinScript) so that the regexes
+    -- inside modifyRollProperties can match plain numeric values. Characteristic
+    -- and potency notes plus one note per applicable modifier are appended to the
+    -- optional `notes` table. Resistance rolls and cases with no token are
+    -- returned unmodified.
+    local function applyModsToTiers(ptBehavior, notes)
+        if creatureProperties == nil or ptBehavior:try_get("resistanceRoll", false) then
+            return ptBehavior.tiers
+        end
+        -- Fully evaluate each tier (damage expressions, potency markers, GoblinScript)
+        -- so that modifyRollProperties regexes can match plain numeric values.
+        -- Characteristic and potency notes are collected into the notes table here;
+        -- the caller's subsequent DisplayRuleTextForCreature pass is then a no-op.
+        local normalizedTiers = {}
+        for i, t in ipairs(ptBehavior.tiers) do
+            normalizedTiers[i] = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, t, notes, true)
+        end
+        local rollProperties = RollPropertiesPowerTable.new{
+            tiers = normalizedTiers,
+        }
+        -- Bake in this creature's monster level-scaling tier-damage bonuses
+        -- (rollProperties.tiers is the same table as normalizedTiers). Done
+        -- BEFORE the snapshot so the scaled numbers are the baseline and only
+        -- situational Modify Power Roll changes get diff-highlighted below.
+        rollProperties:ApplyCreatureTierDamage(creatureProperties, self)
+        -- Snapshot pre-modifier tier text for diff highlighting later.
+        local originalTiers = {}
+        for i, t in ipairs(normalizedTiers) do
+            originalTiers[i] = t
+        end
+        -- Pre-compute what the ability's tiers contain so note parts can be
+        -- filtered to only show information relevant to this ability.
+        -- hasDamage: any normalized tier contains the word "damage".
+        -- hasPotency: any raw tier contains a potency gate (" < ").
+        -- tiersDamageTypes: set of specific damage type words present in tiers.
+        local tiersAllText = table.concat(normalizedTiers, " "):lower()
+        local hasDamage = tiersAllText:find("damage") ~= nil
+        local hasPotency = false
+        for _, t in ipairs(ptBehavior.tiers) do
+            if t:find(" < ") then hasPotency = true break end
+        end
+        local tiersDamageTypes = {}
+        for damageType in tiersAllText:gmatch("(%a+)%s+damage") do
+            tiersDamageTypes[damageType] = true
+        end
+
+        -- A minimal "null target" object: GenerateSymbols returns a non-nil
+        -- function from it, which prevents AppendSymbols from substituting any
+        -- stale target left in _tmp_symbols from a previous real roll.
+        local nullTarget = {lookupSymbols = {}}
+        local function tryApply(modifier, modContext)
+            -- Skip modifiers whose activation condition references the target.
+            -- Without a real target we cannot evaluate target-relative conditions
+            -- (e.g. High Ground, Hidden, Flanking) and the null-target defaults
+            -- produce false positives.
+            local ac = modifier:try_get("activationCondition", false)
+            if type(ac) == "string" and ac:lower():find("target") then
+                return
+            end
+            -- Skip modifiers with a Roll Requirement (edge, bane, surges, etc.)
+            -- since we have no roll info at display time.
+            if modifier:try_get("rollRequirement", "none") ~= "none" then
+                return
+            end
+            -- Check displayCondition first (cheaper gate, avoids evaluating
+            -- activationCondition when the modifier should not be shown at all).
+            local rollOptions = {
+                ability = self,
+                caster = creatureProperties,
+                target = nullTarget,
+            }
+            if not modifier:ShouldShowInPowerRollDialog(modContext, creatureProperties, "ability_power_roll", rollOptions) then
+                return
+            end
+            local hint = modifier:HintModifyPowerRolls(modContext, creatureProperties, "ability_power_roll", rollOptions)
+            if hint == nil or not hint.result then
+                return
+            end
+            modifier:ModifyRollProperties(modContext, creatureProperties, rollProperties, nil)
+            -- Build a note describing what this modifier does.
+            if notes ~= nil then
+                local noteParts = {}
+                local lookupFn = creatureProperties:LookupSymbol(modifier:AppendSymbols{
+                    triggerer = nil,
+                    target = GenerateSymbols(nullTarget),
+                })
+                local damageModifier = modifier:try_get("damageModifier", "")
+                if damageModifier ~= "" and hasDamage then
+                    local dmgVal = safe_toint(dmhub.EvalGoblinScript(damageModifier, lookupFn, "Power Roll Damage display"))
+                    if dmgVal ~= nil and dmgVal ~= 0 then
+                        dmgVal = round(dmgVal)
+                        local damageModifierType = modifier:try_get("damageModifierType", "none")
+                        if damageModifierType ~= "none" then
+                            noteParts[#noteParts+1] = string.format("%s%d %s damage", dmgVal > 0 and "+" or "", dmgVal, damageModifierType)
+                        else
+                            noteParts[#noteParts+1] = string.format("%s%d damage", dmgVal > 0 and "+" or "", dmgVal)
+                        end
+                    end
+                end
+                if hasPotency then
+                    local potencymod = tonumber(modifier:try_get("potencymod", "none"))
+                    if potencymod ~= nil and potencymod ~= 0 then
+                        noteParts[#noteParts+1] = string.format("%s%d potency", potencymod > 0 and "+" or "", potencymod)
+                    end
+                end
+                local damageTypeMappings = modifier:try_get("damageTypeMappings")
+                if damageTypeMappings ~= nil and hasDamage then
+                    --A mapping value may be a list of candidate destination types
+                    --the user chooses from at roll time.
+                    local describeDests = function(v)
+                        return table.concat(CharacterModifier.DamageMappingDestinations(v), " or ")
+                    end
+                    if damageTypeMappings["all"] ~= nil then
+                        noteParts[#noteParts+1] = string.format("all damage becomes %s", describeDests(damageTypeMappings["all"]))
+                    else
+                        for k, v in sorted_pairs(damageTypeMappings) do
+                            if tiersDamageTypes[k:lower()] then
+                                noteParts[#noteParts+1] = string.format("%s damage becomes %s", k, describeDests(v))
+                            end
+                        end
+                    end
+                end
+                local replacePattern = trim(modifier:try_get("replacePattern", ""))
+                local replaceWith = trim(modifier:try_get("replaceText", ""))
+                if replacePattern ~= "" and replaceWith ~= "" then
+                    -- Use tiersAllText (a pre-modification string snapshot) so the
+                    -- search is not defeated by the replacement having already run.
+                    if tiersAllText:find(replacePattern:lower(), 1, true) then
+                        local dest = StringInterpolateGoblinScript(replaceWith, lookupFn)
+                        local t1, t2, t3 = dest:match("^(.-)%s*//%s*(.-)%s*//%s*(.-)%s*$")
+                        local destStr
+                        if t1 ~= nil then
+                            local function ts(t) return trim(t) ~= "" and ('"' .. trim(t) .. '"') or "-" end
+                            destStr = string.format("%s/%s/%s", ts(t1), ts(t2), ts(t3))
+                        else
+                            destStr = '"' .. dest .. '"'
+                        end
+                        noteParts[#noteParts+1] = string.format('"%s" -> %s', replacePattern, destStr)
+                    end
+                end
+                local addText = trim(modifier:try_get("addText", ""))
+                if addText ~= "" then
+                    local interpolated = StringInterpolateGoblinScript(addText, lookupFn)
+                    -- Split "A // B // C" tier notation; fall back to the raw text for N/N/N numeric format.
+                    local t1, t2, t3 = interpolated:match("^(.-)%s*//%s*(.-)%s*//%s*(.-)%s*$")
+                    local tierNote
+                    if t1 ~= nil then
+                        local function tierStr(t) return trim(t) ~= "" and ('"' .. trim(t) .. '"') or "-" end
+                        tierNote = string.format("adds: %s/%s/%s", tierStr(t1), tierStr(t2), tierStr(t3))
+                    else
+                        tierNote = "adds: " .. interpolated
+                    end
+                    noteParts[#noteParts+1] = tierNote
+                end
+                for _, adjustment in ipairs(modifier:try_get("adjustments", {})) do
+                    local adjType = adjustment.type or ""
+                    if adjType ~= "" and tiersAllText:find(adjType, 1, true) then
+                        local adjVal = safe_toint(dmhub.EvalGoblinScript(tostring(adjustment.value or 1), lookupFn, "Adjustment display"))
+                        if adjVal ~= nil and adjVal ~= 0 then
+                            noteParts[#noteParts+1] = string.format("%s%d %s", adjVal > 0 and "+" or "", adjVal, adjType)
+                        end
+                    end
+                end
+                local rfm = modifier:try_get("replaceForcedMovement")
+                if rfm ~= nil and rfm.from ~= nil and rfm.to ~= nil then
+                    if rfm.from == "any" then
+                        local presentTypes = {}
+                        for _, mt in ipairs({"push", "pull", "slide"}) do
+                            if tiersAllText:find(mt, 1, true) then
+                                presentTypes[#presentTypes+1] = mt
+                            end
+                        end
+                        if #presentTypes > 0 then
+                            noteParts[#noteParts+1] = string.format("%s -> %s", table.concat(presentTypes, "/"), rfm.to)
+                        end
+                    elseif tiersAllText:find(rfm.from, 1, true) then
+                        noteParts[#noteParts+1] = string.format("%s -> %s", rfm.from, rfm.to)
+                    end
+                end
+                local modtype = modifier:try_get("modtype", "none")
+                if modtype ~= "none" then
+                    local modTypeInfo = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[modtype]
+                    if modTypeInfo ~= nil and not modTypeInfo.hideText then
+                        local rollModText
+                        if modTypeInfo.mod:match("^[+-]%d+$") then
+                            rollModText = modTypeInfo.mod .. " to roll"
+                        elseif modTypeInfo.mod:match("edge") or modTypeInfo.mod:match("bane") then
+                            rollModText = modTypeInfo.text .. " on roll"
+                        else
+                            rollModText = modTypeInfo.text
+                        end
+                        noteParts[#noteParts+1] = rollModText
+                    end
+                end
+                if #noteParts > 0 then
+                    notes[#notes+1] = string.format("%s: %s", modifier.name, table.concat(noteParts, ", "))
+                end
+            end
+        end
+        -- Modifiers from features, ongoing effects, auras, etc.
+        for _, mod in ipairs(creatureProperties:GetActiveModifiers()) do
+            tryApply(mod.mod, mod)
+        end
+        -- Modifiers embedded directly in this ability's own behaviors.
+        for _, behavior in ipairs(self.behaviors) do
+            if behavior.typeName == "ActivatedAbilityModifyPowerRollBehavior"
+                    and behavior:IsFiltered(self, params.token, params) == false then
+                local filterCond = trim(behavior.modifier:try_get("filterCondition", ""))
+                if filterCond == "" or dmhub.EvalGoblinScript(filterCond, creatureProperties:LookupSymbol(), "Filter condition for power roll display") then
+                    tryApply(behavior.modifier, {mod = behavior.modifier})
+                end
+            end
+        end
+        -- Colorize changed portions of each tier using a character-level diff
+        -- with word-boundary snapping.
+        local accentHex = nil
+        local function isAlnum(b)
+            return (b >= 48 and b <= 57) or (b >= 65 and b <= 90) or (b >= 97 and b <= 122)
+        end
+        for i = 1, #normalizedTiers do
+            local orig = originalTiers[i]
+            local modified = normalizedTiers[i]
+            if orig ~= modified then
+                if accentHex == nil then
+                    accentHex = ThemeEngine.ResolveTokens("@accent")
+                end
+                -- Find first differing character, then snap back to the start
+                -- of the current word so tokens are never split mid-character.
+                -- e.g. "1 damage" -> "11 damage": firstDiff=2, but "1" is
+                -- alphanumeric so we snap back to 1, highlighting the full "11".
+                local firstDiff = 1
+                local minLen = math.min(#orig, #modified)
+                while firstDiff <= minLen and orig:byte(firstDiff) == modified:byte(firstDiff) do
+                    firstDiff = firstDiff + 1
+                end
+                while firstDiff > 1 and isAlnum(modified:byte(firstDiff - 1)) do
+                    firstDiff = firstDiff - 1
+                end
+                -- Only trim a common suffix when there is a substantial shared
+                -- prefix (firstDiff >= 4). Without this, strings that diverge
+                -- early (e.g. "Push 1" -> "slide 2; Shift 1") would have their
+                -- trailing coincidental suffix ("1") excluded from the highlight.
+                local modEnd = #modified
+                if firstDiff >= 4 then
+                    local origEnd = #orig
+                    while origEnd >= firstDiff and modEnd >= firstDiff
+                          and orig:byte(origEnd) == modified:byte(modEnd) do
+                        origEnd = origEnd - 1
+                        modEnd = modEnd - 1
+                    end
+                    -- Snap modEnd forward to end of current word.
+                    while modEnd < #modified and isAlnum(modified:byte(modEnd + 1)) do
+                        modEnd = modEnd + 1
+                    end
+                end
+                normalizedTiers[i] = modified:sub(1, firstDiff - 1)
+                    .. string.format("<color=%s>", accentHex)
+                    .. modified:sub(firstDiff, modEnd)
+                    .. "</color>"
+                    .. modified:sub(modEnd + 1)
+            end
+        end
+        return rollProperties.tiers
+    end
+
     local powerRollLabel = nil
     local powerRollTable = nil
 
     local rulesNotes = {}
+    local displayTiers = powerTableBehavior ~= nil and applyModsToTiers(powerTableBehavior, rulesNotes) or nil
 
     if powerTableBehavior ~= nil then
         local c = nil
@@ -602,7 +1351,7 @@ function ActivatedAbility:Render(options, params)
 
         local rows = {}
 
-        for i, entry in ipairs(powerTableBehavior.tiers) do
+        for i, entry in ipairs(displayTiers) do
             rows[#rows + 1] = gui.TableRow {
                 width = "100%",
                 height = "auto",
@@ -645,7 +1394,7 @@ function ActivatedAbility:Render(options, params)
             roll = string.format("%s %s", roll, attackBehavior.damageType)
         end
 
-        local damageColor = g_damageTypeColors[attackBehavior.damageType] or "#ffffff"
+        local damageColor = ThemeEngine.ResolveTokens(g_damageTypeColors[attackBehavior.damageType] or "@fg")
 
         local triangleBlack = nil
         if not string.find(roll, "2d6") then
@@ -687,13 +1436,12 @@ function ActivatedAbility:Render(options, params)
         local cost = self:GetCost(params.token)
         if cost.outOfAmmo then
             tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
-                color = "#ffaaaa",
+                classes = { "danger" },
                 text = "Out of Ammo",
             }
         end
 
         if cost.moveCost ~= nil then
-            local labelColor = cond(cost.cannotMove, "#ffaaaa", "#aaaaaa")
             local text = string.format("Consumes %s %s of movement",
                 MeasurementSystem.NativeToDisplayString(cost.moveCost), MeasurementSystem.Abbrev())
             if params.token.properties:CurrentMovementSpeed() <= 0 then
@@ -701,7 +1449,7 @@ function ActivatedAbility:Render(options, params)
             end
 
             tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
-                color = labelColor,
+                classes = { cond(cost.cannotMove, "danger", nil) },
                 text = text,
             }
         end
@@ -753,11 +1501,15 @@ function ActivatedAbility:Render(options, params)
             end
         end
 
+        local hasDamageDisplay = displayTiers ~= nil and table.concat(displayTiers, " "):lower():find("damage") ~= nil
         for _, entry in ipairs(self:try_get("modificationLog", {})) do
-            tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
-                text = entry,
-                color = "#aaaaff",
-            }
+            -- Skip kit damage notes on abilities that have no rolled damage.
+            if not entry:lower():find("damage") or hasDamageDisplay then
+                tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
+                    text = entry,
+                    color = ThemeEngine.ResolveTokens("@accent"),
+                }
+            end
         end
 
         local seenRules = {}
@@ -766,7 +1518,7 @@ function ActivatedAbility:Render(options, params)
                 seenRules[entry] = true
                 tokenDependentChildren[#tokenDependentChildren + 1] = gui.Label {
                     text = entry,
-                    color = "#aaaaff",
+                    color = ThemeEngine.ResolveTokens("@accent"),
                 }
             end
         end
@@ -776,7 +1528,6 @@ function ActivatedAbility:Render(options, params)
         if #tokenDependentChildren > 0 then
             tokenDependentInfoPanel = gui.Panel {
                 embedRollDialog = function(element, dialog)
-                    print("HIDE:: DO HIDE")
                     element:SetClass("collapsed", true)
                 end,
                 width = "100%",
@@ -790,34 +1541,22 @@ function ActivatedAbility:Render(options, params)
     end
 
     local description = self.description
-    if description ~= "" and self.effectImplemented == false and self:try_get("implementation") ~= 3 and ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(description) ~= true then
+    --Display twin of the tier-append gate in MCDMAbilityRollBehavior: below
+    --Silver, a description that does NOT parse as a rule is dimmed to signal it
+    --will not execute. At Silver and above the effect is implemented with
+    --explicit behaviors, so the description is normal prose -- never dimmed.
+    if description ~= "" and self:try_get("implementation", 3) < gui.ImplementationStatus.Silver and ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(description) ~= true then
         description = string.format("<alpha=#55>%s<alpha=#ff>", description)
     end
 
     if self:try_get("modifyDescriptions") ~= nil then
+        local infoHex = ThemeEngine.ResolveTokens("@info")
         for _, desc in ipairs(self.modifyDescriptions) do
-            description = string.format("%s\n<color=#aaaaff>%s</color>", description, desc)
+            description = string.format("%s\n<color=%s>%s</color>", description, infoHex, desc)
         end
     end
 
     local costText = ""
-
-    local headingColor = "#843030"
-
-
-
-    if params.token ~= nil and params.token.properties ~= nil then
-        local knownRefreshTypes = { rest = true, encounter = true, day = true }
-        --look for a cost with a description, this means an ability that has a specific limit per refresh type.
-        local costInfo = self:GetCost(params.token)
-        for i, entry in ipairs(costInfo.details) do
-            if entry.description ~= nil and knownRefreshTypes[entry.refreshType] then
-                --costText is disabled for now. We show recharge instead.
-                --costText = string.format(" [%s/%s]", tostring(entry.maxCharges), entry.refreshType)
-                headingColor = "#5e4a43"
-            end
-        end
-    end
 
     local resourceTable = dmhub.GetTable(CharacterResource.tableName)
 
@@ -858,15 +1597,11 @@ function ActivatedAbility:Render(options, params)
         actionText = resourceInfo.name
     end
 
-    if actionText == "Maneuver" then
-        headingColor = "#303084"
-    end
-
 
     local keywords = {}
 
     for keyword, _ in pairs(self.keywords) do
-        keywords[#keywords + 1] = keyword
+        keywords[#keywords + 1] = ActivatedAbility.CanonicalKeyword(keyword)
     end
 
     table.sort(keywords, function(a, b) return a < b end)
@@ -930,7 +1665,7 @@ function ActivatedAbility:Render(options, params)
     local keywords = {}
 
     for keyword, _ in pairs(self.keywords) do
-        keywords[#keywords + 1] = keyword
+        keywords[#keywords + 1] = ActivatedAbility.CanonicalKeyword(keyword)
     end
 
     table.sort(keywords, function(a, b) return a < b end)
@@ -952,6 +1687,12 @@ function ActivatedAbility:Render(options, params)
         actionText = resourceInfo.name
     end
 
+    --Malice abilities collapse the action label and the target/range section:
+    --they are effects bought with malice, so "Free" and the default targeting
+    --info carry no information. The keyword row survives only if the ability
+    --actually has keywords.
+    local isMaliceAbility = self.categorization == "Malice"
+
     local preDescription = self:try_get("preDescription", "")
     local description = self.description
 
@@ -964,7 +1705,10 @@ function ActivatedAbility:Render(options, params)
             break
         elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and behavior.abilityType == "custom" then
             --if we invoke a power roll ability try to pull that out.
-            for _, subbehavior in ipairs(behavior.customAbility.behaviors) do
+            --customAbility has no class default and may be unset even when
+            --abilityType resolves to "custom" (the class default), so read it safely.
+            local customAbility = behavior:try_get("customAbility")
+            for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
                 if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
                     powerTableBehavior = subbehavior
                 end
@@ -978,7 +1722,6 @@ function ActivatedAbility:Render(options, params)
         powerRollQueenPanel = gui.Panel {
 
             bgimage = true,
-            bgcolor = "blue",
             width = "100%",
             height = "auto",
             tmargin = 5,
@@ -1002,9 +1745,9 @@ function ActivatedAbility:Render(options, params)
                     width = "auto",
                     height = "auto",
                     maxHeight = 22,
-                    text = "1",
+                    text = "!",
                     fontFace = "DrawSteelGlyphs",
-                    fontSize = 34,
+                    fontSize = sc(34),
                     halign = "left",
                     valign = "center",
 
@@ -1014,8 +1757,8 @@ function ActivatedAbility:Render(options, params)
 
                     width = "80%",
                     height = "auto",
-                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[1], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
-                    fontSize = 16,
+                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[1], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
+                    fontSize = sc(16),
                     halign = "left",
                     valign = "center",
                     lmargin = 6,
@@ -1045,9 +1788,9 @@ function ActivatedAbility:Render(options, params)
                     width = "auto",
                     height = "auto",
                     maxHeight = 22,
-                    text = "2",
+                    text = "@",
                     fontFace = "DrawSteelGlyphs",
-                    fontSize = 34,
+                    fontSize = sc(34),
                     halign = "left",
                     valign = "center",
 
@@ -1057,8 +1800,8 @@ function ActivatedAbility:Render(options, params)
 
                     width = "80%",
                     height = "auto",
-                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[2], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
-                    fontSize = 16,
+                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[2], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
+                    fontSize = sc(16),
                     halign = "left",
                     valign = "center",
                     lmargin = 6,
@@ -1085,9 +1828,9 @@ function ActivatedAbility:Render(options, params)
                     width = "auto",
                     height = "auto",
                     maxHeight = 22,
-                    text = "3",
+                    text = "#",
                     fontFace = "DrawSteelGlyphs",
-                    fontSize = 34,
+                    fontSize = sc(34),
                     halign = "left",
                     valign = "center",
 
@@ -1097,8 +1840,8 @@ function ActivatedAbility:Render(options, params)
 
                     width = "80%",
                     height = "auto",
-                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[3], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
-                    fontSize = 16,
+                    text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, displayTiers[3], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
+                    fontSize = sc(16),
                     halign = "left",
                     valign = "center",
                     lmargin = 6,
@@ -1136,14 +1879,22 @@ function ActivatedAbility:Render(options, params)
     local descriptionString
     if description == "" then
         descriptionString = ""
+    elseif isMaliceAbility then
+        --Malice abilities are all effect; the "Effect:" prefix is noise.
+        descriptionString = description
     else
         descriptionString = "<b>Effect: </b>" .. description
     end
 
     if self:has_key("modifyDescriptions") then
+        local infoHex = ThemeEngine.ResolveTokens("@info")
         for _, desc in ipairs(self.modifyDescriptions) do
-            descriptionString = string.format("%s\n<color=#aaaaff>%s</color>", descriptionString, desc)
+            descriptionString = string.format("%s\n<color=%s>%s</color>", descriptionString, infoHex, desc)
         end
+    end
+
+    if token ~= nil then
+        descriptionString = StringInterpolateGoblinScript(descriptionString, token.properties)
     end
 
     local suppressMessage = self:try_get("suppressExplanation")
@@ -1155,40 +1906,241 @@ function ActivatedAbility:Render(options, params)
     if suppressMessage ~= nil then
         suppressPanel = gui.Label {
             bgimage = true,
-            bgcolor = "#C73131", --forbidden color.
+            classes = { "bgDanger" },
             width = "100%",
             height = "auto",
-            color = "white",
-            fontSize = 14,
+            fontSize = sc(14),
             hpad = 16,
             vpad = 4,
             text = suppressMessage,
         }
     end
 
+    --Conditional reminders: non-blocking notes shown in the ability tooltip only
+    --when their GoblinScript condition is currently true for the caster (e.g. the
+    --Dig maneuver warns a burrowing creature that is grabbing a conscious creature
+    --that it can't dig deeper, or confirms a creature with a special modifier CAN
+    --dig while grabbing). Unlike abilityFilters these never suppress or block the
+    --ability -- they are purely informational. Set a reminder's `positive` flag
+    --for a green note instead of the default red warning.
+    local reminderPanel = nil
+    local conditionalReminders = self:try_get("conditionalReminders")
+    if conditionalReminders ~= nil and creatureProperties ~= nil then
+        local reminderLabels = {}
+        for _, reminder in ipairs(conditionalReminders) do
+            local formula = reminder.formula
+            local show = formula == nil or formula == "" or GoblinScriptTrue(ExecuteGoblinScript(formula, creatureProperties:LookupSymbol{}, 0, "Ability reminder condition"))
+            if show then
+                reminderLabels[#reminderLabels+1] = gui.Label {
+                    bgimage = true,
+                    classes = { cond(reminder.positive, "bgSuccess", "bgDanger") },
+                    width = "100%",
+                    height = "auto",
+                    fontSize = sc(14),
+                    hpad = 16,
+                    vpad = 4,
+                    text = StringInterpolateGoblinScript(reminder.text or "", creatureProperties),
+                }
+            end
+        end
+        if #reminderLabels > 0 then
+            reminderPanel = gui.Panel {
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                children = reminderLabels,
+            }
+        end
+    end
+
+    -- Optional caller-supplied danger-tinted footer note, appended at the very
+    -- bottom of the card. Reuses the suppressPanel styling. Used by the Villain
+    -- Action strip to explain a gated drawer ("already used this round/encounter")
+    -- while still showing the full ability preview above it.
+    local footerPanel = nil
+    local footerNote = params.footerNote
+    if footerNote ~= nil and footerNote ~= "" then
+        footerPanel = gui.Label {
+            bgimage = true,
+            classes = { "bgDanger" },
+            width = "100%",
+            height = "auto",
+            fontSize = sc(14),
+            hpad = 16,
+            vpad = 4,
+            text = footerNote,
+        }
+    end
+
     --king panel
     local args = {
         id = 'spellInfo',
-        styles = SpellRenderStyles,
+        styles = ThemeEngine.MergeStyles(ScaleStyleSizes(SpellRenderStyles, cardScale)),
+        bgimage = "panels/square.png",
         hpad = 0,
         vpad = 0,
 
-
-        --King panel for inside info
+        --Color-keyed title band, full bleed across the top of the card. Sits
+        --outside the padded body (and outside the scroll frame, so a
+        --scrolling card keeps its title visible).
         gui.Panel {
+            classes = cond(quietTitleBand,
+                {"abilityHeadBand", "quietBand"},
+                {"abilityHeadBand", self:ActionColorKeyClass()}),
+
+            --name of the ability
+            gui.Label {
+
+                width = "auto",
+                id = "spellName",
+                --Quiet band: the key rides on the label instead (see above).
+                classes = cond(quietTitleBand,
+                    {"abilityName", self:ActionColorKeyClass()},
+                    {"abilityName"}),
+                fontSize = sc(24),
+                fontFace = "Newzald",
+                minFontSize = 14,
+                fontWeight = "Light",
+                maxWidth = "100%",
+                text = string.format("<b>%s</b>%s <size=18>%s</size>", self.name, meleeOrRangedVariantText, costString),
+                height = "auto",
+                markdown = true,
+            },
+
+            --Header controls: one floating right-anchored row rather than a
+            --hand-tuned offset per control, so everything in it centres on the
+            --band's real height and keeps doing so as the band grows with
+            --cardScale. AbilitySidebar's pin (movable cards only) inserts
+            --itself at the head of this row -- see AttachMovableAbilityCard.
+            --Mirrors the document-window header (DocumentSystem).
+            gui.Panel{
+                classes = {"abilityHeadControls"},
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                floating = true,
+                halign = "right",
+                valign = "center",
+
+                --Cancel (X). Only revealed while the real interactive roll dialog
+                --is embedded (it carries data.Cancel); read-only remote roll mirrors
+                --pass a plain panel with no Cancel, so spectators never get a cancel
+                --affordance. Clicking it cancels the embedded roll -- this replaces
+                --the old in-dialog "Cancel" button (see Timeline/EmbeddedRollDialog).
+                --ESC still cancels via the roll dialog's own captureEscape handler.
+                gui.CloseButton{
+                    --In flow inside the controls row, centred against the band's
+                    --real height. Set inline because the shared close-button class
+                    --rule anchors top-right at 24px, and inline style is the only
+                    --layer that outranks a class rule. 18 is the document window's
+                    --close size (DocumentSystem panelDocumentCloseButton): 24 was
+                    --oversized against a ~45px band, and holding the pair to it
+                    --keeps the control row's total width where the old
+                    --x-plus-floating-pin pair sat, so a long ability name runs
+                    --under the controls no sooner than it did before.
+                    width = 18,
+                    height = 18,
+                    valign = "center",
+                    escapeActivates = false,
+                    classes = { "collapsed" },
+                    data = { rollDialog = nil, aiDriven = false },
+
+                    --The single place that decides whether the cancel affordance is on
+                    --offer. Three reasons it is not: no interactive dialog is embedded,
+                    --the Monster AI is driving the roll, or "Strictly Enforce Rolls" is
+                    --on and the cast has already committed to paying its cost
+                    --(RollDialogCancelOffered -- see DMHub Utils/Utils.lua).
+                    refreshCancel = function(element)
+                        local dialog = element.data.rollDialog
+                        local offer = dialog ~= nil and dialog.valid and dialog.data ~= nil
+                            and dialog.data.Cancel ~= nil
+                            and (not element.data.aiDriven)
+                            and RollDialogCancelOffered(dialog)
+                        element:SetClass("collapsed", not offer)
+                        if offer then
+                            --The ability tooltip is made non-interactive as a whole
+                            --(AbilitySidebar MakeNonInteractiveRecursive). interactable is
+                            --per-element and does not cascade to descendants, so re-enable
+                            --this button on its own to make the click register.
+                            element.interactable = true
+                        end
+                    end,
+
+                    embedRollDialog = function(element, dialog)
+                        if dialog ~= nil and dialog.data ~= nil and dialog.data.Cancel ~= nil then
+                            element.data.rollDialog = dialog
+                        else
+                            element.data.rollDialog = nil
+                        end
+                        element:FireEvent("refreshCancel")
+                    end,
+                    --The Monster AI drives its own roll and completes it, so the card
+                    --offers no cancel affordance while it does. Fired by
+                    --CharacterPanel.EmbedDialogInAbility straight after embedRollDialog
+                    --above, so this re-collapse lands on the freshly revealed button.
+                    rollDialogAIDriven = function(element, aiDriven)
+                        element.data.aiDriven = aiDriven == true
+                        element:FireEvent("refreshCancel")
+                    end,
+
+                    --options.pay is set deep inside the cast coroutine, which offers the
+                    --card no hook to listen to, so poll for it. Cheap (a few table
+                    --reads) and self-terminating: the button starts collapsed, is
+                    --revealed by embedRollDialog, and think stops the moment this
+                    --collapses it again -- and `pay` is never unset.
+                    thinkTime = 0.25,
+                    think = function(element)
+                        element:FireEvent("refreshCancel")
+                    end,
+
+                    click = function(element)
+                        --Belt and braces: the button is collapsed (and so unclickable)
+                        --whenever cancelling is withdrawn, but re-check rather than
+                        --trust the last poll.
+                        local dialog = element.data.rollDialog
+                        if dialog ~= nil and dialog.valid and dialog.data ~= nil
+                            and dialog.data.Cancel ~= nil and dialog.data.IsShown ~= nil
+                            and dialog.data.IsShown() and RollDialogCancelOffered(dialog) then
+                            dialog.data.Cancel()
+                        end
+                    end,
+                },
+            },
+        },
+
+        --King panel for inside info.
+        --A caller that knows how much room the card actually has (the ability
+        --sidebar, which is bounded by the screen) passes maxHeight; the body
+        --then scrolls instead of growing off the top and bottom of the screen.
+        --The scrolling/clipping is done by the frame wrapped around this panel,
+        --NOT by this panel -- see WrapAbilityBodyInScrollFrame for why the clip
+        --rect has to be wider than the body.
+        WrapAbilityBodyInScrollFrame(paramMaxHeight, scrollBleedLeft, gui.Panel {
 
             id = "headerPanel",
             flow = "vertical",
             valign = "top",
-            width = "90%",
+
+            --In scroll mode this body sits inside that wider frame and must
+            --occupy exactly the card's own bounds: full card width (which is
+            --also what stops the fixed-340-wide embedded roll dialog from being
+            --cropped), right-aligned so every bit of the frame's extra width
+            --bleeds off to the LEFT where the tabs live. The scroll-mode hpad
+            --is bigger to inset the text clear of the scrollbar drawn at the
+            --frame's right edge; the left never needed it, and a blanket hpad
+            --was pushing the body text well inside the title above it.
+            --borderBox because bare padding is additive to the width.
+            width = cond(paramMaxHeight ~= nil and scrollBleedLeft > 0,
+                string.format("100%%-%d", scrollBleedLeft), "100%"),
+            halign = cond(paramMaxHeight ~= nil, "right", nil),
             height = "auto",
             bgimage = true,
             bgcolor = "clear",
-            tmargin = 15,
-            lmargin = 20,
-
-            maxHeight = paramMaxHeight,
-            vscroll = cond(paramMaxHeight ~= nil, true, false),
+            tmargin = 8,
+            bmargin = 8,
+            lpad = sc(14),
+            rpad = sc(cond(paramMaxHeight ~= nil, 20, 14)),
+            borderBox = true,
 
             --titel and ability and icon type king panel
             gui.Panel {
@@ -1218,7 +2170,7 @@ function ActivatedAbility:Render(options, params)
                     --name and type
                     gui.Panel {
 
-                        width = "auto",
+                        width = "100%",
                         height = "auto",
                         valign = "top",
                         bgcolor = "clear",
@@ -1226,32 +2178,21 @@ function ActivatedAbility:Render(options, params)
 
                         flow = "vertical",
 
-                        --name of the ability
-                        gui.Label {
-
-                            width = "auto",
-                            id = "spellName",
-                            classes = {"abilityName"},
-                            fontSize = 24,
-                            fontFace = "Newzald",
-                            fontWeight = "Light",
-                            color = "white",
-                            text = string.format("<b>%s</b>%s <size=18>%s</size>", self.name, meleeOrRangedVariantText, costString),
-                            height = "auto",
-                            markdown = true,
-                        },
-
                         --Type of ability
+                        --Full width so the implementation chip can pack to the
+                        --right edge while the type name stays on the left.
                         gui.Panel {
 
                             flow = "horizontal",
-                            width = "auto",
+                            width = "100%",
                             height = "auto",
+                            halign = "left",
+                            tmargin = 4,
 
                             gui.Label {
 
                                 text = string.format("<b>%s</b>", self:AbilityTypeDescription()),
-                                color = "red",
+                                classes = { "danger" },
                                 textAlignment = "left",
                                 width = "auto",
                                 height = "auto",
@@ -1268,26 +2209,46 @@ function ActivatedAbility:Render(options, params)
                                 height = "auto",
 
                                 flow = "horizontal",
+                                halign = "right",
                                 lmargin = 10,
+                                bgimage = true,
+                                bgcolor = "clear",
+
+                                create = function(element)
+                                    element.interactable = true
+                                end,
 
                                 hover = function(element)
+                                    local text = [[<b>Fully Automated:</b> Everything is handled by the app.
+
+<b>Mostly Automated:</b> Automated, with some table adjudication necessary.
+
+<b>Partly Automated:</b> Some of it is handled; the rest needs adjudication.
+
+<b>Not Automated:</b> Requires manual adjudication.
+
+<b>Narrative:</b> Role play only, no automation.
+]]
                                     if self:try_get("implementationDetails") ~= nil and self:try_get("implementationDetails") ~= "" then
-                                        element.tooltip = gui.TooltipFrame(gui.Label {
-                                            text = self:try_get("implementationDetails"),
-                                            width = 300,
-                                            height = "auto",
-                                            wrap = true,
-                                            fontSize = 14,
-                                        }, {})
+                                        text = text .. "\n\n" .. "<b>Notes:</b> " .. self:try_get("implementationDetails")
                                     end
+
+                                    element.tooltip = gui.TooltipFrame(gui.Label {
+                                        text = text,
+                                        width = 300,
+                                        height = "auto",
+                                        wrap = true,
+                                        fontSize = 14,
+                                    }, {})
                                 end,
 
                                 gui.Panel {
 
                                     classes = { "implementationDiamond" },
+                                    rotate = 45,
 
-                                    width = 10,
-                                    height = 10,
+                                    width = sc(10),
+                                    height = sc(10),
                                     bgimage = true,
                                     valign = "center",
 
@@ -1313,9 +2274,8 @@ function ActivatedAbility:Render(options, params)
 
                                 gui.Label {
                                     classes = { "implementationChip" },
-                                    text = gui.ImplementationStatusValues[self:try_get("implementation", 1)] or "Unimplemented",
+                                    text = gui.ImplementationStatusValues[self:try_get("implementation", 1)] or "Not Automated",
                                     create = function(element)
-                                        print("venla:", mod.images.diamond)
                                         local impl = self:try_get("implementation", 1)
                                         -- Set the appropriate class based on implementation status
                                         if impl == 0 then
@@ -1342,38 +2302,7 @@ function ActivatedAbility:Render(options, params)
 
 
                     },
-
-                    gui.Panel {
-
-                        width = 50,
-                        height = 50,
-                        halign = "right",
-                        bgcolor = "white",
-                        bgimage = mod.images.attack,
-
-                        create = function(element)
-                            if self.categorization == "Signature Ability" then
-                                element.bgimage = mod.images.signature
-                            elseif self.categorization == "Basic Attack" then
-                                element.bgimage = mod.images.attack
-                            else
-                                element.bgimage = mod.images.ability
-                            end
-                        end
-
-
-                    },
-
-
-
-
                 },
-
-
-
-
-
-
             },
 
 
@@ -1382,7 +2311,6 @@ function ActivatedAbility:Render(options, params)
 
                 text = string.format("<i>%s</i>", self:try_get("flavor", "")),
                 textAlignment = "left",
-                color = "#CBCCCA",
                 width = "100%",
                 height = "auto",
                 bgimage = true,
@@ -1394,9 +2322,9 @@ function ActivatedAbility:Render(options, params)
             --divider line between top and bottom info
             gui.Panel {
 
+                classes = { "divider" },
                 tmargin = 8,
                 bgimage = true,
-                bgcolor = "#CBCCCA",
                 opacity = 1,
                 width = "100%",
                 height = 1.5,
@@ -1412,12 +2340,13 @@ function ActivatedAbility:Render(options, params)
                 height = 25,
                 tmargin = 6,
                 flow = "horizontal",
+                collapsed = cond(isMaliceAbility and #keywords == 0, 1, 0),
 
                 --keywords
                 gui.Label {
 
                     text = string.format("%s", keywordText),
-                    fontSize = 20,
+                    fontSize = sc(20),
                     minFontSize = 8,
                     fontFace = "Newzald",
                     fontWeight = "Light",
@@ -1435,12 +2364,13 @@ function ActivatedAbility:Render(options, params)
                 gui.Label {
 
                     text = string.format("%s", actionText),
-                    fontSize = 20,
+                    fontSize = sc(20),
                     fontFace = "Newzald",
                     fontWeight = "Light",
                     width = "auto",
                     halign = "right",
                     markdown = true,
+                    collapsed = cond(isMaliceAbility, 1, 0),
 
 
                 },
@@ -1457,22 +2387,23 @@ function ActivatedAbility:Render(options, params)
                 height = "auto",
                 tmargin = 2,
                 flow = "vertical",
+                collapsed = cond(isMaliceAbility, 1, 0),
 
                 showAbilitySection = function(element, options)
                     if options.ability.name ~= self.name then
-                        element:SetClass("highlight", false)
+                        element:SetClassTree("highlight", false)
                         return
                     end
 
                     if options.section == "target" then
-                        element:SetClass("highlight", true)
+                        element:SetClassTree("highlight", true)
                     else
-                        element:SetClass("highlight", false)
+                        element:SetClassTree("highlight", false)
                     end
                 end,
 
                 --tab panel
-                gui.Panel {
+                CardBookmarkTab(hideTabs, function() return {
                     styles = {
                         {
                             selectors = { "tab" },
@@ -1484,21 +2415,20 @@ function ActivatedAbility:Render(options, params)
                         }
                     },
 
-                    classes = { "tab" },
+                    classes = { "tab", "goldTab" },
                     x = -46,
                     floating = true,
                     valign = "top",
                     halign = "left",
                     height = 136 * 0.8,
                     width = 33 * 0.8,
-                    bgimage = mod.images.tabbg,
-                    bgcolor = 'white',
+                    bgimage = ActivatedAbility.TabBGImage(),
 
                     gui.Label {
-                        color = "black",
+                        classes = { "goldTabLabel" },
                         width = "auto",
                         height = "auto",
-                        fontSize = 22,
+                        fontSize = sc(22),
                         bold = true,
                         text = "Target",
                         y = -18,
@@ -1506,33 +2436,61 @@ function ActivatedAbility:Render(options, params)
                         halign = "center",
                         valign = "center",
                     },
-                },
+                } end),
 
 
+                --Same geometry as the target row below: a fixed 24px glyph
+                --column then the text, so the two icon rows share a left edge.
+                --A width="auto" row with no halign centres itself in the card.
                 gui.Panel {
-                    width = "auto",
+                    width = "100%",
                     height = "auto",
                     flow = "horizontal",
+                    halign = "left",
                     gui.Label {
 
-                        text = "e",
+                        create = function(element)
+                            if self:has_key("villainAction") then
+                                element.text = "d"
+                            elseif self.targetType == "all" then
+                                element.text = "b"
+                            elseif self.targetType == "self" then
+                                element.text = "f"
+                            elseif self.targetType == "map" then
+                                element.text = "c"
+                            elseif self.targetType == "cube" or self.targetType == "line" or self:HasKeyword("Area") then
+                                element.text = "e"
+                            elseif self:HasKeyword("Melee") then
+                                if self:HasKeyword("Ranged") then
+                                    element.text = "l"
+                                end
+                                element.text = "t"
+                            elseif self:HasKeyword("Ranged") then
+                                element.text = "g"
+                            else
+                                element.text = "*"
+                            end
+                        end,
                         fontFace = "DrawSteelGlyphs",
-                        fontSize = 20,
-                        width = "auto",
+                        fontSize = sc(20),
+                        width = sc(24),
+                        height = "auto",
                         halign = "right",
                         valign = "center",
-                        lmargin = 5,
+                        lmargin = sc(5),
                     },
 
 
                     gui.Label {
 
                         text = self:DescribeRange(creatureProperties),
-                        fontSize = 18,
+                        fontSize = sc(18),
                         fontFace = "Newzald",
                         fontWeight = "Light",
-                        width = "auto",
+                        width = string.format("100%%-%d", sc(33)),
+                        height = "auto",
                         halign = "left",
+                        lmargin = sc(4),
                         valign = "center",
                         markdown = true,
 
@@ -1541,7 +2499,7 @@ function ActivatedAbility:Render(options, params)
 
 
                 gui.Panel {
-                    width = "auto",
+                    width = "100%",
                     height = "auto",
                     flow = "horizontal",
                     halign = "left",
@@ -1549,24 +2507,27 @@ function ActivatedAbility:Render(options, params)
 
                         text = "x",
                         fontFace = "DrawSteelGlyphs",
-                        fontSize = 20,
-                        width = "auto",
+                        fontSize = sc(20),
+                        width = sc(24),
+                        height = "auto",
                         halign = "right",
-                        valign = "center",
-                        lmargin = 5,
+                        valign = "top",
+                        lmargin = sc(5),
 
                     },
 
                     gui.Label {
 
                         text = string.format("<b></b> <i>%s</i>", self:DescribeTarget(token)),
-                        fontSize = 18,
+                        fontSize = sc(18),
                         fontFace = "Newzald",
                         fontWeight = "Light",
-                        width = "auto",
-                        halign = "right",
-                        valign = "center",
+                        width = string.format("100%%-%d", sc(33)),
+                        halign = "left",
+                        lmargin = sc(4),
+                        valign = "top",
                         markdown = true,
+                        textWrap = true,
                         height = "auto",
                     },
 
@@ -1595,50 +2556,7 @@ function ActivatedAbility:Render(options, params)
                         local m_value = capturedEntry.checked
                         local pillPanel
                         pillPanel = gui.Panel{
-                            styles = {
-                                gui.Style{
-                                    classes = {"improvementPill"},
-                                    borderColor = Styles.Gold04,
-                                    borderWidth = 2,
-                                    cornerRadius = 5,
-                                    width = "auto",
-                                    height = "auto",
-                                    pad = 4,
-                                    flow = "horizontal",
-                                    bgimage = true,
-                                    bgcolor = Styles.RichBlack03,
-                                    tmargin = 4,
-                                },
-                                gui.Style{
-                                    classes = {"improvementPill", "~selected"},
-                                    borderColor = "#777777",
-                                },
-                                gui.Style{
-                                    classes = {"improvementLabel"},
-                                    opacity = 0.95,
-                                    color = "white",
-                                    fontSize = 16,
-                                    width = "auto",
-                                    height = "auto",
-                                    valign = "center",
-                                },
-                                gui.Style{
-                                    classes = {"improvementLabel", "~selected"},
-                                    color = "#777777",
-                                },
-                                gui.Style{
-                                    classes = {"improvementLabel", "unaffordable", "selected"},
-                                    color = "#ff6666",
-                                },
-                                gui.Style{
-                                    selectors = {"improvementLabel", "parent:hover"},
-                                    brightness = 1.5,
-                                },
-                                gui.Style{
-                                    classes = {"improvementPill", "hover"},
-                                    brightness = 1.5,
-                                },
-                            },
+                            styles = ThemeEngine.MergeStyles(ScaleStyleSizes(g_improvementPillStyles, cardScale)),
                             classes = {"improvementPill"},
                             press = function(el)
                                 m_value = not m_value
@@ -1699,6 +2617,7 @@ function ActivatedAbility:Render(options, params)
                     if self.objectTarget and self.targetAllegiance ~= "none" and options.ability.name == self.name and options.section == "target" then
                         element.children = {
                             gui.EnumeratedSliderControl {
+                                styles = ThemeEngine.GetStyles("default", "default"),
                                 options = {
                                     { id = false, text = "Creatures" },
                                     { id = true,  text = "Objects" },
@@ -1708,16 +2627,6 @@ function ActivatedAbility:Render(options, params)
                                 change = function(element)
                                     g_settingTargetObjects:Set(element.value)
                                 end,
-                                styles = {
-                                    {
-                                        selectors = { "enumSlider" },
-                                        height = 18,
-                                    },
-                                    {
-                                        selectors = { "enumSliderOption" },
-                                        fontSize = 10,
-                                    },
-                                }
                             },
                         }
                     else
@@ -1727,8 +2636,9 @@ function ActivatedAbility:Render(options, params)
 
             },
 
-            --modes panel
+            --modes panel -- collapsed for now?
             gui.Panel {
+                classes = {"collapsed"},
                 width = "auto",
                 height = "auto",
                 showAbilitySection = function(element, options)
@@ -1755,19 +2665,11 @@ function ActivatedAbility:Render(options, params)
                             gui.EnumeratedSliderControl {
                                 options = modeOptions,
                                 value = 1,
-                                height = "auto",
                                 wrap = true,
-                                optionWidth = "33.3333%",
+                                optionWidth = cond(#modeOptions <= 2, "50%", "33.3333%"),
                                 tmargin = 4,
                                 change = function(element)
                                 end,
-                                styles = {
-                                    {
-                                        selectors = { "enumSliderOption" },
-                                        fontSize = 10,
-                                        height = 18,
-                                    },
-                                }
                             },
                         }
                     else
@@ -1781,7 +2683,7 @@ function ActivatedAbility:Render(options, params)
             gui.Label {
                 classes = { cond(preDescriptionString == "", "collapsed", nil) },
                 text = string.format("%s", preDescriptionString),
-                fontSize = 18,
+                fontSize = sc(18),
                 fontFace = "Newzald",
                 fontWeight = "Light",
                 width = "100%",
@@ -1815,21 +2717,21 @@ function ActivatedAbility:Render(options, params)
 
                 showAbilitySection = function(element, options)
                     if options.ability.name ~= self.name then
-                        element:SetClass("highlight", false)
+                        element:SetClassTree("highlight", false)
                         return
                     end
 
                     if options.section == "main" then
-                        element:SetClass("highlight", true)
+                        element:SetClassTree("highlight", true)
                     else
-                        element:SetClass("highlight", false)
+                        element:SetClassTree("highlight", false)
                     end
                 end,
 
                 gui.Label {
 
                     text = self:GetPowerRollDisplay(),
-                    fontSize = 18,
+                    fontSize = sc(18),
                     fontFace = "Newzald",
                     fontWeight = "Light",
                     width = "auto",
@@ -1857,24 +2759,61 @@ function ActivatedAbility:Render(options, params)
 
                 showAbilitySection = function(element, options)
                     if options.ability.name ~= self.name then
-                        element:SetClass("highlight", false)
+                        element:SetClassTree("highlight", false)
                         return
                     end
 
                     if options.section == "effects" then
-                        element:SetClass("highlight", true)
+                        element:SetClassTree("highlight", true)
                     else
-                        element:SetClass("highlight", false)
+                        element:SetClassTree("highlight", false)
                     end
                 end,
 
-                gui.DocumentDisplay {
+                --tab panel
+                CardBookmarkTab(hideTabs, function() return {
+                    styles = {
+                        {
+                            selectors = { "tab" },
+                            collapsed = 1,
+                        },
+                        {
+                            selectors = { "tab", "parent:highlight" },
+                            collapsed = 0,
+                        }
+                    },
+
+                    classes = { "tab", "goldTab" },
+                    x = -46,
+                    floating = true,
+                    valign = "top",
+                    halign = "left",
+                    height = 136 * 0.8,
+                    width = 33 * 0.8,
+                    bgimage = ActivatedAbility.TabBGImage(),
+
+                    gui.Label {
+                        classes = { "goldTabLabel" },
+                        width = "auto",
+                        height = "auto",
+                        fontSize = sc(22),
+                        bold = true,
+                        text = "Effect",
+                        y = -18,
+                        rotate = 90,
+                        halign = "center",
+                        valign = "center",
+                    },
+                } end),
+
+                gui.Label {
                     text = descriptionString,
-                    noninteractive = true,
+                    markdown = true,
                     width = "100%",
                     height = "auto",
                     halign = "left",
                     bmargin = 4,
+                    fontSize = sc(14),
                 },
             },
 
@@ -1888,7 +2827,7 @@ function ActivatedAbility:Render(options, params)
                 valign = "top",
                 width = "100%",
                 height = "auto",
-                bgcolor = "blue",
+                bgcolor = "clear",
                 bgimage = true,
 
                 gui.Panel {
@@ -1905,7 +2844,7 @@ function ActivatedAbility:Render(options, params)
 
 
             },
-        },
+        }),
 
         --[[gui.Label{
             smallcaps = true,
@@ -1918,65 +2857,10 @@ function ActivatedAbility:Render(options, params)
             text = actionText,
         },]]
 
-        --border line right panel
-        gui.Panel {
-
-            floating = true,
-            valign = "top",
-            halign = "left",
-            height = 1.2,
-            width = 500,
-            bgimage = true,
-            bgcolor = 'white',
-            gradient = gui.Gradient {
-                point_a = { x = 0, y = 0 },
-                point_b = { x = 1, y = 0 },
-                stops = {
-                    {
-                        position = 0,
-                        color = "white",
-                    },
-
-                    {
-                        position = 1,
-                        color = "clear",
-                    }
-                }
-            }
-
-        },
-
-        --border line down panel
-        gui.Panel {
-
-            floating = true,
-            valign = "top",
-            halign = "left",
-            height = 200,
-            width = 1.2,
-            bgimage = true,
-            bgcolor = 'white',
-            gradient = gui.Gradient {
-                point_a = { x = 0, y = 1 },
-                point_b = { x = 0, y = 0 },
-                stops = {
-                    {
-                        position = 0,
-                        color = "white",
-                    },
-
-                    {
-                        position = 1,
-                        color = "clear",
-                    }
-                }
-            }
-
-        },
-
         --tab panel
-        gui.Panel {
+        CardBookmarkTab(hideTabs, function() return {
 
+            classes = { "goldTab" },
             floating = true,
             valign = "top",
             halign = "left",
@@ -1985,16 +2869,18 @@ function ActivatedAbility:Render(options, params)
             height = 106 * 0.8,
             width = 33 * 0.8,
             bgimage = mod.images.tabbg,
-            bgcolor = 'white',
             embedRollDialog = function(element)
                 element:SetClass("collapsed", true)
             end,
             showAbilitySection = function(element, options)
                 element:SetClass("collapsed", true)
             end,
-        },
+        } end),
 
         suppressPanel,
+        reminderPanel,
+
+        footerPanel,
     }
 
 
@@ -2126,7 +3012,8 @@ function ActivatedAbility:DescribeTarget(casterToken)
     end
 
     if self:has_key("targetAdditionalCriteria") then
-        result = string.format("%s <color=#aaaaaa>%s</color>", result, self.targetAdditionalCriteria)
+        local mutedHex = ThemeEngine.ResolveTokens("@fgMuted")
+        result = string.format("%s <color=%s>%s</color>", result, mutedHex, self.targetAdditionalCriteria)
     end
 
     return result
@@ -2145,13 +3032,210 @@ function ActivatedAbility:IsForcedMovement()
     return true
 end
 
+--Minion Individual Maneuver rule
+function ActivatedAbility:UsesIndividualManeuver(casterToken)
+    --casterToken.properties can be nil if the caster was destroyed/despawned mid-cast
+    --(token reference survives but .valid is false). A non-minion -- and likewise a
+    --gone caster -- never uses squad coordination / individual maneuver rules.
+    if casterToken == nil or casterToken.properties == nil or not casterToken.properties.minion then
+        return false
+    end
+    if not casterToken.properties:has_key("_tmp_minionSquad") then
+        return false
+    end
+    if not casterToken.properties:HasManeuverOrActionRule() then
+        return false
+    end
+    if not self:IsManeuver() then
+        return false
+    end
+    return self.selfTarget or self.targetType == 'self'
+end
+
+--Minions we have already logged about, so we print once each instead of every refresh.
+local g_reportedSquadSuppression = {}
+
+--True while an invoke is holding this minion's squad coordination off. A flag stamped
+--on an earlier turn is left over from an invoke that never finished, so drop it --
+--otherwise the squad is stuck attacking with one member for the rest of the session.
+local function SquadCoordinationSuppressed(casterToken)
+    if casterToken == nil or casterToken.properties == nil then
+        return false
+    end
+
+    local depth = casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0) or 0
+    if depth <= 0 then
+        return false
+    end
+
+    --Never throw here: this runs while the player is picking targets.
+    local invokeBehavior = rawget(_G, "ActivatedAbilityInvokeAbilityBehavior")
+    local turnKeyFunction = invokeBehavior ~= nil and invokeBehavior.SquadSuppressionTurnKey or nil
+
+    local stampedTurn = casterToken.properties:try_get("_tmp_disableSquadCoordinationTurn")
+    local currentTurn = turnKeyFunction ~= nil and turnKeyFunction() or nil
+    if stampedTurn ~= nil and currentTurn ~= nil and stampedTurn ~= currentTurn then
+        print(string.format("SQUADDIAG:: clearing leaked squad-coordination suppression on %s (depth=%d stamped=%s now=%s)",
+            tostring(casterToken.name or casterToken.charid), depth, tostring(stampedTurn), tostring(currentTurn)))
+        casterToken.properties._tmp_disableSquadCoordinationDepth = nil
+        casterToken.properties._tmp_disableSquadCoordinationTurn = nil
+        return false
+    end
+
+    if not g_reportedSquadSuppression[casterToken.charid] then
+        g_reportedSquadSuppression[casterToken.charid] = true
+        print(string.format("SQUADDIAG:: squad coordination suppressed on %s by an active invoke (depth=%d turn=%s)",
+            tostring(casterToken.name or casterToken.charid), depth, tostring(stampedTurn)))
+    end
+
+    return true
+end
+
+--Returns true if this ability, when cast by a minion in a squad, should be coordinated across the squad
+function ActivatedAbility:UsesSquadCoordination(casterToken)
+    --An invoke that opted out of squad coordination forces this off regardless of the
+    --usual signature/free-strike/keyword rules. See ActivatedAbilityInvokeAbilityBehavior.
+    --The caster-side depth counter catches the case where the abilityClone gets cloned,
+    --bifurcated, or synthesized into a fresh ability that wouldn't carry the field.
+    if self:try_get("disableSquadCoordination", false) then
+        return false
+    end
+    if SquadCoordinationSuppressed(casterToken) then
+        return false
+    end
+    --casterToken.properties can be nil if the caster was destroyed/despawned mid-cast
+    --(token reference survives but .valid is false). A non-minion -- and likewise a
+    --gone caster -- never uses squad coordination / individual maneuver rules.
+    if casterToken == nil or casterToken.properties == nil or not casterToken.properties.minion then
+        return false
+    end
+    if not casterToken.properties:has_key("_tmp_minionSquad") then
+        return false
+    end
+
+    local cat = self.categorization
+    if cat == "Signature Ability" then
+        return true
+    end
+
+    --Free strikes
+    if self.name == "Melee Free Strike" or self.name == "Ranged Free Strike" then
+        return true
+    end
+
+    --Any other strike-keyworded ability counts as a squad strike.
+    if self:HasKeyword("Strike") then
+        return true
+    end
+
+    --Maneuvers used as a squad action (single-target collapsed to one shared roll).
+    --For creatures with the Maneuver-or-Action rule, self-targeted maneuvers are
+    --instead routed through the individual-maneuver path (see UsesIndividualManeuver).
+    if self:IsManeuver() and not self:UsesIndividualManeuver(casterToken) then
+        return true
+    end
+
+    return false
+end
+
+--True for squad-coordinated strikes (signature abilities and free strikes). Excludes
+--maneuvers because their target-stacking and target-multiplicity differs.
+function ActivatedAbility:UsesSquadStrike(casterToken)
+    return self:UsesSquadCoordination(casterToken) and not self:IsManeuver()
+end
+
+--True for squad-coordinated maneuvers. The squad uses one maneuver as a unit and the
+--power roll is replaced with `8 + highest characteristic + in-range squad members`.
+function ActivatedAbility:UsesSquadManeuver(casterToken)
+    return self:UsesSquadCoordination(casterToken) and self:IsManeuver()
+end
+
+--function wrapper for Summoner Minion Main Action and Maneuver usage support
+local g_consumeResources_base = ActivatedAbility.ConsumeResources
+function ActivatedAbility:ConsumeResources(casterToken, options)
+    g_consumeResources_base(self, casterToken, options)
+
+    if casterToken == nil or not casterToken.valid then
+        return
+    end
+
+    if self:UsesIndividualManeuver(casterToken) then
+        --An individual maneuver expends the caster's action AND maneuver
+        local actionId = CharacterResource.actionResourceId
+        local needAction = (casterToken.properties:GetResourceUsage(actionId, "turn") or 0) < 1
+        casterToken:ModifyProperties{
+            description = "Individual Maneuver",
+            undoable = false,
+            combine = true,
+            execute = function()
+                if needAction then
+                    casterToken.properties:ConsumeResource(actionId, "turn", 1, self.name)
+                end
+                casterToken.properties:MarkIndividualManeuverUsed()
+            end,
+        }
+        return
+    end
+
+    if not self:UsesSquadCoordination(casterToken) then
+        return
+    end
+
+    if not casterToken.properties:HasManeuverOrActionRule() then
+        return
+    end
+
+    --Any squad-coordinated ability expends both action
+    --and maneuver for every active squad member.
+
+    local squad = casterToken.properties:try_get("_tmp_minionSquad")
+    if squad == nil or squad.tokens == nil then
+        return
+    end
+
+    local actionId = CharacterResource.actionResourceId
+    local maneuverId = CharacterResource.maneuverResourceId
+
+    for _,tok in ipairs(squad.tokens) do
+        if tok ~= nil and tok.valid
+            and (not tok.properties:IsDead())
+            and tok.properties:IsActiveInSquad() then
+
+            local consumeAction = (tok.properties:GetResourceUsage(actionId, "turn") or 0) < 1
+            local consumeManeuver = (tok.properties:GetResourceUsage(maneuverId, "turn") or 0) < 1
+
+            if consumeAction or consumeManeuver then
+                tok:ModifyProperties{
+                    description = "Squad Expends Both Resources",
+                    undoable = false,
+                    combine = true,
+                    execute = function()
+                        if consumeAction then
+                            tok.properties:ConsumeResource(actionId, "turn", 1, self.name)
+                        end
+                        if consumeManeuver then
+                            tok.properties:ConsumeResource(maneuverId, "turn", 1, self.name)
+                        end
+                    end,
+                }
+            end
+        end
+    end
+end
+
 function ActivatedAbility:CanTargetAdditionalTimes(casterToken, symbols, targets, targetToken)
     if self.repeatTargets then
         return true
     end
 
-    if casterToken.properties.minion and self.categorization == "Signature Ability" and casterToken.properties:has_key("_tmp_minionSquad") then
-        --signature abilities can 'stack' targeting up to three times.
+    if self:UsesSquadStrike(casterToken) then
+        --signature abilities can 'stack' targeting up to three times. Summoner
+        --minions and similar bypass this via the "Ignore Minion Target Limit"
+        --custom attribute, letting any number of minions hit the same creature.
+        if casterToken.properties:CalculateNamedCustomAttribute("Ignore Minion Target Limit") > 0 then
+            return true
+        end
+
         local currentTimes = 0
         for _, target in ipairs(targets) do
             if target == targetToken.id then
@@ -2176,87 +3260,135 @@ local function GetTargetsWithTokens(targets)
     return result
 end
 
----@param squad Token[] The squad of minions who will do the targeting.
----@param squadTargetsPerToken table<string, boolean>[] for each token, the locs that token can target (encoded as strings)
----@param targets table<{token: Token}> the targets.
----@param targetLocsOccupying table<string, boolean>[] the locs that the targets occupy. parallel with "targets".
----@param output Token[][] The permutations of possibly unused tokens who are still available to target.
----@param outputTargetingCombinations table<{a: Token, b: Token}>[][]|nil An array of combinations of possible targeting of minions to targets.
----@param currentCombinationInternal table<{a: Token, b: Token}>[]|nil The current combination of minions to targets. Optional and for internal use only.
-local function GetSquadTargetPermutations(squad, squadTargetsPerToken, targets, targetLocsOccupying, output,
-                                          outputTargetingCombinations, currentCombinationInternal)
-    if currentCombinationInternal == nil then
-        currentCombinationInternal = {}
-    end
-
-    if #targetLocsOccupying == 0 then
-        table.sort(squad, function(a, b) return a.charid < b.charid end)
-        for _, candidate in ipairs(output) do
-            local match = true
-            for i = 1, #candidate do
-                if candidate[i].charid ~= squad[i].charid then
-                    match = false
+-- Build a minion-to-target adjacency table. adjacency[minionIdx] is a list of
+-- target indices that minion can reach (range overlap + line of effect).
+local function BuildSquadAdjacency(squadTokens, squadTargetsPerToken, targets, targetLocsOccupying)
+    local adjacency = {}
+    for i, tok in ipairs(squadTokens) do
+        adjacency[i] = {}
+        for j, target in ipairs(targets) do
+            local canReach = false
+            for key, _ in pairs(targetLocsOccupying[j]) do
+                if squadTargetsPerToken[i][key] then
+                    canReach = true
                     break
                 end
             end
-
-            if match then
-                return
+            if canReach and RuleUtils.HasLineOfEffect(tok, target.token) then
+                adjacency[i][#adjacency[i] + 1] = j
             end
         end
-        output[#output + 1] = squad
+    end
+    return adjacency
+end
 
-        if outputTargetingCombinations ~= nil then
-            outputTargetingCombinations[#outputTargetingCombinations + 1] = table.shallow_copy(
-                currentCombinationInternal)
+-- Augmenting-path bipartite matching with per-minion capacity. Finds a
+-- maximum matching of target slots to minions where each minion may claim
+-- up to capacityPerMinion slots. Runs in O(n^2 * m * capacity) time.
+-- Minions are processed in order so earlier indices (the caster) get priority.
+-- committedTargets is an optional table of targetIdx -> minionIdx for
+-- assignments that should be preserved. Commitments lock the specific
+-- (target, minion) pairing -- a minion can still gain or lose its OTHER
+-- (uncommitted) slots during augmentation.
+-- capacityPerMinion defaults to 1 for backwards compatibility.
+-- Returns matchOfTarget[targetIdx] = minionIdx for each matched target.
+local function BipartiteMatch(adjacency, nMinions, nTargets, committedTargets, capacityPerMinion)
+    capacityPerMinion = capacityPerMinion or 1
+    local matchOfTarget = {} -- matchOfTarget[targetIdx] = minionIdx or nil
+    local assignmentCount = {} -- assignmentCount[minionIdx] = number of slots held
+    local committedTargetSet = {} -- set of target indices whose pairing must not be displaced
+
+    -- Seed with committed assignments.
+    if committedTargets ~= nil then
+        for targetIdx, minionIdx in pairs(committedTargets) do
+            matchOfTarget[targetIdx] = minionIdx
+            assignmentCount[minionIdx] = (assignmentCount[minionIdx] or 0) + 1
+            committedTargetSet[targetIdx] = true
         end
-        return
     end
 
-    local targetLocs = targetLocsOccupying[1]
-
-    for i, token in ipairs(squad) do
-        local canTarget = false
-        for key, _ in pairs(targetLocs) do
-            if squadTargetsPerToken[i][key] then
-                canTarget = true
-                break
-            end
-        end
-
-        if canTarget then
-            --check that we have line of effect to the target.
-            if not RuleUtils.HasLineOfEffect(token, targets[1].token) then
-                canTarget = false
-            end
-        end
-
-        if canTarget then
-            local newSquad = {}
-            local newSquadTargets = {}
-            for j, tok in ipairs(squad) do
-                if i ~= j then
-                    newSquad[#newSquad + 1] = tok
-                    newSquadTargets[#newSquadTargets + 1] = squadTargetsPerToken[j]
+    local function augment(minionIdx, visited)
+        for _, targetIdx in ipairs(adjacency[minionIdx]) do
+            if not visited[targetIdx] then
+                visited[targetIdx] = true
+                local holder = matchOfTarget[targetIdx]
+                if holder == nil then
+                    matchOfTarget[targetIdx] = minionIdx
+                    assignmentCount[minionIdx] = (assignmentCount[minionIdx] or 0) + 1
+                    return true
+                elseif holder ~= minionIdx and (not committedTargetSet[targetIdx])
+                    and augment(holder, visited) then
+                    -- holder gained a new slot via the recursive augment; now
+                    -- release this slot to minionIdx so holder's net count is
+                    -- unchanged.
+                    assignmentCount[holder] = assignmentCount[holder] - 1
+                    matchOfTarget[targetIdx] = minionIdx
+                    assignmentCount[minionIdx] = (assignmentCount[minionIdx] or 0) + 1
+                    return true
                 end
             end
+        end
+        return false
+    end
 
-            local newTargets = {}
-            local newTargetLocsOccupying = {}
-            for i = 2, #targetLocsOccupying do
-                newTargetLocsOccupying[#newTargetLocsOccupying + 1] = targetLocsOccupying[i]
-                newTargets[#newTargets + 1] = targets[i]
-            end
-
-            currentCombinationInternal[#currentCombinationInternal + 1] = { a = token, b = targets[1].token }
-
-            GetSquadTargetPermutations(newSquad, newSquadTargets, newTargets, newTargetLocsOccupying, output,
-                outputTargetingCombinations, currentCombinationInternal)
-
-            currentCombinationInternal[#currentCombinationInternal] = nil
+    -- Fill each minion up to its capacity.
+    for minionIdx = 1, nMinions do
+        while (assignmentCount[minionIdx] or 0) < capacityPerMinion do
+            if not augment(minionIdx, {}) then break end
         end
     end
+
+    return matchOfTarget
 end
+
+-- Previous targeting result, used to stabilize assignments when new targets
+-- are added so that existing minion-to-target pairings are preserved.
+local g_prevTargetingRays = nil
+
+-- Explicit player locks: minion->target hard commitments set by the action
+-- bar (click a squad minion, then a target). Entries are {a = minionTokenId,
+-- b = targetTokenId}, oldest first, so the FIRST minion locked onto a
+-- creature claims its first slot and becomes its main attacker (see
+-- ActivatedAbilityCast:MainAttackerForTarget) -- the one that makes the
+-- power roll and receives caster-side effects. Later locks on the same
+-- creature gang up as extra attackers. One lock per minion; re-locking a
+-- minion moves its entry to the end (its new choice is the newest).
+-- Cleared by the action bar at targeting start and cancel.
+--- @type {a: string, b: string}[]
+local g_squadLocks = {}
+
+-- Lock minionToken to attack targetToken, replacing any prior lock for that
+-- minion. Returns the number of locks now aimed at targetToken so the UI can
+-- make sure the target has a slot per lock.
+function ActivatedAbility.LockSquadTargetingPair(minionToken, targetToken)
+    local newLocks = {}
+    for _, lock in ipairs(g_squadLocks) do
+        if lock.a ~= minionToken.id then
+            newLocks[#newLocks + 1] = lock
+        end
+    end
+    newLocks[#newLocks + 1] = { a = minionToken.id, b = targetToken.id }
+    g_squadLocks = newLocks
+
+    local count = 0
+    for _, lock in ipairs(g_squadLocks) do
+        if lock.b == targetToken.id then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+-- Clear all squad targeting state: explicit locks AND the soft previous-result
+-- commitments, so a new cast starts from a clean auto-assignment.
+function ActivatedAbility.ClearSquadTargetingState()
+    g_squadLocks = {}
+    g_prevTargetingRays = nil
+end
+
+-- Captured here (before the GetNumTargets wrapper below) so squad coordination
+-- can read the per-minion (un-multiplied) target count.
+local g_baseNumTargetsFunction = ActivatedAbility.GetNumTargets
 
 ---@param casterToken CharacterToken The token that is casting the ability.
 ---@param range number The range of the ability.
@@ -2264,10 +3396,20 @@ end
 ---@param targets table<{target: CharacterToken}>[] The targets of the ability.
 ---@return table<{a: CharacterToken, b: CharacterToken}>[]|nil The possible targeting combinations of minions to targets.
 function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
-    if casterToken.properties.minion and self.categorization == "Signature Ability" and casterToken.properties:has_key("_tmp_minionSquad") then
+    if self:UsesSquadCoordination(casterToken) then
+        -- Per-minion target count from the un-wrapped GetNumTargets, so we get
+        -- the raw ability value rather than the squad-multiplied total.
+        local perMinion = g_baseNumTargetsFunction(self, casterToken, symbols)
+        if perMinion == nil or perMinion < 1 then perMinion = 1 end
+
         local locations = {}
         local squad = casterToken.properties._tmp_minionSquad
-        local squadTokens = table.shallow_copy(squad.tokens)
+        local squadTokens = {}
+        for _, tok in ipairs(squad.tokens) do
+            if tok ~= nil and tok.valid and tok.properties:IsActiveInSquad() then
+                squadTokens[#squadTokens + 1] = tok
+            end
+        end
 
         --put the caster token at the front so they'll get priority.
         for i, tok in ipairs(squadTokens) do
@@ -2310,43 +3452,257 @@ function ActivatedAbility:GetTargetingRays(casterToken, range, symbols, targets)
             end
         end
 
-        local possibleSquads = {}
-        local targetCombinations = {}
-        GetSquadTargetPermutations(squadTokens, possibleTargetsForEachToken, targets, targetLocsOccupying, possibleSquads,
-            targetCombinations)
+        local adjacency = BuildSquadAdjacency(squadTokens, possibleTargetsForEachToken, targets, targetLocsOccupying)
 
-        local targeting = {}
-        if #targetCombinations > 0 then
-            for j, target in ipairs(targetCombinations[1]) do
-                targeting[#targeting + 1] = { a = target.a.id, b = target.b.id }
+        -- Build committed assignments. Player locks (g_squadLocks) are hard
+        -- commitments: each claims its target creature's earliest free slot so
+        -- the locked minion becomes that creature's MAIN attacker (the first
+        -- targetPairs entry -- see MainAttackerForTarget). The previous result
+        -- is then layered in as soft commitments to keep unlocked pairings
+        -- stable across recomputes.
+        local minionIdToIdx = {}
+        for i, tok in ipairs(squadTokens) do
+            minionIdToIdx[tok.id] = i
+        end
+
+        -- targetCharid -> ordered list of slot indices (gang-up = the same
+        -- creature has several slots, one per attacker).
+        local targetSlotsByCharid = {}
+        for j, target in ipairs(targets) do
+            local cid = target.token.charid
+            targetSlotsByCharid[cid] = targetSlotsByCharid[cid] or {}
+            targetSlotsByCharid[cid][#targetSlotsByCharid[cid] + 1] = j
+        end
+
+        local committedTargets = nil
+        local commitsPerMinion = {}
+        local usedSlots = {}
+
+        local function minionReachesSlot(mIdx, j)
+            for _, adjTarget in ipairs(adjacency[mIdx]) do
+                if adjTarget == j then
+                    return true
+                end
+            end
+            return false
+        end
+
+        -- Commit a minion to the earliest free slot of the given creature.
+        -- Soft (previous-result) commitments require the minion to be in
+        -- reach; explicit player locks pass ignoreReach because the Codex
+        -- informs rather than enforces -- the ray's out-of-range styling
+        -- warns the player, but their chosen pairing sticks.
+        -- Returns the slot index committed, or nil.
+        local function commitMinionToTarget(mIdx, charid, ignoreReach)
+            if mIdx == nil or (commitsPerMinion[mIdx] or 0) >= perMinion then
+                return nil
+            end
+            local slots = targetSlotsByCharid[charid]
+            if slots == nil then
+                return nil
+            end
+            for _, j in ipairs(slots) do
+                if (not usedSlots[j]) and (ignoreReach or minionReachesSlot(mIdx, j)) then
+                    usedSlots[j] = true
+                    commitsPerMinion[mIdx] = (commitsPerMinion[mIdx] or 0) + 1
+                    committedTargets = committedTargets or {}
+                    committedTargets[j] = mIdx
+                    return j
+                end
+            end
+            return nil
+        end
+
+        -- 1) Locks first, so they take each creature's earliest slots. Locks
+        -- commit even when the minion is out of range (inform, not enforce).
+        local lockCommitted = nil
+        local lockedSlots = {}
+        local lockedMinions = {}
+        for _, lock in ipairs(g_squadLocks) do
+            local mIdx = minionIdToIdx[lock.a]
+            local j = commitMinionToTarget(mIdx, lock.b, true)
+            if j ~= nil then
+                lockCommitted = lockCommitted or {}
+                lockCommitted[j] = mIdx
+                lockedSlots[j] = true
+                lockedMinions[mIdx] = true
             end
         end
 
-        if #targetCombinations > 0 then
-            return targetCombinations[1]
+        -- 2) Previous result keeps unlocked assignments stable. A locked
+        -- minion's old soft assignments are dropped (its lock replaces them).
+        if g_prevTargetingRays ~= nil then
+            for _, prev in ipairs(g_prevTargetingRays) do
+                local mIdx = minionIdToIdx[prev.a.id]
+                if mIdx ~= nil and not lockedMinions[mIdx] then
+                    commitMinionToTarget(mIdx, prev.b.charid)
+                end
+            end
         end
+
+        -- Try with locked commitments first to keep assignments stable.
+        local matchOfTarget = BipartiteMatch(adjacency, #squadTokens, #targets, committedTargets, perMinion)
+
+        -- Count how many targets got a minion under the constrained match.
+        local constrainedCount = 0
+        for j = 1, #targets do
+            if matchOfTarget[j] ~= nil then
+                constrainedCount = constrainedCount + 1
+            end
+        end
+
+        -- If commitments prevented a full match, relax the previous-result
+        -- soft commitments for coverage, but keep the explicit player locks
+        -- so they are never displaced. Keep the relaxed result only when it
+        -- covers strictly more targets, so stable pairings survive.
+        if constrainedCount < #targets then
+            local unconstrained = BipartiteMatch(adjacency, #squadTokens, #targets, lockCommitted, perMinion)
+            local unconstrainedCount = 0
+            for j = 1, #targets do
+                if unconstrained[j] ~= nil then
+                    unconstrainedCount = unconstrainedCount + 1
+                end
+            end
+
+            if unconstrainedCount > constrainedCount then
+                matchOfTarget = unconstrained
+            end
+        end
+
+        -- The player chose how many minions to commit per target via repeated clicks.
+        -- Fill any unmatched target slots, allowing a minion to be picked again
+        -- while it still has remaining capacity (assignments < perMinion).
+        local minionAssignmentCount = {}
+        for j = 1, #targets do
+            if matchOfTarget[j] ~= nil then
+                local m = matchOfTarget[j]
+                minionAssignmentCount[m] = (minionAssignmentCount[m] or 0) + 1
+            end
+        end
+        for j = 1, #targets do
+            if matchOfTarget[j] == nil then
+                for i = 1, #squadTokens do
+                    local tok = squadTokens[i]
+                    if (minionAssignmentCount[i] or 0) < perMinion
+                        and tok ~= nil and tok.valid
+                        and (not tok.properties:IsDead()) then
+                        matchOfTarget[j] = i
+                        minionAssignmentCount[i] = (minionAssignmentCount[i] or 0) + 1
+                        break
+                    end
+                end
+            end
+        end
+
+        -- Distance-optimization swap pass: for any two assigned slots
+        -- where swapping the minions would reduce total distance, swap.
+        local function squadDistance(minionIdx, targetIdx)
+            local tok = squadTokens[minionIdx]
+            local target = targets[targetIdx]
+            if tok == nil or not tok.valid or target == nil or target.token == nil then
+                return math.huge
+            end
+            return tok:Distance(target.token)
+        end
+
+        local improved = true
+        local maxIterations = #targets * #squadTokens
+        local iterations = 0
+        while improved and iterations < maxIterations do
+            improved = false
+            iterations = iterations + 1
+            -- (a) Slot-slot swap: re-order minions between assigned
+            -- slots if doing so reduces total distance.
+            for j1 = 1, #targets do
+                for j2 = j1 + 1, #targets do
+                    local m1 = matchOfTarget[j1]
+                    local m2 = matchOfTarget[j2]
+                    if m1 ~= nil and m2 ~= nil and m1 ~= m2
+                        and not lockedSlots[j1] and not lockedSlots[j2] then
+                        local currentCost = squadDistance(m1, j1) + squadDistance(m2, j2)
+                        local swappedCost = squadDistance(m1, j2) + squadDistance(m2, j1)
+                        if swappedCost < currentCost then
+                            matchOfTarget[j1] = m2
+                            matchOfTarget[j2] = m1
+                            improved = true
+                        end
+                    end
+                end
+            end
+            -- Pull in a minion that has spare capacity: for each slot, if a
+            -- squad member with assignments < perMinion is closer to that
+            -- slot's target than the assigned minion, swap them in.
+            for j = 1, #targets do
+                local current = matchOfTarget[j]
+                if current ~= nil and not lockedSlots[j] then
+                    local currentDist = squadDistance(current, j)
+                    for i = 1, #squadTokens do
+                        if i ~= current then
+                            local iAssignmentCount = 0
+                            for jj = 1, #targets do
+                                if matchOfTarget[jj] == i then
+                                    iAssignmentCount = iAssignmentCount + 1
+                                end
+                            end
+                            if iAssignmentCount < perMinion then
+                                local tok = squadTokens[i]
+                                if tok ~= nil and tok.valid
+                                    and (not tok.properties:IsDead()) then
+                                    local d = squadDistance(i, j)
+                                    if d < currentDist then
+                                        matchOfTarget[j] = i
+                                        currentDist = d
+                                        improved = true
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Build rays from whichever targets got matched. Targets without a
+        -- match are omitted; callers fall back to drawing from the caster.
+        -- Locked slots are tagged so the UI can label them; the field is
+        -- derived state, rebuilt every call, and inert to all other readers.
+        local result = {}
+        for j = 1, #targets do
+            if matchOfTarget[j] ~= nil then
+                result[#result + 1] = { a = squadTokens[matchOfTarget[j]], b = targets[j].token, locked = lockedSlots[j] or nil }
+            end
+        end
+
+        if #result > 0 then
+            g_prevTargetingRays = result
+            return result
+        end
+
+        g_prevTargetingRays = nil
     end
 
     return nil
 end
 
 function ActivatedAbility:PrepareTargets(casterToken, symbols, targets)
-    if casterToken.properties.minion and self.categorization == "Signature Ability" and casterToken.properties:has_key("_tmp_minionSquad") then
-        --minion squad signature abilities will combine multiple instances
-        --if the same target into one target with a multiple 'addedStacks' count.
+    if self:UsesSquadStrike(casterToken) then
+        --minion squad signature abilities collapse multiple strikes against the
+        --same target into a single target entry, tracking how many minions hit
+        --it via 'numAttackers' (1 for a solo strike, N for N minions).
         local result = {}
 
         for _, target in ipairs(targets) do
             local found = false
             for _, existing in ipairs(result) do
                 if target.token ~= nil and existing.token ~= nil and target.token.id == existing.token.id then
-                    existing.addedStacks = (existing.addedStacks or 0) + 1
+                    existing.numAttackers = (existing.numAttackers or 1) + 1
                     found = true
                     break
                 end
             end
 
             if not found then
+                target.numAttackers = target.numAttackers or 1
                 result[#result + 1] = target
             end
         end
@@ -2360,10 +3716,15 @@ end
 local g_customTargetShapeFunction = ActivatedAbility.CustomTargetShape
 
 function ActivatedAbility:CustomTargetShape(casterToken, range, symbols, targets)
-    if (not mod.unloaded) and casterToken.properties.minion and self.categorization == "Signature Ability" and casterToken.properties:has_key("_tmp_minionSquad") then
+    if (not mod.unloaded) and self:UsesSquadCoordination(casterToken) then
         local locations = {}
         local squad = casterToken.properties._tmp_minionSquad
-        local squadTokens = table.shallow_copy(squad.tokens)
+        local squadTokens = {}
+        for _, tok in ipairs(squad.tokens) do
+            if tok ~= nil and tok.valid and tok.properties:IsActiveInSquad() then
+                squadTokens[#squadTokens + 1] = tok
+            end
+        end
 
         targets = GetTargetsWithTokens(targets)
 
@@ -2397,22 +3758,48 @@ function ActivatedAbility:CustomTargetShape(casterToken, range, symbols, targets
             end
         end
 
-        local possibleSquads = {}
-        GetSquadTargetPermutations(squadTokens, possibleTargetsForEachToken, targets, targetLocsOccupying, possibleSquads)
-
+        -- A squad member is "usable" if removing it from the squad doesn't
+        -- shrink the maximum target coverage. This means the squad's inherent
+        -- inability to reach some target doesn't disqualify members that
+        -- weren't going to reach that target anyway.
+        -- When no targets are selected yet, all members are usable.
         local usableSquadMembers = {}
-        for _, memberList in ipairs(possibleSquads) do
-            for _, member in ipairs(memberList) do
-                local alreadyCounted = false
-                for _, existing in ipairs(usableSquadMembers) do
-                    if existing.charid == member.charid then
-                        alreadyCounted = true
-                        break
+        if #targets == 0 then
+            usableSquadMembers = squadTokens
+        else
+            local adjacency = BuildSquadAdjacency(squadTokens, possibleTargetsForEachToken, targets, targetLocsOccupying)
+
+            -- Baseline: how many targets can the full squad cover at most.
+            local baselineMatch = BipartiteMatch(adjacency, #squadTokens, #targets)
+            local baselineMatched = 0
+            for j = 1, #targets do
+                if baselineMatch[j] ~= nil then
+                    baselineMatched = baselineMatched + 1
+                end
+            end
+
+            for i, tok in ipairs(squadTokens) do
+                -- Build adjacency with member i removed (shift indices).
+                local reducedAdj = {}
+                local ri = 0
+                for k = 1, #squadTokens do
+                    if k ~= i then
+                        ri = ri + 1
+                        reducedAdj[ri] = adjacency[k]
                     end
                 end
 
-                if not alreadyCounted then
-                    usableSquadMembers[#usableSquadMembers + 1] = member
+                local matchOfTarget = BipartiteMatch(reducedAdj, #squadTokens - 1, #targets)
+
+                local reducedMatched = 0
+                for j = 1, #targets do
+                    if matchOfTarget[j] ~= nil then
+                        reducedMatched = reducedMatched + 1
+                    end
+                end
+
+                if reducedMatched == baselineMatched then
+                    usableSquadMembers[#usableSquadMembers + 1] = tok
                 end
             end
         end
@@ -2441,12 +3828,29 @@ end
 local g_numTargetsFunction = ActivatedAbility.GetNumTargets
 
 function ActivatedAbility:GetNumTargets(casterToken, symbols)
-    local result = g_numTargetsFunction(self, casterToken, symbols)
+    local result = g_numTargetsFunction(self, casterToken, symbols) or 0
 
-    if (not mod.unloaded) and casterToken ~= nil and casterToken.properties.minion and self.categorization == "Signature Ability" and result == 1 and casterToken.properties:has_key("_tmp_minionSquad") then
-        --minion signature abilities can target one target for each active (non-skipped) member.
-        return casterToken.properties._tmp_minionSquad.activeMinions
-            or casterToken.properties._tmp_minionSquad.liveMinions
+    if (not mod.unloaded) and casterToken ~= nil and result >= 1 and self:UsesSquadStrike(casterToken) then
+        --minion signature abilities and free strikes can target one enemy per active
+        --(non-skipped) squad member, multiplied by the ability's own per-minion
+        --target count. For Maneuver-or-Action squads, also exclude minions that
+        --have already broken off for an individual maneuver this turn.
+        local squad = casterToken.properties._tmp_minionSquad
+        if casterToken.properties:HasManeuverOrActionRule() and squad ~= nil and squad.tokens ~= nil then
+            local count = 0
+            for _, tok in ipairs(squad.tokens) do
+                if tok ~= nil and tok.valid
+                    and (not tok.properties:IsDead())
+                    and (not tok.properties:IsTurnSkipped(tok))
+                    and tok.properties:IsActiveInSquad() then
+                    count = count + 1
+                end
+            end
+            if count < 1 then count = 1 end
+            return count * result
+        end
+
+        return (squad.activeMinions or squad.liveMinions) * result
     end
 
     return result
@@ -2456,7 +3860,7 @@ local g_moreTargetsFunction = ActivatedAbility.CanSelectMoreTargets
 
 function ActivatedAbility:CanSelectMoreTargets(casterToken, targets, symbols)
     if not mod.unloaded then
-        if casterToken.properties.minion and self.categorization == "Signature Ability" then
+        if self:UsesSquadStrike(casterToken) then
 
         end
     end
@@ -2464,9 +3868,26 @@ function ActivatedAbility:CanSelectMoreTargets(casterToken, targets, symbols)
     return g_moreTargetsFunction(self, casterToken, targets, symbols)
 end
 
+--for contiguous square placement (e.g. "wall N" abilities), a "(4/20)" counter
+--of squares placed so far, appended to the casting prompt. Empty string for
+--other targeting types.
+local function ContiguousPlacementCounter(ability, casterToken, targets, symbols)
+    local targeting = ability:try_get("targeting", "direct")
+    if targeting ~= "contiguous_wall" and targeting ~= "contiguous" then
+        return ""
+    end
+
+    local numTargets = ability:GetNumTargets(casterToken, symbols or {})
+    if type(numTargets) ~= "number" or numTargets < 2 or numTargets >= 99 then
+        return ""
+    end
+
+    return string.format(" (%d/%d)", #targets, numTargets)
+end
+
 function ActivatedAbility:PromptText(casterToken, targets, symbols, synthesizedSpells)
     if self:try_get("promptOverride") ~= nil then
-        return self.promptOverride
+        return self.promptOverride .. ContiguousPlacementCounter(self, casterToken, targets, symbols)
     end
 
     if synthesizedSpells ~= nil then
@@ -2488,9 +3909,35 @@ function ActivatedAbility:PromptText(casterToken, targets, symbols, synthesizedS
         return ""
     end
 
+    local counter = ContiguousPlacementCounter(self, casterToken, targets, symbols)
+    if counter ~= "" then
+        return "Choose Squares" .. counter
+    end
+
     local numTargets = self:GetNumTargets(casterToken, symbols)
     if numTargets == 0 then
         return ""
+    end
+
+    --Square-targeted abilities that PLACE something (a summon) rather than move
+    --a creature: "Choose Target 1/2" says nothing about what is being placed, so
+    --name it -- "Choose where Goblin Runner 2 appears". GetPlacementName is nil
+    --for every other ability, and for a summon whose creature the caster has yet
+    --to pick, so the generic wording below still covers those.
+    if self.targetType == "emptyspace" or self.targetType == "anyspace" then
+        local placementName = self:GetPlacementName(casterToken, symbols)
+        if placementName ~= nil then
+            local index = #targets + 1
+            if self.sequentialTargeting and symbols ~= nil and symbols.targetnumber ~= nil then
+                index = symbols.targetnumber
+            end
+
+            if numTargets == 1 then
+                return string.format("Choose where %s appears", placementName)
+            end
+
+            return string.format("Choose where %s %d appears", placementName, index)
+        end
     end
 
     if numTargets == 1 and #targets == 0 then
@@ -2543,7 +3990,7 @@ GameSystem.RegisterGoblinScriptField {
     seealso = {},
     examples = {},
     calculate = function(c)
-        return c:has_key("trigger")
+        return c:ActionResource() == CharacterResource.triggerResourceId
     end,
 }
 
@@ -2617,6 +4064,71 @@ GameSystem.RegisterGoblinScriptField {
             strings[#strings + 1] = keyword
         end
 
+        return StringSet.new {
+            strings = strings,
+        }
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField {
+    target = ActivatedAbility,
+    name = "Stolen",
+    type = "boolean",
+    desc = "True if this ability was stolen from another creature.",
+    seealso = {},
+    examples = {"Ability.Stolen"},
+    calculate = function(c)
+        return c:has_key("stolenFrom") and c.stolenFrom ~= nil and c.stolenFrom ~= ""
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField {
+    target = ActivatedAbility,
+    name = "Test",
+    type = "boolean",
+    desc = "True if this ability contains a power roll that is a test.",
+    seealso = {},
+    examples = {"Ability.Test"},
+    calculate = function(c)
+        if c:try_get("isTest", false) then
+            return true
+        end
+        for _, behavior in ipairs(c.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" and behavior:try_get("isTest", false) then
+                return true
+            end
+        end
+        return false
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField {
+    target = ActivatedAbility,
+    name = "TestSkills",
+    type = "set",
+    desc = "The skills applied to any test power rolls in this ability.",
+    seealso = {},
+    examples = {"Ability.TestSkills has 'Intimidate'"},
+    calculate = function(c)
+        local strings = {}
+        local seen = {}
+        local function addSkill(skillid)
+            if skillid ~= nil and skillid ~= "none" and not seen[skillid] then
+                seen[skillid] = true
+                local skill = dmhub.GetTable(Skill.tableName)[skillid]
+                if skill ~= nil then
+                    strings[#strings + 1] = skill.name
+                end
+            end
+        end
+        if c:try_get("isTest", false) then
+            addSkill(c:try_get("skillid"))
+        end
+        for _, behavior in ipairs(c.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" and behavior:try_get("isTest", false) then
+                addSkill(behavior:try_get("skillid"))
+            end
+        end
         return StringSet.new {
             strings = strings,
         }
@@ -2876,4 +4388,10 @@ ActivatedAbility.RegisterProperty {
     id = "remainhidden",
     name = "Remain Hidden",
     description = "If true, this ability will not cause hidden to be lost.",
+}
+
+ActivatedAbility.RegisterProperty {
+    id = "forcemovefrominvoker",
+    name = "All Force Move From Caster",
+    description = "If true, push/pull/slide effects from this ability use the original caster as the source for size-difference calculations (Big Versus Little), rather than this ability's caster. Generally only used within Invoked Abilities",
 }

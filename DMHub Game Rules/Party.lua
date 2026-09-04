@@ -152,13 +152,13 @@ SetData = function(tableName, partyPanel, partyid)
 
 	--the name of the party.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = party.name,
 			change = function(element)
 				party.name = element.text
@@ -169,13 +169,13 @@ SetData = function(tableName, partyPanel, partyid)
 
 	--the display order of the party.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Display Order:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Display Order:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = tostring(party.ord),
 			change = function(element)
 				local ord = tonumber(element.text)
@@ -211,9 +211,9 @@ SetData = function(tableName, partyPanel, partyid)
 		hmargin = 8,
 		width = 24,
 		height = 24,
-		valign = 'center',
+		valign = "center",
 		borderWidth = 2,
-		borderColor = '#999999ff',
+		borderColor = "#999999ff",
 
 		confirm = function(element)
 			party.color = element.value
@@ -221,49 +221,44 @@ SetData = function(tableName, partyPanel, partyid)
 		end,
 	}
 
+	--Default Frame: label left, control right.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formPanel"},
 		gui.Label{
+			classes = {"form"},
 			text = "Default Frame:",
-			valign = "center",
-			minWidth = 240,
 		},
 		frameEditor,
 	}
 
+	--Color: label left, control right.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formPanel"},
 		gui.Label{
+			classes = {"form"},
 			text = "Color:",
-			valign = "center",
-			minWidth = 240,
 		},
 		colorPicker,
 	}
 
 	--party details.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Label{
+			classes = {"formStacked"},
 			text = "Details:",
-			valign = "center",
-			minWidth = 240,
 		},
 		gui.Input{
+			classes = {"formStacked", "multiline"},
 			text = party.details,
 			multiline = true,
 			minHeight = 50,
-			height = 'auto',
-			width = 400,
-			textAlignment = "topleft",
+			height = "auto",
 			change = function(element)
 				party.details = element.text
 				UploadParty()
 			end,
-		}
+		},
 	}
 
     children[#children+1] = gui.Check{
@@ -285,11 +280,10 @@ SetData = function(tableName, partyPanel, partyid)
 			height = 40,
 		}
 	else
-		children[#children+1] = gui.PrettyButton{
-			text = "Make this the player party",
-			height = 50,
+		children[#children+1] = gui.Button{
+			classes = {"sizeXl"},
 			width = 300,
-			fontSize = 20,
+			text = "Make this the player party",
 			click = function(element)
 				for id,otherParty in pairs(dataTable) do
 					if otherParty ~= party and otherParty.playerParty then
@@ -320,14 +314,12 @@ SetData = function(tableName, partyPanel, partyid)
 			end
 
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
-				height = 'auto',
+				classes = {"formPanel"},
+				height = "auto",
 				gui.Dropdown{
+					classes = {"form"},
 					options = relationshipValues,
 					optionChosen = cond(friends[partyid], "Friendly", "Hostile"),
-					width = 160,
-					height = 30,
-					fontSize = 18,
 					change = function(element)
 						if element.optionChosen == "Hostile" then
 							party:RemoveAllyParty(friendid)
@@ -349,9 +341,9 @@ SetData = function(tableName, partyPanel, partyid)
 					end,
 				},
 				gui.Label{
+					classes = {"form"},
 					hmargin = 8,
 					text = "toward " .. desc,
-					valign = "left",
 					minWidth = 240,
 				},
 			}
@@ -370,43 +362,12 @@ function Party.CreateEditor()
 			end,
 		},
 		vscroll = true,
-		classes = 'class-panel',
-		styles = {
-			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
-				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
-		},
+		width = 1200,
+		height = "90%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		styles = ThemeEngine.GetStyles(),
 	}
 
 	return partyPanel

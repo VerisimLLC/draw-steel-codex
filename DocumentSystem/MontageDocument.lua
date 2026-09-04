@@ -4,12 +4,22 @@ local g_numbers = { "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eigh
 
 ---@class MontageDocument:CustomDocument
 ---@field scene string
+---@field summary string
+---@field twist string
 ---@field difficulty table<number, {success:number, failure:number}>
 ---@field challenges MontageChallenge[]
 ---@field consequences MontageConsequence[]
 ---@field rewards MontageConsequence[]
 MontageDocument = RegisterGameType("MontageDocument", "CustomDocument")
+MontageDocument.docType = "montage"   --pins the semantic type (see DocumentSystem.lua)
 MontageDocument.scene = ""
+--Illustration for the scene, shown above the scene prose wherever the montage
+--document is rendered. Empty string = no image. Set via the IconEditor in
+--EditPanel, which carries its own "Upload Image" button for bringing in a file.
+MontageDocument.sceneImage = ""
+MontageDocument.summary = ""  -- shown as the "Description" box; the montage title
+                              -- lives in self.description (the CustomDocument name)
+MontageDocument.twist = ""    -- shown as the "Optional Twist" box
 MontageDocument.vscroll = false
 
 function MontageDocument:GetDifficultyInfo(numHeroes)
@@ -39,10 +49,13 @@ MontageConsequence = RegisterGameType("MontageConsequence")
 
 ---@class MontageOutcome
 ---@field text string
----@field victories number
+---@field victoriesHard number
+---@field victoriesMedium number
 MontageOutcome = RegisterGameType("MontageOutcome")
 MontageOutcome.text = ""
-MontageOutcome.victories = 0
+--Victories awarded for this outcome depend on the montage test difficulty.
+MontageOutcome.victoriesHard = 0
+MontageOutcome.victoriesMedium = 0
 
 ---@class LiveMontageParticipant
 ---@field tokenid string
@@ -196,11 +209,10 @@ function MontageDocument:DisplayPanel()
     local resultPanel
 
     local titleLabel = gui.Label {
+        classes = { "bold", "sizeXl" },
         width = "auto",
         height = "auto",
         halign = "center",
-        fontSize = 24,
-        bold = true,
         text = self.description,
         vmargin = 4,
         savedoc = function(element)
@@ -218,24 +230,21 @@ function MontageDocument:DisplayPanel()
             flow = "horizontal",
             height = 24,
             width = 600,
-            bgimage = true,
-            bgcolor = "white",
-            opacity = 0.02,
             gui.Label {
+                classes = { "bold" },
                 width = 200,
-                bold = true,
                 text = "Heroes",
                 textAlignment = "left",
             },
             gui.Label {
+                classes = { "bold" },
                 width = 200,
-                bold = true,
                 text = "Success Limit",
                 textAlignment = "left",
             },
             gui.Label {
+                classes = { "bold" },
                 width = 200,
-                bold = true,
                 text = "Failure Limit",
                 textAlignment = "left",
             },
@@ -246,9 +255,6 @@ function MontageDocument:DisplayPanel()
             for i = 3, 6 do
                 local difficulty = self.difficulty[i]
                 children[#children + 1] = gui.Panel {
-                    bgimage = true,
-                    bgcolor = "white",
-                    opacity = cond(i % 2 == 1, 0.01, 0.02),
                     flow = "horizontal",
                     height = 24,
                     width = 600,
@@ -293,12 +299,12 @@ function MontageDocument:DisplayPanel()
 
 
     local sceneLabel = gui.Label {
+        classes = { "sizeS" },
         width = "95%",
         height = "auto",
         halign = "left",
         valign = "top",
         vmargin = 4,
-        fontSize = 14,
         text = self.scene,
         textWrap = true,
         textAlignment = "topleft",
@@ -309,26 +315,36 @@ function MontageDocument:DisplayPanel()
         end,
     }
 
+    --Scene illustration, collapsed entirely when the montage has none so an
+    --imageless montage reads exactly as it did before.
+    local sceneImagePanel = gui.Panel {
+        classes = { "image", cond(self:try_get("sceneImage", "") == "", "collapsed") },
+        width = 320,
+        height = 180,
+        halign = "left",
+        valign = "top",
+        vmargin = 4,
+        bgcolor = "white",
+        create = function(element)
+            local img = self:try_get("sceneImage", "")
+            element.selfStyle.bgimage = img ~= "" and img or nil
+        end,
+        savedoc = function(element)
+            local img = self:try_get("sceneImage", "")
+            element.selfStyle.bgimage = img ~= "" and img or nil
+            element:SetClass("collapsed", img == "")
+        end,
+    }
+
     local scrollablePanel = gui.Panel {
         width = "100%",
         height = "100%-50",
         flow = "vertical",
         valign = "top",
-        styles = {
-            {
-                selectors = { "label" },
-                fontSize = 14,
-                width = "auto",
-                height = "auto",
-                valign = "center",
-                hpad = 6,
-            }
-        },
         titleLabel,
         testDifficulty,
         gui.Label {
-            bold = true,
-            fontSize = 16,
+            classes = { "bold", "sizeM" },
             width = "auto",
             height = "auto",
             halign = "left",
@@ -336,10 +352,11 @@ function MontageDocument:DisplayPanel()
             markdown = true,
             text = "## Setting the Scene",
         },
+        sceneImagePanel,
         sceneLabel,
 
         gui.Label {
-            fontSize = 16,
+            classes = { "sizeM" },
             width = "auto",
             height = "auto",
             halign = "left",
@@ -351,7 +368,7 @@ function MontageDocument:DisplayPanel()
         self:ChallengesDisplay(),
 
         gui.Label {
-            fontSize = 16,
+            classes = { "sizeM" },
             width = "auto",
             height = "auto",
             halign = "left",
@@ -370,11 +387,10 @@ function MontageDocument:DisplayPanel()
         scrollablePanel,
 
         gui.Button {
+            classes = { "bold", "sizeXl" },
             valign = "bottom",
             text = "Begin Montage",
             halign = "center",
-            bold = true,
-            fontSize = 22,
             click = function(element)
                 local livedata = LiveMontage.new {
                     participants = {}
@@ -400,131 +416,55 @@ end
 function MontageDocument:EditPanel()
     local resultPanel
 
+    --All section headers share one style so every box is clearly labeled.
+    --topMargin adds extra space above a header to delineate major sections.
+    local function sectionLabel(text, topMargin)
+        return gui.Label {
+            classes = { "bold", "sizeM" },
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            tmargin = topMargin or 0,
+            markdown = true,
+            text = text,
+        }
+    end
+
+    --All multiline prose boxes (description, scene, twist) share one style.
+    local function proseInput(getText, setText, placeholder)
+        return gui.Input {
+            classes = { "sizeS" },
+            width = "90%",
+            height = "auto",
+            text = getText(),
+            maxHeight = 200,
+            multiline = true,
+            halign = "left",
+            textAlignment = "topleft",
+            placeholderText = placeholder,
+            valign = "top",
+            vmargin = 4,
+            characterLimit = 4096,
+            change = function(element)
+                setText(element.text)
+                CustomDocument.NotifyEdited(element)
+            end,
+        }
+    end
+
     local nameInput = gui.Input {
-        halign = "center",
+        classes = { "sizeL" },
+        halign = "left",
         valign = "top",
         width = 300,
         height = 20,
-        fontSize = 18,
         text = self.description,
         vmargin = 4,
+        placeholderText = "Montage test title",
         change = function(element)
             self.description = element.text
-        end,
-    }
-
-    local testDifficulty = gui.Panel {
-        vmargin = 4,
-        flow = "vertical",
-        width = "auto",
-        height = "auto",
-        halign = "left",
-        gui.Panel {
-            flow = "horizontal",
-            height = 24,
-            width = 600,
-            bgimage = true,
-            bgcolor = "white",
-            opacity = 0.02,
-            gui.Label {
-                width = 200,
-                bold = true,
-                text = "Heroes",
-                textAlignment = "left",
-            },
-            gui.Label {
-                width = 200,
-                bold = true,
-                text = "Success Limit",
-                textAlignment = "left",
-            },
-            gui.Label {
-                width = 200,
-                bold = true,
-                text = "Failure Limit",
-                textAlignment = "left",
-            },
-        },
-
-        create = function(element)
-            local children = element.children
-            for i = 3, 6 do
-                local difficulty = self.difficulty[i]
-                children[#children + 1] = gui.Panel {
-                    flow = "horizontal",
-                    height = 24,
-                    width = 600,
-                    bgimage = true,
-                    bgcolor = "white",
-                    opacity = cond(i % 2 == 1, 0.01, 0.02),
-                    gui.Label {
-                        width = 200,
-                        height = 24,
-                        text = g_numbers[i],
-                        textAlignment = "left",
-                    },
-
-                    gui.Panel {
-                        width = 200,
-                        height = 24,
-                        gui.Input {
-                            width = 20,
-                            height = 16,
-                            valign = "center",
-                            halign = "left",
-                            vpad = 1,
-                            fontSize = 14,
-                            text = difficulty.success,
-                            characterLimit = 1,
-                            change = function(element)
-                                local n = tonumber(element.text) or difficulty.success
-                                difficulty.success = n
-                                element.text = tostring(n)
-                            end,
-                        },
-                    },
-
-                    gui.Panel {
-                        width = 200,
-                        height = 24,
-                        gui.Input {
-                            width = 20,
-                            height = 16,
-                            valign = "center",
-                            halign = "left",
-                            vpad = 1,
-                            fontSize = 14,
-                            text = difficulty.failure,
-                            characterLimit = 1,
-                            change = function(element)
-                                local n = tonumber(element.text) or difficulty.failure
-                                difficulty.failure = n
-                                element.text = tostring(n)
-                            end,
-                        },
-                    },
-                }
-            end
-
-            element.children = children
-        end,
-    }
-
-    local sceneInput = gui.Input {
-        width = "90%",
-        height = "auto",
-        text = self.scene,
-        maxHeight = 200,
-        multiline = true,
-        halign = "left",
-        fontSize = 14,
-        textAlignment = "topleft",
-        placeholderText = "Enter scene description",
-        valign = "top",
-        vmargin = 4,
-        characterLimit = 4096,
-        change = function(element)
-            self.scene = element.text
+            CustomDocument.NotifyEdited(element)
         end,
     }
 
@@ -535,66 +475,55 @@ function MontageDocument:EditPanel()
         halign = "center",
         valign = "top",
         vscroll = true,
-        styles = {
-            Styles.Form,
-            {
-                selectors = { "deleteItemButton" },
-                priority = 20,
-                width = 12,
-                height = 12,
-            },
-            {
-                selectors = { "label" },
-                fontSize = 14,
-                width = "auto",
-                height = "auto",
-                valign = "center",
-                hpad = 6,
-            },
-        },
 
-        savedoc = function(element)
-            self:Upload()
-        end,
+        --No savedoc handler here on purpose: the inputs above write into the
+        --document object directly, so there is nothing to flush. Uploading is
+        --the shell's job (CreateInterface autosave / pencil-off / close guard),
+        --keyed off the CustomDocument.NotifyEdited calls in every change
+        --handler; a savedoc-time Upload here would double-write on every save.
 
+        sectionLabel("## Title"),
         nameInput,
-        testDifficulty,
 
-        gui.Label {
-            bold = true,
-            fontSize = 16,
-            width = "auto",
-            height = "auto",
+        sectionLabel("## Description"),
+        proseInput(
+            function() return self.summary end,
+            function(text) self.summary = text end,
+            "Enter description"),
+
+        sectionLabel("## Setting the Scene"),
+        --Scene illustration. IconEditor's picker popup carries an "Upload Image"
+        --button, so this is also how a Director brings in their own file.
+        gui.IconEditor {
+            library = "journal",
+            width = 240,
+            height = 135,
             halign = "left",
             valign = "top",
-            markdown = true,
-            text = "## Setting the Scene",
+            vmargin = 4,
+            bgcolor = "white",
+            allowNone = true,
+            value = self:try_get("sceneImage", ""),
+            change = function(element)
+                self.sceneImage = element.value or ""
+                CustomDocument.NotifyEdited(element)
+            end,
         },
+        proseInput(
+            function() return self.scene end,
+            function(text) self.scene = text end,
+            "Enter scene description"),
 
-        sceneInput,
-
-        gui.Label {
-            fontSize = 16,
-            width = "auto",
-            height = "auto",
-            halign = "left",
-            valign = "top",
-            markdown = true,
-            text = "## Montage Challenges\nThe following challenges can be part of the montage test:",
-        },
-
+        sectionLabel("## Montage Challenges\nThe following challenges can be part of the montage test:", 24),
         self:ChallengesEditor(),
 
-        gui.Label {
-            fontSize = 16,
-            width = "auto",
-            height = "auto",
-            halign = "left",
-            valign = "top",
-            markdown = true,
-            text = "## Montage Test Outcomes\nThe montage test has the following outcomes:",
-        },
+        sectionLabel("## Optional Twist", 24),
+        proseInput(
+            function() return self.twist end,
+            function(text) self.twist = text end,
+            "Enter optional twist"),
 
+        sectionLabel("## Montage Test Outcomes\nThe montage test has the following outcomes:", 24),
         self:OutcomesEditor(),
     }
 
@@ -615,6 +544,7 @@ function MontageDocument:ChallengesEditor()
                 skills = {},
             }
             resultPanel:FireEventTree("refreshChallenges")
+            CustomDocument.NotifyEdited(element)
         end,
     }
 
@@ -633,27 +563,31 @@ function MontageDocument:ChallengesEditor()
                     width = 500,
                     height = "auto",
                     gui.Input {
-                        fontSize = 18,
+                        classes = { "sizeL" },
                         vmargin = 4,
                         halign = "left",
                         text = challenge.name,
                         characterLimit = 64,
                         change = function(element)
                             challenge.name = element.text
+                            CustomDocument.NotifyEdited(element)
                         end,
-                        gui.DeleteItemButton {
+                        gui.Button {
+                            classes = { "deleteButton", "sizeXs" },
                             halign = "right",
                             x = 32,
-                            width = 16,
-                            height = 16,
-                            click = function(element)
+                            press = function(element)
                                 table.remove(self.challenges, i)
+                                --notify BEFORE the rebuild: refreshChallenges
+                                --replaces the challenge rows, orphaning this
+                                --button, and NotifyEdited walks up from it.
+                                CustomDocument.NotifyEdited(element)
                                 resultPanel:FireEventTree("refreshChallenges")
                             end,
                         },
                     },
                     gui.Input {
-                        fontSize = 18,
+                        classes = { "sizeL" },
                         vmargin = 4,
                         halign = "left",
                         multiline = true,
@@ -664,34 +598,38 @@ function MontageDocument:ChallengesEditor()
                         text = challenge.details,
                         change = function(element)
                             challenge.details = element.text
+                            CustomDocument.NotifyEdited(element)
                         end,
                     },
 
                     gui.Panel {
-                        classes = { "formPanel" },
+                        flow = "horizontal",
                         halign = "left",
+                        valign = "center",
+                        width = "auto",
+                        height = "auto",
+                        vmargin = 2,
                         gui.Label {
-                            classes = { "formLabel" },
-                            halign = "left",
                             text = "Attempts:",
+                            width = "auto",
+                            height = "auto",
+                            valign = "center",
+                            rmargin = 8,
                         },
                         gui.Input {
-                            classes = { "formInput" },
-                            halign = "left",
+                            classes = { "sizeS" },
+                            width = 40,
+                            valign = "center",
                             text = challenge.maximum,
                             characterLimit = 2,
                             change = function(element)
                                 challenge.maximum = math.max(1, tonumber(element.text) or challenge.maximum)
                                 element.text = challenge.maximum
+                                CustomDocument.NotifyEdited(element)
                             end,
-                        }
+                        },
                     },
                 }
-                children[#children + 1] = gui.Divider {
-                    width = 700,
-                    halign = "left",
-                }
-
                 children[#children + 1] = gui.Panel {
                     flow = "horizontal",
                     halign = "left",
@@ -705,7 +643,7 @@ function MontageDocument:ChallengesEditor()
                         halign = "left",
                         width = 400,
                         height = "auto",
-                        gui.SetEditor {
+                        gui.Multiselect {
                             halign = "left",
                             vmargin = 4,
                             value = challenge.characteristics,
@@ -713,10 +651,11 @@ function MontageDocument:ChallengesEditor()
                             options = creature.attributeDropdownOptions,
                             change = function(element, val)
                                 challenge.characteristics = val
+                                CustomDocument.NotifyEdited(element)
                             end,
                         },
 
-                        gui.SetEditor {
+                        gui.Multiselect {
                             halign = "left",
                             hmargin = 6,
                             vmargin = 4,
@@ -725,6 +664,7 @@ function MontageDocument:ChallengesEditor()
                             options = Skill.skillsDropdownOptions,
                             change = function(element, val)
                                 challenge.skills = val
+                                CustomDocument.NotifyEdited(element)
                             end,
                         },
                     },
@@ -766,21 +706,58 @@ function MontageDocument:OutcomesEditor()
         local victoriesPanel
         if entry.key ~= "failure" then
             victoriesPanel = gui.Panel {
-                classes = { "formPanel" },
+                flow = "horizontal",
                 halign = "left",
-                width = 20,
+                valign = "center",
+                width = "auto",
+                height = "auto",
+                vmargin = 2,
                 gui.Label {
                     text = "Victories:",
-                    width = 120,
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    rmargin = 12,
+                },
+                gui.Label {
+                    text = "Hard:",
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    rmargin = 6,
                 },
                 gui.Input {
-                    fontSize = 14,
+                    classes = { "sizeS" },
                     width = 40,
+                    valign = "center",
                     characterLimit = 1,
-                    text = outcome.victories,
+                    text = outcome.victoriesHard,
                     change = function(element)
-                        local n = tonumber(element.text) or outcome.victories
-                        outcome.victories = n
+                        local n = tonumber(element.text) or outcome.victoriesHard
+                        outcome.victoriesHard = n
+                        element.text = tostring(n)
+                        CustomDocument.NotifyEdited(element)
+                    end,
+                },
+                gui.Label {
+                    text = "Medium:",
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    lmargin = 16,
+                    rmargin = 6,
+                },
+                gui.Input {
+                    classes = { "sizeS" },
+                    width = 40,
+                    valign = "center",
+                    characterLimit = 1,
+                    text = outcome.victoriesMedium,
+                    change = function(element)
+                        local n = tonumber(element.text) or outcome.victoriesMedium
+                        outcome.victoriesMedium = n
+                        element.text = tostring(n)
+                        CustomDocument.NotifyEdited(element)
                     end,
                 },
             }
@@ -791,33 +768,32 @@ function MontageDocument:OutcomesEditor()
             width = 800,
             halign = "left",
             valign = "top",
-            gui.Panel {
-                classes = { "formPanel" },
+            vmargin = 6,
+            gui.Label {
+                classes = { "bold", "sizeM" },
+                markdown = true,
+                text = "### " .. entry.text,
+                width = "auto",
+                height = "auto",
                 halign = "left",
+                valign = "top",
+            },
+            gui.Input {
+                classes = { "sizeS" },
+                multiline = true,
+                textAlignment = "topleft",
                 width = 700,
                 height = "auto",
-                gui.Label {
-                    text = entry.text .. ":",
-                    height = "auto",
-                    width = 120,
-                    halign = "left",
-                },
-                gui.Input {
-                    multiline = true,
-                    fontSize = 14,
-                    textAlignment = "topleft",
-                    width = 540,
-                    height = "auto",
-                    maxHeight = 200,
-                    minHeight = 30,
-                    halign = "left",
-                    characterLimit = 512,
-                    placeholderText = "Describe outcome...",
-                    text = outcome.text,
-                    change = function(element)
-                        outcome.text = element.text
-                    end,
-                },
+                maxHeight = 200,
+                minHeight = 30,
+                halign = "left",
+                characterLimit = 512,
+                placeholderText = "Describe outcome...",
+                text = outcome.text,
+                change = function(element)
+                    outcome.text = element.text
+                    CustomDocument.NotifyEdited(element)
+                end,
             },
             victoriesPanel,
         }
@@ -855,15 +831,17 @@ local CreateMontageTestUI = function(args)
     local addParticipantButton
 
     if isDM then
-        closeButton = gui.CloseButton {
+        closeButton = gui.Button {
+            classes = { "closeButton" },
             halign = "right",
             valign = "top",
-            click = function(element)
+            press = function(element)
                 GameHud.HidePresentedDialog()
             end,
         }
 
-        addParticipantButton = gui.AddButton {
+        addParticipantButton = gui.Button {
+            classes = { "addButton", "sizeXs" },
             x = 28,
             halign = "right",
             valign = "bottom",
@@ -938,10 +916,9 @@ local CreateMontageTestUI = function(args)
                         width = 100,
                         height = 130,
                         gui.Panel {
-                            bgcolor = "white",
+                            classes = { "image" },
                             width = "78% height",
                             height = 100,
-                            bgimage = true,
                             halign = "center",
                             valign = "top",
 
@@ -978,10 +955,10 @@ local CreateMontageTestUI = function(args)
                             end,
                         },
                         gui.Label {
+                            classes = { "sizeM" },
                             width = "90%",
                             height = "auto",
                             halign = "center",
-                            fontSize = 16,
                             minFontSize = 10,
 
                             textAlignment = "center",
@@ -1022,12 +999,11 @@ local CreateMontageTestUI = function(args)
         local m_segments = {}
         local m_fill
         m_fill = gui.Panel{
+            classes = { "fillBarFill" },
             floating = true,
             width = "0%",
             height = 20,
-            bgcolor = "white",
             gradient = cond(mode == "success", Styles.healthGradient, Styles.bloodiedGradient),
-            bgimage = true,
             halign = "left",
 
             thinkTime = 0.01,
@@ -1044,23 +1020,19 @@ local CreateMontageTestUI = function(args)
             end,
         }
         local successBar = gui.Panel{
+            classes = { "fillBar" },
             width = 100,
             height = 20,
             valign = "center",
             halign = "left",
             flow = "horizontal",
-            bgimage = true,
-            bgcolor = "black",
             refreshMontage = function(element, montage)
                 local difficultyInfo = montageDoc:GetDifficultyInfo(montage:HeroCount())
                 local count = math.min(8, difficultyInfo[mode])
                 element.selfStyle.width = count*100
                 while #m_segments < count do
                     m_segments[#m_segments + 1] = gui.Panel {
-                        borderWidth = 1,
-                        borderColor = "white",
-                        bgimage = true,
-                        bgcolor = "clear",
+                        classes = { "fillBarSegment" },
                         width = 100,
                         height = 20,
                     }
@@ -1112,39 +1084,18 @@ local CreateMontageTestUI = function(args)
             width = "auto",
             height = "auto",
             halign = "left",
-            styles = {
-                {
-                    selectors = {"plusButton"},
-                    width = 20,
-                    height = 20,
-                    borderWidth = 1,
-                    borderColor = "white",
-                    color = "white",
-                    bgcolor = "black",
-                    bold = true,
-                    fontSize = 20,
-                    textAlignment = "center",
-                },
-                {
-                    selectors = {"plusButton", "hover"},
-                    color = "black",
-                    bgcolor = "white",
-                },
-            },
-            gui.Label{
-                classes = {"plusButton"},
+            gui.Button{
+                classes = { "sizeXxs" },
                 text = "-",
-                bgimage = true,
-                click = function(element)
+                press = function(element)
                     incrementSuccess(-1)
                 end,
             },
             successBar,
-            gui.Label{
-                classes = {"plusButton"},
+            gui.Button{
+                classes = { "sizeXxs" },
                 text = "+",
-                bgimage = true,
-                click = function(element)
+                press = function(element)
                     incrementSuccess(1)
                 end,
             },
@@ -1166,11 +1117,10 @@ local CreateMontageTestUI = function(args)
             width = 900,
             height = 50,
             gui.Label{
+                classes = { "bold", "sizeL" },
                 halign = "left",
-                fontSize = 20,
                 width = 100,
                 height = 24,
-                bold = true,
                 text = "Successes:",
             },
             CreateSuccessBar("success"),
@@ -1181,11 +1131,10 @@ local CreateMontageTestUI = function(args)
             width = 900,
             height = 50,
             gui.Label{
+                classes = { "bold", "sizeL" },
                 halign = "left",
-                fontSize = 20,
                 width = 100,
                 height = 24,
-                bold = true,
                 text = "Failures:",
             },
             CreateSuccessBar("failure"),
@@ -1194,22 +1143,20 @@ local CreateMontageTestUI = function(args)
 
     local resultPanel
     resultPanel = gui.Panel {
+        styles = ThemeEngine.GetStyles(),
+        classes = { "bordered", "bg" },
         width = 1100,
         height = 900,
-        bgcolor = "black",
-        bgimage = true,
-        opacity = 0.9,
         blurBackground = true,
         monitorGame = doc.path,
 
         gui.Label {
+            classes = { "bold", "sizeXxl" },
             halign = "center",
             valign = "top",
             width = "auto",
             height = "auto",
             tmargin = 6,
-            fontSize = 26,
-            bold = true,
             text = string.format(tr("Montage: %s"), montageDoc.description),
         },
 
@@ -1230,6 +1177,12 @@ local CreateMontageTestUI = function(args)
         end,
     }
 
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = ThemeEngine.GetStyles()
+        end
+    end)
+
     resultPanel:FireEventTree("refreshMontage", doc.data.livedata)
 
     return resultPanel
@@ -1239,4 +1192,55 @@ GameHud.RegisterPresentableDialog {
     id = "montage",
     keeplocal = false,
     create = CreateMontageTestUI,
+}
+
+--Prepped montage test. It reuses all of MontageDocument's editor and display
+--logic and, like NegotiationDocument, now lives in the shared "documents"
+--table so a prepped montage IS a journal document: it sits in journal folders,
+--edits in the viewer, carries docType="montage" (its icon), and the live
+--runner resolves it (CreateMontageTestUI reads the documents table). Sites
+--that iterate the montage set must now filter on docType=="montage" because
+--the documents table holds every journal document.
+MontageTest = RegisterGameType("MontageTest", "MontageDocument")
+MontageTest.tableName = CustomDocument.tableName   --"documents" (was "montageTests")
+
+function MontageTest.CreateNew(args)
+    local result = MontageTest.new{
+        description = "New Montage Test",
+        scene = "",
+        difficulty = {
+            difficulty = true,
+            [3] = { success = 3, failure = 3 },
+            [4] = { success = 4, failure = 4 },
+            [5] = { success = 5, failure = 5 },
+            [6] = { success = 6, failure = 6 },
+        },
+        challenges = {},
+        consequences = {},
+        rewards = {},
+        outcomes = {
+            success = MontageOutcome.new{ victoriesHard = 2, victoriesMedium = 1 },
+            partial = MontageOutcome.new{ victoriesHard = 1, victoriesMedium = 1 },
+            failure = MontageOutcome.new{},
+        },
+    }
+    if args then
+        for k,v in pairs(args) do
+            result[k] = v
+        end
+    end
+    return result
+end
+
+--Montage creation now lives in the journal's "New Document" palette (the
+--compendium montage tab was retired). Creates a MontageTest in the documents
+--table with docType="montage"; onNewDocument opens it for editing like any doc.
+CustomDocument.Register {
+    id = "montage",
+    text = "New Montage",
+    docType = "montage",
+    icon = CustomDocument.docTypeInfo["montage"].icon,
+    create = function()
+        return MontageTest.CreateNew{}
+    end,
 }

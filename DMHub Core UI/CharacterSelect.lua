@@ -95,9 +95,16 @@ local function _characterSelector(args)
     local function buildTokenPanel(token, mentor)
         local isSelected = initiallySelected[token.id] == true
         local description = fnDisplayText and fnDisplayText(token, mentor) or (token.name or "Unknown")
+        --{row} brings the paintable surface with it, so there is no bgimage
+        --path here; {hoverable} replaces the hand-rolled hover tint, and
+        --"selected" now lands on the theme's row-selected rule, which also
+        --recolors the name label through {label, parent:row, parent:selected}.
         return gui.Panel{
-            bgimage = "panels/square.png",
-            classes = {"token-panel", isSelected and "selected" or nil},
+            classes = {"row", "hoverable", isSelected and "selected" or nil},
+            valign = "top",
+            halign = "left",
+            width = layoutList and "100%" or 64,
+            height = layoutList and 26 or 64,
             data = {
                 token = mentor or token,
                 follower = mentor and token or nil,
@@ -117,7 +124,10 @@ local function _characterSelector(args)
                 }),
                 layoutList and gui.Label{
                     text = description,
-                    classes = {"token-name-label"},
+                    classes = {"sizeM"},
+                    width = "100%",
+                    height = "100%",
+                    halign = "left",
                     valign = "center",
                     hmargin = 8,
                 } or nil,
@@ -158,57 +168,16 @@ local function _characterSelector(args)
     end
 
     local function buildTokenGrid(tokenPanels)
+        --No local styles table: one here would shadow the inherited
+        --ThemeEngine cascade for everything below it, so the theme classes on
+        --the token panels would silently stop resolving.
         return gui.Panel {
-            classes = {"tokenPool"},
-            bgimage = 'panels/square.png',
-            bgcolor = 'black',
-            cornerRadius = 8,
-            border = 2,
-            borderColor = '#888888',
+            classes = {"tokenPool", "bordered"},
+            valign = 'top',
             width = "100%",
             height = gridHeight,
             pad = 4,
             vmargin = 8,
-            styles = {
-                {
-                    classes = {'token-panel'},
-                    bgcolor = 'black',
-                    cornerRadius = 4,
-                    width = layoutList and "100%" or 64,
-                    height = layoutList and 26 or 64,
-                    halign = 'left',
-                },
-                {
-                    classes = {'token-name-label'},
-                    color = 'white',
-                    fontSize = 16,
-                    valign = "center",
-                    halign = "left",
-                    width = "100%",
-                    height = "100%",
-                },
-                {
-                    classes = {'token-panel', 'hover'},
-                    borderColor = 'grey',
-                    borderWidth = 2,
-                    bgcolor = '#441111',
-                },
-                {
-                    classes = {'token-panel', 'selected'},
-                    borderColor = 'white',
-                    borderWidth = 2,
-                    bgcolor = '#882222',
-                },
-                {
-                    classes = { "follower-row" },
-                    hmargin = 28,
-                },
-                {
-                    classes = { "follower-label" },
-                    fontSize = 14,
-                    color = "#cccccc",
-                }
-            },
             children = {
                 gui.Panel {
                     id = "tokenGrid",
@@ -231,34 +200,9 @@ local function _characterSelector(args)
             halign = 'center',
             width = 'auto',
             height = 'auto',
-            styles = {
-                {
-                    classes = {'token-pool-shortcut'},
-                    color = '#aaaaaa',
-                    fontSize = 16,
-                    width = 'auto',
-                    height = 'auto',
-                    valign = 'center',
-                    halign = 'center',
-                },
-                {
-                    classes = {'token-pool-shortcut', 'hover'},
-                    color = 'white',
-                },
-                {
-                    classes = {'shortcut-divider'},
-                    bgimage = 'panels/square.png',
-                    halign = 'center',
-                    valign = 'center',
-                    margin = 4,
-                    width = 2,
-                    height = 16,
-                    bgcolor = '#aaaaaa',
-                },
-            },
             children = {
                 gui.Label{
-                    classes = {'token-pool-shortcut'},
+                    classes = {"sizeM", "fgMuted", "hoverable"},
                     text = 'All',
                     click = function(element)
                         for _, panel in ipairs(tokenPanels) do
@@ -268,9 +212,9 @@ local function _characterSelector(args)
                         if controller then controller:FireEvent("updateSelection") end
                     end,
                 },
-                gui.Panel{ classes = {'shortcut-divider'} },
+                gui.Panel{ classes = {"bordered"}, width = 1, height = 16, margin = 4, halign = 'center', valign = 'center' },
                 gui.Label{
-                    classes = {'token-pool-shortcut'},
+                    classes = {"sizeM", "fgMuted", "hoverable"},
                     text = 'Party',
                     linger = function(element)
                         local tt = "Select all party members of\nall currently selected tokens"
@@ -305,9 +249,9 @@ local function _characterSelector(args)
                         if controller then controller:FireEvent("updateSelection") end
                     end,
                 },
-                gui.Panel{ classes = {'shortcut-divider'} },
+                gui.Panel{ classes = {"bordered"}, width = 1, height = 16, margin = 4, halign = 'center', valign = 'center' },
                 includeFollowers and gui.Label {
-                    classes = {'token-pool-shortcut'},
+                    classes = {"sizeM", "fgMuted", "hoverable"},
                     text = "Followers",
                     click = function(element)
                         for _, panel in ipairs(tokenPanels) do
@@ -319,9 +263,9 @@ local function _characterSelector(args)
                         if controller then controller:FireEvent("updateSelection") end
                     end,
                 } or nil,
-                includeFollowers and gui.Panel{ classes = {'shortcut-divider'} } or nil,
+                includeFollowers and gui.Panel{ classes = {"bordered"}, width = 1, height = 16, margin = 4, halign = 'center', valign = 'center' } or nil,
                 gui.Label{
-                    classes = {'token-pool-shortcut'},
+                    classes = {"sizeM", "fgMuted", "hoverable"},
                     text = 'None',
                     click = function(element)
                         for _, panel in ipairs(tokenPanels) do

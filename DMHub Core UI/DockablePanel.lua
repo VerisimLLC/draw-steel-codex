@@ -1,10 +1,79 @@
 --Use /BroadcastDefaultSetting dockablepanelsplayer_v1 to broadcast new dockable panel setup.
 --Use /BroadcastDefaultSetting dockablepanelsgm_v2 to broadcast new gm dockable panel setup.
 
+local mod = dmhub.GetModLoading()
+
 setting{
     id = "centerdockoffscreen",
     default = false,
     storage = "transient",
+}
+
+--The icon-rail ("New Experimental UI") mode toggle. Registered HERE
+--rather than in DocumentSystem (which owns the rail itself) because this
+--file loads long before it and the setting is read at STARTUP: the title
+--bar is built at CodexTitleBar.lua load time and sizes its search box
+--via DockablePanel.EffectiveDockScale, and reading a not-yet-registered
+--setting logs an engine "Could not find setting" error. The behavior
+--stays in DocumentSystem: its rail/dock sync work is reached through the
+--IconRailSettingChanged global it defines. rawget because the global is
+--nil until DocumentSystem loads -- harmless, since the setting can only
+--change from UI that exists well after load.
+--
+--Defaults ON: the rail is now the intended UI, and resetCount forces it
+--back to the default ONCE for everyone -- users who had opted out (or
+--never opted in, back when the default was false) are switched on at the
+--first launch after this ships. The engine implements it in
+--CoreAssets/Lua/settings.txt: it keeps a companion "iconrail_resets"
+--preference and only resets while that counter is below resetCount, so a
+--user who turns the rail off AFTER the migration keeps it off. Bump
+--resetCount only to deliberately force everyone back to the default again.
+setting{
+    id = "iconrail",
+    description = "New Experimental UI",
+    help = "Experimental: replace the side docks with icon rails on the screen edges, and summon panels as floating windows from them.",
+    storage = "preference",
+    editor = "check",
+    default = true,
+    resetCount = 1,
+    onchange = function()
+        local fn = rawget(_G, "IconRailSettingChanged")
+        if fn ~= nil then
+            fn()
+        end
+    end,
+}
+
+setting{
+    id = "dockscale",
+    description = "Dock Scale",
+    help = "Scales the side docks. Lower values make the docks narrower; to compensate they grow taller so they always fill the full height of the screen, letting more panels stack vertically. Higher values make them wider and shorter.",
+    storage = "preference",
+    editor = "slider",
+    percent = true,
+    default = 1.0,
+    min = 0.5,
+    max = 1.5,
+    --The icon-rail UI ignores dock scaling entirely (docks are slid away
+    --there and every reader goes through DockablePanel.EffectiveDockScale,
+    --which reads 1 while iconrail is on), so hide the slider with it. The
+    --stored preference is kept and comes back when the rail is turned off.
+    visible = function()
+        return dmhub.GetSettingValue("iconrail") ~= true
+    end,
+    monitorVisible = {"iconrail"},
+    onchange = function()
+        --Apply the new scale live to any docks that already exist. Docks are
+        --only created once a game is active; bail out otherwise.
+        if rawget(_G, "gamehud") == nil or rawget(gamehud, "leftDock") == nil then
+            return
+        end
+        for _,dock in ipairs(gamehud:Docks()) do
+            if dock ~= nil and dock.valid then
+                dock:FireEvent("setScale")
+            end
+        end
+    end,
 }
 
 --types of registered dockable panels.
@@ -16,7 +85,9 @@ local dockablePanelsDMSetting = "dockablepanelsgm_v2"
 local g_dockGap = 0
 
 function GetDockablePanelsSetting()
-	return cond(dmhub.isDM, dockablePanelsDMSetting, dockablePanelsPlayerSetting)
+	--DirectorUIVisible rather than dmhub.isDM: a Director presenting as a
+	--player (Encounter of the Week host) loads the player dock layout.
+	return cond(GameHud.DirectorUIVisible(), dockablePanelsDMSetting, dockablePanelsPlayerSetting)
 end
 
 local GetPanelsConfig = function()
@@ -63,214 +134,6 @@ setting{
 
 local DockablePanelBorder = 8
 
-local DockablePanelTheme = {
-	{
-		selectors = {"dock"},
-	},
-
-	{
-		selectors = {"dock", "offscreen", "left"},
-		x = -DockablePanel.DockWidth,
-		transitionTime = 0.2,
-	},
-
-	{
-		selectors = {"dock", "offscreen", "right"},
-		x = DockablePanel.DockWidth,
-		transitionTime = 0.2,
-	},
-
-	{
-		selectors = {"dockFrame"},
-		--bgimage = 'panels/hud/button_09_frame_custom.png',
-        bgimage = true,
-		bgcolor = '#00000000',
-		width = "100%",
-		height = string.format("100%%+%d", round(g_dockGap)),
-        valign = "bottom",
-	},
-
-    {
-        selectors = {"dockFrame", "~uiblur"},
-        bgcolor = "#000000",
-    },
-
-	{
-		selectors = {"dockFrame", "parent:empty"},
-        collapsed = 1,
-	},
-
-
-	{
-		selectors = {"dockablePanel"},
-		width = "100%",
-		height = "100%",
-		halign = "center",
-		valign = "center",
-
-		vpad = 4,
-	},
-
-	{
-		selectors = {"dockablePanel", "highlightPanel"},
-		--bgimage = 'panels/hud/button_09_frame_highlight.png',
-	},
-
-
-	{
-		selectors = {"tabContainer"},
-        bgimage = true,
-        gradient = Styles.RichBlackGradient,
-        bgcolor = "white",
-        borderColor = Styles.Gold02,
-        border = {x1 = 0, x2 = 0, y1 = 0, y2 = 1},
-	},
-
-    {
-        selectors = {"tabContainer", "~mono"},
-        border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
-    },
-
-	{
-		selectors = {"dragGhost"},
-		opacity = 0,
-		bgcolor = "#4444ff",
-	},
-
-	{
-		selectors = {"dragGhost", "dragging"},
-		opacity = 0.5,
-	},
-	{
-		selectors = {"dragGhost", "dragging", "deleting"},
-		bgcolor = "#ff4444",
-	},
-    {
-        selectors = {"dragGhost", "floatingTarget"},
-        opacity = 0,
-    },
-	{
-		selectors = {"verticalDragInvisibleHandle"},
-		width = "100%",
-		y = -4,
-		height = 8,
-		opacity = 0,
-		bgimage = "panels/square.png",
-		bgcolor = "white",
-		valign = "top",
-		halign = "center",
-	},
-
-	{
-		selectors = {"verticalDragDivider"},
-		width = "100%-8",
-		halign = "center",
-		valign = "top",
-		height = 2,
-		--opacity = 1,
-		--bgimage = "panels/square.png",
-		--bgcolor = "clear",
-	},
-	{
-		selectors = {"verticalDragInvisibleHandle", "tabs"},
-	},
-	{
-		selectors = {"verticalDragDivider", "tabs"},
-	},
-
-	{
-		selectors = {"highlightPanel"},
-		--bgimage = "panels/square.png",
-		--bgcolor = "#ffffff33",
-	},
-
-    {
-        selectors = {"dockHandleImage"},
-        width = 32,
-        height = 64,
-		bgimage = "panels/dock-handle.png",
-		bgcolor = "white",
-		saturation = 0,
-		brightness = 2,
-        opacity = 0.8,
-        x = 8,
-    },
-
-    {
-		selectors = {"dockHandle"},
-		width = 32,
-		height = 64,
-        bgimage = "panels/square.png",
-		bgcolor = "clear",
-		valign = "bottom",
-		halign = "right",
-	},
-
-	{
-		selectors = {"dockHandle", "left"},
-		scale = {x = -1},
-		x = 32,
-		y = 8,
-	},
-
-	{
-		selectors = {"dockHandle", "right"},
-		halign = "left",
-		x = -32,
-		y = 8,
-	},
-
-	{
-		selectors = {"dockHandle", "parent:empty"},
-		collapsed = 1,
-	},
-
-
-
-	{
-		selectors = {"dockHandleImage", "hover"},
-		x = -8,
-		transitionTime = 0.1,
-		brightness = 2,
-	},
-
-    {
-        selectors = {"tab"},
-		width = 20,
-		height = 20,
-        bgcolor = "white",
-        halign = "center",
-        valign = "center",
-    },
-
-    {
-        selectors = {"tabLabel", "crowded", "~selected"},
-        collapsed = 1,
-    },
-
-    {
-        selectors = {"buttonContainer"},
-        bgimage = true,
-        bgcolor = "clear",
-        borderColor = Styles.Gold02,
-        border = {y1 = 1, x1 = 0, x2 = 0, y2 = 0},
-
-    },
-    {
-        selectors = {"buttonContainer", "selected"},
-        bgimage = true,
-        bgcolor = Styles.RichBlack02,
-        border = {y1 = 0, x1 = 1, x2 = 1, y2 = 1},
-    },
-    {
-        selectors = {"buttonContainer", "mono"},
-        bgcolor = "clear",
-        border = {y1 = 0, x1 = 0, x2 = 0, y2 = 0},
-    }
-}
-
-gui.RegisterTheme("DockablePanel", "Main", DockablePanelTheme)
-
 function GameHud:CreateSingleDock(params)
     local floating = params.floating or false
     params.floating = nil
@@ -299,7 +162,10 @@ function GameHud:CreateSingleDock(params)
             classes = {"dockHandle", params.halign},
             floating = true,
             interactable = false,
-            vscroll = true,
+            --NOT vscroll: this carried vscroll = true for a while, and since
+            --the handle's image child lays out taller than the handle, the
+            --engine drew a native scroll track + thumb -- a stray grey bar
+            --with a white slider floating at each dock edge over the map.
 
             gui.Panel{
                 classes = {"dockHandleImage"},
@@ -311,8 +177,23 @@ function GameHud:CreateSingleDock(params)
                     end,
 
                     monitor = function(element)
+                        local wasOffscreen = resultPanel:HasClass("offscreen")
                         resultPanel:SetClass("offscreen", dmhub.GetSettingValue(offscreenSetting))
                         dmhub.UpdateScreenHudArea(cond(resultPanel:HasClass("offscreen"), 0, 1))
+
+                        --Sliding the dock away leaves every panel in it alive and
+                        --still focused, just invisible. That is not harmless: a
+                        --panel that arms a mode off focus keeps it armed with
+                        --nothing on screen to say so (the Objects panel arms
+                        --object editing mode, which turns off regular play mode
+                        --and with it creature rectangle-select). hidepanel is the
+                        --same event a tab switch fires, and each panel's handler
+                        --already knows how to give up focus -- including the
+                        --focus-here-first dance the panels whose childdefocus
+                        --re-grabs a nil focus need.
+                        if resultPanel:HasClass("offscreen") and not wasOffscreen then
+                            resultPanel:FireEventTree("hidepanel")
+                        end
                     end,
 
                     create = function(element)
@@ -323,8 +204,45 @@ function GameHud:CreateSingleDock(params)
         }
     end
 
-	local DockHeight = (params.height or 1080)
-	params.height = DockHeight
+	--Dock scaling. The dock is rendered at 'dockScale' via uiscale, which
+	--scales the dock's layout footprint too, so a smaller scale makes the dock
+	--narrower on screen. To keep the dock filling the full screen height
+	--regardless of scale, the logical DockHeight is the on-screen target height
+	--divided by the scale: a smaller scale yields a taller logical dock, so more
+	--panels fit vertically. The floating (center) dock is never scaled.
+	--NOTE: DockHeight is captured as an upvalue by fitChildren/sizeChild below;
+	--the setScale event reassigns it so those closures pick up the new value.
+	local baseDockHeight = (params.height or 1080)
+	local dockScale = cond(floating, 1, DockablePanel.EffectiveDockScale())
+	local DockHeight = baseDockHeight / dockScale
+	--The dock is created at base size / uiscale 1 / default pivot, then setScale
+	--is fired once after construction to apply the real scale+pivot+height. This
+	--matters because _rectTransform.pivot is only (re)applied during a size-change
+	--refresh (UpdateStyle): a pivot set purely at construction races with the
+	--parent's positionY, which bakes the OLD center pivot into the panel position.
+	--Driving it through setScale (which changes uiscale+height) forces that refresh.
+	params.height = baseDockHeight
+
+	--Per-dock style that slides the dock off its screen edge while the
+	--'offscreen' class is set. The slide distance must equal the dock's
+	--*rendered* width (DockWidth * dockScale): the dock renders at
+	--uiscale=dockScale and the restore handle is a child of the dock, so a fixed
+	--base-width offset overshoots by (1-dockScale)*DockWidth and carries the
+	--handle off-screen with the dock, leaving it unreachable at scales below
+	--~0.93. This lives as a per-dock style (rebuilt on setScale) rather than a
+	--static rule in DefaultStyles so the distance can track dockScale -- and,
+	--crucially, because it's driven by the 'offscreen' *class* (not selfStyle)
+	--the transitionTime animates the slide. selfStyle changes apply instantly; a
+	--style applied/removed by a class change is what the engine transitions. The
+	--floating (center) dock isn't scaled and has no handle, so it gets no offset.
+	local function OffscreenStyle()
+		local dir = cond(params.halign == "right", 1, -1)
+		return gui.Style{
+			selectors = {"offscreen"},
+			x = cond(floating, 0, dir * DockablePanel.DockWidth * dockScale),
+			transitionTime = 0.2,
+		}
+	end
 
 	local verticalResizingInfo = nil
 
@@ -380,12 +298,26 @@ function GameHud:CreateSingleDock(params)
         width = (1920 * ((dmhub.screenDimensions.x/dmhub.screenDimensions.y)/(1920/1080))) - width*2 - DockablePanel.FloatingDockMargin
     end
 
+	--uiscale scales the dock around its pivot (Unity localScale), so the pivot
+	--must sit on the anchored corner or the scaled dock drifts off its edge:
+	--pivot.y=0 is the bottom (matches valign="bottom") and pivot.x is the docked
+	--side (0=left, 1=right). With a center pivot the dock floats up when scaled
+	--down and down when scaled up, and insets from the screen edge horizontally.
+	--The floating (center) dock isn't scaled, so it keeps the default pivot.
+	--Applied via setScale (in selfStyle), not here -- see the note above.
+	--NOTE: pivot MUST use the named {x=,y=} form. A positional {0,0} is silently
+	--ignored by selfStyle.pivot (the pivot stays at the default center), which
+	--makes the scaled dock drift off its edge no matter what value you pass.
+	local dockPivot = cond(floating, {x = 0.5, y = 0.5}, {x = cond(params.halign == "right", 1, 0), y = 0})
+
 	local args = {
 		id = params.id,
 		flow = cond(floating, "none", "vertical"),
 		interactable = false,
 		width = width,
+		uiscale = 1,
 		classes = {"dock", params.halign},
+		styles = {OffscreenStyle()},
 		dragTarget = true,
 		data = {
             floating = floating,
@@ -412,10 +344,19 @@ function GameHud:CreateSingleDock(params)
 		layoutChanged = function(element)
             local children = element.data.GetChildren()
             if not floating then
+                local expandedCount = 0
+                for _,child in ipairs(children) do
+                    if not child.data.minimized then
+                        expandedCount = expandedCount + 1
+                    end
+                end
+
+                local isSingle = #children == 1 and element.data.maximizedChild == nil
+
                 for i,child in ipairs(children) do
                     child:FireEventTree("draggable", i > 1)
-
-                    child:SetClassTree("single", #children == 1)
+                    child:SetClassTree("single", isSingle)
+                    child:SetClassTree("lastExpanded", expandedCount <= 1 and not child.data.minimized)
                 end
             end
 
@@ -467,6 +408,36 @@ function GameHud:CreateSingleDock(params)
 			for _,child in ipairs(element.data.GetChildren()) do
 				child.data.startDragHeight = nil
 			end
+		end,
+
+		--Re-read the dockscale setting and reapply it live. Reassigning the
+		--DockHeight upvalue here also updates fitChildren/sizeChild, which close
+		--over the same local. Children heights are in the dock's logical (pre-
+		--uiscale) coordinate space, so re-fitting against the new DockHeight
+		--reflows them to fill the rescaled dock.
+		setScale = function(element)
+			if floating then
+				return
+			end
+			dockScale = DockablePanel.EffectiveDockScale()
+			DockHeight = baseDockHeight / dockScale
+			element.data.DockHeight = DockHeight
+			--Set pivot in selfStyle (the form that actually takes effect) and
+			--change uiscale+height so the resulting refresh re-applies the pivot.
+			element.selfStyle.pivot = dockPivot
+			element.selfStyle.uiscale = dockScale
+			element.selfStyle.height = DockHeight
+			--updatetabs recomputes each container's min/max height against the new
+			--scale before we re-fit them into the rescaled dock.
+			element:FireEventTree("updatetabs")
+			element:FireEvent("fitChildren")
+			element:FireEventTree("layoutChanged")
+			--Rebuild the offscreen slide style for the new scale: its translation
+			--distance is DockWidth*dockScale, so if the dock is currently
+			--offscreen the restore handle would otherwise drift off the screen
+			--edge. The dock has no other local styles, so replacing the array is
+			--safe (the DefaultStyles cascade comes from ancestors, not here).
+			element.styles = {OffscreenStyle()}
 		end,
 
 
@@ -529,6 +500,12 @@ function GameHud:CreateSingleDock(params)
 
             if floating then
                 container:FireEvent("minimizeFloating")
+                -- Mirror the maximize floating path: broadcast minimize so
+                -- child panels re-collapse their content, without the docked
+                -- fitChildren layout work.
+                container:SetClassTree("maximized", false)
+                container:FireEventTree("minimize")
+                element.data.maximizedChild = nil
                 return
             end
 
@@ -540,9 +517,11 @@ function GameHud:CreateSingleDock(params)
 
 			element:FireEvent("fitChildren")
 
+			container:SetClassTree("maximized", false)
 			container:FireEventTree("minimize")
 
 			element.data.maximizedChild = nil
+			element:FireEvent("layoutChanged")
 		end,
 
 		maximizeChild = function(element, child)
@@ -552,10 +531,31 @@ function GameHud:CreateSingleDock(params)
 				return
 			end
 
+			-- Undo any minimized panels first.
+			for _,ch in ipairs(element.data.GetChildren()) do
+				if ch.data.minimized then
+					ch.data.minimized = false
+					ch.data.minHeight = ch.data.savedMinHeight or 40
+					ch.data.maxHeight = ch.data.savedMaxHeight or 1080
+					ch.data.locked = false
+					ch.data.savedMinHeight = nil
+					ch.data.savedMaxHeight = nil
+					ch:SetClassTree("minimizeSet", false)
+				end
+			end
+
 			container.data.maximized = true
 
             if floating then
                 container:FireEvent("maximizeFloating")
+                -- A floating panel has no siblings to collapse and resizes
+                -- itself via maximizeFloating, so skip the dock fitChildren
+                -- work. But still broadcast the maximize event/class the same
+                -- way the docked path does, so child panels that reveal their
+                -- content on maximize (e.g. the audio sound browser) react.
+                container:SetClassTree("maximized", true)
+                container:FireEventTree("maximize")
+                element.data.maximizedChild = child
                 return
             end
 
@@ -567,9 +567,101 @@ function GameHud:CreateSingleDock(params)
 
 			element:FireEvent("fitChildren")
 
+			container:SetClassTree("maximized", true)
 			container:FireEventTree("maximize")
 
 			element.data.maximizedChild = child
+			element:FireEvent("layoutChanged")
+		end,
+
+		shrinkChild = function(element, child)
+			local container = child:FindParentWithClass("dockablePanelContainer")
+			if container == nil then
+				return
+			end
+
+			if floating then
+				return
+			end
+
+			-- Undo any maximize first.
+			if element.data.maximizedChild ~= nil and element.data.maximizedChild.valid then
+				element:SetClassTree("collapseSet", true)
+				element.data.maximizedChild:FireEventOnParents("minimizeChild", element.data.maximizedChild)
+			end
+
+			container.data.minimized = true
+			container.data.savedMinHeight = container.data.minHeight
+			container.data.savedMaxHeight = container.data.maxHeight
+			container.data.savedHeight = container.selfStyle.height
+			container:SetClassTree("minimizeSet", true)
+
+			local shrunkHeight = 33
+			container.data.minHeight = shrunkHeight
+			container.data.maxHeight = shrunkHeight
+			container.data.locked = true
+			container.selfStyle.height = shrunkHeight
+
+			element:FireEvent("fitChildren")
+			element:FireEvent("layoutChanged")
+			DockablePanel.Serialize()
+		end,
+
+		unshrinkChild = function(element, child)
+			local container = child:FindParentWithClass("dockablePanelContainer")
+			if container == nil or not container.data.minimized then
+				return
+			end
+
+			if floating then
+				return
+			end
+
+			container.data.minimized = false
+			container.data.minHeight = container.data.savedMinHeight or 40
+			container.data.maxHeight = container.data.savedMaxHeight or 1080
+			container.data.locked = false
+			if container.data.savedHeight then
+				container.selfStyle.height = container.data.savedHeight
+			end
+			container.data.savedMinHeight = nil
+			container.data.savedMaxHeight = nil
+			container.data.savedHeight = nil
+			container:SetClassTree("minimizeSet", false)
+
+			element:FireEvent("fitChildren")
+			--FireEventTree (not FireEvent) so the container's contentPanel re-runs its
+			--own layoutChanged, which clears its "collapsed" class (keyed off
+			--data.minimized). After an F5 restore the panel was deserialized minimized,
+			--leaving the contentPanel collapsed; a dock-level FireEvent doesn't reach it,
+			--so without this the panel un-minimizes to an empty backing panel.
+			element:FireEventTree("layoutChanged")
+
+			--Rebuild each panel instance's content on restore. Shrinking the panel to a
+			--33px title bar drives the inner vscroll (hideObjectsOutOfScroll) to cull --
+			--i.e. disable the renderers of -- the scrolled-out content. Simple panels
+			--recover when the viewport grows back, but content with its own deferred
+			--render lifecycle (notably gui.TextEditor / MarkdownDocument note bodies)
+			--stays permanently unpainted: the panel un-minimizes to a laid-out but blank
+			--tree that only a full rebuild fixes (which is why closing + reopening the
+			--panel "fixed" it). Re-firing "init" rebuilds the content fresh -- exactly
+			--the reopen path -- so it renders correctly. Deferred a tick so it runs
+			--after the restore's fitChildren/layout has settled (rebuilding into a
+			--still-shrunk viewport re-culls the fresh content). Cheap: only on an
+			--explicit user restore, and keeps the panel/tab identity intact.
+			local rebuildContainer = container
+			dmhub.Schedule(0.01, function()
+				if mod.unloaded or rebuildContainer == nil or not rebuildContainer.valid then
+					return
+				end
+				for _,instance in ipairs(rebuildContainer.data.GetPanelInstances()) do
+					if instance ~= nil and instance.valid then
+						instance:FireEvent("init")
+					end
+				end
+			end)
+
+			DockablePanel.Serialize()
 		end,
 
 		ensureNoMaximize = function(element)
@@ -577,6 +669,7 @@ function GameHud:CreateSingleDock(params)
 				element.data.maximizedChild:FireEventOnParents("minimizeChild", element.data.maximizedChild)
 			end
 		end,
+
 
 		fitChildren = function(element)
             if floating then
@@ -715,6 +808,12 @@ function GameHud:CreateSingleDock(params)
 
 	resultPanel = gui.Panel(args)
 
+	--The dock is left at uiscale 1 / base height / default pivot here. The real
+	--scale+pivot is applied later via setScale once the dock is attached to the
+	--screen (see InitDockablePanels). Applying it at construction would race with
+	--layout -- the pivot wouldn't take effect and the scaled dock drifts off its
+	--edge. setScale must run on an attached dock to anchor correctly.
+
 	return resultPanel
 end
 
@@ -743,8 +842,9 @@ function GameHud:CreateDocks()
         dragTargetPriority = 5,
     }
 
-	local resultPanel = gui.Panel{
-		theme = "DockablePanel.Main",
+	local resultPanel
+	resultPanel = gui.Panel{
+		styles = ThemeEngine.GetStyles(),
 		width = "100%",
 		height = "100%",
 		valign = "center",
@@ -756,7 +856,129 @@ function GameHud:CreateDocks()
         self.floatingDock,
 	}
 
+	-- Re-resolve and reapply dock chrome styles when the active theme or
+	-- color scheme changes. styles = GetStyles() is a one-shot snapshot;
+	-- per ThemeEngine.lua, callers must subscribe and re-assign for live
+	-- recoloring on theme switch.
+	ThemeEngine.OnThemeChanged(mod, function()
+		if resultPanel ~= nil and resultPanel.valid then
+			resultPanel.styles = ThemeEngine.GetStyles()
+		end
+	end)
+
 	return resultPanel
+end
+
+--Deliberately closing a panel from a dock (its right-click > Close) is a
+--statement about the workspace, not just this dock: other surfaces that
+--present the same panels -- the icon rail -- need to drop it too, or
+--they will put it straight back the next time the dock is filled.
+--Handlers are keyed by id so a Lua reload replaces rather than
+--duplicates them, and receive the panel's registered name.
+g_dockablePanelClosedHandlers = rawget(_G, "g_dockablePanelClosedHandlers") or {}
+
+--- @param id string unique id for this handler
+--- @param fn fun(panelName: string)
+function RegisterDockablePanelClosedHandler(id, fn)
+	g_dockablePanelClosedHandlers[id] = fn
+end
+
+local function NotifyDockablePanelClosed(name)
+	if name == nil then
+		return
+	end
+	local ids = {}
+	for id, _ in pairs(g_dockablePanelClosedHandlers) do
+		ids[#ids + 1] = id
+	end
+	table.sort(ids)
+	for _, id in ipairs(ids) do
+		--a broken handler must not stop the panel from closing.
+		local ok, err = pcall(g_dockablePanelClosedHandlers[id], name)
+		if not ok then
+			print(string.format("DOCKPANEL:: closed handler '%s' failed: %s", id, tostring(err)))
+		end
+	end
+end
+
+--An alternative HOST for opening a panel. The docks are not the only
+--surface panels live on any more: with the icon rail on, the docks are
+--slid away and panels belong on the rail as buttons and floating
+--windows. Without this hook, opening a panel from a menu built a dock
+--container and -- worse -- pulled the slid-away dock back on screen to
+--show it (see the targetDock branch in GetMenuItems' click).
+--
+--The handler returns true if it took ownership of the open/toggle, in
+--which case the dock path is skipped entirely. Registered by the icon
+--rail; keyed by id so a Lua reload replaces rather than duplicates.
+g_dockablePanelOpenHandlers = rawget(_G, "g_dockablePanelOpenHandlers") or {}
+
+--- @param id string unique id for this handler
+--- @param fn fun(panelName: string, operation: nil|'toggle'|'show'|'hide'): boolean
+function RegisterDockablePanelOpenHandler(id, fn)
+	g_dockablePanelOpenHandlers[id] = fn
+end
+
+--Returns true if some handler hosted the panel itself.
+local function NotifyDockablePanelOpen(name, operation)
+	if name == nil then
+		return false
+	end
+	local ids = {}
+	for id, _ in pairs(g_dockablePanelOpenHandlers) do
+		ids[#ids + 1] = id
+	end
+	table.sort(ids)
+	for _, id in ipairs(ids) do
+		--a broken handler must not stop the panel from opening: fall
+		--through to the dock rather than doing nothing at all.
+		local ok, handled = pcall(g_dockablePanelOpenHandlers[id], name, operation)
+		if not ok then
+			print(string.format("DOCKPANEL:: open handler '%s' failed: %s", id, tostring(handled)))
+		elseif handled then
+			return true
+		end
+	end
+	return false
+end
+
+--Give a panel's content tree GUI focus, as though one of its own controls
+--had been pressed. Focus goes on the content ROOT specifically: the
+--panels that gate on focus test `gui.ChildHasFocus(<their own root>)`,
+--which counts the element itself and its descendants but not its
+--ancestors -- so focusing the host would leave them reading unfocused.
+--
+--The "panelFocused" event afterwards lets a panel re-arm immediately.
+--Map Markup needs it: its map tools are registered from think handlers
+--that bail without focus, and those poll every 0.3s, so without a nudge
+--the click right after the one that focused the panel can land with no
+--tool registered and silently do nothing.
+function FocusPanelContent(instance)
+	if instance == nil or not instance.valid then
+		return false
+	end
+	local root = instance.data.contentRoot
+	if root == nil or not root.valid then
+		return false
+	end
+
+	--Already ours: leave focus exactly where it is. Presses do not swallow
+	--by default, so a press on one of the panel's OWN controls bubbles up
+	--to the host and lands here too -- and re-grabbing to the content root
+	--wipes whatever the panel's controls were tracking through focus. The
+	--Objects palette reads "which entry was focused" inside its click
+	--handler to build a ctrl/shift multi-selection, and press runs before
+	--click, so the unguarded grab made every multi-select see the root
+	--instead of the previous entry (report YYDRFNXP). The panel is already
+	--armed in this case, so there is nothing to re-arm and no panelFocused
+	--to fire.
+	if gui.ChildHasFocus(root) then
+		return true
+	end
+
+	gui.SetFocus(root)
+	root:FireEventTree("panelFocused")
+	return true
 end
 
 local CreateDockablePanelTabbedContainer
@@ -780,9 +1002,15 @@ CreateDockablePanelTabbedContainer = function(options)
 
 		local tabSpacing = 40 --cond(#panelInstances > 1, 32, 0)
 
+		--Divide the panel's max content height by the dock scale. The dock
+		--renders at dockscale (via uiscale) and its logical height is the screen
+		--height divided by that scale, so a panel needs a proportionally larger
+		--logical max height to still stretch to the full screen when scaled down.
+		local dockScale = DockablePanel.EffectiveDockScale()
+
 		return {
 			minHeight = min + tabSpacing, -- + panelSpacing*2,
-			maxHeight = max + tabSpacing, -- + panelSpacing*2,
+			maxHeight = max/dockScale + tabSpacing, -- + panelSpacing*2,
 		}
 	end
 
@@ -817,10 +1045,10 @@ CreateDockablePanelTabbedContainer = function(options)
                 index = cond(forceResult, #children+1, #children),
                 tab = false,
             }
-            
+
         end
 
-		local y = beginDragY + yoffset + resultPanel.data.startDragHeight/2
+		local y = beginDragY + yoffset + math.min(resultPanel.data.startDragHeight*0.5, 16)
 
 		local items = {}
 		for i,child in ipairs(children) do
@@ -829,49 +1057,42 @@ CreateDockablePanelTabbedContainer = function(options)
 			end
 		end
 
-		local bestIndex = nil
-		local bestDelta = nil
-		local jointab = false
+		-- Zone-based approach: each panel's vertical region is divided into
+		-- three zones that scale with the panel's height:
+		--   Top 25%:    swap above (insert before this panel)
+		--   Middle 50%: tab (merge with this panel)
+		--   Bottom 25%: swap below (insert after this panel)
+		-- The area above all panels and below all panels is swap-only.
 
 		local ypos = 0
-		for i=1,#items+2 do
-			local delta = math.abs(y - ypos)
+		for i, item in ipairs(items) do
+			local itemTop = ypos
+			local itemBottom = ypos + item.data.startDragHeight
+			local tabTop = itemTop + item.data.startDragHeight * 0.25
+			local tabBottom = itemBottom - item.data.startDragHeight * 0.25
 
-			if delta < resultPanel.data.startDragHeight or forceResult then --only consider anything which we are actually overlapping.
-				if bestDelta == nil or delta < bestDelta then
-					bestIndex = i
-					bestDelta = delta
-					jointab = false
-				end
+			if y >= itemTop and y < tabTop then
+				-- Top zone: insert before this panel.
+				return { index = i, tab = false }
+			elseif y >= tabTop and y < tabBottom then
+				-- Middle zone: tab with this panel.
+				return { index = i, tab = true }
+			elseif y >= tabBottom and y < itemBottom then
+				-- Bottom zone: insert after this panel.
+				return { index = i + 1, tab = false }
 			end
 
-			local item = items[i] or items[i-1]
-
-			if item ~= nil then
-				--consider dragging onto this item instead of between items, to make tabs.
-				ypos = ypos + item.data.startDragHeight/2
-				local delta = math.abs(y - ypos)
-				if delta < resultPanel.data.startDragHeight or forceResult then --only consider anything which we are actually overlapping.
-					if bestDelta == nil or delta < bestDelta then
-						bestIndex = i
-						bestDelta = delta
-						jointab = true
-					end
-				end
-
-
-				ypos = ypos + item.data.startDragHeight/2
-			end
+			ypos = itemBottom
 		end
 
-		if bestIndex == nil then
-			return nil
-		else
-			return {
-				index = bestIndex,
-				tab = jointab,
-			}
+		-- Past all panels or before all panels.
+		if y < 0 then
+			return { index = 1, tab = false }
+		elseif forceResult or y < ypos + resultPanel.data.startDragHeight then
+			return { index = #items + 1, tab = false }
 		end
+
+		return nil
 
 	end
 
@@ -908,6 +1129,10 @@ CreateDockablePanelTabbedContainer = function(options)
 			end,
 
 			rightClick = function(element)
+				local isLastInDock = not dock.data.floating and #dock.data.GetChildren() <= 1
+				if isLastInDock then
+					return
+				end
 				element.popup = gui.ContextMenu{
 					halign = "right",
 					valign = "bottom",
@@ -915,8 +1140,12 @@ CreateDockablePanelTabbedContainer = function(options)
 						{
 							text = "Close",
 							click = function()
-
 								element.popup = nil
+								--this closes the whole container, so every
+								--panel it hosts is being removed.
+								for _,p in ipairs(panelInstances) do
+									NotifyDockablePanelClosed(p.data.name)
+								end
 								resultPanel:DestroySelf()
 								dock:FireEvent("fitChildren")
 								dock:FireEvent("layoutChanged")
@@ -1019,8 +1248,17 @@ CreateDockablePanelTabbedContainer = function(options)
 					end
 
 					if bestDrag.tab then
-						if dock ~= nil and (not dock.data.floating) and dock.data.childrenAtDragStart[bestDrag.index] ~= nil then
-							dock.data.childrenAtDragStart[bestDrag.index]:FireEvent("merge", resultPanel)
+						-- Build the same items list as CalculateBestDragPosition
+						-- (childrenAtDragStart minus the panel being dragged).
+						local items = {}
+						for _,child in ipairs(dock.data.childrenAtDragStart) do
+							if child ~= resultPanel then
+								items[#items+1] = child
+							end
+						end
+						local tabTarget = items[bestDrag.index] or items[bestDrag.index - 1]
+						if dock ~= nil and (not dock.data.floating) and tabTarget ~= nil then
+							tabTarget:FireEvent("merge", resultPanel)
 						end
 					else
 
@@ -1161,7 +1399,7 @@ CreateDockablePanelTabbedContainer = function(options)
 		end
 
 		button = gui.Panel{
-			classes = {"tab"},
+			classes = {"dockTab"},
 			id = string.format("TabIcon%s", p.data.name),
 		    bgimage = p.data.icon,
             numTabs = function(element, n)
@@ -1192,7 +1430,7 @@ CreateDockablePanelTabbedContainer = function(options)
 		}
 
         label = gui.Label{
-            classes = {"tabLabel"},
+            classes = {"tabLabel", "sizeS"},
             width = "auto",
             height = "auto",
             valign = "center",
@@ -1200,7 +1438,6 @@ CreateDockablePanelTabbedContainer = function(options)
             text = p.data.name,
             textOverflow = "truncate",
             textWrap = false,
-            fontSize = 14,
 
             numTabs = function(element, n)
                 element.interactable = n > 1
@@ -1255,7 +1492,26 @@ CreateDockablePanelTabbedContainer = function(options)
 				return target.parent == tabPanel
 			end,
 
+			drag = function(element, target)
+				DockablePanel.Serialize()
+			end,
+
 			dragging = function(element, target)
+				-- Detect vertical drag-off: detach tab into a solo panel and transfer drag
+				local verticalDelta = element.dragDelta.y
+				if math.abs(verticalDelta) > 30 and #panelInstances > 1 then
+					local panelInstance = DetachPanelInstance(element)
+					if panelInstance ~= nil then
+						local newPanel = CreateDockablePanelTabbedContainer{
+							panelInstances = {panelInstance},
+						}
+						dock:FireEvent("addPanel", newPanel)
+						DockablePanel.Serialize()
+						element:transferDragTo(newPanel.data.dragGhost)
+					end
+					return
+				end
+
 				if target == nil or target == buttonContainer then
 					return
 				end
@@ -1272,18 +1528,25 @@ CreateDockablePanelTabbedContainer = function(options)
 				end
 
 				if i1 ~= nil and i2 ~= nil then
+					-- Only swap if we've dragged far enough past the last swap point to prevent oscillation
+					local dragX = element.dragDelta.x
+					local lastSwapX = element.data.lastSwapDragX or 0
+					local delta = dragX - lastSwapX
+					if (i2 > i1 and delta < 20) or (i2 < i1 and delta > -20) then
+						return
+					end
+					element.data.lastSwapDragX = dragX
+
 					local tmp = panelInstances[i1]
 					panelInstances[i1] = panelInstances[i2]
 					panelInstances[i2] = tmp
 					contentPanel.children = panelInstances
-					
+
 					local tabs = tabPanel.children
 					tmp = tabs[i1]
 					tabs[i1] = tabs[i2]
 					tabs[i2] = tmp
 					tabPanel.children = tabs
-
-					DockablePanel.Serialize()
 				end
 			end,
 
@@ -1314,33 +1577,40 @@ CreateDockablePanelTabbedContainer = function(options)
 				DockablePanel.Serialize()
 			end,
 			rightClick = function(element)
+				local isLastInDock = not dock.data.floating and #dock.data.GetChildren() <= 1 and #panelInstances <= 1
+				local entries = {}
+				if not isLastInDock then
+					entries[#entries+1] = {
+						text = "Close",
+						click = function()
+							element.popup = nil
+							--only the explicit Close notifies: the same
+							--"close" event is fired programmatically by
+							--closeByIdentifier (/togglepanel), which is a
+							--visibility toggle, not a removal.
+							NotifyDockablePanelClosed(p.data.name)
+							element:FireEvent("close")
+						end,
+					}
+				end
+				entries[#entries+1] = {
+					text = "Detach",
+					click = function()
+						element.popup = nil
+						local panelInstance = DetachPanelInstance(element)
+						if panelInstance ~= nil then
+							local newPanel = CreateDockablePanelTabbedContainer{
+								panelInstances = {panelInstance},
+							}
+							dock:FireEvent("addPanel", newPanel)
+							DockablePanel.Serialize()
+						end
+					end,
+				}
 				element.popup = gui.ContextMenu{
 					halign = "right",
 					valign = "bottom",
-					entries = {
-						{
-							text = "Close",
-							click = function()
-								element.popup = nil
-								element:FireEvent("close")
-							end,
-						},
-						{
-							text = "Detach",
-							click = function()
-								element.popup = nil
-								local panelInstance = DetachPanelInstance(element)
-								if panelInstance ~= nil then
-									local newPanel = CreateDockablePanelTabbedContainer{
-										panelInstances = {panelInstance},
-									}
-
-									dock:FireEvent("addPanel", newPanel)
-									DockablePanel.Serialize()
-								end
-							end,
-						},
-					},
+					entries = entries,
 				}
 			end,
 			button,
@@ -1350,7 +1620,38 @@ CreateDockablePanelTabbedContainer = function(options)
 		return buttonContainer
 	end
 
+    local minimizeArrow = gui.CollapseArrow{
+        classes = {"minimizeArrow"},
+        styles = {
+            gui.Style{
+                selectors = {"single"},
+                collapsed = 1,
+            },
+            gui.Style{
+                selectors = {"minimizeArrow", "minimizeSet"},
+                scale = {x = 1, y = -1},
+                transitionTime = 0.2,
+            },
+        },
+        width = 18,
+        height = 12,
+        halign = "right",
+        valign = "top",
+        hmargin = 28,
+        vmargin = 12,
+        floating = true,
+        press = function(element)
+            element:SetClass("minimizeSet", not element:HasClass("minimizeSet"))
+            if element:HasClass("minimizeSet") then
+                element:FireEventOnParents("shrinkChild", element)
+            else
+                element:FireEventOnParents("unshrinkChild", element)
+            end
+        end,
+    }
+
     local collapseArrow = gui.CollapseArrow{
+        classes = {"collapseSet"},
         styles = {
             gui.Style{
                 selectors = {"single"},
@@ -1366,11 +1667,14 @@ CreateDockablePanelTabbedContainer = function(options)
         floating = true,
         press = function(element)
             element:SetClass("collapseSet", not element:HasClass("collapseSet"))
-            if element:HasClass("collapseSet") then
+            if not element:HasClass("collapseSet") then
                 element:FireEventOnParents("maximizeChild", element)
             else
                 element:FireEventOnParents("minimizeChild", element)
             end
+            --Persist the new maximized state (the minimize arrow does the same via
+            --shrinkChild/unshrinkChild). Without this, maximize is lost on reload.
+            DockablePanel.Serialize()
         end,
     }
 
@@ -1396,8 +1700,18 @@ CreateDockablePanelTabbedContainer = function(options)
             element:SetClassTree("mono", numChildren <= 1)
             element:SetClassTree("crowded", numChildren >= 3)
 			metrics = CalculatePanelMetrics()
-			resultPanel.data.minHeight = metrics.minHeight
-			resultPanel.data.maxHeight = metrics.maxHeight
+			--Don't clobber a minimized panel's shrunk min/max constraints (minimize
+			--pins minHeight=maxHeight=shrunkHeight). updatetabs fires after Deserialize
+			--via ApplyDockScale, and overwriting these here would let fitChildren clamp
+			--the panel back up to full size while it stays flagged minimized (broken
+			--render). Stash the fresh metrics in saved* so unshrinkChild restores them.
+			if resultPanel.data.minimized then
+				resultPanel.data.savedMinHeight = metrics.minHeight
+				resultPanel.data.savedMaxHeight = metrics.maxHeight
+			else
+				resultPanel.data.minHeight = metrics.minHeight
+				resultPanel.data.maxHeight = metrics.maxHeight
+			end
 
             local availableWidth = 350
             local tabBaseWidth = 28
@@ -1410,11 +1724,14 @@ CreateDockablePanelTabbedContainer = function(options)
 		idprefix = "contentPanel",
         valign = "center",
         halign = "center",
-		height = "100%-32",
+		height = "100%-40",
 		width = "100%",
 		children = panelInstances,
 		updatetabs = function(element)
-			element.selfStyle.height = "100%-32"
+			-- element.selfStyle.height = "100%-32"
+		end,
+		layoutChanged = function(element)
+			element:SetClass("collapsed", resultPanel.data.minimized == true)
 		end,
 	}
 
@@ -1450,6 +1767,52 @@ CreateDockablePanelTabbedContainer = function(options)
         end,
     }
 
+	--The FOCUS ring. Several panels are "armed" only while their content
+	--tree holds GUI focus -- the Map Markup panel's drawing tools, the
+	--Building editor, the Objects panel and ability targeting all gate on
+	--it, and losing focus silently disarms them. Nothing showed which
+	--panel held it, so this traces the focused panel's frame.
+	--
+	--A dedicated floating child rather than a border on the frame itself:
+	--the frame sets borderColor/border inline (selfStyle wins over class
+	--styles), so a class rule there could never take effect.
+	local focusOutline = gui.Panel{
+		classes = {"dockPanelFocusOutline"},
+		bgimage = true,
+		floating = true,
+		interactable = false,
+		width = "100%",
+		height = "100%",
+		halign = "center",
+		valign = "center",
+		--the focus edge's one-sided border is INLINE: a border TABLE in a
+		--styles list verifiably never reaches this panel (scalar properties
+		--do -- the old full ring worked; tested live on the rail-window
+		--copy), while selfStyle renders it. Color and opacity still come
+		--from the dockPanelFocusOutline style rules, so theming is intact.
+		border = {x1 = 4, x2 = 0, y1 = 0, y2 = 0},
+	}
+
+	--the framed surface every panel in this container sits on; hoisted out
+	--of the container's child list so the focus poll can class it.
+	local panelFrame = gui.Panel{
+		bgimage = true,
+		bgcolor = "#222222e9",
+		flow = "vertical",
+		height = string.format("100%%-%d", round(g_dockGap + cond(g_dockGap == 0, -1, 0))),
+		width = "100%",
+		borderColor = Styles.Gold02,
+		border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
+
+		dragGhost,
+		verticalDragHandle,
+		verticalDragDivider,
+		tabPanel,
+		minimizeArrow,
+		collapseArrow,
+		contentPanel,
+		focusOutline,
+	}
 
 	resultPanel = gui.Panel{
 		idprefix = "dockablePanelContainer",
@@ -1462,9 +1825,11 @@ CreateDockablePanelTabbedContainer = function(options)
 
 		data = {
 			maximized = false,
+			minimized = false,
 			minHeight = metrics.minHeight,
 			maxHeight = metrics.maxHeight,
 			locked = false,
+			dragGhost = dragGhost,
 
 			GetPanelInstances = function()
 				return panelInstances
@@ -1538,6 +1903,14 @@ CreateDockablePanelTabbedContainer = function(options)
             if data.height then
                 element.selfStyle.height = data.height
             end
+        end,
+
+        --Re-apply the maximized state during Deserialize. Mirrors the collapseArrow
+        --press path: clear the arrow's "collapseSet" class (its maximized visual) and
+        --fire maximizeChild so the siblings collapse and this panel fills the dock.
+        maximizeSelf = function(element)
+            collapseArrow:SetClass("collapseSet", false)
+            collapseArrow:FireEventOnParents("maximizeChild", collapseArrow)
         end,
 
         minimizeFloating = function(element)
@@ -1688,22 +2061,44 @@ CreateDockablePanelTabbedContainer = function(options)
 			end
 		end,
 
-        gui.Panel{
-            bgimage = true,
-            bgcolor = "#222222e9",
-            flow = "vertical",
-            height = string.format("100%%-%d", round(g_dockGap + cond(g_dockGap == 0, -1, 0))),
-            width = "100%",
-            borderColor = Styles.Gold02,
-            border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
+        --Which panel holds GUI focus is polled, not evented: focus moves
+        --for reasons no single panel sees (another panel's control taking
+        --it, a refresh destroying the focused element, Escape), and there
+        --is no focus-changed event to hang this on. A quarter-second poll
+        --over the handful of open containers is cheap and the ring is not
+        --something that needs to be frame-exact.
+        --Press anywhere on a panel that asked for it -- its background, an
+        --empty stretch of its content, its tab strip -- claims focus for
+        --it. Presses propagate up from any child that does not swallow
+        --them, which is exactly the chrome that has no focus handling of
+        --its own; the panel's own controls keep managing focus themselves.
+        press = function(element)
+            local instances = element.data.GetPanelInstances()
+            local index = element.data.GetSelectedTabIndex() or 1
+            local instance = instances[index]
+            if instance ~= nil and instance.valid and instance.data.focusOnClick then
+                FocusPanelContent(instance)
+            end
+        end,
 
-            dragGhost,
-            verticalDragHandle,
-            verticalDragDivider,
-            tabPanel,
-            collapseArrow,
-            contentPanel,
-        },
+        thinkTime = 0.25,
+        think = function(element)
+            --GUI focus, and nothing else. It is singular by construction,
+            --which is what makes the ring exclusive: exactly one panel can
+            --be the active tool. Every panel that drives a map mode now
+            --tracks focus for its own arming too (the Measuring Tool used
+            --to arm on merely existing, which is what let two panels claim
+            --the mode at once).
+            local focused = gui.ChildHasFocus(element)
+            if element.data.hasPanelFocus ~= focused then
+                element.data.hasPanelFocus = focused
+                if panelFrame.valid then
+                    panelFrame:SetClass("focused", focused)
+                end
+            end
+        end,
+
+        panelFrame,
         dragHandle,
 	}
 
@@ -1739,11 +2134,23 @@ local CreateDockablePanelInstance = function(panelOptions)
 				name = options.name,
 				icon = options.icon,
 				stickyFocus = options.stickyFocus,
+				--Set by panels that want a press ANYWHERE on them -- their
+				--background, their title bar -- to claim GUI focus, not
+				--just their individual controls. See FocusPanelContent.
+				focusOnClick = options.focusOnClick,
 				identifier = options.identifier,
 				minHeight = (options.minHeight or 40),
 				maxHeight = (options.maxHeight or 1080),
 				locked = false,
 			}
+
+			--The element the panel's content() returned. Focus-gated panels
+			--test `gui.ChildHasFocus(<their own root>)`, so click-to-focus
+			--has to focus THIS -- focusing the host container would put
+			--focus on an ANCESTOR, and the panel's own gate would still
+			--read false.
+			local contentRoot = options.content()
+			element.data.contentRoot = contentRoot
 
 			if options.vscroll ~= false then
 				local hideObjectsOutOfScroll = options.hideObjectsOutOfScroll
@@ -1754,13 +2161,13 @@ local CreateDockablePanelInstance = function(panelOptions)
 					gui.Panel{
 						idprefix = "dockablePanelScrollParent",
 						interactable = false,
-						width = "100%",
+						width = "100%-4",
 						height = "100%",
 						pad = 2,
 						vscroll = true,
 						hideObjectsOutOfScroll = hideObjectsOutOfScroll,
 						children = {
-							options.content(),
+							contentRoot,
 						},
 					}
 				}
@@ -1774,7 +2181,7 @@ local CreateDockablePanelInstance = function(panelOptions)
 						idprefix = "dockablePanelNoScrollParent",
 						height = "100%",
 						children = {
-							options.content()
+							contentRoot
 						}
 					}
 				}
@@ -1801,13 +2208,94 @@ end
 
 
 
+--May THIS user have this panel at all? devonly panels need dev mode, dmonly
+--panels need the Director.
+--
+--This has to be asked everywhere a panel is instantiated, not just where the
+--Panels menu is built. It previously guarded only the menu, so a player who
+--had docked a Director-only panel BEFORE it was flagged kept getting it
+--restored from their saved layout on every launch -- report XRA4WE35, a
+--player's dock listing the Director's encounter rosters, monster counts, EV
+--and all. Hiding the menu entry does nothing for a panel that is already
+--docked.
+--
+--Checking dmhub.isDM here is no more fragile than what the layout already
+--does: GetDockablePanelsSetting picks which saved layout to read from the
+--same flag, so if it were unresolved the wrong dock config would load
+--wholesale. Player and Director layouts are separate settings, so a panel
+--dropped from a player's layout can never cost a Director theirs.
+local PanelPermittedForUser = function(p)
+	if p == nil then
+		--unknown identifier (a mod that is not loaded): leave it to the
+		--caller, which finds no registration and adds nothing.
+		return true
+	end
+	if p.devonly and not devmode() then
+		return false
+	end
+	--DirectorUIVisible rather than dmhub.isDM so dmonly panels also hide for
+	--a Director presenting as a player (Encounter of the Week host). Panel
+	--background processes (DockablePanel.StartProcess) are independent of
+	--this gate, so the EotW host still runs the Monster AI headless.
+	if p.dmonly and not GameHud.DirectorUIVisible() then
+		return false
+	end
+	--a mod-enforced custom interface can suppress panels by name
+	--(GameHud.RegisterCustomInterface); this gate covers every discovery
+	--surface that respects registrations -- menus, toolbar, rail, search.
+	local suppressed = false
+	pcall(function() suppressed = p.name ~= nil and GameHud.CustomInterfaceSuppressesPanel(p.name) == true end)
+	if suppressed then
+		return false
+	end
+	return true
+end
+
 DockablePanel = {}
 
 DockablePanel = {
+	--Exposed because the icon rail and the panel windows restore panels from
+	--their own saved config, not from the docks, and must apply the same rule.
+	PanelPermittedForUser = PanelPermittedForUser,
+
 	ContentWidth = 364,
 	DockWidth = 364,
     FloatingDockMargin = 100,
 
+	--The dock scale actually in effect. The icon-rail UI ignores the Dock
+	--Scale setting (the docks are slid away there and the slider is hidden
+	--from the settings screen), so it reads as 1 while iconrail is on; the
+	--stored preference is untouched and applies again when the rail is
+	--turned off. All dockscale readers must go through this rather than
+	--reading the setting directly.
+	EffectiveDockScale = function()
+		if dmhub.GetSettingValue("iconrail") == true then
+			return 1
+		end
+		return dmhub.GetSettingValue("dockscale") or 1
+	end,
+
+	--args: name, icon, content(), vscroll, minHeight/maxHeight (content
+	--bounds used by the dock AND as vertical bounds for the panel's
+	--standalone icon-rail window; equal values pin a fixed height and
+	--make the window vertically unresizable), dmonly, devonly, ...
+	--Standalone-window extras: resizableWidth/resizableHeight = false
+	--lock window resizing on that axis (default: both freely resizable);
+	--minWidth/maxWidth bound the window's width.
+	--popoutHeight (content px) gives the panel's native OS popout window
+	--its own default height, instead of inheriting the in-app window's
+	--footprint when popping out.
+	--preferFloating = true opens the panel on the floating (center) dock
+	--as a window over the map instead of claiming a side dock;
+	--floatingHalign = "right" places that window on the right.
+	--menu = "codex"|"game"|"tools" lists the panel in that title-bar menu
+	--INSTEAD of the Panels menu.
+	--launch = function() makes this an ACTION registration instead of a
+	--panel: activating it (menu row, icon-rail button, ShowPanelByName)
+	--runs launch() and no window ever opens. Give it no content; it still
+	--gets an icon, menu placement, dmonly/devonly gating, and rail
+	--membership like any panel. First client: the Body Banks, which
+	--launches the companion app.
 	Register = function(args)
 		--if args.dmonly and not dmhub.isDM then
 		--	return
@@ -1843,15 +2331,160 @@ DockablePanel = {
 		end
 	end,
 
-	GetMenuItems = function(flat)
+	--Open a panel by its registered name, or raise it if it is already
+	--open. The counterpart of the launchable panels' GetOrLaunchPanel, for
+	--the callers that summon a specific panel rather than toggling one --
+	--journal command links, and the remote present-a-dialog request --
+	--which have to search both registries now that panels like Maps live
+	--here. Returns true if a panel by that name exists here. Filtered
+	--panels are included: being hidden from the menus does not mean a
+	--direct request for it should fail.
+	ShowPanelByName = function(name)
+		if name == nil then
+			return false
+		end
+		name = string.lower(name)
+		for _,item in ipairs(DockablePanel.GetMenuItems(true, true)) do
+			if item.name ~= nil and string.lower(item.name) == name then
+				item.click("show")
+				return true
+			end
+		end
+		return false
+	end,
+
+	--Look up a panel registration by its registered name (case-insensitive).
+	--Returns the registration args table (name, icon, content, vscroll,
+	--minHeight, maxHeight, minWidth, maxWidth, resizableWidth,
+	--resizableHeight, dmonly, devonly, ...) or nil. Used by the document
+	--system's PanelDocument bridge to host dockable panel content inside
+	--document windows.
+	GetRegistration = function(name)
+		name = string.lower(name)
+		for _,v in pairs(dockablePanels) do
+			if string.lower(v.name) == name then
+				return v
+			end
+		end
+		return nil
+	end,
+
+	--Registrations whose new-content alert is currently lit AND which offer
+	--a way to retire it (clearNewContent, or markContentSeen as a fallback).
+	--Drives the icon rail's "Clear All Alerts" context-menu entry, which only
+	--appears when more than one panel has an alert to clear.
+	GetAlertedRegistrations = function()
+		local result = {}
+		for _,p in pairs(dockablePanels) do
+			if p.hasNewContent ~= nil and (p.clearNewContent ~= nil or p.markContentSeen ~= nil) and p.hasNewContent() then
+				result[#result+1] = p
+			end
+		end
+		return result
+	end,
+
+	--The ordered list of panel names currently docked in one side's dock
+	--("left"/"right"). The read-side mirror of SetDockPanels; used by the
+	--Views feature to capture the working layout.
+	GetDockPanels = function(side)
+		local result = {}
+		if rawget(_G, "gamehud") == nil or rawget(gamehud, "leftDock") == nil then
+			return result
+		end
+		local dock = cond(side == "right", gamehud.rightDock, gamehud.leftDock)
+		if dock == nil or not dock.valid then
+			return result
+		end
+		for _,child in ipairs(dock.data.GetChildren()) do
+			for _,instance in ipairs(child.data.GetPanelInstances()) do
+				result[#result+1] = instance.data.name
+			end
+		end
+		return result
+	end,
+
+	--Replace the panels docked in one side's dock ("left"/"right") with the
+	--named panels, in that order (one container per panel). No-op when the
+	--dock already shows exactly these panels, so it is cheap to call from a
+	--sync loop. Existing instances of kept panels are reused (preserving
+	--their state), instances of dropped panels are destroyed -- the same
+	--mechanics as Deserialize. Used by the icon rail so a dock opened from
+	--the rail carries that rail side's panels.
+	SetDockPanels = function(side, names)
+		if rawget(_G, "gamehud") == nil or rawget(gamehud, "leftDock") == nil then
+			return
+		end
+		local dock = cond(side == "right", gamehud.rightDock, gamehud.leftDock)
+		if dock == nil or not dock.valid then
+			return
+		end
+
+		local existing = {}
+		local currentOrder = {}
+		for _,child in ipairs(dock.data.GetChildren()) do
+			for _,instance in ipairs(child.data.GetPanelInstances()) do
+				existing[instance.data.identifier] = instance
+				currentOrder[#currentOrder+1] = string.lower(instance.data.name)
+			end
+		end
+
+		local matches = #currentOrder == #names
+		if matches then
+			for i,name in ipairs(names) do
+				if currentOrder[i] ~= string.lower(name) then
+					matches = false
+					break
+				end
+			end
+		end
+		if matches then
+			return
+		end
+
+		dock:FireEvent("clearPanels")
+
+		for _,name in ipairs(names) do
+			for k,p in pairs(dockablePanels) do
+				if string.lower(p.name) == string.lower(name) and PanelPermittedForUser(p) then
+					local instance = existing[p.identifier]
+					existing[p.identifier] = nil
+					if instance == nil or not instance.valid then
+						instance = CreateDockablePanelInstance(p)
+					end
+					local newPanel = CreateDockablePanelTabbedContainer{
+						panelInstances = {instance},
+					}
+					dock:FireEvent("addPanel", newPanel)
+				end
+			end
+		end
+
+		for _,instance in pairs(existing) do
+			if instance.valid then
+				instance:DestroySelf()
+			end
+		end
+
+		dock:FireEvent("fitChildren")
+		dock:FireEventTree("layoutChanged")
+		DockablePanel.Serialize()
+	end,
+
+	GetMenuItems = function(flat, includeFiltered)
 		local subfolders = {}
 		local result = {}
 		for k,p in pairs(dockablePanels) do
 
-			local available = (not p.devonly) or devmode()
-            if p.dmonly and not dmhub.isDM then
-                available = false
-            end
+			local available = PanelPermittedForUser(p)
+
+			--A panel may hide itself from the menus in this context --
+			--Maps, for one, which players only get when there is a map
+			--they can browse. Same contract the launchable panels have
+			--always had. includeFiltered is for by-name lookups, which
+			--must still find them.
+			if available and (not includeFiltered) and p.filtered ~= nil and p.filtered() then
+				available = false
+			end
 
 			if available then
 
@@ -1879,6 +2512,18 @@ DockablePanel = {
 
 				target[#target+1] = {
 					id = string.format("Menu%s", p.name),
+					--name/identifier/menu/group/ord/hasNewContent/geticon
+					--mirror what the launchable-panel menu items carry, so
+					--the title bar and the journal's link resolution can
+					--treat both registries the same way. `menu` is what
+					--sorts a panel into the Codex/Game/Tools menus.
+					name = p.name,
+					identifier = p.identifier,
+					menu = p.menu,
+					group = p.group or "",
+					ord = p.ord or 0,
+					hasNewContent = p.hasNewContent,
+					geticon = p.geticon,
 					text = p.name,
 					icon = p.icon,
 					bind = bind,
@@ -1886,10 +2531,35 @@ DockablePanel = {
                     
                     ---@param operation nil|'toggle'|'show'|'hide'
 					click = function(operation)
+						-- Action registration: activating it IS the action.
+						-- No dock, rail, or window is touched, so this works
+						-- from the lobby too. "hide" means the caller wants
+						-- it gone, which for an action is a no-op.
+						if p.launch ~= nil then
+							if operation ~= "hide" then
+								p.launch()
+							end
+							return
+						end
+
+						-- Docks are only created once a game is active. Bail out
+						-- silently when invoked from the lobby.
+						if rawget(_G, "gamehud") == nil or rawget(gamehud, "leftDock") == nil then
+							return
+						end
+
+						-- Another surface may host panels instead of the docks
+						-- (the icon rail does). Ask before touching a dock at
+						-- all: the dock path would otherwise slide a hidden
+						-- dock back on screen to show the panel.
+						if NotifyDockablePanelOpen(p.name, operation) then
+							return
+						end
+
 						local uilocked = dmhub.GetSettingValue("uilocked")
 
 						local instance = nil
-					
+
 						if not p.multipleInstances then
 							instance = DockablePanel.FindInstance(p.identifier)
 						end
@@ -1925,13 +2595,36 @@ DockablePanel = {
 
 							local targetDock = gamehud.leftDock
 
-							if dmhub.GetSettingValue("leftdockoffscreen") and not dmhub.GetSettingValue("rightdockoffscreen") then
+							--A panel that declares preferFloating opens on the
+							--floating (center) dock -- a window over the map --
+							--rather than claiming a side dock. It can still be
+							--dragged into a dock afterwards, and that placement
+							--persists via Serialize like any other.
+							if p.preferFloating and gamehud.floatingDock ~= nil and gamehud.floatingDock.valid then
+								targetDock = gamehud.floatingDock
+							elseif dmhub.GetSettingValue("leftdockoffscreen") and not dmhub.GetSettingValue("rightdockoffscreen") then
 								targetDock = gamehud.rightDock
 							elseif dmhub.GetSettingValue("leftdockoffscreen") then
 								dmhub.SetSettingValue("leftdockoffscreen", false)
 							end
 
 							targetDock:FireEvent("addPanel", newPanel)
+
+							if targetDock == gamehud.floatingDock then
+								--the floating dock does not size or place its
+								--children (sizeChild/fitChildren no-op there),
+								--so give the fresh window its own geometry:
+								--dock width, content-bounded height, near the
+								--top of the map on the panel's preferred side.
+								newPanel.selfStyle.width = DockablePanel.DockWidth
+								newPanel.selfStyle.height = math.min(newPanel.data.maxHeight, 700)
+								local x = 16
+								if p.floatingHalign == "right" then
+									x = math.max(0, targetDock.renderedWidth - DockablePanel.DockWidth - 16)
+								end
+								newPanel.x = x
+								newPanel.y = 40
+							end
 						end
 
 						DockablePanel.Serialize()
@@ -1975,14 +2668,16 @@ DockablePanel = {
 
 
 	FindInstance = function(identifier)
-        if rawget(gamehud,"leftDock") == nil then
+        if rawget(_G, "gamehud") == nil or rawget(gamehud,"leftDock") == nil then
             return nil
         end
 		for _,dock in ipairs({gamehud.leftDock, gamehud.rightDock, gamehud.floatingDock}) do
-			for _,child in ipairs(dock.data.GetChildren()) do
-				for _,instance in ipairs(child.data.GetPanelInstances()) do
-					if instance.data.identifier == identifier then
-						return instance
+			if dock ~= nil then
+				for _,child in ipairs(dock.data.GetChildren()) do
+					for _,instance in ipairs(child.data.GetPanelInstances()) do
+						if instance.data.identifier == identifier then
+							return instance
+						end
 					end
 				end
 			end
@@ -2012,25 +2707,47 @@ DockablePanel = {
 		for _,dock in ipairs(gamehud:Docks()) do
 			local panels = {}
 
-			for _,child in ipairs(dock.data.GetChildren()) do
-				local panel = {
-					height = child.selfStyle.height,
-					tabs = {},
-					selected = child.data.GetSelectedTabIndex(),
-				}
+			--Iterate ALL containers (not dock.data.GetChildren(), which hides
+			--"collapsed" ones) so a maximized panel -- which collapses its siblings --
+			--does not drop those siblings from the saved layout. Skip empty
+			--containers (e.g. a mid-merge/pillaged one with no panel instances).
+			for _,child in ipairs(dock:GetChildrenWithClasses({"dockablePanelContainer"})) do
+				if #child.data.GetPanelInstances() > 0 then
+					local panel = {
+						height = child.selfStyle.height,
+						tabs = {},
+						selected = child.data.GetSelectedTabIndex(),
+						minimized = child.data.minimized or nil,
+						maximized = child.data.maximized or nil,
+					}
 
-                if dock == gamehud.floatingDock then
-                    panel.x = child.x
-                    panel.y = child.y
-                    panel.width = child.selfStyle.width
-                    panel.height = child.selfStyle.height
-                end
+					if child.data.minimized and child.data.savedHeight then
+						panel.height = child.data.savedHeight
+					end
 
-				for _,instance in ipairs(child.data.GetPanelInstances()) do
-					panel.tabs[#panel.tabs+1] = instance.data.identifier
+					if dock == gamehud.floatingDock then
+						--A maximized floating panel has been resized to fill the dock;
+						--persist the pre-maximize geometry stashed in rememberMaximize so
+						--it restores at its natural size (and re-maximizes cleanly).
+						if child.data.maximized and child.data.rememberMaximize ~= nil then
+							panel.x = child.data.rememberMaximize.x
+							panel.y = child.data.rememberMaximize.y
+							panel.width = child.data.rememberMaximize.width
+							panel.height = child.data.rememberMaximize.height
+						else
+							panel.x = child.x
+							panel.y = child.y
+							panel.width = child.selfStyle.width
+							panel.height = child.selfStyle.height
+						end
+					end
+
+					for _,instance in ipairs(child.data.GetPanelInstances()) do
+						panel.tabs[#panel.tabs+1] = instance.data.identifier
+					end
+
+					panels[#panels+1] = panel
 				end
-
-				panels[#panels+1] = panel
 			end
 
 			doc.docks[#doc.docks+1] = {
@@ -2059,14 +2776,19 @@ DockablePanel = {
 					--try to find the panel with this identifier and create it.
 					
 					for _,panelid in ipairs(panelInfo.tabs) do
-					
-						if existingInstances[panelid] ~= nil then
-							panelInstances[#panelInstances+1] = existingInstances[panelid]
-							existingInstances[panelid] = nil
-						else
-							for k,p in pairs(dockablePanels) do
-								if p.identifier == panelid then
-									panelInstances[#panelInstances+1] = CreateDockablePanelInstance(p)
+
+						--Skipping rather than dropping the entry: any live
+						--instance stays in existingInstances and is destroyed
+						--by the cleanup at the end of this function.
+						if PanelPermittedForUser(dockablePanels[panelid]) then
+							if existingInstances[panelid] ~= nil then
+								panelInstances[#panelInstances+1] = existingInstances[panelid]
+								existingInstances[panelid] = nil
+							else
+								for k,p in pairs(dockablePanels) do
+									if p.identifier == panelid then
+										panelInstances[#panelInstances+1] = CreateDockablePanelInstance(p)
+									end
 								end
 							end
 						end
@@ -2094,6 +2816,50 @@ DockablePanel = {
 
 				--make sure we do fit after deserialize
 				dock:FireEvent("fitChildren")
+
+				-- Restore minimized panels after fit.
+				for i,child in ipairs(dock.data.GetChildren()) do
+					if panelsAdded[i].minimized then
+						child:SetClassTree("minimizeSet", true)
+						child.data.minimized = true
+						child.data.savedMinHeight = child.data.minHeight
+						child.data.savedMaxHeight = child.data.maxHeight
+						child.data.savedHeight = child.selfStyle.height
+						local shrunkHeight = 33
+						child.data.minHeight = shrunkHeight
+						child.data.maxHeight = shrunkHeight
+						child.data.locked = true
+						child.selfStyle.height = shrunkHeight
+						child:FireEventTree("layoutChanged")
+					end
+				end
+				if dock.data.GetChildren()[1] then
+					dock:FireEvent("fitChildren")
+				end
+
+				--Restore a maximized panel (mutually exclusive with minimized panels).
+				--Re-assert the serialized heights first: the fitChildren above ran with
+				--every panel expanded and may have rebalanced them, but once maximize
+				--collapses the siblings their heights are frozen (fitChildren ignores
+				--collapsed containers), so we want the saved sizes in place beforehand.
+				local maxIndex = nil
+				for i,panelInfo in ipairs(panelsAdded) do
+					if panelInfo.maximized then
+						maxIndex = i
+					end
+				end
+				if maxIndex ~= nil then
+					local containers = dock:GetChildrenWithClasses({"dockablePanelContainer"})
+					if containers[maxIndex] ~= nil then
+						for i,c in ipairs(containers) do
+							if panelsAdded[i] ~= nil then
+								c.selfStyle.height = panelsAdded[i].height
+							end
+						end
+						containers[maxIndex]:FireEvent("maximizeSelf")
+					end
+				end
+
 				dock:FireEventTree("layoutChanged")
 			end
 		end
@@ -2104,9 +2870,174 @@ DockablePanel = {
 	end,
 }
 
+--=============================================================================
+--Panel background processes.
+--
+--A dockable panel can register a "process": a coroutine that keeps running
+--after the panel itself is closed. The canonical example is the Monster AI --
+--pressing Start AI registers a process, and closing the Monster AI panel does
+--not stop the AI from taking turns. While any process for a panel is running,
+--the panel's icon-rail button shows a small spinning gear in its bottom-left
+--corner (see the iconRailProcessGear panel in DocumentSystem.lua), so the user
+--always knows background work is going on and where to go to stop it.
+--
+--Usage:
+--
+--    local process = DockablePanel.StartProcess{
+--        panel = "Monster AI",          --the DockablePanel.Register name
+--        id = "monster-ai",             --unique within the panel; restarting
+--                                       --an id replaces the old process
+--        coroutine = function(process)  --runs as a dmhub.Coroutine
+--            while true do
+--                coroutine.yield(0.1)
+--                if mod.unloaded or process.stopRequested then
+--                    return
+--                end
+--                --do work
+--            end
+--        end,
+--    }
+--
+--Stopping is COOPERATIVE: StopProcess / process:Stop() only set
+--process.stopRequested; the coroutine must poll it (and its own module's
+--mod.unloaded, since a Lua reload abandons this registry) and return. The
+--registry entry clears when the coroutine actually returns, so the rail gear
+--keeps spinning through a graceful wind-down ("Stopping...") and stops when
+--the work truly ends.
+--=============================================================================
+
+--lowercase panel name -> { [id] = process }
+local panelProcesses = {}
+
+local function ProcessPanelKey(name)
+	return string.lower(tostring(name or ""))
+end
+
+--- Start (or restart) a background process for a registered dockable panel.
+--- args: panel (string, the registered panel name), id (string, defaults to
+--- "main"), coroutine (function(process), run as a dmhub.Coroutine).
+--- Returns the process handle, which is also passed to the coroutine:
+--- { panel, id, stopRequested, finished, Stop() }.
+DockablePanel.StartProcess = function(args)
+	local panelName = args.panel
+	local id = args.id or "main"
+	local fn = args.coroutine
+	if panelName == nil or fn == nil then
+		printf("DockablePanel.StartProcess: 'panel' and 'coroutine' fields are required")
+		return nil
+	end
+
+	--restarting an id replaces the old process: ask it to stop first.
+	DockablePanel.StopProcess(panelName, id)
+
+	local process = {
+		panel = panelName,
+		id = id,
+		stopRequested = false,
+		finished = false,
+	}
+
+	function process:Stop()
+		self.stopRequested = true
+	end
+
+	local key = ProcessPanelKey(panelName)
+	local procs = panelProcesses[key]
+	if procs == nil then
+		procs = {}
+		panelProcesses[key] = procs
+	end
+	procs[id] = process
+
+	dmhub.Coroutine(function()
+		process.thread = coroutine.running()
+		local ok, err = pcall(fn, process)
+		process.finished = true
+		if procs[id] == process then
+			procs[id] = nil
+		end
+		if not ok then
+			printf("DockablePanel process '%s' for panel '%s' error: %s", id, panelName, tostring(err))
+		end
+	end)
+
+	return process
+end
+
+--- Request that a panel's background process stop. With an id, stops that
+--- process; with no id, stops every process the panel has. Cooperative -- the
+--- coroutine keeps running until it polls process.stopRequested and returns.
+DockablePanel.StopProcess = function(panelName, id)
+	local procs = panelProcesses[ProcessPanelKey(panelName)]
+	if procs == nil then
+		return
+	end
+	if id ~= nil then
+		local p = procs[id]
+		if p ~= nil then
+			p:Stop()
+		end
+	else
+		for _, p in pairs(procs) do
+			p:Stop()
+		end
+	end
+end
+
+--- The process handle for a panel's process (id defaults to "main"), or nil
+--- if it is not running.
+DockablePanel.GetProcess = function(panelName, id)
+	local procs = panelProcesses[ProcessPanelKey(panelName)]
+	if procs == nil then
+		return nil
+	end
+	return procs[id or "main"]
+end
+
+--- True while the panel has any background process whose coroutine has not
+--- finished. This is what the icon rail's spinning gear indicator reads.
+DockablePanel.HasActiveProcess = function(panelName)
+	local procs = panelProcesses[ProcessPanelKey(panelName)]
+	if procs == nil then
+		return false
+	end
+	for _, p in pairs(procs) do
+		if not p.finished then
+			--belt-and-suspenders: if the thread died without the wrapper
+			--marking it finished, do not report (and spin the gear) forever.
+			if p.thread == nil or coroutine.status(p.thread) ~= "dead" then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+--Apply the dockscale setting to the docks. Must run on docks that are attached
+--to the screen and laid out (not at construction), or the uiscale pivot races
+--with layout and the scaled dock drifts off its edge. See the setScale dock
+--event and the note in CreateSingleDock.
+local function ApplyDockScale()
+	if rawget(_G, "gamehud") == nil or rawget(gamehud, "leftDock") == nil then
+		return
+	end
+	for _,dock in ipairs(gamehud:Docks()) do
+		if dock ~= nil and dock.valid then
+			dock:FireEvent("setScale")
+		end
+	end
+end
+
 --called by dmhub to init dockable panels.
 function InitDockablePanels()
 	DockablePanel.Deserialize()
+
+	--Defer one tick so the docks are fully attached/laid out before we apply the
+	--scale; applying it inline still races with the initial layout pass.
+	dmhub.Schedule(0.1, function()
+		if mod.unloaded then return end
+		ApplyDockScale()
+	end)
 end
 
 dmhub.RegisterOnUnloadModFunction(function(modid)

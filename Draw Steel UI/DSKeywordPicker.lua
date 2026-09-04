@@ -16,19 +16,20 @@ gui.KeywordSelector = function(args)
             children[#children+1] = gui.Panel{
                 classes = {"formPanel"},
                 data = {ord = keyword},
+                flow = "none",
                 width = 200,
                 height = 14,
                 minHeight = 14,
                 gui.Label{
-                    text = keyword,
+                    text = ActivatedAbility.CanonicalKeyword(keyword),
                     width = "auto",
                     height = 14,
                     fontSize = 14,
                     color = Styles.textColor,
                 },
-                gui.DeleteItemButton{
-                    width = 12,
-                    height = 12,
+                gui.Button{
+                    classes = {"deleteButton", "sizeXs"},
+                    valign = "center",
                     halign = "right",
                     click = function(element)
                         keywords[keyword] = nil
@@ -50,6 +51,7 @@ gui.KeywordSelector = function(args)
     end
 
     children[#children+1] = gui.Dropdown{
+        styles = ThemeEngine.GetStyles(),
         selfStyle = {
             height = 30,
             width = 240,
@@ -78,6 +80,13 @@ gui.KeywordSelector = function(args)
 
     for k,v in pairs(args) do
         params[k] = v
+    end
+
+    -- Default halign to "left" so the selector doesn't center in wider
+    -- vertical-flow parents (like the themed feature panel). Callers can
+    -- still override by passing halign in args.
+    if params.halign == nil then
+        params.halign = "left"
     end
 
     resultPanel = gui.Panel(params)

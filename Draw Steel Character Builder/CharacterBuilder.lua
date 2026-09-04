@@ -75,6 +75,8 @@
  FeatureSelector.lua.
 ]]
 
+local mod = dmhub.GetModLoading()
+
 CharacterBuilder = RegisterGameType("CharacterBuilder")
 
 CharacterBuilder.CONTROLLER_CLASS = "builderPanel"
@@ -96,6 +98,7 @@ CharacterBuilder.SELECTOR = {
     KIT         = "kit",
     COMPLICATION = "complication",
     TITLE       = "title",
+    CHOICES     = "choices",
 }
 CharacterBuilder.INITIAL_SELECTOR = CharacterBuilder.SELECTOR.ANCESTRY
 
@@ -148,6 +151,12 @@ CharacterBuilder.STRINGS.TITLE.INTRO = [[
 Titles are special benefits earned by heroes through adventure and mighty deeds. Heroes must win titles - sometimes individually, sometimes as a group - by accomplishing heroic tasks. Titles are the record of a hero's accomplishments, forming the basis of the stories told of them in taverns or whispered in the halls of the mighty.
 
 Each title comes with a new ability or other special benefit. By earning titles, heroes gain a unique set of capabilities that sets them apart from other adventurers.]]
+
+CharacterBuilder.STRINGS.CHOICES = {}
+CharacterBuilder.STRINGS.CHOICES.INTRO = [[
+Some features grant additional choices that don't fit any other category. Use this section to configure those choices.]]
+CharacterBuilder.STRINGS.CHOICES.OVERVIEW = [[
+Select an entry from the list to configure it.]]
 
 --[[
     Ability to register selectors - controls down the left side of the window
@@ -350,6 +359,18 @@ function CharacterBuilder._getHero()
     return nil
 end
 
+--- Returns the creature (hero or monster) on the active token, or nil.
+--- Used by code paths that work with both heroes and monsters; prefer
+--- _getHero() when the logic only makes sense for heroes.
+--- @return creature|nil
+function CharacterBuilder._getCreature()
+    local token = CharacterBuilder._getToken()
+    if token and token.properties then
+        return token.properties
+    end
+    return nil
+end
+
 --- Returns the builder state
 --- @return @CharacterBuilderState|nil
 function CharacterBuilder._getState()
@@ -480,13 +501,28 @@ end
 --- @param feature table The feature object
 --- @return string The feature name
 function CharacterBuilder._safeFeatureName(feature)
-    local name = feature:try_get("name")
-    if name then
+    -- Safe against plain instance tables (ongoing-effect / condition instances
+    -- set as entry.feature) that lack a try_get method: use the same accessor
+    -- _safeGet does, and guard a missing/short typeName, so the index build for
+    -- a creature carrying such instances never crashes.
+    if feature == nil then
+        return ""
+    end
+
+    -- Use _safeDefaultGet (not _safeGet): some features, like
+    -- CharacterCompanionChoice, get their name from the type's default rather
+    -- than setting it on the feature itself. _safeDefaultGet finds those.
+    local name = CharacterBuilder._safeDefaultGet(feature, "name")
+    if type(name) == "string" and name ~= "" then
         return name
     end
 
     -- Extract type name without "Character" prefix
-    local typeName = feature.typeName:sub(10)  -- Remove "Character"
+    local typeName = CharacterBuilder._safeDefaultGet(feature, "typeName")
+    if type(typeName) ~= "string" or #typeName < 10 then
+        return ""
+    end
+    typeName = typeName:sub(10)  -- Remove "Character"
 
     -- Add spaces before capitals (except first char)
     return typeName:sub(1, 1) .. typeName:sub(2):gsub("(%u)", " %1")
@@ -503,6 +539,26 @@ function CharacterBuilder._safeGet(item, propertyName, defaultValue)
         return item:try_get(propertyName, defaultValue)
     end
     local value = item[propertyName]
+    if value == nil then value = defaultValue end
+    return value
+end
+
+--- Like _safeGet, but also finds values that come from the type's default
+--- instead of being set on the item directly (_safeGet misses those).
+--- Reading a value this way can error in DMHub if the field does not exist at
+--- all, so we wrap it in pcall: pcall runs the read and tells us whether it
+--- succeeded instead of crashing.
+--- @param item table The item to check
+--- @param propertyName string
+--- @param defaultValue? any
+--- @return any
+function CharacterBuilder._safeDefaultGet(item, propertyName, defaultValue)
+    local value = CharacterBuilder._safeGet(item, propertyName)
+    if value == nil then
+        -- ok is false if the read errored; resolved is the value if it worked.
+        local ok, resolved = pcall(function() return item[propertyName] end)
+        if ok then value = resolved end
+    end
     if value == nil then value = defaultValue end
     return value
 end
@@ -545,14 +601,14 @@ end
 --- @param rollFaces integer
 --- @return integer rollFaces
 function CharacterBuilder._validateRollFaces(rollFaces)
-    local validFaces = {2, 3, 6, 8, 10, 12, 20, 100}
+    local validFaces = {2, 3, 6, 8, 10, 12, 20}
     for _, faces in ipairs(validFaces) do
         if faces >= rollFaces then
             if faces == 10 then return 20 end -- Djordice, obvs
             return faces
         end
     end
-    return 100
+    return 20
 end
 
 --[[
@@ -581,7 +637,7 @@ function CharacterBuilder._confirmDialog(opts)
 
     local resultPanel = nil
     resultPanel = gui.Panel {
-        styles = CBStyles.GetStyles(),
+        styles = ThemeEngine.MergeStyles(CBStyles.GetStyles()),
         classes = {"confirmDialogController", "builder-base", "panel-base", "dialog"},
         width = 500,
         height = 300,
@@ -657,6 +713,12 @@ function CharacterBuilder._confirmDialog(opts)
         },
     }
 
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = ThemeEngine.MergeStyles(CBStyles.GetStyles())
+        end
+    end)
+
     return resultPanel
 end
 
@@ -671,8 +733,6 @@ function CharacterBuilder._makeCategoryButton(options)
     options.height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT
     options.valign = "top"
     options.bmargin = CBStyles.SIZES.CATEGORY_BUTTON_MARGIN
-    options.bgcolor = CBStyles.COLORS.BLACK03
-    options.borderColor = CBStyles.COLORS.GRAY02
     return gui.SelectorButton(options)
 end
 
@@ -781,13 +841,14 @@ function CharacterBuilder._makeFeatureRegistry(options)
                 },
                 CharacterBuilder.ProgressPip(1, {
                     rotate = 0,
-                    classes = {"builder-base", "panel-base", "progress-pip", "secondary"},
+                    classes = {"builder-base", "panel-base", "progress-pip", "secondary", "bordered"},
                     halign = "right",
                     valign = "top",
-                    hmargin = 3,
-                    vmargin = 3,
+                    hmargin = 10,
+                    vmargin = 10,
                     width = 12,
                     height = 12,
+                    cornerRadius = 3,
                     refreshBuilderState = function(element, state)
                         local visible = state:Get(selector .. ".blockFeatureSelection") ~= true
                         if visible then
@@ -848,7 +909,7 @@ function CharacterBuilder._makeSelectButton(options)
         end
     end
 
-    return gui.PrettyButton(opts)
+    return gui.Button(opts)
 end
 
 --- Sort an array of child panels by .data.order, preserving unordered items at start/end

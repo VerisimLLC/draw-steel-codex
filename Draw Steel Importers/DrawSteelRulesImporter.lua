@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 local g_nameToExistingKitId = {}
 local g_nameToExistingAbility = {}
 local g_nameToExistingManeuver = {}
@@ -183,9 +194,11 @@ import.Register{
             end
         end
 
+        local classCount = 0
         for classid,classInfo in pairs(classes) do
             print("CLASSES:: IMPORT:", classInfo.name, "flavor=", #classInfo.flavor, "basics=", #classInfo.basics, "features=", #classInfo.features, "abilities=", #classInfo.abilities)
             ImportClass(import, classInfo)
+            classCount = classCount + 1
         end
 
         mode = "kits"
@@ -193,6 +206,7 @@ import.Register{
         local kitType = nil
         local kitInfo = {}
         local currentKit = nil
+        local kitCount = 0
 
         for _,sline in ipairs(sections.kits or {}) do
             if mode == "kitStats" then
@@ -292,7 +306,7 @@ import.Register{
             local function ParseNumericBonus(match, attrid)
                 local numMatch = regex.MatchGroups(match.value, "^\\+?(?<num>[0-9]+)( *per echelon)?$")
                 if numMatch == nil then
-                    import:Log(string.format("Unrecognized %s: %s", match.attrid, match.value))
+                    import:Log(string.format("Unrecognized %s: %s", match.attr, match.value))
                 else
                     rawset(newKit, attrid, tonumber(numMatch.num))
                 end
@@ -309,7 +323,7 @@ import.Register{
                     if damageTypeMatch ~= nil then
                         local damageMatch = regex.MatchGroups(bonusMatch.value, Kit.damageBonusMatchPattern)
                         if damageMatch == nil then
-                            import:Log(string.format("Unrecognized %s: %s", match.attrid, line))
+                            import:Log(string.format("Unrecognized %s: %s", bonusMatch.attr, line))
                         else
                             newKit:DamageBonuses()[string.lower(damageTypeMatch.attr)] = {tonumber(damageMatch.tier1), tonumber(damageMatch.tier2), tonumber(damageMatch.tier3)}
                         end
@@ -356,6 +370,22 @@ import.Register{
 
             import:StoreLogFromBookmark(bookmark, newKit)
             import:ImportAsset(Kit.tableName, newKit)
+            kitCount = kitCount + 1
+        end
+
+        if classCount > 0 then
+            track("rules_import", {
+                contentType = "classes",
+                count = classCount,
+                dailyLimit = 3,
+            })
+        end
+        if kitCount > 0 then
+            track("rules_import", {
+                contentType = "kits",
+                count = kitCount,
+                dailyLimit = 3,
+            })
         end
     end,
 }

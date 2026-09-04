@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 --- @param str string The criteria to search by.
 --- @return CharacterToken[] The list of tokens that match the criteria.
 local tokenSearch = function(str, tokens)
@@ -118,6 +129,36 @@ end
 
 print("SPLIT::", Commands.SplitArgs("(numheroes + 4) * 3"))
 
+Commands.RegisterMacro{
+    name = "popoutgpu",
+    summary = "toggle GPU rendering for popout windows",
+    doc = "Usage: /popoutgpu [on|off]\nToggles GPU rendering for popout windows, or explicitly enables/disables it.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        return {
+            {text = "on", summary = "use DXGI shared textures"},
+            {text = "off", summary = "use CPU shared memory"},
+        }
+    end,
+    command = function(str)
+        local value = string.lower(trim(str or ""))
+        local enabled
+        if value == "" then
+            enabled = not dmhub.GetSettingValue("popoutgpu")
+        elseif value == "on" or value == "true" or value == "1" then
+            enabled = true
+        elseif value == "off" or value == "false" or value == "0" then
+            enabled = false
+        else
+            dmhub.Log("Usage: /popoutgpu [on|off]")
+            return
+        end
+
+        dmhub.SetSettingValue("popoutgpu", enabled)
+        dmhub.Log(string.format("Popout GPU rendering: %s", cond(enabled, "enabled", "disabled (CPU mode)")))
+    end,
+}
+
 local function ongoingEffectCompletions(args, argIndex)
     if argIndex ~= 1 then return {} end
     local characterOngoingEffects = dmhub.GetTable("characterOngoingEffects")
@@ -195,10 +236,313 @@ Commands.RegisterMacro{
     end,
 }
 
+--Durations that creature:ApplyOngoingEffect accepts:
+--  nil                -- indefinite; only removed by hand or by an end-effect
+--  "eoe"              -- ends when the encounter ends
+--  "eoe_or_dying"     -- ends when the encounter ends, or when the target starts dying
+--  "save_ends"        -- target rolls to shake it off at the end of each of its turns
+--  "end_of_next_turn" -- ends at the end of the target's next turn
+--  "endround"         -- ends when the current round ends
+--  "endnextround"     -- ends when the next round ends
+--  "until_rest"       -- ends on a respite or a long rest
+--  "until_long_rest"  -- ends on a long rest only
+local g_heroEffectDuration = nil
+
+--Duration keywords /heroeffect accepts as an argument, mapped to the values
+--above. "indefinite" is the odd one out: it means nil, so it needs a name here
+--rather than being passed straight through like the rest.
+local g_heroEffectDurationKeywords = {
+    indefinite = true,
+    eoe = true,
+    eoe_or_dying = true,
+    save_ends = true,
+    end_of_next_turn = true,
+    endround = true,
+    endnextround = true,
+    until_rest = true,
+    until_long_rest = true,
+}
+
+--Turn a duration keyword into the value ApplyOngoingEffect wants.
+local function durationFromKeyword(keyword)
+    if keyword == "indefinite" then
+        return nil
+    end
+    return keyword
+end
+
+--Look up an ongoing effect by its display name (case-insensitive). Returns the
+--effect's table id, or nil if nothing matches.
+local function findOngoingEffectByName(name)
+    for k, v in unhidden_pairs(dmhub.GetTable("characterOngoingEffects")) do
+        if string.lower(v.name) == name then
+            return k
+        end
+    end
+    return nil
+end
+
+Commands.RegisterMacro{
+    name = "heroeffect",
+    summary = "apply an ongoing effect to every hero",
+    doc = "Usage: /heroeffect <effect name> [map|party] [duration]\nApplies the given ongoing effect to every hero. Scope defaults to 'party': all heroes in the player party, whether or not they are on the current map; pass 'map' to limit it to heroes on the current map. Duration defaults to 'indefinite'; the others are eoe, eoe_or_dying, save_ends, end_of_next_turn, endround, endnextround, until_rest and until_long_rest. Scope and duration may be given in either order.",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            return ongoingEffectCompletions(args, argIndex)
+        end
+        return {
+            {text = "party", summary = "every hero in the player party (default)"},
+            {text = "map", summary = "only heroes on the current map"},
+            {text = "indefinite", summary = "never expires on its own (default)"},
+            {text = "eoe", summary = "ends when the encounter ends"},
+            {text = "eoe_or_dying", summary = "ends at end of encounter, or when the target starts dying"},
+            {text = "save_ends", summary = "target rolls to shake it off at the end of each of its turns"},
+            {text = "end_of_next_turn", summary = "ends at the end of the target's next turn"},
+            {text = "endround", summary = "ends when the current round ends"},
+            {text = "endnextround", summary = "ends when the next round ends"},
+            {text = "until_rest", summary = "ends on a respite or a long rest"},
+            {text = "until_long_rest", summary = "ends on a long rest only"},
+        }
+    end,
+    command = function(str)
+        if not dmhub.isDM then
+            dmhub.Log("/heroeffect: GM only.")
+            return
+        end
+
+        local text = trim(str or "")
+        local scope = "party"
+        local duration = g_heroEffectDuration
+        local durationLabel = "indefinite"
+
+        --Match the whole argument as an effect name first, so an effect that
+        --genuinely ends in a keyword still resolves. Only when that fails do we
+        --peel recognised trailing keywords off the end, one at a time, so scope
+        --and duration can be given in either order. An unrecognised trailing
+        --word stops the peeling and is reported as part of the bad name.
+        local effectid = findOngoingEffectByName(string.lower(text))
+        local remainder = text
+        local haveScope = false
+        local haveDuration = false
+        while effectid == nil do
+            local head, tail = string.match(remainder, "^(.-)%s+(%S+)$")
+            if head == nil then
+                break
+            end
+
+            local keyword = string.lower(tail)
+            if (keyword == "map" or keyword == "party") and not haveScope then
+                scope = keyword
+                haveScope = true
+            elseif g_heroEffectDurationKeywords[keyword] and not haveDuration then
+                duration = durationFromKeyword(keyword)
+                durationLabel = keyword
+                haveDuration = true
+            else
+                break
+            end
+
+            remainder = trim(head)
+            effectid = findOngoingEffectByName(string.lower(remainder))
+        end
+
+        if effectid == nil then
+            dmhub.Log(string.format("/heroeffect: no ongoing effect named '%s'. Usage: /heroeffect <effect name> [map|party] [duration]", text))
+            return
+        end
+
+        local targets = {}
+        if scope == "map" then
+            for _, token in ipairs(dmhub.allTokens) do
+                if token.properties ~= nil and token.properties:IsHero() then
+                    targets[#targets + 1] = token
+                end
+            end
+        else
+            --GetCharacterById rather than GetTokenById: the latter only sees tokens
+            --spawned on the map that is currently loaded, and the party scope is
+            --meant to reach heroes wherever they are. Despawned characters (dead,
+            --turned into a corpse) are skipped.
+            for _, charid in ipairs(dmhub.GetCharacterIdsInParty(GetDefaultPartyID()) or {}) do
+                local token = dmhub.GetCharacterById(charid)
+                if token ~= nil and token.properties ~= nil and not token.despawned and token.properties:IsHero() then
+                    targets[#targets + 1] = token
+                end
+            end
+        end
+
+        for _, token in ipairs(targets) do
+            token:ModifyProperties{
+                description = "Apply Ongoing Effect",
+                combine = true,
+                execute = function()
+                    token.properties:ApplyOngoingEffect(effectid, duration)
+                end,
+            }
+        end
+
+        local effectName = dmhub.GetTable("characterOngoingEffects")[effectid].name
+        dmhub.Log(string.format("/heroeffect: applied %s to %d hero%s (%s, %s).",
+            effectName, #targets, cond(#targets == 1, "", "es"), scope, durationLabel))
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "dramaticbanner",
+    summary = "show a dramatic banner",
+    doc = "Usage: /dramaticbanner <title> [ | <subtitle>]\nShows a dramatic banner centred on the currently selected token. Put a vertical bar after the title to add an optional subtitle.",
+
+    --Two text params rather than one: the macro takes a single free-form
+    --line split on '|', and the Subtitle's joiner is what puts that bar back
+    --in when it is baked. A blank subtitle is dropped along with its bar, so
+    --the title-only form is byte-identical to typing it by hand.
+    --
+    --No broadcast option: DramaticBanner.Show writes a shared document, so
+    --the banner already plays on every client.
+    commandInfo = {
+        name = "Dramatic Banner",
+        description = "Sweep a title across every screen, centred on your selected token.",
+        params = {
+            {name = "Title", type = "text", required = true, placeholder = "The gate falls"},
+            {name = "Subtitle", type = "text", joiner = "|", placeholder = "optional"},
+        },
+    },
+
+    command = function(str)
+        local tokens = dmhub.selectedTokens
+        if tokens == nil or #tokens == 0 then
+            print("dramaticbanner: select a token first.")
+            return
+        end
+
+        local title = str
+        local subtitle = nil
+        local barIndex = string.find(str, "|", 1, true)
+        if barIndex ~= nil then
+            title = string.sub(str, 1, barIndex - 1)
+            subtitle = string.trim(string.sub(str, barIndex + 1))
+            if subtitle == "" then
+                subtitle = nil
+            end
+        end
+
+        DramaticBanner.Show{
+            tokenid = tokens[1].id,
+            text = string.trim(title),
+            subtitle = subtitle,
+        }
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "testvictory",
+    summary = "fake a victory (or defeat) screen",
+    doc = "Usage: /testvictory [defeat|off]\nSets up a fake active combat whose LiveEncounter has an outcome awarded, with every hero on the map added to initiative as the heroes and every non-hero token added as the monster side (grouped by initiative grouping, so the Monsters tab has cards) -- so the outcome screen (DSVictoryScreen) shows for quick iteration. Onset Recoveries are faked +2 above current so the 'X -> Y/Z' change is visible. Pass 'defeat' to fake the DEFEAT screen instead of victory. Pass 'off' (or 'clear') to end the fake combat and dismiss the screen.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        return {
+            {text = "defeat", summary = "fake the defeat screen"},
+            {text = "off", summary = "clear the fake outcome"},
+        }
+    end,
+    command = function(str)
+        if not dmhub.isDM then
+            print("/testvictory: DM only.")
+            return
+        end
+
+        local info = GameHud.instance.initiativeInterface
+
+        local arg = string.lower(trim(str or ""))
+        if arg == "off" or arg == "clear" then
+            local q = dmhub.initiativeQueue
+            if q ~= nil then
+                local live = q:try_get("liveEncounter")
+                if type(live) == "table" then
+                    live.victoryAwarded = false
+                    live.defeatAwarded = false
+                end
+                q.hidden = true
+                q.gameMode = "exploration"
+                info.UploadInitiative()
+            end
+            print("/testvictory: cleared.")
+            return
+        end
+
+        local isDefeat = arg == "defeat"
+
+        --Build a fresh active initiative queue containing every hero on the map
+        --plus every non-hero token as the monster side.
+        local q = InitiativeQueue.Create()
+        q.hidden = false
+        q.playersGoFirst = true
+        q.playersTurn = true
+
+        local heroTokens = {}
+        local monsterids = {}
+        for _, token in ipairs(dmhub.allTokens) do
+            if token.properties ~= nil then
+                if token.properties:IsHero() then
+                    local entry = q:SetInitiative(InitiativeQueue.GetInitiativeId(token), 0, 0)
+                    entry.player = true
+                    heroTokens[#heroTokens + 1] = token
+                else
+                    local entry = q:SetInitiative(InitiativeQueue.GetInitiativeId(token), 0, 0)
+                    entry.player = false
+                    monsterids[#monsterids + 1] = token.charid
+                end
+            end
+        end
+
+        --Attach a fake LiveEncounter already in the chosen outcome state.
+        local live = LiveEncounter.Create(Encounter.new())
+        live.onsetMonsterCount = 3
+        live.victoryAwarded = not isDefeat
+        live.defeatAwarded = isDefeat
+        --snapshot the monster groupings so the Monsters tab has cards.
+        live:RecordOnsetMonsterGroups(monsterids)
+
+        --Fake onset Recoveries 2 above current so the "onset -> current/max" arrow shows.
+        local onsetHeroes = {}
+        for _, token in ipairs(heroTokens) do
+            local _, cur = live:GetHeroRecoveries(token)
+            onsetHeroes[#onsetHeroes + 1] = {
+                charid = token.charid,
+                name = token.name,
+                recoveries = (cur or 0) + 2,
+            }
+        end
+        live.onsetHeroes = onsetHeroes
+
+        q.liveEncounter = live
+
+        info.initiativeQueue = q
+        info.UploadInitiative()
+
+        print(string.format("/testvictory: faked %s with %d heroes and %d monster tokens.",
+            cond(isDefeat, "defeat", "victory"), #heroTokens, #monsterids))
+    end,
+}
+
 Commands.RegisterMacro{
     name = "collapsefloor",
     summary = "collapse a floor",
     doc = "Usage: /collapsefloor <floor name>\nCollapses given floor object and drops tokens.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local floors = game.currentMap.floors
+        local result = {}
+        local seen = {}
+        for i = 1, #floors do
+            local desc = floors[i].description
+            if not seen[desc] then
+                seen[desc] = true
+                result[#result+1] = {text = desc, summary = "floor"}
+            end
+        end
+        return result
+    end,
     command = function(str)
         print("SEARCH:: FLOOR", str)
         for _, floor in ipairs(game.currentMap.floors) do
@@ -233,6 +577,20 @@ Commands.RegisterMacro{
     name = "uncollapsefloor",
     summary = "uncollapse a floor",
     doc = "Usage: /uncollapsefloor <floor name>\nUncollapses given floor object.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local floors = game.currentMap.floors
+        local result = {}
+        local seen = {}
+        for i = 1, #floors do
+            local desc = floors[i].description
+            if not seen[desc] then
+                seen[desc] = true
+                result[#result+1] = {text = desc, summary = "floor"}
+            end
+        end
+        return result
+    end,
     command = function(str)
         print("SEARCH:: FLOOR", str)
         for _, floor in ipairs(game.currentMap.floors) do
@@ -310,6 +668,103 @@ Commands.RegisterMacro{
 }
 
 Commands.RegisterMacro{
+    name = "tipsclear",
+    summary = "clear learned tips",
+    doc = "Wipes the local user's record of which tips have been learned/dismissed so they will show again.",
+    command = function(str)
+        Tip.ResetAll()
+        print("Tips reset; eligible tips will re-display.")
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "exportrenderedtoken",
+    summary = "export the selected token to PNG",
+    doc = "Usage: /exportrenderedtoken [padding] [resolution]\nRenders the currently selected token (frame + character/spine art) on a transparent background and prompts you to save it as a PNG.\n  padding: how much extra room around the token (default 1.5, min 1.0).\n  resolution: square output size in pixels (default 1024).",
+    command = function(str)
+        local tokens = dmhub.selectedTokens
+        if tokens == nil or #tokens == 0 then
+            print("/exportrenderedtoken: no token selected; click a token first.")
+            return
+        end
+        local args = Commands.SplitArgs(str or "")
+        local padding = tonumber(args[1])
+        local resolution = tonumber(args[2])
+        dmhub.ExportTokenImage{
+            token = tokens[1],
+            padding = padding,
+            resolution = resolution,
+            error = function(msg) print(msg) end,
+        }
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "tipsperf",
+    summary = "benchmark tip-system overhead",
+    doc = "Usage: /tipsperf [iterations]\nTimes the tip driver and its hot subroutines over N iterations (default 2000) and prints per-op costs in microseconds.",
+    command = function(str)
+        local n = tonumber(str) or 2000
+        local gh = GameHud.instance
+        if gh == nil then print("No GameHud.instance") return end
+
+        --Snapshot live state so the timed ops behave identically regardless
+        --of any tip currently showing.
+        local savedActive = gh:try_get("activeTipId")
+        local savedScan = gh:try_get("_tipLastScan")
+        local savedState = gh:try_get("_tipState")
+
+        local registrySize = 0
+        for _ in pairs(Tip.registry) do registrySize = registrySize + 1 end
+
+        --1) Just the modal-block check (panel tree walk).
+        local sw1 = dmhub.Stopwatch()
+        for i = 1, n do gh:_TipIsBlockedByDialog() end
+        local ms1 = sw1.milliseconds
+
+        --2) Full driver tick with NO active tip (scan path forced by
+        --   resetting _tipLastScan each iteration so the scan actually runs).
+        gh.activeTipId = nil
+        gh._tipState = nil
+        local sw2 = dmhub.Stopwatch()
+        for i = 1, n do
+            gh._tipLastScan = nil
+            gh:_TipDriverTick()
+            --Driver may have picked a tip; reset so next iter re-scans.
+            gh.activeTipId = nil
+            gh._tipState = nil
+        end
+        local ms2 = sw2.milliseconds
+
+        --3) Just the registry scan loop (each tip's eligible() once).
+        local sw3 = dmhub.Stopwatch()
+        for i = 1, n do
+            for _, spec in pairs(Tip.registry) do
+                if not Tip.IsLearned(spec.id) and spec.eligible ~= nil then
+                    pcall(spec.eligible)
+                end
+            end
+        end
+        local ms3 = sw3.milliseconds
+
+        --Restore.
+        gh.activeTipId = savedActive
+        gh._tipLastScan = savedScan
+        gh._tipState = savedState
+
+        local function us(totalMs) return (totalMs * 1000) / n end
+
+        print(string.format("Tip perf (%d iterations, %d tips registered):", n, registrySize))
+        print(string.format("  ModalBlockCheck:  total %dms, avg %.2f us/call", ms1, us(ms1)))
+        print(string.format("  Full driver tick (no active, scan path forced):"))
+        print(string.format("                    total %dms, avg %.2f us/call", ms2, us(ms2)))
+        print(string.format("  Registry scan (eligible() x %d tips per iter):", registrySize))
+        print(string.format("                    total %dms, avg %.2f us/call", ms3, us(ms3)))
+        print(string.format("At thinkTime=0.25 (4Hz), full-tick cost = %.4f%% of one core.", us(ms2) * 4 / 10000))
+    end,
+}
+
+Commands.RegisterMacro{
     name = "slowstartlevel",
     summary = "set tutorial level",
     doc = "Usage: /slowstartlevel <level number>\nSets heroes on current map to a specific 'tutorial' level.",
@@ -340,6 +795,26 @@ Commands.RegisterMacro{
     name = "objectcommand",
     summary = "run object command",
     doc = "Usage: /objectcommand <keyword[.component]> <command>\nExecutes a command on map objects matching the keyword.",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            local result = {}
+            local seen = {}
+            local objects = game.currentFloor.objects
+            for _, obj in pairs(objects) do
+                if obj.keywords then
+                    for kw, _ in pairs(obj.keywords) do
+                        if not seen[kw] then
+                            seen[kw] = true
+                            result[#result+1] = kw
+                        end
+                    end
+                end
+            end
+            table.sort(result)
+            return result
+        end
+        return {}
+    end,
     command = function(str)
         local args = string.split(str, " ")
         if (not args[1]) or (not args[2]) then
@@ -416,6 +891,28 @@ Commands.RegisterMacro{
     name = "activateobjects",
     summary = "toggle map objects",
     doc = "Usage: /activateobjects <keyword[.component]> [activate|deactivate|toggle]\nActivates, deactivates, or toggles map objects matching the keyword.",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            local result = {}
+            local seen = {}
+            local objects = game.currentFloor.objects
+            for _, obj in pairs(objects) do
+                if obj.keywords then
+                    for kw, _ in pairs(obj.keywords) do
+                        if not seen[kw] then
+                            seen[kw] = true
+                            result[#result+1] = kw
+                        end
+                    end
+                end
+            end
+            table.sort(result)
+            return result
+        elseif argIndex == 2 then
+            return {{text = "activate", summary = "activate objects"}, {text = "deactivate", summary = "deactivate objects"}, {text = "toggle", summary = "toggle objects"}}
+        end
+        return {}
+    end,
     command = function(str)
         local args = string.split(str, " ")
         if not args[1] then
@@ -466,6 +963,54 @@ Commands.RegisterMacro{
 }
 
 Commands.RegisterMacro{
+    name = "lockobjects",
+    summary = "lock or unlock map objects",
+    doc = "Usage: /lockobjects <keyword> [lock|unlock|toggle]\nLocks, unlocks, or toggles the locked state of map objects matching the keyword.",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            local result = {}
+            local seen = {}
+            local objects = game.currentFloor.objects
+            for _, obj in pairs(objects) do
+                if obj.keywords then
+                    for kw, _ in pairs(obj.keywords) do
+                        if not seen[kw] then
+                            seen[kw] = true
+                            result[#result+1] = kw
+                        end
+                    end
+                end
+            end
+            table.sort(result)
+            return result
+        elseif argIndex == 2 then
+            return {{text = "lock", summary = "lock objects"}, {text = "unlock", summary = "unlock objects"}, {text = "toggle", summary = "toggle objects"}}
+        end
+        return {}
+    end,
+    command = function(str)
+        local args = string.split(str, " ")
+        if not args[1] then
+            return
+        end
+
+        local search = args[1]
+        local mode = args[2] or "lock"
+        local objects = game.currentFloor.objects
+        for key, obj in pairs(objects) do
+            local keywords = obj.keywords
+            if keywords and keywords[search] then
+                local newValue = cond(mode == "toggle", not obj.locked, cond(mode == "unlock", false, true))
+                if newValue ~= obj.locked then
+                    obj.locked = newValue
+                    obj:Upload()
+                end
+            end
+        end
+    end,
+}
+
+Commands.RegisterMacro{
     name = "openurl",
     summary = "open a URL",
     doc = "Usage: /openurl <url>\nOpens a URL in the system web browser.",
@@ -485,6 +1030,28 @@ Commands.RegisterMacro{
     name = "screenshake",
     summary = "shake the screen",
     doc = "Usage: /screenshake <duration> <strength> <vibrato> <randomness>\nShakes the screen locally. Use /broadcast to send to other players.",
+
+    --surface in the no-code command builder. Defaults mirror the engine's
+    --(dmhub.ScreenShake casts missing args to 0.3 / 0.5 / 10 / 90).
+    --
+    --broadcast "always": dmhub.ScreenShake is client-local, and a journal
+    --command button runs on the presser's machine alone -- an un-broadcast
+    --shake in a command would only ever be seen by one person, which is
+    --never what the button is for. Recorded steps are wrapped in /broadcast
+    --so the whole table feels it. Change this to "on" if a per-button opt-out
+    --is ever wanted.
+    commandInfo = {
+        name = "Screen Shake",
+        description = "Shake the screen for a dramatic moment.",
+        broadcast = "always",
+        params = {
+            {name = "Duration", min = 0.1, max = 3, default = 0.3, round = 0.05, labelFormat = "%.2f"},
+            {name = "Strength", min = 0.1, max = 3, default = 0.5, round = 0.05, labelFormat = "%.2f"},
+            {name = "Vibrato", min = 1, max = 30, default = 10, round = 1, labelFormat = "%.0f"},
+            {name = "Randomness", min = 0, max = 180, default = 90, round = 5, labelFormat = "%.0f"},
+        },
+    },
+
     command = function(str)
         local args = Commands.SplitArgs(str)
         dmhub.ScreenShake(tonumber(args[1]), tonumber(args[2]), tonumber(args[3]), tonumber(args[4]))
@@ -495,6 +1062,17 @@ Commands.RegisterMacro{
     name = "broadcast",
     summary = "broadcast a command",
     doc = "Usage: /broadcast <command>\nExecutes a command locally and broadcasts it to all other players.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local result = {}
+        for name, _ in pairs(Commands) do
+            if type(Commands[name]) == "table" and Commands[name].command ~= nil then
+                result[#result+1] = "/" .. name
+            end
+        end
+        table.sort(result)
+        return result
+    end,
     command = function(str)
         str = string.join(Commands.SplitArgs(str), " ")
         dmhub.Execute(str)
@@ -543,6 +1121,7 @@ Commands.RegisterMacro{
     name = "togglefloorvisibility",
     summary = "toggle floor visibility",
     doc = "Usage: /togglefloorvisibility [floor name]\nToggles visibility of a floor. If no name is given, toggles the current floor.",
+    completions = floorCompletions,
     command = function(str)
         if not dmhub.isDM then return end
 
@@ -645,6 +1224,19 @@ Commands.RegisterMacro{
     name = "move",
     summary = "move a token",
     doc = "Usage: /move <token name> <x> <y>\nMoves token(s) to given location.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local result = {{text = "all", summary = "all tokens"}, {text = "heroes", summary = "hero tokens"}, {text = "monsters", summary = "monster tokens"}}
+        local seen = {}
+        for _, token in ipairs(dmhub.allTokens) do
+            local name = token.name or ""
+            if name ~= "" and not seen[name] then
+                seen[name] = true
+                result[#result+1] = name
+            end
+        end
+        return result
+    end,
     command = function(str)
         local args = Commands.SplitArgs(str)
         local x = tonumber(args[2])
@@ -669,6 +1261,112 @@ local function tokenNameCompletions(args, argIndex)
         if name ~= "" and not seen[name] then
             seen[name] = true
             result[#result+1] = name
+        end
+    end
+    table.sort(result)
+    return result
+end
+
+local function tokenSearchCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local result = {{text = "all", summary = "all tokens"}, {text = "heroes", summary = "hero tokens"}, {text = "monsters", summary = "monster tokens"}}
+    local seen = {}
+    for _, token in ipairs(dmhub.allTokens) do
+        local name = token.name or ""
+        if name ~= "" and not seen[name] then
+            seen[name] = true
+            result[#result+1] = name
+        end
+    end
+    return result
+end
+
+local function monsterNameCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local result = {}
+    local seen = {}
+    for _, monster in pairs(assets.monsters) do
+        local name = monster.properties:try_get("monster_type", "")
+        if name ~= "" and not seen[name] then
+            seen[name] = true
+            result[#result+1] = name
+        end
+    end
+    table.sort(result)
+    return result
+end
+
+local function itemCompletions(args, argIndex)
+    local items = dmhub.GetTable("tbl_Gear")
+    local result = {}
+    for k, v in unhidden_pairs(items) do
+        result[#result+1] = {text = k, summary = v.name}
+    end
+    table.sort(result, function(a, b) return a.summary < b.summary end)
+    return result
+end
+
+local function titleCompletions(args, argIndex)
+    local titles = dmhub.GetTable("titles")
+    local result = {}
+    for k, v in unhidden_pairs(titles) do
+        result[#result+1] = {text = k, summary = v.name}
+    end
+    table.sort(result, function(a, b) return a.summary < b.summary end)
+    return result
+end
+
+local function variableCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local doc = mod:GetDocumentSnapshot("variables")
+    local result = {}
+    for k, _ in pairs(doc.data) do
+        result[#result+1] = k
+    end
+    table.sort(result)
+    return result
+end
+
+local function audioCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local result = {}
+    for k, v in pairs(assets.audioTable) do
+        --AudioAssetLua has `description`, not `name`; the old `v.name or k`
+        --always fell through to the guid, so the completion list showed
+        --nothing but guids.
+        result[#result+1] = {text = k, summary = v.description or k}
+    end
+    table.sort(result, function(a, b) return a.summary < b.summary end)
+    return result
+end
+
+local function settingCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local result = {}
+    for id, info in pairs(Settings) do
+        local desc = info.description or id
+        result[#result+1] = {text = desc, summary = id}
+    end
+    table.sort(result, function(a, b) return a.text < b.text end)
+    return result
+end
+
+local function languageCompletions(args, argIndex)
+    local langTable = dmhub.GetTable(Language.tableName)
+    local result = {}
+    for k, v in unhidden_pairs(langTable) do
+        result[#result+1] = {text = k, summary = v.name}
+    end
+    table.sort(result, function(a, b) return a.summary < b.summary end)
+    return result
+end
+
+local function macroNameCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local result = {}
+    for name, _ in pairs(Commands) do
+        if type(Commands[name]) == "table" and Commands[name].command ~= nil then
+            result[#result+1] = "/" .. name
         end
     end
     table.sort(result)
@@ -738,16 +1436,20 @@ Commands.RegisterMacro{
     end,
     command = function(str)
         local args = Commands.SplitArgs(str)
-        local tokens = args[1]
-        local emote = args[2]
+        if #args < 1 then
+            return
+        end
 
-        if #args < 2 then
+        if #args == 1 then
+            local emote = args[1]
             for i, tok in ipairs(dmhub.selectedOrPrimaryTokens) do
                 if tok.properties ~= nil then
                     tok.properties:Emote(emote, { deleteOthers = true })
                 end
             end
         else
+            local tokens = args[1]
+            local emote = args[2]
             local allTokens = tokenSearch(tokens)
             for _, token in ipairs(allTokens) do
                 if token.properties ~= nil then
@@ -809,6 +1511,7 @@ Commands.RegisterMacro{
     name = "monster",
     summary = "spawn a monster",
     doc = "Usage: /monster <monster name> <x> <y>\nSpawns the named monster from the bestiary to the given location.",
+    completions = monsterNameCompletions,
     command = function(str)
         local args = Commands.SplitArgs(str)
         local monsterName = args[1]
@@ -843,19 +1546,27 @@ Commands.RegisterMacro{
 Commands.RegisterMacro{
     name = "spawn",
     summary = "spawn a character",
-    doc = "Usage: /spawn <token name> <x> <y>\nSpawns any character(s) to given location.",
+    doc = "Usage: /spawn <token name> <x> <y> [floor]\nSpawns any character(s) to given location. Floor defaults to the current floor if omitted.",
+    completions = tokenSearchCompletions,
     command = function(str)
         local args = Commands.SplitArgs(str)
         local tokenName = args[1]
         local x = tonum(args[2])
         local y = tonum(args[3])
+        local floorIndex = tonum(args[4])
 
         local characters = game.GetGameGlobalCharacters()
 
         local tokens = tokenSearch(tokenName, table.values(characters))
 
         for _, token in pairs(tokens) do
-            token:ChangeLocation(core.Loc { x = x, y = y })
+            local loc
+            if floorIndex ~= nil then
+                loc = core.Loc { x = x, y = y, floorIndex = floorIndex }
+            else
+                loc = core.Loc { x = x, y = y }
+            end
+            token:ChangeLocation(loc)
         end
     end,
 }
@@ -947,6 +1658,26 @@ Commands.RegisterMacro{
     name = "audio",
     summary = "play audio",
     doc = "Usage: /audio <audio ID> <volume>\nPlays an audio asset at the given volume (default 50).",
+    completions = audioCompletions,
+
+    --Sound uses the app's own audio picker (gui.AudioEditor) rather than a
+    --dropdown: it names the sound instead of showing its guid, previews it,
+    --and lets the user upload a new sound from the popup without leaving the
+    --builder. No broadcast option: PlaySoundEvent writes the sound event
+    --into gameDetails, so every client hears it already.
+    --
+    --Volume is a multiplier on the asset's own volume (AudioController
+    --UpdateSoundEvents: asset.volume * event.volume), so the meaningful
+    --range is 0..1 -- the typed command's legacy default of 50 is simply
+    --"clamped to full".
+    commandInfo = {
+        name = "Play Sound",
+        description = "Play an audio asset for the whole table.",
+        params = {
+            {name = "Sound", type = "audio", required = true},
+            {name = "Volume", min = 0, max = 1, default = 1, round = 0.05, labelFormat = "%.2f"},
+        },
+    },
     command = function(str)
         local args = Commands.SplitArgs(str)
         local audioID = args[1]
@@ -964,32 +1695,78 @@ Commands.RegisterMacro{
 Commands.RegisterMacro{
     name = "speak",
     summary = "speech bubble",
-    doc = "Usage: /speak <token name> <speech> <language ID>\nMakes a character speak with a speech bubble. Wrap speech in doublequotes. Language defaults to Caelian.",
+    doc = "Usage: /speak <speech>\nMakes the selected token speak with a speech bubble.\nAlternate: /speak \"<token name>\" \"<speech>\" [language ID]\nWrap token name and speech in doublequotes to target a specific token. Language defaults to Caelian.",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            return tokenSearchCompletions(args, 1)
+        elseif argIndex == 3 then
+            return languageCompletions(args, argIndex)
+        end
+        return {}
+    end,
     command = function(str)
-        local args = Commands.SplitArgs(str)
-        local tokenName = args[1]
-        local speech = args[2]
-        local language = args[3]
+        local trimmedStr = trim(str)
 
-        if language == nil then
-            language = "c3c75399-6654-4ef6-a5f7-10653560f84"
+        --default to the most common language (highest commonality wins).
+        --Caelian breaks ties since the shipped data leaves every language
+        --at the default commonality of 5.
+        local language = nil
+        local bestScore = nil
+        for k, v in unhidden_pairs(dmhub.GetTable(Language.tableName) or {}) do
+            local score = v.commonality or 0
+            if bestScore == nil or score > bestScore
+                    or (score == bestScore and v.name == "Caelian") then
+                language = k
+                bestScore = score
+            end
         end
 
-        local allTokens = dmhub.allTokens
+        -- If the input starts with a quote, use explicit "token name" "speech" [language] mode
+        if string.sub(trimmedStr, 1, 1) == '"' then
+            local args = Commands.SplitArgs(str)
+            local tokenName = args[1]
+            local speech = args[2]
+            if args[3] ~= nil then
+                language = args[3]
+            end
 
-        local tokens = tokenSearch(tokenName, allTokens)
+            local allTokens = dmhub.allTokens
+            local tokens = tokenSearch(tokenName, allTokens)
 
-        for _, token in pairs(tokens) do
-            token:ModifyProperties {
-                description = "Speech",
-                undoable = false,
-                execute = function()
-                    token.properties:CharacterSpeech {
-                        text = speech,
-                        langid = language,
-                    }
-                end,
-            }
+            for _, token in pairs(tokens) do
+                token:ModifyProperties {
+                    description = "Speech",
+                    undoable = false,
+                    execute = function()
+                        token.properties:CharacterSpeech {
+                            text = speech,
+                            langid = language,
+                        }
+                    end,
+                }
+            end
+        else
+            -- Default mode: use selected/primary token, entire input is speech
+            local selected = dmhub.selectedTokens
+            if #selected == 0 then
+                print("No token selected. Select a token first, or use /speak \"token name\" \"speech\".")
+                return
+            end
+
+            local speech = trimmedStr
+
+            for _, token in pairs(selected) do
+                token:ModifyProperties {
+                    description = "Speech",
+                    undoable = false,
+                    execute = function()
+                        token.properties:CharacterSpeech {
+                            text = speech,
+                            langid = language,
+                        }
+                    end,
+                }
+            end
         end
     end,
 }
@@ -998,6 +1775,14 @@ Commands.RegisterMacro{
     name = "giveitem",
     summary = "give an item",
     doc = "Usage: /giveitem <token name> <item ID> <quantity>\nGives item(s) to given character(s).",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            return tokenSearchCompletions(args, 1)
+        elseif argIndex == 2 then
+            return itemCompletions(args, argIndex)
+        end
+        return {}
+    end,
     command = function(str)
         local args = Commands.SplitArgs(str)
         local tokenName = args[1]
@@ -1020,6 +1805,7 @@ Commands.RegisterMacro{
     name = "havehero",
     summary = "check hero exists",
     doc = "Usage: /havehero <token name>\nChecks if a hero with the given name exists in the game. Returns true/false.",
+    completions = tokenSearchCompletions,
     command = function(str)
         local args = Commands.SplitArgs(str)
 
@@ -1041,6 +1827,7 @@ Commands.RegisterMacro{
     name = "createcharacter",
     summary = "create a character",
     doc = "Usage: /createcharacter [CopyOf]\nCreates a new character assigned to the current user. If 'CopyOf' is provided, copies that character by name.",
+    completions = tokenSearchCompletions,
     command = function(str)
 
     local args = Commands.SplitArgs(str)
@@ -1078,6 +1865,21 @@ Commands.RegisterMacro{
         bestobj:SetAndUploadZOrder(highestzorder + 1)
     end
 
+    local collide = true
+    while collide do
+        collide = false
+        --make sure the target location is unoccupied.
+        for _, token in ipairs(dmhub.allTokens) do
+            local locs = token.locsOccupying
+            for i,loc in ipairs(locs) do
+                if loc.x == targetLoc.x and loc.y == targetLoc.y then
+                    targetLoc.x = targetLoc.x + 1
+                    collide = true
+                    break
+                end
+            end
+        end
+    end
 
 
     if heroType ~= nil then
@@ -1128,6 +1930,688 @@ Commands.RegisterMacro{
     end,
 }
 
+-- /buildchar: parse a freeform description of a hero and report how it was
+-- interpreted (class -> level -> subclass -> ancestry -> kit -> class/subclass
+-- choices). For now this only PRINTS its interpretation to chat; it does not yet
+-- build the character. The matcher does greedy longest-contiguous-run matching of
+-- the typed words against each candidate's name words, so fragments like
+-- "Black Ash" bind to "College of Black Ash" and multi-word names with filler
+-- words like "Cloak and Dagger" match as a unit.
+do
+    local STOP = { ["of"] = true, ["the"] = true, ["and"] = true, ["a"] = true, ["an"] = true }
+
+    -- Lowercase a string and split it into alphanumeric word tokens.
+    local function BuildChar_SplitWords(s)
+        local t = {}
+        for w in string.gmatch(string.lower(s), "[%w]+") do
+            t[#t + 1] = w
+        end
+        return t
+    end
+
+    -- Longest L such that words[i..i+L-1] (all currently unused) appears as a
+    -- contiguous run somewhere within candWords.
+    -- With prefix=false, each input word must equal the candidate word. With
+    -- prefix=true, an input word may instead be a prefix of the candidate word
+    -- (e.g. "chrono" matches "chronopathy"); prefix matches require a non-stopword
+    -- of at least 3 characters so short/common fragments don't match spuriously.
+    local function BuildChar_ContiguousMatchLen(words, used, i, candWords, prefix)
+        local best = 0
+        for s = 1, #candWords do
+            local L = 0
+            while true do
+                local iw, cw = words[i + L], candWords[s + L]
+                if iw == nil or cw == nil or used[i + L] then
+                    break
+                end
+                local matched = (iw == cw)
+                if (not matched) and prefix and (not STOP[iw]) and #iw >= 3
+                    and string.sub(cw, 1, #iw) == iw then
+                    matched = true
+                end
+                if not matched then
+                    break
+                end
+                L = L + 1
+            end
+            if L > best then
+                best = L
+            end
+        end
+        return best
+    end
+
+    -- Find the single best candidate match over the unused words. Prefers a
+    -- longer matched run, then higher coverage of the candidate's own name. A
+    -- matched run must include at least one non-stopword so "and"/"of" alone
+    -- never anchors a match. Returns { cand, i, len, coverage } or nil.
+    --
+    -- Exact matches always win: only when no candidate matches exactly does it
+    -- retry allowing start-of-word (prefix) matches, so e.g. "Talent Chrono"
+    -- resolves the Chronopathy subclass once exact matches are exhausted.
+    local function BuildChar_BestMatch(words, used, candidates)
+        local function scan(prefix)
+            local best = nil
+            for _, cand in ipairs(candidates) do
+                for i = 1, #words do
+                    if not used[i] then
+                        local L = BuildChar_ContiguousMatchLen(words, used, i, cand.words, prefix)
+                        if L > 0 then
+                            local hasSig = false
+                            for t = 0, L - 1 do
+                                if not STOP[words[i + t]] then
+                                    hasSig = true
+                                    break
+                                end
+                            end
+                            if hasSig then
+                                local coverage = L / #cand.words
+                                if best == nil or L > best.len or (L == best.len and coverage > best.coverage) then
+                                    best = { cand = cand, i = i, len = L, coverage = coverage }
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            return best
+        end
+        return scan(false) or scan(true)
+    end
+
+    local function BuildChar_Consume(used, m)
+        for t = 0, m.len - 1 do
+            used[m.i + t] = true
+        end
+    end
+
+    -- Build a candidate list from a data table. filter(v, k) -> bool selects rows.
+    local function BuildChar_Candidates(tbl, filter)
+        local out = {}
+        for k, v in pairs(tbl) do
+            if (not rawget(v, "hidden")) and (filter == nil or filter(v, k)) then
+                out[#out + 1] = { id = k, name = v.name, obj = v, words = BuildChar_SplitWords(v.name) }
+            end
+        end
+        return out
+    end
+
+    -- Collect every CharacterFeatureChoice option offered by a class (or subclass)
+    -- up to the given level, as match candidates.
+    local function BuildChar_AddChoiceOptions(classObj, level, out)
+        if classObj == nil then
+            return
+        end
+        local fill = {}
+        classObj:FillLevelsUpTo(level, false, "nonprimary", fill)
+        for _, lv in ipairs(fill) do
+            for _, feat in ipairs(lv:try_get("features", {})) do
+                if feat.typeName == "CharacterFeatureChoice" then
+                    for _, opt in ipairs(feat:try_get("options", {})) do
+                        local optName = opt:try_get("name", "")
+                        out[#out + 1] = {
+                            id = opt:try_get("guid", "?"),
+                            name = optName,
+                            choiceName = feat:try_get("name", "?"),
+                            choiceGuid = feat:try_get("guid", "?"),
+                            words = BuildChar_SplitWords(optName),
+                        }
+                    end
+                end
+            end
+        end
+    end
+
+    -- Collect every CharacterFeatureChoice option offered by an ancestry (race)
+    -- as match candidates. Races store their base features on a ClassLevel
+    -- (modifierInfo) plus optional per-character-level features, rather than
+    -- going through FillLevelsUpTo like classes do.
+    local function BuildChar_AddRaceChoiceOptions(raceObj, level, out)
+        if raceObj == nil then
+            return
+        end
+        local function addFrom(features)
+            for _, feat in ipairs(features or {}) do
+                if feat.typeName == "CharacterFeatureChoice" then
+                    for _, opt in ipairs(feat:try_get("options", {})) do
+                        local optName = opt:try_get("name", "")
+                        out[#out + 1] = {
+                            id = opt:try_get("guid", "?"),
+                            name = optName,
+                            choiceName = feat:try_get("name", "?"),
+                            choiceGuid = feat:try_get("guid", "?"),
+                            words = BuildChar_SplitWords(optName),
+                        }
+                    end
+                end
+            end
+        end
+        addFrom(raceObj:GetClassLevel():try_get("features"))
+        for levelNum, lv in ipairs(raceObj:try_get("levels") or {}) do
+            if levelNum > level then
+                break
+            end
+            addFrom(lv:try_get("features"))
+        end
+    end
+
+    -- Find the guid of the CharacterSubclassChoice in a class's levels up to the
+    -- given level (this is the levelChoices key under which the chosen subclass id
+    -- is recorded). Returns nil if the class has no subclass choice yet.
+    local function BuildChar_FindSubclassChoiceGuid(classObj, level)
+        if classObj == nil then
+            return nil
+        end
+        local fill = {}
+        classObj:FillLevelsUpTo(level, false, "nonprimary", fill)
+        for _, lv in ipairs(fill) do
+            for _, feat in ipairs(lv:try_get("features", {})) do
+                if feat.typeName == "CharacterSubclassChoice" then
+                    return feat:try_get("guid")
+                end
+            end
+        end
+        return nil
+    end
+
+    -- Shorten a subclass name to its distinctive part for use in a token name,
+    -- e.g. "College of Black Ash" -> "Black Ash", "Order of the Mortal Coil" ->
+    -- "Mortal Coil". Names without a "<word> of ..." prefix are returned as-is.
+    local function BuildChar_ShortSubclass(name)
+        return string.match(name, "^%a+ of [Tt]he (.+)$")
+            or string.match(name, "^%a+ of (.+)$")
+            or name
+    end
+
+    -- Normalize a single choice's selectable options to a list of { id, name },
+    -- regardless of which option-enumeration method the choice type implements.
+    local function BuildChar_OptionList(feature, hero, readLc)
+        local out = {}
+        if CharacterBuilder._hasFn(feature, "GetEntries") then
+            for _, e in ipairs(feature:GetEntries(hero) or {}) do
+                local g = e:try_get("guid")
+                if g and not e:try_get("hidden", false) then
+                    out[#out + 1] = { id = g, name = e:try_get("name", "?") }
+                end
+            end
+        elseif CharacterBuilder._hasFn(feature, "GetOptions") then
+            for _, o in ipairs(feature:GetOptions(readLc, hero) or {}) do
+                if o.guid and not o.hidden then
+                    out[#out + 1] = { id = o.guid, name = o.name or "?" }
+                end
+            end
+        elseif CharacterBuilder._hasFn(feature, "Choices") then
+            for _, c in ipairs(feature:Choices(1, readLc[feature.guid] or {}, hero) or {}) do
+                if c.id and not c.hidden then
+                    out[#out + 1] = { id = c.id, name = c.text or "?" }
+                end
+            end
+        end
+        return out
+    end
+
+    -- Randomly fill every still-unfilled choice on the hero (subclass, skills,
+    -- heroic abilities, perks, ancestry traits, and any subclass-revealed
+    -- choices). Iterates to a fixpoint so that choices unlocked by an earlier
+    -- random pick (e.g. a subclass's own abilities) also get filled. Must run
+    -- inside a ModifyProperties execute. Returns a list of "Choice -> Option"
+    -- description strings for reporting. Selections already present (the user's
+    -- explicitly matched choices) are left untouched.
+    local function BuildChar_RandomFillUnchosen(hero)
+        local picks = {}
+        local lcWrite = hero:get_or_add("levelChoices", {})
+        for _ = 1, 6 do
+            local filledAny = false
+            for _, entry in ipairs(hero:GetClassFeaturesAndChoicesWithDetails()) do
+                local f = entry.feature
+                local isChoice = CharacterBuilder._hasFn(f, "GetEntries")
+                    or CharacterBuilder._hasFn(f, "GetOptions")
+                    or CharacterBuilder._hasFn(f, "Choices")
+                if isChoice then
+                    local guid = f:try_get("guid")
+                    if guid then
+                        local selected = lcWrite[guid] or {}
+                        local need = f:NumChoices(hero) - #selected
+                        if need > 0 then
+                            local opts = BuildChar_OptionList(f, hero, hero:GetLevelChoices() or {})
+                            local taken = {}
+                            for _, s in ipairs(selected) do
+                                taken[s] = true
+                            end
+                            local pool = {}
+                            for _, o in ipairs(opts) do
+                                if not taken[o.id] then
+                                    pool[#pool + 1] = o
+                                end
+                            end
+                            local newsel = {}
+                            for _, s in ipairs(selected) do
+                                newsel[#newsel + 1] = s
+                            end
+                            while need > 0 and #pool > 0 do
+                                local o = table.remove(pool, math.random(1, #pool))
+                                newsel[#newsel + 1] = o.id
+                                picks[#picks + 1] = f:try_get("name", "?") .. " -> " .. o.name
+                                need = need - 1
+                                filledAny = true
+                            end
+                            lcWrite[guid] = newsel
+                        end
+                    end
+                end
+            end
+            if not filledAny then
+                break
+            end
+        end
+
+        -- Kit is NOT stored in levelChoices (it lives in the top-level kitid /
+        -- kitid2 fields), so the loop above never sees it. Fill it here via the
+        -- builder's synthetic CharacterKitChoice, which knows the kit types this
+        -- class/subclass allows. Runs after the loop so any randomly-chosen
+        -- subclass that changes the kit allowance is already in place, and honors
+        -- a kit the user already set (GetSelected reflects kitid/kitid2).
+        --
+        -- CanHaveKits / KitTypesAllowed are derived from GetActiveModifiers, which
+        -- is cached per game-update frame. Since the class was set earlier in this
+        -- same execute (and may have been cached empty before that), Invalidate()
+        -- forces those modifiers to recompute so the kit allowance is current.
+        hero:Invalidate()
+        if hero:CanHaveKits() then
+            local kitChoice = CharacterKitChoice.CreateNew(hero)
+            if kitChoice ~= nil then
+                local selected = kitChoice:GetSelected(hero)
+                local taken = {}
+                for _, s in ipairs(selected) do
+                    taken[s] = true
+                end
+                local pool = {}
+                for _, o in ipairs(kitChoice:GetOptions() or {}) do
+                    if o.guid and not taken[o.guid] then
+                        pool[#pool + 1] = o
+                    end
+                end
+                local need = kitChoice:NumChoices(hero) - #selected
+                while need > 0 and #pool > 0 do
+                    local o = table.remove(pool, math.random(1, #pool))
+                    kitChoice:SaveSelection(hero, { id = o.guid })
+                    picks[#picks + 1] = "Kit -> " .. (o.name or "?")
+                    need = need - 1
+                end
+            end
+        end
+
+        return picks
+    end
+
+    Commands.RegisterMacro{
+        name = "buildchar",
+        summary = "build the selected hero from a description",
+        doc = "Usage: /buildchar <class> [level N] [subclass] [ancestry] [kit] [ability choices...]\n" ..
+            "Builds the SELECTED character token from a freeform description, e.g.\n" ..
+            "/buildchar Shadow Black Ash Cloak and Dagger. With no token selected, spawns a\n" ..
+            "new hero in the middle of the view and builds onto it.\n" ..
+            "Matching: class first, then subclass/ancestry/kit/feature-choices compete for the\n" ..
+            "leftover words (longest match wins; ties prefer subclass > ancestry > kit > choice).\n" ..
+            "Sets class/level, subclass, ancestry, kit and the named ability choices, then posts a\n" ..
+            "summary to chat. Add the word 'random' to fill all remaining unfilled choices (subclass,\n" ..
+            "skills, heroic abilities, perks, ancestry traits, kit) with random valid picks.\n" ..
+            "Characteristics are defaulted only if the token has none yet. The token is renamed to a\n" ..
+            "brief description (e.g. \"Lv3 Devil Shadow (Black Ash)\") and given the class portrait.",
+        command = function(str)
+            str = trim(str or "")
+            if str == "" then
+                chat.Send("/buildchar: type a description, e.g. /buildchar Shadow Black Ash Cloak and Dagger")
+                return
+            end
+
+            -- Pull out an explicit level ("level N" / "lvl N"); default to 1.
+            local lower = string.lower(str)
+            local level = 1
+            local lvl = string.match(lower, "level%s+(%d+)") or string.match(lower, "lvl%s+(%d+)")
+            if lvl then
+                level = tonumber(lvl)
+            end
+            local cleaned = string.gsub(lower, "level%s+%d+", " ")
+            cleaned = string.gsub(cleaned, "lvl%s+%d+", " ")
+
+            local words = BuildChar_SplitWords(cleaned)
+            local used = {}
+
+            -- "random" keyword: fill all remaining unfilled choices randomly.
+            -- Consume the word so it is not reported as unmatched.
+            local wantRandom = false
+            for i, w in ipairs(words) do
+                if w == "random" then
+                    wantRandom = true
+                    used[i] = true
+                end
+            end
+
+            local classes = dmhub.GetTable("classes")
+            local subs = dmhub.GetTable("subclasses")
+            local races = dmhub.GetTable("races")
+            local kits = dmhub.GetTable("kits")
+
+            -- Class (base classes only).
+            local classMatch = BuildChar_BestMatch(words, used,
+                BuildChar_Candidates(classes, function(v) return not v.isSubclass end))
+            local classObj = nil
+            if classMatch then
+                BuildChar_Consume(used, classMatch)
+                classObj = classMatch.cand.obj
+            end
+
+            -- Subclass, ancestry, kit and feature choices COMPETE for the
+            -- leftover words: each round, every still-unmatched category
+            -- proposes its best match and the longest run wins (ties broken by
+            -- coverage, then by category priority: subclass > ancestry > kit >
+            -- choice). This stops a short partial match in an early category
+            -- from stealing a word that a later category matches better --
+            -- e.g. "Fire Immunity" (a 2-word ancestry trait) must not lose its
+            -- "fire" to a 1-word partial match on the "Rapid Fire" kit.
+            -- Matching a subclass or ancestry unlocks its feature choices as
+            -- candidates for subsequent rounds.
+            local subCands = {}
+            if classObj then
+                subCands = BuildChar_Candidates(subs,
+                    function(v) return v.primaryClassId == classMatch.cand.id end)
+            end
+            local raceCands = BuildChar_Candidates(races)
+            local kitCands = BuildChar_Candidates(kits)
+            local choiceCands = {}
+            BuildChar_AddChoiceOptions(classObj, level, choiceCands)
+
+            local subMatch = nil
+            local raceMatch = nil
+            local kitMatch = nil
+            local chosen = {}
+            while true do
+                local cats = {}
+                if subMatch == nil then
+                    cats[#cats + 1] = { key = "sub", cands = subCands }
+                end
+                if raceMatch == nil then
+                    cats[#cats + 1] = { key = "race", cands = raceCands }
+                end
+                if kitMatch == nil then
+                    cats[#cats + 1] = { key = "kit", cands = kitCands }
+                end
+                cats[#cats + 1] = { key = "choice", cands = choiceCands }
+
+                local bestKey = nil
+                local bestM = nil
+                for _, cat in ipairs(cats) do
+                    local m = BuildChar_BestMatch(words, used, cat.cands)
+                    if m ~= nil and (bestM == nil or m.len > bestM.len
+                        or (m.len == bestM.len and m.coverage > bestM.coverage)) then
+                        bestKey = cat.key
+                        bestM = m
+                    end
+                end
+                if bestM == nil then
+                    break
+                end
+                BuildChar_Consume(used, bestM)
+                if bestKey == "sub" then
+                    subMatch = bestM
+                    BuildChar_AddChoiceOptions(subMatch.cand.obj, level, choiceCands)
+                elseif bestKey == "race" then
+                    raceMatch = bestM
+                    BuildChar_AddRaceChoiceOptions(raceMatch.cand.obj, level, choiceCands)
+                elseif bestKey == "kit" then
+                    kitMatch = bestM
+                else
+                    chosen[#chosen + 1] = bestM.cand
+                end
+            end
+
+            -- Need at least a class to build anything.
+            if classObj == nil then
+                chat.Send("/buildchar: could not recognize a class in \"" .. str ..
+                    "\". Start with a class name, e.g. /buildchar Shadow Black Ash.")
+                return
+            end
+
+            local subclassChoiceGuid = nil
+            if subMatch then
+                subclassChoiceGuid = BuildChar_FindSubclassChoiceGuid(classObj, level)
+            end
+
+            -- Apply the build to a token (the selected one, or a freshly spawned
+            -- hero). Outside the character sheet, so ModifyProperties.
+            local function doBuild(token)
+            local defaultedAttrs = false
+            local randomPicks = nil
+            token:ModifyProperties{
+                description = "Build " .. classObj.name .. " via /buildchar",
+                execute = function()
+                    local props = token.properties
+
+                    -- Characteristics: only default when every characteristic is
+                    -- still absent or zero (the freshly-created-token signature), so
+                    -- re-running /buildchar never clobbers a tuned build. Use the
+                    -- class's own array/locked-characteristic system (the same path
+                    -- the builder uses) so locked primaries -- e.g. a Censor's
+                    -- Presence locked at 2 -- are respected rather than overwritten.
+                    local attrs = props:get_or_add("attributes", {})
+                    local hasAttrs = false
+                    for _, id in ipairs(creature.attributeIds) do
+                        local a = attrs[id]
+                        if a ~= nil and (a.baseValue or 0) ~= 0 then
+                            hasAttrs = true
+                            break
+                        end
+                    end
+                    if not hasAttrs then
+                        local bc = classObj:try_get("baseCharacteristics")
+                        if bc and bc.arrays then
+                            -- Pick array 1 (one high score). Locked characteristics
+                            -- are filled from baseCharacteristics by
+                            -- CalculateBaseAttributes; the remaining ones are
+                            -- assigned the array slots in attribute order.
+                            local ab = { array = 1 }
+                            local slot = 1
+                            for _, attrid in ipairs(creature.attributeIds) do
+                                if bc[attrid] == nil then
+                                    ab[attrid] = slot
+                                    slot = slot + 1
+                                end
+                            end
+                            props.attributeBuild = ab
+                            classObj:CalculateBaseAttributes(props)
+                        else
+                            for id, v in pairs({ mgt = 2, agl = 2, rea = 1, inu = 1, prs = -1 }) do
+                                attrs[id] = { baseValue = v }
+                            end
+                        end
+                        defaultedAttrs = true
+                    end
+
+                    -- Class + level (replace any existing class).
+                    local classes = props:get_or_add("classes", {})
+                    for i = #classes, 1, -1 do
+                        classes[i] = nil
+                    end
+                    classes[1] = { classid = classMatch.cand.id, level = level }
+
+                    -- Ancestry and kit.
+                    if raceMatch then
+                        props.raceid = raceMatch.cand.id
+                    end
+                    if kitMatch then
+                        props.kitid = kitMatch.cand.id
+                    end
+
+                    -- Subclass + ability choices (levelChoices).
+                    local lc = props:get_or_add("levelChoices", {})
+                    if subMatch and subclassChoiceGuid then
+                        lc[subclassChoiceGuid] = { subMatch.cand.id }
+                    end
+                    -- Group picks by choice so multiple options named from the
+                    -- same choice (e.g. two point-buy ancestry traits) all land
+                    -- in that choice's selection list instead of clobbering.
+                    local chosenByGuid = {}
+                    for _, c in ipairs(chosen) do
+                        local sel = chosenByGuid[c.choiceGuid]
+                        if sel == nil then
+                            sel = {}
+                            chosenByGuid[c.choiceGuid] = sel
+                        end
+                        sel[#sel + 1] = c.id
+                    end
+                    for guid, sel in pairs(chosenByGuid) do
+                        lc[guid] = sel
+                    end
+
+                    -- "random": fill everything still unchosen. Runs last so it
+                    -- only touches choices the user did not explicitly name, and
+                    -- so the class/subclass are already set when it enumerates.
+                    if wantRandom then
+                        randomPicks = BuildChar_RandomFillUnchosen(props)
+                    end
+                end,
+            }
+
+            -- Name the token from the final build (reads back subclass/ancestry so
+            -- random picks are reflected) and apply the class portrait. Name and
+            -- portrait are appearance fields, set on the token then uploaded.
+            local props = token.properties
+            local nameParts = { "Lv" .. level }
+            if props:try_get("raceid") then
+                local r = races[props.raceid]
+                if r then
+                    nameParts[#nameParts + 1] = r.name
+                end
+            end
+            nameParts[#nameParts + 1] = classObj.name
+            local generatedName = table.concat(nameParts, " ")
+            local finalSubs = props:GetSubclasses() or {}
+            if finalSubs[1] then
+                generatedName = generatedName .. " (" .. BuildChar_ShortSubclass(finalSubs[1].name) .. ")"
+            end
+            token.name = generatedName
+
+            local classPortrait = classObj:try_get("portraitid", "")
+            if classPortrait ~= "" then
+                token.portrait = classPortrait
+            end
+            token:UploadAppearance()
+
+            -- Report what was built.
+            local lines = {}
+            lines[#lines + 1] = "**/buildchar** built " .. (token.name or "the selected token")
+            lines[#lines + 1] = "Class: " .. classObj.name .. " -- Level " .. level
+            if subMatch then
+                if subclassChoiceGuid then
+                    lines[#lines + 1] = "Subclass: " .. subMatch.cand.name
+                else
+                    lines[#lines + 1] = "Subclass: " .. subMatch.cand.name ..
+                        " (matched, but this class has no subclass choice at level " .. level .. " -- not set)"
+                end
+            end
+            if raceMatch then
+                lines[#lines + 1] = "Ancestry: " .. raceMatch.cand.name
+            end
+            if kitMatch then
+                lines[#lines + 1] = "Kit: " .. kitMatch.cand.name
+            end
+            for _, c in ipairs(chosen) do
+                lines[#lines + 1] = "Choice [" .. c.choiceName .. "]: " .. c.name
+            end
+            if defaultedAttrs then
+                local labels = { mgt = "M", agl = "A", rea = "R", inu = "I", prs = "P" }
+                local parts = {}
+                for _, id in ipairs(creature.attributeIds) do
+                    parts[#parts + 1] = labels[id] .. tostring(props:GetAttribute(id):Value())
+                end
+                lines[#lines + 1] = "Characteristics: defaulted (" .. table.concat(parts, " ") ..
+                    ") -- adjust on the sheet."
+            end
+            if randomPicks and #randomPicks > 0 then
+                lines[#lines + 1] = "Randomly chose " .. #randomPicks .. ":"
+                for _, p in ipairs(randomPicks) do
+                    lines[#lines + 1] = "  " .. p
+                end
+            elseif wantRandom then
+                lines[#lines + 1] = "Random: nothing left to fill."
+            end
+            local leftover = {}
+            for i, w in ipairs(words) do
+                if not used[i] then
+                    leftover[#leftover + 1] = w
+                end
+            end
+            if #leftover > 0 then
+                lines[#lines + 1] = "Unmatched: " .. table.concat(leftover, " ")
+            end
+
+            chat.Send(table.concat(lines, "\n"))
+            end -- doBuild
+
+            -- Build onto the selected/primary token if there is one; otherwise
+            -- spawn a fresh hero in the middle of the current view and build that.
+            local tokens = dmhub.selectedOrPrimaryTokens or {}
+            if tokens[1] ~= nil then
+                doBuild(tokens[1])
+                return
+            end
+
+            local heroType = nil
+            for _, ct in pairs(dmhub.GetTable(CharacterType.tableName)) do
+                if (not rawget(ct, "hidden")) and ct.name == "Hero" then
+                    heroType = ct
+                    break
+                end
+            end
+            if heroType == nil then
+                chat.Send("/buildchar: no token selected, and could not find the Hero " ..
+                    "character type to spawn one.")
+                return
+            end
+
+            -- World coordinates map 1:1 to Loc tile coordinates, so the camera
+            -- center rounds directly to the middle-of-screen tile.
+            local cam = dmhub.cameraPosition
+            local spawnLoc = core.Loc{
+                x = round(cam.x),
+                y = round(cam.y),
+                floorIndex = game.currentFloorIndex,
+            }
+
+            local charid = game.CreateCharacter("character", heroType)
+            dmhub.Coroutine(function()
+                if mod.unloaded then return end
+                local token
+                for _ = 1, 200 do
+                    coroutine.yield(0.05)
+                    token = dmhub.GetCharacterById(charid)
+                    if token ~= nil then break end
+                end
+                if token == nil then
+                    chat.Send("/buildchar: timed out creating a new token.")
+                    return
+                end
+                if not dmhub.isDM then
+                    token.ownerId = dmhub.userid
+                end
+                token:ModifyProperties{
+                    description = "Create Character",
+                    execute = function()
+                        token.properties.mtime = ServerTimestamp()
+                        token.properties.originalid = charid
+                        token.properties.creatorid = dmhub.userid
+                    end,
+                }
+                token:ChangeLocation(spawnLoc)
+                coroutine.yield(0.1)
+                dmhub.SelectToken(charid)
+                doBuild(token)
+            end)
+        end,
+    }
+end
+
 Commands.RegisterMacro{
     name = "closedocuments",
     summary = "close all documents",
@@ -1143,6 +2627,14 @@ Commands.RegisterMacro{
     name = "granttitle",
     summary = "grant a title",
     doc = "Usage: /granttitle <token name> <title ID>\nGrants a title to given character(s).",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            return tokenSearchCompletions(args, 1)
+        elseif argIndex == 2 then
+            return titleCompletions(args, argIndex)
+        end
+        return {}
+    end,
     command = function(str)
         local args = Commands.SplitArgs(str)
         local tokenName = args[1]
@@ -1169,6 +2661,7 @@ Commands.RegisterMacro{
     name = "setvar",
     summary = "set a variable",
     doc = "Usage: /setvar <name> <value>\nSets a shared variable to the given value (evaluated as a query).",
+    completions = variableCompletions,
     command = function(str)
         local args = Commands.SplitArgs(str)
         if #args ~= 2 then
@@ -1186,6 +2679,7 @@ Commands.RegisterMacro{
     name = "var",
     summary = "get a variable",
     doc = "Usage: /var <name>\nReturns the value of a shared variable.",
+    completions = variableCompletions,
     command = function(str)
         local doc = mod:GetDocumentSnapshot(g_varDocId)
         return doc.data[str]
@@ -1415,6 +2909,24 @@ Commands.RegisterMacro{
     name = "moveobject",
     summary = "move map object",
     doc = "Usage: /moveobject <keyword> <x> <y>\nMoves objects matching the keyword to the given position.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local result = {}
+        local seen = {}
+        local objects = game.currentFloor.objects
+        for _, obj in pairs(objects) do
+            if obj.keywords then
+                for kw, _ in pairs(obj.keywords) do
+                    if not seen[kw] then
+                        seen[kw] = true
+                        result[#result+1] = kw
+                    end
+                end
+            end
+        end
+        table.sort(result)
+        return result
+    end,
     command = function(str)
         local args = string.split(str, " ")
         if #args ~= 3 then
@@ -1453,6 +2965,14 @@ Commands.RegisterMacro{
                         token.properties:SetHeroTokens(token.properties:GetHeroTokens() + points)
                     end,
                 }
+
+                local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
+                track("hero_token_change", {
+                    change = points,
+                    source = "manual",
+                    class = classInfo and classInfo.name or "unknown",
+                    dailyLimit = 30,
+                })
 
                 break
             end
@@ -1651,6 +3171,69 @@ if devmode() then
     }
 
     Commands.RegisterMacro{
+        name = "exportassets",
+        summary = "export all game assets to yaml",
+        doc = "Usage: /exportassets [directory]\nExports ALL asset categories of this game (compendium tables, monsters, images, audio, objects, etc.) to a YAML directory tree -- the format used by the local assets feature (/localassets). With no directory, exports to the active local assets directory if one is set, else to the compendium/assets folder. Dev only.",
+        command = function(str)
+            local options = {}
+            str = str:match("^%s*(.-)%s*$")
+            if str ~= "" then
+                options.directory = str
+            end
+            local result = dmhub.ExportAllAssets(options)
+            if result == nil then
+                print("exportassets: could not resolve export directory")
+            else
+                print(string.format("exportassets: exported %d items in %d categories to %s", result.itemsExported, result.categoriesExported, result.directory))
+            end
+        end,
+    }
+
+    Commands.RegisterMacro{
+        name = "localassets",
+        summary = "use local directories for this game's assets",
+        doc = "Usage: /localassets <path> | off | (no args to show status)\nSets a per-game developer preference pointing at a local directory of YAML asset files. When set, the game's cloud assets are ignored: assets load from the directory, edits are written back to it as YAML, and external file changes hot-reload into the game. If the directory does not exist it is created and populated from the game's current assets on next load. Takes effect on the next game load. Multiple layered directories can be configured in Settings > Editing > Local Assets; this macro sets a single directory (replacing any configured list). Dev only.",
+        command = function(str)
+            str = str:match("^%s*(.-)%s*$")
+            if str == "" then
+                local status = dmhub.LocalAssetsStatus()
+                local pref = dmhub.GetSettingValue("localassets:dirs")
+                if pref == nil or pref == "" then
+                    pref = dmhub.GetSettingValue("localassets:dir")
+                end
+                if status.active then
+                    if status.directories ~= nil and #status.directories > 1 then
+                        print(string.format("localassets: ACTIVE, %d directories (top first):", #status.directories))
+                        for i,dir in ipairs(status.directories) do
+                            print(string.format("  %d. %s", i, dir))
+                        end
+                        if status.shadowedCount ~= nil and status.shadowedCount > 0 then
+                            print(string.format("  %d item(s) present in multiple directories; the higher directory wins.", status.shadowedCount))
+                        end
+                    else
+                        print(string.format("localassets: ACTIVE, using %s", status.directory))
+                    end
+                    if status.reloadRequired then
+                        print("localassets: the configured directory list has changed; reload the game to apply.")
+                    end
+                elseif pref ~= nil and pref ~= "" then
+                    print(string.format("localassets: set to %s (takes effect on next game load)", (pref:gsub("\n", " ; "))))
+                else
+                    print("localassets: not set for this game. Usage: /localassets <path> | off")
+                end
+            elseif str == "off" then
+                dmhub.SetSettingValue("localassets:dirs", "")
+                dmhub.SetSettingValue("localassets:dir", "")
+                print("localassets: disabled. Reload the game to return to cloud assets.")
+            else
+                dmhub.SetSettingValue("localassets:dirs", str)
+                dmhub.SetSettingValue("localassets:dir", "")
+                print(string.format("localassets: set to %s. Reload the game to activate.", str))
+            end
+        end,
+    }
+
+    Commands.RegisterMacro{
         name = "gc",
         summary = "force garbage collect",
         doc = "Usage: /gc\nForces a Lua garbage collection cycle. Dev only.",
@@ -1757,29 +3340,25 @@ if devmode() then
         ["momentary"] = true,
     }
 
-    -- Derive the import directory path from the export infrastructure.
-    -- Calls ExportTable on a small table to get the base compendium path,
-    -- then replaces the tables subdirectory with import.
+    -- Derive the import directory path from the engine's compendium path API.
+    -- dmhub.GetCompendiumPath("import") returns the absolute on-disk path of the
+    -- compendium's import subfolder, independent of whether any table has content
+    -- (so it works even in a nearly-empty game).
     local g_importBasePath = nil
     local function GetImportBasePath()
         if g_importBasePath ~= nil then
             return g_importBasePath
         end
-        -- ExportTable returns {directory = "<basePath>/tables/<tableName>"}
-        -- We need <basePath> without "/tables/<tableName>", then append "/import"
-        local result = dmhub.ExportTable("damageTypes", {individualFiles = false})
-        if result ~= nil and result.directory ~= nil then
-            local dir = result.directory
-            -- dir looks like ".../compendium/tables/damageTypes"
-            -- Strip off "/tables/damageTypes" (or similar) to get ".../compendium"
-            -- Then append "/import"
-            local compendiumDir = string.match(dir, "^(.+)[/\\]tables[/\\]")
-            if compendiumDir then
-                g_importBasePath = compendiumDir .. "/import/"
-                return g_importBasePath
-            end
+        local dir = dmhub.GetCompendiumPath("import")
+        if dir == nil then
+            return nil
         end
-        return nil
+        -- Normalize a trailing separator so callers can append the filename directly.
+        if string.sub(dir, -1) ~= "/" and string.sub(dir, -1) ~= "\\" then
+            dir = dir .. "/"
+        end
+        g_importBasePath = dir
+        return g_importBasePath
     end
 
     -- Read a YAML file from compendium/import/ and return its text content.
@@ -2167,3 +3746,388 @@ if devmode() then
         end,
     }
 end
+
+Commands.RegisterMacro{
+    name = "settingid",
+    summary = "look up a setting's id by name",
+    doc = "Usage: /settingid <setting name>\nSearches the settings menu for a setting matching the given name and prints its id.",
+    completions = settingCompletions,
+    command = function(str)
+        local needle = string.lower(str)
+        local matches = {}
+        for id, info in pairs(Settings) do
+            local desc = info.description or ""
+            if string.lower(desc) == needle then
+                matches[#matches+1] = {id = id, desc = desc, exact = true}
+            elseif string.find(string.lower(desc), needle, 1, true) then
+                matches[#matches+1] = {id = id, desc = desc, exact = false}
+            end
+        end
+
+        if #matches == 0 then
+            dmhub.Log("No setting found matching: " .. str)
+            return
+        end
+
+        -- Prefer exact matches
+        table.sort(matches, function(a, b)
+            if a.exact ~= b.exact then return a.exact end
+            return a.desc < b.desc
+        end)
+
+        for _, m in ipairs(matches) do
+            dmhub.Log(string.format('"%s"  -->  id: %s', m.desc, m.id))
+        end
+    end,
+}
+
+------------------------------------------------------------------------
+-- /find: search every setting and chat command for a substring.
+------------------------------------------------------------------------
+
+-- The engine's core commands.txt defines a no-argument /find that opens the
+-- action bar's ability search. Keep that behaviour for a bare "/find" and only
+-- take over when the user actually typed something to search for. Stashed on
+-- Commands (rather than a file local) so reloading this file does not chain
+-- wrappers on top of each other.
+Commands._actionBarFind = Commands._actionBarFind or rawget(Commands, "find")
+
+local g_findFirstChars = "abcdefghijklmnopqrstuvwxyz0123456789"
+local g_findNextChars = "abcdefghijklmnopqrstuvwxyz0123456789:_-"
+local g_findMaxResults = 40
+
+-- chat.GetCommandCompletions is prefix-based and requires at least one
+-- character, so enumerate every command the engine will accept by sweeping
+-- first characters. When a command's entire name IS the prefix (e.g. /r, /w)
+-- the engine short-circuits and returns only that command, hiding its
+-- siblings, so those prefixes are swept one level deeper.
+local function CollectCommandNames(prefix, out, depth)
+    local list = chat.GetCommandCompletions("/" .. prefix) or {}
+
+    if #list == 1 and string.lower(list[1]) == "/" .. prefix then
+        out[prefix] = true
+        if depth >= 3 then
+            return
+        end
+        for i = 1, #g_findNextChars do
+            CollectCommandNames(prefix .. string.sub(g_findNextChars, i, i), out, depth + 1)
+        end
+        return
+    end
+
+    for _, name in ipairs(list) do
+        out[string.lower(string.sub(name, 2))] = true
+    end
+end
+
+local function AllCommandNames()
+    local result = {}
+    for i = 1, #g_findFirstChars do
+        CollectCommandNames(string.sub(g_findFirstChars, i, i), result, 1)
+    end
+    return result
+end
+
+local function FindContains(haystack, needle)
+    return haystack ~= nil and string.find(string.lower(haystack), needle, 1, true) ~= nil
+end
+
+Commands.RegisterMacro{
+    name = "find",
+    summary = "search settings and commands",
+    doc = "Usage: /find <text>\nLists every setting and chat command whose id, name or summary contains <text>. If nothing matches those, help text is searched instead. With no argument, opens the action bar's ability search.",
+    command = function(str)
+        str = trim(str or "")
+        if str == "" then
+            if Commands._actionBarFind ~= nil then
+                Commands._actionBarFind()
+            end
+            return
+        end
+
+        local needle = string.lower(str)
+
+        local settingMatches = {}
+        local settingHelpMatches = {}
+        for id, info in pairs(Settings) do
+            local desc = info.description or ""
+            if FindContains(id, needle) or FindContains(desc, needle) then
+                settingMatches[#settingMatches+1] = {key = id, desc = desc}
+            elseif FindContains(info.help, needle) then
+                settingHelpMatches[#settingHelpMatches+1] = {key = id, desc = desc}
+            end
+        end
+
+        local macros = Commands.GetAllMacros()
+        local commandMatches = {}
+        local commandHelpMatches = {}
+        for name, _ in pairs(AllCommandNames()) do
+            --settings are chat commands too, but they are reported in their own section.
+            if not dmhub.HasSetting(name) then
+                local info = macros[name]
+                local summary = nil
+                if info ~= nil then
+                    summary = info.summary
+                end
+
+                if FindContains(name, needle) or FindContains(summary, needle) then
+                    commandMatches[#commandMatches+1] = {key = name, desc = summary}
+                elseif info ~= nil and FindContains(info.doc, needle) then
+                    commandHelpMatches[#commandHelpMatches+1] = {key = name, desc = summary}
+                end
+            end
+        end
+
+        local SortMatches = function(list)
+            table.sort(list, function(a, b)
+                --things whose id/name starts with the search text are the most likely target.
+                local sa = string.starts_with(string.lower(a.key), needle)
+                local sb = string.starts_with(string.lower(b.key), needle)
+                if sa ~= sb then
+                    return sa
+                end
+                return a.key < b.key
+            end)
+        end
+
+        SortMatches(settingMatches)
+        SortMatches(settingHelpMatches)
+        SortMatches(commandMatches)
+        SortMatches(commandHelpMatches)
+
+        if #settingMatches == 0 and #commandMatches == 0 and #settingHelpMatches == 0 and #commandHelpMatches == 0 then
+            dmhub.Log(string.format('/find: nothing matches "%s".', str))
+            return
+        end
+
+        local FormatCommand = function(m)
+            if m.desc ~= nil and m.desc ~= "" then
+                return string.format("   /%s  -  %s", m.key, m.desc)
+            end
+            return string.format("   /%s", m.key)
+        end
+
+        local FormatSetting = function(m)
+            local desc = m.desc
+            if desc == "" then
+                desc = "(no description)"
+            end
+
+            local info = dmhub.GetSettingInfo(m.key)
+            local value = nil
+            if info ~= nil then
+                value = info.value
+            end
+
+            if value ~= nil and value ~= "" and string.len(value) <= 24 then
+                return string.format("   /%s  -  %s  [= %s]", m.key, desc, value)
+            end
+            return string.format("   /%s  -  %s", m.key, desc)
+        end
+
+        local lines = {}
+        local AddSection = function(title, entries, formatter)
+            if #entries == 0 then
+                return
+            end
+
+            lines[#lines+1] = string.format("<b>%s (%d)</b>", title, #entries)
+            for i = 1, math.min(#entries, g_findMaxResults) do
+                lines[#lines+1] = formatter(entries[i])
+            end
+
+            if #entries > g_findMaxResults then
+                lines[#lines+1] = string.format("   ... and %d more", #entries - g_findMaxResults)
+            end
+        end
+
+        AddSection(string.format('Commands matching "%s"', str), commandMatches, FormatCommand)
+        AddSection(string.format('Settings matching "%s"', str), settingMatches, FormatSetting)
+
+        if #commandMatches == 0 and #settingMatches == 0 then
+            AddSection(string.format('Commands mentioning "%s" in their help', str), commandHelpMatches, FormatCommand)
+            AddSection(string.format('Settings mentioning "%s" in their help', str), settingHelpMatches, FormatSetting)
+        end
+
+        lines[#lines+1] = "Type /help <command> for usage, or /<setting id> <value> to change a setting."
+
+        dmhub.Log(table.concat(lines, "\n"))
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "opensheet",
+    summary = "Open Character Sheet",
+    doc = "Usage: /opensheet\nOpens the character sheet. Opens specific tab, when given",
+    command = function(str)
+        print("Opening character sheet...", str)
+        local selected = dmhub.selectedTokens
+        if #selected == 0 then
+            return
+        end
+
+        local token = selected[1]
+        if token.properties == nil then
+            return
+        end
+
+        token:ShowSheet(str)
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "setportrait",
+    summary = "set selected token's portrait id",
+    doc = "Usage: /setportrait <portraitid>\nSets the portraitid on selected tokens. Testing aid for spine animation wiring, e.g. /setportrait anim:lightbender.",
+    command = function(str)
+        str = str or ""
+
+        local tokens = dmhub.selectedOrPrimaryTokens
+        if #tokens == 0 then
+            print("/setportrait: no token selected.")
+            return
+        end
+
+        for _, token in ipairs(tokens) do
+            local snapshot = token:PrepareUploadAppearance()
+            token.portrait = str
+            token:UploadAppearance(snapshot)
+            token:RefreshAppearanceLocally()
+        end
+    end,
+}
+
+
+spine.register{
+    id = "lightbender-small",
+    model = "lightbender",
+
+    -- World rendering: how the spine character is placed on top of the token quad.
+    scale = 0.038,           -- multiplier on the spine renderer's localScale.
+    xoffset = 0,             -- world-space X offset of the spine renderer from the token center.
+    yoffset = -0.28,         -- world-space Y offset of the spine renderer from the token center.
+    bottomClip = 100,         -- degrees of the bottom arc (centered on -90 deg) where spine is
+                             -- forced inside the frame; rest of the circle is the popout zone.
+
+    -- Portrait camera framing (used by the '#spine:tokenid' image lookup).
+    portraitZoom = 2,        -- >1 zooms the portrait camera in, <1 zooms it out.
+    portraitXOffset = 0,     -- world-space X offset added to the portrait camera's position.
+    portraitYOffset = 0.8,     -- world-space Y offset added to the portrait camera's position.
+
+    -- Inspect / up-close portrait framing (used by the '#spineinspect:tokenid' image
+    -- lookup, exposed via CharacterToken.inspectPortrait). Independent from portrait*.
+    inspectZoom = 0.5,
+    inspectXOffset = 0,
+    inspectYOffset = 0.6,
+
+    -- Eye / head IK: drive the named controller bone toward the token's lookAt position
+    -- each frame. eyeMult scales the offset between the animation pose and the look-at
+    -- target (1 = follow exactly, 0 = ignore); eyeRange is the maximum deviation magnitude
+    -- in spine local / parent-bone-local units (a circular window around the anim pose).
+    eyeik = "bLB_head_CON",
+    eyeMult = 1.0,
+    eyeRange = 6.3,
+
+    -- Called at the end of CharacterToken.RefreshLua() for every token using this entry.
+    -- Decides which animation should be playing based on the token's current state.
+    refresh = function(token)
+        print("TOKENREFRESH:: REFRESHING")
+        local summonerRampage = false
+        local summonerid = token.summonerid
+        if summonerid ~= nil then
+            local summoner = dmhub.GetCharacterById(summonerid)
+            if summoner ~= nil and summoner.properties ~= nil then
+                summonerRampage = summoner.properties:GetUnboundedResourceQuantity(CharacterResource.rampageId) >= 8
+            end
+        end
+        if summonerRampage then
+            token:SetSpineSkin("base")
+            token:SetSpineAnimation{ id = "3_RAMPAGE_idle" }
+            token:SetSpineIdleFidgets{}
+        elseif token.properties:IsWinded() then
+            token:SetSpineSkin("winded")
+            token:SetSpineAnimation{ id = "2_WINDED_idle" }
+            token:SetSpineIdleFidgets{}
+        else
+            token:SetSpineSkin("base")
+            token:SetSpineAnimation{ id = "1_BASE_idle" }
+            token:SetSpineIdleFidgets{
+                animations = {"1_BASE_fidget1", "1_BASE_fidget2"},
+                period = 20,
+            }
+        end
+    end,
+}
+
+spine.register{
+    id = "lightbender-big",
+    model = "lightbender",
+
+    -- World rendering: how the spine character is placed on top of the token quad.
+    scale = 0.066,           -- multiplier on the spine renderer's localScale.
+    xoffset = 0,             -- world-space X offset of the spine renderer from the token center.
+    yoffset = -0.75,         -- world-space Y offset of the spine renderer from the token center.
+    bottomClip = 140,         -- degrees of the bottom arc (centered on -90 deg) where spine is
+                             -- forced inside the frame; rest of the circle is the popout zone.
+
+    -- Per-segment layer transforms along the spine's draw order. Each entry covers a
+    -- contiguous range of slots starting at slots[1] (the cut point); the first entry
+    -- implicitly starts at the skeleton's first drawn slot. xoffset/yoffset are in
+    -- token-local units (same as the registry's xoffset/yoffset) and scale is a multiplier
+    -- (1 = same size as the parent spine). Set frame=true on the entry that begins the
+    -- in-front-of-frame range -- entries before it draw BEHIND the token frame, that entry
+    -- and after draw IN FRONT.
+    transforms = {
+        -- podium, light2_glow, light1_glow -> behind frame at identity (no parallax shift).
+        { xoffset = 0.0, yoffset = 0.0, scale = 1.0 },
+        -- tail_1, tail_2 -> behind frame, shifted up for parallax depth. bottomClip = 0
+        -- exempts the tail from the bottom-arc spine suppression so the tail can extend
+        -- below the frame without being clipped.
+        { slots = {"tail_1"}, xoffset = 0.2, yoffset = 0.45, scale = 1.0, bottomClip = 0 },
+        -- "legs_bgbutt" and after -> in front of the frame at identity.
+        { slots = {"legs_bgbutt"}, }, -- frame = true },
+    },
+
+    -- Portrait camera framing (used by the '#spine:tokenid' image lookup).
+    portraitZoom = 1.2,        -- >1 zooms the portrait camera in, <1 zooms it out.
+    portraitXOffset = 0,     -- world-space X offset added to the portrait camera's position.
+    portraitYOffset = 1.2,     -- world-space Y offset added to the portrait camera's position.
+
+    -- Inspect / up-close portrait framing (used by the '#spineinspect:tokenid' image
+    -- lookup, exposed via CharacterToken.inspectPortrait). Independent from portrait*.
+    inspectZoom = 0.5,
+    inspectXOffset = 0,
+    inspectYOffset = 0.6,
+
+    -- Eye / head IK: drive the named controller bone toward the token's lookAt position
+    -- each frame. eyeMult scales the offset between the animation pose and the look-at
+    -- target (1 = follow exactly, 0 = ignore); eyeRange is the maximum deviation magnitude
+    -- in spine local / parent-bone-local units (a circular window around the anim pose).
+    eyeik = "bLB_head_CON",
+    eyeMult = 0.5,
+    eyeRange = 3.3,
+
+    -- Called at the end of CharacterToken.RefreshLua() for every token using this entry.
+    -- Decides which animation should be playing based on the token's current state.
+    refresh = function(token)
+        print("TOKENREFRESH:: REFRESHING")
+        local summonerRampage = token.properties:GetUnboundedResourceQuantity(CharacterResource.rampageId) >= 8
+
+        if summonerRampage then
+            token:SetSpineSkin("base")
+            token:SetSpineAnimation{ id = "3_RAMPAGE_idle" }
+            token:SetSpineIdleFidgets{}
+        elseif token.properties:IsWinded() then
+            token:SetSpineSkin("winded")
+            token:SetSpineAnimation{ id = "2_WINDED_idle" }
+            token:SetSpineIdleFidgets{}
+        else
+            token:SetSpineSkin("base")
+            token:SetSpineAnimation{ id = "1_BASE_idle" }
+            token:SetSpineIdleFidgets{
+                animations = {"1_BASE_fidget1", "1_BASE_fidget2"},
+                period = 20,
+            }
+        end
+    end,
+}

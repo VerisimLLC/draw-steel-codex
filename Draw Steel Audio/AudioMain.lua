@@ -3,27 +3,76 @@ local mod = dmhub.GetModLoading()
 --Register Audio Mod
 audio.RegisterAudioMod(mod)
 
+--Local (this-client-only) mute. Read per-frame by the engine (AudioController
+--folds it into globalSliderVolume); driven by the player-facing mute buttons
+--in the Audio dock panel and the top-bar mini mixer. Distinct from audio.muted,
+--which is the GAME-WIDE mute synced to every client.
+setting{
+    id = "localmuted",
+    default = false,
+    storage = "preference",
+}
+
 --Mix Groups
 
+--Parent bus for the app's own feedback SFX (UI clicks, dice, gameplay, damage).
+audio.MixGroup{
+    id = "uisounds",
+    name = tr("UI Sounds"),
+}
+
+--Library category buses: the DM's uploaded sounds.
+audio.MixGroup{
+    id = "music",
+    name = tr("Music"),
+}
+
+audio.MixGroup{
+    id = "ambience",
+    name = tr("Ambience"),
+}
+
+audio.MixGroup{
+    id = "effects",
+    name = tr("Effects"),
+}
+
+--App feedback SFX, parented under UI Sounds.
 audio.MixGroup{
     id = "gameplay",
+    parent = "uisounds",
     name = tr("Gameplay"),
 }
 
 audio.MixGroup{
     id = "ui",
+    parent = "uisounds",
     name = tr("UI"),
 }
 
 audio.MixGroup{
     id = "dice",
+    parent = "uisounds",
     name = tr("Dice"),
 }
 
 audio.MixGroup{
+    id = "damage",
+    parent = "uisounds",
+    name = tr("Damage"),
+}
+
+--Footsteps: standalone (Settings-only slider; carved out after a user complaint).
+audio.MixGroup{
     id = "footsteps",
-    parent = "gameplay",
     name = tr("Footsteps"),
+}
+
+--Anthem: its own top-level bus so the Anthem panel fader scales all anthems. NOT a duck
+--target (anthems ride full over the ducked music bed), so nothing ever DuckGroups it.
+audio.MixGroup{
+    id = "anthem",
+    name = tr("Anthem"),
 }
 
 
@@ -94,6 +143,16 @@ audio.SoundEvent{
     ignoreDuplicates = 1,
 }
 
+
+
+audio.SoundEvent{
+    name = "Notify.LockIn",
+    mixgroup = "ui",
+    sounds = {"Notify_LockIn_v1_01.wav","Notify_LockIn_v1_02.wav","Notify_LockIn_v1_03.wav","Notify_LockIn_v1_04.wav","Notify_LockIn_v1_05.wav","Notify_LockIn_v1_06.wav"},
+    volume = 0.1,
+    ignoreDuplicates = 0.5,
+}
+
 --Rewind/Undo actions
 
 audio.SoundEvent{
@@ -112,9 +171,9 @@ audio.SoundEvent{
 --Implemented: plays when a player is prompted to do a dice roll.
 audio.SoundEvent{
     name = "Notify.Diceroll",
-    mixgroup = "ui",
+    mixgroup = "dice",
     sounds = {"Notify_DiceRoll_v3_01.wav","Notify_DiceRoll_v3_02.wav","Notify_DiceRoll_v3_03.wav"},
-    volume = 0.75,
+    volume = 0.25,
     pitchRand = 0.2,
     ignoreDuplicates = 1,
 
@@ -422,6 +481,27 @@ audio.SoundEvent{
 
 
 
+--TO DO
+--UI Palette Change
+
+audio.SoundEvent{
+    name = "Notify.PalleteChange_Preview",
+    mixgroup = "ui",
+    sounds = {"Notify_PaletteChange_Preview_v1_01.wav"},
+    volume = 0.05,
+    pitchRand = 0.05,
+    ignoreDuplicates = 1,
+}
+
+audio.SoundEvent{
+    name = "Notify.PalleteChange_Apply",
+    mixgroup = "ui",
+    sounds = {"Notify_PaletteChange_Apply_v1_01.wav"},
+    volume = 0.1,
+    pitchRand = 0.05,
+    ignoreDuplicates = 1,
+}
+
 
 
 
@@ -522,6 +602,114 @@ audio.SoundEvent{
 
 
 
+--TODO
+--Shapeshift
+
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Generic_Start",
+    mixgroup = "gameplay",
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Generic_Whoosh_v1_01.wav"},
+    volume = 0.2,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Generic_End",
+    mixgroup = "gameplay",
+    sounds = {"abl/shapeshift/Abl_Shapeshift_End_Generic_Whoosh_v1_01.wav"},
+    volume = 0.2,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Bear_Start",
+    mixgroup = "gameplay",
+    play = function(sound)
+    audio.FireSoundEvent("Ability.Shapeshift_Generic_Start")
+    end,
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Bear_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Bear_v1_02.wav","abl/shapeshift/Abl_Shapeshift_Start_Bear_v1_03.wav"},
+    volume = 1.0,
+    delay = 0.75,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Crow_Start",
+    mixgroup = "gameplay",
+    play = function(sound)
+    audio.FireSoundEvent("Ability.Shapeshift_Generic_Start")
+    end,
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Crow_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Crow_v1_02.wav","abl/shapeshift/Abl_Shapeshift_Start_Crow_v1_03.wav"},
+    volume = 0.1,
+    delay = 0.75,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Rat_Start",
+    mixgroup = "gameplay",
+    play = function(sound)
+    audio.FireSoundEvent("Ability.Shapeshift_Generic_Start")
+    end,
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Rat_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Rat_v1_02.wav"},
+    volume = 0.1,
+    delay = 0.75,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+    
+    
+}
+
+audio.SoundEvent{
+    name = "Ability.Shapeshift_Wolf_Start",
+    mixgroup = "gameplay",
+    play = function(sound)
+    audio.FireSoundEvent("Ability.Shapeshift_Generic_Start")
+    end,
+    sounds = {"abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_01.wav","abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_02.wav","abl/shapeshift/Abl_Shapeshift_Start_Wolf_v1_03.wav"},
+    volume = 0.2,
+    delay = 0.75,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+
+--Gnoll Abilities
+
+audio.SoundEvent{
+    name = "Ability.CackleTongue_Generic",
+    mixgroup = "gameplay",
+    sounds = {"abl/gnoll/Abl_Cackletongue_Generic_01.wav","abl/gnoll/Abl_Cackletongue_Generic_02.wav","abl/gnoll/Abl_Cackletongue_Generic_03.wav","abl/gnoll/Abl_Cackletongue_Generic_04.wav"},
+    volume = 0.2,
+    pitchRand = 0.05,
+    ignoreDuplicates = 1,
+}
+
+audio.SoundEvent{
+    name = "Ability.EchoesOfLaughter",
+    mixgroup = "gameplay",
+    sounds = {"abl/gnoll/Abl_EchoesOfLaughter_01.wav","abl/gnoll/Abl_EchoesOfLaughter_02.wav","abl/gnoll/Abl_EchoesOfLaughter_03.wav","abl/gnoll/Abl_EchoesOfLaughter_04.wav"},
+    volume = 0.2,
+    pitchRand = 0.05,
+    ignoreDuplicates = 0.1,
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 --Implemented: plays when landing after a fall.
 audio.SoundEvent{
@@ -550,7 +738,7 @@ audio.SoundEvent{
 --Implemented: plays when a creature *takes damage* from any source/reason. (Should review if this is best)
 audio.SoundEvent{
     name = "Attack.Hit",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Gnrc_v1_01.wav","Atk_Hit/Atk_Hit_Gnrc_v1_02.wav","Atk_Hit/Atk_Hit_Gnrc_v1_03.wav","Atk_Hit/Atk_Hit_Gnrc_v1_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -559,7 +747,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_acid",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Acid_v1_01.wav","Atk_Hit/Atk_Hit_Acid_v1_02.wav","Atk_Hit/Atk_Hit_Acid_v1_03.wav","Atk_Hit/Atk_Hit_Acid_v1_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -568,7 +756,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_cold",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Cold_v1_01.wav","Atk_Hit/Atk_Hit_Cold_v1_02.wav","Atk_Hit/Atk_Hit_Cold_v1_03.wav","Atk_Hit/Atk_Hit_Cold_v1_04.wav","Atk_Hit/Atk_Hit_Cold_v1_05.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -577,7 +765,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_corruption",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Corruption_v1_01.wav","Atk_Hit/Atk_Hit_Corruption_v1_02.wav","Atk_Hit/Atk_Hit_Corruption_v1_03.wav","Atk_Hit/Atk_Hit_Corruption_v1_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -586,7 +774,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_fire",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Fire_v1_01.wav","Atk_Hit/Atk_Hit_Fire_v1_02.wav","Atk_Hit/Atk_Hit_Fire_v1_03.wav","Atk_Hit/Atk_Hit_Fire_v1_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -595,7 +783,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_holy",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Holy_v2_01.wav","Atk_Hit/Atk_Hit_Holy_v2_02.wav","Atk_Hit/Atk_Hit_Holy_v2_03.wav","Atk_Hit/Atk_Hit_Holy_v2_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -604,7 +792,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_lightning",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Lightning_v1_01.wav","Atk_Hit/Atk_Hit_Lightning_v1_02.wav","Atk_Hit/Atk_Hit_Lightning_v1_03.wav","Atk_Hit/Atk_Hit_Lightning_v1_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -613,7 +801,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_poison",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Poison_v1_01.wav","Atk_Hit/Atk_Hit_Poison_v1_02.wav","Atk_Hit/Atk_Hit_Poison_v1_03.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -622,7 +810,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_psychic",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Psychic_v2_01.wav","Atk_Hit/Atk_Hit_Psychic_v2_02.wav","Atk_Hit/Atk_Hit_Psychic_v2_03.wav","Atk_Hit/Atk_Hit_Psychic_v2_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -631,7 +819,7 @@ audio.SoundEvent{
 
 audio.SoundEvent{
     name = "Attack.Hit_sonic",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Hit/Atk_Hit_Sonic_v1_01.wav","Atk_Hit/Atk_Hit_Sonic_v1_02.wav","Atk_Hit/Atk_Hit_Sonic_v1_03.wav","Atk_Hit/Atk_Hit_Sonic_v1_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -642,7 +830,7 @@ audio.SoundEvent{
 --plays when creature takes environmental damage
 audio.SoundEvent{
     name = "Attack.Enviro",
-    mixgroup = "gameplay",
+    mixgroup = "damage",
     sounds = {"Atk_Enviro_Gnrc_v1_01.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
@@ -699,9 +887,138 @@ audio.SoundEvent{
 
 
 
+--Generic numglow when numbers glow afer a power roll. one sound call for each die
+
+audio.SoundEvent{
+    name = "Dice.Numglow_Generic",
+    mixgroup = "dice",
+    sounds = {"dice/Dice_NumGlow_Generic_01.wav","dice/Dice_NumGlow_Generic_02.wav","dice/Dice_NumGlow_Generic_03.wav"},
+    volume = 0.02,
+    ignoreDuplicates = 0.00,
+}
+
+
+--Back ash version of numglow
+audio.SoundEvent{
+    name = "Dice.Numglow_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/Dice_NumGlow_BlackAsh_01.wav","dice/cust/Dice_NumGlow_BlackAsh_02.wav","dice/cust/Dice_NumGlow_BlackAsh_03.wav","dice/cust/Dice_NumGlow_BlackAsh_04.wav","dice/cust/Dice_NumGlow_BlackAsh_05.wav"},
+    volume = 0.05,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
 
 
 
+
+--Wode version of numglow
+audio.SoundEvent{
+    name = "Dice.Numglow_Wode",
+    mixgroup = "dice",
+    sounds = {"dice/cust/wode/Dice_NumGlow_Wode_01.wav","dice/cust/wode/Dice_NumGlow_Wode_02.wav","dice/cust/wode/Dice_NumGlow_Wode_03.wav","dice/cust/wode/Dice_NumGlow_Wode_04.wav","dice/cust/wode/Dice_NumGlow_Wode_05.wav"},
+    volume = 0.08,
+    pitchRand = 0.01,
+    ignoreDuplicates = 0.01,
+    delay = 0.0,
+}
+
+
+
+
+--Spectral version of numglow
+audio.SoundEvent{
+    name = "Dice.Numglow_Spectral",
+    mixgroup = "dice",
+    sounds = {"dice/spectral/Dice_NumGlow_spectral_01.wav","dice/spectral/Dice_NumGlow_spectral_02.wav","dice/spectral/Dice_NumGlow_spectral_03.wav","dice/spectral/Dice_NumGlow_spectral_04.wav","dice/spectral/Dice_NumGlow_spectral_05.wav"},
+    volume = 0.04,
+    pitchRand = 0.01,
+    ignoreDuplicates = 0.01,
+    delay = 0.0,
+}
+
+--when black ash dice teleport at end of roll. one sound call for each die
+audio.SoundEvent{
+    name = "Dice.Teleport_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/Dice_Teleport_BlackAsh_01.wav","dice/cust/Dice_Teleport_BlackAsh_02.wav","dice/cust/Dice_Teleport_BlackAsh_03.wav","dice/cust/Dice_Teleport_BlackAsh_04.wav","dice/cust/Dice_Teleport_BlackAsh_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
+
+--when black ash dice disappear at end of roll. one sound call for each die
+audio.SoundEvent{
+    name = "Dice.Remove_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/Dice_Remove_BlackAsh_01.wav","dice/cust/Dice_Remove_BlackAsh_02.wav","dice/cust/Dice_Remove_BlackAsh_03.wav","dice/cust/Dice_Remove_BlackAsh_04.wav","dice/cust/Dice_Remove_BlackAsh_05.wav"},
+    volume = 0.04,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
+
+
+--crucible die explosion chargeup
+audio.SoundEvent{
+    name = "Dice.Numglow_Crucible_Charge",
+    mixgroup = "dice",
+    sounds = {"dice/cust/crucible/Dice_NumGlow_Crucible_Charge_01.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_02.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_03.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_04.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Charge_05.wav"},
+    volume = 0.05,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+    play = function(instance)
+        audio.FireSoundEvent("Dice.Numglow_Crucible_Explo")
+    end,
+}
+
+--crucible die explosion uh explosion
+audio.SoundEvent{
+    name = "Dice.Numglow_Crucible_Explo",
+    mixgroup = "dice",
+    sounds = {"dice/cust/crucible/Dice_NumGlow_Crucible_Explo_01.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_02.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_03.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_04.wav","dice/cust/crucible/Dice_NumGlow_Crucible_Explo_05.wav"},
+    volume = 0.2,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+    delay = 1,
+}
+
+
+--Circle of Spring Numglow
+
+audio.SoundEvent{
+    name = "Dice.Numglow_CircleOfSpring",
+    mixgroup = "dice",
+    sounds = {"dice/cust/circleofSpring/Dice_NumGlow_circleofSpring_01.wav","dice/cust/circleofSpring/Dice_NumGlow_circleofSpring_02.wav","dice/cust/circleofSpring/Dice_NumGlow_circleofSpring_03.wav","dice/cust/circleofSpring/Dice_NumGlow_circleofSpring_04.wav","dice/cust/circleofSpring/Dice_NumGlow_circleofSpring_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
+
+--Noxa Numglow
+
+audio.SoundEvent{
+    name = "Dice.Numglow_Noxa",
+    mixgroup = "dice",
+    sounds = {"dice/cust/noxa/Dice_NumGlow_noxa_01.wav","dice/cust/noxa/Dice_NumGlow_noxa_02.wav","dice/cust/noxa/Dice_NumGlow_noxa_03.wav","dice/cust/noxa/Dice_NumGlow_noxa_04.wav","dice/cust/noxa/Dice_NumGlow_noxa_05.wav"},
+    volume = 0.05,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+     play = function(instance)
+        audio.FireSoundEvent("Dice.Numglow_Generic")
+    end,
+
+}
+
+
+--Lightbending Numglow
+audio.SoundEvent{
+    name = "Dice.Numglow_Lightbending",
+    mixgroup = "dice",
+    sounds = {"dice/cust/lightbending/Dice_NumGlow_lightbending_01.wav","dice/cust/lightbending/Dice_NumGlow_lightbending_02.wav","dice/cust/lightbending/Dice_NumGlow_lightbending_03.wav","dice/cust/lightbending/Dice_NumGlow_lightbending_04.wav","dice/cust/lightbending/Dice_NumGlow_lightbending_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+    ignoreDuplicates = 0.1,
+
+}
 
 
 
@@ -710,29 +1027,106 @@ audio.SoundEvent{
 
 
 --Dice Impacts
+--
+-- A dice set's impact sound is chosen by "family": a speed-tiered group of soft/mild/hard
+-- impact sounds (e.g. Copper, Glass, Stone). On a die collision the engine always fires the
+-- single "Dice.Impact" sound event and passes the die's chosen family (args.family) plus the
+-- impact speed (args.speed) and an optional volume multiplier (args.volume). The dispatcher
+-- below resolves the family to "DiceImp.{Soft,Mild,Hard}[_suffix]" by speed.
+--
+-- DiceImpactFamilies is the formal, enumerable registry of families. It mirrors the
+-- AudioSurfaceTypes / AudioObjectDestructionTypes idiom (an ordered list of {id, text, ...}).
+-- The Dice Studio "Impact" picker lists DiceImpactFamilies.families, so any family added here
+-- shows up automatically. id is stored on the dice set ("" = the default/copper family); suffix
+-- maps to the DiceImp.* leaf sound events defined below (the default family uses an empty suffix).
 
-audio.SoundEvent{
-    mixgroup = "dice",
-    name = "Dice.Impact",
-    play = function(instance)
-        local speed = instance.args.speed or 0
-        local soundEvent = "DiceImp.Soft"
-        local volume = 1
-        if speed > 10 then
-            soundEvent = "DiceImp.Hard"
-            volume = 0.6 + (speed - 8) * 0.1
-        elseif speed > 3 then
-            soundEvent = "DiceImp.Mild"
-            volume = 0.6 + (speed - 1) * 0.1
-        else
-            soundEvent = "DiceImp.Soft"
-            volume = speed
-        end
+DiceImpactFamilies = {}
 
-        local child = audio.FireSoundEvent(soundEvent, {})
-        child.volume = volume
-    end,
+-- Ordered list of registered families. id is stored on the dice set ("" = the default/copper
+-- family); text is the picker label; suffix maps to the DiceImp.* leaf sound events.
+DiceImpactFamilies.families = {
+    { id = "",           text = "Copper (Default)", suffix = ""           },
+    { id = "BlackAsh",   text = "Black Ash",        suffix = "BlackAsh"   },
+    { id = "Glass",      text = "Glass",            suffix = "Glass"      },
+    { id = "Stone",      text = "Stone",            suffix = "Stone"      },
+    { id = "MetalTiny",  text = "Metal (Small)",    suffix = "MetalTiny"  },
+    { id = "MetalBlade", text = "Metal Blade",      suffix = "MetalBlade" },
+    { id = "MetalSparkle",text = "Metal Sparkle",   suffix = "MetalSparkle"},
+    { id = "GlassSparkle",text = "Glass Sparkle",   suffix = "GlassSparkle"},
+    { id = "MetalShield", text = "Metal Shield",    suffix = "MetalShield" },
+    { id = "Spectral",   text = "Spectral",         suffix = "Spectral" },
+    { id = "GlassGas",   text = "Glass Gas",        suffix = "GlassGas" },
+    { id = "GlassLight",  text = "Glass Light",     suffix = "GlassLight" },
+    { id = "Leafy",      text = "Leafy",            suffix = "Leafy" },
 }
+
+-- Look up a family by id. Returns the default (copper) family for a nil/unknown id so a stale
+-- or missing choice still makes a sound.
+function DiceImpactFamilies.Get(id)
+    for _,family in ipairs(DiceImpactFamilies.families) do
+        if family.id == id then
+            return family
+        end
+    end
+    return DiceImpactFamilies.families[1]
+end
+
+-- Fires the soft/mild/hard leaf sound for a family suffix, scaled by impact speed and an
+-- optional volume multiplier (a dice set's bound impact volume; 1 = the authored volume).
+local function FireImpactSound(suffix, speed, volumeMult)
+    speed = speed or 0
+    volumeMult = volumeMult or 1
+
+    local soundEvent = "DiceImp.Soft" .. suffix
+    local volume = speed
+    if speed > 10 then
+        soundEvent = "DiceImp.Hard" .. suffix
+        volume = 0.6 + (speed - 8) * 0.1
+    elseif speed > 4 then
+        soundEvent = "DiceImp.Mild" .. suffix
+        volume = 0.6 + (speed - 1) * 0.1
+    end
+
+    local child = audio.FireSoundEvent(soundEvent, {})
+    if child ~= nil then
+        child.volume = volume * volumeMult
+    end
+end
+
+-- Registers an impact dispatcher. The base "Dice.Impact" (name == nil) resolves the die's chosen
+-- family from args.family at fire time; a suffixed "Dice.Impact_<name>" is locked to its own
+-- family (kept so a family can be fired directly, and for back-compat with dice sets that bound
+-- "Dice.Impact_<Family>" before the family picker existed).
+local function RegisterImpactEvent(name)
+    local suffix = ""
+    if name ~= nil then
+        suffix = "_" .. name
+    end
+
+    audio.SoundEvent{
+        mixgroup = "dice",
+        name = "Dice.Impact" .. suffix,
+        play = function(instance)
+            local familySuffix = suffix
+            if suffix == "" then
+                local family = DiceImpactFamilies.Get(instance.args.family)
+                if family.suffix ~= "" then
+                    familySuffix = "_" .. family.suffix
+                end
+            end
+            FireImpactSound(familySuffix, instance.args.speed, instance.args.volume)
+        end,
+    }
+end
+
+
+-- The base Dice.Impact dispatcher plus one Dice.Impact_<suffix> per non-default family.
+RegisterImpactEvent()
+for _,family in ipairs(DiceImpactFamilies.families) do
+    if family.suffix ~= "" then
+        RegisterImpactEvent(family.suffix)
+    end
+end
 
 audio.SoundEvent{
     name = "DiceImp.Hard",
@@ -757,6 +1151,364 @@ audio.SoundEvent{
     volume = 0.1,
     pitchRand = 0.1,
 }
+
+
+
+
+
+
+--Black Ash Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/DiceImp_BlackAsh_Hard_v1_01.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_02.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_03.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_04.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_05.wav","dice/cust/DiceImp_BlackAsh_Hard_v1_06.wav"},
+    volume = 0.01,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/DiceImp_BlackAsh_Mild_v1_01.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_02.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_03.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_04.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_05.wav","dice/cust/DiceImp_BlackAsh_Mild_v1_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_BlackAsh",
+    mixgroup = "dice",
+    sounds = {"dice/cust/DiceImp_BlackAsh_Soft_v1_01.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_02.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_03.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_04.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_05.wav","dice/cust/DiceImp_BlackAsh_Soft_v1_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.1,
+}
+
+
+
+
+--Leafy Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_Leafy",
+    mixgroup = "dice",
+    sounds = {"dice/leafy/DiceImp_leafy_Hard_01.wav","dice/leafy/DiceImp_leafy_Hard_02.wav","dice/leafy/DiceImp_leafy_Hard_03.wav","dice/leafy/DiceImp_leafy_Hard_04.wav","dice/leafy/DiceImp_leafy_Hard_05.wav","dice/leafy/DiceImp_leafy_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Leafy",
+    mixgroup = "dice",
+    sounds = {"dice/leafy/DiceImp_leafy_Mild_01.wav","dice/leafy/DiceImp_leafy_Mild_02.wav","dice/leafy/DiceImp_leafy_Mild_03.wav","dice/leafy/DiceImp_leafy_Mild_04.wav","dice/leafy/DiceImp_leafy_Mild_05.wav","dice/leafy/DiceImp_leafy_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Leafy",
+    mixgroup = "dice",
+    sounds = {"dice/leafy/DiceImp_leafy_Soft_01.wav","dice/leafy/DiceImp_leafy_Soft_02.wav","dice/leafy/DiceImp_leafy_Soft_03.wav","dice/leafy/DiceImp_leafy_Soft_04.wav","dice/leafy/DiceImp_leafy_Soft_05.wav","dice/leafy/DiceImp_leafy_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+
+--Glass Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_Glass",
+    mixgroup = "dice",
+    sounds = {"dice/glass/DiceImp_Glass_Hard_01.wav","dice/glass/DiceImp_Glass_Hard_02.wav","dice/glass/DiceImp_Glass_Hard_03.wav","dice/glass/DiceImp_Glass_Hard_04.wav","dice/glass/DiceImp_Glass_Hard_05.wav","dice/glass/DiceImp_Glass_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Glass",
+    mixgroup = "dice",
+    sounds = {"dice/glass/DiceImp_Glass_Mild_01.wav","dice/glass/DiceImp_Glass_Mild_02.wav","dice/glass/DiceImp_Glass_Mild_03.wav","dice/glass/DiceImp_Glass_Mild_04.wav","dice/glass/DiceImp_Glass_Mild_05.wav","dice/glass/DiceImp_Glass_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Glass",
+    mixgroup = "dice",
+    sounds = {"dice/glass/DiceImp_Glass_Soft_01.wav","dice/glass/DiceImp_Glass_Soft_02.wav","dice/glass/DiceImp_Glass_Soft_03.wav","dice/glass/DiceImp_Glass_Soft_04.wav","dice/glass/DiceImp_Glass_Soft_05.wav","dice/glass/DiceImp_Glass_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+--glassSparkle Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_GlassSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/glasssparkle/DiceImp_glasssparkle_Hard_01.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_02.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_03.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_04.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_05.wav","dice/glasssparkle/DiceImp_glasssparkle_Hard_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_GlassSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/glasssparkle/DiceImp_glasssparkle_Mild_01.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_02.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_03.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_04.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_05.wav","dice/glasssparkle/DiceImp_glasssparkle_Mild_06.wav"},
+    volume = 0.07,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_GlassSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/glasssparkle/DiceImp_glasssparkle_Soft_01.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_02.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_03.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_04.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_05.wav","dice/glasssparkle/DiceImp_glasssparkle_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+
+--GlassGas (Noxa)
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_GlassGas",
+    mixgroup = "dice",
+    sounds = {"dice/glassgas/DiceImp_glassgas_Hard_01.wav","dice/glassgas/DiceImp_glassgas_Hard_02.wav","dice/glassgas/DiceImp_glassgas_Hard_03.wav","dice/glassgas/DiceImp_glassgas_Hard_04.wav","dice/glassgas/DiceImp_glassgas_Hard_05.wav","dice/glassgas/DiceImp_glassgas_Hard_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_GlassGas",
+    mixgroup = "dice",
+    sounds = {"dice/glassgas/DiceImp_glassgas_Mild_01.wav","dice/glassgas/DiceImp_glassgas_Mild_02.wav","dice/glassgas/DiceImp_glassgas_Mild_03.wav","dice/glassgas/DiceImp_glassgas_Mild_04.wav","dice/glassgas/DiceImp_glassgas_Mild_05.wav","dice/glassgas/DiceImp_glassgas_Mild_06.wav"},
+    volume = 0.08,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_GlassGas",
+    mixgroup = "dice",
+    sounds = {"dice/glassgas/DiceImp_glassgas_Soft_01.wav","dice/glassgas/DiceImp_glassgas_Soft_02.wav","dice/glassgas/DiceImp_glassgas_Soft_03.wav","dice/glassgas/DiceImp_glassgas_Soft_04.wav","dice/glassgas/DiceImp_glassgas_Soft_05.wav","dice/glassgas/DiceImp_glassgas_Soft_06.wav"},
+    volume = 0.04,
+    pitchRand = 0.01,
+}
+
+
+
+--Glass Light (lightbending)
+audio.SoundEvent{
+    name = "DiceImp.Hard_GlassLight",
+    mixgroup = "dice",
+    sounds = {"dice/glasslight/DiceImp_glasslight_Hard_01.wav","dice/glasslight/DiceImp_glasslight_Hard_02.wav","dice/glasslight/DiceImp_glasslight_Hard_03.wav","dice/glasslight/DiceImp_glasslight_Hard_04.wav","dice/glasslight/DiceImp_glasslight_Hard_05.wav","dice/glasslight/DiceImp_glasslight_Hard_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_GlassLight",
+    mixgroup = "dice",
+    sounds = {"dice/glasslight/DiceImp_glasslight_Mild_01.wav","dice/glasslight/DiceImp_glasslight_Mild_02.wav","dice/glasslight/DiceImp_glasslight_Mild_03.wav","dice/glasslight/DiceImp_glasslight_Mild_04.wav","dice/glasslight/DiceImp_glasslight_Mild_05.wav","dice/glasslight/DiceImp_glasslight_Mild_06.wav"},
+    volume = 0.08,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_GlassLight",
+    mixgroup = "dice",
+    sounds = {"dice/glasslight/DiceImp_glasslight_Soft_01.wav","dice/glasslight/DiceImp_glasslight_Soft_02.wav","dice/glasslight/DiceImp_glasslight_Soft_03.wav","dice/glasslight/DiceImp_glasslight_Soft_04.wav","dice/glasslight/DiceImp_glasslight_Soft_05.wav","dice/glasslight/DiceImp_glasslight_Soft_06.wav"},
+    volume = 0.04,
+    pitchRand = 0.01,
+}
+
+
+
+
+
+--spectral Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_Spectral",
+    mixgroup = "dice",
+    sounds = {"dice/spectral/DiceImp_spectral_Hard_01.wav","dice/spectral/DiceImp_spectral_Hard_02.wav","dice/spectral/DiceImp_spectral_Hard_03.wav","dice/spectral/DiceImp_spectral_Hard_04.wav","dice/spectral/DiceImp_spectral_Hard_05.wav","dice/spectral/DiceImp_spectral_Hard_06.wav"},
+    volume = 0.01,
+    pitchRand = 0.1,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Spectral",
+    mixgroup = "dice",
+    sounds = {"dice/spectral/DiceImp_spectral_Mild_01.wav","dice/spectral/DiceImp_spectral_Mild_02.wav","dice/spectral/DiceImp_spectral_Mild_03.wav","dice/spectral/DiceImp_spectral_Mild_04.wav","dice/spectral/DiceImp_spectral_Mild_05.wav","dice/spectral/DiceImp_spectral_Mild_06.wav"},
+    volume = 0.01,
+    pitchRand = 0.1,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Spectral",
+    mixgroup = "dice",
+    sounds = {"dice/spectral/DiceImp_spectral_Soft_01.wav","dice/spectral/DiceImp_spectral_Soft_02.wav","dice/spectral/DiceImp_spectral_Soft_03.wav","dice/spectral/DiceImp_spectral_Soft_04.wav","dice/spectral/DiceImp_spectral_Soft_05.wav","dice/spectral/DiceImp_spectral_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+
+
+--Stone Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_Stone",
+    mixgroup = "dice",
+    sounds = {"dice/Stone/DiceImp_Stone_Hard_01.wav","dice/Stone/DiceImp_Stone_Hard_02.wav","dice/Stone/DiceImp_Stone_Hard_03.wav","dice/Stone/DiceImp_Stone_Hard_04.wav","dice/Stone/DiceImp_Stone_Hard_05.wav","dice/Stone/DiceImp_Stone_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Stone",
+    mixgroup = "dice",
+    sounds = {"dice/Stone/DiceImp_Stone_Mild_01.wav","dice/Stone/DiceImp_Stone_Mild_02.wav","dice/Stone/DiceImp_Stone_Mild_03.wav","dice/Stone/DiceImp_Stone_Mild_04.wav","dice/Stone/DiceImp_Stone_Mild_05.wav","dice/Stone/DiceImp_Stone_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Stone",
+    mixgroup = "dice",
+    sounds = {"dice/Stone/DiceImp_Stone_Soft_01.wav","dice/Stone/DiceImp_Stone_Soft_02.wav","dice/Stone/DiceImp_Stone_Soft_03.wav","dice/Stone/DiceImp_Stone_Soft_04.wav","dice/Stone/DiceImp_Stone_Soft_05.wav","dice/Stone/DiceImp_Stone_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+--MetalTiny Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_MetalTiny",
+    mixgroup = "dice",
+    sounds = {"dice/MetalTiny/DiceImp_MetalTiny_Hard_01.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_02.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_03.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_04.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_05.wav","dice/MetalTiny/DiceImp_MetalTiny_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_MetalTiny",
+    mixgroup = "dice",
+    sounds = {"dice/MetalTiny/DiceImp_MetalTiny_Mild_01.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_02.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_03.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_04.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_05.wav","dice/MetalTiny/DiceImp_MetalTiny_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_MetalTiny",
+    mixgroup = "dice",
+    sounds = {"dice/MetalTiny/DiceImp_MetalTiny_Soft_01.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_02.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_03.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_04.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_05.wav","dice/MetalTiny/DiceImp_MetalTiny_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+
+--metalblade Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_MetalBlade",
+    mixgroup = "dice",
+    sounds = {"dice/metalblade/DiceImp_metalblade_Hard_01.wav","dice/metalblade/DiceImp_metalblade_Hard_02.wav","dice/metalblade/DiceImp_metalblade_Hard_03.wav","dice/metalblade/DiceImp_metalblade_Hard_04.wav","dice/metalblade/DiceImp_metalblade_Hard_05.wav","dice/metalblade/DiceImp_metalblade_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+    play = function(sound)
+    audio.FireSoundEvent("DiceImp.Whoosh_MetalBlade")
+    end,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_MetalBlade",
+    mixgroup = "dice",
+    sounds = {"dice/metalblade/DiceImp_metalblade_Mild_01.wav","dice/metalblade/DiceImp_metalblade_Mild_02.wav","dice/metalblade/DiceImp_metalblade_Mild_03.wav","dice/metalblade/DiceImp_metalblade_Mild_04.wav","dice/metalblade/DiceImp_metalblade_Mild_05.wav","dice/metalblade/DiceImp_metalblade_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+    play = function(sound)
+    audio.FireSoundEvent("DiceImp.Whoosh_MetalBlade")
+    end,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_MetalBlade",
+    mixgroup = "dice",
+    sounds = {"dice/metalblade/DiceImp_metalblade_Soft_01.wav","dice/metalblade/DiceImp_metalblade_Soft_02.wav","dice/metalblade/DiceImp_metalblade_Soft_03.wav","dice/metalblade/DiceImp_metalblade_Soft_04.wav","dice/metalblade/DiceImp_metalblade_Soft_05.wav","dice/metalblade/DiceImp_metalblade_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+    play = function(sound)
+    audio.FireSoundEvent("DiceImp.Whoosh_MetalBlade")
+    end,
+}
+
+--when black ash dice teleport at end of roll. one sound call for each die
+audio.SoundEvent{
+    name = "DiceImp.Whoosh_MetalBlade",
+    mixgroup = "dice",
+    sounds = {"dice/metalblade/DiceImp_MetalBlade_Whoosh_01.wav","dice/metalblade/DiceImp_MetalBlade_Whoosh_02.wav","dice/metalblade/DiceImp_MetalBlade_Whoosh_03.wav","dice/metalblade/DiceImp_MetalBlade_Whoosh_04.wav","dice/metalblade/DiceImp_MetalBlade_Whoosh_05.wav"},
+    volume = 0.2,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+}
+
+
+
+
+--metalshield Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_MetalShield",
+    mixgroup = "dice",
+    sounds = {"dice/metalshield/DiceImp_metalshield_Hard_01.wav","dice/metalshield/DiceImp_metalshield_Hard_02.wav","dice/metalshield/DiceImp_metalshield_Hard_03.wav","dice/metalshield/DiceImp_metalshield_Hard_04.wav","dice/metalshield/DiceImp_metalshield_Hard_05.wav","dice/metalshield/DiceImp_metalshield_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_MetalShield",
+    mixgroup = "dice",
+    sounds = {"dice/metalshield/DiceImp_metalshield_Mild_01.wav","dice/metalshield/DiceImp_metalshield_Mild_02.wav","dice/metalshield/DiceImp_metalshield_Mild_03.wav","dice/metalshield/DiceImp_metalshield_Mild_04.wav","dice/metalshield/DiceImp_metalshield_Mild_05.wav","dice/metalshield/DiceImp_metalshield_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_MetalShield",
+    mixgroup = "dice",
+    sounds = {"dice/metalshield/DiceImp_metalshield_Soft_01.wav","dice/metalshield/DiceImp_metalshield_Soft_02.wav","dice/metalshield/DiceImp_metalshield_Soft_03.wav","dice/metalshield/DiceImp_metalshield_Soft_04.wav","dice/metalshield/DiceImp_metalshield_Soft_05.wav","dice/metalshield/DiceImp_metalshield_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+
+
+
+--MetalSparkle Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_MetalSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/metalsparkle/DiceImp_metalsparkle_Hard_01.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_02.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_03.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_04.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_05.wav","dice/metalsparkle/DiceImp_metalsparkle_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_MetalSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/metalsparkle/DiceImp_metalsparkle_Mild_01.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_02.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_03.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_04.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_05.wav","dice/metalsparkle/DiceImp_metalsparkle_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_MetalSparkle",
+    mixgroup = "dice",
+    sounds = {"dice/metalsparkle/DiceImp_metalsparkle_Soft_01.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_02.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_03.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_04.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_05.wav","dice/metalsparkle/DiceImp_metalsparkle_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
+
+
 
 
 
@@ -895,6 +1647,26 @@ audio.SoundEvent{
 
 
 
+--Tokens
+
+--To implement: cat purr when petting large cats
+
+audio.SoundEvent{
+    name = "Token_Catpurr_Large",
+    mixgroup = "gameplay",
+    sounds = {"Token/Token_CatPurr_Large_01.wav","Token/Token_CatPurr_Large_02.wav","Token/Token_CatPurr_Large_03.wav","Token/Token_CatPurr_Large_04.wav"},
+    volume = 0.3,
+    pitchRand = 0.3,
+    ignoreDuplicates = 1,
+}
+
+
+
+
+
+
+
+
 
 
 --Footsteps
@@ -951,7 +1723,7 @@ audio.SoundEvent{
     sounds = {"foot/FS_Walk_Gnrc_Stone_v1_01.wav","foot/FS_Walk_Gnrc_Stone_v1_02.wav","foot/FS_Walk_Gnrc_Stone_v1_03.wav","foot/FS_Walk_Gnrc_Stone_v1_04.wav","foot/FS_Walk_Gnrc_Stone_v1_05.wav","foot/FS_Walk_Gnrc_Stone_v1_06.wav"},
     volume = 0.15,
     pitchRand = 0.3,
-    ignoreDuplicates = 0.05,
+    --ignoreDuplicates = 0.05,
 }
 
 audio.SoundEvent{
@@ -963,6 +1735,32 @@ audio.SoundEvent{
     ignoreDuplicates = 0.05,
 }
 
+audio.SoundEvent{
+    name = "Foot.Generic_Snow",
+    mixgroup = "footsteps",
+    sounds = {"foot/FS_Walk_Gnrc_Snow_v1_01.wav","foot/FS_Walk_Gnrc_Snow_v1_02.wav","foot/FS_Walk_Gnrc_Snow_v1_03.wav","foot/FS_Walk_Gnrc_Snow_v1_04.wav","foot/FS_Walk_Gnrc_Snow_v1_05.wav","foot/FS_Walk_Gnrc_Snow_v1_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.3,
+    ignoreDuplicates = 0.05,
+}
+
+audio.SoundEvent{
+    name = "Foot.Stairwell",
+    mixgroup = "footsteps",
+    play = function()
+        audio.FireSoundEvent("Foot.Generic_Stone")
+        audio.FireSoundEvent("Foot.Generic_Stone", {
+            delay = 0.1,
+            pitch = 1.2,
+            volume = 0.8,
+        })
+        audio.FireSoundEvent("Foot.Generic_Stone", {
+            delay = 0.2,
+            pitch = 1.4,
+            volume = 0.6,
+        })
+    end,
+}
 
 
 
@@ -1034,14 +1832,50 @@ audio.SoundEvent{
 
 
 dmhub.TokenMovingOnPath = function(args)
-    local surface = args.path:GetStepSurfaceType(args.stepIndex) or 1
+    local surface = args.path:GetStepSurfaceType(args.stepIndex) or 0
+    local surfaceInfo = AudioSurfaceTypes.surfaces[surface]
+
+    --Map Markup footsteps (MapMarkupPanel.lua): a tile inside a PAINTED
+    --footstep region keeps its stamped surface; on any other ground the
+    --map's default footstep surface, when one is set, overrides the
+    --tile-derived surface (map backgrounds often carry a surfaceType of
+    --their own - the default is what the DM says this map's ground sounds
+    --like). The Settings-registry check keeps this quiet (no engine error
+    --log per step) when the MapMarkup module, which registers the setting,
+    --isn't loaded.
+    local painted = nil
+    pcall(function()
+        local markup = rawget(_G, "MapMarkupFootsteps")
+        if markup ~= nil and args.position ~= nil then
+            painted = markup.GetPaintedSurfaceAt(args.token.floorid,
+                math.floor(args.position.x + 0.5), math.floor(args.position.y + 0.5))
+        end
+    end)
+    if painted ~= nil and AudioSurfaceTypes.surfaces[painted] ~= nil then
+        surfaceInfo = AudioSurfaceTypes.surfaces[painted]
+    else
+        local settingsTable = rawget(_G, "Settings")
+        if settingsTable ~= nil and settingsTable["markup:footstepdefault"] ~= nil then
+            local okDefault, defaultSurface = pcall(function()
+                return tonumber(dmhub.GetSettingValue("markup:footstepdefault"))
+            end)
+            if okDefault and defaultSurface ~= nil and AudioSurfaceTypes.surfaces[defaultSurface] ~= nil then
+                surfaceInfo = AudioSurfaceTypes.surfaces[defaultSurface]
+            end
+        end
+    end
+    surfaceInfo = surfaceInfo or {}
+
     local flags = args.path:GetStepFlags(args.stepIndex)
     local inwater = table.contains(flags or {}, "Water")
     local flying = args.path.movementType == "fly"
     local burrowing = args.path.movementType == "burrow"
-    local sound = (AudioSurfaceTypes.surfaces[surface] or {}).sound or "Foot.Generic_Generic"
+    --NOTE: painted footstep surfaces are deliberately LOWER priority than
+    --real conditions - the dispatch below checks flying / burrowing / water
+    --before ever using the surface sound.
+    local sound = surfaceInfo.sound or "Foot.Generic_Generic"
 
-    local puddle = (AudioSurfaceTypes.surfaces[surface] or {}).puddleSound
+    local puddle = surfaceInfo.puddleSound
 
     if flying then
        sound = "Foot.Fly_Wing"
@@ -1110,7 +1944,7 @@ end
 Commands.RegisterMacro{
     name = "downloadaudio",
     summary = "download audio assets",
-    doc = "Usage: /downloadaudio\nDownloads audio assets for development.",
+    doc = "Usage: /downloadaudio/nDownloads audio assets for development.",
     command = function()
         audio.DevDownloadAudio()
     end,

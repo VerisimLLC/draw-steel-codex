@@ -109,7 +109,7 @@ ActionBar.bars = {
         drawer = true,
         drawerText = "M",
         calculateVisible = function(token)
-            return token.properties:IsMonster()
+            return token.properties:IsMonster() and not token.properties:IsHeroSummon()
         end,
     },
 
@@ -120,6 +120,12 @@ Commands.RegisterMacro{
     name = "actionbar",
     summary = "activate ability slot",
     doc = "Usage: /actionbar <panel> <slot>\nActivates the given slot number on the specified action bar panel.",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            return {"triggers", "ability", "heroic-ability", "signature-ability", "common", "malice", "basic-attack", "actions-main-panel"}
+        end
+        return {}
+    end,
     command = function(str)
         local items = string.split(str, " ")
         if type(items) ~= "table" or #items ~= 2 then

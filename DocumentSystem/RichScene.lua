@@ -21,7 +21,7 @@ function RichScene.CreateDisplay(self)
 	local doc = FullscreenDisplay.GetDocumentSnapshot()
     local m_image = nil
     return gui.Panel{
-        width = "auto",
+        width = 1920*0.15,
         height = "auto",
         valign = "center",
         flow = "vertical",
@@ -35,20 +35,17 @@ function RichScene.CreateDisplay(self)
         end,
 
         gui.Label{
+            classes = {"sizeL", "fg", "bold"},
             width = 1920*0.15,
-            height = 22,
-            fontSize = 20,
-            bold = true,
-            color = Styles.textColor,
             text = "Scene",
             textAlignment = "center",
         },
     
         gui.Panel{
+            classes = {"image"},
             width = 1920*0.15,
             height = 1080*0.15,
             autosizeimage = true,
-            bgcolor = "white",
             refreshTag = function(element, tag, match, token)
                 tag = tag or self
                 m_image = tag.image or nil
@@ -106,27 +103,27 @@ function RichScene.CreateEditor(self)
         refreshEditor = function(element, richTag)
             self = richTag or self
         end,
-        gui.SettingsButton{
-            halign = "right",
-            valign = "top",
-            width = 12,
-            height = 12,
-            press = function(element)
-                if element.popup ~= nil then
-                    element.popup = nil
-                    return
-                end
-                element.popup = gui.Panel{
-                    styles = Styles.Default,
-                    bgimage = true,
-                    bgcolor = "black",
-                    opacity = 0.8,
-                    width = "auto",
-                    height = "auto",
-                    flow = "vertical",
-                }
-            end,
-        },
+        -- This seems to do nothing?
+        -- gui.Button{
+        --     classes = {"settingsButton", "sizeXxs"},
+        --     halign = "right",
+        --     valign = "top",
+        --     press = function(element)
+        --         if element.popup ~= nil then
+        --             element.popup = nil
+        --             return
+        --         end
+        --         element.popup = gui.Panel{
+        --             styles = Styles.Default,
+        --             bgimage = true,
+        --             bgcolor = "black",
+        --             opacity = 0.8,
+        --             width = "auto",
+        --             height = "auto",
+        --             flow = "vertical",
+        --         }
+        --     end,
+        -- },
         gui.IconEditor{
             width = 64,
             height = 64,

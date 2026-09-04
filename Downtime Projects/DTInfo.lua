@@ -5,6 +5,7 @@
 --- @field availableRolls number Counter that the Director increments via Grant Rolls to All
 --- @field downtimeProjects DTProject[] The list of DTProject records for the character
 --- @field followerRolls table<string, number> Map of follower GUID to available rolls count
+--- @field fishing table Fishing record: the biggest catch ever and lifetime counts
 DTInfo = RegisterGameType("DTInfo")
 DTInfo.availableRolls = 0
 
@@ -38,15 +39,6 @@ function DTInfo:GrantRolls(rolls)
     return self
 end
 
---- Uses available rolls (decrements counter)
---- @param rolls number The number of rolls to use
---- @return DTInfo self For chaining
-function DTInfo:UseAvailableRolls(rolls)
-    local useCount = math.max(0, math.floor(rolls or 0))
-    self.availableRolls = math.max(0, self:GetAvailableRolls() - useCount)
-    return self
-end
-
 --- Determine if we've been migrated - has .followerRolls
 --- @return boolean
 function DTInfo:IsMigrated()
@@ -64,7 +56,8 @@ end
 --- @return number rolls The number of available rolls for this follower
 function DTInfo:GetFollowerRolls(followerId)
     if followerId == nil or followerId == "" then return 0 end
-    return self:GetFollowerRollsMap()[followerId] or 0
+    local map = self:GetFollowerRollsMap()
+    return map[followerId] or 0
 end
 
 --- Sets the number of available rolls for a specific follower
@@ -93,32 +86,76 @@ function DTInfo:GrantFollowerRolls(followerId, amount)
     return self
 end
 
---- Gets the total aggregate of all follower rolls
---- @return number total The sum of all follower rolls
-function DTInfo:AggregateFollowerRolls()
-    local total = 0
-    for _, rolls in pairs(self:GetFollowerRollsMap()) do
-        total = total + (rolls or 0)
+--- Removes a follower's entry from the rolls map entirely, unlike SetFollowerRolls
+--- which leaves a zero behind.
+--- IMPORTANT: Must be called within token:ModifyProperties context
+--- @param followerId string The GUID of the follower
+--- @return DTInfo self For chaining
+function DTInfo:RemoveFollowerRolls(followerId)
+    if followerId == nil or followerId == "" then return self end
+    local map = self:try_get("followerRolls")
+    if map ~= nil then
+        map[followerId] = nil
     end
-    return total
+    return self
 end
 
---- Gets all follower IDs that have available rolls greater than zero
---- @return table<string, number> Map of follower GUID to roll count for followers with rolls > 0
-function DTInfo:GetFollowerIdsWithRolls()
-    local result = {}
-    for followerId, rolls in pairs(self:GetFollowerRollsMap()) do
-        if rolls and rolls > 0 then
-            result[followerId] = rolls
-        end
+--- Repairs a stored project that lost its DTProject metatable on deserialization
+--- and backfills any structural fields the persisted record is missing.
+---
+--- Two distinct problems are healed here:
+---
+--- 1. Legacy projects (created before DTProject used the engine constructor) were
+---    stored without a "__typeName" tag, so the engine deserializes them as plain
+---    method-less tables. Re-attaching DTProject.mt restores the methods AND causes
+---    the project to be re-serialized with its "__typeName" tag, permanently healing
+---    the persisted data on the next save. See ScriptSerialize.cs (__typeName <-> MetaTable).
+---
+--- 2. Once the DTProject metatable is attached, reading a field that is absent from the
+---    record no longer returns nil -- the RegisterGameType metatable raises "Attempt to
+---    read unknown field" instead (see lua-core RegisterGameType __index). Several
+---    accessors read structural fields raw and only guard with "or {}" AFTER the read
+---    (e.g. DTProject:GetRolls -> "return self.projectRolls or {}", DTProject:GetID ->
+---    "return self.id"), which the guard cannot save because the read itself throws.
+---    Older records predate one or more of these fields, so we backfill the ones that
+---    have no type-level default before any accessor runs. "id" is recovered from the
+---    table key (the project's GUID), which is authoritative, rather than minting a new
+---    one that would desync the project from its share/lookup references.
+--- @param project any A value pulled from the downtimeProjects table
+--- @param key string The GUID key this project is stored under (authoritative id)
+--- @return any project The same value, with its metatable and structural fields restored
+local function _rehydrateProject(project, key)
+    if type(project) ~= "table" then
+        return project
     end
-    return result
+
+    if type(project.GetID) ~= "function" then
+        setmetatable(project, DTProject.mt)
+    end
+
+    -- Backfill structural fields with no type-level default. Use has_key (rawget) so the
+    -- presence check itself does not trip the error-raising metatable.
+    if not project:has_key("id") then
+        project.id = key
+    end
+    if not project:has_key("projectRolls") then
+        project.projectRolls = {}
+    end
+    if not project:has_key("progressAdjustments") then
+        project.progressAdjustments = {}
+    end
+
+    return project
 end
 
 --- Gets all downtime projects for this character
 --- @return table downtimeProjects Hash table of DTProject instances keyed by GUID
 function DTInfo:GetProjects()
-    return self:try_get("downtimeProjects") or {}
+    local projects = self:try_get("downtimeProjects") or {}
+    for key, project in pairs(projects) do
+        projects[key] = _rehydrateProject(project, key)
+    end
+    return projects
 end
 
 --- Gets all downtime projects sorted by sort order
@@ -148,10 +185,11 @@ end
 
 --- Adds a new downtime project to this character
 --- @param ownerId string The unique identifier of the token that owns this project
+--- @param projectId string|nil Optional GUID to assign the new project; generated when omitted
 --- @return DTProject project The newly created project
-function DTInfo:AddProject(ownerId)
+function DTInfo:AddProject(ownerId, projectId)
     local nextOrder = self:_maxProjectOrder() + 1
-    local project = DTProject.CreateNew(nextOrder, ownerId)
+    local project = DTProject.CreateNew(nextOrder, ownerId, projectId)
     self:GetProjects()[project:GetID()] = project
     return project
 end
@@ -182,6 +220,85 @@ function DTInfo:_maxProjectOrder()
     end
 
     return maxOrder
+end
+
+--- Gets the character's fishing record, creating it on first use
+--- Fishing accumulates nothing across outings except this record, so it rides
+--- the character's downtime storage rather than inventing its own.
+--- @return table fishing The fishing record
+function DTInfo:GetFishing()
+    return self:get_or_add("fishing", {})
+end
+
+--- Gets the character's biggest catch ever
+--- @return table|nil biggest Fields points, species, waterName, when, and serverTime
+function DTInfo:GetBiggestCatch()
+    return self:GetFishing().biggest
+end
+
+--- Gets how many fish this character has landed across every Trip
+--- @return number catches The lifetime catch count
+function DTInfo:GetLifetimeCatches()
+    return self:GetFishing().lifetimeCatches or 0
+end
+
+--- Gets how many Trips this character has completed
+--- @return number trips The lifetime Trip count
+function DTInfo:GetLifetimeTrips()
+    return self:GetFishing().lifetimeTrips or 0
+end
+
+--- Records a landed catch, updating the biggest ever when it is beaten
+--- IMPORTANT: Must be called within token:ModifyProperties context
+--- @param points number The size of the fish
+--- @param speciesName string The species landed
+--- @param waterName string The name of the water it came from
+--- @return boolean beaten True when this catch set a new personal record
+function DTInfo:RecordFishingCatch(points, speciesName, waterName)
+    local fishing = self:GetFishing()
+    fishing.lifetimeCatches = (fishing.lifetimeCatches or 0) + 1
+
+    local biggest = fishing.biggest
+    if biggest ~= nil and (biggest.points or 0) >= points then
+        return false
+    end
+
+    fishing.biggest = {
+        points = points,
+        species = speciesName or "",
+        waterName = waterName or "",
+        when = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+        serverTime = dmhub.serverTime
+    }
+
+    return true
+end
+
+--- Records the completion of a Trip
+--- IMPORTANT: Must be called within token:ModifyProperties context
+--- @return DTInfo self For chaining
+function DTInfo:RecordFishingTrip()
+    local fishing = self:GetFishing()
+    fishing.lifetimeTrips = (fishing.lifetimeTrips or 0) + 1
+    return self
+end
+
+--- Extend creature to read the fishing record without creating storage
+--- GetDowntimeInfo creates and uploads downtime storage when a character has
+--- none, which a standings panel must not do just by rendering. This stays
+--- read-only and simply reports nothing for a character who has never fished.
+--- @return table|nil fishing The fishing record, or nil when there is none
+creature.GetFishingRecord = function(self)
+    local downtimeInfo = self:try_get(DTConstants.CHARACTER_STORAGE_KEY)
+    if downtimeInfo == nil then
+        return nil
+    end
+
+    if type(downtimeInfo.try_get) ~= "function" then
+        return rawget(downtimeInfo, "fishing")
+    end
+
+    return downtimeInfo:try_get("fishing")
 end
 
 --- Extend creature to get Downtime Information

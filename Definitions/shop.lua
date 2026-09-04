@@ -1,6 +1,8 @@
 --- @class shop Provides access to the DMHub store, including inventory management, checkout, and gift code operations.
 --- @field events EventSourceLua Gets the event source for store-related events such as inventory refreshes.
 --- @field inventoryItems {[string]: ShopItemInstance} Gets a table of all inventory item instances owned by the current user, keyed by item instance ID.
+--- @field steamAvailable boolean True if the build is running under Steam with the Steamworks API initialized, so Steam Microtransactions can be used.
+--- @field supportsGiftPurchases boolean True if this build supports gift purchases (the options.gift flag on BuyItemsWithSteam). Builds that predate gift support lack this property entirely, so Lua must read it defensively (pcall) and refuse gift checkout when absent -- otherwise the gift flag would be silently dropped and the purchase granted to the buyer.
 shop = {}
 
 --- ItemInInventory: Returns true if the user's inventory contains an item with the given item ID.
@@ -65,5 +67,14 @@ end
 --- @param errorCallback fun(error: string) Called for each gift code that fails to load.
 --- @param completeCallback fun(entries: table) Called when all gift codes have been retrieved.
 function shop:RetrieveGiftCodes(callback, errorCallback, completeCallback)
+	-- dummy implementation for documentation purposes only
+end
+
+--- BuyItemsWithSteam: Buys one or more shop items via Steam Microtransactions. Steam shows a single in-game overlay confirming the cart total. On success the items are granted to the user's inventory and onSuccess receives a list of new instance ids; onFailure is called with an error string if the user cancels or any step fails. Pass options.gift = true to buy the cart as a gift: instead of inventory instances, one redeemable gift code is minted per item and onSuccess receives the codes as its second argument.
+--- @param itemids string[] List of shop item ids to buy.
+--- @param onSuccess fun(instanceids: string[], giftcodes: string[]) Called with the new inventory instance ids (empty for gift purchases) and any minted gift codes (empty for normal purchases).
+--- @param onFailure fun(error: string) Called if the user cancels or any step fails.
+--- @param options nil|{gift: boolean} Optional. gift = true purchases gift codes instead of granting items.
+function shop:BuyItemsWithSteam(itemids, onSuccess, onFailure, options)
 	-- dummy implementation for documentation purposes only
 end

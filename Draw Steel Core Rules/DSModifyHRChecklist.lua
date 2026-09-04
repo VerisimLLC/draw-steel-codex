@@ -51,7 +51,9 @@ CharacterModifier.TypeInfo.modifyresourcechecklist = {
 
         local checklist = modifier:get_or_add("resourceChecklist", {})
 
-        local addButton = gui.AddButton{
+        local addButton = gui.Button{
+            styles = ThemeEngine.GetStyles(),
+            classes = {"addButton"},
             click = function(element)
                 checklist[#checklist+1] = {
                     guid = dmhub.GenerateGuid(),
@@ -81,7 +83,7 @@ CharacterModifier.TypeInfo.modifyresourcechecklist = {
                     flow = "vertical",
 
                     gui.Panel{
-                        classes = {"formPanel"},
+                        classes = {"formPanel", "formPanel-inline"},
                         gui.Label{
                             classes = {"formLabel"},
                             text = "Name:",
@@ -96,10 +98,9 @@ CharacterModifier.TypeInfo.modifyresourcechecklist = {
                                 Refresh()
                             end,
                         },
-                        gui.DeleteItemButton{
+                        gui.Button{
+                            classes = {"deleteButton", "sizeXs"},
                             halign = "right",
-                            width = 12,
-                            height = 12,
                             click = function()
                                 table.remove(checklist, i)
                                 Refresh()
@@ -154,6 +155,7 @@ CharacterModifier.TypeInfo.modifyresourcechecklist = {
                             minWidth = 140,
                         },
                         gui.Dropdown{
+                            styles = ThemeEngine.GetStyles(),
                             options = {
                                 {text = "Once per Combat", id = "encounter"},
                                 {text = "Once per Round", id = "round"},

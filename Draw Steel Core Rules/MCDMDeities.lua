@@ -487,7 +487,7 @@ CharacterChoice.RegisterChoice{
 
 --- @class CharacterDomainChoice:CharacterChoice
 --- @field name string Display name ("Domain").
---- @field numChoices number Number of domains the player may choose.
+--- @field numChoices number|string|table Number of domains the player may choose.
 --- @field description string Prompt shown to the player.
 --- @field deityId string Id of the deity whose domains are offered, or "" for all.
 --- @field options table[] Explicit list of domain options to present (overrides deityId if non-empty).
@@ -614,7 +614,24 @@ function CharacterDomainChoice:GetDomainFeatures()
                 featureCopy.id = domain.id
                 featureCopy.guid = domain.id
                 featureCopy.name = domain.name
-                featureCopy.description = deity.description or ""
+                --The domain's OWN text, not the deity's. Copying the deity's
+                --description here meant every surface that lists class features
+                --printed it twice -- once for the deity, once per domain under
+                --a different name. DeityDomain has no description field yet, so
+                --this is normally empty and the domain simply carries no body.
+                --
+                --Behind dev:testcharpanel with the rest of the panel rework,
+                --since it changes what the sheet and the builder show too.
+                --Guarded because this file loads after MCDMCharacterPanel but
+                --the check is cheap enough to repeat per domain.
+                local ownText = TacPanel ~= nil
+                    and TacPanel.UseTestPanel ~= nil
+                    and TacPanel.UseTestPanel()
+                if ownText then
+                    featureCopy.description = domain:try_get("description", "")
+                else
+                    featureCopy.description = deity.description or ""
+                end
                 self._tmp_domainFeatures[#self._tmp_domainFeatures+1] = featureCopy
             end
         end
@@ -650,7 +667,7 @@ function CharacterDomainChoice:FillFeaturesRecursive(choices, result)
     local domainFeatures = self:GetDomainFeatures()
     for _,choiceid in ipairs(choiceidList) do
         for _,f in ipairs(domainFeatures) do
-            if choiceid.guid == choiceid then
+            if f.guid == choiceid then
                 f:FillFeaturesRecursive(choices, result)
             end
         end

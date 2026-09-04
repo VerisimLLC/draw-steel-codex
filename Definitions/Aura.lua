@@ -4,15 +4,31 @@ Aura = {}
 
 --- MovementDamageApplies
 --- @param movementType any
+--- @param forced boolean
 --- @return boolean
-function Aura:MovementDamageApplies(movementType)
+function Aura:MovementDamageApplies(movementType, forced)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocOnlyAdjacent: True if the given loc lies on this aura's adjacent extension (includeAdjacent) rather than on a true aura tile.
+--- @param loc Loc
+--- @return boolean
+function Aura:LocOnlyAdjacent(locValue)
+	-- dummy implementation for documentation purposes only
+end
+
+--- TokenOnlyAdjacent: True if this aura's area was extended to adjacent tiles (includeAdjacent) and the given token touches the aura only via those adjacent tiles, not via any true aura tile.
+--- @param token CharacterToken
+--- @return boolean
+function Aura:TokenOnlyAdjacent(tokenValue)
 	-- dummy implementation for documentation purposes only
 end
 
 --- ApplyTo
 --- @param target any
+--- @param ignoreHeight boolean?
 --- @return boolean
-function Aura:ApplyTo(target)
+function Aura:ApplyTo(target, ignoreHeight)
 	-- dummy implementation for documentation purposes only
 end
 

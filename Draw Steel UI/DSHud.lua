@@ -15,14 +15,33 @@ function GameHud.TokenMoving(self, token, path)
     end
 
     local statusText = ""
-	local text = string.format(tr('%sMovement: %s %s'), forcedText, MeasurementSystem.NativeToDisplayString(distance), string.lower(MeasurementSystem.UnitName()))
 
+    --No legal route exists, so the engine's flat fallback route is what we're being handed
+    --(see the longer note on the "No path found" line below). Its step count, elevation
+    --delta and terrain breakdown are all fiction -- a wall the creature cannot climb reads
+    --as a one-square step -- so suppress the entire movement-cost line rather than quote
+    --numbers that make no sense. What survives is the creature's speed, the hazards, and
+    --the "No path found" advisory.
+    local noPath = (not path.valid) and (not path.teleport) and (not path.forced)
+
+	local text = ""
     local altitudeDelta = path.destination.altitude - path.origin.altitude
-    if altitudeDelta < 0 then
-        text = string.format(tr("%s (%d elevation)"), text, round(altitudeDelta))
-    elseif altitudeDelta > 0 then
-        text = string.format(tr("%s (+%d elevation)"), text, round(altitudeDelta))
+
+    if not noPath then
+        text = string.format(tr('%sMovement: %s %s'), forcedText, MeasurementSystem.NativeToDisplayString(distance), string.lower(MeasurementSystem.UnitName()))
+
+        if altitudeDelta < 0 then
+            text = string.format(tr("%s (%d elevation)"), text, round(altitudeDelta))
+        elseif altitudeDelta > 0 then
+            text = string.format(tr("%s (+%d elevation)"), text, round(altitudeDelta))
+        end
     end
+
+    --Predicted collision/fall damage numbers, forwarded to the movement
+    --cross-section diagram (movingPathDamages below) so it draws the same red
+    --"-N" annotations the forced-move targeting labels show on the map.
+    local diagramCollisionDamage = nil
+    local diagramFallDamage = nil
 
     if path.forced then
         if path.collisionSpeed > 0 then
@@ -31,8 +50,10 @@ function GameHud.TokenMoving(self, token, path)
 
             if collideCreatures == nil or #collideCreatures == 0 then
                 text = string.format(tr("%s\n<color=#ff0000>Pushing %d tiles into an object, inflicting %d damage.</color>"), text, path.forcedMovementTotalDistance, path.collisionSpeed+2)
+                diagramCollisionDamage = path.collisionSpeed + 2
             else
                 text = string.format(tr("%s\n<color=#ff0000>Pushing %d tiles, inflicting %d damage.</color>"), text, path.forcedMovementTotalDistance, path.collisionSpeed)
+                diagramCollisionDamage = path.collisionSpeed
             end
         end
 
@@ -43,7 +64,9 @@ function GameHud.TokenMoving(self, token, path)
 
 	local walkAndSwim = false
 
-	if token.properties ~= nil and not path.forced then
+	--All of these are ";"-suffixes on the movement-cost line, and all read off the same
+	--fallback route, so they go away with it.
+	if token.properties ~= nil and not path.forced and not noPath then
 		if path.mount then
 			text = string.format(tr("%s\nMounting or dismounting takes half of movement for the round."), text)
 		end
@@ -95,8 +118,39 @@ function GameHud.TokenMoving(self, token, path)
         statusText = statusText .. "\n" .. tr("<color=#ff0000>This path requires climbing.</color>")
     end
 
+    if path.fallDistance > 0 and not path.forced and not path.teleport then
+        local safe = token.properties ~= nil and token.properties:SafeFallDistance(path.landsInWater) or 0
+        if path.fallDistance <= safe then
+            --Green to match the cross-section diagram's "Falls Safely" drop arrow (MovementCrossSection.ColSafeDrop).
+            statusText = statusText .. "\n" .. string.format(tr("<color=#4dc74d>Safely drops %d squares.</color>"), path.fallDistance)
+        else
+            local predicted = token.properties ~= nil and token.properties:PredictedFallDamage(path.fallDistance, path.landsInWater) or 0
+            if predicted > 0 then
+                statusText = statusText .. "\n" .. string.format(tr("<color=#ff0000>Falls %d squares, taking %d damage.</color>"), path.fallDistance, predicted)
+            else
+                statusText = statusText .. "\n" .. string.format(tr("<color=#ff0000>Falls %d squares, taking damage.</color>"), path.fallDistance)
+            end
+        end
+    end
+
+    --Fall-damage number for the cross-section diagram: any damaging end-of-move
+    --fall, INCLUDING forced movement (the red tooltip line above deliberately
+    --excludes forced paths, but the diagram draws their fall arrow and should
+    --number it). Flyers hover rather than fall.
+    if path.fallDistance > 0 and not path.teleport and token.properties ~= nil and not token.properties:CanFly() then
+        local predicted = token.properties:PredictedFallDamage(path.fallDistance, path.landsInWater)
+        if predicted > 0 then
+            diagramFallDamage = predicted
+        end
+    end
+
 	if path.teleport then
         local distance = path.origin:DistanceInTiles(path.destination)
+        --Teleport cost is the largest single dimension of the jump. DistanceInTiles only
+        --covers the lateral (x/y) dimensions, so fold in the vertical (altitudeDelta was
+        --computed above): a purely upward teleport is charged for its climb instead of
+        --reading as near-zero distance.
+        distance = math.max(distance, math.abs(altitudeDelta))
 		text = string.format(tr('Teleport: %d %s'), distance, string.lower(MeasurementSystem.UnitName()))
 	end
 
@@ -105,7 +159,11 @@ function GameHud.TokenMoving(self, token, path)
 	if path.destination.floor ~= token.loc.floor then
 		local diff = token.loc:FloorDifference(path.destination)
 		floorDelta = diff
-		if diff == 1 then
+		--floorDelta still feeds the cross-section diagram; only the text suffix, which
+		--hangs off the suppressed movement line, is skipped.
+		if noPath then
+			--no movement line to suffix.
+		elseif diff == 1 then
 			text = text .. tr(' (+1 Floor)')
 		elseif diff == -1 then
 			text = text .. tr(' (-1 Floor)')
@@ -122,7 +180,29 @@ function GameHud.TokenMoving(self, token, path)
 
 	local creature = token.properties
 	if creature ~= nil and (not path.teleport) and (not path.forced) and (not path.shifting) then
-		text = string.format(tr('%s\n%s %s %s %s per round'), text, creature.GetTokenDescription(token), string.lower(creature:CurrentMoveTypeInfo().tense), MeasurementSystem.NativeToDisplayString(creature:GetEffectiveSpeed(creature:CurrentMoveType())), string.lower(MeasurementSystem.UnitName()))
+		if not path.valid then
+			--No legal route to the destination exists. When the real pathfinder fails the engine
+			--re-routes with a FLAT fallback cost function (10 orthogonal / 15 diagonal per tile,
+			--CharacterToken.cs ~18357) that emits no climb, elevation or difficult-terrain flags at
+			--all -- so path.cost is fiction: stepping onto a 3-square-high wall comes back as "uses
+			--1" instead of 7 (bug CHV77QCP). There is no legal path, so there is no cost worth
+			--quoting: state the creature's speed and leave it at that. The GM additionally gets the
+			--"No path found" line below.
+			text = string.format(tr("%s\n%s %s %s %s per round"), text, creature.GetTokenDescription(token), string.lower(creature:CurrentMoveTypeInfo().tense), MeasurementSystem.NativeToDisplayString(creature:GetEffectiveSpeed(creature:CurrentMoveType())), string.lower(MeasurementSystem.UnitName()))
+		else
+			--How much this move actually spends. Mirror creature:CreatureMove exactly (path.cost/10
+			--with the same diagonal rounding) so the reported "Uses N" matches what will be deducted,
+			--INCLUDING climbing and difficult terrain -- neither of which is visible in the top-line
+			--square count (that uses path.numSteps, the flat tile count).
+			local usedTiles = path.cost/10
+			local newDiagonals = cond(usedTiles > math.floor(usedTiles), 1, 0)
+			usedTiles = math.floor(usedTiles)
+			if dmhub.GetSettingValue("truediagonals") and newDiagonals > 0 and (creature:DiagonalsMovedThisTurn()%2) == 1 then
+				usedTiles = usedTiles + 1
+			end
+
+			text = string.format(tr("%s\nUses %s of %s's %s %s allowed by Advance Move Action"), text, MeasurementSystem.NativeToDisplayString(usedTiles*dmhub.FeetPerTile), creature.GetTokenDescription(token), MeasurementSystem.NativeToDisplayString(creature:GetEffectiveSpeed(creature:CurrentMoveType())), string.lower(MeasurementSystem.UnitName()))
+		end
 
 		if walkAndSwim then
 			local otherMode = "walk"
@@ -137,14 +217,29 @@ function GameHud.TokenMoving(self, token, path)
 		if distMoved > 0 then
 			text = string.format(tr("%s\nAlready moved %s %s this turn."), text, MeasurementSystem.NativeToDisplayString(distMoved*dmhub.FeetPerTile), string.lower(MeasurementSystem.UnitName()))
 		end
+
+		if creature:CanTeleport() then
+			text = string.format(tr("%s\n<color=#00ff00>This token can teleport. Hold ctrl to teleport.</color>"), text)
+		end
     elseif creature ~= nil and path.shifting then
 		text = string.format(tr('%s\n%s moves %s %s per round when using <b>disengage</b> to shift'), text, creature.GetTokenDescription(token), MeasurementSystem.NativeToDisplayString(creature:CarefulMovementSpeed()), string.lower(MeasurementSystem.UnitName()))
 
+        if (creature:CalculateNamedCustomAttribute("Shift Disabled") or 0) > 0 then
+            local reason = nil
+            for _,modification in ipairs(creature:DescribeModificationsToNamedCustomAttribute("Shift Disabled")) do
+                reason = modification.key
+            end
+            if reason ~= nil then
+                statusText = statusText .. "\n" .. string.format(tr("<color=#ff0000><b>You cannot shift.</b> (%s)</color>"), reason)
+            else
+                statusText = statusText .. "\n" .. tr("<color=#ff0000><b>You cannot shift.</b></color>")
+            end
+        end
 	end
 
     local hazards = path:CalculateHazards(token)
+    local damageHazards = {}
     if hazards ~= nil then
-        local damageHazards = {}
         for _,hazard in ipairs(hazards) do
             if hazard.type == "damage" then
                 local found = false
@@ -172,7 +267,70 @@ function GameHud.TokenMoving(self, token, path)
         end
     end
 
-	if (not path.valid) and (not path.teleport) and (not path.forced) and dmhub.isDM then
+    --Damaging-terrain advisory: a red warning when the path moves into terrain
+    --flagged as damaging (Aura:IsDamaging -- an entry power roll like Lava,
+    --per-tile move damage, or an explicit `damaging` flag on the aura). Auras
+    --already itemized above with exact move-damage numbers are skipped, as are
+    --friendly-only auras and an includeAdjacent aura's adjacent-extension
+    --tiles (standing next to lava is not moving into it). Footprint-based like
+    --the rest of the tooltip: vertical bands are ignored. pcall throughout --
+    --scratch auras that do not implement the AuraInstance interface must not
+    --take the tooltip down.
+    do
+        local reportedNames = {}
+        for _,hazard in ipairs(damageHazards) do
+            reportedNames[hazard.name] = true
+        end
+
+        local seenNames = {}
+        local damagingNames = {}
+        local steps = path.steps or {}
+        for i = 2, #steps do
+            local auras = game.GetAurasAtLoc(steps[i])
+            if auras ~= nil then
+                for _,aura in ipairs(auras) do
+                    pcall(function()
+                        local instance = aura.auraInstance
+                        if instance == nil then
+                            return
+                        end
+
+                        local auraDef = instance:try_get("aura")
+                        if auraDef == nil or auraDef:IsDamaging() ~= true then
+                            return
+                        end
+
+                        local name = auraDef:try_get("name", "Hazard")
+                        if reportedNames[name] or seenNames[name] then
+                            return
+                        end
+
+                        local applyto = instance:GetApplyTo()
+                        if applyto == "friends" or applyto == "selfandfriends" then
+                            return
+                        end
+
+                        if EnvironmentalKeyword.AuraLocOnlyAdjacent(aura, steps[i]) then
+                            return
+                        end
+
+                        if auraDef:CreaturePassesFilter(token.properties, instance) == false then
+                            return
+                        end
+
+                        seenNames[name] = true
+                        damagingNames[#damagingNames+1] = name
+                    end)
+                end
+            end
+        end
+
+        if #damagingNames > 0 then
+            text = string.format(tr("%s\n<color=#ff0000>Moving into damaging terrain (%s)!</color>"), text, table.concat(damagingNames, ", "))
+        end
+    end
+
+	if noPath and dmhub.isDM then
 		text = string.format('%s\nNo path found, move through walls or hold control to teleport.', text)
 	end
 
@@ -184,53 +342,93 @@ function GameHud.TokenMoving(self, token, path)
 
     text = text .. statusText
 
+    --Everything after the movement line is written as a "\n"-prefixed continuation, so when
+    --that line is suppressed (noPath) the tooltip would start with a blank line.
+    text = string.gsub(text, "^\n+", "")
+
     if path.properties ~= nil and path.properties.overrideText then
         text = path.properties.overrideText
     end
 
-	--calculate how it should be aligned, trying to avoid the tooltip going over the arrow or the creature.
-	local halign = 'center'
-	local valign = 'center'
+	--Place the movement tooltip so it can NEVER cover the moving token, the destination, or any part of
+	--the arrow. We build the axis-aligned bounding box of the WHOLE path -- every tile the mover steps
+	--through, each expanded by the mover's footprint (so both end tokens sit fully inside) plus a little
+	--for the arrow ribbon -- and then place the tooltip entirely OUTSIDE that box on one of its four
+	--sides. Anchoring at the box EDGE (rather than the old midpoint + perpendicular nudge) pins the
+	--tooltip's near, box-facing edge to the box boundary independent of the tooltip's size, so it clears
+	--the entire path at any move angle or length; it also removes the one-frame size-lag wobble the old
+	--version had (where the previously hovered tile appeared to influence the placement). We choose the
+	--side with the most room for the tooltip, computed from the camera's usable world bounds (the same
+	--rect Panel.ShowTooltip clamps to) so the on-screen clamp won't drag it back over the box. Everything
+	--here is in world coordinates: PosAtLoc, cameraUsableBounds and the ShowTooltip anchor share that
+	--space (valign 'top' = higher world y, halign 'right' = higher world x).
 
-
-	local dest = path.destination
-
-	if dest.x > path.origin.x then
-		valign = 'top'
-	end
-
-	if dest.x < path.origin.x then
-		valign = 'top'
-	end
-
-	if dest.y > path.origin.y then
-		valign = 'top'
-	end
-
-	if dest.y < path.origin.y then
-		valign = 'bottom'
-	end
-
-	--for large tokens make sure the tooltip appears well off the creature.
-	local locsOccupied = token:LocsOccupyingWhenAt(dest)
-	if locsOccupied ~= nil and #locsOccupied > 1 then
-		for _,loc in ipairs(locsOccupied) do
-			if valign == "top" and loc.y > dest.y then
-				dest = loc
-			end
-
-			if valign == "bottom" and loc.y < dest.y then
-				dest = loc
-			end
+	--Bounding box of the whole path, expanded by the mover's footprint (+ a bit for the arrow ribbon).
+	local pad = (token.tileSize or 1)*0.5 + 0.15
+	local minx, miny, maxx, maxy = nil, nil, nil, nil
+	for _,step in ipairs(path.steps) do
+		local p = token:PosAtLoc(step)
+		if minx == nil then
+			minx, miny, maxx, maxy = p.x, p.y, p.x, p.y
+		else
+			if p.x < minx then minx = p.x elseif p.x > maxx then maxx = p.x end
+			if p.y < miny then miny = p.y elseif p.y > maxy then maxy = p.y end
 		end
 	end
+	if minx == nil then
+		local p = token:PosAtLoc(path.destination)
+		minx, miny, maxx, maxy = p.x, p.y, p.x, p.y
+	end
+	minx, miny, maxx, maxy = minx - pad, miny - pad, maxx + pad, maxy + pad
 
+	local cx = (minx + maxx)*0.5
+	local cy = (miny + maxy)*0.5
+	local gap = 0.3
+
+	--rough OVER-estimate of the tooltip's world size (text + diagram), used only to pick the roomiest
+	--side. Over-estimating is safe: it just biases us away from a side that is too tight.
+	local worldPerPixel = 0.1
+	local screenDims = dmhub.screenDimensions
+	if dmhub.cameraZoom ~= nil and screenDims ~= nil and screenDims.y > 0 then
+		worldPerPixel = (dmhub.cameraZoom*2) / screenDims.y
+	end
+	local ttW = 430 * worldPerPixel
+	local ttH = 640 * worldPerPixel
+
+	--Four candidate placements: tooltip fully outside the box, one per side. `slack` is how much room is
+	--left over after fitting the tooltip on that side (positive = fits without the clamp shoving it back).
+	local halign, valign, anchorx, anchory
+	local bounds = dmhub.cameraUsableBounds
+	if bounds == nil then
+		halign, valign, anchorx, anchory = 'right', 'center', maxx + gap, cy
+	else
+		local candidates = {
+			{ slack = (bounds.x2 - maxx) - ttW, halign = 'right',  valign = 'center', anchorx = maxx + gap, anchory = cy },
+			{ slack = (minx - bounds.x1) - ttW, halign = 'left',   valign = 'center', anchorx = minx - gap, anchory = cy },
+			{ slack = (bounds.y2 - maxy) - ttH, halign = 'center', valign = 'top',    anchorx = cx, anchory = maxy + gap },
+			{ slack = (miny - bounds.y1) - ttH, halign = 'center', valign = 'bottom', anchorx = cx, anchory = miny - gap },
+		}
+		local best = candidates[1]
+		for i = 2, #candidates do
+			if candidates[i].slack > best.slack then best = candidates[i] end
+		end
+		halign, valign, anchorx, anchory = best.halign, best.valign, best.anchorx, best.anchory
+	end
 
 	self.dialog.sheet:FireEvent("tiletooltip", {
-		loc = dest,
+		--anchor at the chosen edge of the path bounding box (a world-space point, which
+		--FloatTooltipNearTile accepts as well as a Loc); halign/valign then push the tooltip off that
+		--edge, away from the box.
+		loc = core.Vector2(anchorx, anchory),
 		text = text,
 		halign = halign,
 		valign = valign,
 		floorDelta = floorDelta,
+
+		--used by the movement cross-section diagram in the tooltip
+		--(see CreateMovementDiagramPanel in GameHud.lua).
+		movingToken = token,
+		movingPath = path,
+		movingPathDamages = { collision = diagramCollisionDamage, fall = diagramFallDamage },
 	})
 end

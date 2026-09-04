@@ -13,28 +13,143 @@ function RichImage.Create()
 end
 
 function RichImage.CreateDisplay(self)
-    return gui.Panel{
+    --The seamless editor's island layer marks its refresh tokens with
+    --editor = true; display-mode render tokens never carry the flag. In editor
+    --mode we (a) show a placeholder frame when no image is chosen (an empty
+    --image renders 0x0, which left the island's reserved space as an
+    --unexplained blank gap) and (b) poll for annotation edits: the annotation
+    --editors mutate the tag object directly with no change event, so a set
+    --image would otherwise never appear until the editor was recreated.
+    --Read mode is unchanged: no placeholder, no poll.
+    local m_editorMode = false
+    local m_playerView = false
+    local m_shareHandled = false
+    local m_lastImage = nil
+    local m_applied = false
+    local m_halign = nil
+
+    local imagePanel
+    local placeholderPanel
+    local UpdateState
+
+    UpdateState = function()
+        local img = self.image or nil
+        if img ~= m_lastImage or not m_applied then
+            m_lastImage = img
+            m_applied = true
+            imagePanel.bgimage = img
+        end
+        imagePanel.selfStyle.uiscale = self.uiscale
+        --The wrapper fills its container's width in BOTH modes now (see below),
+        --so alignment has to live on the image panel rather than on the wrapper
+        --in both -- a full-width wrapper cannot align anything.
+        imagePanel.selfStyle.halign = m_halign or "left"
+        if m_editorMode then
+            placeholderPanel.selfStyle.halign = m_halign or "left"
+        end
+        placeholderPanel:SetClass("collapsed", not m_editorMode or m_lastImage ~= nil)
+    end
+
+    imagePanel = gui.Panel{
+        classes = {"image"},
+        maxWidth = self.maxWidth,
         width = "auto",
         height = "auto",
-        valign = "center",
-        refreshTag = function(element, tag, match, token)
-            element.selfStyle.halign = token.justification or tag.halign
+        autosizeimage = true,
+        uiscale = self.uiscale,
+        rightClick = function(element)
+            if not dmhub.isDM or m_editorMode or m_playerView or not self.image then
+                return
+            end
+            m_shareHandled = false
+            element.popup = gui.ContextMenu {
+                entries = {
+                    {
+                        text = "Share to Chat",
+                        click = function()
+                            element.popup = nil
+                            --GetImageInfo can invoke its callback more than once.
+                            dmhub.GetImageInfo(self.image, function(info)
+                                if m_shareHandled or info == nil then
+                                    return
+                                end
+                                m_shareHandled = true
+                                chat.ShareData(ImageDocument.new {
+                                    imageid = self.image,
+                                    width = info.width,
+                                    height = info.height,
+                                })
+                            end)
+                        end,
+                    },
+                },
+            }
         end,
-        halign = self.halign,
-    
-        gui.Panel{
-            maxWidth = self.maxWidth,
+        refreshTag = function(element, tag, match, token)
+            self = tag or self
+            UpdateState()
+        end,
+    }
+
+    placeholderPanel = gui.Panel{
+        classes = {"collapsed"},
+        width = 340,
+        height = 64,
+        halign = "left",
+        bgimage = "panels/square.png",
+        bgcolor = "#00000044",
+        border = 1,
+        borderColor = "#99999977",
+        gui.Label{
+            text = "No image set. Choose one in the annotations strip below.",
+            fontSize = 14,
+            color = "#aaaaaa",
             width = "auto",
             height = "auto",
-            autosizeimage = true,
-            bgcolor = "white",
-            uiscale = self.uiscale,
-            refreshTag = function(element, tag, match, token)
-                tag = tag or self
-                element.bgimage = tag.image or nil
-                element.selfStyle.uiscale = tag.uiscale
-            end,
-        }
+            maxWidth = 320,
+            textAlignment = "center",
+            halign = "center",
+            valign = "center",
+        },
+    }
+
+    --Fill the container's width so imagePanel's percentage maxWidth resolves
+    --against a real width. Under an auto-width parent the constraint is
+    --circular: the image sizes to its texture, that resizes the auto-width
+    --wrapper, which re-resolves maxWidth and re-marks the image dirty -- so it
+    --re-registers for graphic rebuild every frame, never settles, and lands
+    --mispositioned (a blank gap above it, body text overlapping below).
+    --
+    --The editor path already did this and its comment noted the same symptom
+    --from the other end (a large image rendering at natural size and spilling
+    --out of the page). The read path never got it, which is what made journal
+    --images drift below the text. Both modes now resolve the same way, with
+    --alignment on the image panel since a full-width wrapper cannot align.
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        valign = "center",
+        flow = "vertical",
+        refreshTag = function(element, tag, match, token)
+            m_halign = (token ~= nil and token.justification) or (tag or self).halign
+            if token ~= nil and token.editor then
+                m_editorMode = true
+            end
+            if token ~= nil then
+                m_playerView = token.player == true
+            end
+            UpdateState()
+        end,
+
+        thinkTime = 0.35,
+        think = function(element)
+            if m_editorMode then
+                UpdateState()
+            end
+        end,
+
+        imagePanel,
+        placeholderPanel,
     }
 end
 
@@ -48,41 +163,38 @@ function RichImage.CreateEditor(self)
         refreshEditor = function(element, richTag)
             self = richTag or self
         end,
-        gui.SettingsButton{
+        gui.Button{
+            classes = {"settingsButton", "sizeXxs"},
             halign = "right",
             valign = "top",
-            width = 12,
-            height = 12,
             press = function(element)
                 if element.popup ~= nil then
                     element.popup = nil
                     return
                 end
+                element.popupsInheritStyles = true
                 element.popup = gui.Panel{
-                    styles = Styles.Default,
-                    bgimage = true,
-                    bgcolor = "black",
-                    opacity = 0.8,
+                    classes = {"bordered", "bg"},
                     width = "auto",
                     height = "auto",
                     flow = "vertical",
+                    pad = 8,
 
                     gui.Panel{
                         flow = "horizontal",
                         width = "auto",
                         height = "auto",
                         gui.Label{
-                            fontSize = 14,
-                            color = "white",
+                            classes = {"sizeS"},
                             width = "auto",
                             height = "auto",
                             text = "Dimensions:",
                         },
                         gui.Label{
-                            fontSize = 14,
-                            color = "white",
+                            classes = {"sizeXs"},
                             width = "auto",
                             height = "auto",
+                            lmargin = 4,
                             text = "--",
                             create = function(element)
                                 dmhub.GetImageInfo(self.image, function(info)
@@ -101,16 +213,12 @@ function RichImage.CreateEditor(self)
                         width = "auto",
                         height = "auto",
                         gui.Label{
-                            fontSize = 14,
-                            color = "white",
+                            classes = {"sizeXs"},
                             width = "auto",
                             height = "auto",
                             text = "Scale:",
                         },
                         gui.Slider{
-                            style = {
-                                fontSize = 12,
-                            },
                             width = 160,
                             labelWidth = 40,
                             height = 20,

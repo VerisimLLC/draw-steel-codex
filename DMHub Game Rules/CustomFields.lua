@@ -123,8 +123,8 @@ function CustomFieldCollection.CreateEditor(dataType)
                                 end,
                             },
 
-                            gui.DeleteItemButton{
-                                classes = {"formDeleteButton"},
+                            gui.Button{
+                                classes = {"deleteButton", "formDeleteButton"},
                                 click = function(element)
                                     data.fields[k] = nil
                                     dmhub.SetAndUploadTableItem(CustomFieldCollection.tableName, data)
@@ -209,7 +209,8 @@ function CustomFieldCollection.CreateEditor(dataType)
             end,
         },
 
-        gui.AddButton{
+        gui.Button{
+            classes = {"addButton"},
             halign = "right",
             valign = "bottom",
             click = function(element)

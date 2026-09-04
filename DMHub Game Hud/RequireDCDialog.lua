@@ -39,14 +39,19 @@ RollCheck.customChecks = {}
 --	GetModifiers = (optional) function(RollCheck, creature),
 --	ShowDialog = (optional) function(RollCheck, dialogOptions)
 --}
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:96
 function RollCheck.RegisterCustom(options)
 	RollCheck.customChecks[options.id] = options
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:100
 function RollCheck:CustomInfo()
 	return RollCheck.customChecks[self.id]
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:104
 function RollRequest:GetTokenOutcome(tokenid, checkNumber)
 	local tokenInfo = self.tokens[tokenid]
 	if tokenInfo == nil then
@@ -55,7 +60,9 @@ function RollRequest:GetTokenOutcome(tokenid, checkNumber)
 
 	return tokenInfo.outcome
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:113
 function RollRequest:GetTokenResult(tokenid, checkNumber)
 	local tokenInfo = self.tokens[tokenid]
 	if tokenInfo == nil then
@@ -72,12 +79,16 @@ function RollRequest:GetTokenResult(tokenid, checkNumber)
 
 	return tokenInfo.result >= self.checks[checkNumber or 1].dc
 end
+--]==]
 
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:131
 function RollRequest:Describe(isplayer)
 	return self.checks[1]:Describe(isplayer)
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:148
 function RollCheck:Describe(isplayer)
 	local dc = ""
 	if (not isplayer) and self:has_key('dc') then
@@ -134,7 +145,9 @@ function RollCheck:Describe(isplayer)
 		return string.format("%s%s%s check", dc, self.text, specializationText)
 	end
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:206
 function RollCheck:GetRoll(creature)
 	if self:CustomInfo() ~= nil then
 		return self:CustomInfo().GetRoll(self, creature)
@@ -164,7 +177,9 @@ function RollCheck:GetRoll(creature)
 		return string.format("%s+%d", GameSystem.BaseSkillRoll, creature:SkillMod(Skill.SkillsById[self.id]))
 	end
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:241
 function RollCheck:GetModifiers(creature)
 	if self:CustomInfo() ~= nil then
 		if self:CustomInfo().GetModifiers then
@@ -191,6 +206,7 @@ function RollCheck:GetModifiers(creature)
 	end
 	
 end
+--]==]
 
 local initiativeChecks = {
 	{
@@ -208,6 +224,7 @@ local g_tableGroupSetting = setting{
 }
 
 --called by skills once the skills are loaded.
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:325
 function RollCheck.LoadSkills()
 
 	local attributeRollChecks = {}
@@ -293,9 +310,11 @@ function RollCheck.LoadSkills()
 		},
 	}
 end
+--]==]
 
 
 --this is a hidden panel which just listens for required rolls.
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:403
 function GameHud:RequireRollListenerPanel()
 
 	local autoRollId = nil
@@ -359,7 +378,12 @@ function GameHud:RequireRollListenerPanel()
 						if info.status == nil then
 							local tok = dmhub.GetTokenById(tokid)
 							local rollid = k .. tokid
-							if tok ~= nil and tok.properties and ((info.forceuserid == nil and tok.canControl and (dmhub.isDM == false or tok.playerControlled == false or not havePlayersOnline)) or info.forceuserid == dmhub.loginUserid) and not currentRolls[rollid] then
+							--who does this client prompt for: a plain player, anything they control;
+							--a DM/host, non-player tokens (or anything with no players online); a
+							--player host additionally their OWN tokens -- canControl is host-wide
+							--for them, so ownership is the discriminator. (playerHostMode reads
+							--nil on engine builds without it, keeping the old behavior exactly.)
+							if tok ~= nil and tok.properties and ((info.forceuserid == nil and tok.canControl and (IsDMOrPlayerHost() == false or tok.playerControlled == false or not havePlayersOnline or (dmhub.playerHostMode == true and tok.ownerId == dmhub.loginUserid))) or info.forceuserid == dmhub.loginUserid) and not currentRolls[rollid] then
 								numPrompts = numPrompts+1
 							end
 						end
@@ -372,7 +396,12 @@ function GameHud:RequireRollListenerPanel()
 						if info.status == nil then
 							local tok = dmhub.GetTokenById(tokid)
 							local rollid = k .. tokid
-							if tok ~= nil and tok.properties and ((info.forceuserid == nil and tok.canControl and (dmhub.isDM == false or tok.playerControlled == false or not havePlayersOnline)) or info.forceuserid == dmhub.loginUserid) and not currentRolls[rollid] then
+							--who does this client prompt for: a plain player, anything they control;
+							--a DM/host, non-player tokens (or anything with no players online); a
+							--player host additionally their OWN tokens -- canControl is host-wide
+							--for them, so ownership is the discriminator. (playerHostMode reads
+							--nil on engine builds without it, keeping the old behavior exactly.)
+							if tok ~= nil and tok.properties and ((info.forceuserid == nil and tok.canControl and (IsDMOrPlayerHost() == false or tok.playerControlled == false or not havePlayersOnline or (dmhub.playerHostMode == true and tok.ownerId == dmhub.loginUserid))) or info.forceuserid == dmhub.loginUserid) and not currentRolls[rollid] then
 
 								local checks = {}
 
@@ -407,7 +436,10 @@ function GameHud:RequireRollListenerPanel()
 									end
 									
 									if check:has_key("tableRef") then
-										rollProperties = RollProperties.new{}
+										--Must be the RollOnTableProperties subclass so
+										--the action log renders table rows; base
+										--RollProperties has no table-aware CustomPanel.
+										rollProperties = RollOnTableProperties.new{}
 										rollProperties.tableRef = check.tableRef
 									elseif check:has_key('dc') then
 										rollProperties = GameSystem.GetRollProperties(check.type, check.dc)
@@ -423,7 +455,9 @@ function GameHud:RequireRollListenerPanel()
 										if autoCancelId == k then
 											autoroll = "cancel"
 										end
-									elseif dmhub.isDM and tok.playerControlled == false then
+									--real hosting check: monster saves must keep auto-resolving on a
+									--player host or the Monster AI stalls on a prompt mid-cast.
+									elseif IsDMOrPlayerHost() and tok.playerControlled == false then
 										if check.type == "save" then
 											autoroll = {
 												id = "monsterSaves",
@@ -459,6 +493,11 @@ function GameHud:RequireRollListenerPanel()
 										subtype = check.type,
 										nofadein = nofadein,
 
+										--Optional, and off unless the caller asks: the dialog
+										--is see-through by default, which is unreadable over a
+										--busy map. Absent means exactly what it meant before.
+										solidDialog = request.info:try_get("solidDialog", false),
+
 										alternateOptions = alternateOptions,
 										alternateChosen = checkIndex,
 										chooseAlternate = function(alternateIndex)
@@ -486,8 +525,13 @@ function GameHud:RequireRollListenerPanel()
 												req:BeginChanges()
 												req.info.tokens[tokid].status = 'complete'
 												req.info.tokens[tokid].result = rollInfo.total
+												req.info.tokens[tokid].naturalRoll = rollInfo.naturalRoll
 												req.info.tokens[tokid].boons = rollInfo.boons
 												req.info.tokens[tokid].banes = rollInfo.banes
+												req.info.tokens[tokid].dice = RollUtils.SortedDice(rollInfo)
+												req.info.tokens[tokid].isCrit = RollUtils.IsCrit(rollInfo)
+												req.info.tokens[tokid].rollid = rollInfo.key
+												req.info.tokens[tokid].modifiersUsed = rollInfo.properties ~= nil and rollInfo.properties:try_get("modifiersUsed", {}) or {}
 
 												if rollInfo.forcedResult then
 													req.info.tokens[tokid].forcedResult = rollInfo.autosuccess
@@ -495,7 +539,8 @@ function GameHud:RequireRollListenerPanel()
 												
 												if rollInfo.properties then
 													local matchingOutcome = rollInfo.properties:GetOutcome(rollInfo)
-													if matchingOutcome then
+													if matchingOutcome and matchingOutcome.outcome ~= nil then
+														matchingOutcome.outcome = StringInterpolateGoblinScript(matchingOutcome.outcome, tok.properties)
 														req.info.tokens[tokid].outcome = matchingOutcome
 													end
 												end
@@ -557,6 +602,7 @@ function GameHud:RequireRollListenerPanel()
 
 	return resultPanel
 end
+--]==]
 
 local g_requireRollDialog = nil
 
@@ -566,6 +612,7 @@ local function CloseRequireRollDialog()
 	end
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:687
 function GameHud:CreatePartyTokenPoolSelector(args)
 	local initiative = args.initiative
 	args.initiative = nil
@@ -784,6 +831,7 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 
 	return resultPanel
 end
+--]==]
 
 function ShowRequireRollDialog(args)
 
@@ -1200,7 +1248,7 @@ function ShowRequireRollDialog(args)
 			},
 		},
 
-		gui.PrettyButton{
+		gui.Button{
 			text = 'Submit',
 			floating = true,
 			halign = 'right',
@@ -1269,6 +1317,7 @@ function ShowRequireRollDialog(args)
 end
 
 --resultTable gets marked with a 'result' = true/false for completion or cancel.
+--[==[ DEAD_CODE - overridden by Draw Steel UI\DSRequestRollsDialog.lua:1450
 function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 	if resultTable == nil then
 		resultTable = {}
@@ -1276,7 +1325,7 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 
 	local iscomplete = false
 
-	local closeButton = gui.PrettyButton{
+	local closeButton = gui.Button{
 			text = 'Cancel',
 			floating = true,
 			halign = 'right',
@@ -1576,6 +1625,7 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 
 	}
 end
+--]==]
 
 --this is a silent/non-gui version of GameHud:ShowRollSummaryDialog that monitors an actionid for completion.
 --designed to be run in a coroutine. Will cancel the request and time out eventually.

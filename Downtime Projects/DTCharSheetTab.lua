@@ -4,9 +4,13 @@
 --- @field _instance DTCharSheetTab The singleton instance of this class
 DTCharSheetTab = RegisterGameType("DTCharSheetTab")
 
-local playersEditProjectRols = setting{
+local mod = dmhub.GetModLoading()
+
+--- The id is kept as it was: changing it would orphan the value every game has
+--- already stored against it.
+local playersManageProjects = setting{
 	id = "permission:playersprojectrolls",
-	description = "Players Edit Project Rolls",
+	description = "Players Manage Downtime Projects",
 	editor = "check",
 	default = false,
 
@@ -15,8 +19,20 @@ local playersEditProjectRols = setting{
 	classes = {"dmonly"},
 }
 
-local CanEditProjectRolls = function()
-	return dmhub.isDM or playersEditProjectRols:Get()
+--- May the current user work the Director's controls on a downtime project -
+--- status, milestones, adjustments, the event roll? True for the Director
+--- always, and for a player only while the game hands it to them. Asked again
+--- on every refresh, since the permission can be granted with a sheet open.
+--- @return boolean
+function DTCharSheetTab.CanManageProjects()
+	return dmhub.isDM or playersManageProjects:Get()
+end
+
+--- Whether this game lets players roll from the project detail. The setting
+--- alone, unlike CanManageProjects.
+--- @return boolean
+function DTCharSheetTab.RollingFromSheetEnabled()
+	return playersManageProjects:Get()
 end
 
 function DTCharSheetTab.GetToken()
@@ -45,7 +61,7 @@ function DTCharSheetTab.CreateDowntimePanel()
 
     local downtimePanel = gui.Panel {
         id = "downtimeController",
-        classes = {"downtimeController", "DTPanel"},
+        classes = {"downtimeController"},
         bgimage = true,
         bgcolor = "clear",
         width = "100%",
@@ -53,8 +69,7 @@ function DTCharSheetTab.CreateDowntimePanel()
         flow = "vertical",
         valign = "top",
         halign = "center",
-        borderColor = "purple",
-        styles = DTHelpers.GetDialogStyles(),
+        styles = ThemeEngine.GetStyles(),
         data = {
             getDowntimeFollowers = function()
                 local token = getToken()
@@ -111,317 +126,117 @@ function DTCharSheetTab.CreateDowntimePanel()
         end,
 
         adjustRolls = function(element, amount, roller)
-            local token = getToken()
-            local tokenId = token.id
-            local rollerTokenId = roller:GetTokenID()
-            local dtInfo = token.properties:GetDowntimeInfo()
-            if dtInfo then
-                token:ModifyProperties{
-                    execute = function()
-                        if rollerTokenId == tokenId then
-                            dtInfo:GrantRolls(amount)
-                        else
-                            dtInfo:GrantFollowerRolls(rollerTokenId, amount)
-                        end
-                    end
-                }
-            end
+            DTProjectEditor.AdjustDowntimeRolls(getToken(), roller:GetTokenID(), amount)
             DTSettings.Touch()
             element:FireEventTree("refreshToken")
         end,
 
-        children = {
-            DTCharSheetTab._createHeaderPanel(),
-            DTCharSheetTab._createBodyPanel(),
-        }
+        DTCharSheetTab._createHeaderPanel(),
+        DTCharSheetTab._createBodyPanel(),
     }
+
+    -- The CharSheet system caches this panel for the session, so its `styles`
+    -- array would be frozen at construction. Subscribe to ThemeEngine so the
+    -- styles refresh whenever the active theme or scheme changes.
+    ThemeEngine.OnThemeChanged(mod, function()
+        if downtimePanel and downtimePanel.valid then
+            downtimePanel.styles = ThemeEngine.GetStyles()
+        end
+    end)
 
     return downtimePanel
 end
 
---- Creates the available rolls display panel
---- @return table panel The panel showing available rolls count
+--- Creates the bar above the projects list
+--- @return table panel The counters, and the button that adds a project
 function DTCharSheetTab._createHeaderPanel()
 
-    local rollStatusGroup = gui.Panel {
-        width = "100%",
-        height = "100%",
-        flow = "horizontal",
-        halign = "left",
-        valign = "center",
-        hmargin = 20,
-        children = {
-            gui.Label {
-                text = "Rolling Status: ",
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
-                height = "100%",
-                hmargin = 2,
-                fontSize = 20,
-                halign = "left",
-                valign = "center"
-            },
-            gui.Label {
-                text = "CALCULATING...",
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
-                hmargin = 2,
-                height = "100%",
-                fontSize = 20,
-                halign = "left",
-                valign = "center",
-                interactable = CanEditProjectRolls(),
-                create = function(element)
-                    dmhub.Schedule(0.2, function()
-                        element.monitorGame = DTSettings.GetDocumentPath()
-                    end)
-                end,
-                refreshGame = function(element)
-                    element:FireEvent("refreshToken")
-                end,
-                press = function(element)
-                    local status
-                    local settings = DTSettings.CreateNew()
-                    if settings then
-                        status = settings:GetPauseRolls()
-                        settings:SetPauseRolls(not status)
-                    end
-                    element:FireEventTree("refreshToken")
-                end,
-                refreshToken = function(element)
-                    local status = "UNKNOWN"
-                    local settings = DTSettings.CreateNew()
-                    if settings then
-                        status = settings:GetPauseRolls() and "PAUSED" or "AVAILABLE"
-                    end
-                    element.text = status
-                    element:SetClass("DTStatusAvailable", status == "AVAILABLE")
-                    element:SetClass("DTStatusPaused", status ~= "AVAILABLE")
-                end
-            },
-            gui.Label {
-                text = "",
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
-                height = "100%",
-                fontSize = 20,
-                halign = "left",
-                valign = "center",
-                bold = false,
-                create = function(element)
-                    dmhub.Schedule(0.2, function()
-                        element.monitorGame = DTSettings.GetDocumentPath()
-                    end)
-                end,
-                refreshGame = function(element)
-                    element:FireEvent("refreshToken")
-                end,
-                refreshToken = function(element)
-                    local reason = ""
-                    local settings = DTSettings.CreateNew()
-                    if settings then
-                        if settings:GetPauseRolls() then
-                            reason = "(<i>" .. settings:GetPauseRollsReason() .. "</i>)"
-                        end
-                    end
-                    element.text = reason
-                end
-            },
-            gui.Label {
-                classes = {"DTLabel", "DTBase", "DTHelpHover"},
-                bold = true,
-                text = "?",
-                create = function(element)
-                    dmhub.Schedule(0.2, function()
-                        element.monitorGame = DTSettings.GetDocumentPath()
-                    end)
-                end,
-                linger = function(element)
-                    gui.Tooltip{
-                        maxWidth = 300,
-                        fontSize = 16,
-                        bgimage = true,
-                        bgcolor = "#663100",
-                        text = "Your Director can enable rolling by opening Panels -> Downtime Projects, then clicking the gear button.",
-                    }(element)
-                end,
-                refreshGame = function(element)
-                    element:FireEvent("refreshToken")
-                end,
-                refreshToken = function(element)
-                    local visible = false
-                    local settings = DTSettings.CreateNew()
-                    if settings then
-                        visible = settings:GetPauseRolls()
-                    end
-                    element:SetClass("collapsed", not visible)
-                end,
-            },
-        }
-    }
+    --How many downtime activities the hero has left to spend.
+    --@return number
+    local function HeroActivities()
+        local token = getToken()
+        if token == nil or token.properties == nil or not token.properties:IsHero() then
+            return 0
+        end
 
-    local availableRollsGroup = gui.Panel {
-        width = "100%",
-        height = "100%",
-        flow = "horizontal",
+        local downtimeInfo = token.properties:GetDowntimeInfo()
+        if downtimeInfo == nil then
+            return 0
+        end
+
+        return downtimeInfo:GetAvailableRolls() or 0
+    end
+
+    --Every activity the hero's followers hold between them, as one number.
+    --@return number
+    local function FollowerActivities()
+        local token = getToken()
+        if token == nil or token.properties == nil or not token.properties:IsHero() then
+            return 0
+        end
+
+        local followers = token.properties:GetDowntimeFollowers()
+        if followers == nil then
+            return 0
+        end
+
+        return followers:AggregateAvailableRolls() or 0
+    end
+
+    --A counter on the bar. Plain text in the ordinary colour: these are a
+    --running total to glance at, not a status to react to.
+    --@param caption string What the number counts
+    --@param Count fun(): number Reads the number
+    --@return Panel
+    local function CounterLabel(caption, Count)
+        return gui.Label {
+            classes = {"sizeL"},
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            rmargin = 24,
+            text = caption,
+
+            --The document is not up yet when the sheet builds its panels, so
+            --the monitor is attached once it is.
+            create = function(element)
+                element:FireEvent("refreshToken")
+                dmhub.Schedule(0.2, function()
+                    if element.valid then
+                        element.monitorGame = DTSettings.GetDocumentPath()
+                    end
+                end)
+            end,
+            refreshGame = function(element)
+                element:FireEvent("refreshToken")
+            end,
+            refreshToken = function(element)
+                element.text = string.format("%s: %d", caption, Count())
+            end,
+        }
+    end
+
+    --Setting the counts is the Director's business, and a player's only when
+    --the Director has handed it to them. Re-checked on every refresh, since the
+    --permission can be granted while the sheet is open.
+    local activitiesButton = gui.Button {
+        classes = {"settingsButton", "sizeS", cond(not DTCharSheetTab.CanManageProjects(), "collapsed")},
         halign = "left",
         valign = "center",
-        data = {
-            availableRolls = 0,
-            message = "",
-        },
-        create = function(element)
-            dmhub.Schedule(0.2, function()
-                element.monitorGame = DTSettings.GetDocumentPath()
-            end)
-        end,
-        refreshGame = function(element)
-            element:FireEventTree("refreshToken")
+        linger = function(element)
+            gui.Tooltip("Set downtime activities for this hero and their followers")(element)
         end,
         refreshToken = function(element)
-            local fmt = "%d%s"
-            local msg = ""
-            element.data.availableRolls = 0
-            if CharacterSheet.instance.data.info then
-                local token = CharacterSheet.instance.data.info.token
-                if token and token.properties and token.properties:IsHero() then
-                    local downtimeInfo = token.properties:GetDowntimeInfo()
-                    if downtimeInfo then
-                        element.data.availableRolls = downtimeInfo:GetAvailableRolls()
-                    else
-                        msg = " (Can't get downtime info)"
-                    end
-                else
-                    msg = " (Not a Hero)"
-                end
-                element.data.message = string.format(fmt, element.data.availableRolls, msg)
-                element:SetClass("DTStatusAvailable", element.data.availableRolls > 0)
-                element:SetClass("DTStatusPaused", element.data.availableRolls <= 0)
-            end
+            element:SetClass("collapsed", not DTCharSheetTab.CanManageProjects())
         end,
-        children = {
-            gui.Label {
-                text = "Available Rolls: ",
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
-                height = "100%",
-                hmargin = 2,
-                fontSize = 20,
-                halign = "left",
-                valign = "center"
-            },
-            gui.Label {
-                text = "CALCULATING...",
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
-                height = "100%",
-                halign = "left",
-                valign = "center",
-                editable = CanEditProjectRolls(),
-                hmargin = 2,
-                fontSize = 20,
-                refreshToken = function(element)
-                    local availableRolls = element.parent.data.availableRolls
-                    element.text = element.parent.data.message
-                    element:SetClass("DTStatusAvailable", availableRolls > 0)
-                    element:SetClass("DTStatusPaused", availableRolls <= 0)
-                end,
-                change = function(element)
-                    if tonumber(element.text) then
-                        local token = getToken()
-                        local downtimeInfo = token and token.properties:GetDowntimeInfo()
-                        if downtimeInfo then
-                            modifyTokenProps{
-                                execute = function ()
-                                    downtimeInfo.availableRolls = tonumber(element.text)
-                                end,
-                            }
-                            element:FireEventTree("refreshToken")
-                        end
-                    end
-                end,
-            },
-            gui.Label {
-                classes = {"DTLabel", "DTBase", "DTHelpHover"},
-                bold = true,
-                text = "?",
-                linger = function(element)
-                    gui.Tooltip{
-                        maxWidth = 300,
-                        fontSize = 16,
-                        bgimage = true,
-                        bgcolor = "#663100",
-                        text = "Your Director can grant rolls by opening Panels -> Downtime Projects, then clicking the dice button.",
-                    }(element)
-                end,
-                refreshToken = function(element)
-                    local visible = element.parent.data.availableRolls == 0
-                    element:SetClass("collapsed", not visible)
-                end,
-            },
-        }
+        click = function()
+            DTActivitiesDialog.ShowDialog(getToken())
+        end,
     }
 
-    local followerRollsGroup = gui.Panel {
-        width = "100%",
-        height = "100%",
-        flow = "horizontal",
-        halign = "left",
-        valign = "center",
-        children = {
-            gui.Label {
-                text = "Follower Rolls: ",
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
-                height = "100%",
-                hmargin = 2,
-                fontSize = 20,
-                halign = "left",
-                valign = "center"
-            },
-            gui.Label {
-                text = "CALCULATING...",
-                classes = {"DTLabel", "DTBase"},
-                width = "auto",
-                height = "100%",
-                halign = "left",
-                valign = "center",
-                hmargin = 2,
-                fontSize = 20,
-                create = function(element)
-                    dmhub.Schedule(0.2, function()
-                        element.monitorGame = DTSettings.GetDocumentPath()
-                    end)
-                end,
-                refreshGame = function(element)
-                    element:FireEvent("refreshToken")
-                end,
-                refreshToken = function(element)
-                    local fmt = "%d%s"
-                    local availableRolls = 0
-                    local msg = ""
-                    if CharacterSheet.instance.data.info then
-                        local token = CharacterSheet.instance.data.info.token
-                        if token and token.properties and token.properties:IsHero() then
-                            local downtimeInfo = token.properties:GetDowntimeInfo()
-                            if downtimeInfo then
-                                availableRolls = downtimeInfo:AggregateFollowerRolls()
-                            else
-                                msg = " (Can't get follower rolls)"
-                            end
-                        else
-                            msg = " (Not a Hero)"
-                        end
-                        element.text = string.format(fmt, availableRolls, msg)
-                        element:SetClass("DTStatusAvailable", availableRolls > 0)
-                        element:SetClass("DTStatusPaused", availableRolls <= 0)
-                    end
-                end
-            }
-        }
-    }
-
-    local addButton = gui.AddButton {
+    local addButton = gui.Button {
+        classes = {"addButton"},
         halign = "right",
         vmargin = 5,
         hmargin = 20,
@@ -433,9 +248,10 @@ function DTCharSheetTab._createHeaderPanel()
             if token and token.properties and token.properties:IsHero() then
                 local downtimeInfo = token.properties:GetDowntimeInfo()
                 if downtimeInfo then
+                    local newProjectId = dmhub.GenerateGuid()
                     modifyTokenProps{
                         execute = function()
-                            downtimeInfo:AddProject(token.charid)
+                            downtimeInfo:AddProject(token.charid, newProjectId)
                         end
                     }
                     DTSettings.Touch()
@@ -443,70 +259,68 @@ function DTCharSheetTab._createHeaderPanel()
                     if scrollArea then
                         scrollArea:FireEventTree("refreshToken")
                     end
+
+                    -- Immediately prompt the user to choose a source for the new project
+                    CharacterSheet.instance:AddChild(DTSelectItemDialog.CreateAsChild({
+                        confirm = function(sourceType, selectedId)
+                            local di = token.properties:GetDowntimeInfo()
+                            local project = di and di:GetProject(newProjectId)
+                            if project then
+                                modifyTokenProps{
+                                    execute = function()
+                                        DTBusinessRules.ApplySourceToProject(project, sourceType, selectedId)
+                                    end
+                                }
+                                local sa = CharacterSheet.instance:Get("projectScrollArea")
+                                if sa then
+                                    sa:FireEventTree("refreshToken")
+                                end
+                                dmhub.Schedule(0.1, function()
+                                    DTSettings.Touch()
+                                    DTShares.Touch()
+                                end)
+                            end
+                        end,
+                        cancel = function()
+                            -- Custom / cancel: leave the new project empty for manual editing
+                        end
+                    }))
                 end
             end
         end
     }
 
     return gui.Panel {
+        classes = {"surfaceLinear"},
         width = "100%",
-        height = 40,
+        height = 36,
         flow = "horizontal",
         halign = "center",
         valign = "center",
-        bgimage = "panels/square.png",
-        bgcolor = "#2a2a2a",
-        border = { y1 = 1, y2 = 0, x1 = 0, x2 = 0 },
-        borderColor = "white",
-        children = {
-            -- Roll Status
-            gui.Panel {
-                width = "30%",
-                height = "100%",
-                flow = "horizontal",
-                halign = "left",
-                valign = "center",
-                children = {
-                    rollStatusGroup
-                }
-            },
+        -- Counters. They share one row rather than a column each, so the
+        -- next ones to arrive line up beside these instead of resizing the
+        -- bar around them.
+        gui.Panel {
+            width = "90%",
+            height = "100%",
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
+            lmargin = 20,
+            CounterLabel("Hero Available Activities", HeroActivities),
+            CounterLabel("Follower Aggregate Activities", FollowerActivities),
+            activitiesButton,
+        },
 
-            -- Available Rolls
-            gui.Panel {
-                width = "30%",
-                height = "100%",
-                flow = "horizontal",
-                halign = "left",
-                valign = "center",
-                children = {
-                    availableRollsGroup
-                },
-            },
-
-            -- Follower Rolls
-            gui.Panel {
-                width = "30%",
-                height = "100%",
-                flow = "horizontal",
-                halign = "left",
-                valign = "center",
-                children = {
-                    followerRollsGroup
-                },
-            },
-
-            -- Add button
-            gui.Panel {
-                width = "10%",
-                height = "100%",
-                flow = "horizontal",
-                halign = "right",
-                valign = "center",
-                children = {
-                    addButton
-                }
-            }
-        }
+        -- Add button
+        gui.Panel {
+            width = "10%",
+            height = "100%",
+            flow = "horizontal",
+            halign = "right",
+            valign = "center",
+            addButton,
+        },
     }
 end
 
@@ -514,45 +328,41 @@ end
 --- @return table panel The panel for managing downtime projects
 function DTCharSheetTab._createBodyPanel()
     return gui.Panel {
+        classes = {"surfaceRadial"},
         width = "100%",
         height = "100%-50",
         flow = "vertical",
         halign = "center",
         valign = "top",
-        vmargin = 10,
-        children = {
-            -- Scrollable projects area
+        vmargin = 4,
+        -- Scrollable projects area
+        gui.Panel{
+            width = "100%",
+            height = "100%",
+            valign = "top",
+            vscroll = true,
+            -- Inner auto-height container that pins content to top
             gui.Panel{
+                id = "projectScrollArea",
+                classes = {"projectListController"},
                 width = "100%",
-                height = "100%",
+                height = "auto",
+                flow = "vertical",
+                halign = "center",
                 valign = "top",
-                vscroll = true,
-                styles = DTHelpers.GetDialogStyles(),
-                children = {
-                    -- Inner auto-height container that pins content to top
-                    gui.Panel{
-                        id = "projectScrollArea",
-                        classes = {"projectListController"},
-                        width = "100%",
-                        height = "auto",
-                        flow = "vertical",
-                        halign = "center",
-                        valign = "top",
-                        create = function(element)
-                            dmhub.Schedule(0.2, function()
-                                element.monitorGame = DTShares.GetDocumentPath()
-                            end)
-                        end,
-                        refreshGame = function(element)
-                            element:FireEvent("refreshToken")
-                        end,
-                        refreshToken = function(element)
-                            DTCharSheetTab._refreshProjectsList(element)
-                        end
-                    }
-                }
-            }
-        }
+                create = function(element)
+                    dmhub.Schedule(0.2, function()
+                        element.monitorGame = DTShares.GetDocumentPath()
+                    end)
+                end,
+                refreshGame = function(element)
+                    element:FireEvent("refreshToken")
+                end,
+                refreshToken = function(element)
+                    DTCharSheetTab._refreshProjectsList(element)
+                end
+            },
+        },
     }
 end
 
@@ -574,12 +384,12 @@ function DTCharSheetTab._refreshProjectsList(element)
         element.children = {
             gui.Label {
                 text = "(ERROR: unable to create downtime info)",
-                classes = {"DTLabel", "DTBase"},
+                classes = {"sizeL"},
                 width = "100%",
                 height = 40,
                 textAlignment = "center",
                 halign = "center",
-                valign = "top"
+                valign = "top",
             }
         }
         return
@@ -591,13 +401,13 @@ function DTCharSheetTab._refreshProjectsList(element)
         if (not projects or #projects == 0) and #sharedProjects == 0 then
             element.children = {
                 gui.Label {
+                    classes = {"sizeL"},
                     text = "No projects yet.\nClick the Add button to create one.",
-                    classes = {"DTLabel", "DTBase"},
                     width = "100%",
                     height = 40,
                     textAlignment = "center",
                     halign = "center",
-                    valign = "top"
+                    valign = "top",
                 }
             }
             return

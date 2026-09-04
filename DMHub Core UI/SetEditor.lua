@@ -70,9 +70,8 @@ function gui.SetEditor(args)
                                 width = 200,
                                 height = "auto",
                             },
-                            gui.DeleteItemButton{
-                                width = 12,
-                                height = 12,
+                            gui.Button{
+                                classes = {"deleteButton", "sizeXs"},
                                 click = function(element)
                                     value[option.id] = nil
                                     resultPanel:FireEventTree("refreshSet")

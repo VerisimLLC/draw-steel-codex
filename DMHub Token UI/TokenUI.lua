@@ -83,6 +83,99 @@ local RadialStyles = {
 
 }
 
+--Modal dialog letting a player rename a monster (gated behind the "players_rename_monsters"
+--game setting). The new name is applied to every instance of the monster on the map and
+--remembered as a playerName on the bestiary entry for future spawns. closeDialog() is
+--called to dismiss the dialog. See monster.RenameMonsterType in Monster.lua.
+local function CreateRenameMonsterDialog(token, closeDialog)
+    local monsterType = token.properties:try_get("monster_type")
+    local currentName = token.properties:try_get("playerName") or monsterType or ""
+    local pendingName = currentName
+
+    local function Commit()
+        closeDialog()
+        monster.RenameMonsterType(monsterType, pendingName)
+    end
+
+    return gui.Panel{
+        bgimage = "panels/square.png",
+        bgcolor = "#111111f0",
+        borderWidth = 2,
+        borderColor = Styles.textColor,
+        cornerRadius = 8,
+        width = 300,
+        height = 150,
+        halign = "center",
+        valign = "center",
+        flow = "vertical",
+        pad = 16,
+        borderBox = true,
+        captureEscape = true,
+        escapePriority = EscapePriority.CANCEL_TOKEN_MENU,
+        escape = function()
+            closeDialog()
+        end,
+        children = {
+            gui.Label{
+                text = "Rename Monster",
+                fontSize = 20,
+                bold = true,
+                color = Styles.textColor,
+                width = "100%",
+                height = "auto",
+                halign = "center",
+                valign = "top",
+            },
+            gui.Input{
+                text = currentName,
+                lineType = "SingleLine",
+                characterLimit = 32,
+                selectAllOnFocus = true,
+                width = "100%",
+                height = 28,
+                fontSize = 16,
+                vmargin = 12,
+                change = function(element)
+                    pendingName = element.text
+                end,
+                submit = function(element)
+                    pendingName = element.text
+                    Commit()
+                end,
+            },
+            gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "bottom",
+                children = {
+                    gui.PrettyButton{
+                        text = "Cancel",
+                        width = 110,
+                        height = 32,
+                        fontSize = 16,
+                        hmargin = 6,
+                        click = function()
+                            closeDialog()
+                        end,
+                    },
+                    gui.PrettyButton{
+                        text = "Rename",
+                        width = 110,
+                        height = 32,
+                        fontSize = 16,
+                        hmargin = 6,
+                        click = function()
+                            Commit()
+                        end,
+                    },
+                },
+            },
+        },
+    }
+end
+
 local g_statusBarRegistry = {}
 
 TokenUI.RegisterStatusBar = function(args)
@@ -174,7 +267,13 @@ end
 local CalculateStatusIcons = function(token)
 	local result = {}
 	if token.invisibleToPlayers then
-		result[#result+1] = { id = "invisible", icon = "ui-icons/eye.png" }
+		--tokens pending placement in a tweak-placement flow (see
+		--AbilityTweakCreaturePlacement.lua) are temporarily hidden from players;
+		--they show a centered move icon instead of the hidden-from-players eye.
+		local tweaker = rawget(_G, "CreaturePlacementTweaker")
+		if tweaker == nil or not tweaker.IsPending(token) then
+			result[#result+1] = { id = "invisible", icon = "ui-icons/eye.png" }
+		end
 	end
 
 	if token.properties ~= nil and token.properties:IsDown() then
@@ -199,7 +298,7 @@ local CalculateStatusIcons = function(token)
 
 				elseif v.Filter ~= nil and v.Filter(token.properties) then
 					local icon = v.icon
-					result[#result+1] = { id = k, icon = icon, style = v.style }
+					result[#result+1] = { id = k, icon = icon, style = v.style, hoverText = v.hoverText }
 				end
 			end
 		end
@@ -229,6 +328,14 @@ local CalculateStatusIcons = function(token)
 					local condInfo = conditionsTable[ongoingEffectInfo.condition]
                     if condInfo ~= nil then
                         statusText = condInfo.name
+                    end
+
+                    --Effects with no linked condition still know their caster
+                    --(casterInfo is recorded on the instance either way); carry
+                    --the id so the hover highlight-line and threat detection
+                    --(e.g. the Director overview's red rings) work for them too.
+                    if casterInfo ~= nil and casterInfo.tokenid ~= nil and dmhub.GetTokenById(casterInfo.tokenid) ~= nil then
+                        casterid = casterInfo.tokenid
                     end
 
 					if condInfo ~= nil and casterInfo ~= nil and casterInfo.tokenid ~= nil then
@@ -283,6 +390,12 @@ local CalculateStatusIcons = function(token)
 
 	return result
 end
+
+--Exposed so other surfaces can show EXACTLY the status icons the token HUD
+--shows (conditions, ongoing effects, registered status icons), with the same
+--icon / style / hoverText / statusText / casterid per entry - e.g. the
+--Director's multi-monster overview footer. Read-only; returns a fresh list.
+TokenUI.CalculateStatusIcons = CalculateStatusIcons
 
 
 local g_animationStyles = {
@@ -570,7 +683,9 @@ TokenHud.RegisterPanel{
 							vmargin = 0,
                             valign = "bottom",
 							floating = true,
-							y = 14,
+							--bars normally sit at y=14; a registration can set its own
+							--y (via base.y) to stack a second bar without overlapping.
+							y = bar.base.y or 14,
 							update = function(element, barInfo)
 								element.selfStyle.height = barInfo.height or barInfo.base.height or 12
 							end,
@@ -815,7 +930,7 @@ TokenHud.RegisterPanel{
 							},
 						}
 
-						if not dmhub.DeepEqual(panel.data.val, bar) then
+						if panel.data and not dmhub.DeepEqual(panel.data.val, bar) then
 							panel:FireEventTree("update", bar)
 							panel.data.val = bar
 						end
@@ -880,13 +995,17 @@ TokenHud.RegisterPanel{
 								end
 							end,
 							linger = function(element)
-								if icon.hoverText ~= nil then
-									gui.Tooltip{text = icon.hoverText, valign = "top",}(element)
+								local hoverText = icon.hoverText
+								if type(hoverText) == "function" and token ~= nil and token.valid and token.properties ~= nil then
+									hoverText = hoverText(token.properties)
+								end
+								if hoverText ~= nil then
+									gui.Tooltip{text = hoverText, valign = "top",}(element)
                                 elseif icon.hasAltitude and token ~= nil and token.valid then
                                     local movetype = token.properties:CurrentMoveTypeInfo()
                                     if movetype ~= nil and movetype.verb then
-                                        local hoverText = string.format("%s at altitude %d", movetype.verb, token.floorAltitude)
-									    gui.Tooltip{text = hoverText, valign = "top",}(element)
+                                        local altText = string.format("%s at altitude %d", movetype.verb, token.floorAltitude)
+									    gui.Tooltip{text = altText, valign = "top",}(element)
                                     end
 								end
 							end,
@@ -1543,9 +1662,16 @@ function CreateTokenHud(token)
     if token.isObject then
         objectStyles = {
             {
-                selectors = {"~targeting"},
                 opacity = 0,
-            }
+            },
+            {
+                selectors = {"targeting"},
+                opacity = 1,
+            },
+            {
+                selectors = {"damaged"},
+                opacity = 1,
+            },
         }
     end
 
@@ -1801,6 +1927,7 @@ function CreateTokenHud(token)
 				children[#children+1] = gui.Label{
 					text = text,
 					floating = true,
+                    markdown = true,
 					styles = {
 						{
 							width = 'auto',
@@ -1962,7 +2089,7 @@ function CreateTokenHud(token)
 
                 local fontFace = nil
                 print("Language: Speaking in", entry.langid, "known locally =", creature.g_languagesKnownLocally)
-                if (not dmhub.isDM) and (not token.canControl) and (not creature.g_languagesKnownLocally[entry.langid]) then
+                if (not dmhub.isDM) and (not token.canControl) and entry.langid ~= nil and (not creature.g_languagesKnownLocally[entry.langid]) then
                     fontFace = "Tengwar"
                 end
 
@@ -2058,13 +2185,17 @@ function CreateTokenHud(token)
                     return
                 end
 
+                if token.isObject then
+                    element:SetClassTree("damaged", (rawget(token.properties, "damage_taken") or 0) > 0)
+                end
+
                 local damageEntries = token.properties:GetAndRemoveDamageEntries()
                 if damageEntries ~= nil and #damageEntries > 0 then
                     local lowestSeq = FindLowestActiveDamageSeq()
                     for i=#damageEntries,1,-1 do
                         local entry = damageEntries[i]
                         local forceDelay = false
-                        if lowestSeq ~= nil and entry.seq > lowestSeq then
+                        if lowestSeq ~= nil and entry.seq ~= nil and entry.seq > lowestSeq then
                             forceDelay = true
                         end
 						element:FireEvent("damageentry", entry, forceDelay)
@@ -2247,6 +2378,11 @@ function CreateTokenHud(token)
                 if element.data.targetReason ~= nil then
                     gui.Tooltip(element.data.targetReason)(element)
                 end
+                --tokenHover/tokenDehover only fire on the sheet root; rebroadcast
+                --into the tree so registered hud panels can react to hover. The
+                --flag tells listeners the token is currently a targeting candidate,
+                --so hover chrome that would steal clicks can stay hidden.
+                element:FireEventTree("tokenHoverTree", targetEffect ~= nil)
 				if targetEffect ~= nil and targetEffect.interactive ~= false then
                     audio.FireSoundEvent("Mouse.Hover")
 					for i,effect in ipairs(targetEffect) do
@@ -2261,6 +2397,7 @@ function CreateTokenHud(token)
 
 			tokenDehover = function(element)
                 element.tooltip = nil
+                element:FireEventTree("tokenDehoverTree")
 				if targetEffect ~= nil and targetEffect.interactive ~= false then
 					for i,effect in ipairs(targetEffect) do
 						effect:SetClass('target-active', false)
@@ -2500,9 +2637,18 @@ function CreateTokenHud(token)
 					},
 					events = {
 						click = function(element)
-                                  GameHud.instance:ViewJournalEntry{
-                                      image = token.offTokenPortrait,
-                                  }
+                            if token.hasSpineAnimation then
+                                GameHud.instance:ViewJournalEntry{
+                                    image = token.inspectPortrait,
+                                    height = 1024,
+                                    width = 1024*0.75,
+                                    autosizeimage = false,
+                                }
+                            else
+                                GameHud.instance:ViewJournalEntry{
+                                    image = token.offTokenPortrait,
+                                }
+                            end
 						end,
                         hover = function(element)
                             gui.Tooltip("View Portrait")(element)
@@ -2518,6 +2664,40 @@ function CreateTokenHud(token)
 					},
 				}
 
+
+                --Rename option: shown for monsters when the DM has enabled the
+                --"players_rename_monsters" game setting. Lets anyone rename the monster;
+                --see CreateRenameMonsterDialog / monster.RenameMonsterType.
+                if dmhub.GetSettingValue("players_rename_monsters") and token.properties ~= nil and token.properties:try_get("monster_type") then
+                    items[#items+1] = gui.Panel{
+                        className = 'radial-menu-item',
+                        translate = core.Vector2(0,70):Rotate(225),
+                        styles = {
+                            {
+                                selectors = {"create"},
+                                translate = core.Vector2(0,-70):Rotate(225),
+                            },
+                        },
+                        events = {
+                            click = function(btn)
+                                element.popup = CreateRenameMonsterDialog(token, function()
+                                    element.popup = nil
+                                end)
+                            end,
+                            hover = function(btn)
+                                gui.Tooltip("Rename")(btn)
+                            end,
+                        },
+                        children = {
+                            gui.Panel{
+                                bgimage = 'ui-icons/pencil.png',
+                                className = 'radial-menu-icon',
+                                width = 32,
+                                height = 32,
+                            }
+                        },
+                    }
+                end
 
 				local parentElement = element
 
@@ -2681,7 +2861,9 @@ function CreateTokenHud(token)
                                                 command = string.format("emote %s", emoteid),
                                                 name = string.format("%s Emote", emote.description),
                                                 destroy = function()
-                                                    element.root:FireEventTree("refreshBindings")
+													if element.root then
+                                                    	element.root:FireEventTree("refreshBindings")
+													end
                                                 end,
                                             }
                                         end,
@@ -2784,6 +2966,22 @@ function CreateTokenHud(token)
                     borderColor = '#ffffff99',
                 },
 
+                --"Locate this token" ring: a sustained, coloured ring that a UI
+                --surface toggles (SetClassTree("locate", true/false)) to point
+                --at a token without selecting it. Deliberately NOT white and
+                --thicker than the select/focus rings, so it still reads on a
+                --token that is already selected (the engine's
+                --PulseHighlightToken flash is white and brief, and vanishes
+                --against the selection ring / under a camera pan). priority 5
+                --so it wins over 'select' and 'focus' while held.
+                {
+                    selectors = {"locate"},
+                    priority = 5,
+                    borderWidth = 8,
+                    borderColor = '#f2b632',
+                    transitionTime = 0.15,
+                },
+
                 {
                     selectors = { 'focus' },
                     borderWidth = 4,
@@ -2850,6 +3048,18 @@ end
 function creature:RefreshAnimations(token)
 	if token.canControl then
 		self:RefreshReactionAlerts(token)
+	end
+
+	--Eager refresh path: the periodic think on token.sheet only fires every 12s
+	--(or 1s with looping emotes) and uses FireEvent which doesn't reach descendant
+	--panels like StatusPanel. RefreshToken is called by the engine on actual state
+	--changes (not every frame), so firing FireEventTree here ensures sub-tree
+	--state - damage flash, stamina bar, status icons - reflects the change
+	--immediately. Descendant refresh handlers short-circuit when their data hasn't
+	--changed (e.g. StatusPanel's DeepEqual check on bar values), so the cost is
+	--bounded by what actually needs redrawing.
+	if token.sheet ~= nil then
+		token.sheet:FireEventTree("refresh")
 	end
 
 	local animations = self:try_get("animations")
@@ -2925,6 +3135,16 @@ Commands.RegisterMacro{
     name = "tokeneffect",
     summary = "play token effect",
     doc = "Usage: /tokeneffect <effect name>\nPlays a visual effect on selected tokens.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local result = {}
+        local dataTable = assets.emojiTable
+        for k, emoji in pairs(dataTable) do
+            result[#result+1] = {text = k, summary = emoji.description or k}
+        end
+        table.sort(result, function(a, b) return a.summary < b.summary end)
+        return result
+    end,
     command = function(str)
         local selectedTokens = dmhub.selectedTokens
         if selectedTokens == nil or #selectedTokens == 0 then
@@ -2936,3 +3156,24 @@ Commands.RegisterMacro{
         end
     end,
 }
+
+--[[
+TokenHud.RegisterPanel{
+	id = "bleeding",
+    layer = "bottom",
+	create = function(token, sharedInfo)
+        local resultPanel
+
+        resultPanel = gui.Panel{
+            width = 96,
+            height = 96,
+            bgcolor = "white",
+            bgimage = "drawsteel/StatBlockIcons/condition-bleed.png",
+            valign = "bottom",
+            y = 40,
+        }
+
+        return resultPanel
+    end,
+}
+]]

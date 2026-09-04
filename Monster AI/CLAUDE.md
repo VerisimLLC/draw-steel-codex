@@ -10,17 +10,38 @@ This module provides an automated combat AI for monsters in DMHub. When active, 
 | `MonsterAIMonsters.lua` | Registered **moves** -- one per monster ability or combo. This is where specific monster AI behaviors live |
 | `MonsterAIPrompts.lua` | Registered **prompts** -- handlers for abilities that require a secondary choice (shift destination, push/pull direction, invoked sub-ability targets) |
 | `MonsterAITactics.lua` | Registered **tactics** -- passive scoring modifiers that bias target/position selection (flanking, aid attack, high ground) |
-| `MonsterAIPanel.lua` | DM-only dockable panel UI: start/stop AI, view analysis of available moves per monster type, enable/disable individual moves |
+| `MonsterAIPanel.lua` | DM-only dockable panel UI and AI thread: start/stop AI, dispatch registered triggered abilities, view analysis of available moves per monster type, enable/disable individual moves |
+| `shadow-elves.lua` | Shadow Elf band AI, including darkness-aware positioning and Eclipse villain actions |
+| `MonsterAI<BandName>.lua` | Preferred home for a band's moves, prompts, triggers, villain actions, and monster-filtered tactics |
 
-## Load Order
+## CodeMod Registration and Load Order
 
-In `main.lua` (prefix `Monster_AI_d7b4`):
+The Monster AI CodeMod owns its ordered file list. A new top-level Lua file must
+be registered with the running DMHub instance; adding it to the filesystem or
+manually adding a `require` to `main.lua` does not register it.
+
+Use the DMHub MCP tool after creating the safe baseline and before substantive
+editing when possible:
+
+```text
+mcp__dmhub__check_connection
+mcp__dmhub__register_lua_file { path: "Monster AI/MonsterAI<BandName>.lua" }
+```
+
+Use the optional `before` or `after` argument when ordering matters. Confirm the
+tool reports both the CodeMod position and successful Firebase persistence. The
+registration operation is idempotent and preserves an existing local file. If
+the MCP bridge is unavailable, stop and ask the user; do not fall back to a
+hand-written `main.lua` require.
+
+The core files must remain ordered before band registrations:
 ```
 MonsterAI.lua        -- must be first (defines the MonsterAI game type)
 MonsterAIPanel.lua
 MonsterAIMonsters.lua
 MonsterAIPrompts.lua
 MonsterAITactics.lua
+shadow-elves.lua
 ```
 
 ## Architecture
@@ -28,15 +49,40 @@ MonsterAITactics.lua
 ### The Turn Loop
 
 1. `MonsterAIPanel.lua` runs a coroutine (`MonsterAIThread`) that polls the initiative queue.
-2. When it is a non-player turn, it creates a `MonsterAI` instance and calls `PlayTurnCoroutine(initiativeid)`.
-3. For each token in that initiative entry:
+2. When it is a non-player turn, it creates a `MonsterAI` instance and calls `PlayTurnSafely(initiativeid)`.
+3. Score all registered start-of-turn Malice abilities, use the highest-scoring affordable option that meets its threshold, and wait for it to resolve.
+4. For each token in that initiative entry:
+   - If the actual actor is outside the usable map view, pan and sync the camera before it begins. Shared initiative entries can therefore pan again as each distinct monster acts without recentering monsters that are already visible.
    - Minions: find their Signature Ability and execute it as a coordinated squad strike (`ExecuteSquadStrike`).
-   - Non-minions: iterate up to 6 times calling `FindAndExecuteMove()`, which scores every registered move and executes the best one. The loop breaks when no move scores above 0.
-4. After all tokens act, initiative advances automatically.
+   - Non-minions: iterate up to 6 times calling `FindAndExecuteMove()`, which scores every registered move and executes the best one. A scoring or execution error quarantines that move for the actor; `"failed"` continues to another cycle, while `"none"` or `"unsafe"` stops the actor.
+5. After all tokens act, initiative advances automatically.
 
-### Three Registration Systems
+### Error containment
 
-The AI's behavior is defined by three registries on the `MonsterAI` singleton:
+AI actions yield while movement, speech, prompts, and casts resolve, so action
+boundaries use `RunYieldingFunction` rather than a plain `pcall`. It drives the
+action in a child coroutine, forwards delays, and returns errors to the caller.
+
+- A move scoring failure is logged and quarantined for that actor.
+- A move execution failure is logged, quarantined, and followed by a bounded
+  wait for active casts to settle before another move is considered.
+- Each actor has an outer yielding boundary whose cleanup always restores AI
+  token control and prompt callbacks.
+- `PlayTurnSafely` is the final turn boundary. If an unexpected error escapes,
+  it waits briefly for casts, advances only if the same initiative is still
+  current, and returns control to the persistent AI process.
+- `MonsterAIThread` also contains errors from trigger polling, initiative
+  selection, and camera work so an unrelated framework exception cannot kill
+  the background process. A failed registered trigger is best-effort dismissed
+  after token-control cleanup so the roll that offered it can continue.
+
+Failed move quarantine is per actor and each failure consumes one of the six
+cycles. This prevents a broken highest-scoring move from being selected in a
+tight loop while still allowing lower-scoring legal moves to run.
+
+### Six Registration Systems
+
+The AI's behavior is defined by six registries on the `MonsterAI` singleton:
 
 #### 1. Moves (`MonsterAI:RegisterMove{}`)
 
@@ -47,17 +93,114 @@ A **move** is a scoreable, executable action the AI can take on its turn. Each m
 - Has a `score(self, ai, token, ability1, ability2, ...)` function that returns `{score = N, loc = destLoc, ...}` or `nil`
 - Has an `execute(self, ai, token, scoringInfo, ability1, ability2, ...)` function that performs the move
 
-#### 2. Prompts (`MonsterAI:RegisterPrompt{}`)
+#### 2. Malice abilities (`MonsterAI:RegisterMaliceAbility{}`)
+
+A **Malice ability** is evaluated exactly once at the start of a non-player
+initiative, after start-of-turn triggers resolve and before any normal or minion
+actions. The scheduler finds the registered group ability on an acting monster,
+checks `ability:CanAfford()`, scores every matching registration from 0-1, and
+executes only the highest-scoring candidate that meets its `minimumScore`. The
+default threshold is 0.65, the normal cast pipeline spends Malice, and at most
+one registered Malice ability is used per turn.
+
+Registrations can use `monsterGroups` with exact group names or IDs, or the
+usual `monsters` list. The scoring and execution callbacks receive
+`(self, ai, caster, ability, context)`, with execution also receiving the
+scoring info. The context includes all acting tokens, matching group tokens,
+allies, enemies, the initiative queue and ID, round, and current Malice. If
+`execute` is omitted, the framework casts the ability normally.
+
+```lua
+MonsterAI:RegisterMaliceAbility{
+    id = "Example Group: Battle Blessing",
+    monsterGroups = {"Example Group"},
+    abilities = {"Battle Blessing"},
+    description = "Use Battle Blessing when several acting monsters benefit.",
+    minimumScore = 0.65,
+    score = function(self, ai, token, ability, context)
+        if #context.groupTokens >= 2 then
+            return {score = 0.8}
+        end
+    end,
+}
+```
+
+#### 3. Prompts (`MonsterAI:RegisterPrompt{}`)
 
 A **prompt** handles abilities that require a secondary targeting choice during resolution (e.g., a Shift destination after a hit, or a Push/Pull direction). Registered with:
 - `prompts` -- array of ability name strings this handler responds to. Can be plain names (`"Shift"`) or monster-qualified (`"Decrepit Skeleton:Invoked Ability"`)
 - `handler(ai, invokerToken, casterToken, abilityClone, symbols, options)` -- returns a table with `targets` array, or `nil` to fall through to manual prompting
+- `abilityOverride` -- optional ability in the returned table. Use this when the prompt chooses a concrete synthesized ability as well as its targets; the invoke framework casts the override and preserves its begin/finish callbacks
 
-#### 3. Tactics (`MonsterAI:RegisterTactic{}`)
+The generic `Free Strike` handler uses `abilityOverride` to choose the best legal
+immediate melee or ranged free strike. It deliberately removes charge movement,
+does not take control of player-owned creatures, and is reusable by any AI-driven
+effect that invokes the standard Free Strike ability.
+
+The generic `Push!`, `Pull!`, and `Slide!` handler recognizes
+`vertical_push`, `vertical_pull`, and `vertical_slide`. It uses the ability's
+normal altitude calculator and gives altitude priority over its horizontal
+collision and positioning heuristics, selecting the highest legal requested
+altitude before breaking ties tactically.
+
+#### 4. Tactics (`MonsterAI:RegisterTactic{}`)
 
 A **tactic** is a passive scoring modifier that adjusts the edge count when evaluating strike targets. Tactics don't execute anything -- they bias which target/position the AI prefers.
 - `id`, `description`
 - `score(self, token, tokenLoc, enemy, ability)` -- returns a number (typically 0 or 1) added to the target's edge score, or `nil`
+
+#### 5. Trigger handlers (`MonsterAI:RegisterTrigger{}`)
+
+A **trigger handler** decides whether the AI accepts or dismisses a specific optional triggered ability. Registrations can match `abilityGuids`, `abilities`, or the displayed trigger name in `triggers`. Adding `monsters` makes an ability-name or trigger-name registration monster-specific. Matching priority is GUID, monster-qualified ability name, generic ability name, monster-qualified trigger name, then generic trigger name. Trigger names are read through `ActiveTrigger:GetText()`, which also supports power-roll triggers.
+
+The handler receives `(ai, token, triggerInfo)` and returns one of:
+
+- `{activate = true}` -- accept using the default mode.
+- `{activate = true, mode = N}` -- accept using the one-based ability mode.
+- `{dismiss = true}` -- dismiss the trigger.
+- `nil` -- leave the trigger for the Director.
+
+It can also return `expectedPrompt = {targets = ..., casterid = ..., sleep = ...}` to pre-seed one nested targeting prompt. Registered prompt handlers remain available while the out-of-turn triggered cast resolves.
+
+```lua
+MonsterAI:RegisterTrigger{
+    id = "Retaliatory Strike",
+    monsters = {"Example Monster"},
+    abilities = {"Retaliatory Strike"},
+    handler = function(ai, token, triggerInfo)
+        return {activate = true}
+    end,
+}
+```
+
+#### 6. Villain actions (`MonsterAI:RegisterVillainAction{}`)
+
+A **villain action** is scored after a turn's `EndTurn` events finish and before
+the initiative queue advances. The scheduler enforces the shared one-per-round
+budget and the per-encounter used state. Round 1 uses `Villain Action 1`, round 2
+uses `Villain Action 2`, and round 3 uses `Villain Action 3`; later rounds do not
+automatically use a villain action.
+
+Scores are normalized to 0-1. At a window with `N` legal opportunities remaining
+including the current one, the use chance is `1 - (1 - score)^(1/N)`. If no later
+legal window remains, the highest-scoring valid action is forced so the round's
+budget is not wasted. The normal ability cast pipeline marks a successful action
+used and spends the shared budget.
+
+```lua
+MonsterAI:RegisterVillainAction{
+    id = "Example Villain: Dark Arrival",
+    monsters = {"Example Villain"},
+    abilities = {"Dark Arrival"},
+    description = "Use Dark Arrival when it has useful targets.",
+    score = function(self, ai, token, ability, context)
+        return {score = 0.75}
+    end,
+    execute = function(self, ai, token, scoringInfo, ability, context)
+        ai:ExecuteAbility(token, ability)
+    end,
+}
+```
 
 ### Scoring Model
 
@@ -67,15 +210,49 @@ The AI's decision-making is score-based:
 2. **Target scoring within a move**: `FindBestMoveToUseStrike` iterates every reachable tile, evaluates valid targets from that position, and picks the tile that maximizes `numTargets + edges*0.1 - movementCost*0.001`.
 3. **Edge adjustments**: For each potential target at each position, active tactics add/subtract from the edge score. Line of sight obstruction subtracts 1 edge. Being a ranged attacker adjacent to enemies subtracts 1 edge.
 
+### Decision Logging
+
+The framework writes structured decision records to `Player.log` through a
+single `print()` call per record. Every line begins with `AI::` and names the
+event followed by stable `key=value` fields. Turn, actor, action category, move
+registration, ability, score, plan, targets, result, and rejection reason are
+included whenever they apply.
+
+Normal turn logging includes:
+
+- Initiative and actor start/finish events.
+- Every move registered for the monster that is disabled, missing an ability,
+  unaffordable, rejected by scoring, or accepted as a legal candidate.
+- The selected move's exact category (`Main Action`, `Maneuver`, and so on),
+  registration ID, ability names, score, and winning plan.
+- Every issued movement and every ability cast, including readable target
+  names and cast completion time.
+- Malice, villain action, prompt, trigger, minion squad, and synthesized-move
+  decisions.
+
+Use `ai:LogDecision(event, fields)` for new framework or band diagnostics so
+the current turn/move context is retained. A score callback may return a second
+string value when it returns `nil`; the framework records that value as the
+specific rejection reason:
+
+```lua
+return nil, "requires at least two enemies in the burst"
+```
+
+Avoid per-path-tile prints. Summarize the winning target plan instead so the
+actual action names and decision sequence remain readable.
+
 ### Key Helper Methods
 
 | Method | What it does |
 |---|---|
 | `ai:FindBestMoveToUseStrike(token, ability, scorefn?)` | Finds the best reachable tile to use a strike ability from. Returns `loc, score` |
 | `ai:FindBestMoveToUseBurst(token, ability, scorefn?)` | Same but for burst/area abilities (targetType "all") |
+| `ai:FindBestLinePlan(token, ability, options?)` | Scores line areas aimed at candidate tokens or locations. Supports `candidates`, `scorefn`, `symbols`, `checklos`, and placed-line `locOverride`; returns the best plan with its endpoint, targets, and score |
 | `ai:FindValidTargetsOfStrike(token, ability, loc, range?)` | Returns sorted array of `{token, loc, charge, edges}` for valid targets from a position |
-| `ai:ExecuteAbility(casterToken, ability, targets?, options?)` | Moves, displays line-of-sight rays, invokes the ability, waits for resolution |
+| `ai:ExecuteAbility(casterToken, ability, targets?, options?)` | Displays a three-pulse labeled telegraph for placed target areas, preserves the full area target list, invokes the original target type, and waits for resolution |
 | `ai:Speech(token, text, options?)` | Makes a token say something (text can be a string or array for random selection) |
+| `ai:FindMostSeniorInitiativeGroupMember(tokens)` | Chooses a live initiative-group leader by non-minion status, squad captain status, then highest EV; exact ties retain token order |
 | `ai:FindReachableConcealment()` | Finds the nearest reachable concealed tile |
 | `ai:FindClosestEnemy()` | Returns the nearest enemy token |
 | `ai:DistanceFromNearestEnemy(token)` | Returns distance to the closest enemy |
@@ -98,9 +275,17 @@ GenerateStandardStrikeExecuteFunction()
 
 ### Step 1: Identify the Monster's Abilities
 
-Open the monster's YAML file in `userdata/bestiary/`. The key field is `monster_type` (e.g., `"Goblin Warrior"`) -- this is what you match against in the `monsters` array. Look at `innateActivatedAbilities` for the ability names, keywords, ranges, and targeting.
+Open the monster's YAML file in `compendium/bestiary/`. The key field is `monster_type` (e.g., `"Goblin Warrior"`) -- this is what you match against in the `monsters` array. Look at `innateActivatedAbilities` for the ability names, keywords, ranges, and targeting.
 
-### Step 2: Register Moves in `MonsterAIMonsters.lua`
+### Step 2: Choose and Register the Band Module
+
+Prefer one `MonsterAI<BandName>.lua` module for a cohesive monster band. Reuse
+an existing band module when present. For a new file, create a safe baseline and
+register it in the Monster AI CodeMod with `mcp__dmhub__register_lua_file`; do
+not edit `main.lua`. Put the band's moves, prompts, triggers, villain actions,
+and monster-filtered tactics together in that module.
+
+### Step 3: Register Moves in the Band Module
 
 For each ability or combo the monster should use, add a `MonsterAI:RegisterMove{}` call. Example for a simple strike:
 
@@ -116,7 +301,7 @@ MonsterAI:RegisterMove{
 }
 ```
 
-### Step 3: Choose a Score Value
+### Step 4: Choose a Score Value
 
 Score values determine priority. Guidelines:
 - **0.2** -- Generic fallback (free strikes). Monster-specific moves should always score higher
@@ -125,7 +310,7 @@ Score values determine priority. Guidelines:
 - **1.5 - 2.5** -- Powerful or malice-costing abilities that should be preferred when available
 - Return `nil` from `score()` if the move can't be used (no targets in range, conditions not met)
 
-### Step 4: Write the Score Function
+### Step 5: Write the Score Function
 
 The score function evaluates whether the move is viable and how good it is. Common patterns:
 
@@ -170,7 +355,7 @@ score = function(self, ai, token, ability)
 end,
 ```
 
-### Step 5: Write the Execute Function
+### Step 6: Write the Execute Function
 
 The execute function performs the move. Standard pattern:
 
@@ -195,7 +380,20 @@ For burst abilities, omit the targets parameter:
 ai:ExecuteAbility(token, ability)  -- auto-targets all in range
 ```
 
-### Step 6: Handle Prompts (If Needed)
+For placed cube, line, cone, and map areas, pass the original ability plus the
+chosen shape and every filtered creature inside it:
+```lua
+ai:ExecuteAbility(token, ability, targets, {
+    symbols = {targetArea = area},
+    targetArea = area,
+})
+```
+
+Do not rewrite an area ability to `target` or replace its `numTargets`. The
+execution helper preserves the supplied area target list and passes the shape
+through the normal `Cast()` contract.
+
+### Step 7: Handle Prompts (If Needed)
 
 If the monster's ability triggers a secondary prompt (e.g., forced movement direction, a sub-ability invocation), add a prompt handler in `MonsterAIPrompts.lua`:
 
@@ -205,12 +403,13 @@ MonsterAI:RegisterPrompt{
     handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
         -- Calculate best target/location for the prompt
         -- Return {targets = {{token = someToken}}} or {targets = {{loc = someLoc}}}
+        -- Add abilityOverride = concreteAbility when resolving a synthesized chooser
         -- Return nil to fall back to manual prompting
     end,
 }
 ```
 
-### Step 7: Register Tactics (If Needed)
+### Step 8: Register Tactics (If Needed)
 
 If the monster benefits from a positioning tactic not already registered, add it in `MonsterAITactics.lua`:
 
@@ -264,6 +463,7 @@ Currently implemented in `MonsterAIMonsters.lua`:
 | Ghoul | Razor Claws, Leap and Claw |
 | Zombie | Clobber and Clutch, Zombie Dust |
 | Skeleton | Bone Shards, Bone Spur |
+| War Spider | Trigger: Skitter |
 
 ## Tips
 

@@ -84,8 +84,7 @@ local CreateGameScreen = function(titlescreen)
     local m_gameBackgroundContainer = nil
 
 
-    local m_exitButton = gui.HudIconButton{
-
+    local m_exitButton = gui.Button{
 		icon = "game-icons/exit-door.png",
 		style = {
 			halign = "left",
@@ -1291,11 +1290,14 @@ local CreateGameScreen = function(titlescreen)
             },
         },
 
-        gui.Input{
+        --the canonical search field; look comes from DefaultStyles'
+        --searchInput rules. borderBox keeps the component's hpad 24
+        --inside the declared width.
+        gui.SearchInput{
             placeholderText = "Search Games...",
+            borderBox = true,
             width = 160,
             height = 26,
-            fontSize = 18,
             valign = "center",
             edit = function(element)
                 if element.text == "" then

@@ -4,7 +4,7 @@ local mod = dmhub.GetModLoading()
 --- @class ActivatedAbilityModifyCastBehavior:ActivatedAbilityBehavior
 --- @field summary string Short label shown in behavior lists.
 --- @field paramid string Id of the cast parameter to modify (e.g. "ability_damage", "ability_boon").
---- @field value string GoblinScript formula providing the modifier value.
+--- @field value string|number|table GoblinScript formula providing the modifier value.
 --- @field name string Display name shown in the ability editor.
 --- @field description string Description of the modification.
 --- Modifies a parameter of the cast (e.g. damage bonus, number of edges) at the time of casting.

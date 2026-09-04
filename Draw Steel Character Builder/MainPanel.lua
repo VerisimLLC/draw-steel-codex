@@ -1,9 +1,21 @@
 --[[
     Main panel of the Character Builder
 ]]
+local mod = dmhub.GetModLoading()
 local _getHero = CharacterBuilder._getHero
 local _getToken = CharacterBuilder._getToken
 local SEL = CharacterBuilder.SELECTOR
+
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
 
 --- Minimal implementation for the center panel. Non-reactive.
 --- @return Panel
@@ -31,7 +43,7 @@ function CharacterBuilder.CreatePanel()
 
     CharacterBuilder.builderPanel = gui.Panel{
         id = CharacterBuilder.CONTROLLER_CLASS,
-        styles = CBStyles.GetStyles(),
+        styles = ThemeEngine.MergeStyles(CBStyles.GetStyles()),
         classes = {"panel-base", "builder-base", CharacterBuilder.CONTROLLER_CLASS},
         width = "99%",
         height = "99%",
@@ -50,7 +62,14 @@ function CharacterBuilder.CreatePanel()
             if ancestryId then
                 local hero = _getHero()
                 if hero then
+                    local previousValue = hero:try_get("raceid")
                     hero.raceid = ancestryId
+                    track("build_change", {
+                        changeType = "ancestry",
+                        newValue = ancestryId,
+                        previousValue = previousValue,
+                        dailyLimit = 10,
+                    })
                     element:FireEvent("tokenDataChanged")
                 end
             end
@@ -61,7 +80,14 @@ function CharacterBuilder.CreatePanel()
             if careerId then
                 local hero = _getHero()
                 if hero then
+                    local previousValue = hero:try_get("backgroundid")
                     hero.backgroundid = careerId
+                    track("build_change", {
+                        changeType = "career",
+                        newValue = careerId,
+                        previousValue = previousValue,
+                        dailyLimit = 10,
+                    })
                     element:FireEvent("tokenDataChanged")
                 end
             end
@@ -74,6 +100,7 @@ function CharacterBuilder.CreatePanel()
                 local hero = _getHero()
                 if hero then
                     local classes = hero:get_or_add("classes", {})
+                    local previousValue = classes[1] and classes[1].classid or nil
                     classes[1] = {
                         classid = classId,
                         level = hero:CharacterLevel(),
@@ -95,6 +122,12 @@ function CharacterBuilder.CreatePanel()
                         end
                     end
 
+                    track("build_change", {
+                        changeType = "class",
+                        newValue = classId,
+                        previousValue = previousValue,
+                        dailyLimit = 10,
+                    })
                     element:FireEvent("tokenDataChanged")
                 end
             end
@@ -124,6 +157,7 @@ function CharacterBuilder.CreatePanel()
                     suppressRow1 = true,
                     displayName = "Complication",
                 }
+                featureCache:TransferUISelections(state:Get(SEL.COMPLICATION .. ".featureCache"))
                 state:Set{ key = SEL.COMPLICATION .. ".featureCache", value = featureCache }
                 state:Set{ key = SEL.COMPLICATION .. ".selectionStatus", value = selectionStatus }
             else
@@ -149,6 +183,7 @@ function CharacterBuilder.CreatePanel()
                     end
                 end
                 local featureCache = CBFeatureCache.CreateNew(hero, SEL.TITLE, "Title", features)
+                featureCache:TransferUISelections(state:Get(SEL.TITLE .. ".featureCache"))
                 local selectionStatus = CBSelectionStatus.CreateNew{
                     featureCache = featureCache,
                     selectorName = SEL.TITLE,
@@ -183,6 +218,7 @@ function CharacterBuilder.CreatePanel()
                     cultureFeatures = table.append_arrays(cultureAggregates, cultureFeatures)
                 end
                 local featureCache = CBFeatureCache.CreateNew(hero, SEL.CULTURE, "Culture", cultureFeatures)
+                featureCache:TransferUISelections(element.data.state:Get(SEL.CULTURE .. ".featureCache"))
                 local selectionStatus = CBSelectionStatus.CreateNew{
                     featureCache = featureCache,
                     selectorName = SEL.CULTURE,
@@ -213,6 +249,35 @@ function CharacterBuilder.CreatePanel()
                 local levelChoices = hero:GetLevelChoices()
                 state:Set{ key = "levelChoices", value = DeepCopy(levelChoices) }
             end
+        end,
+
+        -- Build the SEL.CHOICES feature cache. Populated for any creature
+        -- (hero or monster) that exposes builder-choice features through its
+        -- catch-all sources.
+        cacheChoices = function(element, creature)
+            local state = element.data.state
+            if creature == nil or creature.GetBuilderChoiceFeatures == nil then
+                state:Set{ key = SEL.CHOICES .. ".featureCache", value = nil }
+                state:Set{ key = SEL.CHOICES .. ".selectionStatus", value = nil }
+                return
+            end
+            local choiceFeatures = creature:GetBuilderChoiceFeatures()
+            if #choiceFeatures == 0 then
+                state:Set{ key = SEL.CHOICES .. ".featureCache", value = nil }
+                state:Set{ key = SEL.CHOICES .. ".selectionStatus", value = nil }
+                return
+            end
+            local featureCache = CBFeatureCache.CreateNew(creature, SEL.CHOICES, "Choices", choiceFeatures)
+            featureCache:TransferUISelections(state:Get(SEL.CHOICES .. ".featureCache"))
+            local selectionStatus = CBSelectionStatus.CreateNew{
+                featureCache = featureCache,
+                selectorName = SEL.CHOICES,
+                visible = true,
+                suppressRow1 = true,
+                displayName = "Choices",
+            }
+            state:Set{ key = SEL.CHOICES .. ".featureCache", value = featureCache }
+            state:Set{ key = SEL.CHOICES .. ".selectionStatus", value = selectionStatus }
         end,
 
         cachePerks = function(element)
@@ -253,12 +318,51 @@ function CharacterBuilder.CreatePanel()
                 element:FireEvent("refreshToken")
             end
             element:FireEvent("ensureActiveState")
+            element:FireEvent("pushRichPresence")
+        end,
+
+        -- Re-push the Steam rich-presence activity every couple of seconds
+        -- while the builder is open. The engine-side driver auto-expires the
+        -- activity a few seconds after the last push, so we don't need a
+        -- matching destroy hook -- closing the panel just stops the pushes.
+        thinkTime = 2,
+        think = function(element)
+            element:FireEvent("pushRichPresence")
+        end,
+
+        pushRichPresence = function(element)
+            local state = element.data.state
+            local ancestryItem = state and state:Get(SEL.ANCESTRY .. ".selectedItem")
+            local classItem = state and state:Get(SEL.CLASS .. ".selectedItem")
+
+            local ancestryName = ancestryItem and ancestryItem:try_get("name")
+            local className = classItem and classItem:try_get("name")
+
+            local status
+            if ancestryName and className then
+                status = string.format("Building %s %s", ancestryName, className)
+            elseif ancestryName then
+                status = string.format("Building %s Hero", ancestryName)
+            elseif className then
+                status = string.format("Building %s", className)
+            else
+                status = "Building a Hero"
+            end
+
+            dmhub:SetRichPresenceActivity(status)
         end,
 
         ensureActiveSelector = function(element)
             if element.data.state:Get("activeSelector") == nil then
-                element:FireEvent("selectorChange", CharacterBuilder.INITIAL_SELECTOR)
+                local kind = element.data.state:Get("tokenKind") or "hero"
+                local initialSel = (kind == "monster") and SEL.CHOICES or CharacterBuilder.INITIAL_SELECTOR
+                element:FireEvent("selectorChange", initialSel)
             end
+        end,
+
+        notifyChangeSound = function(element)
+	    --remove until we can get a less overbearing sound.
+            audio.FireSoundEvent("Notify.LockIn")
         end,
 
         refreshBuilderState = function(element, state)
@@ -267,20 +371,32 @@ function CharacterBuilder.CreatePanel()
         end,
 
         refreshToken = function(element, info)
-            -- print("THC:: MAIN:: REFRESHTOKEN::", os.date("%Y-%m-%d %H:%M:%S"))
+            print("THC:: MAIN:: REFRESHTOKEN::", os.date("%Y-%m-%d %H:%M:%S"))
             local state = element.data.state
 
             local cachedTokenId = state:Get("tokenId")
             local token = info and info.token or _getToken()
-            if token then
+            if token ~= nil then
                 if cachedTokenId ~= token.id then
                     element.data.state = CharacterBuilderState.CreateNew()
                     state = element.data.state
                     state:Set{ key = "tokenId", value = token.id }
                 end
+
+                local props = token.properties
+                local tokenKind = props:IsHero() and "hero" or (props:IsMonster() and "monster" or nil)
+                state:Set{ key = "tokenKind", value = tokenKind }
+
                 element:FireEvent("ensureActiveSelector")
 
-                local hero = token.properties
+                if tokenKind == "monster" then
+                    element:FireEvent("cacheChoices", props)
+                    element:FireEventTree("refreshBuilderState", state)
+                    element:HaltEventPropagation()
+                    return
+                end
+
+                local hero = props
                 if hero:IsHero() then
 
                     -- Validate the description info
@@ -289,7 +405,7 @@ function CharacterBuilder.CreatePanel()
                         hero[CharacterDescription.CHARACTER_KEY] = CharacterDescription.new{}
                     end
 
-                    element:FireEvent("selectAncestry", hero:try_get("raceid"))
+                    element:FireEvent("selectAncestry", hero:try_get("raceid", state:Get(SEL.ANCESTRY .. ".selectedId")))
 
                     element:FireEvent("cacheComplication", hero)
 
@@ -301,11 +417,11 @@ function CharacterBuilder.CreatePanel()
 
                     local careerItem = hero:Background()
                     local careerId = careerItem and careerItem.id
-                    element:FireEvent("selectCareer", careerId)
+                    element:FireEvent("selectCareer", careerId or state:Get(SEL.CAREER .. ".selectedId"))
 
                     local classItem = hero:GetClass()
                     local classId = classItem and classItem.id
-                    element:FireEvent("selectClass", classId)
+                    element:FireEvent("selectClass", classId or state:Get(SEL.CLASS .. ".selectedId"))
 
                     local kitCache = state:Get(SEL.KIT .. ".featureCache")
                     if kitCache then
@@ -314,6 +430,8 @@ function CharacterBuilder.CreatePanel()
                             if feature then feature:Update(hero) end
                         end
                     end
+
+                    element:FireEvent("cacheChoices", hero)
 
                     -- Always cache levelChoices last. Other actions depend
                     -- on determining the difference between cache and current.
@@ -370,7 +488,7 @@ function CharacterBuilder.CreatePanel()
                     message = "Click Confirm to remove your Class and all related selections.",
                     onConfirm = function()
                         hero.classes = {}
-                        for _,attr in pairs(hero:try_get("attributes" or {})) do
+                        for _,attr in pairs(hero:try_get("attributes") or {}) do
                             attr.baseValue = 0
                         end
                         hero.attributeBuild = {}
@@ -402,7 +520,8 @@ function CharacterBuilder.CreatePanel()
             local ancestryChanged = ancestryId ~= cachedAncestryId or inheritedAncestryId ~= cachedInheritedAncestryId
             local levelChoicesChanged = not dmhub.DeepEqual(cachedLevelChoices, levelChoices)
 
-            if not (ancestryChanged or levelChoicesChanged) then return end
+            -- Caching is bad because of prerequisites.
+            -- if not (ancestryChanged or levelChoicesChanged) then return end
 
             local newState = {
                 { key = SEL.ANCESTRY .. ".selectedId", value = ancestryId },
@@ -449,7 +568,7 @@ function CharacterBuilder.CreatePanel()
                 state:Set{ key = SEL.CAREER .. ".blockFeatureSelection", value = blockFeatureSelection }
             end
 
-            if not (careerChanged or levelChoicesChanged) then return end
+            -- if not (careerChanged or levelChoicesChanged) then return end
 
             local newState = {
                 { key = SEL.CAREER .. ".selectedId", value = careerId },
@@ -585,6 +704,7 @@ function CharacterBuilder.CreatePanel()
                         { feature = kitFeature }
                     }
                     local kitFeatureCache = CBFeatureCache.CreateNew(hero, classItem.id, classItem.name, features)
+                    kitFeatureCache:TransferUISelections(state:Get(SEL.KIT .. ".featureCache"))
                     local kitSelectionStatus = CBSelectionStatus.CreateNew{
                         featureCache = kitFeatureCache,
                         selectorName = SEL.KIT,
@@ -640,7 +760,9 @@ function CharacterBuilder.CreatePanel()
             element:FireEventTree("refreshBuilderState", element.data.state)
         end,
 
-        tokenDataChanged = function(element)
+        tokenDataChanged = function(element, suppressSound)
+            suppressSound = suppressSound == nil and false or suppressSound
+            if not suppressSound then element:FireEvent("notifyChangeSound") end
             local cs = CharacterBuilder._getCharacterSheet()
             if cs then
                 -- The character sheet fires refreshToken which in turn
@@ -661,6 +783,13 @@ function CharacterBuilder.CreatePanel()
         characterPanel,
     }
 
+    ThemeEngine.OnThemeChanged(mod, function()
+        local panel = CharacterBuilder.builderPanel
+        if panel ~= nil and panel.valid then
+            panel.styles = ThemeEngine.MergeStyles(CBStyles.GetStyles())
+        end
+    end)
+
     return CharacterBuilder.builderPanel
 end
 
@@ -669,7 +798,10 @@ CharSheet.RegisterTab {
     id = "Builder",
     text = "Builder",
 	visible = function(c)
-		return c ~= nil and c:IsHero()
+		if c == nil then return false end
+		if c:IsHero() then return true end
+		if c:IsMonster() and c:HasBuilderChoices() then return true end
+		return false
 	end,
     panel = CharacterBuilder.CreatePanel
 }

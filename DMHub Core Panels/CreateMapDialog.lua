@@ -1,5 +1,51 @@
 local mod = dmhub.GetModLoading()
 
+local function ComponentTypeMatches(value, componentType)
+    if value == nil then
+        return false
+    end
+
+    local text = tostring(value)
+    return text == componentType or text == ("ObjectComponent" .. componentType)
+end
+
+local function ComponentField(component, field)
+    local ok, value = pcall(function()
+        return component[field]
+    end)
+    if ok then
+        return value
+    end
+
+    return nil
+end
+
+local function ComponentMatches(component, key, componentType)
+    if ComponentTypeMatches(key, componentType) then
+        return true
+    end
+
+    return ComponentTypeMatches(ComponentField(component, "name"), componentType)
+        or ComponentTypeMatches(ComponentField(component, "type"), componentType)
+        or ComponentTypeMatches(ComponentField(component, "componentType"), componentType)
+        or ComponentTypeMatches(ComponentField(component, "@class"), componentType)
+end
+
+local function ObjectNodeHasComponent(id, componentType)
+    local node = id and assets:GetObjectNode(id)
+    if node == nil or node.components == nil then
+        return false
+    end
+
+    for key, component in pairs(node.components) do
+        if ComponentMatches(component, key, componentType) then
+            return true
+        end
+    end
+
+    return false
+end
+
 mod.shared.ShowCreateMapDialog = function()
 
     local selectedMap = nil
@@ -16,40 +62,10 @@ mod.shared.ShowCreateMapDialog = function()
     local tileType = "squares"
 
 	local dialogPanel = gui.Panel{
-		classes = {'framedPanel'},
+		classes = {"framedPanel"},
 		width = 1400,
 		height = 940,
-		styles = {
-			Styles.Panel,
-            {
-                selectors = {"mapItem"},
-                bgimage = "panels/square.png",
-                bgcolor = "black",
-                cornerRadius = 12,
-                width = 1920*0.1,
-                height = 1080*0.1,
-                halign = "center",
-                hmargin = 8,
-            },
-            {
-                selectors = {"mapItem", "hover"},
-                borderWidth = 2,
-                borderColor = "#ffffff44",
-            },
-            {
-                selectors = {"mapItem", "selected"},
-                borderWidth = 2,
-                borderColor = "white",
-            },
-            {
-                selectors = {"mapText"},
-                color = "white",
-                fontSize = 14,
-                width = "auto",
-                height = "auto",
-                textAlignment = "center",
-            },
-		},
+		styles = ThemeEngine.GetStyles(),
 
         gui.Panel{
             width = "100%-24",
@@ -60,7 +76,7 @@ mod.shared.ShowCreateMapDialog = function()
             flow = "vertical",
 
             gui.Label{
-                classes = {"dialogTitle"},
+                classes = {"modalTitle"},
                 text = "Create Map",
             },
 
@@ -71,6 +87,36 @@ mod.shared.ShowCreateMapDialog = function()
                 width = "auto",
                 height = "auto",
                 vmargin = 16,
+
+                styles = ThemeEngine.MergeTokens({
+                    {
+                        selectors = {"mapItem"},
+                        bgimage = true,
+                        bgcolor = "@bg",
+                        cornerRadius = 12,
+                        width = 1920*0.1,
+                        height = 1080*0.1,
+                        halign = "center",
+                        hmargin = 8,
+                    },
+                    {
+                        selectors = {"mapItem", "hover"},
+                        borderWidth = 2,
+                        borderColor = "@accent",
+                    },
+                    {
+                        selectors = {"mapItem", "selected"},
+                        borderWidth = 2,
+                        borderColor = "@fg",
+                    },
+                    {
+                        selectors = {"mapText"},
+                        fontSize = 14,
+                        width = "auto",
+                        height = "auto",
+                        textAlignment = "center",
+                    },
+                }),
 
                 gui.Panel{
                     classes = {"mapItem", "selected"},
@@ -109,32 +155,14 @@ mod.shared.ShowCreateMapDialog = function()
                 valign = "top",
                 vmargin = 16,
 
-                styles = {
-                    Styles.Form,
-                    {
-                        selectors = {"formPanel"},
-                        width = 600,
-                    },
-                    {
-                        selectors = {"formLabel"},
-                        halign = "left",
-                        minWidth = 180,
-                    },
-                    {
-                        selectors = {"formData"},
-                        halign = "left",
-                    },
-                },
-
                 gui.Panel{
-                    classes = {"formPanel"},
-                    halign = "center",
+                    classes = {"formRow"},
                     gui.Label{
-                        classes = {"formLabel"},
+                        classes = {"form"},
                         text = "Map Name:",
                     },
                     gui.Input{
-                        classes = {"formInput", "formData"},
+                        classes = {"form"},
                         text = m_mapName,
                         change = function(element)
                             m_mapName = element.text
@@ -144,14 +172,14 @@ mod.shared.ShowCreateMapDialog = function()
 
 
                 gui.Panel{
-                    classes = {"formPanel"},
+                    classes = {"formRow"},
                     gui.Label{
-                        classes = {"formLabel"},
+                        classes = {"form"},
                         text = "Tile Type:",
                     },
 
                     gui.Panel{
-                        classes = {"formData"},
+                        classes = {"form"},
                         width = "auto",
                         height = "auto",
                         flow = "horizontal",
@@ -164,20 +192,23 @@ mod.shared.ShowCreateMapDialog = function()
                             end
                         end,
 
-                        gui.HudIconButton{
-                            classes = {"selected"},
+                        -- THEME_EXAMPLE: Bordered, selectable icon buttons
+                        gui.Button{
+                            classes = {"sizeXl", "bordered", "selected"},
                             data = {id = "squares"},
                             hmargin = 8,
                             icon = "ui-icons/tile-square.png",
                             click = function(element) element.parent:FireEvent("select", element) end,
                         },
-                        gui.HudIconButton{
+                        gui.Button{
+                            classes = {"sizeXl", "bordered"},
                             data = {id = "flattop"},
                             hmargin = 8,
                             icon = "ui-icons/tile-flathex.png",
                             click = function(element) element.parent:FireEvent("select", element) end,
                         },
-                        gui.HudIconButton{
+                        gui.Button{
+                            classes = {"sizeXl", "bordered"},
                             data = {id = "pointtop"},
                             hmargin = 8,
                             icon = "ui-icons/tile-pointyhex.png",
@@ -193,26 +224,19 @@ mod.shared.ShowCreateMapDialog = function()
                 halign = "center",
                 valign = "bottom",
 
-                gui.PrettyButton{
+                gui.Button{
+                    classes = {"sizeL"},
                     halign = "left",
                     text = "Create Map",
-                    width = 160,
                     click = function(element)
                         local mapType = selectedMap.data.type
 
                         gui.CloseModal()
-                        dmhub.Debug("TILE TYPE: " .. tileType)
 
                         if mapType == "import" then
                             mod.shared.ImportMap{
                                 tileType = tileType,
                                 nofade = true,
-                                --SheetMapImport.cs controls the contents of info. Alternatively, AssetLua.cs:ImportUniversalVTT.
-                                --Will include
-                                --objids: asset objids of the map objects created.
-                                --width/height.
-                                --mapSettings (optional): map of settings to set when entering the map.
-                                --uvttData (optional): list of json uvtt data which we can use to build the map.
                                 finish = function(info)
                                     mod.shared.FinishMapImport(m_mapName, info)
                                 end,
@@ -237,20 +261,16 @@ mod.shared.ShowCreateMapDialog = function()
                                 end
 
                                 dmhub.SetSettingValue("maplayout:tiletype", tileType)
-
-                                printf("SETTING: Set: %s vs %s", dmhub.GetSettingValue("maplayout:tiletype"), tileType)
-
-
                             end)
 
                         end
                     end,
                 },
 
-                gui.PrettyButton{
+                gui.Button{
+                    classes = {"sizeL"},
                     halign = "right",
                     text = "Cancel",
-                    width = 160,
                     escapeActivates = true,
                     escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
                     click = function(element)
@@ -278,12 +298,12 @@ local function isClockwise(polygon)
 end
 
 mod.shared.ImportMapToFloorCo = function(info)
-
-    print("IMPORT:: IMPORTING:", info, info.floor.name, info.primaryFloor.name)
+    if info == nil or info.floor == nil or info.primaryFloor == nil then
+        return
+    end
 
     local obj = info.floor:SpawnObjectLocal(info.objid)
     if obj == nil then
-        printf("IMPORT:: Could not spawn object with id = %s", info.objid)
         return
     end
 
@@ -291,258 +311,892 @@ mod.shared.ImportMapToFloorCo = function(info)
     obj.y = 0
     obj:Upload()
 
-    local pointsEqual = function(a,b)
-        return a.x == b.x and a.y == b.y
+    if type(info.uvttData) ~= "table" then
+        return
     end
 
-    if info.uvttData ~= nil then
-        dmhub.Debug("HAS UVTT DATA")
-        local maxcount = 0
-        while (obj.area == nil or (obj.area.x1 == 0 and obj.area.x2 == 0)) and maxcount < 20 do
-            coroutine.yield(0.1)
-            maxcount = maxcount + 1
+    local function pointsEqual(a, b)
+        return a ~= nil and b ~= nil
+            and tonumber(a.x) == tonumber(b.x)
+            and tonumber(a.y) == tonumber(b.y)
+    end
+
+    local function gridSize(data)
+        local result = 100
+        if type(data.grid) == "table" then
+            result = tonumber(data.grid.size) or 100
+        elseif data.grid ~= nil then
+            result = tonumber(data.grid) or 100
+        end
+        if result == 0 then
+            result = 100
+        end
+        return result
+    end
+
+    local function safeColor(value, defaultValue)
+        local text = tostring(value or defaultValue or "ffffff")
+        if string.sub(text, 1, 1) ~= "#" then
+            text = "#" .. text
         end
 
-        --wait a few frames to make sure the object is in sync.
-        maxcount = 0
-        while maxcount < 60 do
-            coroutine.yield(0.01)
-            maxcount = maxcount + 1
+        local ok, result = pcall(function() return core.Color(text) end)
+        if ok then
+            return result
         end
 
-        local area = obj.area
-        if area ~= nil then
+        return core.Color("#ffffff")
+    end
 
-            local data = info.uvttData
+    local function portalObjectScale(nodeId, segmentLength)
+        local node = nodeId and assets:GetObjectNode(nodeId)
+        local imageId = node and (node.image or node.thumbnailId or node.imageId)
+        local info = imageId and gui.TryGetImageDimensions(imageId)
+        local width = info and tonumber(info.width)
+        local height = info and tonumber(info.height)
+        local ppu = info and tonumber(info.ppu)
 
-            local portals = data.portals
-            local line_of_sight = data.line_of_sight
-            local convertedFromFoundry = false
+        if width ~= nil and height ~= nil and ppu ~= nil and ppu > 0 then
+            -- Object instance scale is absolute for the image. The asset node's
+            -- default scale is already consumed by normal spawning behavior and
+            -- would make imported portals too small if applied again here.
+            local nativeLongAxisTiles = math.max(width, height) / ppu
+            if nativeLongAxisTiles > 0 then
+                return segmentLength / nativeLongAxisTiles
+            end
+        end
 
-            if line_of_sight == nil and data.walls ~= nil then
-                --foundry format walls.
-                convertedFromFoundry = true
-                line_of_sight = {}
-                portals = {}
+        return segmentLength
+    end
 
-                for i,wall in ipairs(data.walls) do
-                    local points = wall.c
+    local maxcount = 0
+    while (obj.area == nil or (obj.area.x1 == 0 and obj.area.x2 == 0)) and maxcount < 20 do
+        coroutine.yield(0.1)
+        maxcount = maxcount + 1
+    end
 
-                    if points ~= nil and type(points) == "table" and #points == 4 then
-                        line_of_sight[#line_of_sight+1] = {
-                            {x = points[1]/data.grid, y = points[2]/data.grid},
-                            {x = points[3]/data.grid, y = points[4]/data.grid},
-                        }
+    for i = 1, 60 do
+        coroutine.yield(0.01)
+    end
 
-                        if wall.door == 1 then
-                            portals[#portals+1] = {
-                                bounds = {
-                                    {x = points[1]/data.grid, y = points[2]/data.grid},
-                                    {x = points[3]/data.grid, y = points[4]/data.grid},
-                                },
-                                closed = true,
-                            }
+    local area = obj.area
+    if area == nil then
+        return
+    end
+
+    local data = info.uvttData
+    local choices = info.assetChoices or {}
+    local function importAsset(choiceValue, settingId, fallback)
+        local value = choiceValue
+        if value == nil or value == "" then
+            value = dmhub.GetSettingValue(settingId)
+        end
+        if value == nil or value == "" then
+            value = fallback
+        end
+        return value
+    end
+
+    local wallAsset       = choices.wallAssetId        or dmhub.GetSettingValue("mapimport:wall_asset_id")
+    local objectWallAsset = choices.objectWallAssetId  or dmhub.GetSettingValue("mapimport:object_wall_asset_id")
+    local terrainWallAsset = importAsset(choices.terrainWallAssetId, "mapimport:terrain_wall_asset_id", objectWallAsset)
+    local invisibleWallAsset = importAsset(choices.invisibleWallAssetId, "mapimport:invisible_wall_asset_id", objectWallAsset)
+    local transparentWindowWallAsset = importAsset(choices.transparentWindowWallAssetId, "mapimport:transparent_window_wall_asset_id", objectWallAsset)
+    local unrecognizedWallAsset = choices.unrecognizedWallAssetId or dmhub.GetSettingValue("mapimport:unrecognized_wall_asset_id") or wallAsset
+    local doornode        = choices.doorObjectId       or dmhub.GetSettingValue("mapimport:door_object_id")
+    local windownode      = choices.windowObjectId     or dmhub.GetSettingValue("mapimport:window_object_id")
+    local secretDoorNode  = choices.secretDoorObjectId or dmhub.GetSettingValue("mapimport:secret_door_object_id")
+    local lightnodeChoice = choices.lightObjectId      or dmhub.GetSettingValue("mapimport:light_object_id")
+    local function normalizeMode(value, defaultValue, allowed)
+        local mode = tostring(value or defaultValue)
+        if allowed[mode] == true then
+            return mode
+        end
+        return defaultValue
+    end
+
+    local function importMode(choiceKey, settingId, defaultValue, allowed)
+        local mode = choices[choiceKey]
+        if mode == nil then
+            mode = dmhub.GetSettingValue(settingId)
+        end
+        return normalizeMode(mode, defaultValue, allowed)
+    end
+
+    local function legacyImportMode(choiceKey, legacyChoiceKey, settingId, legacySettingId, defaultValue, allowed)
+        local mode = choices[choiceKey]
+        if mode == nil then
+            mode = choices[legacyChoiceKey]
+        end
+        if mode == nil then
+            mode = dmhub.GetSettingValue(settingId)
+        end
+        if mode == nil or mode == "" then
+            mode = dmhub.GetSettingValue(legacySettingId)
+        end
+        return normalizeMode(mode, defaultValue, allowed)
+    end
+
+    local function appendList(result, source)
+        if type(source) == "table" then
+            for _, item in ipairs(source) do
+                result[#result+1] = item
+            end
+        end
+    end
+
+    local function mergedFoundryInvisibleWalls(data)
+        local result = {}
+        appendList(result, type(data) == "table" and data.foundry_invisible_walls or nil)
+        appendList(result, type(data) == "table" and data.foundry_movement_walls or nil)
+        return result
+    end
+
+    local function hasEntries(list)
+        return type(list) == "table" and #list > 0
+    end
+
+    local function optionalList(list)
+        if hasEntries(list) then
+            return list
+        end
+        return nil
+    end
+
+    local wallModeAllowed = {wall = true, none = true}
+    local assetModeAllowed = {asset = true, none = true}
+    local windowModeAllowed = {asset = true, movement_wall = true, none = true}
+    local structuralWallMode = importMode("structuralWallMode", "mapimport:structural_wall_mode", "wall", wallModeAllowed)
+    local objectWallMode = importMode("objectWallMode", "mapimport:object_wall_mode", "wall", wallModeAllowed)
+    local terrainWallMode = importMode("terrainWallMode", "mapimport:terrain_wall_mode", "wall", wallModeAllowed)
+    local invisibleWallMode = legacyImportMode("invisibleWallMode", "movementWallMode", "mapimport:invisible_wall_mode", "mapimport:movement_wall_mode", "wall", wallModeAllowed)
+    local unrecognizedWallMode = importMode("unrecognizedWallMode", "mapimport:unrecognized_wall_mode", "none", wallModeAllowed)
+    local doorMode = importMode("doorMode", "mapimport:door_mode", "asset", assetModeAllowed)
+    local windowMode = importMode("windowMode", "mapimport:window_mode", "asset", windowModeAllowed)
+    local secretDoorMode = importMode("secretDoorMode", "mapimport:secret_door_mode", "asset", assetModeAllowed)
+    local lightMode = importMode("lightMode", "mapimport:light_mode", "asset", assetModeAllowed)
+    if choices.unrecognizedWallMode == nil and choices.includeUnrecognizedWalls ~= nil then
+        unrecognizedWallMode = cond(choices.includeUnrecognizedWalls == true, "wall", "none")
+    end
+    local flipFoundryTerrainWalls = choices.flipFoundryTerrainWalls == true
+    if choices.flipFoundryTerrainWalls == nil then
+        flipFoundryTerrainWalls = dmhub.GetSettingValue("mapimport:flip_foundry_terrain_walls") == true
+    end
+    local nudgeX = tonumber(choices.alignmentOffsetX) or 0
+    local nudgeY = tonumber(choices.alignmentOffsetY) or 0
+    if nudgeX ~= 0 or nudgeY ~= 0 then
+        area = {
+            x1 = area.x1 + nudgeX,
+            x2 = area.x2 + nudgeX,
+            y1 = area.y1 - nudgeY,
+            y2 = area.y2 - nudgeY,
+        }
+    end
+
+    local function executeWalls(points, wallid, closed)
+        if #points == 0 or wallid == nil or wallid == "" then
+            return
+        end
+
+        info.primaryFloor:ExecutePolygonOperation{
+            points = points,
+            tileid = nil,
+            wallid = wallid,
+            erase = false,
+            closed = closed,
+        }
+    end
+
+    local function appendWorldPoint(points, p)
+        if type(p) ~= "table" then
+            return false
+        end
+
+        local x = tonumber(p.x)
+        local y = tonumber(p.y)
+        if x == nil or y == nil then
+            return false
+        end
+
+        points[#points+1] = area.x1 + x
+        points[#points+1] = area.y2 - y
+        return true
+    end
+
+    local function copySegments(lineSet)
+        local segments = {}
+        if type(lineSet) ~= "table" then
+            return segments
+        end
+
+        for _, segment in ipairs(lineSet) do
+            if type(segment) == "table" and #segment >= 2 then
+                local copy = {}
+                for _, p in ipairs(segment) do
+                    if type(p) == "table" and tonumber(p.x) ~= nil and tonumber(p.y) ~= nil then
+                        copy[#copy+1] = {x = tonumber(p.x), y = tonumber(p.y)}
+                    end
+                end
+                if #copy >= 2 then
+                    segments[#segments+1] = copy
+                end
+            end
+        end
+
+        return segments
+    end
+
+    local function processLineSet(lineSet, wallid, objectWalls)
+        local segments = copySegments(lineSet)
+        local segmentsDeleted = {}
+        local changes = true
+        local ncount = 0
+
+        while (not objectWalls) and changes and ncount < 50 do
+            changes = false
+            ncount = ncount + 1
+
+            for i, segment in ipairs(segments) do
+                if segmentsDeleted[i] == nil then
+                    for j, nextSegment in ipairs(segments) do
+                        if i ~= j and segmentsDeleted[j] == nil and pointsEqual(segment[#segment], nextSegment[1]) then
+                            for _, point in ipairs(nextSegment) do
+                                segment[#segment+1] = point
+                            end
+
+                            segmentsDeleted[j] = true
+                            changes = true
                         end
                     end
                 end
             end
+        end
 
-            local wallAsset = "-MGADhKw0vw30yXNF2-e"
-            local objectWallAsset = "eae7f3fe-d278-455c-853a-ac43f948c743"
-            for i,line_of_sight in ipairs({data.line_of_sight, data.objects_line_of_sight}) do
-                local objectWalls = (i == 2)
-
-                if line_of_sight ~= nil then
-
-            print("LINE_OF_SIGHT::", line_of_sight)
-
-
-
-                    --uvtt format walls.
-                    local segments = DeepCopy(line_of_sight)
-                    local segmentsDeleted = {}
-
-                    local changes = true
-                    local ncount = 0
-
-                    while (not objectWalls) and changes and ncount < 50 do
-                        changes = false
-                        ncount = ncount+1
-                    
-                        for i,segment in ipairs(segments) do
-                            if segmentsDeleted[i] == nil then
-                                for j,nextSegment in ipairs(segments) do
-                                    if i ~= j and segmentsDeleted[j] == nil and pointsEqual(segment[#segment], nextSegment[1]) then
-                                        for _,point in ipairs(nextSegment) do
-                                            segment[#segment+1] = point
-                                        end
-
-                                        segmentsDeleted[j] = true
-                                        changes = true
-                                    end
-                                end
-                            end
-                        end
-                    end
-
-                    print("SEGMENTS::", segments)
-
-                    local polygons = {}
-                    for i,seg in ipairs(segments) do
-                        if segmentsDeleted[i] == nil then
-                            if objectWalls and (not isClockwise(seg)) and pointsEqual(seg[1], seg[#seg]) then
-                                local objectPoints = {}
-                                for j=#seg,1,-1 do
-                                    objectPoints[#objectPoints+1] = seg[j]
-                                end
-                                polygons[#polygons+1] = objectPoints
-                            else
-                                polygons[#polygons+1] = seg
-                            end
-                        end
-                    end
-
-                    print("POLYGONS::", polygons)
-
-                    local pointsList = {}
-                    local objectsPointsList = {}
-
-                    for j,poly in ipairs(polygons) do
-                        local points = {}
-
-                        local isObject = objectWalls and pointsEqual(poly[1], poly[#poly])
-
-                        for i,p in ipairs(poly) do
-                            if (not isObject) or i ~= #poly then
-                                points[#points+1] = area.x1 + tonumber(p.x)
-                                points[#points+1] = area.y2 - tonumber(p.y)
-
-                                if j == 1 and i == 1 then
-                                    print("FIRST::", #polygons, #poly, points, "FROM", area.x1, area.y2, p.x, p.y, "isobject =", isObject)
-                                end
-                            end
-                        end
-
-                        if not isObject then
-                            pointsList[#pointsList+1] = points
-                        else
-                            objectsPointsList[#objectsPointsList+1] = points
-                        end
-                    end
-
-                    if #pointsList > 0 then
-                        print("POLY::", area, pointsList)
-                        info.primaryFloor:ExecutePolygonOperation{
-                            points = pointsList,
-                            tileid = nil,
-                            wallid = wallAsset,
-                            erase = false,
-                            closed = false,
-                        }
-                    end
-
-                    if #objectsPointsList > 0 then
-                        print("POLY::", objectsPointsList)
-                        info.primaryFloor:ExecutePolygonOperation{
-                            points = objectsPointsList,
-                            tileid = nil,
-                            wallid = objectWallAsset,
-                            erase = false,
-                            closed = true,
-                        }
-                    end
-
-                end
-            end
-
-            local windownode = "-MDd3Knydcq2WsjStef2"
-            local doornode = "-MfWx0b2IlyApLQwasYg"
-            if portals ~= nil then
-                for i,portal in ipairs(portals) do
-                    local bounds = portal.bounds
-                    if bounds ~= nil and #bounds == 2 then
-                        --add a wall in here.
-                        local points = {area.x1 + tonumber(bounds[1].x), area.y2 - tonumber(bounds[1].y),
-                                        area.x1 + tonumber(bounds[2].x), area.y2 - tonumber(bounds[2].y)}
-
-                        if not convertedFromFoundry then
-                            info.primaryFloor:ExecutePolygonOperation{
-                                points = {points},
-                                tileid = nil,
-                                wallid = "-MGADhKw0vw30yXNF2-e",
-                                erase = false,
-                                closed = false,
-                            }
-                        end
-
-                        local obj = info.primaryFloor:SpawnObjectLocal(cond(portal.closed, doornode, windownode))
-                        obj.x = area.x1 + tonumber(bounds[1].x)
-                        obj.y = area.y2 - tonumber(bounds[1].y)
-
-                        --note y axis is intentionally inverted.
-                        local delta = core.Vector2(bounds[2].x - bounds[1].x, bounds[1].y - bounds[2].y)
-
-                        obj.rotation = delta.angle + 90
-                        obj.scale = delta.length*cond(portal.closed, 0.7, 1)
-
-                        dmhub.Debug(string.format("SPAWN_OBJ: %f, %f", obj.x, obj.y))
-                        obj:Upload()
+        local pointsList = {}
+        local objectPointsList = {}
+        for i, seg in ipairs(segments) do
+            if segmentsDeleted[i] == nil then
+                local poly = seg
+                if objectWalls and pointsEqual(seg[1], seg[#seg]) and not isClockwise(seg) then
+                    poly = {}
+                    for j = #seg, 1, -1 do
+                        poly[#poly+1] = seg[j]
                     end
                 end
-            end
 
-            --lights can be in either of these formats:
-            -- uvtt: (here units are in tiles)
-            -- { position: { x: number, y: number }, range: number, intensity: number, color: string, shadows: boolean }
-            -- foundry: (here units are in pixels)
-            -- { x: number, y: number, dim: number, bright: number, tintColor: string, tintAlpha: number }
-@if MCDM
-            local lightnode = "2339211c-c35a-4e0a-a5fa-79d2e446bd3b"
-@else
-            local lightnode = "-MGBXtOnKAXNhhLK89_9"
-@end
-            if data.lights ~= nil then -- always use any lights regardless of baked_lighting setting? --and (data.environment == nil or not data.environment.baked_lighting) then
-                for i,light in ipairs(data.lights) do
-                    local obj = info.floor:SpawnObjectLocal(lightnode)
-                    local component = obj:GetComponent("Light")
+                local isObject = objectWalls and pointsEqual(poly[1], poly[#poly])
+                local points = {}
+                for j, p in ipairs(poly) do
+                    if (not isObject) or j ~= #poly then
+                        appendWorldPoint(points, p)
+                    end
+                end
 
-                    if light.position ~= nil then
-                        --uvtt format.
-                        obj.x = area.x1 + light.position.x
-                        obj.y = area.y2 - light.position.y
-
-                        component:SetProperty("radius", tonumber(light.range))
-                        component:SetProperty("intensity", ((tonumber(light.intensity) or 1)*0.5)^0.5)
-                        component:SetProperty("castsShadows", light.shadows)
-                        component:SetProperty("color", core.Color("#" .. light.color))
+                if #points >= 4 then
+                    if isObject then
+                        objectPointsList[#objectPointsList+1] = points
                     else
-                        --foundry format.
-                        obj.x = area.x1 + light.x/data.grid
-                        obj.y = area.y2 - light.y/data.grid
-
-
-                        component:SetProperty("radius", light.dim)
-                        component:SetProperty("intensity", (light.tintAlpha or 0.1)*3)
-                        component:SetProperty("color", core.Color(light.tintColor or "#ffffff"))
-                        printf("ADDED LIGHT: %s", json(light))
+                        pointsList[#pointsList+1] = points
                     end
-
-                    obj:Upload()
                 end
             end
+        end
 
-            if data.environment ~= nil then
-                if data.environment.ambient_light ~= nil then
-                    local ambientColor = core.Color("#" .. data.environment.ambient_light)
-                    dmhub.SetSettingValue("undergroundillumination", ambientColor.value)
+        executeWalls(pointsList, wallid, false)
+        executeWalls(objectPointsList, wallid, true)
+    end
+
+    local function lineSetHasSegments(lineSet)
+        if type(lineSet) ~= "table" then
+            return false
+        end
+
+        for _, segment in ipairs(lineSet) do
+            if type(segment) == "table" and #segment >= 2 then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    local function splitOpenClosedLineSet(lineSet)
+        local openLines = {}
+        local closedLines = {}
+        if type(lineSet) ~= "table" then
+            return openLines, closedLines
+        end
+
+        for _, segment in ipairs(lineSet) do
+            if type(segment) == "table" and #segment >= 2 then
+                if pointsEqual(segment[1], segment[#segment]) then
+                    closedLines[#closedLines+1] = segment
                 else
-                    dmhub.SetSettingValue("undergroundillumination", 1.0)
+                    openLines[#openLines+1] = segment
+                end
+            end
+        end
+
+        return openLines, closedLines
+    end
+
+    local function buildPolylines(walls)
+        local out = {}
+        if type(walls) ~= "table" then
+            return out
+        end
+
+        for _, wall in ipairs(walls) do
+            if type(wall) == "table" and type(wall.points) == "table" and #wall.points >= 2 then
+                local pts = {}
+                for _, p in ipairs(wall.points) do
+                    appendWorldPoint(pts, p)
+                end
+                if #pts >= 4 then
+                    out[#out+1] = pts
+                end
+            end
+        end
+
+        return out
+    end
+
+    local function reverseLine(line)
+        local result = {}
+        for i = #line, 1, -1 do
+            result[#result+1] = line[i]
+        end
+        return result
+    end
+
+    local function buildWallLineSet(walls)
+        local out = {}
+        if type(walls) ~= "table" then
+            return out
+        end
+
+        for _, wall in ipairs(walls) do
+            local sourcePoints = type(wall) == "table" and wall.points or nil
+            if type(sourcePoints) == "table" and #sourcePoints >= 2 then
+                local pts = {}
+                for _, p in ipairs(sourcePoints) do
+                    if type(p) == "table" and tonumber(p.x) ~= nil and tonumber(p.y) ~= nil then
+                        pts[#pts+1] = {x = tonumber(p.x), y = tonumber(p.y)}
+                    end
+                end
+                if #pts >= 2 then
+                    out[#out+1] = pts
+                end
+            end
+        end
+
+        return out
+    end
+
+    local function foundrySenseName(value)
+        value = tonumber(value)
+        if value == 0 then return "None" end
+        if value == 10 then return "Limited" end
+        if value == 20 then return "Normal" end
+        if value == 30 then return "Proximity" end
+        if value == 40 then return "Distance" end
+        return tostring(value)
+    end
+
+    local function foundryDoorName(value)
+        value = tonumber(value)
+        if value == 0 then return "Wall" end
+        if value == 1 then return "Door" end
+        if value == 2 then return "SecretDoor" end
+        return tostring(value)
+    end
+
+    local function foundryDirectionName(value)
+        value = tonumber(value)
+        if value == 0 then return "Both" end
+        if value == 1 then return "Left" end
+        if value == 2 then return "Right" end
+        return tostring(value)
+    end
+
+    local function foundryDoorStateName(value)
+        value = tonumber(value)
+        if value == 0 then return "Closed" end
+        if value == 1 then return "Open" end
+        if value == 2 then return "Locked" end
+        return tostring(value)
+    end
+
+    local function foundryWallFlags(wall)
+        local door = tonumber(wall.door) or 0
+        local sight = tonumber(wall.sight) or 20
+        local move = tonumber(wall.move) or 20
+        local light = tonumber(wall.light) or 20
+        local sound = tonumber(wall.sound) or 20
+        local dir = tonumber(wall.dir) or 0
+        local ds = tonumber(wall.ds) or 0
+        local threshold = type(wall.threshold) == "table" and wall.threshold or nil
+
+        local sense = {
+            door = door,
+            door_name = foundryDoorName(door),
+            sight = sight,
+            sight_name = foundrySenseName(sight),
+            move = move,
+            move_name = foundrySenseName(move),
+            light = light,
+            light_name = foundrySenseName(light),
+            sound = sound,
+            sound_name = foundrySenseName(sound),
+        }
+        if threshold ~= nil then
+            sense.threshold = threshold
+        end
+
+        return {
+            foundry_direction = dir,
+            foundry_direction_name = foundryDirectionName(dir),
+            foundry_door_state = ds,
+            foundry_door_state_name = foundryDoorStateName(ds),
+            foundry_sense = sense,
+        }
+    end
+
+    local function foundryWallEntry(p1, p2, wall)
+        local threshold = type(wall.threshold) == "table" and wall.threshold or nil
+        local entry = {
+            points = {p1, p2},
+            sense = {
+                door = foundryDoorName(tonumber(wall.door) or 0),
+                sight = foundrySenseName(tonumber(wall.sight) or 20),
+                move = foundrySenseName(tonumber(wall.move) or 20),
+                light = foundrySenseName(tonumber(wall.light) or 20),
+                sound = foundrySenseName(tonumber(wall.sound) or 20),
+            },
+            flags = foundryWallFlags(wall),
+        }
+        if threshold ~= nil then
+            entry.threshold = threshold
+        end
+        return entry
+    end
+
+    local function foundryPortal(p1, p2, wall, closed, secret)
+        local flags = foundryWallFlags(wall)
+        local portal = {
+            bounds = {p1, p2},
+            closed = closed,
+            flags = flags,
+            foundryDoorState = flags.foundry_door_state,
+            foundryDoorStateName = flags.foundry_door_state_name,
+            foundryDirection = flags.foundry_direction,
+            foundryDirectionName = flags.foundry_direction_name,
+        }
+        if secret == true then
+            portal.secret = true
+        end
+        return portal
+    end
+
+    local function processFoundryTerrainWalls(walls, wallid, flipOpen)
+        local segments = buildWallLineSet(walls)
+        local segmentsDeleted = {}
+        local changes = true
+        local ncount = 0
+
+        while changes and ncount < 50 do
+            changes = false
+            ncount = ncount + 1
+
+            for i, segment in ipairs(segments) do
+                if segmentsDeleted[i] == nil then
+                    for j, nextSegment in ipairs(segments) do
+                        if i ~= j and segmentsDeleted[j] == nil and pointsEqual(segment[#segment], nextSegment[1]) then
+                            for _, point in ipairs(nextSegment) do
+                                segment[#segment+1] = point
+                            end
+
+                            segmentsDeleted[j] = true
+                            changes = true
+                        end
+                    end
+                end
+            end
+        end
+
+        local pointsList = {}
+        local closedPointsList = {}
+        for i, seg in ipairs(segments) do
+            if segmentsDeleted[i] == nil then
+                local poly = seg
+                local closed = pointsEqual(poly[1], poly[#poly])
+                if closed and not isClockwise(poly) then
+                    poly = reverseLine(poly)
+                elseif (not closed) and flipOpen then
+                    poly = reverseLine(poly)
+                end
+
+                local points = {}
+                for j, p in ipairs(poly) do
+                    if (not closed) or j ~= #poly then
+                        appendWorldPoint(points, p)
+                    end
+                end
+
+                if #points >= 4 then
+                    if closed then
+                        closedPointsList[#closedPointsList+1] = points
+                    else
+                        pointsList[#pointsList+1] = points
+                    end
+                end
+            end
+        end
+
+        executeWalls(pointsList, wallid, false)
+        executeWalls(closedPointsList, wallid, true)
+    end
+
+    local function readPortalSegment(portal)
+        local bounds = type(portal) == "table" and portal.bounds or nil
+        if type(bounds) ~= "table" or #bounds ~= 2 then
+            return nil
+        end
+
+        local b1 = type(bounds[1]) == "table" and bounds[1] or nil
+        local b2 = type(bounds[2]) == "table" and bounds[2] or nil
+        local x1 = b1 and tonumber(b1.x) or nil
+        local y1 = b1 and tonumber(b1.y) or nil
+        local x2 = b2 and tonumber(b2.x) or nil
+        local y2 = b2 and tonumber(b2.y) or nil
+
+        if x1 == nil or y1 == nil or x2 == nil or y2 == nil then
+            return nil
+        end
+
+        local dx = x2 - x1
+        local dy = y2 - y1
+        return {
+            portal = portal,
+            x1 = x1,
+            y1 = y1,
+            x2 = x2,
+            y2 = y2,
+            closed = portal.closed == true,
+            secret = portal.secret == true,
+            length = math.sqrt(dx*dx + dy*dy),
+        }
+    end
+
+    local function endpointsEqual(ax, ay, bx, by)
+        return math.abs(ax - bx) <= 0.0001 and math.abs(ay - by) <= 0.0001
+    end
+
+    local function portalSegmentsTouch(a, b)
+        return endpointsEqual(a.x1, a.y1, b.x1, b.y1)
+            or endpointsEqual(a.x1, a.y1, b.x2, b.y2)
+            or endpointsEqual(a.x2, a.y2, b.x1, b.y1)
+            or endpointsEqual(a.x2, a.y2, b.x2, b.y2)
+    end
+
+    local function collapsedPortalFromGroup(group)
+        local minX = group[1].x1
+        local maxX = group[1].x1
+        local minY = group[1].y1
+        local maxY = group[1].y1
+        local best = group[1]
+        local closed = false
+        local secret = false
+
+        for _, segment in ipairs(group) do
+            minX = math.min(minX, segment.x1, segment.x2)
+            maxX = math.max(maxX, segment.x1, segment.x2)
+            minY = math.min(minY, segment.y1, segment.y2)
+            maxY = math.max(maxY, segment.y1, segment.y2)
+            closed = closed or segment.closed
+            secret = secret or segment.secret
+            if segment.length > best.length then
+                best = segment
+            end
+        end
+
+        local centerX = (minX + maxX) / 2
+        local centerY = (minY + maxY) / 2
+        local width = maxX - minX
+        local height = maxY - minY
+        local p1, p2
+
+        if width >= height then
+            if best.x1 <= best.x2 then
+                p1 = {x = minX, y = centerY}
+                p2 = {x = maxX, y = centerY}
+            else
+                p1 = {x = maxX, y = centerY}
+                p2 = {x = minX, y = centerY}
+            end
+        else
+            if best.y1 <= best.y2 then
+                p1 = {x = centerX, y = minY}
+                p2 = {x = centerX, y = maxY}
+            else
+                p1 = {x = centerX, y = maxY}
+                p2 = {x = centerX, y = minY}
+            end
+        end
+
+        return {
+            bounds = {p1, p2},
+            closed = closed,
+            secret = secret,
+        }
+    end
+
+    local function collapseConnectedPortals(portalList)
+        local segments = {}
+        if type(portalList) ~= "table" then
+            return segments
+        end
+
+        for _, portal in ipairs(portalList) do
+            local segment = readPortalSegment(portal)
+            if segment ~= nil then
+                segments[#segments+1] = segment
+            end
+        end
+
+        local result = {}
+        local used = {}
+        for i, segment in ipairs(segments) do
+            if used[i] == nil then
+                local group = {segment}
+                used[i] = true
+
+                local changed = true
+                while changed do
+                    changed = false
+                    for j, candidate in ipairs(segments) do
+                        if used[j] == nil and candidate.closed == segment.closed and candidate.secret == segment.secret then
+                            for _, member in ipairs(group) do
+                                if portalSegmentsTouch(member, candidate) then
+                                    group[#group+1] = candidate
+                                    used[j] = true
+                                    changed = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+
+                if #group >= 3 then
+                    result[#result+1] = collapsedPortalFromGroup(group)
+                else
+                    for _, candidate in ipairs(group) do
+                        result[#result+1] = candidate.portal
+                    end
+                end
+            end
+        end
+
+        return result
+    end
+
+    local structuralLines = data.line_of_sight
+    local objectLines = data.objects_line_of_sight
+    local portals = type(data.portals) == "table" and data.portals or nil
+    local foundryTerrainWalls = type(data.foundry_terrain_walls) == "table" and data.foundry_terrain_walls or nil
+    local foundryInvisibleWalls = optionalList(mergedFoundryInvisibleWalls(data))
+    local foundryUnrecognizedWalls = type(data.foundry_unrecognized_walls) == "table" and data.foundry_unrecognized_walls or nil
+    local convertedFromFoundry = false
+    local objectOnlyLineOfSight = false
+
+    if type(structuralLines) ~= "table" and type(data.walls) == "table" then
+        convertedFromFoundry = true
+        structuralLines = {}
+        portals = {}
+        foundryTerrainWalls = {}
+        foundryInvisibleWalls = {}
+        foundryUnrecognizedWalls = {}
+
+        local foundryGrid = gridSize(data)
+        for _, wall in ipairs(data.walls) do
+            local points = type(wall) == "table" and wall.c or nil
+            if type(points) == "table" and #points == 4 then
+                local x1 = tonumber(points[1])
+                local y1 = tonumber(points[2])
+                local x2 = tonumber(points[3])
+                local y2 = tonumber(points[4])
+                if x1 ~= nil and y1 ~= nil and x2 ~= nil and y2 ~= nil then
+                    local p1 = {x = x1 / foundryGrid, y = y1 / foundryGrid}
+                    local p2 = {x = x2 / foundryGrid, y = y2 / foundryGrid}
+                    local door = tonumber(wall.door) or 0
+                    local move = tonumber(wall.move) or 20
+                    local sight = tonumber(wall.sight) or 20
+                    local light = tonumber(wall.light) or 20
+                    local dir = tonumber(wall.dir) or 0
+                    local threshold = type(wall.threshold) == "table" and wall.threshold or nil
+                    local windowLike = threshold ~= nil
+                        and threshold.light ~= nil and threshold.sight ~= nil
+                        and light ~= move and sight ~= move
+
+                    if (door == 0 or door == 2) and windowLike then
+                        portals[#portals+1] = foundryPortal(p1, p2, wall, false, false)
+                    elseif door == 1 then
+                        portals[#portals+1] = foundryPortal(p1, p2, wall, true, false)
+                    elseif door == 2 then
+                        portals[#portals+1] = foundryPortal(p1, p2, wall, true, true)
+                    elseif door ~= 0 or dir ~= 0 then
+                        foundryUnrecognizedWalls[#foundryUnrecognizedWalls+1] = foundryWallEntry(p1, p2, wall)
+                    elseif door == 0 and sight == 20 and move == 20 then
+                        structuralLines[#structuralLines+1] = {p1, p2}
+                    elseif door == 0 and sight == 10 and move == 20 then
+                        foundryTerrainWalls[#foundryTerrainWalls+1] = foundryWallEntry(p1, p2, wall)
+                    elseif door == 0 and sight == 0 and move == 20 then
+                        foundryInvisibleWalls[#foundryInvisibleWalls+1] = foundryWallEntry(p1, p2, wall)
+                    else
+                        foundryUnrecognizedWalls[#foundryUnrecognizedWalls+1] = foundryWallEntry(p1, p2, wall)
+                    end
                 end
             end
         end
     end
 
+    if (not convertedFromFoundry)
+            and (not lineSetHasSegments(structuralLines))
+            and lineSetHasSegments(objectLines) then
+        objectOnlyLineOfSight = true
+        structuralLines, objectLines = splitOpenClosedLineSet(objectLines)
+    end
 
+    if structuralWallMode == "wall" then
+        processLineSet(structuralLines, wallAsset, false)
+    end
+    if objectWallMode == "wall" then
+        processLineSet(objectLines, objectWallAsset, true)
+    end
+    if terrainWallMode == "wall" then
+        processFoundryTerrainWalls(foundryTerrainWalls, terrainWallAsset, flipFoundryTerrainWalls)
+    end
+    if invisibleWallMode == "wall" then
+        processFoundryTerrainWalls(foundryInvisibleWalls, invisibleWallAsset, flipFoundryTerrainWalls)
+    end
+    if unrecognizedWallMode == "wall" then
+        executeWalls(buildPolylines(foundryUnrecognizedWalls), unrecognizedWallAsset, false)
+    end
+
+    if portals ~= nil then
+        local portalsToSpawn = portals
+        if objectOnlyLineOfSight then
+            portalsToSpawn = collapseConnectedPortals(portals)
+        end
+        for _, portal in ipairs(portalsToSpawn) do
+            local bounds = type(portal) == "table" and portal.bounds or nil
+            if type(bounds) == "table" and #bounds == 2 then
+                local b1 = type(bounds[1]) == "table" and bounds[1] or nil
+                local b2 = type(bounds[2]) == "table" and bounds[2] or nil
+                local x1 = b1 and tonumber(b1.x) or nil
+                local y1 = b1 and tonumber(b1.y) or nil
+                local x2 = b2 and tonumber(b2.x) or nil
+                local y2 = b2 and tonumber(b2.y) or nil
+
+                if x1 ~= nil and y1 ~= nil and x2 ~= nil and y2 ~= nil then
+                    local points = {area.x1 + x1, area.y2 - y1, area.x1 + x2, area.y2 - y2}
+                    local portalKind = "window"
+                    if portal.closed then
+                        portalKind = cond(portal.secret == true, "secret", "door")
+                    end
+                    local portalMode = windowMode
+                    if portalKind == "door" then
+                        portalMode = doorMode
+                    elseif portalKind == "secret" then
+                        portalMode = secretDoorMode
+                    end
+
+                    if portalMode == "asset" and not convertedFromFoundry and not objectOnlyLineOfSight then
+                        executeWalls({points}, wallAsset, false)
+                    elseif portalKind == "window" and portalMode == "movement_wall" then
+                        executeWalls({points}, transparentWindowWallAsset, false)
+                    end
+
+                    local nodeId = windownode
+                    if portal.closed then
+                        nodeId = cond(portal.secret == true, secretDoorNode, doornode)
+                    end
+
+                    if portalMode == "asset" and nodeId ~= nil and nodeId ~= "" then
+                        local portalObj = info.primaryFloor:SpawnObjectLocal(nodeId)
+                        if portalObj ~= nil then
+                            local flags = type(portal.flags) == "table" and portal.flags or nil
+                            local foundryDoorState = portal.foundryDoorState or (flags and flags.foundry_door_state)
+                            -- TODO: Apply Foundry open/locked door state when DMHub exposes a door-state API.
+                            local delta = core.Vector2(x2 - x1, y1 - y2)
+                            -- A portal object's position is its hinge, not its center,
+                            -- so anchor it at the first endpoint of the portal segment.
+                            portalObj.x = area.x1 + x1
+                            portalObj.y = area.y2 - y1
+                            portalObj.rotation = delta.angle + (tonumber(dmhub.GetSettingValue("mapimport:portal_rotation_offset")) or 90)
+                            portalObj.scale = portalObjectScale(nodeId, delta.length)
+                            portalObj:Upload()
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+@if MCDM
+    local lightnode = lightnodeChoice or "2339211c-c35a-4e0a-a5fa-79d2e446bd3b"
+@else
+    local lightnode = lightnodeChoice or "-MGBXtOnKAXNhhLK89_9"
+@end
+    if lightMode == "asset" and type(data.lights) == "table" and ObjectNodeHasComponent(lightnode, "Light") then
+        local foundryGrid = gridSize(data)
+        for _, light in ipairs(data.lights) do
+            if type(light) == "table" then
+                local x, y, radius, intensity, color, shadows
+                if type(light.position) == "table" then
+                    x = tonumber(light.position.x)
+                    y = tonumber(light.position.y)
+                    radius = tonumber(light.range) or 0
+                    intensity = ((tonumber(light.intensity) or 1) * 0.5) ^ 0.5
+                    color = safeColor(light.color, "ffffff")
+                    shadows = light.shadows
+                    if shadows == nil then
+                        shadows = true
+                    end
+                else
+                    x = tonumber(light.x) and (tonumber(light.x) / foundryGrid) or nil
+                    y = tonumber(light.y) and (tonumber(light.y) / foundryGrid) or nil
+                    radius = tonumber(light.dim) or tonumber(light.bright) or 0
+                    intensity = (tonumber(light.tintAlpha) or 0.1) * 3
+                    color = safeColor(light.tintColor, "#ffffff")
+                    shadows = true
+                end
+
+                if x ~= nil and y ~= nil then
+                    local lightObj = info.primaryFloor:SpawnObjectLocal(lightnode)
+                    local component = lightObj and lightObj:GetComponent("Light")
+                    if component ~= nil then
+                        lightObj.x = area.x1 + x
+                        lightObj.y = area.y2 - y
+                        component:SetProperty("radius", radius)
+                        component:SetProperty("intensity", intensity)
+                        component:SetProperty("castsShadows", shadows)
+                        component:SetProperty("color", color)
+                        lightObj:Upload()
+                    end
+                end
+            end
+        end
+    end
+
+    if type(data.environment) == "table" then
+        if data.environment.ambient_light ~= nil then
+            dmhub.SetSettingValue("undergroundillumination", safeColor(data.environment.ambient_light, "ffffff").value)
+        else
+            dmhub.SetSettingValue("undergroundillumination", 1.0)
+        end
+    end
 end
 
 mod.shared.FinishMapImport = function(mapName, info)
@@ -567,28 +1221,43 @@ mod.shared.FinishMapImport = function(mapName, info)
         floors = floors,
     }
     dmhub.Coroutine(function()
-        dmhub.Debug("INSTANCE OBJECT START")
         while game.GetMap(guid) == nil do
             coroutine.yield(0.05)
         end
 
-        local w = math.ceil(info.width)
-        local h = math.ceil(info.height)
+        -- Round to nearest tile: if the image overhangs an integer tile
+        -- by less than half a tile (a few pixels) we round down, not up.
+        -- math.ceil would always round up even for tiny overhangs.
+        local w = math.floor(info.width + 0.5)
+        local h = math.floor(info.height + 0.5)
 
-        printf("DIMENSIONS:: %s / %s", json(info.width), json(info.height))
+        -- Final safety net: the import dialog clamps user input, but if any
+        -- code path slips a huge value through, refuse to write it. See
+        -- MAX_MAP_TILES_PER_AXIS in MapImport.lua for the full rationale.
+        local MAX_DIM = 2000
+        if w > MAX_DIM or h > MAX_DIM then
+            w = math.min(w, MAX_DIM)
+            h = math.min(h, MAX_DIM)
+        end
 
         local map = game.GetMap(guid)
         map.description = mapName
+        -- Bounds box: dimMin..dimMax (inclusive) covers exactly w cells in
+        -- x and h cells in y. For odd w/h the box is centered on origin.
+        -- For even w/h the box is biased RIGHT (center at +0.5) to match
+        -- the renderer's pivot wrap, which lands _mapPivot at 0.5-tileDim/2
+        -- for even-tile-count perfect fits and therefore shifts the image
+        -- right by half a tile. A left-biased box would appear "one tile
+        -- to the left of where it should be" relative to the image.
         map.dimensions = {
             x1 = -math.ceil(w/2) + 1,
             y1 = -math.ceil(h/2) + 1,
-            x2 = math.ceil(w/2) - 1,
-            y2 = math.ceil(h/2),
+            x2 = math.floor(w/2),
+            y2 = math.floor(h/2),
         }
         map:Upload()
 
         map:Travel()
-        dmhub.Debug("INSTANCE OBJECT NEXT")
 
         while game.currentMapId ~= guid do
             coroutine.yield(0.05)
@@ -603,7 +1272,6 @@ mod.shared.FinishMapImport = function(mapName, info)
         if settings ~= nil then
             for k,v in pairs(settings) do
                 dmhub.SetSettingValue(k, v)
-                printf("SETTING: Set %s -> %s", json(k), json(v))
             end
         end
 
@@ -629,16 +1297,38 @@ mod.shared.FinishMapImport = function(mapName, info)
                 floor = targetFloor,
                 primaryFloor = floor,
                 uvttData = uvttData,
+                assetChoices = info.assetChoices,
             }
         end
 
     end)
 end
 
+-- Open the alignment dialog in "realign" mode for an already-imported floor.
+-- The dialog reuses the same drag/zoom/pan UI as the new-floor flow but, instead
+-- of creating a new floor on confirm, it just updates the existing object's
+-- (x, y) position so the user can re-align it against the other map images.
+mod.shared.ShowFloorRealignDialog = function(mapLayer, mapObj)
+    if mapObj == nil then
+        return
+    end
+    mod.shared.ShowFloorAlignmentDialog{
+        realignTarget = mapObj,
+    }
+end
+
 -- Show a dialog to let the user align a new floor image to the existing map.
 -- info: the import result with objids, width, height, paths, imageWidth, imageHeight.
+-- For realign mode, info.realignTarget is a LuaObjectInstance (with a Map component)
+-- and the rest of info may be empty.
 mod.shared.ShowFloorAlignmentDialog = function(info)
-    if info.objids == nil or #info.objids == 0 then
+    -- Mode A (default): aligning a freshly-imported new floor. info has objids/width/height.
+    -- Mode B (realign): info.realignTarget is the existing LuaObjectInstance to reposition.
+    --   In this mode info.objids may be empty; we reuse the same UI to drag the existing
+    --   floor's image around and on confirm we set obj.x/obj.y instead of creating a new floor.
+    local realignTarget = info.realignTarget
+
+    if realignTarget == nil and (info.objids == nil or #info.objids == 0) then
         return
     end
 
@@ -650,44 +1340,165 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
     local dim = currentMap.dimensions
     local mapW = dim.x2 - dim.x1
     local mapH = dim.y2 - dim.y1
-    local floorW = math.ceil(info.width)
-    local floorH = math.ceil(info.height)
 
-    -- Default: align top-left corners.
-    local offsetX = dim.x1
-    local offsetY = dim.y1
+    -- floorW, floorH are the moving image's tile span. In realign mode, derive from
+    -- the existing object's actual rendered span (fractional). In normal mode, use the
+    -- import's reported tile count, ceil'd.
+    local floorW
+    local floorH
+    -- references[]: list of {imageid, x1, y1, x2, y2} drawn as static backdrop in the
+    -- preview panel. Normal mode renders the canvas image at canvas bounds (legacy
+    -- behaviour, exactly one entry). Realign mode renders every OTHER Map object at
+    -- its actual world bounds.
+    local references = {}
 
-    -- Check if the new floor is the same size as the existing map.
-    printf("FLOOR_ALIGN:: ShowFloorAlignmentDialog called: mapW=%d mapH=%d floorW=%d floorH=%d", mapW, mapH, floorW, floorH)
-    printf("FLOOR_ALIGN:: Existing map dims: x1=%s y1=%s x2=%s y2=%s", json(dim.x1), json(dim.y1), json(dim.x2), json(dim.y2))
-    printf("FLOOR_ALIGN:: Default offset: (%d, %d)", offsetX, offsetY)
+    -- Default offset: the moving floor's top-left in world tile coords.
+    local offsetX
+    local offsetY
 
-    local sameSize = (floorW == mapW and floorH == mapH)
+    -- Captured at setup time and used by the Confirm handler to convert offset
+    -- (top-left of rendered image) back to obj.x/obj.y. The renderer's _mapPivot
+    -- is rarely exactly (0.5, 0.5) -- it's wrapped to near-center but can be
+    -- offset by up to one tile, so we must respect it instead of assuming centered.
+    local realignPivotX = 0.5
+    local realignPivotY = 0.5
 
-    if sameSize then
-        printf("FLOOR_ALIGN:: Same size detected, skipping alignment dialog")
-        mod.shared.FinishFloorImport(info, offsetX, offsetY)
-        return
+    if realignTarget ~= nil then
+        local d = realignTarget.mapAlignmentDiagnostic
+        if d == nil then
+            gui.ModalMessage{title = "Error", message = "Could not read this floor's calibration."}
+            return
+        end
+        floorW = d.imageWorldWidth
+        floorH = d.imageWorldHeight
+        if (floorW or 0) <= 0 or (floorH or 0) <= 0 then
+            -- Fallback to the area-derived span if the renderer hasn't computed _tileDim yet.
+            floorW = (d.areaX2 or 0) - (d.areaX1 or 0)
+            floorH = (d.areaY2 or 0) - (d.areaY1 or 0)
+        end
+        if (floorW or 0) <= 0 or (floorH or 0) <= 0 then
+            gui.ModalMessage{title = "Error", message = "Could not determine this floor's size."}
+            return
+        end
+
+        realignPivotX = d.mapPivotX or 0.5
+        realignPivotY = d.mapPivotY or 0.5
+
+        -- Use the actual rendered top-left (areaX1/areaY1). Falling back to
+        -- pos - imageWorldDim * mapPivot if for some reason the area fields are
+        -- missing -- this is the same formula the renderer uses internally.
+        if d.areaX1 ~= nil and d.areaY1 ~= nil then
+            offsetX = d.areaX1
+            offsetY = d.areaY1
+        else
+            offsetX = (realignTarget.x or 0) - floorW * realignPivotX
+            offsetY = (realignTarget.y or 0) - floorH * realignPivotY
+        end
+
+        -- Collect every OTHER Map object as a reference backdrop.
+        for _, floor in ipairs(currentMap.floors) do
+            for _, obj in pairs(floor.objects) do
+                if obj:GetComponent("Map") ~= nil and obj.id ~= realignTarget.id then
+                    local od = obj.mapAlignmentDiagnostic
+                    if od ~= nil and od.areaX1 ~= nil then
+                        references[#references+1] = {
+                            imageid = obj.imageid,
+                            x1 = od.areaX1, y1 = od.areaY1,
+                            x2 = od.areaX2, y2 = od.areaY2,
+                        }
+                    end
+                end
+            end
+        end
+
+        printf("FLOOR_REALIGN:: target=%s/%s floorW=%.4f floorH=%.4f initialOffset=(%.4f,%.4f) refs=%d",
+            d.floorid, d.objid, floorW, floorH, offsetX, offsetY, #references)
+    else
+        -- Round to nearest tile (see CreateMap comment above).
+        floorW = math.floor(info.width + 0.5)
+        floorH = math.floor(info.height + 0.5)
+        offsetX = dim.x1
+        offsetY = dim.y1
     end
 
-    -- Find the existing map's floor image for display.
-    -- Look for a map object on the ground floor's map layer.
-    local existingImageId = nil
-    local floors = currentMap.floorsWithoutLayers
-    if #floors > 0 then
+    -- Check if the new floor is the same size as the existing map.
+    printf("FLOOR_ALIGN:: ShowFloorAlignmentDialog called: mapW=%s mapH=%s floorW=%s floorH=%s",
+        tostring(mapW), tostring(mapH), tostring(floorW), tostring(floorH))
+    printf("FLOOR_ALIGN:: Existing map dims: x1=%s y1=%s x2=%s y2=%s", json(dim.x1), json(dim.y1), json(dim.x2), json(dim.y2))
+    printf("FLOOR_ALIGN:: Default offset: (%s, %s)", tostring(offsetX), tostring(offsetY))
+    printf("FLOOR_ALIGN:: Incoming info: width=%s height=%s objids=%s imageWidth=%s imageHeight=%s",
+        tostring(info.width), tostring(info.height), json(info.objids or {}), tostring(info.imageWidth), tostring(info.imageHeight))
+
+    -- Snapshot every existing Map LevelObject's calibration so we can compare against the new one.
+    do
+        local count = 0
         for _, floor in ipairs(currentMap.floors) do
             for _, obj in pairs(floor.objects) do
                 if obj:GetComponent("Map") ~= nil then
-                    existingImageId = obj.imageid
-                    break
+                    count = count + 1
+                    local d = obj.mapAlignmentDiagnostic
+                    if d ~= nil then
+                        printf("FLOOR_ALIGN_DIAG:: Existing Map object [%d] floorid=%s objid=%s calibration=%s",
+                            count, floor.floorid, obj.id, json(d))
+                    else
+                        printf("FLOOR_ALIGN_DIAG:: Existing Map object [%d] floorid=%s objid=%s had nil mapAlignmentDiagnostic",
+                            count, floor.floorid, obj.id)
+                    end
                 end
             end
-            if existingImageId ~= nil then break end
+        end
+        if count == 0 then
+            printf("FLOOR_ALIGN_DIAG:: ShowFloorAlignmentDialog: no existing Map LevelObjects found.")
         end
     end
 
-    -- The new floor's image: use the first imported asset's imageid.
-    local newImageId = info.objids[1]
+    if realignTarget == nil then
+        -- If the user picked "Match Existing Map", we have a calibration captured
+        -- from the existing Map LevelObject. Bypass the alignment dialog and place
+        -- the new floor at the same world position as the existing one. Once
+        -- FinishFloorImport applies the calibration, the new image will render
+        -- with the same _tileDim/_mapPivot, so its world bounds match exactly.
+        if info.matchCalibration ~= nil then
+            printf("FLOOR_ALIGN:: matchCalibration present -- skipping alignment dialog and aligning to existing.")
+            mod.shared.FinishFloorImport(info, offsetX, offsetY)
+            return
+        end
+
+        local sameSize = (floorW == mapW and floorH == mapH)
+
+        if sameSize then
+            printf("FLOOR_ALIGN:: Same size detected, skipping alignment dialog")
+            mod.shared.FinishFloorImport(info, offsetX, offsetY)
+            return
+        end
+    end
+
+    -- Find the existing map's floor image for display (legacy single-image backdrop in
+    -- normal mode). In realign mode the references[] list above is what we render.
+    local existingImageId = nil
+    if realignTarget == nil then
+        local floors = currentMap.floorsWithoutLayers
+        if #floors > 0 then
+            for _, floor in ipairs(currentMap.floors) do
+                for _, obj in pairs(floor.objects) do
+                    if obj:GetComponent("Map") ~= nil then
+                        existingImageId = obj.imageid
+                        break
+                    end
+                end
+                if existingImageId ~= nil then break end
+            end
+        end
+    end
+
+    -- The moving image. Normal mode: the first imported asset. Realign mode: the
+    -- existing object's image.
+    local newImageId
+    if realignTarget ~= nil then
+        newImageId = realignTarget.imageid
+    else
+        newImageId = info.objids[1]
+    end
 
     local newFloorOpacity = 0.6
 
@@ -703,24 +1514,37 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         previewPanel:FireEvent("updatePreview")
     end
 
+    -- Format an offset for display: integer if whole, two decimals otherwise.
+    local function fmtOffset(v)
+        if v == math.floor(v) then
+            return tostring(math.floor(v))
+        end
+        return string.format("%.2f", v)
+    end
+
+    -- Realign mode allows fractional offsets (the existing object may be at a
+    -- fractional world position because its image span isn't an integer number
+    -- of tiles). Normal mode keeps the legacy integer-only behaviour.
+    local allowFractional = realignTarget ~= nil
+
     local offsetXInput = gui.Input{
         fontSize = 18,
-        width = 60,
+        width = 80,
         height = 24,
-        text = tostring(offsetX),
+        text = fmtOffset(offsetX),
         edit = function(element)
             local val = tonumber(element.text)
-            if val ~= nil and val == math.floor(val) then
+            if val ~= nil and (allowFractional or val == math.floor(val)) then
                 offsetX = val
                 fireUpdatePreview()
             end
         end,
         change = function(element)
             local val = tonumber(element.text)
-            if val ~= nil and val == math.floor(val) then
+            if val ~= nil and (allowFractional or val == math.floor(val)) then
                 offsetX = val
             else
-                element.text = tostring(offsetX)
+                element.text = fmtOffset(offsetX)
             end
             fireUpdatePreview()
         end,
@@ -728,31 +1552,31 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
 
     local offsetYInput = gui.Input{
         fontSize = 18,
-        width = 60,
+        width = 80,
         height = 24,
-        text = tostring(offsetY),
+        text = fmtOffset(offsetY),
         edit = function(element)
             local val = tonumber(element.text)
-            if val ~= nil and val == math.floor(val) then
+            if val ~= nil and (allowFractional or val == math.floor(val)) then
                 offsetY = val
                 fireUpdatePreview()
             end
         end,
         change = function(element)
             local val = tonumber(element.text)
-            if val ~= nil and val == math.floor(val) then
+            if val ~= nil and (allowFractional or val == math.floor(val)) then
                 offsetY = val
             else
-                element.text = tostring(offsetY)
+                element.text = fmtOffset(offsetY)
             end
             fireUpdatePreview()
         end,
     }
 
     previewLabel = gui.Label{
+        classes = {"form"},
         width = "100%",
         height = "auto",
-        fontSize = 14,
         color = "#cccccc",
         wrap = true,
         halign = "left",
@@ -762,37 +1586,70 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             local newX2 = offsetX + floorW
             local newY2 = offsetY + floorH
 
-            local canvasX1 = math.min(dim.x1, offsetX)
-            local canvasY1 = math.min(dim.y1, offsetY)
-            local canvasX2 = math.max(dim.x2, newX2)
-            local canvasY2 = math.max(dim.y2, newY2)
-            local canvasW = canvasX2 - canvasX1
-            local canvasH = canvasY2 - canvasY1
-
-            local needsExpand = (canvasX1 < dim.x1 or canvasY1 < dim.y1 or canvasX2 > dim.x2 or canvasY2 > dim.y2)
-
             local lines = {}
-            lines[#lines+1] = string.format("New floor at (%d, %d) to (%d, %d).", offsetX, offsetY, newX2, newY2)
-            if needsExpand then
-                lines[#lines+1] = string.format("Map canvas will expand to %dx%d tiles.", canvasW, canvasH)
+            if realignTarget ~= nil then
+                local centerX = offsetX + floorW / 2
+                local centerY = offsetY + floorH / 2
+                lines[#lines+1] = string.format(
+                    "This floor: (%s, %s) to (%s, %s); center (%s, %s).",
+                    fmtOffset(offsetX), fmtOffset(offsetY),
+                    fmtOffset(newX2), fmtOffset(newY2),
+                    fmtOffset(centerX), fmtOffset(centerY))
+                for i, ref in ipairs(references) do
+                    local cx = (ref.x1 + ref.x2) / 2
+                    local cy = (ref.y1 + ref.y2) / 2
+                    lines[#lines+1] = string.format(
+                        "Other [%d]: (%s, %s) to (%s, %s); center (%s, %s).",
+                        i,
+                        fmtOffset(ref.x1), fmtOffset(ref.y1),
+                        fmtOffset(ref.x2), fmtOffset(ref.y2),
+                        fmtOffset(cx), fmtOffset(cy))
+                end
             else
-                lines[#lines+1] = "New floor fits within the existing canvas."
+                local canvasX1 = math.min(dim.x1, offsetX)
+                local canvasY1 = math.min(dim.y1, offsetY)
+                local canvasX2 = math.max(dim.x2, newX2)
+                local canvasY2 = math.max(dim.y2, newY2)
+                local canvasW = canvasX2 - canvasX1
+                local canvasH = canvasY2 - canvasY1
+                local needsExpand = (canvasX1 < dim.x1 or canvasY1 < dim.y1 or canvasX2 > dim.x2 or canvasY2 > dim.y2)
+
+                lines[#lines+1] = string.format("New floor at (%d, %d) to (%d, %d).", offsetX, offsetY, newX2, newY2)
+                if needsExpand then
+                    lines[#lines+1] = string.format("Map canvas will expand to %dx%d tiles.", canvasW, canvasH)
+                else
+                    lines[#lines+1] = "New floor fits within the existing canvas."
+                end
             end
 
-            element.text = table.concat(lines, " ")
+            element.text = table.concat(lines, realignTarget ~= nil and "\n" or " ")
         end,
     }
 
     -- The preview area: shows actual images of both floors with grid overlay.
     -- Supports mouse wheel zoom, right-drag to pan, left-drag to move new floor.
-    local previewSize = 700
+    local previewSize = 620
 
     -- View state: zoom level and center position in tile coordinates.
     -- Start zoomed out to fit everything.
-    local canvasX1Init = math.min(dim.x1, offsetX)
-    local canvasY1Init = math.min(dim.y1, offsetY)
-    local canvasX2Init = math.max(dim.x2, offsetX + floorW)
-    local canvasY2Init = math.max(dim.y2, offsetY + floorH)
+    local canvasX1Init, canvasY1Init, canvasX2Init, canvasY2Init
+    if realignTarget ~= nil then
+        canvasX1Init = offsetX
+        canvasY1Init = offsetY
+        canvasX2Init = offsetX + floorW
+        canvasY2Init = offsetY + floorH
+        for _, ref in ipairs(references) do
+            canvasX1Init = math.min(canvasX1Init, ref.x1)
+            canvasY1Init = math.min(canvasY1Init, ref.y1)
+            canvasX2Init = math.max(canvasX2Init, ref.x2)
+            canvasY2Init = math.max(canvasY2Init, ref.y2)
+        end
+    else
+        canvasX1Init = math.min(dim.x1, offsetX)
+        canvasY1Init = math.min(dim.y1, offsetY)
+        canvasX2Init = math.max(dim.x2, offsetX + floorW)
+        canvasY2Init = math.max(dim.y2, offsetY + floorH)
+    end
     local canvasWInit = canvasX2Init - canvasX1Init
     local canvasHInit = canvasY2Init - canvasY1Init
 
@@ -835,8 +1692,8 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
     end
 
     local function updateInputsFromOffset()
-        offsetXInput.textNoNotify = tostring(offsetX)
-        offsetYInput.textNoNotify = tostring(offsetY)
+        offsetXInput.textNoNotify = fmtOffset(offsetX)
+        offsetYInput.textNoNotify = fmtOffset(offsetY)
     end
 
     -- Get panel top-left pixel position for a tile rect.
@@ -849,6 +1706,86 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         return px, py, tileW * ppt, tileH * ppt
     end
 
+    -- Persistent image panels: created once and re-positioned in updatePreview
+    -- to avoid the white-flash that occurred when bgimage panels were rebuilt
+    -- every frame during drag. A panel listed in element.children is preserved
+    -- across the assignment, so we always include these in the rebuilt list.
+    -- Reference panels (one per ref). Each is the static backdrop image of an
+    -- already-placed Map object (realign mode), or the canvas-sized existing
+    -- image (normal mode).
+    local refImagePanels = {}
+    local refBorderPanels = {}
+    if realignTarget ~= nil then
+        for i, ref in ipairs(references) do
+            if ref.imageid ~= nil then
+                refImagePanels[i] = gui.Panel{
+                    bgimage = ref.imageid,
+                    bgimageStreamed = ref.imageid,
+                    bgcolor = "white",
+                    halign = "left", valign = "top",
+                    x = 0, y = 0,
+                    width = 0, height = 0,
+                }
+            end
+            refBorderPanels[i] = gui.Panel{
+                halign = "left", valign = "top",
+                x = 0, y = 0,
+                width = 0, height = 0,
+                borderColor = "#6699cc",
+                borderWidth = 2,
+            }
+        end
+    elseif existingImageId ~= nil then
+        refImagePanels[1] = gui.Panel{
+            bgimage = existingImageId,
+            bgimageStreamed = existingImageId,
+            bgcolor = "white",
+            halign = "left", valign = "top",
+            x = 0, y = 0,
+            width = 0, height = 0,
+        }
+    end
+
+    -- Moving floor image panel: persistent so dragging doesn't recreate it.
+    local movingImagePanel = nil
+    if newImageId ~= nil then
+        movingImagePanel = gui.Panel{
+            bgimage = newImageId,
+            bgimageStreamed = newImageId,
+            bgcolor = "white",
+            opacity = newFloorOpacity,
+            halign = "left", valign = "top",
+            x = 0, y = 0,
+            width = 0, height = 0,
+        }
+    end
+
+    -- Moving floor border (always present, drawn on top of grid lines).
+    local movingBorderPanel = gui.Panel{
+        halign = "left", valign = "top",
+        x = 0, y = 0,
+        width = 0, height = 0,
+        borderColor = "#cc9966",
+        borderWidth = 2,
+    }
+
+    -- Canvas border for normal mode.
+    local canvasBorderPanel = nil
+    if realignTarget == nil then
+        canvasBorderPanel = gui.Panel{
+            halign = "left", valign = "top",
+            x = 0, y = 0,
+            width = 0, height = 0,
+            borderColor = "#6699cc",
+            borderWidth = 2,
+        }
+    end
+
+    -- Right/middle-click pan state. Tracks previous mouse position while either
+    -- button is held and applies a delta-pan in the think callback.
+    local panPrevX = nil
+    local panPrevY = nil
+
     previewPanel = gui.Panel{
         width = previewSize,
         height = previewSize,
@@ -859,27 +1796,29 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         borderColor = "#555555",
         borderWidth = 1,
         clip = true,
+        data = {},
 
         -- Dragging: right-drag to pan, left-drag to move new floor.
+        -- Middle-click pan is handled separately in the think callback.
         draggable = true,
         dragMove = false,
         dragThreshold = 2,
 
         events = {
             press = function(element)
-                local mp = element.mousePoint
-                -- mousePoint: (0,0) at panel center, +y up (Unity convention).
-                -- Convert to panel pixel coords where (0,0) is top-left, +y down.
-                local mx = mp.x + previewSize / 2
-                local my = previewSize / 2 - mp.y
-
-                -- Middle mouse or right mouse always pans.
+                -- Right/middle button drags are handled in `think` (the engine's drag
+                -- system only triggers `dragging` for left-click). Skip them here.
                 if element:GetMouseButton(1) or element:GetMouseButton(2) then
                     isDraggingFloor = false
-                    panStartCenterX = viewCenterX
-                    panStartCenterY = viewCenterY
                     return
                 end
+
+                local mp = element.mousePoint
+                if mp == nil then return end
+                -- mousePoint is in normalized [0,1] panel-local coords. Convert to
+                -- panel-local pixel coords (top-left = 0,0; +y down).
+                local mx = mp.x * previewSize
+                local my = (1 - mp.y) * previewSize
 
                 -- Left mouse: check if over the new floor image.
                 local nx, ny, nw, nh = rectToPanel(offsetX, offsetY, floorW, floorH)
@@ -929,16 +1868,25 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             end,
         },
 
-        -- Mouse wheel zoom.
+        -- Mouse wheel zoom + middle-click pan. Middle-click is handled here
+        -- because the engine's drag system only triggers `dragging` callbacks
+        -- on left/right click, not middle.
         thinkTime = 0.02,
         think = function(element)
+            -- mousePoint is nil when the mouse isn't over the panel. When present,
+            -- it is in normalized [0,1] panel-local coords -- multiply by previewSize
+            -- to get panel-local pixels (top-left = 0,0; +y down).
+            local mp = element.mousePoint
+            local mouseInside = mp ~= nil
+            local mx, my = 0, 0
+            if mouseInside then
+                mx = mp.x * previewSize
+                my = (1 - mp.y) * previewSize
+            end
+
+            -- Mouse wheel zoom (only when mouse is over the panel).
             local wheel = dmhub.mouseWheel
-            if wheel ~= 0 and element.mousePoint.x ~= 0 and element.mousePoint.y ~= 0 then
-                -- Zoom toward mouse position.
-                local mp = element.mousePoint
-                -- mousePoint: +y up. Convert to panel pixel coords: +y down.
-                local mx = mp.x + previewSize / 2
-                local my = previewSize / 2 - mp.y
+            if mouseInside and wheel ~= 0 then
                 local tileBefore_x, tileBefore_y = pixelToTile(mx, my)
 
                 if wheel > 0 then
@@ -954,6 +1902,48 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
 
                 element:FireEvent("updatePreview")
             end
+
+            -- Right-click or middle-click drag pans. The engine's drag system only
+            -- fires `dragging` callbacks for left-click, so we poll GetMouseButton.
+            local panning = element:GetMouseButton(1) or element:GetMouseButton(2)
+            if panning and mouseInside then
+                if panPrevX ~= nil then
+                    local dx = mx - panPrevX
+                    local dy = my - panPrevY
+                    if dx ~= 0 or dy ~= 0 then
+                        local ppt = getPixelsPerTile()
+                        viewCenterX = viewCenterX - dx / ppt
+                        viewCenterY = viewCenterY + dy / ppt
+                        element:FireEvent("updatePreview")
+                    end
+                end
+                panPrevX = mx
+                panPrevY = my
+            else
+                panPrevX = nil
+                panPrevY = nil
+            end
+
+            -- Arrow-key nudge (1 tile per press, with edge-detection so a held key
+            -- moves once per think tick).
+            local function arrowEdge(key, prevField)
+                local down = dmhub.KeyPressed(key)
+                local prev = element.data[prevField]
+                element.data[prevField] = down
+                return down and not prev
+            end
+            local nudgedX = 0
+            local nudgedY = 0
+            if arrowEdge("LeftArrow",  "ke_left")  then nudgedX = nudgedX - 1 end
+            if arrowEdge("RightArrow", "ke_right") then nudgedX = nudgedX + 1 end
+            if arrowEdge("UpArrow",    "ke_up")    then nudgedY = nudgedY + 1 end
+            if arrowEdge("DownArrow",  "ke_down")  then nudgedY = nudgedY - 1 end
+            if nudgedX ~= 0 or nudgedY ~= 0 then
+                offsetX = offsetX + nudgedX
+                offsetY = offsetY + nudgedY
+                updateInputsFromOffset()
+                fireUpdatePreview()
+            end
         end,
 
         updatePreview = function(element)
@@ -961,31 +1951,36 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
 
             local children = {}
 
-            -- Existing map image.
-            if existingImageId ~= nil then
+            -- Update persistent backdrop panels with current positions.
+            if realignTarget ~= nil then
+                for i, ref in ipairs(references) do
+                    local ex, ey, ew, eh = rectToPanel(ref.x1, ref.y1, ref.x2 - ref.x1, ref.y2 - ref.y1)
+                    if refImagePanels[i] ~= nil then
+                        refImagePanels[i].x = ex
+                        refImagePanels[i].y = ey
+                        refImagePanels[i].selfStyle.width = ew
+                        refImagePanels[i].selfStyle.height = eh
+                        children[#children+1] = refImagePanels[i]
+                    end
+                end
+            elseif refImagePanels[1] ~= nil then
                 local ex, ey, ew, eh = rectToPanel(dim.x1, dim.y1, mapW, mapH)
-                children[#children+1] = gui.Panel{
-                    bgimage = existingImageId,
-                    bgimageStreamed = existingImageId,
-                    bgcolor = "white",
-                    halign = "left", valign = "top",
-                    x = ex, y = ey,
-                    width = ew, height = eh,
-                }
+                refImagePanels[1].x = ex
+                refImagePanels[1].y = ey
+                refImagePanels[1].selfStyle.width = ew
+                refImagePanels[1].selfStyle.height = eh
+                children[#children+1] = refImagePanels[1]
             end
 
-            -- New floor image.
-            if newImageId ~= nil then
+            -- Update persistent moving-floor panel.
+            if movingImagePanel ~= nil then
                 local nx, ny, nw, nh = rectToPanel(offsetX, offsetY, floorW, floorH)
-                children[#children+1] = gui.Panel{
-                    bgimage = newImageId,
-                    bgimageInit = true,
-                    bgcolor = "white",
-                    opacity = newFloorOpacity,
-                    halign = "left", valign = "top",
-                    x = nx, y = ny,
-                    width = nw, height = nh,
-                }
+                movingImagePanel.x = nx
+                movingImagePanel.y = ny
+                movingImagePanel.selfStyle.width = nw
+                movingImagePanel.selfStyle.height = nh
+                movingImagePanel.selfStyle.opacity = newFloorOpacity
+                children[#children+1] = movingImagePanel
             end
 
             -- Grid lines: only draw visible ones.
@@ -1033,28 +2028,35 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 end
             end
 
-            -- Existing map border.
-            do
+            -- Reference borders (persistent).
+            if realignTarget ~= nil then
+                for i, ref in ipairs(references) do
+                    if refBorderPanels[i] ~= nil then
+                        local bx, by, bw, bh = rectToPanel(ref.x1, ref.y1, ref.x2 - ref.x1, ref.y2 - ref.y1)
+                        refBorderPanels[i].x = bx
+                        refBorderPanels[i].y = by
+                        refBorderPanels[i].selfStyle.width = bw
+                        refBorderPanels[i].selfStyle.height = bh
+                        children[#children+1] = refBorderPanels[i]
+                    end
+                end
+            elseif canvasBorderPanel ~= nil then
                 local bx, by, bw, bh = rectToPanel(dim.x1, dim.y1, mapW, mapH)
-                children[#children+1] = gui.Panel{
-                    halign = "left", valign = "top",
-                    x = bx, y = by,
-                    width = bw, height = bh,
-                    borderColor = "#6699cc",
-                    borderWidth = 2,
-                }
+                canvasBorderPanel.x = bx
+                canvasBorderPanel.y = by
+                canvasBorderPanel.selfStyle.width = bw
+                canvasBorderPanel.selfStyle.height = bh
+                children[#children+1] = canvasBorderPanel
             end
 
-            -- New floor border.
+            -- Moving floor border (persistent).
             do
                 local bx, by, bw, bh = rectToPanel(offsetX, offsetY, floorW, floorH)
-                children[#children+1] = gui.Panel{
-                    halign = "left", valign = "top",
-                    x = bx, y = by,
-                    width = bw, height = bh,
-                    borderColor = "#cc9966",
-                    borderWidth = 2,
-                }
+                movingBorderPanel.x = bx
+                movingBorderPanel.y = by
+                movingBorderPanel.selfStyle.width = bw
+                movingBorderPanel.selfStyle.height = bh
+                children[#children+1] = movingBorderPanel
             end
 
             element.children = children
@@ -1081,10 +2083,24 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
     }
 
     local function resetView()
-        local cx1 = math.min(dim.x1, offsetX)
-        local cy1 = math.min(dim.y1, offsetY)
-        local cx2 = math.max(dim.x2, offsetX + floorW)
-        local cy2 = math.max(dim.y2, offsetY + floorH)
+        local cx1, cy1, cx2, cy2
+        if realignTarget ~= nil then
+            cx1 = offsetX
+            cy1 = offsetY
+            cx2 = offsetX + floorW
+            cy2 = offsetY + floorH
+            for _, ref in ipairs(references) do
+                cx1 = math.min(cx1, ref.x1)
+                cy1 = math.min(cy1, ref.y1)
+                cx2 = math.max(cx2, ref.x2)
+                cy2 = math.max(cy2, ref.y2)
+            end
+        else
+            cx1 = math.min(dim.x1, offsetX)
+            cy1 = math.min(dim.y1, offsetY)
+            cx2 = math.max(dim.x2, offsetX + floorW)
+            cy2 = math.max(dim.y2, offsetY + floorH)
+        end
         viewCenterX = (cx1 + cx2) / 2
         viewCenterY = (cy1 + cy2) / 2
         local cw = cx2 - cx1
@@ -1093,6 +2109,36 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         viewZoom = 1.0
         fireUpdatePreview()
     end
+
+    -- Zoom slider, log-scaled so the user can sweep across the [minZoom, maxZoom]
+    -- range smoothly. Slider value 0..100 maps to log(minZoom)..log(maxZoom).
+    local logMin = math.log(minZoom)
+    local logMax = math.log(maxZoom)
+    local function zoomToSlider(z)
+        return (math.log(z) - logMin) / (logMax - logMin) * 100
+    end
+    local function sliderToZoom(s)
+        return math.exp(s / 100 * (logMax - logMin) + logMin)
+    end
+
+    local zoomSlider = gui.Slider{
+        style = { height = 20, width = 200, fontSize = 14 },
+        sliderWidth = 140,
+        labelWidth = 60,
+        minValue = 0,
+        maxValue = 100,
+        value = zoomToSlider(viewZoom),
+        change = function(element)
+            viewZoom = sliderToZoom(element.value)
+            fireUpdatePreview()
+        end,
+        thinkTime = 0.1,
+        think = function(element)
+            if not element.dragging then
+                element.data.setValueNoEvent(zoomToSlider(viewZoom))
+            end
+        end,
+    }
 
     local controlsPanel = gui.Panel{
         width = "100%",
@@ -1111,16 +2157,16 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 flow = "horizontal",
 
                 gui.Label{
+                    classes = {"sizeS"},
                     width = "auto",
                     height = "auto",
-                    fontSize = 16,
                     text = "Top-left at tile: ",
                 },
                 offsetXInput,
                 gui.Label{
+                    classes = {"sizeS"},
                     width = "auto",
                     height = "auto",
-                    fontSize = 16,
                     text = " , ",
                 },
                 offsetYInput,
@@ -1133,19 +2179,32 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 hmargin = 16,
 
                 gui.Label{
+                    classes = {"sizeS"},
                     width = "auto",
                     height = "auto",
-                    fontSize = 16,
                     text = "Opacity: ",
                 },
                 opacitySlider,
             },
 
-            gui.PrettyButton{
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                hmargin = 16,
+
+                gui.Label{
+                    classes = {"sizeS"},
+                    width = "auto",
+                    height = "auto",
+                    text = "Zoom: ",
+                },
+                zoomSlider,
+            },
+
+            gui.Button{
+                classes = {"sizeM"},
                 text = "Reset View",
-                width = 100,
-                height = 28,
-                fontSize = 14,
                 halign = "right",
                 click = function()
                     resetView()
@@ -1154,11 +2213,12 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         },
 
         gui.Label{
+            classes = {"form", "sizeS"},
             width = "auto",
             height = "auto",
-            fontSize = 12,
-            color = "#888888",
-            text = "Drag the new floor to position it. Scroll to zoom. Middle-click drag or drag background to pan.",
+            text = realignTarget ~= nil
+                and "Drag this floor to reposition it. Scroll or use the zoom slider. Middle-click drag or drag background to pan."
+                or "Drag the new floor to position it. Scroll or use the zoom slider. Middle-click drag or drag background to pan.",
         },
     }
 
@@ -1166,16 +2226,13 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
         id = "alignDialog",
         classes = {"framedPanel"},
         width = 1000,
-        height = 900,
+        height = 940,
         pad = 16,
         flow = "vertical",
-        styles = {
-            Styles.Default,
-            Styles.Panel,
-        },
+        styles = ThemeEngine.GetStyles(),
 
         gui.Label{
-            classes = {"dialogTitle"},
+            classes = {"modalTitle"},
             text = "Align New Floor",
         },
 
@@ -1186,10 +2243,12 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             vmargin = 4,
 
             gui.Label{
+                classes = {"sizeS"},
                 width = "auto",
                 height = "auto",
-                fontSize = 14,
-                text = string.format("Existing map: %dx%d tiles  |  New floor: %dx%d tiles", mapW, mapH, floorW, floorH),
+                text = realignTarget ~= nil
+                    and string.format("Floor: %.2f x %.2f tiles  |  %d other map object(s) shown.", floorW, floorH, #references)
+                    or string.format("Existing map: %dx%d tiles  |  New floor: %dx%d tiles", mapW, mapH, floorW, floorH),
             },
         },
 
@@ -1205,21 +2264,34 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             halign = "center",
             vmargin = 8,
 
-            gui.PrettyButton{
+            gui.Button{
+                classes = {"sizeL"},
                 text = "Confirm",
-                width = 160,
-                height = 50,
                 click = function()
-                    printf("FLOOR_ALIGN:: Confirm clicked: offsetX=%d offsetY=%d", offsetX, offsetY)
-                    gui.CloseModal()
-                    mod.shared.FinishFloorImport(info, offsetX, offsetY)
+                    if realignTarget ~= nil then
+                        -- Convert offset (top-left of rendered image, == areaX1/Y1)
+                        -- back to obj.x/obj.y using the renderer's pivot. This is
+                        -- the inverse of `areaX1 = pos.x - imageWorldWidth * mapPivot.x`.
+                        local newPosX = offsetX + floorW * realignPivotX
+                        local newPosY = offsetY + floorH * realignPivotY
+                        printf("FLOOR_REALIGN:: Confirm clicked: offset=(%.4f, %.4f) pivot=(%.6f, %.6f) -> obj.x=%.4f obj.y=%.4f",
+                            offsetX, offsetY, realignPivotX, realignPivotY, newPosX, newPosY)
+                        gui.CloseModal()
+                        realignTarget:MarkUndo()
+                        realignTarget.x = newPosX
+                        realignTarget.y = newPosY
+                        realignTarget:Upload()
+                    else
+                        printf("FLOOR_ALIGN:: Confirm clicked: offsetX=%d offsetY=%d", offsetX, offsetY)
+                        gui.CloseModal()
+                        mod.shared.FinishFloorImport(info, offsetX, offsetY)
+                    end
                 end,
             },
 
-            gui.PrettyButton{
+            gui.Button{
+                classes = {"sizeL"},
                 text = "Cancel",
-                width = 160,
-                height = 50,
                 escapeActivates = true,
                 escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
                 click = function()
@@ -1228,7 +2300,8 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
             },
         },
 
-        gui.CloseButton{
+        gui.Button{
+            classes = {"closeButton"},
             halign = "right",
             valign = "top",
             floating = true,
@@ -1278,11 +2351,9 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
     local importPanel
     local gridlessInitApplied = false
 
-    local confirmButton = gui.PrettyButton{
-        classes = {"hidden"},
+    local confirmButton = gui.Button{
+        classes = {"sizeL", "hidden"},
         text = "Apply",
-        height = 50,
-        width = 180,
         valign = "center",
         halign = "center",
         click = function()
@@ -1364,11 +2435,9 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         end,
     }
 
-    local continueButton = gui.PrettyButton{
-        classes = {"hidden"},
+    local continueButton = gui.Button{
+        classes = {"sizeL", "hidden"},
         text = "Continue>>",
-        height = 50,
-        width = 180,
         valign = "center",
         halign = "center",
         click = function()
@@ -1376,11 +2445,9 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         end,
     }
 
-    local previousButton = gui.PrettyButton{
-        classes = {"hidden"},
+    local previousButton = gui.Button{
+        classes = {"sizeL", "hidden"},
         text = "Back",
-        height = 50,
-        width = 180,
         valign = "center",
         halign = "left",
         click = function()
@@ -1487,16 +2554,16 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
 
         gui.Panel{
             flow = "horizontal", width = "auto", height = "auto",
-            gui.Label{ width = 90, height = "auto", text = "Width:", fontSize = 18 },
+            gui.Label{ classes = {"sizeL"}, width = 90, height = "auto", text = "Width:"},
             statusWidth,
-            gui.Label{ width = "auto", height = "auto", text = "px", fontSize = 18 },
+            gui.Label{ classes = {"sizeL"}, lmargin = 4, width = "auto", height = "auto", text = "px"},
         },
 
         gui.Panel{
             flow = "horizontal", width = "auto", height = "auto",
-            gui.Label{ width = 90, height = "auto", text = "Height:", fontSize = 18 },
+            gui.Label{ classes = {"sizeL"}, width = 90, height = "auto", text = "Height:"},
             statusHeight,
-            gui.Label{ width = "auto", height = "auto", text = "px", fontSize = 18 },
+            gui.Label{ classes = {"sizeL"}, lmargin = 4, width = "auto", height = "auto", text = "px"},
         },
     }
 
@@ -1555,7 +2622,7 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
                     gui.Label{
                         halign = "center", valign = "center",
                         width = "auto", height = "auto",
-                        fontSize = 18, color = "white",
+                        fontSize = 18,
                         text = string.format("Error: %s", element.error),
                     }
                 }
@@ -1581,19 +2648,17 @@ mod.shared.ReimportMapSizing = function(floor, mapObj)
         height = 940,
         pad = 8,
         flow = "vertical",
-        styles = {
-            Styles.Default,
-            Styles.Panel,
-        },
+        styles = ThemeEngine.GetStyles(),
 
         gui.Label{
-            classes = {"dialogTitle"},
+            classes = {"modalTitle"},
             text = "Reimport Map Sizing",
         },
 
         resultPanel,
 
-        gui.CloseButton{
+        gui.Button{
+            classes = {"closeButton"},
             halign = "right",
             valign = "top",
             floating = true,
@@ -1626,8 +2691,9 @@ mod.shared.FinishFloorImport = function(info, offsetX, offsetY)
     end
 
     local mapId = game.currentMap.id
-    local floorW = math.ceil(info.width)
-    local floorH = math.ceil(info.height)
+    -- Round to nearest tile (see CreateMap comment above).
+    local floorW = math.floor(info.width + 0.5)
+    local floorH = math.floor(info.height + 0.5)
     offsetX = offsetX or game.currentMap.dimensions.x1
     offsetY = offsetY or game.currentMap.dimensions.y1
 
@@ -1720,21 +2786,27 @@ mod.shared.FinishFloorImport = function(info, offsetX, offsetY)
 
         -- Step 3: Expand map dimensions to encompass the new floor.
         -- Done here (after floor creation) to avoid conflicting manifest patches.
-        map = getMap()
-        if map ~= nil then
-            local dim = map.dimensions
-            local newX2 = offsetX + floorW
-            local newY2 = offsetY + floorH
-            local needsExpand = (offsetX < dim.x1 or offsetY < dim.y1 or newX2 > dim.x2 or newY2 > dim.y2)
-            if needsExpand then
-                map.dimensions = {
-                    x1 = math.min(dim.x1, offsetX),
-                    y1 = math.min(dim.y1, offsetY),
-                    x2 = math.max(dim.x2, newX2),
-                    y2 = math.max(dim.y2, newY2),
-                }
-                map:Upload("Expand map for new floor")
-                printf("FLOOR_IMPORT:: Expanded map dimensions")
+        -- Skip in match mode: the new floor occupies the same world bounds as the
+        -- existing floor it's matching, which is already inside the canvas.
+        if info.matchCalibration ~= nil then
+            printf("FLOOR_IMPORT:: matchCalibration in effect; skipping canvas expansion.")
+        else
+            map = getMap()
+            if map ~= nil then
+                local dim = map.dimensions
+                local newX2 = offsetX + floorW
+                local newY2 = offsetY + floorH
+                local needsExpand = (offsetX < dim.x1 or offsetY < dim.y1 or newX2 > dim.x2 or newY2 > dim.y2)
+                if needsExpand then
+                    map.dimensions = {
+                        x1 = math.min(dim.x1, offsetX),
+                        y1 = math.min(dim.y1, offsetY),
+                        x2 = math.max(dim.x2, newX2),
+                        y2 = math.max(dim.y2, newY2),
+                    }
+                    map:Upload("Expand map for new floor")
+                    printf("FLOOR_IMPORT:: Expanded map dimensions")
+                end
             end
         end
 
@@ -1742,18 +2814,154 @@ mod.shared.FinishFloorImport = function(info, offsetX, offsetY)
         for i = 1, 30 do coroutine.yield(0.01) end
 
         -- Step 4: Spawn the imported map image onto the layer.
+        -- If matchCalibration is present, we override the new object's controlPoints/scaling/mapType
+        -- with the existing map's, and place it at the existing's (x, y) so the world bounds match.
+        local applyMatch = info.matchCalibration ~= nil
+        if applyMatch then
+            printf("FLOOR_IMPORT:: matchCalibration in effect; will override new object calibration to match existing.")
+        end
+        local newlySpawnedObjs = {}
         for _, objid in ipairs(info.objids) do
-            printf("FLOOR_IMPORT:: Spawning objid=%s onto layer=%s at (%.1f, %.1f)", objid, mapLayer.floorid, objCenterX, objCenterY)
+            local placeX = applyMatch and info.matchCalibration.x or objCenterX
+            local placeY = applyMatch and info.matchCalibration.y or objCenterY
+            printf("FLOOR_IMPORT:: Spawning objid=%s onto layer=%s at (%.4f, %.4f)%s",
+                objid, mapLayer.floorid, placeX, placeY, applyMatch and " [match mode]" or "")
             local obj = mapLayer:SpawnObjectLocal(objid)
             if obj ~= nil then
-                obj.x = objCenterX
-                obj.y = objCenterY
+                if applyMatch then
+                    obj:ApplyMapCalibration(info.matchCalibration)
+                end
+                obj.x = placeX
+                obj.y = placeY
                 obj:Upload()
-                printf("FLOOR_IMPORT:: Spawned OK. obj.x=%.1f obj.y=%.1f floorIndex=%s", obj.x, obj.y, json(obj.floorIndex))
+                printf("FLOOR_IMPORT:: Spawned OK. obj.x=%.4f obj.y=%.4f floorIndex=%s", obj.x, obj.y, json(obj.floorIndex))
+                newlySpawnedObjs[#newlySpawnedObjs+1] = obj
             else
                 printf("FLOOR_IMPORT:: ERROR: SpawnObjectLocal returned nil for %s", objid)
             end
         end
+
+        -- Wait a few frames so the spawned objects render and ObjectComponentMap.Calculate() runs.
+        for i = 1, 60 do coroutine.yield(0.01) end
+
+        -- Correct placement now that the renderer has computed the real calibration.
+        -- The pre-spawn center estimate assumes a (0.5, 0.5) pivot and treats offset
+        -- as a world coordinate, but the real _mapPivot can be off-center by up to a
+        -- tile and world tile boundaries sit at half-integers (tile centers are at
+        -- integers). Both errors made same-size imports land a full tile off.
+        -- Recompute so the image's top-left corner lands exactly on tile (offsetX, offsetY).
+        if not applyMatch then
+            for _, obj in ipairs(newlySpawnedObjs) do
+                local d = obj.mapAlignmentDiagnostic
+                if d ~= nil and (d.imageWorldWidth or 0) > 0 and (d.imageWorldHeight or 0) > 0 then
+                    local targetX = (offsetX - 0.5) + d.imageWorldWidth * (d.mapPivotX or 0.5)
+                    local targetY = (offsetY - 0.5) + d.imageWorldHeight * (d.mapPivotY or 0.5)
+                    if math.abs(obj.x - targetX) > 0.0001 or math.abs(obj.y - targetY) > 0.0001 then
+                        printf("FLOOR_IMPORT:: Correcting placement from (%.4f, %.4f) to (%.4f, %.4f) using pivot=(%.6f, %.6f)",
+                            obj.x, obj.y, targetX, targetY, d.mapPivotX or 0.5, d.mapPivotY or 0.5)
+                        obj.x = targetX
+                        obj.y = targetY
+                        obj:Upload()
+                    end
+                else
+                    printf("FLOOR_IMPORT:: No calibration available for %s; leaving at center estimate", obj.id)
+                end
+            end
+        end
+
+        -- Diagnostic: dump calibration for every Map LevelObject on the map (existing + new).
+        printf("FLOOR_ALIGN_DIAG:: ===== Post-spawn calibration dump =====")
+        map = getMap()
+        if map ~= nil then
+            local mapCount = 0
+            for _, floor in ipairs(map.floors) do
+                for _, obj in pairs(floor.objects) do
+                    if obj:GetComponent("Map") ~= nil then
+                        mapCount = mapCount + 1
+                        local d = obj.mapAlignmentDiagnostic
+                        printf("FLOOR_ALIGN_DIAG:: Post-spawn Map object [%d] floorid=%s objid=%s calibration=%s",
+                            mapCount, floor.floorid, obj.id, json(d))
+                    end
+                end
+            end
+            printf("FLOOR_ALIGN_DIAG:: Total Map objects on map after spawn: %d", mapCount)
+        end
+
+        -- Pairwise alignment delta check: compare the first 'existing' Map object
+        -- to each newly-spawned one in tile-space and pixel-space.
+        if #newlySpawnedObjs > 0 then
+            map = getMap()
+            local existingDiag = nil
+            local existingFloorId = nil
+            local existingObjId = nil
+            for _, floor in ipairs(map.floors) do
+                for _, obj in pairs(floor.objects) do
+                    if obj:GetComponent("Map") ~= nil then
+                        local isNew = false
+                        for _, n in ipairs(newlySpawnedObjs) do
+                            if n.id == obj.id then isNew = true break end
+                        end
+                        if not isNew then
+                            existingDiag = obj.mapAlignmentDiagnostic
+                            existingFloorId = floor.floorid
+                            existingObjId = obj.id
+                            break
+                        end
+                    end
+                end
+                if existingDiag ~= nil then break end
+            end
+
+            if existingDiag ~= nil then
+                printf("FLOOR_ALIGN_DIAG:: Reference (existing) Map object floorid=%s objid=%s", existingFloorId, existingObjId)
+                for _, newObj in ipairs(newlySpawnedObjs) do
+                    local newDiag = newObj.mapAlignmentDiagnostic
+                    if newDiag == nil then
+                        printf("FLOOR_ALIGN_DIAG:: New object %s had nil mapAlignmentDiagnostic", newObj.id)
+                    else
+                        local function get(t, k) return t[k] end
+                        local exTilesX = get(existingDiag, "tilesAcross") or 0
+                        local newTilesX = get(newDiag, "tilesAcross") or 0
+                        local exTilesY = get(existingDiag, "tilesDown") or 0
+                        local newTilesY = get(newDiag, "tilesDown") or 0
+                        local exImgW = get(existingDiag, "imageWorldWidth") or 0
+                        local newImgW = get(newDiag, "imageWorldWidth") or 0
+                        local exImgH = get(existingDiag, "imageWorldHeight") or 0
+                        local newImgH = get(newDiag, "imageWorldHeight") or 0
+                        local exX1 = get(existingDiag, "areaX1") or 0
+                        local exY1 = get(existingDiag, "areaY1") or 0
+                        local exX2 = get(existingDiag, "areaX2") or 0
+                        local exY2 = get(existingDiag, "areaY2") or 0
+                        local newX1 = get(newDiag, "areaX1") or 0
+                        local newY1 = get(newDiag, "areaY1") or 0
+                        local newX2 = get(newDiag, "areaX2") or 0
+                        local newY2 = get(newDiag, "areaY2") or 0
+                        printf("FLOOR_ALIGN_DIAG:: COMPARE existing vs new:")
+                        printf("FLOOR_ALIGN_DIAG::   existing: pos=(%.4f, %.4f) area=(%.4f, %.4f)-(%.4f, %.4f) imgWorld=(%.4f x %.4f) tiles=(%.4f x %.4f) tileDim=(%.6f, %.6f) pivot=(%.6f, %.6f) px/tile=(%.4f x %.4f)",
+                            get(existingDiag,"x") or 0, get(existingDiag,"y") or 0,
+                            exX1, exY1, exX2, exY2, exImgW, exImgH, exTilesX, exTilesY,
+                            get(existingDiag,"tileDimX") or 0, get(existingDiag,"tileDimY") or 0,
+                            get(existingDiag,"mapPivotX") or 0, get(existingDiag,"mapPivotY") or 0,
+                            get(existingDiag,"pixelsPerTileX") or 0, get(existingDiag,"pixelsPerTileY") or 0)
+                        printf("FLOOR_ALIGN_DIAG::   new     : pos=(%.4f, %.4f) area=(%.4f, %.4f)-(%.4f, %.4f) imgWorld=(%.4f x %.4f) tiles=(%.4f x %.4f) tileDim=(%.6f, %.6f) pivot=(%.6f, %.6f) px/tile=(%.4f x %.4f)",
+                            get(newDiag,"x") or 0, get(newDiag,"y") or 0,
+                            newX1, newY1, newX2, newY2, newImgW, newImgH, newTilesX, newTilesY,
+                            get(newDiag,"tileDimX") or 0, get(newDiag,"tileDimY") or 0,
+                            get(newDiag,"mapPivotX") or 0, get(newDiag,"mapPivotY") or 0,
+                            get(newDiag,"pixelsPerTileX") or 0, get(newDiag,"pixelsPerTileY") or 0)
+                        printf("FLOOR_ALIGN_DIAG::   delta   : pos=(%.4f, %.4f) topLeft=(%.4f, %.4f) bottomRight=(%.4f, %.4f) imgWorld=(%.4f x %.4f) tilesAcross=%.6f tilesDown=%.6f",
+                            (get(newDiag,"x") or 0) - (get(existingDiag,"x") or 0),
+                            (get(newDiag,"y") or 0) - (get(existingDiag,"y") or 0),
+                            newX1 - exX1, newY1 - exY1, newX2 - exX2, newY2 - exY2,
+                            newImgW - exImgW, newImgH - exImgH,
+                            newTilesX - exTilesX, newTilesY - exTilesY)
+                    end
+                end
+            else
+                printf("FLOOR_ALIGN_DIAG:: No pre-existing Map object to compare against.")
+            end
+        end
+        printf("FLOOR_ALIGN_DIAG:: ===== End post-spawn calibration dump =====")
 
         -- Final state log.
         printf("FLOOR_IMPORT:: --- Final floor state ---")

@@ -2,6 +2,8 @@
 
 This document is the reference for building UI in the DMHub Lua framework. It covers available controls, the style system, layout, events, and coding standards.
 
+> **For theming, classes, and colors, see [ThemeEngine.md](./ThemeEngine.md).** The Theme Engine is the canonical source for the class vocabulary (`{label, sizeS}`, `{button, sizeL}`, `{form}`, `{modalTitle}`, the `success`/`warning`/`bgDanger`/`borderInfo`/etc. utilities, the `surfaceLinear`/`surfaceRadial` gradients, …) and the `@`-prefixed scheme tokens. New code should compose theme classes and reference scheme tokens — not declare local hex constants. The Style System and Colors sections below are still useful for understanding how the engine cascades work; treat ThemeEngine.md as the authority for what classes exist and when to use them.
+
 ## Overview
 
 UI is declarative: you construct trees of panels using `gui.Panel{}`, `gui.Label{}`, etc. Each constructor takes a table of properties, event handlers, and child panels. Panels support CSS-like styling through class selectors and style tables, and communicate via a custom event system.
@@ -16,7 +18,7 @@ UI is declarative: you construct trees of panels using `gui.Panel{}`, `gui.Label
 
 Key properties:
 - Layout: `flow` ("vertical"/"horizontal"/"none"), `width`, `height`, `halign`, `valign`
-- Spacing: `pad`, `hpad`, `vpad`, `margin`, `hmargin`, `vmargin`, `tmargin`, `bmargin`, `lmargin`, `rmargin`
+- Spacing: `pad`, `hpad`, `vpad`, `margin`, `hmargin`, `vmargin`, `tmargin`, `bmargin`, `lmargin`, `rmargin`, `borderBox`
 - Visual: `bgcolor`, `bgimage`, `border`, `borderColor`, `borderWidth`, `cornerRadius`, `opacity`
 - Behavior: `vscroll` (scrollable), `interactable`, `classes`, `styles`, `data`
 - Inline-only: `floating`, `rotate` (NEVER put these in styles)
@@ -32,7 +34,7 @@ Key methods:
 - `PulseClass(name)` -- briefly add then remove (used for fade-in animations)
 
 Key fields:
-- `children` -- table of child panels (can be reassigned to swap content)
+- `children` -- table of child panels (can be reassigned, but see **Orphaned Panels** below)
 - `parent` -- parent panel reference
 - `data` -- custom data storage table
 - `selfStyle` -- mutable inline style overrides (use sparingly)
@@ -63,16 +65,13 @@ Events: `edit` (fires during typing after editlag), `change` (value committed), 
 
 ### Button Controls
 
-- **gui.EnhIconButton** -- icon button with `bgimage`. Used for toolbar and action buttons.
-- **gui.IconButton** -- icon button with built-in hover/press states. Properties: `icon`, `tooltip`, `press`, `flipped` (mirror image).
-- **gui.Button** -- styled text button with optional `icon` and `tooltip`.
-- **gui.CloseButton** -- X-icon close button.
-- **gui.DeleteItemButton** -- styled delete button with press state.
-- **gui.AddButton** -- plus-sign button for adding items.
-- **gui.SimpleIconButton** -- generic icon button with close-button styling.
-- **gui.DiamondButton** -- diamond-shaped button.
-- **gui.FancyButton** / **gui.PrettyButton** -- decorative styled buttons.
-- **gui.HudIconButton** -- HUD-style icon button.
+For new code, use **`gui.Button`** for everything — pair it with theme size classes (`sizeXxs`/`sizeXs`/`sizeS`/`sizeM`/`sizeL`/`sizeXl`/`sizeXxl`), iconographic kind classes (`addButton`/`closeButton`/`copyButton`/`deleteButton`/`settingsButton`), and hover-tint classes (`withSuccess`/`withInfo`/`withWarning`/`withDanger`). Pass `icon = "..."` for icon-only buttons; pass `text = "..."` for text buttons; pass `requireConfirm = true` on a `deleteButton` to opt into a confirmation modal. See [ThemeEngine.md](./ThemeEngine.md) for the full deprecation table and class reference.
+
+- **gui.Button** -- the canonical button. Use with theme classes as above.
+- **gui.DiamondButton** -- diamond-shaped button (special-purpose; not deprecated).
+
+The following are **deprecated** -- migrate to `gui.Button` per ThemeEngine.md:
+`gui.EnhIconButton`, `gui.IconButton`, `gui.SimpleIconButton`, `gui.HudIconButton`, `gui.AddButton`, `gui.CloseButton`, `gui.CopyButton`, `gui.DeleteButton`, `gui.DeleteItemButton`, `gui.FancyButton`, `gui.PrettyButton`, `gui.SettingsButton`.
 
 ### Selection Controls
 
@@ -95,9 +94,23 @@ Events: `edit` (fires during typing after editlag), `change` (value committed), 
 
 ### Navigation Controls
 
-**gui.CollapseArrow** -- expand/collapse arrow indicator. Uses `collapseSet` class to flip via scale. Always use this -- never build custom expand/collapse arrows.
+**gui.CollapseArrow** -- expand/collapse arrow indicator using a down-arrow asset that flips vertically (via `scale`). Toggled with the `collapseSet` class.
+
+**gui.ExpandoArrow** -- expand/collapse triangle that rotates 90° between right (collapsed) and down (expanded). Toggled with the `expanded` class. Carries the theme's `triangle` class so it inherits themed bgcolor / sizing / hover. See [ThemeEngine.md](./ThemeEngine.md) for the canonical pattern.
+
+Use one of these two -- never roll your own rotate/flip indicator.
 
 ```lua
+-- Triangle (right -> down)
+gui.ExpandoArrow{
+    click = function(element)
+        local nowExpanded = not element:HasClass("expanded")
+        element:SetClass("expanded", nowExpanded)
+        contentPanel:SetClass("collapsed", not nowExpanded)
+    end,
+}
+
+-- Down arrow (down -> up)
 gui.CollapseArrow{
     classes = {"expando"},
     setCollapse = function(element, collapsed)
@@ -106,7 +119,7 @@ gui.CollapseArrow{
 }
 ```
 
-**gui.PagingArrow** -- left/right paging arrow. Property: `facing` (-1 for left, 1 for right).
+**gui.PagingArrow** -- DEPRECATED. Use gui.Button{ classes = {"pagingArrow", ["left" | "right"]}, instead. Left is default.
 
 ### Display Controls
 
@@ -116,9 +129,9 @@ gui.CollapseArrow{
 
 **gui.StatsHistoryTooltip{entries=...}** -- tooltip showing stat change history.
 
-**gui.MCDMDivider{layout="..."}** -- decorative divider. Layouts: "line", "dot", "peak", "v", "vdot".
+**gui.MCDMDivider{layout="..."}** -- decorative divider; the canonical choice. Layouts: "line", "dot", "peak", "v", "vdot". Plain `gui.MCDMDivider{ width = "..." }` (no layout) gives a simple horizontal rule.
 
-**gui.Divider** -- simple horizontal line divider.
+**gui.Divider** -- legacy simple horizontal line divider. Prefer `gui.MCDMDivider` for new UI.
 
 **gui.Diamond** -- diamond shape (45-degree rotated square). Properties: `borderWidth`, `borderColor`.
 
@@ -167,6 +180,33 @@ gui.Panel{
 }
 ```
 
+### Z-Ordering (Sibling Array Order)
+
+Panels have **no** `zorder`/`z-index` style property. Render order is determined entirely by **sibling array order**: among siblings sharing a parent, **later entries in the `children` array render on top of earlier ones**. (`LuaObjectInstance.zorder` exists, but that is for map objects/tokens, not GUI panels.)
+
+```lua
+gui.Panel{
+    -- 'back' draws first (underneath); 'front' draws last (on top).
+    gui.Panel{ id = "back",  bgimage = true, bgcolor = "red" },
+    gui.Panel{ id = "front", bgimage = true, bgcolor = "blue" },
+}
+```
+
+To bring an existing panel forward at runtime, call `panel:SetAsLastSibling()` (it becomes the last child; other siblings keep their relative order).
+
+To drive z-order from a data field, sort ascending by that field before building the `children` array, so the highest value lands last (on top):
+
+```lua
+table.sort(items, function(a, b) return (a.zorder or 0) < (b.zorder or 0) end)
+local children = {}
+for i, item in ipairs(items) do
+    children[i] = BuildPanel(item)
+end
+element.children = children
+```
+
+Note that this only orders siblings relative to each other. A child cannot render above a panel that is its parent's sibling drawn later -- to change cross-branch layering, move the container, not the child.
+
 ---
 
 ## Panels Must Be Parented Immediately
@@ -214,6 +254,8 @@ This is especially important for panels with live event subscriptions (e.g. dice
 ---
 
 ## Style System
+
+> **For new theme-aware code, use the Theme Engine** — see [ThemeEngine.md](./ThemeEngine.md). Apply `styles = ThemeEngine.GetStyles()` at the top panel of a window/dialog and compose theme classes on descendants. Use `ThemeEngine.MergeStyles(extras)` only when a surface needs a small block of additional rules on top of the base theme; reach for `ThemeEngine.MergeTokens(extras)` only at a downstream panel that already has a themed ancestor and just needs `@`-token resolution. The general style-system mechanics below still apply (selectors, cascading, inline-vs-class, etc.) — they describe how the engine cascade works under the hood.
 
 ### Definition Format
 
@@ -314,7 +356,7 @@ gui.Panel{
 
 ### Available Style Properties
 
-Layout: `width`, `height`, `flow`, `halign`, `valign`, `pad`, `hpad`, `vpad`, `margin`, `hmargin`, `vmargin`, `tmargin`, `bmargin`, `lmargin`, `rmargin`, `maxWidth`, `maxHeight`
+Layout: `width`, `height`, `flow`, `halign`, `valign`, `pad`, `hpad`, `vpad`, `margin`, `hmargin`, `vmargin`, `tmargin`, `bmargin`, `lmargin`, `rmargin`, `maxWidth`, `maxHeight`, `borderBox`
 
 Visual: `bgcolor`, `bgimage`, `bgslice`, `border`, `borderColor`, `borderWidth`, `cornerRadius`, `gradient`, `opacity`, `brightness`, `shadow`, `hueshift`
 
@@ -341,15 +383,18 @@ MySizes.HealthBar = { segmentHeight = 10, diamondSize = 12 }
 
 ### Colors
 
-Define named locals at the top of the file using hex strings:
+> **For new code, use scheme tokens — not local hex constants.** Reference colors via the `@`-prefixed tokens (`@fg`, `@bg`, `@bgAlt`, `@accent`, `@border`, `@success`, `@info`, `@warning`, `@danger`, `@disabled`, `@fgStrong`, `@fgMuted`, `@fgInverse`, …) inside style rules so the UI re-themes with the active scheme. See [ThemeEngine.md](./ThemeEngine.md) for cascade mechanics and [DefaultStyles.md](./DefaultStyles.md) for prescriptive guidance on which token / class to reach for in any given situation.
+
+The local-hex pattern below is the **legacy** approach, kept here for understanding pre-ThemeEngine code. Don't introduce new files that follow it.
 
 ```lua
+-- LEGACY (do not use in new code):
 local GOLD = "#966D4B"
 local CREAM = "#FFFEF8"
 local TEAL_HEAL = "#2D6A4F"
 ```
 
-Append hex alpha for transparency: `GOLD .. "0F"` for 6% opacity.
+Append hex alpha for transparency: `GOLD .. "0F"` for 6% opacity. (Same idiom applies to the rare cases where you genuinely need a literal color, e.g. `bgcolor = "white"` for image-tint-neutral surfaces.)
 
 ### Dynamic Font Sizing
 
@@ -470,30 +515,45 @@ end
 ### Sizing Expressions
 
 - Pixels: `width = 100`
-- Percentage: `width = "50%"`
-- Percent minus pixels: `width = "100%-8"` (useful for margins within a container)
+- Percentage: `width = "50%"` (of the parent's content box)
+- Percent plus/minus pixels: `width = "100%-8"` (useful for margins within a container). Only one additive offset parses -- `"100%-20-5"` does not.
 - Auto: `width = "auto"` (fit to content)
-- Remaining space: `height = "100% available"` (fill space after siblings)
-- Aspect ratio: `width = "100% height"` (width equals the element's height)
+- Scaled auto: `width = "50% auto"` (content size scaled by the percentage)
+- Remaining space: `width = "100% available"` / `height = "100% available"` (fill space left over after other siblings are placed). Works on both axes. On the parent's flow axis the percentage is a flex-grow weight: siblings using `available` split the leftover proportional to their percents (`"200% available"` takes twice the share of `"100% available"`; equal percents split evenly), each clamped by its min/max with remainders redistributed. On the cross axis (or in a `flow = "none"` parent) there is no competition and `available` stretches to the parent's content extent. On the flow axis of a `wrap` container it is unsupported and falls back to `auto` with a console warning. (Both-axes + weights landed 2026-08-09, needs engine build; before that build, `available` is height-only with an even split.)
+- Aspect ratio: `width = "100% height"` (width equals the element's own height), `width = "50% height"` (half of it). A bare `width = "height"` / `height = "width"` also parses.
+- Font-relative: `height = "1.5em"` -- 1.5 x the panel's computed `fontSize` multiplied by the user's Font Size setting (80%-140%); `width = "20sp"` -- 20px multiplied by the Font Size setting alone. Use these for icon sizes, row heights, and gutters that should scale with text instead of staying fixed while glyphs grow. The additive offset works (`"1.5em+4"`, `"2em-6"`); `available` does NOT combine with em/sp (warns and is ignored). An `em` dimension resolves against the `fontSize` as cascaded when its style rule applies -- a *later* rule that changes only `fontSize` does not re-resolve it, so set `fontSize` in the same rule or an earlier (more general) one. Padding does not accept em/sp (pads are plain pixel ints).
+- Bounds: `minWidth`, `maxWidth`, `minHeight`, `maxHeight` accept all of these forms too, not just pixel numbers (e.g. `maxWidth = "80%"`). `cornerRadius` accepts the same dimension grammar, including em/sp.
 
 ### Spacing
 
 - Inner (padding): `pad` (all), `hpad` (left+right), `vpad` (top+bottom)
 - Outer (margin): `margin` (all), `hmargin`, `vmargin`, `tmargin`, `bmargin`, `lmargin`, `rmargin`
 
-**Important gotcha:** `hpad` and `vpad` add to the element's size -- they do not shrink the content area. An element with `width = "100%"` and `hpad = 10` will be 20px wider than its parent (10px on each side).
+**Box sizing:** By default (content-box behavior), `hpad` and `vpad` add to the element's rendered size -- they do not shrink the content area. This means an element with `width = 200` and `hpad = 10` will render 220px wide (200 content + 10 on each side), which is rarely the intent.
 
-To keep a padded element within its parent, subtract the padding from the width:
+**Always set `borderBox = true` on new panels that use padding.** This makes the specified width/height include padding, so the element stays the size you declared and the content area shrinks inward instead. This matches CSS `box-sizing: border-box` and avoids overflow surprises.
 
 ```lua
--- WRONG: overflows parent by 20px
-gui.Panel{ width = "100%", hpad = 10 }
+-- CORRECT: borderBox makes padding shrink the content area inward.
+-- The panel renders exactly 200px wide; content area is 180px.
+gui.Panel{ width = 200, hpad = 10, borderBox = true }
 
--- CORRECT: fits exactly within parent
+-- LEGACY: without borderBox, the panel renders 220px wide (200 + 2*10).
+-- Avoid this pattern in new code.
+gui.Panel{ width = 200, hpad = 10 }
+
+-- ALSO WORKS: manually subtract padding from width.
+-- Use borderBox = true instead when possible.
 gui.Panel{ width = "100%-20", hpad = 10 }
 ```
 
-The same applies to `vpad` and `height`.
+The same applies to `vpad` and `height`. `borderBox` works with both fixed pixel widths and percentage widths.
+
+**Two exceptions to the `borderBox` rule.**
+
+*Labels and buttons are already border-box.* A `gui.Label` (and therefore a `gui.Button`, which is a label) does not lay its padding out as box geometry at all -- `SheetLabel` pushes the pad into the TMP text margin and reports zero pad to the layout, so padding insets the *text* and leaves the element's rendered size untouched. A `sizeL` button is 175px wide with or without `hpad = 12`; only the text gutter changes (and, because `minFontSize` auto-shrink now has less room, a long label starts shrinking sooner instead of running edge to edge). Do not add `borderBox` to a label to "compensate" -- there is nothing to subtract.
+
+*`borderBox` only acts within the style rule that also sets the width.* The flag subtracts padding from `width`/`height` as that same style is applied, so setting `borderBox` on a panel whose width arrives from a *class* rule -- e.g. `gui.Button{ classes = {"sizeL"}, hpad = 12, borderBox = true }`, where the 175 comes from the `sizeL` rule -- does nothing at all. Put `borderBox` in the same rule (or the same constructor call) as the width it is meant to modify.
 
 ### Scrolling
 
@@ -510,9 +570,11 @@ cornerRadius = 6                                     -- uniform radius
 cornerRadius = { x1 = 0, x2 = 0, y1 = 4, y2 = 4 } -- bottom corners only
 ```
 
+**Use real borders, not panels-as-dividers.** When you need a separator line between sibling sections (e.g. between modifier cards in a list), put a per-edge `border` on the section panel — do not add a thin `gui.Panel{ height = 1, bgcolor = "@border" }` sibling. The border facility is semantic, ignores layout flow, costs zero extra layout passes, and respects `borderColor` cleanly. A panel-as-divider adds a layout child, contends with margins, and risks breaking under scrolling. Reach for a divider panel only when the border facility can't express what you need (gradient line, shaped separator, divider with mid-line text/icon).
+
 ### Wrap
 
-`wrap = true` -- children wrap to the next line (horizontal flow).
+`wrap = true` -- children that don't fit wrap to the next row (horizontal flow) or the next column (vertical flow). Works in both flow directions, but only against a bounded axis: `flow = "horizontal", wrap = true, width = "auto"` has nothing to wrap against.
 
 ---
 
@@ -524,7 +586,7 @@ cornerRadius = { x1 = 0, x2 = 0, y1 = 4, y2 = 4 } -- bottom corners only
 
 **Input**: `edit` (during typing, respects `editlag`), `change` (value committed), `confirm` (Enter key), `focus`, `defocus`
 
-**Lifecycle**: `create` (panel initialized), `destroy` (panel removed)
+**Lifecycle**: `create` (panel initialized), `destroy` (panel removed), `rendered` (rendered size changed; receives `width, height` -- see Reacting to Rendered Size)
 
 **Document monitoring**: Set `monitorGame = documentPath` on a panel, then handle `refreshGame` to react to shared document changes.
 
@@ -619,9 +681,23 @@ Set `element.thinkTime = 0` to stop the timer. Adjust dynamically as needed.
 
 ---
 
-## Deferred Positioning
+## Reacting to Rendered Size
 
-Panel dimensions (`renderedWidth`, `renderedHeight`) are not available until after the first render. Use `dmhub.Schedule` with a small delay for positioning that depends on rendered size:
+Panel dimensions (`renderedWidth`, `renderedHeight`) are not available until after the first render. To react to a panel's rendered size -- including whenever it later changes -- use the `rendered` event, which the engine fires on a panel each time its rendered size changes:
+
+```lua
+gui.Panel{
+    rendered = function(element, width, height)
+        -- ONLY toggle classes or record the size here. Never resize or
+        -- reposition element itself from inside this handler: it fires at
+        -- the end of the layout pass, so mutating layout from it risks a
+        -- feedback loop.
+        element:SetClass("narrow", width < 420)
+    end,
+}
+```
+
+For one-shot positioning that depends on **another** panel's rendered size, `dmhub.Schedule` with a small delay remains a workable fallback:
 
 ```lua
 create = function(element)
@@ -646,6 +722,38 @@ dmhub.Schedule(1.0, function()
     end
 end)
 ```
+
+---
+
+## Orphaned Panels
+
+**When a panel is removed from the UI tree (orphaned), the engine automatically destroys it.** This means you cannot remove a panel from its parent and later re-add it -- the panel will be invalid after removal.
+
+This commonly happens when assigning `element.children = { ... }` -- any previous children not included in the new list are orphaned and destroyed. Do **not** store references to panels and attempt to swap them back in later.
+
+Instead, use the `collapsed` class to show/hide panels while keeping them in the tree:
+
+```lua
+-- WRONG: swapping children destroys the removed panels
+showSettings = function(element)
+    element.children = { settingsPanel }  -- chatPanel is now destroyed!
+end,
+closeSettings = function(element)
+    element.children = { chatPanel }      -- ERROR: chatPanel is invalid
+end,
+
+-- RIGHT: toggle visibility, all panels stay in the tree
+showSettings = function(element)
+    chatArea:SetClass("collapsed", true)
+    settingsArea:SetClass("collapsed", false)
+end,
+closeSettings = function(element)
+    chatArea:SetClass("collapsed", false)
+    settingsArea:SetClass("collapsed", true)
+end,
+```
+
+This applies to any scenario where you want to switch between views -- always keep both views as children and toggle `collapsed` rather than swapping the children list.
 
 ---
 
@@ -788,7 +896,7 @@ element:SetClass("negative", val < 0)
 4. **Inline all child panel declarations** -- no local variables for panels.
 5. **Use FireEventTree with custom events** for inter-panel communication between inlined panels.
 6. **Beware FireEventTree infinite loops** -- it fires on the calling element too. Use FireEvent for self-only.
-7. **Use gui.CollapseArrow** -- never build custom expand/collapse arrows.
+7. **Use gui.ExpandoArrow** (90° rotate) or **gui.CollapseArrow** (vertical flip) -- never build custom expand/collapse indicators.
 8. **Use gui.Tooltip(text)(element)** in linger handlers for tooltips.
 9. **All magic numbers** go in a constants table.
 10. **Store panel state in data tables**, not closure upvalues.

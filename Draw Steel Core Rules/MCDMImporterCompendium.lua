@@ -182,9 +182,6 @@ local function CreateEditPanel(tableName)
     local m_item = nil
     local editPanel
     editPanel = gui.Panel{
-        styles = {
-            Styles.Form,
-        },
         vscroll = true,
         width = 1000,
         height = "90%",
@@ -215,17 +212,15 @@ local function CreateEditPanel(tableName)
             end,
 
             gui.Panel{
-                classes = {"formPanel"},
-                width = "100%",
+                classes = {"formStackedRow"},
 
                 gui.Label{
-                    classes = {"formLabel"},
-                    halign = "left",
+                    classes = {"formStacked"},
                     text = "Name:",
                 },
 
                 gui.Input{
-                    classes = {"formInput"},
+                    classes = {"formStacked"},
                     width = 300,
                     halign = "left",
                     setdata = function(element, item)
@@ -241,16 +236,15 @@ local function CreateEditPanel(tableName)
             },
 
             gui.Panel{
-                classes = {"formPanel"},
-                width = "100%",
+                classes = {"formStackedRow"},
 
                 gui.Label{
-                    classes = {"formLabel"},
-                    halign = "left",
+                    classes = {"formStacked"},
                     text = "Match Type:",
                 },
 
                 gui.Dropdown{
+                    classes = {"formStacked"},
                     options = {
                         {
                             id = "name",
@@ -276,17 +270,15 @@ local function CreateEditPanel(tableName)
             },
 
             gui.Panel{
-                classes = {"formPanel"},
-                width = "100%",
+                classes = {"formStackedRow"},
 
                 gui.Label{
-                    classes = {"formLabel"},
-                    halign = "left",
+                    classes = {"formStacked"},
                     text = "Match Pattern:",
                 },
 
                 gui.Input{
-                    classes = {"formInput"},
+                    classes = {"formStacked"},
                     width = 600,
                     halign = "left",
                     multiline = true,
@@ -307,42 +299,48 @@ local function CreateEditPanel(tableName)
             },
 
             gui.Panel{
-                classes = {"formPanel"},
-                width = "100%",
+                classes = {"formStackedRow"},
 
                 gui.Label{
-                    classes = {"formLabel"},
-                    halign = "left",
+                    classes = {"formStacked"},
                     text = "Expression:",
                 },
 
-                gui.Label{
-                    classes = {"formLabel"},
-                    width = 600,
+                gui.Panel{
+                    flow = "horizontal",
+                    width = "100%",
                     height = "auto",
-                    halign = "left",
-                    setdata = function(element, item)
-                        element:FireEvent("testCasesChanged")
-                    end,
-                    testCasesChanged = function(element)
-                        if m_item ~= nil and m_item:has_key("importMatch") then
-                            local pattern = CreateMatchPattern("monster", m_item.importMatch)
-                            element.text = pattern
-                        end
-                    end,
-                },
 
-                gui.CopyButton{
-                    width = 10,
-                    height = 10,
-                    click = function(element)
-                        dmhub.CopyToClipboard(element.parent.children[2].text)
-                    end,
+                    gui.Input{
+                        classes = {"formStacked"},
+                        width = "100%-24",
+                        height = "auto",
+                        multiline = true,
+                        maxHeight = 200,
+                        setdata = function(element, item)
+                            element:FireEvent("testCasesChanged")
+                        end,
+                        testCasesChanged = function(element)
+                            if m_item ~= nil and m_item:has_key("importMatch") then
+                                local pattern = CreateMatchPattern("monster", m_item.importMatch)
+                                element.text = pattern
+                            end
+                        end,
+                    },
+
+                    gui.Button{
+                        classes = {"copyButton", "sizeS"},
+                        valign = "center",
+                        click = function(element)
+                            dmhub.CopyToClipboard(element.parent.children[1].text)
+                        end,
+                    },
                 },
 
             },
 
             gui.Panel{
+                classes = {"formStackedRow"},
                 width = 800,
                 height = "auto",
                 flow = "vertical",
@@ -353,13 +351,16 @@ local function CreateEditPanel(tableName)
 
                     for i,testCase in ipairs(testCases) do
                         children[i] = children[i] or gui.Panel{
-                            classes = {"formPanel"},
+                            classes = {"row", cond(i % 2 == 0, "evenRow", "oddRow")},
+                            flow = "horizontal",
                             width = "100%",
+                            height = "auto",
+                            vpad = 4,
 
                             gui.Input{
-                                classes = {"formInput"},
                                 width = 600,
                                 halign = "left",
+                                valign = "center",
                                 multiline = true,
                                 height = "auto",
                                 maxHeight = 200,
@@ -379,11 +380,13 @@ local function CreateEditPanel(tableName)
                             },
 
                             gui.Label{
+                                classes = {"sizeS"},
                                 text = "---",
                                 width = 140,
                                 height = "auto",
-                                fontSize = 14,
                                 halign = "left",
+                                valign = "center",
+                                lmargin = 12,
                                 settest = function(element, testCase)
                                     element:FireEvent("runtest", testCase.text)
                                 end,
@@ -398,9 +401,9 @@ local function CreateEditPanel(tableName)
                                 end,
                             },
 
-                            gui.DeleteItemButton{
-                                width = 16,
-                                height = 16,
+                            gui.Button{
+                                classes = {"deleteButton", "sizeS"},
+                                valign = "center",
                                 click = function(element)
                                     local testCases = m_item:try_get("testCases") or {}
                                     table.remove(testCases, i)
@@ -425,9 +428,8 @@ local function CreateEditPanel(tableName)
             },
 
             gui.Button{
-                width = 100,
-                height = 24,
-                fontSize = 14,
+                classes = {"sizeM"},
+                width = 160,
                 text = "Add Test Case",
                 click = function(element)
                     m_item.testCases = m_item:try_get("testCases") or {}
@@ -583,10 +585,14 @@ Compendium.Register{
 local function CreateEditAbilityEffectsPanel(tableName)
     local m_item = nil
     local editPanel
+
+    --The Hidden check only means anything for standard abilities, which are the
+    --only ones offered in the Invoked Ability dropdown.
+    local hiddenRowClasses = {"formStackedRow"}
+    if tableName ~= "standardAbilities" then
+        hiddenRowClasses[#hiddenRowClasses+1] = "collapsed"
+    end
     editPanel = gui.Panel{
-        styles = {
-            Styles.Form,
-        },
         vscroll = true,
         width = 1000,
         height = "90%",
@@ -627,17 +633,15 @@ local function CreateEditAbilityEffectsPanel(tableName)
             end,
 
             gui.Panel{
-                classes = {"formPanel"},
-                width = "100%",
+                classes = {"formStackedRow"},
 
                 gui.Label{
-                    classes = {"formLabel"},
-                    halign = "left",
+                    classes = {"formStacked"},
                     text = "Name:",
                 },
 
                 gui.Input{
-                    classes = {"formInput"},
+                    classes = {"formStacked"},
                     width = 300,
                     halign = "left",
                     characterLimit = 120,
@@ -654,17 +658,32 @@ local function CreateEditAbilityEffectsPanel(tableName)
             },
 
             gui.Panel{
-                classes = {"formPanel"},
-                width = "100%",
+                classes = hiddenRowClasses,
+                gui.Check{
+                    text = "Hidden",
+                    hover = gui.Tooltip("If checked, this ability won't appear in the Invoked Ability dropdown."),
+                    setdata = function(element, item)
+                        element.value = item:try_get("hiddenFromInvoke", false)
+                    end,
+                    change = function(element)
+                        if m_item ~= nil then
+                            m_item.hiddenFromInvoke = element.value
+                            editPanel:FireEvent("change")
+                        end
+                    end,
+                },
+            },
+
+            gui.Panel{
+                classes = {"formStackedRow"},
                 gui.Label{
-                    classes = {"formLabel"},
-                    halign = "left",
+                    classes = {"formStacked"},
                     text = "GUID:",
                 },
                 gui.Input{
                     width = 300,
                     halign = "left",
-                    classes = {"formInput"},
+                    classes = {"formStacked"},
                     setdata = function(element, item)
                         element.text = item:try_get("id", "")
                     end,
@@ -672,17 +691,15 @@ local function CreateEditAbilityEffectsPanel(tableName)
             },
 
             gui.Panel{
-                classes = {"formPanel"},
-                width = "100%",
+                classes = {"formStackedRow"},
 
                 gui.Label{
-                    classes = {"formLabel"},
-                    halign = "left",
+                    classes = {"formStacked"},
                     text = "Documentation:",
                 },
 
                 gui.Input{
-                    classes = {"formInput"},
+                    classes = {"formStacked"},
                     width = 300,
                     minHeight = 40,
                     maxHeight = 200,
@@ -707,16 +724,15 @@ local function CreateEditAbilityEffectsPanel(tableName)
 
 
             gui.Panel{
-                classes = {"formPanel"},
-                width = "100%",
+                classes = {"formStackedRow"},
 
                 gui.Label{
-                    classes = {"formLabel"},
-                    halign = "left",
+                    classes = {"formStacked"},
                     text = "Match Type:",
                 },
 
                 gui.Dropdown{
+                    classes = {"formStacked"},
                     options = {
                         {
                             id = "name",
@@ -741,17 +757,15 @@ local function CreateEditAbilityEffectsPanel(tableName)
             },
 
             gui.Panel{
-                classes = {"formPanel"},
-                width = "100%",
+                classes = {"formStackedRow"},
 
                 gui.Label{
-                    classes = {"formLabel"},
-                    halign = "left",
+                    classes = {"formStacked"},
                     text = "Match Pattern:",
                 },
 
                 gui.Input{
-                    classes = {"formInput"},
+                    classes = {"formStacked"},
                     width = 600,
                     halign = "left",
                     multiline = true,
@@ -771,20 +785,18 @@ local function CreateEditAbilityEffectsPanel(tableName)
             },
 
             gui.Panel{
-                classes = {"formPanel"},
-                width = "100%",
+                classes = {"formStackedRow"},
 
                 gui.Label{
-                    classes = {"formLabel"},
-                    halign = "left",
+                    classes = {"formStacked"},
                     text = "Expression:",
                 },
 
-                gui.Label{
-                    classes = {"formLabel"},
-                    width = 600,
+                gui.Input{
+                    classes = {"formStacked"},
                     height = "auto",
-                    halign = "left",
+                    multiline = true,
+                    maxHeight = 200,
                     setdata = function(element, item)
                         element:FireEvent("testCasesChanged")
                     end,
@@ -799,6 +811,7 @@ local function CreateEditAbilityEffectsPanel(tableName)
             },
 
             gui.Panel{
+                classes = {"formStackedRow"},
                 width = 800,
                 height = "auto",
                 flow = "vertical",
@@ -809,13 +822,16 @@ local function CreateEditAbilityEffectsPanel(tableName)
 
                     for i,testCase in ipairs(testCases) do
                         children[i] = children[i] or gui.Panel{
-                            classes = {"formPanel"},
+                            classes = {"row", cond(i % 2 == 0, "evenRow", "oddRow")},
+                            flow = "horizontal",
                             width = "100%",
+                            height = "auto",
+                            vpad = 4,
 
                             gui.Input{
-                                classes = {"formInput"},
                                 width = 600,
                                 halign = "left",
+                                valign = "center",
                                 multiline = true,
                                 height = "auto",
                                 maxHeight = 200,
@@ -835,11 +851,13 @@ local function CreateEditAbilityEffectsPanel(tableName)
                             },
 
                             gui.Label{
+                                classes = {"sizeS"},
                                 text = "---",
                                 width = 140,
                                 height = "auto",
-                                fontSize = 14,
                                 halign = "left",
+                                valign = "center",
+                                lmargin = 12,
                                 settest = function(element, testCase)
                                     element:FireEvent("runtest", testCase.text)
                                 end,
@@ -854,9 +872,9 @@ local function CreateEditAbilityEffectsPanel(tableName)
                                 end,
                             },
 
-                            gui.DeleteItemButton{
-                                width = 16,
-                                height = 16,
+                            gui.Button{
+                                classes = {"deleteButton", "sizeS"},
+                                valign = "center",
                                 click = function(element)
                                     local testCases = m_item:try_get("testCases") or {}
                                     table.remove(testCases, i)
@@ -881,9 +899,8 @@ local function CreateEditAbilityEffectsPanel(tableName)
             },
 
             gui.Button{
-                width = 100,
-                height = 24,
-                fontSize = 14,
+                classes = {"sizeM"},
+                width = 160,
                 text = "Add Test Case",
                 click = function(element)
                     m_item.testCases = m_item:try_get("testCases") or {}
@@ -895,32 +912,38 @@ local function CreateEditAbilityEffectsPanel(tableName)
                 end,
             },
 
-            gui.Check{
-                text = "Insert Behaviors At Start",
-                setdata = function(element, item)
-                    if m_item ~= nil then
-                        element.value = item:try_get("insertAtStart", false)
-                    end
-                end,
-                change = function(element)
-                    m_item.insertAtStart = element.value
-                    editPanel:FireEvent("change")
-                    editPanel:FireEventTree("testCasesChanged")
-                end,
+            gui.Panel{
+                classes = {"formStackedRow"},
+                gui.Check{
+                    text = "Insert Behaviors At Start",
+                    setdata = function(element, item)
+                        if m_item ~= nil then
+                            element.value = item:try_get("insertAtStart", false)
+                        end
+                    end,
+                    change = function(element)
+                        m_item.insertAtStart = element.value
+                        editPanel:FireEvent("change")
+                        editPanel:FireEventTree("testCasesChanged")
+                    end,
+                },
             },
 
-            gui.Check{
-                text = "Invoke Surrounding Ability",
-                setdata = function(element, item)
-                    if m_item ~= nil then
-                        element.value = item:try_get("invokeSurroundingAbility", false)
-                    end
-                end,
-                change = function(element)
-                    m_item.invokeSurroundingAbility = element.value
-                    editPanel:FireEvent("change")
-                    editPanel:FireEventTree("testCasesChanged")
-                end,
+            gui.Panel{
+                classes = {"formStackedRow"},
+                gui.Check{
+                    text = "Invoke Surrounding Ability",
+                    setdata = function(element, item)
+                        if m_item ~= nil then
+                            element.value = item:try_get("invokeSurroundingAbility", false)
+                        end
+                    end,
+                    change = function(element)
+                        m_item.invokeSurroundingAbility = element.value
+                        editPanel:FireEvent("change")
+                        editPanel:FireEventTree("testCasesChanged")
+                    end,
+                },
             },
         },
 
@@ -933,6 +956,7 @@ local function CreateEditAbilityEffectsPanel(tableName)
             setdata = function(element, item)
                 element.children = {
                     item:GenerateEditor{
+                        embedded = true,
                     }
                 }
             end,

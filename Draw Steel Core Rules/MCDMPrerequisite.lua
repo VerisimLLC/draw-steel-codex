@@ -74,11 +74,11 @@ function monster:GetDomains()
 end
 
 function creature:GetDeities()
-	return self:GetDeities()
+	return {}
 end
 
 function creature:GetDomains()
-	return self:GetDomains()
+	return {}
 end
 
 CharacterPrerequisite.Register{
@@ -151,6 +151,55 @@ CharacterPrerequisite.Register{
 	end,
 }
 
+--Dropdown of every level in the game system, shared by the level gates below.
+local function LevelOptions()
+	local result = {}
+	for i=1,GameSystem.numLevels do
+		result[#result+1] = {
+			id = tostring(i),
+			text = string.format("Level %d", i),
+		}
+	end
+	return result
+end
+
+--minimum level gate. Works for heroes and monsters alike: a monster's
+--CharacterLevel is its level stat, so retainer advancement features can
+--use this to unlock at levels 4/7/10.
+CharacterPrerequisite.Register{
+	id = "levelRequirement",
+	text = "Minimum Level",
+	met = function(self, creature)
+		local requirement = tonumber(self.skill)
+		return requirement == nil or creature:CharacterLevel() >= requirement
+	end,
+	options = LevelOptions,
+}
+
+--gate on a level the creature actually GAINED, rather than one they have.
+--The creature must have reached the level AND have started below it. A
+--retainer whose stat block is written at level 4 already has the level 2-4
+--benefits baked into their stats, so those advancement features must not be
+--granted a second time; only levels past their starting level count.
+--Creatures with no authored starting level (heroes) have nothing to exclude,
+--so this behaves as a plain minimum level for them.
+CharacterPrerequisite.Register{
+	id = "levelGained",
+	text = "Level Gained",
+	met = function(self, creature)
+		local requirement = tonumber(self.skill)
+		if requirement == nil then
+			return true
+		end
+		if creature:CharacterLevel() < requirement then
+			return false
+		end
+		local baseLevel = creature:GetScalingBaseLevel()
+		return baseLevel == nil or baseLevel < requirement
+	end,
+	options = LevelOptions,
+}
+
 function CharacterFeatureList:CharacterUniqueID()
 	--a repeated feature is an upgrade.
 	return self.name
@@ -200,14 +249,15 @@ function CharacterPrerequisite:Editor(params)
 	local resultPanel
 
 	local args = {
+		classes = {"bordered"},
 		width = 400,
 		height = 'auto',
 		vmargin = 4,
 		halign = "left",
-		borderWidth = 1,
-		borderColor = 'white',
-		bgimage = 'panels/square.png',
-		bgcolor = 'black',
+		-- borderWidth = 1,
+		-- borderColor = 'white',
+		-- bgimage = 'panels/square.png',
+		-- bgcolor = 'black',
 		flow = 'vertical',
 		pad = 4,
 	}
@@ -259,7 +309,7 @@ function CharacterPrerequisite:Editor(params)
 				vmargin = 4,
 				width = 240,
 				height = 24,
-				fontSize = 18,
+				-- fontSize = 18,
 				options = skillOptions,
 				idChosen = self.skill,
 				change = function(element)
@@ -286,12 +336,13 @@ function CharacterPrerequisite:Editor(params)
 			children[#children+1] = typeInfo.editor(self)
 		end
 
-		children[#children+1] = gui.DeleteItemButton{
+		children[#children+1] = gui.Button{
+			classes = {"deleteButton"},
 			floating = true,
 			halign = "right",
 			valign = "top",
-			width = 16,
-			height = 16,
+			-- width = 16,
+			-- height = 16,
 			click = function(element)
 				resultPanel:FireEvent("delete")
 			end,

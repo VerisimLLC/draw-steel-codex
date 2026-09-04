@@ -323,7 +323,7 @@ function Kit.DamageBonusSelected(creature, bonusid, kit1, kit2)
 		local bonusChoices = levelChoices["kitBonusChoices"]
 		if bonusChoices ~= nil then
 			local choice = bonusChoices[bonusid]
-			print("SELECTED:: CHOICE FOR ", bonusid, " = ", choice, kit1.id, kit2.id)
+			--print("SELECTED:: CHOICE FOR ", bonusid, " = ", choice, kit1.id, kit2.id)
 			if choice == kit1.id or choice == kit2.id then
 				return choice == kit1.id
 			end
@@ -354,18 +354,26 @@ function Kit.CombineKits(creature, a, b)
 
 	local abilities = {}
 
+	local function subtractKitBonuses(kit, ability)
+        ability = ability:BifurcateIntoMeleeAndRanged(creature)
+        if ability.meleeAndRanged then
+            ApplyBonusesFromKit(kit, ability.meleeVariation, nil, function(a,b) return a - b end)
+            ApplyBonusesFromKit(kit, ability.rangedVariation, nil, function(a,b) return a - b end)
+        else
+            ApplyBonusesFromKit(kit, ability, nil, function(a,b) return a - b end)
+        end
+        return ability
+    end
+
 	for _,abilityRef in ipairs(a:SignatureAbilities()) do
         local ability = abilityRef:MakeTemporaryClone()
-		--Signature abilities that are melee or ranged are bifurcated so correct bonuses are applied to each variation.
-        ability = ability:BifurcateIntoMeleeAndRanged(creature)
-        ApplyBonusesFromKit(a, ability, nil, function(a,b) return a - b end)
+        ability = subtractKitBonuses(a, ability)
 		abilities[#abilities+1] = ability
 	end
 
 	for _,abilityRef in ipairs(b:SignatureAbilities()) do
         local ability = abilityRef:MakeTemporaryClone()
-        ability = ability:BifurcateIntoMeleeAndRanged(creature)
-        ApplyBonusesFromKit(b, ability, nil, function(a,b) return a - b end)
+        ability = subtractKitBonuses(b, ability)
 		abilities[#abilities+1] = ability
 	end
 
@@ -375,7 +383,7 @@ function Kit.CombineKits(creature, a, b)
     elseif b:has_key("modifierInfo") then
         modifierInfo = ClassLevel:CreateNew()
         modifierInfo:MergeFeatures(a.modifierInfo)
-        modifierInfo:MergeFeatures(a.modifierInfo)
+        modifierInfo:MergeFeatures(b.modifierInfo)
     end
 
 	local result = Kit.new{
@@ -737,6 +745,14 @@ CharacterModifier.TypeInfo.kitmodifyability = {
 
 	willModifyAbility = function(modifier, creature, ability)
 		local kitType = Kit.kitTypesById[modifier.kitType]
+		--A modifier can name a kit type that no longer exists (stale/imported kit
+		--data). Indexing nil here aborted the whole ApplyAbilityModifiers /
+		--GetTriggeredAbilities pass for the creature, producing an error storm --
+		--22 of the 30 recentErrors on report NA3SCFH5 were this line.
+		if kitType == nil then
+			return false
+		end
+
 		for _,keyword in ipairs(kitType.keywords) do
 			if ability.keywords[keyword] then
 				return true
@@ -1005,6 +1021,7 @@ CharacterModifier.TypeInfo.kitaccess = {
 	createEditor = function(modifier, element)
 		local children = {}
 		children[#children+1] = gui.Dropdown{
+			styles = ThemeEngine.GetStyles(),
 			idChosen = modifier.kitType,
 			options = Kit.kitTypes,
 			change = function(element)

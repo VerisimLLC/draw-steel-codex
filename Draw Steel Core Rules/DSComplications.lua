@@ -4,7 +4,7 @@ local mod = dmhub.GetModLoading()
 --- @field tableName string Data table name ("complications").
 --- @field name string Display name.
 --- @field description string Overview text.
---- @field prerequisite string GoblinScript prerequisite expression.
+--- @field prerequisite string|number|table GoblinScript prerequisite expression.
 --- @field tag string Comma-separated tags (e.g. "complication").
 --- @field benefit string Benefit rules text.
 --- @field drawback string Drawback rules text.
@@ -84,7 +84,10 @@ local function ShowComplicationsPanel(contentPanel)
 		},
 
 		itemsListPanel,
-        gui.AddButton{
+        gui.Button{
+            classes = {"addButton"},
+            valign = "top",
+            halign = "right",
             click = function(element)
                 local newComplication = CharacterComplication.new{}
                 dmhub.SetAndUploadTableItem(CharacterComplication.tableName, newComplication)
@@ -156,27 +159,14 @@ function CharacterComplication:Render(args)
         styles = {
             {
                 selectors = {"label"},
-                fontSize = 14,
-                bold = false,
                 width = "100%-20",
                 height = "auto",
                 halign = "center",
                 textAlignment = "topleft",
                 vmargin = 6,
             },
-            {
-                selectors = {"title"},
-                fontFace = 28,
-                fontSize = 24,
-                bold = true,
-            },
         },
 
-        --I think we don't need this since it's redundant with the dropdown triangle.
-        --gui.Label{
-        --    classes = {"title"},
-        --    text = self.name,
-        --},
         gui.Label{
             text = self.description,
         },

@@ -41,6 +41,10 @@ GlobalRuleMod.ApplyOptions = {
         id = "characters_retainers",
         text = "Heroes and Retainers",
     },
+    {
+        id = "characters_retainers_companions",
+        text = "Heroes, Retainers, and Companions",
+    },
 	{
 		id = "all",
 		text = "All Creatures",
@@ -48,15 +52,20 @@ GlobalRuleMod.ApplyOptions = {
 }
 
 function GlobalRuleMod:OnDeserialize()
-    if cond(self.applyCharacters, 1, 0) + cond(self.applyMonsters, 1, 0) == 1 then
-        self.applyRetainers = false
-        self.applyCompanions = false
+    if not self:has_key("_migrated_apply") then
+        self._migrated_apply = true
+        if cond(self.applyCharacters, 1, 0) + cond(self.applyMonsters, 1, 0) == 1 then
+            self.applyRetainers = false
+            self.applyCompanions = false
+        end
     end
 end
 
 function GlobalRuleMod:GetApplyID()
     if self.applyCharacters and self.applyMonsters and self.applyRetainers then
         return "all"
+    elseif self.applyCharacters and self.applyRetainers and self.applyCompanions then
+        return "characters_retainers_companions"
     elseif self.applyCharacters and self.applyRetainers then
         return "characters_retainers"
     elseif self.applyCharacters then

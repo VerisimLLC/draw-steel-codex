@@ -24,9 +24,10 @@ end
 function DTSettings:InitializeDocument()
     local doc = self.mod:GetDocumentSnapshot(self.documentName)
     doc:BeginChange()
+    --The document carries no settings any more. What is left of it is the
+    --timestamp, which every downtime panel monitors: touching it is how a
+    --change made on one client repaints the others.
     doc.data = {
-        pauseRolls = true,
-        pauseRollsReason = "Rolling starts paused.",
         modifiedAt = dmhub.serverTime,
     }
     doc:CompleteChange("Initialize downtime settings", {undoable = false})
@@ -50,63 +51,6 @@ function DTSettings.Touch()
     instance:TouchDoc()
 end
 
---- Gets the pause rolls setting
---- @return boolean pauseRolls Whether rolls are currently paused
-function DTSettings:GetPauseRolls()
-    local doc = self:_safeDoc()
-    if doc then
-        return doc.data.pauseRolls or false
-    end
-    return false
-end
-
---- Sets the pause rolls setting
---- @param pause boolean Whether to pause rolls
-function DTSettings:SetPauseRolls(pause)
-    local doc = self:_safeDoc()
-    if doc then
-        doc:BeginChange()
-        doc.data.pauseRolls = pause or false
-        doc.data.modifiedAt = dmhub.serverTime
-        doc:CompleteChange("Update pause rolls setting", {undoable = false})
-    end
-end
-
---- Gets the pause rolls reason
---- @return string reason The reason why rolls are paused
-function DTSettings:GetPauseRollsReason()
-    local doc = self:_safeDoc()
-    if doc then
-        return doc.data.pauseRollsReason or ""
-    end
-    return ""
-end
-
---- Sets the pause rolls reason
---- @param reason string The reason why rolls are paused
-function DTSettings:SetPauseRollsReason(reason)
-    local doc = self:_safeDoc()
-    if doc then
-        doc:BeginChange()
-        doc.data.pauseRollsReason = reason or ""
-        doc.data.modifiedAt = dmhub.serverTime
-        doc:CompleteChange("Update pause rolls reason", {undoable = false})
-    end
-end
-
---- Sets both pause rolls and reason in a single transaction
---- @param pause boolean Whether to pause rolls
---- @param reason string The reason why rolls are paused
-function DTSettings:SetData(pause, reason)
-    local doc = self:_safeDoc()
-    if doc then
-        doc:BeginChange()
-        doc.data.pauseRolls = pause or false
-        doc.data.pauseRollsReason = reason or ""
-        doc.data.modifiedAt = dmhub.serverTime
-        doc:CompleteChange("Update downtime settings", {undoable = false})
-    end
-end
 
 --- Initializes the settings document with default structure if it's not already set
 --- @return table doc The document
@@ -132,9 +76,8 @@ end
 --- @param doc table The document to validate
 --- @return boolean isValid Whether the document has the expected structure
 function DTSettings._validDoc(doc)
-    return doc.data and type(doc.data) == "table" and
-           doc.data.pauseRolls ~= nil and
-           doc.data.pauseRollsReason ~= nil
+    return doc.data ~= nil and type(doc.data) == "table" and
+           doc.data.modifiedAt ~= nil
 end
 
 --- Gets the path for document monitoring in UI

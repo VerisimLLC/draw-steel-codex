@@ -1,16 +1,30 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
 
 local CreateInspectorPanel
 
 DockablePanel.Register{
 	name = "Character Inspector",
-	icon = mod.images.chatIcon,
+	icon = "phosphor/user-focus.png",
 	minHeight = 200,
 	vscroll = true,
     devonly = true,
 	folder = "Development Tools",
 	content = function()
+		track("panel_open", {
+			panel = "Character Inspector",
+			dailyLimit = 30,
+		})
 		return CreateInspectorPanel()
 	end,
 }
@@ -93,10 +107,9 @@ CreateInspectorPanel = function()
                             element.text = val
                         end,
 
-                        gui.DeleteItemButton{
+                        gui.Button{
+                            classes = {"deleteButton", "sizeXs"},
                             halign = "right",
-                            width = 12,
-                            height = 12,
                             valign = "center",
                             click = function(element)
                                 for i=1, #customEntriesList do

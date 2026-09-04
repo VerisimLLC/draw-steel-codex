@@ -214,6 +214,10 @@ function Variant:CreateTextEditor(value, options)
 	local args = {
 		text = value.value,
 		editable = true,
+		width = "100%-24",
+		height = "auto",
+		textWrap = true,
+		markdown = true,
 		change = function(element)
 			value.value = element.text
 			if change ~= nil then
@@ -253,7 +257,10 @@ function Variant:CreateTableRollEditor(value, options)
 
 	local label
 	local args = {
-		text = text
+		text = text,
+		width = "100%-24",
+		height = "auto",
+		textWrap = true,
 	}
 	for k,v in pairs(options) do
 		args[k] = v
@@ -274,6 +281,9 @@ function Variant:CreateMonsterEditor(value, options)
 	local args = {
 		text = string.format("%s", monster.description),
 		color = "white",
+		width = "100%-24",
+		height = "auto",
+		textWrap = true,
 		hover = function(element)
 			local panel = monster:Render{ width = 800 }
 
@@ -309,6 +319,9 @@ function Variant:CreateResourceEditor(value, options)
 	local args = {
 		text = string.format("%s", resource.name),
 		color = "white",
+		width = "100%-24",
+		height = "auto",
+		textWrap = true,
 	}
 	for k,v in pairs(options) do
 		args[k] = v
@@ -330,6 +343,9 @@ function Variant:CreateItemEditor(value, options)
 	local args = {
 		text = string.format("%s", item.name),
 		color = equipment.rarityColors[item:try_get("rarity", "common")] or "white",
+		width = "100%-24",
+		height = "auto",
+		textWrap = true,
 		hover = function(element)
 			element.tooltip = CreateItemTooltip(item, {halign = "right"}, nil)
 		end,
@@ -479,16 +495,14 @@ function Variant:CreateEditor(options)
 	local args = {
 		bgimage = "panels/square.png",
 		opacity = 0,
-		width = "auto",
+		width = "100%",
 		height = "auto",
 		flow = "horizontal",
 		children = {
 			childElement,
 			quantityLabel,
-			gui.DeleteItemButton{
-
-				width = 16,
-				height = 16,
+			gui.Button{
+				classes = {"deleteButton", "sizeS"},
 				halign = "right",
 				valign = "center",
 				click = function(element)
@@ -572,9 +586,9 @@ local ShowChoiceDialog = function(argOptions)
 
 		local clickAllButton = nil
 		if options.clickAll ~= nil then
-			clickAllButton = gui.PrettyButton{
+			clickAllButton = gui.Button{
+				classes = {"sizeL"},
 				width = 200,
-				height = 40,
 				halign = "center",
 				text = "Add All",
 				click = function(element)
@@ -605,7 +619,6 @@ local ShowChoiceDialog = function(argOptions)
 					checks[#checks+1] = gui.Check{
 						width = 300,
 						height = 20,
-						fontSize = 14,
 						halign = "left",
 						text = checkbox.text,
 						value = checkbox.value,
@@ -622,10 +635,9 @@ local ShowChoiceDialog = function(argOptions)
 			end,
 		}
 
-
 		dialogPanel = gui.Panel{
 			classes = {'framedPanel'},
-			styles = Styles.Panel,
+			styles = ThemeEngine.GetStyles(),
 
 			width = 700,
 			height = 800,
@@ -647,48 +659,14 @@ local ShowChoiceDialog = function(argOptions)
 			captureEscape = true,
 			escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
 
-
-			gui.DialogBorder{},
-
 			gui.Panel{
 				width = "84%",
 				halign = "center",
 				height = 600,
 				vscroll = true,
 				valign = "center",
-				
+
 				gui.Table{
-					styles = {
-						{
-							selectors = {"optionLabel"},
-							fontSize = 14,
-							hpad = 8,
-							textAlignment = "left",
-							color = "white",
-						},
-						{
-							selectors = {"row"},
-							width = "auto",
-							height = "auto",
-							bgimage = "panels/square.png",
-						},
-						{
-							selectors = {"evenRow"},
-							bgcolor = "#00000088",
-						},
-						{
-							selectors = {"oddRow"},
-							bgcolor = "#000000cc",
-						},
-						{
-							selectors = {"row", "hover"},
-							bgcolor = "#880000ff",
-						},
-						{
-							selectors = {"row", "press"},
-							bgcolor = "#220000ff",
-						},
-					},
 					flow = "vertical",
 					width = "80%",
 					height = "auto",
@@ -704,14 +682,12 @@ local ShowChoiceDialog = function(argOptions)
 								},
 
 								gui.Label{
-									classes = {"optionLabel"},
 									width = "auto",
 									height = "auto",
+									hpad = 8,
 									text = option.text,
-									color = option.color or "white",
+									color = option.color,
 								},
-
-								bgimage = "panels/square.png",
 
 								setData = function(element, options)
 									local newOption = options.options[i]
@@ -729,9 +705,9 @@ local ShowChoiceDialog = function(argOptions)
 										numChildren = 1 + #option.data
 										for i,item in ipairs(option.data) do
 											children[i+1] = children[i+1] or gui.Label{
-												classes = {"optionLabel"},
 												width = "auto",
 												height = "auto",
+												hpad = 8,
 											}
 
 											children[i+1].text = item
@@ -745,13 +721,13 @@ local ShowChoiceDialog = function(argOptions)
 									element.children = children
 								end,
 
-
 								click = function(element)
 									option.click()
 									blockingPanel:SetClass("hidden", true)
 								end,
 								hover = option.hover,
 								search = function(element, terms)
+									if option == nil then return end
 									if terms == nil then
 										element:SetClass("collapsed", false)
 										return
@@ -791,14 +767,16 @@ local ShowChoiceDialog = function(argOptions)
 
 			checksPanel,
 
-			gui.Input{
+			--the canonical search field; look comes from DefaultStyles'
+			--searchInput rules, borderBox keeps its hpad 24 inside the width.
+			gui.SearchInput{
 				halign = "left",
 				valign = "center",
 				hmargin = 20,
 				placeholderText = "Search...",
+				borderBox = true,
 				width = 180,
 				height = 20,
-				fontSize = 16,
 				editlag = 0.25,
 				edit = function(element)
 					dialogPanel:FireEventTree("search", string.split(string.lower(element.text)))
@@ -829,7 +807,6 @@ local ShowChoiceDialog = function(argOptions)
 		rootPanel:AddChild(blockingPanel)
 	end
 
-
 	rootPanel.data.choiceDialog:FireEventTree("setData", options)
 
 end
@@ -841,7 +818,6 @@ function ShowRollableTableSelectionDialog(args)
 	if dataTable == nil then
 		return
 	end
-
 
 	local options = {}
 
@@ -880,7 +856,6 @@ function ShowRollableTableSelectionDialog(args)
 		--	args.click(element, chosenOptions)
 		--end,
 	}
-	
 end
 
 
@@ -890,8 +865,6 @@ function gui.VariantCollectionEditor(args)
 
 	local variantType = args.variantType
 	args.variantType = nil
-
-
 
 	local resultPanel
 

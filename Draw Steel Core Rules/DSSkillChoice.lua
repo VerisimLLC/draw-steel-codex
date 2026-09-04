@@ -5,7 +5,7 @@ local mod = dmhub.GetModLoading()
 --- @field description string Prompt shown to the player.
 --- @field categories string[] Skill category ids to filter available skills; empty means all categories.
 --- @field individualSkills string[] Specific skill ids available for selection (overrides categories if non-empty).
---- @field numChoices number Number of skills the player may choose.
+--- @field numChoices number|string|table Number of skills the player may choose.
 CharacterSkillChoice = RegisterGameType("CharacterSkillChoice", "CharacterChoice")
 
 CharacterSkillChoice.name = "Skill"
@@ -36,8 +36,18 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
     g_optCache = {}
 end)
 
+function CharacterSkillChoice:HasFilters()
+    local cats = self:try_get("categories")
+    local ind = self:try_get("individualSkills")
+    return (cats ~= nil and next(cats) ~= nil) or (ind ~= nil and next(ind) ~= nil)
+end
+
 function CharacterSkillChoice:_cache()
-	if (g_tagCache[self.categories] ~= nil and g_optCache[self.categories] ~= nil) or (self.categories == nil and #g_allCache > 0) then return end
+	if self:HasFilters() then
+		if g_tagCache[self] ~= nil and g_optCache[self] ~= nil then return end
+	else
+		if #g_allCache > 0 then return end
+	end
 
     local all = {}
     local tags = {}
@@ -68,31 +78,32 @@ function CharacterSkillChoice:_cache()
 	end
 
     g_allCache = all
-	g_tagCache[self.categories] = tags
-    g_optCache[self.categories] = options
+	g_tagCache[self] = tags
+    g_optCache[self] = options
 end
 
 function CharacterSkillChoice:Choices(numOption, existingChoices, creature)
-    if self.categories == nil or next(self.categories) == nil then
+    if not self:HasFilters() then
         if #g_allCache == 0 then self:_cache() end
         return g_allCache
     end
-	if g_tagCache[self.categories] == nil then self:_cache() end
-	return g_tagCache[self.categories]
+	if g_tagCache[self] == nil then self:_cache() end
+	return g_tagCache[self]
 end
 
 function CharacterSkillChoice:GetOptions(choices)
-    if self.categories == nil or next(self.categories) == nil then
+    if not self:HasFilters() then
         if #g_allCache == 0 then self:_cache() end
         return g_allCache
     end
-    if g_optCache[self.categories] == nil then self:_cache() end
-    return g_optCache[self.categories]
+    if g_optCache[self] == nil then self:_cache() end
+    return g_optCache[self]
 end
 
 function CharacterSkillChoice:GetDescription()
     local function formatProperList(items)
         local count = #items
+        table.sort(items)
 
         if count == 0 then
             return ""
@@ -124,9 +135,9 @@ function CharacterSkillChoice:GetDescription()
         end
     end
 
-    local desc = string.format("Choose %d skill%s", numChoices, numChoices > 1 and "s" or "")
+    local desc = string.format("Choose %d skill%s from", numChoices, numChoices > 1 and "s" or "")
     if #cats > 0 then
-        desc = string.format("%s from the %s skill group%s", desc, formatProperList(cats), #cats > 1 and "s" or "")
+        desc = string.format("%s the %s skill group%s", desc, formatProperList(cats), #cats > 1 and "s" or "")
     end
     if #ind > 0 then
         if #cats > 0 then desc = desc .. " or" end
@@ -163,9 +174,10 @@ function CharacterSkillChoice:GetSkillFeatures()
         self._tmp_skillFeatures = {}
     end
 
+    local hasFilters = self:HasFilters()
     local skillsTable = dmhub.GetTable(Skill.tableName)
     for k,skill in pairs(skillsTable) do
-        if (not skill:try_get("hidden", false)) and (self.categories[skill.category] or self.individualSkills[k]) then
+        if (not skill:try_get("hidden", false)) and (not hasFilters or self.categories[skill.category] or self.individualSkills[k]) then
             local feature = self._tmp_skillFeatures[skillFeatureIndex] or DeepCopy(MCDMImporter.GetStandardFeature("Skill"))
             skillFeatureIndex = skillFeatureIndex + 1
             feature.id = k
@@ -213,7 +225,7 @@ function CharacterSkillChoice:FillFeaturesRecursive(choices, result)
     local skillFeatures = self:GetSkillFeatures()
     for _,choiceid in ipairs(choiceidList) do
         for _,f in ipairs(skillFeatures) do
-            if choiceid.guid == choiceid then
+            if f.guid == choiceid then
                 f:FillFeaturesRecursive(choices, result)
             end
         end
@@ -235,13 +247,13 @@ function CharacterSkillChoice:CreateEditor(classOrRace, params)
         flow = "vertical",
 
         gui.Panel{
-            classes = {"formPanel"},
+            classes = {"formStackedRow"},
             gui.Label{
-                classes = {"formLabel"},
-                text = "Skills",
+                classes = {"formStacked"},
+                text = "# Skills:",
             },
             gui.Input{
-                width = 180,
+                classes = {"formStacked"},
                 text = tonumber(self.numChoices),
                 characterLimit = 2,
 
@@ -254,116 +266,56 @@ function CharacterSkillChoice:CreateEditor(classOrRace, params)
         },
 
         gui.Panel{
-            classes = {"formPanel"},
-            flow = "vertical",
-            height = "auto",
-            create = function(element)
-                local children = {}
-                local skillTable = dmhub.GetTable(Skill.tableName)
-                for k,v in pairs(self.individualSkills) do
-                    local skill = skillTable[k]
-                    if skill ~= nil then
-                        children[#children+1] = gui.Label {
-                            text = skill.name,
-                            fontSize = 16,
-                            textAlignment = "left",
-                            width = 300,
-                            vmargin = 4,
-
-                            gui.DeleteItemButton{
-                                halign = "right",
-                                width = 16,
-                                height = 16,
-                                click = function(element)
-                                    self.individualSkills[k] = nil
-                                    resultPanel:FireEventTree("create")
-                                    resultPanel:FireEvent("change")
-                                end,
-                            }
-                        }
-                        
+            classes = {"formStackedRow"},
+            gui.Label{
+                classes = {"formStacked"},
+                text = "Skills:",
+            },
+            gui.Multiselect{
+                classes = {"formStacked"},
+                width = "98%",
+                addItemText = "Add Skills...",
+                options = (function()
+                    local result = {}
+                    for _,v in pairs(Skill.categoriesById) do
+                        local entry = DeepCopy(v)
+                        entry.text = string.format("%s Skill Group", entry.text)
+                        entry.ord = "A-" .. entry.text
+                        result[#result+1] = entry
                     end
-                end
-
-                table.sort(children, function(a,b)
-                    return a.text < b.text
-                end)
-
-                for k,v in pairs(self.categories) do
-                    local info = Skill.categoriesById[k]
-                    if info ~= nil then
-                        children[#children+1] = gui.Label{
-                            text = string.format("%s Skill Group", info.text),
-                            fontSize = 16,
-                            textAlignment = "left",
-                            width = 300,
-                            vmargin = 4,
-
-                            gui.DeleteItemButton{
-                                halign = "right",
-                                width = 16,
-                                height = 16,
-                                click = function(element)
-                                    self.categories[k] = nil
-                                    resultPanel:FireEventTree("create")
-                                    resultPanel:FireEvent("change")
-                                end,
+                    local skillTable = dmhub.GetTable(Skill.tableName)
+                    for k,v in pairs(skillTable) do
+                        if not v:try_get("hidden", false) then
+                            result[#result+1] = {
+                                id = k,
+                                text = v.name,
+                                ord = "B-" .. v.name,
                             }
-                        }
+                        end
                     end
-                end
-
-                children[#children+1] = gui.Dropdown{
-                    width = 300,
-                    textDefault = "Add Skills...",
-                    hasSearch = true,
-                    create = function(element)
-                        element.idChosen = nil
-                        local result = {}
-                        for k,v in pairs(Skill.categoriesById) do
-                            if not self.categories[k] then
-                                local entry = DeepCopy(v)
-                                entry.text = string.format("%s Skill Group", entry.text)
-                                entry.ord = "A-" .. entry.text
-                                result[#result+1] = entry
-                            end
-                        end
-
-                        local skills = {}
-                        local skillTable = dmhub.GetTable(Skill.tableName)
-                        for k,v in pairs(skillTable) do
-                            if not v:try_get("hidden", false) then
-                                result[#result+1] = {
-                                    id = k,
-                                    text = v.name,
-                                    ord = "B-" .. v.name,
-                                }
-                            end
-                        end
-
-                        table.sort(result, function(a,b)
-                            return a.ord < b.ord
-                        end)
-
-                        element.options = result
-                    end,
-
-                    change = function(element)
-                        local value = element.idChosen
-                        if Skill.categoriesById[value] then
-                            self.categories = DeepCopy(self.categories)
-                            self.categories[value] = true
+                    table.sort(result, function(a,b) return a.ord < b.ord end)
+                    return result
+                end)(),
+                value = (function()
+                    local v = {}
+                    for k in pairs(self.categories) do v[k] = true end
+                    for k in pairs(self.individualSkills) do v[k] = true end
+                    return v
+                end)(),
+                change = function(element, value)
+                    local newCats, newSkills = {}, {}
+                    for id,_ in pairs(value) do
+                        if Skill.categoriesById[id] then
+                            newCats[id] = true
                         else
-                            self.individualSkills = DeepCopy(self.individualSkills)
-                            self.individualSkills[value] = true
+                            newSkills[id] = true
                         end
-                        resultPanel:FireEventTree("create")
-                        resultPanel:FireEvent("change")
-                    end,
-                }
-
-                element.children = children
-            end,
+                    end
+                    self.categories = newCats
+                    self.individualSkills = newSkills
+                    resultPanel:FireEvent("change")
+                end,
+            },
         },
     }
 

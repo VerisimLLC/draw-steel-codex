@@ -1,5 +1,6 @@
 local mod = dmhub.GetModLoading()
 
+
 --This file implements the main roll prompt dialog that appears when you get a dice roll prompt.
 
 local g_holdingRollOpen = false
@@ -9,6 +10,11 @@ end
 
 RollDialog = {
     OnBeforeRoll = false,
+    OnReroll = false,
+    OnBeforeTableRoll = false,
+    --Fired (no args) when a roll dialog is cancelled, so intercepting mods
+    --(e.g. physical dice) can abandon any pending external roll request.
+    OnRollCancelled = false,
 }
 
 local g_activeRoll = nil
@@ -30,6 +36,10 @@ setting {
         {
             value = "dm",
             text = cond(dmhub.isDM, "Visible to Director only", "Visible to you and Director"),
+        },
+        {
+            value = "dicetower",
+            text = "Dice Tower (Result visible to Director only)",
         }
     }
 }
@@ -51,6 +61,10 @@ local g_rollOptionsDM = {
         id = "dm",
         text = "Visible to Director only",
     },
+    {
+        id = "dicetower",
+        text = "Dice Tower",
+    },
 }
 
 local g_rollOptionsPlayer = {
@@ -62,34 +76,12 @@ local g_rollOptionsPlayer = {
         id = "dm",
         text = "Visible to you and GM",
     },
+    {
+        id = "dicetower",
+        text = "Dice Tower",
+    },
 }
 
-local g_boonsBanesStyles = {
-    gui.Style {
-        selectors = { "label" },
-        color = Styles.textColor,
-        valign = "center",
-        width = "20%",
-        height = "100%",
-        bgimage = "panels/square.png",
-        fontSize = 16,
-        textAlignment = "center",
-        borderWidth = 1,
-        borderColor = Styles.textColor,
-    },
-    gui.Style {
-        selectors = { "label", "selected" },
-        bgcolor = Styles.textColor,
-        color = "black",
-        bold = true,
-    },
-    gui.Style {
-        selectors = { "label", "hover", "~selected" },
-        bgcolor = Styles.textColor,
-        color = "black",
-        brightness = 0.9,
-    },
-}
 
 local g_boonsLabels = { "Bane x 2", "Bane", "None", "Edge", "Edge x 2" }
 
@@ -131,6 +123,32 @@ function GameHud.CreateRollDialog(self)
 
     local resultPanel
     local CalculateRollText
+
+    --How see-through the frame sits when nobody has asked otherwise. Kept here
+    --so the resting value and the solid override read as one decision.
+    local DIALOG_OPACITY = 0.95
+
+    --The framed panel the dialog is drawn on, found rather than held: it is
+    --built inline inside resultPanel, and hoisting it out would move a few
+    --hundred lines to gain nothing.
+    local m_framePanel = nil
+    local function FramePanel()
+        if m_framePanel ~= nil and m_framePanel.valid then
+            return m_framePanel
+        end
+
+        m_framePanel = nil
+        if resultPanel ~= nil and resultPanel.valid then
+            for _, child in ipairs(resultPanel.children or {}) do
+                if child.valid and child:HasClass("framedPanel") then
+                    m_framePanel = child
+                    break
+                end
+            end
+        end
+
+        return m_framePanel
+    end
 
     local rollAllPrompts = nil
     local rollActive = nil
@@ -179,8 +197,11 @@ function GameHud.CreateRollDialog(self)
     end
 
 
+    -- Color/font-free structural + state-machine rules only. Routed through
+    -- ThemeEngine.MergeStyles so the default theme owns panel/label/button
+    -- visuals; these extras carry only this dialog's layout state machine
+    -- (minimize/rolling/finished) plus @token semantic icon states.
     local styles = {
-        Styles.Panel,
         {
             selectors = { 'framedPanel' },
             width = 940,
@@ -222,7 +243,6 @@ function GameHud.CreateRollDialog(self)
             selectors = { 'title' },
             width = 'auto',
             height = 'auto',
-            color = 'white',
             halign = 'center',
             valign = 'top',
             fontSize = 28,
@@ -231,7 +251,6 @@ function GameHud.CreateRollDialog(self)
             selectors = { 'explanation' },
             width = 'auto',
             height = 'auto',
-            color = 'white',
             halign = 'center',
             valign = 'top',
             fontSize = 20,
@@ -260,8 +279,6 @@ function GameHud.CreateRollDialog(self)
             height = 'auto',
             width = 'auto',
         },
-
-        Styles.AdvantageBar,
 
         {
             selectors = { "reduceWhenMinimized", "minimized" },
@@ -311,13 +328,13 @@ function GameHud.CreateRollDialog(self)
 
         {
             selectors = { "icon", "override" },
-            bgcolor = "#ffff88",
+            bgcolor = "@warning",
             transitionTime = 0.2,
             brightness = 2,
         },
         {
             selectors = { "icon", "override", "inactive" },
-            bgcolor = "#888844",
+            bgcolor = "@disabled",
             transitionTime = 0.2,
         },
         {
@@ -336,7 +353,6 @@ function GameHud.CreateRollDialog(self)
     local title = gui.Label {
         id = "rollDialogTitle",
         classes = { 'title', 'reduceWhenMinimized' },
-        color = Styles.textColor,
     }
 
     local explanation = gui.Label {
@@ -401,20 +417,7 @@ function GameHud.CreateRollDialog(self)
         autoRollCheck,
     }
 
-    local prerollCheck = gui.Check {
-        text = "Pre-roll dice",
-        classes = { "hiddenWhenRolling", "hideWhenMinimized" },
-        value = dmhub.GetSettingValue("preroll"),
-        valign = "bottom",
-        vmargin = 6,
-        change = function(element)
-            dmhub.SetSettingValue("preroll", element.value)
-            CalculateRollText()
-        end,
-        textCalculated = function(element)
-            element:SetClass("collapsed", (not dmhub.isDM))
-        end,
-    }
+    local m_forceDiceTower = false
 
     local updateRollVisibility
     local hideRollDropdown = gui.Dropdown {
@@ -427,7 +430,13 @@ function GameHud.CreateRollDialog(self)
         options = cond(dmhub.isDM, g_rollOptionsDM, g_rollOptionsPlayer),
         valign = "bottom",
         prepare = function(element)
-            element.idChosen = dmhub.GetSettingValue("privaterolls")
+            if m_forceDiceTower then
+                element.idChosen = "dicetower"
+                element:SetClass("hidden", true)
+            else
+                element.idChosen = dmhub.GetSettingValue("privaterolls")
+                element:SetClass("hidden", false)
+            end
         end,
 
         change = function(element)
@@ -441,11 +450,15 @@ function GameHud.CreateRollDialog(self)
         valign = "bottom",
         value = dmhub.GetSettingValue("privaterolls:save"),
         prepare = function(element)
-            updateRollVisibility:SetClass("hidden", hideRollDropdown.idChosen == dmhub.GetSettingValue("privaterolls"))
+            if m_forceDiceTower then
+                element:SetClass("hidden", true)
+            else
+                element:SetClass("hidden", hideRollDropdown.idChosen == dmhub.GetSettingValue("privaterolls"))
+            end
         end,
     }
 
-    local m_options
+    local m_options = nil
 
     --a selectors which allows alternate roll options to be selected, e.g. choosing between an Athletics and Acrobatics check.
     local alternateRollsBar
@@ -586,10 +599,10 @@ function GameHud.CreateRollDialog(self)
         end
 
         if rollDisallowed ~= nil then
-            rollDisabledLabel:SetClass("collapsed-anim", false)
+            rollDisabledLabel:SetClass("collapseAnim", false)
             rollDisabledLabel.text = rollDisallowed
         else
-            rollDisabledLabel:SetClass("collapsed-anim", true)
+            rollDisabledLabel:SetClass("collapseAnim", true)
         end
 
         rollDiceButton:SetClass("hidden", rollDisallowed ~= nil)
@@ -605,16 +618,6 @@ function GameHud.CreateRollDialog(self)
 
             rollInfo = dmhub.ParseRoll(newText, creature)
             newText = dmhub.RollToString(rollInfo)
-        end
-
-        if dmhub.isDM and dmhub.GetSettingValue("preroll") then
-            local cats = dmhub.RollInstantCategorized(newText)
-            newText = ""
-            for k, n in pairs(cats) do
-                newText = string.format("%s%s%s [%s]", newText, cond(newText == "", "", " "), n, k)
-            end
-
-            newText = dmhub.RollToString(dmhub.ParseRoll(newText, creature))
         end
 
         if GameSystem.CombineNegativesForRolls then
@@ -665,20 +668,6 @@ function GameHud.CreateRollDialog(self)
 
     local RecalculateMultiTargets
 
-    local rerollFudgedButton = gui.HudIconButton {
-        icon = "panels/hud/clockwise-rotation.png",
-        halign = "right",
-        valign = "center",
-        width = 32,
-        height = 32,
-        press = function(element)
-            CalculateRollText()
-        end,
-        textCalculated = function(element)
-            element:SetClass("hidden", (not dmhub.isDM) or (not dmhub.GetSettingValue("preroll")))
-        end,
-    }
-
     local rollInputContainer = gui.Panel {
         width = "auto",
         flow = "horizontal",
@@ -687,7 +676,6 @@ function GameHud.CreateRollDialog(self)
         height = 34,
         valign = 'center',
         rollInput,
-        rerollFudgedButton,
     }
 
     local CreateTriggerPanel = function(info)
@@ -713,9 +701,9 @@ function GameHud.CreateRollDialog(self)
         for i = 1, 3 do
             local index = i
             augmentationOptions[#augmentationOptions + 1] = gui.Label {
+                classes = { "enumSliderOption" },
                 width = 60,
                 height = 16,
-                fontSize = 12,
                 minFontSize = 6,
                 bgimage = true,
                 swallowPress = true,
@@ -776,34 +764,11 @@ function GameHud.CreateRollDialog(self)
         end
 
         local augmentationsPanel = gui.Panel {
+            classes = { "enumSlider" },
             width = "auto",
             height = "auto",
             halign = "center",
             children = augmentationOptions,
-            styles = {
-                {
-                    selectors = { "label" },
-                    bgcolor = Styles.backgroundColor,
-                    color = Styles.textColor,
-                    borderWidth = 2,
-                    borderColor = Styles.textColor,
-                    textAlignment = "center",
-                },
-                {
-                    selectors = { "label", "hover" },
-                    bgcolor = Styles.textColor,
-                    color = Styles.backgroundColor,
-                    borderWidth = 2,
-                    borderColor = Styles.textColor,
-                },
-                {
-                    selectors = { "label", "selected" },
-                    bgcolor = Styles.textColor,
-                    color = Styles.backgroundColor,
-                    borderWidth = 2,
-                    borderColor = Styles.textColor,
-                },
-            },
         }
 
         triggerPanel = gui.Panel {
@@ -844,7 +809,7 @@ function GameHud.CreateRollDialog(self)
                                 creature:LookupSymbol {}, 0)
                             local available, resourceName
                             if costType == "cost" then
-                                available = tok.properties:GetHeroicOrMaliceResources()
+                                available = tok.properties:GetHeroicOrMaliceResourcesAvailableToSpend()
                                 resourceName = tok.properties:GetHeroicResourceName()
                             elseif costType == "epic" then
                                 available = tok.properties:GetEpicResources()
@@ -864,7 +829,13 @@ function GameHud.CreateRollDialog(self)
 
                 element:SetClass("triggered", info.triggered)
 
-                label.text = info.modifier.name
+                local triggerName = info.modifier.name
+                if PowerRollSpoilers.HasSpoiler(triggerName) then
+                    local revealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(triggerName),
+                        PowerRollSpoilers.DefaultRevealed(triggerName))
+                    triggerName = PowerRollSpoilers.Format(triggerName, revealed)
+                end
+                label.text = triggerName
             end,
             --- @param element Panel
             ping = function(element, count)
@@ -956,6 +927,58 @@ function GameHud.CreateRollDialog(self)
 
     local m_openedTriggers = nil
 
+    -- Component-specific trigger-card cascade. `triggerPanel` and its state
+    -- selectors are not generic theme vocabulary, so this is intentionally a
+    -- MergeStyles extra (routed so the @tokens resolve and the default theme
+    -- still applies underneath -- without it the cards do not render).
+    local triggerStyles = {
+        {
+            selectors = { "label" },
+            color = "@fg",
+        },
+        {
+            selectors = { "label", "parent:triggered" },
+            color = "@bg",
+        },
+        {
+            selectors = { "triggerPanel" },
+            bgcolor = "clear",
+        },
+        {
+            selectors = { "triggerPanel", "selftrigger" },
+            border = 1,
+            borderColor = "@border",
+        },
+        {
+            selectors = { "triggerPanel", "selftrigger", "~triggered", "hover", "rolling" },
+            bgcolor = "@fg",
+            brightness = 0.7,
+        },
+        {
+            selectors = { "triggerPanel", "selftrigger", "~triggered", "hover", "~afterroll" },
+            bgcolor = "@fg",
+            brightness = 0.7,
+        },
+        {
+            selectors = { "triggerPanel", "triggered" },
+            bgcolor = "@fg",
+        },
+        {
+            selectors = { "triggerPanel", "hover" },
+            border = 1,
+            borderColor = "@fgStrong",
+        },
+        {
+            selectors = { "triggerPanel", "ping" },
+            border = 2,
+            borderColor = "@accent",
+        },
+        {
+            selectors = { "triggerPanel", "ping", "pong" },
+            borderColor = "@accentHover",
+        },
+    }
+
     local triggersContainer = gui.Panel {
         width = "100%",
         height = "auto",
@@ -964,54 +987,7 @@ function GameHud.CreateRollDialog(self)
         flow = "horizontal",
         vscroll = true,
 
-        styles = {
-            {
-                selectors = { "label" },
-                color = Styles.textColor,
-            },
-            {
-                selectors = { "label", "parent:triggered" },
-                color = Styles.backgroundColor,
-            },
-            {
-                selectors = { "triggerPanel" },
-                bgcolor = "#00000000",
-            },
-            {
-                selectors = { "triggerPanel", "selftrigger" },
-                border = 1,
-                borderColor = "grey",
-            },
-            {
-                selectors = { "triggerPanel", "selftrigger", "~triggered", "hover", "rolling" },
-                bgcolor = Styles.textColor,
-                brightness = 0.7,
-            },
-            {
-                selectors = { "triggerPanel", "selftrigger", "~triggered", "hover", "~afterroll" },
-                bgcolor = Styles.textColor,
-                brightness = 0.7,
-            },
-            {
-                selectors = { "triggerPanel", "triggered" },
-                bgcolor = Styles.textColor,
-            },
-            {
-                selectors = { "triggerPanel", "hover" },
-                border = 1,
-                borderColor = "white",
-            },
-            {
-                selectors = { "triggerPanel", "ping" },
-                border = 2,
-                borderColor = "#ff00ff",
-            },
-            {
-                selectors = { "triggerPanel", "ping", "pong" },
-                borderColor = "#ff88ff",
-            },
-
-        },
+        styles = ThemeEngine.MergeStyles(triggerStyles),
 
         prepare = function(element, options)
             element:SetClass("collapsed", true)
@@ -1079,7 +1055,7 @@ function GameHud.CreateRollDialog(self)
                         m_openedTriggers = {}
                     end
 
-                    local key = trigger.modifier.guid
+                    local key = trigger.modifier.guid .. (trigger.charid or "")
                     if not targetAll then
                         key = key .. target.token.charid
                     end
@@ -1236,9 +1212,12 @@ function GameHud.CreateRollDialog(self)
                 if token ~= nil then
                     local tokenTriggers = token.properties:GetAvailableTriggers() or {}
                     local tokenTrigger = tokenTriggers[trigger.id]
-                    if tokenTrigger ~= nil and tokenTrigger.triggered ~= trigger.triggered then
+                    if tokenTrigger ~= nil and (tokenTrigger.triggered ~= trigger.triggered or tokenTrigger.resolving ~= trigger.resolving) then
                         trigger.triggered = tokenTrigger.triggered
                         trigger.retargetid = tokenTrigger.retargetid
+                        --carry resolving into our copy so the periodic re-dispatch
+                        --of this record can't clobber the owner's in-progress flag.
+                        trigger.resolving = tokenTrigger.resolving
                         trigger.dismissed = tokenTrigger.dismissed
                         needUpdate = true
 
@@ -1312,35 +1291,6 @@ function GameHud.CreateRollDialog(self)
         end,
     }
 
-    local tableStyles = {
-        Styles.Table,
-        gui.Style {
-            selectors = { "label" },
-            pad = 6,
-            fontSize = 20,
-            width = "auto",
-            height = "auto",
-            color = Styles.textColor,
-            valign = "center",
-        },
-        gui.Style {
-            selectors = { "row" },
-            width = "auto",
-            height = "auto",
-            bgimage = "panels/square.png",
-            borderColor = Styles.textColor,
-            borderWidth = 1,
-        },
-        gui.Style {
-            selectors = { "row", "oddRow" },
-            bgcolor = "#222222ff",
-        },
-        gui.Style {
-            selectors = { "row", "evenRow" },
-            bgcolor = "#444444ff",
-        },
-    }
-
     m_customContainer = gui.Panel {
         classes = { "hideWhenMinimized" },
         width = "94%",
@@ -1348,7 +1298,6 @@ function GameHud.CreateRollDialog(self)
         halign = "center",
         valign = "bottom",
         flow = "vertical",
-        styles = tableStyles,
     }
 
     m_tableContainer = gui.Table {
@@ -1357,7 +1306,6 @@ function GameHud.CreateRollDialog(self)
         halign = "center",
         valign = "bottom",
         flow = "vertical",
-        styles = tableStyles,
     }
 
 
@@ -1411,10 +1359,9 @@ function GameHud.CreateRollDialog(self)
 
             for i, target in ipairs(m_multitargets) do
                 local nameLabel = gui.Label {
+                    classes = { "bold" },
                     fontSize = 12,
                     minFontSize = 8,
-                    bold = true,
-                    color = Styles.textColor,
                     width = "95%",
                     height = "auto",
                     maxHeight = 30,
@@ -1424,8 +1371,8 @@ function GameHud.CreateRollDialog(self)
                     textAlignment = "center",
                 }
                 local boonLabel = gui.Label {
+                    classes = { cond(target.text ~= nil, "accent") },
                     fontSize = 10,
-                    color = cond(target.text == nil, Styles.textColor, "#9999ffff"),
                     width = "95%",
                     height = "auto",
                     halign = "center",
@@ -1515,7 +1462,7 @@ function GameHud.CreateRollDialog(self)
                 }
 
                 local surges = {}
-                for surgeNum = 3, 1, -1 do
+                for surgeNum = ((creature ~= nil) and creature:GetMaxSurgeCount() or 3), 1, -1 do
                     surges[#surges + 1] = gui.Panel {
                         classes = { "icon", "hideWhenMinimized" },
                         textCalculated = function(element, calculationOptions)
@@ -1605,10 +1552,11 @@ function GameHud.CreateRollDialog(self)
     }
 
     alternateRollsBar = gui.Panel {
+        styles = Styles.AdvantageBar,
         classes = { "hideWhenMinimized", "advantage-bar" },
         prepare = function(element, options)
             if options.alternateOptions == nil or #options.alternateOptions <= 1 then
-                element:SetClass("collapsed-anim", true)
+                element:SetClass("collapseAnim", true)
                 return
             end
 
@@ -1626,7 +1574,7 @@ function GameHud.CreateRollDialog(self)
             end
 
             element.children = children
-            element:SetClass("collapsed-anim", false)
+            element:SetClass("collapseAnim", false)
         end,
     }
 
@@ -1637,7 +1585,9 @@ function GameHud.CreateRollDialog(self)
 
         for i, text in ipairs(g_boonsLabels) do
             boonsBanesLabels[#boonsBanesLabels + 1] = gui.Label {
+                classes = { "enumSliderOption" },
                 text = text,
+                width = "20%",
                 press = function(element)
                     local delta = (i - 3) - m_currentBoons
                     m_boons = m_boons + delta
@@ -1669,8 +1619,7 @@ function GameHud.CreateRollDialog(self)
         end
 
         boonBar = gui.Panel {
-            styles = g_boonsBanesStyles,
-            classes = { "hideWhenMinimized", "boonbanePanel" },
+            classes = { "enumSlider", "hideWhenMinimized", "boonbanePanel" },
             halign = "center",
             width = "60%",
             height = 22,
@@ -1678,7 +1627,6 @@ function GameHud.CreateRollDialog(self)
 
             prepare = function(element, options)
                 element:SetClass("collapsed", not GameSystem.AllowBoonsForRoll(options))
-                m_boons = 0
 
                 if GetCurrentMultiTarget() ~= nil then
                     local index = GetCurrentMultiTarget()
@@ -1689,9 +1637,8 @@ function GameHud.CreateRollDialog(self)
             children = boonsBanesLabels,
         }
 
-        boonBar:AddChild(gui.Panel {
-            classes = { "icon" },
-            bgimage = "panels/hud/anticlockwise-rotation.png",
+        boonBar:AddChild(gui.Button {
+            icon = "panels/hud/anticlockwise-rotation.png",
             floating = true,
             halign = "right",
             x = 20,
@@ -1762,8 +1709,9 @@ function GameHud.CreateRollDialog(self)
                     surgesOverride = surgesOverride - 1
                 end
 
-                if surgesOverride > 3 then
-                    surgesOverride = 3
+                local maxSurges = (creature ~= nil) and creature:GetMaxSurgeCount() or 3
+                if surgesOverride > maxSurges then
+                    surgesOverride = maxSurges
                 end
 
                 local options = m_lastCalculationOptions or {}
@@ -1922,11 +1870,11 @@ function GameHud.CreateRollDialog(self)
                 modifierDropdowns = {}
                 if creature == nil or options.modifiers == nil then
                     element.children = {}
-                    element:SetClass('collapsed-anim', true)
+                    element:SetClass('collapseAnim', true)
                     return
                 end
 
-                element:SetClass('collapsed-anim', false)
+                element:SetClass('collapseAnim', false)
 
                 local addedCritical = false
 
@@ -1961,7 +1909,27 @@ function GameHud.CreateRollDialog(self)
                                 justification)
                         end
 
-                        local text = mod.modifier.name
+                        --Spoilered modifier names ({#...} markup, see
+                        --PowerRollSpoilers in Timeline/EmbeddedRollDialog):
+                        --players see a redaction bar until the director
+                        --reveals them; the director sees the plain text.
+                        local rawName = mod.modifier.name or ""
+                        local spoiler = PowerRollSpoilers.HasSpoiler(rawName)
+                        local spoilerRevealed = false
+                        if spoiler then
+                            spoilerRevealed = PowerRollSpoilers.IsRevealed(PowerRollSpoilers.Key(rawName),
+                                PowerRollSpoilers.DefaultRevealed(rawName))
+                            if dmhub.isDM or spoilerRevealed then
+                                tooltip = PowerRollSpoilers.Format(tooltip, spoilerRevealed)
+                            else
+                                tooltip = PowerRollSpoilers.Format(rawName, false)
+                            end
+                        end
+
+                        local text = rawName
+                        if spoiler then
+                            text = PowerRollSpoilers.Format(rawName, spoilerRevealed)
+                        end
                         if mod.modFromTarget then
                             text = string.format("Target is %s", text)
                         end
@@ -1985,7 +1953,7 @@ function GameHud.CreateRollDialog(self)
                         local classes = nil
 
                         if force then
-                            classes = { "collapsed-anim" }
+                            classes = { "collapseAnim" }
                         end
 
                         check = gui.Check {
@@ -2124,20 +2092,39 @@ function GameHud.CreateRollDialog(self)
     }
 
     local CancelRollDialog = function()
+        --Tell intercepting mods (physical dice etc.) the roll was cancelled
+        --so they can abandon any pending external roll request.
+        if RollDialog.OnRollCancelled then
+            RollDialog.OnRollCancelled()
+        end
         RemoveTargetHints()
         if cancelRoll ~= nil then
-            if not rollAllPromptsCheck:HasClass("collapsed-anim") and rollAllPromptsCheck.value and rollAllPrompts ~= nil then
+            if not rollAllPromptsCheck:HasClass("collapseAnim") and rollAllPromptsCheck.value and rollAllPrompts ~= nil then
                 rollAllPrompts()
             end
             cancelRoll()
         end
         resultPanel:SetClass('hidden', true)
         chat.PreviewChat('')
+        --chat.PreviewChat('') above is meant to clear this dialog's preview dice, but
+        --the engine's empty-text path skips clearing while ANY unarmed registered dice
+        --cage exists (so plain chat typing can't wipe an embedded dialog's dice) -- and
+        --with the Dice dock open one usually does. When it skips, our dice are orphaned:
+        --they pin __previewdice=true and the action bar stays hidden for the rest of the
+        --session (bug XPWBKEQA). Clear them explicitly, scoped the same way they were
+        --seeded so armed try-dice tiles (Dice dock, shop) are never touched. pcall +
+        --fallback so an older binary without the scoped method still clears -- the
+        --global cancel also wipes dock tiles' resting dice, acceptable only as a
+        --fallback. Mirrors EmbeddedRollDialog's CancelRollDialog.
+        local cleared = pcall(function() dmhub.ClearChatPreviewDice() end)
+        if not cleared then
+            dmhub.CancelCurrentRoll()
+        end
         OnHide()
         RelinquishPanel()
     end
 
-    rollAgainButton = gui.PrettyButton {
+    rollAgainButton = gui.Button {
         text = "Re-roll",
         classes = { "shownWhenRollingOrFinished", "button" },
         width = 160,
@@ -2160,28 +2147,57 @@ function GameHud.CreateRollDialog(self)
                 return
             end
 
-            local guid = dmhub.GenerateGuid()
+            local function doRerollAmend(rollFormula, extraFields)
+                if g_activeRoll == nil then return end
+                local guid = dmhub.GenerateGuid()
+                local amendArgs = {
+                    guid = guid,
+                    roll = tostring(rollFormula),
+                    amendmentRerolls = true,
+                    description = g_activeRollArgs.description .. " -- Re-rolled!",
+                    amendable = g_activeRollArgs.amendable,
+                    tokenid = g_activeRollArgs.tokenid,
+                    silent = g_activeRollArgs.rollIsSilent,
+                    instant = g_activeRollArgs.instant,
+                    creature = g_activeRollArgs.creature,
+                    properties = g_activeRollArgs.properties,
+                    begin = function(rollInfo)
+                        m_rollInfo = rollInfo
+                        resultPanel:FireEventTree("beginRoll", rollInfo, guid)
+                    end,
+                    -- Reuse the original roll's completion handler so the
+                    -- amended roll re-fires it with the REROLLED rollInfo:
+                    -- it updates m_rollInfo and rebinds Accept Result to
+                    -- commit the reroll's result instead of the original
+                    -- roll's captured one.
+                    complete = g_activeRollArgs.complete,
+                }
+                --extraFields lets an intercepting mod (RollDialog.OnReroll)
+                --supply additional roll fields -- e.g. forcedDice/instant/
+                --silent when physical dice drive the reroll.
+                for k, v in pairs(extraFields or {}) do
+                    amendArgs[k] = v
+                end
+                g_activeRoll = g_activeRoll:Amend(amendArgs)
+            end
 
-            g_activeRoll = g_activeRoll:Amend {
-                guid = guid,
-                roll = g_activeRollArgs.roll,
-                amendmentRerolls = true,
-                description = g_activeRollArgs.description .. " -- Re-rolled!",
-                amendable = g_activeRollArgs.amendable,
-                tokenid = g_activeRollArgs.tokenid,
-                silent = g_activeRollArgs.rollIsSilent,
-                instant = g_activeRollArgs.instant,
-                creature = g_activeRollArgs.creature,
-                properties = g_activeRollArgs.properties,
-                begin = function(rollInfo)
-                    m_rollInfo = rollInfo
-                    resultPanel:FireEventTree("beginRoll", rollInfo, guid)
-                end,
-            }
+            -- Hook for external mods to intercept re-rolls
+            if RollDialog.OnReroll then
+                local rerollResult = RollDialog.OnReroll({
+                    rollArgs = g_activeRollArgs,
+                    originalRoll = g_activeRollArgs.originalRoll or g_activeRollArgs.roll,
+                    activeRoll = g_activeRoll,
+                    setActiveRoll = function(roll) g_activeRoll = roll end,
+                    amendWithResult = doRerollAmend,
+                })
+                if rerollResult == "intercept" then return end
+            end
+
+            doRerollAmend(g_activeRollArgs.originalRoll or g_activeRollArgs.roll)
         end,
     }
 
-    proceedAfterRollButton = gui.PrettyButton {
+    proceedAfterRollButton = gui.Button {
         text = "Accept Result",
         classes = { "shownWhenRollingOrFinished", "button" },
         width = 200,
@@ -2191,7 +2207,7 @@ function GameHud.CreateRollDialog(self)
 
     }
 
-    rollDiceButton = gui.PrettyButton {
+    rollDiceButton = gui.Button {
         text = 'Roll Dice',
         classes = { "collapsedWhenRolling", "button" },
         width = 200,
@@ -2207,7 +2223,7 @@ function GameHud.CreateRollDialog(self)
         }
     }
 
-    cancelButton = gui.PrettyButton {
+    cancelButton = gui.Button {
         text = 'Cancel',
         classes = { "collapsedWhenRolling", "button" },
         escapeActivates = true,
@@ -2222,8 +2238,7 @@ function GameHud.CreateRollDialog(self)
     }
 
     rollDisabledLabel = gui.Label {
-        classes = { 'explanation', "collapsed-anim" },
-        color = "#ffaaaaff",
+        classes = { 'explanation', "danger", "collapseAnim" },
         valign = "bottom",
     }
 
@@ -2283,7 +2298,6 @@ function GameHud.CreateRollDialog(self)
             rollInputContainer,
             triggersContainer,
             autoRollPanel,
-            prerollCheck,
             hideRollDropdown,
             updateRollVisibility,
             rollAllPromptsCheck,
@@ -2380,12 +2394,51 @@ function GameHud.CreateRollDialog(self)
                     powerRollModifier._tmp_trigger = true
                     powerRollModifier._tmp_triggerCharid = trigger.charid
 
+                    --Install cast symbols on the trigger's powerRollModifier so
+                    --formulas like `Caster.Intuition` resolve when the trigger's
+                    --modifyRollProperties runs. Without this, GoblinScript fields
+                    --that reference the inflicting caster evaluate to 0.
+                    powerRollModifier:InstallSymbolsFromContext{
+                        caster = creature,
+                        target = targetCreature,
+                    }
+
                     trigger.triggerInfo = {
                         hint = { result = true, justification = {} },
                         context = { mod = powerRollModifier },
                         modifier = powerRollModifier,
                     }
                     m_options.modifiers[#m_options.modifiers + 1] = trigger.triggerInfo
+                end
+            end
+
+            --A trigger whose powerRollModifier sets applyToAllTargets extends to
+            --every target of the roll, not just the row it was activated on
+            --(e.g. Cannonfall's Buss Buffer: "the damage is halved for the
+            --cannonfall and each target also affected by the triggering
+            --ability"). Mirror only the modifier application onto this row;
+            --cost payment, reroll handling, and triggerInfo bookkeeping stay
+            --with the row that owns the trigger.
+            for otherIndex, other in ipairs(m_multitargets) do
+                if otherIndex ~= index then
+                    for _, trigger in ipairs(other.triggers or {}) do
+                        if trigger.triggered then
+                            local powerRollModifier = trigger.modifier:try_get("powerRollModifier")
+                            if powerRollModifier ~= nil and powerRollModifier:try_get("applyToAllTargets", false) then
+                                powerRollModifier._tmp_trigger = true
+                                powerRollModifier._tmp_triggerCharid = trigger.charid
+                                powerRollModifier:InstallSymbolsFromContext{
+                                    caster = creature,
+                                    target = targetCreature,
+                                }
+                                m_options.modifiers[#m_options.modifiers + 1] = {
+                                    hint = { result = true, justification = {} },
+                                    context = { mod = powerRollModifier },
+                                    modifier = powerRollModifier,
+                                }
+                            end
+                        end
+                    end
                 end
             end
 
@@ -2467,12 +2520,12 @@ function GameHud.CreateRollDialog(self)
         halign = "center",
         valign = "center",
 
-        styles = styles,
+        styles = ThemeEngine.MergeStyles(styles),
 
         gui.Panel {
             classes = { "framedPanel" },
             cornerRadius = 0,
-            opacity = 0.95,
+            opacity = DIALOG_OPACITY,
             blurBackground = true,
             gui.Panel {
                 halign = "right",
@@ -2480,25 +2533,17 @@ function GameHud.CreateRollDialog(self)
                 width = "auto",
                 height = "auto",
                 flow = "horizontal",
-                gui.Panel {
-                    styles = {
-                        {
-                            selectors = { "hover" },
-                            brightness = 1.4,
-                        },
-                    },
+                gui.Button {
+                    icon = "game-icons/square.png",
                     width = 24,
                     height = 24,
-                    bgimage = true,
-                    bgcolor = "black",
                     valign = "center",
-                    borderWidth = 2,
-                    borderColor = Styles.textColor,
                     press = function(element)
                         resultPanel:SetClassTree("minimized", not resultPanel:HasClass("minimized"))
                     end,
                 },
-                gui.CloseButton {
+                gui.Button {
+                    classes = { "closeButton" },
                     escapeActivates = true,
                     escapePriority = EscapePriority.EXIT_ROLL_DIALOG,
                     press = function(element)
@@ -2518,6 +2563,18 @@ function GameHud.CreateRollDialog(self)
             ShowDialog = function(options)
                 if not resultPanel.valid then
                     return
+                end
+
+                --The frame is see-through by default, which is unreadable over
+                --a busy map. A caller that needs to be read rather than
+                --admired asks for a solid one; everyone else is untouched.
+                --The blur is what actually shows the map through, so turning
+                --the opacity up on its own would not be enough.
+                local frame = FramePanel()
+                if frame ~= nil then
+                    local solid = options.solidDialog == true
+                    frame.blurBackground = not solid
+                    frame.selfStyle.opacity = cond(solid, 1, DIALOG_OPACITY)
                 end
 
                 print("RollDialog:: SHOW", options)
@@ -2674,9 +2731,12 @@ function GameHud.CreateRollDialog(self)
                 end
 
                 if options.tableRef ~= nil then
-                    --delegate table rolls to the specialized dialog for them.
-                    print("RollDialog:: Delegating to RollOnTableDialog for", options.tableRef)
-                    return resultPanel.data.rollOnTableDialog.data.ShowDialog(options)
+                    --Route table rolls to the embedded timeline roller.
+                    local dialog = CharacterPanel.EmbedDialogStandalone()
+                    if dialog ~= nil and dialog.data ~= nil and dialog.data.ShowDialog ~= nil then
+                        return dialog.data.ShowDialog(options)
+                    end
+                    return
                 end
 
                 showDialogDuringRoll = options.showDialogDuringRoll
@@ -2728,6 +2788,7 @@ function GameHud.CreateRollDialog(self)
                 end
 
                 m_options = options
+                m_forceDiceTower = options.dicetower or false
 
                 targetHints = options.targetHints
 
@@ -2751,6 +2812,8 @@ function GameHud.CreateRollDialog(self)
                 completeRoll = options.completeRoll
                 cancelRoll = options.cancelRoll
 
+                m_boons = 0
+
                 resultPanel:FireEventTree('prepare', options)
 
                 baseRoll = options.roll
@@ -2763,10 +2826,10 @@ function GameHud.CreateRollDialog(self)
                 if options.numPrompts ~= nil and options.numPrompts > 1 then
                     rollAllPromptsCheck.value = true
                     rollAllPromptsCheck.data.SetText(string.format("Roll all %d prompts", options.numPrompts))
-                    rollAllPromptsCheck:SetClass("collapsed-anim", false)
+                    rollAllPromptsCheck:SetClass("collapseAnim", false)
                 else
                     rollAllPromptsCheck.value = false
-                    rollAllPromptsCheck:SetClass("collapsed-anim", true)
+                    rollAllPromptsCheck:SetClass("collapseAnim", true)
                 end
 
                 if options.skipDeterministic and dmhub.IsRollDeterministic(rollInput.text) and dmhub.IsRollDeterministic(options.roll) then
@@ -2794,7 +2857,7 @@ function GameHud.CreateRollDialog(self)
                     .id))
                     local quickRoll = dmhub.GetSettingValue(string.format("%s:quickRoll", options.autoroll.id))
 
-                    autoRollPanel:SetClass("collapsed-anim", false)
+                    autoRollPanel:SetClass("collapseAnim", false)
                     autoRollCheck.value = autoroll or false
                     autoRollCheck.data.SetText(string.format("Auto-roll %s in future", options.autoroll.text))
                     autoHideCheck.data.SetText(string.format("Hide %s from players", options.autoroll.text))
@@ -2809,7 +2872,7 @@ function GameHud.CreateRollDialog(self)
                         rollDiceButton:FireEventTree("press")
                     end
                 else
-                    autoRollPanel:SetClass("collapsed-anim", true)
+                    autoRollPanel:SetClass("collapseAnim", true)
                     autoRollId = nil
                 end
 
@@ -2853,6 +2916,11 @@ function GameHud.CreateRollDialog(self)
                     if creature ~= nil and creature._tmp_aicontrol > 0 then
                         local TryToProceed
                         local m_timerState = nil
+                        --wait state for an accepted trigger whose before-action
+                        --(e.g. Vanguard's Parry shift) is still resolving on the
+                        --owner's client. Separate from m_timerState so the decision
+                        --window and the resolution wait each get their own clock.
+                        local m_resolveState = nil
 
 
                         TryToProceed = function()
@@ -2860,17 +2928,25 @@ function GameHud.CreateRollDialog(self)
                             if resultPanel.valid and showingDialog then
                                 local tokens = dmhub.allTokens
                                 local haveTriggers = false
+                                local resolvingTrigger = nil
+                                local resolvingToken = nil
 
                                 local q = dmhub.initiativeQueue
                                 if q ~= nil then
                                     for _,tok in ipairs(tokens) do
                                         local initiativeid = InitiativeQueue.GetInitiativeId(tok)
                                         if q:IsEntryPlayer(initiativeid) or tok.playerControlled then
-                                            local triggers = tok.properties:GetAvailableTriggers(true)
+                                            --include dismissed records: an accepted trigger-before
+                                            --trigger is dismissed from the panel but still resolving.
+                                            local triggers = tok.properties:GetAvailableTriggers()
                                             for _,trigger in pairs(triggers or {}) do
                                                 if trigger.powerRollModifier then
-                                                    haveTriggers = true
-                                                    break
+                                                    if trigger.resolving then
+                                                        resolvingTrigger = trigger
+                                                        resolvingToken = tok
+                                                    elseif not trigger.dismissed then
+                                                        haveTriggers = true
+                                                    end
                                                 end
                                             end
                                         end
@@ -2878,7 +2954,7 @@ function GameHud.CreateRollDialog(self)
                                 end
 
                                 --check to make sure we don't need to reroll.
-                                if not haveTriggers then
+                                if (not haveTriggers) and resolvingTrigger == nil then
                                     triggersContainer:FireEvent("charactersUpdated")
                                     CalculateRollText()
                                     local rerolling = RecalculateMultiTargets()
@@ -2892,6 +2968,63 @@ function GameHud.CreateRollDialog(self)
                                 end
 
                                 --print("AI:: Dialog haveTriggers =", haveTriggers, m_timerState)
+
+                                if resolvingTrigger ~= nil and (m_resolveState == nil or (dmhub.Time() < m_resolveState.expire) or m_resolveState.paused) then
+                                    --hold the roll while the accepted trigger's before-action
+                                    --plays out, so it lands before damage and forced movement.
+                                    --A 30s clock backstops a player who never finishes it; the
+                                    --Director can click the dice to pause or push through.
+                                    local t = dmhub.Time()
+                                    if m_resolveState == nil then
+                                        local ownerName = resolvingToken.name
+                                        if ownerName == nil or ownerName == "" then
+                                            ownerName = "a player"
+                                        end
+                                        local triggerName = nil
+                                        if resolvingTrigger.powerRollModifier then
+                                            triggerName = resolvingTrigger.powerRollModifier:try_get("name")
+                                        end
+                                        local waitText
+                                        if triggerName ~= nil and triggerName ~= "" then
+                                            waitText = string.format("Waiting for %s's %s trigger...", ownerName, triggerName)
+                                        else
+                                            waitText = string.format("Waiting for %s's trigger...", ownerName)
+                                        end
+                                        m_resolveState = {
+                                            start = t,
+                                            current = t,
+                                            expire = t + 30,
+                                            text = waitText .. " Click to pause.",
+                                            callback = function()
+                                                if m_resolveState ~= nil then
+                                                    if m_resolveState.paused then
+                                                        UpdateTriggerReactionPanel(nil)
+                                                        if proceedAfterRollButton.valid then
+                                                            proceedAfterRollButton:FireEventTree("press")
+                                                        end
+                                                        return
+                                                    else
+                                                        m_resolveState.text = waitText .. " Click to proceed."
+                                                        m_resolveState.paused = true
+                                                        UpdateTriggerReactionPanel(m_resolveState)
+                                                    end
+                                                end
+                                            end,
+                                        }
+                                    end
+
+                                    m_resolveState.current = t
+                                    UpdateTriggerReactionPanel(m_resolveState)
+                                    dmhub.Schedule(0.2, function()
+                                        TryToProceed()
+                                    end)
+                                    return
+                                elseif m_resolveState ~= nil and resolvingTrigger == nil then
+                                    --the before-action finished (or was cancelled): drop the
+                                    --wait state so a later one starts a fresh clock, and fall
+                                    --through to the normal decision below.
+                                    m_resolveState = nil
+                                end
 
                                 if haveTriggers and (m_timerState == nil or (dmhub.Time() < m_timerState.expire) or m_timerState.paused) then
                                     local t = dmhub.Time()
@@ -2944,6 +3077,7 @@ function GameHud.CreateRollDialog(self)
                 OnHide()
 
                 local dmonly = false
+                local dicetower = false
                 local instant = false
 
                 if autoRollId ~= nil then
@@ -2957,14 +3091,18 @@ function GameHud.CreateRollDialog(self)
 
                 if hideRollDropdown.idChosen == "dm" then
                     dmonly = true
+                elseif hideRollDropdown.idChosen == "dicetower" then
+                    dicetower = true
                 end
 
-                if hideRollDropdown.idChosen ~= dmhub.GetSettingValue("privaterolls") and updateRollVisibility.value then
-                    --update the setting for private rolls from now on.
-                    dmhub.SetSettingValue("privaterolls", hideRollDropdown.idChosen)
-                end
+                if not m_forceDiceTower then
+                    if hideRollDropdown.idChosen ~= dmhub.GetSettingValue("privaterolls") and updateRollVisibility.value then
+                        --update the setting for private rolls from now on.
+                        dmhub.SetSettingValue("privaterolls", hideRollDropdown.idChosen)
+                    end
 
-                dmhub.SetSettingValue("privaterolls:save", updateRollVisibility.value)
+                    dmhub.SetSettingValue("privaterolls:save", updateRollVisibility.value)
+                end
 
                 if rollAllPrompts ~= nil and rollAllPromptsCheck.value then
                     rollAllPrompts()
@@ -3178,6 +3316,22 @@ function GameHud.CreateRollDialog(self)
                         end
                     end
 
+                    --Publish which modifiers the roller actually kept. The dialog
+                    --has always known; it just died with the dialog, leaving a
+                    --caller unable to tell a +2 from Skilled apart from +2 of
+                    --characteristic. Snapshotted here rather than at submission
+                    --because after-roll choices are not settled until now.
+                    if rollInfo ~= nil and rollInfo.properties ~= nil then
+                        local names = {}
+                        for _, modifier in ipairs(DeepCopy(m_activeModifiers)) do
+                            local name = modifier ~= nil and modifier.name or nil
+                            if name ~= nil and name ~= "" then
+                                names[#names + 1] = name
+                            end
+                        end
+                        rollInfo.properties.modifiersUsed = names
+                    end
+
                     if completeRollFn ~= nil then
                         completeRollFn(rollInfo)
                     end
@@ -3200,6 +3354,7 @@ function GameHud.CreateRollDialog(self)
                     silent = rollIsSilent,
                     delay = delayRoll,
                     dmonly = dmonly,
+                    dicetower = dicetower,
                     instant = instant,
                     roll = rollInput.text,
                     creature = creature,
@@ -3231,7 +3386,7 @@ function GameHud.CreateRollDialog(self)
                             end
 
                             print("AI:: Dialog ROLL COMPLETE...")
-                            if creature ~= nil and creature._tmp_aicontrol > 0 then
+                            if (creature ~= nil and creature._tmp_aicontrol > 0) or (dicetower and not dmhub.isDM) then
                             print("AI:: Dialog ROLL PRESS PROCEED...")
                                 proceedAfterRollButton:FireEvent("press")
                             end
@@ -3250,6 +3405,7 @@ function GameHud.CreateRollDialog(self)
                 }
 
                 g_activeRollArgs = rollArgs
+                g_activeRollArgs.originalRoll = rollArgs.roll
 
                 -- Hook for external mods to intercept rolls
                 local hookResult = nil
@@ -3262,6 +3418,7 @@ function GameHud.CreateRollDialog(self)
                         tokenid = rollArgs.tokenid,
                         properties = rollArgs.properties,
                         dmonly = rollArgs.dmonly,
+                        dicetower = rollArgs.dicetower,
                         instant = rollArgs.instant,
                         silent = rollArgs.silent,
                         delay = rollArgs.delay,
@@ -3269,6 +3426,13 @@ function GameHud.CreateRollDialog(self)
                         modifiers = modifiersUsed,
                         multitargets = multitargetsUsed,
                         boons = m_boons,
+                        setActiveRoll = function(roll)
+                            activeRoll = roll
+                            g_activeRoll = roll
+                            if activeRollFn ~= nil then
+                                activeRollFn(roll)
+                            end
+                        end,
                     })
                 end
 
@@ -3289,6 +3453,15 @@ function GameHud.CreateRollDialog(self)
             end,
         },
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = ThemeEngine.MergeStyles(styles)
+        end
+        if triggersContainer ~= nil and triggersContainer.valid then
+            triggersContainer.styles = ThemeEngine.MergeStyles(triggerStyles)
+        end
+    end)
 
     return resultPanel
 end

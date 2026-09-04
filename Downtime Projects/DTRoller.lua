@@ -192,7 +192,9 @@ end
 --- @return boolean isFollowerType 
 function DTRoller._isFollowerType(object)
     local objType = string.lower(object.typeName or "")
-    return objType == "follower"
+    local role = string.lower(object:try_get("role", ""))
+    local folType = string.lower(object:try_get("followerType", ""))
+    return objType == "follower" or (objType == "monster" and role == "follower" and (folType == "artisan" or folType == "sage"))
 end
 
 --- Determine whether the object represents a roll type

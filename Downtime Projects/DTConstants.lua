@@ -15,6 +15,19 @@ DTConstants.FOLLOWER_ROLLS_KEY = "followerRolls"
 --- The natural roll at and above which is considered a crit or breakthrough
 DTConstants.BREAKTHROUGH_MIN = 19
 
+--- Testing only, ships false. A breakthrough needs a natural 19+, which is a 3%
+--- event and cannot be waited for. With this on, the FIRST roll of every project
+--- roll chain lands its dice on 10 and 10, so the engine's own crit detection
+--- fires exactly as it would on a real crit and the breakthrough follows.
+--- Only the first roll is rigged, or the chain would never end.
+--- Turn it on for BOTH clients: a roll is thrown wherever its dialog opens,
+--- which is not always the client the button was pressed on.
+DTConstants.DEBUG_FORCE_CRIT = false
+
+--- Appended to a rigged roll's title so the hook recognises it whichever client
+--- throws it, and so a tester can see at a glance that the roll is not honest.
+DTConstants.DEBUG_FORCE_CRIT_MARK = " [FORCED CRIT]"
+
 --- Valid language penalty values used in downtime projects and rolls
 DTConstants.LANGUAGE_PENALTY = {
     DTConstant.CreateNew("NONE", 1, "None"),
@@ -66,6 +79,13 @@ DTConstants.STATUS.COMPLETE = DTConstants.STATUS[4]
 DTConstants.FOLLOWER_TYPE.ARTISAN = DTConstants.FOLLOWER_TYPE[1]
 DTConstants.FOLLOWER_TYPE.SAGE = DTConstants.FOLLOWER_TYPE[2]
 
+--- The adventure table rolled for a project event at a milestone. EVENTS_TABLE_ID
+--- is Crafting and Research, the fallback when nothing more specific is chosen.
+--- Only adventure tables named with EVENTS_TABLE_PREFIX are offered as event tables.
+DTConstants.EVENTS_TABLE = "adventureTables"
+DTConstants.EVENTS_TABLE_ID = "93ca7f30-7efa-454d-a5cb-a136046eae14"
+DTConstants.EVENTS_TABLE_PREFIX = "Downtime Event:"
+
 --- Helper function to get display text for enum keys
 --- Looks up the DTConstant in the enum table and returns displayText
 --- Falls back to title-case formatting if key not found
@@ -93,4 +113,19 @@ function DTConstants.GetDisplayText(enumTable, key)
     end
 
     return key or ""
+end
+--- Builds dropdown options from a list of DTConstant instances
+--- @param enumTable table The DTConstant list
+--- @return table options List of { id, text } options
+function DTConstants.GetDropdownOptions(enumTable)
+    local options = {}
+    if enumTable and type(enumTable) == "table" then
+        for _, constant in ipairs(enumTable) do
+            options[#options + 1] = {
+                id = constant.key,
+                text = constant.displayText
+            }
+        end
+    end
+    return options
 end

@@ -12,7 +12,7 @@ local mod = dmhub.GetModLoading()
 --- @field availableMethods table[] Registered generation method descriptors.
 --- @field name string Display name for this generator entry.
 --- @field points number Point-buy budget.
---- @field pointBuyTable nil|GoblinScriptTable Custom point-buy cost table.
+--- @field pointBuyTable nil|GoblinScriptTable|string|number|table Custom point-buy cost table.
 AttributeGenerator = RegisterGameType("AttributeGenerator")
 
 AttributeGenerator.tableName = "attributeGenerator"

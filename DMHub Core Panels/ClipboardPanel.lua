@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 local Selection = dmhub.Selection
 
 local CreateClipboard
@@ -13,6 +24,10 @@ DockablePanel.Register{
 	maxHeight = 250,
 	folder = "Map Editing",
 	content = function()
+		track("panel_open", {
+			panel = "Clipboard",
+			dailyLimit = 30,
+		})
 		return CreateClipboard{
 			title = "Clipboard",
 		}
@@ -63,12 +78,21 @@ CreateClipboard = function(options)
         width = "100%",
         height = "auto",
 
+        --The dockablePanel ancestor can be nil: panel content can be hosted
+        --outside the dock (the document system's PanelDocument bridge), and
+        --focus events can fire while detached. Guard like Objects.lua does.
         childfocus = function(element)
-            element:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", true)
+            local dockPanel = element:FindParentWithClass("dockablePanel")
+            if dockPanel ~= nil then
+                dockPanel:SetClass("highlightPanel", true)
+            end
         end,
 
         childdefocus = function(element, focusInfo)
-            element:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", false)
+            local dockPanel = element:FindParentWithClass("dockablePanel")
+            if dockPanel ~= nil then
+                dockPanel:SetClass("highlightPanel", false)
+            end
             dmhub.SetSettingValue("selectiontool", "none")
         end,
 
@@ -703,7 +727,8 @@ ShowClippingProperties = function(asset)
             text = "Clipping Properties",
         },
 
-		gui.CloseButton{
+		gui.Button{
+            classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
 			floating = true,

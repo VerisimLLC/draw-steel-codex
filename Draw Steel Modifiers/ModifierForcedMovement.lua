@@ -37,7 +37,8 @@ CharacterModifier.TypeInfo.forcedmovement = {
                             classes = {'formLabel'},
                             text = string.format("%s -> %s", moveType.from, moveType.to),
                         },
-                        gui.DeleteItemButton{
+                        gui.Button{
+                            classes = {"deleteButton"},
                             halign = "right",
                             click = function()
                                 table.remove(modifier.movementTypes, i)
@@ -92,7 +93,7 @@ CharacterModifier.TypeInfo.forcedmovement = {
             }
 
             children[#children+1] = gui.Panel{
-                classes = {"formPanel"},
+                classes = {"formPanel", "formPanel-inline"},
                 fromDropdown,
                 gui.Label{
                     text = "->",

@@ -128,15 +128,14 @@ CharacterModifier.TypeInfo.grantSpells = {
                 local spellInfo = spellsTable[spellid]
                 if spellInfo ~= nil then
                     children[#children+1] = gui.Panel{
-                        classes = {"formPanel"},
+                        classes = {"formPanel", "formPanel-inline"},
                         gui.Label{
                             classes = {"formLabel"},
                             text = spellInfo.name,
                         },
 
-                        gui.DeleteItemButton{
-                            width = 16,
-                            height = 16,
+                        gui.Button{
+                            classes = {"deleteButton", "sizeS"},
                             valign = "center",
                             halign = "right",
                             click = function(element)

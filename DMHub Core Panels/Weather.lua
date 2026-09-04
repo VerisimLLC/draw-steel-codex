@@ -1,17 +1,15 @@
 local mod = dmhub.GetModLoading()
 
-local CreateWeatherSettings
-
-DockablePanel.Register{
-	name = "Weather",
-	icon = mod.images.weatherIcon,
-	vscroll = true,
-	minHeight = 100,
-    dmonly = true,
-	content = function()
-		return CreateWeatherSettings()
-	end,
-}
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
 
 local function CreateWeatherEffectAsset()
 	dmhub.OpenFileDialog{
@@ -72,8 +70,6 @@ local function CreateWeatherEffectAsset()
 	}
 end
 
-
-
 CreateWeatherSettings = function()
 
 	local GetWeatherEffectName = function()
@@ -107,10 +103,9 @@ CreateWeatherSettings = function()
 		children = {
 			CreateSettingsEditor('weather'),
 
-			gui.AddButton{
+			gui.Button{
+				classes = {"addButton", "sizeXl"},
 				tooltip = 'Add new weather effect from an image or video',
-				height = 48,
-				width = '100% height',
 				halign = 'right',
 				hmargin = 8,
 				events = {
@@ -485,3 +480,18 @@ CreateWeatherSettings = function()
 	return contentPanel
 
 end
+
+DockablePanel.Register{
+	name = "Weather",
+	icon = mod.images.weatherIcon,
+	vscroll = true,
+	minHeight = 100,
+    dmonly = true,
+	content = function()
+		track("panel_open", {
+			panel = "Weather",
+			dailyLimit = 30,
+		})
+		return CreateWeatherSettings()
+	end,
+}

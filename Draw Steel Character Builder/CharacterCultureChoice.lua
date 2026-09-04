@@ -96,7 +96,7 @@ end
 --- @param option table
 --- @return boolean haltSavePropagation
 function CharacterAspectChoice:SaveSelection(hero, option)
-    local culture = hero:try_get("culture")
+    local culture = rawget(hero, "culture")
     if culture == nil then
         culture = Culture.CreateNew()
         hero.culture = culture

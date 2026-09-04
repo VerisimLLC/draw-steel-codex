@@ -1,4 +1,5 @@
 --- @class CharacterAppearance 
+--- @field effectiveTokenScaling number 
 CharacterAppearance = {}
 
 --- GetPortraitId

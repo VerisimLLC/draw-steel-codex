@@ -49,8 +49,25 @@ function CreateInfoDocument(description)
         annotations = {},
     }
 
-    markdownDoc:ShowCreateDialog()
+    --Persist the document BEFORE we hand an InfoDocument back. Our caller
+    --(InfoBubbleController.CreateInfoBubble) writes the bubble to the floor as a
+    --SEPARATE write the moment we return, so anything that stops the document
+    --from being written leaves a bubble whose docid resolves to nothing -- and
+    --clicking such a bubble used to be a silent no-op. Returning nil makes the
+    --caller abort the bubble instead, so the two can never come apart.
     dmhub.SetAndUploadTableItem(MarkdownDocument.tableName, markdownDoc)
+
+    if (dmhub.GetTable(CustomDocument.tableName) or {})[docid] == nil then
+        --SetAndUploadTableItem is a no-op in some games (the lobby game returns
+        --early), in which case the row never lands and the bubble must not exist.
+        gui.ModalMessage {
+            title = "Could Not Create Info Bubble",
+            message = "The journal document for this info bubble could not be saved, so the bubble was not created.",
+        }
+        return nil
+    end
+
+    markdownDoc:ShowCreateDialog()
 
     return InfoDocument.new {
         ord = maxOrd + 1,
@@ -66,8 +83,18 @@ function GameHud:CreateDocumentsPanel()
 
         styles = {
             {
-                width = self.dialog.width,
-                height = self.dialog.height,
+                --track the parent LIVE. Reading self.dialog.width here froze a
+                --NUMBER at creation time; the layer's coordinate space has a
+                --fixed height (1048) while its width follows the window
+                --aspect, so any resize/fullscreen/monitor change left the
+                --frozen width stale. With halign 'center' the leftover space
+                --split evenly and indented everything mounted in this layer
+                --(icon rails, panel windows, banners) away from the screen
+                --edges -- measured 1728 vs a live 1829.78, ~71px per side. A
+                --Lua reload recreated the panel at the current width and
+                --"fixed" it, which is what made the bug look intermittent.
+                width = "100%",
+                height = "100%",
                 valign = 'center',
                 halign = 'center',
                 bgcolor = 'clear',
@@ -366,12 +393,11 @@ function GameHud:CreateDocumentDialog()
                                     end,
                                 },
                             },
-                            gui.DeleteItemButton {
+                            gui.Button {
+                                classes = {"deleteButton", "sizeS"},
                                 floating = true,
-                                width = 16,
                                 rmargin = 4,
                                 tmargin = 4,
-                                height = 16,
                                 halign = "right",
                                 valign = "top",
 
@@ -397,7 +423,8 @@ function GameHud:CreateDocumentDialog()
         children = { titlePanel, documentPanel },
     }
 
-    local closeButton = gui.CloseButton {
+    local closeButton = gui.Button{
+        classes = {"closeButton"},
         escapeActivates = true,
         valign = 'top',
         halign = 'right',
@@ -417,6 +444,36 @@ function GameHud:CreateDocumentDialog()
     }
 
 
+    local dialogPanel
+
+    local function createDocInterfaceArgs(docId)
+        return {
+            dialogPanel = dialogPanel,
+            close = function(element)
+                closeButton:FireEvent("click")
+            end,
+            titlePanel = gui.Panel {
+                selfStyle = {
+                    flow = 'horizontal',
+                    width = 'auto',
+                    height = 'auto',
+                    pad = 0,
+                    tmargin = 4,
+                    lmargin = 20,
+                    halign = "left",
+                    valign = 'top',
+                },
+                children = {
+                    title,
+                    gui.Panel { width = 8, height = 8 },
+                    bubbleIcon,
+                    gui.Panel { width = 30, height = 8 },
+                    lockIcon,
+                }
+            }
+        }
+    end
+
     local customDocPanel = gui.Panel {
         data = {
             docid = false,
@@ -429,42 +486,14 @@ function GameHud:CreateDocumentDialog()
             if info.document.docid then
                 local doc = (dmhub.GetTable(CustomDocument.tableName) or {})[info.document.docid]
                 if doc ~= nil then
-                    element.data.interfacePanel = doc:CreateInterface {
-                        close = function(element)
-                            closeButton:FireEvent("click")
-                        end,
+                    -- Reset history when switching entries
+                    if dialogPanel then
+                        dialogPanel.data.history = {}
+                        dialogPanel.data.forwardHistory = {}
+                        dialogPanel.data.currentDocId = info.document.docid
+                    end
 
-                        titlePanel = gui.Panel {
-                            selfStyle = {
-                                flow = 'horizontal',
-                                width = 'auto',
-                                height = 'auto',
-                                pad = 0,
-                                tmargin = 4,
-                                lmargin = 20,
-                                halign = "left",
-                                valign = 'top',
-                            },
-                            children = {
-                                title,
-                                --padding.
-                                gui.Panel {
-                                    width = 8,
-                                    height = 8,
-                                },
-                                bubbleIcon,
-                                --padding.
-                                gui.Panel {
-                                    width = 30,
-                                    height = 8,
-                                },
-                                lockIcon,
-                            }
-                        }
-
-
-                    }
-
+                    element.data.interfacePanel = doc:CreateInterface(createDocInterfaceArgs(info.document.docid))
                     element.children = { element.data.interfacePanel }
                     element.data.docid = info.document.docid
                 end
@@ -492,7 +521,7 @@ function GameHud:CreateDocumentDialog()
         end,
     }
 
-    local dialogPanel = gui.Panel {
+    dialogPanel = gui.Panel {
         classes = { "framedPanel" },
         valign = 'top',
         halign = 'left',
@@ -500,6 +529,80 @@ function GameHud:CreateDocumentDialog()
         opacity = 0.98,
         width = dialogWidth,
         height = dialogHeight,
+
+        data = {
+            history = {},
+            forwardHistory = {},
+            currentDocId = false,
+        },
+
+        navigateToDocument = function(element, docId)
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local newDoc = docs[docId]
+            if newDoc == nil then return end
+
+            element.data.history[#element.data.history + 1] = element.data.currentDocId
+            element.data.forwardHistory = {}
+            element.data.currentDocId = docId
+
+            if customDocPanel.data.interfacePanel then
+                customDocPanel.data.interfacePanel:DestroySelf()
+            end
+            customDocPanel.data.interfacePanel = newDoc:CreateInterface(createDocInterfaceArgs(docId))
+            customDocPanel.children = { customDocPanel.data.interfacePanel }
+            customDocPanel.data.docid = docId
+
+            element:FireEventTree("refreshNavButtons")
+        end,
+
+        navigateBack = function(element)
+            local history = element.data.history
+            if #history == 0 then return end
+
+            local prevDocId = history[#history]
+            history[#history] = nil
+
+            element.data.forwardHistory[#element.data.forwardHistory + 1] = element.data.currentDocId
+            element.data.currentDocId = prevDocId
+
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local prevDoc = docs[prevDocId]
+            if prevDoc == nil then return end
+
+            if customDocPanel.data.interfacePanel then
+                customDocPanel.data.interfacePanel:DestroySelf()
+            end
+            customDocPanel.data.interfacePanel = prevDoc:CreateInterface(createDocInterfaceArgs(prevDocId))
+            customDocPanel.children = { customDocPanel.data.interfacePanel }
+            customDocPanel.data.docid = prevDocId
+
+            element:FireEventTree("refreshNavButtons")
+        end,
+
+        navigateForward = function(element)
+            local forwardHistory = element.data.forwardHistory
+            if #forwardHistory == 0 then return end
+
+            local nextDocId = forwardHistory[#forwardHistory]
+            forwardHistory[#forwardHistory] = nil
+
+            element.data.history[#element.data.history + 1] = element.data.currentDocId
+            element.data.currentDocId = nextDocId
+
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local nextDoc = docs[nextDocId]
+            if nextDoc == nil then return end
+
+            if customDocPanel.data.interfacePanel then
+                customDocPanel.data.interfacePanel:DestroySelf()
+            end
+            customDocPanel.data.interfacePanel = nextDoc:CreateInterface(createDocInterfaceArgs(nextDocId))
+            customDocPanel.children = { customDocPanel.data.interfacePanel }
+            customDocPanel.data.docid = nextDocId
+
+            element:FireEventTree("refreshNavButtons")
+        end,
+
         children = {
             leftPanel,
             mainPanel,
@@ -730,23 +833,101 @@ end
 
 local loadid = dmhub.GenerateGuid()
 
-function GameHud:DisplayDocument(info)
-    local documentDialog = self:try_get('documentDialog')
-    if documentDialog == nil or loadid ~= self:try_get("documentDialogLoadID") then
-        if documentDialog ~= nil then
-            documentDialog:DestroySelf()
-        end
+--A bubble can end up pointing at a docid that resolves to no document. The
+--document is written by CreateInfoDocument as a separate write from the bubble
+--itself, and in a local-assets game it is written to the YAML directory rather
+--than into the game -- so it vanishes from the game's view the moment that
+--directory is no longer mounted. Say so, and offer to rebuild the document
+--under the SAME docid so the bubble heals, rather than doing nothing at all.
+local function ShowMissingDocumentMessage(info)
+    local docid = info.document.docid
+    local description = info.description or "Info Bubble"
 
-        documentDialog = self:CreateDocumentDialog()
-        self.documentDialogLoadID = loadid
-        self.documentDialog = documentDialog
-        self.documentsPanel.children = { documentDialog }
-    else
-        documentDialog:SetClass('hidden', not documentDialog:HasClass('hidden'))
+    local message = string.format(
+        "This info bubble points at a journal document that no longer exists in this game.\n\nDocument id: %s",
+        tostring(docid))
+
+    local status = dmhub.LocalAssetsStatus()
+    if status ~= nil and status.active then
+        message = message .. "\n\nThis game is using local asset directories, so documents created in it are written to disk rather than into the game. If the document is not in those directories the bubble cannot resolve it."
     end
 
-    if not documentDialog:HasClass('hidden') then
-        documentDialog:FireEvent("refreshBubbleDocument", info)
+    gui.ModalMessage {
+        title = "Document Missing",
+        message = message,
+        options = {
+            {
+                text = "Create Document",
+                execute = function()
+                    local doc = MarkdownDocument.new {
+                        id = docid,
+                        description = description,
+                        parentFolder = game.currentMapId,
+                        content = "# " .. description,
+                        annotations = {},
+                    }
+                    doc:Upload()
+                    doc:ShowDocument{ bubbleIcon = info.icon, edit = true }
+                end,
+            },
+            {
+                text = "Cancel",
+            },
+        },
+    }
+end
+
+function GameHud:DisplayDocument(info)
+    if info.document.docid then
+        -- Open all docid-bearing bubbles as top-bar tabs in the journal viewer
+        local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+
+        if docs[info.document.docid] == nil then
+            ShowMissingDocumentMessage(info)
+            return
+        end
+
+        local bubblesSorted = {}
+        for k, bubble in pairs(dmhub.infoBubbles) do
+            if bubble.document ~= nil and bubble.document.docid then
+                bubblesSorted[#bubblesSorted + 1] = bubble
+            end
+        end
+        table.sort(bubblesSorted, function(a, b)
+            return a.document.ord < b.document.ord
+        end)
+
+        for _, bubble in ipairs(bubblesSorted) do
+            local doc = docs[bubble.document.docid]
+            if doc ~= nil then
+                doc:ShowDocument({bubbleIcon = bubble.icon, skipRefresh = true})
+            end
+        end
+
+        -- Switch to the clicked bubble's tab (addTab detects duplicate and switches)
+        local clickedDoc = docs[info.document.docid]
+        if clickedDoc ~= nil then
+            clickedDoc:ShowDocument({bubbleIcon = info.icon})
+        end
+    else
+        -- Sections-based bubbles use the existing dialog
+        local documentDialog = self:try_get('documentDialog')
+        if documentDialog == nil or loadid ~= self:try_get("documentDialogLoadID") then
+            if documentDialog ~= nil then
+                documentDialog:DestroySelf()
+            end
+
+            documentDialog = self:CreateDocumentDialog()
+            self.documentDialogLoadID = loadid
+            self.documentDialog = documentDialog
+            self.documentsPanel.children = { documentDialog }
+        else
+            documentDialog:SetClass('hidden', not documentDialog:HasClass('hidden'))
+        end
+
+        if not documentDialog:HasClass('hidden') then
+            documentDialog:FireEvent("refreshBubbleDocument", info)
+        end
     end
 end
 
@@ -765,15 +946,15 @@ function GameHud:ShowInfoBubbleTip(info)
     local markdownDoc = info.document:GetMarkdownDocument()
     if markdownDoc ~= nil then
         gamehud.popupPanel.popup = gui.TooltipFrame(
-            markdownDoc:DisplayPanel {
-                width = "100%",
+            gui.Label{
+                fontSize = 18,
+                text = string.format("<b><size=140%%>%s</size></b>\n<i>Journal Document</i>\nClick to Open", markdownDoc.name),
+                markdown = true,
+                width = "auto",
                 height = "auto",
-                halign = "right",
-                maxHeight = 1000,
-                vscroll = false,
             },
             {
-                width = 800,
+                width = "auto",
                 interactable = false,
             }
         )
@@ -783,6 +964,28 @@ function GameHud:ShowInfoBubbleTip(info)
         return
     end
 
+    if info.document.docid then
+        --A docid that resolves to nothing used to fall through to the sections
+        --tooltip below, which renders as an ordinary bubble with no content --
+        --indistinguishable from a bubble the DM simply left empty.
+        gamehud.popupPanel.popup = gui.TooltipFrame(
+            gui.Label{
+                fontSize = 18,
+                text = string.format("<b><size=140%%>%s</size></b>\n<i>Document Missing</i>\nClick for Details", info.description or "Info Bubble"),
+                markdown = true,
+                width = "auto",
+                height = "auto",
+            },
+            {
+                width = "auto",
+                interactable = false,
+            }
+        )
+
+        gamehud.popupPanel.popup:MakeNonInteractiveRecursive()
+
+        return
+    end
 
     local styles = {
         {

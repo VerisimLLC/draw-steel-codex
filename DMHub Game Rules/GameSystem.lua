@@ -153,6 +153,37 @@ GameSystem.hasAbilityKeywords = false
 GameSystem.abilityKeywords = {}
 GameSystem.itemKeywords = {}
 
+--Tags that CharacterFeatures can carry (e.g. "Combat", "Hidden"). An
+--ordered list of {name, defaultExcluded, gameMode} records; registration
+--order is display order. Empty when the active game system registers no
+--tags, in which case feature editors hide the tag row.
+--  defaultExcluded: the tag is filtered OUT of sheet/panel feature lists
+--    unless the user opts into it (e.g. "Hidden").
+--  gameMode: the tag mirrors a real game mode (Combat, Respite, ...) and
+--    participates in mode auto-tagging; system tags leave it false.
+--  filterable: offered as a filter chip on sheet/panel (default true).
+--    Display-kind tags ("Ability", "Trigger") set false: they declare how
+--    the feature renders (ability card / trigger drawer) rather than being
+--    a user-facing filter, and features carrying them do not appear in
+--    feature lists (their content displays via the ability surfaces).
+GameSystem.featureTags = {}
+
+function GameSystem.RegisterFeatureTag(args)
+	local filterable = args.filterable
+	if filterable == nil then filterable = true end
+	GameSystem.featureTags[#GameSystem.featureTags+1] = {
+		name = args.name,
+		defaultExcluded = args.defaultExcluded or false,
+		gameMode = args.gameMode or false,
+		filterable = filterable,
+	}
+end
+
+--A game mode is a feature tag with gameMode semantics.
+function GameSystem.RegisterFeatureMode(mode)
+	GameSystem.RegisterFeatureTag{ name = mode, gameMode = true }
+end
+
 --do we trigger abilities at the start of the round?
 GameSystem.HaveBeginRoundTrigger = false
 
@@ -198,6 +229,7 @@ function GameSystem.ClearRules()
 
 	GameSystem.abilityKeywords = {}
     GameSystem.itemKeywords = {}
+	GameSystem.featureTags = {}
 
 	GameSystem.CharacterBuilderShowsHitpoints = true
 
@@ -211,6 +243,7 @@ function GameSystem.ClearWeaponProperties()
     WeaponProperty.builtins = {}
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMRules.lua:138
 function GameSystem.BaseCreatureResources(creature)
     return {
 		standardAction = 1,
@@ -219,6 +252,7 @@ function GameSystem.BaseCreatureResources(creature)
 		reaction = 1,
     }
 end
+--]==]
 
 GameSystem.spellSlotsTable = {
 	{ 2 }, -- level 1
@@ -334,9 +368,11 @@ GameSystem.RegisterModifiableAttribute{
     category = "Combat",
 }
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMRules.lua:601
 function GameSystem.IgnoreOffhandWeaponPenalty(creature, weapon)
 	return creature:CalculateAttribute('ignoreoffhandpenalty', 0) > 0
 end
+--]==]
 
 
 function GameSystem.RegisterBuiltinWeaponProperty(properties)
@@ -644,9 +680,11 @@ GameSystem.RegisterConditionRule{
 GameSystem.OnEndCastActivatedAbility = function(casterToken, ability, options)
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMRules.lua:1173
 function GameSystem.AllowTargeting(casterToken, targetToken, ability)
 	return true
 end
+--]==]
 
 function GameSystem.RegisterCreatureSizes(sizes)
 

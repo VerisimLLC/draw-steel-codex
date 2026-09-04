@@ -1,305 +1,1271 @@
 local mod = dmhub.GetModLoading()
 
+--Switch a map object's appearance (its Appearance component's image-swap
+--selection), addressed by floor id + object id. The value is an alternate's
+--name (the stable address: names travel with their image when an alternate
+--is promoted via Set as Default), a numeric index (0 = the base image), or
+--"cycle" to advance to the next appearance and wrap around. Recorded by the
+--command builder's bolts in the Map Appearance gallery (below).
+Commands.RegisterMacro{
+    name = "mapappearance",
+    summary = "switch a map object's appearance",
+    doc = "Usage: /mapappearance <floorid> <objectid> <name|index|cycle>. Switches the map's Appearance to the named alternate (0 or the default's name for the base image), or cycles to the next one.",
+    command = function(str)
+        local floorid, objid, value = string.match(str or "", "^%s*(%S+)%s+(%S+)%s+(.-)%s*$")
+        if value == nil or value == "" then
+            dmhub.Log("mapappearance: usage: /mapappearance <floorid> <objectid> <name|index|cycle>")
+            return
+        end
+
+        local obj = game.LookupObject(floorid, objid)
+        if obj == nil or not obj.valid then
+            dmhub.Log(string.format("mapappearance: object not found: %s on floor %s", objid, floorid))
+            return
+        end
+
+        local comp = obj:GetComponent("Appearance")
+        if comp == nil or not comp.valid then
+            dmhub.Log(string.format("mapappearance: object %s has no appearance alternates", objid))
+            return
+        end
+
+        local doc = obj:ComponentToJson(comp.componentid)
+        local swaps = (doc ~= nil and doc.imageSwaps) or {}
+        local names = (doc ~= nil and doc.imageSwapNames) or {}
+        local current = (doc ~= nil and doc.imageNumber) or 0
+        local baseLabel = (doc ~= nil and doc.imageDefaultName) or ""
+        if baseLabel == "" then
+            baseLabel = "Default"
+        end
+
+        local target = nil
+        if value == "cycle" then
+            target = (current + 1) % (#swaps + 1)
+        else
+            --name match first so an appearance literally named "2" wins over
+            --index interpretation.
+            if string.lower(value) == string.lower(baseLabel) then
+                target = 0
+            else
+                for i = 1, #swaps do
+                    local name = names[i] or string.format("Appearance %d", i)
+                    if string.lower(name) == string.lower(value) then
+                        target = i
+                        break
+                    end
+                end
+            end
+            if target == nil then
+                local num = tonumber(value)
+                if num ~= nil and num >= 0 and num <= #swaps then
+                    target = math.floor(num)
+                end
+            end
+        end
+
+        if target == nil then
+            dmhub.Log(string.format("mapappearance: no appearance named '%s' on object %s", value, objid))
+            return
+        end
+
+        if target ~= current then
+            comp:SetAndUploadProperties{
+                imageNumber = target,
+            }
+        end
+    end,
+}
+
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 local CreateLayersPanel
 
 DockablePanel.Register{
 	name = "Floors & Layers",
 	icon = "icons/standard/Icon_App_FloorsLayers.png",
 	minHeight = 100,
+	--the floor list is short; a popped-out OS window at the generic
+	--520px default is mostly empty space, so open it around half that.
+	popoutHeight = 230,
 	vscroll = false,
 	dmonly = true,
 	content = function()
+		track("panel_open", {
+			panel = "Floors & Layers",
+			dailyLimit = 30,
+		})
 		return CreateLayersPanel()
 	end,
 }
 
-local function ShowFloorSettings(floor)
-
-	local shadowCastOptions = {
-		{
-			id = 'this',
-			text = "Cast Shadows",
-		},
-		{
-			id = 'none',
-			text = 'No Shadows',
-		},
-	}
-
-	for i,floorInfo in ipairs(game.currentMap.floors) do
-		if floorInfo.floorid ~= floor.floorid then
-			shadowCastOptions[#shadowCastOptions+1] =
-			{
-				id = floorInfo.floorid,
-				text = string.format('Cast Shadows Onto %s', floorInfo.description),
-			}
+--Find the map LevelObject (an object carrying a "Map" component) associated with a floor or layer, if
+--any. Searches the floor's own objects first, then -- for a top-level floor -- every layer beneath it.
+local function FindMapObjectForFloor(floor)
+	for _, obj in pairs(floor.objects) do
+		if obj:GetComponent("Map") ~= nil then
+			return obj
 		end
 	end
 
-	local dialogPanelRoofLayerOptions = gui.Panel{
-				width = 500,
+	if floor.parentFloor == nil then
+		local layers = game.currentMap:GetLayersForFloor(floor.floorid)
+		if layers ~= nil then
+			for _, layer in ipairs(layers) do
+				for _, obj in pairs(layer.objects) do
+					if obj:GetComponent("Map") ~= nil then
+						return obj
+					end
+				end
+			end
+		end
+	end
+
+	return nil
+end
+
+--Setting: when on (the default), selecting or navigating to a floor auto-reveals it and
+--everything below it and hides everything above it. When off, switching floors leaves
+--floor visibility untouched (the classic behaviour).
+setting{
+	id = "autofloorvisibility",
+	description = "Auto-hide floors above the selected floor",
+	help = "When you select a floor (or use the floor up/down keys), automatically reveal that floor and every floor below it and hide every floor above it. Turn this off to leave floor visibility unchanged when you switch floors.",
+	storage = "preference",
+	section = "Map",
+	editor = "check",
+	default = true,
+}
+
+--Floor navigation and auto-visibility, shared by the Floors & Layers panel (floor row
+--clicks) and the floor up/down keybinds (macros in Commands.lua, key bindings in
+--Keybinds.lua). Registered as a game type so it is a well-formed global namespace in every
+--load context (a bare global assignment trips the strict-global guard on some reload paths).
+RegisterGameType("FloorNavigation")
+
+--The live Floors & Layers list panel, if one is open. The panel registers itself here when
+--built (see CreateLayersPanel) so keybind-driven navigation can refresh its eye icons the
+--same way a floor-row click does. Forward-declared here so both ChangeFloorRelative (below)
+--and CreateLayersPanel (further down) close over the same upvalue.
+local g_floorsListPanel = nil
+
+--Refresh the open Floors & Layers list (eye icons, selection, etc.) if there is one.
+local function RefreshFloorsListPanel()
+	if g_floorsListPanel ~= nil and g_floorsListPanel.valid then
+		g_floorsListPanel:FireEventTree("refreshGame")
+	end
+end
+
+--Whether the auto-hide-on-select behaviour is currently enabled.
+function FloorNavigation.AutoVisibilityEnabled()
+	return dmhub.GetSettingValue("autofloorvisibility") ~= false
+end
+
+--Reveal selectedFloor and every floor BELOW it and hide every floor ABOVE it. Floors are
+--stored in currentMap.floors in ascending altitude order (a higher array index is a
+--higher floor), so "below" is a lower index and "above" is a higher index. Only top-level
+--floors (parentFloor == nil) carry the visibility toggle, so those are the only rows
+--changed; if the selection is a layer we compare against its parent floor's position.
+--Floors whose visibility already matches are left untouched, so no redundant uploads are
+--made. Editing floor visibility is a director capability, so this no-ops for players.
+function FloorNavigation.ApplyVisibility(currentMap, selectedFloor)
+	if not dmhub.isDM then
+		return
+	end
+
+	if currentMap == nil or selectedFloor == nil then
+		return
+	end
+
+	local floors = currentMap.floors
+	if floors == nil then
+		return
+	end
+
+	--The selected floor's top-level identity (a layer maps to its parent floor).
+	local refId = selectedFloor.floorid
+	if selectedFloor.parentFloor ~= nil then
+		refId = selectedFloor.parentFloor
+	end
+
+	local selIndex = nil
+	for i, f in ipairs(floors) do
+		if f.floorid == refId then
+			selIndex = i
+			break
+		end
+	end
+
+	if selIndex == nil then
+		return
+	end
+
+	for i, f in ipairs(floors) do
+		if f.parentFloor == nil then
+			--At or below the selection -> visible; above -> hidden.
+			local shouldHide = i > selIndex
+			if f.floorInvisible ~= shouldHide then
+				f.floorInvisible = shouldHide
+			end
+		end
+	end
+end
+
+--When a player uses the floor up/down keybind they do not move the active floor (that is a
+--director tool). Instead they "look up" through the floors above their selected token -- the
+--same Forward / Up 1 / Up 2 control offered by the eye icon on the character panel, driven by
+--the transient "lookup" setting (0 = Forward, 1 = Up 1, ...). Offset +1 looks one floor
+--higher, offset -1 drops back toward Forward. The view is clamped between Forward (0) and the
+--number of floors the token may look up, which mirrors the character panel: it depends on the
+--map's "Can Look Up" (canlookup) and "Max Look Up" (maxlookup) settings and, under "opening",
+--whether there is a hole above the token.
+function FloorNavigation.LookRelative(offset)
+	local tok = dmhub.currentToken
+	if tok == nil then
+		return
+	end
+
+	local canLookup = dmhub.GetSettingValue("canlookup")
+	if canLookup == "never" then
+		return
+	end
+
+	local maxLookup
+	if canLookup == "always" then
+		maxLookup = tok.countFloorsAbove
+	else
+		maxLookup = tok.countFloorsWithVisionAbove
+	end
+
+	local maxLookupSetting = dmhub.GetSettingValue("maxlookup")
+	if maxLookupSetting >= 0 then
+		maxLookup = math.min(maxLookup, maxLookupSetting)
+	end
+
+	if maxLookup <= 0 then
+		return
+	end
+
+	local cur = dmhub.GetSettingValue("lookup")
+	local newValue = cur + offset
+	if newValue < 0 then
+		newValue = 0
+	elseif newValue > maxLookup then
+		newValue = maxLookup
+	end
+
+	if newValue ~= cur then
+		dmhub.SetSettingValue("lookup", newValue)
+	end
+end
+
+--Move the active floor up (offset +1) or down (offset -1) among the top-level floors,
+--clamping at the top and bottom. Applies the auto-hide behaviour when the setting is on.
+--Used by the floor up/down keybinds. Moving the active floor is a director tool; for players
+--the same keybind instead adjusts the "look up" view (see LookRelative above). A director
+--currently previewing a token's vision (dmhub.tokenVision, the "Show Token Vision" keybind)
+--is treated the same as a player here: the engine keeps the rendered floor locked to the
+--previewed token's actual floor while vision preview is active, so moving the active floor
+--out from under it just gets silently reverted -- it looks like the keybind is glitching.
+--CharacterPanel.CreateLookupPanel applies the same isDM-and-tokenVision check for the
+--equivalent "look up" slider on the character panel.
+function FloorNavigation.ChangeFloorRelative(offset)
+	if (not dmhub.isDM) or dmhub.tokenVision ~= nil then
+		FloorNavigation.LookRelative(offset)
+		return
+	end
+
+	local currentMap = game.currentMap
+	if currentMap == nil then
+		return
+	end
+
+	local floors = currentMap.floors
+	if floors == nil then
+		return
+	end
+
+	--Top-level floors in ascending altitude order.
+	local topFloors = {}
+	for _, f in ipairs(floors) do
+		if f.parentFloor == nil then
+			topFloors[#topFloors + 1] = f
+		end
+	end
+
+	if #topFloors == 0 then
+		return
+	end
+
+	local cf = game.currentFloor
+	if cf == nil then
+		return
+	end
+
+	--The current floor's top-level identity (a layer maps to its parent floor).
+	local refId = cf.floorid
+	if cf.parentFloor ~= nil then
+		refId = cf.parentFloor
+	end
+
+	local curPos = nil
+	for pos, f in ipairs(topFloors) do
+		if f.floorid == refId then
+			curPos = pos
+			break
+		end
+	end
+
+	if curPos == nil then
+		return
+	end
+
+	local newPos = curPos + offset
+	if newPos < 1 or newPos > #topFloors then
+		--Already at the top or bottom floor.
+		return
+	end
+
+	local targetFloor = topFloors[newPos]
+	game.ChangeMap(currentMap, targetFloor)
+
+	if FloorNavigation.AutoVisibilityEnabled() then
+		FloorNavigation.ApplyVisibility(currentMap, targetFloor)
+		--Redraw the panel's eye icons to match the new visibility (the click path does the
+		--same). Without this the icons go stale when navigating by keybind.
+		RefreshFloorsListPanel()
+	end
+end
+
+--Custom themed styling for the map-appearance gallery tiles. Hover/selected states live in the style
+--cascade (not inline) so they can flip on mouse-over and recolor with the active scheme. Colors use
+--@tokens so the highlight tracks the user's color scheme.
+local appearanceTileStyles = {
+	--Image thumbnail tile: themed border, accent border when selected. Brighten-on-hover comes from the
+	--composed "hoverable" class.
+	{
+		selectors = {"mapAppearanceTile"},
+		bgimage = true,
+		border = 2,
+		borderColor = "@border",
+		transitionTime = 0.1,
+	},
+	{
+		selectors = {"mapAppearanceTile", "selected"},
+		border = 3,
+		borderColor = "@accent",
+		priority = 10,
+	},
+	--The "add appearance" tile: themed surface; the accent border on hover (plus "hoverable" brighten)
+	--signals that it is responsive.
+	{
+		selectors = {"mapAppearanceAdd"},
+		bgimage = true,
+		border = 2,
+		borderColor = "@border",
+		bgcolor = "@bgAlt",
+		transitionTime = 0.1,
+		priority = 1,
+	},
+	{
+		selectors = {"mapAppearanceAdd", "hover"},
+		border = 3,
+		borderColor = "@accent",
+		priority = 5,
+	},
+	--Pulsed on the floor-settings height input when an edit is rejected;
+	--lives here (the dialog's merged rule set) so @danger resolves.
+	{
+		selectors = {"input", "invalid"},
+		color = "@danger",
+		borderColor = "@danger",
+		transitionTime = 0.6,
+	},
+}
+
+local function ShowFloorSettings(floor, onHeightChanged)
+
+	--Sub-layers (parentFloor ~= nil) are layers within a floor rather than floors in their
+	--own right. The roof/canopy/vision options only take effect on top-level floors, so for a
+	--sub-layer we collapse that whole section and just expose the name.
+	local isLayer = floor.parentFloor ~= nil
+
+	--Canopy-only options (vision multiplier + cutaway controls). Shown when the layer type is
+	--"Canopy"; a plain roof has none of these -- it renders transparent where the player has
+	--vision and opaque elsewhere. Canopy adds the vision multiplier and cutaway tuning.
+	local canopyOptions = gui.Panel{
+		classes = cond(floor.canopy, nil, "collapsed"),
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+
+		gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Label{
+				classes = {"formStacked"},
+				text = "Vision Multiplier:",
+				linger = gui.Tooltip("The vision multiplier allows players to see further on the canopy layer than they can on other layers."),
+			},
+			gui.Slider{
+				classes = {"formStacked"},
+				style = { height = 22, width = 220, valign = "center" },
+				sliderWidth = 150,
+				minValue = 0.1,
+				maxValue = 8,
+				labelWidth = 60,
+				value = floor.visionMultiplier,
+				labelFormat = "rawpercent",
+				events = {
+					change = function(element)
+						floor.visionMultiplierNoUpload = element.value
+					end,
+					confirm = function(element)
+						floor.visionMultiplier = element.value
+					end,
+				},
+			},
+		},
+
+		gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Label{
+				classes = {"formStacked"},
+				text = "Cutaway Radius:",
+				linger = gui.Tooltip("The cutaway radius (in tiles) around any token with vision. Pixels of the canopy within this distance of a token are cut away to reveal the layer below. Set negative to disable the cutaway entirely (the canopy will always be fully shown). For tree foliage, try a small value like 6-10."),
+			},
+			gui.Slider{
+				classes = {"formStacked"},
+				style = { height = 22, width = 220, valign = "center" },
+				sliderWidth = 150,
+				minValue = -1,
+				maxValue = 40,
+				labelWidth = 60,
+				labelFormat = "%d",
+				value = floor.roofVisionExclusion,
+				events = {
+					change = function(element)
+						floor.roofVisionExclusionNoUpload = element.value
+					end,
+					confirm = function(element)
+						floor.roofVisionExclusion = element.value
+					end,
+				},
+			},
+		},
+
+		gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Label{
+				classes = {"formStacked"},
+				text = "Cutaway Fade:",
+				linger = gui.Tooltip("Width (in tiles) of the smooth fade band at the outer edge of the cutaway. Larger values give a softer transition back to the full canopy; a fade of 0 produces a hard edge."),
+			},
+			gui.Slider{
+				classes = {"formStacked"},
+				style = { height = 22, width = 220, valign = "center" },
+				sliderWidth = 150,
+				labelFormat = "%.1f",
+				minValue = 0,
+				maxValue = 2,
+				labelWidth = 60,
+				value = floor.roofVisionExclusionFade,
+				events = {
+					change = function(element)
+						floor.roofVisionExclusionFadeNoUpload = element.value
+					end,
+					confirm = function(element)
+						floor.roofVisionExclusionFade = element.value
+					end,
+				},
+			},
+		},
+
+		gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Label{
+				classes = {"formStacked"},
+				text = "Minimum Opacity:",
+				linger = gui.Tooltip("The minimum opacity that the canopy layer will have within the cutaway zone. 0 means fully transparent at the token; raise it to keep some of the canopy visible even directly above a token."),
+			},
+			gui.Slider{
+				classes = {"formStacked"},
+				style = { height = 22, width = 220, valign = "center" },
+				sliderWidth = 150,
+				labelFormat = "rawpercent",
+				minValue = 0.0,
+				maxValue = 1.0,
+				labelWidth = 60,
+				value = floor.roofMinimumOpacity,
+				events = {
+					change = function(element)
+						floor.roofMinimumOpacityNoUpload = element.value
+					end,
+					confirm = function(element)
+						floor.roofMinimumOpacity = element.value
+					end,
+				},
+			},
+		},
+	}
+
+	--Roof options. Shown for both "Roof" and "Canopy"; canopy stacks its extra controls on top.
+	local roofOptions = gui.Panel{
+		classes = cond(floor.roof, nil, "collapsed"),
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+
+		gui.Check{
+			text = "Hide roof when players are inside",
+			value = not floor.roofShowWhenInside,
+			lmargin = 12,
+			vmargin = 4,
+			events = {
+				change = function(element)
+					floor.roofShowWhenInside = not element.value
+				end,
+				linger = gui.Tooltip("This layer will be hidden when players are inside."),
+			},
+		},
+
+		canopyOptions,
+	}
+
+	local function CurrentLayerType()
+		if floor.canopy then
+			return "canopy"
+		elseif floor.roof then
+			return "roof"
+		else
+			return "floor"
+		end
+	end
+
+	--Layer type selector + its dependent roof/canopy options. Collapsed entirely for sub-layers.
+	local typeSection = gui.Panel{
+		classes = cond(isLayer, "collapsed"),
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+
+		gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Label{
+				classes = {"formStacked"},
+				text = "Layer Type:",
+				linger = gui.Tooltip("Floor: a normal map level. Roof: hidden for players beneath it except where they can't see. Canopy: a roof that cuts away around tokens (tree foliage etc)."),
+			},
+			gui.Dropdown{
+				classes = {"formStacked"},
+				options = {
+					{id = "floor", text = "Floor"},
+					{id = "roof", text = "Roof"},
+					{id = "canopy", text = "Canopy"},
+				},
+				idChosen = CurrentLayerType(),
+				change = function(element)
+					local id = element.idChosen
+					if id == "floor" then
+						floor.roof = false
+						floor.canopy = false
+					elseif id == "roof" then
+						floor.roof = true
+						floor.canopy = false
+					elseif id == "canopy" then
+						floor.roof = true
+						floor.canopy = true
+					end
+					roofOptions:SetClass("collapsed", not floor.roof)
+					canopyOptions:SetClass("collapsed", not floor.canopy)
+				end,
+			},
+		},
+
+		roofOptions,
+	}
+
+	local nameValue
+	if isLayer then
+		nameValue = floor.layerDescription or ""
+	else
+		nameValue = floor.description or ""
+	end
+
+	--Map appearance picker. If this floor (or one of its layers) carries a Map object, expose a small
+	--gallery for switching the map's image between named alternates (e.g. a "Flooded" version). This
+	--drives the map object's Appearance component image-swap list, auto-creating the component on first
+	--use so the user never has to touch the raw component editor.
+	local mapObj = FindMapObjectForFloor(floor)
+	local appearanceSection
+
+	if mapObj ~= nil then
+		--Dialog-local mirror of the Appearance component's swap state, kept index-aligned:
+		--  selected == 0       -> the map's own base image ("Default")
+		--  selected == i (>=1) -> swaps[i], displayed with name names[i]
+		local swaps = {}
+		local names = {}
+		local selected = 0
+		local uploading = false
+		local baseName = ""
+
+		local existing = mapObj:GetComponent("Appearance")
+		if existing ~= nil and existing.valid then
+			local doc = mapObj:ComponentToJson(existing.componentid)
+			if doc ~= nil then
+				swaps = doc.imageSwaps or {}
+				names = doc.imageSwapNames or {}
+				selected = doc.imageNumber or 0
+				baseName = doc.imageDefaultName or ""
+			end
+		end
+
+		--Pad names so every swap has a label even for pre-existing swaps saved without names.
+		for i = 1, #swaps do
+			if names[i] == nil then
+				names[i] = string.format("Appearance %d", i)
+			end
+		end
+
+		--Write the local swap state back to the map object's Appearance component, creating the component
+		--if it does not exist yet. Existing components patch transactionally (keeping the component id
+		--stable); the create path sets the fields in-memory then does a single MarkUndo/Upload.
+		local function Persist(description)
+			local comp = mapObj:GetComponent("Appearance")
+			if comp ~= nil and comp.valid then
+				comp:SetAndUploadProperties{
+					imageSwaps = swaps,
+					imageSwapNames = names,
+					imageDefaultName = baseName,
+					imageNumber = selected,
+				}
+			else
+				mapObj:MarkUndo()
+				mapObj:AddComponent("Appearance")
+				comp = mapObj:GetComponent("Appearance")
+				if comp == nil then
+					return
+				end
+				comp:SetProperty("imageSwaps", swaps)
+				comp:SetProperty("imageSwapNames", names)
+				comp:SetProperty("imageDefaultName", baseName)
+				comp:SetProperty("imageNumber", selected)
+				mapObj:Upload()
+			end
+		end
+
+		local function FileBaseName(path)
+			local base = string.match(path, "[^/\\]+$") or path
+			base = string.gsub(base, "%.[^.]*$", "")
+			return base
+		end
+
+		local tilesPanel = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "horizontal",
+			wrap = true,
+			valign = "top",
+		}
+
+		local RefreshTiles
+
+		--Let the user pick an image file off disk, upload it, then append it as a new named appearance.
+		local function AddAppearance()
+			if uploading then
+				return
+			end
+			dmhub.OpenFileDialog{
+				id = "MapAppearanceImage",
+				extensions = {"jpeg", "jpg", "png", "mp4", "webm", "webp", "bmp"},
+				prompt = "Choose a map image to use as an alternate appearance",
+				multiFiles = false,
+				open = function(path)
+					uploading = true
+					RefreshTiles()
+					local defaultName = FileBaseName(path)
+					assets:UploadImageAsset{
+						path = path,
+						error = function(text)
+							uploading = false
+							if mod.unloaded then return end
+							RefreshTiles()
+							gui.ModalMessage{
+								owner = tilesPanel,
+								title = "Error loading image",
+								message = text,
+							}
+						end,
+						upload = function(imageid)
+							uploading = false
+							if mod.unloaded then return end
+							swaps[#swaps+1] = imageid
+							names[#names+1] = defaultName
+							selected = #swaps
+							Persist("Add map appearance")
+							RefreshTiles()
+						end,
+					}
+				end,
+			}
+		end
+
+		--Promote a swap to be the object's literal base/default image: re-encode the object to use that
+		--image, and demote the old default into the swap's now-vacant slot. Both the base and the swaps
+		--are GUID-addressable, so this is a clean swap. Requires a GUID-backed map (mapObj.assetid set).
+		--The image change (asset) and the swap-list change (component) are uploaded as one transaction.
+		local function SetAsDefault(index)
+			local newGuid = swaps[index]
+			local oldBaseGuid = mapObj.assetid
+			if newGuid == nil or oldBaseGuid == nil or oldBaseGuid == "" then
+				return
+			end
+
+			local promotedName = names[index] or string.format("Appearance %d", index)
+			local oldDefaultName = (baseName ~= nil and baseName ~= "") and baseName or "Default"
+
+			mapObj:MarkUndo()
+			if not mapObj:SetBaseImageFromAsset(newGuid) then
+				return
+			end
+
+			--The promoted appearance is now the default; the old default takes its slot.
+			swaps[index] = oldBaseGuid
+			names[index] = oldDefaultName
+			baseName = promotedName
+			selected = 0
+
+			local comp = mapObj:GetComponent("Appearance")
+			if comp ~= nil and comp.valid then
+				comp:SetProperty("imageSwaps", swaps)
+				comp:SetProperty("imageSwapNames", names)
+				comp:SetProperty("imageDefaultName", baseName)
+				comp:SetProperty("imageNumber", selected)
+			end
+			mapObj:Upload()
+			RefreshTiles()
+		end
+
+		--Build one gallery tile. index 0 is the base/default image.
+		local function CreateTile(index)
+			local isBase = index == 0
+			local imageId = cond(isBase, mapObj.displayImageId, swaps[index])
+			local isSelected = selected == index
+
+			--command-builder affordance: a bolt in the tile's corner
+			--recording "/mapappearance <floorid> <objid> <name>" (switch to
+			--this appearance) or "... cycle" (advance to the next one).
+			--Skipped for a base tile with no alternates -- there is nothing
+			--to switch -- and for objects without a placed identity.
+			local attachTileLightning = nil
+			if ((not isBase) or #swaps > 0)
+					and mapObj.floorid ~= nil and mapObj.floorid ~= ""
+					and mapObj.objid ~= nil and mapObj.objid ~= "" then
+				attachTileLightning = function(element)
+					CommandBuilder.EnsureLightningIcon(element, {
+						floating = true,
+						halign = "right",
+						valign = "top",
+						rmargin = 2,
+						tmargin = 2,
+						width = 16,
+						height = 16,
+						entries = function()
+							--read the name fresh: the caption inputs rename
+							--into the names/baseName upvalues live.
+							local name
+							if isBase then
+								name = (baseName ~= nil and baseName ~= "") and baseName or "Default"
+							else
+								name = names[index] or string.format("Appearance %d", index)
+							end
+							local target = string.format("%s %s", mapObj.floorid, mapObj.objid)
+							return {
+								{
+									text = string.format("Switch map to %s", name),
+									command = string.format("mapappearance %s %s", target, name),
+									stepText = string.format("Map: %s", name),
+								},
+								{
+									text = "Cycle map appearance",
+									command = string.format("mapappearance %s cycle", target),
+									stepText = "Cycle map appearance",
+								},
+							}
+						end,
+					})
+				end
+			end
+
+			--Border/hover/selected coloring comes from the themed mapAppearanceTile styles; "image" keeps
+			--the bgcolor white so the map image shows untinted. "selected" drives the accent highlight.
+			local thumb = gui.Panel{
+				classes = {"mapAppearanceTile", "image", "hoverable", cond(isSelected, "selected")},
+				width = 104,
+				height = 78,
+				halign = "center",
+				valign = "top",
+				bgimage = imageId or "panels/square.png",
+				cornerRadius = 6,
+				multimonitor = attachTileLightning ~= nil and {"commandcreationmode"} or nil,
+				create = attachTileLightning,
+				monitor = attachTileLightning,
+				click = function()
+					--Clicking the base when there are no alternates is a no-op (nothing to switch to).
+					if isBase and #swaps == 0 then
+						return
+					end
+					selected = index
+					Persist("Switch map appearance")
+					RefreshTiles()
+				end,
+			}
+
+			local caption
+			if isBase then
+				if #swaps > 0 then
+					--An appearance component exists, so the default appearance carries an editable name too
+					--(it travels with the image when an alternate is promoted via "Set as Default").
+					caption = gui.Input{
+						text = (baseName ~= nil and baseName ~= "") and baseName or "Default",
+						width = 104,
+						height = 24,
+						halign = "center",
+						fontSize = 12,
+						vmargin = 2,
+						change = function(element)
+							baseName = element.text
+							Persist("Rename default appearance")
+						end,
+					}
+				else
+					caption = gui.Label{
+						text = "Default",
+						width = 104,
+						height = 22,
+						halign = "center",
+						textAlignment = "center",
+						fontSize = 12,
+						vmargin = 2,
+					}
+				end
+			else
+				caption = gui.Input{
+					text = names[index] or string.format("Appearance %d", index),
+					width = 104,
+					height = 24,
+					halign = "center",
+					fontSize = 12,
+					vmargin = 2,
+					change = function(element)
+						names[index] = element.text
+						Persist("Rename map appearance")
+					end,
+				}
+			end
+
+			local tileArgs = {
+				width = 112,
 				height = "auto",
 				flow = "vertical",
-				bgimage = "panels/square.png",
+				hmargin = 4,
+				vmargin = 4,
+				halign = "left",
+				valign = "top",
+				children = { thumb, caption },
+			}
 
-				classes = cond(floor.roof, nil, 'collapsed'),
+			if not isBase then
+				tileArgs.rightClick = function(element)
+					local entries = {}
 
-				gui.Check{
-					text = "Hide roof when players are inside",
-					value = not floor.roofShowWhenInside,
-					style = {
-						height = 20,
-						width = '40%',
-						fontSize = 18,
-					},
-					events = {
-						change = function(element)
-							floor.roofShowWhenInside = not element.value
+					--"Set as Default" makes this appearance the object's literal main image. Only offered
+					--for GUID-backed maps, where the old default has a stable id to demote into this slot.
+					if mapObj.assetid ~= nil and mapObj.assetid ~= "" then
+						entries[#entries+1] = {
+							text = "Set as Default",
+							click = function()
+								element.popup = nil
+								SetAsDefault(index)
+							end,
+						}
+					end
+
+					entries[#entries+1] = {
+						text = "Remove Appearance",
+						click = function()
+							element.popup = nil
+							table.remove(swaps, index)
+							table.remove(names, index)
+							if selected == index then
+								selected = 0
+							elseif selected > index then
+								selected = selected - 1
+							end
+							Persist("Remove map appearance")
+							RefreshTiles()
 						end,
-						linger = gui.Tooltip("This layer will be hidden when players are inside."),
-					},
-				},
+					}
 
-				gui.Panel{
-					classes = {"formPanel"},
-					flow = "horizontal",
-					width = "auto",
-					height = "auto",
-					gui.Label{
-						text = "Vision Multiplier:",
-						color = 'white',
-						width = '50%',
-						height = 'auto',
-						fontSize = 18,
-						linger = gui.Tooltip("The vision multiplier allows players to see further on the roof layer than they can on other layers."),
-					},
+					element.popup = gui.ContextMenu{ entries = entries }
+				end
+			end
 
-					gui.Slider{
-						style = {
-							height = 20,
-							width = 200,
-							valign = "center",
-							fontSize = 14,
-						},
-						sliderWidth = 140,
-						minValue = 0.1,
-						maxValue = 8,
-						labelWidth = 60,
-						value = floor.visionMultiplier,
-						labelFormat = "rawpercent",
-						events = {
-							change = function(element)
-								floor.visionMultiplierNoUpload = element.value
-							end,
-							confirm = function(element)
-								floor.visionMultiplier = element.value
-							end,
-						},
-					},
-				},
+			return gui.Panel(tileArgs)
+		end
 
-				gui.Panel{
-					classes = {"formPanel"},
-					flow = "horizontal",
-					width = "auto",
-					height = "auto",
-					gui.Label{
-						text = "Roof Cutaway Radius:",
-						color = 'white',
-						width = '50%',
-						height = 'auto',
-						fontSize = 18,
-						linger = gui.Tooltip("The cutaway radius is the distance to which we prefer to show the radius the player is on if they have vision of it instead of the roof layer. For roofs of buildings you most likely want this to be 100%, but for tree foliage you might want it lower than 100%. The lower it is the more elements on the roof layer will occlude vision."),
-					},
-
-					gui.Slider{
-						style = {
-							height = 20,
-							width = 200,
-							valign = "center",
-							fontSize = 14,
-						},
-						sliderWidth = 140,
-						minValue = 0.0,
-						maxValue = 1.0,
-						labelWidth = 60,
-						labelFormat = "rawpercent",
-						value = floor.roofVisionExclusion,
-						events = {
-							change = function(element)
-								floor.roofVisionExclusionNoUpload = element.value
-							end,
-							confirm = function(element)
-								floor.roofVisionExclusion = element.value
-							end,
-						},
-					},
-				},
-
-				gui.Panel{
-					classes = {"formPanel"},
-					flow = "horizontal",
-					width = "auto",
-					height = "auto",
-					gui.Label{
-						text = "Roof Cutaway Fade:",
-						color = 'white',
-						width = '50%',
-						height = 'auto',
-						fontSize = 18,
-						linger = gui.Tooltip("The roof cutaway fade controls how quickly vision fades from showing the layer the player is on to the roof layer."),
-					},
-
-					gui.Slider{
-						style = {
-							height = 20,
-							width = 200,
-							valign = "center",
-							fontSize = 14,
-						},
-						sliderWidth = 140,
-						labelFormat = "rawpercent",
-						minValue = 0.0,
-						maxValue = 1.0,
-						labelWidth = 60,
-						value = floor.roofVisionExclusionFade,
-						events = {
-							change = function(element)
-								floor.roofVisionExclusionFadeNoUpload = element.value
-							end,
-							confirm = function(element)
-								floor.roofVisionExclusionFade = element.value
-							end,
-						},
-					},
-				},
-
-				gui.Panel{
-					classes = {"formPanel"},
-					flow = "horizontal",
-					width = "auto",
-					height = "auto",
-					gui.Label{
-						text = "Roof Minimum Opacity:",
-						color = 'white',
-						width = '50%',
-						height = 'auto',
-						fontSize = 18,
-						linger = gui.Tooltip("The minimum opacity that the roof layer will have when it is cut away to show the layer the player is on."),
-					},
-
-					gui.Slider{
-						style = {
-							height = 20,
-							width = 200,
-							valign = "center",
-							fontSize = 14,
-						},
-						sliderWidth = 140,
-						labelFormat = "rawpercent",
-						minValue = 0.0,
-						maxValue = 1.0,
-						labelWidth = 60,
-						value = floor.roofMinimumOpacity,
-						events = {
-							change = function(element)
-								floor.roofMinimumOpacityNoUpload = element.value
-							end,
-							confirm = function(element)
-								floor.roofMinimumOpacity = element.value
-							end,
-						},
-					},
+		--The trailing "add" tile.
+		local function CreateAddTile()
+			--Border/surface/hover coloring comes from the themed mapAppearanceAdd styles so the tile shows
+			--it is responsive (accent border + brighten on mouse-over) and tracks the active scheme.
+			local thumb = gui.Panel{
+				classes = {"mapAppearanceAdd", "hoverable"},
+				width = 104,
+				height = 78,
+				halign = "center",
+				valign = "top",
+				bgimage = true,
+				cornerRadius = 6,
+				click = function()
+					AddAppearance()
+				end,
+				gui.Label{
+					text = cond(uploading, "...", "+"),
+					halign = "center",
+					valign = "center",
+					fontSize = 40,
 				},
 			}
 
+			return gui.Panel{
+				width = 112,
+				height = "auto",
+				flow = "vertical",
+				hmargin = 4,
+				vmargin = 4,
+				halign = "left",
+				valign = "top",
+				children = {
+					thumb,
+					gui.Label{
+						text = cond(uploading, "Uploading...", "Add"),
+						width = 104,
+						height = 22,
+						halign = "center",
+						textAlignment = "center",
+						fontSize = 12,
+						vmargin = 2,
+					},
+				},
+			}
+		end
+
+		RefreshTiles = function()
+			local children = { CreateTile(0) }
+			for i = 1, #swaps do
+				children[#children+1] = CreateTile(i)
+			end
+			children[#children+1] = CreateAddTile()
+			tilesPanel.children = children
+		end
+
+		local resolutionLabel = gui.Label{
+			classes = {"formStacked"},
+			text = "Checking map size...",
+			fontSize = 12,
+			bold = false,
+			bmargin = 4,
+		}
+
+		dmhub.GetImageInfo(mapObj.imageid, function(info)
+			if mod.unloaded then return end
+			if info ~= nil then
+				resolutionLabel.text = string.format("Map size: %d x %d. For a clean swap, use an image of the same size.", info.width, info.height)
+			else
+				resolutionLabel.text = "Add an alternate full-map image to swap how this map looks."
+			end
+		end)
+
+		RefreshTiles()
+
+		--"Live Edit Image": live-edit the currently selected map appearance (base or a swap) in the
+		--external editor using the same flow as object live editing. The base/default image reuses the
+		--object live-edit path (full live preview); an alternate appearance uses a generic session whose
+		--commit writes the new image into that swap slot.
+		local function StartAppearanceLiveEdit()
+			local editingIndex = selected
+			local function beginEdit()
+				if editingIndex == 0 then
+					mapObj:LiveEdit()
+					return
+				end
+
+				local guid = swaps[editingIndex]
+				if guid == nil or guid == "" then
+					return
+				end
+
+				local originalGuid = guid
+				local label = names[editingIndex] or string.format("Appearance %d", editingIndex)
+				dmhub.StartLiveEditImage{
+					guid = guid,
+					name = string.format("Map: %s", label),
+					commit = function(newImageId)
+						if mod.unloaded then return end
+						swaps[editingIndex] = "md5:" .. newImageId
+						Persist("Live edit map appearance")
+						if tilesPanel.valid then RefreshTiles() end
+					end,
+					revert = function()
+						if mod.unloaded then return end
+						if swaps[editingIndex] ~= originalGuid then
+							swaps[editingIndex] = originalGuid
+							Persist("Revert map appearance")
+							if tilesPanel.valid then RefreshTiles() end
+						end
+					end,
+				}
+			end
+
+			if dmhub.ImageEditorNeedsSetup() then
+				dmhub.PromptImageEditorSetup(beginEdit)
+			else
+				beginEdit()
+			end
+		end
+
+		local liveEditButton = nil
+		if dmhub.patronTier > 0 then
+			liveEditButton = gui.Button{
+				classes = {"sizeM"},
+				text = "Live Edit Image",
+				halign = "left",
+				vmargin = 4,
+				click = function(element)
+					StartAppearanceLiveEdit()
+				end,
+			}
+		end
+
+		appearanceSection = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			vmargin = 8,
+			children = {
+				gui.Label{
+					classes = {"formStacked"},
+					text = "Map Appearance",
+				},
+				resolutionLabel,
+				tilesPanel,
+				liveEditButton,
+			},
+		}
+	else
+		--No map object on this floor; render an empty, collapsed placeholder so the dialog's child list
+		--always has a valid panel in this slot.
+		appearanceSection = gui.Panel{ classes = {"collapsed"}, width = "100%", height = 0 }
+	end
+
+	--Floor height (thickness, base to ceiling). Only meaningful on top-level floors, and
+	--only shown when parallax rendering is on (matching the floors panel). Collapsed
+	--placeholder otherwise so the dialog's child list always has a valid panel in this slot.
+	local heightSection
+	if (not isLayer) and dmhub.useParallax then
+		heightSection = gui.Panel{
+			classes = {"formStackedRow"},
+			vmargin = 8,
+			gui.Label{
+				classes = {"formStacked"},
+				text = string.format("Height (%s):", string.lower(MeasurementSystem.UnitName())),
+			},
+			gui.Input{
+				classes = {"formStacked"},
+				text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare),
+				hover = gui.Tooltip(string.format("The height of this floor from its base to its ceiling: %s to %s.", MeasurementSystem.NativeToDisplayStringWithUnits(dmhub.unitsPerSquare), MeasurementSystem.NativeToDisplayStringWithUnits(20*dmhub.unitsPerSquare))),
+				change = function(element)
+					local n = MeasurementSystem.DisplayToNative(tonumber(element.text))
+					if n ~= nil then
+						n = n/dmhub.unitsPerSquare
+					end
+
+					if n == nil or n ~= round(n) or n < 1 or n > 20 then
+						element.text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare)
+						element:PulseClass("invalid")
+						return
+					end
+
+					if n ~= floor.floorHeightInTiles then
+						floor.floorHeightInTiles = n
+						if onHeightChanged ~= nil then
+							onHeightChanged()
+						end
+					end
+					element.text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare)
+				end,
+			},
+		}
+	else
+		heightSection = gui.Panel{ classes = {"collapsed"}, width = "100%", height = 0 }
+	end
+
+	--Ceiling setting. By default a floor has a ceiling when another floor is above it or
+	--when it is below ground level; this dropdown forces it on or off. A floor with a
+	--ceiling is capped at its height: full-height walls draw black tops that nothing can
+	--stand on, vertical movement stops at the ceiling, and cross-section diagrams draw a
+	--solid mass. An open-topped floor shows wall tops and creatures can move onto them.
+	--Only meaningful on top-level floors (sub-layers use their parent floor's setting).
+	--pcall guards keep the dialog working on engine builds that predate the ceiling bridge.
+	local ceilingSection
+	if isLayer then
+		ceilingSection = gui.Panel{ classes = {"collapsed"}, width = "100%", height = 0 }
+	else
+		local function ResolvedCeilingText()
+			local has = false
+			pcall(function() has = floor.hasCeiling end)
+			if has then
+				return "This floor currently has a ceiling."
+			end
+			return "This floor is currently open-topped."
+		end
+
+		local resolvedLabel = gui.Label{
+			classes = {"formStacked"},
+			text = ResolvedCeilingText(),
+			fontSize = 12,
+			bold = false,
+		}
+
+		local ceilingValue = "auto"
+		pcall(function() ceilingValue = floor.ceiling end)
+
+		ceilingSection = gui.Panel{
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			vmargin = 8,
+
+			gui.Panel{
+				classes = {"formStackedRow"},
+				gui.Label{
+					classes = {"formStacked"},
+					text = "Ceiling:",
+					linger = gui.Tooltip("Whether this floor is capped by a ceiling at its height. Automatic: it has a ceiling if another floor is above it or if it is below ground level. With a ceiling, full-height walls are blacked out on top and nothing can stand on them; without one, wall tops are visible and creatures can move onto them."),
+				},
+				gui.Dropdown{
+					classes = {"formStacked"},
+					options = {
+						{id = "auto", text = "Automatic"},
+						{id = "yes", text = "Ceiling"},
+						{id = "no", text = "No Ceiling"},
+					},
+					idChosen = ceilingValue,
+					change = function(element)
+						pcall(function() floor.ceiling = element.idChosen end)
+						resolvedLabel.text = ResolvedCeilingText()
+					end,
+				},
+			},
+
+			resolvedLabel,
+		}
+	end
+
+	--Default floor: the floor selected automatically when the map is entered. This is stored as a
+	--single floor id on the map manifest, so checking it here implicitly clears whichever floor was
+	--the default before -- a map can only ever have one. Sub-layers are never selectable as the
+	--current floor, so they get a collapsed placeholder instead.
+	local defaultFloorSection
+	local currentMap = game.currentMap
+	if isLayer or currentMap == nil then
+		defaultFloorSection = gui.Panel{ classes = {"collapsed"}, width = "100%", height = 0 }
+	else
+		defaultFloorSection = gui.Check{
+			text = "Default floor",
+			value = currentMap.defaultFloorId == floor.floorid,
+			vmargin = 4,
+			events = {
+				change = function(element)
+					if element.value then
+						currentMap.defaultFloorId = floor.floorid
+					else
+						currentMap.defaultFloorId = nil
+					end
+				end,
+				linger = gui.Tooltip("This floor is selected when entering the map. A map can only have one default floor, so making this the default clears it from any other floor."),
+			},
+		}
+	end
+
 	local dialogPanel = gui.Panel{
-		classes = {'framedPanel'},
-		width = 1000,
-		height = 800,
-		styles = {
-			Styles.Panel,
-		},
+		classes = {"framedPanel"},
+		width = 480,
+		height = "auto",
+		styles = ThemeEngine.MergeStyles(appearanceTileStyles),
 
 		gui.Panel{
-			vscroll = true,
-			halign = 'center',
-			valign = 'top',
-			vmargin = 20,
-			flow = 'vertical',
-			width = 600,
-			height = 600,
+			width = "100%-48",
+			height = "auto",
+			halign = "center",
+			valign = "top",
+			flow = "vertical",
+			vmargin = 24,
 
-			styles = {
-				{
-					valign = "top",
-				},
-				{
-					selectors = {"formPanel"},
-					vmargin = 4,
-				},
+			gui.Label{
+				classes = {"modalTitle"},
+				text = isLayer and "Layer Settings" or "Floor Settings",
 			},
 
 			gui.Panel{
-				valign = 'top',
-				flow = 'horizontal',
-				width = '100%',
-				height = 40,
-
+				classes = {"formStackedRow"},
+				vmargin = 8,
 				gui.Label{
+					classes = {"formStacked"},
 					text = "Name:",
-					width = "auto",
-					height = "auto",
-					color = "white",
-					fontSize = 18,
 				},
-
 				gui.Input{
-					width = 180,
-					height = 24,
-					fontSize = 18,
-					text = floor.description,
+					classes = {"formStacked"},
+					text = nameValue,
 					change = function(element)
-						floor.description = element.text
+						if isLayer then
+							floor.layerDescription = element.text
+						else
+							floor.description = element.text
+						end
 					end,
 				},
 			},
 
-			gui.Check{
-				text = "Roof Layer",
-				value = floor.roof,
-				style = {
-					height = 20,
-					width = '40%',
-					fontSize = 18,
-				},
-				events = {
-					change = function(element)
-						floor.roof = element.value
-						dialogPanelRoofLayerOptions:SetClass('collapsed', not floor.roof)
-					end,
-					linger = gui.Tooltip("A roof layer will be displayed for players who are on a floor beneath it. It will only be displayed in areas they can't see."),
-				},
-			},
+			defaultFloorSection,
 
-			dialogPanelRoofLayerOptions,
+			heightSection,
 
-		},
+			ceilingSection,
 
-		gui.Panel{
-			classes = {'modal-button-panel'},
+			typeSection,
 
-			gui.PrettyButton{
-				text = 'Close',
-				escapeActivates = true,
-				escapePriority = EscapePriority.EXIT_DIALOG,
-				style = {
-					width = 140,
-					height = 60,
-					halign = 'right',
-					fontSize = 36,
-				},
-				events = {
+			appearanceSection,
+
+			gui.Panel{
+				width = "100%",
+				height = 40,
+				valign = "bottom",
+				vmargin = 12,
+
+				gui.Button{
+					classes = {"sizeM"},
+					halign = "right",
+					text = "Close",
+					escapeActivates = true,
+					escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
 					click = function(element)
 						gui.CloseModal()
 					end,
@@ -315,7 +1281,7 @@ end
 local CreateDragTarget = function(index, belowGround, layerType)
 	layerType = layerType or "floor"
 	return gui.Panel{
-		classes = {"floorOrLayerDragTarget", string.format('%sDragTarget', layerType)},
+		classes = {"floorOrLayerDragTarget", "drag-target", string.format('%sDragTarget', layerType)},
 		dragTarget = true,
 		data = {
 			index = index,
@@ -325,7 +1291,158 @@ local CreateDragTarget = function(index, belowGround, layerType)
 	}
 end
 
+--Format a seam elevation (in tiles, relative to ground level) for display in the floors
+--list. Positive elevations get an explicit + so above/below ground is unambiguous;
+--MeasurementSystem supplies the - for negatives, and the unit abbreviation says what
+--the number IS (the bare figures used to read as mystery badges).
+local FormatRelativeElevation = function(tiles)
+	local text = MeasurementSystem.NativeToDisplayString(tiles*dmhub.unitsPerSquare)
+	if tiles > 0 then
+		text = "+" .. text
+	end
+	local abbrev = MeasurementSystem.Abbrev()
+	if abbrev ~= "" then
+		text = text .. " " .. abbrev
+	end
+	return text
+end
 
+--Muted, compact styling for the per-row opacity sliders. Passed at the
+--PercentSlider call sites: the control attaches its OWN styles list, which
+--outranks the panel's cascade rules, so cascade-level muting is a no-op.
+--Resolved via MergeTokens at build time (rows do not restyle on a live theme
+--switch until rebuilt; the panel rebuilds on reopen).
+local function MutedPercentSliderStyles()
+	return ThemeEngine.MergeTokens{
+		{
+			selectors = {"percentSlider"},
+			borderWidth = 1,
+			borderColor = "@border",
+			cornerRadius = 2,
+			bgimage = "panels/square.png",
+			bgcolor = "@bg",
+			height = 12,
+			flow = "none",
+		},
+		--Readable, but still quieter than the row name. The earlier @fgMuted /
+		--9px pairing was over-corrected: on the muted fill bar it came out as
+		--grey-on-grey.
+		{
+			selectors = {"percentSliderLabel"},
+			color = "@fg",
+			fontSize = 10,
+			bold = true,
+			halign = "left",
+			valign = "center",
+			width = 40,
+			textAlignment = "center",
+			height = "auto",
+		},
+		--The clipped duplicate that shows over the filled portion needs the
+		--inverse treatment to stay legible against the fill.
+		{
+			selectors = {"percentSliderLabel", "fill"},
+			color = "@bg",
+		},
+		{
+			selectors = {"percentFill"},
+			bgcolor = "@fgMuted",
+			height = "100%",
+			width = "0%",
+			halign = "left",
+			cornerRadius = 2,
+		},
+	}
+end
+
+--A hairline sitting in the gap above a row, separating rows that otherwise
+--blend into one another. Deliberately faint: a hint of structure, not a table
+--grid. Collapses directly beneath the GROUND LEVEL rule so the two do not
+--double up. (Elevations used to ride these lines as floating chips; each row
+--now states its own span instead -- see the span label below.)
+local CreateSeamLine = function()
+	return gui.Panel{
+		classes = {"floorSeamLine"},
+		floating = true,
+		interactable = false,
+		bgimage = "panels/square.png",
+		halign = "center",
+		valign = "top",
+		width = "100%",
+		height = 1,
+		--Rows now sit edge to edge, so the boundary IS the row's border-box
+		--top. Floating children anchor to the CONTENT box (inside the 6px
+		--vpad), so -6 is the nominal edge; -7 is the measured one (the
+		--nominal value left a 1px sliver of background between a selected
+		--row's fill and this line). Calibrated at 12x, not derived.
+		y = -7,
+		events = {
+			seamElevations = function(element, topVal)
+				element:SetClass("collapsed", topVal == false)
+			end,
+		},
+	}
+end
+
+--The in-flow counterpart to CreateSeamLine, for boundaries that are not the
+--top of a row: under the row sitting above the GROUND LEVEL rule, and under
+--the lowest row in the list.
+local CreateFlowSeamLine = function()
+	return gui.Panel{
+		classes = {"floorSeamLine"},
+		interactable = false,
+		bgimage = "panels/square.png",
+		halign = "center",
+		width = "100%",
+		height = 1,
+	}
+end
+
+--The elevation span a floor occupies, shown inside the row under its name
+--("0 to +3"). Replaces the floating seam chips: those put an unlabelled
+--number in the same right-hand column as the editable height pill, where
+--the two read as one confusing stack. Here the number sits with the floor
+--it describes and reads as a range. Hidden when parallax rendering is off,
+--like the rest of the elevation UI.
+local CreateFloorSpanLabel = function()
+	return gui.Label{
+		classes = {"floorSpanLabel"},
+		text = "",
+		data = {
+			span = false,
+			base = "",
+		},
+		monitor = "useparallax",
+		--The span renders as bare numbers, so the tooltip names what they
+		--measure and calls out this floor's own base value in italics.
+		--Built per-hover rather than once, because the values change whenever
+		--a floor's height or the ground level is edited.
+		hover = function(element)
+			if element.data.span == false then
+				return
+			end
+			return gui.Tooltip(string.format(
+				"Elevation relative to ground level, in %s. *(base %s)*",
+				string.lower(MeasurementSystem.UnitName()),
+				element.data.base))(element)
+		end,
+		events = {
+			monitor = function(element)
+				element:SetClass("collapsed", element.data.span == false or (not dmhub.useParallax))
+			end,
+			floorSpan = function(element, bottomVal, topVal)
+				if bottomVal == nil or topVal == nil then
+					element.data.span = false
+				else
+					element.data.span = true
+					element.data.base = FormatRelativeElevation(bottomVal)
+					element.text = string.format("%s to %s", FormatRelativeElevation(bottomVal), FormatRelativeElevation(topVal))
+				end
+				element:SetClass("collapsed", element.data.span == false or (not dmhub.useParallax))
+			end,
+		},
+	}
+end
 
 local CreateLayersList
 
@@ -340,12 +1457,13 @@ CreateLayersPanel = function()
 		width = "100%",
 		height = "auto",
 		halign = "left",
-		gui.AddButton{
+		valign = "top",
+		gui.Button{
+			classes = {"addButton", "sizeS"},
 			halign = 'center',
 			valign = 'top',
-			width = 20,
-			height = 20,
 			vmargin = 2,
+			tooltip = "Add a new floor",
 			click = function(element)
                 element.popup = gui.ContextMenu{
                     entries = {
@@ -372,7 +1490,6 @@ CreateLayersPanel = function()
                     }
                 }
 			end,
-			hover = gui.Tooltip("Add a new floor"),
 		}
 	}
 
@@ -380,10 +1497,20 @@ CreateLayersPanel = function()
 
 	local floorsList
 
+	--Rows span this list edge to edge (width 100%, no row margin), and the
+	--list itself sits flush in the dock: no inset anywhere in the chain.
 	floorsList = gui.Panel{
-		width = '100%',
+		--hmargin adds OUTSIDE a percent width, so '100%' + hmargin 12 made the
+		--list 24px wider than its host and shifted right -- the full-width seam
+		--lines and drag targets then poked out past the popped-out panel
+		--window's frame (the dock's frame padding absorbed the overhang, hiding
+		--it there). The gutters are gone entirely now: rows run flush to both
+		--edges, so width is a plain 100% with no margin and nothing overflows.
+		--Do NOT pair '100%-24' with hmargin 0 -- that subtracts gutters that no
+		--longer exist and leaves the list short on the right.
+		width = "100%",
 		height = "100%",
-		hmargin = 12,
+		hmargin = 0,
 		halign = 'left',
 		valign = 'top',
 		flow = 'vertical',
@@ -399,6 +1526,46 @@ CreateLayersPanel = function()
 			element:ScheduleEvent("tick", 0.5)
 			if currentFloorId ~= game.currentFloorId then
 				element:FireEvent("refreshGame")
+			end
+			element:FireEvent("fitDock")
+		end,
+
+		--Pin the hosting dock panel to the list's content: the panel claims
+		--exactly its rows plus the add button, no dead space below, and
+		--re-fits as floors are added or removed or layers expand. Works by
+		--setting the dock instance's min/max height bounds to the measured
+		--content and asking the dock to redistribute; the polling tick above
+		--catches anything that changes the content height, with refreshGame
+		--scheduling a faster pass so add/remove responds promptly.
+		fitDock = function(element)
+			local contentHeight = 0
+			for _,child in ipairs(element.children) do
+				contentHeight = contentHeight + child.renderedHeight
+			end
+
+			--Not laid out yet (renderedHeight 0s): keep the registered bounds.
+			if contentHeight < 40 then
+				return
+			end
+
+			local instance = element:FindParentWithClass("dockablePanel")
+			if instance == nil then
+				return
+			end
+
+			if math.abs((instance.data.minHeight or 0) - contentHeight) < 1 and math.abs((instance.data.maxHeight or 0) - contentHeight) < 1 then
+				return
+			end
+
+			instance.data.minHeight = contentHeight
+			instance.data.maxHeight = contentHeight
+
+			local container = instance:FindParentWithClass("dockablePanelContainer")
+			if container ~= nil then
+				--updatetabs recomputes the container's height bounds from its
+				--panel instances; fitChildren makes the dock redistribute.
+				container:FireEventTree("updatetabs")
+				container:FireEventOnParents("fitChildren")
 			end
 		end,
 
@@ -421,9 +1588,19 @@ CreateLayersPanel = function()
 			if groundLevelPanel == nil then
 				groundLevelPanel = gui.Panel{
 					classes = {"groundLevel"},
-					flow = 'none',
-					height = 12,
+					--Section-header grammar: label | rule | elevation chip, laid
+					--out side by side. The old version stacked a full-width rule
+					--behind centred text and knocked a hole in it, which read as
+					--strikethrough; here nothing overlaps, so nothing needs a
+					--knockout background.
+					flow = 'horizontal',
+					height = 22,
+					--No vertical margin: the neighboring rows' 6px padding plus the
+					--2px drag targets already give the rule its breathing room, and
+					--the extra 4px each side read as the rows drifting apart from it.
+					vmargin = 0,
 					width = '100%',
+					valign = 'top',
 
 					draggable = true,
 					canDragOnto = function(element, target)
@@ -441,35 +1618,84 @@ CreateLayersPanel = function()
 						element:FireEvent("refreshGame")
 					end,
 
-					gui.Panel{
-						halign = 'center',
-						valign = 'center',
-						bgimage = 'panels/square.png',
-						width = '100%',
-						height = 1,
-						bgcolor = Styles.textColor,
-					},
+					hover = gui.Tooltip("Drag onto a floor boundary to set which floor sits at ground level."),
 
 					gui.Label{
+						classes = {"groundLevelLabel"},
+						text = "GROUND LEVEL",
+					},
+
+					--The rule runs from the label to the panel's right edge. This
+					--line IS elevation 0, so it carries no seam chip of its own:
+					--"GROUND LEVEL" already says zero, and a bare "0" badge beside
+					--those words read as a mystery counter. The rows above and
+					--below still show their own seam elevations (+3, -10, ...), so
+					--the elevation ladder stays unbroken.
+					--The subtracted width covers the label (~86px at this size)
+					--plus its margins.
+					gui.Panel{
+						classes = {"groundLevelLine"},
 						bgimage = 'panels/square.png',
-						bgcolor = 'black',
-						width = 'auto',
-						height = 'auto',
-						fontSize = 10,
-						halign = 'center',
-						valign = 'center',
-						color = Styles.textColor,
-						text = "Ground",
+						width = '100%-110',
 					},
 				}
 			end
 			
 			local floors = currentMap.floors or {}
-			local children = {CreateDragTarget(#floors+1)}
+
+			--Calculate each top-level floor's top altitude (in tiles above the map bottom)
+			--and the altitude of the ground plane, so the seams between rows can display
+			--elevations relative to ground level = 0.
+			local floorTopAltitudes = {}
+			local totalAltitude = 0
+			for j=1,#floors do
+				local f = floors[j]
+				if f.parentFloor == nil then
+					totalAltitude = totalAltitude + f.floorHeightInTiles
+					floorTopAltitudes[f.floorid] = totalAltitude
+				end
+			end
+
+			local groundAltitude = 0
+			local groundIndex = currentMap.groundLevel or 1
+			if groundIndex > #floors then
+				groundAltitude = totalAltitude
+			elseif floors[groundIndex] ~= nil then
+				--the ground line sits below this floor (a layer counts as its parent floor).
+				local groundFloorId = floors[groundIndex].parentFloor or floors[groundIndex].floorid
+				for j=1,#floors do
+					local f = floors[j]
+					if f.floorid == groundFloorId then
+						break
+					end
+					if f.parentFloor == nil then
+						groundAltitude = groundAltitude + f.floorHeightInTiles
+					end
+				end
+			end
+
+			--(A 10px headroom spacer used to sit here so the topmost row's
+			--floating seam chip was not clipped by the scroll region. The chips
+			--are gone -- each row states its own span now -- so the spacer was
+			--just a gap under the panel header.)
+			local children = {}
+			children[#children+1] = CreateDragTarget(#floors+1)
+
+			--Tracks whether the ground line rendered directly above the next floor
+			--row; that seam is already labelled, so the row below suppresses its
+			--own separator. Also skips the bottom-of-list hairline when the ground
+			--rule itself rendered at the very bottom.
+			local groundLineAbove = false
+
+			--The first row rendered has nothing above it but the panel header, so
+			--it draws no seam line: a separator there is a rule against the top of
+			--the panel, which reads as a gap rather than a division.
+			local anyRowRendered = false
 
 			if currentMap.groundLevel == #floors+1 then
 				children[#children+1] = groundLevelPanel
 				children[#children+1] = CreateDragTarget(#floors+1, true)
+				groundLineAbove = true
 			end
 
 			local newFloorItems = {}
@@ -490,16 +1716,17 @@ CreateLayersPanel = function()
 
 							gui.Panel{
 								classes = {'floorPanelIconPanel'},
+								swallowPress = true,
 								press = function(element)
 									floor.floorInvisible = not floor.floorInvisible
 									element:FireEventTree("refreshGame")
 								end,
 								gui.Panel{
 									classes = {'floorOptionIcon', cond(not floor.floorInvisible, 'enabled')},
-									bgimage = cond(floor.floorInvisible, Styles.icons.hidden, Styles.icons.visible),
+									bgimage = cond(floor.floorInvisible, "phosphor/eye-slash.png", "phosphor/eye.png"),
 
 									refreshGame = function(element)
-										element.bgimage = cond(floor.floorInvisible, Styles.icons.hidden, Styles.icons.visible)
+										element.bgimage = cond(floor.floorInvisible, "phosphor/eye-slash.png", "phosphor/eye.png")
 										element:SetClass('enabled', not floor.floorInvisible)
 									end,
 
@@ -513,9 +1740,9 @@ CreateLayersPanel = function()
 								end,
 								gui.Panel{
 									classes = {'floorOptionIcon', cond(floor.locked, 'enabled')},
-									bgimage = cond(floor.locked, Styles.icons.locked, Styles.icons.unlocked),
+									bgimage = cond(floor.locked, "phosphor/lock-simple.png", "phosphor/lock-simple-open.png"),
 									refreshGame = function(element)
-										element.bgimage = cond(floor.locked, Styles.icons.locked, Styles.icons.unlocked)
+										element.bgimage = cond(floor.locked, "phosphor/lock-simple.png", "phosphor/lock-simple-open.png")
 										element:SetClass('enabled', floor.locked)
 									end,
 								},
@@ -576,7 +1803,11 @@ CreateLayersPanel = function()
 							end,
 						}
 
-						local elevationLabel =
+						--Per-floor height editor: shows and edits this floor's own thickness
+						--(floorHeightInTiles), the value actually stored on the floor. The
+						--derived elevations relative to ground level are shown in the row's
+						--span label instead (see CreateFloorSpanLabel).
+						local heightEditor =
 						gui.Panel{
 							classes = {cond(not dmhub.useParallax, "collapsed")},
 							monitor = "useparallax",
@@ -586,127 +1817,51 @@ CreateLayersPanel = function()
 								end,
 							},
 							flow = "horizontal",
-							width = 80,
+							width = "auto",
 							height = 20,
+							halign = "right",
+							valign = "center",
 							gui.Label{
-								classes = {"floorLabel"},
-								text = "0",
-								width = 40,
-								height = 20,
-								halign = "left",
-								textAlignment = "right",
-								characterLimit = 3,
-								editableOnDoubleClick = true,
-								data = {
-									elevation = nil,
-								},
+								classes = {"floorHeightValue"},
+								text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare),
+								editable = true,
+								characterLimit = 4,
+								hover = gui.Tooltip(string.format("Height of this floor from its base to its ceiling, in %s.", string.lower(MeasurementSystem.UnitName()))),
 								change = function(element)
 									local n = MeasurementSystem.DisplayToNative(tonumber(element.text))
 									if n ~= nil then
 										n = n/dmhub.unitsPerSquare
 									end
 
-									if n == nil or n ~= round(n) then
-										element:FireEvent("elevation", element.data.elevation)
+									if n == nil or n ~= round(n) or n < 1 or n > 20 then
+										--rejected: restore the stored height and flash the box.
+										element.text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare)
+										element:PulseClass("invalid")
 										return
 									end
 
-									--calculate the floor below us and what their height is.
-									local elevationLevel = 0
-									local mapFloors = currentMap.floors
-									local thisFloor = nil
-									for j=1,#mapFloors do
-										local f = mapFloors[j]
-										if f.parentFloor == nil then
-											elevationLevel = elevationLevel + f.floorHeightInTiles
-											thisFloor = f
-											if mapFloors[j].floorid == floor.floorid then
-												break
-											end
-										end
+									if n ~= floor.floorHeightInTiles then
+										floor.floorHeightInTiles = n
+										floorsList:FireEventTree("refreshGame")
 									end
-
-									if thisFloor == nil then
-										element:FireEvent("elevation", element.data.elevation)
-										return
-									end
-
-									local diff = n - elevationLevel
-									local newHeight = thisFloor.floorHeightInTiles + diff
-									if newHeight <= 0 or newHeight > 20 then
-										element:FireEvent("elevation", element.data.elevation)
-										return
-									end
-									
-									thisFloor.floorHeightInTiles = newHeight
-									floorsList:FireEventTree("refreshGame")
+									element.text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare)
 								end,
-								elevation = function(element, amount)
-									element.data.elevation = amount
-									element.text = MeasurementSystem.NativeToDisplayString(amount*dmhub.unitsPerSquare)
+								refreshGame = function(element)
+									if (not floor.valid) or element.hasFocus then
+										return
+									end
+									element.text = MeasurementSystem.NativeToDisplayString(floor.floorHeightInTiles*dmhub.unitsPerSquare)
 								end,
 							},
 							gui.Label{
-								classes = {"floorLabel"},
-								width = 44,
-								height = 20,
-								halign = "left",
-								fontSize = 11,
-                                minFontSize = 8,
-								elevation = function(element, amount)
-									element.text = MeasurementSystem.NativeToDisplayUnits(amount*dmhub.unitsPerSquare)
-								end,
+								classes = {"floorHeightUnit", cond(MeasurementSystem.Abbrev() == "", "collapsed")},
+								text = MeasurementSystem.Abbrev(),
 							},
-						}
-
-						local displayedCharacters = nil
-						local floorTokensPanel = gui.Panel{
-							classes = {"floorTokensPanel"},
-							styles = {
-								{
-									selectors = {"token-image"},
-									width = 20,
-									height = 20,
-									halign = "left",
-									valign = "center",
-								}
-							},
-							monitorGame = '/characters',
-
-							refreshGame = function(element)
-								local characters = floor.playerCharactersOnFloor
-
-								--see if the displayed characters have changed vs last time.
-								if displayedCharacters ~= nil and #displayedCharacters == #characters then
-									local diffs = false
-									for i,c in ipairs(characters) do
-										if c.charid ~= displayedCharacters[i].charid then
-											diffs = true
-										end
-									end
-
-									if diffs == false then
-										--no changes, so just return.
-										return
-									end
-								end
-
-								displayedCharacters = characters
-
-								local children = {}
-
-								for i,c in ipairs(characters) do
-									if i <= 10 then
-										children[#children+1] = gui.CreateTokenImage(c,{
-										})
-									end
-								end
-
-								element.children = children
-							end,
 						}
 
 						local opacitySlider = gui.PercentSlider{
+							width = 88,
+							styles = MutedPercentSliderStyles(),
 							halign = "left",
 							valign = "bottom",
 							hmargin = 6,
@@ -721,16 +1876,20 @@ CreateLayersPanel = function()
 							end,
 						}
 
+						--name, then the floor's elevation span, then opacity: the
+						--span fills what was dead space between the two.
 						local floorDetailsPanel = gui.Panel{
 							classes = {'floorDetailsPanel'},
 
 							floorLabel,
+							CreateFloorSpanLabel(),
 							opacitySlider,
 						}
 
 						local layersPanel = gui.Panel{
-							width = "90%",
+							width = "100%",
 							height = "auto",
+							valign = "top",
 							flow = "vertical",
 							expanded = function(element, expanded)
 								if not expanded then
@@ -742,17 +1901,12 @@ CreateLayersPanel = function()
 							end,
 						}
 
-						local triangle = gui.Panel{
-							styles = {
-								Styles.Triangle,
-								{
-									selectors = {"triangle", "~expanded"},
-									transitionTime = 0.2,
-									rotate = 90,
-								}
-							},
-							classes = {"triangle"},
-							bgimage = "panels/triangle.png",
+						--A Phosphor mask rather than the default panels/triangle.png:
+						--that is a 64x64 bitmap being downscaled to row size, which
+						--is why it read fuzzy next to the eye/lock/gear (all Phosphor
+						--masks, which take the dedicated icon sampler).
+						local triangle = gui.ExpandoArrow{
+							bgimage = "phosphor/caret-down-fill.png",
 							press = function(element)
 								element:SetClass("expanded", not element:HasClass("expanded"))
 								layersPanel:FireEvent("expanded", element:HasClass("expanded"))
@@ -781,21 +1935,44 @@ CreateLayersPanel = function()
 
 							floorDetailsPanel,
 
+							--Right-aligned height readout. The gear is NOT here -- it
+							--floats in the corner (below), so the row's one editable
+							--number is not sharing a line with a button.
+							--Bottom, not centre: the gear occupies the top-right corner
+							--and a 16px gear plus an 18px readout do not both fit on a
+							--44px row's centre line without overlapping.
 							gui.Panel{
-								flow = "vertical",
+								flow = "horizontal",
 								width = "auto",
-								height = "100%",
-								elevationLabel,
-								floorTokensPanel,
+								height = 22,
+								halign = "right",
+								valign = "bottom",
+								rmargin = 8,
+								heightEditor,
 							},
 
-							gui.Panel{
+							--Settings floats in the row's top-right corner, out of the
+							--reading path. It was inline for a while because the old
+							--floating 12px target was too small and collided with the
+							--seam chips; the chips are gone now and it is 16px, so the
+							--corner is free again.
+							gui.Button{
 								classes = {'settingsButton'},
 								floating = true,
+								halign = "right",
+								valign = "top",
+								width = 16,
+								height = 16,
+								hmargin = 6,
 								click = function(element)
-									mod.shared.CreateLayersDisplay()
+									ShowFloorSettings(floor, function()
+										floorsList:FireEventTree("refreshGame")
+									end)
 								end,
 							},
+
+							--The boundary with the floor above.
+							CreateSeamLine(),
 
 							data = {
 								floorLabel = floorLabel,
@@ -825,6 +2002,42 @@ CreateLayersPanel = function()
 										click = function()
 											element.popup = nil
 											mod.shared.ReimportMapSizing(mapLayer, mapObj)
+										end,
+									}
+									floorEntries[#floorEntries+1] = {
+										text = "Realign Floor...",
+										click = function()
+											element.popup = nil
+											mod.shared.ShowFloorRealignDialog(mapLayer, mapObj)
+										end,
+									}
+								end
+
+								--Non-drag path for setting the ground level (the ground line can also
+								--be dragged onto a floor seam). Makes this floor the lowest floor that
+								--is above ground. Mirrors the drag convention of pointing groundLevel
+								--at the floor's lowest layer index.
+								local mapFloors = currentMap.floors
+								local groundIndex = element.data.index
+								local isGroundFloor = currentMap.groundLevel == groundIndex
+								for j=1,#mapFloors do
+									if mapFloors[j].parentFloor == floor.floorid then
+										if j < groundIndex then
+											groundIndex = j
+										end
+										if currentMap.groundLevel == j then
+											isGroundFloor = true
+										end
+									end
+								end
+
+								if not isGroundFloor then
+									floorEntries[#floorEntries+1] = {
+										text = "Set as Ground Floor",
+										click = function()
+											element.popup = nil
+											currentMap.groundLevel = groundIndex
+											floorsList:FireEventTree("refreshGame")
 										end,
 									}
 								end
@@ -860,12 +2073,14 @@ CreateLayersPanel = function()
 
 												if players then
 													gui.ModalMessage{
+														owner = element,
 														title = "Cannot Delete Players",
 														message = "You cannot delete a floor with players on it. Delete them first or teleport them elsewhere before deleting this floor.",
 													}
 												else
 
 													gui.ModalMessage{
+														owner = element,
 														title = "Delete Floor?",
 														message = "This floor includes tokens on it. Do you really want to delete it?",
 														options = {
@@ -1018,7 +2233,17 @@ CreateLayersPanel = function()
 
 								if game.currentFloor.actualFloor ~= floor.floorid then
 									game.ChangeMap(game.currentMap, floor)
-									element:FindParentWithClass("dockablePanel"):FireEventTree("refreshFloorSelection")
+									--Reveal this floor and everything below it; hide everything above.
+									if FloorNavigation.AutoVisibilityEnabled() then
+										FloorNavigation.ApplyVisibility(game.currentMap, floor)
+										floorsList:FireEventTree("refreshGame")
+									end
+									--the dockablePanel ancestor can be nil: panel content can be
+									--hosted outside the dock (e.g. a free-floating panel window).
+									local dockPanel = element:FindParentWithClass("dockablePanel")
+									if dockPanel ~= nil then
+										dockPanel:FireEventTree("refreshFloorSelection")
+									end
 								end
 							end,
 
@@ -1027,27 +2252,28 @@ CreateLayersPanel = function()
 					end
 
 
-					--calculate the elevation level of this floor.
-
-					local elevationLevel = 0
-					for j=1,#floors do
-						local f = floors[j]
-						if f.parentFloor == nil then
-							elevationLevel = elevationLevel + f.floorHeightInTiles
-							if f.floorid == floor.floorid then
-								break
-							end
-						end
-					end
-
-					floorPanel:FireEventTree("elevation", elevationLevel)
-
-
-					elevationLevel = elevationLevel + floor.floorHeightInTiles
-
 					floorPanel.data.index = i
 
+					--Suppress this row's seam line when the ground rule sits directly
+					--above it (the two would double up), and on the very first row
+					--(nothing above it to divide from).
+					local topElevation = false
+					if not groundLineAbove and anyRowRendered then
+						topElevation = floorTopAltitudes[floor.floorid] - groundAltitude
+					end
+					floorPanel:FireEventTree("seamElevations", topElevation)
+					anyRowRendered = true
+
+					--The elevation span this floor occupies, shown in the row: its
+					--top relative to ground, and that minus its own thickness.
+					local spanTop = floorTopAltitudes[floor.floorid] - groundAltitude
+					floorPanel:FireEventTree("floorSpan", spanTop - floor.floorHeightInTiles, spanTop)
+
 					floorPanel:SetClassTree('selected', currentFloor.actualFloor == floor.actualFloor)
+
+					--Hidden floors read as hidden at a glance: the eye icon alone
+					--is a 13px signal on a panel whose whole job is visibility.
+					floorPanel:SetClassTree('floorHidden', floor.floorInvisible == true)
 
 					floorPanel.data.floorLabel.text = floor.description
 					if floorPanel.data.floorLabel.text == '' then
@@ -1076,113 +2302,153 @@ CreateLayersPanel = function()
 
 					children[#children+1] = CreateDragTarget(dragTargetLevel)
 
+					groundLineAbove = false
 					if groundLevel ~= nil then
 						children[#children+1] = groundLevelPanel
 						children[#children+1] = CreateDragTarget(groundLevel, true)
+						groundLineAbove = true
 					end
 				end
+			end
+
+			--(The bottom-of-map seam used to carry its own floating chip here.
+			--The lowest floor's row now states that value as the bottom of its
+			--own span, so the anchor is gone.)
+
+			--Close the list with a hairline under the lowest row: when the
+			--ground rule sits directly above that row, its own top seam is
+			--suppressed and it otherwise reads as having no dividers at all.
+			--Skipped when the ground rule itself rendered at the very bottom,
+			--where it already draws this boundary.
+			if anyRowRendered and not groundLineAbove then
+				children[#children+1] = CreateFlowSeamLine()
 			end
 
 			children[#children+1] = addFloorButton
 
 			element.children = children
 			floorItems = newFloorItems
+
+			--The rebuilt children have no rendered size until a layout pass
+			--runs, so measure for the dock fit on a short delay.
+			element:ScheduleEvent("fitDock", 0.1)
 		end,
 	}
 
-	local highlightGradient = core.Gradient{
-		point_a = { x = 0, y = 0 },
-		point_b = { x = 1, y = 0 },
-		stops = {
-			{
-				position = 0,
-				color = 'srgb:#C0957100',
-			},
-			{
-				position = 0.6,
-				color = 'srgb:#C09571BB',
-			},
-			{
-				position = 1.0,
-				color = 'srgb:#C0957100',
-			},
-		},
-	}
+	--Expose this list so keybind-driven floor navigation can refresh its eye icons.
+	g_floorsListPanel = floorsList
 
+	local resultPanel
 
-	local aspect = (dmhub.screenDimensionsBelowTitlebar.y/dmhub.screenDimensions.x) / (1080/1920)
-	local resultPanel = gui.Panel{
-		width = "100%",
-		height = "100%",
-		flow = 'vertical',
-
-		styles = {
-			Styles.Panel,
-
+	-- Local rule set for this panel's custom selectors. The @token refs are
+	-- resolved by MergeTokens at call time; OnThemeChanged below re-runs the
+	-- assignment so the panel recolors live when the user switches theme/scheme.
+	local function buildLocalStyles()
+		return {
+			--Drop indicators between rows: invisible at rest (always-on 2px
+			--lines read as clutter against transparent rows), accent bar when
+			--a drag hovers the gap. priority 10: the global {drag-target}
+			--rule paints these @accent at priority 5, which is what drew the
+			--permanent lines between rows.
+			--2px at rest, invisible (bgcolor clear), growing to a 10px accent bar
+			--while a drag is over them. Zero height would reclaim those 2px, but
+			--a zero-area panel cannot be hovered, so the drop zones -- and with
+			--them floor reordering -- would very likely stop working entirely.
+			--Not worth 2px, and synthetic drags do not reproduce the engine's
+			--drag system well enough to prove otherwise.
 			{
-				selectors = {'settingsButton'},
-				bgimage = 'ui-icons/skills/98.png',
-				bgcolor = 'white',
-				height = '30%',
-				width = '100% height',
-				blend = 'add',
-				brightness = 0.7,
-				halign = 'right',
+				selectors = {'floorOrLayerDragTarget'},
+				bgimage = true,
+				bgcolor = 'clear',
+				height = 2,
+				width = '100%',
+				priority = 10,
+				--every in-flow child of the floors list must be valign top: in a
+				--vertical flow the engine distributes leftover height between
+				--children that are NOT top-aligned, and while the dock slot hugs
+				--content (no leftover), the popped-out panel window gives the list
+				--the full window height -- default-centered children then spread
+				--out across it with big gaps.
 				valign = 'top',
 			},
 			{
-				selectors = {'settingsButton','hover'},
-				brightness = 1.0,
-				scale = 1.1,
+				selectors = {"floorOrLayerDragTarget", "drag-target-hover"},
+				bgcolor = '@accent',
+				height = 10,
+				priority = 15,
 			},
-			{
-				selectors = {'settingsButton','press'},
-				brightness = 0.9,
-			},
-			{
-				selectors = {'floorOrLayerDragTarget'},
-				bgimage = 'panels/square.png',
-				bgcolor = '#00000077',
-				height = 2,
-				width = '100%',
-			},
-			{
-				selectors = {'floorOrLayerDragTarget', 'drag-target'},
-				bgcolor = '#ffffff77',
-			},
-			{
-				selectors = {'floorOrLayerDragTarget', 'drag-target-hover'},
-				bgcolor = '#ffff00aa',
-			},
+			--"Quiet dark" row grammar: rows are transparent at rest, surface
+			--on hover, and the selected row (floor or layer alike) carries an
+			--@bgAlt fill with a 3px accent edge. The old accent-wash gradient
+			--is gone: it inverted the panel's hierarchy (the state was louder
+			--than the identity) and forced inverse text.
 			{
 				selectors = {'floorPanel'},
 				flow = "horizontal",
-				bgimage = 'panels/square.png',
-				bgcolor = '#00000077',
+				bgimage = true,
+				bgcolor = 'clear',
 				halign = "left",
-				hmargin = 8,
-				height = 40,
-				width = '92%',
+				hmargin = 0,
+				--valign top for the same reason as the drag targets above: an
+				--in-flow child that is not top-aligned gets leftover height
+				--distributed to it, which spreads the rows apart when the panel
+				--is popped out into its own window rather than docked.
+				valign = "top",
+				--The seam gap is PADDING, not margin: rows sit edge to edge and
+				--own the space around their content, so a selected row's fill
+				--(and its accent edge) runs the full pitch and meets the divider
+				--lines instead of stopping 6px short of them. borderBox keeps the
+				--declared height inclusive of that padding.
+				vmargin = 0,
+				vpad = 6,
+				borderBox = true,
+				height = 56,
+				width = '100%',
 				fontSize = 16,
-				color = 'white',
+				color = '@fg',
+			},
+			--Layer rows: same 6px padding on each side, shorter content band.
+			{
+				selectors = {'floorPanel', 'layerPanel'},
+				height = 46,
+			},
+			{
+				selectors = {'floorPanel', 'hover'},
+				bgcolor = "@bgAlt",
 			},
 			{
 				selectors = {'floorPanel', 'selected'},
-				bgcolor = "white",
-				gradient = highlightGradient,
-
+				bgcolor = "@bgAlt",
+				border = {x1 = 3, x2 = 0, y1 = 0, y2 = 0},
+				borderColor = "@accent",
+				priority = 5,
 			},
 			{
 				selectors = {'floorPanel', 'dragging'},
 				opacity = 0.2,
 			},
+			--Hidden floors/layers: the thumbnail fades and the name goes muted,
+			--so "this floor is not shown" is legible from across the room. The
+			--eye icon deliberately keeps its normal treatment -- it is the
+			--control that undoes this state, so it must stay clearly clickable.
+			{
+				selectors = {'floorPanelMinimap', 'floorHidden'},
+				opacity = 0.3,
+			},
+			{
+				selectors = {'floorLabel', 'floorHidden'},
+				color = '@fgMuted',
+			},
+			--lmargin clears the selected row's 3px accent edge so the eye/lock
+			--column never crowds it; rmargin keeps them off the thumbnail.
 			{
 				selectors = {'floorPanelLeftIconsPanel'},
 				height = "90%",
 				width = "50% height",
 				valign = "center",
 				halign = "left",
-				hmargin = 2,
+				lmargin = 8,
+				rmargin = 4,
 				flow = "vertical",
 			},
 			{
@@ -1194,21 +2460,21 @@ CreateLayersPanel = function()
 			},
 			{
 				selectors = {'floorOptionIcon'},
-				width = "80%",
-				height = "80%",
+				width = "90%",
+				height = "90%",
 				halign = "center",
 				valign = "center",
-				bgcolor = "#ffffff55",
+				bgcolor = "@fgMuted",
 			},
 			{
 				selectors = {'floorOptionIcon', 'enabled'},
-				bgcolor = "white",
+				bgcolor = "@fg",
 			},
 			{
 				selectors = {'floorPanelMinimap'},
 				bgimage = "panels/square.png",
-				bgcolor = "black",
-				borderColor = Styles.textColor,
+				bgcolor = "@bg",
+				borderColor = "@border",
 				borderWidth = 1,
 				cornerRadius = 3,
 				width = "100% height",
@@ -1227,34 +2493,189 @@ CreateLayersPanel = function()
 				maxWidth = 100,
 				hmargin = 10,
 			},
+			--Matches the thumbnail's box exactly (both are 100% of the row's
+			--content height, vertically centred), so the name's top edge and
+			--the opacity bar's bottom edge line up with the thumbnail's.
+			--flow "none", NOT "vertical": the three children pin themselves to
+			--top / centre / bottom, which is what spreads them to the full
+			--height and gives the span label the space between.
 			{
 				selectors = {'floorDetailsPanel'},
-				flow = "vertical",
+				flow = "none",
 				halign = "left",
-				valign = "top",
+				valign = "center",
 				width = 100,
-				height = "90%",
+				height = "100%",
 			},
 			{
 				selectors = {'floorLabel'},
 				fontSize = 14,
-				color = Styles.textColor,
+				color = "@fg",
 				hmargin = 6,
 				valign = "top",
 				halign = "left",
 				height = "auto",
 				width = "auto",
 			},
+			--Identity leads: the selected row's NAME is the strongest text in
+			--the panel, on the quiet @bgAlt fill.
 			{
 				selectors = {'floorLabel', 'selected'},
-				color = "black",
-
+				color = "@fgStrong",
+				bold = true,
 			},
-		},
+			--Floating elevation chips straddling the seam lines between floor rows
+			--(relative to ground level = 0).
+			--The ground divider reads as a section header. The rule is @border,
+			--NOT @fg: as a bright hairline it was the loudest element in the
+			--panel, competing with the floor names it divides.
+			{
+				selectors = {'groundLevelLine'},
+				bgcolor = '@border',
+				height = 2,
+				valign = 'center',
+				hmargin = 8,
+			},
+			{
+				selectors = {'groundLevelLabel'},
+				color = '@fgMuted',
+				fontSize = 10,
+				bold = true,
+				width = 'auto',
+				height = 'auto',
+				halign = 'left',
+				valign = 'center',
+				lmargin = 8,
+				textAlignment = 'left',
+			},
+			--The divider is draggable (drop it on a floor seam to set which
+			--floor is ground level) but nothing said so. Brightening both
+			--parts on hover marks it as a live control.
+			{
+				selectors = {'groundLevelLabel', 'parent:hover'},
+				color = '@fg',
+				transitionTime = 0.1,
+			},
+			{
+				selectors = {'groundLevelLine', 'parent:hover'},
+				bgcolor = '@fgMuted',
+				transitionTime = 0.1,
+			},
+			--The add buttons take the Phosphor plus instead of the shared
+			--ui-icons/Plus.png: it matches the eye/lock/gear/caret masks used
+			--everywhere else in this panel, and renders cleaner at button size.
+			--Scoped here so the app-wide addButton icon is untouched.
+			{
+				selectors = {"panel", "buttonIcon", "parent:addButton"},
+				bgimage = "phosphor/plus-bold.png",
+				priority = 10,
+			},
+			--The expander, local to this panel (the shared {triangle} default is
+			--a 12px square). A wider BASE than length gives a blunt, broad
+			--arrow at row scale. The base is the panel's width because the
+			--collapsed state is the rotated one: rotate 90 swaps the axes, so
+			--width becomes the on-screen vertical extent.
+			--Sized for the PHOSPHOR caret, whose glyph sits inside padding in its
+			--own canvas, so the panel runs bigger than the arrow you see.
+			--Remember the axes swap: the collapsed state is rotated 90, so
+			--HEIGHT is the arrow's on-screen width (its length) and WIDTH is its
+			--vertical extent (its base). Raising height blunts the point.
+			{
+				selectors = {'triangle'},
+				width = 27,
+				height = 29,
+				priority = 10,
+			},
+			--Open state reads from weight as well as direction: an expanded
+			--arrow steps back so the collapsed ones carry the "there is more
+			--in here" signal.
+			{
+				selectors = {'triangle', 'expanded'},
+				opacity = 0.4,
+				priority = 10,
+			},
+			--Row separator: @border already sits close to the background, and
+			--the opacity takes it further down so it reads as a hint of
+			--structure rather than a table grid line.
+			{
+				selectors = {'floorSeamLine'},
+				bgcolor = '@border',
+				opacity = 0.2,
+			},
+			--The floor's elevation span, under its name. Muted and small: it is
+			--reference information about the row, not a control, and must stay
+			--quieter than the name above it.
+			{
+				selectors = {'floorSpanLabel'},
+				fontSize = 10,
+				color = '@fgMuted',
+				width = 'auto',
+				height = 'auto',
+				halign = 'left',
+				valign = 'center',
+				hmargin = 6,
+				textAlignment = 'left',
+			},
+			--The editable per-floor height value. Bordered so it reads as editable
+			--without needing to discover a hidden double-click.
+			{
+				selectors = {'floorHeightValue'},
+				bgimage = 'panels/square.png',
+				bgcolor = 'clear',
+				border = 1,
+				borderColor = '@border',
+				cornerRadius = 3,
+				fontSize = 14,
+				color = '@fg',
+				width = 30,
+				height = 18,
+				halign = 'left',
+				valign = 'center',
+				textAlignment = 'center',
+			},
+			{
+				selectors = {'floorHeightValue', 'hover'},
+				borderColor = '@accent',
+			},
+			--The muted unit suffix after the editable height value.
+			{
+				selectors = {'floorHeightUnit'},
+				fontSize = 10,
+				color = '@fgMuted',
+				width = 'auto',
+				height = 'auto',
+				halign = 'left',
+				valign = 'center',
+				lmargin = 3,
+			},
+			--Pulsed when an edit is rejected (non-numeric, fractional tiles, or
+			--outside the 1-20 tile range); fades back out over transitionTime.
+			{
+				selectors = {'floorHeightValue', 'invalid'},
+				priority = 20,
+				color = '@danger',
+				borderColor = '@danger',
+				transitionTime = 0.6,
+			},
+		}
+	end
+
+	local aspect = (dmhub.screenDimensionsBelowTitlebar.y/dmhub.screenDimensions.x) / (1080/1920)
+	resultPanel = gui.Panel{
+		width = "100%",
+		height = "100%",
+		flow = 'vertical',
+
+		styles = ThemeEngine.MergeTokens(buildLocalStyles()),
 
 		floorsList,
-
 	}
+
+	ThemeEngine.OnThemeChanged(mod, function()
+		if resultPanel ~= nil and resultPanel.valid then
+			resultPanel.styles = ThemeEngine.MergeTokens(buildLocalStyles())
+		end
+	end)
 
 	return resultPanel
 end
@@ -1263,10 +2684,14 @@ CreateLayersList = function(parentFloor)
 
 	local floorItems = {}
 
+	--Layers indent from the LEFT only (hierarchy) and stay flush with the
+	--floor rows on the right, so every row in the panel shares one right
+	--edge and one control column.
 	local listPanel = gui.Panel{
-		width = "100%",
+		width = "100%-18",
 		height = "auto",
-		hmargin = 32,
+		hmargin = 0,
+		halign = "right",
 		flow = "vertical",
 
 		create = function(element)
@@ -1300,10 +2725,10 @@ CreateLayersList = function(parentFloor)
 								end,
 								gui.Panel{
 									classes = {'floorOptionIcon', cond(not floor.invisible, 'enabled')},
-									bgimage = cond(floor.invisible, 'icons/icon_tool/icon_tool_60.png', 'icons/icon_tool/icon_tool_59.png'),
+									bgimage = cond(floor.invisible, "phosphor/eye-slash.png", "phosphor/eye.png"),
 
 									refreshGame = function(element)
-										element.bgimage = cond(floor.invisible, 'icons/icon_tool/icon_tool_60.png', 'icons/icon_tool/icon_tool_59.png')
+										element.bgimage = cond(floor.invisible, "phosphor/eye-slash.png", "phosphor/eye.png")
 										element:SetClass('enabled', not floor.invisible)
 									end,
 
@@ -1317,9 +2742,9 @@ CreateLayersList = function(parentFloor)
 								end,
 								gui.Panel{
 									classes = {'floorOptionIcon', cond(floor.locked, 'enabled')},
-									bgimage = cond(floor.locked, 'icons/icon_tool/icon_tool_30.png', 'icons/icon_tool/icon_tool_30_unlocked.png'),
+									bgimage = cond(floor.locked, "phosphor/lock-simple.png", "phosphor/lock-simple-open.png"),
 									refreshGame = function(element)
-										element.bgimage = cond(floor.locked, 'icons/icon_tool/icon_tool_30.png', 'icons/icon_tool/icon_tool_30_unlocked.png')
+										element.bgimage = cond(floor.locked, "phosphor/lock-simple.png", "phosphor/lock-simple-open.png")
 										element:SetClass('enabled', floor.locked)
 									end,
 								},
@@ -1407,6 +2832,8 @@ CreateLayersList = function(parentFloor)
 						}
 
 						local opacitySlider = gui.PercentSlider{
+							width = 88,
+							styles = MutedPercentSliderStyles(),
 							halign = "left",
 							valign = "bottom",
 							hmargin = 6,
@@ -1430,7 +2857,7 @@ CreateLayersList = function(parentFloor)
 
 						floorPanel = gui.Panel{
 							bgimage = 'panels/square.png',
-							classes = {'floorPanel'},
+							classes = {'floorPanel', 'layerPanel'},
 							monitorGame = '/mapFloors/' .. floor.floorid .. '/layerDescription',
 							draggable = true,
 							dragBounds = { x1 = 0, x2 = 0, y1 = -1000, y2 = 1000},
@@ -1444,17 +2871,28 @@ CreateLayersList = function(parentFloor)
 								flow = "vertical",
 								width = "auto",
 								height = "100%",
+								halign = "right",
 								floorTokensPanel,
 							},
 
-							gui.Panel{
+							--Same corner placement as the floor rows.
+							gui.Button{
 								classes = {'settingsButton'},
 								floating = true,
+								halign = "right",
+								valign = "top",
+								width = 16,
+								height = 16,
+								hmargin = 6,
 								click = function(element)
-		mod.shared.CreateLayersDisplay()
-			--						ShowFloorSettings(floor)
+									ShowFloorSettings(floor)
 								end,
 							},
+
+							--Layer rows get the same faint separator. They carry no
+							--span label (layers share their parent floor's elevation),
+							--so this one never receives the collapse signal.
+							CreateSeamLine(),
 
 							data = {
 								floor = floor,
@@ -1518,12 +2956,14 @@ CreateLayersList = function(parentFloor)
 
 												if players then
 													gui.ModalMessage{
+														owner = element,
 														title = "Cannot Delete Players",
 														message = "You cannot delete a floor with players on it. Delete them first or teleport them elsewhere before deleting this floor.",
 													}
 												else
 
 													gui.ModalMessage{
+														owner = element,
 														title = "Delete Layer?",
 														message = "This Layer includes tokens on it. Do you really want to delete it?",
 														options = {
@@ -1619,7 +3059,12 @@ CreateLayersList = function(parentFloor)
 								end
 
 								game.currentMap.floors = floors
-        						element:FindParentWithClass("dockablePanel"):FireEventTree("refreshGame")
+								--the dockablePanel ancestor can be nil: panel content can be
+								--hosted outside the dock (e.g. a free-floating panel window).
+								local dockPanel = element:FindParentWithClass("dockablePanel")
+								if dockPanel ~= nil then
+									dockPanel:FireEventTree("refreshGame")
+								end
 							end,
 							refreshGame = function(element)
 								if not floor.valid then
@@ -1648,7 +3093,12 @@ CreateLayersList = function(parentFloor)
 							click = function(element)
 								element.popup = nil
 								game.ChangeMap(game.currentMap, floor)
-        						element:FindParentWithClass("dockablePanel"):FireEventTree("refreshFloorSelection")
+								--the dockablePanel ancestor can be nil: panel content can be
+								--hosted outside the dock (e.g. a free-floating panel window).
+								local dockPanel = element:FindParentWithClass("dockablePanel")
+								if dockPanel ~= nil then
+									dockPanel:FireEventTree("refreshFloorSelection")
+								end
 							end,
 
 						}
@@ -1657,6 +3107,7 @@ CreateLayersList = function(parentFloor)
 					floorPanel.data.index = i
 
 					floorPanel:SetClassTree('selected', game.currentFloor.floorid == floor.floorid)
+					floorPanel:SetClassTree('floorHidden', floor.invisible == true)
 
 					floorPanel.data.floorLabel.text = floor.layerDescription
 					if floorPanel.data.floorLabel.text == '' then
@@ -1687,7 +3138,8 @@ CreateLayersList = function(parentFloor)
 
 		listPanel,
 
-		gui.AddButton{
+		gui.Button{
+			classes = {"addButton", "sizeS"},
 			halign = 'right',
 			valign = 'bottom',
 			margin = 0,

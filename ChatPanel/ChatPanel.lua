@@ -1,19 +1,142 @@
 local mod = dmhub.GetModLoading()
 
+-- Chat input history (up-arrow recall) persists across reloads and restarts
+-- as a per-user preference setting holding the most recent entries.
+local g_maxPersistedChatHistory = 20
+
+setting{
+	id = "chat:inputhistory",
+	default = {},
+	storage = "preference",
+}
+
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 local CreateChatPanel
+
+--Unread tracking: the rail's Chat button shows a new-content marker (with
+--a count) for chat messages that arrived since the panel was last on
+--screen. "Last viewed" is a per-game high-water server timestamp
+--persisted as a preference; while the panel is shown the rail calls
+--markContentSeen on its refresh cadence, riding the mark past the newest
+--message. Messages the local user sent themselves never count as unread.
+setting{
+	id = "chat:lastviewed",
+	default = {},
+	storage = "preference",
+}
+
+--the same message filter the panel itself renders with: plain chat plus
+--the shared-object/data messages and custom messages on the chat channel.
+--Everything else belongs to the Action Log (see ActionLogPanel.lua, which
+--tracks its unreads with the exact complement of this predicate).
+local function IsChatMessage(message)
+	return message.messageType == "chat" or message.messageType == "data" or message.messageType == "object" or (message.messageType == "custom" and rawget(message.properties, "channel") == "chat")
+end
+
+local function ChatLastViewed()
+	local t = dmhub.GetSettingValue("chat:lastviewed")
+	if type(t) ~= "table" then
+		return nil
+	end
+	return t[dmhub.gameid]
+end
+
+local function ChatUnreadCount()
+	local lastViewed = ChatLastViewed()
+	if lastViewed == nil then
+		return 0
+	end
+	local count = 0
+	for _,message in ipairs(chat.messages) do
+		if IsChatMessage(message) then
+			local ts = message.timestamp
+			if type(ts) == "number" and ts > lastViewed then
+				local uid = nil
+				pcall(function() uid = message.userid end)
+				if uid ~= dmhub.userid then
+					count = count + 1
+				end
+			end
+		end
+	end
+	return count
+end
+
+--Absorb everything current as seen: the high-water mark becomes the newer
+--of "now" and the newest chat message. Writes only when something actually
+--changed state (first baseline for this game, or unread messages being
+--absorbed), so an idle open panel does not churn the preference store.
+local function ChatMarkViewed()
+	local t = dmhub.GetSettingValue("chat:lastviewed")
+	if type(t) ~= "table" then
+		t = {}
+	end
+	local lastViewed = t[dmhub.gameid]
+	local target = os.time() * 1000
+	local anyNew = false
+	for _,message in ipairs(chat.messages) do
+		if IsChatMessage(message) then
+			local ts = message.timestamp
+			if type(ts) == "number" then
+				if ts > target then
+					target = ts
+				end
+				if lastViewed ~= nil and ts > lastViewed then
+					anyNew = true
+				end
+			end
+		end
+	end
+	if lastViewed ~= nil and not anyNew then
+		return
+	end
+	t[dmhub.gameid] = target
+	dmhub.SetSettingValue("chat:lastviewed", t)
+end
 
 DockablePanel.Register{
 	name = "Chat",
 	icon = "icons/standard/Icon_App_Chat.png",
 	minHeight = 200,
 	vscroll = false,
+	--when the icon rail opens this panel as a window, put the caret in
+	--the chat input right away (the content tree handles the
+	--"focusPanelInput" event) so the user can just start typing.
+	autoFocusInput = true,
 	content = function()
+		track("panel_open", {
+			panel = "Chat",
+			dailyLimit = 30,
+		})
 		return CreateChatPanel()
+	end,
+	hasNewContent = function()
+		--first evaluation for a game baselines "viewed" at now, so
+		--pre-existing history never flags as unread.
+		if ChatLastViewed() == nil then
+			ChatMarkViewed()
+		end
+		return ChatUnreadCount() > 0
+	end,
+	newContentCount = function()
+		return ChatUnreadCount()
+	end,
+	markContentSeen = function()
+		ChatMarkViewed()
 	end,
 }
 
 local function FormatChatMessage(message)
-    local textColor = cond(message.isLocal, "#777777", "#FFFFFF")
     local text = message.message
     local nick = message.nick
     local nickColor = message.nickColor
@@ -25,14 +148,313 @@ local function FormatChatMessage(message)
     elseif nickColor.v < 0.6 then
         nickColor.v = 0.6
     end
-    return string.format("<color=%s><b>%s:</b></color> <color=%s>%s</color>", nickColor.tostring, nick, textColor, text)
+    return string.format("<color=%s><b>%s:</b></color> %s", nickColor.tostring, nick, text)
+end
+
+local function CreateChatAttachmentHeader(message)
+	local color = core.Color(message.nickColor)
+	if color ~= nil and color.v < 0.6 then
+		color.v = 0.6
+	end
+	return gui.Label{
+		classes = {"sizeS", "fgStrong"},
+		width = "100%",
+		height = "auto",
+		halign = "left",
+		text = string.format("<b>%s:</b>", message.nick),
+		color = color ~= nil and color.tostring or "white",
+	}
+end
+
+local function CreateChatImageAttachment(attachment)
+	local source = "md5:" .. attachment.chatAttachmentBlobId
+	return gui.Panel{
+		classes = {"image"},
+		width = "auto",
+		height = "auto",
+		maxWidth = "100%",
+		maxHeight = 420,
+		halign = "left",
+		autosizeimage = true,
+		bgimageStreamed = source,
+		hoverCursor = "hand",
+		press = function(element)
+			dmhub.ViewSign(source)
+		end,
+		linger = function(element)
+			gui.Tooltip(attachment.filename or "Image")(element)
+		end,
+	}
+end
+
+local function CreateChatAudioAttachment(attachment)
+	local playingEvent = nil
+	local playIcon
+	local statusLabel
+
+	local panel = gui.Panel{
+		classes = {"bgAlt", "bordered"},
+		width = 260,
+		maxWidth = "100%",
+		height = 48,
+		halign = "left",
+		flow = "horizontal",
+		borderBox = true,
+		hpad = 8,
+		hoverCursor = "hand",
+		press = function(element)
+			if playingEvent ~= nil and playingEvent.playing then
+				playingEvent:Stop()
+				playingEvent = nil
+			else
+				playingEvent = assets:PlayChatAudio(attachment.chatAttachmentBlobId, attachment.extension)
+			end
+		end,
+		thinkTime = 0.1,
+		think = function(element)
+			local playing = playingEvent ~= nil and playingEvent.playing
+			if playingEvent ~= nil and not playing then
+				playingEvent = nil
+			end
+			playIcon.bgimage = playing and "panels/square.png" or "panels/triangle.png"
+			playIcon.selfStyle.rotate = playing and 0 or 90
+			statusLabel.text = playing and "Playing - click to stop" or "Click to play"
+		end,
+		linger = function(element)
+			gui.Tooltip(attachment.filename or "Audio")(element)
+		end,
+	}
+
+	playIcon = gui.Panel{
+		bgimage = "panels/triangle.png",
+		bgcolor = "white",
+		width = 18,
+		height = 18,
+		halign = "center",
+		valign = "center",
+		rotate = 90,
+	}
+	statusLabel = gui.Label{
+		classes = {"sizeXs", "fgMuted"},
+		width = "100% available",
+		height = "auto",
+		halign = "left",
+		valign = "center",
+		textAlignment = "left",
+		text = "Click to play",
+	}
+	panel.children = {
+		gui.Panel{
+			width = 30,
+			height = "100%",
+			flow = "none",
+			playIcon,
+		},
+		gui.Panel{
+			width = "100% available",
+			height = "100%",
+			flow = "vertical",
+			gui.Label{
+				classes = {"sizeS", "fgStrong"},
+				width = "100%",
+				height = "auto",
+				halign = "left",
+				textAlignment = "left",
+				text = attachment.filename or "Audio",
+			},
+			statusLabel,
+		},
+	}
+	return panel
+end
+
+local function CreateChatVideoAttachment(attachment, options)
+	options = options or {}
+	local finished = false
+	local started = false
+	local seekGuard = 0
+	local videoPanel
+	local replayOverlay = gui.Panel{
+		classes = {"collapsed"},
+		floating = true,
+		width = 16,
+		height = 16,
+		halign = "center",
+		valign = "center",
+		bgimage = "panels/square.png",
+		bgcolor = "#00000088",
+		gui.Panel{
+			bgimage = "panels/triangle.png",
+			bgcolor = "white",
+			width = 56,
+			height = 56,
+			halign = "center",
+			valign = "center",
+			rotate = 90,
+		},
+	}
+
+	videoPanel = gui.Panel{
+		classes = {"image"},
+		width = "auto",
+		height = "auto",
+		maxWidth = options.maxWidth or "100%",
+		maxHeight = options.maxHeight or 420,
+		halign = options.halign or "left",
+		valign = options.valign,
+		autosizeimage = true,
+		clip = true,
+		swallowPress = options.swallowPress,
+		hoverCursor = "hand",
+		bgimageStreamed = "md5:" .. attachment.chatAttachmentBlobId .. "###LOOPAUDIO" .. dmhub.GenerateGuid(),
+		press = function(element)
+			if finished then
+				finished = false
+				seekGuard = 4
+				element.videoTime = 0
+				element:PlayVideo()
+			elseif element.videoPlaying then
+				element:PauseVideo()
+			else
+				element:PlayVideo()
+			end
+		end,
+		destroy = function(element)
+			element:PauseVideo()
+		end,
+		pauseChatVideo = function(element)
+			element:PauseVideo()
+		end,
+		linger = function(element)
+			gui.Tooltip(attachment.filename or "Video")(element)
+		end,
+		thinkTime = 0.1,
+		think = function(element)
+			local duration = element.videoDuration or 0
+			local playing = element.videoPlaying
+			if not started and duration > 0 and playing then
+				started = true
+			end
+			if seekGuard > 0 then
+				seekGuard = seekGuard - 1
+			elseif started and not finished and playing and duration > 0 then
+				local t = element.videoTime or 0
+				if t >= duration - 0.12 then
+					finished = true
+					element:PauseVideo()
+				end
+			end
+
+			replayOverlay:SetClass("collapsed", playing or not started)
+			local width = element.renderedWidth
+			local height = element.renderedHeight
+			if width ~= nil and width > 0 and height ~= nil and height > 0 then
+				replayOverlay.selfStyle.width = width
+				replayOverlay.selfStyle.height = height
+			end
+		end,
+		replayOverlay,
+	}
+	return videoPanel
+end
+
+local function ShowChatVideoFullscreen(attachment)
+	local modalLayer = nil
+	local function CloseFullscreen()
+		if modalLayer ~= nil then
+			gui.CloseModalInLayer(modalLayer)
+		end
+	end
+
+	local backdrop = gui.Panel{
+		width = "100%",
+		height = "100%",
+		bgimage = "panels/square.png",
+		bgcolor = "#000000dd",
+		styles = ThemeEngine.GetStyles(),
+		press = function(element)
+			CloseFullscreen()
+		end,
+		escape = function(element)
+			CloseFullscreen()
+		end,
+		escapeActivates = true,
+		escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+		CreateChatVideoAttachment(attachment, {
+			maxWidth = "90%",
+			maxHeight = "90%",
+			halign = "center",
+			valign = "center",
+			swallowPress = true,
+		}),
+	}
+	modalLayer = gui.ShowModal(backdrop)
+end
+
+local function RenderChatAttachment(attachment, message)
+	local attachmentPanel
+	if attachment.mediaType == "video" then
+		attachmentPanel = CreateChatVideoAttachment(attachment)
+	elseif attachment.mediaType == "audio" then
+		attachmentPanel = CreateChatAudioAttachment(attachment)
+	else
+		attachmentPanel = CreateChatImageAttachment(attachment)
+	end
+
+	return gui.Panel{
+		classes = {"chatMessage"},
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+		halign = "left",
+		linger = function(element)
+			gui.Tooltip(DescribeServerTimestamp(message.timestamp))(element)
+		end,
+		CreateChatAttachmentHeader(message),
+		gui.Panel{
+			width = "100%",
+			height = "auto",
+			attachmentPanel,
+		},
+	}
+end
+
+ChatAttachmentMessage = RegisterGameType("ChatAttachmentMessage")
+ChatAttachmentMessage.channel = "chat"
+ChatAttachmentMessage.chatAttachmentBlobId = false
+ChatAttachmentMessage.mediaType = "image"
+ChatAttachmentMessage.filename = "Attachment"
+ChatAttachmentMessage.extension = ""
+ChatAttachmentMessage.width = 0
+ChatAttachmentMessage.height = 0
+
+function ChatAttachmentMessage:Render(message)
+	return RenderChatAttachment(self, message)
+end
+
+ChatImageMessage = RegisterGameType("ChatImageMessage")
+ChatImageMessage.channel = "chat"
+ChatImageMessage.chatImageBlobId = false
+ChatImageMessage.filename = "Image"
+ChatImageMessage.width = 0
+ChatImageMessage.height = 0
+
+function ChatImageMessage:Render(message)
+	return RenderChatAttachment({
+		chatAttachmentBlobId = self.chatImageBlobId,
+		mediaType = "image",
+		filename = self.filename,
+		width = self.width,
+		height = self.height,
+	}, message)
 end
 
 local CreateChatMessagePanel = function(message)
     local m_message = message
 	local complete = false
 	return gui.Label{
-		classes = {'chat-message-panel'},
+		classes = {"chatMessage", "sizeS", cond(message.isLocal, "fgMuted", "fgStrong")},
+		halign = "left",
 		markdown = true,
 		text = FormatChatMessage(message),
         linger = function(element)
@@ -80,10 +502,10 @@ local CreateObjectMessagePanel = function(message)
 	end
 
 	return gui.Panel{
-		id = 'SharedObjectPanel',
-		classes = {'chat-message-panel'},
+		id = "SharedObjectPanel",
+		classes = {"chatMessage"},
 		gui.Label{
-			classes = {'chat-message-panel'},
+			classes = {"chatMessage"},
 			text = message.formattedText,
 		},
 		renderPanel,
@@ -96,10 +518,10 @@ local CreateDataMessagePanel = function(message)
 	local renderPanel = message.data:Render({summary = true}, {})
 
 	return gui.Panel{
-		idprefix = 'SharedObjectPanel',
-		classes = {'chat-message-panel'},
+		idprefix = "SharedObjectPanel",
+		classes = {"chatMessage"},
 		gui.Label{
-			classes = {'chat-message-panel'},
+			classes = {"chatMessage"},
 			markdown = true,
 			text = message.formattedText,
 		},
@@ -109,17 +531,17 @@ end
 
 local CreateCustomMessagePanel = function(message)
     --gets refreshMessage on message update.
-    local panel = message.properties:Render(message)
+    --pcall: a message may come from a client running a newer mod version whose
+    --message type is not registered here; reading .Render on an unknown type raises.
+    local panel = nil
+    pcall(function() panel = message.properties:Render(message) end)
     if panel == nil then
         if devmode() then
             return gui.Label{
+				classes = {"sizeS", "chatMessage", "warning"},
                 textAlignment = "center",
                 width = "100%",
                 height = "auto",
-                bgcolor = "black",
-                bgimage = "panels/square.png",
-                color = "white",
-                fontSize = 16,
                 text = "Failed to render custom message: " .. tostring(message.properties.typeName) .. " (devmode only message)",
             }
         else
@@ -134,34 +556,75 @@ local CreateCustomMessagePanel = function(message)
 end
 
 local rightClickHandler = function(element)
+	local entries = {}
+	local properties = element.data.message.properties
+	local mediaType = nil
+	local attachmentBlobId = nil
+	if properties ~= nil then
+		pcall(function() mediaType = properties.mediaType end)
+		if mediaType == "image" or mediaType == "video" then
+			pcall(function() attachmentBlobId = properties.chatAttachmentBlobId end)
+		else
+			pcall(function() attachmentBlobId = properties.chatImageBlobId end)
+			if attachmentBlobId ~= nil then
+				mediaType = "image"
+			end
+		end
+	end
+	if attachmentBlobId ~= nil and attachmentBlobId ~= false and mediaType == "image" then
+		entries[#entries+1] = {
+			text = "View Image in Browser",
+			click = function()
+				dmhub.OpenImageAssetURL(attachmentBlobId)
+				element.popup = nil
+			end,
+		}
+	elseif attachmentBlobId ~= nil and attachmentBlobId ~= false and mediaType == "video" then
+		entries[#entries+1] = {
+			text = "View Video Fullscreen",
+			click = function()
+				element:FireEventTree("pauseChatVideo")
+				ShowChatVideoFullscreen(properties)
+				element.popup = nil
+			end,
+		}
+		entries[#entries+1] = {
+			text = "View Video in Browser",
+			click = function()
+				dmhub.OpenImageAssetURL(attachmentBlobId)
+				element.popup = nil
+			end,
+		}
+	end
+
 	if dmhub.isDM then
 		local gmonly = element.data.message.gmonly
-		element.popup = gui.ContextMenu{
-			entries = {
-				{
+		entries[#entries+1] = {
 					text = "Delete Message",
 					click = function()
 						element.data.message:Delete()
 						element.popup = nil
 					end,
-				},
-
-                {
+				}
+		entries[#entries+1] = {
 					text = "Clear Chat",
 					click = function()
                         Commands.clear()
 						element.popup = nil
 					end,
-                },
-
-				{
+				}
+		entries[#entries+1] = {
 					text = cond(gmonly, "Reveal to players", "Hide from players"),
 					click = function()
 						element.data.message.gmonly = not gmonly
 						element.popup = nil
 					end,
 				}
-			}
+	end
+
+	if #entries > 0 then
+		element.popup = gui.ContextMenu{
+			entries = entries,
 		}
 	end
 end
@@ -254,55 +717,85 @@ CreateChatPanel = function()
 
 	local children = {}
 	local messagePanels = {}
+	local UploadChatImage = nil
+	local fileDragOverlay = nil
+	local fileDragLabel = nil
+	local imageDropExtensions = {
+		".png", ".jpg", ".jpeg", ".webp",
+		".mp4", ".webm",
+		".mp3", ".wav", ".ogg",
+	}
+
+	local function SetImageDropPreview(paths)
+		if fileDragOverlay == nil or fileDragOverlay.valid == false then
+			return
+		end
+
+		if paths == nil then
+			fileDragOverlay:SetClass("collapsed", true)
+			return
+		end
+
+		local count = #paths
+		if count == 1 then
+			fileDragLabel.text = "Release to post this attachment in chat"
+		else
+			fileDragLabel.text = string.format("Release to post %d attachments in chat", count)
+		end
+		fileDragOverlay:SetClass("collapsed", false)
+	end
+
+	local function DropChatImages(element, paths)
+		SetImageDropPreview(nil)
+		for _,path in ipairs(paths) do
+			UploadChatImage(path)
+		end
+	end
 
 	local chatPanel = gui.Panel{
-		id = 'chat-panel',
+		id = "chat-panel",
+		dragAndDropExtensions = imageDropExtensions,
+		dragfilesenter = function(element, paths)
+			SetImageDropPreview(paths)
+		end,
+		dragfilesleave = function(element)
+			SetImageDropPreview(nil)
+		end,
+		dropfiles = DropChatImages,
 		vscroll = true,
 		hideObjectsOutOfScroll = true,
 		hpad = 6,
 		height = "100% available",
+        width = "100%-12",
 
 
 		styles = {
 			{
-				bgcolor = 'black',
-				halign = 'center',
-				valign = 'bottom',
+				-- bgcolor = "black",
+				halign = "center",
+				valign = "bottom",
 				width = "100%",
-				flow = 'vertical',
-			},
-
-			{
-				selectors = 'separator',
-				bgimage = 'panels/square.png',
-				width = '96%',
-				height = 1,
-				vmargin = 4,
-				bgcolor = Styles.textColor,
-				gradient = Styles.horizontalGradient,
+				flow = "vertical",
 			},
 			{
-				selectors = {'visibilityPanel'},
-				halign = "right",
-				valign = "center",
+				selectors = {"panel", "chatMessage"},
+				width = "100%",
+				height = "auto",
+				valign = "bottom",
+				halign = "left",
+				flow = "vertical",
+				vmargin = 0,
 			},
-
 			{
-				selectors = {'chat-message-panel'},
-				textAlignment = 'topleft',
-				halign = 'left',
-				width = '100%',
-				height = 'auto',
-				color = 'white',
-				fontSize = '40%',
-				vmargin = 2,
+				selectors = {"label", "chatMessage"},
+				textAlignment = "topleft",
+				halign = "left",
+				valign = "bottom",
+				width = "100%-6",
+				height = "auto",
+				vmargin = 0,
+				lmargin = 6,
 			},
-
-			{
-				selectors = {'chat-message-panel'},
-				flow = 'vertical',
-			},
-
             {
                 selectors = {"unknownLanguage"},
                 fontFace = "Tengwar",
@@ -339,14 +832,101 @@ CreateChatPanel = function()
                 end
             end,
 
-			create = 'refreshChat',
-			refreshChat = function(element)
+			create = "refreshChat",
+			refreshChat = function(element, changeInfo)
+				--dev:diceperf -- time this handler (see engine settings.txt).
+				local perfLog = dmhub.GetSettingValue("dev:diceperf")
+				local perfStart = perfLog and os.clock() or 0
+
+				--INCREMENTAL PATH: same contract as ActionLogPanel's refreshChat (see
+				--ChatPanel.cs RefreshLua). For a non-structural change on an
+				--already-built chat, only the changed message panels are touched;
+				--everything else, including this scroll panel's children list, is left
+				--alone. Structural changes and the panel-create event (changeInfo ==
+				--nil) fall through to the full pass below.
+				if changeInfo ~= nil and (not changeInfo.structural) and element.data.init then
+					--Removed messages (chat is pruned past 128 messages on every send, so
+					--this is routine): destroy just that message's panel.
+					for key,_ in pairs(changeInfo.removed or {}) do
+						local child = messagePanels[key]
+						messagePanels[key] = nil
+						if child ~= nil and child.valid then
+							child:DestroySelf()
+						end
+					end
+
+					local anyNew = false
+					for key,_ in pairs(changeInfo.changed) do
+						--chat.GetRollInfo is a by-key lookup of the same message wrappers
+						--chat.messages holds (any message type, despite the name).
+						local message = chat.GetRollInfo(key)
+						if message ~= nil then
+							local child = messagePanels[key]
+							if child ~= nil and (not child.valid) then
+								messagePanels[key] = nil
+								child = nil
+							end
+							if child ~= nil then
+								child:FireEvent("refreshMessage", message)
+							elseif message.messageType == "chat" or message.messageType == "data" or message.messageType == "object" or (message.messageType == "custom" and rawget(message.properties, "channel") == "chat") then
+								if not g_errorPanels[key] then
+									--safely try to create the message panel. If it fails, we just skip it.
+									local ok, result
+
+									if devmode() then
+										--call unsafely as a dev. We want to get errors.
+										result = CreateSingleChatPanel(message)
+										ok = true
+									else
+										ok, result = pcall(CreateSingleChatPanel, message)
+									end
+
+									if ok then
+										child = result
+									else
+										dmhub.CloudError(string.format("Error creating chat panel in ChatPanel: messageType=%s error=%s", tostring(message.messageType), tostring(result)))
+										g_errorPanels[key] = true
+									end
+								end
+
+								if child ~= nil then
+									messagePanels[key] = child
+									child:FireEvent("refreshMessage", message)
+									element:AddChild(child)
+									anyNew = true
+								end
+							end
+						end
+					end
+
+					if anyNew then
+						element:FireEvent("moveToBottomNowAndDelayed")
+						audio.FireSoundEvent("UI.ChatMsgRegular")
+					end
+
+					if perfLog then
+						print(string.format("DICEPERF-LUA:: ChatPanel refreshChat INCREMENTAL total=%.1fms", (os.clock() - perfStart) * 1000))
+					end
+					return
+				end
+
 				local newMessagePanels = {}
 				local children = {}
 				local newMessage = false
+				local freshNewMessage = false
+				-- Only chime for messages whose server timestamp is recent. This
+				-- suppresses replayed history -- panel mount, dock reopen, and any
+				-- batched/late snapshot delivery on (re)connect.
+				local nowMs = os.time() * 1000
 				for i,message in ipairs(chat.messages) do
                     if message.messageType == "chat" or message.messageType == "data" or message.messageType == "object" or (message.messageType == "custom" and rawget(message.properties, "channel") == "chat") then
-                        newMessage = (messagePanels[message.key] == nil)
+                        local isNew = (messagePanels[message.key] == nil)
+						if isNew then
+							newMessage = true
+						end
+                        if isNew and element.data.init then
+                            freshNewMessage = true
+                        end
                         local child = messagePanels[message.key]
                         
                         if child == nil and (not g_errorPanels[message.key]) then
@@ -364,14 +944,14 @@ CreateChatPanel = function()
                             if ok then
                                 child = result
                             else
-                                dmhub.CloudError("Error creating chat panel in ChatPanel: ", message.messageType, result)
+                                dmhub.CloudError(string.format("Error creating chat panel in ChatPanel: messageType=%s error=%s", tostring(message.messageType), tostring(result)))
                                 g_errorPanels[message.key] = true
                             end
                         end
 
                         if child ~= nil then
                             newMessagePanels[message.key] = child
-                            child:FireEvent('refreshMessage', message)
+                            child:FireEvent("refreshMessage", message)
                             children[#children+1] = child
                         end
                     end
@@ -379,17 +959,26 @@ CreateChatPanel = function()
 
 				messagePanels = newMessagePanels
 				element.children = children
+                element.data.init = true
+
+				if perfLog then
+					print(string.format("DICEPERF-LUA:: ChatPanel refreshChat total=%.1fms msgs=%d", (os.clock() - perfStart) * 1000, #chat.messages))
+				end
 
 				--go to the bottom if we have new messages
 				if newMessage then
-					element.vscrollPosition = 0
-					element:ScheduleEvent("moveToBottom", 0.05)
+					element:FireEvent("moveToBottomNowAndDelayed")
+				end
+
+				if freshNewMessage then
+					audio.FireSoundEvent("UI.ChatMsgRegular")
 				end
 			end,
 
 			moveToBottomNowAndDelayed = function(element)
 				element:FireEvent("moveToBottom")
 				element:ScheduleEvent("moveToBottom", 0.05)
+				element:ScheduleEvent("moveToBottom", 0.35)
 			end,
 
 			moveToBottom = function(element)
@@ -403,22 +992,47 @@ CreateChatPanel = function()
 	local history = {}
 	local historyCursor = nil
 
+	local savedHistory = dmhub.GetSettingValue("chat:inputhistory")
+	if type(savedHistory) == "table" then
+		for _,entry in ipairs(savedHistory) do
+			if type(entry) == "string" then
+				history[#history+1] = entry
+			end
+		end
+	end
+
+	local function PersistHistory()
+		local entries = {}
+		for i = math.max(1, #history - g_maxPersistedChatHistory + 1), #history do
+			entries[#entries+1] = history[i]
+		end
+		dmhub.SetSettingValue("chat:inputhistory", entries)
+	end
+
 	local completionChildren = {}
 	local completionIsArgMode = false
 	local EscapeCompletions = nil
 	local completionsPanel = gui.Panel{
+		dragAndDropExtensions = imageDropExtensions,
+		dragfilesenter = function(element, paths)
+			SetImageDropPreview(paths)
+		end,
+		dragfilesleave = function(element)
+			SetImageDropPreview(nil)
+		end,
+		dropfiles = DropChatImages,
 		floating = true,
 
 		y = -32,
 		selfStyle = {
-			halign = 'left',
-			valign = 'bottom',
+			halign = "left",
+			valign = "bottom",
 		},
 
 		style = {
-			width = 'auto',
-			height = 'auto',
-			flow = 'vertical',
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
 		},
 		children = {
 		},
@@ -441,78 +1055,79 @@ CreateChatPanel = function()
 		local doc = macroInfo and macroInfo.doc or nil
 
 		return gui.Panel{
-			bgimage = "panels/square.png",
+			bgimage = true,
 			width = "100%-20",
 			height = "auto",
 			flow = "horizontal",
 			halign = "center",
 			hpad = 10,
-			vpad = 5,
+			vpad = 2,
 			data = {
 				commandText = commandText,
 			},
-			styles = {
+			styles = ThemeEngine.MergeTokens({
 				{
 					bgcolor = "clear",
 				},
 				{
 					selectors = {"hover"},
-					bgcolor = Styles.textColor,
+					bgcolor = "@accent",
 				},
 				{
 					selectors = {"selected"},
-					bgcolor = Styles.textColor,
+					bgcolor = "@accent",
 				},
-			},
+			}),
 			hover = doc ~= nil and gui.Tooltip(doc) or nil,
 			press = pressOverride or function(element)
-				inputPanel.text = element.data.commandText .. ' '
+				inputPanel.text = element.data.commandText .. " "
 				inputPanel.caretPosition = string.len(inputPanel.text)
 				inputPanel.hasFocus = true
 			end,
 			gui.Label{
+				classes = {"sizeS"},
 				text = commandText,
-				fontSize = 14,
 				width = "auto",
 				height = "auto",
 				textAlignment = "left",
+				halign = "left",
 				valign = "center",
-				styles = {
+				styles = ThemeEngine.MergeTokens({
 					{
-						color = Styles.textColor,
+						color = "@fg",
 					},
 					{
 						selectors = {"parent:hover"},
-						color = "black",
+						color = "@fgInverse",
 					},
 					{
 						selectors = {"parent:selected"},
-						color = "black",
+						color = "@fgInverse",
 					},
-				},
+				}),
 			},
 			gui.Label{
+				classes = cond(summary == nil, {"sizeXs", "collapsed"}, {"sizeXs"}),
 				text = summary or "",
-				fontSize = 12,
 				width = "auto",
 				height = "auto",
 				textAlignment = "left",
+				halign = "left",
 				valign = "center",
 				lmargin = 8,
-				classes = cond(summary == nil, {"collapsed"}, {}),
-				styles = {
+				styles = ThemeEngine.MergeTokens({
 					{
-						color = "#888888",
+						color = "@fgMuted",
 					},
 					{
 						selectors = {"parent:hover"},
-						color = "#333333",
+						color = "@bgInverse",
 					},
 					{
 						selectors = {"parent:selected"},
-						color = "#333333",
+						color = "@bgInverse",
 					},
-				},
+				}),
 			},
 		}
 	end
@@ -549,34 +1164,26 @@ CreateChatPanel = function()
 		for i, arg in ipairs(parsed.args) do
 			local isActive = (i == argIndex)
 			argLabels[#argLabels + 1] = gui.Label{
+				classes = {"sizeXs", cond(isActive, "fg", "fgMuted")},
 				text = arg,
-				fontSize = 13,
 				width = "auto",
 				height = "auto",
+				halign = "left",
 				valign = "center",
 				lmargin = 4,
 				bold = isActive,
-				styles = {
-					{
-						color = cond(isActive, Styles.textColor, "#888888"),
-					},
-				},
 			}
 		end
 
 		local children = {
 			gui.Label{
+				classes = {"sizeXs", "fg"},
 				text = "/" .. macroName,
-				fontSize = 13,
 				width = "auto",
 				height = "auto",
+				halign = "left",
 				valign = "center",
 				bold = true,
-				styles = {
-					{
-						color = Styles.textColor,
-					},
-				},
 			},
 		}
 
@@ -587,27 +1194,21 @@ CreateChatPanel = function()
 		local descPanel = nil
 		if parsed.description ~= nil and parsed.description ~= "" then
 			descPanel = gui.Label{
+				classes = {"sizeXs", "fgMuted"},
 				text = parsed.description,
-				fontSize = 11,
 				width = "100%-20",
 				height = "auto",
 				halign = "center",
 				textAlignment = "left",
-				styles = {
-					{
-						color = "#888888",
-					},
-				},
 			}
 		end
 
 		return gui.Panel{
-			bgimage = "panels/square.png",
-			bgcolor = Styles.backgroundColor,
-			width = 400,
+			classes = {"bg", "border"},
+			bgimage = true,
+			width = "100%",
 			height = "auto",
 			border = 2,
-			borderColor = Styles.textColor,
 			flow = "vertical",
 			vpad = 6,
 
@@ -635,10 +1236,10 @@ CreateChatPanel = function()
 		local hasContent = false
 		for i = 1, #afterCommand do
 			local c = string.sub(afterCommand, i, i)
-			if c == '"' then
+			if c == "\"" then
 				inQuote = not inQuote
 				hasContent = true
-			elseif c == ' ' and not inQuote then
+			elseif c == " " and not inQuote then
 				if hasContent then
 					count = count + 1
 					hasContent = false
@@ -727,24 +1328,23 @@ CreateChatPanel = function()
 
 									if #filtered > maxCompletions then
 										allChildren[#allChildren+1] = gui.Label{
+											classes = {"sizeXs", "fgMuted"},
 											text = string.format("... and %d more", #filtered - maxCompletions),
-											fontSize = 11,
-											width = "100%",
+											width = "100%-20",
 											height = "auto",
-											color = "#666666",
-											textAlignment = "center",
+											halign = "center",
+											textAlignment = "left",
 											vpad = 4,
 										}
 									end
 
 									argCompletionPanel = gui.Panel{
-										bgimage = "panels/square.png",
-										bgcolor = Styles.backgroundColor,
-										width = 400,
+										classes = {"bg", "border"},
+										bgimage = true,
+										width = "100%",
 										height = "auto",
 										maxHeight = 300,
 										border = 2,
-										borderColor = Styles.textColor,
 										flow = "vertical",
 										vscroll = #allChildren > maxCompletions,
 										children = allChildren,
@@ -787,6 +1387,25 @@ CreateChatPanel = function()
 				macroName = string.sub(macroName, 2)
 			end
 			local macroInfo = Commands.GetMacroInfo(macroName)
+			if macroInfo == nil and dmhub.HasSetting(macroName) then
+				local settingInfo = dmhub.GetSettingInfo(macroName)
+				if settingInfo ~= nil then
+					local parts = {}
+					if settingInfo.description ~= nil and settingInfo.description ~= "" then
+						local desc = settingInfo.description
+						if string.len(desc) > 30 then
+							desc = string.sub(desc, 1, 27) .. "..."
+						end
+						parts[#parts+1] = desc
+					end
+					if settingInfo.value ~= nil and settingInfo.value ~= "" and string.len(settingInfo.value) <= 20 then
+						parts[#parts+1] = "= " .. settingInfo.value
+					end
+					if #parts > 0 then
+						macroInfo = {summary = table.concat(parts, " ")}
+					end
+				end
+			end
 			local row = BuildCompletionRow(commandName, macroInfo)
 			completionChildren[#completionChildren + 1] = row
 			allChildren[#allChildren + 1] = row
@@ -794,25 +1413,24 @@ CreateChatPanel = function()
 
 		if #items > maxCompletions then
 			allChildren[#allChildren + 1] = gui.Label{
+				classes = {"sizeXs", "fgMuted"},
 				text = string.format("... and %d more", #items - maxCompletions),
-				fontSize = 11,
-				width = "100%",
+				width = "100%-20",
 				height = "auto",
-				color = "#666666",
-				textAlignment = "center",
+				halign = "center",
+				textAlignment = "left",
 				vpad = 4,
 			}
 		end
 
 		completionsPanel.children = {
 			gui.Panel{
-				bgimage = "panels/square.png",
-				bgcolor = Styles.backgroundColor,
-				width = 400,
+				classes = {"bg", "border"},
+				bgimage = true,
+				width = "100%",
 				height = "auto",
 				maxHeight = 300,
 				border = 2,
-				borderColor = Styles.textColor,
 				flow = "vertical",
 				vscroll = #allChildren > maxCompletions,
 				children = allChildren,
@@ -824,7 +1442,7 @@ CreateChatPanel = function()
 		local startIndex = 1
 		local endIndex = #completionChildren
 		local delta = 1
-		if arrow == 'down' then
+		if arrow == "down" then
 			startIndex = #completionChildren
 			endIndex = 1
 			delta = -1
@@ -834,8 +1452,8 @@ CreateChatPanel = function()
 		local stop = false
 		for i = startIndex, endIndex, delta do
 			local child = completionChildren[i]
-			if child:HasClass('selected') then
-				child:SetClass('selected', false)
+			if child:HasClass("selected") then
+				child:SetClass("selected", false)
 				stop = true
 			elseif not stop then
 				ntarget = i
@@ -843,7 +1461,7 @@ CreateChatPanel = function()
 		end
 
 		if ntarget then
-			completionChildren[ntarget]:SetClass('selected', true)
+			completionChildren[ntarget]:SetClass("selected", true)
 			return true
 		end
 
@@ -852,8 +1470,8 @@ CreateChatPanel = function()
 
 	local GetAndClearCompletionSelected = function()
 		for i,child in ipairs(completionChildren) do
-			if child:HasClass('selected') then
-				child:SetClass('selected', false)
+			if child:HasClass("selected") then
+				child:SetClass("selected", false)
 				return child.data.commandText
 			end
 		end
@@ -868,10 +1486,17 @@ CreateChatPanel = function()
 	local userChatMessages = {}
 
 	previewPanel = gui.Label{
+		classes = {"sizeXs"},
+		dragAndDropExtensions = imageDropExtensions,
+		dragfilesenter = function(element, paths)
+			SetImageDropPreview(paths)
+		end,
+		dragfilesleave = function(element)
+			SetImageDropPreview(nil)
+		end,
+		dropfiles = DropChatImages,
 		width = 330,
-		height = 18,
 		text = "preview text",
-		fontSize = 14,
 		italics = true,
 		monitorGame = mod:GetDocumentSnapshot("chatEvents").path,
 		thinkTime = 0.4,
@@ -937,28 +1562,32 @@ CreateChatPanel = function()
     local m_languagesKnownUpdate = nil
 
     speakerPanel = gui.Panel{
-        styles = {
+		dragAndDropExtensions = imageDropExtensions,
+		dragfilesenter = function(element, paths)
+			SetImageDropPreview(paths)
+		end,
+		dragfilesleave = function(element)
+			SetImageDropPreview(nil)
+		end,
+		dropfiles = DropChatImages,
+        styles = ThemeEngine.MergeTokens{
             {
                 selectors = {"speaker"},
-                fontSize = 14,
-                minFontSize = 6,
-                color = Styles.textColor,
-                bgcolor = Styles.backgroundColor,
                 hpad = 4,
-                height = 20,
                 width = 40,
-                bgimage = true,
             },
             {
                 selectors = {"speaker", "hover", "~selected"},
-                bgcolor = Styles.textColor,
-                color = Styles.backgroundColor,
+				bgimage = true,
+                bgcolor = "@bgInverse",
+                color = "@fgInverse",
                 brightness = 1.2,
             },
             {
                 selectors = {"speaker", "selected"},
-                bgcolor = Styles.textColor,
-                color = Styles.backgroundColor,
+				bgimage = true,
+                bgcolor = "@bgInverse",
+                color = "@fgInverse",
             },
         },
         flow = "horizontal",
@@ -971,8 +1600,10 @@ CreateChatPanel = function()
         end,
 
         gui.Label{
-            classes = {"speaker", "selected"},
+            classes = {"sizeS", "speaker", "selected"},
+			valign = "bottom",
             text = "OOC",
+            textWrap = false,
             press = function(element)
                 g_settingChatOOC:Set(true)
                 element.parent:FireEventTree("refreshSelectedTokens")
@@ -989,8 +1620,10 @@ CreateChatPanel = function()
             end,
         },
         gui.Label{
-            classes = {"speaker"},
+            classes = {"speaker", "sizeXxs"},
+			valign = "bottom",
             width = 120,
+			height = 20,
             press = function(element)
                 g_settingChatOOC:Set(false)
                 element.parent:FireEventTree("refreshSelectedTokens")
@@ -1107,7 +1740,15 @@ CreateChatPanel = function()
 
 	inputPanel = gui.Input{
         classes = {"inputFaded"},
-		placeholderText = 'Enter Chat...',
+		dragAndDropExtensions = imageDropExtensions,
+		dragfilesenter = function(element, paths)
+			SetImageDropPreview(paths)
+		end,
+		dragfilesleave = function(element)
+			SetImageDropPreview(nil)
+		end,
+		dropfiles = DropChatImages,
+		placeholderText = "Enter Chat...",
 		width = "100%-50",
         minHeight = 24,
         maxHeight = 300,
@@ -1115,15 +1756,19 @@ CreateChatPanel = function()
 		lineType = "MultiLineSubmit",
 		characterLimit = 4096,
         consumeTab = true,
+		acceptImagePaste = true,
 		events = {
+			pasteimage = function(element)
+				UploadChatImage("CLIPBOARD")
+			end,
 			deselect = function(element)
-				--UpdateCompletions('')
+				--UpdateCompletions("")
                 print("INPUT:: DESELECT")
 			end,
 			tab = function(element)
 				local items = chat.GetCommandCompletions(inputPanel.text)
 				if #items == 1 then
-					inputPanel.text = items[1] .. ' '
+					inputPanel.text = items[1] .. " "
 					inputPanel.caretPosition = string.len(inputPanel.text)
 					UpdateCompletions()
 					element.hasFocus = true
@@ -1139,7 +1784,7 @@ CreateChatPanel = function()
 				end
 			end,
 			uparrow = function(element)
-				if CompletionsArrow('up') then
+				if CompletionsArrow("up") then
 					return
 				end
 
@@ -1163,7 +1808,7 @@ CreateChatPanel = function()
 				UpdateCompletions()
 			end,
 			downarrow = function(element)
-				if CompletionsArrow('down') then
+				if CompletionsArrow("down") then
 					return
 				end
 
@@ -1226,7 +1871,7 @@ CreateChatPanel = function()
 						parts[#parts+1] = completionText
 						element.text = table.concat(parts, " ") .. " "
 					else
-						element.text = completionText .. ' '
+						element.text = completionText .. " "
 					end
 					element.hasFocus = true
 					element.caretPosition = string.len(element.text)
@@ -1245,14 +1890,15 @@ CreateChatPanel = function()
 
 				historyCursor = -1
 
-				if element.text ~= '' and history[#history] ~= element.text then
+				if element.text ~= "" and history[#history] ~= element.text then
 					history[#history+1] = element.text
+					PersistHistory()
 				end
 
-				element.text = ''
+				element.text = ""
 
 				element.hasFocus = true
-				chat.PreviewChat('')
+				chat.PreviewChat("")
 
 				UpdateCompletions()
 			end,
@@ -1262,30 +1908,196 @@ CreateChatPanel = function()
 			end,
 			slash = function(element)
 				element.hasFocus = true
-				element.text = '/'
+				element.text = "/"
 				element.caretPosition = 1
 				element.selectionAnchorPosition = nil
-				chat.PreviewChat('/')
+				chat.PreviewChat("/")
 
 				UpdateCompletions()
+			end,
+			--the rail window hosting this panel was opened or raised by a
+			--user gesture (see autoFocusInput in the registration): focus
+			--the input so typing starts a message immediately.
+			focusPanelInput = function(element)
+				element.hasFocus = true
 			end,
 		},
 	}
 
+	local pendingUploadCount = 0
+	local uploadStatusPanel = gui.Panel{
+		classes = {"collapsed"},
+		dragAndDropExtensions = imageDropExtensions,
+		dragfilesenter = function(element, paths)
+			SetImageDropPreview(paths)
+		end,
+		dragfilesleave = function(element)
+			SetImageDropPreview(nil)
+		end,
+		dropfiles = DropChatImages,
+		width = "100%-50",
+		height = "auto",
+		halign = "center",
+		flow = "vertical",
+	}
+
+	fileDragLabel = gui.Label{
+		classes = {"bgAlt", "bordered", "borderInfo", "info"},
+		width = "80%",
+		height = 54,
+		halign = "center",
+		valign = "center",
+		fontSize = 15,
+		textAlignment = "center",
+		text = "Release to post this attachment in chat",
+	}
+
+	fileDragOverlay = gui.Panel{
+		classes = {"collapsed", "bordered", "borderInfo"},
+		floating = true,
+		interactable = false,
+		width = "100%-12",
+		height = "100%-12",
+		halign = "center",
+		valign = "center",
+		bgcolor = "clear",
+		borderWidth = 2,
+		fileDragLabel,
+	}
+
+	local function RemoveUploadStatus(uploadPanel)
+		if uploadPanel == nil or uploadPanel.valid == false then
+			return
+		end
+
+		uploadStatusPanel:RemoveChild(uploadPanel)
+		pendingUploadCount = math.max(0, pendingUploadCount-1)
+		uploadStatusPanel:SetClass("collapsed", pendingUploadCount == 0)
+	end
+
+	local function CreateUploadStatus(filename)
+		local statusLabel = gui.Label{
+			classes = {"fgMuted"},
+			width = "100%",
+			height = 14,
+			fontSize = 11,
+			textAlignment = "left",
+			text = string.format("Uploading %s", filename),
+		}
+
+		local progressBar = gui.ProgressBar{
+			width = "100%",
+			height = 14,
+			fontSize = 9,
+			value = 0,
+		}
+
+		local uploadPanel = gui.Panel{
+			classes = {"bgAlt", "bordered"},
+			width = "100%",
+			height = "auto",
+			flow = "vertical",
+			borderBox = true,
+			hpad = 6,
+			vpad = 4,
+			vmargin = 2,
+
+			removeUploadStatus = function(element)
+				RemoveUploadStatus(element)
+			end,
+
+			statusLabel,
+			progressBar,
+		}
+
+		pendingUploadCount = pendingUploadCount+1
+		uploadStatusPanel:SetClass("collapsed", false)
+		uploadStatusPanel:AddChild(uploadPanel)
+
+		return {
+			panel = uploadPanel,
+			label = statusLabel,
+			progressBar = progressBar,
+			completed = false,
+		}
+	end
+
+	UploadChatImage = function(path)
+		local filename = "Pasted image"
+		if path ~= "CLIPBOARD" then
+			local normalized = string.gsub(path, "\\", "/")
+			filename = string.match(normalized, "([^/]+)$") or "Image"
+		end
+
+		local uploadStatus = CreateUploadStatus(filename)
+		local function FinishUpload()
+			if uploadStatus.completed then
+				return false
+			end
+			uploadStatus.completed = true
+			return true
+		end
+
+		assets:UploadChatAttachment{
+			path = path,
+			progress = function(progress)
+				if not uploadStatus.completed then
+					uploadStatus.progressBar.value = progress
+				end
+			end,
+			upload = function(blobid, mediaType, width, height, extension)
+				if not FinishUpload() then
+					return
+				end
+				RemoveUploadStatus(uploadStatus.panel)
+				chat.SendCustom(ChatAttachmentMessage.new{
+					channel = "chat",
+					chatAttachmentBlobId = blobid,
+					mediaType = mediaType,
+					filename = filename,
+					extension = extension,
+					width = width,
+					height = height,
+				})
+			end,
+			error = function(message)
+				if not FinishUpload() then
+					return
+				end
+				uploadStatus.label.text = string.format("Could not upload %s: %s", filename, message or "Unknown error")
+				uploadStatus.label:SetClass("danger", true)
+				uploadStatus.progressBar:SetClass("collapsed", true)
+				uploadStatus.panel:SetClass("borderDanger", true)
+				uploadStatus.panel:ScheduleEvent("removeUploadStatus", 8)
+			end,
+		}
+	end
+
 	chat.events:Listen(inputPanel)
 
 	local resultPanel = gui.Panel{
+		dragAndDropExtensions = imageDropExtensions,
+		dragfilesenter = function(element, paths)
+			SetImageDropPreview(paths)
+		end,
+		dragfilesleave = function(element)
+			SetImageDropPreview(nil)
+		end,
+		dropfiles = DropChatImages,
 		selfStyle = {
-			width = '100%',
-			height = '100%',
-			flow = 'vertical',
+			width = "100%",
+			height = "100%",
+			flow = "vertical",
+			valign = "bottom",
 		},
 		children = {
 			chatPanel,
 			previewPanel,
             speakerPanel,
+			uploadStatusPanel,
 			inputPanel,
 			completionsPanel,
+			fileDragOverlay,
 		}
 	}
 

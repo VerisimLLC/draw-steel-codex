@@ -817,7 +817,9 @@ function equipment:RenderToMarkdown(options)
     end
     
     if EquipmentCategory.IsTreasure(self) then
-        tokens[#tokens+1] = string.format("**Keywords:** %s\n", table.set_to_ordered_csv(self:try_get("keywords", {}), "-"))
+        local kwList = table.mapped_keys(self:try_get("keywords", {}), ActivatedAbility.CanonicalKeyword)
+        table.sort(kwList)
+        tokens[#tokens+1] = string.format("**Keywords:** %s\n", #kwList > 0 and table.concat(kwList, ", ") or "-")
         tokens[#tokens+1] = string.format("**Item Prerequisites:** %s\n", self:try_get("itemPrerequisite", "None"))
         tokens[#tokens+1] = string.format("**Project Source:** %s\n", self:try_get("projectSource", "None"))
 
@@ -861,7 +863,10 @@ function equipment:RenderToMarkdown(options)
         tokens[#tokens+1] = "\n\n:<>"
         for key,token in pairs(Party.GetPlayerCharacters()) do
             if token.name ~= "" then
-                tokens[#tokens+1] = string.format("[[/giveitem \"%s\" %s 1|Give to %s]]", token.name, self.id, token.name)
+                -- Escape the name so a [ ] or | in it doesn't corrupt the macro
+                -- syntax; RichMacro decodes it before running/showing the button.
+                local safeName = RichMacro.Escape(token.name)
+                tokens[#tokens+1] = string.format("[[/giveitem \"%s\" %s 1|Give to %s]]", safeName, self.id, safeName)
             end
         end
 
@@ -876,7 +881,8 @@ function equipment:RenderToMarkdown(options)
         annotations = {
             ["image:main"] = RichImage.new{
                 image = iconid,
-                maxWidth = 200,
+                maxWidth = 100,
+				maxHeight = 100,
             }
         },
     }

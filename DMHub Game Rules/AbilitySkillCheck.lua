@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 --- @class ActivatedAbilitySkillCheckBehavior:ActivatedAbilityBehavior
 --- @field summary string Short label shown in behavior lists.
 --- @field consequenceText string Text shown when the check fails.
@@ -93,6 +104,24 @@ function ActivatedAbilitySkillCheckBehavior:Cast(ability, casterToken, targets, 
 
 	--people rolled so we consider this to have consumed the resource.
     ability:CommitToPaying(casterToken, options)
+
+    local skillName = nil
+    if self.rollType == "skill" then
+        local t = dmhub.GetTable(Skill.tableName)
+        local s = t[self.dc]
+        if s ~= nil then
+            skillName = s.name
+        end
+    end
+    local casterClassInfo = casterToken.properties:IsHero() and casterToken.properties:GetClass() or nil
+    track("skill_check", {
+        rollType = self.rollType,
+        skillId = self.dc,
+        skillName = skillName,
+        caster = casterClassInfo and casterClassInfo.name or casterToken.properties:try_get("monster_type", "monster"),
+        targetCount = #targets,
+        dailyLimit = 30,
+    })
 
 	--check if everyone succeeded on a 'none' dc, meaning nobody will take damage
 	--so we won't even roll for damage.

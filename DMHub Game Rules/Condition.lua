@@ -1,19 +1,19 @@
 local mod = dmhub.GetModLoading()
 
 --- @class CharacterCondition:CharacterFeature
---- @field name string Display name of the condition.
---- @field description string Rules text shown to players.
---- @field tableName string Name of the data table this condition is stored in ("charConditions").
---- @field ridersTableName string Name of the table for condition riders ("conditionRiders").
---- @field emoji string Emoji id shown in the UI ("none" if unused).
---- @field immunityPossible boolean If true, creatures can be immune to this condition.
---- @field trackCaster boolean If true, the caster who applied this condition is tracked.
---- @field source string Source label (e.g. "Condition").
---- @field stackable boolean If true, multiple stacks of this condition can be applied.
---- @field powertable boolean If true, the condition stores a power table for tiered effects.
---- @field indefiniteDuration boolean If true, the condition persists until manually removed.
---- @field showInMenus boolean If true, this condition appears in UI menus.
---- @field sustainFormula string GoblinScript formula evaluated each turn to sustain the condition.
+--- @field name nil|string Display name of the condition. Class default "New Condition" applies when absent.
+--- @field description nil|string Rules text shown to players. Class default "" applies when absent.
+--- @field tableName nil|string Name of the data table this condition is stored in ("charConditions"). Class-level default; often absent on serialized instances.
+--- @field ridersTableName nil|string Name of the table for condition riders ("conditionRiders"). Class-level default; often absent on serialized instances.
+--- @field emoji nil|string Emoji id shown in the UI ("none" if unused). Class default "none" applies when absent.
+--- @field immunityPossible nil|boolean If true, creatures can be immune to this condition. Often absent (defaults to false).
+--- @field trackCaster nil|boolean If true, the caster who applied this condition is tracked. Often absent (defaults to false).
+--- @field source nil|string Source label (e.g. "Condition"). Class-level default; often absent on serialized instances.
+--- @field stackable nil|boolean If true, multiple stacks of this condition can be applied. Often absent (defaults to false).
+--- @field powertable nil|boolean If true, the condition stores a power table for tiered effects. Often absent (defaults to false).
+--- @field indefiniteDuration nil|boolean If true, the condition persists until manually removed. Often absent (defaults to false).
+--- @field showInMenus nil|boolean If true, this condition appears in UI menus. Often absent (defaults to true).
+--- @field sustainFormula nil|string|number|table GoblinScript formula evaluated each turn to sustain the condition. Often absent (defaults to "").
 CharacterCondition = RegisterGameType("CharacterCondition", "CharacterFeature")
 
 CharacterCondition.name = "New Condition"
@@ -98,7 +98,7 @@ function CharacterCondition.CreateNew()
 		guid = dmhub.GenerateGuid(),
 		iconid = "ui-icons/skills/1.png",
 		display = {
-			bgcolor = '#ffffffff',
+			bgcolor = "white",
 			hueshift = 0,
 			saturation = 1,
 			brightness = 1,
@@ -153,13 +153,13 @@ local SetData = function(tableName, conditionPanel, condid)
     if devmode() then
         --the id of the condition.
         children[#children+1] = gui.Panel{
-            classes = {'formPanel'},
+            classes = {"formStackedRow"},
             gui.Label{
-                text = 'ID:',
-                valign = 'center',
-                minWidth = 240,
+                classes = {"formStacked"},
+                text = "ID:",
             },
             gui.Input{
+                classes = {"formStacked"},
                 text = condition.id,
                 editable = false,
             },
@@ -170,13 +170,13 @@ local SetData = function(tableName, conditionPanel, condid)
 
 	--the name of the condition.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = condition.name,
 			change = function(element)
 				condition.name = element.text
@@ -188,7 +188,7 @@ local SetData = function(tableName, conditionPanel, condid)
 	--the condition's icon.
 	local iconEditor = gui.IconEditor{
 		library = "ongoingEffects",
-		bgcolor = condition.display['bgcolor'] or '#ffffffff',
+		bgcolor = condition.display['bgcolor'] or "white",
 		margin = 20,
 		width = 64,
 		height = 64,
@@ -206,13 +206,11 @@ local SetData = function(tableName, conditionPanel, condid)
 	}
 
 	local iconColorPicker = gui.ColorPicker{
-		value = condition.display['bgcolor'] or '#ffffffff',
+		value = condition.display['bgcolor'] or "white",
 		hmargin = 8,
 		width = 24,
 		height = 24,
 		valign = 'center',
-		borderWidth = 2,
-		borderColor = '#999999ff',
 
 		confirm = function(element)
 			iconEditor.selfStyle.bgcolor = element.value
@@ -252,16 +250,13 @@ local SetData = function(tableName, conditionPanel, condid)
 	end
 
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Emoji:',
-			valign = "center",
-			minWidth = 200,
-			width = 'auto',
-			height = 'auto',
+			classes = {"formStacked"},
+			text = "Emoji:",
 		},
 		gui.Dropdown{
-			classes = "formDropdown",
+			classes = {"formStacked"},
 			options = emojiOptions,
 			idChosen = condition.emoji,
 			change = function(element)
@@ -273,20 +268,18 @@ local SetData = function(tableName, conditionPanel, condid)
 
 	--condition description.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Label{
+			classes = {"formStacked"},
 			text = "Details:",
-			valign = "center",
-			minWidth = 240,
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = condition.description,
 			multiline = true,
-			minHeight = 50,
-			height = 'auto',
-			width = 400,
-			textAlignment = "topleft",
+			textAlignment = "topLeft",
+			height = 60,
+			characterLimit = 600,
 			change = function(element)
 				condition.description = element.text
 				UploadCondition()
@@ -295,8 +288,7 @@ local SetData = function(tableName, conditionPanel, condid)
 	}
 
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Check{
 			value = condition.showInMenus,
 			text = "Shown in Menus",
@@ -308,13 +300,13 @@ local SetData = function(tableName, conditionPanel, condid)
 	}
 
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Type:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Type:",
 		},
 		gui.Dropdown{
+			classes = {"formStacked"},
 			options = CharacterCondition.BuffTypeOptions,
 			idChosen = condition.buffType,
 			change = function(element)
@@ -326,8 +318,7 @@ local SetData = function(tableName, conditionPanel, condid)
 
 	--this condition can be applied in a power table.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Check{
 			value = condition.powertable,
 			text = "Can be applied from Power Table",
@@ -340,8 +331,7 @@ local SetData = function(tableName, conditionPanel, condid)
 
 	--this condition is stackable.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Check{
 			value = condition.indefiniteDuration,
 			text = "Indefinite Duration",
@@ -354,8 +344,7 @@ local SetData = function(tableName, conditionPanel, condid)
 
 	--this condition is stackable.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Check{
 			value = condition.stackable,
 			text = "Stackable",
@@ -368,8 +357,7 @@ local SetData = function(tableName, conditionPanel, condid)
 
 	--immunity to this condition is possible.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Check{
 			value = condition.immunityPossible,
 			text = "Creatures can be immune",
@@ -386,8 +374,7 @@ local SetData = function(tableName, conditionPanel, condid)
 	--track caster who applied this condition.
 
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
-		height = 'auto',
+		classes = {"formStackedRow"},
 		gui.Check{
 			value = condition.trackCaster,
 			text = "Track Caster",
@@ -401,16 +388,16 @@ local SetData = function(tableName, conditionPanel, condid)
 	}
 
     maxInstancesPanel = gui.Panel{
-        classes = {'formPanel', cond(condition.trackCaster, nil, "collapsed")},
+        classes = {"formStackedRow", cond(condition.trackCaster, nil, "collapsed")},
         refreshCollapsed = function(element)
             element:SetClass("collapsed", not condition.trackCaster)
         end,
-        height = 'auto',
         gui.Label{
-            classes = {"formLabel"},
+            classes = {"formStacked"},
             text = "Max. Instances:",
         },
         gui.GoblinScriptInput{
+            classes = {"formStacked"},
             value = condition:try_get("maxInstancesFormula", ""),
 			change = function(element)
 				condition.maxInstancesFormula = element.value
@@ -429,12 +416,10 @@ local SetData = function(tableName, conditionPanel, condid)
     children[#children+1] = maxInstancesPanel
 
 	casterAbilityCheck = gui.Panel{
-        classes = {'formPanel', cond(condition.trackCaster, nil, "collapsed")},
+        classes = {"formStackedRow", cond(condition.trackCaster, nil, "collapsed")},
         refreshCollapsed = function(element)
             element:SetClass("collapsed", not condition.trackCaster)
         end,
-        flow = "vertical",
-		height = 'auto',
 		gui.Check{
 			value = condition:try_get("casterCanClick", false),
 			text = "Caster Can Click",
@@ -483,16 +468,13 @@ local SetData = function(tableName, conditionPanel, condid)
 
 
     children[#children + 1] = gui.Panel {
-        classes = { "formPanel" },
+        classes = { "formStackedRow" },
         gui.Label {
+            classes = { "formStacked" },
             text = "Sustain:",
-            valign = "center",
-            minWidth = 199,
-            width = 'auto',
-            height = 'auto',
         },
         gui.GoblinScriptInput {
-            classes = { "formInput" },
+            classes = { "formStacked" },
             value = condition.sustainFormula,
             change = function(element)
                 condition.sustainFormula = element.value
@@ -517,121 +499,55 @@ local SetData = function(tableName, conditionPanel, condid)
 
 	--underlying conditions.
 	children[#children+1] = gui.Panel{
-		flow = "vertical",
-		width = 400,
-		height = "auto",
-
-		create = function(element)
-			element:FireEvent("refreshUnderlying")
-		end,
-
-		refreshUnderlying = function(element)
-			local currentChildren = element.children
-
-			local children = {}
-
-			if #condition:GetUnderlyingConditions() > 0 then
-				children[#children+1] = gui.Label{
-					width = "auto",
-					height = "auto",
-					fontSize = 22,
-					text = "Underlying Conditions",
-				}
-			end
-
-			local dataTable = dmhub.GetTable(CharacterCondition.tableName) or {}
-			for id,_ in pairs(condition:GetUnderlyingConditions()) do
-				local underlyingCond = dataTable[id]
-				if underlyingCond ~= nil then
-					children[#children+1] = gui.Label{
-						bgimage = "panels/square.png",
-						bgcolor = "#00000088",
-						text = underlyingCond.name,
-						fontSize = 18,
-						cornerRadius = 4,
-						width = 200,
-						height = 22,
-
-						gui.DeleteItemButton{
-							halign = "right",
-							width = 16,
-							height = 16,
-							click = function(element)
-								condition:RemoveUnderlyingCondition(id)
-								UploadCondition()
-								element.parent:DestroySelf()
-							end,
-						}
-					}
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Underlying Conditions:",
+		},
+		gui.Multiselect{
+			classes = {"formStacked"},
+			addItemText = "Add Underlying Condition...",
+			value = (function()
+				local v = {}
+				for id,_ in pairs(condition:GetUnderlyingConditions()) do
+					v[id] = true
 				end
-			end
-
-			children[#children+1] = currentChildren[#currentChildren]
-			element.children = children
-		end,
-
-		gui.Dropdown{
-			create = function(element)
-				element:FireEvent("refreshUnderlying")
-			end,
-
-			refreshUnderlying = function(element)
-				local options = {
-					{
-						id = "none",
-						text = "Add Underlying Condition...",
-					}
-				}
-
+				return v
+			end)(),
+			options = (function()
+				local options = {}
 				local dataTable = dmhub.GetTable(CharacterCondition.tableName) or {}
 				for id,info in pairs(dataTable) do
-					if info:try_get("hidden", false) == false and id ~= condid and (not condition:GetUnderlyingConditions()[id]) then
-						options[#options+1] = {
-							id = id,
-							text = info.name,
-						}
+					if info:try_get("hidden", false) == false and id ~= condid then
+						options[#options+1] = { id = id, text = info.name }
 					end
 				end
-
-				element.options = options
-				element.idChosen = "none"
-			end,
-
-			change = function(element)
-				if element.idChosen == "none" then
-					return
-				end
-
-				condition:AddUnderlyingCondition(element.idChosen)
+				table.sort(options, function(a,b) return a.text < b.text end)
+				return options
+			end)(),
+			change = function(element, val)
+				condition.underlying = val
 				UploadCondition()
-				conditionPanel:FireEventTree("refreshUnderlying")
 			end,
 		},
 	}
 
 	--list of modifiers that apply.
 	children[#children+1] = gui.Panel{
-		classes = {'modsPanel'},
+		width = 800,
+		height = "auto",
+		halign = "left",
 		styles = {
 			{
-				halign = "left",
-			},
-			{
-				classes = {'modsPanel'},
-				width = 800,
-                height = "auto",
-				halign = 'left',
-			},
-			{
-				classes = {'namePanel'},
+				selectors = {"namePanel"},
 				collapsed = 1,
 			},
 			{
-				classes = {'sourcePanel'},
+				selectors = {"sourcePanel"},
 				collapsed = 1,
 			},
 			{
-				classes = {'descriptionPanel'},
+				selectors = {"descriptionPanel"},
 				collapsed = 1,
 			},
 		},
@@ -668,43 +584,12 @@ function CharacterCondition.CreateEditor()
 			end
 		end,
 		vscroll = true,
-		classes = 'class-panel',
-		styles = {
-			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
-				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
-		},
+		width = 1200,
+		height = "90%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	return conditionPanel

@@ -61,11 +61,6 @@ function character:GetClassFeatures(options)
         culture:FillClassFeatures(self:GetLevelChoices(), result)
     end
 
-	local kit = self:Kit()
-	if kit ~= nil then
-		kit:FillClassFeatures(self, levelChoices, result)
-	end
-
 	for i,entry in ipairs(self:GetClassesAndSubClasses()) do
 		if i == 1 then
 			result[#result+1] = entry.class:GetPrimaryFeature()
@@ -90,6 +85,26 @@ function character:GetClassFeatures(options)
 		local featInfo = featTable[featid]
 		if featInfo ~= nil then
 			featInfo:FillClassFeatures(levelChoices, result)
+		end
+	end
+
+	-- Kit features are gathered last so we can check whether any prior feature
+	-- grants kit access.
+	local hasKitAccess = false
+	for _,feature in ipairs(result) do
+		for _,m in ipairs(feature.modifiers) do
+			if m.behavior == "kitaccess" and m.kitType ~= "none" then
+				hasKitAccess = true
+				break
+			end
+		end
+		if hasKitAccess then break end
+	end
+
+	if hasKitAccess then
+		local kit = self:Kit()
+		if kit ~= nil then
+			kit:FillClassFeatures(self, levelChoices, result)
 		end
 	end
 
@@ -191,6 +206,180 @@ function character:GetClassFeaturesAndChoicesWithDetails()
 	end
 
 	return passedResult
+end
+
+--- Returns an array of { feature = CharacterChoice, ... } entries for every
+--- CharacterChoice-derived feature reachable from this creature's "catch-all"
+--- sources -- the ones not covered by the per-source builder tabs.
+---
+--- Common sources (creature-level): characterFeatures, creatureFeats,
+--- creatureTemplates. Subclasses add more via FillExtraBuilderChoiceFeatures:
+---   monster -> monsterGroup traits
+---   character -> CharacterType (chartypeid) features
+--- @return table[]
+function creature:GetBuilderChoiceFeatures()
+    local result = {}
+    local levelChoices = self:GetLevelChoices()
+
+    -- characterFeatures: direct features stored on the creature.
+    for _,feature in ipairs(self:try_get("characterFeatures", {})) do
+        local nested = {}
+        feature:FillFeaturesRecursive(levelChoices, nested)
+        for _,f in ipairs(nested) do
+            result[#result+1] = { feature = f }
+        end
+    end
+
+    -- creatureFeats: feats picked via AddFeat. Same FillFeatureDetails path
+    -- the character sheet uses.
+    local featTable = dmhub.GetTable(CharacterFeat.tableName) or {}
+    for _,featid in ipairs(self:try_get("creatureFeats", {})) do
+        local feat = featTable[featid]
+        if feat ~= nil then
+            feat:FillFeatureDetails(levelChoices, result)
+        end
+    end
+
+    -- creatureTemplates: templates inherit from CharacterFeat and expose
+    -- the same FillFeatureDetails entry point. Pass ourselves so features
+    -- with unmet prerequisites (e.g. a minimum level) aren't offered.
+    for _,template in ipairs(self:GetActiveTemplates()) do
+        template:FillFeatureDetails(levelChoices, result, self)
+    end
+
+    self:FillExtraBuilderChoiceFeatures(result, levelChoices)
+
+    local filtered = {}
+    for _,entry in ipairs(result) do
+        local feature = entry.feature
+        if feature and feature.IsDerivedFrom and feature.IsDerivedFrom("CharacterChoice") then
+            filtered[#filtered+1] = entry
+        end
+    end
+    return filtered
+end
+
+--- Default no-op hook. Subclasses (monster, character) override to add
+--- their own sources.
+--- @param result table
+--- @param levelChoices table
+function creature:FillExtraBuilderChoiceFeatures(result, levelChoices)
+end
+
+--- character override: pull in CharacterType-supplied features. Class/race/
+--- career/etc. features are already handled by their own builder tabs and
+--- intentionally not duplicated here.
+--- @param result table
+--- @param levelChoices table
+function character:FillExtraBuilderChoiceFeatures(result, levelChoices)
+    local characterType = self:CharacterType()
+    if characterType ~= nil then
+        characterType:FillFeatureDetails(levelChoices, result)
+    end
+end
+
+--- @return boolean true if this creature has any CharacterChoice-derived
+--- features that the builder's catch-all Choices section should surface.
+function creature:HasBuilderChoices()
+    return #self:GetBuilderChoiceFeatures() > 0
+end
+
+--- Set true to log [PointsSpent] diagnostics tracing how GetPointsSpentByName
+--- resolves a points pool (which feature choices it sees, their pointsName,
+--- and what matched). Left in place as a debugging aid; flip to true to trace.
+local DEBUG_POINTS_SPENT = false
+
+--- The display name a points pool falls back to when a CharacterFeatureChoice
+--- has costsPoints enabled but no explicit "pointsName" set. Kept in sync with
+--- CBFeatureWrapper.DEFAULT_POINTS_NAME in FeatureCache.lua.
+local DEFAULT_POINTS_NAME = "Points"
+
+--- Totals the points spent on a named points pool across a list of feature
+--- entries (each entry is a { feature = CharacterChoice } table). A points
+--- pool is named via the "pointsName" field of a CharacterFeatureChoice that
+--- has costsPoints enabled (an unset/blank name resolves to DEFAULT_POINTS_NAME);
+--- each selected option spends its "pointsCost" (defaulting to 1).
+--- @param entries table[] List of { feature = ... } entries to scan.
+--- @param levelChoices table The creature's levelChoices map.
+--- @param targetName string Lowercased points-pool name to match.
+--- @return number
+local function _sumPointsSpent(entries, levelChoices, targetName)
+    local total = 0
+    if DEBUG_POINTS_SPENT then
+        print(string.format("[PointsSpent] resolving pool %q across %d feature entries",
+            tostring(targetName), #entries))
+    end
+    for _,entry in ipairs(entries) do
+        local feature = entry.feature
+        if feature ~= nil and feature.typeName == "CharacterFeatureChoice" then
+            local costsPoints = feature:try_get("costsPoints", false)
+            local pointsName = feature:try_get("pointsName", "")
+            if pointsName == nil or pointsName == "" then
+                pointsName = DEFAULT_POINTS_NAME
+            end
+            local isMatch = costsPoints and string.lower(pointsName) == targetName
+
+            if DEBUG_POINTS_SPENT and costsPoints then
+                local sel = levelChoices[feature.guid]
+                print(string.format("[PointsSpent]   choice '%s' guid=%s pointsName=%q selectedCount=%s match=%s",
+                    tostring(feature:try_get("name", "?")), tostring(feature.guid),
+                    tostring(pointsName), sel and tostring(#sel) or "nil", tostring(isMatch)))
+            end
+
+            if isMatch then
+                local selectedList = levelChoices[feature.guid]
+                if selectedList ~= nil then
+                    for _,selectedId in ipairs(selectedList) do
+                        for _,option in ipairs(feature:try_get("options", {})) do
+                            if option.guid == selectedId then
+                                total = total + (option.pointsCost or 1)
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if DEBUG_POINTS_SPENT then
+        print(string.format("[PointsSpent] pool %q total = %d", tostring(targetName), total))
+    end
+    return total
+end
+
+--- Returns how many character-build points of the named pool have been spent
+--- on this creature. Points pools are named via the "pointsName" field of a
+--- CharacterFeatureChoice that has costsPoints enabled. Matching is
+--- case-insensitive. The base creature implementation scans the catch-all
+--- builder-choice sources (characterFeatures, feats, templates, plus any
+--- subclass-specific sources such as monsterGroup traits).
+--- @param pointsName string The display name of the points pool to total.
+--- @return number
+function creature:GetPointsSpentByName(pointsName)
+    if pointsName == nil or pointsName == "" then
+        return 0
+    end
+
+    return _sumPointsSpent(
+        self:GetBuilderChoiceFeatures(),
+        self:GetLevelChoices(),
+        string.lower(tostring(pointsName)))
+end
+
+--- character override: point pools most commonly live on class/race/career/
+--- etc. features, which are surfaced by GetClassFeaturesAndChoicesWithDetails
+--- rather than the catch-all builder-choice sources.
+--- @param pointsName string The display name of the points pool to total.
+--- @return number
+function character:GetPointsSpentByName(pointsName)
+    if pointsName == nil or pointsName == "" then
+        return 0
+    end
+
+    return _sumPointsSpent(
+        self:GetClassFeaturesAndChoicesWithDetails(),
+        self:GetLevelChoices(),
+        string.lower(tostring(pointsName)))
 end
 
 --resource grouping options.

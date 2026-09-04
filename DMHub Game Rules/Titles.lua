@@ -3,7 +3,9 @@ local mod = dmhub.GetModLoading()
 --- @class Title:CharacterFeat
 --- @field name string Display name.
 --- @field description string Description text.
---- @field prerequisite string GoblinScript prerequisite expression.
+--- @field prerequisite string Prose describing the deed that earns this title.
+--- NOT GoblinScript, unlike CharacterComplication.prerequisite -- it is narrative
+--- text the Director adjudicates, and must not be passed to ExecuteGoblinScript.
 --- @field effect string Rules text describing the title's effect.
 --- @field echelon string Echelon tier required to hold this title (e.g. "1", "2", "3").
 --- @field tableName string Data table name ("titles").
@@ -74,6 +76,7 @@ function Title:RenderToMarkdown(options)
         id = dmhub.GenerateGuid(),
         description = name,
         content = content,
+        annotations = {},
     }
 end
 
@@ -93,13 +96,13 @@ local SetTitle = function(tableName, titlePanel, titleid)
     --the id of the Title.
     if dmhub.GetSettingValue("dev") then
         children[#children+1] = gui.Panel{
-            classes = {'formPanel'},
+            classes = {"formStackedRow"},
             gui.Label{
-                text = 'ID:',
-                valign = 'center',
-                minWidth = 100,
+                classes = {"formStacked"},
+                text = "ID:",
             },
             gui.Label{
+                classes = {"formStacked"},
                 text = title.id,
             },
         }
@@ -107,13 +110,13 @@ local SetTitle = function(tableName, titlePanel, titleid)
 
     --the name of the title.
     children[#children + 1] = gui.Panel {
-        classes = { 'formPanel' },
+        classes = { "formStackedRow" },
         gui.Label {
-            text = 'Name:',
-            valign = 'center',
-            minWidth = 240,
+            classes = { "formStacked" },
+            text = "Name:",
         },
         gui.Input {
+            classes = { "formStacked" },
             text = title.name,
             change = function(element)
                 title.name = element.text
@@ -124,13 +127,13 @@ local SetTitle = function(tableName, titlePanel, titleid)
 
     --the name of the title.
     children[#children + 1] = gui.Panel {
-        classes = { 'formPanel' },
+        classes = { "formStackedRow" },
         gui.Label {
-            text = 'Echelon:',
-            valign = 'center',
-            minWidth = 240,
+            classes = { "formStacked" },
+            text = "Echelon:",
         },
         gui.Input {
+            classes = { "formStacked" },
             text = title.echelon,
             change = function(element)
                 title.echelon = element.text
@@ -158,20 +161,17 @@ local SetTitle = function(tableName, titlePanel, titleid)
 
     --title description..
     children[#children + 1] = gui.Panel {
-        classes = { 'formPanel' },
-        height = 'auto',
+        classes = { "formStackedRow" },
         gui.Label {
+            classes = { "formStacked" },
             text = "Description:",
-            valign = "center",
-            minWidth = 240,
         },
         gui.Input {
+            classes = { "formStacked" },
             text = title.description,
             multiline = true,
-            minHeight = 50,
-            height = 'auto',
-            width = 400,
-            textAlignment = "topleft",
+            height = 60,
+            textAlignment = "topLeft",
             change = function(element)
                 title.description = element.text
                 UploadTitle()
@@ -182,20 +182,17 @@ local SetTitle = function(tableName, titlePanel, titleid)
 
     --prerequisites..
     children[#children + 1] = gui.Panel {
-        classes = { 'formPanel' },
-        height = 'auto',
+        classes = { "formStackedRow" },
         gui.Label {
+            classes = { "formStacked" },
             text = "Prerequisite:",
-            valign = "center",
-            minWidth = 240,
         },
         gui.Input {
+            classes = { "formStacked" },
             text = title.prerequisite,
             multiline = true,
-            minHeight = 50,
-            height = 'auto',
-            width = 400,
-            textAlignment = "topleft",
+            height = 60,
+            textAlignment = "topLeft",
             change = function(element)
                 title.prerequisite = element.text
                 UploadTitle()
@@ -205,20 +202,18 @@ local SetTitle = function(tableName, titlePanel, titleid)
 
     -- effect..
     children[#children + 1] = gui.Panel {
-        classes = { 'formPanel' },
-        height = 'auto',
+        classes = { "formStackedRow" },
         gui.Label {
+            classes = { "formStacked" },
             text = "Effect:",
-            valign = "center",
-            minWidth = 240,
         },
         gui.Input {
+            classes = { "formStacked" },
             text = title.effect,
             multiline = true,
-            minHeight = 50,
-            height = 'auto',
-            width = 400,
-            textAlignment = "topleft",
+            height = 120,
+            characterLimit = 1000,
+            textAlignment = "topLeft",
             change = function(element)
                 title.effect = element.text
                 UploadTitle()
@@ -247,43 +242,12 @@ function Title.CreateEditor()
             end,
         },
         vscroll = true,
-        classes = 'class-panel',
-        styles = {
-            {
-                halign = "left",
-            },
-            {
-                classes = { 'class-panel' },
-                width = 1200,
-                height = '90%',
-                halign = 'left',
-                flow = 'vertical',
-                pad = 20,
-            },
-            {
-                classes = { 'label' },
-                color = 'white',
-                fontSize = 22,
-                width = 'auto',
-                height = 'auto',
-            },
-            {
-                classes = { 'input' },
-                width = 200,
-                height = 26,
-                fontSize = 18,
-                color = 'white',
-            },
-            {
-                classes = { 'formPanel' },
-                flow = 'horizontal',
-                width = 'auto',
-                height = 'auto',
-                halign = 'left',
-                vmargin = 2,
-            },
-
-        },
+        width = 1200,
+        height = "90%",
+        halign = "left",
+        flow = "vertical",
+        pad = 20,
+        borderBox = true,
     }
 
     return titleEditor

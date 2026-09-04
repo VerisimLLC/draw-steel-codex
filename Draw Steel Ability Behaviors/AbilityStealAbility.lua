@@ -73,124 +73,11 @@ function ActivatedAbilityStealAbilityBehavior:EditorItems(parentPanel)
 	return result
 end
 
+--Retained as a thin alias: the implementation now lives in ActivatedAbility so the
+--invoke behavior's "chooseClassAbility" mode can share it. Existing callers and any
+--saved content referencing this name keep working unchanged.
 function ActivatedAbilityStealAbilityBehavior.ShowChoiceDialog(choices, dialogOptions, casterToken)
-	dialogOptions = dialogOptions or {}
-	local chosenOption = nil
-	local canceled = false
-	local finished = false
-	local optionPanels = {}
-
-	for i,option in ipairs(choices) do
-		local panel = gui.Panel{
-			classes = {"option"},
-			bgimage = "panels/square.png",
-			flow = "horizontal",
-			data = {
-				ability = option,
-			},
-			gui.Label{
-				text = option.name,
-				textAlignment = "left",
-				halign = "left",
-				fontSize = 16,
-				width = "100%",
-				height = "auto",
-			},
-			press = function(element)
-				for _,p in ipairs(optionPanels) do
-					p:SetClass("selected", p == element)
-				end
-
-				chosenOption = choices[i]
-			end,
-			hover = function(element)
-				element.tooltip = CreateAbilityTooltip(option, {
-					token = casterToken,
-					halign = "right",
-					width = 500,
-					pad = 8,
-				})
-			end,
-		}
-
-		if chosenOption == nil then
-			panel:SetClass("selected", true)
-			chosenOption = option
-		end
-
-		optionPanels[#optionPanels+1] = panel
-	end
-
-	gamehud:ModalDialog{
-		title = dialogOptions.title or "Steal Ability",
-		buttons = {
-			{
-				text = dialogOptions.buttonText or "Steal",
-				click = function()
-					finished = true
-				end,
-			},
-			{
-				text = "Cancel",
-				escapeActivates = true,
-				click = function()
-					finished = true
-					canceled = true
-				end,
-			},
-		},
-	
-	styles = {
-			{
-				selectors = {"option"},
-				height = 30,
-				width = "100%-8",
-				halign = "left",
-				valign = "top",
-				hmargin = 4,
-				vmargin = 2,
-				hpad = 8,
-				vpad = 6,
-				bgcolor = "#00000000",
-			},
-			{
-				selectors = {"option","hover"},
-				bgcolor = "#ffff0044",
-			},
-			{
-				selectors = {"option","selected"},
-				bgcolor = "#ff000066",
-				borderColor = "#ffffff",
-				borderWidth = 1,
-			},
-		},
-
-		width = 500,
-		height = 600,
-		flow = "vertical",
-
-		children = {
-			gui.Panel{
-				flow = "vertical",
-				vscroll = true,
-				valign = "top",
-				width = "100%",
-				halign = "left",
-				height = "100%",
-				children = optionPanels,
-			},
-		}
-	}
-
-	while not finished do
-		coroutine.yield(0.1)
-	end
-
-	if canceled then
-		return nil
-	end
-
-	return chosenOption
+	return ActivatedAbility.ShowAbilityChoiceDialog(choices, dialogOptions, casterToken)
 end
 
 
@@ -224,7 +111,7 @@ function ActivatedAbilityStealAbilityBehavior:Cast(ability, casterToken, targets
 
             if passesFilter then
                 local synth = DeepCopy(a)
-                synth.stolenFrom = target.guid
+                synth.stolenFrom = target.token.id
 
                 results[#results+1] = synth
             end

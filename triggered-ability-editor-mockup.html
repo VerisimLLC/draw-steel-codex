@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Triggered Ability Editor - Preview Shape Mockups</title>
+<style>
+:root {
+  --bg-body:   #0e0f0d;
+  --bg-panel:  #191a18;
+  --bg-raised: #222220;
+  --bg-input:  #141512;
+  --bd-dark:   #343432;
+  --bd-gold:   #966D4B;
+  --gold-hi:   #E9B86F;
+  --gold-mid:  #F1D3A5;
+  --gold-dk:   #966D4B;
+  --cream:     #F3EDE7;
+  --cream-dim: #DFCFC0;
+  --grey-mid:  #9F9F9B;
+  --grey-dk:   #555553;
+  --red:       #C73131;
+  --green:     #6DB173;
+  --amber:     #D89848;
+  /* Triggered-action title-bar colors, matching Styles.Triggers in-engine. */
+  --trigger-bar: #4b3a2a;
+  --free-bar:    #2a3b4b;
+  --passive-bar: #3a2a4b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg-body);
+  color: var(--cream);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  padding: 20px;
+}
+
+.page-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--grey-mid); margin-bottom: 8px; }
+.view-nav { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+.vnav-btn {
+  background: var(--bg-panel); border: 1px solid var(--bd-dark);
+  border-radius: 3px; color: var(--grey-mid); padding: 6px 14px;
+  cursor: pointer; font-size: 12px; transition: all 0.15s; font-family: inherit;
+}
+.vnav-btn.active, .vnav-btn:hover { border-color: var(--bd-gold); color: var(--gold-hi); }
+.view { display: none; max-width: 1280px; margin: 0 auto; }
+.view.active { display: block; }
+
+.note-box {
+  background: rgba(150,109,75,0.07); border: 1px solid rgba(150,109,75,0.25);
+  border-radius: 3px; padding: 11px 15px; font-size: 12.5px;
+  color: var(--cream-dim); margin-bottom: 14px; line-height: 1.55;
+}
+.note-box strong { color: var(--gold-hi); }
+.note-box + .note-box { margin-top: -8px; }
+
+/* Editor shell */
+.editor { background: var(--bg-panel); border: 1px solid var(--bd-gold); border-radius: 4px; overflow: hidden; display: grid; grid-template-columns: 180px 1fr 440px; min-height: 640px; }
+.editor-nav { background: #10110F; border-right: 1px solid var(--bd-dark); padding: 14px 10px; display: flex; flex-direction: column; gap: 4px; }
+.nav-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--grey-dk); margin-bottom: 8px; padding-left: 8px; }
+.nav-item { padding: 10px 12px; border-radius: 3px; color: var(--cream-dim); cursor: pointer; font-size: 13px; letter-spacing: 0.5px; }
+.nav-item:hover { background: rgba(150,109,75,0.1); color: var(--gold-hi); }
+.nav-item.active { background: var(--bd-gold); color: var(--cream); }
+
+.editor-detail { padding: 18px 22px; border-right: 1px solid var(--bd-dark); overflow-y: auto; }
+.section-title { font-size: 16px; color: var(--gold-hi); letter-spacing: 1px; font-weight: 600; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--bd-dark); }
+
+.field { margin-bottom: 14px; }
+.field-label { font-size: 13px; color: var(--gold-mid); font-weight: 600; margin-bottom: 4px; display: block; }
+.field-help { font-size: 11.5px; color: var(--grey-mid); margin-top: 3px; font-style: italic; }
+.inp {
+  background: var(--bg-input); border: 1px solid var(--bd-dark); border-radius: 3px;
+  color: var(--cream); padding: 6px 9px; font-size: 13px; width: 100%; font-family: inherit;
+}
+.inp:focus { outline: none; border-color: var(--bd-gold); }
+.inp.mono { font-family: 'Consolas', 'Courier New', monospace; font-size: 12.5px; }
+.inp.tall { min-height: 46px; resize: none; }
+.inp.placeholder-derived { color: var(--grey-mid); font-style: italic; }
+
+.fk-dd {
+  background: var(--bg-input); border: 1px solid var(--bd-dark); border-radius: 3px;
+  color: var(--cream); padding: 6px 9px; font-size: 13px;
+  display: flex; align-items: center; justify-content: space-between; cursor: pointer;
+}
+.fk-dd .ddarr { color: var(--gold-dk); font-size: 10px; }
+.fk-dd.picker-open { border-color: var(--bd-gold); color: var(--gold-hi); }
+
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { background: var(--bg-raised); border: 1px solid var(--bd-dark); border-radius: 12px; padding: 3px 10px; font-size: 11.5px; color: var(--cream-dim); }
+.chip-add { background: transparent; border: 1px dashed var(--bd-gold); color: var(--gold-dk); padding: 3px 10px; border-radius: 12px; font-size: 11.5px; cursor: pointer; font-family: inherit; }
+
+.bcard { background: var(--bg-raised); border: 1px solid var(--bd-dark); border-radius: 3px; margin-bottom: 8px; }
+.bcard-hdr { padding: 8px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--bd-dark); }
+.bcard-hdr .bname { font-size: 12px; color: var(--gold-mid); font-weight: 600; letter-spacing: 0.5px; flex-shrink: 0; }
+.bcard-hdr .bsum { font-size: 12px; color: var(--cream-dim); flex: 1; }
+.bcard-body { padding: 8px 10px; font-size: 12px; color: var(--grey-mid); }
+
+/* Preview column */
+.preview { background: #080B09; padding: 18px 20px; overflow-y: auto; }
+.preview-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--grey-dk); margin-bottom: 14px; }
+.preview-hint { font-size: 11px; color: var(--grey-mid); margin-top: 18px; text-align: center; font-style: italic; }
+
+/* ===== Option C: Configuration summary ===== */
+.cfg-card { background: var(--bg-panel); border: 1px solid var(--bd-dark); border-radius: 4px; }
+.cfg-block { border-bottom: 1px solid var(--bd-dark); padding: 14px 16px; }
+.cfg-block:last-of-type { border-bottom: none; }
+.cfg-header { font-size: 11px; letter-spacing: 3px; color: var(--gold-dk); font-weight: 700; margin-bottom: 8px; }
+.cfg-header .keyword { color: var(--gold-hi); }
+.cfg-body { font-size: 14px; color: var(--cream); line-height: 1.55; }
+.cfg-body.big { font-size: 17px; font-weight: 600; color: var(--gold-mid); }
+.cfg-body .recognised { color: var(--cream); }
+.cfg-body .unrecognised { color: var(--grey-mid); font-style: italic; }
+.cfg-body code { font-family: 'Consolas', monospace; font-size: 13px; background: var(--bg-input); padding: 1px 5px; border-radius: 2px; }
+.cfg-body code.ok { color: var(--cream); }
+.cfg-body code.bad { color: var(--grey-mid); border-left: 2px solid var(--amber); padding-left: 6px; }
+.validation { display: inline-block; font-size: 11px; margin-left: 8px; padding: 1px 7px; border-radius: 10px; vertical-align: middle; }
+.validation.ok { background: rgba(109,177,115,0.12); color: var(--green); border: 1px solid rgba(109,177,115,0.35); }
+.validation.warn { background: rgba(216,152,72,0.12); color: var(--amber); border: 1px solid rgba(216,152,72,0.35); }
+.cfg-pills { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px 14px; background: #0a0b09; }
+.cfg-pill { font-size: 11px; padding: 3px 9px; background: var(--bg-raised); border: 1px solid var(--bd-dark); border-radius: 11px; color: var(--cream-dim); }
+.cfg-pill .k { color: var(--grey-mid); letter-spacing: 0.5px; text-transform: uppercase; font-size: 9.5px; margin-right: 4px; }
+.cfg-effect-list { margin: 0; padding-left: 20px; list-style: none; }
+.cfg-effect-list li { padding: 4px 0; position: relative; }
+.cfg-effect-list li::before { content: counter(cfg-num) "."; counter-increment: cfg-num; color: var(--gold-dk); position: absolute; left: -20px; font-weight: 600; }
+.cfg-effect-list { counter-reset: cfg-num; }
+
+/* ===== Recommendation: Card preview ===== */
+.card {
+  background: var(--bg-panel);
+  border: 1px solid var(--bd-dark);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.card-title-bar {
+  background: var(--trigger-bar);
+  padding: 9px 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gold-mid);
+  letter-spacing: 0.3px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.card-title-bar .cost { font-size: 12px; color: var(--cream-dim); font-weight: 400; }
+.card-body { padding: 10px 14px 12px; }
+.card-flavor { font-size: 12.5px; color: var(--grey-mid); font-style: italic; margin-bottom: 8px; }
+.card-row { display: flex; justify-content: space-between; font-size: 12.5px; padding: 3px 0; line-height: 1.5; }
+.card-row .k { color: var(--gold-dk); font-weight: 600; margin-right: 5px; }
+.card-row .v { color: var(--cream); }
+.card-row .v.derived-ok { color: var(--cream); }
+.card-row .v.derived-blank { color: var(--grey-mid); font-style: italic; }
+.card-row .v.override-written { color: var(--cream); }
+.card-row .v.formula-ok { color: var(--cream); }
+.card-row .v.formula-bad { color: var(--grey-mid); font-style: italic; }
+.card-row.full { display: block; }
+.card-row.full .v { display: block; margin-top: 2px; }
+.card-row .fragment-recognised { color: var(--cream); }
+.card-row .fragment-grey { color: var(--grey-mid); font-style: italic; }
+.card-row .fragment-grey code { background: transparent; color: var(--grey-mid); border-left: 2px solid var(--amber); padding-left: 5px; }
+.card-row .fragment-recognised code { background: transparent; color: var(--cream); font-family: 'Consolas', monospace; font-size: 12px; }
+.card-divider { border: none; border-top: 1px dashed var(--bd-dark); margin: 6px 0; }
+.card-foot-note {
+  margin-top: 10px; font-size: 10.5px; color: var(--grey-dk); letter-spacing: 1px;
+  text-transform: uppercase; text-align: center;
+}
+
+/* Display-section annotations */
+.display-section-panel { margin-top: 14px; padding: 10px 12px; background: rgba(233,184,111,0.04); border: 1px dashed rgba(233,184,111,0.25); border-radius: 3px; }
+.display-section-panel .field-label { color: var(--gold-hi); }
+.display-section-panel .hint { font-size: 11px; color: var(--grey-mid); margin-bottom: 10px; }
+
+.side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.side-by-side .card-title-small { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-dk); margin-bottom: 6px; text-align: center; }
+
+.legend { background: #0a0b09; border: 1px solid var(--bd-dark); border-radius: 3px; padding: 10px 14px; margin-top: 14px; font-size: 11.5px; color: var(--cream-dim); }
+.legend strong { color: var(--gold-hi); }
+.legend .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.legend .swatch.ok { background: var(--cream); }
+.legend .swatch.grey { background: var(--grey-mid); }
+.legend .swatch.warn { background: var(--amber); }
+
+.ability-mockup-meta {
+  background: rgba(0,0,0,0.25); border: 1px solid var(--bd-dark); border-radius: 3px;
+  padding: 9px 13px; margin-bottom: 14px; font-size: 11.5px; color: var(--cream-dim);
+}
+.ability-mockup-meta strong { color: var(--gold-hi); }
+.ability-mockup-meta .label { color: var(--grey-mid); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; margin-right: 6px; }
+
+/* ===== Stacked preview layout ===== */
+.stack-preview { display: flex; flex-direction: column; gap: 12px; }
+.stack-preview .pane-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-dk); margin-bottom: 6px; font-weight: 600; }
+.stack-preview .pane-label .sub { color: var(--grey-mid); font-weight: 400; letter-spacing: 1px; margin-left: 6px; text-transform: none; font-style: italic; }
+
+/* ===== Mechanical preview (robustness-aware) ===== */
+.mech-card { background: #0f100e; border: 1px solid var(--bd-dark); border-radius: 4px; overflow: hidden; }
+.mech-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; background: #15160f; border-bottom: 1px solid var(--bd-dark);
+  font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--grey-mid); font-weight: 600;
+}
+.mech-header .rollup { font-size: 11px; letter-spacing: 0.5px; text-transform: none; padding: 2px 10px; border-radius: 11px; font-weight: 600; }
+.mech-header .rollup.ready { background: rgba(109,177,115,0.12); color: var(--green); border: 1px solid rgba(109,177,115,0.35); }
+.mech-header .rollup.warn  { background: rgba(216,152,72,0.12); color: var(--amber); border: 1px solid rgba(216,152,72,0.35); }
+.mech-header .rollup.error { background: rgba(199,49,49,0.12); color: var(--red); border: 1px solid rgba(199,49,49,0.4); }
+.mech-header .rollup .ic { margin-right: 5px; font-weight: 700; }
+
+.mech-row { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; align-items: center; padding: 8px 12px; border-bottom: 1px solid rgba(52,52,50,0.6); font-size: 12.5px; }
+.mech-row:last-child { border-bottom: none; }
+.mech-row .mk { color: var(--gold-dk); font-weight: 600; letter-spacing: 0.3px; font-size: 11.5px; text-transform: uppercase; }
+.mech-row .mv { font-family: 'Consolas', 'Courier New', monospace; font-size: 12.5px; word-break: break-word; min-width: 0; }
+.mech-row .mv.ok    { color: var(--cream); }
+.mech-row .mv.empty { color: var(--grey-dk); font-style: italic; font-family: 'Segoe UI', sans-serif; }
+.mech-row .mv.bad   { color: var(--grey-mid); border-left: 2px solid var(--amber); padding-left: 7px; }
+.mech-row .mv.err   { color: var(--grey-mid); border-left: 2px solid var(--red); padding-left: 7px; }
+
+.mech-chip { font-size: 10.5px; padding: 2px 8px; border-radius: 10px; letter-spacing: 0.3px; white-space: nowrap; font-family: 'Segoe UI', sans-serif; display: inline-flex; align-items: center; gap: 4px; }
+.mech-chip .cic { font-weight: 700; font-size: 10px; }
+.mech-chip.ok    { background: rgba(109,177,115,0.10); color: var(--green); border: 1px solid rgba(109,177,115,0.3); }
+.mech-chip.info  { background: rgba(150,109,75,0.10); color: var(--gold-mid); border: 1px solid rgba(150,109,75,0.35); }
+.mech-chip.warn  { background: rgba(216,152,72,0.14); color: var(--amber); border: 1px solid rgba(216,152,72,0.4); }
+.mech-chip.error { background: rgba(199,49,49,0.14); color: var(--red); border: 1px solid rgba(199,49,49,0.4); }
+.mech-chip.muted { background: transparent; color: var(--grey-dk); border: 1px solid var(--bd-dark); }
+
+.mech-diag { padding: 8px 12px; background: #0a0b09; border-top: 1px solid var(--bd-dark); font-size: 11.5px; color: var(--cream-dim); }
+.mech-diag ul { margin: 0; padding-left: 16px; }
+.mech-diag li { padding: 2px 0; line-height: 1.45; }
+.mech-diag li .sev { font-weight: 700; margin-right: 5px; }
+.mech-diag li .sev.warn  { color: var(--amber); }
+.mech-diag li .sev.error { color: var(--red); }
+.mech-diag li code { font-family: 'Consolas', monospace; background: var(--bg-input); padding: 0 4px; border-radius: 2px; color: var(--cream-dim); }
+.mech-diag .dryrun { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--bd-dark); font-style: italic; color: var(--grey-mid); }
+
+.state-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.state-grid .state-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-dk); margin-bottom: 6px; font-weight: 600; }
+.state-grid .state-label.warn  { color: var(--amber); }
+.state-grid .state-label.error { color: var(--red); }
+.state-grid .state-label.info  { color: var(--gold-mid); }
+
+/* ===== Test Trigger panel ===== */
+.tt-card { background: #0c0d0a; border: 1px solid var(--bd-dark); border-radius: 4px; margin-top: 14px; overflow: hidden; }
+.tt-header { display: flex; align-items: center; justify-content: space-between; padding: 9px 13px; background: #141510; border-bottom: 1px solid var(--bd-dark); }
+.tt-title { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-mid); font-weight: 600; }
+.tt-title .sub { color: var(--grey-mid); font-weight: 400; letter-spacing: 1px; margin-left: 6px; text-transform: none; font-style: italic; }
+.tt-run-btn { background: var(--bd-gold); border: none; color: var(--cream); padding: 5px 16px; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; cursor: pointer; border-radius: 3px; font-family: inherit; font-weight: 600; }
+.tt-run-btn:hover { background: var(--gold-hi); color: #1a1a17; }
+
+.tt-body { padding: 11px 13px 13px; }
+.tt-section-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-dk); font-weight: 600; margin: 2px 0 6px; }
+.tt-section-label + .tt-section-label { margin-top: 12px; }
+
+.tt-input-row { display: grid; grid-template-columns: 180px 1fr; gap: 10px; align-items: center; padding: 5px 0; font-size: 12px; }
+.tt-input-row .tt-lbl { color: var(--cream-dim); font-weight: 500; }
+.tt-input-row .tt-lbl .tt-origin { display: block; color: var(--grey-mid); font-weight: 400; font-size: 10.5px; font-style: italic; margin-top: 1px; }
+.tt-input-row .tt-ctl { display: flex; align-items: center; gap: 10px; }
+
+.tt-slider { -webkit-appearance: none; appearance: none; flex: 1; height: 4px; background: var(--bg-input); border-radius: 2px; outline: none; }
+.tt-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; background: var(--gold-hi); border-radius: 50%; cursor: pointer; border: 1px solid var(--bd-gold); }
+.tt-slider-val { min-width: 22px; text-align: right; color: var(--cream); font-family: 'Consolas', monospace; font-size: 12px; }
+
+.tt-toggle { display: inline-flex; border: 1px solid var(--bd-dark); border-radius: 3px; overflow: hidden; }
+.tt-toggle span { padding: 3px 11px; font-size: 11px; color: var(--grey-mid); cursor: pointer; user-select: none; }
+.tt-toggle span.sel { background: var(--bd-gold); color: var(--cream); }
+
+.tt-select { background: var(--bg-input); border: 1px solid var(--bd-dark); color: var(--cream); padding: 3px 8px; font-size: 12px; border-radius: 3px; font-family: inherit; }
+.tt-input-text { background: var(--bg-input); border: 1px solid var(--bd-dark); color: var(--cream); padding: 3px 8px; font-size: 12px; border-radius: 3px; font-family: 'Consolas', monospace; width: 120px; }
+
+.tt-inputs-note { padding: 6px 10px; background: rgba(150,109,75,0.06); border: 1px solid rgba(150,109,75,0.22); border-radius: 3px; font-size: 11px; color: var(--cream-dim); font-style: italic; margin-top: 7px; line-height: 1.45; }
+.tt-inputs-note strong { color: var(--gold-mid); font-style: normal; }
+
+.tt-result { margin-top: 11px; padding: 10px 12px; border-radius: 3px; }
+.tt-result.pass { background: rgba(109,177,115,0.08); border: 1px solid rgba(109,177,115,0.35); }
+.tt-result.fail { background: rgba(216,152,72,0.08); border: 1px solid rgba(216,152,72,0.4); }
+.tt-result .r-hdr { font-size: 12px; font-weight: 600; margin-bottom: 5px; letter-spacing: 0.3px; }
+.tt-result.pass .r-hdr { color: var(--green); }
+.tt-result.fail .r-hdr { color: var(--amber); }
+.tt-result .r-hdr .r-ic { font-weight: 700; margin-right: 6px; }
+.tt-result .r-line { font-size: 12px; color: var(--cream); padding: 2px 0; line-height: 1.55; }
+.tt-result .r-line .dim { color: var(--grey-mid); }
+.tt-result .r-line code { font-family: 'Consolas', monospace; background: var(--bg-input); padding: 0 5px; border-radius: 2px; color: var(--cream); font-size: 11.5px; }
+.tt-result .r-sublist { margin: 4px 0 0 16px; padding: 0; list-style: disc; color: var(--cream-dim); font-size: 11.5px; }
+.tt-result .r-sublist li { padding: 1px 0; }
+.tt-result .r-disclaimer { margin-top: 9px; padding-top: 7px; border-top: 1px dashed rgba(255,255,255,0.08); font-size: 10.5px; color: var(--grey-mid); font-style: italic; line-height: 1.5; }
+
+.tt-chip-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.tt-kw-chip { font-size: 11px; padding: 2px 9px; border-radius: 11px; background: var(--bg-raised); border: 1px solid var(--bd-dark); color: var(--cream-dim); cursor: pointer; user-select: none; }
+.tt-kw-chip.sel { background: rgba(150,109,75,0.25); border-color: var(--bd-gold); color: var(--gold-hi); }
+.tt-kw-chip.dim { background: transparent; color: var(--grey-dk); }
+
+.tt-pretend-tok { display: flex; align-items: center; gap: 8px; padding: 4px 9px; background: var(--bg-input); border: 1px dashed var(--bd-dark); border-radius: 3px; }
+.tt-pretend-tok .tt-tok-icon { width: 22px; height: 22px; border-radius: 50%; background: #2a2a26; border: 1px solid var(--bd-gold); display: inline-flex; align-items: center; justify-content: center; color: var(--gold-hi); font-size: 11px; font-weight: 700; }
+.tt-pretend-tok .tt-tok-name { font-size: 12px; color: var(--cream); }
+.tt-pretend-tok .tt-tok-sub { font-size: 10.5px; color: var(--grey-mid); font-style: italic; margin-left: auto; }
+.tt-pretend-tok .tt-tok-change { font-size: 10.5px; color: var(--gold-mid); text-decoration: underline; cursor: pointer; padding-left: 4px; }
+
+.tt-variant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.tt-variant-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-dk); margin-bottom: 8px; font-weight: 600; }
+.tt-variant-label .count { color: var(--grey-mid); font-weight: 400; letter-spacing: 1px; margin-left: 6px; text-transform: none; font-style: italic; }
+
+/* ===== Test Trigger collapsed strip (default in editor) ===== */
+.tt-strip { background: #0c0d0a; border: 1px solid var(--bd-dark); border-radius: 4px; display: flex; align-items: center; gap: 12px; padding: 8px 12px; }
+.tt-strip:hover { border-color: var(--bd-gold); cursor: pointer; }
+.tt-strip .tt-strip-caret { color: var(--gold-dk); font-size: 11px; flex-shrink: 0; }
+.tt-strip .tt-strip-title { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-mid); font-weight: 600; flex-shrink: 0; }
+.tt-strip .tt-strip-summary { flex: 1; font-size: 11.5px; color: var(--cream-dim); font-family: 'Segoe UI', sans-serif; display: flex; align-items: center; gap: 6px; }
+.tt-strip .tt-strip-summary.none { color: var(--grey-dk); font-style: italic; }
+.tt-strip .tt-strip-summary code { font-family: 'Consolas', monospace; background: var(--bg-input); padding: 0 5px; border-radius: 2px; color: var(--cream); font-size: 11px; }
+.tt-strip .tt-strip-summary .r-ic { font-weight: 700; font-size: 11px; padding: 0 4px; border-radius: 2px; }
+.tt-strip .tt-strip-summary .r-ic.pass { color: var(--green); background: rgba(109,177,115,0.12); }
+.tt-strip .tt-strip-summary .r-ic.fail { color: var(--amber); background: rgba(216,152,72,0.14); }
+.tt-strip .tt-strip-btn { background: transparent; border: 1px solid var(--bd-gold); color: var(--gold-mid); padding: 3px 11px; font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border-radius: 3px; font-family: inherit; font-weight: 600; flex-shrink: 0; }
+.tt-strip .tt-strip-btn:hover { background: var(--bd-gold); color: var(--cream); }
+</style>
+</head>
+<body>
+
+<div class="page-label">Draw Steel Codex - Triggered Ability Editor - Preview Shape Mockups</div>
+<div class="view-nav">
+  <button class="vnav-btn active" onclick="switchView('optc', this)">1 - Option C: Configuration Summary</button>
+  <button class="vnav-btn" onclick="switchView('rec', this)">2 - Recommendation: Auto-derive + Overrides</button>
+  <button class="vnav-btn" onclick="switchView('rec-override', this)">3 - Stacked: Card + Mechanical View</button>
+  <button class="vnav-btn" onclick="switchView('mech-states', this)">4 - Mechanical View: Robustness States</button>
+  <button class="vnav-btn" onclick="switchView('tt-variants', this)">5 - Test Trigger: Input Form Variants</button>
+</div>
+
+<div class="ability-mockup-meta">
+  <div style="margin-bottom:5px;">
+    <span class="label">Views 1-2 example:</span>
+    <strong>Retribution Strike</strong>
+    &nbsp;|&nbsp; <span class="label">Trigger:</span> Take Damage
+    &nbsp;|&nbsp; <span class="label">Triggers When:</span> <code style="color:var(--gold-hi);font-family:monospace;">damage &gt;= 3</code>
+    &nbsp;|&nbsp; <span class="label">Behaviours:</span> Damage (3 dmg)
+    &nbsp;|&nbsp; <span class="label">Mode:</span> Prompt
+  </div>
+  <div>
+    <span class="label">Views 3-4 example:</span>
+    <strong>Last Stand</strong>
+    &nbsp;|&nbsp; <span class="label">Trigger:</span> Start of Turn
+    &nbsp;|&nbsp; <span class="label">Triggers When:</span> <code style="color:var(--gold-hi);font-family:monospace;">Count Nearby Enemies(2) &gt;= 3</code>
+    &nbsp;|&nbsp; <span class="label">Behaviours:</span> Damage (5 dmg, each adjacent enemy)
+    &nbsp;|&nbsp; <span class="label">Mode:</span> Local (auto)
+  </div>
+</div>
+
+<!-- ============================================================
+     VIEW 1 - OPTION C: CONFIGURATION SUMMARY
+     ============================================================ -->
+<div id="view-optc" class="view active">
+
+  <div class="note-box">
+    <strong>Option C - Configuration Summary.</strong> Diagnostic preview answering <em>"is my configuration structurally correct?"</em>. Three headers (WHEN / IF / THEN) match the author's mental model directly. Live GoblinScript validation badge on the IF row. Behaviour list enumerated numerically on THEN. Metadata (Subject / Mode / Cost / Action / When Active) in a pill strip at the bottom. No card chrome - purely a configuration mirror.
+  </div>
+  <div class="note-box">
+    <strong>Strengths:</strong> group-neutral (same for a plumbing trigger and a card-worthy reaction). Low visual overhead. Directly addresses failure modes (a) firing logic and (b) opaque condition. No behaviour-to-prose mapping brittleness.
+    &nbsp;<strong>Weaknesses:</strong> clinical, less motivational than a card. Authors who love watching presentation take shape don't get that here.
+  </div>
+
+  <div class="editor">
+    <!-- Left nav -->
+    <div class="editor-nav">
+      <div class="nav-label">Sections</div>
+      <div class="nav-item active">Trigger</div>
+      <div class="nav-item">Response</div>
+      <div class="nav-item">Effects</div>
+    </div>
+
+    <!-- Detail column (Trigger section active) -->
+    <div class="editor-detail">
+      <div class="section-title">Trigger</div>
+
+      <div class="field">
+        <label class="field-label">Name</label>
+        <input class="inp" value="Retribution Strike">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Trigger Event</label>
+        <div class="fk-dd picker-open"><span>Take Damage</span><span class="ddarr">&#x25BC;</span></div>
+        <div class="field-help">Pick when this ability should trigger. Search by event name, intent, or game phase.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Subject</label>
+        <div class="fk-dd"><span>Self</span><span class="ddarr">&#x25BC;</span></div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">When Active</label>
+        <div class="fk-dd"><span>Only During Combat</span><span class="ddarr">&#x25BC;</span></div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Triggers Only When</label>
+        <input class="inp mono" value="damage >= 3">
+        <div class="field-help">Optional. Triggers only when this GoblinScript formula is true. Leave blank to trigger every time the event raises.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Description</label>
+        <textarea class="inp tall">When damaged by an adjacent enemy, strike back.</textarea>
+      </div>
+    </div>
+
+    <!-- Preview: Configuration Summary -->
+    <div class="preview">
+      <div class="preview-label">Configuration Summary</div>
+
+      <div class="cfg-card">
+
+        <div class="cfg-block">
+          <div class="cfg-header"><span class="keyword">WHEN</span></div>
+          <div class="cfg-body big">
+            <span class="recognised">Take Damage</span>
+          </div>
+        </div>
+
+        <div class="cfg-block">
+          <div class="cfg-header"><span class="keyword">IF</span></div>
+          <div class="cfg-body">
+            <code class="ok">damage &gt;= 3</code>
+            <span class="validation ok">Valid</span>
+          </div>
+        </div>
+
+        <div class="cfg-block">
+          <div class="cfg-header"><span class="keyword">THEN</span></div>
+          <div class="cfg-body">
+            <ol class="cfg-effect-list">
+              <li>Deal <strong>3 damage</strong> to the attacker.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="cfg-pills">
+          <div class="cfg-pill"><span class="k">Subject</span>Self</div>
+          <div class="cfg-pill"><span class="k">Mode</span>Prompt</div>
+          <div class="cfg-pill"><span class="k">Cost</span>1 Heroic Resource</div>
+          <div class="cfg-pill"><span class="k">Action</span>Triggered Action</div>
+          <div class="cfg-pill"><span class="k">Active</span>Combat only</div>
+        </div>
+
+      </div>
+
+      <div class="legend">
+        <strong>Variant with broken condition:</strong><br>
+        <div style="margin-top:6px;">
+          <div class="cfg-header" style="font-size:10px;margin:0 0 4px;"><span class="keyword">IF</span></div>
+          <code class="bad">damage &gt;= thre</code>
+          <span class="validation warn">Unknown symbol: thre</span>
+        </div>
+        <div style="margin-top:10px; font-size:11px; color:var(--grey-mid);">
+          Live GoblinScript validation flags unknown symbols, syntax errors, type mismatches inline. Same behaviour as the existing white-vs-grey recognition, now surfaced with an explicit validation badge alongside.
+        </div>
+      </div>
+
+      <div class="preview-hint">Every edit on the left lands in a labeled slot on the right.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     VIEW 2 - RECOMMENDATION: AUTO-DERIVE + OVERRIDES (happy path)
+     ============================================================ -->
+<div id="view-rec" class="view">
+
+  <div class="note-box">
+    <strong>Recommendation - Auto-derive + optional overrides.</strong> The preview is the <code style="color:var(--gold-hi);">TriggeredAbilityDisplay</code>-shape card, automatically populated from the programmatic fields on the left. Every field in the card uses the loved white-on-recognised / grey-on-unrecognised pattern. Authors who want presentation polish can fill Display override fields; empty overrides fall through to the derived defaults.
+  </div>
+  <div class="note-box">
+    <strong>What's happening in this view:</strong> no overrides are filled in. The card is showing the fully derived state. <em>"When this creature takes damage and <code style="font-family:monospace;color:var(--cream);">damage &gt;= 3</code>"</em> is assembled from Trigger Event + Condition. <em>"Self"</em> is derived from Subject. <em>"Deal 3 damage"</em> is summarised from the Damage behaviour. If any piece couldn't be derived (blank formula, unrecognised trigger) it would render grey.
+  </div>
+
+  <div class="editor">
+    <!-- Left nav -->
+    <div class="editor-nav">
+      <div class="nav-label">Sections</div>
+      <div class="nav-item active">Trigger</div>
+      <div class="nav-item">Response</div>
+      <div class="nav-item">Effects</div>
+      <div class="nav-item">Display</div>
+    </div>
+
+    <!-- Detail column -->
+    <div class="editor-detail">
+      <div class="section-title">Trigger</div>
+
+      <div class="field">
+        <label class="field-label">Name</label>
+        <input class="inp" value="Retribution Strike">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Trigger Event</label>
+        <div class="fk-dd picker-open"><span>Take Damage</span><span class="ddarr">&#x25BC;</span></div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Subject</label>
+        <div class="fk-dd"><span>Self</span><span class="ddarr">&#x25BC;</span></div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Triggers Only When</label>
+        <input class="inp mono" value="damage >= 3">
+      </div>
+
+      <div class="display-section-panel">
+        <label class="field-label">Display overrides (optional)</label>
+        <div class="hint">Auto-derived text shows in the preview card. Fill any slot here to override it with custom prose.</div>
+
+        <div class="field">
+          <label class="field-label" style="color:var(--cream-dim);font-weight:500;">Display Name</label>
+          <input class="inp placeholder-derived" placeholder="(uses Name: Retribution Strike)">
+        </div>
+
+        <div class="field">
+          <label class="field-label" style="color:var(--cream-dim);font-weight:500;">Trigger (prose)</label>
+          <input class="inp placeholder-derived" placeholder="(derived: When this creature takes damage and damage >= 3)">
+        </div>
+
+        <div class="field">
+          <label class="field-label" style="color:var(--cream-dim);font-weight:500;">Effect (prose)</label>
+          <input class="inp placeholder-derived" placeholder="(derived from behaviours: Deal 3 damage)">
+        </div>
+
+        <div class="field">
+          <label class="field-label" style="color:var(--cream-dim);font-weight:500;">Flavor</label>
+          <input class="inp placeholder-derived" placeholder="(blank)">
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview: Card -->
+    <div class="preview">
+      <div class="preview-label">Card Preview (Live)</div>
+
+      <div class="card">
+        <div class="card-title-bar">
+          <span>Retribution Strike</span>
+          <span class="cost">1 Heroic Resource</span>
+        </div>
+        <div class="card-body">
+          <div class="card-flavor derived-blank">(add flavor text to set a mood line)</div>
+
+          <div class="card-row">
+            <span><span class="k">Keywords:</span><span class="v derived-blank">-</span></span>
+            <span><span class="k">Type:</span><span class="v derived-ok">Triggered Action</span></span>
+          </div>
+
+          <div class="card-row">
+            <span><span class="k">Distance:</span><span class="v derived-blank">-</span></span>
+            <span><span class="k">Target:</span><span class="v derived-ok">Self</span></span>
+          </div>
+
+          <hr class="card-divider">
+
+          <div class="card-row full">
+            <span class="k">Trigger:</span>
+            <span class="v">
+              <span class="fragment-recognised">When this creature takes damage and </span>
+              <span class="fragment-recognised"><code>damage &gt;= 3</code></span>
+            </span>
+          </div>
+
+          <div class="card-row full">
+            <span class="k">Effect:</span>
+            <span class="v fragment-recognised">Deal 3 damage to the attacker.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <div>
+          <span class="swatch ok"></span>
+          <strong>White</strong> - engine recognised the content (derived successfully or authored valid GoblinScript).
+        </div>
+        <div style="margin-top:4px;">
+          <span class="swatch grey"></span>
+          <strong>Grey italic</strong> - blank slot falling through to derivation, or derivation produced nothing.
+        </div>
+        <div style="margin-top:4px;">
+          <span class="swatch warn"></span>
+          <strong>Grey with amber rail</strong> - invalid formula or unrecognised symbol. Indicates real problem.
+        </div>
+      </div>
+
+      <div class="preview-hint">Grey cues pull attention to real problems. White means "engine understood what you wrote".</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     VIEW 3 - RECOMMENDATION: MAPPING-MISMATCH EXAMPLE
+     ============================================================ -->
+<div id="view-rec-override" class="view">
+
+  <div class="note-box">
+    <strong>Stacked layout - card on top, mechanical view underneath, Test Trigger panel below.</strong> Real-world example: a triggered ability called <strong>Last Stand</strong> that activates when the creature starts their turn surrounded by three or more enemies. Trigger event <code style="color:var(--gold-hi);font-family:monospace;">beginturn</code>, condition <code style="color:var(--gold-hi);font-family:monospace;">Count Nearby Enemies(2) &gt;= 3</code>, behaviour <code style="color:var(--gold-hi);font-family:monospace;">[Damage: 5]</code> to each adjacent enemy. The example shows a mostly-auto-derived card with one prose override (Effect) demonstrating the mapping-mismatch escape hatch.
+  </div>
+  <div class="note-box">
+    <strong>Why chips + colour (not colour alone):</strong> the white/grey recognition pattern from the Activated editor is loved but sub-attentive - users don't find it on their own. Pairing each field with an explicit chip (<span class="mech-chip ok" style="vertical-align:middle;"><span class="cic">OK</span>Valid</span> / <span class="mech-chip warn" style="vertical-align:middle;"><span class="cic">!</span>Unknown symbol</span> / <span class="mech-chip muted" style="vertical-align:middle;">Not set</span>) makes the signal legible without training, accessible, and colourblind-safe. Happy path stays quiet - chips only surface when state is not "set and valid" (<span style="color:var(--gold-hi);">see View 4</span> for the problem-state gallery).
+  </div>
+
+  <div class="editor">
+    <!-- Left nav -->
+    <div class="editor-nav">
+      <div class="nav-label">Sections</div>
+      <div class="nav-item">Trigger</div>
+      <div class="nav-item">Response</div>
+      <div class="nav-item">Effects</div>
+      <div class="nav-item active">Display</div>
+    </div>
+
+    <!-- Detail column: Display section active -->
+    <div class="editor-detail">
+      <div class="section-title">Display</div>
+
+      <div class="field">
+        <label class="field-label">Display Name</label>
+        <input class="inp placeholder-derived" placeholder="(uses Name: Last Stand)">
+        <div class="field-help">Leave blank to use the ability's Name. Overridable for stylised titles.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Card Type</label>
+        <div class="fk-dd"><span>Triggered Action</span><span class="ddarr">&#x25BC;</span></div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Cost (display)</label>
+        <input class="inp placeholder-derived" placeholder="(free)">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Distance (display)</label>
+        <input class="inp placeholder-derived" placeholder="(derived: Burst 1)">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Target (display)</label>
+        <input class="inp" value="Each adjacent enemy">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Flavor</label>
+        <input class="inp" value="Cornered and outnumbered, they make the world pay for it.">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Trigger (prose)</label>
+        <textarea class="inp tall placeholder-derived" placeholder="(derived: When this creature starts their turn and at least 3 enemies are within 2 squares)"></textarea>
+        <div class="field-help">Derived prose is acceptable, leave blank to use it.</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Effect (prose)</label>
+        <textarea class="inp tall">A storm of retaliation bursts outward, striking every adjacent foe.</textarea>
+        <div class="field-help">Overrides the derived "Deal 5 damage to each adjacent enemy" - prose here because the mechanic sounds flat written out literally.</div>
+      </div>
+    </div>
+
+    <!-- Preview: Stacked - card on top, mechanical view underneath, Test Trigger below -->
+    <div class="preview">
+      <div class="stack-preview">
+
+        <!-- TOP: Player-facing card -->
+        <div>
+          <div class="pane-label">Trigger Preview <span class="sub">what players see</span></div>
+          <div class="card">
+            <div class="card-title-bar">
+              <span>Last Stand</span>
+              <span class="cost">Free</span>
+            </div>
+            <div class="card-body">
+              <div class="card-flavor" style="color:var(--cream-dim);">Cornered and outnumbered, they make the world pay for it.</div>
+
+              <div class="card-row">
+                <span><span class="k">Keywords:</span><span class="v derived-blank">-</span></span>
+                <span><span class="k">Type:</span><span class="v override-written">Triggered Action</span></span>
+              </div>
+
+              <div class="card-row">
+                <span><span class="k">Distance:</span><span class="v derived-ok">Burst 1</span></span>
+                <span><span class="k">Target:</span><span class="v override-written">Each adjacent enemy</span></span>
+              </div>
+
+              <hr class="card-divider">
+
+              <div class="card-row full">
+                <span class="k">Trigger:</span>
+                <span class="v">
+                  <span class="fragment-recognised">When this creature starts their turn and at least 3 enemies are within 2 squares.</span>
+                </span>
+              </div>
+
+              <div class="card-row full">
+                <span class="k">Effect:</span>
+                <span class="v override-written">A storm of retaliation bursts outward, striking every adjacent foe.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MIDDLE: Mechanical view (robustness-aware) -->
+        <div>
+          <div class="pane-label">Mechanical View <span class="sub">will this trigger?</span></div>
+          <div class="mech-card">
+            <div class="mech-header">
+              <span>How This Triggers</span>
+              <span class="rollup ready"><span class="ic">OK</span>Trigger ready</span>
+            </div>
+
+            <div class="mech-row">
+              <span class="mk">Event</span>
+              <span class="mv ok">beginturn</span>
+              <span></span>
+            </div>
+
+            <div class="mech-row">
+              <span class="mk">Subject</span>
+              <span class="mv ok">self</span>
+              <span></span>
+            </div>
+
+            <div class="mech-row">
+              <span class="mk">Triggers When</span>
+              <span class="mv ok">Count Nearby Enemies(2) &gt;= 3</span>
+              <span></span>
+            </div>
+
+            <div class="mech-row">
+              <span class="mk">Behaviours</span>
+              <span class="mv ok">[Damage: 5]</span>
+              <span></span>
+            </div>
+
+            <div class="mech-row">
+              <span class="mk">Mode</span>
+              <span class="mv ok">local (auto)</span>
+              <span></span>
+            </div>
+
+            <div class="mech-row">
+              <span class="mk">When Active</span>
+              <span class="mv ok">combat only</span>
+              <span></span>
+            </div>
+
+            <div class="mech-diag">
+              <div class="dryrun">Triggers when: this creature starts their turn and at least 3 enemies are within 2 squares.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BOTTOM: Test Trigger (collapsed strip - default state) -->
+        <div>
+          <div class="pane-label">Test Trigger <span class="sub">collapsed by default</span></div>
+
+          <!-- Default: no test run yet -->
+          <div class="tt-strip">
+            <span class="tt-strip-caret">&#x25B8;</span>
+            <span class="tt-strip-title">Test Trigger</span>
+            <span class="tt-strip-summary none">No test run yet.</span>
+            <button class="tt-strip-btn">Open tester</button>
+          </div>
+
+          <!-- After a pass -->
+          <div class="tt-strip" style="margin-top:8px;">
+            <span class="tt-strip-caret">&#x25B8;</span>
+            <span class="tt-strip-title">Test Trigger</span>
+            <span class="tt-strip-summary">
+              <span class="r-ic pass">OK</span>
+              Last run: <strong style="color:var(--green);">Pass</strong>
+              <code>Count Nearby Enemies(2) = 3, required &ge; 3</code>
+            </span>
+            <button class="tt-strip-btn">Open tester</button>
+          </div>
+
+          <!-- After a fail -->
+          <div class="tt-strip" style="margin-top:8px;">
+            <span class="tt-strip-caret">&#x25B8;</span>
+            <span class="tt-strip-title">Test Trigger</span>
+            <span class="tt-strip-summary">
+              <span class="r-ic fail">!</span>
+              Last run: <strong style="color:var(--amber);">Fail</strong>
+              <code>Count Nearby Enemies(2) = 1, required &ge; 3</code>
+            </span>
+            <button class="tt-strip-btn">Open tester</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="legend">
+        <div><strong>Happy-path is quiet.</strong> Every mechanical field is set and valid, so no chips surface. The green rollup header is the one deliberate affordance telling the author "you're done".</div>
+        <div style="margin-top:6px;">
+          <span class="swatch ok"></span><strong>White mono</strong> - field is set and the engine parsed it.
+          &nbsp;&nbsp;<span class="swatch grey"></span><strong>Grey italic</strong> - slot not filled (rolls up to a warn if required).
+          &nbsp;&nbsp;<span class="swatch warn"></span><strong>Amber rail + chip</strong> - field is set but broken (unknown symbol, type mismatch, unreachable).
+        </div>
+        <div style="margin-top:6px;"><strong>See View 4</strong> for the problem-state gallery - how each robustness failure surfaces.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Commentary block: how Test Trigger fits with the runtime Trigger Debugger -->
+  <div class="note-box" style="margin-top:14px;">
+    <strong>About the Test Trigger strip.</strong> By default Test Trigger is a single 32px-high strip below the mechanical view - just a title, the last run's summary, and an <strong>Open tester</strong> button. This keeps the three-pane editor compact on low-resolution displays: the card and mechanical view fit without scroll, and the strip contributes a one-line rollup. The three strip variants shown above are the real states: <em>no test run yet</em> (muted), <em>last run passed</em> (green badge + summary), <em>last run failed</em> (amber badge + reason). Click <strong>Open tester</strong> to expand the full form - see <strong>View 5</strong> for what expanded looks like.
+  </div>
+  <div class="note-box" style="margin-top:-8px;">
+    <strong>Why collapsed by default, not a modal:</strong> the iteration loop is the whole value - tweak the condition, run, read the pass/fail reason, tweak again. A modal breaks that loop (open, run, close, edit, reopen, run). Inline collapsed gives the author a one-click open to the tester that stays in place, keeps the mechanical view visible, and leaves the condition field editable while the tester is open. The strip itself also carries the most-recent outcome as an ambient signal, so the author doesn't have to open the tester to see "did my last test pass?".
+  </div>
+  <div class="note-box" style="margin-top:-8px;">
+    <strong>What Test Trigger does (when expanded):</strong>
+    <ul style="margin:4px 0 0 18px; padding:0; line-height:1.6;">
+      <li>Generates a form with one input per symbol the condition references. For the trigger event's declared symbols you get a typed control (number input, text dropdown, boolean toggle, token picker, keyword chips). For map-state functions (Count Nearby Enemies, Distance, Line of Sight) you get a "pretend value" input.</li>
+      <li>Compiles the condition and evaluates it against your inputs when you press <strong>Run</strong>. Shows pass or fail, and the concrete sub-expression values that decided the outcome (<code style="font-family:monospace;">3 &gt;= 3 = true</code>).</li>
+      <li>Highlights which sub-condition failed when compound conditions don't pass, so <code style="font-family:monospace;">A and B and C</code> tells you "B was false".</li>
+      <li>Previews the behaviour list that would execute on pass (names and key parameters - not execution).</li>
+      <li>Leaves the most-recent outcome visible on the collapsed strip after close.</li>
+    </ul>
+  </div>
+  <div class="note-box" style="margin-top:-8px;">
+    <strong>What it does not do:</strong>
+    <ul style="margin:4px 0 0 18px; padding:0; line-height:1.6;">
+      <li>Execute behaviours for real. No damage is applied, no conditions inflicted, no resources spent, no tokens moved.</li>
+      <li>Model map geometry. Adjacency, line of sight, cover, terrain - those are "pretend" inputs. If you want to verify an actual scene, that's still the runtime Trigger Debugger's job.</li>
+      <li>Simulate multi-trigger cascades. If triggering this ability would raise another event (e.g. a damage behaviour triggering a damage-taken reaction), that chain isn't followed.</li>
+      <li>Replace the runtime Trigger Debugger. When a trigger misbehaves live in a real scene - wrong target, unexpected fail, double-fire - the runtime debugger has the actual game state to inspect. Test Trigger is for authoring-time sanity.</li>
+      <li>Persist test scenarios across sessions (initially). If saved scenarios prove useful, we can add a "pin this test case" affordance later.</li>
+    </ul>
+  </div>
+  <div class="note-box" style="margin-top:-8px;">
+    <strong>When to reach for which tool:</strong> while authoring a new or changed trigger, Test Trigger is the tighter loop - type a condition, pick inputs, run, read the pass/fail reason, adjust. When something surprises you during a real session, the runtime Trigger Debugger is the right answer because it has the live scene state Test Trigger can't see.
+  </div>
+
+</div>
+
+<!-- ============================================================
+     VIEW 4 - MECHANICAL VIEW: ROBUSTNESS STATES (revised)
+     ============================================================ -->
+<div id="view-mech-states" class="view">
+
+  <div class="note-box">
+    <strong>Robustness gallery (revised).</strong> Five real-world failure states plus one "suppressed by design" case, so we can agree on what the author sees when things break. Every state was identified by crawling the live bestiary (339 TriggeredAbility objects) or the runtime validation code in <code style="color:var(--gold-hi);">TriggeredAbility.lua</code>. Colour never carries the signal alone - every problem either surfaces a labelled chip or a diagnostic line.
+  </div>
+  <div class="note-box">
+    <strong>Changes from the earlier draft:</strong> dropped "Unregistered trigger event" (it was based on an incorrect crawl that missed <code style="font-family:monospace;">MCDMRules.lua</code>; real renames/removals of trigger ids are vanishingly rare). Downgraded "Empty behaviours" to INFO and made it silent-aware (aura-bookkeeping triggers intentionally have empty behaviours with <code style="font-family:monospace;">silent: true</code>). Added two states that are real and common: prose typed into the trigger ID field, and subject that doesn't match the event.
+  </div>
+
+  <div class="state-grid">
+
+    <!-- State 1: HAPPY PATH (Last Stand, consistent with View 3) -->
+    <div>
+      <div class="state-label">1. Ready (no issues)</div>
+      <div class="mech-card">
+        <div class="mech-header">
+          <span>How This Triggers</span>
+          <span class="rollup ready"><span class="ic">OK</span>Trigger ready</span>
+        </div>
+        <div class="mech-row"><span class="mk">Event</span><span class="mv ok">beginturn</span><span></span></div>
+        <div class="mech-row"><span class="mk">Subject</span><span class="mv ok">self</span><span></span></div>
+        <div class="mech-row"><span class="mk">Triggers When</span><span class="mv ok">Count Nearby Enemies(2) &gt;= 3</span><span></span></div>
+        <div class="mech-row"><span class="mk">Behaviours</span><span class="mv ok">[Damage: 5]</span><span></span></div>
+        <div class="mech-diag">
+          <div class="dryrun">Triggers when: this creature starts their turn and at least 3 enemies are within 2 squares.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 2: UNKNOWN SYMBOL IN CONDITION -->
+    <div>
+      <div class="state-label warn">2. Condition references unknown symbol</div>
+      <div class="mech-card">
+        <div class="mech-header">
+          <span>How This Triggers</span>
+          <span class="rollup warn"><span class="ic">!</span>1 issue</span>
+        </div>
+        <div class="mech-row"><span class="mk">Event</span><span class="mv ok">losehitpoints</span><span></span></div>
+        <div class="mech-row"><span class="mk">Subject</span><span class="mv ok">self</span><span></span></div>
+        <div class="mech-row">
+          <span class="mk">Triggers When</span>
+          <span class="mv bad">damage &gt;= thre</span>
+          <span class="mech-chip warn"><span class="cic">!</span>Unknown: thre</span>
+        </div>
+        <div class="mech-row"><span class="mk">Behaviours</span><span class="mv ok">[Damage: 3]</span><span></span></div>
+        <div class="mech-diag">
+          <ul>
+            <li><span class="sev warn">WARN</span>Condition references unknown symbol <code>thre</code>. Did you mean <code>threshold</code>? Unknown symbols evaluate to 0 / false - this condition will never be true.</li>
+          </ul>
+          <div class="dryrun">Triggers when: never (condition always false).</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 3: PROSE IN TRIGGER ID (NEW) -->
+    <div>
+      <div class="state-label error">3. Prose typed into trigger ID field</div>
+      <div class="mech-card">
+        <div class="mech-header">
+          <span>How This Triggers</span>
+          <span class="rollup error"><span class="ic">X</span>1 error</span>
+        </div>
+        <div class="mech-row">
+          <span class="mk">Event</span>
+          <span class="mv err">"The Arixx takes damage."</span>
+          <span class="mech-chip error"><span class="cic">X</span>Prose, not an event id</span>
+        </div>
+        <div class="mech-row"><span class="mk">Subject</span><span class="mv ok">self</span><span></span></div>
+        <div class="mech-row"><span class="mk">Triggers When</span><span class="mv empty">(none)</span><span class="mech-chip muted">optional</span></div>
+        <div class="mech-row"><span class="mk">Behaviours</span><span class="mv ok">[Damage: 3]</span><span></span></div>
+        <div class="mech-diag">
+          <ul>
+            <li><span class="sev error">ERR</span>The Event field holds a prose sentence instead of a registered trigger id. <code>GetTriggerById()</code> returns nil at load time and the ability never triggers. Most common cause: the description was pasted into the trigger picker's search instead of selected from the dropdown. <a style="color:var(--gold-hi);text-decoration:underline;cursor:pointer;">Open the event picker</a>. <span class="dim">(found 30+ times across the live bestiary)</span></li>
+          </ul>
+          <div class="dryrun">Triggers when: never (no event with this id).</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 4: SUBJECT MISMATCH (NEW) -->
+    <div>
+      <div class="state-label warn">4. Subject does not match event</div>
+      <div class="mech-card">
+        <div class="mech-header">
+          <span>How This Triggers</span>
+          <span class="rollup warn"><span class="ic">!</span>1 issue</span>
+        </div>
+        <div class="mech-row"><span class="mk">Event</span><span class="mv ok">move</span><span></span></div>
+        <div class="mech-row">
+          <span class="mk">Subject</span>
+          <span class="mv bad">attacker</span>
+          <span class="mech-chip warn"><span class="cic">!</span>Not available on this event</span>
+        </div>
+        <div class="mech-row"><span class="mk">Triggers When</span><span class="mv ok">Distance(self) &lt; 3</span><span></span></div>
+        <div class="mech-row"><span class="mk">Behaviours</span><span class="mv ok">[Damage: 2]</span><span></span></div>
+        <div class="mech-diag">
+          <ul>
+            <li><span class="sev warn">WARN</span>The <code>move</code> event has no <code>attacker</code> symbol - only the mover itself. The subject resolver returns nil and the ability silently no-ops at runtime (<code>TriggeredAbility.lua</code> lines 947-959 log "attacker not available"). Change Subject to <code>self</code>, or pick a trigger event that raises with an attacker (<code>losehitpoints</code>, <code>attack</code>).</li>
+          </ul>
+          <div class="dryrun">Triggers when: never (subject cannot be resolved on this event).</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 5: EMPTY BEHAVIOURS - INFO (downgraded) -->
+    <div>
+      <div class="state-label info">5. Empty behaviours, no description</div>
+      <div class="mech-card">
+        <div class="mech-header">
+          <span>How This Triggers</span>
+          <span class="rollup warn"><span class="ic">!</span>1 note</span>
+        </div>
+        <div class="mech-row"><span class="mk">Event</span><span class="mv ok">beginturn</span><span></span></div>
+        <div class="mech-row"><span class="mk">Subject</span><span class="mv ok">self</span><span></span></div>
+        <div class="mech-row"><span class="mk">Triggers When</span><span class="mv empty">(none)</span><span class="mech-chip muted">optional</span></div>
+        <div class="mech-row">
+          <span class="mk">Behaviours</span>
+          <span class="mv empty">(none)</span>
+          <span class="mech-chip info">No effect</span>
+        </div>
+        <div class="mech-row">
+          <span class="mk">Effect prose</span>
+          <span class="mv empty">(none)</span>
+          <span class="mech-chip info">Blank</span>
+        </div>
+        <div class="mech-diag">
+          <ul>
+            <li><span class="sev warn" style="color:var(--gold-mid);">INFO</span>Trigger will raise but do nothing - no behaviour, no description, no Effect prose. Likely an authoring stub. If this is a narrative-only ability, add a Description or Effect override. If it's an aura bookkeeper, set <code>silent: true</code> and this note will be suppressed (see cell 6).</li>
+          </ul>
+          <div class="dryrun">Triggers when: start of this creature's turn. Effect: none configured.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cell 6: SUPPRESSED BY DESIGN - aura bookkeeping (silent=true) -->
+    <div>
+      <div class="state-label">6. <span style="color:var(--grey-mid);">Suppressed by design (silent aura)</span></div>
+      <div class="mech-card">
+        <div class="mech-header">
+          <span>How This Triggers</span>
+          <span class="rollup ready"><span class="ic">OK</span>Trigger ready</span>
+        </div>
+        <div class="mech-row"><span class="mk">Event</span><span class="mv ok">onenter</span><span></span></div>
+        <div class="mech-row"><span class="mk">Subject</span><span class="mv ok">self</span><span></span></div>
+        <div class="mech-row"><span class="mk">Triggers When</span><span class="mv empty">(none)</span><span class="mech-chip muted">optional</span></div>
+        <div class="mech-row"><span class="mk">Behaviours</span><span class="mv empty">(none)</span><span class="mech-chip muted">silent: true</span></div>
+        <div class="mech-row"><span class="mk">Silent</span><span class="mv ok">true</span><span></span></div>
+        <div class="mech-diag">
+          <div style="font-size:11.5px;color:var(--cream-dim);padding:2px 0 6px;">This is the <em>same configuration</em> as cell 5 but with <code>silent: true</code> set. It represents an intentional pattern - aura-bookkeeping triggers that fire for state cleanup without a visible effect. The mechanical view recognises the pattern and stays quiet: rollup reads <strong>Trigger ready</strong>, no chips surface.</div>
+          <div class="dryrun">Triggers when: a creature enters the aura. Effect: silent (aura bookkeeping).</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="legend" style="margin-top:18px;">
+    <strong>Design rules for the mechanical view:</strong>
+    <ol style="margin:6px 0 0 18px; padding:0; line-height:1.6;">
+      <li><strong>Chip &gt; colour.</strong> Every problem state has a labelled chip. Colour is reinforcement, not the signal.</li>
+      <li><strong>Rollup on top.</strong> Author sees "Trigger ready" / "N issues" / "N notes" without scanning every row.</li>
+      <li><strong>Quiet on happy path.</strong> No chips when everything is valid. Avoids the "wall of green checkmarks" dead space that teaches users to ignore the pane.</li>
+      <li><strong>Silent is a legitimate mode.</strong> When <code>silent: true</code> is set, empty-behaviours and blank-description chips are suppressed entirely because the intent is bookkeeping, not effect (see cell 6).</li>
+      <li><strong>Dry-run line at the bottom</strong> - one plain-English sentence: "Triggers when: X" or "Triggers when: never (reason)". This is the final honesty check and catches semantic issues even when the syntax is valid.</li>
+      <li><strong>Diagnostics list explains why</strong> - each issue says what broke and, where possible, how to fix it. Never just a colour.</li>
+      <li><strong>Accessible by default.</strong> Chip text + rollup text carry the signal without colour, so colourblind users and screen readers get the same information.</li>
+    </ol>
+  </div>
+
+  <div class="legend" style="margin-top:14px;">
+    <strong>What we chose NOT to flag (and why):</strong>
+    <ul style="margin:6px 0 0 18px; padding:0; line-height:1.6;">
+      <li><strong>Unregistered trigger event ids.</strong> Real trigger renames are rare; the earlier "100+ occurrences" crawl was wrong (it missed <code style="font-family:monospace;">MCDMRules.lua</code> registrations). Worth a one-time migration report, not a per-ability chip.</li>
+      <li><strong>"Condition is always true" / "always false" by static analysis.</strong> Requires a GoblinScript AST we don't have. The Test Trigger panel (View 3) covers this case - the author runs a simulation and sees the evaluation result.</li>
+      <li><strong>Conflicting when-active constraints.</strong> Only one real example in the bestiary and it's fuzzy to diagnose. Park until we see it in the wild.</li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     VIEW 5 - TEST TRIGGER: INPUT FORM VARIANTS
+     ============================================================ -->
+<div id="view-tt-variants" class="view">
+
+  <div class="note-box">
+    <strong>Test Trigger - input form variants (expanded view).</strong> In View 3, Test Trigger is a collapsed strip by default. Clicking <strong>Open tester</strong> expands it into the full form shown below. The form auto-generates from the trigger event's <code style="font-family:monospace;">symbols</code> table plus any map-state function calls the condition references. Different trigger events produce very different forms. Two live examples below: <strong>Last Stand</strong> (sparse - no event symbols, one pretend input for Count Nearby Enemies) and <strong>Retribution Strike</strong> on <code style="font-family:monospace;">losehitpoints</code> (rich - five event symbols covering all the types: number, text enum, keyword set, boolean, creature reference).
+  </div>
+  <div class="note-box">
+    <strong>Form generation rule:</strong> one input row per symbol declared on the trigger event, typed according to its <code style="font-family:monospace;">type</code> field (<code style="font-family:monospace;">number</code> / <code style="font-family:monospace;">text</code> / <code style="font-family:monospace;">boolean</code> / <code style="font-family:monospace;">creature</code> / <code style="font-family:monospace;">set</code>). Plus one pretend-input row per map-state function referenced in the condition (Count Nearby, Distance, Line of Sight). Plus a "show result for" strip at the bottom showing pass/fail with the concrete values that decided it.
+  </div>
+
+  <!-- ============ Variant A - sparse (Last Stand) ============ -->
+  <div class="tt-variant-label">A. Sparse form <span class="count">beginturn + Count Nearby Enemies(2) - 1 input</span></div>
+  <div class="tt-card" style="margin-top:0;">
+    <div class="tt-header">
+      <div class="tt-title">Test This Trigger <span class="sub">Last Stand</span></div>
+      <button class="tt-run-btn">Run</button>
+    </div>
+    <div class="tt-body">
+      <div class="tt-section-label">Inputs</div>
+
+      <div class="tt-input-row">
+        <div class="tt-lbl">
+          Enemies within 2 squares
+          <span class="tt-origin">pretend (used by: Count Nearby Enemies(2))</span>
+        </div>
+        <div class="tt-ctl">
+          <input type="range" class="tt-slider" min="0" max="10" value="3">
+          <span class="tt-slider-val">3</span>
+        </div>
+      </div>
+
+      <div class="tt-inputs-note">
+        <strong>beginturn</strong> declares no symbols of its own - it's a time-based event, no contextual data. The one input here is a <em>pretend value</em> for the map-state function <code style="font-family:monospace;">Count Nearby Enemies(2)</code> that the condition calls. Real authoring would default this to the current count around the selected token if one exists.
+      </div>
+
+      <div class="tt-result pass">
+        <div class="r-hdr"><span class="r-ic">OK</span>Trigger would activate</div>
+        <div class="r-line">Condition: <code>Count Nearby Enemies(2) &gt;= 3</code></div>
+        <div class="r-line"><span class="dim">result:</span> <code>3 &gt;= 3</code> <span class="dim">=</span> <code>true</code> <span style="color:var(--green);">Pass</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Variant B - rich form (Retribution Strike on losehitpoints) ============ -->
+  <div class="tt-variant-label" style="margin-top:20px;">B. Rich form <span class="count">losehitpoints - 5 symbols, 1 pretend input</span></div>
+  <div class="tt-card" style="margin-top:0;">
+    <div class="tt-header">
+      <div class="tt-title">Test This Trigger <span class="sub">Retribution Strike</span></div>
+      <button class="tt-run-btn">Run</button>
+    </div>
+    <div class="tt-body">
+      <div class="tt-section-label">Event Inputs <span style="color:var(--grey-mid);font-weight:400;letter-spacing:1px;margin-left:6px;font-style:italic;text-transform:none;">one per symbol declared on losehitpoints</span></div>
+
+      <div class="tt-input-row">
+        <div class="tt-lbl">
+          Damage
+          <span class="tt-origin">symbol: damage (number)</span>
+        </div>
+        <div class="tt-ctl">
+          <input type="range" class="tt-slider" min="0" max="40" value="8">
+          <span class="tt-slider-val">8</span>
+        </div>
+      </div>
+
+      <div class="tt-input-row">
+        <div class="tt-lbl">
+          Damage Type
+          <span class="tt-origin">symbol: damagetype (text)</span>
+        </div>
+        <div class="tt-ctl">
+          <select class="tt-select">
+            <option>slashing</option>
+            <option>piercing</option>
+            <option>bludgeoning</option>
+            <option>fire</option>
+            <option>cold</option>
+            <option>lightning</option>
+            <option>acid</option>
+            <option>psychic</option>
+            <option>poison</option>
+            <option>holy</option>
+            <option>corruption</option>
+            <option>sonic</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tt-input-row">
+        <div class="tt-lbl">
+          Keywords
+          <span class="tt-origin">symbol: keywords (set)</span>
+        </div>
+        <div class="tt-ctl">
+          <div class="tt-chip-row">
+            <span class="tt-kw-chip sel">Melee</span>
+            <span class="tt-kw-chip sel">Strike</span>
+            <span class="tt-kw-chip dim">+ Weapon</span>
+            <span class="tt-kw-chip dim">+ Magic</span>
+            <span class="tt-kw-chip dim">+ Ranged</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tt-input-row">
+        <div class="tt-lbl">
+          Has Attacker
+          <span class="tt-origin">symbol: hasattacker (boolean)</span>
+        </div>
+        <div class="tt-ctl">
+          <div class="tt-toggle">
+            <span>False</span>
+            <span class="sel">True</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tt-input-row">
+        <div class="tt-lbl">
+          Attacker
+          <span class="tt-origin">symbol: attacker (creature)</span>
+        </div>
+        <div class="tt-ctl">
+          <div class="tt-pretend-tok">
+            <span class="tt-tok-icon">G</span>
+            <span class="tt-tok-name">Pretend Goblin</span>
+            <span class="tt-tok-sub">level 2 - Melee, Strike</span>
+            <span class="tt-tok-change">change...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tt-inputs-note">
+        <strong>losehitpoints</strong> declares five symbols in <code style="font-family:monospace;">TriggeredAbility.lua:176-201</code>. Each renders as a typed control. <code style="font-family:monospace;">damage</code> (number) is a slider, <code style="font-family:monospace;">damagetype</code> (text enum) is a dropdown seeded from the damage-types registry, <code style="font-family:monospace;">keywords</code> (set) is a toggleable chip row, <code style="font-family:monospace;">hasattacker</code> (boolean) is a segmented toggle, <code style="font-family:monospace;">attacker</code> (creature) is a pretend-token with a selector allowing swap to a real token in the scene or a stock "generic enemy / generic ally" template.
+      </div>
+
+      <div class="tt-result pass">
+        <div class="r-hdr"><span class="r-ic">OK</span>Trigger would activate</div>
+        <div class="r-line">Condition: <code>damage &gt;= 3 and damagetype is "slashing"</code></div>
+        <div class="r-line"><span class="dim">sub-condition 1:</span> <code>damage &gt;= 3</code> <span class="dim">with damage=8 =</span> <code>true</code> <span style="color:var(--green);">Pass</span></div>
+        <div class="r-line"><span class="dim">sub-condition 2:</span> <code>damagetype is "slashing"</code> <span class="dim">with damagetype=slashing =</span> <code>true</code> <span style="color:var(--green);">Pass</span></div>
+        <div class="r-line" style="margin-top:6px;">Behaviours that would run:</div>
+        <ul class="r-sublist">
+          <li>Deal <strong>3 damage</strong> to the attacker (Pretend Goblin)</li>
+        </ul>
+        <div class="r-disclaimer">Simulation only. No damage applied to Pretend Goblin, no resources spent, no state changed.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Variant C - same rich form, failing result ============ -->
+  <div class="tt-variant-label warn" style="margin-top:20px;color:var(--amber);">C. Fail result <span class="count" style="color:var(--amber);">same form, inputs that make the condition fail</span></div>
+  <div class="tt-card" style="margin-top:0;">
+    <div class="tt-header">
+      <div class="tt-title">Test This Trigger <span class="sub">Retribution Strike - showing failure diagnostics</span></div>
+      <button class="tt-run-btn">Run</button>
+    </div>
+    <div class="tt-body">
+      <div class="tt-section-label">Event Inputs</div>
+
+      <div class="tt-input-row">
+        <div class="tt-lbl">
+          Damage
+          <span class="tt-origin">symbol: damage (number)</span>
+        </div>
+        <div class="tt-ctl">
+          <input type="range" class="tt-slider" min="0" max="40" value="2">
+          <span class="tt-slider-val">2</span>
+        </div>
+      </div>
+
+      <div class="tt-input-row">
+        <div class="tt-lbl">
+          Damage Type
+          <span class="tt-origin">symbol: damagetype (text)</span>
+        </div>
+        <div class="tt-ctl">
+          <select class="tt-select">
+            <option>piercing</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tt-input-row" style="opacity:0.6;">
+        <div class="tt-lbl">
+          Keywords, Has Attacker, Attacker
+          <span class="tt-origin">(collapsed - not referenced by condition)</span>
+        </div>
+        <div class="tt-ctl">
+          <span style="color:var(--grey-mid);font-size:11px;font-style:italic;">auto-defaulted</span>
+        </div>
+      </div>
+
+      <div class="tt-result fail">
+        <div class="r-hdr"><span class="r-ic">!</span>Trigger would NOT activate</div>
+        <div class="r-line">Condition: <code>damage &gt;= 3 and damagetype is "slashing"</code></div>
+        <div class="r-line"><span class="dim">sub-condition 1:</span> <code>damage &gt;= 3</code> <span class="dim">with damage=2 =</span> <code>false</code> <span style="color:var(--amber);">Fail</span></div>
+        <div class="r-line"><span class="dim">sub-condition 2: short-circuited (and-chain stopped at first false)</span></div>
+        <div class="r-line" style="margin-top:6px;">First failing sub-condition: <code>damage &gt;= 3</code>. Required damage of at least 3, got 2.</div>
+        <div class="r-disclaimer">No behaviours previewed because the trigger would not activate. Adjust the damage input or the condition threshold to explore pass cases.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note-box" style="margin-top:20px;">
+    <strong>Design decisions visible in these variants:</strong>
+    <ul style="margin:6px 0 0 18px; padding:0; line-height:1.65;">
+      <li><strong>Typed controls, not raw inputs.</strong> Each symbol type maps to the right UI - slider for numbers, dropdown for text enums, chip row for sets, toggle for booleans, token picker for creature references. The author never types a number into a "damage" text box.</li>
+      <li><strong>Origin line under each label.</strong> The small grey line below each input label (<em>"symbol: damage (number)"</em>, <em>"pretend (used by Count Nearby Enemies)"</em>) tells the author where the input comes from and whether it's real event data or a substituted map-state value.</li>
+      <li><strong>Inputs referenced by the condition are foregrounded; inputs that aren't used are dimmed.</strong> See Variant C: the condition only uses <code style="font-family:monospace;">damage</code> and <code style="font-family:monospace;">damagetype</code>, so the other three inputs collapse to a one-line summary. Saves vertical space and tells the author "changing these wouldn't change the outcome".</li>
+      <li><strong>Pretend tokens are first-class.</strong> The <code style="font-family:monospace;">attacker</code> input in Variant B shows "Pretend Goblin" - a stock template with a keyword set and a level. Authors can swap to a real scene token, a stock template ("generic enemy", "generic ally", "generic minion"), or back to pretend. This matters for conditions that do keyword checks on the attacker (<code style="font-family:monospace;">Attacker.Keywords has "Melee"</code>).</li>
+      <li><strong>Failure diagnostics call out the first falsy sub-condition.</strong> In a long <code style="font-family:monospace;">A and B and C</code> chain, knowing which link broke is the answer the author actually needs. Variant C shows this: "First failing sub-condition: <code style="font-family:monospace;">damage &gt;= 3</code>. Required damage of at least 3, got 2."</li>
+      <li><strong>Pass result previews behaviour list with substituted values.</strong> Variant B's result lists "Deal 3 damage to the attacker (Pretend Goblin)" - substituting the actual attacker name into the behaviour preview. Makes the simulation feel concrete.</li>
+    </ul>
+  </div>
+
+  <div class="note-box" style="margin-top:-8px;">
+    <strong>What these variants still don't do</strong> (carried over from View 3's list, repeated here so the scope of the tool stays honest):
+    <ul style="margin:6px 0 0 18px; padding:0; line-height:1.6;">
+      <li>No real behaviour execution - the "Pretend Goblin" takes no damage.</li>
+      <li>No map geometry - adjacency, line of sight, cover, terrain are all "pretend" inputs.</li>
+      <li>No multi-trigger cascades - if the 3 damage would raise another losehitpoints event on the pretend goblin and trigger <em>its</em> reactions, that chain isn't followed.</li>
+      <li>No scenario persistence yet - close the editor and the test inputs reset. Adding a "pin this test case" option can come later if demand shows up.</li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+function switchView(id, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.vnav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+</script>
+
+</body>
+</html>

@@ -22,6 +22,22 @@ function ActivatedAbilityChangeTerrainBehavior:Cast(ability, casterToken, target
         return
     end
 
+    --record the terrain edits below into a revertible map modification record,
+    --grouped with any other map edits made by this cast. The terrain raster
+    --commits asynchronously; the engine keeps the recording alive until it lands.
+    local recordLoc = nil
+    if options.targetArea ~= nil then
+        recordLoc = options.targetArea.origin
+    else
+        for _,target in ipairs(targets) do
+            if target.loc ~= nil then
+                recordLoc = target.loc
+                break
+            end
+        end
+    end
+    ActivatedAbility.BeginMapModificationRecording(ability, casterToken, options, recordLoc)
+
     if options.targetArea ~= nil and (#targets <= 1 or options.targetArea.shape == "Cube" or options.targetArea.shape == "Line") then
         local points = {}
         local perim = options.targetArea.perimeter
@@ -42,6 +58,8 @@ function ActivatedAbilityChangeTerrainBehavior:Cast(ability, casterToken, target
         }
 
         ability:CommitToPaying(casterToken, options)
+
+        ActivatedAbility.EndMapModificationRecording()
 
         return
     end
@@ -78,6 +96,8 @@ function ActivatedAbilityChangeTerrainBehavior:Cast(ability, casterToken, target
             ability:CommitToPaying(casterToken, options)
         end
     end
+
+    ActivatedAbility.EndMapModificationRecording()
 end
 
 function ActivatedAbilityChangeTerrainBehavior:EditorItems(parentPanel)

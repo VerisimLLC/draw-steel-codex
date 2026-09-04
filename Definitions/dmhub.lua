@@ -1,11 +1,16 @@
 --- @class dmhub The main interface to dmhub.
 --- @field version string The current version of the DMHub engine.
 --- @field commandLineArguments string[] The command line arguments passed to the app.
+--- @field tokenAnimations any Registry of token animations. RegisterTeleport / RegisterDeath / RegisterTransformation register category-specific animation functions.
 --- @field systemHardwareRating number The power level of the system hardware. 1 or greater is a relatively high power system.
 --- @field gameLoadingProgress number Game loading progress. nil = not loading a game. 0 = just started loading, 1 = fully loaded.
 --- @field whiteLabel WhiteLabel The current 'white label' version of the engine this is. May be 'dmhub' or 'mcdm'
 --- @field whiteLabelEntityName string The name of the publisher of the product the engine is running as.
 --- @field whiteLabelAppName string The name of the app the engine is running as, suitable for showing to users.
+--- @field cloudFunctionsBaseUrl string Base URL for Firebase cloud functions for the current whitelabel project (e.g. https://us-central1-mcdm-385cf.cloudfunctions.net). Append the function name with a leading slash.
+--- @field platform string The platform the engine is running on. Returns 'windows', 'macOS', or 'linux'.
+--- @field applicationsFolder string The default operating-system folder where applications/executables live: the Program Files folder on Windows, /Applications on macOS, /usr/bin on Linux. Useful as a starting directory for a file dialog that browses for an executable.
+--- @field liveEditSessions {objid: string, name: string, imageId: string, changesPending: boolean}[]|nil The active image live-edit sessions, each as a table with 'objid' (the map object being edited), 'name' (a display label), 'imageId' (the live, updating image id, suitable as a thumbnail), and 'changesPending' (true once the external editor has saved a change that has not yet been uploaded). Returns nil when there are no active sessions.
 --- @field nodiagonals boolean If true, the game rules are set up to have no pythagorean theorem when calculating diagonals.
 --- @field betaBranch nil|string Which branch the app is opted-in to updating from. This is not relevant if the app is being updated from Steam, Itch, or similar.
 --- @field GetSelectedCharacters fun(): string[]|nil A function that can be set to tell the engine which characters are currently selected. Returns a list of token ids.
@@ -19,7 +24,7 @@
 --- @field SelectFloor fun(floorid: string): nil A function that can be set to select a floor asset by id in the UI.
 --- @field SelectWall fun(wallid: string): nil A function that can be set to select a wall asset by id in the UI.
 --- @field SelectEffect fun(effectid: string): nil A function that can be set to select an effect asset by id in the UI.
---- @field ObjectsSelected fun(objectids: string[]): nil A function that is called when objects are selected on the map, receiving a list of object ids.
+--- @field ObjectsSelected fun(objects: LuaObjectInstance[]): nil A function that is called when objects are selected on the map, receiving a list of object instances (see DMSheetHud.Update: each entry is a LuaObjectInstance with floorid/objid set). An empty list means the selection was cleared.
 --- @field GetLightingInfo fun(floorid: string): {cacheable: boolean, indoors: Color, outdoors: Color, illumination: number, shadow: {dir: Vector2, color: Color} } A function that can be set to tell the engine what the current lighting looks like. It will be called every frame to set the lighting.
 --- @field ObjectEditingEnabled fun(): boolean A function that returns whether object editing mode is currently enabled in the UI.
 --- @field SelectionToolEnabled fun(): boolean A function that returns whether the selection tool is currently enabled in the UI.
@@ -59,10 +64,25 @@
 --- @field GetSelectedEncounter fun(): {groups = table<string,number>[]}|nil A function that can be set to tell the engine which encounter is currently selected. The selected encounter should be deployable onto the map.
 --- @field CreateAuraComponent fun(): table A function that creates an aura component to attach to an object.
 --- @field ObjectDirectImport fun(string, vector3): nil A function that is called when we directly import an object.
+--- @field LiveEditSessionsUpdated fun(): nil A function that is called when the set of active image live-edit sessions changes, or when a session's state changes (a change was detected, uploaded, reverted, or closed).
+--- @field PromptImageEditorSetup fun(floorid: string, objid: string): nil Called when a live-edit is requested but the user's image editor isn't set up yet (first use) or the configured editor can't be found. The handler should show the image-editor setup UI, then call dmhub.StartLiveEditForObject(floorid, objid) once the user confirms.
+--- @field GetBuildingSolid fun(): boolean Editor callback function: whether the building tool is in Solid draw mode (walls plus a floor rendered at the top of the wall height, forming a solid block).
+--- @field GetWallPointsInvisibleOnly fun(): boolean Editor callback function: whether the wall Edit Points tool should restrict itself to walls with invisible assets. Set by the Map Markup panel while it drives the tool, so vertex editing from markup cannot disturb visible art walls.
+--- @field GetMarkupZones fun(): {panelOpen: boolean, terrainZones: boolean, footstepsMode: boolean, wallsMode: boolean, elevationMode: boolean, revision: number, zones: {locs: Loc[], color: string, angleRadians: number, label: string, labelIcon: string|nil, playerVisible: boolean, difficultTerrain: boolean, water: boolean, concealment: boolean, floorIndex: number}[]}|nil Editor callback function: the Map Markup panel's zone overlay feed. Returns the markup zones to render as diagonal stripes + labels on the tile height overlay, or nil for none. The feed should already have filtered the zones by the user's per-zone-type visibility preferences - the engine renders whatever arrives (player clients additionally only render zones with playerVisible set). revision must change whenever the zone data changes (or the returned list is swapped) so the overlay mesh rebuilds. panelOpen forces the wall cover lines on regardless of the mapoverlay:walls preference; wallsMode (Walls tab) additionally forces the solid-block interiors; elevationMode (Elevation tab) forces the height contours + number labels regardless of mapoverlay:elevation; terrainZones (Zones tab) forces all four built-in terrain-rule stripe types regardless of the mapoverlay:shownbuiltins preference; footstepsMode instead restricts the built-in terrain-rule stripes to WATER ONLY (set while the Footsteps tab is open, when the feed returns the footstep-surface regions - plus any water rules zones - instead of the full rules zones; water stays visible because water tiles play water sounds over painted footstep surfaces). labelIcon is an optional icon id (e.g. 'phosphor/footprints-fill.png') drawn beside the zone's label, tinted like the label text.
+--- @field GetMapAuras fun(): AuraInstance[]|nil Callback function: map-level aura instances (e.g. markup zones) to register with the aura system, re-polled on every aura rebuild. Each entry must be an AuraInstance whose GetArea() returns a shape (use dmhub.CalculateShape{shape='locations'} for arbitrary tile sets). Call dmhub.RefreshMapAuras() after changing the underlying data to force a rebuild.
+--- @field GetObjectEditingFilter fun(): string|nil Editor callback function: keyword filter for markup-prop editing. When this returns a keyword, objects whose Core keywords include it are shown (even locked, invisible-to-players ones, DM only) and become the only objects the mouse can select or drag - locked filtered objects drag as if unlocked, and everything else on the map is inert to object selection. The Map Markup panel's Props tab sets this while it has focus. Return nil for normal object interaction rules.
+--- @field ObjectPanelOpen fun(): boolean A function that returns whether the Objects panel is currently open and on screen, regardless of whether it holds UI focus. This drives the object wiring overlay (the trigger/action plug icons drawn on the map); ObjectEditingEnabled, which is focus-derived, still governs object editing mode itself.
+--- @field supportsObjectEditingFilter boolean True when this engine build honors the dmhub.GetObjectEditingFilter callback (markup-prop keyword filtering of object visibility, selection and dragging). Callers must gate on this: on older builds the callback is accepted but never polled, so filtered props would be placed but stay invisible and unselectable.
+--- @field supportsMarkupHoles boolean True when this engine build supports markup Hole zones: map auras whose AuraInstance reports GetHole() cut a real hole in the map (tile rules, fall-through map geometry, and the excavation visual). Callers must gate hole painting on this; on older builds the aura registers but no hole appears.
 --- @field tokensLoggedInAs nil|string[] If the GM is forcibly logged in as a token or set of tokens so they can view through their eyes, this returns a list of the token ids that the GM is logged in as.
 --- @field tokenVision nil|string[] If the GM is viewing token vision this is equal to a list of the tokenids whose vision the GM is seeing through.
 --- @field blockTokenSelection boolean Whether token selection via clicking is currently blocked.
 --- @field tokenInfo SheetHud The SheetHud instance that displays token information in the UI.
+--- @field markupZonesSeq number A sequence number that increments whenever any floor's markup zone records change, locally or remotely. Poll it to invalidate caches built from floor.markupZones.
+--- @field supportsDynamicLightZones boolean (read-only) True on engine builds that support dmhub.GetDarkTiles (deterministic map light sampling for dynamic-light markup zones). Probe this before calling it: on older builds unknown dmhub properties read as nil.
+--- @field popoutChildWindowsSupported boolean (read-only) True when the live popout companion process has advertised support for desktop-level child surfaces (tooltip/popup-menu/modal-child native windows parented to a popout window via panel:MoveToNativeWindow{windowType=..., parentPanel=...}). Gate any child-surface promotion on this: false means an old companion (or none attached yet), and promotion must fall back to today's in-window behavior. On older engine builds unknown dmhub properties read as nil, which is equally falsy.
+--- @field popoutCustomTitleBarSupported boolean (read-only) True when the live Windows popout companion advertises support for borderless normal windows whose title bars are rendered in Lua. A custom-titlebar panel should stay collapsed until this becomes true; old companions ignore the creation flag and retain their native frame.
+--- @field supportsPopoutTooltipPlacement boolean (read-only) True on engine builds where popout-panel tooltip placement is mirror-correct: panel.distancesToScreenEdge returns true WINDOW pixels with correct left/right sides for panels in popout windows, and tooltip promote-on-overflow places the child window at visually-correct offsets. Gate SideTooltip-style popout placement (window-edge x offsets) on this AND popoutChildWindowsSupported; on older builds the values are screen-scaled and horizontally mirrored.
 --- @field diagnosticStatus string (read-only) The most important diagnostic message to display to the user currently, or an empty string if there is none.
 --- @field status string (read-only) A general status message that describes the mouse's position in world space and information about the tile the user is pointing at, such as its terrain type and position.
 --- @field uploadQuotaTotal number The amount of data this user can upload each month, in bytes.
@@ -86,6 +106,11 @@
 --- @field floorid string (read-only) the id of the current floor.
 --- @field isGameOwner boolean (read-only) true if the current user has ownership privileges in the game.
 --- @field isDM boolean (read-only) true if the current user has GM status in the game.
+--- @field isDMOrPlayerHost boolean (read-only) true if the current user has GM status in the game OR is a player host (see dmhub.playerHostMode). Read this instead of dmhub.isDM at sites that need hosting capability (running game setup, the Monster AI, host-only writes) rather than the Director experience.
+--- @field directorlessGame boolean (read-only) true if this game is directorless -- nobody plays the Director. A property of the GAME (set when it is created), so it is the same for every client and is already true when the game loads. In such a game the host's machine keeps real hosting authority (dmhub.isDMOrPlayerHost) while their user is presented and treated as a player (see dmhub.playerHostMode).
+--- @field playerHostMode boolean (read-only) Player-host mode: true when this is a directorless game AND this client has real hosting status. dmhub.isDM reads false here (player vision, rules enforcement, player UI) while dmhub.isDMOrPlayerHost keeps reporting the real hosting status. Derived from the game record, so it is correct from load with no arming step -- set GameInfo.directorless at creation (lobby:CreateGame{directorless = true}) rather than switching it on in-session. To let one client act as Director anyway for debugging, see dmhub.playerHostModeSuppressed.
+--- @field playerHostModeSuppressed boolean Debug/recovery escape hatch: while true, THIS client acts as the Director in a directorless game instead of as a player host. Client-only and session-scoped -- it does not touch the game record, so no other player is affected. Changing it flips dmhub.isDM, which forces the same full view-as-player refresh the Director's 'view as player' command uses, so expect the game to reload; it is a debugging action, not a normal-play one. Setting it has no effect (and causes no refresh) in a game that is not directorless.
+--- @field tooltipsSuppressed boolean Tooltip Suppression Mode: while true, no tooltip is displayed anywhere on this client -- panel hover tooltips, map/tile tooltips, and the token-drag movement tooltip (and with it the movement cross-section diagram it carries). Any tooltip already on screen is dismissed the moment this is set. Client-only and session-scoped: it lives on the game session, so leaving the game always restores tooltips even if a mod forgets to clear it. Prefer the core codex wrapper GameHud.SetTooltipsSuppressed(key, value), which also stops the cross-section diagram being rendered at all and lets several mods hold the suppression independently.
 --- @field inGame boolean (read-only) true if we are currently in-game
 --- @field isLobbyGame boolean (read-only) true if in lobby
 --- @field gameid string (Read-only) The gameid of the current game.
@@ -94,7 +119,13 @@
 --- @field connectionErrorStatus any The current connection error status, if any. Used to display connection issues to the user.
 --- @field writeErrors any A list of failed and unconfirmed write receipts that haven't been acknowledged. Each entry is a WriteReceipt with path, method, failureReason, isFailed, isUnconfirmed, and acknowledged fields.
 --- @field pendingWriteCount number The number of writes currently pending (in-flight to the cloud).
+--- @field durableObjectSeq number Latest sequence number stamped by the Durable Object game server on inbound messages. The DO resets this counter to 0 on every cold start/hibernation wake. Returns 0 if the current game is not DO-backed or no seq has been received yet.
+--- @field gameServerConnected boolean True when the connection to the game server is healthy. Firebase-backed games always report true; WebSocket-backed games reflect the live socket state -- false while disconnected or mid-reconnect.
 --- @field patronTier number The Patreon tier level of the current user. 0 means not a patron.
+--- @field patreonUserId string The Patreon user id linked to this account, or nil if no Patreon account is linked. Mirrored live from /Patrons, so it is available immediately with no round trip. Use this -- NOT patronTier -- to tell whether a Patreon account is linked: patronTier is a hardcoded 3 on MCDM white-label builds.
+--- @field patreonOrgEntitlements {orgid: string, entitled: boolean, active: boolean, cents: number, campaignId: string}[] A list of the creator organizations this account has Patreon entitlements to, each {orgid, entitled, active, cents, campaignId}. Mirrored live from /Patrons, so it updates within seconds of the user pledging -- no refresh call needed. Gate on `entitled`, not `active`: a lapsed patron of an org whose creator chose to let entitlements persist keeps entitled = true. Empty if no Patreon is linked.
+--- @field patreonLinkedAt number Unix timestamp in milliseconds of when this account's Patreon was linked, or 0 if it is not linked.
+--- @field patreonPledgeTier number The raw Patreon tier recorded for this account (0-4), ignoring the MCDM white-label override that makes patronTier always report 3. DMHub campaign only: this is the DMHub Patreon's patron ladder and says nothing about whether the user is a patron of any creator organization in the app -- for that, use patreonOrgEntitlements / IsEntitledToOrg. A user can be tier 4 here with no MCDM membership at all, and vice versa. Use for reporting the user's actual DMHub pledge; use patronTier to gate features.
 --- @field subscriptionTier number The subscription tier level of the current user. 0 means no subscription.
 --- @field isAdminAccount boolean True if the current user has admin privileges on their account.
 --- @field hasStoreAccess boolean (Read-only) controls whether there is a store in this version of the app.
@@ -113,8 +144,15 @@
 --- @field tokenHovered nil|CharacterToken (Read-only) Gets the currently hovered token, or nil if there is none.
 --- @field modKeys @return {ctrl: nil|boolean, alt: nil|boolean, shift: nil|boolean} Returns which mod keys are currently depressed.
 --- @field mouseWheel @return number Returns a positive or negative number if the mousewheel has been moved this frame, based on the direction. Returns 0 if the mousewheel has not been moved this frame.
+--- @field harnessMode @return nil|string (Read-only) The test-harness name passed via --harness on the command line, or nil when not launched in harness mode. Dev builds only. See TEST_HARNESS_PLAN.md.
+--- @field harnessArgs @return nil|string (Read-only) The raw string passed via --harness-args on the command line, or nil. Interpretation (typically JSON) is up to the Lua harness.
 --- @field screenDimensions Vector2 (Read-only) The current screen dimensions in pixels as a Vector2 (width, height).
 --- @field screenDimensionsBelowTitlebar Vector2 (Read-only) The screen dimensions in pixels below the title bar as a Vector2 (width, height).
+--- @field cursorIds string[] (Read-only) The ids of the registered mouse cursors, as an array of strings. Useful to feature-detect a cursor id before using it in hoverCursor: assigning an id not in this list silently falls back to the default cursor.
+--- @field cameraPosition Vector2 (Read-only) The camera's center position in world coordinates as a Vector2 (x, y). This is the point in the game world that the camera is looking at.
+--- @field cameraZoom number (Read-only) The camera's orthographic size (half the visible height in world units). Smaller values mean more zoomed in. The full visible height is cameraZoom * 2.
+--- @field cameraBounds {x1: number, y1: number, x2: number, y2: number} (Read-only) The visible area of the screen in world coordinates as a table {x1, y1, x2, y2} where (x1,y1) is the bottom-left corner and (x2,y2) is the top-right corner.
+--- @field cameraUsableBounds {x1: number, y1: number, x2: number, y2: number} (Read-only) The usable visible area (excluding HUD docks) in world coordinates as a table {x1, y1, x2, y2}. This is the 'world' area between the left and right docks.
 --- @field uiVerticalScale number (Read-only) The vertical scale factor of the UI compared to a reference 1920x1080 resolution.
 --- @field uiVerticalScaleBelowTitleBar number (Read-only) The vertical scale factor of the UI below the title bar compared to a reference 1920x1080 resolution.
 --- @field uiscale number (Read-only) the amount the ui is being scaled by horizontally.
@@ -122,6 +160,7 @@
 --- @field serverTimeMilliseconds number (Read-only) The server time in milliseconds. Server time is designed to be the same (or at least as close as possible) across all computers connected to the game.
 --- @field infoBubbles table<string, InfoBubbleHudLua> (Read-only) The info bubbles available on the current map.
 --- @field initiativeQueue nil|InitiativeQueue The initiative queue. Note: check to make sure it's not nil and that the hidden member isn't set to check if initiative is active.
+--- @field companionChannel CompanionChannelLua The Codex <-> Companion channel: send events/requests to, and receive them from, the desktop Companion windows.
 --- @field inCharacterSheet boolean If the player is viewing their character sheet.
 --- @field useParallax boolean (Read-only) if true the app is using parallax features.
 --- @field parallaxRatio number The current parallax ratio the game is using.
@@ -129,11 +168,64 @@
 --- @field inCoroutine boolean Returns true if we are currently running in a coroutine.
 --- @field PlaceholderNil any A stand-in for nil when we want to put it in a table.
 --- @field debugPropertyOutput string Engine debugging and performance information.
+--- @field mergedTitleBarAvailable boolean True when this platform supports merging the native title bar into the app's own bar (Windows standalone). Gate all merged-title-bar UI on this.
+--- @field titleBarChromeMode string Which merged-title-bar implementation is active: 'nccalcsize' (keep the captioned window style, reclaim the caption's pixels via WM_NCCALCSIZE -- the default) or 'strip' (legacy WS_CAPTION removal). 'unsupported' where merging is unavailable.
+--- @field windowMaxButtonState string Interaction state of the native maximize-button zone registered via SetTitleBarHitRegions: 'none', 'hover' or 'pressed'. The engine fires the 'windowMaxButtonState' global event when this changes; read it there to drive the control's hover/press visuals, since the app's gui never receives mouse events over a native zone.
+--- @field windowMaximized boolean True while the application window is maximized. Use to choose between the maximize and restore glyphs.
+--- @field supportsWorldDistortions boolean (read-only) True on engine builds that support dmhub.CreateWorldDistortion and WorldDistortionHandleLua.
+--- @field supportsParticleSystems boolean (read-only) True on engine builds that support dmhub.CreateParticleSystem and ParticleSystemHandleLua.
 dmhub = {}
 
 --- TestFunction
 --- @return number
 function dmhub.TestFunction()
+	-- dummy implementation for documentation purposes only
+end
+
+--- DetectImageEditors: Returns the image-editing applications detected as installed on the user's machine, each as a table with 'name' (friendly display name) and 'path' (full path to the executable on Windows, or the .app bundle on macOS), sorted by name. Detection works on Windows (via the registry uninstall and 'App Paths' keys) and macOS (by scanning /Applications and ~/Applications for known editor bundles); Linux returns an empty list. Intended to populate an editor chooser so the user can pick an installed editor without browsing for it.
+--- @return {name: string, path: string}[]
+function dmhub.DetectImageEditors()
+	-- dummy implementation for documentation purposes only
+end
+
+--- UploadLiveEditChanges: Uploads the pending changes for the given live-edit session (an object id, or a generic session id from dmhub.StartLiveEditImage). The session stays active so further edits can be made.
+--- @param objid string
+--- @return nil
+function dmhub.UploadLiveEditChanges(objid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RevertLiveEditChanges: Aborts the given live-edit session (an object id, or a generic session id from dmhub.StartLiveEditImage), restoring the original image and discarding all changes made during the session.
+--- @param objid string
+--- @return nil
+function dmhub.RevertLiveEditChanges(objid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CloseLiveEditSession: Closes the given live-edit session (an object id, or a generic session id from dmhub.StartLiveEditImage), keeping the most recently uploaded image (or the original if nothing was uploaded).
+--- @param objid string
+--- @return nil
+function dmhub.CloseLiveEditSession(objid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- StartLiveEditForObject: Starts a live-edit session for the object with the given floor/object id. Used by the image-editor setup prompt to begin live editing once the user has chosen an editor.
+--- @param floorid string
+--- @param objid string
+--- @return nil
+function dmhub.StartLiveEditForObject(floorid, objid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ImageEditorNeedsSetup: Whether the user still needs to set up their image editor before live editing (true on first use, or when the configured editor can't be found). Use this to decide whether to show the editor-setup prompt (dmhub.PromptImageEditorSetup) before starting a custom live-edit session via dmhub.StartLiveEditImage.
+--- @return boolean
+function dmhub.ImageEditorNeedsSetup()
+	-- dummy implementation for documentation purposes only
+end
+
+--- StartLiveEditImage: Starts a generic live-edit session on the image with the given id ('guid'), opening it in the configured external editor and listing it in the live-edit dialog alongside object sessions. 'name' is the dialog label. When the user clicks Upload Changes, the edited image is uploaded and 'commit' is called with the new raw image id (prefix it with 'md5:' to use as a bgimage); the session stays active so further edits can be made. 'revert' (optional) is called when the user reverts (use it to restore the original image); 'close' (optional) when they close the session. 'id' optionally sets a stable session id (defaults to a fresh guid). Does nothing if the image cannot be opened for editing. Check dmhub.ImageEditorNeedsSetup() first and show dmhub.PromptImageEditorSetup if needed.
+--- @param options {guid: string, name: nil|string, id: nil|string, commit: fun(newImageId: string), revert: nil|fun(), close: nil|fun()}
+function dmhub.StartLiveEditImage(options)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -160,6 +252,13 @@ end
 --- @param instanceGuid string
 --- @return nil
 function dmhub.UnloadMod(instanceGuid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClipPolygons: Performs a polygon boolean operation (Clipper, even-odd fill -- the same library the floor editing pipeline uses). Each subject/clip polygon is either a flat {x1,y1,x2,y2,...} ring or a structured {points = ring, holes = {ring,...}} table; coordinates are in whatever space the caller uses (e.g. tile coordinates) and come back in the same space. operation defaults to 'difference' (subjects minus clips). Returns a list of structured {points, holes} polygons; islands nested inside holes come back as separate entries.
+--- @param args {subjects: (number[]|{points: number[], holes: number[][]})[], clips: (number[]|{points: number[], holes: number[][]})[], operation: nil|"difference"|"intersection"|"union"|"xor"}
+--- @return {points: number[], holes: number[][]}[]
+function dmhub.ClipPolygons(argsVal)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -235,6 +334,19 @@ function dmhub.InvalidateTokenUI()
 	-- dummy implementation for documentation purposes only
 end
 
+--- RefreshMapAuras: Requests a rebuild of the aura index (object auras, creature auras, and the map auras polled from dmhub.GetMapAuras), and refreshes creature state that depends on it. Call after changing the data behind dmhub.GetMapAuras (e.g. markup zone edits).
+--- @return nil
+function dmhub.RefreshMapAuras()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetDarkTiles: Deterministic gameplay light sampling: returns the candidate tiles whose computed light level is below threshold (0..1). A tile's level is the MAX of the floor's indoor/outdoor ambient and the strongest single light reaching it (token settings lights, token Lua/wielded lights, object Light components; falloff to zero at each light's radius; shadowed by light-blocking walls and object occlusion), MINUS the strongest Darkness component reaching it (clamped at 0), with magical light then applied as a floor so it shines through darkness -- deliberately not the renderer's additive composition, which saturates at 1.0 and makes tiles threshold-immune. All animation (flicker, fades, transient light effects) is excluded so every client computes the same answer. Candidates come from either the inclusive tile rect x1,y1..x2,y2 or a flat interleaved locs array {x1,y1,x2,y2,...}. Returns {state=<hash string>, locs=<flat interleaved dark tiles>}, or nil when the result's state equals knownState (poll cheaply by passing the last state back). levels=true adds levels=<each candidate's light level 0..1, candidate order> and always returns a result (debug readout). Tokens hidden from players never contribute light (players' clients cannot see them); light-source OBJECTS contribute even when their gizmo sprite is player-invisible, matching the renderer.
+--- @param args {floorIndex: number, threshold: number, x1: number|nil, y1: number|nil, x2: number|nil, y2: number|nil, locs: number[]|nil, knownState: string|nil, levels: boolean|nil}
+--- @return nil|{state: string, locs: number[], levels: number[]|nil}
+function dmhub.GetDarkTiles(args)
+	-- dummy implementation for documentation purposes only
+end
+
 --- GetWorldSpacePanel: Gets a UI container suitable for putting a UI into for the given floor. panelid is a unique id you can provide for your interface name.
 --- @param floorid string
 --- @param panelid string
@@ -247,6 +359,55 @@ end
 --- @param options {path: string[], threshold: number|nil, breakup: boolean|nil}
 --- return ObjectImportLua
 function dmhub.CreateObjectImporter(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- BeginBugReport: Captures a screenshot of the current frame and begins a new bug report. The callback is invoked with a BugReport object once the screenshot has been captured. Call this before showing any bug report dialog so the screenshot shows the screen as the user saw it.
+--- @param callback fun(report: BugReport)
+function dmhub.BeginBugReport(callback)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetSurvey: Reads the user survey definition from the cloud and calls callback(survey, error). survey is a table with id, title, intro, completedMessage, thanks, and a questions list (each with id, type ('rating', 'select', 'multiselect' or 'text'), prompt and type-specific fields), or nil if no survey is published. error is nil on success.
+--- @param callback fun(survey: nil|table, error: nil|string)
+function dmhub.GetSurvey(callback)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetSurveyResponse: Reads the local user's survey response record from the cloud and calls callback(response, error). response is nil if the user has not completed the survey; otherwise a table with surveyId and answers (keyed by question id). error is nil on success.
+--- @param callback fun(response: nil|table, error: nil|string)
+function dmhub.GetSurveyResponse(callback)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SubmitSurveyResponse: Uploads the local user's survey response, replacing any previous response. answers is a table keyed by question id; surveyId records which survey revision was answered. The record is stamped with the userid, app version, platform and server timestamp. complete is called on success; error is called with a message on failure (after which it may be called again).
+--- @param options {surveyId: nil|string, answers: table, complete: nil|fun(), error: nil|fun(message: string)}
+function dmhub.SubmitSurveyResponse(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetMyTickets: Reads the local user's bug tickets from the cloud and calls callback(tickets, error). tickets is a table keyed by reportId (nil when the user has none); each ticket has reportId, title, status ('open' or 'closed'), createdAt/updatedAt/userSeenAt (epoch ms), lastDevMessageAt (epoch ms, present once a developer has responded) and messages (a table of {from ('user' or 'dev'), name (dev messages), text, timestamp} keyed by a chronologically sortable string). A developer response the user has not viewed yet is indicated by lastDevMessageAt > userSeenAt. error is nil on success.
+--- @param callback fun(tickets: nil|table, error: nil|string)
+function dmhub.GetMyTickets(callback)
+	-- dummy implementation for documentation purposes only
+end
+
+--- AddTicketMessage: Appends a message from the local user to one of their bug tickets (see GetMyTickets). complete is called on success; error is called with a message on failure (after which it may be called again).
+--- @param options {reportId: string, text: string, complete: nil|fun(), error: nil|fun(message: string)}
+function dmhub.AddTicketMessage(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- MarkTicketSeen: Records that the local user has viewed the given bug ticket, clearing its 'developer responded' marker. Fire-and-forget.
+--- @param reportId string
+--- @return nil
+function dmhub.MarkTicketSeen(reportId)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetTicketStatus: Closes or reopens one of the local user's own bug tickets (see GetMyTickets). status must be 'closed' or 'open'. A ticket the user closed themselves is marked with closedBy = 'user'; reopening clears that. complete is called on success; error is called with a message on failure (after which it may be called again).
+--- @param options {reportId: string, status: string, complete: nil|fun(), error: nil|fun(message: string)}
+function dmhub.SetTicketStatus(options)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -270,12 +431,11 @@ function dmhub.ParseJsonFile(path, errorCallback)
 	-- dummy implementation for documentation purposes only
 end
 
---- OpenTextFileInConnectedEditor: Opens a text file in the user's default editor and watches for changes. Returns a file watcher object, or nil if the filename is invalid.
---- @param filename string The filename to create and open.
+--- OpenTextFileInConnectedEditor: During a native user action, opens an engine-owned temporary .txt file in the user's default text editor and watches for changes. Lua cannot choose the path or extension. Returns a file watcher object, or nil if the request is rejected.
 --- @param contents string The initial contents to write to the file.
 --- @param callback fun(newContents: string): nil Called when the file is modified externally.
 --- @return LuaFileWatcher|nil
-function dmhub.OpenTextFileInConnectedEditor(filename, contents, callback)
+function dmhub.OpenTextFileInConnectedEditor(contents, callback)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -311,6 +471,33 @@ function dmhub.ParseDocxFile(path, errorCallback)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetTileRulesAtLoc: Returns the tile game rules at the given location, or nil if the location has no terrain. This includes rules from auras with forced game rules.
+--- @param loc Loc The location to query.
+--- @return nil|TileGameRules
+function dmhub.GetTileRulesAtLoc(loc)
+	-- dummy implementation for documentation purposes only
+end
+
+--- IsLocDifficultTerrain: Returns true if the given location is difficult terrain. Checks both tile rules and auras.
+--- @param loc Loc The location to query.
+--- @return boolean
+function dmhub.IsLocDifficultTerrain(loc)
+	-- dummy implementation for documentation purposes only
+end
+
+--- IsLocInVision: Returns true if the given location is currently inside the local viewer's vision. Always true for DM vision (including the DM not impersonating a player). Tests the same vision meshes that fog of war renders.
+--- @param loc Loc The location to query.
+--- @return boolean
+function dmhub.IsLocInVision(loc)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetBuiltinTerrainTypesOnMap: Scans the current map's visible floors for built-in terrain rules granted by the terrain tiles themselves - EXCLUDING additive aura contributions such as markup zones - and returns which of the four rule types are present anywhere. Non-DM viewers only scan tiles currently inside their vision. Used by the map overlay menu to list built-in terrain types distinct from the defined zone types.
+--- @return {water: boolean, difficultTerrain: boolean, concealment: boolean, climbable: boolean}
+function dmhub.GetBuiltinTerrainTypesOnMap()
+	-- dummy implementation for documentation purposes only
+end
+
 --- FillTerrain: Sets the terrain background of the current map. Passing in nil will clear the background.
 --- @param terrainid: string|nil
 function dmhub.FillTerrain(terrainid)
@@ -325,9 +512,118 @@ function dmhub.SetMapTool(toolInfo)
 	-- dummy implementation for documentation purposes only
 end
 
---- SaveImageDialog: Open a system file dialog inviting the user to save a file as an image. The named texture will be saved.
---- @field options {texture: string, error: (fun(message: string): nil)}
+--- SaveImageDialog: Open a system file dialog inviting the user to save a file as an image. The named texture will be saved as a PNG. The texture can be any image id resolvable by the UI (e.g. "#MapExport" or a "#PDF:docid|page" page render); both RenderTexture and Texture2D backed images are supported. filename is the default filename offered in the dialog. error is called with a message if the texture is not available or cannot be saved.
+--- @field options {texture: string, filename: string|nil, error: (fun(message: string): nil)|nil}
 function dmhub.SaveImageDialog(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SaveFileDialog: Opens a system file dialog inviting the user to save a file, then writes the given data to the chosen path. data is either a LuaByteArray (e.g. from PDFDocument:FillForm) or a string (written as UTF-8, e.g. JSON from dmhub.ToJson). filename is the default filename offered in the dialog; extensions lists the allowed file extensions (defaults to the filename's extension). callback is called with the saved path, or nil if the user canceled.
+--- @param options {data: LuaByteArray|string, filename: string, extensions: nil|string[], title: nil|string, message: nil|string, callback: nil|fun(path: nil|string)}
+function dmhub.SaveFileDialog(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetLoadedTextures: Developer texture browser: returns a report of all textures currently held by the ImageManager cache, sorted largest-footprint first. Shape: { budgetMegapixels=<GC budget>, summary={count, megapixels, vramMB, sysMB, totalMB, compressed, uncompressed, readable, pinned, video}, textures={ {id, trace, width, height, format, compressed, readable, pinned, liveedit, lowdef, video, status, idleSeconds, mips, vramBytes, sysBytes, totalBytes, megapixels}, ... } }. trace is the dev-mode-captured C#+Lua call stack that first requested the image (empty unless dev mode was on at load time). sysBytes is the system-memory copy and is always 0 -- textures are GPU-only (non-readable); vramBytes is the estimated GPU footprint from format+dimensions+mips; totalBytes = vram + sys (so == vram). Backs the TextureBrowser dev tool.
+--- @return any
+function dmhub.GetLoadedTextures()
+	-- dummy implementation for documentation purposes only
+end
+
+--- FindImageUsage: Developer texture browser: given an image id, scans live game objects -- character tokens (portrait/frame/ribbon/background), placed map objects, and UI panels (bgimage) -- and returns an array of usage entries describing where the image is currently in use. Token entries are { kind='token', charid, slot, onmap } (pass charid to dmhub.FocusToken to jump to it); object/panel entries are { kind='object'|'panel', label }. Complements the load trace (call stack at load time) with a 'who references this right now' answer. Resolves asset GUIDs / md5: / thumb: refs to the canonical image key before matching.
+--- @param imageid string
+--- @return any
+function dmhub.FindImageUsage(imageid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- FocusToken: Developer helper (TextureBrowser usage scan): if the live token with the given id is on the current map, pan the camera to it; pulse-highlight it; and -- when controllable -- select it. Lets you jump to a token surfaced by FindImageUsage.
+--- @param charid string
+--- @return nil
+function dmhub.FocusToken(charid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetImageAssetOptimizeInfo: Developer texture browser (phase-1 image optimize): reports whether the image with the given md5 is backed by editable current-game ImageAssets that can be safely rescaled. Returns { width, height, assets={ {guid, name, type}, ... } } -- only ObjectAsset/GenericImageAsset in the editable store are included (dimension-sensitive types and read-only Core assets are excluded). width/height are the asset's recorded source dimensions (0 if unknown).
+--- @param imageid string
+--- @return any
+function dmhub.GetImageAssetOptimizeInfo(imageid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- OptimizeImageAsset: Developer texture browser (phase-1 image optimize): rescales the image with the given md5 to targetWidth x targetHeight (snapped to multiples of 4), uploads it as a new content-addressed image, then repoints + re-saves every editable ObjectAsset/GenericImageAsset that referenced the old image (and reloads their sprites). Source pixels are read from the on-disk cache. Returns { ok, error, newid, count }. WRITES TO THE CLOUD -- call only on a deliberate user action.
+--- @param imageid string
+--- @param targetWidth number
+--- @param targetHeight number
+--- @return any
+function dmhub.OptimizeImageAsset(imageid, targetWidth, targetHeight)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetImageAssetImage: Repoints the editable image asset with the given asset id at a newly committed image (imageid), persisting the change to the editable asset store and refreshing the asset's sprite. Used by the IconEditor live-edit feature to commit an 'edit in place': the asset keeps its id but now references the new image, so every use of it updates. Only the plain image-container types (ObjectAsset / GenericImageAsset) are repointed -- dimension-sensitive types (tilesheets/walls/atlases) are left untouched. Returns true if such an asset was found and repointed; false otherwise (e.g. the id is a raw image id rather than an asset, or the asset is read-only).
+--- @param assetid string
+--- @param imageid string
+--- @return boolean
+function dmhub.SetImageAssetImage(assetid, imageid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DumpWallSorting: Diagnostic: logs the sorting layer/order of every WallMesh (including sprite-stack children) and every CharacterToken, plus the wall height fraction and the token's flying altitude. Used to debug flying-token vs wall draw-order problems (the 'Set Wall Height' feature sorts flying tokens into the WallsParallax band between wall layers). Reusable tool.
+--- @return nil
+function dmhub.DumpWallSorting()
+	-- dummy implementation for documentation purposes only
+end
+
+--- DebugTokenVisibility: Diagnostic: explains why the token whose name or charid contains the search string is or isn't visible. Logs the target's visibility state (canSee, vision-loc set membership, shader vision-min) and a verbose line-of-sight replay from every token that has line-of-sight data, showing the matched vision sweep entry and its wall height. Used to debug seeing tokens over height-limited walls. Call with an empty string to list all tokens. Reusable tool.
+--- @param search string
+--- @return nil
+function dmhub.DebugTokenVisibility(search)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DumpDiceBillboards: Diagnostic: logs the billboard-glow state of every DiceController currently in the scene (live rolls, dock/cage preview dice, the shop/studio preview scenes) plus the dice camera + composite setup. Per die: the authored StudioDiceInfo billboard fields, any dice-script overrides, the effective enabled/active decision, image resolution status, die fade, and the live child renderer's enabled/layer/queue/transform. Used to tell 'the billboard never turns on' apart from 'it renders into the dice RT but is lost at composite'. Reusable tool.
+--- @return nil
+function dmhub.DumpDiceBillboards()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetDiceCompositeDebug: Diagnostic: switches the dice composite (the DiceRawImageShader drawing the dice RenderTexture over the UI, live + panel-embedded dice alike) into a debug view. 0 = normal; 1 = show the RT's ALPHA channel as opaque grayscale (what coverage the dice/glow actually wrote); 2 = show the RT's RGB with alpha forced opaque (what color is in the texture before the composite multiplies it by coverage -- the rest of the screen goes black). Used to diagnose dice elements that render into the RT but vanish at composite, e.g. glows over the transparent background. Reusable tool.
+--- @param mode number
+--- @return nil
+function dmhub.SetDiceCompositeDebug(mode)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DumpFloorVisionDiag: Diagnostic: dumps a floor's camera/RT/overlay wiring to the console and optionally saves the floor's vision/lighting/world RenderTextures as PNGs into dir (pass '' to skip). Reports every camera under the floor's FloorLightingCameraInstance (active, enabled, target texture identity, and a render ticker showing whether it rendered this frame), the composite overlay quad's material texture bindings (to catch a quad displaying a stale/different RT than the camera writes), and every LightingMesh on the floor (lights, wall segment counts, mesh bounds, cache anchors). Built for the camera-dependent black-canopy investigation. Reusable tool.
+--- @param floorIndex number
+--- @param dir string
+--- @return nil
+function dmhub.DumpFloorVisionDiag(floorIndex, dir)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DumpRenderTextures: Diagnostic: logs every live RenderTexture to the console with a summary header: RESIDENT (created=GPU-realized) vs allocated-not-resident totals, a per-subsystem breakdown (Dice / Lighting-Shadow / Vision-Fog / Minimap / Shapes / World / Main-Post / Other), and a per-floor total (lighting/vision/world/minimap RTs are instanced per floor, so they scale with floor count). Then each RT's dimensions/format/MSAA/mips/owning-camera/name, sorted by size. Used to hunt large/unexpected render targets. Reusable tool.
+--- @return nil
+function dmhub.DumpRenderTextures()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ExportTokenImage: Render the given token to a transparent-background PNG and prompt the user with a save dialog. Draws the token's frame backdrop plus its active spine or static art exactly as composed on the map, with fog-of-war dimming disabled. The camera is auto-framed around the token's world-space renderer bounds and expanded by the `padding` multiplier so weapons, hats, and parallax-shifted spine art aren't clipped.
+
+Options:
+  token (required): a CharacterToken (e.g. dmhub.selectedTokens[1]).
+  filename: default filename suggested in the save dialog (default: token name + .png).
+  padding: multiplier on the rendered area beyond the token's tight bounds (default 1.5; 1.0 = no extra padding).
+  resolution: pixel dimension of the square output (default 1024; clamped to 64..4096).
+  error: optional callback invoked with a string message on failure.
+--- @field options {token: LuaCharacterToken, filename: string?, padding: number?, resolution: number?, error: (fun(message: string): nil)?}
+function dmhub.ExportTokenImage(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- StartScreenTransition: Begin a screen transition: captures a snapshot of the current screen into a RenderTexture and renders it as a fullscreen overlay on top of all UI. Returns a handle whose CrossFade(alpha) controls the snapshot's visibility (1 -> fully obscuring the live screen, 0 -> revealing it underneath). Call Destroy() on the handle when finished to free the RenderTexture. The snapshot is captured at the next end-of-frame; the handle's `ready` flag is true once it has been captured. The optional `onReady` function is invoked at that moment -- apply the visual change you want to fade *to* inside that callback (or after `ready` is true), then drive CrossFade(alpha) from 1 down to 0.
+--- ScreenTransitionLua
+function dmhub.StartScreenTransition(onReady)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -399,6 +695,13 @@ function dmhub.GetTableVisible(tableName)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetCompendiumPath: Returns the absolute on-disk path to the compendium directory -- the base folder that holds the 'tables' and 'import' subfolders -- with an optional subdirectory appended. Pass 'import' to get the directory the YAML import commands read from. Returns nil if the path cannot be resolved (e.g. the subdir escapes the compendium root). Unlike ExportTable, this does not depend on any table having content.
+--- @param subdir nil|string Optional subdirectory beneath the compendium folder (e.g. 'import' or 'tables').
+--- @return string|nil
+function dmhub.GetCompendiumPath(subdir)
+	-- dummy implementation for documentation purposes only
+end
+
 --- ExportTable: Exports a single object table to YAML files on disk. Creates a subdirectory named after the table containing _table.yaml (the whole table) and individual .yaml files per item. Returns nil if the table does not exist.
 --- @param tableName string The name of the table to export.
 --- @param options nil|{ directory: string, includeHidden: boolean, individualFiles: boolean }
@@ -411,6 +714,110 @@ end
 --- @param options nil|{ directory: string, includeHidden: boolean, individualFiles: boolean }
 --- @return { tablesExported: number, itemsExported: number, directory: string }
 function dmhub.ExportAllTables(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ExportAllAssets: Exports ALL asset categories of the current game (compendium tables, monsters, images, audio, objects, tilesheets, etc.) to a YAML directory tree -- the format used by the local-assets developer feature. By default exports the game's own assets (the CurrentGame store); pass merged=true to export the fully merged view including core and module assets. The directory option is resolved beneath the compendium folder unless it is an absolute path (dev mode only); with no directory, exports to the active local-assets directory if local assets mode is on, else to the 'assets' compendium subfolder. Dev only.
+--- @param options nil|{ directory: string, merged: boolean }
+--- @return { categoriesExported: number, itemsExported: number, directory: string }|nil
+function dmhub.ExportAllAssets(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetDirectoryInfo: Returns information about a directory on disk: whether it exists and how many files it contains recursively (count capped at 10000). Available in dev mode only; returns nil otherwise. Used by the local-assets developer UI to warn before populating a non-empty directory.
+--- @param path string The directory path to inspect.
+--- @return { exists: boolean, fileCount: number }|nil
+function dmhub.GetDirectoryInfo(path)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsStatus: Returns the status of the local-assets developer feature for the current game: whether local asset directories are active (replacing the game's cloud assets), the ordered directory list (top/highest-precedence first; 'directory' is the top one), how many items are shadowed by a higher directory, and whether the configured list differs from the active one (game reload required).
+--- @return { active: boolean, directory: string|nil, directories: string[]|nil, shadowedCount: number|nil, reloadRequired: boolean|nil }
+function dmhub.LocalAssetsStatus()
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsApplyDirs: Re-reads the localassets:dirs setting and applies it to the running local-assets instance when safe to do live (a pure reordering that changes no item's winning file). Returns 'inactive' when the feature is not running (the next game load picks the setting up), 'applied' when the change took effect immediately, or 'reload' when a game reload is required. Dev mode only.
+--- @return string "inactive"|"applied"|"reload"
+function dmhub.LocalAssetsApplyDirs()
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsFileTree: Returns the indexed contents of one local-assets directory as a tree: categories, then (for nested categories such as objectTables) containers, then items. Each item is { path, normPath, fileName, id, displayName, shadowed }; shadowed means a higher-precedence directory's copy of the same item wins; normPath is the normalized path git status is keyed by. Built from the live index, not a disk walk; categories, containers and items are sorted by display name. Dev mode only; returns nil when local assets mode is not active or dirIndex is out of range.
+--- @param dirIndex number 1-based index into the directories list from LocalAssetsStatus.
+--- @return { directory: string, categories: { name: string, items: table[], containers: { id: string, displayName: string|nil, metaPath: string|nil, items: table[] }[] }[] }|nil
+function dmhub.LocalAssetsFileTree(dirIndex)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsSearch: Searches the local-assets index -- item ids, display names, container ids and filenames -- across every configured directory. Returns matching files (each copy of a multi-directory item, winner first) with directory attribution: dirIndex is a 1-based index into LocalAssetsStatus().directories. Capped at 200 results. Dev mode only; returns nil when local assets mode is not active.
+--- @param text string Search text; case-insensitive substring match.
+--- @return { path: string, fileName: string, id: string|nil, displayName: string|nil, category: string, tableid: string|nil, dirIndex: number, directory: string, shadowed: boolean }[]|nil
+function dmhub.LocalAssetsSearch(text)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsCloudDiff: Compares the game's LIVE cloud asset store against the local YAML tree that is masking it. Local assets mode is per-client: the cloud assets keep arriving and keep being updated by other people playing the game, they are just not used. Each reported item has a state of 'cloudOnly' (in the cloud, nowhere on disk -- invisible to you right now), 'differs' (in both, with different content) or 'localOnly' (on disk only; omitted unless includeLocalOnly). Items whose content matches are not reported. Categories and items are sorted by display name. Dev mode only; returns nil when local assets mode is not active.
+--- @param includeLocalOnly nil|boolean Also report items that exist on disk but not in the cloud (off by default -- with a large overlay directory these dominate the list).
+--- @return { available: boolean, directory: string|nil, counts: { cloudOnly: number, differs: number, localOnly: number }, categories: { name: string, items: { category: string, tableid: string|nil, id: string, displayName: string|nil, state: string, mtime: number|nil }[] }[] }|nil
+function dmhub.LocalAssetsCloudDiff(includeLocalOnly)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsImportFromCloud: Copies the named items out of the game's live cloud asset store into the local YAML tree. An item that already has a file on disk is overwritten in place, wherever in the directory list it lives; a new one is created in the TOP directory. The items are applied to the running game as well, so they appear without a reload. Only 'cloudOnly' and 'differs' items make sense here -- a 'localOnly' item has nothing in the cloud to copy and is counted as failed. Dev mode only; returns nil when local assets mode is not active.
+--- @param items { category: string, tableid: nil|string, id: string }[] Items to copy down, in the shape LocalAssetsCloudDiff returns them.
+--- @return { imported: number, failed: number, directory: string }|nil
+function dmhub.LocalAssetsImportFromCloud(items)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsGitInfo: Returns which git executable the local-assets git integration is using: the resolved path and its version (nil when no working git was found), where it came from (source 'setting' = the localassets:gitpath setting, 'auto' = auto-detected from PATH/common install locations), and the raw configured setting value. Resolution is cached per setting value. Dev mode only; nil otherwise.
+--- @return { path: string|nil, version: string|nil, source: string|nil, configured: string|nil }|nil
+function dmhub.LocalAssetsGitInfo()
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsValidateGit: Validates a candidate git executable by running it with --version (a few seconds timeout). Returns the version string on success, nil on failure. Used by the Browse fallback in the local-assets git row before storing localassets:gitpath. Dev mode only.
+--- @param path string Candidate git executable path.
+--- @return string|nil # the 'git version ...' string, or nil when the path is not a working git.
+function dmhub.LocalAssetsValidateGit(path)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsGitRefresh: Kicks off a background git status refresh for one local-assets directory (rev-parse + status --porcelain on a worker thread; read-only). No-op while a refresh for that directory is already running. Poll LocalAssetsGitStatus for the result. Dev mode only; does nothing when local assets mode is not active.
+--- @param dirIndex number 1-based index into the directories list from LocalAssetsStatus.
+function dmhub.LocalAssetsGitRefresh(dirIndex)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsGitStatus: Returns the cached git status for one local-assets directory. 'available' is whether a git executable was resolved; 'hasResult' whether at least one refresh has completed (call LocalAssetsGitRefresh and poll while 'refreshing'). 'states' maps NORMALIZED file paths (full path, forward slashes, lowercase -- the normPath field of LocalAssetsFileTree/Search items) to a state: added, modified, deleted, renamed or untracked; unlisted files are unchanged. 'changes' lists every changed file (including deleted ones, which have no live tree row), sorted by path. Dev mode only; nil when local assets mode is not active or dirIndex is out of range.
+--- @param dirIndex number 1-based index into the directories list from LocalAssetsStatus.
+--- @return { available: boolean, hasResult: boolean, refreshing: boolean, isRepo: boolean, repoRoot: string|nil, error: string|nil, states: table<string,string>, counts: { added: number, modified: number, deleted: number, renamed: number, untracked: number, total: number }, changes: { path: string, normPath: string, fileName: string, state: string }[] }|nil
+function dmhub.LocalAssetsGitStatus(dirIndex)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsMoveFile: Moves an indexed local-assets file into another configured directory, preserving its category/container subpath (and creating the container's _meta.yaml in the target when missing). Git-aware: same repo -> git mv; tracked across repos -> move + git rm + git add; untracked/no-git -> plain move (stages, never commits). When the target directory already holds a file for the same item, returns collision=true with collisionPath unless overwrite is true, in which case that copy is removed (git rm when tracked) and replaced. Routed through LocalAssetDirectory so the index updates, the resulting watcher events are echo-suppressed, and the item's winning file recomputes. Dev mode only; error when local assets mode is not active.
+--- @param path string Full path of an indexed local-assets file.
+--- @param targetDirIndex number 1-based index into the directories list from LocalAssetsStatus.
+--- @param overwrite boolean Pass true after the user confirms overwriting the target directory's existing copy of the same item.
+--- @return { success: boolean, collision: boolean, collisionPath: string|nil, targetPath: string|nil, error: string|nil }
+function dmhub.LocalAssetsMoveFile(path, targetDirIndex, overwrite)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsRevertFile: Reverts one file's git changes: modified/deleted/renamed -> git checkout HEAD -- <file>; added -> git rm -f (un-stage and delete); untracked -> delete the file. Deliberately performs plain git/fs operations with NO echo suppression -- the restored content flows into the game through the normal hot-reload path (the sweep guarantees pickup within a couple of seconds). The UI must confirm with the user before calling. Dev mode only; error when local assets mode is not active or dirIndex is out of range.
+--- @param dirIndex number 1-based index into the directories list from LocalAssetsStatus (the directory containing the file).
+--- @param path string Full path of the file to revert.
+--- @param state string The file's git state as reported by LocalAssetsGitStatus: modified, deleted, renamed, added or untracked.
+--- @return string|nil # nil on success, else a human-readable error.
+function dmhub.LocalAssetsRevertFile(dirIndex, path, state)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RevealInFileBrowser: Reveals the given file or directory in the operating system's file browser (Windows Explorer / macOS Finder). Dev mode only; does nothing otherwise.
+--- @param path string The directory or file to reveal.
+function dmhub.RevealInFileBrowser(path)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -496,16 +903,17 @@ function dmhub.MarkRadius(table)
 	-- dummy implementation for documentation purposes only
 end
 
---- MarkLocs: Mark a set of locations on the map. Call Destroy() on the returned object when you want to destroy the marker.
+--- MarkLocs: Mark a set of locations on the map by outlining their perimeter. style: 'solid' draws a plain continuous line, 'dashed'/'dotted' draw a patterned line; nil keeps the legacy border strip with its inner fade. Call Destroy() on the returned object when you want to destroy the marker.
 --- @param color Color
 --- @param locs Loc[]
+--- @param style nil|'solid'|'dashed'|'dotted' border line style; nil keeps the legacy strip with inner fade
 --- @return LuaMultiObjectReference
 function dmhub.MarkLocs(args)
 	-- dummy implementation for documentation purposes only
 end
 
---- CalculateShape: Create an object describing a shape on the map.
---- @param args {shape: SpellShapes, token: CharacterToken, objectTemplate: nil|string, targetPoint: Vector3, range: nil|number, radius: nil|number, locOverride: nil|Loc, requireEmpty: nil|boolean, checklos: nil|boolean }
+--- CalculateShape: Create an object describing a shape on the map. If targetFloorIndex is provided, the shape's locs and visual marker are placed on that floor instead of the caster's floor (used for cross-floor targeting).
+--- @param args {shape: SpellShapes, token: CharacterToken, objectTemplate: nil|string, targetPoint: Vector3, range: nil|number, radius: nil|number, locOverride: nil|Loc, requireEmpty: nil|boolean, checklos: nil|boolean, altitude: nil|number, targetFloorIndex: nil|number }
 --- @return LuaShape
 function dmhub.CalculateShape(args)
 	-- dummy implementation for documentation purposes only
@@ -524,16 +932,87 @@ function dmhub.ClearRollBonusTypes()
 	-- dummy implementation for documentation purposes only
 end
 
+--- SetMovementCrossSection: Builds (or updates) the offscreen movement cross-section diagram for a proposed move -- a token plus its movement path (LuaPath) -- and returns a table with the special bgimage key to display it (image) and the render texture's pixel dimensions (width, height), or nil if the path can't be drawn as a single cross-section (fewer than 2 steps, spans multiple floors, or there is no active map). While active the diagram keeps rendering so the arrow animates; call dmhub.ClearMovementCrossSection to release it. Used by the token-drag movement tooltip. collisionDamage/fallDamage (optional) are predicted damage numbers computed by the caller; when > 0 they draw as red '-N' annotations at the collision stop point / beside the fall arrow, mirroring the map's forced-move targeting labels.
+--- @param args {token: any, path: any, secondaryPaths: nil|{path: any, label: nil|string}[], collisionDamage: nil|number, fallDamage: nil|number}
+--- @return nil|{image: string, width: number, height: number}
+function dmhub.SetMovementCrossSection(args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearMovementCrossSection: Hides the movement cross-section diagram (see dmhub.SetMovementCrossSection) and releases its render texture so nothing stays resident while idle. Safe to call when nothing is active.
+--- @return nil
+function dmhub.ClearMovementCrossSection()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetMovementRestriction: Installs a Movement Restriction Mode on this client: while installed, tokens can only be moved within the given tiles. Pathfinding treats any step ending outside the set as impassable, so the drag preview and movement-radius markers clip to the allowed area, and drops outside it are refused -- including for the DM (the dmillegalmoves setting does not bypass it). Forced movement (pushes/slides) is exempt. The restriction applies to all tokens on this client until dmhub.ClearMovementRestriction is called or the game session ends. Calling again replaces the previous set.
+--- @param args {locs: Loc[]}
+function dmhub.SetMovementRestriction(args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearMovementRestriction: Clears the Movement Restriction Mode installed by dmhub.SetMovementRestriction, restoring normal token movement. Safe to call when no restriction is active.
+--- @return nil
+function dmhub.ClearMovementRestriction()
+	-- dummy implementation for documentation purposes only
+end
+
 --- Roll: Execute a dice roll. Returns an object that manages the roll.
+
+The rolldef table accepts a `forcedDice` field for integrations driving rolls from an
+external source (e.g. Bluetooth GoDice, webcam dice readers). When supplied, the virtual
+dice tumble normally but land showing the listed face values, which become the natural
+roll. Each entry is `{ numFaces = <int>, result = <int 1..numFaces> }`, ordered
+to match the dice in the roll expression. Out-of-range or unmatched entries are dropped
+with a Debug.LogWarning. The resulting ChatMessageDiceRollInfo's `rolls`, `naturalRoll`,
+`nat1`, `nat20`, and tier/crit detection populate exactly as if the engine had rolled
+the dice itself, so OnBeforeRoll interceptors no longer have to collapse the dice
+expression to a numeric literal. Example:
+
+    dmhub.Roll{
+        roll = '2d10 1 bane',
+        instant = true, silent = true,
+        forcedDice = {{numFaces=10, result=7}, {numFaces=10, result=4}},
+        complete = function(rollInfo) ... end,
+    }
 --- @param rolldef RollDefinition
 --- @return nil|ActiveRollLua
 function dmhub.Roll(rolldef)
 	-- dummy implementation for documentation purposes only
 end
 
+--- StartDiceBridge: Start the external physical-dice bridge process (the Bluetooth
+dice bridge for GoDice/Pixels) if it isn't already running. The executable is resolved
+engine-side -- from the 'externaldice:bridgepath' preference, falling back to
+dice-bridge.exe next to the player executable -- so mods cannot launch arbitrary binaries. Returns true if the
+bridge is running when the call returns. The bridge exits on its own if it stops
+receiving /v1/heartbeat POSTs for 60 seconds, and is force-killed when DMHub exits.
+--- @return boolean
+function dmhub.StartDiceBridge()
+	-- dummy implementation for documentation purposes only
+end
+
+--- StopDiceBridge: Stop the external physical-dice bridge process if it is running. See StartDiceBridge.
+--- @return nil
+function dmhub.StopDiceBridge()
+	-- dummy implementation for documentation purposes only
+end
+
+--- IsDiceBridgeRunning: True if the external physical-dice bridge process started by StartDiceBridge is currently running.
+--- @return boolean
+function dmhub.IsDiceBridgeRunning()
+	-- dummy implementation for documentation purposes only
+end
+
 --- CancelCurrentRoll: Cancels out the current dice roll we are previewing. (Doesn't cancel rolls that have already begun)
 --- @return nil
 function dmhub.CancelCurrentRoll()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearChatPreviewDice: Clears the chat-driven roll-preview dice (a roll dialog's or typed '/roll' preview), leaving armed 'try dice' cages (the Dice dock, the shop) and rolls that have already begun untouched. Roll dialogs whose preview was seeded via chat.PreviewChat('/roll ...') must call this when they cancel: the empty-text chat path skips clearing while an unarmed dice cage is registered, which orphans the dialog's dice and leaves the action bar hidden (preview-dice mode) for the rest of the session.
+--- @return nil
+function dmhub.ClearChatPreviewDice()
 	-- dummy implementation for documentation purposes only
 end
 
@@ -603,6 +1082,23 @@ end
 --- @param callbackFunction any
 --- @return nil
 function dmhub.RegisterGoblinScriptDebugger(callbackFunction)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetGoblinScriptDebug: Enables or disables per-expression debug instrumentation for a specific GoblinScript formula. The caller must flush any cached compilation of the formula for the change to take effect.
+--- @param formula string
+--- @param enabled boolean
+--- @return nil
+function dmhub.SetGoblinScriptDebug(formula, enabled)
+	-- dummy implementation for documentation purposes only
+end
+
+--- OpenModFileAtLine: Opens a Lua file from a mod in the user's default editor at the specified line. Returns true on success.
+--- @param modName string
+--- @param fileName string
+--- @param lineNumber number
+--- @return boolean
+function dmhub.OpenModFileAtLine(modName, fileName, lineNumber)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -829,6 +1325,27 @@ function dmhub.SetCommandBinding(keystroke, cmd, context)
 	-- dummy implementation for documentation purposes only
 end
 
+--- PushCommandContext: Push a command context onto the input stack. While a context is active, command bindings set in that context (via SetCommandBinding with the same context) take priority over global bindings. Each Push must be balanced by a Pop with the same name; pushes/pops are reference counted. Commonly used to give a modal dialog its own keyboard shortcuts that override gameplay keys while it is open.
+--- @param context string
+--- @return nil
+function dmhub.PushCommandContext(context)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PushCommandContextForPanel: As PushCommandContext, but associates the context with the native popout window hosting the given panel (see Panel:MoveToNativeWindow). The context's bindings then apply to keys pressed IN that window, and stop applying to the main window's keyboard. Pop with the ordinary PopCommandContext. If the panel is not in a native window, this behaves exactly like PushCommandContext.
+--- @param context string The command context name.
+--- @param panel Panel A panel living in the native popout window that should own the context.
+function dmhub.PushCommandContextForPanel(context, panel)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PopCommandContext: Pop a command context previously pushed with PushCommandContext. Must be balanced with the matching Push.
+--- @param context string
+--- @return nil
+function dmhub.PopCommandContext(context)
+	-- dummy implementation for documentation purposes only
+end
+
 --- DetectBindableKeystroke: If a bindable keystroke is currently depressed, returns it.
 --- @return nil|string
 function dmhub.DetectBindableKeystroke()
@@ -933,11 +1450,12 @@ function dmhub.RegisterRemoteEvent(eventid, callback)
 	-- dummy implementation for documentation purposes only
 end
 
---- BroadcastRemoteEvent: This broadcasts an event to connected computers using the peer-to-peer mechanism. Because it uses peer-to-peer there is no guarantee the messages will arrive. They should be used to communicate transient information that will go out of date quickly, such as the user's mouse position, what they are highlighting, etc. If multiple messages using the same sessionid arrive out of order, the old messages will be discarded and not processed. 
+--- BroadcastRemoteEvent: This broadcasts an event to connected computers using the peer-to-peer mechanism. By default delivery is best-effort UDP -- good for transient information like mouse positions or highlights where a dropped packet doesn't matter. If multiple messages using the same sessionid arrive out of order, the old messages will be discarded and not processed. Pass reliable = true to route via the game server's WebSocket when the event drives a state change that must not be lost.
 --- @param eventid string A unique eventid identifying the event.
 --- @param sessionid A unique id identifying a 'session' which can receive multiple messages. If you want to broadcast multiple events concerning the same topic, use the same sessionid.
 --- @param args any
-function dmhub.BroadcastRemoteEvent(eventid, sessionid, args)
+--- @param reliable? boolean Optional. If true, route the message through the game server (TCP) so it can't be dropped by UDP. Requires a Durable Objects or Local game; silently ignored on Firebase-backed games (falls back to UDP). Defaults to false.
+function dmhub.BroadcastRemoteEvent(eventid, sessionid, args, reliable)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -999,9 +1517,47 @@ function dmhub.Redo()
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetDurableObjectSeqHistory: Returns a Lua array of the last ~20 Durable Object messages, oldest first. Inbound entries carry a seq prefix (e.g. '42 put game/characters/abc' or '42 ack ok w-001 (123ms)'); outbound entries to the game store are prefixed with '>>' (e.g. '>> put game/characters/abc [w-001]').
+--- @return string[]
+function dmhub:GetDurableObjectSeqHistory()
+	-- dummy implementation for documentation purposes only
+end
+
 --- AcknowledgeAllWriteErrors: Acknowledges all current write errors so they are no longer returned by writeErrors.
 --- @return nil
 function dmhub:AcknowledgeAllWriteErrors()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetRichPresenceActivity: Sets a short-lived rich-presence activity string (e.g. 'Building Orc Fury') that is pushed to both Steam and Discord. Pass nil or an empty string to clear. The activity auto-expires a few seconds after the last call, so panels should re-push from a think handler while open.
+--- @param status string
+--- @return nil
+function dmhub:SetRichPresenceActivity(status)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DumpSteamRichPresence: Logs what Steam currently has stored for the local user's rich presence, for debugging. Echoes back each key we sent plus the full server-side key list.
+--- @return nil
+function dmhub:DumpSteamRichPresence()
+	-- dummy implementation for documentation purposes only
+end
+
+--- IsSteamOverlayRunning: Returns true if the Steam overlay is currently running and available to the user. The overlay is required to confirm Steam Microtransaction purchases; it returns false if the game was launched outside Steam, or the overlay is disabled in the user's Steam settings, or it simply has not finished loading yet.
+--- @return boolean
+function dmhub.IsSteamOverlayRunning()
+	-- dummy implementation for documentation purposes only
+end
+
+--- InviteToGameViaSteam: Opens the Steam overlay's 'invite a friend' dialog so a Steam friend can be invited to join the given game. The friend sees a 'Join Game' button that drops them into the game (handled by SteamJoinHandler). No-op when not running under Steam (e.g. dev builds).
+--- @param gameid string
+--- @return nil
+function dmhub.InviteToGameViaSteam(gameid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- IsEntitledToOrg: True if this account has a Patreon entitlement to the given creator organization. Honors the creator's persist-on-lapse policy.
+--- @param orgid string The id of the creator organization.
+function dmhub:IsEntitledToOrg(orgid)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1016,6 +1572,14 @@ end
 --- @param id string
 --- @return nil
 function dmhub.OpenTutorialVideo(id)
+	-- dummy implementation for documentation purposes only
+end
+
+--- OpenDebugConsole: Open the live data debug console for the current game, optionally focused on a given data path and store (e.g. '/characters/abc', 'game'). Admin/dev only. URL resolution matches the DO debug URL (with Firebase-JWT fragment for auth) for WebSocket backends, and falls through to the Firebase console for legacy Firebase-backed games.
+--- @param path string?
+--- @param store string?
+--- @return nil
+function dmhub.OpenDebugConsole(path, store)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1037,6 +1601,35 @@ end
 --- @param urlName string
 --- @return boolean
 function dmhub.OpenRegisteredURL(urlName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- OpenCharacterPopout: Opens the given character's sheet in the Draw Steel companion (draw-steel-codex.com) as a chromeless popout window, authenticated as the player via a one-time Steam ticket handoff. Requires Steam to be initialized and the player to be in an active game; the game id is taken implicitly from the current game. The success path is silent (the browser just opens). Extra query params can be passed via the extraParams table; values are coerced to strings and URL-encoded. The reserved keys n, gameId, and characterId cannot be overridden and are silently dropped if present.
+--- @param characterId string The id of the character whose sheet should open.
+--- @param extraParams nil|{[string]: string|number|boolean} Optional extra query parameters appended to the popout URL.
+--- @param onError nil|function Optional callback invoked as onError(message:string) if the handoff fails.
+function dmhub.OpenCharacterPopout(characterId, extraParams, onError)
+	-- dummy implementation for documentation purposes only
+end
+
+--- OpenCompanionTool: Opens a Draw Steel companion tool surface by route -- e.g. "/monsters" for the Monster Builder -- authenticated as the current user via the same one-time handoff OpenCharacterPopout uses. Prefers a new window in the bundled desktop companion (reusing a running instance when there is one) and falls back to opening the draw-steel-codex.com page, signed in, in the system browser. The route must be an absolute path of URL-safe segments (letters, digits, - and _); anything else fails to onError. Works with or without an active game. The success path is silent.
+--- @param route string The companion route to open, e.g. "/monsters".
+--- @param onError nil|function Optional callback invoked as onError(message:string) if the launch fails.
+function dmhub.OpenCompanionTool(route, onError)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RunSteamHandoffDiagnostic: ADMIN ONLY. Runs the Steam companion-popout handoff end-to-end against the live cloud function and reports every captured datapoint back to onComplete as a table. The engine rejects non-admin accounts before requesting a Steam ticket or starting any network work. Use this to diagnose why drawSteelCompanion authentication might be failing on a particular machine. The variant argument selects the test scenario; pass 0 for the happy path or 1-5 to deliberately break a specific step (see SteamHandoffVariant in LoginController.cs).
+--- @param variant integer 0=HappyPath, 1=WrongIdentityCasing, 2=DashedHex, 3=Base64Ticket, 4=OldApiNoIdentity, 5=WrongAppId.
+--- @param onComplete function Called with a single result table containing variant, steamInitialized, steamLoggedOn, steamId, personaName, appId, identityRequested, identityRequestedLength, methodUsed, ticketHandle, callbackFired, callbackResult, callbackElapsedSeconds, ticketSize, ticketEncoding, ticketEncodedLength, ticketEncodedFirst16, appIdSent, mintUrl, httpStatus, httpElapsedSeconds, responseBody, nonce, consumeUrl, ok, error, errorStep.
+function dmhub.RunSteamHandoffDiagnostic(variant, onComplete)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RunSteamHandoffConsume: ADMIN ONLY. POSTs the given nonce to steamHandoffConsume and reports the server response. The engine rejects non-admin accounts before starting any network work. Use this to verify the browser-side leg of the popout handoff (without actually opening a browser) after RunSteamHandoffDiagnostic returns a nonce.
+--- @param nonce string A nonce returned from a successful RunSteamHandoffDiagnostic call.
+--- @param onComplete function Called with a result table containing nonce, consumeUrl, httpStatus, httpElapsedSeconds, responseBody, ok, error, errorStep, and on success also uid, steamid, tokenLength, tokenPrefix.
+function dmhub.RunSteamHandoffConsume(nonce, onComplete)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1156,6 +1749,13 @@ function dmhub.HasSetting(settingid)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetSettingInfo: Returns a table with 'description' and 'value' fields for the given setting, or nil if the setting does not exist.
+--- @param settingid string
+--- @return {description: string, value: string}|nil
+function dmhub.GetSettingInfo(settingid)
+	-- dummy implementation for documentation purposes only
+end
+
 --- GetSettingValue: Get the value of a game setting.
 --- @return number
 function dmhub.GetSettingValue()
@@ -1176,10 +1776,58 @@ function dmhub.PasteTokenFromClipboard(loc)
 	-- dummy implementation for documentation purposes only
 end
 
+--- CopyTokensToClipboard: Copies a list of tokens to the clipboard together, replacing any previous clipboard contents. Paste them as a batch with PasteTokensFromClipboard.
+--- @param tokens CharacterToken[] The tokens to copy.
+function dmhub.CopyTokensToClipboard(tokens)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PasteTokensFromClipboard: Pastes every token on the clipboard at once, fanning out from the given location. Returns the list of pasted token ids in the order they were copied; empty if the clipboard is empty.
+--- @param loc nil|Loc The anchor location to paste the tokens around.
+--- @return string[]
+function dmhub.PasteTokensFromClipboard(loc)
+	-- dummy implementation for documentation purposes only
+end
+
 --- ResetSetting: Reset the given setting to its default value.
 --- @param settingid string
 --- @return boolean
 function dmhub.ResetSetting(settingid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetSettingDefault: Returns the established default value for a setting. For per-map settings this is the game-wide default (or the registered default if none has been established); for all other settings it is the registered default.
+--- @param settingid string
+--- @return any
+function dmhub.GetSettingDefault(settingid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetSettingDefaultFormatted: Returns the established default value of a setting formatted for display (enum text or formatted number), suitable for a 'Default Value: ...' label.
+--- @param settingid string
+--- @return string
+function dmhub.GetSettingDefaultFormatted(settingid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SettingVariesFromDefault: Returns true if the given per-map setting's value on the current map differs from its established default.
+--- @param settingid string
+--- @return boolean
+function dmhub.SettingVariesFromDefault(settingid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ResetSettingToDefault: Resets a per-map setting on the current map to its established default by removing the map's explicit value, so it tracks the default. DM only. Returns true if a value was removed.
+--- @param settingid string
+--- @return boolean
+function dmhub.ResetSettingToDefault(settingid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ChangeSettingDefault: Establishes the current map's value of a per-map setting as the game-wide default for all maps. DM only. Returns true on success.
+--- @param settingid string
+--- @return boolean
+function dmhub.ChangeSettingDefault(settingid)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1199,7 +1847,7 @@ function dmhub.PreviewSettingValue(settingid, val)
 	-- dummy implementation for documentation purposes only
 end
 
---- KeyPressed: Returns true if the given key is currently depressed.
+--- KeyPressed: Returns true if the given key is currently depressed. Keys held in native popout windows count: their keystrokes go to the companion process, so Unity's Input polling alone would report them as up.
 --- @param keycode KeyCode
 --- @return boolean
 function dmhub.KeyPressed(keycode)
@@ -1242,6 +1890,14 @@ function dmhub.FormatTimestamp(timestamp, formatstr)
 	-- dummy implementation for documentation purposes only
 end
 
+--- CreateInfoBubble: Creates a new info bubble on the current map floor at the given location. DM only. Returns the new bubble's id, or nil on failure. The bubble is applied asynchronously once the change round-trips; read it back via dmhub.infoBubbles[id] afterwards.
+--- @param loc Loc The map location to place the bubble at.
+--- @param options nil|{icon: string, description: string} Optional icon glyph and description; auto-generated when omitted.
+--- @return nil|string
+function dmhub:CreateInfoBubble(loc, options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- ViewSign: Shows the given image as a modal that fills most of the screen.
 --- @param imageid string
 function dmhub.ViewSign(imageid)
@@ -1270,14 +1926,21 @@ function dmhub.CenterOnToken(tokenid, args)
 	-- dummy implementation for documentation purposes only
 end
 
---- SelectToken: Select the token with the given id, clearing selection of other tokens.
+--- CenterOnLoc: Center the camera on a tile location, switching map and floor first if needed. mapid defaults to the current map; a missing or deleted floorid falls back to the current or first floor. Returns false if the map could not be found.
+--- @param args {x: number, y: number, mapid: nil|string, floorid: nil|string, smooth: nil|boolean, callback: nil|(fun(): nil)}
+--- @return boolean
+function dmhub.CenterOnLoc(args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SelectToken: Select the token with the given id, clearing selection of other tokens. The token is only selected if the user controls it in their own right (see CharacterToken.canControlAsUser); the selection is cleared regardless.
 --- @param charid string
 --- @return nil
 function dmhub.SelectToken(charid)
 	-- dummy implementation for documentation purposes only
 end
 
---- AddTokenToSelection: Add the token with the given id to the selection.
+--- AddTokenToSelection: Add the token with the given id to the selection. Does nothing unless the user controls the token in their own right (see CharacterToken.canControlAsUser).
 --- @param tokenid string
 --- @return nil
 function dmhub.AddTokenToSelection(tokenid)
@@ -1297,6 +1960,14 @@ function dmhub:UploadInitiativeQueue()
 	-- dummy implementation for documentation purposes only
 end
 
+--- IncrementInitiativeData: Atomically add 'amount' to the numeric value stored at 'path' within the current map's initiative queue (where the live encounter lives). 'path' is relative to the initiative queue root, e.g. 'liveEncounter/stats/<tokenid>/kills' or a nested path 'liveEncounter/stats/<tokenid>/monsterDamage/<monsterid>'. Missing intermediate tables are created by the server. On Durable Object backends the increment is genuinely atomic, so concurrent writers can't lose updates. The resolved value rides back through the normal initiative-queue broadcast, so no local mutation is needed here.
+--- @param path string
+--- @param amount number
+--- @return nil
+function dmhub:IncrementInitiativeData(path, amount)
+	-- dummy implementation for documentation purposes only
+end
+
 --- HaveImageInClipboard: Query if there is a valid image in the system clipboard.
 --- @return boolean
 function dmhub.HaveImageInClipboard()
@@ -1310,7 +1981,7 @@ function dmhub.CopyToClipboard(text)
 	-- dummy implementation for documentation purposes only
 end
 
---- CopyToInternalClipboard: Sets the contents of the internal clipboard.
+--- CopyToInternalClipboard: Sets the contents of the internal clipboard. Fires the 'internalClipboardChanged' event globally and recursively on all top-level SheetPanels.
 --- @param obj any
 --- @return nil
 function dmhub.CopyToInternalClipboard(obj)
@@ -1397,6 +2068,24 @@ function dmhub.Coroutine(fn, args)
 	-- dummy implementation for documentation purposes only
 end
 
+--- ExecuteWithHostPermissions: Runs 'fn' with host permissions: for the duration of the call, dmhub.isDM reports this client's real hosting status even on a player host (dmhub.playerHostMode). Use it for automation that acts on behalf of the machine hosting the game -- the Monster AI moving monsters -- so that player rules enforcement (strict:movement and friends) does not bind it. Do NOT use it around UI or presentation code: it restores Director CAPABILITY, and Director chrome/vision on a player host is a bug. 'fn' must not yield; to elevate a whole coroutine, call dmhub.PushHostPermissions at the top of it instead.
+--- @param fn (fun(): nil)
+function dmhub.ExecuteWithHostPermissions(fn)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PushHostPermissions: Elevates the running coroutine to host permissions (see dmhub.ExecuteWithHostPermissions) until a matching dmhub.PopHostPermissions, or until the coroutine finishes -- whichever comes first. The elevation follows the coroutine: it is suspended while the coroutine is yielded and restored when it is resumed, so no other code ever observes it. Intended for use INSIDE a coroutine; for a synchronous block use dmhub.ExecuteWithHostPermissions instead.
+--- @return nil
+function dmhub.PushHostPermissions()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PopHostPermissions: Drops one level of the elevation started by dmhub.PushHostPermissions.
+--- @return nil
+function dmhub.PopHostPermissions()
+	-- dummy implementation for documentation purposes only
+end
+
 --- CoroutineSynchronous: Starts running 'fn' as a coroutine with the given arguments. If already in a coroutine it will run synchronously. If we are inside a dmhub call (e.g. CharacterToken.ModifyProperties) it will wait until the end of the execution of that call before running the coroutine code immediately after.
 --- @param fn (fun(): nil)
 --- @vararg args any
@@ -1428,11 +2117,13 @@ function dmhub.ClearSelectedObjects()
 	-- dummy implementation for documentation purposes only
 end
 
---- GetCoverInfo: Given an attacker and a target, gets information about how much cover exists between them.
+--- GetCoverInfo: Given an attacker and a target, gets information about how much cover exists between them. Optionally pass pierceSurfaces to ignore thin walls, and favorTarget to bias the calculation in the target's favor (for hiding checks).
 --- @param attacker CharacterToken
 --- @param target CharacterToken
+--- @param pierceSurfaces number? Optional number of thin wall surfaces (thickness <= 1 square) to ignore.
+--- @param favorTarget boolean? Optional; when true the cover bias is inverted in the target's favor: the target counts as having cover if ANY sampled sightline from the attacker is obstructed (normally the attacker gets the best ray, so one clear line means no cover). Use for hiding checks.
 --- @return {cover: number, coverModifier: number, description: string}
-function dmhub.GetCoverInfo(attacker, target)
+function dmhub.GetCoverInfo(attacker, target, pierceSurfacesArg, favorTargetArg)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1452,18 +2143,21 @@ function dmhub.GetMouseWorldPoint()
 	-- dummy implementation for documentation purposes only
 end
 
---- HighlightLine: Highlights the line between a and b. Call Destroy() on the returned reference to remove the highlighted line.
---- @param options {color: nil|Color, a: Vector2, b: Vector2, floorIndex: number?}
+--- HighlightLine: Highlights the line between a and b. Call Destroy() on the returned reference to remove the highlighted line. Pass terrainParallax=true (with floorIndex) to project the line onto the floor/terrain with the same parallax as the wall skeleton, so it stays glued to a wall segment when the map has parallax.
+--- @param options {color: nil|Color, a: Vector2, b: Vector2, floorIndex: number?, terrainParallax: boolean?}
 --- @return LuaTargetingMarkers
 function dmhub.HighlightLine(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- MarkLineOfSight: Mark the line of sight between the attacker and target on the map. Call Destroy() on the returned reference to clear the marker.
+--- MarkLineOfSight: Mark the line of sight between the attacker and target on the map. Call Destroy() on the returned reference to clear the marker. Optionally pass pierceSurfaces to ignore thin walls. arrowColor sets the arrow color: 'red' (enemies), 'green' (allies), 'black' (mixed). maxRange greys out the portion of the arrow past the range boundary (in tile units).
 --- @param attacker CharacterToken
 --- @param target CharacterToken
+--- @param pierceSurfaces number? Optional number of thin wall surfaces (thickness <= 1 square) to ignore.
+--- @param arrowColor string? Arrow color: 'red' (default), 'green', or 'black'.
+--- @param maxRange number? Optional max range in tile units. If the target is beyond this distance, the portion of the arrow past the range boundary is greyed out.
 --- @return LuaTargetingMarkers
-function dmhub.MarkLineOfSight(attacker, target)
+function dmhub.MarkLineOfSight(attacker, target, pierceSurfacesArg, arrowColorArg, maxRangeArg)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1512,5 +2206,188 @@ end
 --- @param panelid string
 --- @return string
 function dmhub.GetPanelTrace(panelid)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PoolMetrics: Diagnostic: one-line summary of the SheetPanel recycling pool (rent hit rate, returns, parked/pending counts). See Assets/POOLING_REFERENCE.md.
+--- @return string
+function dmhub.PoolMetrics()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PoolAudit: Diagnostic: validates that every panel parked in the recycling pool is fully inert (no leftover static-list membership, Lua object, style state, or children). Returns 'OK (...)' or a list of violations.
+--- @return string
+function dmhub.PoolAudit()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PoolResetMetrics: Diagnostic: zeroes the SheetPanel pooling counters so a measurement can start from a clean slate.
+--- @return nil
+function dmhub.PoolResetMetrics()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelMaterialLegacyInvalidate: Diagnostic: restores the pre-optimisation behaviour where becoming active, or moving, invalidated a panel's style cache and forced a full material rebuild. For A/B measuring DoUpdateMaterial cost against the current behaviour. See Assets/HANDOFF_DOUPDATEMATERIAL.md.
+--- @param legacy boolean
+--- @return nil
+function dmhub.PanelMaterialLegacyInvalidate(legacy)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelPoolKeepMaterials: Diagnostic: whether a pooled panel keeps its runtime material across a recycle (default true). Turning it off makes every rented panel reallocate its material, which is what pooling used to do.
+--- @param keep boolean
+--- @return nil
+function dmhub.PanelPoolKeepMaterials(keep)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelMaterialDebug: Diagnostic: dumps the material state of live panels whose id contains the given string (pass '' for all). 'bgimage.mat=NULL' means the panel is rendering with the shared default UI material instead of its own -- the cause of a white/unstyled panel.
+--- @param idFilter string
+--- @return string
+function dmhub.PanelMaterialDebug(idFilter)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelMaterialSettings: Diagnostic: one-line summary of the panel material-cache switches.
+--- @return string
+function dmhub.PanelMaterialSettings()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelMaterialInputsGuard: Diagnostic: when true (the default), a bgimage/mask/alpha-texture assignment only rebuilds the panel material if the texture actually differs from the one already in effect (compared against a per-panel snapshot). Pass false to restore the old behaviour where every such assignment forced a full rebuild.
+--- @param enabled boolean
+--- @return nil
+function dmhub.PanelMaterialInputsGuard(enabled)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelSetParentLegacy: Diagnostic: pass true to restore the legacy SheetPanel.SetParent behaviour (worldPositionStays=true plus a manual localScale restore, and an unconditional SetAsLastSibling). Default false uses the cheaper worldPositionStays=false reparent.
+--- @param legacy boolean
+--- @return nil
+function dmhub.PanelSetParentLegacy(legacy)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelNursery: Experimental: when true, new gui widgets are born under an inactive nursery root instead of inside the live canvas, so widget-tree assembly pays no per-child UGUI re-registration; the subtree registers once at final attach. Default false.
+--- @param enabled boolean
+--- @return nil
+function dmhub.PanelNursery(enabled)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelInitProfileEnable: Diagnostic: turns on per-stage timing of gui widget construction (SheetController.InitWidget). Off by default. Read the breakdown with dmhub.PanelInitProfile().
+--- @param enabled boolean
+--- @return nil
+function dmhub.PanelInitProfileEnable(enabled)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelInitProfile: Diagnostic: per-stage breakdown of gui widget construction cost -- Lua wrapper creation, reflective property sets, style fall-through, children assignment and Init(). Requires dmhub.PanelInitProfileEnable(true).
+--- @return string
+function dmhub.PanelInitProfile()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelInitProfileReset: Diagnostic: zeroes the widget-construction profile counters.
+--- @return nil
+function dmhub.PanelInitProfileReset()
+	-- dummy implementation for documentation purposes only
+end
+
+--- BenchmarkPropertySet: Diagnostic: micro-benchmark comparing PropertyInfo.SetValue (what widget construction uses) against a compiled Expression setter and a direct delegate, on a real bridge property.
+--- @param iterations number
+--- @return string
+function dmhub.BenchmarkPropertySet(iterations)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PanelInitProfileCalibrate: Diagnostic: measures the cost of one profiler timestamp, so a PanelInitProfile() report can state how much of itself the instrument accounts for.
+--- @return string
+function dmhub.PanelInitProfileCalibrate()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PoolSetEnabled: Diagnostic: turns SheetPanel recycling on or off at runtime (same switch as the --pool-panels command line flag). Safe to flip mid-session: already-parked panels stay parked and untagged panels simply never enter the pool.
+--- @param enabled boolean
+--- @return nil
+function dmhub.PoolSetEnabled(enabled)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetMergedTitleBar: Strip (true) or restore (false) the native Windows caption bar, merging the app's title bar with the window chrome. The app bar must supply drag and window buttons while merged. No-op where unsupported.
+--- @param merged boolean
+--- @return nil
+function dmhub.SetMergedTitleBar(merged)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetTitleBarChromeMode: PROTOTYPE A/B switch between the merged-title-bar implementations: 'nccalcsize' (default) or 'strip' (legacy). Tears the chrome down to native under the old mode and re-applies under the new one if the merge is active. No-op when unchanged or unsupported.
+--- @param mode string
+--- @return nil
+function dmhub.SetTitleBarChromeMode(mode)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetWindowMetrics: Diagnostic snapshot of the main window: outer rect, client rect, zoomed/captioned/subclassed flags, Unity's Screen size and fullscreen state, and the active chrome mode. Human-readable, for merged-title-bar testing; the format may change.
+--- string
+function dmhub.GetWindowMetrics()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetWindowChromeLogging: Enable or disable verbose window-chrome geometry logging (clamp / align / re-assert-cancel lines in the log). Off by default; turn on when diagnosing window sizing or title-bar behavior, alongside the tools/pollwin.ps1 external poller. No-op where unsupported.
+--- @param verbose boolean
+--- @return nil
+function dmhub.SetWindowChromeLogging(verbose)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetTitleBarHitRegions: Register the merged title bar's exact hit regions from the bar's real layout. args.bar: the bar panel -- its on-screen rect defines the native caption band. args.exclusions: panels that must stay clickable by the app (menu clusters, search, window buttons, ...); everything else in the band becomes native caption (drag / snap / double-click). args.maximizeButton: the maximize control's panel -- it becomes the native HTMAXBUTTON zone, enabling the Windows 11 Snap Layouts hover flyout; its hover/press state and clicks are then relayed back through the 'windowMaxButtonState' / 'windowMaxButtonClick' global events and the windowMaxButtonState property. Rects are snapshotted at call time: re-send after layout changes (calling from the bar's think is the intended pattern). Pass nil to clear back to the built-in approximate regions. No-op where unsupported.
+--- @param args nil|{bar: Panel, exclusions: Panel[], maximizeButton: nil|Panel}
+--- @return nil
+function dmhub.SetTitleBarHitRegions(args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- WindowChromeHeartbeat: Dead-man heartbeat for the merged title bar: the title bar's think calls this every few hundred ms while merged. If heartbeats stop for ~10s of running frames (a broken/unloaded title bar), the engine restores the native caption so the window is never left without drag or close controls.
+--- @return nil
+function dmhub.WindowChromeHeartbeat()
+	-- dummy implementation for documentation purposes only
+end
+
+--- BeginWindowDrag: Begin a native window drag, as if the user grabbed the title bar. Call from a press event on the app title bar's empty surface; native snap-to-edge works during the drag.
+--- @return nil
+function dmhub.BeginWindowDrag()
+	-- dummy implementation for documentation purposes only
+end
+
+--- MinimizeWindow: Minimize the application window.
+--- @return nil
+function dmhub.MinimizeWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ToggleMaximizeWindow: Toggle the application window between maximized and restored.
+--- @return nil
+function dmhub.ToggleMaximizeWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- CloseWindow: Close the application window through the normal window-close path (same as Alt+F4), running the app's usual shutdown.
+--- @return nil
+function dmhub.CloseWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- CreateWorldDistortion: Creates a client-local distortion of the rendered map and tokens. heatwave uses exact logical tile polygons in locs and rising, irregular plumes controlled by direction, plumeWidth, plumeHeight, turbulence, and shimmer; strength and haze are screen pixels, speed is tiles per second, frequency is fine-detail cycles per tile, and edgeFade feathers inward from exposed edges. haze is a plume-masked three-tap blur clamped to 0..4 and defaults to zero. Radial types use loc (or center) plus radius in tiles; pinch/bulge use fractional radial strength, vortex uses radians, ripple uses fractional strength, and radial accepts strength plus swirl. duration=0 (the default) lasts until Stop(), and changing maps removes the effect. This API does not network effects; call it on every client that should see one.
+--- @param options {type: 'heatwave'|'pinch'|'bulge'|'vortex'|'ripple'|'radial', locs: Loc[]|nil, loc: Loc|nil, center: Loc|nil, strength: number|nil, edgeFade: number|nil, radius: number|nil, frequency: number|nil, speed: number|nil, phase: number|nil, swirl: number|nil, direction: Vector2Arg|nil, plumeWidth: number|nil, plumeHeight: number|nil, turbulence: number|nil, shimmer: number|nil, haze: number|nil, duration: number|nil, fadeIn: number|nil, fadeOut: number|nil}
+--- @return WorldDistortionHandleLua|nil
+function dmhub.CreateWorldDistortion(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CreateParticleSystem: Creates a client-local particle system over the exact tile polygons in locs, at loc, or at the exact world-space position on floorIndex. locs takes precedence and automatically uses a Mesh producer; rate is particles per second per map-area unit, so a tile mask naturally scales emission with its area. It exposes the same fields as an object's Particles component: a ParticleSystemValueArg is either a fixed number or {val=minimum, maxVal=maximum}; shape points are relative to the particle-system position; producerAssetId supplies the object sprite used by the Sprite producer shape. duration=0 (the default) lasts until Stop(). The API does not network effects; call it on every client that should see one.
+--- @param options {locs: Loc[]|nil, loc: Loc|nil, position: Vector2Arg|nil, pos: Vector2Arg|nil, floorIndex: number|nil, image: string|nil, rate: number|nil, lifetime: ParticleSystemValueArg|nil, speed: ParticleSystemValueArg|nil, verticalSpeed: number|nil, opacity: number|nil, fadein: number|nil, fadeout: number|nil, birthColor: Color|nil, deathColor: Color|nil, birthSize: number|nil, deathSize: number|nil, producerShape: 'Circle'|'Edge'|'Rectangle'|'Box'|'Sprite'|'Mesh'|nil, producerAssetId: string|nil, shape: LuaMapPath|Vector2Arg[]|nil, producerRadius: number|nil, producerRotate: number|nil, producerArc: number|nil, producerScale: Vector3Arg|nil, type: 'Default'|'Lighting'|'Darkness'|'Emissive'|nil, rotation: ParticleSystemValueArg|nil, rotationOverLifetime: ParticleSystemValueArg|nil, position_x: number|nil, position_y: number|nil, rotateToVelocity: boolean|nil, worldSpace: boolean|nil, dampenSpeed: number|nil, gravity: Vector3Arg|nil, noiseStrength: ParticleSystemValueArg|nil, noiseFrequency: number|nil, noiseScroll: ParticleSystemValueArg|nil, maxParticles: number|nil, renderQueue: number|nil, parallax: number|nil, ignoreParallax: boolean|nil, sortingOrder: number|nil, duration: number|nil}
+--- @return ParticleSystemHandleLua|nil
+function dmhub.CreateParticleSystem(options)
 	-- dummy implementation for documentation purposes only
 end

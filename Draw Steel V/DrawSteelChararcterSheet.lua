@@ -1,21 +1,173 @@
 local mod = dmhub.GetModLoading()
 
-local bg_color = "#1D1D1D"
---local border_color = "#A3A3A3"
-local border_color = "white"
-
 local g_mainActionId = "d19658a2-4d7b-4504-af9e-1a5410fb17fd"
 local g_maneuverId = "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b"
 local g_triggeredactionId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
+local g_villainActionId = "villain-action"
 local g_abilityActionSortOrder = {
     [g_mainActionId] = -2,
     [g_maneuverId] = -1,
     [g_triggeredactionId] = 0,
+    [g_villainActionId] = 1,
 }
 
-local SwatchBlack = "#000000"
-local SwatchNeutral1 = "#ffffff"
-local SwatchNeutral2 = "#ffffff"
+-- Villain-action slot vocabulary, shared by the sheet's Villain Actions slots
+-- (CreateAbilityListPanel, earlier in the file) and the picker modal
+-- (ShowVillainActionPicker, far below). The picker is launched for one slot at a
+-- time and only offers candidates authored for that same slot (slot-locked).
+local g_villainSlotMeta = {
+    ["Villain Action 1"] = { label = "Opener",        roman = "I" },
+    ["Villain Action 2"] = { label = "Crowd Control",  roman = "II" },
+    ["Villain Action 3"] = { label = "Showstopper",    roman = "III" },
+}
+local g_villainSlotOrder = { "Villain Action 1", "Villain Action 2", "Villain Action 3" }
+
+-- Forward-declared: defined far below, but referenced by the sheet's Villain
+-- Actions empty-slot Add affordances (CreateAbilityListPanel) which build earlier.
+local ShowVillainActionPicker
+
+--Transient highlight for a capability revealed from search (Phase B). The
+--reveal flashes the accent on instantly, HOLDS it, then fades out over
+--SEARCH_REVEAL_FADE (the rule's transitionTime, eased) with a dark gap before
+--the next flash - a gentle "here I am" rather than an aggressive strobe. The
+--rule is merged into the action-list and Features panel style cascades so it
+--resolves on either surface.
+local SEARCH_REVEAL_FADE = 0.8
+local SEARCH_REVEAL_RULE = {
+    selectors = { "searchReveal" },
+    bgcolor = "@accent",
+    transitionTime = SEARCH_REVEAL_FADE,
+    easing = "easeInOutSine",
+}
+
+--Scroll an arbitrary descendant into (vertically centered) view within its
+--nearest vscroll ancestor. There is no engine ScrollIntoView and no
+--child-offset API, so the offset is summed from the rendered heights of
+--preceding siblings up the chain to the scroll panel (the normalized-position
+--math mirrors JournalPDFViewer). Returns false until layout has rendered
+--(heights still 0), so the caller can retry; true once it has positioned (or
+--when everything fits and no scroll is needed). Every engine read is
+--pcall-guarded - panel reads ERROR rather than return nil.
+local function ScrollCapabilityIntoView(target)
+    if target == nil or not target.valid then
+        return false
+    end
+
+    local scrollPanel = target.parent
+    while scrollPanel ~= nil do
+        local isScroll = false
+        pcall(function() isScroll = scrollPanel.vscroll == true end)
+        if isScroll then
+            break
+        end
+        scrollPanel = scrollPanel.parent
+    end
+    if scrollPanel == nil then
+        return false
+    end
+
+    local windowH = 0
+    local targetH = 0
+    pcall(function() windowH = scrollPanel.renderedHeight or 0 end)
+    pcall(function() targetH = target.renderedHeight or 0 end)
+    if windowH <= 0 or targetH <= 0 then
+        return false
+    end
+
+    local contentH = 0
+    pcall(function()
+        for _, c in ipairs(scrollPanel.children) do
+            contentH = contentH + (c.renderedHeight or 0)
+        end
+    end)
+    local range = contentH - windowH
+    if range <= 0 then
+        --Everything fits; the target is already visible.
+        return true
+    end
+
+    local offset = 0
+    local node = target
+    while node ~= nil and node ~= scrollPanel do
+        local parent = node.parent
+        if parent == nil then
+            return false
+        end
+        pcall(function()
+            for _, s in ipairs(parent.children) do
+                if s == node then
+                    break
+                end
+                offset = offset + (s.renderedHeight or 0)
+            end
+        end)
+        node = parent
+    end
+
+    local desiredTop = offset - (windowH - targetH) * 0.5
+    if desiredTop < 0 then
+        desiredTop = 0
+    elseif desiredTop > range then
+        desiredTop = range
+    end
+    --vscrollPosition: 1 = top, 0 = bottom.
+    scrollPanel.vscrollPosition = 1 - desiredTop / range
+    return true
+end
+
+--Each pulse: fade the accent IN over SEARCH_REVEAL_FADE, HOLD at full for
+--SEARCH_REVEAL_HOLD, fade OUT over SEARCH_REVEAL_FADE (symmetric), then a slight
+--SEARCH_REVEAL_GAP pause before the next fade-in - a gentle "here I am" breathe.
+--Plain SetClass(true)/(false) animate both directions over the rule's
+--transitionTime. A finite scheduled chain (no persistent think).
+local SEARCH_REVEAL_PULSES = 3
+local SEARCH_REVEAL_HOLD = 0.3
+local SEARCH_REVEAL_GAP = 0.1
+local function PulseRevealRepeated(target)
+    local remaining = SEARCH_REVEAL_PULSES
+    local function cycle()
+        if mod.unloaded or target == nil or not target.valid then
+            return
+        end
+        target:SetClass("searchReveal", true)
+        --Hold begins once the fade-in has completed.
+        dmhub.Schedule(SEARCH_REVEAL_FADE + SEARCH_REVEAL_HOLD, function()
+            if mod.unloaded or target == nil or not target.valid then
+                return
+            end
+            target:SetClass("searchReveal", false)
+            remaining = remaining - 1
+            if remaining > 0 then
+                dmhub.Schedule(SEARCH_REVEAL_FADE + SEARCH_REVEAL_GAP, cycle)
+            end
+        end)
+    end
+    cycle()
+end
+
+--Phase B for a revealed capability: locate the matched row (findTarget runs
+--each retry because the row may still be building / unrendered), scroll it
+--into view, then pulse the highlight. Retries briefly while the freshly
+--expanded section lays out (heights start at 0); gives up quietly.
+local function ScheduleRevealAndPulse(findTarget)
+    local attempts = 0
+    local function attempt()
+        if mod.unloaded then
+            return
+        end
+        local target = findTarget()
+        if target ~= nil and target.valid and ScrollCapabilityIntoView(target) then
+            PulseRevealRepeated(target)
+            return
+        end
+        attempts = attempts + 1
+        if attempts < 12 then
+            dmhub.Schedule(0.05, attempt)
+        end
+    end
+    attempt()
+end
+
 local fontScaling = 1
 local g_styles = {
     {
@@ -23,7 +175,7 @@ local g_styles = {
         fontSize = 16 * fontScaling,
         fontFace = "Berling",
         fontWeight = "SemiBold",
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -32,7 +184,7 @@ local g_styles = {
         fontSize = 12 * fontScaling,
         fontFace = "Berling",
         fontWeight = "SemiBold",
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -42,7 +194,7 @@ local g_styles = {
         fontFace = "Berling",
         fontWeight = "SemiBold",
         uppercase = true,
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -52,7 +204,7 @@ local g_styles = {
         fontFace = "Berling",
         fontWeight = "Regular",
         uppercase = true,
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -62,7 +214,7 @@ local g_styles = {
         fontFace = "Berling",
         fontWeight = "SemiBold",
         uppercase = true,
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -71,7 +223,7 @@ local g_styles = {
         fontSize = 8 * fontScaling,
         fontFace = "Berling",
         fontWeight = "Regular",
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -80,7 +232,7 @@ local g_styles = {
         fontSize = 8 * fontScaling,
         fontFace = "Berling",
         fontWeight = "SemiBold",
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -89,7 +241,7 @@ local g_styles = {
         fontSize = 7 * fontScaling,
         fontFace = "Berling",
         fontWeight = "Regular",
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -98,7 +250,7 @@ local g_styles = {
         fontSize = 7 * fontScaling,
         fontFace = "Berling",
         fontWeight = "Regular",
-        color = SwatchNeutral1,
+        color = "@fgStrong",
         width = "auto",
         height = 10 * fontScaling,
         valign = "top",
@@ -109,7 +261,7 @@ local g_styles = {
         fontSize = 7 * fontScaling,
         fontFace = "Berling",
         fontWeight = "Regular",
-        color = '#8cdecf',
+        color = "#8cdecf",  -- bespoke trained-skill mint; no clean token analog
         width = "auto",
         height = 10 * fontScaling,
         valign = "top",
@@ -120,7 +272,7 @@ local g_styles = {
         fontSize = 7 * fontScaling,
         fontFace = "Berling",
         fontWeight = "SemiBold",
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
@@ -129,50 +281,72 @@ local g_styles = {
         fontSize = 6 * fontScaling,
         fontFace = "Berling",
         fontWeight = "SemiBold",
-        color = SwatchBlack,
+        color = "@fgInverse",
         width = "auto",
         height = "auto",
     },
     {
         selectors = { "panel_bg_hero" },
-        bgcolor = SwatchNeutral1
+        bgcolor = "@bgInverse"
     },
     {
         selectors = { "panel_bg_monster" },
-        bgcolor = "#910d0d",
-        borderColor = 'red',
+        bgcolor = "@danger",
+        borderColor = "@danger",
     },
     {
         selectors = { "panel_hero_filled" },
         bgimage = true,
-        bgcolor = bg_color,
+        bgcolor = "@bg",
         halign = "center",
         valign = "top",
         width = 260,
         height = 50,
-        borderWidth = 1,
-        borderColor = border_color,
-        --cornerRadius = 16,
-        --beveledcorners = true,
-        --bgcolor = SwatchLight,
-        --bgcolor = "red",
-        --bgimage = "panels/square.png",
+        borderColor = "@border",
         flow = "vertical",
         opacity = 0.9,
-        --interactable = false,
     },
     {
         selectors = { "panel_hero_label" },
         fontSize = 12,
         fontFace = "Berling",
         fontWeight = "Regular",
-        color = border_color,
+        color = "@fgStrong",
         height = "auto",
         valign = "top",
         halign = "center",
         width = "auto",
         bmargin = 8,
 
+    },
+    -- Solid panel-as-divider line (fakes a border via a thin filled panel).
+    -- Apply to panels with width/height sized as a thin bar; bgcolor follows
+    -- the active scheme's border token so the visual stays consistent with
+    -- real {bordered} frames elsewhere on the sheet.
+    {
+        selectors = { "cs-divider-line" },
+        bgcolor = "@border",
+    },
+    -- Privacy (eye) icon on the name field.  Tints with the scheme's strong
+    -- foreground so the icon stays legible across schemes.  PNG is a white
+    -- silhouette with alpha; bgcolor acts as a tint multiplier.
+    {
+        selectors = { "privacyIcon" },
+        halign = "right",
+        valign = "center",
+        x = 16,
+        width = 16,
+        height = 16,
+        bgimage = "ui-icons/eye-closed.png",
+        bgcolor = "@fgStrong",
+    },
+    {
+        selectors = { "privacyIcon", "hover" },
+        brightness = 1.5,
+    },
+    {
+        selectors = { "privacyIcon", "inactive" },
+        bgimage = "ui-icons/eye.png",
     },
 }
 
@@ -183,7 +357,7 @@ local PopupStyles = {
         halign = 'center',
         width = 'auto',
         height = 'auto',
-        bgcolor = 'black',
+        bgcolor = "@bg",
         flow = 'vertical',
         fontSize = 12,
     },
@@ -193,10 +367,9 @@ local PopupStyles = {
         halign = 'center',
         width = 300,
         height = 'auto',
-        bgcolor = 'black',
+        bgcolor = "@bg",
         flow = 'vertical',
-        borderWidth = 2,
-        borderColor = 'white',
+        borderColor = "@border",
         pad = 6,
     },
     {
@@ -208,7 +381,7 @@ local PopupStyles = {
     },
     {
         selectors = { 'popupLabel' },
-        color = 'white',
+        color = "@fgStrong",
         fontSize = 16,
         width = 'auto',
         height = 'auto',
@@ -217,7 +390,7 @@ local PopupStyles = {
     },
     {
         selectors = { 'popupValue' },
-        color = 'white',
+        color = "@fgStrong",
         fontSize = 16,
         width = 'auto',
         height = 'auto',
@@ -232,22 +405,22 @@ local PopupStyles = {
     },
     {
         selectors = { 'editable' },
-        color = '#aaaaff',
+        color = "@accent",
         priority = 2,
     },
     {
         selectors = { 'option' },
-        bgcolor = 'black',
+        bgcolor = "@bg",
         width = '100%',
         height = 20,
     },
     {
         selectors = { 'option', 'selected' },
-        bgcolor = '#880000',
+        bgcolor = "@danger",
     },
     {
         selectors = { 'option', 'hover' },
-        bgcolor = '#880000',
+        bgcolor = "@danger",
     },
     {
         selectors = { 'input' },
@@ -314,6 +487,9 @@ local function CreateAbilityPanel()
         end,
         ability = function(element, ability, c)
             m_ability = ability
+            --Stamped so the search reveal (Phase B) can locate this panel by
+            --the matched ability name.
+            element.data.capabilityName = ability.name
             element:SetClass("collapsed", false)
         end,
 
@@ -337,9 +513,9 @@ local function CreateAbilityPanel()
             classes = { "abilityIconPanel" },
             gradientMapping = true,
             ability = function(element, ability, c)
-                element.bgimage = ability.iconid
-                element.selfStyle = ability.display
-                element.selfStyle.gradient = DisplayGradients.GetGradient(rawget(ability, "iconGradient"))
+                element.bgimage = ability:GetIcon()
+                element.selfStyle = ability:GetIconDisplay()
+                element.selfStyle.gradient = ability:GetIconGradient()
             end,
         },
 
@@ -356,39 +532,60 @@ local function CreateAbilityPanel()
                 classes = { "abilityInfoLabel" },
                 text = "Keywords",
                 ability = function(element, ability, c)
-                    local keywords = table.keys(ability.keywords)
+                    local keywords = {}
+                    for k,_ in pairs(ability.keywords) do
+                        keywords[#keywords+1] = ActivatedAbility.CanonicalKeyword(k)
+                    end
                     table.sort(keywords)
                     element.text = string.join(keywords, ", ")
                 end,
             },
         },
 
-        gui.SettingsButton {
+        -- Button group: customise (always visible) + settings (innate only).
+        gui.Panel{
             floating = true,
-            halign = "right",
-            valign = "top",
-            width = 16,
-            height = 16,
-            tmargin = 2,
-            rmargin = 4,
-            ability = function(element, ability, c)
-                element:SetClass("hidden", not c:IsActivatedAbilityInnate(ability))
-            end,
-            press = function(element)
-                --this gets the actual underlying ability.
-                local ability = CharacterSheet.instance.data.info.token.properties:IsActivatedAbilityInnate(m_ability)
-                if not ability then
-                    return
-                end
-                CharacterSheet.instance:AddChild(ability:ShowEditActivatedAbilityDialog {
-                    close = function(element)
-                        CharacterSheet.instance:FireEvent("refreshAll")
-                    end,
-                    delete = function(element)
-                        CharacterSheet.instance.data.info.token.properties:RemoveInnateActivatedAbility(ability)
-                    end,
-                })
-            end,
+            halign   = "right",
+            valign   = "top",
+            flow     = "horizontal",
+            width    = "auto",
+            height   = "auto",
+            tmargin  = 2,
+            rmargin  = 4,
+
+            gui.Button{
+                classes = {"customiseAbilityButton"},
+                tooltip = "Customize this ability",
+                press   = function(element)
+                    if m_ability == nil then return end
+                    local tok = CharacterSheet.instance.data.info.token
+                    if tok == nil or not tok.valid then return end
+                    CharacterSheet.instance:AddChild(
+                        m_ability:ShowCustomisationDialog(tok, CharacterSheet.instance)
+                    )
+                end,
+            },
+
+            gui.Button{
+                classes = {"settingsButton"},
+                lmargin  = 8,
+                ability = function(element, ability, c)
+                    element:SetClass("hidden", not c:IsActivatedAbilityInnate(ability))
+                end,
+                press   = function(element)
+                    --this gets the actual underlying ability.
+                    local ability = CharacterSheet.instance.data.info.token.properties:IsActivatedAbilityInnate(m_ability)
+                    if not ability then return end
+                    CharacterSheet.instance:AddChild(ability:ShowEditActivatedAbilityDialog{
+                        close = function(element)
+                            CharacterSheet.instance:FireEvent("refreshAll")
+                        end,
+                        delete = function(element)
+                            CharacterSheet.instance.data.info.token.properties:RemoveInnateActivatedAbility(ability)
+                        end,
+                    })
+                end,
+            },
         },
 
         gui.Panel {
@@ -439,6 +636,9 @@ local function CreateTriggeredAbilityPanel()
         end,
         triggeredAbility = function(element, ability, c)
             m_triggeredAbility = ability
+            --Stamped so the search reveal (Phase B) can locate this panel by
+            --the matched ability name.
+            element.data.capabilityName = ability.name
             element:SetClass("collapsed", false)
         end,
 
@@ -473,37 +673,17 @@ local function CreateTriggeredAbilityPanel()
                 hmargin = 8,
                 text = "Keywords",
                 triggeredAbility = function(element, ability, c)
-                    local keywords = table.keys(ability.keywords)
+                    local keywords = {}
+                    for k,_ in pairs(ability.keywords) do
+                        keywords[#keywords+1] = ActivatedAbility.CanonicalKeyword(k)
+                    end
                     table.sort(keywords)
                     element.text = string.join(keywords, ", ")
                 end,
             },
         },
 
-        --[[ gui.SettingsButton {
-            floating = true,
-            halign = "right",
-            valign = "top",
-            width = 16,
-            height = 16,
-            tmargin = 2,
-            rmargin = 4,
-            ability = function(element, ability, c)
-                element:SetClass("hidden", not c:IsActivatedAbilityInnate(ability))
-            end,
-            press = function(element)
-                CharacterSheet.instance:AddChild(m_triggeredAbility:ShowEditActivatedAbilityDialog {
-                    close = function(element)
-                        CharacterSheet.instance:FireEvent("refreshAll")
-                    end,
-                    delete = function(element)
-                        CharacterSheet.instance.data.info.token.properties:RemoveInnateActivatedAbility(m_ability)
-                    end,
-                })
-            end,
-        }, ]]
-
-        --[[ gui.Panel {
+--[[ gui.Panel {
             classes = { "costDiamond", "collapsed" },
             floating = true,
             rotate = 135,
@@ -543,8 +723,6 @@ local function CreateAbilityListPanel()
         classes = { "submenuHeading" },
         data = { ord = g_mainActionId },
         width = "100%",
-        color = "white",
-        fontSize = 20,
         text = "Main Actions",
         press = function(element)
             element:SetClassTree("collapseSet", not element:HasClass("collapseSet"))
@@ -560,8 +738,6 @@ local function CreateAbilityListPanel()
         classes = { "submenuHeading" },
         data = { ord = g_maneuverId },
         width = "100%",
-        color = "white",
-        fontSize = 20,
         text = "Maneuvers",
         press = function(element)
             element:SetClassTree("collapseSet", not element:HasClass("collapseSet"))
@@ -577,8 +753,6 @@ local function CreateAbilityListPanel()
         classes = { "submenuHeading" },
         data = { ord = g_triggeredactionId },
         width = "100%",
-        color = "white",
-        fontSize = 20,
         text = "Triggered Actions",
         press = function(element)
             element:SetClassTree("collapseSet", not element:HasClass("collapseSet"))
@@ -594,9 +768,22 @@ local function CreateAbilityListPanel()
         classes = { "submenuHeading" },
         data = { ord = "other" },
         width = "100%",
-        color = "white",
-        fontSize = 20,
         text = "Other Abilities",
+        press = function(element)
+            element:SetClassTree("collapseSet", not element:HasClass("collapseSet"))
+            resultPanel:FireEvent("refreshToken")
+        end,
+        gui.CollapseArrow {
+            halign = "right",
+            valign = "center",
+        },
+    }
+
+    local m_villainActionsLabel = gui.Label {
+        classes = { "submenuHeading" },
+        data = { ord = g_villainActionId },
+        width = "100%",
+        text = "Villain Actions",
         press = function(element)
             element:SetClassTree("collapseSet", not element:HasClass("collapseSet"))
             resultPanel:FireEvent("refreshToken")
@@ -611,8 +798,17 @@ local function CreateAbilityListPanel()
     m_maneuversLabel:SetClassTree("collapseSet", true)
     m_triggersLabel:SetClassTree("collapseSet", true)
     m_otherActionsLabel:SetClassTree("collapseSet", true)
+    m_villainActionsLabel:SetClassTree("collapseSet", true)
+
+    local function IsVillainAction(ability)
+        local v = ability:try_get("villainAction")
+        return v ~= nil and v ~= "none"
+    end
 
     local GetActionId = function(ability)
+        if IsVillainAction(ability) then
+            return g_villainActionId
+        end
         local actionid = ability:ActionResource()
         if actionid ~= g_mainActionId and actionid ~= g_maneuverId then
             actionid = "other"
@@ -620,19 +816,128 @@ local function CreateAbilityListPanel()
         return actionid
     end
 
+    -- Villain Actions empty-slot Add affordances. Solos and leaders are expected
+    -- to field three villain actions (Opener / Crowd Control / Showstopper); when a
+    -- slot is unfilled this surfaces an Add row that launches the picker for that
+    -- slot. Built once; refreshToken toggles each row by which slots are filled and
+    -- whether the group is shown + expanded. Normal monster-building (a non-solo,
+    -- non-leader creature with no villain actions) never sees these.
+    local m_villainSlotRows = {}
+    local m_villainSlotsPanel
+    do
+        local rows = {}
+        for _, slotId in ipairs(g_villainSlotOrder) do
+            local capturedSlot = slotId
+            local slotMeta = g_villainSlotMeta[slotId]
+            -- Card-sized empty slot: mirrors an ability card's footprint (60 tall,
+            -- full width) but reads as a placeholder -- quiet nested fill, a muted
+            -- centered "+ Add <slot>" -- so it signals "this slot is waiting to be
+            -- filled" rather than hiding as a thin row.
+            local row = gui.Panel{
+                classes = { "villainSlotAdd", "hoverable", "collapsed" },
+                width = "100%",
+                height = 60,
+                flow = "horizontal",
+                halign = "center",
+                valign = "center",
+                borderBox = true,
+                vmargin = 3,
+                click = function(element)
+                    local token = CharacterSheet.instance ~= nil
+                        and CharacterSheet.instance.data.info.token or nil
+                    if token ~= nil and ShowVillainActionPicker ~= nil then
+                        ShowVillainActionPicker(token, capturedSlot)
+                    end
+                end,
+                gui.Panel{
+                    width = "auto", height = "auto", flow = "vertical",
+                    halign = "center", valign = "center",
+                    gui.Panel{
+                        width = "auto", height = "auto", flow = "horizontal",
+                        halign = "center", valign = "center",
+                        gui.Panel{
+                            classes = { "villainSlotAddIcon" },
+                            bgimage = "ui-icons/Plus.png",
+                            width = 16, height = 16,
+                            valign = "center",
+                        },
+                        gui.Label{
+                            classes = { "villainSlotAddLabel" },
+                            width = "auto", height = "auto",
+                            valign = "center",
+                            hmargin = 8,
+                            text = string.format("Add %s", slotMeta.label),
+                        },
+                    },
+                    -- Subline naming the slot ("Villain Action I/II/III"), smaller.
+                    gui.Label{
+                        classes = { "villainSlotAddSub" },
+                        width = "auto", height = "auto",
+                        halign = "center",
+                        textAlignment = "center",
+                        text = string.format("Villain Action %s", slotMeta.roman),
+                    },
+                },
+            }
+            m_villainSlotRows[slotId] = row
+            rows[#rows + 1] = row
+        end
+        m_villainSlotsPanel = gui.Panel{
+            classes = { "collapsed" },
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            data = { ord = g_villainActionId },
+            children = rows,
+        }
+    end
+
+    local function buildActionMenuStyles()
+        return ThemeEngine.MergeTokens{
+            Styles.ActionMenu,
+
+            { selectors = {"submenuHeading"},
+              bgcolor = "@bgAlt", borderColor = "@border",
+              color = "@fgStrong", fontSize = 16 },
+            { selectors = {"submenuHeading", "hover"},
+              bgcolor = "@bg", borderColor = "@fgStrong" },
+
+            { selectors = {"abilityHeading"},
+              bgcolor = "@bg", borderColor = "@border" },
+            { selectors = {"abilityHeading", "hover"},
+              bgcolor = "@bgAlt", borderColor = "@accent" },
+
+            { selectors = {"abilityTitle"},     color = "@fgStrong" },
+            { selectors = {"abilityInfoLabel"}, color = "@fgMuted" },
+
+            -- Villain Actions empty-slot Add cards: a quiet nested placeholder
+            -- (@bgAlt fill, muted glyph + label) that brightens (hoverable) and
+            -- gains an accent frame on hover.
+            { selectors = {"villainSlotAdd"},
+              bgcolor = "@bgAlt", borderColor = "@border", borderWidth = 1,
+              bgimage = true },
+            { selectors = {"villainSlotAdd", "hover"},
+              borderColor = "@accent" },
+            { selectors = {"villainSlotAddLabel"}, color = "@fgMuted", fontSize = 18 },
+            { selectors = {"villainSlotAddSub"}, color = "@fgMuted", fontSize = 12 },
+            { selectors = {"villainSlotAddIcon"}, bgcolor = "@fgMuted" },
+
+            SEARCH_REVEAL_RULE,
+        }
+    end
+
     resultPanel = gui.Panel {
         m_mainActionsLabel,
         m_maneuversLabel,
         m_triggersLabel,
         m_otherActionsLabel,
-        styles = {
-            Styles.ActionMenu,
-            {
-                selectors = { "submenuHeading", "hover" },
-                borderColor = "white",
-            },
-        },
-        width = "100%-12",
+        m_villainActionsLabel,
+        m_villainSlotsPanel,
+        styles = buildActionMenuStyles(),
+        --The malice/heroic cost diamond on each ability row deliberately sticks
+        --out past the row's right edge, so leave a wide gutter here. Without it
+        --the diamond ends up under the scroll bar and looks cut in half.
+        width = "100%-32",
         height = "auto",
         bgimage = true,
         bgcolor = "clear",
@@ -647,6 +952,30 @@ local function CreateAbilityListPanel()
             local abilities = c:GetActivatedAbilities {} -- characterSheet = true }
             local children = {}
 
+            -- Which villain-action slots are already filled, and whether the
+            -- creature is a solo or leader (the orgs expected to have villain
+            -- actions). The Villain Actions group -- and its empty-slot Add rows --
+            -- show when the creature has villain actions OR is a solo/leader, so
+            -- normal monster-building never surfaces them.
+            local hasVillainActions = false
+            local slotFilled = {}
+            for _, ability in ipairs(abilities) do
+                if IsVillainAction(ability) then
+                    hasVillainActions = true
+                    local slot = ability:try_get("villainAction")
+                    if slot ~= nil then
+                        slotFilled[slot] = true
+                    end
+                end
+            end
+            local isSoloOrLeader = false
+            pcall(function()
+                local org = c:ScalingOrgRole()
+                isSoloOrLeader = (org == "solo" or org == "leader")
+            end)
+            local showVillainGroup = hasVillainActions or isSoloOrLeader
+            m_villainActionsLabel:SetClass("collapsed", not showVillainGroup)
+
             local showAbilities = {}
             if not m_mainActionsLabel:HasClass("collapseSet") then
                 showAbilities[g_mainActionId] = true
@@ -658,6 +987,11 @@ local function CreateAbilityListPanel()
 
             if not m_otherActionsLabel:HasClass("collapseSet") then
                 showAbilities["other"] = true
+            end
+
+            local villainExpanded = showVillainGroup and not m_villainActionsLabel:HasClass("collapseSet")
+            if villainExpanded then
+                showAbilities[g_villainActionId] = true
             end
 
             local filteredAbilities = {}
@@ -685,6 +1019,11 @@ local function CreateAbilityListPanel()
                 if action_a ~= action_b then
                     return (g_abilityActionSortOrder[action_a or ""] or 0) <
                         (g_abilityActionSortOrder[action_b or ""] or 0)
+                end
+
+                if action_a == g_villainActionId then
+                    -- Villain Action 1 < Villain Action 2 < Villain Action 3 by string compare
+                    return a:try_get("villainAction", "") < b:try_get("villainAction", "")
                 end
 
                 return a.name < b.name
@@ -716,7 +1055,7 @@ local function CreateAbilityListPanel()
             end
 
             --now insert the headings at the right locations.
-            local headings = { m_mainActionsLabel, m_maneuversLabel, m_triggersLabel, m_otherActionsLabel }
+            local headings = { m_mainActionsLabel, m_maneuversLabel, m_triggersLabel, m_otherActionsLabel, m_villainActionsLabel }
             local j = 1
             while #headings > 0 and j <= #children do
                 for n, heading in ipairs(headings) do
@@ -735,6 +1074,20 @@ local function CreateAbilityListPanel()
                 children[#children + 1] = heading
             end
 
+            -- Villain Actions empty-slot Add rows: surface each unfilled slot, but
+            -- only when the group is shown and expanded. Appended after the villain
+            -- header / villain abilities (villain actions sort last).
+            local anyEmptySlot = false
+            for _, slotId in ipairs(g_villainSlotOrder) do
+                local emptySlot = villainExpanded and not slotFilled[slotId]
+                m_villainSlotRows[slotId]:SetClass("collapsed", not emptySlot)
+                if emptySlot then
+                    anyEmptySlot = true
+                end
+            end
+            m_villainSlotsPanel:SetClass("collapsed", not anyEmptySlot)
+            children[#children + 1] = m_villainSlotsPanel
+
             for i = #abilities + 1, #m_abilityPanels do
                 m_abilityPanels[i]:SetClass("collapsed", true)
                 children[#children + 1] = m_abilityPanels[i]
@@ -747,17 +1100,162 @@ local function CreateAbilityListPanel()
 
             element.children = children
         end,
+
+        --Deep-link hook: the bestiary monster-ability search result fires
+        --"revealCapability" after opening the sheet, to expand the action
+        --section holding the matched ability so it is visible without
+        --hunting. Traits render on the Features tab (handled there), so a
+        --"Trait" capability is ignored here; a no-op if the ability is not
+        --found. Note a name can be BOTH an ability and a trait (e.g.
+        --"Abyssal Protectors") - the categorization decides which surface
+        --reveals it.
+        revealCapability = function(element, capName, categorization)
+            if type(capName) ~= "string" or capName == "" or categorization == "Trait" then
+                return
+            end
+            local token = CharacterSheet.instance.data.info.token
+            if token == nil then
+                return
+            end
+            local c = token.properties
+            local header = nil
+
+            --Triggered abilities live in their own section, separate from
+            --the activated-ability list.
+            pcall(function()
+                for _, a in ipairs(c:GetTriggeredActions()) do
+                    if a.name == capName then
+                        header = m_triggersLabel
+                        return
+                    end
+                end
+            end)
+
+            if header == nil then
+                pcall(function()
+                    for _, a in ipairs(c:GetActivatedAbilities {}) do
+                        if a.name == capName then
+                            local ord = GetActionId(a)
+                            if ord == g_villainActionId then
+                                header = m_villainActionsLabel
+                            elseif ord == g_mainActionId then
+                                header = m_mainActionsLabel
+                            elseif ord == g_maneuverId then
+                                header = m_maneuversLabel
+                            else
+                                header = m_otherActionsLabel
+                            end
+                            return
+                        end
+                    end
+                end)
+            end
+
+            if header ~= nil then
+                header:SetClassTree("collapseSet", false)
+                element:FireEvent("refreshToken")
+
+                --Phase B: scroll the now-rendered ability panel into view and
+                --pulse it. The panels stamp data.capabilityName; the matching
+                --one is non-collapsed (pooled-out panels keep a stale name).
+                local listPanel = element
+                ScheduleRevealAndPulse(function()
+                    local result = nil
+                    local function walk(p, depth)
+                        if p == nil or depth > 8 or result ~= nil then
+                            return
+                        end
+                        local cn = nil
+                        pcall(function() cn = p.data and p.data.capabilityName or nil end)
+                        if cn == capName and not p:HasClass("collapsed") then
+                            result = p
+                            return
+                        end
+                        local ok, ch = pcall(function() return p.children end)
+                        if ok and type(ch) == "table" then
+                            for _, c in ipairs(ch) do
+                                walk(c, depth + 1)
+                            end
+                        end
+                    end
+                    walk(listPanel, 0)
+                    return result
+                end)
+            end
+        end,
+
+        --Make Solo post-apply signpost: expand the Villain Actions group and
+        --scroll + flash the first empty slot, so a freshly converted solo's
+        --empty slots are seen rather than left hidden off-page. Mirrors
+        --revealCapability's expand-then-pulse, but targets an empty slot row
+        --instead of a filled ability. Reuses the search-reveal pulse, so the
+        --signpost is the same gentle animation the director already knows.
+        revealEmptyVillainSlot = function(element)
+            if CharacterSheet.instance == nil
+                or CharacterSheet.instance.data.info.token == nil then
+                return
+            end
+            m_villainActionsLabel:SetClassTree("collapseSet", false)
+            element:FireEvent("refreshToken")
+            ScheduleRevealAndPulse(function()
+                for _, slotId in ipairs(g_villainSlotOrder) do
+                    local row = m_villainSlotRows[slotId]
+                    if row ~= nil and row.valid and not row:HasClass("collapsed") then
+                        return row
+                    end
+                end
+                return nil
+            end)
+        end,
     }
+
+    ThemeEngine.OnThemeChanged(mod, function()
+        if resultPanel ~= nil and resultPanel.valid then
+            resultPanel.styles = buildActionMenuStyles()
+        end
+    end)
 
     return resultPanel
 end
 
 
+--Builds the hover tooltip for the monster implementation-status editor: the
+--calculated (lowest-tier) status, any manual override, then a per-ability and
+--per-trait accounting. Content comes from the shared summary panel on the
+--monster type (MCDMMonster.lua), which the bestiary diamond also uses.
+local function CreateImplementationAccountingTooltip(c)
+    return gui.TooltipFrame(
+        c:RenderImplementationSummaryPanel(),
+        {
+            halign = "right",
+            valign = "center",
+        }
+    )
+end
+
+--Hover handler for the implementation-status editor. Uses hover rather than
+--linger because linger only fires on the deepest panel under the cursor and
+--does not propagate to ancestors, while hover propagates from the editor's
+--inner widgets up to the container this is attached to.
+local function ImplementationStatusHover(element)
+    local sheet = CharacterSheet.instance
+    if sheet == nil then
+        return
+    end
+    local token = sheet.data.info.token
+    if token == nil or token.properties == nil or not token.properties:IsMonster() then
+        return
+    end
+    element.tooltip = CreateImplementationAccountingTooltip(token.properties)
+end
+
 function CharSheet.CharacterSheetAndAvatarPanel()
     local controllerDropdown
     if dmhub.isDM then
         controllerDropdown = gui.Dropdown {
-            width = 220,
+            --240 matches the default dropdown width, which is what the Titles
+            --multiselect below uses, so the two line up edge to edge.
+            width = 240,
             height = 26,
             vmargin = 4,
             fontSize = 15,
@@ -930,15 +1428,12 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
 
                 text = "Name",
-                color = border_color,
                 fontSize = 20,
                 textAlignment = "center",
                 characterLimit = 30,
 
                 bgimage = true,
-                bgcolor = bg_color,
-                borderWidth = 2,
-                borderColor = border_color,
+                classes = {"bordered"},
 
                 width = "100%",
                 height = 50,
@@ -985,7 +1480,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
 
                 text = "Name",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1000,14 +1494,11 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
 
                 text = "Ancestry",
-                color = border_color,
                 fontSize = 20,
                 textAlignment = "center",
 
                 bgimage = true,
-                bgcolor = bg_color,
-                borderWidth = 2,
-                borderColor = border_color,
+                classes = {"bordered"},
 
                 width = "100%",
                 height = 50,
@@ -1022,16 +1513,14 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                 end,
 
                 refreshToken = function(element, info)
-                    if info.token.properties:IsMonster() then
+                    if info.token.properties:IsMonster() or info.token.properties:IsCompanion() then
                         element.text = info.token.properties:try_get("monster_type", "")
-                        if info.token.properties:IsMonster() and element.text == "" then
+                        if element.text == "" then
                             element.text = "(No monster type)"
                             element:SetClass("invalid", true)
                         else
                             element:SetClass("invalid", false)
                         end
-                        --element.text = info.token.properties:RaceOrMonsterType()
-                        --element.text = creature.GetTokenDescription(element)
                         element.editable = true
                     else
                         element.text = info.token.properties:RaceOrMonsterType()
@@ -1046,14 +1535,15 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
 
                 refreshToken = function(element, info)
-                    if info.token.properties:IsMonster() then
+                    if info.token.properties:IsCompanion() then
+                        element.text = "Companion Type"
+                    elseif info.token.properties:IsMonster() then
                         element.text = "Monster"
                     else
                         element.text = "Ancestry"
                     end
                 end,
                 text = "Ancestry",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1068,15 +1558,12 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
 
                 text = "Class",
-                color = border_color,
                 fontSize = 20,
                 minFontSize = 12,
                 textAlignment = "center",
 
                 bgimage = true,
-                bgcolor = bg_color,
-                borderWidth = 2,
-                borderColor = border_color,
+                classes = {"bordered"},
 
                 hpad = 8,
                 width = "100%",
@@ -1172,7 +1659,8 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                     element.text = "-"
                 end,
 
-                gui.SettingsButton {
+                gui.Button {
+                    classes = {"settingsButton"},
                     floating = true,
                     halign = "right",
                     valign = "top",
@@ -1210,7 +1698,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                                 end
 
                                 if not alreadyExists then
-                                    monsterKeywords[#monsterKeywords + 1] = { id = keyword, text = keyword }
+                                    monsterKeywords[#monsterKeywords + 1] = { id = keyword, text = ActivatedAbility.CanonicalKeyword(keyword) }
                                 end
                             end
 
@@ -1219,13 +1707,11 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                             local resultPanel
                             resultPanel = gui.TooltipFrame(
                                 gui.Panel {
-                                    width = 340,
+                                    width = 500,
                                     height = "auto",
-                                    styles = {
-                                        Styles.Default,
-                                        PopupStyles,
-                                        CharSheet.GetCharacterSheetStyles(),
-                                    },
+                                    flow = "vertical",
+                                    pad = 8,
+                                    borderBox = true,
 
                                     destroy = function(element)
                                         --if the monster has a band, make sure it has the keyword too.
@@ -1272,10 +1758,10 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                                             },
                                         },
 
-                                        gui.Divider {
+                                        gui.MCDMDivider {
                                             width = "80%",
                                             height = 1,
-                                            vmargin = 4,
+                                            vmargin = 8,
                                         },
 
                                         gui.Panel {
@@ -1290,8 +1776,9 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                                                 text = "Keywords:",
                                             },
 
-                                            gui.SetEditor {
+                                            gui.Multiselect {
                                                 value = rawget(token.properties, "keywords") or {},
+                                                width = "80%",
                                                 addItemText = "Add Keyword...",
                                                 options = monsterKeywords,
                                                 change = function(element, value)
@@ -1310,6 +1797,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                                 }
                             )
 
+                            element.popupsInheritStyles = true
                             element.popup = resultPanel
                         end
                     end,
@@ -1319,7 +1807,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             --class label
             gui.Label {
                 text = "Class",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1339,16 +1826,12 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             --subclass of character
             gui.Label {
 
-                classes = { "monstercollapse", "followercollapse" },
+                classes = { "bordered", "monstercollapse", "followercollapse" },
                 text = "Subclass",
-                color = border_color,
                 fontSize = 20,
                 textAlignment = "center",
 
                 bgimage = true,
-                bgcolor = bg_color,
-                borderWidth = 2,
-                borderColor = border_color,
 
                 width = "100%",
                 height = 50,
@@ -1379,7 +1862,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                 classes = { "monstercollapse", "followercollapse" },
 
                 text = "Subclass",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1433,7 +1915,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
                 classes = { "monsteronly" },
                 text = "Organization",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1475,7 +1956,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
                 classes = { "followeronly" },
                 text = "Follower Type",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1528,7 +2008,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
                 classes = { "monsterorfolloweronly" },
                 text = "Role",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1550,13 +2029,81 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                 end,
             },
 
+            --Make Solo / Revert Solo: promote an Elite or Leader monster to a
+            --Solo (organization -> Solo plus the Instant Solo template) in one
+            --reversible action, then signpost the now-revealed empty villain
+            --action slots. Lives directly under the organization controls it
+            --rewrites; after Apply both the org dropdown (now "Solo") and this
+            --button's revert state surface here together.
+            --
+            --Offered only for Elite and Leader baselines: the Instant Solo
+            --template's x3 EV / x2.5 Stamina math lands exactly on the sheet's
+            --Solo row for those two organizations. Standard / horde / minion
+            --baselines would produce an under-budgeted "half solo", so they are
+            --excluded for now (revisit if there is demand). A button conversion
+            --is always revertible (which is the only way a creature reaches the
+            --converted state, so the revert path stays available).
+            gui.Button {
+                classes = { "sizeM" },
+                text = "Make Solo",
+                width = 160,
+                height = 30,
+                halign = "center",
+                vmargin = 6,
+                refreshToken = function(element, info)
+                    local c = info.token.properties
+                    if not c:IsMonster() then
+                        element:SetClass("collapsed", true)
+                        return
+                    end
+                    if c:HasSoloConversion() then
+                        element:SetClass("collapsed", false)
+                        element.text = "Revert Solo"
+                        return
+                    end
+                    --Not converted: offer Make Solo only for Elite/Leader
+                    --(excludes standard/horde/minion/authored-solo).
+                    local org = c:Organization()
+                    if org ~= "elite" and org ~= "leader" then
+                        element:SetClass("collapsed", true)
+                        return
+                    end
+                    element:SetClass("collapsed", false)
+                    element.text = "Make Solo"
+                end,
+                click = function(element)
+                    local sheet = CharacterSheet.instance
+                    if sheet == nil then
+                        return
+                    end
+                    local token = sheet.data.info.token
+                    if token == nil or token.properties == nil then
+                        return
+                    end
+                    local c = token.properties
+                    if not c:IsMonster() then
+                        return
+                    end
+                    if c:HasSoloConversion() then
+                        c:RevertSolo()
+                        sheet:FireEvent("refreshAll")
+                    else
+                        c:MakeSolo()
+                        sheet:FireEvent("refreshAll")
+                        --Reveal-and-prompt (inform, don't enforce): expand the
+                        --Villain Actions group and flash the first empty slot.
+                        --No picker is forced open.
+                        sheet:FireEventTree("revealEmptyVillainSlot")
+                    end
+                end,
+            },
+
             controllerDropdown,
 
             --Controlled by
             gui.Label {
 
                 text = "Controlled by",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1588,7 +2135,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
                 classes = { "monsterorfolloweronly" },
                 text = "Treat as",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
                 width = "100%",
@@ -1598,6 +2144,12 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
             -- Titles
             gui.Multiselect {
+                --Sized and centered to match the controller dropdown above
+                --instead of the default 98%-of-parent controller, which left
+                --the inner dropdown wider and offset from it.
+                width = 240,
+                halign = "center",
+                dropdown = { width = "100%" },
                 options = Title.GetDropdownList(),
                 addItemText = "Grant title...",
                 refreshToken = function(element, info)
@@ -1615,7 +2167,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             gui.Label {
 
                 text = "Titles",
-                color = border_color,
                 fontSize = 12,
                 textAlignment = "center",
 
@@ -1625,6 +2176,111 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
                 refreshToken = function(element, info)
                     element:SetClass("collapsed", info.token.properties:IsMonster())
+                end,
+            },
+        },
+
+        --Implementation status (monsters only). Shows the effective status:
+        --a manual override stored on the monster if one is set, otherwise the
+        --calculated status (the lowest tier across the monster's abilities
+        --and traits). Using the arrows stores an override; the revert button
+        --clears it back to the calculated value. Hover for a per-ability and
+        --per-trait accounting.
+        gui.Panel {
+            classes = { "monsteronly" },
+            --hit-testable surface so hover fires anywhere on the editor
+            bgimage = true,
+            bgcolor = "clear",
+            width = 256,
+            height = "auto",
+            flow = "vertical",
+            halign = "center",
+            valign = "top",
+            tmargin = 15,
+            bmargin = 15,
+
+            hover = ImplementationStatusHover,
+
+            gui.Panel {
+                flow = "horizontal",
+                width = "100%",
+                height = "auto",
+                halign = "center",
+
+                --width 200 so the widget's internal 180-wide status label fits
+                --inside the declared bounds instead of overflowing rightward
+                --and skewing the centering.
+                gui.ImplementationStatusPanel {
+                    width = 200,
+                    halign = "center",
+                    valign = "center",
+                    refreshToken = function(element, info)
+                        if not info.token.properties:IsMonster() then
+                            return
+                        end
+                        element.value = info.token.properties:GetImplementationStatus()
+                    end,
+                    change = function(element)
+                        local sheet = CharacterSheet.instance
+                        if sheet == nil then
+                            return
+                        end
+                        local c = sheet.data.info.token.properties
+                        if not c:IsMonster() then
+                            return
+                        end
+                        c:SetImplementationStatusOverride(element.value)
+                        sheet:FireEvent("refreshAll")
+                    end,
+                },
+
+                --Revert to the calculated status; only shown while an
+                --override is set. Floating so its visibility never shifts
+                --the centered status widget.
+                gui.Button {
+                    classes = { "deleteButton" },
+                    floating = true,
+                    width = 16,
+                    height = 16,
+                    halign = "right",
+                    valign = "center",
+                    hover = gui.Tooltip("Revert to the calculated status."),
+                    refreshToken = function(element, info)
+                        local c = info.token.properties
+                        element:SetClass("collapsed", not (c:IsMonster() and c:HasImplementationStatusOverride()))
+                    end,
+                    click = function(element)
+                        local sheet = CharacterSheet.instance
+                        if sheet == nil then
+                            return
+                        end
+                        local c = sheet.data.info.token.properties
+                        if not c:IsMonster() then
+                            return
+                        end
+                        c:SetImplementationStatusOverride(nil)
+                        sheet:FireEvent("refreshAll")
+                    end,
+                },
+            },
+
+            gui.Label {
+                text = "Implementation",
+                fontSize = 12,
+                textAlignment = "center",
+                width = "100%",
+                height = "auto",
+                halign = "center",
+                refreshToken = function(element, info)
+                    local c = info.token.properties
+                    if not c:IsMonster() then
+                        return
+                    end
+                    if c:HasImplementationStatusOverride() then
+                        element.text = "Implementation (Manual)"
+                    else
+                        element.text = "Implementation (Auto)"
+                    end
                 end,
             },
         },
@@ -1644,10 +2300,8 @@ function CharSheet.CharacterSheetAndAvatarPanel()
         ----------------------------------------
         gui.Panel {
 
+            classes = {"bordered"},
             bgimage = true,
-            bgcolor = bg_color,
-            borderWidth = 2,
-            borderColor = border_color,
             beveledcorners = true,
             refreshToken = function(element, info)
                 if info.token.properties:IsMonster() then
@@ -1663,7 +2317,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
             gui.Label {
 
-                color = border_color,
                 width = 260,
                 height = 50,
                 textAlignment = "center",
@@ -1727,7 +2380,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                         local classInfo = classesTable[entry.classid]
                         if classInfo ~= nil then
                             local label = currentPanels[i] or gui.Label {
-                                color = border_color,
                                 width = 260,
                                 height = "100%",
                                 textAlignment = "center",
@@ -1900,7 +2552,7 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
                 style = {
                     halign = 'left',
                     valign = 'center',
-                    height = 24,
+                    height = 30,
                     width = 100,
                 },
             }),
@@ -1933,9 +2585,11 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
                 end,
                 halign = 'left',
                 valign = 'center',
-                fontSize = 14,
+                textAlignment = "center",
+                numeric = true,
                 height = 24,
-                width = 20,
+                width = 34,
+                lmargin = 4,
             },
 
             gui.Label({
@@ -1952,6 +2606,8 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
             gui.Dropdown({
                 options = damageTypeOptions,
                 optionChosen = resistanceEntry.damageType,
+                hasSearch = true,
+                sort = true,
                 halign = 'left',
                 valign = 'center',
                 height = 24,
@@ -1975,7 +2631,8 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
                 },
             }),
 
-            gui.DeleteItemButton {
+            gui.Button {
+                classes = {"deleteButton"},
                 width = 16,
                 height = 16,
 
@@ -2002,8 +2659,8 @@ function CharSheet.DSEditImmunitiesPopup(element, info)
     local children = {}
 
     children[#children + 1] = gui.Label {
+        classes = {"sizeXl", "bold"},
         halign = "center",
-        fontSize = 24,
         text = "Immunities & Weaknesses",
         width = "auto",
         height = "auto",
@@ -2019,16 +2676,12 @@ function CharSheet.DSEditImmunitiesPopup(element, info)
     end
 
     children[#children + 1] =
-        gui.PrettyButton {
+        gui.Button {
+            classes = {"sizeM"},
             text = 'Add Entry',
-            width = 200,
             halign = 'center',
             valign = 'bottom',
-            fontSize = 20,
-            margin = 2,
-            height = 50,
-            pad = 4,
-            hpad = 4,
+            vmargin = 4,
             events = {
                 click = function(element)
                     local resistances = creature:GetResistances()
@@ -2047,124 +2700,1474 @@ function CharSheet.DSEditImmunitiesPopup(element, info)
             },
         }
 
-    --[[
-	children[#children+1] = gui.Panel{
-		bgimage = "panels/square.png",
-		bgcolor = "white",
-		height = 1,
-		width = 100,
-		vmargin = 20,
-		halign = "center",
-	}
-
-	children[#children+1] = gui.Label{
-		halign = "center",
-		fontSize = 24,
-		text = "Innate Condition Immunities",
-		width = "auto",
-		height = "auto",
-	}
-
-
-	local immunityPanels = {}
-	local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
-
-	for k,v in pairs(creature:try_get("innateConditionImmunities", {})) do
-		local condid = k
-		local cond = conditionsTable[k]
-		if cond ~= nil then
-			immunityPanels[#immunityPanels+1] = gui.Label{
-				text = cond.name,
-				fontSize = 20,
-				width = 240,
-
-				gui.DeleteItemButton{
-					width = 16,
-					height = 16,
-					halign = "right",
-					valign = "center",
-					click = function(element)
-						creature:try_get("innateConditionImmunities", {})[k] = nil
-						CharacterSheet.instance:FireEvent('refreshAll')
-						CharSheet.DSEditImmunitiesPopup(parentElement, info)
-					end,
-				}
-			}
-
-		end
-	end
-
-	table.sort(immunityPanels, function(a,b) return a.text < b.text end)
-	for _,p in ipairs(immunityPanels) do
-		children[#children+1] = p
-	end
-
-	children[#children+1] = gui.Dropdown{
-		create = function(element)
-			local options = {}
-
-			local immunities = creature:try_get("innateConditionImmunities", {})
-
-			for j,cond in pairs(conditionsTable) do
-				if cond:try_get("hidden", false) == false and cond.immunityPossible and (not immunities[j]) then
-					options[#options+1] = {
-						id = j,
-						text = cond.name,
-					}
-				end
-			end
-
-			table.sort(options, function(a,b) return a.text < b.text end)
-			table.insert(options, 1, {
-				id = "none",
-				text = "Add Immunity...",
-			})
-
-			element.options = options
-			element.idChosen = "none"
-		end,
-
-		change = function(element)
-			if element.idChosen == "none" then
-				return
-			end
-
-			local immunities = creature:get_or_add("innateConditionImmunities", {})
-			immunities[element.idChosen] = true
-			CharacterSheet.instance:FireEvent('refreshAll')
-			CharSheet.DSEditImmunitiesPopup(parentElement, info)
-		end,
-	}
-]]
-
     element.popupPositioning = "panel"
 
-    element.popup = gui.TooltipFrame(
-        gui.Panel {
-            width = "auto",
-            height = "auto",
-            styles = {
-                Styles.Default,
-                PopupStyles,
-            },
+    element.popup = gui.Panel {
+        classes = {"framedPanel"},
+        halign = "right",
+        interactable = true,
+        flow = "vertical",
+        hpad = 24,
+        vpad = 14,
+        width = "auto",
+        height = "auto",
+        styles = ThemeEngine.MergeStyles{
+            PopupStyles,
+        },
+        children = children,
+    }
+end
 
-            children = children,
+--==============================================================
+-- Monster level scaling: the "Adjust Level" dialog (chunk 4).
+--
+-- Opens from the LEVEL indicator in the monster stat-block header. It previews
+-- the full consequence of moving to a target level -- a Now / After compare
+-- table with signed deltas, an echelon callout (only when crossing 3/4, 6/7,
+-- 9/10) and a scaling-down note -- before committing via
+-- monster:SetLevelAdjustment. All math + the generated feature live in
+-- MCDMMonster.lua (MCDMMonsterScaling + monster:Set/Clear/HasLevelAdjustment);
+-- this is presentation only.
+--
+-- Per-creature stats (EV / Stamina / Free strike) read the creature's actual
+-- current value and show After = Now + (current -> target) delta, exactly what
+-- Apply produces. Reference stats (Damage, Highest characteristic, Potency) are
+-- shown from the MCDM table / formula at the current vs target level (there is
+-- no single per-creature damage number, and characteristic / potency are
+-- echelon-derived).
+--==============================================================
+
+local function ScalingSignedString(n)
+    if n > 0 then
+        return string.format("+%d", n)
+    end
+    return string.format("%d", n)
+end
+
+-- Forward-declared: the leveler launches the post-conversion summary, and the
+-- summary reopens the leveler when it closes. Defined below the leveler.
+local ShowCustomRetainerSummary
+
+local function ShowAdjustLevelDialog(token)
+    if token == nil or token.properties == nil then
+        return
+    end
+    local props = token.properties
+    if not props:IsMonster() then
+        return
+    end
+
+    local org, role = props:ScalingOrgRole()
+    local isLeaderSolo = (org == "leader" or org == "solo")
+    local dtype = MCDMMonsterScaling.DamageType(org, role)
+
+    --Retainers use the same adjustment machinery but advance on their own
+    --track (stamina, free strikes, signature ability damage), cap at level 10,
+    --and have no org/role table, echelon, or potency scaling.
+    local isRetainer = props:IsRetainer()
+
+    --Whether this monster can convert into a custom retainer (not a minion,
+    --leader, solo, or existing follower). Drives the Make Custom Retainer
+    --footer button.
+    local canBecomeRetainer = props:CanBecomeCustomRetainer()
+
+    -- Strikes add the highest characteristic on top of the table damage and so
+    -- scale differently from non-strike power rolls (table delta + characteristic
+    -- delta vs table delta alone). Only surface a Strike damage row when this
+    -- monster actually has a strike ability, so monsters without one get no dead row.
+    local hasStrike = false
+    for _, a in ipairs(props:GetActivatedAbilities {}) do
+        if a:HasKeyword("Strike") then
+            hasStrike = true
+            break
+        end
+    end
+
+    local minLevel = MCDMMonsterScaling.minLevel
+    local maxLevel = MCDMMonsterScaling.maxLevel
+    if isRetainer then
+        maxLevel = MCDMMonsterScaling.retainerMaxLevel
+    end
+    local baseLevel = props:GetScalingBaseLevel()
+    local currentLevel = round(tonumber(props:CharacterLevel()) or baseLevel)
+    currentLevel = math.max(minLevel, math.min(maxLevel, currentLevel))
+
+    -- The creature's actual current per-creature stats (these already include
+    -- any adjustment in effect now).
+    local nowEV = round(tonumber(props:EV()) or 0)
+    local nowStamina = round(tonumber(props:MaxHitpoints()) or 0)
+    local nowFreeStrike = round(tonumber(props:OpportunityAttack()) or 0)
+
+    -- Minion squads. A level adjustment normally hits only this token, but a
+    -- minion is one of a squad of identical minions, so scaling one leaves the
+    -- rest behind. When this minion belongs to a squad we offer to scale every
+    -- member together (default on). Squad membership = same MinionSquad name and
+    -- monster type; recomputed fresh at Apply time so deaths mid-dialog can't
+    -- leave a stale target list.
+    local function CollectSquadMembers()
+        local squadName = nil
+        pcall(function() squadName = props:MinionSquad() end)
+        if not props:try_get("minion", false) or squadName == nil then
+            return { token }
+        end
+        local mtype = props:try_get("monster_type", nil)
+        local members = {}
+        for _, t in ipairs(dmhub.GetTokens() or {}) do
+            local tp = t.properties
+            local match = false
+            pcall(function()
+                match = tp ~= nil and tp:try_get("minion", false) == true
+                    and tp:MinionSquad() == squadName
+                    and (mtype == nil or tp:try_get("monster_type", nil) == mtype)
+            end)
+            if match then
+                members[#members + 1] = t
+            end
+        end
+        if #members == 0 then
+            return { token }
+        end
+        return members
+    end
+
+    local squadSize = #CollectSquadMembers()
+    local isSquadMinion = squadSize > 1
+    -- Default on: the common case is scaling the whole squad together.
+    local applyToSquad = isSquadMinion
+
+    -- Mutable selection; starts at the current level (no change).
+    local targetLevel = currentLevel
+
+    -- Forward-declared so the helpers / event handlers below can reach them.
+    local dialog
+    local previewPanel
+    local valueLabel
+    local slider
+    local echelonBanner
+    local noteLabel
+    local footerLabel
+    local squadCheck
+
+    local function signum(n)
+        if n > 0 then return 1 elseif n < 0 then return -1 else return 0 end
+    end
+
+    -- Adjustment-column text: the signed delta, or blank when unchanged.
+    local function adjStr(n)
+        if n == 0 then return "" end
+        return ScalingSignedString(n)
+    end
+
+    -- One Now / After / Adjustment compare row. The Adjustment column is tinted
+    -- success (increase) or danger (decrease); dir is its sign. Unchanged
+    -- echelon rows (dim=true) are quieted so the rows that move stay salient.
+    local function CompareRow(idx, labelText, nowText, afterText, adjText, dir, dim)
+        local changed = dir ~= 0
+        local quiet = dim and not changed
+        local adjClass = { "tableLabel", "bold" }
+        if dir > 0 then
+            adjClass = { "tableLabel", "bold", "adjustInc" }
+        elseif dir < 0 then
+            adjClass = { "tableLabel", "bold", "adjustDec" }
+        end
+        return gui.Panel{
+            classes = { "row", cond(idx % 2 == 0, "evenRow", "oddRow") },
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            borderBox = true,
+            hpad = 10,
+            vpad = 5,
+            opacity = cond(quiet, 0.5, 1.0),
+
+            gui.Label{ classes = { "tableLabel" }, text = labelText, width = "36%", height = "auto", halign = "left", textWrap = true },
+            gui.Label{ classes = { "tableLabel" }, text = nowText, width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = { "tableLabel" }, text = afterText, width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = adjClass, text = adjText, width = "30%", height = "auto", textAlignment = "center" },
+        }
+    end
+
+    local function BuildPreviewRows()
+        local deltas = MCDMMonsterScaling.ComputeDeltas(org, role, currentLevel, targetLevel) or {}
+        local rows = {}
+
+        rows[#rows+1] = gui.Panel{
+            classes = { "row", "headerRow" },
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            borderBox = true,
+            hpad = 10,
+            vpad = 8,
+            gui.Label{ classes = { "tableLabel", "bold" }, text = "", width = "36%", height = "auto" },
+            gui.Label{ classes = { "tableLabel", "bold" }, text = "Now", width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = { "tableLabel", "bold" }, text = "After", width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = { "tableLabel", "bold" }, text = "Adjustment", width = "30%", height = "auto", textAlignment = "center" },
+        }
+
+        -- Separator under the header so it reads distinctly from the data rows.
+        rows[#rows+1] = gui.Panel{ classes = { "adjustDivider" }, width = "100%", height = 1, bmargin = 2 }
+
+        local idx = 0
+        local function add(labelText, nowText, afterText, adjText, dir, dim)
+            idx = idx + 1
+            rows[#rows+1] = CompareRow(idx, labelText, nowText, afterText, adjText, dir, dim)
+        end
+
+        -- Retainers: their own advancement track (see ComputeRetainerDeltas).
+        -- Stamina and free strike are per-creature values; the signature
+        -- damage rows show the creature's current bonus attributes + delta.
+        if isRetainer then
+            local rDeltas = MCDMMonsterScaling.ComputeRetainerDeltas(currentLevel, targetLevel) or {}
+
+            add("Stamina",
+                string.format("%d", nowStamina),
+                string.format("%d", nowStamina + (rDeltas.stamina or 0)),
+                adjStr(rDeltas.stamina or 0), signum(rDeltas.stamina or 0), false)
+
+            add("Free strike",
+                string.format("%d", nowFreeStrike),
+                string.format("%d", nowFreeStrike + (rDeltas.freeStrike or 0)),
+                adjStr(rDeltas.freeStrike or 0), signum(rDeltas.freeStrike or 0), false)
+
+            -- Current signature bonuses: the retainer "Tier 1 Damage" and
+            -- "Tier 2 and 3 Damage" custom attributes.
+            local sig1Now = round(tonumber(props:CalculateNamedCustomAttribute("Tier 1 Damage")) or 0)
+            local sig23Now = round(tonumber(props:CalculateNamedCustomAttribute("Tier 2 and 3 Damage")) or 0)
+            local d1 = rDeltas.sig1 or 0
+            local d23 = rDeltas.sig23 or 0
+            local sigChanged = d1 ~= 0 or d23 ~= 0
+            local sigStr = ""
+            if sigChanged then
+                sigStr = string.format("%s / %s", ScalingSignedString(d1), ScalingSignedString(d23))
+            end
+            add("Signature damage bonus (T1 / T2 & 3)",
+                string.format("%s / %s", ScalingSignedString(sig1Now), ScalingSignedString(sig23Now)),
+                string.format("%s / %s", ScalingSignedString(sig1Now + d1), ScalingSignedString(sig23Now + d23)),
+                sigStr, cond(sigChanged, signum(targetLevel - currentLevel), 0), false)
+
+            return rows
+        end
+
+        -- Encounter value (per-creature)
+        add("Encounter value",
+            string.format("%d", nowEV),
+            string.format("%d", nowEV + (deltas.ev or 0)),
+            adjStr(deltas.ev or 0), signum(deltas.ev or 0), false)
+
+        -- Stamina (per-creature)
+        add("Stamina",
+            string.format("%d", nowStamina),
+            string.format("%d", nowStamina + (deltas.stamina or 0)),
+            adjStr(deltas.stamina or 0), signum(deltas.stamina or 0), false)
+
+        -- Damage T1/T2/T3 (reference: MCDM table for this org/role)
+        local rowCur = MCDMMonsterScaling.RowFor(org, currentLevel)
+        local rowTgt = MCDMMonsterScaling.RowFor(org, targetLevel)
+        local dmgNow = rowCur and rowCur[dtype]
+        local dmgTgt = rowTgt and rowTgt[dtype]
+        if dmgNow ~= nil and dmgTgt ~= nil then
+            local d1, d2, d3 = deltas.t1 or 0, deltas.t2 or 0, deltas.t3 or 0
+            local changed = d1 ~= 0 or d2 ~= 0 or d3 ~= 0
+            local dStr = ""
+            if changed then
+                dStr = string.format("%s / %s / %s",
+                    ScalingSignedString(d1), ScalingSignedString(d2), ScalingSignedString(d3))
+            end
+            add("Damage (T1 / T2 / T3)",
+                string.format("%d / %d / %d", dmgNow[1], dmgNow[2], dmgNow[3]),
+                string.format("%d / %d / %d", dmgTgt[1], dmgTgt[2], dmgTgt[3]),
+                dStr, cond(changed, signum(targetLevel - currentLevel), 0), false)
+
+            -- Strike damage = table damage + highest characteristic, which scales
+            -- by the table delta plus the characteristic delta (so it moves more
+            -- than the row above when an echelon boundary is crossed). Only shown
+            -- when the monster has a strike ability.
+            if hasStrike then
+                local sCharNow = MCDMMonsterScaling.HighestCharacteristic(currentLevel, isLeaderSolo)
+                local sCharTgt = MCDMMonsterScaling.HighestCharacteristic(targetLevel, isLeaderSolo)
+                local s1 = (dmgTgt[1] + sCharTgt) - (dmgNow[1] + sCharNow)
+                local s2 = (dmgTgt[2] + sCharTgt) - (dmgNow[2] + sCharNow)
+                local s3 = (dmgTgt[3] + sCharTgt) - (dmgNow[3] + sCharNow)
+                local sChanged = s1 ~= 0 or s2 ~= 0 or s3 ~= 0
+                local sStr = ""
+                if sChanged then
+                    sStr = string.format("%s / %s / %s",
+                        ScalingSignedString(s1), ScalingSignedString(s2), ScalingSignedString(s3))
+                end
+                add("Strike damage (T1 / T2 / T3)",
+                    string.format("%d / %d / %d", dmgNow[1] + sCharNow, dmgNow[2] + sCharNow, dmgNow[3] + sCharNow),
+                    string.format("%d / %d / %d", dmgTgt[1] + sCharTgt, dmgTgt[2] + sCharTgt, dmgTgt[3] + sCharTgt),
+                    sStr, cond(sChanged, signum(targetLevel - currentLevel), 0), false)
+            end
+        end
+
+        -- Free strike (per-creature; T1 table delta, no characteristic)
+        add("Free strike",
+            string.format("%d", nowFreeStrike),
+            string.format("%d", nowFreeStrike + (deltas.freeStrike or 0)),
+            adjStr(deltas.freeStrike or 0), signum(deltas.freeStrike or 0), false)
+
+        -- Highest characteristic (reference formula; echelon row)
+        local charNow = MCDMMonsterScaling.HighestCharacteristic(currentLevel, isLeaderSolo)
+        local charTgt = MCDMMonsterScaling.HighestCharacteristic(targetLevel, isLeaderSolo)
+        add("Highest characteristic",
+            ScalingSignedString(charNow),
+            ScalingSignedString(charTgt),
+            adjStr(charTgt - charNow), signum(charTgt - charNow), true)
+
+        -- Potency weak/avg/strong (reference formula; echelon row)
+        local function potTriple(level)
+            local s = MCDMMonsterScaling.PotencyStrong(level, isLeaderSolo)
+            return math.max(0, s - 2), math.max(0, s - 1), s
+        end
+        local wNow, aNow, sNow = potTriple(currentLevel)
+        local wTgt, aTgt, sTgt = potTriple(targetLevel)
+        add("Potency (weak / avg / strong)",
+            string.format("%d / %d / %d", wNow, aNow, sNow),
+            string.format("%d / %d / %d", wTgt, aTgt, sTgt),
+            adjStr(sTgt - sNow), signum(sTgt - sNow), true)
+
+        return rows
+    end
+
+    local function Refresh()
+        if valueLabel ~= nil and valueLabel.valid then
+            valueLabel.text = string.format("%d", targetLevel)
+        end
+        if slider ~= nil and slider.valid then
+            -- setValueNoEvent repositions the thumb (fires updateValue) without
+            -- firing 'change'. SetValue(v, false) would skip updateValue too, so
+            -- the thumb would not follow the stepper arrows.
+            slider.data.setValueNoEvent(targetLevel)
+        end
+        if previewPanel ~= nil and previewPanel.valid then
+            previewPanel.children = BuildPreviewRows()
+        end
+
+        local curEch = MCDMMonsterScaling.Echelon(currentLevel)
+        local tgtEch = MCDMMonsterScaling.Echelon(targetLevel)
+        local crossing = (tgtEch ~= curEch)
+        if echelonBanner ~= nil and echelonBanner.valid and isRetainer then
+            -- Retainers have no echelons. Repurpose the banner to flag the
+            -- advancement milestones this change spans: characteristic
+            -- increases (levels 2/5/8) and advancement abilities (levels
+            -- 4/7/10), which are granted through the creature template.
+            local lo = math.min(currentLevel, targetLevel)
+            local hi = math.max(currentLevel, targetLevel)
+            local function milestonesIn(levels)
+                local hits = {}
+                for _,l in ipairs(levels) do
+                    if l > lo and l <= hi then
+                        hits[#hits+1] = l
+                    end
+                end
+                return hits
+            end
+            local function levelPhrase(list)
+                if #list == 1 then
+                    return "level " .. table.concat(list, ", ")
+                end
+                return "levels " .. table.concat(list, ", ")
+            end
+            local charLevels = milestonesIn({2, 5, 8})
+            local abilityLevels = milestonesIn({4, 7, 10})
+            local parts = {}
+            if #charLevels > 0 then
+                parts[#parts+1] = string.format("characteristic increases (%s)", levelPhrase(charLevels))
+            end
+            if #abilityLevels > 0 then
+                parts[#parts+1] = string.format("advancement abilities (%s)", levelPhrase(abilityLevels))
+            end
+            local show = #parts > 0
+            echelonBanner:SetClass("collapsed", not show)
+            if show then
+                echelonBanner.text = string.format(
+                    "This change also spans %s, granted through the retainer's creature template.",
+                    table.concat(parts, " and "))
+            end
+        elseif echelonBanner ~= nil and echelonBanner.valid then
+            -- Report the ACTUAL characteristic and potency deltas, not the echelon
+            -- difference: they diverge at the echelon-4 leader/solo boundary, where
+            -- the characteristic is capped at +5 while potency reaches 6, so
+            -- crossing 9<->10 moves potency but leaves the characteristic unchanged.
+            local charD = MCDMMonsterScaling.HighestCharacteristic(targetLevel, isLeaderSolo)
+                        - MCDMMonsterScaling.HighestCharacteristic(currentLevel, isLeaderSolo)
+            local potD = MCDMMonsterScaling.PotencyStrong(targetLevel, isLeaderSolo)
+                       - MCDMMonsterScaling.PotencyStrong(currentLevel, isLeaderSolo)
+            local moved = (charD ~= 0 or potD ~= 0)
+            echelonBanner:SetClass("collapsed", not (crossing and moved))
+            if crossing and moved then
+                local function phrase(noun, delta)
+                    return string.format("%s %s by %d", noun,
+                        cond(delta > 0, "increases", "decreases"), math.abs(delta))
+                end
+                local body
+                if charD == potD then
+                    body = string.format("Potency and highest characteristic %s by %d",
+                        cond(potD > 0, "increase", "decrease"), math.abs(potD))
+                elseif charD == 0 then
+                    body = phrase("Potency", potD) .. "; highest characteristic is unchanged"
+                elseif potD == 0 then
+                    body = phrase("Highest characteristic", charD) .. "; potency is unchanged"
+                else
+                    body = phrase("Potency", potD) .. " and " .. string.lower(phrase("Highest characteristic", charD))
+                end
+                echelonBanner.text = string.format("Echelon %d. %s.", tgtEch, body)
+            end
+        end
+
+        if noteLabel ~= nil and noteLabel.valid then
+            noteLabel:SetClass("collapsed", not (targetLevel < baseLevel))
+        end
+
+        if footerLabel ~= nil and footerLabel.valid then
+            if targetLevel == baseLevel then
+                footerLabel.text = "At the base level. No adjustment is applied."
+            else
+                footerLabel.text = "Click Reset to restore the creature to its original level."
+            end
+        end
+    end
+
+    local function SetTarget(n)
+        n = math.max(minLevel, math.min(maxLevel, round(tonumber(n) or targetLevel)))
+        if n == targetLevel then
+            return
+        end
+        targetLevel = n
+        Refresh()
+    end
+
+    valueLabel = gui.Label{
+        classes = { "number", "sizeL", "bold" },
+        text = string.format("%d", currentLevel),
+        width = 56,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+    }
+
+    slider = gui.Slider{
+        width = "80%",
+        height = 24,
+        halign = "center",
+        vmargin = 4,
+        minValue = minLevel,
+        maxValue = maxLevel,
+        value = currentLevel,
+        round = true,
+        change = function(element)
+            SetTarget(element:GetValue())
+        end,
+    }
+
+    previewPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        tmargin = 12,
+    }
+
+    echelonBanner = gui.Label{
+        classes = { "sizeXs", "bold", "collapsed" },
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        textAlignment = "left",
+        textWrap = true,
+        tmargin = 12,
+    }
+
+    noteLabel = gui.Label{
+        classes = { "sizeXs", "collapsed" },
+        text = "Some monsters have been hand-tuned and scaling values are approximate for these creatures.",
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        textAlignment = "left",
+        textWrap = true,
+        tmargin = 8,
+    }
+
+    footerLabel = gui.Label{
+        classes = { "sizeXs" },
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        textAlignment = "left",
+        textWrap = true,
+        tmargin = 12,
+    }
+
+    -- Squad scope toggle (minions only). Collapsed for non-squad creatures.
+    squadCheck = gui.Check{
+        text = string.format("Apply to all %d minions in this squad", squadSize),
+        value = applyToSquad,
+        halign = "left",
+        tmargin = 12,
+        change = function(element)
+            applyToSquad = element.value
+        end,
+    }
+    squadCheck:SetClass("collapsed", not isSquadMinion)
+
+    dialog = gui.Panel{
+        classes = { "dialog" },
+        -- Custom rules: tint the Adjustment column (the base tableLabel rule sets
+        -- @fg, which otherwise wins over a plain success/danger class), and a
+        -- clean 1px themed divider (a bordered box left end-cap artifacts).
+        styles = ThemeEngine.MergeStyles{
+            { selectors = { "tableLabel", "adjustInc" }, color = "@success", priority = 100 },
+            { selectors = { "tableLabel", "adjustDec" }, color = "@danger", priority = 100 },
+            { selectors = { "adjustDivider" }, bgimage = true, bgcolor = "@border" },
+        },
+        width = 660,
+        height = "auto",
+        minHeight = 440,
+        flow = "vertical",
+        borderBox = true,
+        pad = 20,
+
+        gui.Label{
+            classes = { "modalTitle" },
+            text = "Adjust Level",
+            width = "100%",
+            height = "auto",
+            tmargin = 4,
         },
 
-        {
+        gui.Button{
+            classes = { "closeButton" },
             halign = "right",
-            interactable = true,
+            valign = "top",
+            floating = true,
+            margin = 8,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            click = function(element)
+                gui.CloseModal()
+            end,
+        },
+
+        -- Subtitle: "<b>Name</b> - Role", centered. (Base Level lives on the
+        -- stepper row, right-aligned to the slider's edge.)
+        gui.Label{
+            classes = { "sizeS" },
+            text = string.format("<b>%s</b> - %s", token.name or "Monster", props:try_get("role", "")),
+            width = "92%",
+            height = "auto",
+            halign = "center",
+            textAlignment = "center",
+            textWrap = true,
+            tmargin = 4,
+        },
+
+        -- Stepper (minus / value / plus) centered, with Base Level right-aligned
+        -- to the slider's right edge. The wrapper matches the slider's 80% width
+        -- so "right" lands on the scale's edge.
+        gui.Panel{
+            width = "80%",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+            flow = "none",
+            vmargin = 8,
+
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "center",
+                valign = "center",
+
+                gui.Button{
+                    classes = { "pagingArrow" },
+                    valign = "center",
+                    click = function(element)
+                        SetTarget(targetLevel - 1)
+                    end,
+                },
+                valueLabel,
+                gui.Button{
+                    classes = { "pagingArrow", "right" },
+                    valign = "center",
+                    click = function(element)
+                        SetTarget(targetLevel + 1)
+                    end,
+                },
+            },
+
+            gui.Label{
+                classes = { "sizeS" },
+                text = string.format("<b>Base Level:</b> %d", baseLevel),
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                valign = "center",
+            },
+        },
+
+        slider,
+        previewPanel,
+        echelonBanner,
+        noteLabel,
+        squadCheck,
+        footerLabel,
+
+        --Make Custom Retainer (Draw Steel: Monsters, "Retainers"): most stat
+        --blocks can become retainers, provided the creature is not a minion,
+        --a leader, or a solo. Converts in place (retainer typing, stamina
+        --baseline, single-target signature, retainer + role ability
+        --templates) behind a confirm prompt, then shows a summary of what
+        --changed and rebuilds this dialog so the retainer track shows.
+        gui.Button{
+            classes = cond(canBecomeRetainer, nil, { "collapsed" }),
+            text = "Make Custom Retainer",
+            width = 200,
+            height = 30,
+            halign = "center",
+            tmargin = 12,
+            click = function(element)
+                gui.ModalMessage{
+                    title = "Make Custom Retainer",
+                    message = string.format(
+                        "Convert %s into a custom retainer?\n\nThis rewrites the monster's stat block and CANNOT BE UNDONE. \n\nStamina is reset to the retainer baseline, the signature ability affects a single target, role advancement abilities replace creature-specific ones, and abilities that require Malice can no longer be used.",
+                        token.name or "this creature"),
+                    options = {
+                        {
+                            text = "Cancel",
+                        },
+                        {
+                            text = "Convert Permanently",
+                            execute = function()
+                                --The message dialog has already popped itself,
+                                --so this CloseModal pops the leveler. The
+                                --summary then takes its place, and reopens the
+                                --leveler on Close so the retainer advancement
+                                --track replaces the org/role one.
+                                local report = nil
+                                token:ModifyProperties{
+                                    description = "Convert to custom retainer",
+                                    execute = function()
+                                        report = token.properties:ConvertToCustomRetainer()
+                                    end,
+                                }
+                                if CharacterSheet.instance ~= nil then
+                                    CharacterSheet.instance:FireEvent("refreshAll")
+                                end
+                                gui.CloseModal()
+                                if not ShowCustomRetainerSummary(token, report) then
+                                    ShowAdjustLevelDialog(token)
+                                end
+                            end,
+                        },
+                    },
+                }
+            end,
+        },
+
+        -- Cancel / Reset / Apply
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "center",
+            valign = "bottom",
+            tmargin = 16,
+
+            gui.Button{
+                text = "Cancel",
+                width = 120,
+                height = 40,
+                hmargin = 6,
+                click = function(element)
+                    gui.CloseModal()
+                end,
+            },
+            gui.Button{
+                text = "Reset",
+                width = 120,
+                height = 40,
+                hmargin = 6,
+                click = function(element)
+                    -- Reset returns the selection to the creature's original
+                    -- (base) level; Apply then commits the restoration.
+                    targetLevel = baseLevel
+                    Refresh()
+                end,
+            },
+            gui.Button{
+                text = "Apply",
+                width = 120,
+                height = 40,
+                hmargin = 6,
+                click = function(element)
+                    -- Recompute the squad fresh so a death mid-dialog can't
+                    -- target a stale member; fall back to this token alone.
+                    local targets = { token }
+                    if isSquadMinion and applyToSquad then
+                        targets = CollectSquadMembers()
+                    end
+                    for _, tok in ipairs(targets) do
+                        tok:ModifyProperties{
+                            description = "Adjust monster level",
+                            combine = true,
+                            execute = function()
+                                tok.properties:SetLevelAdjustment(targetLevel)
+                            end,
+                        }
+                    end
+                    if CharacterSheet.instance ~= nil then
+                        CharacterSheet.instance:FireEvent("refreshAll")
+                    end
+                    gui.CloseModal()
+                end,
+            },
+        },
+    }
+
+    Refresh()
+    gui.ShowModal(dialog)
+end
+
+--==============================================================
+-- Make Custom Retainer: the post-conversion summary.
+--
+-- ConvertToCustomRetainer overwrites the stat block in place with no way
+-- back, so the Director gets a receipt: what the stats were and are, which
+-- abilities were retargeted or can no longer be paid for, and the things
+-- the conversion could not decide on its own.
+--
+-- Sequencing: the leveler is closed before this opens, so the modal stack
+-- never goes two deep; Close pops this and reopens the leveler, which now
+-- shows the retainer advancement track. Returns false (showing nothing)
+-- when there is no report, so the caller can fall back to the old flow.
+--==============================================================
+ShowCustomRetainerSummary = function(token, report)
+    if token == nil or report == nil then
+        return false
+    end
+    local stats = report.stats or {}
+    local abilities = report.abilities or {}
+    local review = report.review or {}
+    if #stats == 0 and #abilities == 0 and #review == 0 then
+        return false
+    end
+
+    -- Close pops this dialog and brings the leveler back.
+    local function CloseSummary()
+        gui.CloseModal()
+        ShowAdjustLevelDialog(token)
+    end
+
+    -- Same four-column compare row as the leveler's preview table.
+    local function SummaryRow(idx, labelText, beforeText, afterText, changeText, dir)
+        local changeClass = { "tableLabel", "bold" }
+        if dir > 0 then
+            changeClass = { "tableLabel", "bold", "adjustInc" }
+        elseif dir < 0 then
+            changeClass = { "tableLabel", "bold", "adjustDec" }
+        end
+        return gui.Panel{
+            classes = { "row", cond(idx % 2 == 0, "evenRow", "oddRow") },
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            borderBox = true,
+            hpad = 10,
+            vpad = 5,
+
+            gui.Label{ classes = { "tableLabel" }, text = labelText, width = "36%", height = "auto", halign = "left", textWrap = true },
+            gui.Label{ classes = { "tableLabel" }, text = beforeText, width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = { "tableLabel" }, text = afterText, width = "17%", height = "auto", textAlignment = "center" },
+            gui.Label{ classes = changeClass, text = changeText, width = "30%", height = "auto", textAlignment = "center" },
         }
-    )
+    end
+
+    local statRows = {}
+    statRows[#statRows + 1] = gui.Panel{
+        classes = { "row", "headerRow" },
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        borderBox = true,
+        hpad = 10,
+        vpad = 8,
+        gui.Label{ classes = { "tableLabel", "bold" }, text = "", width = "36%", height = "auto" },
+        gui.Label{ classes = { "tableLabel", "bold" }, text = "Before", width = "17%", height = "auto", textAlignment = "center" },
+        gui.Label{ classes = { "tableLabel", "bold" }, text = "After", width = "17%", height = "auto", textAlignment = "center" },
+        gui.Label{ classes = { "tableLabel", "bold" }, text = "Change", width = "30%", height = "auto", textAlignment = "center" },
+    }
+    statRows[#statRows + 1] = gui.Panel{ classes = { "adjustDivider" }, width = "100%", height = 1, bmargin = 2 }
+
+    for i, stat in ipairs(stats) do
+        -- Show a signed delta only when both sides are plain numbers.
+        local changeText = ""
+        local a = tonumber(stat.before)
+        local b = tonumber(stat.after)
+        if a ~= nil and b ~= nil and b - a ~= 0 then
+            changeText = ScalingSignedString(b - a)
+        end
+        statRows[#statRows + 1] = SummaryRow(i, tostring(stat.label), tostring(stat.before), tostring(stat.after), changeText, stat.dir or 0)
+    end
+
+    -- One row per changed ability. Hovering shows the real ability card
+    -- rather than a hand-rolled re-render of it.
+    local abilityRows = {}
+    for i, entry in ipairs(abilities) do
+        local abilityObject = entry.ability
+        local detailClass = { "tableLabel", "changeRetarget" }
+        if entry.change == "malice" then
+            detailClass = { "tableLabel", "changeMalice" }
+        end
+        abilityRows[#abilityRows + 1] = gui.Panel{
+            classes = { "row", cond(i % 2 == 0, "evenRow", "oddRow"), "hoverable" },
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            borderBox = true,
+            hpad = 10,
+            vpad = 5,
+            linger = function(element)
+                element.tooltip = CreateAbilityTooltip(abilityObject, {
+                    token = token,
+                    width = 380,
+                    pad = 8,
+                })
+            end,
+
+            gui.Label{ classes = { "tableLabel", "bold" }, text = tostring(entry.name or ""), width = "40%", height = "auto", halign = "left", textWrap = true },
+            gui.Label{ classes = detailClass, text = tostring(entry.detail or ""), width = "60%", height = "auto", halign = "left", textWrap = true },
+        }
+    end
+
+    local reviewLines = {}
+    for _, line in ipairs(review) do
+        reviewLines[#reviewLines + 1] = gui.Label{
+            classes = { "sizeS", "reviewLine" },
+            text = string.format("- %s", tostring(line)),
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            textAlignment = "left",
+            textWrap = true,
+            vmargin = 2,
+        }
+    end
+
+    local dialog = gui.Panel{
+        classes = { "dialog" },
+        -- tableLabel sets @fg, so the tinted columns need to outrank it (same
+        -- shape as the leveler's Adjustment column rules).
+        styles = ThemeEngine.MergeStyles{
+            { selectors = { "tableLabel", "adjustInc" }, color = "@success", priority = 100 },
+            { selectors = { "tableLabel", "adjustDec" }, color = "@danger", priority = 100 },
+            { selectors = { "tableLabel", "changeMalice" }, color = "@danger", priority = 100 },
+            { selectors = { "tableLabel", "changeRetarget" }, color = "@warning", priority = 100 },
+            { selectors = { "reviewLine" }, color = "@warning", priority = 100 },
+            { selectors = { "adjustDivider" }, bgimage = true, bgcolor = "@border" },
+        },
+        width = 660,
+        height = "auto",
+        minHeight = 440,
+        flow = "vertical",
+        borderBox = true,
+        pad = 20,
+
+        gui.Label{
+            classes = { "modalTitle" },
+            text = "Custom Retainer Created",
+            width = "100%",
+            height = "auto",
+            tmargin = 4,
+        },
+
+        gui.Button{
+            classes = { "closeButton" },
+            halign = "right",
+            valign = "top",
+            floating = true,
+            margin = 8,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            click = function(element)
+                CloseSummary()
+            end,
+        },
+
+        --Same identity line as the leveler, then the permanence note.
+        gui.Label{
+            classes = { "sizeS" },
+            text = string.format("<b>%s</b> - %s", token.name or "Monster",
+                token.properties:try_get("role", "")),
+            width = "92%",
+            height = "auto",
+            halign = "center",
+            textAlignment = "center",
+            textWrap = true,
+            tmargin = 4,
+        },
+
+        gui.Label{
+            classes = { "sizeS", "reviewLine" },
+            text = "Now a custom retainer. This change is permanent.",
+            width = "92%",
+            height = "auto",
+            halign = "center",
+            textAlignment = "center",
+            textWrap = true,
+            tmargin = 2,
+            bmargin = 8,
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            children = statRows,
+        },
+
+        -- Abilities section. Collapsed away entirely when nothing changed.
+        gui.Panel{
+            classes = cond(#abilityRows > 0, nil, { "collapsed" }),
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            tmargin = 14,
+
+            gui.Label{
+                classes = { "sizeS", "bold" },
+                text = "Abilities changed (hover for the full card)",
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textAlignment = "left",
+                bmargin = 4,
+            },
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                children = abilityRows,
+            },
+        },
+
+        -- For your review. Omitted when the conversion flagged nothing.
+        gui.Panel{
+            classes = cond(#reviewLines > 0, { "bordered", "borderWarning" }, { "collapsed" }),
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            borderBox = true,
+            pad = 10,
+            tmargin = 14,
+
+            gui.Label{
+                classes = { "sizeS", "bold", "reviewLine" },
+                text = "For your review",
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textAlignment = "left",
+                bmargin = 4,
+            },
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                children = reviewLines,
+            },
+        },
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            halign = "center",
+            valign = "bottom",
+            tmargin = 16,
+
+            gui.Button{
+                text = "Close",
+                width = 120,
+                height = 40,
+                hmargin = 6,
+                click = function(element)
+                    CloseSummary()
+                end,
+            },
+        },
+    }
+
+    gui.ShowModal(dialog)
+    return true
+end
+
+-- Maps an implementation-status value (gui.ImplementationStatus) to the status
+-- modifier class for the canonical colored dot (DefaultStyles spellImplementationIcon).
+local g_implDotClass = {
+    [0] = "wontimplement",
+    [1] = "unimplemented",
+    [2] = "bronze",
+    [3] = "silver",
+    [4] = "gold",
+}
+
+-- Browse every villain action across the bestiary in a given slot, preview the
+-- real ability card, and duplicate one onto this creature. CHUNK 2 (modal core):
+-- slot-locked alphabetical list + real CreateAbilityTooltip preview + "Add to
+-- this creature" (deep-copy with a fresh guid, categorization + slot preset).
+-- Search, the implementation-status cross-check filter, status dots, and "Create
+-- New Villain Action" arrive in the next pass. Reuses the cached bestiary
+-- ability index (GetBestiaryVillainActions / GetBestiaryAbilityObject) so it
+-- shares the bestiary's single GoblinScript scan rather than re-scanning.
+-- Assigns the forward-declared local (see top of file).
+function ShowVillainActionPicker(token, slot)
+    if token == nil or token.properties == nil then
+        return
+    end
+    if not token.properties:IsMonster() then
+        return
+    end
+
+    local meta = g_villainSlotMeta[slot] or { label = "Villain Action", roman = "" }
+
+    -- Forward-declared so the list / preview / add handlers can reach them.
+    local dialog
+    local listPanel
+    local listContent
+    local previewPanel
+    local addButton
+    local selectedEntry = nil
+
+    -- Filter state. allEntries is the slot's full candidate set (stored once the
+    -- bestiary index is ready); the visible list is derived from it by the search
+    -- needle and the cross-check toggle.
+    local allEntries = {}
+    local searchNeedle = ""
+    -- "Exclude Narrative and Unimplemented" cross-checks the status field (which
+    -- the importer over-marks) against the structural signal: keep only entries
+    -- that are Bronze+ AND carry real behaviors. Default off -- inform, do not
+    -- enforce; the director opts in.
+    local excludeUnimplemented = false
+
+    local function RefreshPreview()
+        if previewPanel == nil or not previewPanel.valid then
+            return
+        end
+        local children
+        if selectedEntry == nil then
+            children = {
+                gui.Label{
+                    classes = { "sizeS" },
+                    text = "Select a villain action to preview it.",
+                    width = "100%", height = "auto",
+                    halign = "center", valign = "center",
+                    textAlignment = "center", textWrap = true,
+                },
+            }
+        else
+            -- The real ability card (1:1 with how it renders in play), not a
+            -- re-render. Fetched on demand for the one selected ability.
+            local obj = GetBestiaryAbilityObject(selectedEntry.monsterId, selectedEntry.name)
+            local card = nil
+            if obj ~= nil then
+                card = CreateAbilityTooltip(obj, { token = token, width = 380, pad = 8 })
+            end
+            if card ~= nil then
+                children = { card }
+            else
+                children = {
+                    gui.Label{
+                        classes = { "sizeS" },
+                        text = "This ability could not be loaded for preview.",
+                        width = "100%", height = "auto",
+                        halign = "center", valign = "center",
+                        textAlignment = "center", textWrap = true,
+                    },
+                }
+            end
+        end
+        previewPanel.children = children
+    end
+
+    local function BuildRows(entries)
+        table.sort(entries, function(a, b)
+            if a.name ~= b.name then
+                return a.name < b.name
+            end
+            return (a.monsterName or "") < (b.monsterName or "")
+        end)
+        local rows = {}
+        for i, entry in ipairs(entries) do
+            local capturedEntry = entry
+            local subText = entry.monsterName or ""
+            if entry.level ~= nil then
+                subText = string.format("%s - Level %d", subText, entry.level)
+            end
+            local status = entry.implementation or 1
+            local dotClass = g_implDotClass[status] or "unimplemented"
+            local row
+            row = gui.Panel{
+                classes = { "row", cond(i % 2 == 0, "evenRow", "oddRow"), "hoverable" },
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                borderBox = true,
+                hpad = 10,
+                vpad = 6,
+                press = function(element)
+                    selectedEntry = capturedEntry
+                    if listContent ~= nil and listContent.valid then
+                        for _, child in ipairs(listContent.children) do
+                            child:SetClass("selected", child == element)
+                        end
+                    end
+                    if addButton ~= nil and addButton.valid then
+                        addButton.interactable = true
+                    end
+                    RefreshPreview()
+                end,
+                gui.Panel{
+                    width = "100%-22", height = "auto", flow = "vertical",
+                    halign = "left", valign = "center",
+                    gui.Label{
+                        classes = { "tableLabel", "bold" },
+                        text = capturedEntry.name,
+                        width = "100%", height = "auto",
+                        halign = "left", textWrap = true,
+                    },
+                    gui.Label{
+                        classes = { "sizeXs" },
+                        text = subText,
+                        width = "100%", height = "auto",
+                        halign = "left", textWrap = true,
+                    },
+                },
+                -- Per-row implementation-status dot (the canonical colored dot
+                -- used on compendium entries; scheme-consistent implStatus tokens).
+                -- Right-aligned so the name leads and the status reads as a marker.
+                gui.Panel{
+                    classes = { "spellImplementationIcon", dotClass },
+                    halign = "right",
+                    valign = "center",
+                },
+            }
+            rows[#rows + 1] = row
+        end
+        if #rows == 0 then
+            local emptyText = cond(#allEntries == 0,
+                "No villain actions found for this slot.",
+                "No villain actions match your search and filter.")
+            rows = {
+                gui.Label{
+                    classes = { "sizeS" },
+                    text = emptyText,
+                    width = "100%", height = "auto",
+                    halign = "center", textAlignment = "center", textWrap = true,
+                },
+            }
+        end
+        return rows
+    end
+
+    -- Derive the visible list from allEntries by the search needle (matched over a
+    -- combined name + monster + level haystack, reusing Search.MatchesText) and
+    -- the cross-check toggle. Then rebuild the rows.
+    local function ApplyFilter()
+        if listContent == nil or not listContent.valid then
+            return
+        end
+        local filtered = {}
+        for _, e in ipairs(allEntries) do
+            local keep = true
+            if excludeUnimplemented then
+                local status = e.implementation or 1
+                keep = (status >= gui.ImplementationStatus.Bronze) and (e.hasBehaviors == true)
+            end
+            if keep and searchNeedle ~= "" then
+                -- Name and monster match fuzzily (substring), but a numeric term
+                -- matches the LEVEL exactly -- "level 1" returns level 1, never
+                -- level 10 or 11. The literal word "level"/"lvl" is ignored so
+                -- "level 1" and a bare "1" behave the same. All terms must match
+                -- (AND), matching the global search's term semantics.
+                local nameHay = string.lower((e.name or "") .. " " .. (e.monsterName or ""))
+                local entryLevel = tostring(e.level or "")
+                for term in string.gmatch(searchNeedle, "%S+") do
+                    if term == "level" or term == "lvl" then
+                        -- ignore the level keyword itself
+                    elseif string.match(term, "^%d+$") ~= nil then
+                        if term ~= entryLevel then
+                            keep = false
+                            break
+                        end
+                    elseif string.find(nameHay, term, 1, true) == nil then
+                        keep = false
+                        break
+                    end
+                end
+            end
+            if keep then
+                filtered[#filtered + 1] = e
+            end
+        end
+        listContent.children = BuildRows(filtered)
+    end
+
+    -- The bestiary index builds lazily in a coroutine. If it is not ready yet,
+    -- show a loading line and re-poll until it is.
+    local function Populate()
+        if listContent == nil or not listContent.valid then
+            return
+        end
+        local entries, ready = GetBestiaryVillainActions(slot)
+        if not ready then
+            listContent.children = {
+                gui.Label{
+                    classes = { "sizeS" },
+                    text = "Loading bestiary...",
+                    width = "100%", height = "auto",
+                    halign = "center", textAlignment = "center",
+                },
+            }
+            dmhub.Schedule(0.3, function()
+                if mod.unloaded then
+                    return
+                end
+                Populate()
+            end)
+            return
+        end
+        allEntries = entries
+        ApplyFilter()
+    end
+
+    -- Inner content panel (height auto) holds the rows and grows downward from the
+    -- top; the vscroll wrapper scrolls it. Setting rows directly on the vscroll
+    -- panel let a short result set drift to the bottom -- the auto-height inner
+    -- panel keeps them anchored at the top.
+    listContent = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        halign = "left",
+        valign = "top",
+    }
+    listPanel = gui.Panel{
+        vscroll = true,
+        width = "100%",
+        -- Fills the left pane below the search input and the filter checkbox.
+        height = "100%-72",
+        flow = "vertical",
+        valign = "top",
+        listContent,
+    }
+
+    previewPanel = gui.Panel{
+        vscroll = true,
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        halign = "center",
+        valign = "top",
+    }
+
+    -- Smart search: ability name, monster name, or level (reuses the global
+    -- search matcher). Results stay grouped alphabetically.
+    local searchInput = gui.SearchInput{
+        width = "100%",
+        height = 26,
+        fontSize = 14,
+        halign = "left",
+        placeholderText = "Search villain actions, monsters, levels...",
+        editlag = 0.25,
+        edit = function(element)
+            searchNeedle = Search.Normalize(element.text) or ""
+            ApplyFilter()
+        end,
+    }
+
+    -- The cross-check filter. gui.Check has intrinsic sizing -- never width 100%.
+    local excludeCheck = gui.Check{
+        text = "Exclude Narrative and Unimplemented",
+        value = excludeUnimplemented,
+        halign = "left",
+        vmargin = 6,
+        change = function(element)
+            excludeUnimplemented = element.value
+            ApplyFilter()
+        end,
+    }
+
+    addButton = gui.Button{
+        text = "Add to this creature",
+        width = 200,
+        height = 40,
+        hmargin = 6,
+        interactable = false,
+        click = function(element)
+            if selectedEntry == nil then
+                return
+            end
+            local source = GetBestiaryAbilityObject(selectedEntry.monsterId, selectedEntry.name)
+            if source == nil then
+                return
+            end
+            -- Duplicate the source onto this creature (the source is untouched).
+            -- Fresh guid so it is a distinct ability; force the categorization and
+            -- the launched slot so it lands in the right group even if the source
+            -- was authored for a different slot. This modal lives outside the sheet
+            -- panel tree, so the mutation is wrapped in ModifyProperties (mirroring
+            -- the Adjust Level Apply) rather than relying on the sheet's own upload.
+            local copy = DeepCopy(source)
+            copy.guid = dmhub.GenerateGuid()
+            copy.categorization = "Villain Action"
+            copy.villainAction = slot
+            token:ModifyProperties{
+                description = "Add villain action",
+                execute = function()
+                    token.properties:AddInnateActivatedAbility(copy)
+                end,
+            }
+            if CharacterSheet.instance ~= nil then
+                CharacterSheet.instance:FireEvent("refreshAll")
+            end
+            gui.CloseModal()
+        end,
+    }
+
+    dialog = gui.Panel{
+        classes = { "dialog" },
+        -- Scoped extras: drop the long filter label a step in size so it does not
+        -- crowd the search row; and tint the Create New button's authoring glyph
+        -- (a floating child so the button keeps its frame -- the icon+text button
+        -- path would add `hasIcon`, which strips the border).
+        styles = ThemeEngine.MergeStyles{
+            { selectors = { "checkboxLabel" }, fontSize = 13 },
+            { selectors = { "createNewIcon" }, bgcolor = "@fg" },
+        },
+        width = 900,
+        height = 660,
+        flow = "vertical",
+        borderBox = true,
+        pad = 20,
+
+        gui.Label{
+            classes = { "modalTitle" },
+            text = "Add Villain Action",
+            width = "100%", height = "auto",
+            tmargin = 4,
+        },
+
+        gui.Button{
+            classes = { "closeButton" },
+            halign = "right",
+            valign = "top",
+            floating = true,
+            margin = 8,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            click = function(element)
+                gui.CloseModal()
+            end,
+        },
+
+        -- Context line: "Opener - Villain Action I - <creature>", centered.
+        gui.Label{
+            classes = { "sizeM" },
+            text = string.format("<b>%s</b> - Villain Action %s - %s",
+                meta.label, meta.roman, token.name or "Monster"),
+            width = "100%", height = "auto",
+            halign = "center", textAlignment = "center", textWrap = true,
+            tmargin = 4, bmargin = 12,
+        },
+
+        -- Two-pane body. Left: search + cross-check filter + slot-locked list.
+        -- Right: the real ability-card preview + the cross-check verdict.
+        gui.Panel{
+            width = "100%",
+            height = "100%-150",
+            flow = "horizontal",
+
+            gui.Panel{
+                width = "44%", height = "100%", flow = "vertical",
+                searchInput,
+                excludeCheck,
+                listPanel,
+            },
+            gui.Panel{ width = "4%", height = "100%" },
+            gui.Panel{
+                width = "52%", height = "100%", flow = "vertical",
+                previewPanel,
+            },
+        },
+
+        -- Create New / Add to this creature. (No Cancel button -- the X in the
+        -- top-right dismisses the modal, and two buttons keep the footer roomy.)
+        gui.Panel{
+            width = "100%", height = "auto", flow = "horizontal",
+            halign = "center", valign = "bottom", tmargin = 16,
+
+            -- Build a fresh villain action from scratch in the ability editor,
+            -- preset to this slot. The pencil glyph signals authoring. Mirrors the
+            -- sheet's Create Ability path.
+            gui.Button{
+                classes = { "createNewBtn" },
+                text = "Create New",
+                width = 170, height = 40, hmargin = 6,
+                -- Authoring glyph as a floating child (not the `icon` param, which
+                -- would add `hasIcon` and strip the button frame).
+                gui.Panel{
+                    classes = { "createNewIcon" },
+                    bgimage = "ui-icons/pencil.png",
+                    width = 16, height = 16,
+                    halign = "left", valign = "center",
+                    floating = true,
+                    x = 14,
+                },
+                click = function(element)
+                    gui.CloseModal()
+                    if CharacterSheet.instance == nil then
+                        return
+                    end
+                    local newAbility = ActivatedAbility.Create {
+                        name = "New Villain Action",
+                        categorization = "Villain Action",
+                        villainAction = slot,
+                    }
+                    -- Skip the Template / Duplicate Existing / Blank entry chooser:
+                    -- there are no villain-action templates, and Duplicate Existing
+                    -- is exactly what this picker already does. "Create New" means a
+                    -- fresh blank villain action, so go straight into the editor
+                    -- (already preset to this slot). Clearing the transient new-ability
+                    -- flag suppresses the chooser ActivatedAbility.Create would trigger.
+                    newAbility._tmp_isNewAbility = false
+                    CharacterSheet.instance:AddChild(newAbility:ShowEditActivatedAbilityDialog {
+                        add = function(el)
+                            CharacterSheet.instance.data.info.token.properties:AddInnateActivatedAbility(newAbility)
+                            CharacterSheet.instance:FireEvent("refreshAll")
+                        end,
+                        cancel = function(el)
+                        end,
+                    })
+                end,
+            },
+            addButton,
+        },
+    }
+
+    Populate()
+    RefreshPreview()
+    gui.ShowModal(dialog)
 end
 
 local function DSCharSheet()
     --find id for recovery from resourcestable
     local recoveryid = "5bd90f9b-46be-4cf2-8ca6-a96430d62949"
 
-    local DSCharSheetPanel = gui.Panel {
-
-        styles = {
+    -- Factored so the OnThemeChanged subscription can re-resolve with the
+    -- same composition the panel was built from.
+    local function buildSheetStyles()
+        return ThemeEngine.MergeStyles{
             g_styles,
             {
                 selectors = {"~monster", "~follower", "monsterorfolloweronly" },
@@ -2186,10 +4189,14 @@ local function DSCharSheet()
                 selectors = { "follower", "followercollapse" },
                 collapsed = 1,
             },
-        },
+        }
+    end
 
-        bgimage = true,
-        bgcolor = "clear",
+    local DSCharSheetPanel = gui.Panel {
+        classes = {"surfaceRadial"},
+
+        styles = buildSheetStyles(),
+
         width = "100%",
         height = "100%",
 
@@ -2239,13 +4246,11 @@ local function DSCharSheet()
                 --frame
                 gui.Panel {
 
+                    classes = {"bordered"},
                     bgimage = true,
-                    bgcolor = bg_color,
                     width = "100%",
                     height = "80%",
 
-                    border = 2,
-                    borderColor = border_color,
                     beveledcorners = true,
                     cornerRadius = 15,
 
@@ -2303,7 +4308,6 @@ local function DSCharSheet()
 
                                         text = info.description,
                                         uppercase = true,
-                                        color = border_color,
                                         fontSize = 20,
                                         width = "auto",
                                         height = "auto",
@@ -2314,12 +4318,12 @@ local function DSCharSheet()
 
                                     gui.Panel {
 
+                                        classes = {"bordered"},
                                         width = 70,
                                         height = 70,
                                         bgimage = true,
                                         color = "clear",
                                         border = 3,
-                                        borderColor = border_color,
                                         halign = "center",
                                         valign = "bottom",
 
@@ -2328,7 +4332,6 @@ local function DSCharSheet()
                                             characterLimit = 2,
                                             text = "+0",
                                             textAlignment = "center",
-                                            color = border_color,
                                             fontSize = 30,
                                             width = "100%",
                                             height = "auto",
@@ -2397,10 +4400,9 @@ local function DSCharSheet()
                                 width = "100%",
                                 height = 40,
 
+                                classes = {"bordered"},
                                 bgimage = true,
                                 bgcolor = "clear",
-                                border = 2,
-                                borderColor = border_color,
                                 beveledcorners = true,
                                 cornerRadius = 10,
 
@@ -2408,17 +4410,25 @@ local function DSCharSheet()
 
                                 press = function(element)
                                     local token = CharacterSheet.instance.data.info.token
-                                    local size = token.properties:GetBaseCreatureSizeNumber()
-                                    local modifications = token.properties:DescribeModifications("creatureSize", size)
-                                    gui.PopupOverrideAttribute {
-                                        parentElement = element,
-                                        token = token,
-                                        attributeName = "Size",
-                                        baseValue = size,
-                                        modifications = modifications,
-                                        characterSheet = true,
-                                        namingTable = creature.sizes,
-                                    }
+                                    if token.properties:IsMonster() then
+                                        gui.PopupMonsterSize {
+                                            parentElement = element,
+                                            token = token,
+                                            characterSheet = true,
+                                        }
+                                    else
+                                        local size = token.properties:GetBaseCreatureSizeNumber()
+                                        local modifications = token.properties:DescribeModifications("creatureSize", size)
+                                        gui.PopupOverrideAttribute {
+                                            parentElement = element,
+                                            token = token,
+                                            attributeName = "Size",
+                                            baseValue = size,
+                                            modifications = modifications,
+                                            characterSheet = true,
+                                            namingTable = creature.sizes,
+                                        }
+                                    end
                                     CharacterSheet.instance:FireEvent('refreshAll')
                                 end,
 
@@ -2426,7 +4436,6 @@ local function DSCharSheet()
 
                                     text = "4",
                                     fontSize = 20,
-                                    color = border_color,
                                     height = "auto",
                                     width = "auto",
 
@@ -2444,7 +4453,6 @@ local function DSCharSheet()
 
                                 text = "Size",
                                 fontSize = 20,
-                                color = border_color,
                                 height = "auto",
                                 width = "auto",
 
@@ -2466,39 +4474,31 @@ local function DSCharSheet()
                             bgcolor = "clear",
                             halign = "center",
 
+                            press = function(element)
+                                local token = CharacterSheet.instance.data.info.token
+                                gui.PopupMovementSpeed {
+                                    parentElement = element,
+                                    token = token,
+                                    characterSheet = true,
+                                }
+                            end,
+
                             gui.Panel {
 
                                 width = "100%",
                                 height = 40,
 
+                                classes = {"bordered"},
                                 bgimage = true,
                                 bgcolor = "clear",
-                                border = 2,
-                                borderColor = border_color,
                                 beveledcorners = true,
                                 cornerRadius = 10,
 
                                 halign = "center",
 
-                                press = function(element)
-                                    local token = CharacterSheet.instance.data.info.token
-                                    if token.properties:IsMonster() then
-                                        return
-                                    end
-                                    gui.PopupOverrideAttribute {
-                                        parentElement = element,
-                                        token = token,
-                                        attributeName = "Speed",
-                                        baseValue = token.properties:GetBaseSpeed(),
-                                        modifications = token.properties:DescribeSpeedModifications(),
-                                        characterSheet = true,
-                                    }
-                                end,
-
                                 gui.Label {
                                     text = "4",
                                     fontSize = 20,
-                                    color = border_color,
                                     height = "auto",
                                     width = "auto",
 
@@ -2506,20 +4506,8 @@ local function DSCharSheet()
                                     valign = "center",
                                     characterLimit = 2,
 
-                                    change = function(element)
-                                        local n = tonumber(element.text)
-                                        if n ~= nil then
-                                            n = math.max(0, round(n))
-                                            local creature = CharacterSheet.instance.data.info.token.properties
-                                            creature.walkingSpeed = n
-                                        end
-
-                                        CharacterSheet.instance:FireEvent("refreshAll")
-                                    end,
-
                                     refreshToken = function(element, info)
                                         local creature = CharacterSheet.instance.data.info.token.properties
-                                        element.editable = creature:IsMonster()
                                         element.text = creature:CurrentMovementSpeed()
                                     end,
                                 },
@@ -2555,16 +4543,11 @@ local function DSCharSheet()
 
                                 text = "Speed",
                                 fontSize = 20,
-                                color = border_color,
                                 height = "auto",
                                 width = "auto",
 
                                 halign = "center",
                                 valign = "bottom",
-
-
-
-
 
                             },
 
@@ -2584,10 +4567,9 @@ local function DSCharSheet()
                                 width = "100%",
                                 height = 40,
 
+                                classes = {"bordered"},
                                 bgimage = true,
                                 bgcolor = "clear",
-                                border = 2,
-                                borderColor = border_color,
                                 beveledcorners = true,
                                 cornerRadius = 10,
 
@@ -2607,7 +4589,6 @@ local function DSCharSheet()
 
                                     text = "4",
                                     fontSize = 20,
-                                    color = border_color,
                                     height = "auto",
                                     width = "auto",
 
@@ -2636,7 +4617,6 @@ local function DSCharSheet()
 
                                 text = "Disengage",
                                 fontSize = 20,
-                                color = border_color,
                                 height = "auto",
                                 width = "auto",
 
@@ -2661,10 +4641,9 @@ local function DSCharSheet()
                                 width = "100%",
                                 height = 40,
 
+                                classes = {"bordered"},
                                 bgimage = true,
                                 bgcolor = "clear",
-                                border = 2,
-                                borderColor = border_color,
                                 beveledcorners = true,
                                 cornerRadius = 10,
 
@@ -2700,7 +4679,6 @@ local function DSCharSheet()
 
                                     text = "4",
                                     fontSize = 20,
-                                    color = border_color,
                                     height = "auto",
                                     width = "auto",
                                     minWidth = 80,
@@ -2723,7 +4701,6 @@ local function DSCharSheet()
 
                                 text = "Stability",
                                 fontSize = 20,
-                                color = border_color,
                                 height = "auto",
                                 width = "auto",
 
@@ -2768,10 +4745,8 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
-                            bgcolor = bg_color,
-                            border = 2,
-                            borderColor = border_color,
                             beveledcorners = true,
                             cornerRadius = 15,
                             width = "100%",
@@ -2782,7 +4757,6 @@ local function DSCharSheet()
                             gui.Label {
 
                                 text = "Potencies",
-                                color = border_color,
                                 fontSize = 20,
                                 width = "auto",
                                 height = "auto",
@@ -2791,10 +4765,7 @@ local function DSCharSheet()
 
                             },
 
-                            gui.Divider {
-
-                                width = "80%",
-                            },
+                            gui.MCDMDivider { width = "80%", },
 
                             gui.Label {
 
@@ -2810,10 +4781,9 @@ local function DSCharSheet()
 
                                 gui.Panel {
 
+                                    classes = {"bordered"},
                                     bgimage = true,
                                     bgcolor = "clear",
-                                    border = 2,
-                                    borderColor = border_color,
                                     beveledcorners = true,
                                     cornerRadius = 15,
                                     width = "25%",
@@ -2825,7 +4795,6 @@ local function DSCharSheet()
                                     gui.Label {
 
                                         text = "Strong",
-                                        color = border_color,
                                         fontSize = 20,
                                         width = "auto",
                                         height = "auto",
@@ -2837,7 +4806,6 @@ local function DSCharSheet()
                                     gui.Label {
 
                                         text = "1",
-                                        color = border_color,
                                         fontSize = 20,
                                         width = "auto",
                                         height = "auto",
@@ -2846,7 +4814,7 @@ local function DSCharSheet()
 
                                         refreshToken = function(element, info)
                                             local creature = CharacterSheet.instance.data.info.token.properties
-                                            local strong = creature:CalcuatePotencyValue("Strong")
+                                            local strong = creature:CalculatePotencyValue("Strong")
                                             element.text = string.format("%d", strong)
                                         end
 
@@ -2858,10 +4826,9 @@ local function DSCharSheet()
 
                                 gui.Panel {
 
+                                    classes = {"bordered"},
                                     bgimage = true,
                                     bgcolor = "clear",
-                                    border = 2,
-                                    borderColor = border_color,
                                     beveledcorners = true,
                                     cornerRadius = 15,
                                     width = "25%",
@@ -2872,7 +4839,6 @@ local function DSCharSheet()
                                     gui.Label {
 
                                         text = "Average",
-                                        color = border_color,
                                         fontSize = 20,
                                         width = "auto",
                                         height = "auto",
@@ -2884,7 +4850,6 @@ local function DSCharSheet()
                                     gui.Label {
 
                                         text = "2",
-                                        color = border_color,
                                         fontSize = 20,
                                         width = "auto",
                                         height = "auto",
@@ -2893,7 +4858,7 @@ local function DSCharSheet()
 
                                         refreshToken = function(element, info)
                                             local creature = CharacterSheet.instance.data.info.token.properties
-                                            local average = creature:CalcuatePotencyValue("Average")
+                                            local average = creature:CalculatePotencyValue("Average")
                                             element.text = string.format("%d", average)
                                         end
 
@@ -2905,10 +4870,9 @@ local function DSCharSheet()
 
                                 gui.Panel {
 
+                                    classes = {"bordered"},
                                     bgimage = true,
                                     bgcolor = "clear",
-                                    border = 2,
-                                    borderColor = border_color,
                                     beveledcorners = true,
                                     cornerRadius = 15,
                                     width = "25%",
@@ -2920,7 +4884,6 @@ local function DSCharSheet()
                                     gui.Label {
 
                                         text = "Weak",
-                                        color = border_color,
                                         fontSize = 20,
                                         width = "auto",
                                         height = "auto",
@@ -2932,7 +4895,6 @@ local function DSCharSheet()
                                     gui.Label {
 
                                         text = "2",
-                                        color = border_color,
                                         fontSize = 20,
                                         width = "auto",
                                         height = "auto",
@@ -2941,7 +4903,7 @@ local function DSCharSheet()
 
                                         refreshToken = function(element, info)
                                             local creature = CharacterSheet.instance.data.info.token.properties
-                                            local weak = creature:CalcuatePotencyValue("Weak")
+                                            local weak = creature:CalculatePotencyValue("Weak")
                                             element.text = string.format("%d", weak)
                                         end
 
@@ -2969,12 +4931,10 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             width = "100%",
                             height = "100%",
                             bgimage = true,
-                            bgcolor = bg_color,
-                            border = 2,
-                            borderColor = border_color,
                             beveledcorners = true,
                             cornerRadius = 15,
 
@@ -2984,7 +4944,6 @@ local function DSCharSheet()
                             gui.Label {
 
                                 text = "Immunities & Weaknesses",
-                                color = border_color,
                                 fontSize = 20,
                                 width = "auto",
                                 height = "auto",
@@ -2993,7 +4952,8 @@ local function DSCharSheet()
                                 tmargin = 5,
                             },
 
-                            gui.SettingsButton {
+                            gui.Button {
+                                classes = {"settingsButton"},
                                 floating = true,
                                 halign = "right",
                                 valign = "top",
@@ -3011,10 +4971,7 @@ local function DSCharSheet()
                             },
 
 
-                            gui.Divider {
-
-                                width = "80%",
-                            },
+                            gui.MCDMDivider { width = "80%", },
 
 
                             --immunities list.
@@ -3090,12 +5047,10 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             width = "100%",
                             height = "100%",
                             bgimage = true,
-                            bgcolor = bg_color,
-                            border = 2,
-                            borderColor = border_color,
                             beveledcorners = true,
                             cornerRadius = 15,
 
@@ -3105,7 +5060,6 @@ local function DSCharSheet()
                             gui.Label {
 
                                 text = "Skills",
-                                color = border_color,
                                 fontSize = 20,
                                 width = "auto",
                                 height = "auto",
@@ -3114,7 +5068,8 @@ local function DSCharSheet()
                                 tmargin = 5,
                             },
 
-                            gui.SettingsButton {
+                            gui.Button {
+                                classes = {"settingsButton"},
                                 floating = true,
                                 halign = "right",
                                 valign = "top",
@@ -3138,10 +5093,7 @@ local function DSCharSheet()
                                 end,
                             },
 
-                            gui.Divider {
-
-                                width = "80%",
-                            },
+                            gui.MCDMDivider { width = "80%", },
 
 
                             --skills list
@@ -3220,13 +5172,12 @@ local function DSCharSheet()
                 },
 
                 gui.Panel {
+                    classes = {"bordered"},
                     width = "50%-18",
                     height = "100%-50",
                     halign = "right",
                     bgimage = true,
                     bgcolor = "clear",
-                    borderWidth = 2,
-                    borderColor = "white",
                     valign = "top",
                     flow = "vertical",
 
@@ -3273,6 +5224,25 @@ local function DSCharSheet()
                         text = "Paste Ability",
                         press = function(element)
                             local clipboardItem = DeepCopy(dmhub.GetInternalClipboard())
+                            if clipboardItem == nil then
+                                return
+                            end
+
+                            --A pasted ability is a NEW ability, not the one that was
+                            --copied. Without a fresh guid the creature ends up with two
+                            --innate abilities sharing one guid, and guid-keyed lookups
+                            --(creature:IsActivatedAbilityInnate) resolve both sheet rows
+                            --to the same object, so one copy can never be edited (and
+                            --RemoveInnateActivatedAbility deletes both).
+                            clipboardItem.guid = dmhub.GenerateGuid()
+                            local behaviors = clipboardItem:try_get("behaviors")
+                            if behaviors ~= nil then
+                                for _, b in ipairs(behaviors) do
+                                    if b:try_get("guid") ~= nil then
+                                        b.guid = dmhub.GenerateGuid()
+                                    end
+                                end
+                            end
 
                             CharacterSheet.instance.data.info.token.properties:AddInnateActivatedAbility(
                                 clipboardItem)
@@ -3321,13 +5291,11 @@ local function DSCharSheet()
                 --frame
                 gui.Panel {
 
+                    classes = {"bordered"},
                     bgimage = true,
-                    bgcolor = bg_color,
                     width = "95%",
                     height = "80%",
 
-                    border = 2,
-                    borderColor = border_color,
                     beveledcorners = true,
                     cornerRadius = 15,
 
@@ -3354,7 +5322,8 @@ local function DSCharSheet()
                             height = "100%",
                             flow = "horizontal",
                             refreshToken = function(element, info)
-                                element:SetClass("collapsed", not info.token.properties:IsMonster())
+                                local props = info.token.properties
+                                element:SetClass("collapsed", not (props:IsMonster() or props:IsCompanion()))
                             end,
 
                             --minion-only "with captain" panel
@@ -3489,11 +5458,14 @@ local function DSCharSheet()
                                     editable = true,
 
                                     refreshToken = function(element, info)
-                                        if not info.token.properties:IsMonster() then
+                                        local props = info.token.properties
+                                        if not (props:IsMonster() or props:IsCompanion()) then
                                             return
                                         end
 
-                                        local attack = info.token.properties:OpportunityAttack()
+                                        element.editable = not props:IsCompanion()
+
+                                        local attack = props:OpportunityAttack()
                                         element.text = string.format("%d", round(attack))
                                     end,
 
@@ -3561,17 +5533,18 @@ local function DSCharSheet()
                                     editable = true,
 
                                     refreshToken = function(element, info)
-                                        if not info.token.properties:IsMonster() then
+                                        local props = info.token.properties
+                                        if not (props:IsMonster() or props:IsCompanion()) then
                                             return
                                         end
 
-                                        local ev = info.token.properties.ev
+                                        local ev = props:EV()
                                         element.text = string.format("%d", round(ev))
                                     end,
 
                                     change = function(element)
                                         local token = CharacterSheet.instance.data.info.token
-                                        local newValue = round(tonumber(element.text) or token.properties.ev)
+                                        local newValue = round(tonumber(element.text) or token.properties:BaseEV())
                                         element.text = string.format("%d", newValue)
                                         token.properties.ev = newValue
                                     end,
@@ -3591,7 +5564,8 @@ local function DSCharSheet()
                             flow = "vertical",
 
                             refreshToken = function(element, info)
-                                element:SetClass("collapsed", info.token.properties:IsMonster())
+                                local props = info.token.properties
+                                element:SetClass("collapsed", props:IsMonster() or props:IsCompanion())
                             end,
 
                             --Victories label
@@ -3622,38 +5596,65 @@ local function DSCharSheet()
 
                                 gui.Panel {
 
-                                    styles = {
+                                    styles = ThemeEngine.MergeTokens{
+                                        {
+                                            selectors = { "notch" },
+                                            width = string.format("%f%%", 100 / 15),
+                                            height = "100%",
+                                            borderColor = "@border",
+                                            bgcolor = "@bg",
+                                            cornerRadius = 0,
+                                            priority = 5,
+                                        },
                                         {
                                             selectors = { "notch", "left" },
                                             beveledcorners = true,
                                             cornerRadius = { x1 = 8, y1 = 0, x2 = 0, y2 = 8 },
+                                            priority = 10,
                                         },
                                         {
                                             selectors = { "notch", "right" },
                                             beveledcorners = true,
                                             cornerRadius = { x1 = 0, y1 = 8, x2 = 8, y2 = 0 },
-                                        },
-                                        {
-                                            selectors = { "notch" },
-                                            width = string.format("%f%%", 100 / 15),
-                                            height = "100%",
-                                            borderColor = border_color,
-                                            border = 2,
-                                            bgcolor = "black",
+                                            priority = 10,
                                         },
                                         {
                                             selectors = { "notch", "filled" },
-                                            bgcolor = "#aaaaff",
+                                            bgcolor = "@accent",
+                                            priority = 10,
                                         },
                                         {
                                             selectors = { "notch", "hover" },
-                                            bgcolor = "#aaaaaa",
+                                            bgcolor = "@fgMuted",
+                                            priority = 10,
                                         },
                                         {
                                             selectors = { "notch", "hover", "filled" },
-                                            bgcolor = "#ffaaff",
+                                            bgcolor = "@accentHover",
+                                            priority = 10,
                                         },
                                     },
+
+                                    create = function(element)
+                                        local function rebuild()
+                                            return ThemeEngine.MergeTokens{
+                                                { selectors = {"notch"}, width = string.format("%f%%", 100 / 15), height = "100%",
+                                                  borderColor = "@border", bgcolor = "@bg", cornerRadius = 0, priority = 5 },
+                                                { selectors = {"notch", "left"}, beveledcorners = true,
+                                                  cornerRadius = { x1 = 8, y1 = 0, x2 = 0, y2 = 8 }, priority = 10 },
+                                                { selectors = {"notch", "right"}, beveledcorners = true,
+                                                  cornerRadius = { x1 = 0, y1 = 8, x2 = 8, y2 = 0 }, priority = 10 },
+                                                { selectors = {"notch", "filled"}, bgcolor = "@accent", priority = 10 },
+                                                { selectors = {"notch", "hover"}, bgcolor = "@fgMuted", priority = 10 },
+                                                { selectors = {"notch", "hover", "filled"}, bgcolor = "@accentHover", priority = 10 },
+                                            }
+                                        end
+                                        ThemeEngine.OnThemeChanged(mod, function()
+                                            if element ~= nil and element.valid then
+                                                element.styles = rebuild()
+                                            end
+                                        end)
+                                    end,
 
                                     refreshToken = function(element, info)
                                         if element.data.init == nil then
@@ -3675,7 +5676,8 @@ local function DSCharSheet()
                                         for i = 1, 15 do
                                             local index = i
                                             children[#children + 1] = gui.Panel {
-                                                classes = { "notch", cond(i == 1, "left"), cond(i == 15, "right") },
+                                                classes = { "notch", "bordered", cond(i == 1, "left"), cond(i == 15, "right") },
+                                                -- cornerRadius = cond(i == 1, nil, cond(i == 15, nil, 0)),
                                                 bgimage = true,
                                                 press = function()
                                                     local token = CharacterSheet.instance.data.info.token
@@ -3730,8 +5732,8 @@ local function DSCharSheet()
 
                             gui.Panel {
 
+                                classes = {"cs-divider-line"},
                                 bgimage = true,
-                                bgcolor = border_color,
                                 width = "6%",
                                 height = "80%",
                                 halign = "left",
@@ -3743,8 +5745,8 @@ local function DSCharSheet()
 
                             gui.Panel {
 
+                                classes = {"cs-divider-line"},
                                 bgimage = true,
-                                bgcolor = border_color,
                                 width = "6%",
                                 height = "80%",
                                 valign = "center",
@@ -3788,44 +5790,183 @@ local function DSCharSheet()
 
                             },
 
-                            gui.Label {
-
-                                text = "4",
-                                color = "white",
-                                fontSize = 26,
-                                characterLimit = 2,
-
+                            --Level number with the Adjust Level affordance to its
+                            --left (monster level scaling): a small up/down-arrow
+                            --icon button that opens the Adjust Level dialog.
+                            --Monsters only.
+                            gui.Panel {
                                 bgimage = true,
                                 bgcolor = "clear",
                                 width = "100%",
                                 height = "35%",
-
-                                valign = "top",
-                                halign = "center",
-                                textAlignment = "center",
-
-
+                                -- flow "none" so the arrow overlays to the right
+                                -- without displacing the centered level number.
+                                -- The number is declared FIRST and the arrow LAST
+                                -- so the arrow renders on top and stays clickable
+                                -- (later siblings win pointer events).
+                                flow = "none",
+                                valign = "center",
                                 tmargin = 4,
-                                lmargin = 10,
 
-                                refreshToken = function(element, info)
-                                    local level = info.token.properties:CharacterLevel()
-                                    if level == 0 then
-                                        element.text = "-"
-                                    else
-                                        element.text = string.format("%d", level)
-                                    end
+                                gui.Label {
 
-                                    element.editable = info.token.properties:IsMonster()
-                                end,
+                                    text = "4",
+                                    fontSize = 26,
+                                    -- 3 chars so a scaled level fits the appended
+                                    -- asterisk (e.g. "11*").
+                                    characterLimit = 3,
 
-                                change = function(element)
-                                    local token = CharacterSheet.instance.data.info.token
-                                    local n = math.max(0,
-                                        round(tonumber(element.text) or token.properties:CharacterLevel()))
-                                    token.properties.cr = n
-                                    CharacterSheet.instance:FireEvent("refreshAll")
-                                end,
+                                    bgimage = true,
+                                    bgcolor = "clear",
+                                    width = "100%",
+                                    height = "100%",
+
+                                    halign = "center",
+                                    valign = "center",
+                                    textAlignment = "center",
+
+                                    -- Level-scaling signpost. While a Level
+                                    -- Adjustment is in effect the number is
+                                    -- tinted success (scaled up) or danger
+                                    -- (scaled down) and carries a trailing
+                                    -- asterisk, so the adjusted state reads
+                                    -- without relying on color alone.
+                                    classes = { "levelValue" },
+                                    styles = ThemeEngine.MergeTokens{
+                                        { selectors = { "levelValue" }, color = "white" },
+                                        { selectors = { "levelValue", "scaledUp" }, color = "@success", priority = 100 },
+                                        { selectors = { "levelValue", "scaledDown" }, color = "@danger", priority = 100 },
+                                    },
+
+                                    refreshToken = function(element, info)
+                                        local c = info.token.properties
+                                        local level = round(tonumber(c:CharacterLevel()) or 0)
+                                        local adjusted = c:IsMonster() and c:HasLevelAdjustment()
+
+                                        if level == 0 then
+                                            element.text = "-"
+                                        elseif adjusted then
+                                            element.text = string.format("%d*", level)
+                                        else
+                                            element.text = string.format("%d", level)
+                                        end
+
+                                        local up, down = false, false
+                                        if adjusted then
+                                            local base = c:GetScalingBaseLevel()
+                                            up = level > base
+                                            down = level < base
+                                        end
+                                        element:SetClass("scaledUp", up)
+                                        element:SetClass("scaledDown", down)
+
+                                        -- While adjusted the number is a
+                                        -- read-only signpost that opens the
+                                        -- modal on click; direct level edits go
+                                        -- through the Adjust Level dialog so the
+                                        -- stored deltas stay consistent.
+                                        element.editable = c:IsMonster() and not adjusted
+                                    end,
+
+                                    -- Dynamic hover, shown only while adjusted:
+                                    -- names the base level and the revert path.
+                                    hover = function(element)
+                                        local sheet = CharacterSheet.instance
+                                        if sheet == nil then
+                                            return
+                                        end
+                                        local token = sheet.data.info.token
+                                        if token == nil or token.properties == nil then
+                                            return
+                                        end
+                                        local c = token.properties
+                                        if not (c:IsMonster() and c:HasLevelAdjustment()) then
+                                            return
+                                        end
+                                        gui.Tooltip(string.format(
+                                            "Adjusted from Level %d. Click to review.",
+                                            c:GetScalingBaseLevel()))(element)
+                                    end,
+
+                                    -- When adjusted the number is non-editable,
+                                    -- so a click opens the Adjust Level dialog
+                                    -- ("Click to review"). When not adjusted the
+                                    -- label handles its own click for inline
+                                    -- editing and this is a no-op.
+                                    click = function(element)
+                                        local sheet = CharacterSheet.instance
+                                        if sheet == nil then
+                                            return
+                                        end
+                                        local token = sheet.data.info.token
+                                        if token == nil or token.properties == nil then
+                                            return
+                                        end
+                                        if token.properties:IsMonster() and token.properties:HasLevelAdjustment() then
+                                            ShowAdjustLevelDialog(token)
+                                        end
+                                    end,
+
+                                    change = function(element)
+                                        -- Guard against firing during teardown / when the value
+                                        -- did not actually change: a spurious refreshAll mid-destroy
+                                        -- recomputes stats while the modifier pipeline is half torn
+                                        -- down (e.g. Stability transiently nil).
+                                        if CharacterSheet.instance == nil then
+                                            return
+                                        end
+                                        local token = CharacterSheet.instance.data.info.token
+                                        if token == nil or token.properties == nil then
+                                            return
+                                        end
+                                        local n = math.max(0,
+                                            round(tonumber(element.text) or token.properties:CharacterLevel()))
+                                        if n == round(tonumber(token.properties.cr) or 0) then
+                                            return
+                                        end
+                                        token.properties.cr = n
+                                        CharacterSheet.instance:FireEvent("refreshAll")
+                                    end,
+                                },
+
+                                gui.Panel {
+                                    classes = { "bordered", "hoverable" },
+                                    bgimage = "panels/square.png",
+                                    bgcolor = "clear",
+                                    width = 24,
+                                    height = 26,
+                                    halign = "right",
+                                    valign = "center",
+                                    rmargin = 8,
+                                    flow = "vertical",
+
+                                    hover = gui.Tooltip("Adjust Level"),
+
+                                    refreshToken = function(element, info)
+                                        element:SetClass("collapsed", not info.token.properties:IsMonster())
+                                    end,
+
+                                    click = function(element)
+                                        ShowAdjustLevelDialog(CharacterSheet.instance.data.info.token)
+                                    end,
+
+                                    gui.Panel {
+                                        width = 13,
+                                        height = "50%",
+                                        halign = "center",
+                                        valign = "top",
+                                        bgimage = "icons/icon_arrow/icon_arrow_29.png",
+                                        bgcolor = "white",
+                                    },
+                                    gui.Panel {
+                                        width = 13,
+                                        height = "50%",
+                                        halign = "center",
+                                        valign = "bottom",
+                                        bgimage = "icons/icon_arrow/icon_arrow_30.png",
+                                        bgcolor = "white",
+                                    },
+                                },
                             },
                         },
                     },
@@ -3833,8 +5974,8 @@ local function DSCharSheet()
                     --big divider
                     gui.Panel {
 
+                        classes = {"cs-divider-line"},
                         bgimage = true,
-                        bgcolor = border_color,
                         width = "95%",
                         height = 2,
                         halign = "center",
@@ -3856,13 +5997,11 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
-                            bgcolor = bg_color,
                             width = "30%",
                             height = "80%",
 
-                            border = 2,
-                            borderColor = border_color,
                             beveledcorners = true,
                             cornerRadius = 12,
 
@@ -3931,13 +6070,11 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
-                            bgcolor = bg_color,
                             width = "30%",
                             height = "80%",
 
-                            border = 2,
-                            borderColor = border_color,
                             beveledcorners = true,
                             cornerRadius = 12,
 
@@ -4005,13 +6142,11 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
-                            bgcolor = bg_color,
                             width = "30%",
                             height = "80%",
 
-                            border = 2,
-                            borderColor = border_color,
                             beveledcorners = true,
                             cornerRadius = 12,
 
@@ -4036,11 +6171,11 @@ local function DSCharSheet()
                                 valign = "top",
                                 textAlignment = "center",
 
-                                --epic if level 10 or more otherwise xp
+                                --epic resource name if level 10 or more otherwise xp
                                 refreshToken = function(element, info)
-                                    local level = info.token.properties:CharacterLevel()
-                                    if level >= 10 then
-                                        element.text = "EPIC"
+                                    local props = info.token.properties
+                                    if props:CharacterLevel() >= 10 then
+                                        element.text = string.upper(props:GetEpicResourceName() or "Epic")
                                     else
                                         element.text = "XP"
                                     end
@@ -4070,19 +6205,30 @@ local function DSCharSheet()
 
                                 change = function(element)
                                     local info = CharacterSheet.instance.data.info
-                                    local newXP = tonumber(element.text)
+                                    local props = info.token.properties
+                                    local newValue = tonumber(element.text)
 
-                                    if newXP == nil then
+                                    if newValue == nil then
                                         CharacterSheet.instance:FireEvent("refreshAll")
+                                    elseif props:CharacterLevel() >= 10 then
+                                        --at level 10+ this field edits the epic resource pool, not XP
+                                        newValue = math.max(0, round(newValue))
+                                        local diff = newValue - props:GetEpicResources()
+                                        if diff ~= 0 then
+                                            props:AddUnboundedResource(CharacterResource.epicResourceId, diff, "Manually Set")
+                                        end
                                     else
-                                        info.token.properties.xp = math.max(0, round(newXP))
+                                        props.xp = math.max(0, round(newValue))
                                     end
                                 end,
 
                                 refreshToken = function(element, info)
-                                    local xp = info.token.properties:try_get("xp", 0)
-
-                                    element.text = xp
+                                    local props = info.token.properties
+                                    if props:CharacterLevel() >= 10 then
+                                        element.text = props:GetEpicResources()
+                                    else
+                                        element.text = props:try_get("xp", 0)
+                                    end
                                 end,
 
 
@@ -4116,13 +6262,11 @@ local function DSCharSheet()
                 --frame
                 gui.Panel {
 
+                    classes = {"bordered"},
                     bgimage = true,
-                    bgcolor = bg_color,
                     width = "95%",
                     height = "80%",
 
-                    border = 2,
-                    borderColor = border_color,
                     beveledcorners = true,
                     cornerRadius = 15,
 
@@ -4160,10 +6304,9 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
                             bgcolor = "clear",
-                            border = 2,
-                            borderColor = border_color,
                             beveledcorners = true,
                             cornerRadius = 10,
 
@@ -4189,7 +6332,6 @@ local function DSCharSheet()
 
                                     text = "TEMP:",
                                     fontSize = 15,
-                                    color = border_color,
                                     halign = "right",
                                     valign = "top",
                                     textAlignment = "top",
@@ -4272,8 +6414,8 @@ local function DSCharSheet()
 
                             gui.Panel {
 
+                                classes = {"cs-divider-line"},
                                 bgimage = true,
-                                bgcolor = border_color,
                                 width = 2,
                                 height = "80%",
                                 valign = "center",
@@ -4283,7 +6425,6 @@ local function DSCharSheet()
 
                                 text = "Healthy",
                                 fontSize = 13,
-                                color = border_color,
                                 halign = "center",
                                 valign = "center",
                                 lmargin = 6,
@@ -4313,16 +6454,15 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"cs-divider-line"},
                             bgimage = mod.images.shield2,
-                            bgcolor = border_color,
-
 
                             width = 120,
                             height = 120,
                             halign = "horizontal",
                             valign = "center",
 
-                            lmargin = 0,
+                            lmargin = -2,
 
                             gui.Panel {
                                 id = "staminaContainer",
@@ -4384,35 +6524,29 @@ local function DSCharSheet()
                                     textAlignment = "center",
                                     characterLimit = 4,
 
-                                    change = function(element)
-                                        local token = CharacterSheet.instance.data.info.token
-                                        local t = element.text
-                                        if t:sub(1, 1) == "/" then
-                                            t = t:sub(2)
-                                        end
-
-                                        local n = tonumber(t)
-                                        if n ~= nil then
-                                            n = round(n)
-                                            token.properties.max_hitpoints = n
-                                        end
-
-                                        CharacterSheet.instance:FireEvent("refreshAll")
-                                    end,
-
                                     refreshToken = function(element, info)
-                                        --monsters can direct edit stamina.
-                                        element.editable = info.token.properties:IsMonster()
-
                                         local maxhp = info.token.properties:MaxHitpoints()
                                         element.text = string.format("/%d", math.tointeger(maxhp))
                                     end,
 
                                     press = function(element)
                                         local token = CharacterSheet.instance.data.info.token
-                                        if token.properties:IsMonster() then
-                                            return
+
+                                        --a hero's base stamina comes from their class formula so it is
+                                        --display-only, but monsters/companions store it directly in
+                                        --max_hitpoints, so let them edit it right in the popup.
+                                        local baseValueEdit
+                                        if token.properties:IsMonster() or token.properties:IsCompanion() then
+                                            baseValueEdit = function(n)
+                                                n = math.max(0, round(n))
+                                                token.properties.max_hitpoints = n
+                                                CharacterSheet.instance:FireEventTree("refresh")
+                                                CharacterSheet.instance:FireEvent("refreshAll")
+
+                                                return string.format("%d", token.properties:BaseHitpoints())
+                                            end
                                         end
+
                                         local baseValue = token.properties:BaseHitpoints()
                                         gui.PopupOverrideAttribute {
                                             parentElement = element,
@@ -4420,6 +6554,7 @@ local function DSCharSheet()
                                             attributeName = "Stamina",
                                             characterSheet = true,
                                             baseValue = baseValue,
+                                            baseValueEdit = baseValueEdit,
                                             modifications = token.properties:DescribeModifications("hitpoints", baseValue),
                                         }
                                     end,
@@ -4432,8 +6567,8 @@ local function DSCharSheet()
                     --divider 1
                     gui.Panel {
 
+                        classes = {"cs-divider-line"},
                         bgimage = true,
-                        bgcolor = border_color,
                         width = 2,
                         height = "85%",
 
@@ -4470,10 +6605,10 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
                             bgcolor = "clear",
                             border = 3,
-                            borderColor = border_color,
 
                             width = 80,
                             height = 80,
@@ -4632,8 +6767,8 @@ local function DSCharSheet()
                     --divider 2
                     gui.Panel {
 
+                        classes = {"cs-divider-line"},
                         bgimage = true,
-                        bgcolor = border_color,
                         width = 2,
                         height = "85%",
 
@@ -4684,10 +6819,10 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
                             bgcolor = "clear",
                             border = 3,
-                            borderColor = border_color,
 
                             width = 80,
                             height = 80,
@@ -4746,8 +6881,8 @@ local function DSCharSheet()
                     --divider 3
                     gui.Panel {
 
+                        classes = {"cs-divider-line"},
                         bgimage = true,
-                        bgcolor = border_color,
                         width = 2,
                         height = "85%",
 
@@ -4782,10 +6917,10 @@ local function DSCharSheet()
 
                         gui.Panel {
 
+                            classes = {"bordered"},
                             bgimage = true,
                             bgcolor = "clear",
                             border = 3,
-                            borderColor = border_color,
 
                             width = 80,
                             height = 80,
@@ -4848,6 +6983,11 @@ local function DSCharSheet()
 
     }
 
+    ThemeEngine.OnThemeChanged(mod, function()
+        if DSCharSheetPanel ~= nil and DSCharSheetPanel.valid then
+            DSCharSheetPanel.styles = buildSheetStyles()
+        end
+    end)
 
     return DSCharSheetPanel
 end
@@ -4923,7 +7063,8 @@ function CharSheet.NotesInnerPanel()
                         end
                     end,
                 },
-                gui.DeleteItemButton {
+                gui.Button {
+                    classes = {"deleteButton"},
                     width = 24,
                     height = 24,
                     halign = "right",
@@ -4993,8 +7134,11 @@ function CharSheet.NotesInnerPanel()
         return resultPanel
     end
 
-    local addNotesButton = gui.AddButton {
+    local addNotesButton = gui.Button {
+        classes = {"addButton"},
         hmargin = 15,
+        height = 24,
+        width = 24,
         halign = "right",
         linger = function(element)
             gui.Tooltip("Add a new section")(element)
@@ -5085,15 +7229,16 @@ local function CharacterSheetEditLanguagesPopup(element)
                 local lang = languagesTable[k]
                 if lang ~= nil then
                     children[#children + 1] = gui.Label {
+                        classes = {"sizeM"},
                         width = "80%",
                         height = 20,
                         flow = "horizontal",
                         text = lang.name,
-                        fontSize = 16,
                         textAlignment = "left",
                         halign = "center",
 
-                        gui.DeleteItemButton {
+                        gui.Button {
+                            classes = {"deleteButton"},
                             width = 16,
                             height = 16,
                             halign = "right",
@@ -5115,6 +7260,8 @@ local function CharacterSheetEditLanguagesPopup(element)
     }
 
     children[#children + 1] = gui.Dropdown {
+        height = 30,
+        width = "auto",
         vmargin = 8,
         hasSearch = true,
         create = function(element)
@@ -5167,25 +7314,19 @@ local function CharacterSheetEditLanguagesPopup(element)
 
     element.popupPositioning = "panel"
 
-    resultPanel = gui.TooltipFrame(
-        gui.Panel {
-            width = 340,
-            height = "auto",
-            styles = {
-                Styles.Default,
-                PopupStyles,
-                CharSheet.GetCharacterSheetStyles(),
-            },
-
-            children = children,
-        },
-
-        {
-            halign = "right",
-            valign = "center",
-            interactable = true,
-        }
-    )
+    resultPanel = gui.Panel {
+        classes = {"framedPanel"},
+        halign = "right",
+        valign = "center",
+        interactable = true,
+        flow = "vertical",
+        hpad = 24,
+        vpad = 14,
+        width = 340,
+        height = "auto",
+        styles = ThemeEngine.GetStyles(),
+        children = children,
+    }
 
     parentElement.popup = resultPanel
 end
@@ -5200,19 +7341,18 @@ function CharSheet.LanguagesPanel()
 
         gui.Panel {
 
+            classes = {"bordered"},
             width = "100%",
             height = "100%",
             bgimage = true,
-            bgcolor = bg_color,
-            border = 2,
-            borderColor = border_color,
             beveledcorners = true,
             cornerRadius = 15,
 
             valign = "center",
             flow = "vertical",
 
-            gui.SettingsButton {
+            gui.Button {
+                classes = {"settingsButton"},
                 floating = true,
                 halign = "right",
                 valign = "top",
@@ -5232,7 +7372,6 @@ function CharSheet.LanguagesPanel()
             gui.Label {
 
                 text = "Languages",
-                color = border_color,
                 fontSize = 20,
                 width = "auto",
                 height = "auto",
@@ -5242,9 +7381,7 @@ function CharSheet.LanguagesPanel()
             },
 
 
-            gui.Divider {
-                width = "80%",
-            },
+            gui.MCDMDivider { width = "80%",},
 
             gui.Label {
                 width = "90%",
@@ -5308,7 +7445,7 @@ function CharSheet.KitPanel()
         bgimage = true,
         bgcolor = "clear",
 
-        styles = {
+        styles = ThemeEngine.MergeTokens{
             {
                 selectors = { "valueLabel" },
                 bold = true,
@@ -5316,12 +7453,12 @@ function CharSheet.KitPanel()
                 hpad = 6,
                 textWrap = false,
                 minFontSize = 12,
-                color = "white",
+                color = "@fgStrong",
                 textAlignment = "center",
                 bgimage = "panels/square.png",
                 bgcolor = "clear",
                 beveledcorners = true,
-                borderColor = border_color,
+                borderColor = "@border",
                 border = 1,
                 cornerRadius = 4,
                 width = "100%",
@@ -5348,12 +7485,10 @@ function CharSheet.KitPanel()
 
         gui.Panel {
 
+            classes = {"bordered"},
             width = "100%",
             height = "98%",
             bgimage = true,
-            bgcolor = bg_color,
-            border = 2,
-            borderColor = border_color,
             beveledcorners = true,
             cornerRadius = 15,
 
@@ -5370,7 +7505,6 @@ function CharSheet.KitPanel()
                 gui.Label {
 
                     text = "Kit",
-                    color = border_color,
                     fontSize = 20,
                     halign = "center",
                     valign = "top",
@@ -5379,19 +7513,16 @@ function CharSheet.KitPanel()
 
                 },
 
-                gui.Divider {
-
-                    width = "80%",
-                },
+                gui.MCDMDivider { width = "80%", },
 
                 gui.Panel {
 
+                    classes = {"bordered"},
                     width = "70%",
                     height = 40,
                     bgimage = true,
                     bgcolor = "clear",
                     border = 1,
-                    borderColor = border_color,
                     beveledcorners = true,
                     cornerRadius = 10,
                     halign = "center",
@@ -5403,7 +7534,6 @@ function CharSheet.KitPanel()
                         text = "Name",
                         width = "auto",
                         height = "auto",
-                        color = border_color,
                         fontSize = 15,
                         halign = "center",
 
@@ -5421,7 +7551,6 @@ function CharSheet.KitPanel()
                     text = "Name",
                     width = "auto",
                     height = "auto",
-                    color = border_color,
                     fontSize = 15,
                     halign = "center",
                     valign = "top",
@@ -5606,11 +7735,1386 @@ function CharSheet.CreateNotesPanel()
     }
 end
 
+--[[
+    Redesigned Features tab content (search redesign ch5).
+
+    Replaces the flat GetClassFeaturesAndChoicesWithDetails list with a
+    grouped, filterable index built on FeatureCategoriser (FeatureCache.lua):
+    groups = categoriser buckets (the Class group sub-grouped by level), a
+    filter box narrowing rows via the shared Search matcher, unspent-choice
+    badges on groups and rows, inline choice dropdowns preserved, and
+    ability-granting features revealing the standard ability card on demand
+    ("View ability" toggle).
+
+    The global-search features-on-creatures provider lands here: it fires
+    "filterFeatures" with the matched feature's name after selecting the tab,
+    so the panel arrives pre-filtered to the feature that was clicked.
+
+    Build discipline:
+    - Group bodies are built ONLY while expanded (panels under a vscroll
+      container are expensive even when collapsed), and rebuilt fresh on
+      every change (reattaching previously-built panels orphans them).
+    - Expansion and filter state live in locals here so they survive the
+      fresh rebuilds triggered by refreshToken / choice changes.
+    - The direct characterFeatures list (sheet-added custom features) shows
+      under a "Custom Features" group, ALWAYS LAST in the group order; each
+      row's expansion carries its Edit/Copy/Delete buttons (managed where
+      the user sees them). The gear (settings) menu next to the filter box
+      only ADDS things: Add Custom Feature, Paste Feature, creature
+      templates. The old bottom strip is hidden for characters (it stays
+      inline for monsters and other creature kinds; its delete-only feats
+      list was a 5e holdover and is not carried over).
+    - The categoriser (FeatureCache.lua) enforces single-home display:
+      completed structural slots (subclass/deity/domain) are dropped from
+      the index (their outcomes are ordinary rows); made feature choices
+      that grant a skill/language re-home to that bucket; and a made
+      choice's chosen option features fold INTO the slot entry (entry
+      .chosen) instead of appearing as duplicate rows - the slot row's
+      expansion renders the chosen feature's description and ability card.
+]]
+
+--Group header copy. Buckets without an entry fall back to the categoriser's
+--display name.
+local FEATURE_GROUP_LABELS = {
+    perk = "Perks",
+    title = "Titles",
+    complication = "Complications",
+    skill = "Skills",
+    language = "Languages",
+    custom = "Custom Features",
+    treasure = "Treasures",
+    condition = "Conditions",
+    effect = "Ongoing Effects",
+}
+
+--Buckets whose header appends the origin name(s): "Ancestry - Human",
+--"Career - Agent", "Class - Censor - Paragon" (class + subclass, in
+--first-seen pipeline order).
+local FEATURE_GROUP_ORIGIN_PREFIX = {
+    class = true,
+    ancestry = true,
+    career = true,
+    kit = true,
+}
+
+--"Level 5, upgraded at levels 7, 9" (capitalised per James's copy review).
+local function FeatureLevelString(levels)
+    if levels == nil or levels[1] == nil then
+        return ""
+    end
+    local s = string.format("Level %d", math.max(1, levels[1]))
+    if #levels > 1 then
+        s = string.format("%s, upgraded at level%s %d", s, cond(#levels > 2, "s", ""), levels[2])
+        for i = 3, #levels do
+            s = string.format("%s, %d", s, levels[i])
+        end
+    end
+    return s
+end
+
+--Expando arrow with the expanded state baked in at construction: rows and
+--groups rebuild fresh on every change, and calling SetClass("expanded")
+--after creation replays the 0.2s rotate transition on every already-open
+--arrow. GOTCHA: the classes key must be OMITTED entirely when collapsed -
+--gui.CombineFields REPLACES (not merges) the constructor's default
+--{"triangle","expandoArrow"} classes when handed an empty list, leaving an
+--unstyled full-size triangle.
+local function FeatureExpandoArrow(expanded, options)
+    if expanded then
+        options.classes = {"expanded"}
+    end
+    return gui.ExpandoArrow(options)
+end
+
+--Abilities granted by an index entry: the feature's own modifiers plus the
+--modifiers of any chosen option features (a made ability picker carries the
+--ability on its chosen feature, folded into the slot entry by the
+--categoriser). Detection is the builder's pattern: behavior
+--activated/triggerdisplay/routine carries the ability.
+local function FeatureGrantedAbilities(entry)
+    local abilities = {}
+    local function gather(feature)
+        pcall(function()
+            for _,modifier in ipairs(feature:try_get("modifiers", {})) do
+                local behavior = modifier.behavior
+                if behavior == "activated" or behavior == "triggerdisplay" or behavior == "routine" then
+                    local ability = rawget(modifier, cond(behavior == "activated", "activatedAbility", "ability"))
+                    if ability ~= nil then
+                        abilities[#abilities+1] = ability
+                    end
+                end
+            end
+        end)
+    end
+    gather(entry.feature)
+    for _,chosenFeature in ipairs(entry.chosen or {}) do
+        gather(chosenFeature)
+    end
+    return abilities
+end
+
+--How many of a choice slot's selections are still unmade. For point-buy
+--slots (costsPoints) NumChoices is the POINTS BUDGET, not a pick count -
+--two picks costing 3 points complete a 3-point slot - so completeness is
+--judged by points spent. Either way, a slot the engine can offer no further
+--option for (Choices() returns nil) counts as complete: no dropdown would
+--show, so badging it would be a dead end.
+local function FeatureUnspentChoices(feature, creature)
+    local unspent = 0
+    pcall(function()
+        local num = feature:NumChoices(creature)
+        if num == nil or num <= 0 then
+            return
+        end
+        local made = creature:GetLevelChoices()[feature.guid] or {}
+        if feature:try_get("costsPoints") then
+            local options = feature:GetOptions(creature:GetLevelChoices()) or {}
+            local spent = 0
+            for _,choiceid in ipairs(made) do
+                for _,opt in ipairs(options) do
+                    if opt.guid == choiceid then
+                        spent = spent + (rawget(opt, "pointsCost") or 1)
+                        break
+                    end
+                end
+            end
+            unspent = math.max(0, num - spent)
+        else
+            unspent = math.max(0, num - #made)
+        end
+        if unspent > 0 then
+            local nextOptions = feature:Choices(#made + 1, made, creature)
+            if nextOptions == nil or #nextOptions == 0 then
+                unspent = 0
+            end
+        end
+    end)
+    return unspent
+end
+
+--Best-effort description for any index entry. Each probe is pcall-isolated:
+--reading a method that does not exist on a game type ERRORS rather than
+--returning nil, so one probe must not kill the next (gear items have no
+--GetDescription but do carry a description field).
+local function FeatureEntryDescription(entry)
+    local desc = nil
+    pcall(function()
+        desc = entry.feature:GetDescription()
+    end)
+    if desc == nil or desc == "" then
+        pcall(function()
+            desc = entry.feature:try_get("description")
+        end)
+    end
+    if desc == "" then
+        desc = nil
+    end
+    return desc
+end
+
+--Display names of the options a fully-made choice slot resolved to, so the
+--row can read "Forgettable Face" rather than "Agent Perk".
+local function FeatureChosenTexts(feature, creature)
+    local texts = {}
+    pcall(function()
+        local num = feature:NumChoices(creature)
+        if num == nil or num <= 0 then
+            return
+        end
+        local made = creature:GetLevelChoices()[feature.guid] or {}
+        for i = 1, num do
+            local chosenId = made[i]
+            if chosenId ~= nil then
+                for _,opt in ipairs(feature:Choices(i, made, creature) or {}) do
+                    if opt.id == chosenId then
+                        texts[#texts+1] = opt.text
+                    end
+                end
+            end
+        end
+    end)
+    return texts
+end
+
+--Re-attach an edited custom feature into the sheet's CURRENT properties.
+--While a feature PopupEditor is open, any remote update makes the sheet
+--re-bind to a freshly fetched token.properties object; the popup then keeps
+--mutating an orphaned feature, so when it finally notifies the sheet to
+--refresh/upload, the diff against the new properties sees nothing and the
+--authored content is silently lost. Resolving the list at commit time and
+--swapping the edited object in by guid heals that. Passed as the `commit`
+--option to PopupEditor / ListEditor for every sheet-hosted feature editor.
+local function CommitCustomFeature(feature)
+    local c = nil
+    pcall(function() c = CharacterSheet.instance.data.info.token.properties end)
+    if c == nil then
+        return
+    end
+    local guid = feature:try_get("guid")
+    local items = c:try_get("characterFeatures", {})
+    for i,f in ipairs(items) do
+        if f == feature then
+            --still attached; nothing to heal.
+            return
+        end
+        if guid ~= nil and f:try_get("guid") == guid then
+            items[i] = feature
+            c.characterFeatures = items
+            return
+        end
+    end
+    --not in the current list at all: the add that created it never landed
+    --(or a re-bind raced it) -- attach it so the edit is not lost.
+    items[#items+1] = feature
+    c.characterFeatures = items
+end
+
+--Options for an "Add Creature Template..." dropdown, for this creature.
+--A template's prerequisite is a GoblinScript expression (e.g. "Retainer",
+--"minion"); templates the creature does not qualify for are left out.
+local function CreatureTemplateDropdownOptions(creature)
+    local choices = {
+        { id = "none", text = "Add Creature Template..." },
+    }
+
+    for k,entry in pairs(dmhub.GetTable("creatureTemplates") or {}) do
+        if not entry:try_get("hidden", false) then
+            local passes = true
+            local prerequisite = entry:try_get("prerequisite", "")
+            if creature ~= nil and trim(prerequisite) ~= "" then
+                pcall(function()
+                    passes = GoblinScriptTrue(ExecuteGoblinScript(prerequisite, creature:LookupSymbol(), 0,
+                        string.format("Creature template %s prerequisite", entry.name)))
+                end)
+            end
+
+            if passes then
+                choices[#choices+1] = { id = k, text = entry.name }
+            end
+        end
+    end
+
+    return choices
+end
+
+--Per-user "Show All" preference for the Features tab eye toggle: reveals
+--rows suppressed by their display-kind tag (Hidden / Ability / Trigger),
+--each labeled with the tag so the author can see why it was suppressed
+--and re-tag it. Off = the play view (suppressed rows dropped).
+local g_featuresShowAllSetting = setting{
+    id = "featuretags:showall",
+    description = "Show all features",
+    help = "Show features hidden from the Features list by their tags (Hidden, Ability, Trigger).",
+    storage = "preference",
+    section = "general",
+    default = false,
+    editor = "check",
+}
+
+local function FeaturesIndexPanel()
+    local resultPanel
+
+    --State preserved across fresh rebuilds.
+    local m_filter = ""
+    local m_expandedGroups = {}
+    local m_expandedLevels = {}
+    local m_expandedRows = {}
+    local m_info = nil
+
+    local m_countLabel
+    local m_filterInput
+    local m_headerPanel
+    local m_groupsContainer
+    local Rebuild
+
+    local styles = ThemeEngine.MergeTokens{
+        {
+            selectors = {"featureGroupHeader"},
+            bgimage = true,
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"featureGroupHeader", "hover"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"featureIndexRow"},
+            bgimage = true,
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"featureIndexRow", "hover"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"featureChoiceBadge"},
+            bgimage = true,
+            bgcolor = "@accent",
+            color = "@fgInverse",
+            cornerRadius = 8,
+        },
+        {
+            selectors = {"featureMutedText"},
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"featureViewAbility"},
+            color = "@accent",
+        },
+        {
+            selectors = {"featureViewAbility", "hover"},
+            color = "@accentHover",
+        },
+        {
+            selectors = {"featureClearFilter"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"featureShowAllEye"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"featureShowAllEye", "hover"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"featureShowAllEye", "on"},
+            bgcolor = "@accent",
+        },
+    }
+
+    local function entrySearchText(entry)
+        if entry._searchText == nil then
+            --subName keeps a Title's granted benefit findable now that the row
+            --leads with the title's own name (report GETSJ9FB).
+            local parts = {entry.name or "", entry.subName or "", FeatureEntryDescription(entry) or ""}
+            --Chosen option features are folded into the slot entry, so the
+            --filter must reach their names and descriptions too.
+            for _,chosenFeature in ipairs(entry.chosen or {}) do
+                pcall(function()
+                    parts[#parts+1] = chosenFeature.name or ""
+                    parts[#parts+1] = chosenFeature:GetDescription() or ""
+                end)
+            end
+            entry._searchText = table.concat(parts, " ")
+        end
+        return entry._searchText
+    end
+
+    --Build a feature row's body: description, inline choice dropdowns, and
+    --the View-ability toggle. Called lazily on first expand.
+    local function BuildRowBody(body, entry, creature)
+        body.data.built = true
+        local children = {}
+
+        --A made choice slot's expansion shows the CHOSEN feature's content
+        --(the categoriser suppresses the chosen option's separate row);
+        --entries without chosen options show their own description.
+        local descs = {}
+        for _,chosenFeature in ipairs(entry.chosen or {}) do
+            pcall(function()
+                local d = chosenFeature:GetDescription()
+                if d ~= nil and d ~= "" then
+                    descs[#descs+1] = d
+                end
+            end)
+        end
+        if #descs == 0 then
+            local desc = FeatureEntryDescription(entry)
+            if desc ~= nil then
+                descs[#descs+1] = desc
+            end
+        end
+        --A Title row is named after the title, so its expansion leads with the
+        --title's own description, then the granted benefit's (report GETSJ9FB).
+        if entry.bucket == "title" and entry.origin ~= nil then
+            local originDesc = nil
+            pcall(function() originDesc = entry.origin:try_get("description") end)
+            if originDesc ~= nil and originDesc ~= "" then
+                table.insert(descs, 1, originDesc)
+            end
+        end
+        for _,desc in ipairs(descs) do
+            children[#children+1] = gui.Label{
+                width = "100%",
+                height = "auto",
+                fontSize = 12,
+                textWrap = true,
+                text = desc,
+            }
+        end
+
+        --Custom features are managed where the user sees them: the row
+        --carries Edit / Copy / Delete (the gear menu only ADDS things).
+        if entry.bucket == "custom" then
+            children[#children+1] = gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "left",
+                vmargin = 2,
+                gui.Button{
+                    classes = {"sizeS"},
+                    text = "Edit",
+                    click = function(element)
+                        local editor = entry.feature:PopupEditor{ commit = CommitCustomFeature }
+                        editor.data.notifyElement = resultPanel
+                        CharacterSheet.instance:AddChild(editor)
+                    end,
+                },
+                gui.Button{
+                    classes = {"sizeS"},
+                    text = "Copy",
+                    hmargin = 6,
+                    click = function(element)
+                        dmhub.CopyToInternalClipboard(entry.feature)
+                        gui.Tooltip("Copied to clipboard!")(element)
+                    end,
+                },
+                gui.Button{
+                    classes = {"sizeS"},
+                    text = "Delete",
+                    click = function(element)
+                        local c = CharacterSheet.instance.data.info.token.properties
+                        local items = c:try_get("characterFeatures", {})
+                        for i,f in ipairs(items) do
+                            if f == entry.feature or (entry.guid ~= nil and f.guid == entry.guid) then
+                                table.remove(items, i)
+                                break
+                            end
+                        end
+                        c.characterFeatures = items
+                        CharacterSheet.instance:FireEvent("refreshAll")
+                    end,
+                },
+            }
+        end
+
+        if entry.kind == "build" then
+            local feature = entry.feature
+            local numChoices = 0
+            pcall(function()
+                numChoices = feature:NumChoices(creature) or 0
+            end)
+            for i = 1, numChoices do
+                local options = nil
+                local idChosen = "none"
+                pcall(function()
+                    local made = creature:GetLevelChoices()[feature.guid] or {}
+                    options = feature:Choices(i, made, creature)
+                    idChosen = made[i] or "none"
+                end)
+                if options ~= nil and #options > 0 then
+                    local choiceIndex = i
+                    children[#children+1] = gui.Dropdown{
+                        height = 26,
+                        width = 240,
+                        halign = "left",
+                        vmargin = 2,
+                        textDefault = "Choose...",
+                        sort = true,
+                        options = options,
+                        idChosen = idChosen,
+                        change = function(element)
+                            local c = CharacterSheet.instance.data.info.token.properties
+                            local choice = element.idChosen
+                            if choice == "none" then
+                                choice = nil
+                            end
+                            local levelChoices = c:GetLevelChoices()
+                            if levelChoices[feature.guid] == nil then
+                                levelChoices[feature.guid] = {}
+                            end
+                            levelChoices[feature.guid][choiceIndex] = choice
+                            CharacterSheet.instance:FireEvent("refreshAll")
+                        end,
+                    }
+                end
+            end
+
+            local abilities = FeatureGrantedAbilities(entry)
+            if #abilities > 0 then
+                local cardContainer = gui.Panel{
+                    width = "100%",
+                    height = "auto",
+                    flow = "vertical",
+                    classes = {"collapsed"},
+                    data = {},
+                }
+                children[#children+1] = gui.Label{
+                    classes = {"featureViewAbility"},
+                    width = "auto",
+                    height = "auto",
+                    fontSize = 12,
+                    vmargin = 2,
+                    bgimage = true,
+                    bgcolor = "clear",
+                    text = "View ability",
+                    press = function(element)
+                        local showing = cardContainer:HasClass("collapsed")
+                        if showing and not cardContainer.data.built then
+                            cardContainer.data.built = true
+                            local cards = {}
+                            for _,ability in ipairs(abilities) do
+                                local ok, card = pcall(function()
+                                    return ability:Render({
+                                        width = "96%",
+                                        halign = "left",
+                                        bgimage = true,
+                                    }, {})
+                                end)
+                                if ok and card ~= nil then
+                                    cards[#cards+1] = card
+                                end
+                            end
+                            cardContainer.children = cards
+                        end
+                        cardContainer:SetClass("collapsed", not showing)
+                        element.text = cond(showing, "Hide ability", "View ability")
+                    end,
+                }
+                children[#children+1] = cardContainer
+            end
+        end
+
+        body.children = children
+    end
+
+    local function BuildRow(entry, creature)
+        local rowKey = tostring(entry.guid or entry.name or "?")
+
+        --A non-build row with no description has nothing to expand into;
+        --build-pipeline rows may still carry dropdowns or an ability card,
+        --and custom rows always carry their Edit/Copy/Delete buttons.
+        local expandable = entry.kind == "build" or entry.bucket == "custom"
+            or FeatureEntryDescription(entry) ~= nil
+        local expanded = expandable and m_expandedRows[rowKey] == true
+
+        local titleText = entry.name or "Feature"
+        local subParts = {}
+        --What this row resolved to: the chosen options of a made choice slot,
+        --else the benefit a Title arrived as (the index's subName).
+        local grantedText = nil
+        if entry.kind == "build" and (entry._unspent or 0) == 0 then
+            local texts = FeatureChosenTexts(entry.feature, creature)
+            if #texts > 0 then
+                grantedText = table.concat(texts, ", ")
+            end
+        end
+        if grantedText == nil and entry.subName ~= nil and entry.subName ~= "" then
+            grantedText = entry.subName
+        end
+        if grantedText ~= nil then
+            --A Title keeps its own name in the lead: the title is what the
+            --player earned, and naming the row after the benefit hid it
+            --entirely (report GETSJ9FB). Other buckets still read better as
+            --"Forgettable Face" over a muted "Agent Perk".
+            if entry.bucket == "title" then
+                subParts[#subParts+1] = grantedText
+            else
+                titleText = grantedText
+                subParts[#subParts+1] = entry.name
+            end
+        end
+        local levelStr = FeatureLevelString(entry.levels)
+        if levelStr ~= "" then
+            subParts[#subParts+1] = levelStr
+        end
+
+        local tri = nil
+        if expandable then
+            tri = FeatureExpandoArrow(expanded, {
+                valign = "center",
+            })
+        end
+
+        local body = gui.Panel{
+            width = "100%-16",
+            halign = "left",
+            hmargin = 16,
+            height = "auto",
+            flow = "vertical",
+            classes = {cond(expanded, "expanded", "collapsed")},
+            data = {
+                built = false,
+            },
+        }
+        if expanded then
+            BuildRowBody(body, entry, creature)
+        end
+
+        local titleChildren = {
+            gui.Label{
+                width = "100%",
+                height = "auto",
+                fontSize = 13,
+                bold = true,
+                text = titleText,
+            },
+        }
+        if #subParts > 0 then
+            titleChildren[#titleChildren+1] = gui.Label{
+                classes = {"featureMutedText"},
+                width = "100%",
+                height = "auto",
+                fontSize = 11,
+                italics = true,
+                text = table.concat(subParts, " - "),
+            }
+        end
+
+        local headerChildren = {
+            gui.Panel{
+                width = "100%-80",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                children = titleChildren,
+            },
+        }
+        --Right-side controls live in one right-aligned cluster so the expand
+        --arrow keeps a fixed position on every row; the "Choose" pill sits to
+        --its left rather than pushing the arrow inward.
+        local rightChildren = {}
+        --Suppressed rows only render while the Show All eye toggle is on;
+        --the tag chip says WHY the row is normally hidden (Hidden / Ability
+        --/ Trigger) so the author can spot mis-tagged content at a glance.
+        if entry.displayKind ~= nil and entry.displayKind ~= "normal" then
+            local tagNames = { hidden = "Hidden", ability = "Ability", trigger = "Trigger" }
+            rightChildren[#rightChildren+1] = gui.Label{
+                classes = {"featureMutedText"},
+                width = "auto",
+                height = "auto",
+                fontSize = 11,
+                hpad = 6,
+                vpad = 1,
+                borderBox = true,
+                valign = "center",
+                hmargin = 4,
+                italics = true,
+                text = tagNames[entry.displayKind] or entry.displayKind,
+            }
+        end
+        if (entry._unspent or 0) > 0 then
+            rightChildren[#rightChildren+1] = gui.Label{
+                classes = {"featureChoiceBadge"},
+                width = "auto",
+                height = "auto",
+                fontSize = 11,
+                hpad = 6,
+                vpad = 1,
+                borderBox = true,
+                valign = "center",
+                hmargin = 4,
+                text = "Choose",
+            }
+        end
+        if tri ~= nil then
+            rightChildren[#rightChildren+1] = tri
+        end
+        if #rightChildren > 0 then
+            headerChildren[#headerChildren+1] = gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "right",
+                valign = "center",
+                children = rightChildren,
+            }
+        end
+
+        local header = gui.Panel{
+            classes = {"featureIndexRow"},
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            press = cond(expandable, function(element)
+                local nowExpanded = not tri:HasClass("expanded")
+                tri:SetClass("expanded", nowExpanded)
+                body:SetClass("collapsed", not nowExpanded)
+                if nowExpanded then
+                    m_expandedRows[rowKey] = true
+                    if not body.data.built then
+                        BuildRowBody(body, entry, creature)
+                    end
+                else
+                    m_expandedRows[rowKey] = nil
+                end
+            end),
+            children = headerChildren,
+        }
+
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            vmargin = 1,
+            header,
+            body,
+        }
+    end
+
+    --Build one bucket group. Returns the group panel (nil when filtering and
+    --nothing matches) and the matched-entry count.
+    local function BuildGroup(bucketId, bucket, entries, creature)
+        local matched = {}
+        for _,e in ipairs(entries) do
+            if m_filter == "" or Search.MatchesText(entrySearchText(e), m_filter) then
+                matched[#matched+1] = e
+            end
+        end
+        if m_filter ~= "" and #matched == 0 then
+            return nil, 0
+        end
+
+        --Filtering forces matching groups open so the hits are visible.
+        local expanded = (m_filter ~= "") or (m_expandedGroups[bucketId] == true)
+
+        local label = FEATURE_GROUP_LABELS[bucketId] or bucket.name
+        if FEATURE_GROUP_ORIGIN_PREFIX[bucketId] then
+            --Distinct origin names in first-seen order: "Ancestry - Human",
+            --"Class - Censor - Paragon" (class then subclass).
+            local names = {}
+            local seen = {}
+            for _,e in ipairs(entries) do
+                local n = e.originName
+                if n ~= nil and not seen[n] then
+                    seen[n] = true
+                    names[#names+1] = n
+                end
+            end
+            if #names > 0 then
+                label = string.format("%s - %s", bucket.name, table.concat(names, " - "))
+            end
+        end
+
+        local unspentTotal = 0
+        for _,e in ipairs(matched) do
+            unspentTotal = unspentTotal + (e._unspent or 0)
+        end
+
+        --Expansion is a LAZY IN-PLACE toggle, not a Rebuild: rebuilding the
+        --whole tab on every arrow press costs ~100ms of synchronous Lua
+        --(BuildIndex + per-entry choice checks + all panels). Bodies build
+        --their rows on first expand and then just toggle the collapsed
+        --class; full rebuilds happen only for data/filter changes.
+        local function BuildGroupBodyChildren()
+            local bodyChildren = {}
+            if bucketId == "class" then
+                --Sub-group the class bucket by level, preserving pipeline
+                --order within each level. Each level is its own lazy
+                --collapsible sub-group; expansion state survives rebuilds
+                --via m_expandedLevels, and filtering forces levels open.
+                local byLevel = {}
+                local levelsSeen = {}
+                for _,e in ipairs(matched) do
+                    local lvl = e.level or 0
+                    if byLevel[lvl] == nil then
+                        byLevel[lvl] = {}
+                        levelsSeen[#levelsSeen+1] = lvl
+                    end
+                    local t = byLevel[lvl]
+                    t[#t+1] = e
+                end
+                table.sort(levelsSeen)
+                for _,lvl in ipairs(levelsSeen) do
+                    local levelEntries = byLevel[lvl]
+                    local levelExpanded = (m_filter ~= "") or (m_expandedLevels[lvl] == true)
+
+                    local levelUnspent = 0
+                    for _,e in ipairs(levelEntries) do
+                        levelUnspent = levelUnspent + (e._unspent or 0)
+                    end
+
+                    local levelTri = FeatureExpandoArrow(levelExpanded, {
+                        valign = "center",
+                    })
+
+                    local levelHeaderChildren = {
+                        levelTri,
+                        gui.Label{
+                            classes = {"featureMutedText"},
+                            width = "auto",
+                            height = "auto",
+                            fontSize = 11,
+                            valign = "center",
+                            text = string.format("%s (%d)", cond(lvl > 0, string.format("Level %d", lvl), "Other"), #levelEntries),
+                        },
+                    }
+                    if levelUnspent > 0 then
+                        levelHeaderChildren[#levelHeaderChildren+1] = gui.Label{
+                            classes = {"featureChoiceBadge"},
+                            width = "auto",
+                            height = "auto",
+                            fontSize = 11,
+                            hpad = 6,
+                            vpad = 1,
+                            borderBox = true,
+                            halign = "right",
+                            valign = "center",
+                            text = string.format("%d to choose", levelUnspent),
+                        }
+                    end
+
+                    local levelRows
+                    local function BuildLevelRows()
+                        levelRows.data.built = true
+                        local rowChildren = {}
+                        for _,e in ipairs(levelEntries) do
+                            rowChildren[#rowChildren+1] = BuildRow(e, creature)
+                        end
+                        levelRows.children = rowChildren
+                    end
+                    levelRows = gui.Panel{
+                        width = "100%-12",
+                        halign = "right",
+                        height = "auto",
+                        flow = "vertical",
+                        classes = {cond(not levelExpanded, "collapsed")},
+                        data = { built = false },
+                    }
+                    if levelExpanded then
+                        BuildLevelRows()
+                    end
+
+                    bodyChildren[#bodyChildren+1] = gui.Panel{
+                        classes = {"featureGroupHeader"},
+                        width = "100%",
+                        height = "auto",
+                        flow = "horizontal",
+                        vmargin = 1,
+                        press = function(element)
+                            if m_filter ~= "" then
+                                return
+                            end
+                            local nowExpanded = not (m_expandedLevels[lvl] == true)
+                            if nowExpanded then
+                                m_expandedLevels[lvl] = true
+                            else
+                                m_expandedLevels[lvl] = nil
+                            end
+                            levelTri:SetClass("expanded", nowExpanded)
+                            levelRows:SetClass("collapsed", not nowExpanded)
+                            if nowExpanded and not levelRows.data.built then
+                                BuildLevelRows()
+                            end
+                        end,
+                        children = levelHeaderChildren,
+                    }
+                    bodyChildren[#bodyChildren+1] = levelRows
+                end
+            else
+                for _,e in ipairs(matched) do
+                    bodyChildren[#bodyChildren+1] = BuildRow(e, creature)
+                end
+            end
+            return bodyChildren
+        end
+
+        local bodyPanel
+        bodyPanel = gui.Panel{
+            width = "100%-12",
+            halign = "right",
+            height = "auto",
+            flow = "vertical",
+            classes = {cond(not expanded, "collapsed")},
+            data = { built = false },
+        }
+        local function EnsureBodyBuilt()
+            if bodyPanel.data.built then
+                return
+            end
+            bodyPanel.data.built = true
+            bodyPanel.children = BuildGroupBodyChildren()
+        end
+        if expanded then
+            EnsureBodyBuilt()
+        end
+
+        local tri = FeatureExpandoArrow(expanded, {
+            valign = "center",
+        })
+
+        local headerChildren = {
+            tri,
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                fontSize = 13,
+                bold = true,
+                text = label,
+            },
+            gui.Label{
+                classes = {"featureMutedText"},
+                width = "auto",
+                height = "auto",
+                fontSize = 11,
+                hmargin = 6,
+                valign = "center",
+                text = cond(m_filter ~= "", string.format("%d of %d", #matched, #entries), string.format("%d", #entries)),
+            },
+        }
+        if unspentTotal > 0 then
+            headerChildren[#headerChildren+1] = gui.Label{
+                classes = {"featureChoiceBadge"},
+                width = "auto",
+                height = "auto",
+                fontSize = 11,
+                hpad = 6,
+                vpad = 1,
+                borderBox = true,
+                halign = "right",
+                valign = "center",
+                text = string.format("%d to choose", unspentTotal),
+            }
+        end
+
+        local groupPanel = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            vmargin = 2,
+
+            gui.Panel{
+                classes = {"featureGroupHeader"},
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                press = function(element)
+                    if m_filter ~= "" then
+                        return
+                    end
+                    local nowExpanded = not (m_expandedGroups[bucketId] == true)
+                    if nowExpanded then
+                        m_expandedGroups[bucketId] = true
+                    else
+                        m_expandedGroups[bucketId] = nil
+                    end
+                    tri:SetClass("expanded", nowExpanded)
+                    bodyPanel:SetClass("collapsed", not nowExpanded)
+                    if nowExpanded then
+                        EnsureBodyBuilt()
+                    end
+                end,
+                children = headerChildren,
+            },
+
+            bodyPanel,
+        }
+
+        return groupPanel, #matched
+    end
+
+    Rebuild = function()
+        if m_info == nil or not resultPanel.valid then
+            return
+        end
+        local creature = m_info.token.properties
+        if creature == nil or creature.typeName ~= "character" then
+            resultPanel:SetClass("collapsed", true)
+            m_headerPanel:SetClass("collapsed", true)
+            m_groupsContainer.children = {}
+            return
+        end
+        resultPanel:SetClass("collapsed", false)
+        m_headerPanel:SetClass("collapsed", false)
+
+        local index = FeatureCategoriser.BuildIndex(creature)
+
+        --Rows whose display-kind tag suppresses them (Hidden / Ability /
+        --Trigger) are dropped unless the Show All eye toggle is on.
+        local showAll = g_featuresShowAllSetting:Get()
+
+        local groupsChildren = {}
+        local total = 0
+        local matchedTotal = 0
+        local suppressedTotal = 0
+        for _,bucketId in ipairs(index.order) do
+            local group = index.groups[bucketId]
+            local entries = {}
+            for _,e in ipairs(group.items) do
+                local suppressed = e.displayKind ~= nil and e.displayKind ~= "normal"
+                if suppressed and not showAll then
+                    suppressedTotal = suppressedTotal + 1
+                else
+                    e._unspent = cond(e.kind == "build", FeatureUnspentChoices(e.feature, creature), 0)
+                    entries[#entries+1] = e
+                end
+            end
+            if #entries > 0 then
+                total = total + #entries
+                local groupPanel, matchedCount = BuildGroup(bucketId, group.bucket, entries, creature)
+                matchedTotal = matchedTotal + matchedCount
+                if groupPanel ~= nil then
+                    groupsChildren[#groupsChildren+1] = groupPanel
+                end
+            end
+        end
+        m_groupsContainer.children = groupsChildren
+
+        if m_filter == "" then
+            m_countLabel.text = string.format("%d features", total)
+        elseif matchedTotal == 0 then
+            m_countLabel.text = string.format("No matches in %d features", total)
+        else
+            m_countLabel.text = string.format("Showing %d of %d features", matchedTotal, total)
+        end
+    end
+
+    m_countLabel = gui.Label{
+        classes = {"featureMutedText"},
+        width = "auto",
+        height = "auto",
+        fontSize = 12,
+        halign = "left",
+        valign = "center",
+        text = "",
+    }
+
+    local clearButton
+    m_filterInput = gui.SearchInput{
+        width = 200,
+        height = 20,
+        fontSize = 14,
+        halign = "right",
+        valign = "center",
+        placeholderText = "Filter features...",
+        editlag = 0.25,
+        edit = function(element)
+            m_filter = Search.Normalize(element.text)
+            clearButton:SetClass("collapsed", element.text == nil or element.text == "")
+            Rebuild()
+        end,
+    }
+    clearButton = gui.Panel{
+        floating = true,
+        classes = {"featureClearFilter", "collapsed"},
+        bgimage = "phosphor/x-bold.png",
+        width = 14,
+        height = 14,
+        halign = "right",
+        valign = "center",
+        x = -4,
+        press = function()
+            m_filterInput.text = ""
+            m_filterInput:FireEvent("edit")
+        end,
+    }
+    m_filterInput:AddChild(clearButton)
+
+    --Settings (gear) menu: the sheet's standard section-cog pattern
+    --(settingsButton class + element.popup, same as the Immunities /
+    --Skills / Languages cogs - native click-out dismissal, framedPanel +
+    --PopupStyles theming). The menu only ADDS things: custom features are
+    --edited on their rows in the Custom Features group. Template changes
+    --rebuild the popup in place (the Immunities popup's idiom).
+    local m_gearButton
+    local ShowManageMenu
+
+    ShowManageMenu = function(element)
+        if m_info == nil then return end
+
+        local children = {}
+
+        children[#children+1] = gui.Label{
+            classes = {"sizeXl", "bold"},
+            halign = "center",
+            text = "Manage Features",
+            width = "auto",
+            height = "auto",
+        }
+
+        children[#children+1] = gui.Button{
+            classes = {"sizeM"},
+            text = "Add Custom Feature",
+            width = 220,
+            halign = "center",
+            vmargin = 4,
+            click = function()
+                local c = CharacterSheet.instance.data.info.token.properties
+                local items = c:try_get("characterFeatures", {})
+                local feature = CharacterFeature.Create{}
+                items[#items+1] = feature
+                c.characterFeatures = items
+                element.popup = nil
+                CharacterSheet.instance:FireEvent("refreshAll")
+                local editor = feature:PopupEditor{ commit = CommitCustomFeature }
+                editor.data.notifyElement = resultPanel
+                CharacterSheet.instance:AddChild(editor)
+            end,
+        }
+
+        local clipboardItem = dmhub.GetInternalClipboard()
+        if clipboardItem ~= nil and (clipboardItem.typeName == "CharacterFeature" or clipboardItem.typeName == "ActivatedAbility") then
+            children[#children+1] = gui.Button{
+                classes = {"sizeM"},
+                text = "Paste Feature",
+                width = 220,
+                halign = "center",
+                vmargin = 4,
+                click = function()
+                    local c = CharacterSheet.instance.data.info.token.properties
+                    local item = dmhub.GetInternalClipboard()
+                    local feature = nil
+                    if item ~= nil and item.typeName == "CharacterFeature" then
+                        feature = DeepCopy(item)
+                        DeepReplaceGuids(feature)
+                    elseif item ~= nil and item.typeName == "ActivatedAbility" then
+                        local ability = DeepCopy(item)
+                        DeepReplaceGuids(ability)
+                        local modifier = CharacterModifier.new{
+                            guid = dmhub.GenerateGuid(),
+                            name = ability.name,
+                            description = "",
+                            behavior = "activated",
+                            activatedAbility = ability,
+                        }
+                        feature = CharacterFeature.Create{
+                            name = ability.name,
+                            modifiers = { modifier },
+                        }
+                    end
+                    if feature ~= nil then
+                        local items = c:try_get("characterFeatures", {})
+                        items[#items+1] = feature
+                        c.characterFeatures = items
+                    end
+                    element.popup = nil
+                    CharacterSheet.instance:FireEvent("refreshAll")
+                end,
+            }
+        end
+
+        --width "auto" popup: every child must be fixed/auto width (a "100%"
+        --child makes the auto-sized popup blow out to the screen bounds).
+        children[#children+1] = gui.Label{
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            fontSize = 14,
+            bold = true,
+            vmargin = 4,
+            text = "Creature Templates",
+        }
+
+        local creature = m_info.token.properties
+        local templates = nil
+        pcall(function() templates = creature:try_get("creatureTemplates") end)
+        local templatesTable = dmhub.GetTable("creatureTemplates") or {}
+        for i,tid in ipairs(templates or {}) do
+            local templateInfo = templatesTable[tid]
+            if templateInfo ~= nil then
+                local n = i
+                children[#children+1] = gui.Panel{
+                    width = 320,
+                    height = "auto",
+                    flow = "horizontal",
+                    --statsLabel is a sheet-local class; the popup island only
+                    --carries the theme cascade, so style the label inline.
+                    gui.Label{
+                        width = "80%",
+                        height = "auto",
+                        fontSize = 14,
+                        text = templateInfo.name,
+                    },
+                    gui.Button{
+                        classes = {"deleteButton"},
+                        width = 24,
+                        height = 24,
+                        halign = "right",
+                        click = function()
+                            local c = CharacterSheet.instance.data.info.token.properties
+                            c:RemoveTemplate(n)
+                            CharacterSheet.instance:FireEvent("refreshAll")
+                            ShowManageMenu(element)
+                        end,
+                    },
+                }
+            end
+        end
+
+        children[#children+1] = gui.Dropdown{
+            width = 220,
+            height = 28,
+            halign = "center",
+            vmargin = 4,
+            idChosen = "none",
+            create = function(dropdown)
+                dropdown.options = CreatureTemplateDropdownOptions(creature)
+            end,
+            change = function(dropdown)
+                local c = CharacterSheet.instance.data.info.token.properties
+                if dropdown.idChosen ~= "none" then
+                    c:AddTemplate(dropdown.idChosen)
+                end
+                dropdown.idChosen = "none"
+                CharacterSheet.instance:FireEvent("refreshAll")
+                ShowManageMenu(element)
+            end,
+        }
+
+        element.popupPositioning = "panel"
+        element.popup = gui.Panel{
+            classes = {"framedPanel"},
+            halign = "right",
+            interactable = true,
+            flow = "vertical",
+            hpad = 24,
+            vpad = 14,
+            width = "auto",
+            height = "auto",
+            --Popups are styling islands: the theme cascade must be supplied
+            --explicitly or the Dropdown's internals lose their layout rules.
+            --PopupStyles is deliberately NOT included: its selectorless
+            --catch-all rule (flow vertical + valign bottom on EVERY panel)
+            --wrecks the Dropdown control, stacking its triangle below the
+            --label and outside the frame.
+            styles = ThemeEngine.GetStyles(),
+            children = children,
+        }
+    end
+
+    m_gearButton = gui.Button{
+        classes = {"settingsButton"},
+        width = 16,
+        height = 16,
+        halign = "right",
+        valign = "center",
+        hmargin = 6,
+        linger = function(element)
+            gui.Tooltip("Manage Features and Templates")(element)
+        end,
+        press = function(element)
+            if element.popup ~= nil then
+                element.popup = nil
+            else
+                ShowManageMenu(element)
+            end
+        end,
+    }
+
+    m_groupsContainer = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+    }
+
+    resultPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        styles = styles,
+
+        refreshToken = function(element, info)
+            local changedToken = false
+            pcall(function()
+                changedToken = m_info ~= nil and m_info.token.properties ~= info.token.properties
+            end)
+            if changedToken then
+                m_gearButton.popup = nil
+            end
+            m_info = info
+            Rebuild()
+        end,
+
+        --Custom-feature PopupEditors notify here on change (the
+        --notifyElement contract): refresh the sheet so the index rebuilds.
+        refreshModifier = function(element)
+            CharacterSheet.instance:FireEvent("refreshAll")
+        end,
+
+        --Deep-link hook: the global-search features-on-creatures provider
+        --fires this (with the matched feature's name) after landing the
+        --sheet on the Features tab.
+        filterFeatures = function(element, needle)
+            if type(needle) ~= "string" then
+                needle = ""
+            end
+            m_filterInput.text = needle
+            m_filterInput:FireEvent("edit")
+        end,
+
+        m_groupsContainer,
+    }
+
+    --Show All eye toggle: reveals tag-suppressed rows (Hidden / Ability /
+    --Trigger). Per-user preference; the sheet is simultaneously a play and
+    --an edit surface (monster sheets always, hero sheets for custom
+    --features), so this is the one reveal mechanism that keeps suppressed
+    --containers reachable for editing.
+    --Plain icon panel, NOT the settingsButton class: that class paints
+    --its own gear glyph over any bgimage. Tint comes from the tab's
+    --featureShowAllEye theme rules (@fgMuted / hover @fgStrong / on
+    --@accent) so it follows scheme switches.
+    local m_showAllButton
+    m_showAllButton = gui.Panel{
+        classes = {"featureShowAllEye", cond(g_featuresShowAllSetting:Get(), "on")},
+        bgimage = cond(g_featuresShowAllSetting:Get(), "phosphor/eye-light.png", "phosphor/eye-closed-light.png"),
+        width = 16,
+        height = 16,
+        halign = "right",
+        valign = "center",
+        hmargin = 4,
+        linger = function(element)
+            --Tooltip states the ACTION the click will take, from current state.
+            local text = "Show hidden features"
+            if g_featuresShowAllSetting:Get() then
+                text = "Hide hidden features"
+            end
+            gui.Tooltip(text)(element)
+        end,
+        press = function(element)
+            local newValue = not g_featuresShowAllSetting:Get()
+            g_featuresShowAllSetting:Set(newValue)
+            element.bgimage = cond(newValue, "phosphor/eye-light.png", "phosphor/eye-closed-light.png")
+            element:SetClass("on", newValue)
+            Rebuild()
+        end,
+    }
+
+    --The filter/count/settings row is returned SEPARATELY so the tab can
+    --pin it above the scroll area (it must survive scrolling).
+    m_headerPanel = gui.Panel{
+        width = "100%",
+        height = 26,
+        flow = "horizontal",
+        styles = styles,
+        m_countLabel,
+        m_filterInput,
+        m_showAllButton,
+        m_gearButton,
+    }
+
+    return { header = m_headerPanel, body = resultPanel }
+end
+
 function CharSheet.InnerFeaturesPanel()
+    local index = FeaturesIndexPanel()
     return gui.Panel {
         width = "100%",
         height = "100%",
-        valign = "center",
+        flow = "vertical",
+
+        --Carries the search-reveal pulse rule so a monster trait row (in the
+        --legacy ListEditor below) can be highlighted when revealed from search.
+        styles = ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE },
+
+        --Filter/count/settings row, pinned ABOVE the scroll area so it
+        --survives scrolling. tmargin keeps the input clear of the tab
+        --strip's border above.
+        gui.Panel {
+            width = "97%",
+            hmargin = 4,
+            tmargin = 6,
+            halign = "left",
+            height = "auto",
+            index.header,
+        },
+
+        gui.Panel {
+        width = "100%",
+        height = "100%-36",
+        valign = "top",
         vscroll = true,
         gui.Panel {
             classes = { "featuresPanel" },
@@ -5620,8 +9124,20 @@ function CharSheet.InnerFeaturesPanel()
             halign = "left",
             height = "auto",
 
-            CharSheet.CharacterFeaturesPanel(),
+            index.body,
 
+
+            --Legacy bottom strip: custom-feature ListEditor + creature
+            --templates + feats list. For characters this strip is folded
+            --into the Features tab's gear (settings) menu; it stays inline
+            --for monsters and other creature kinds.
+            gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            refreshToken = function(element, info)
+                element:SetClass("collapsed", info.token.properties.typeName == "character")
+            end,
 
             --list of additional/custom features.
             gui.Panel {
@@ -5636,7 +9152,7 @@ function CharSheet.InnerFeaturesPanel()
                 refreshToken = function(element, info)
                     if info.token.properties ~= element.data.properties then
                         element.children = { CharacterFeature.ListEditor(info.token.properties, 'characterFeatures',
-                            { dialog = CharacterSheet.instance, notify = CharacterSheet.instance }) }
+                            { dialog = CharacterSheet.instance, notify = CharacterSheet.instance, commit = CommitCustomFeature }) }
                         element.data.properties = info.token.properties
                     end
                 end,
@@ -5697,7 +9213,8 @@ function CharSheet.InnerFeaturesPanel()
                                 end,
 
                                 label,
-                                gui.DeleteItemButton {
+                                gui.Button {
+                                    classes = {"deleteButton"},
                                     width = 24,
                                     height = 24,
                                     halign = "right",
@@ -5725,25 +9242,16 @@ function CharSheet.InnerFeaturesPanel()
                         element:FireEvent("refreshAssets")
                     end,
 
+                    --Rebuild on token change too: the options depend on the
+                    --creature, not just on the template table.
+                    refreshToken = function(element, info)
+                        element.options = CreatureTemplateDropdownOptions(info.token.properties)
+                    end,
+
                     refreshAssets = function(element)
-                        local choices = {
-                            {
-                                id = "none",
-                                text = "Add Creature Template...",
-                            },
-                        }
-
-                        local templateTable = dmhub.GetTable("creatureTemplates") or {}
-                        for k, entry in pairs(templateTable) do
-                            if not entry:try_get("hidden", false) then
-                                choices[#choices + 1] = {
-                                    id = k,
-                                    text = entry.name,
-                                }
-                            end
-                        end
-
-                        element.options = choices
+                        local creature = nil
+                        pcall(function() creature = CharacterSheet.instance.data.info.token.properties end)
+                        element.options = CreatureTemplateDropdownOptions(creature)
                     end,
 
                     change = function(element)
@@ -5823,7 +9331,8 @@ function CharSheet.InnerFeaturesPanel()
                                 end,
 
                                 label,
-                                gui.DeleteItemButton {
+                                gui.Button {
+                                    classes = {"deleteButton"},
                                     width = 24,
                                     height = 24,
                                     halign = "right",
@@ -5842,8 +9351,11 @@ function CharSheet.InnerFeaturesPanel()
 
             },
 
+            },
 
-        }
+
+        },
+        },
     }
 end
 
@@ -5867,7 +9379,6 @@ function CharSheet.FeaturesAndNotesPanel()
     local CreateTab = function(text, index)
         return gui.Label {
             classes = { "tab", cond(index == 1, "selected") },
-            bgimage = true,
             text = text,
             press = function(element)
                 for i, panel in ipairs(element.parent.children) do
@@ -5875,6 +9386,15 @@ function CharSheet.FeaturesAndNotesPanel()
                 end
                 for i, panel in ipairs(contentPanels) do
                     panel:SetClass("collapsed", i ~= index)
+                end
+            end,
+
+            --Deep-link hook: lets external code (global search's
+            --features-on-creatures results) land the sheet on a named tab via
+            --CharacterSheet.instance:FireEventTree("selectSheetTab", "Features").
+            selectSheetTab = function(element, tabText)
+                if tabText == text then
+                    element:FireEvent("press")
                 end
             end,
 
@@ -5902,35 +9422,73 @@ function CharSheet.FeaturesAndNotesPanel()
         }
     end
 
+    --Held so the revealCapability hook can select the Features tab the same
+    --way pressing it does.
+    local m_featuresTab = CreateTab("Features", 2)
+
     local resultPanel
     resultPanel = gui.Panel {
+        classes = {"bordered"},
         width = "100%-40",
         height = "55.3%",
         bgimage = true,
-        bgcolor = bg_color,
         valign = "top",
         halign = "center",
-        borderColor = border_color,
-        borderWidth = 2,
         flow = "vertical",
 
-        styles = {
-            Styles.Tabs,
+        --Deep-link hook: a bestiary trait search result fires
+        --"revealCapability" after opening the monster sheet. A monster's
+        --traits render on the Features sub-tab (a flat list), so selecting
+        --that tab is the Phase A reveal. Abilities (non-"Trait") are handled
+        --by the action list and ignored here.
+        revealCapability = function(element, capName, categorization)
+            if categorization ~= "Trait" then
+                return
+            end
+            m_featuresTab:FireEvent("press")
+            if type(capName) ~= "string" or capName == "" then
+                return
+            end
 
-        },
+            --Phase B: scroll the matched trait row into view and pulse it. A
+            --trait renders as one markdown label whose visible text begins
+            --with the trait name ("<b>End Effect.</b> ..."), so match on the
+            --stripped prefix. Best-effort: a no-op if not located.
+            local featuresContent = contentPanels[2]
+            ScheduleRevealAndPulse(function()
+                local result = nil
+                local function walk(p, depth)
+                    if p == nil or depth > 30 or result ~= nil then
+                        return
+                    end
+                    local t = nil
+                    pcall(function() t = p.text end)
+                    if type(t) == "string" and t ~= "" then
+                        local plain = (t:gsub("<.->", ""))
+                        if string.sub(plain, 1, #capName) == capName then
+                            result = p
+                            return
+                        end
+                    end
+                    local ok, ch = pcall(function() return p.children end)
+                    if ok and type(ch) == "table" then
+                        for _, c in ipairs(ch) do
+                            walk(c, depth + 1)
+                        end
+                    end
+                end
+                walk(featuresContent, 0)
+                return result
+            end)
+        end,
 
         --tab panel.
         gui.Panel {
-            flow = "horizontal",
+            classes = {"tabBar"},
             valign = "top",
             width = "100%",
-            height = "auto",
-            bgimage = true,
-            bgcolor = "clear",
-            borderColor = "#aaaaaa",
-            borderWidth = 1,
             CreateTab("Notes", 1),
-            CreateTab("Features", 2),
+            m_featuresTab,
             CreateTab("Followers", 3),
         },
         gui.Panel {

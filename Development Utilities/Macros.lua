@@ -68,6 +68,16 @@ Commands.RegisterMacro{
     name = "skillfind",
     summary = "find skill by name",
     doc = "Usage: /skillfind <name>\nLooks up a skill by name and prints it.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local skills = dmhub.GetTable("Skills")
+        local result = {}
+        for k, v in unhidden_pairs(skills) do
+            result[#result+1] = v.name
+        end
+        table.sort(result)
+        return result
+    end,
     command = function(str)
         local s = Skill.FindByName(str)
         print("SKILL::", s)
@@ -78,6 +88,10 @@ Commands.RegisterMacro{
     name = "showtriggers",
     summary = "show token triggers",
     doc = "Usage: /showtriggers <event name>\nPrints all active triggered modifiers matching the given event name on selected tokens.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        return {"damaged", "attack", "attacked", "kill", "power_roll", "forced_move", "start_turn", "end_turn", "spend_recovery", "gain_condition", "lose_condition", "dying"}
+    end,
     command = function(str)
         local tokens = dmhub.selectedTokens
         for _,tok in ipairs(tokens) do
@@ -91,5 +105,28 @@ Commands.RegisterMacro{
             end
 
         end
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "corrupttest",
+    summary = "schema-guard smoke test",
+    doc = "Usage: /corrupttest\nOverwrites the selected token's `attributes` field with a scalar string, which is a STRUCTURAL schema violation (attributes is annotated table<string, CharacterAttribute>). The DO staging server's schema guard should reject this write outright. Primitive-type mismatches are only warnings in v1, so this macro deliberately triggers a shape mismatch to exercise the reject path. Watch `wrangler tail --env staging` for [SCHEMA-GUARD] lines. Game must be hosted on DO staging.",
+    command = function(str)
+        local token = dmhub.selectedOrPrimaryTokens[1]
+        if token == nil or token.properties == nil then
+            chat.Send("corrupttest: no selected token with properties")
+            return
+        end
+        chat.Send("corrupttest: overwriting attributes with a string (structural violation, should be rejected)...")
+        token:ModifyProperties{
+            description = "schema-guard test: bad attributes shape",
+            undoable = false,
+            execute = function()
+                token.properties.attributes = "this-should-be-rejected"
+            end,
+        }
+        chat.Send("corrupttest: uploaded. expected server log: [SCHEMA-GUARD] patch rejected ... attributes: expected map, got string")
+        chat.Send("corrupttest: local cache may briefly show the bad value; reload the sheet to confirm the server kept the good one.")
     end,
 }

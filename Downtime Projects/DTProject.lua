@@ -5,6 +5,7 @@
 --- @field ownerId string GUID identifier of the owner of this project
 --- @field sortOrder number The sort order for this objective
 --- @field itemId string The GUID of the item we're crafting, if that's what we're doing
+--- @field activityId string The GUID of the DowntimeActivity this project came from, if that's what we're doing
 --- @field title string The name of the project
 --- @field itemPrerequisite string Any special items required to start/continue the project
 --- @field projectSource string The lore source (book, tutor, etc.) enabling this project
@@ -26,6 +27,7 @@ local DEFAULT_LANG_PENALTY = DTConstants.LANGUAGE_PENALTY.NONE.key
 local DEFAULT_STATUS = DTConstants.STATUS.PAUSED.key
 
 DTProject.itemId = ""
+DTProject.activityId = ""
 DTProject.title = ""
 DTProject.itemPrerequisite = ""
 DTProject.projectSource = ""
@@ -44,11 +46,12 @@ DTProject._progressDirty = true        -- Marks cache as needing recalculation
 --- Creates a new downtime project instance
 --- @param sortOrder number The sort order for this project
 --- @param ownerId string The unique identifier of the token that owns this project
+--- @param id string|nil Optional GUID to assign; a new one is generated when omitted
 --- @return DTProject instance The new project instance
-function DTProject.CreateNew(sortOrder, ownerId)
+function DTProject.CreateNew(sortOrder, ownerId, id)
 
     local args = {
-        id = dmhub.GenerateGuid(),
+        id = id or dmhub.GenerateGuid(),
         ownerId = ownerId,
         sortOrder = sortOrder or 1,
         projectSourceLanguages = {},
@@ -89,6 +92,20 @@ end
 --- @return DTProject self For chaining
 function DTProject:SetItemID(itemId)
     self.itemId = itemId or ""
+    return self
+end
+
+--- Gets the identifier of the downtime activity this project came from, if that's what we're doing
+--- @return string activityId The GUID of the DowntimeActivity, or "" if this project has no activity
+function DTProject:GetActivityID()
+    return self:try_get("activityId") or ""
+end
+
+--- Sets the id of the downtime activity this project came from
+--- @param activityId string The GUID of the DowntimeActivity
+--- @return DTProject self For chaining
+function DTProject:SetActivityID(activityId)
+    self.activityId = activityId or ""
     return self
 end
 
@@ -342,14 +359,15 @@ end
 --- Sets project status before adding or removing a progress item
 --- @param item DTRoll|DTAdjustment|DTProgressItem The progress item to be considered
 --- @param direction number The direction of progress: 1 if adding, -1 if removing
-function DTProject:_setStateFromProgressChange(item, direction)
+--- @param priorProgress number|nil Progress value to use as the baseline instead of the current cached/recomputed progress (used when the item has already been inserted into its list)
+function DTProject:_setStateFromProgressChange(item, direction, priorProgress)
     if type(direction) ~= "number" or math.abs(direction) ~= 1 then return end
 
     local function isRoll() return item.typeName == "DTRoll" end
     local function isAdjustment() return item.typeName == "DTAdjustment" end
 
     local STATUS = DTConstants.STATUS
-    local oldValue = self:GetProgress()
+    local oldValue = priorProgress or self:GetProgress()
     local newValue = oldValue + (direction * item:GetAmount())
     local currentStatus = self:GetStatus()
     local projectGoal = self:GetProjectGoal()
@@ -359,6 +377,26 @@ function DTProject:_setStateFromProgressChange(item, direction)
         DTBusinessRules.GiveItemToCharacter(self)
         self:SetStatusReason("Project complete.")
             :SetStatus(DTConstants.STATUS.COMPLETE.key)
+
+        -- Announce completion with a dramatic banner (synced to all clients,
+        -- non-modal). Gate on the transition INTO complete: this branch
+        -- re-enters whenever more progress is added to an already-finished
+        -- project, and the banner, unlike the item grant above, should fire
+        -- once. Title falls back to "a project" for untitled projects.
+        if currentStatus ~= STATUS.COMPLETE.key then
+            local token = dmhub.GetTokenById(self:GetOwnerID())
+            if token ~= nil and token.valid then
+                local title = self:GetTitle()
+                if title == nil or title == "" then
+                    title = "a project"
+                end
+                DramaticBanner.Show{
+                    tokenid = token.charid,
+                    text = "Project Complete",
+                    subtitle = string.format("%s completed %s", token.name, title),
+                }
+            end
+        end
     elseif currentStatus == DTConstants.STATUS.COMPLETE.key then
         if newValue < projectGoal then
             self:SetStatus(STATUS.ACTIVE.key)
@@ -389,9 +427,14 @@ function DTProject:AddRoll(roll)
             self.projectRolls = {}
         end
 
+        -- Capture progress BEFORE inserting the roll: _setStateFromProgressChange
+        -- must compare against the pre-roll total, otherwise GetProgress() (which
+        -- re-sums projectRolls when the cache is dirty) already includes this roll
+        -- and the status check double-counts it.
+        local priorProgress = self:GetProgress()
         roll:SetCommitInfo()
         self.projectRolls[#self.projectRolls + 1] = roll
-        self:_setStateFromProgressChange(roll, 1)
+        self:_setStateFromProgressChange(roll, 1, priorProgress)
         self:_invalidateProgressCache()
 
     end

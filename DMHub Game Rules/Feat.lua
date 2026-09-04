@@ -4,7 +4,7 @@ local mod = dmhub.GetModLoading()
 --- @field name string Display name of the feat.
 --- @field description string Rules text.
 --- @field tableName string Data table name ("feats").
---- @field prerequisite string Text description of prerequisites.
+--- @field prerequisite string|number|table Text description of prerequisites.
 --- @field tag string Comma-separated tags (e.g. "feat", "general").
 CharacterFeat = RegisterGameType("CharacterFeat")
 
@@ -93,11 +93,42 @@ function CharacterFeat:FeatureSourceName()
 	return "Feat"
 end
 
-function CharacterFeat:FillClassFeatures(choices, result)
+--true if the creature meets all of the feature's prerequisites. A nil
+--creature means no filtering is wanted, so everything passes.
+local function PrerequisitesMet(feature, creature)
+	if creature == nil then
+		return true
+	end
+
+	for _,prerequisite in ipairs(feature:try_get("prerequisites") or {}) do
+		if not prerequisite:Met(creature) then
+			return false
+		end
+	end
+
+	return true
+end
+
+--creature is optional: when given, features (including choices) whose
+--prerequisites the creature doesn't meet are skipped entirely.
+function CharacterFeat:FillClassFeatures(choices, result, creature)
 	for i,feature in ipairs(self:GetClassLevel().features) do
 
-		if feature.typeName == 'CharacterFeature' then
+		if not PrerequisitesMet(feature, creature) then
+			--skip this feature entirely; a choice grants nothing even if
+			--a stale selection for it exists in choices.
+		elseif feature.typeName == 'CharacterFeature' then
 			result[#result+1] = feature
+		elseif feature.typeName == 'CharacterFeatureList' then
+			for _,child in ipairs(feature.features) do
+				if not PrerequisitesMet(child, creature) then
+					--skip.
+				elseif child.typeName == 'CharacterFeature' then
+					result[#result+1] = child
+				else
+					child:FillChoice(choices, result)
+				end
+			end
 		else
 			if choices[feature.guid] ~= nil then
 				feature:FillChoice(choices, result)
@@ -107,16 +138,22 @@ function CharacterFeat:FillClassFeatures(choices, result)
 end
 
 --result is filled with a list of { feat = CharacterFeat object, feature = CharacterFeature or CharacterChoice }
-function CharacterFeat:FillFeatureDetails(choices, result)
+--creature is optional: when given, features whose prerequisites the creature
+--doesn't meet are omitted (so e.g. a level-gated choice isn't offered).
+function CharacterFeat:FillFeatureDetails(choices, result, creature)
 	for i,feature in ipairs(self:GetClassLevel().features) do
-		local resultFeatures = {}
-		feature:FillFeaturesRecursive(choices, resultFeatures)
+		if PrerequisitesMet(feature, creature) then
+			local resultFeatures = {}
+			feature:FillFeaturesRecursive(choices, resultFeatures)
 
-		for i,resultFeature in ipairs(resultFeatures) do
-			result[#result+1] = {
-				feat = self,
-				feature = resultFeature,
-			}
+			for i,resultFeature in ipairs(resultFeatures) do
+				if PrerequisitesMet(resultFeature, creature) then
+					result[#result+1] = {
+						feat = self,
+						feature = resultFeature,
+					}
+				end
+			end
 		end
 	end
 end
@@ -132,13 +169,13 @@ local SetFeat = function(tableName, featPanel, featid)
 
 	--the name of the feat.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Name:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Name:",
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = feat.name,
 			change = function(element)
 				feat.name = element.text
@@ -149,11 +186,10 @@ local SetFeat = function(tableName, featPanel, featid)
 
 	--prerequisites for the feat.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Prerequisite:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Prerequisite:",
 		},
 		gui.GoblinScriptInput{
 			value = feat.prerequisite,
@@ -183,52 +219,49 @@ local SetFeat = function(tableName, featPanel, featid)
 
 	--The feat's tag.
 	children[#children+1] = gui.Panel{
-		classes = {'formPanel'},
+		classes = {"formStackedRow"},
 		gui.Label{
-			text = 'Tag:',
-			valign = 'center',
-			minWidth = 240,
+			classes = {"formStacked"},
+			text = "Tag:",
 			hover = gui.Tooltip("A feat's tag categorizes how the feat is used. Separate multiple tags with commas. A regular feat should be given the tag 'feat', but feats that are awarded under special circumstances can be given a different tag. When offering a feat selection, only feats with the matching tag will be shown."),
 		},
 		gui.Input{
+			classes = {"formStacked"},
 			text = feat.tag,
 			change = function(element)
-                element.text = trim(element.text)
+				element.text = trim(element.text)
 				feat.tag = element.text
-                g_cachedTag = element.text
+				g_cachedTag = element.text
 				UploadFeat()
 			end,
 		},
 	}
 
-    for _,entry in ipairs(feat.descriptionEntries) do
-
-        --feat description/notes.
-        children[#children+1] = gui.Panel{
-            classes = {'formPanel'},
-            height = 'auto',
-            gui.Label{
-                text = string.format("%s:", entry.text),
-                valign = "center",
-                minWidth = 240,
-            },
-            gui.Input{
-                text = feat:try_get(entry.field, ""),
-                fontSize = 14,
-                multiline = true,
-                height = 'auto',
-                width = 800,
-                minHeight = 140,
-                textAlignment = "topleft",
-                characterLimit = 4096,
-                change = function(element)
-                    feat[entry.field] = element.text
-                    UploadFeat()
-                end,
-            }
-        }
-
-    end
+	for _,entry in ipairs(feat.descriptionEntries) do
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Label{
+				classes = {"formStacked"},
+				text = string.format("%s:", entry.text),
+			},
+			gui.Input{
+				classes = {"formStacked"},
+				multiline = true,
+				height = "auto",
+				minHeight = 140,
+				maxHeight = 400,
+				vscroll = true,
+				textAlignment = "topleft",
+				characterLimit = 4096,
+				placeholderText = string.format("Enter %s...", entry.text),
+				text = feat:try_get(entry.field, ""),
+				change = function(element)
+					feat[entry.field] = element.text
+					UploadFeat()
+				end,
+			},
+		}
+	end
 
 	children[#children+1] = feat:GetClassLevel():CreateEditor(feat, 0, {
 		change = function(element)
@@ -251,39 +284,13 @@ function CharacterFeat.CreateEditor()
 		classes = 'class-panel',
 		styles = {
 			{
-				halign = "left",
-			},
-			{
-				classes = {'class-panel'},
+				classes = {"class-panel"},
 				width = 1200,
-				height = '90%',
-				halign = 'left',
-				flow = 'vertical',
+				height = "90%",
+				halign = "left",
+				flow = "vertical",
 				pad = 20,
 			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			},
-
 		},
 	}
 
@@ -364,7 +371,7 @@ function CharacterFeatChoice:_cache()
                     unique = true, --this means there will be checking in the builder so if we already have this id selected somewhere it won't be shown here.
                     prerequisite = cond(feat.prerequisite ~= "", feat.prerequisite),
                     hidden = feat:try_get("hidden"),
-					modifierInfo = feat.modifierInfo,
+					modifierInfo = feat:try_get("modifierInfo"),
                 }
 				if feat:try_get("hidden", false) == false then
 					optCache[#optCache+1] = {
@@ -373,7 +380,7 @@ function CharacterFeatChoice:_cache()
 						description = feat.description,
 						unique = true,
 						prerequisite = cond(feat.prerequisite ~= "", feat.prerequisite),
-						modifierInfo = feat.modifierInfo,
+						modifierInfo = feat:try_get("modifierInfo"),
 					}
 				end
                 break

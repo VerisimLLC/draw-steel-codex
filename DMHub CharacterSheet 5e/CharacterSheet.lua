@@ -2235,10 +2235,8 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
 				},
 			}),
 
-			gui.DeleteItemButton{
-				width = 16,
-				height = 16,
-
+			gui.Button{
+				classes = {"deleteButton", "sizeS"},
 				click = function(element)
 					creature:DeleteResistance(resistanceEntry)
 					resultPanel:FireEvent("change")
@@ -2292,9 +2290,8 @@ function CharSheet.CharacterSheetEditLanguagesPopup(element, info)
 						textAlignment = "left",
 						halign = "center",
 
-						gui.DeleteItemButton{
-							width = 16,
-							height = 16,
+						gui.Button{
+							classes = {"deleteButton", "sizeS"},
 							halign = "right",
 							valign = "center",
 							click = function(element)
@@ -2328,9 +2325,8 @@ function CharSheet.CharacterSheetEditLanguagesPopup(element, info)
 						CharacterSheet.instance:FireEvent('refreshAll')
 					end,
 
-					gui.DeleteItemButton{
-						width = 16,
-						height = 16,
+					gui.Button{
+						classes = {"deleteButton", "sizeS"},
 						halign = "right",
 						valign = "center",
 						click = function(element)
@@ -2983,9 +2979,8 @@ function CharSheet.CharacterSheetEditResistancesPopup(element, info)
 				fontSize = 20,
 				width = 240,
 
-				gui.DeleteItemButton{
-					width = 16,
-					height = 16,
+				gui.Button{
+					classes = {"deleteButton", "sizeS"},
 					halign = "right",
 					valign = "center",
 					click = function(element)
@@ -3123,13 +3118,11 @@ function CharSheet.CharacterSheetConditions()
 						local iconPanel = gui.Panel{
 							classes = {'ongoingEffectIconPanel'},
 						}
-						local closeButton = gui.DeleteItemButton{
-							width = 16,
-							height = 16,
+						local closeButton = gui.Button{
+							classes = {"deleteButton", "sizeS", 'hidden-unless-parent-hover'},
 							halign = 'right',
 							valign = 'top',
 							floating = true,
-							classes = {'hidden-unless-parent-hover'},
 							click = function(element)
 								creature:RemoveOngoingEffect(activeOngoingEffects[index].ongoingEffectid)
 								CharacterSheet.instance:FireEvent('refreshAll')
@@ -5048,8 +5041,8 @@ function CharSheet.ActionsPanel()
 										gui.Panel{
 											classes = {"abilityIconIcon"},
 											refreshToken = function(element, info)
-												element.bgimage = attackAbilities[i].iconid
-												element.selfStyle = attackAbilities[i].display
+												element.bgimage = attackAbilities[i]:GetIcon()
+												element.selfStyle = attackAbilities[i]:GetIconDisplay()
 											end,
 										},
 										gui.PrettyBorder{ width = 9 },
@@ -5323,25 +5316,6 @@ end
 
 function CharSheet.CharacterFeaturesPanel()
 
-	local triangleStyles = {
-		gui.Style{
-			classes = {'triangle'},
-			rotate = 90,
-			height = 12,
-			width = 12,
-			halign = "right",
-			valign = "center",
-			hmargin = 8,
-			bgimage = "panels/triangle.png",
-			bgcolor = "white",
-		},
-		gui.Style{
-			classes = {'triangle', 'expanded'},
-			rotate = 0,
-			transitionTime = 0.2,
-		},
-	}
-
 	local featurePanels = {}
 
 	local resultPanel = gui.Panel{
@@ -5389,10 +5363,7 @@ function CharSheet.CharacterFeaturesPanel()
 
 				if featurePanel == nil then
 
-					local tri = gui.Panel{
-						classes = {"triangle"},
-						styles = triangleStyles,
-					}
+					local tri = gui.ExpandoArrow{}
 
 					local bodyChildren = {}
 
@@ -5410,12 +5381,12 @@ function CharSheet.CharacterFeaturesPanel()
 					for i=1,numChoices do
 
 						local dropdown = gui.Dropdown{
-							fontSize = 18,
+							-- fontSize = 18,
 							height = 26,
 							width = 240,
-                            centerPopup = true,
-                            menuWidth = 616,
-                            menuHeight = 920,
+                            -- centerPopup = true,
+                            -- menuWidth = 616,
+                            -- menuHeight = 920,
 							textDefault = "Choose...",
 							sort = true,
 							data = {
@@ -5463,25 +5434,18 @@ function CharSheet.CharacterFeaturesPanel()
 					}
 					
 					local header = gui.Panel{
-						classes = {"featureHeader"},
+						classes = {"featureRow"},
 						halign = "left",
 						width = "90%",
 						height = "auto",
 						flow = "horizontal",
-						bgimage = "panels/square.png",
 						press = function(element)
 							body:SetClass('collapsed-anim', tri:HasClass('expanded'))
 							tri:SetClass('expanded', not tri:HasClass('expanded'))
 						end,
-						styles = {
-							{
-								selectors = {"featureHeader"},
-								bgcolor = 'black',
-							},
-							{
-								selectors = {"featureHeader","hover"},
-								bgcolor = '#770000ff',
-							},
+						styles = ThemeEngine.MergeTokens{
+							{ selectors = {"featureRow"}, bgimage = true, bgcolor = "clear" },
+							{ selectors = {"featureRow", "hover"}, bgcolor = "@bgAlt" },
 						},
 
 
@@ -5632,9 +5596,8 @@ function CharSheet.FeaturesPanel()
 								end,
 
 								label,
-								gui.DeleteItemButton{
-									width = 24,
-									height = 24,
+								gui.Button{
+									classes = {"deleteButton", "sizeL"},
 									halign = "right",
 									click = function(element)
 										local creature = CharacterSheet.instance.data.info.token.properties
@@ -5759,9 +5722,8 @@ function CharSheet.FeaturesPanel()
 								end,
 
 								label,
-								gui.DeleteItemButton{
-									width = 24,
-									height = 24,
+								gui.Button{
+									classes = {"deleteButton", "sizeL"},
 									halign = "right",
 									click = function(element)
 										local creature = CharacterSheet.instance.data.info.token.properties
@@ -5901,9 +5863,8 @@ function CharSheet.FeaturesNotesPanel()
 						end
 					end,
 				},
-				gui.DeleteItemButton{
-					width = 24,
-					height = 24,
+				gui.Button{
+					classes = {"deleteButton", "sizeL"},
 					halign = "right",
 					click = function(element)
 						resultPanel:FireEvent("delete")

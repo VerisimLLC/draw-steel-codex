@@ -7,42 +7,21 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
 	local tableName = editorOptions.tableName or "characterOngoingEffects"
 
 	local ongoingEffectPanel = gui.Panel{
-		classes = 'ongoingEffect-panel',
-		styles = {
-			{
-				classes = {'ongoingEffect-panel'},
-				width = 1200,
-				height = 'auto',
-				halign = 'left',
-				valign = 'top',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 18,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			}
-		},
+		styles = ThemeEngine.GetStyles(),
+		width = 1200,
+		height = 'auto',
+		halign = 'left',
+		valign = 'top',
+		flow = 'vertical',
+		pad = 20,
 		data = {},
 	}
+
+	ThemeEngine.OnThemeChanged(mod, function()
+		if ongoingEffectPanel ~= nil and ongoingEffectPanel.valid then
+			ongoingEffectPanel.styles = ThemeEngine.GetStyles()
+		end
+	end)
 
 	local SetOngoingEffect
 	SetOngoingEffect = function(ongoingEffectid)
@@ -69,13 +48,13 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
         if devmode() then
             --the id of the ongoing effect.
             children[#children+1] = gui.Panel{
-                classes = {'formPanel'},
+                classes = {'formStackedRow'},
                 gui.Label{
+                    classes = {'formStacked'},
                     text = 'ID:',
-                    valign = 'center',
-                    minWidth = 240,
                 },
                 gui.Input{
+                    classes = {'formStacked'},
                     text = ongoingEffect.id,
                     editable = false,
                 },
@@ -84,13 +63,13 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
 
 		--the name of the ongoingEffect.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = ongoingEffect.name,
 				change = function(element)
 					ongoingEffect.name = trim(element.text)
@@ -108,21 +87,20 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = "Description:",
-				valign = 'top',
-				minWidth = 100,
 			},
 
 			gui.Input{
+				classes = {'formStacked'},
 				text = ongoingEffect.description,
 				textAlignment = 'topleft',
 				placeholderText = "Enter Ongoing Effect Description...",
 				multiline = true,
 				height = 'auto',
 				minHeight = 60,
-				fontSize = 14,
                 characterLimit = 8192,
 				change = function(element)
 					ongoingEffect.description = element.text
@@ -132,13 +110,13 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Type:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Dropdown{
+				classes = {'formStacked'},
 				options = CharacterOngoingEffect.BuffTypeOptions,
 				idChosen = ongoingEffect.buffType,
 				change = function(element)
@@ -170,14 +148,14 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
         ongoingEffect:FillEditingFields(children)
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = "Condition:",
-				valign = 'center',
-				minWidth = 100,
 			},
 
 			gui.Dropdown{
+				classes = {'formStacked'},
 				options = conditionOptions,
 				idChosen = ongoingEffect.condition,
 				change = function(element)
@@ -277,11 +255,11 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
                                 end,
                             },
 
-                            gui.DeleteItemButton{
+                            gui.Button{
+                                classes = {"deleteButton", "sizeXs"},
                                 halign = "right",
                                 valign = "center",
-                                width = 16,
-                                height = 16,
+                                requireConfirm = true,
                                 click = function(element)
                                     table.remove(associationRules, i)
                                     UploadOngoingEffect()
@@ -301,21 +279,16 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
                 end
 
                 children[#children+1] = gui.Panel{
-                    classes = {'formPanel'},
+                    classes = {'formStackedRow'},
                     gui.Label{
+                        classes = {'formStacked'},
                         text = 'Association:',
-                        valign = "center",
-                        minWidth = 200,
-                        width = 'auto',
-                        height = 'auto',
                     },
                     gui.Dropdown{
+                        classes = {'formStacked'},
                         options = associationOptions,
                         textDefault = "Add Association...",
                         hasSearch = true,
-                        width = 300,
-                        height = 30,
-                        fontSize = 16,
                         change = function(element)
                             if element.idChosen ~= nil then
                                 local option = nil
@@ -388,20 +361,15 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
             children[#children+1] = iconPanel
 
             children[#children+1] = gui.Panel{
-                classes = {'formPanel'},
+                classes = {'formStackedRow'},
                 gui.Label{
+                    classes = {'formStacked'},
                     text = 'Blend:',
-                    valign = "center",
-                    minWidth = 200,
-                    width = 'auto',
-                    height = 'auto',
                 },
                 gui.Dropdown{
+                    classes = {'formStacked'},
                     options = { { id = "normal", text = "Normal" }, { id = "add", text = "Add" }},
                     idChosen = ongoingEffect.display.blend or 'normal',
-                    width = 200,
-                    height = 40,
-                    fontSize = 20,
                     change = function(element)
                         ongoingEffect.display = DeepCopy(ongoingEffect.display)
                         ongoingEffect.display.blend = cond(element.idChosen == 'add', 'add', nil)
@@ -416,7 +384,6 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
                     style = {
                         height = 30,
                         width = 200,
-                        fontSize = 14,
                     },
 
                     sliderWidth = 140,
@@ -452,37 +419,28 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
             sliders[#sliders+1] = CreateDisplaySlider{ attr = 'brightness', minValue = 0, maxValue = 2, }
 
             children[#children+1] = gui.Panel{
-                classes = {'formPanel'},
+                classes = {'formStackedRow'},
                 gui.Label{
+                    classes = {'formStacked'},
                     text = 'Hue:',
-                    valign = "center",
-                    minWidth = 200,
-                    width = 'auto',
-                    height = 'auto',
                 },
                 sliders[1],
             }
 
             children[#children+1] = gui.Panel{
-                classes = {'formPanel'},
+                classes = {'formStackedRow'},
                 gui.Label{
+                    classes = {'formStacked'},
                     text = 'Saturation:',
-                    valign = "center",
-                    minWidth = 200,
-                    width = 'auto',
-                    height = 'auto',
                 },
                 sliders[2],
             }
 
             children[#children+1] = gui.Panel{
-                classes = {'formPanel'},
+                classes = {'formStackedRow'},
                 gui.Label{
+                    classes = {'formStacked'},
                     text = 'Brightness:',
-                    valign = "center",
-                    minWidth = 200,
-                    width = 'auto',
-                    height = 'auto',
                 },
                 sliders[3],
             }
@@ -504,16 +462,13 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
             end
 
             children[#children+1] = gui.Panel{
-                classes = {'formPanel'},
+                classes = {'formStackedRow'},
                 gui.Label{
+                    classes = {'formStacked'},
                     text = 'Emoji:',
-                    valign = "center",
-                    minWidth = 200,
-                    width = 'auto',
-                    height = 'auto',
                 },
                 gui.Dropdown{
-                    classes = "formDropdown",
+                    classes = {'formStacked'},
                     options = emojiOptions,
                     idChosen = ongoingEffect.emoji,
                     change = function(element)
@@ -524,16 +479,13 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
             }
 
             children[#children+1] = gui.Panel{
-                classes = {"formPanel"},
+                classes = {'formStackedRow'},
                 gui.Label{
+                    classes = {'formStacked'},
                     text = "Caster Tracking:",
-                    valign = "center",
-                    minWidth = 200,
-                    width = 'auto',
-                    height = 'auto',
                 },
                 gui.Dropdown{
-                    classes = {"formDropdown"},
+                    classes = {'formStacked'},
                     options = CharacterOngoingEffect.CasterTrackingOptions,
                     idChosen = ongoingEffect.casterTracking,
                     change = function(element)
@@ -545,12 +497,12 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
             }
 
             children[#children+1] = gui.Check{
-                classes = {cond(ongoingEffect.casterTracking == "bond", nil, "collapsed-anim")},
+                classes = {cond(ongoingEffect.casterTracking == "bond", nil, "collapseAnim")},
                 text = "Share Recoveries",
                 halign = "left",
                 value = ongoingEffect:try_get("recoverySharing", false),
                 refreshCasterTracking = function(element)
-                    element:SetClass("collapsed-anim", ongoingEffect.casterTracking ~= "bond")
+                    element:SetClass("collapseAnim", ongoingEffect.casterTracking ~= "bond")
                 end,
                 change = function(element)
                     ongoingEffect.recoverySharing = element.value
@@ -570,12 +522,12 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
             }
 
             children[#children+1] = gui.Check{
-                classes = {cond(ongoingEffect.stackable, nil, "collapsed-anim")},
+                classes = {cond(ongoingEffect.stackable, nil, "collapseAnim")},
                 text = "Clear Stacks When Applying",
                 halign = "left",
                 value = ongoingEffect.clearStacksWhenApplying,
                 recalculateStacks = function(element)
-                    element:SetClass("collapsed-anim", not ongoingEffect.stackable)
+                    element:SetClass("collapseAnim", not ongoingEffect.stackable)
                 end,
                 change = function(element)
                     ongoingEffect.clearStacksWhenApplying = element.value
@@ -611,20 +563,17 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
 
         if ongoingEffect.allowEditingDisplayInfo then
             local endActionTypePanel = gui.Panel{
-                classes = {'formPanel', cond(ongoingEffect.canEndWithAction, nil, 'collapsed-anim')},
+                classes = {'formStackedRow', cond(ongoingEffect.canEndWithAction, nil, 'collapseAnim')},
                 refresh = function(element)
-                    element:SetClass('collapsed-anim', not ongoingEffect.canEndWithAction)
+                    element:SetClass('collapseAnim', not ongoingEffect.canEndWithAction)
                 end,
                 gui.Label{
+                    classes = {'formStacked'},
                     text = 'End Action:',
-                    valign = "center",
-                    minWidth = 200,
-                    width = 'auto',
-                    height = 'auto',
                 },
 
                 gui.Dropdown{
-                    classes = {"formDropdown"},
+                    classes = {'formStacked'},
                     options = resourceOptions,
                     idChosen = ongoingEffect.endActionType,
                     change = function(element)
@@ -647,15 +596,13 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
             }
 
             children[#children+1] = gui.Panel{
-                classes = {"formPanel"},
+                classes = {'formStackedRow'},
                 gui.Label{
+                    classes = {'formStacked'},
                     text = "End on Trigger:",
-                    valign = "center",
-                    minWidth = 200,
-                    width = "auto",
-                    height = "auto",
                 },
                 gui.Dropdown{
+                    classes = {'formStacked'},
                     options = TriggeredAbility.GetTriggerDropdownOptions(true),
                     idChosen = ongoingEffect.endTrigger,
                     change = function(element)
@@ -666,16 +613,13 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
             }
 
             children[#children+1] = gui.Panel{
-                classes = {"formPanel"},
+                classes = {'formStackedRow'},
                 gui.Label{
+                    classes = {'formStacked'},
                     text = "Sustain:",
-                    valign = "center",
-                    minWidth = 199,
-                    width = 'auto',
-                    height = 'auto',
                 },
                 gui.GoblinScriptInput{
-                    classes = {"formInput"},
+                    classes = {'formStacked'},
                     value = ongoingEffect.sustainFormula,
                     change = function(element)
                         ongoingEffect.sustainFormula = element.value
@@ -762,13 +706,10 @@ function CharacterOngoingEffect.CreateOngoingEffectEditorDialog(options)
 
 
 	local mainFormPanel = gui.Panel{
-		style = {
-			bgcolor = 'white',
-			pad = 0,
-			margin = 0,
-			width = 1060,
-			height = 840,
-		},
+		pad = 0,
+		margin = 0,
+		width = 1060,
+		height = 840,
 		vscroll = true,
 
 		CharacterOngoingEffect.CreateEditor(ongoingEffectid),
@@ -776,58 +717,39 @@ function CharacterOngoingEffect.CreateOngoingEffectEditorDialog(options)
 
 	local newItem = nil
 
-	local closePanel = 
+	local closePanel =
 		gui.Panel{
-			style = {
-				valign = 'bottom',
-				flow = 'horizontal',
-				height = 60,
-				width = '100%',
-				fontSize = '60%',
-				vmargin = 0,
-			},
+			valign = 'bottom',
+			flow = 'horizontal',
+			height = 60,
+			width = '100%',
+			vmargin = 0,
 
 			children = {
-				gui.PrettyButton{
+				gui.Button{
+					classes = {"sizeXl"},
 					text = 'Close',
-					style = {
-						height = 60,
-						width = 160,
-						fontSize = 44,
-						bgcolor = 'white',
-					},
-					events = {
-						click = function(element)
-							dmhub.SetAndUploadTableItem("characterOngoingEffects", ongoingEffect)
-							resultPanel:DestroySelf()
-						end,
-					},
+					click = function(element)
+						dmhub.SetAndUploadTableItem("characterOngoingEffects", ongoingEffect)
+						resultPanel:DestroySelf()
+					end,
 				},
 			},
 		}
 
 	local titleLabel = gui.Label{
+		classes = {"modalTitle"},
 		text = "Edit Ongoing Effect",
 		valign = 'top',
-		halign = 'center',
-		width = 'auto',
-		height = 'auto',
-		color = 'white',
-		fontSize = 28,
 	}
 
 	resultPanel = gui.Panel{
 		floating = true,
-		styles = {
-			Styles.Panel,
-			{
-				bgcolor = 'white',
-				width = dialogWidth,
-				height = dialogHeight,
-				halign = 'center',
-				valign = 'center',
-			},
-		},
+		styles = ThemeEngine.GetStyles(),
+		width = dialogWidth,
+		height = dialogHeight,
+		halign = 'center',
+		valign = 'center',
 
 		classes = {"framedPanel"},
 
@@ -858,6 +780,12 @@ function CharacterOngoingEffect.CreateOngoingEffectEditorDialog(options)
 			},
 		},
 	}
+
+	ThemeEngine.OnThemeChanged(mod, function()
+		if resultPanel ~= nil and resultPanel.valid then
+			resultPanel.styles = ThemeEngine.GetStyles()
+		end
+	end)
 
 	return resultPanel
 end

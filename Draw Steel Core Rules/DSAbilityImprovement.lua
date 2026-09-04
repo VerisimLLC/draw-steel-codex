@@ -7,7 +7,7 @@ CharacterModifier.ImprovementParamsById = {}
 --- @class AbilityImprovementParam
 --- @field id string Unique identifier for this param type.
 --- @field text string Display name shown in the "Add Param..." dropdown.
---- @field apply fun(ability: ActivatedAbility, value: number, caster: creature, symbols: table): fun() Temporarily patches ability fields and returns a restore function called after CalculateSpellTargeting.
+--- @field apply fun(ability: ActivatedAbility, value: number, casterToken: CharacterToken, symbols: table): fun() Temporarily patches ability fields and returns a restore function called after CalculateSpellTargeting.
 --- @field documentation table|nil GoblinScript input documentation shown in the editor value field.
 
 --- @param args AbilityImprovementParam
@@ -85,7 +85,8 @@ CharacterModifier.TypeInfo.abilityimprovement = {
                 return string.lower(a.text) < string.lower(b.text)
             end)
 
-            children[#children+1] = gui.SetEditor{
+            children[#children+1] = gui.Multiselect{
+                styles = ThemeEngine.GetStyles(),
                 value = modifier:try_get("keywords", {}),
                 addItemText = "Add Keyword...",
                 options = keywordList,
@@ -126,6 +127,7 @@ CharacterModifier.TypeInfo.abilityimprovement = {
                 classes = {"formPanel"},
                 gui.Label{ classes = {"formLabel"}, text = "Cost:" },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = {
                         { id = "none", text = "None" },
                         { id = "cost", text = "Heroic/Malice Resource" },
@@ -165,15 +167,14 @@ CharacterModifier.TypeInfo.abilityimprovement = {
                 local info = CharacterModifier.ImprovementParamsById[param.id]
                 if info ~= nil then
                     children[#children+1] = gui.Panel{
-                        classes = {"formPanel"},
+                        classes = {"formPanel", "formPanel-inline"},
                         gui.Label{
                             classes = {"formLabel"},
                             width = 400,
                             text = info.text,
                         },
-                        gui.DeleteItemButton{
-                            width = 16,
-                            height = 16,
+                        gui.Button{
+                            classes = {"deleteButton", "sizeS"},
                             valign = "center",
                             halign = "right",
                             click = function(element)
@@ -211,6 +212,7 @@ CharacterModifier.TypeInfo.abilityimprovement = {
             end
 
             children[#children+1] = gui.Dropdown{
+                styles = ThemeEngine.GetStyles(),
                 options = addOptions,
                 idChosen = "none",
                 height = 30,
@@ -244,7 +246,7 @@ local g_improvSymbols = {
 CharacterModifier.RegisterImprovementParam{
     id = "range",
     text = "Range Bonus",
-    accumulate = function(ability, value, caster, symbols)
+    accumulate = function(ability, value, casterToken, symbols)
         symbols.abilityRangeBonus = (symbols.abilityRangeBonus or 0) + value
     end,
     documentation = {
@@ -264,7 +266,7 @@ CharacterModifier.RegisterImprovementParam{
 CharacterModifier.RegisterImprovementParam{
     id = "radius",
     text = "Radius Bonus",
-    accumulate = function(ability, value, caster, symbols)
+    accumulate = function(ability, value, casterToken, symbols)
         -- Burst abilities (targetType == "all") use GetRange as the burst radius,
         -- so accumulate into abilityRangeBonus which GetRange will add.
         if ability:try_get("targetType") == "all" then
@@ -288,11 +290,11 @@ CharacterModifier.RegisterImprovementParam{
 CharacterModifier.RegisterImprovementParam{
     id = "target_count",
     text = "Target Count Bonus",
-    accumulate = function(ability, value, caster, symbols)
+    accumulate = function(ability, value, casterToken, symbols)
         -- Use a helper to accumulate across multiple improvements, then set override.
         local bonus = (symbols._abilityTargetCountBonus or 0) + value
         symbols._abilityTargetCountBonus = bonus
-        symbols.numtargetsoverride = ability:GetNumTargets(caster, {}) + bonus
+        symbols.numtargetsoverride = ability:GetNumTargets(casterToken, {}) + bonus
     end,
     documentation = {
         help = "This GoblinScript is added to the number of targets for the ability.",

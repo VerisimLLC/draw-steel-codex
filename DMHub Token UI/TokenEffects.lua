@@ -429,6 +429,16 @@ Commands.RegisterMacro{
     name = "tokeneffect",
     summary = "play token effect",
     doc = "Usage: /tokeneffect <effect name>\nPlays a visual effect on selected or primary tokens.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local result = {}
+        local dataTable = assets.emojiTable
+        for k, emoji in pairs(dataTable) do
+            result[#result+1] = {text = k, summary = emoji.description or k}
+        end
+        table.sort(result, function(a, b) return a.summary < b.summary end)
+        return result
+    end,
     command = function(id)
         local tokens = dmhub.selectedOrPrimaryTokens
         for i,token in ipairs(tokens) do
@@ -437,4 +447,114 @@ Commands.RegisterMacro{
     end,
 }
 
-print("IMAGEXXX::", mod.images.doubleslashbw)
+--Teleport animations. Each entry is a Lua function that the engine calls locally on every
+--client when a token with appearance.teleportAnimation == this id teleports. The function
+--receives (token, targetLoc, opts) and orchestrates the visual via `token.animation`. See
+--CharacterTokenAnimationLua for the primitive surface (Light / Billboard / PlayEffect / Tween
+--/ SetVisible) and engine docs for the opts table (crossMap / fromLoc / fromMap).
+--
+--The engine moves the token's logical position to targetLoc immediately. The animation owns
+--only the rendered position via the visual offset; on coroutine exit the engine snaps the
+--rendered position back to the logical position. A well-behaved animation ends with the
+--visual already at targetLoc (via anim:Tween{translate=targetLoc, duration=...}) so the
+--handoff is smooth.
+
+--Default: classic teleport.webm at source + delayed teleport.webm at destination, with a
+--purple light burst at each end and a short hold before the visual snaps to the destination.
+dmhub.tokenAnimations:RegisterTeleport{
+    id = "default",
+    name = "Default",
+    animation = function(token, targetLoc, opts)
+        audio.FireSoundEvent("Ability.Teleport_Generic")
+        local anim = token.animation
+
+        anim:Light{
+            color = "#7300ff", radius = 2.0, innerRadius = 0.1,
+            duration = 1.0, fadein = 0.1, fadeout = 0.1,
+        }
+        anim:Billboard{ video = "teleport.webm", blend = "add", scale = 1.8 }
+        anim:Billboard{ video = "teleport.webm", blend = "add", scale = 1.8,
+                        pos = targetLoc, delay = 0.2 }
+
+        sleep(0.4)
+        anim:Tween{ duration = 0, translate = targetLoc }
+
+        anim:Light{
+            color = "#7300ff", radius = 2.0, innerRadius = 0.1,
+            duration = 1.0, fadein = 0.1, fadeout = 0.1,
+        }
+        anim:Billboard{ video = "teleport.webm", blend = "add", scale = 1.8 }
+        sleep(1)
+    end,
+}
+
+--Stairwell: no visual at all -- the token simply vanishes and is at the far end -- with the
+--sound of feet on stairs. Used by teleporter objects whose style is set to "Stairwell" (the
+--engine passes the id through locInfo.teleportStyle); `hidden` keeps it out of the per-token
+--Teleportation picker on the character sheet, since it isn't a personal teleport style.
+dmhub.tokenAnimations:RegisterTeleport{
+    id = "stairwell",
+    name = "Stairwell",
+    hidden = true,
+    animation = function(token, targetLoc, opts)
+        audio.FireSoundEvent("Foot.Stairwell")
+    end,
+}
+
+--Ash teleport: token poofs into ash at the source, an invisible travel phase follows with a
+--trailing wisp, then the token reappears at the destination.
+dmhub.tokenAnimations:RegisterTeleport{
+    id = "ashteleport",
+    name = "Ash Teleport",
+    animation = function(token, targetLoc, opts)
+        audio.FireSoundEvent("Dice.Teleport_BlackAsh")
+        local anim = token.animation
+
+        anim:PlayEffect{ id = "Ash_Disappear_vfx" }
+        anim:Light{ color = "#993377", radius = 2.0, innerRadius = 0.1, duration = 0.3, fadein = 0.1, fadeout = 0.1 }
+
+        sleep(0.3)
+
+        anim:SetVisible(false)
+        local trail = anim:PlayEffect{ id = "FloorSmokeTrail_vfx", looping = true }
+        anim:Tween{ translate = targetLoc, duration = 0.4 }
+        sleep(0.4)
+        trail:Stop()
+
+        audio.FireSoundEvent("Dice.Remove_BlackAsh")
+        anim:PlayEffect{ id = "Ash_Appearance_vfx" }
+        anim:Light{ color = "#993377", radius = 2.0, innerRadius = 0.1, duration = 0.6, fadein = 0.1, fadeout = 0.1 }
+        sleep(0.2)
+        anim:SetVisible(true)
+        sleep(1)
+    end,
+}
+
+--Ash teleport: token poofs into ash at the source, an invisible travel phase follows with a
+--trailing wisp, then the token reappears at the destination.
+dmhub.tokenAnimations:RegisterTeleport{
+    id = "testteleport",
+    name = "Test Teleport",
+    animation = function(token, targetLoc, opts)
+        audio.FireSoundEvent("Dice.Teleport_BlackAsh")
+        local anim = token.animation
+
+        anim:PlayEffect{ id = "Effect_03_ChargeFire", scale = 0.1, rotation = {x = 0, y = 0, z = 0} }
+        anim:Light{ color = "#993377", radius = 2.0, innerRadius = 0.1, duration = 0.3, fadein = 0.1, fadeout = 0.1 }
+
+        sleep(0.3)
+
+        anim:SetVisible(false)
+        local trail = anim:PlayEffect{ id = "FloorSmokeTrail_vfx", looping = true }
+        anim:Tween{ translate = targetLoc, duration = 0.4 }
+        sleep(0.4)
+        trail:Stop()
+
+        audio.FireSoundEvent("Dice.Remove_BlackAsh")
+        anim:PlayEffect{ id = "Effect_03_FireCross", scale = 0.1, rotation = {x = 0, y = 0, z = 0} }
+        anim:Light{ color = "#993377", radius = 2.0, innerRadius = 0.1, duration = 0.6, fadein = 0.1, fadeout = 0.1 }
+        sleep(0.2)
+        anim:SetVisible(true)
+        sleep(5)
+    end,
+}

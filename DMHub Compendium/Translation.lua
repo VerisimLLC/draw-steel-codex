@@ -230,8 +230,13 @@ function Translation.CreateEditor()
 				},
 			},
 
-			gui.Input{
-				classes = {"formInput"},
+			--the canonical search field; sized explicitly since it no longer
+			--rides the formInput class.
+			gui.SearchInput{
+				borderBox = true,
+				width = 240,
+				height = 26,
+				halign = "left",
 				placeholderText = "Search Strings...",
 				translation = function(element)
 					element.text = ""
@@ -280,8 +285,8 @@ function Translation.CreateEditor()
 			height = 32,
 			flow = "horizontal",
 
-			gui.PagingArrow{
-				facing = -1,
+			gui.Button{
+				classes = {"pagingArrow"},
 				page = function(element)
 					element:SetClass("hidden", pagenum == 1)
 				end,
@@ -302,8 +307,8 @@ function Translation.CreateEditor()
 				end,
 			},
 
-			gui.PagingArrow{
-				facing = 1,
+			gui.Button{
+				classes = {"pagingArrow", "right"},
 				page = function(element)
 					element:SetClass("hidden", pagenum == GetNumPages())
 				end,
@@ -432,7 +437,7 @@ dmhub.AddCustomTranslationString = function(labelTarget, str)
 			width = 800,
 			height = 40,
 			vmargin = 80,
-			gui.PrettyButton{
+			gui.Button{
 				halign = "center",
 				text = "Confirm",
 				click = function(element)
@@ -446,7 +451,7 @@ dmhub.AddCustomTranslationString = function(labelTarget, str)
 					gui.CloseModal()
 				end,
 			},
-			gui.PrettyButton{
+			gui.Button{
 				halign = "center",
 				text = "Cancel",
 				click = function(element)

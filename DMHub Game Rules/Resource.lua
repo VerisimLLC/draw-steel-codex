@@ -614,18 +614,42 @@ end
 --records resource usage for the resource with the given key, which is an arbitrary string
 --and the given refreshType, which is one of the standard refresh types.
 function creature:ConsumeResource(key, refreshType, quantity, note)
+    local resourceInfo = dmhub.GetTable(CharacterResource.tableName)[key]
+
 	if refreshType == 'none' then
+        if quantity > 0 and resourceInfo ~= nil then
+            --fire an event to notify the attempt to use this resource.
+            --this is significant to track e.g. when a free triggered action is used.
+            self:DispatchEvent("useresource", {
+                resource = string.lower(resourceInfo.name),
+                quantity = quantity,
+            })
+        end
+
 		return 0
 	end
 
 	local surgeid = CharacterResource.nameToId["Surges"]
 	if surgeid == key then
 		if self:IsRetainer() then
-			return self:GetMentor():ConsumeResource(key, refreshType, quantity, note)
+			local mentor = self:GetMentor()
+			if mentor ~= nil then
+				return mentor:ConsumeResource(key, refreshType, quantity, note)
+			end
+		end
+		local summonerToken = self.GetSurgeSharingSummonerToken and self:GetSurgeSharingSummonerToken()
+		if summonerToken ~= nil then
+			return summonerToken.properties:ConsumeResource(key, refreshType, quantity, note)
 		end
 	end
 
-    local resourceInfo = dmhub.GetTable(CharacterResource.tableName)[key]
+	--Malice is matched explicitly: a sharing summon's GetHeroicOrMaliceId reports
+	--the heroic resource, but legacy call sites still key spends by the monster's
+	--resourceid field (= Malice) and those must keep routing to the summoner.
+	local heroicSharingSummoner = self.GetHeroicResourceSharingSummonerToken and self:GetHeroicResourceSharingSummonerToken()
+	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == CharacterResource.maliceResourceId or key == self:GetHeroicOrMaliceId()) then
+		return heroicSharingSummoner.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", quantity, note)
+	end
 
 	local resourceTable = self:GetResourceTable(refreshType)
 
@@ -789,8 +813,21 @@ function creature:RefreshResource(key, refreshType, quantity, note)
 	local surgeid = CharacterResource.nameToId["Surges"]
 	if surgeid == key then
 		if self:IsRetainer() then
-			return self:GetMentor():RefreshResource(key, refreshType, quantity, note)
+			local mentor = self:GetMentor()
+			if mentor ~= nil then
+				return mentor:RefreshResource(key, refreshType, quantity, note)
+			end
 		end
+		local summonerToken = self.GetSurgeSharingSummonerToken and self:GetSurgeSharingSummonerToken()
+		if summonerToken ~= nil then
+			return summonerToken.properties:RefreshResource(key, refreshType, quantity, note)
+		end
+	end
+
+	--Malice matched explicitly for the same reason as in ConsumeResource above.
+	local heroicSharingSummoner = self.GetHeroicResourceSharingSummonerToken and self:GetHeroicResourceSharingSummonerToken()
+	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == CharacterResource.maliceResourceId or key == self:GetHeroicOrMaliceId()) then
+		return heroicSharingSummoner.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", quantity, note)
 	end
 
 	local animQuantity = 0
@@ -913,8 +950,21 @@ function creature:AddUnboundedResource(key, quantity, note)
 	local surgeid = CharacterResource.nameToId["Surges"]
 	if surgeid == key then
 		if self:IsRetainer() then
-			return self:GetMentor():AddUnboundedResource(key, quantity, note)
+			local mentor = self:GetMentor()
+			if mentor ~= nil then
+				return mentor:AddUnboundedResource(key, quantity, note)
+			end
 		end
+		local summonerToken = self.GetSurgeSharingSummonerToken and self:GetSurgeSharingSummonerToken()
+		if summonerToken ~= nil then
+			return summonerToken.properties:AddUnboundedResource(key, quantity, note)
+		end
+	end
+
+	--Malice matched explicitly for the same reason as in ConsumeResource above.
+	local heroicSharingSummoner = self.GetHeroicResourceSharingSummonerToken and self:GetHeroicResourceSharingSummonerToken()
+	if heroicSharingSummoner ~= nil and (key == CharacterResource.heroicResourceId or key == CharacterResource.maliceResourceId or key == self:GetHeroicOrMaliceId()) then
+		return heroicSharingSummoner.properties:AddUnboundedResource(CharacterResource.heroicResourceId, quantity, note)
 	end
 
 	local resourceTable = self:get_or_add('resources', {})

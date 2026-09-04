@@ -49,7 +49,8 @@ local JournalStyles = {
 
 function GameHud:JournalPanel()
 	local result = nil
-	local createItemButton = gui.AddButton{
+	local createItemButton = gui.Button{
+		classes = {"addButton"},
 		margin = 8,
 		linger = function(element)
 			gui.Tooltip("Add a new journal entry")(element)
@@ -158,11 +159,10 @@ function GameHud:EditJournalDialog(journalid)
 		},
 
 		children = {
-			gui.PrettyButton{
+			gui.Button{
+				classes = {"sizeL"},
 				text = 'Save & Close',
 				width = 200,
-				height = 80,
-
 				events = {
 					click = function(element)
 						self:CloseModal()
@@ -260,11 +260,10 @@ function GameHud:ViewJournalEntry(doc)
 		bgcolor = "white",
 		maxWidth = 1024,
 		maxHeight = 1024,
-		width = "auto",
-		height = "auto",
-		autosizeimage = true,
+		width = rawget(doc, "width") or "auto",
+		height = rawget(doc, "height") or "auto",
+		autosizeimage = cond(rawget(doc, "autosizeimage") ~= nil, rawget(doc, "autosizeimage"), true),
 		interactable = false,
-
 	}
 
 	local parentPanel = gui.Panel{

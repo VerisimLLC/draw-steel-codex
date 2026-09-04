@@ -93,20 +93,10 @@ MCDMImporter = {
                         elseif type(entry) == "string" then
                             inputPanel:AddChild(gui.Label{
                                 text = entry,
-                                gui.CopyButton{
-                                    styles = {
-                                        {
-                                            opacity = 0,
-                                        },
-                                        {
-                                            selectors = {"parent:hover"},
-                                            opacity = 1,
-                                        }
-                                    },
+                                gui.Button{
+                                    classes = {"copyButton", "sizeXxs"},
                                     halign = "right",
                                     valign = "center",
-                                    width = 12,
-                                    height = 12,
                                     click = function(element)
                                         gui.Tooltip{text = "Copied to Clipboard", valign = "top", borderWidth = 0}(element)
                                         dmhub.CopyToClipboard(entry)
@@ -732,7 +722,72 @@ MCDMImporter.ParseMonsterAbility = function(bestiaryEntry, lines, knownAbilities
     end
 
 
+    --Derive a range from the Distance up front, independently of whether the
+    --Target phrase is recognized below. Without this an unrecognized target
+    --falls through every branch WITHOUT ever assigning newAbility.range, so the
+    --ability silently keeps ActivatedAbility's defaults (range 1, targetType
+    --'self'). That looks entirely correct in the sheet, which is why it went
+    --unnoticed.
+    local baseRangeMatch = regex.MatchGroups(distance, "^Melee (?<melee>[0-9]+) or Ranged? (?<range>[0-9]+)")
+    if baseRangeMatch ~= nil then
+        newAbility.range = tonumber(baseRangeMatch.range)
+        newAbility.meleeRange = tonumber(baseRangeMatch.melee)
+    else
+        local simpleRange = regex.MatchGroups(distance, "^(?:Range|Reach|Melee)? ?(?<range>[0-9]+)$")
+        if simpleRange ~= nil then
+            newAbility.range = tonumber(simpleRange.range)
+        else
+            --Area forms carry their reach as "within N" ("3 cube within 10",
+            --"10 wall within 10"). The shape branches below override this where
+            --they recognize the shape; it is the floor for the ones they do not.
+            local withinMatch = regex.MatchGroups(distance, "within (?<range>[0-9]+)")
+            if withinMatch ~= nil then
+                newAbility.range = tonumber(withinMatch.range)
+            end
+        end
+    end
+
     local numberedTargetsMatch = regex.MatchGroups(target, "(?<number>[0-9]+|One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|A|An) (?<type>creature|creatures|ally|allies|enemy|enemies)( or objects?)?(of weight (?<weightRequirement>[0-9]+) or lower)?( per minion)?")
+
+    --The pattern above requires the count word to sit flush against the noun, so
+    --the book's qualified targets all miss it ("One restrained creature",
+    --"Two dazed creatures", "One prone, unrestrained creature"), as do targets
+    --whose noun is not a creature/ally/enemy at all ("One mirage", "One war dog",
+    --"One allied siege engine", "Three unoccupied squares"). Retry those with
+    --relaxed patterns. These run ONLY when the strict match already failed, so
+    --existing content takes exactly the same path as before.
+    local relaxedTargetNoun = nil
+    if numberedTargetsMatch == nil then
+        numberedTargetsMatch = regex.MatchGroups(target, "^(?<number>[0-9]+|One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|A|An) [A-Za-z][A-Za-z,'\\- ]*?(?<type>creature|creatures|ally|allies|enemy|enemies)\\b")
+        if numberedTargetsMatch == nil then
+            local nounMatch = regex.MatchGroups(target, "^(?<number>[0-9]+|One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|A|An) (?<noun>[A-Za-z][A-Za-z'\\- ]*)$")
+            if nounMatch ~= nil then
+                numberedTargetsMatch = nounMatch
+                relaxedTargetNoun = nounMatch.noun
+            end
+        end
+    end
+
+    --"Triggering creature" / "Triggering ally" name the single creature that set
+    --off a triggered action.
+    if numberedTargetsMatch == nil then
+        local trig = regex.MatchGroups(target, "^Triggering (?<type>creature|ally|enemy)$")
+        if trig ~= nil then
+            numberedTargetsMatch = {number = "One", type = trig.type}
+        end
+    end
+
+    --The literal list on the area branch below misses most of the book's real
+    --area phrasing ("Each enemy and object in the area", "Each creature in the
+    --area", "Each war dog in the area"). Everything INSIDE that branch is already
+    --generic, so only the gate needs widening.
+    --Anything phrased "Each ..." / "All ..." is an area effect, whether or not it
+    --ends "in the area" ("Each creature bleeding from Red Wine Blade"). The
+    --phrases already in the literal list start the same way, so they keep taking
+    --this branch exactly as before. "Special" comes here too so that its area
+    --SHAPE still parses ("3 burst" with a Special target is still a 3 burst).
+    local isAreaTarget = regex.MatchGroups(target, "^(?:Each|All|Self and each)\\b") ~= nil
+        or target == "Special"
 
     local numbersTable = {
         ["a"] = 1,
@@ -760,6 +815,14 @@ MCDMImporter.ParseMonsterAbility = function(bestiaryEntry, lines, knownAbilities
 
         range = tonumber(range)
 
+        --An area distance can carry a single-creature target ("2 cube within 5"
+        --targeting "One ally"). "%d+" above grabs the AREA size, not the reach,
+        --so prefer the explicit "within N" when there is one.
+        local withinRange = regex.MatchGroups(distance, "within (?<range>[0-9]+)")
+        if withinRange ~= nil then
+            range = tonumber(withinRange.range)
+        end
+
         local meleeOrRangedMatch = regex.MatchGroups(distance, "^Melee (?<melee>[0-9]+) or Ranged? (?<ranged>[0-9]+)")
         if meleeOrRangedMatch ~= nil then
             --melee should be calculated fine by the creature's reach?
@@ -778,7 +841,18 @@ MCDMImporter.ParseMonsterAbility = function(bestiaryEntry, lines, knownAbilities
             newAbility.targetFilter = "not Enemy"
         end
 
-    elseif target == "All creatures and objects" or target == "All creatures" or target == "All enemies in the burst" or target == "All enemies" or target == "All allies" or target == "All allies in the burst" or target == "Each creature" or target == "Each enemy" or target == "Each enemy in the cube" or target == "Each ally" or target == "Self and each ally" then
+        --"Three unoccupied squares" targets ground, not creatures.
+        if relaxedTargetNoun ~= nil and regex.MatchGroups(relaxedTargetNoun, "squares?") ~= nil then
+            newAbility.targetType = "emptyspace"
+        end
+
+    elseif target == "All creatures and objects" or target == "All creatures" or target == "All enemies in the burst" or target == "All enemies" or target == "All allies" or target == "All allies in the burst" or target == "Each creature" or target == "Each enemy" or target == "Each enemy in the cube" or target == "Each ally" or target == "Self and each ally" or isAreaTarget then
+        if target == "Special" then
+            --The book writes "Special" when the effect text defines its own
+            --targets. The AREA still parses; who it hits does not.
+            import:Log(FormatNote("Target is 'Special' -- the area is imported, but confirm who it hits."))
+        end
+
         local _, flat_range = regex.Match(distance, "^\\s*(\\d+)\\s*$")
 
         if flat_range ~= nil then
@@ -809,8 +883,27 @@ MCDMImporter.ParseMonsterAbility = function(bestiaryEntry, lines, knownAbilities
                         newAbility.range = tonumber(burstMatch.radius)
                         newAbility.numTargets = 1
                     else
-                        import:Log(FormatError("Could not recognize target distance: (" .. distance .. ") with target (" .. target .. ")"))
-                        hasErrors = true
+                        --A Draw Steel aura is a persistent burst centred on the
+                        --creature. There is no aura targetType for an activated
+                        --ability, so import it as a burst of the same radius.
+                        local auraMatch = regex.MatchGroups(distance, "aura (?<radius>[0-9]+)")
+                        if auraMatch == nil then
+                            auraMatch = regex.MatchGroups(distance, "(?<radius>[0-9]+) aura")
+                        end
+
+                        if auraMatch ~= nil then
+                            newAbility.targetType = "all"
+                            newAbility.range = tonumber(auraMatch.radius)
+                            newAbility.numTargets = 1
+                            import:Log(FormatNote("Aura imported as a burst of radius " .. auraMatch.radius .. "."))
+                        elseif regex.MatchGroups(distance, "walls?") ~= nil then
+                            --Walls have no activated-ability equivalent at all. Say
+                            --so plainly rather than failing as "unrecognized".
+                            import:Log(FormatNote("Wall distance (" .. distance .. ") has no equivalent -- set targeting by hand."))
+                        else
+                            import:Log(FormatError("Could not recognize target distance: (" .. distance .. ") with target (" .. target .. ")"))
+                            hasErrors = true
+                        end
                     end
                 end
 
@@ -828,6 +921,16 @@ MCDMImporter.ParseMonsterAbility = function(bestiaryEntry, lines, knownAbilities
         elseif target == "Self and each ally" then
             newAbility.targetFilter = "not Enemy"
             newAbility.selfTarget = true
+        end
+    elseif target == "Self" then
+        newAbility.targetType = "self"
+        newAbility.selfTarget = true
+        newAbility.numTargets = 1
+        --A Self target with an aura distance ("3 aura") is a self-buff whose
+        --ONGOING effect covers an area. Whether that should target the area is a
+        --game-design call, not a parsing one, so flag it instead of guessing.
+        if regex.MatchGroups(distance, "aura") ~= nil then
+            import:Log(FormatNote("Self target with an aura distance (" .. distance .. ") -- confirm whether the aura should target an area."))
         end
     else
         import:Log(FormatError("Could not recognize target '" .. target .. "'"))
@@ -851,7 +954,7 @@ MCDMImporter.ParseMonsterAbility = function(bestiaryEntry, lines, knownAbilities
             import:Log(FormatImpl("Effect: Could not find implementation.", "impl"))
             hasErrors = true
 
-            newAbility.effectImplemented = false
+            newAbility.implementation = 0
         else
             --any keys we copy from the effect if they differ from the default values.
             local substituteKeys = {"targetType", "range", "numTargets"}
@@ -1146,7 +1249,7 @@ MCDMImporter.ParseCreatureAbilities = function(bestiaryEntry, inputLines, knownA
                 }
 
                 abilities[#abilities+1] = currentAbility
-            elseif (not hasTags) and currentAbility ~= nil and #currentAbility.attributes == 0 then
+            elseif (not hasTags) and currentAbility ~= nil and next(currentAbility.attributes) == nil then
                 currentAbility.flavor = line
             elseif regex.MatchGroups(line, "^\\s*$") == nil then
                 status = "error"
@@ -1499,7 +1602,7 @@ MCDMImporter.ParseCreatureAbilities = function(bestiaryEntry, inputLines, knownA
                 abilityErrors[#abilityErrors+1] = FormatStatus(effectAttr .. ": Could not find implementation for " .. effectAttr .. ".", "impl")
                 MarkAttributeError(effectAttr, "impl")
 
-                newAbility.effectImplemented = false
+                newAbility.implementation = 0
             else
                 if abilityTemplate:try_get("invokeSurroundingAbility") then
                     --we embed the newAbility within the template behavior.

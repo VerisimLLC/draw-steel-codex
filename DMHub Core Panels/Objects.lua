@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 DockablePanel.Register{
 	name = "Objects",
 	icon = mod.images.objectsIcon,
@@ -9,11 +20,29 @@ DockablePanel.Register{
 	dmonly = true,
 	folder = "Map Editing",
 	stickyFocus = true,
+	--a press anywhere on the panel -- including its title bar, which is
+	--the host's chrome and so outside the content's own press handler --
+	--claims focus for it.
+	focusOnClick = true,
 	content = function()
+		track("panel_open", {
+			panel = "Objects",
+			dailyLimit = 30,
+		})
 		return mod.shared.CreateObjectEditor()
 	end,
 	hasNewContent = function()
 		return module.HasNovelContent("object")
+	end,
+	--having the panel open counts as seeing the new objects: the rail
+	--calls this while the panel is shown. The folder/item pips only
+	--re-check on moduleInstalled, so they stay visible for this viewing
+	--and are gone the next time the panel is built.
+	markContentSeen = function()
+		gui.ClearNovelContent("object")
+	end,
+	clearNewContent = function()
+		gui.ClearNovelContent("object")
 	end,
 }
 
@@ -149,7 +178,7 @@ local ShowObjectTooltip = function(element)
 					children = {
 						gridPanel,
 						gui.Panel{
-							bgimage = node.thumbnailId,
+							bgimageStreamed = node.thumbnailId,
 							selfStyle = {
 								width = imageDim,
 								height = imageDim,
@@ -443,7 +472,7 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 
 
 	local objImagePanel = gui.Panel{
-		bgimage = node.thumbnailId,
+		bgimageStreamed = node.thumbnailId,
 
 		bgcolor = 'white',
 		halign = 'center',
@@ -492,7 +521,14 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 						return
 					end
 
-					element.dragging = false
+					--Arm the engine's placement mode and let OUR drag keep running to
+					--mouse-up, exactly as the Bestiary row does (CharacterPanel.lua's
+					--dragging -> dmhub.SetDraggingMonster). Cancelling the drag here
+					--(element.dragging = false) used to end it while button 0 was still
+					--held, and the engine then handed the live mouse-down to the nearest
+					--draggable ancestor -- the rail panel window, or the dock's drag
+					--ghost -- so the WINDOW followed the cursor and the object never got
+					--placed. Report 29MWMJ3X.
 					dmhub.SetDraggingObject()
 				end
 			end,
@@ -593,7 +629,7 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 
 			refreshAssets = function(element)
 				node = assets:GetObjectNode(nodeid)
-				objImagePanel.bgimage = node.thumbnailId
+				objImagePanel.bgimageStreamed = node.thumbnailId
 
 				if element:HasClass('focus') then
 					element:FireEvent('focus')
@@ -783,7 +819,6 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 
             --make it so when you mouse over an object in the palette, instances on the map highlight.
 			hover = function(element)
-				ShowObjectTooltip(element)
                 local nhighlights = 0
 
                 local objects = game.currentFloor.objects
@@ -796,6 +831,13 @@ local function CreateObjectEntry(nodeid, parentElement, options)
                 end
 
                 element.data.nhighlights = nhighlights
+			end,
+
+			--Defer the tooltip preview until the user dwells on the entry, since each tooltip
+			--can load a multi-megapixel thumbnail texture and a fast scan of the palette would
+			--otherwise exhaust GPU memory.
+			linger = function(element)
+				ShowObjectTooltip(element)
 			end,
 
 			dehover = function(element)
@@ -887,66 +929,69 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 
 	--the root folder gets additional UI, such as a search and ways to add objects.
 	local rootPanel = nil
-	local clearSearchButton = nil
+	--hoisted out of the root-only block: the collapse handler below the
+	--block clears the search through it. The clear x itself is built into
+	--gui.SearchInput now, so there is no separate clear button any more.
+	local searchInput = nil
 	if nodeid == '' then
 
 		isCollapsed = false
 
 		local updateSearch = function(element)
-			clearSearchButton:SetClass('collapsed', element.text == '')
 			local text = element.text
 			if string.len(text) <= 1 then
 				--one character searches just count as no search.
 				text = ""
 			end
+			local count = 0
 			if text ~= "" then
 				local nodeids = node:GetNodeIdsMatchingSearch(element.text)
-				local count = 0
+				--GetNodeIdsMatchingSearch returns nil if the C# search aborted (e.g. it hit a
+				--cyclic object-folder tree and threw before returning its result). Guard so we
+				--degrade to an empty result instead of erroring on pairs(nil) below and passing
+				--nil into the prepareSearch FireEventTree.
+				if nodeids == nil then
+					nodeids = {}
+				end
 				for k,v in pairs(nodeids) do
 					count = count + 1
 				end
 				printf("PrepareSearch: (%s) / %d", text, count)
 				folderPane:FireEventTree("prepareSearch", nodeids)
+				track("search_objects", {
+					query = text,
+					hasResults = count > 0,
+					resultCount = count,
+					deduplicate = 0.5,
+					dailyLimit = 50,
+				})
 			end
 			folderPane.data.search(text)
 		end
 
-		local searchInput = gui.Input{
+		--the canonical search field; look comes from DefaultStyles'
+		--searchInput rules, borderBox keeps its hpad 24 inside the width.
+		--Its built-in clear x replaces the old separate clear button.
+		searchInput = gui.SearchInput{
 			id = 'ObjectSearch',
 			placeholderText = 'Search Objects...',
 			halign = 'left',
 			valign = 'center',
-			style = {
-				fontSize = '50%',
-				width = '80%',
-				height = '100%',
-			},
+			borderBox = true,
+			width = '80%',
+			height = 24,
 
 			editlag = 0.25,
-			events = {
-				change = updateSearch,
-				edit = function(element)
-					updateSearch(element)
-				end,
-			}
+			--top-level handlers, NOT events = {}: SearchInput installs its
+			--own top-level edit/change defaults (they fire a "search" event
+			--this panel doesn't listen to), and the engine merges an events
+			--table into the same key space in arbitrary order -- so via
+			--events{} the default was winning for edit, killing
+			--search-as-you-type. Top-level keys replace the defaults
+			--outright in SearchInput's args loop.
+			change = updateSearch,
+			edit = updateSearch,
 		}
-
-		clearSearchButton = gui.Button{
-			icon = 'ui-icons/close.png',
-			classes = {'collapsed'},
-			width = 16,
-			height = 16,
-			halign = 'left',
-			valign = 'center',
-
-			events = {
-				click = function(element)
-					searchInput.text = ''
-					updateSearch(searchInput)
-				end,
-			}
-		}
-
 
 		rootPanel =
 		gui.Panel{
@@ -969,7 +1014,6 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 					},
 					children = {
 						searchInput,
-						clearSearchButton,
 						gui.Panel{
 							floating = true,
 							halign = "right",
@@ -979,37 +1023,32 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 							height = 24,
 							flow = "horizontal",
 							children = {
-								gui.Panel{
-									classes = {"clickableIcon"},
-									width = 24,
-									height = 24,
-									bgimage = "game-icons/open-folder.png",
+								gui.Button{
+									classes = {"sizeM"},
+									icon = "game-icons/open-folder.png",
 									linger = gui.Tooltip("Create a new folder"),
 									press = function(element)
 										dmhub.AddObjectFolder()
 									end,
 								},
-								gui.Panel{
-									classes = {"clickableIcon"},
-									width = 24,
-									height = 24,
+                                --[[
+								gui.Button{
+									classes = {"sizeM"},
 									id = "ImportMapObjectButton",
-									bgimage = 'game-icons/treasure-map.png',
+									icon = "game-icons/treasure-map.png",
 									linger = gui.Tooltip('Import a new map object from an image'),
 									press = function(element)
 										mod.shared.ImportMap{ imagesOnly = true }
 									end,
 								},
-								gui.AddButton{
-									width = 24,
-									height = 24,
+                                ]]--
+								gui.Button{
+									classes = {"addButton", "sizeM"},
 									valign = "center",
-									events = {
-										linger = gui.Tooltip("Import new objects from an image"),
-										click = function(element)
-											mod.shared.ImportObjects()
-										end,
-									}
+									linger = gui.Tooltip("Import new objects from an image"),
+									click = function(element)
+										mod.shared.ImportObjects()
+									end,
 								},
 							},
 						},
@@ -1087,8 +1126,9 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 							element:SetClass('search', false)
 							searchActive = false
 
-							if clearSearchButton ~= nil then --is root panel, clear search.
-								clearSearchButton:FireEvent('click')
+							if searchInput ~= nil then --is root panel, clear search.
+								searchInput.text = ''
+								searchInput:FireEvent('edit')
 							end
 						end
 
@@ -2228,22 +2268,251 @@ dmhub.GetSelectedObject = function()
 	return gui.GetFocus().data.objectid
 end
 
+--Focus alone is not proof the editor is on screen. A dock that is slid away
+--carries the "offscreen" class and a panel sitting behind another tab (or
+--minimized) carries "collapsed"; either way the children stay alive, keep
+--their focus, and are invisible. That matters more here than for a normal
+--panel: object editing mode turns OFF regular play mode, which stops
+--TokenController from starting a creature rectangle-select (the drag falls
+--through to ObjectTool's object rectangle instead), so an invisible panel
+--holding focus silently breaks dragging out a selection of creatures.
+local function ObjectEditorOnScreen(element)
+	local p = element
+	while p ~= nil do
+		if p:HasClass("offscreen") or p:HasClass("collapsed") then
+			return false
+		end
+		p = p.parent
+	end
+
+	return true
+end
+
+--This used to require a "dockablePanel" ANCESTOR, which doubled as the
+--liveness check and as the thing carrying the legacy highlight class. That
+--ancestor only exists in a DOCK, so hosted anywhere else -- notably an
+--icon-rail panel window -- object editing mode never armed at all, meaning
+--locked objects could not be clicked. Liveness is now checked directly and
+--the dock ancestor is only used for the highlight class, when there is one.
 dmhub.ObjectEditingEnabled = function()
-	if m_objectEditor == nil or (not m_objectEditor.valid) then
-		return false
-	end
-	if m_objectEditor:FindParentWithClass("dockablePanel") == nil then
+	if m_objectEditor == nil or (not m_objectEditor.valid) or m_objectEditor.parent == nil then
 		return false
 	end
 
-	if gui.ChildHasFocus(m_objectEditor) then
-		m_objectEditor:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", true)
-		return true
+	local focused = gui.ChildHasFocus(m_objectEditor) and ObjectEditorOnScreen(m_objectEditor)
+
+	local dockPanel = m_objectEditor:FindParentWithClass("dockablePanel")
+	if dockPanel ~= nil then
+		dockPanel:SetClass("highlightPanel", focused)
 	end
 
-	--attempt to index nil setclass.
-	m_objectEditor:FindParentWithClass("dockablePanel"):SetClass("highlightPanel", false)
-	return false
+	return focused
+end
 
+--The object wiring overlay -- the trigger/action "plug" icons the engine draws
+--on map objects so you can wire an Action to a Trigger -- keys off the panel
+--being OPEN rather than focused. Focus is right for object editing MODE above
+--(it turns off regular play mode, so it must not latch), but as a gate on a
+--passive, DM-only overlay it meant that opening any other panel, or the
+--object's own properties dialog -- the very thing you use to add a trigger --
+--took every plug icon off the map. Report T45GPX6J.
+dmhub.ObjectPanelOpen = function()
+	if m_objectEditor == nil or (not m_objectEditor.valid) or m_objectEditor.parent == nil then
+		return false
+	end
 
+	return ObjectEditorOnScreen(m_objectEditor)
+end
+
+-- Live image editing dialog: appears (parented to the world dialog layer, like the vision
+-- perspective dialog) whenever there are active "Live Edit Image" sessions, listing each one with
+-- its state and the appropriate actions. Driven by dmhub.LiveEditSessionsUpdated (fired from C#).
+local liveEditDialog = nil
+
+local CreateLiveEditSessionRow = function(session)
+	local objid = session.objid
+	local changesPending = session.changesPending
+	local uploading = session.uploading
+
+	local statusText
+	local statusColor
+	local buttonsPanel
+
+	if uploading then
+		statusText = "Uploading..."
+		statusColor = "#7fd0ff"
+	elseif changesPending then
+		statusText = "Changes made"
+		statusColor = "#ffd24a"
+		buttonsPanel = gui.Panel{
+			width = "auto",
+			height = "auto",
+			flow = "horizontal",
+			halign = "center",
+			vmargin = 4,
+			gui.PrettyButton{
+				text = "Upload Changes",
+				width = 150,
+				height = 30,
+				fontSize = 14,
+				hmargin = 4,
+				click = function(element)
+					dmhub.UploadLiveEditChanges(objid)
+				end,
+			},
+			gui.PrettyButton{
+				text = "Revert Changes",
+				width = 150,
+				height = 30,
+				fontSize = 14,
+				hmargin = 4,
+				click = function(element)
+					dmhub.RevertLiveEditChanges(objid)
+				end,
+			},
+		}
+	else
+		statusText = "Awaiting changes"
+		statusColor = "#bbbbbb"
+		buttonsPanel = gui.Panel{
+			width = "auto",
+			height = "auto",
+			flow = "horizontal",
+			halign = "center",
+			vmargin = 4,
+			gui.PrettyButton{
+				text = "Close",
+				width = 150,
+				height = 30,
+				fontSize = 14,
+				hmargin = 4,
+				click = function(element)
+					dmhub.CloseLiveEditSession(objid)
+				end,
+			},
+		}
+	end
+
+	local errorLabel = nil
+	if session.error ~= nil then
+		errorLabel = gui.Label{
+			width = "100%",
+			height = "auto",
+			color = "#ff6666",
+			fontSize = 12,
+			bmargin = 2,
+			text = session.error,
+		}
+	end
+
+	return gui.Panel{
+		width = "100%",
+		height = "auto",
+		flow = "vertical",
+		vmargin = 6,
+		hpad = 12,
+		borderBox = true,
+
+		gui.Label{
+			width = "100%",
+			height = "auto",
+			color = "white",
+			fontSize = 15,
+			bold = true,
+			text = session.name,
+		},
+
+		gui.Label{
+			width = "100%",
+			height = "auto",
+			color = statusColor,
+			fontSize = 13,
+			bmargin = 2,
+			text = statusText,
+		},
+
+		errorLabel,
+
+		buttonsPanel,
+	}
+end
+
+dmhub.LiveEditSessionsUpdated = function()
+	local sessions = dmhub.liveEditSessions
+
+	if sessions == nil then
+		if liveEditDialog ~= nil then
+			if liveEditDialog.valid then
+				liveEditDialog:DestroySelf()
+			end
+			liveEditDialog = nil
+		end
+		return
+	end
+
+	if liveEditDialog == nil or (not liveEditDialog.valid) then
+		liveEditDialog = gui.Panel{
+			styles = ThemeEngine.GetStyles(),
+			classes = {"framedPanel"},
+
+			halign = "left",
+			valign = "top",
+
+			width = 360,
+			height = "auto",
+			vmargin = 64,
+			hmargin = 16,
+
+			flow = "vertical",
+
+			draggable = true,
+			drag = function(element)
+				element.x = element.xdrag
+				element.y = element.ydrag
+			end,
+
+			destroy = function(element)
+				if liveEditDialog == element then
+					liveEditDialog = nil
+				end
+			end,
+
+			gui.Panel{
+				margin = 8,
+				halign = "center",
+				valign = "center",
+				flow = "vertical",
+				width = "auto",
+				height = "auto",
+				gui.Label{
+					width = "auto",
+					height = "auto",
+					halign = "center",
+					valign = "center",
+					color = "white",
+					fontSize = 18,
+					text = "Live Image Editing",
+				},
+			},
+
+			gui.Panel{
+				width = "100%",
+				height = "auto",
+				flow = "vertical",
+				halign = "center",
+
+				refreshLiveEdit = function(element)
+					local newChildren = {}
+					for _,session in ipairs(dmhub.liveEditSessions or {}) do
+						newChildren[#newChildren+1] = CreateLiveEditSessionRow(session)
+					end
+					element.children = newChildren
+				end,
+			},
+		}
+
+		gamehud.dialogWorldPanel:AddChild(liveEditDialog)
+	end
+
+	liveEditDialog:FireEventTree("refreshLiveEdit")
 end

@@ -1,8 +1,62 @@
 local mod = dmhub.GetModLoading()
 
+-- Optional modules can contribute controls and attach data to the LiveEncounter
+-- without this module knowing which extensions are installed.
+DrawSteelCombatSetup = {}
+DrawSteelCombatSetup.extensions = {}
+
+function DrawSteelCombatSetup.RegisterExtension(extension)
+    if extension == nil or extension.id == nil then
+        return
+    end
+
+    DrawSteelCombatSetup.extensions[extension.id] = extension
+end
+
+local function CreateCombatSetupExtensionsPanel()
+    local children = {}
+    for _,extension in pairs(DrawSteelCombatSetup.extensions) do
+        if extension.createPanel ~= nil then
+            local panel = extension.createPanel()
+            if panel ~= nil then
+                children[#children + 1] = panel
+            end
+        end
+    end
+
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        children = children,
+    }
+end
+
+local function ConfigureCombatSetupExtensions(liveEncounter)
+    for _,extension in pairs(DrawSteelCombatSetup.extensions) do
+        if extension.configureLiveEncounter ~= nil then
+            extension.configureLiveEncounter(liveEncounter)
+        end
+    end
+end
+
 local g_selectedTokensOpenInitiative = nil
 local g_playerTokensOpenInitiative = nil
 local g_monsterTokensOpenInitiative = nil
+--The Encounter chosen in the combat setup dialog's encounter dropdown, carried to
+--the controller's queue creation. nil means "Custom" (no live encounter).
+local g_selectedEncounterOpenInitiative = nil
+
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
 
 local function createDrawSteelBanner(options)
     print("BANNER:: CREATE")
@@ -177,12 +231,95 @@ local function createDrawSteelBanner(options)
 
                     --as the controller who called for this dialog,
                     --create initiative for everyone now.
-                    if options.controller then
+                    if options.controller and options.reroll then
+                        --Per-round "who goes first" reroll (Crows): combat already
+                        --exists, so do NOT create a queue. Just record which side
+                        --goes first this round and refresh the initiative bar.
+                        --(See showDrawSteelRerollBanner.)
+                        local q = dmhub.initiativeQueue
+                        if q ~= nil and not q.hidden and m_heroesWin ~= nil then
+                            q.playersGoFirst = m_heroesWin
+                            q.playersTurn = m_heroesWin
+                            dmhub:UploadInitiativeQueue()
+                            if GameHud.instance ~= nil and GameHud.instance:has_key("choiceInitiativeBar") then
+                                GameHud.instance.choiceInitiativeBar:FireEvent("refresh")
+                            end
+                        end
+                    elseif options.controller then
                         local info = GameHud.instance.initiativeInterface
                         info.initiativeQueue = InitiativeQueue.Create()
                         info.initiativeQueue.playersGoFirst = m_heroesWin
                         info.initiativeQueue.playersTurn = m_heroesWin
+
+                        --If an encounter was chosen (not "Custom"), attach a live encounter
+                        --built from a deep copy of it. For a Custom combat there is no authored
+                        --encounter, but we still create a basic live encounter so victory can be
+                        --tracked and awarded -- it uses the Encounter defaults (1 Victory reward
+                        --and the "all monsters defeated" victory condition).
+                        if g_selectedEncounterOpenInitiative ~= nil then
+                            info.initiativeQueue.liveEncounter = LiveEncounter.Create(g_selectedEncounterOpenInitiative)
+                        else
+                            local live = LiveEncounter.Create(Encounter.new())
+                            --CountNonMinionMonsters (called in Create) reads the authored monster
+                            --list, which is empty for Custom, so seed onsetMonsterCount from the
+                            --actual non-minion monster tokens entering combat. Without this,
+                            --CheckVictory short-circuits ("no monsters -> nothing to win").
+                            local onsetMonsters = 0
+                            for charid,_ in pairs(g_monsterTokensOpenInitiative or {}) do
+                                local tok = dmhub.GetCharacterById(charid)
+                                if tok ~= nil and tok.valid and tok.properties ~= nil
+                                    and tok.properties:IsMonster() and not tok.properties.minion then
+                                    onsetMonsters = onsetMonsters + 1
+                                end
+                            end
+                            live.onsetMonsterCount = onsetMonsters
+                            info.initiativeQueue.liveEncounter = live
+                        end
+                        ConfigureCombatSetupExtensions(info.initiativeQueue.liveEncounter)
+                        --Snapshot the heroes' Recoveries at the onset of combat so the
+                        --victory screen can show how they changed over the fight.
+                        info.initiativeQueue.liveEncounter:RecordOnsetHeroes(g_playerTokensOpenInitiative)
+                        g_selectedEncounterOpenInitiative = nil
+
+                        --Combat has started: the readied encounter is consumed.
+                        --Whatever route the monsters took onto the map, an armed
+                        --click-to-place is now stale -- it would drop a second
+                        --copy of the encounter into the fight -- so drop that too.
+                        Encounter.ClearReadiedEncounter()
+                        Encounter.DisarmClickToPlace()
+
                         Commands.rollinitiative()
+
+                        -- Track encounter_start event
+                        local heroCount = 0
+                        local monsterCount = 0
+                        local monsterTypes = {}
+                        local monsterRoles = {}
+                        for charid,_ in pairs(g_playerTokensOpenInitiative or {}) do
+                            heroCount = heroCount + 1
+                        end
+                        for charid,_ in pairs(g_monsterTokensOpenInitiative or {}) do
+                            monsterCount = monsterCount + 1
+                            local tok = dmhub.GetCharacterById(charid)
+                            if tok ~= nil and tok.valid then
+                                local monsterType = tok.properties:try_get("monster_type", "unknown")
+                                monsterTypes[#monsterTypes+1] = monsterType
+                                local role = tok.properties:try_get("role", "")
+                                if role ~= "" then
+                                    monsterRoles[#monsterRoles+1] = role
+                                end
+                            end
+                        end
+                        track("encounter_start", {
+                            heroCount = heroCount,
+                            monsterCount = monsterCount,
+                            monsterTypes = table.concat(monsterTypes, ","),
+                            monsterRoles = table.concat(monsterRoles, ","),
+                            roundNumber = 1,
+                            mapId = game.currentMapId,
+                            mapName = (game.currentMap and game.currentMap.description) or "unknown",
+                            dailyLimit = 10,
+                        })
                     end
 
                     self:DestroySelf()
@@ -750,6 +887,94 @@ function showDrawSteelBanner(result)
     GameHud.instance.parentPanel:AddChild(banner)
 end
 
+--Show the per-round "who goes first" reroll banner (used by Crows, which rolls
+--for turn order at the start of every round). Reuses the Draw Steel banner, but
+--in reroll mode it sets playersGoFirst on the EXISTING initiative queue when the
+--roll resolves rather than starting a new combat (see the reroll branch in
+--createDrawSteelBanner). Call this on a single client (the one advancing the
+--round); it broadcasts the banner to the other users itself.
+function showDrawSteelRerollBanner()
+    if GameHud.instance == nil or GameHud.instance.parentPanel == nil then
+        return
+    end
+    local banner = createDrawSteelBanner{ controller = true, reroll = true }
+    GameHud.instance.parentPanel:AddChild(banner)
+end
+
+RegisterGameType("Encounter") --make sure we have it registered.
+
+--Journal "Draw Steel!" button entry point. Opens the combat setup dialog scoped to
+--the given authored encounter so the DM can confirm/adjust sides before rolling turn
+--order. The dialog pre-selects this encounter in its dropdown (which routes the
+--encounter's placed monsters into the participating "Monsters" pool) and sets up the
+--heroes automatically. spawnedCharids is no longer needed -- the dialog derives the
+--participating monsters from the encounter's spawns via the dropdown selection.
+function Encounter.DrawSteelWithEncounter(encounter, spawnedCharids)
+    local q = dmhub.initiativeQueue
+    if q ~= nil and not q.hidden then
+        --already in combat.
+        return
+    end
+
+    Encounter.ShowCombatSetupDialog(nil, encounter, spawnedCharids)
+end
+
+--Programmatic combat start: skips the Prepare Combat dialog entirely and goes
+--straight to the Draw Steel banner with the given sides and the normal
+--who-goes-first roll. Call it on ONE client (a Director -- it creates the
+--initiative queue for everyone when the banner resolves). Used by automated
+--game modes such as Encounter of the Week, where no Director is present to
+--drive the dialog.
+--args:
+--  playerTokens:  list of CharacterTokens fighting on the heroes' side.
+--  monsterTokens: list of CharacterTokens fighting on the monsters' side.
+--  encounter:     optional authored Encounter for the live encounter (victory
+--                 conditions, rewards); nil behaves like the dialog's
+--                 "Custom" choice.
+--Returns true, or false + a reason string when combat cannot start.
+function Encounter.StartCombatWithTokens(args)
+    args = args or {}
+
+    local q = dmhub.initiativeQueue
+    if q ~= nil and not q.hidden then
+        return false, "combat is already running"
+    end
+
+    if GameHud.instance == nil or GameHud.instance.parentPanel == nil then
+        return false, "no game hud to host the Draw Steel banner"
+    end
+
+    g_playerTokensOpenInitiative = {}
+    g_monsterTokensOpenInitiative = {}
+
+    local tokens = {}
+    for _,token in ipairs(args.playerTokens or {}) do
+        if token.valid then
+            tokens[#tokens+1] = token
+            g_playerTokensOpenInitiative[token.charid] = true
+        end
+    end
+    for _,token in ipairs(args.monsterTokens or {}) do
+        if token.valid then
+            tokens[#tokens+1] = token
+            g_monsterTokensOpenInitiative[token.charid] = true
+        end
+    end
+
+    if #tokens == 0 then
+        return false, "no valid tokens to enter combat"
+    end
+
+    g_selectedEncounterOpenInitiative = args.encounter
+    g_selectedTokensOpenInitiative = tokens
+
+    --nil = no immediate result: the banner runs the normal claim-the-die
+    --"Draw Steel" roll, and queue creation (plus readied-encounter cleanup)
+    --happens when it resolves, exactly like the dialog path.
+    showDrawSteelBanner(nil)
+    return true
+end
+
 --- @class RollInitiativeChatMessage
 --- @field winner "players"|"monsters"
 --- @field playerTokenIds string[]
@@ -761,37 +986,294 @@ RollInitiativeChatMessage.playerTokenIds = {}
 RollInitiativeChatMessage.monsterTokenIds = {}
 
 function RollInitiativeChatMessage.Render(selfInput, message)
-    return gui.Panel{width = 0, height = 0}
+    local winnerText
+    if selfInput.winner == "players" then
+        winnerText = "Heroes win turn order!"
+    else
+        winnerText = "Monsters win turn order!"
+    end
+
+    -- Collect all tokens and sort by playerControlled
+    local playerTokenPanels = {}
+    local monsterTokenPanels = {}
+
+    local allTokens = {}
+    for _,tok in ipairs(selfInput:GetPlayerTokens()) do
+        if tok ~= nil and tok.valid then
+            allTokens[#allTokens+1] = tok
+        end
+    end
+    for _,tok in ipairs(selfInput:GetMonsterTokens()) do
+        if tok ~= nil and tok.valid then
+            allTokens[#allTokens+1] = tok
+        end
+    end
+
+    local portraitHeight = 44
+    local portraitAspect = 0.75
+    local portraitWidth = math.floor(portraitHeight * portraitAspect)
+
+    local function CreatePortraitPanel(tok, quantity)
+        local portrait = tok.offTokenPortrait
+        local imageRect = nil
+        if portrait == tok.portrait or tok.popoutPortrait then
+            imageRect = tok:GetPortraitRectForAspect(portraitAspect, portrait)
+        end
+
+        local quantityLabel = nil
+        if quantity ~= nil and quantity > 1 then
+            quantityLabel = gui.Label{
+                floating = true,
+                halign = "right",
+                valign = "bottom",
+                width = "auto",
+                height = "auto",
+                fontSize = 10,
+                bold = true,
+                color = "white",
+                text = string.format("x%d", quantity),
+                textOutlineWidth = 1,
+                textOutlineColor = "black",
+            }
+        end
+
+        return gui.Panel{
+            width = portraitWidth,
+            height = portraitHeight,
+            bgimage = portrait,
+            bgcolor = "white",
+            cornerRadius = 4,
+            imageRect = imageRect,
+            hmargin = 1,
+            vmargin = 1,
+            interactable = true,
+            hover = gui.Tooltip(tok.name),
+            quantityLabel,
+        }
+    end
+
+    -- Group monsters by portrait + monster_type to collapse duplicates
+    local monsterGroups = {} -- key -> {tok, count}
+    local monsterGroupOrder = {}
+
+    local q = dmhub.initiativeQueue
+
+    for _,tok in ipairs(allTokens) do
+        print("INIT:: TOKEN:", tok.charid)
+        if table.contains(selfInput.playerTokenIds, tok.charid) then
+            print("INIT:: IS CHAR")
+            playerTokenPanels[#playerTokenPanels+1] = CreatePortraitPanel(tok)
+        elseif table.contains(selfInput.monsterTokenIds, tok.charid) then
+            print("INIT:: IS MONSTER")
+            local monsterType = tok.properties:try_get("monster_type", "")
+            local groupKey = tostring(tok.portrait) .. "|" .. monsterType
+            if monsterGroups[groupKey] == nil then
+                monsterGroups[groupKey] = {tok = tok, count = 1}
+                monsterGroupOrder[#monsterGroupOrder+1] = groupKey
+            else
+                monsterGroups[groupKey].count = monsterGroups[groupKey].count + 1
+            end
+        else
+            print("INIT:: IS NEUTRAL")
+        end
+    end
+
+    for _,groupKey in ipairs(monsterGroupOrder) do
+        local group = monsterGroups[groupKey]
+        monsterTokenPanels[#monsterTokenPanels+1] = CreatePortraitPanel(group.tok, group.count)
+    end
+
+    -- Balance items into rows so each row has roughly equal count
+    local function BalancedGrid(panels, maxPerRow, gridHalign)
+        local n = #panels
+        if n == 0 then
+            return gui.Panel{width = 0, height = 0}
+        end
+        local cols = math.min(n, maxPerRow)
+        if n > maxPerRow then
+            cols = math.ceil(math.sqrt(n))
+            if cols > maxPerRow then cols = maxPerRow end
+        end
+        return gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = gridHalign,
+            flow = "horizontal",
+            wrap = true,
+            maxWidth = cols * (portraitWidth + 2),
+            children = panels,
+        }
+    end
+
+    local playersPanel = gui.Panel{
+        width = "45%",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        BalancedGrid(playerTokenPanels, 4, "right"),
+    }
+
+    local vsLabel = gui.Label{
+        text = "vs",
+        fontSize = 11,
+        color = "#999999",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        hmargin = 4,
+        italics = true,
+    }
+
+    local monstersPanel = gui.Panel{
+        width = "45%",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        BalancedGrid(monsterTokenPanels, 4, "left"),
+    }
+
+    local resultPanel = gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        vmargin = 6,
+
+        styles = {
+            {
+                selectors = {"leftSword", "animate-in"},
+                x = 80,
+                opacity = 0,
+                transitionTime = 0.6,
+                easing = "easeOutCubic",
+            },
+            {
+                selectors = {"rightSword", "animate-in"},
+                x = -80,
+                opacity = 0,
+                transitionTime = 0.6,
+                easing = "easeOutCubic",
+            },
+            {
+                selectors = {"drawsteel-text", "animate-in"},
+                opacity = 0,
+                scale = 0.5,
+                transitionTime = 0.4,
+            },
+        },
+
+        refreshMessage = function(element, message)
+        end,
+
+        gui.Panel{
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            halign = "center",
+            bgimage = "panels/square.png",
+            bgcolor = "#111111",
+            cornerRadius = 4,
+            vpad = 8,
+
+            -- Swords + Draw Steel image
+            gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+
+                gui.Panel{
+                    classes = {"leftSword"},
+                    bgimage = "panels/initiative/drawsteel-sword.png",
+                    bgcolor = "white",
+                    width = 50,
+                    height = "50% width",
+                    valign = "center",
+                    halign = "center",
+                },
+
+                gui.Panel{
+                    classes = {"drawsteel-text"},
+                    bgimage = "panels/initiative/drawsteel-text.png",
+                    bgcolor = "white",
+                    width = 160,
+                    height = 22,
+                    valign = "center",
+                    halign = "center",
+                    hmargin = 4,
+                },
+
+                gui.Panel{
+                    classes = {"rightSword"},
+                    bgimage = "panels/initiative/drawsteel-sword.png",
+                    bgcolor = "white",
+                    width = 50,
+                    height = "50% width",
+                    valign = "center",
+                    halign = "center",
+                    scale = {x = -1, y = 1},
+                },
+            },
+
+            -- Winner text
+            gui.Label{
+                text = winnerText,
+                fontSize = 12,
+                color = "#cccccc",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                tmargin = 4,
+            },
+
+            -- Players vs Monsters
+            gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                tmargin = 4,
+                bmargin = 2,
+
+                playersPanel,
+                vsLabel,
+                monstersPanel,
+            },
+        },
+
+        create = function(element)
+            element:SetClassTree("animate-in", true)
+            element:ScheduleEvent("animate-done", 0.05)
+        end,
+
+        ["animate-done"] = function(element)
+            element:SetClassTree("animate-in", false)
+        end,
+    }
+
+    return resultPanel
 end
 
 --- @param initiativeQueue InitiativeQueue
 --- @param tokens CharacterToken[]
 --- @return RollInitiativeChatMessage
-function RollInitiativeChatMessage.Create(initiativeQueue, tokens)
+function RollInitiativeChatMessage.Create(initiativeQueue, tokens, playerids, monsterids)
     local tokensByInitiative = {}
     for _,tok in ipairs(tokens) do
         local initiativeid = InitiativeQueue.GetInitiativeId(tok)
-        if tokensByInitiative[initiativeid] == nil then
-            tokensByInitiative[initiativeid] = tok
-        else
-            tokensByInitiative[initiativeid] = creature.GetSeniorToken{tokensByInitiative[initiativeid], tok}
-        end
-    end
-
-    local playerTokens = {}
-    local monsterTokens = {}
-
-    for key,tok in pairs(tokensByInitiative) do
-        if initiativeQueue:IsEntryPlayer(key) then
-            playerTokens[#playerTokens+1] = tok.charid
-        else
-            monsterTokens[#monsterTokens+1] = tok.charid
+        if initiativeid ~= nil then
+            if tokensByInitiative[initiativeid] == nil then
+                tokensByInitiative[initiativeid] = tok
+            else
+                tokensByInitiative[initiativeid] = creature.GetSeniorToken{tokensByInitiative[initiativeid], tok}
+            end
         end
     end
 
     return RollInitiativeChatMessage.new{
-        playerTokenIds = playerTokens,
-        monsterTokenIds = monsterTokens,
+        playerTokenIds = playerids,
+        monsterTokenIds = monsterids,
         winner = initiativeQueue.playersGoFirst and "players" or "monsters",
     }
 end
@@ -831,17 +1313,31 @@ local function SetTokenSurprised(tok, surprised)
     end
 end
 
-local function ShowCombatSetupDialog(selectedTokens)
-    local m_encounterStrength = 0
-    local m_encounterStrengthSingleHero = 0
+--selectedTokens: optional list of tokens to pre-mark as participating (else inferred).
+--preselectEncounter: optional Encounter object to force-select in the dropdown; takes
+--priority over the readied/open-journal inference. Used by the journal RichEncounter
+--"Draw Steel!" button so the dialog opens scoped to that encounter.
+local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, preselectSpawnIds)
+    --The party strength computed from the hero pool (see Encounter.PartyStrengthFromTokens),
+    --or nil while the pool is empty. Shared between the hero and monster status labels so
+    --the monster EV readout can classify against the current party.
+    local m_partyStrength = nil
     local surprisedCondition = CharacterCondition.conditionsByName["surprised"]
+
+    --Forward-declared so the per-group "Ungroup" button and "Group With" right-click
+    --menu (built in CreateGroupPanel, below) can call back into the group/ungroup
+    --logic. They are assigned later, once the pools and monsterGroups state they need
+    --are in scope. BuildGroupWithSubmenu(group, panel) returns the context-menu
+    --submenu entries listing the other groups on the same side.
+    local UngroupGroup
+    local BuildGroupWithSubmenu
 
     local CreateTokenPoolPanel = function(args)
         local sideline = args.sideline or false
         args.sideline = nil
         local pool
         pool = {
-            classes = {"tokenPool"},
+            classes = {"tokenPool", "bordered"},
             dragTarget = true,
             flow = "vertical",
             vscroll = true,
@@ -954,70 +1450,50 @@ local function ShowCombatSetupDialog(selectedTokens)
                 halign = "center",
                 maxWidth = 300,
                 fontSize = 14,
-                color = Styles.textColor,
                 refreshSurprise = function(element)
-                    local encounterStrength = 0
-                    local children = args.pool.children
-                    local numTokens = 0
-                    local totalVictories = 0
-                    local numHeroes = 0
-                    local minLevel = nil
-                    local maxLevel = nil
-                    for i,child in ipairs(children) do
+                    local tokens = {}
+                    for i,child in ipairs(args.pool.children) do
                         local group = child.data.group
                         for _,tok in ipairs(group.tokens) do
-                            if minLevel == nil or tok.properties:CharacterLevel() < minLevel then
-                                minLevel = tok.properties:CharacterLevel()
-                            end
-                            if maxLevel == nil or tok.properties:CharacterLevel() > maxLevel then
-                                maxLevel = tok.properties:CharacterLevel()
-                            end
-                            encounterStrength = encounterStrength + 4 + tok.properties:CharacterLevel()*2
-                            local victories = tok.properties:GetVictories()
-                            totalVictories = totalVictories + victories
-                            if tok.properties:IsHero() then
-                                numHeroes = numHeroes + 1
-                            end
-                            numTokens = numTokens + 1
+                            tokens[#tokens+1] = tok
                         end
                     end
-                    if numTokens == 0 then
+
+                    local strength = Encounter.PartyStrengthFromTokens(tokens)
+                    m_partyStrength = strength
+                    if strength == nil then
                         element.text = ""
-                        m_encounterStrength = 0
-                        m_encounterStrengthSingleHero = 0
                         element.data.tooltip = nil
                         return
                     end
 
-                    local averageVictories = math.floor(totalVictories / numTokens)
-                    local tokenAverage = math.floor(encounterStrength/numTokens)
-                    local baseEncounterStrength = encounterStrength
+                    element.text = string.format("Encounter Strength: %d", strength.total)
 
-                    m_encounterStrengthSingleHero = tokenAverage
-
-                    local victoriesAdditionalHeroes = math.floor(averageVictories / 2)
-
-                    encounterStrength = encounterStrength + math.floor(victoriesAdditionalHeroes * tokenAverage)
-                    element.text = string.format("Encounter Strength: %d", encounterStrength)
-                    m_encounterStrength = encounterStrength
-
-                    local tooltip = string.format("%d Heroes", numHeroes)
-                    if numTokens ~= numHeroes then
-                        tooltip = string.format("%s, %d %s", tooltip, numTokens - numHeroes, cond(numTokens - numHeroes == 1, "Ally", "Allies"))
+                    local tooltip = string.format("%d Heroes", strength.numHeroes)
+                    local numAllies = strength.numTokens - strength.numHeroes
+                    if numAllies > 0 then
+                        tooltip = string.format("%s, %d %s", tooltip, numAllies, cond(numAllies == 1, "Ally", "Allies"))
                     end
 
-                    if minLevel == maxLevel then
-                        tooltip = string.format("%s, Level %d", tooltip, minLevel)
-                    else
-                        tooltip = string.format("%s, Levels %d-%d", tooltip, minLevel, maxLevel)
+                    --minLevel/maxLevel are nil when the pool is nothing but allied
+                    --monsters, which have no hero level to report.
+                    if strength.minLevel ~= nil then
+                        if strength.minLevel == strength.maxLevel then
+                            tooltip = string.format("%s, Level %d", tooltip, strength.minLevel)
+                        else
+                            tooltip = string.format("%s, Levels %d-%d", tooltip, strength.minLevel, strength.maxLevel)
+                        end
                     end
 
-                    tooltip = string.format("%s\nBase Encounter Strength: %d", tooltip, baseEncounterStrength)
+                    tooltip = string.format("%s\nBase Encounter Strength: %d", tooltip, strength.base)
 
-                    tooltip = string.format("%s\nAverage Victories: %d", tooltip, averageVictories)
-                    tooltip = string.format("%s\nExtra Heroes from Victories: %d", tooltip, victoriesAdditionalHeroes)
-                    tooltip = string.format("%s\nEncounter Strength of a Single Hero: %d", tooltip, m_encounterStrengthSingleHero)
-                    tooltip = string.format("%s\nTotal Encounter Strength: %d", tooltip, encounterStrength)
+                    tooltip = string.format("%s\nAverage Victories: %d", tooltip, strength.averageVictories)
+                    tooltip = string.format("%s\nExtra Heroes from Victories: %d", tooltip, strength.victoryHeroes)
+                    tooltip = string.format("%s\nEncounter Strength of a Single Hero: %d", tooltip, strength.singleHero)
+                    if strength.numAllyMonsters > 0 then
+                        tooltip = string.format("%s\nEV of %d Allied %s: %d", tooltip, strength.numAllyMonsters, cond(strength.numAllyMonsters == 1, "Creature", "Creatures"), strength.allyEV)
+                    end
+                    tooltip = string.format("%s\nTotal Encounter Strength: %d", tooltip, strength.total)
 
                     element.data.tooltip = tooltip
                 end,
@@ -1045,7 +1521,6 @@ local function ShowCombatSetupDialog(selectedTokens)
                 halign = "center",
                 maxWidth = 300,
                 fontSize = 14,
-                color = Styles.textColor,
                 refreshSurprise = function(element)
                     local ev = 0
                     local evvalid = true
@@ -1072,16 +1547,7 @@ local function ShowCombatSetupDialog(selectedTokens)
 
                     local tooltip = nil
 
-                    local description = "Extreme"
-                    if ev < m_encounterStrength - m_encounterStrengthSingleHero then
-                        description = "Trivial"
-                    elseif ev < m_encounterStrength then
-                        description = "Easy"
-                    elseif ev < m_encounterStrength + m_encounterStrengthSingleHero then
-                        description = "Standard"
-                    elseif ev <= m_encounterStrength + m_encounterStrengthSingleHero * 3 then
-                        description = "Hard"
-                    end
+                    local description = Encounter.DifficultyTier(ev, m_partyStrength)
 
                     element.text = string.format("EV: %s (%s)", round(ev), description)
 
@@ -1108,11 +1574,10 @@ local function ShowCombatSetupDialog(selectedTokens)
             height = "auto",
             valign = "top",
             gui.Label{
-                fontSize = 22,
+                classes = {"sizeL", "bold"},
                 text = args.title,
                 width = "auto",
                 height = "auto",
-                bold = true,
                 halign = "center",
                 valign = "top",
             },
@@ -1258,6 +1723,15 @@ local function ShowCombatSetupDialog(selectedTokens)
         local surprisedCondition = CharacterCondition.conditionsByName["surprised"]
         local m_isSurprised = group.tokens[1].properties:HasCondition(surprisedCondition.id)
 
+        --The row fills with @accent while hovered, which the default text color
+        --vanishes against. parent: selectors can't do the job here: only the panels
+        --the mouse is actually inside get the hover class, so the label's own parent
+        --is not hovered when the mouse is over the token images. Push the state down
+        --the tree instead.
+        local SetGroupHoverClass = function(element, hovering)
+            element:SetClass("groupHovered", hovering)
+        end
+
         local resultPanel
         resultPanel = gui.Panel{
             classes = {"tokenGroup"},
@@ -1268,6 +1742,12 @@ local function ShowCombatSetupDialog(selectedTokens)
             valign = "top",
             bgimage = true,
             draggable = true,
+            hover = function(element)
+                element:FireEventTree("setGroupHover", true)
+            end,
+            dehover = function(element)
+                element:FireEventTree("setGroupHover", false)
+            end,
             drag = function(element, target)
                 if target ~= nil then
                     element:Unparent()
@@ -1300,6 +1780,8 @@ local function ShowCombatSetupDialog(selectedTokens)
                 halign = "left",
                 flow = "vertical",
                 gui.Label{
+                    classes = {"tokenGroupLabel"},
+                    setGroupHover = SetGroupHoverClass,
                     fontSize = 16,
                     minFontSize = 12,
                     bold = true,
@@ -1310,11 +1792,11 @@ local function ShowCombatSetupDialog(selectedTokens)
                     textOverflow = "ellipsis",
                     textWrap = false,
                     margin = 2,
-                    color = Styles.textColor,
                     text = name,
                 },
                 gui.Label{
-                    classes = {cond(m_isSurprised, "surprised")},
+                    classes = {"tokenGroupLabel", cond(m_isSurprised, "surprised")},
+                    setGroupHover = SetGroupHoverClass,
                     text = cond(m_isSurprised, "Surprised", "Not Surprised"),
                     refreshSurprise = function(element)
                         m_isSurprised = group.tokens[1].properties:HasCondition(surprisedCondition.id)
@@ -1334,23 +1816,10 @@ local function ShowCombatSetupDialog(selectedTokens)
                     halign = "left",
                     valign = "top",
                     margin = 2,
-                    bgimage = true,
-                    bgcolor = "clear",
                     styles = {
                         {
-                            color = Styles.textColor,
-                        },
-                        {
                             selectors = {"surprised"},
-                            color = "#ffaaaa",
-                        },
-                        {
-                            selectors = {"hover"},
-                            color = "#ffaaff",
-                        },
-                        {
-                            selectors = {"press"},
-                            color = "#ccaacc",
+                            color = "@warning",
                         },
                         {
                             selectors = {"sideline"},
@@ -1360,6 +1829,53 @@ local function ShowCombatSetupDialog(selectedTokens)
                 },
             }
         }
+
+        --A grouping of more than one non-minion creature (as opposed to a minion
+        --squad, or a captain leading a squad of minions) can be split back apart.
+        --Offer an "Ungroup" button that gives each creature its own initiative slot
+        --and rebuilds the list in place.
+        local nonMinionCount = 0
+        for _,tok in ipairs(group.tokens) do
+            if not tok.properties.minion then
+                nonMinionCount = nonMinionCount + 1
+            end
+        end
+
+        if nonMinionCount > 1 then
+            resultPanel:AddChild(gui.Button{
+                classes = {"sizeS"},
+                floating = true,
+                text = "Ungroup",
+                width = "auto",
+                height = "auto",
+                halign = "right",
+                valign = "bottom",
+                margin = 4,
+                press = function(element)
+                    UngroupGroup(group, resultPanel)
+                end,
+            })
+        end
+
+        --Right-click a group row to fold it together with another group on the same
+        --side ("Group With" -> pick a creature/group). The submenu is built fresh on
+        --each right-click so it reflects the current pools after any earlier
+        --group/ungroup edits.
+        resultPanel.events.rightClick = function(element)
+            local entries = BuildGroupWithSubmenu(group, resultPanel)
+            if #entries == 0 then
+                return
+            end
+
+            element.popup = gui.ContextMenu{
+                entries = {
+                    {
+                        text = "Group With",
+                        submenu = entries,
+                    },
+                },
+            }
+        end
 
         return resultPanel
     end
@@ -1399,6 +1915,9 @@ local function ShowCombatSetupDialog(selectedTokens)
         if tok ~= nil and tok.valid then
             local partyid = tok.partyId
             local playerSide = partyid ~= nil and ((partyid == playerPartyId) or (playerParty ~= nil and playerParty:GetAllyParties()[partyid] ~= nil))
+            if not playerSide and tok.playerControlled then
+                playerSide = true
+            end
 
             local initiativeId = InitiativeQueue.GetInitiativeId(tok)
             groupings[initiativeId] = groupings[initiativeId] or { playerSide = playerSide, tokens = {}}
@@ -1428,17 +1947,326 @@ local function ShowCombatSetupDialog(selectedTokens)
         end
     end
 
+    --Heroes are placed into the participating / non-combatant pools immediately based
+    --on the generic selected logic. Monster placement is deferred: which monsters
+    --participate is driven by the chosen encounter (see ApplyEncounterToMonsters), so
+    --we collect the monster groups and assign them once the default encounter is known.
+    local monsterGroups = {}
     for key,group in pairs(groupings) do
         local panel = CreateGroupPanel(group)
-        local pool = cond(group.playerSide, heroesSelectedPool, monstersSelectedPool)
-        if not group.selected then
-            pool = cond(group.playerSide, heroesAvailablePool, monstersAvailablePool)
+        group.panel = panel
+        if group.playerSide then
+            local pool = cond(group.selected, heroesSelectedPool, heroesAvailablePool)
+            pool:FireEventTree("add", panel)
+        else
+            --Park monsters in the non-combatant pool initially; ApplyEncounterToMonsters
+            --moves the ones matching the chosen encounter into the participating pool.
+            monstersAvailablePool:FireEventTree("add", panel)
+            monsterGroups[#monsterGroups + 1] = group
         end
-        pool:FireEventTree("add", panel)
+    end
+
+    --Split a multi-creature (non-minion) initiative group back into individual
+    --creatures. Assigned here (not at its forward declaration) so it closes over
+    --monsterGroups and CreateGroupPanel, which do not exist yet where the per-group
+    --"Ungroup" button that calls it is built.
+    UngroupGroup = function(group, panel)
+        local pool = panel.parent
+
+        --Give each creature its own initiative id so GetInitiativeId stops returning
+        --the shared grouping id. A fresh guid per token matches the "Ungroup
+        --Initiative" button on the character panel.
+        for _,tok in ipairs(group.tokens) do
+            tok:ModifyProperties{
+                description = "Ungroup Initiative",
+                execute = function()
+                    tok.properties.initiativeGrouping = dmhub.GenerateGuid()
+                end,
+            }
+        end
+
+        panel:DestroySelf()
+
+        --Drop the combined group from monsterGroups so a later encounter-dropdown
+        --change (ApplyEncounterToMonsters) does not try to reparent the dead panel.
+        for i,g in ipairs(monsterGroups) do
+            if g == group then
+                table.remove(monsterGroups, i)
+                break
+            end
+        end
+
+        --Rebuild one panel per creature in the same pool, keeping monsterGroups in
+        --sync so the new panels continue to route on encounter changes.
+        for _,tok in ipairs(group.tokens) do
+            local newGroup = { playerSide = group.playerSide, selected = group.selected, tokens = { tok } }
+            local newPanel = CreateGroupPanel(newGroup)
+            newGroup.panel = newPanel
+            if pool ~= nil then
+                pool:FireEvent("add", newPanel)
+            end
+            if not group.playerSide then
+                monsterGroups[#monsterGroups + 1] = newGroup
+            end
+        end
+    end
+
+    local function RemoveFromMonsterGroups(g)
+        for i,mg in ipairs(monsterGroups) do
+            if mg == g then
+                table.remove(monsterGroups, i)
+                break
+            end
+        end
+    end
+
+    --Fold otherGroup into targetGroup: put every token of both on a single shared
+    --initiative id, then replace both rows with one combined row in targetGroup's
+    --pool. Reuses an existing grouping id if either side already has one so we do not
+    --churn ids needlessly (matches GetInitiativeId, where initiativeGrouping wins).
+    local function MergeGroups(targetGroup, targetPanel, otherGroup, otherPanel)
+        local groupingId = nil
+        for _,tok in ipairs(targetGroup.tokens) do
+            if tok.properties.initiativeGrouping then
+                groupingId = tok.properties.initiativeGrouping
+                break
+            end
+        end
+        if groupingId == nil then
+            for _,tok in ipairs(otherGroup.tokens) do
+                if tok.properties.initiativeGrouping then
+                    groupingId = tok.properties.initiativeGrouping
+                    break
+                end
+            end
+        end
+        if groupingId == nil then
+            groupingId = dmhub.GenerateGuid()
+        end
+
+        local allTokens = {}
+        for _,tok in ipairs(targetGroup.tokens) do
+            allTokens[#allTokens + 1] = tok
+        end
+        for _,tok in ipairs(otherGroup.tokens) do
+            allTokens[#allTokens + 1] = tok
+        end
+
+        for _,tok in ipairs(allTokens) do
+            tok:ModifyProperties{
+                description = "Group Initiative",
+                execute = function()
+                    tok.properties.initiativeGrouping = groupingId
+                end,
+            }
+        end
+
+        --The combined row lands in the right-clicked row's pool (its participation
+        --state wins over the group it absorbs).
+        local pool = targetPanel.parent
+
+        targetPanel:DestroySelf()
+        otherPanel:DestroySelf()
+        RemoveFromMonsterGroups(targetGroup)
+        RemoveFromMonsterGroups(otherGroup)
+
+        local combined = { playerSide = targetGroup.playerSide, selected = targetGroup.selected, tokens = allTokens }
+        local combinedPanel = CreateGroupPanel(combined)
+        combined.panel = combinedPanel
+        if pool ~= nil then
+            pool:FireEvent("add", combinedPanel)
+        end
+        if not combined.playerSide then
+            monsterGroups[#monsterGroups + 1] = combined
+        end
+    end
+
+    --Build the "Group With" submenu for a group: one entry per other group on the
+    --same side (heroes vs monsters), across both the participating and non-combatant
+    --pools. Read live from the pools so it reflects any earlier group/ungroup edits.
+    BuildGroupWithSubmenu = function(group, panel)
+        local pools
+        if group.playerSide then
+            pools = { heroesSelectedPool, heroesAvailablePool }
+        else
+            pools = { monstersSelectedPool, monstersAvailablePool }
+        end
+
+        local entries = {}
+        for _,pool in ipairs(pools) do
+            for _,child in ipairs(pool.children) do
+                local otherGroup = child.data ~= nil and child.data.group or nil
+                if otherGroup ~= nil and otherGroup ~= group then
+                    entries[#entries + 1] = {
+                        text = otherGroup.name,
+                        click = function()
+                            panel.popup = nil
+                            MergeGroups(group, panel, otherGroup, child)
+                        end,
+                    }
+                end
+            end
+        end
+
+        return entries
     end
 
     local m_initiativeResult = "roll"
     local m_initiativeLocked = false
+
+    --Scour the current map's journal info bubbles plus game-wide journal documents
+    --for authored encounters and build the encounter dropdown options: a "Custom"
+    --choice plus one entry per encounter found.
+    local m_encountersOnMap = Encounter.GetEncountersOnCurrentMap()
+    local m_encounterOptions = { { id = "custom", text = "Custom" } }
+    for i, info in ipairs(m_encountersOnMap) do
+        m_encounterOptions[#m_encounterOptions + 1] = {
+            id = string.format("encounter-%d", i),
+            text = info.name,
+        }
+    end
+
+    --Infer the default encounter for the dropdown: a readied encounter (set by an
+    --encounter's "Place on Map" button) wins; otherwise the first encounter in the
+    --journal document currently open in the tabbed viewer; otherwise Custom.
+    local m_selectedEncounterId = "custom"
+    local defaultEncounterIndex = nil
+
+    --An explicitly requested encounter (e.g. the journal "Draw Steel!" button) wins
+    --over every inferred default below.
+    if preselectEncounter ~= nil then
+        for i, info in ipairs(m_encountersOnMap) do
+            if info.encounter == preselectEncounter or info.name == preselectEncounter.name then
+                defaultEncounterIndex = i
+                break
+            end
+        end
+
+        --not a journal-embedded encounter (e.g. a plan started from the
+        --encounter builder): inject it as its own dropdown entry so choosing
+        --it still creates a real LiveEncounter (waves, cues, stats, round
+        --label) instead of silently falling back to Custom.
+        if defaultEncounterIndex == nil then
+            m_encountersOnMap[#m_encountersOnMap + 1] = {
+                name = preselectEncounter:try_get("name", "Encounter"),
+                encounter = preselectEncounter,
+                richEncounter = nil,
+                spawnids = preselectSpawnIds,
+                bubbleid = nil,
+                docid = nil,
+            }
+            defaultEncounterIndex = #m_encountersOnMap
+            m_encounterOptions[#m_encounterOptions + 1] = {
+                id = string.format("encounter-%d", defaultEncounterIndex),
+                text = preselectEncounter:try_get("name", "Encounter"),
+            }
+        end
+    end
+
+    local readiedEncounter = Encounter.GetReadiedEncounter()
+    if defaultEncounterIndex == nil and readiedEncounter ~= nil then
+        for i, info in ipairs(m_encountersOnMap) do
+            if info.encounter == readiedEncounter or info.name == readiedEncounter.name then
+                defaultEncounterIndex = i
+                break
+            end
+        end
+    end
+
+    if defaultEncounterIndex == nil then
+        local openDocId = CustomDocument.GetCurrentJournalDocId()
+        if openDocId ~= nil then
+            for i, info in ipairs(m_encountersOnMap) do
+                if info.docid == openDocId then
+                    defaultEncounterIndex = i
+                    break
+                end
+            end
+        end
+    end
+
+    if defaultEncounterIndex ~= nil then
+        m_selectedEncounterId = string.format("encounter-%d", defaultEncounterIndex)
+    end
+
+    --Map a dropdown option id ("custom" or "encounter-N") back to its entry in
+    --m_encountersOnMap, or nil for Custom.
+    local function ResolveEncounterEntry(encounterId)
+        if encounterId == nil or encounterId == "custom" then
+            return nil
+        end
+        local idx = tonumber(string.match(encounterId, "encounter%-(%d+)"))
+        return idx ~= nil and m_encountersOnMap[idx] or nil
+    end
+
+    --Assign each monster group to the participating "Monsters" pool or to "Non-Combatant
+    --Monsters". When an encounter is chosen, a group participates if it belongs to that
+    --encounter (i.e. it was placed on the map by that encounter, tracked in the
+    --RichEncounter's spawns). With no encounter chosen ("Custom") we fall back to the
+    --generic selected logic, which participates all monsters by default (unless specific
+    --tokens were pre-selected, or their party is flagged non-combatant).
+    local function ApplyEncounterToMonsters(encounterEntry)
+        local matching = nil
+        if encounterEntry ~= nil and encounterEntry.richEncounter ~= nil then
+            matching = {}
+            for _,charid in ipairs(encounterEntry.richEncounter:try_get("spawns", {})) do
+                matching[charid] = true
+            end
+        end
+
+        --a builder-started plan has no richEncounter: its participants are
+        --the charids the placement flow handed us, plus any tokens on the
+        --map tagged with one of the plan's group placement ids.
+        if encounterEntry ~= nil and encounterEntry.richEncounter == nil then
+            if encounterEntry.spawnids ~= nil then
+                matching = matching or {}
+                for _,charid in ipairs(encounterEntry.spawnids) do
+                    matching[charid] = true
+                end
+            end
+
+            local placementids = {}
+            local anyPlacements = false
+            for _,group in ipairs(encounterEntry.encounter:try_get("groups", {})) do
+                if group.placementid ~= nil then
+                    placementids[group.placementid] = true
+                    anyPlacements = true
+                end
+            end
+            if anyPlacements then
+                matching = matching or {}
+                for _,tok in ipairs(dmhub.allTokens) do
+                    local pid = nil
+                    pcall(function() pid = tok.properties:try_get("encounterPlacementId") end)
+                    if pid ~= nil and placementids[pid] then
+                        matching[tok.charid] = true
+                    end
+                end
+            end
+        end
+
+        for _,group in ipairs(monsterGroups) do
+            local participates
+            if matching == nil then
+                participates = group.selected
+            else
+                participates = false
+                for _,tok in ipairs(group.tokens) do
+                    if matching[tok.charid] then
+                        participates = true
+                        break
+                    end
+                end
+            end
+
+            local pool = cond(participates, monstersSelectedPool, monstersAvailablePool)
+            group.panel:Unparent()
+            pool:FireEvent("add", group.panel)
+        end
+    end
+
+    --Initial population using the inferred default encounter.
+    ApplyEncounterToMonsters(ResolveEncounterEntry(m_selectedEncounterId))
 
     local m_reminderPanel = gui.ReminderTextPanel{
         halign = "center",
@@ -1450,37 +2278,34 @@ local function ShowCombatSetupDialog(selectedTokens)
     local dialog
     dialog = gui.Panel{
         classes = {"framedPanel"},
-        styles = {
-            Styles.Panel,
-            Styles.Default,
+        styles = ThemeEngine.MergeStyles({
             {
-                classes = {"tokenPool"},
-                bgimage = true,
-                bgcolor = "black",
-                borderWidth = 2,
-                borderColor = "#888888",
-                pad = 4,
+                selectors = {"tokenPool"},
                 width = 340,
                 height = 360,
+                pad = 4,
+                borderBox = true,
             },
             {
-                classes = {"tokenPool", "drag-target"},
-                borderColor = "#bbbbbb",
+                selectors = {"tokenPool", "drag-target"},
+                borderColor = "@accent",
             },
             {
-                classes = {"tokenPool", "drag-target-hover"},
-                borderColor = "#ffffff",
+                selectors = {"tokenPool", "drag-target-hover"},
+                borderColor = "@accentHover",
             },
             {
-                classes = {"tokenGroup"},
-                bgimage = true,
-                bgcolor = "black",
+                selectors = {"tokenGroup", "hover"},
+                bgcolor = "@accent",
             },
+            --Flip the row's text to the inverse foreground while it sits on the
+            --@accent hover fill, the same way drag-target rows do.
             {
-                classes = {"tokenGroup", "hover"},
-                bgcolor = "#444444",
+                selectors = {"tokenGroupLabel", "groupHovered"},
+                priority = 5,
+                color = "@fgInverse",
             },
-        },
+        }),
 
         width = 1024,
         height = 968,
@@ -1493,6 +2318,31 @@ local function ShowCombatSetupDialog(selectedTokens)
             flow = "vertical",
 
             gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                halign = "center",
+                valign = "top",
+                vmargin = 8,
+                gui.Label{
+                    text = "Encounter:",
+                    valign = "center",
+                    hmargin = 8,
+                },
+                gui.Dropdown{
+                    width = 240,
+                    options = m_encounterOptions,
+                    idChosen = m_selectedEncounterId,
+                    change = function(element)
+                        m_selectedEncounterId = element.idChosen
+                        ApplyEncounterToMonsters(ResolveEncounterEntry(m_selectedEncounterId))
+                        element.root:FireEventTree("refreshSurprise")
+                    end,
+                },
+                CreateCombatSetupExtensionsPanel(),
+            },
+
+            gui.Panel{
                 width = "100%",
                 height = "auto",
                 flow = "horizontal",
@@ -1503,12 +2353,10 @@ local function ShowCombatSetupDialog(selectedTokens)
                     heroes = true,
                 },
                 gui.Label{
+                    classes = {"sizeL", "bold"},
                     width = 22,
-                    fontSize = 22,
-                    bold = true,
                     valign = "center",
                     halign = "center",
-                    color = Styles.textColor,
                     text = "vs",
                 },
                 CreateTokenPoolContainer{
@@ -1543,9 +2391,9 @@ local function ShowCombatSetupDialog(selectedTokens)
             gui.EnumeratedSliderControl{
                 width = 600,
                 options = {
-                    { id = "heroes", text = "Heroes Win Initiative"},
-                    { id = "roll", text = "Roll for Initiative"},
-                    { id = "monsters", text = "Monsters Win Initiative"},
+                    { id = "heroes", text = "Heroes Win Turn Order"},
+                    { id = "roll", text = "Roll for Turn Order"},
+                    { id = "monsters", text = "Monsters Win Turn Order"},
                 },
 
                 refreshSurprise = function(element)
@@ -1582,7 +2430,7 @@ local function ShowCombatSetupDialog(selectedTokens)
         gui.Label{
             halign = "center",
             valign = "top",
-            classes = {"dialogTitle"},
+            classes = {"modalTitle"},
             text = "Prepare Combat",
         },
 
@@ -1592,8 +2440,8 @@ local function ShowCombatSetupDialog(selectedTokens)
             halign = "center",
             flow = "horizontal",
             gui.Button{
+                classes = {"sizeL"},
                 text = "Draw Steel!",
-                fontSize = 24,
                 halign = "center",
                 valign = "bottom",
                 vmargin = 12,
@@ -1622,6 +2470,11 @@ local function ShowCombatSetupDialog(selectedTokens)
                         end
                     end
 
+                    --Resolve the chosen encounter (nil for "Custom") and carry it to the
+                    --queue creation that happens once the Draw Steel banner resolves.
+                    local chosenEntry = ResolveEncounterEntry(m_selectedEncounterId)
+                    g_selectedEncounterOpenInitiative = chosenEntry and chosenEntry.encounter or nil
+
                     g_selectedTokensOpenInitiative = tokens
                     if m_initiativeResult == "roll" then
                         m_initiativeResult = nil
@@ -1631,10 +2484,11 @@ local function ShowCombatSetupDialog(selectedTokens)
             },
         },
 
-        gui.CloseButton{
+        gui.Button{
+            classes = {"closeButton"},
             halign = "right",
             valign = "top",
-            press = function(self)
+            press = function()
                 GameHud.instance:CloseModal(dialog)
             end,
         }
@@ -1643,10 +2497,25 @@ local function ShowCombatSetupDialog(selectedTokens)
     GameHud.instance:ShowModal(dialog)
 end
 
+--Public handle so callers earlier in the file (Encounter.DrawSteelWithEncounter) and
+--other modules can open the combat setup dialog, optionally scoped to an encounter.
+Encounter.ShowCombatSetupDialog = ShowCombatSetupDialog
+
 Commands.RegisterMacro{
     name = "rollinitiative",
     summary = "start combat",
     doc = "Usage: /rollinitiative [x1 y1 x2 y2]\nStarts combat with selected tokens, or tokens in a rectangular area if coordinates are given.",
+
+    --Only the no-argument (use the current selection) form is surfaced; the
+    --rectangle form wants map coordinates, which the builder has no way to
+    --pick. dmonly matches the engine command registration above, which is
+    --already declared dmonly.
+    commandInfo = {
+        name = "Start Combat",
+        description = "Open combat setup for the tokens you have selected.",
+        dmonly = true,
+    },
+
     command = function(str)
     local args = string.split(str or "", " ")
 
@@ -1697,8 +2566,10 @@ Commands.RegisterMacro{
         g_selectedTokensOpenInitiative = nil
     end
 
-    local message = RollInitiativeChatMessage.Create(info.initiativeQueue, tokens)
-    chat.SendCustom(message)
+    local isNewCombat = next(info.initiativeQueue.entries) == nil
+
+    local playerids = {}
+    local monsterids = {}
 
     local playerPartyId = GetDefaultPartyID()
     local playerParty = GetParty(GetDefaultPartyID())
@@ -1707,6 +2578,9 @@ Commands.RegisterMacro{
         if tok ~= nil and tok.valid then
             local partyid = tok.partyId
             local playerSide = partyid ~= nil and ((partyid == playerPartyId) or (playerParty ~= nil and playerParty:GetAllyParties()[partyid] ~= nil))
+            if not playerSide and tok.playerControlled then
+                playerSide = true
+            end
 
             if g_playerTokensOpenInitiative ~= nil and g_playerTokensOpenInitiative[tok.charid] then
                 playerSide = true
@@ -1722,13 +2596,23 @@ Commands.RegisterMacro{
             local entry = info.initiativeQueue:SetInitiative(initiativeId, 0, 0)
             entry.player = playerSide
 
+            if playerSide then
+                playerids[#playerids+1] = tok.charid
+            else
+                monsterids[#monsterids+1] = tok.charid
+            end
 
             tok.properties:DispatchEvent("rollinitiative", {})
             tok.properties:DispatchEvent("beginround")
         end
     end
 
-    print("DISPATCH:: OBJECT BEGIN ROUND", #dmhub.allObjectTokens)
+    if isNewCombat then
+        local message = RollInitiativeChatMessage.Create(info.initiativeQueue, tokens, playerids, monsterids)
+        chat.SendCustom(message)
+    end
+
+
     for _,tok in ipairs(dmhub.allObjectTokens) do
         tok.properties:DispatchEvent("beginround")
     end
@@ -1743,8 +2627,19 @@ Commands.RegisterMacro{
 
     averageVictories = math.floor(averageVictories)
 
-    CharacterResource.SetMalice(CharacterResource.GetMalice() + averageVictories + info.initiativeQueue:CalculateMaliceGain(), "Start of Combat Malice")
-    CharacterResource.SetVillainActions(1)
+    if isNewCombat then
+        CharacterResource.SetMalice(CharacterResource.GetMalice() + averageVictories + info.initiativeQueue:CalculateMaliceGain(), "Start of Combat Malice")
+        CharacterResource.SetVillainActions(1)
+    end
+
+    --Snapshot the monster-side initiative groupings entering combat (upserted, so
+    --monsters added to an already-running combat extend the snapshot). The victory
+    --screen's Monsters tab and monster stat attribution key off these groups.
+    --Rides the UploadInitiative below, like RecordOnsetHeroes.
+    local liveEncounterForStats = info.initiativeQueue:try_get("liveEncounter")
+    if type(liveEncounterForStats) == "table" and #monsterids > 0 then
+        liveEncounterForStats:RecordOnsetMonsterGroups(monsterids)
+    end
 
     info.UploadInitiative()
     end,

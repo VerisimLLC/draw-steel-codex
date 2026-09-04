@@ -1,12 +1,28 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 local AudioDevPanel
 
 DockablePanel.Register{
 	name = "Audio Dev",
+    icon = "phosphor/waveform.png",
     folder = "Development Tools",
     vscroll = false,
 	content = function()
+		track("panel_open", {
+			panel = "Audio Dev",
+			dailyLimit = 30,
+		})
         return AudioDevPanel()
 	end,
 }

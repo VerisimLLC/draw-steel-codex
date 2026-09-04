@@ -1108,8 +1108,8 @@ function CharSheet.ClassChoicePanel(options, classIndex)
             }
         },
 
-        gui.PagingArrow{
-            facing = -1,
+        gui.Button{
+            classes = {"pagingButton"},
             press = function(element)
                 if GetTargetIndex() > 1 then
                     SetTargetIndex(GetTargetIndex()-1)
@@ -1155,8 +1155,8 @@ function CharSheet.ClassChoicePanel(options, classIndex)
             },
         },
 
-        gui.PagingArrow{
-            facing = 1,
+        gui.Button{
+            classes = {"pagingButton", "right"},
             press = function(element)
                 if GetTargetIndex() < #classPanels then
                     SetTargetIndex(GetTargetIndex()+1)

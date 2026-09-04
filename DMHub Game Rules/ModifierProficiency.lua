@@ -152,8 +152,11 @@ CharacterModifier.TypeInfo.proficiency = {
 
 	languageProficiency = function(modifier, creature, proficiencyTable)
 		if modifier.subtype == 'language' then
+			local dataTable = dmhub.GetTable("languages") or {}
 			for k,_ in pairs(modifier.skills) do
-				proficiencyTable[k] = true
+				if k == "all" or dataTable[k] ~= nil then
+					proficiencyTable[k] = true
+				end
 			end
 		end
 	end,
@@ -205,6 +208,7 @@ CharacterModifier.TypeInfo.proficiency = {
 						classes = {'formLabel'},
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						selfStyle = {
 							height = 30,
 							width = 260,
@@ -246,6 +250,7 @@ CharacterModifier.TypeInfo.proficiency = {
 						},
 					},
 					gui.Check{
+						styles = ThemeEngine.GetStyles(),
 						text = "Equate",
 						hover = gui.Tooltip("If checked, this modifier will grant proficiency equal to the character's proficiency in another skill."),
 						classes = {cond(modifier.subtype ~= "skill" and modifier.subtype ~= "equipment", "hidden")},
@@ -311,9 +316,8 @@ CharacterModifier.TypeInfo.proficiency = {
 							color = 'white',
 						},
 
-						gui.DeleteItemButton{
-							width = 16,
-							height = 16,
+						gui.Button{
+							classes = {"deleteButton", "sizeS"},
 							valign = 'center',
 							halign = 'right',
 							click = function(element)
@@ -347,6 +351,7 @@ CharacterModifier.TypeInfo.proficiency = {
 						classes = {'formLabel'},
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						selfStyle = {
 							height = 30,
 							width = 260,
@@ -403,6 +408,7 @@ CharacterModifier.TypeInfo.proficiency = {
 							classes = {'formLabel'},
 						},
 						gui.Dropdown{
+							styles = ThemeEngine.GetStyles(),
 							selfStyle = {
 								height = 30,
 								width = 260,

@@ -58,18 +58,17 @@ CharacterModifier.TypeInfo.castingorigin = {
 			for keyword, _ in pairs(modifier.keywordFilter) do
 				local kw = keyword
 				keywordEntries[#keywordEntries+1] = gui.Panel{
-					classes = {"formPanel"},
+					classes = {"formPanel", "formPanel-inline"},
 					data = {
 						ord = kw,
 					},
 					gui.Label{
 						classes = "formLabel",
-						text = kw,
+						text = ActivatedAbility.CanonicalKeyword(kw),
 					},
-					gui.DeleteItemButton{
+					gui.Button{
+						classes = {"deleteButton", "sizeS"},
 						halign = "right",
-						width = 16,
-						height = 16,
 						click = function(el)
 							modifier.keywordFilter[kw] = nil
 							Refresh()
@@ -136,9 +135,30 @@ local function CasterPassesCondition(casterCreature, bearerCreature, modifier, m
 	return result ~= 0
 end
 
+--Relay lookup walks every token on the map and runs a GoblinScript condition
+--per casting-origin modifier, and the targeting UI asks for it repeatedly while
+--a target is hovered. One frame is short enough that nothing can move in
+--between, and long enough to collapse those repeats into a single walk.
+local g_relayCacheFrame = -1
+local g_relayCache = {}
+
 function ActivatedAbility:GetCastingOriginTokens(casterToken)
 	if mod.unloaded then
 		return {}
+	end
+
+	local frame = dmhub.FrameCount()
+	if frame ~= g_relayCacheFrame then
+		g_relayCacheFrame = frame
+		g_relayCache = {}
+	end
+
+	local byCaster = g_relayCache[self]
+	if byCaster == nil then
+		byCaster = {}
+		g_relayCache[self] = byCaster
+	elseif byCaster[casterToken.charid] ~= nil then
+		return byCaster[casterToken.charid]
 	end
 
 	local result = {}
@@ -157,6 +177,7 @@ function ActivatedAbility:GetCastingOriginTokens(casterToken)
 		end
 	end
 
+	byCaster[casterToken.charid] = result
 	return result
 end
 
@@ -164,7 +185,11 @@ function ActivatedAbility:IsTargetInRangeOfCastingOrigins(casterToken, targetTok
 	local relayTokens = self:GetCastingOriginTokens(casterToken)
 	for _, relayToken in ipairs(relayTokens) do
 		if range + dmhub.unitsPerSquare > targetToken:Distance(relayToken) then
-			return true
+			--also check vertical range from the relay token.
+			local verticalDist = math.abs(relayToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+			if verticalDist < range + dmhub.unitsPerSquare then
+				return true
+			end
 		end
 	end
 	return false

@@ -13,9 +13,22 @@ GameSystem.RegisterGoblinScriptField{
     target = ActivatedAbilityCast,
     name = "Boons",
     type = "number",
-    desc = "The number of boons applied while using this ability.",
-    seealso = {},
+    desc = "Deprecated name for Edges. The number of edges applied while using this ability.",
+    deprecated = true,
+    seealso = {"Edges"},
     examples = {},
+    calculate = function(c)
+        return c.boonsApplied
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField{
+    target = ActivatedAbilityCast,
+    name = "Edges",
+    type = "number",
+    desc = "The number of edges applied while using this ability.",
+    seealso = {"Banes"},
+    examples = {"Cast.Edges > Cast.Banes", "Cast.Edges >= 1"},
     calculate = function(c)
         return c.boonsApplied
     end,
@@ -85,5 +98,44 @@ GameSystem.RegisterGoblinScriptField{
     examples = {"Cast.OngoingEffectsPurgedChosen"},
     calculate = function(c)
         return c:try_get("purgedOngoingEffectsChosen", {})
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField{
+    target = ActivatedAbilityCast,
+    name = "Has Rolled Damage",
+    type = "boolean",
+    desc = "True if this ability cast dealt damage from a dice roll rather than flat damage.",
+    seealso = {},
+    examples = {"Cast.Has Rolled Damage"},
+    calculate = function(c)
+        return c.hasRolledDamage
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField{
+    target = ActivatedAbilityCast,
+    name = "NumAttackers",
+    type = "function",
+    desc = "Given a target, returns the number of creatures attacking that target during this ability. Generally used for Minion attacks.",
+    seealso = {},
+    examples = {"Cast.NumAttackers(Target) > 1", "Cast.NumAttackers(Target)"},
+    calculate = function(c)
+        return function(target)
+            local targetToken = dmhub.LookupToken(target)
+            if targetToken == nil then
+                return 1
+            end
+            local targets = c:try_get("targets")
+            if targets == nil then
+                return 1
+            end
+            for _, t in ipairs(targets) do
+                if t.token ~= nil and t.token.id == targetToken.id then
+                    return t.numAttackers or 1
+                end
+            end
+            return 1
+        end
     end,
 }

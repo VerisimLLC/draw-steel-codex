@@ -43,6 +43,14 @@ function assets:AddAndUploadArtist(id)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetPhosphorIcons: Searches the built-in phosphor icon set by filename substring (case-insensitive), returning up to maxResults icon ids of the form "phosphor/<name>.png" in sorted order. Only the name index is consulted -- no icon textures are loaded. Pass an empty filter to page from the start of the set.
+--- @param filter string Substring to match against icon filenames; empty matches all.
+--- @param maxResults number Maximum number of ids to return.
+--- @return string[]
+function assets:GetPhosphorIcons(filter, maxResults)
+	-- dummy implementation for documentation purposes only
+end
+
 --- UploadNewMonsterFolder: Creates and uploads a new monster folder from the given table arguments.
 --- @param tableArgs table The folder properties.
 function assets:UploadNewMonsterFolder(tableArgs)
@@ -141,7 +149,7 @@ function assets:UploadNewDocumentFolder(tableArgs)
 	-- dummy implementation for documentation purposes only
 end
 
---- UploadAudioAsset: Uploads an audio file. Automatically converts FLAC files to MP3. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.
+--- UploadAudioAsset: Uploads an audio file. Automatically converts FLAC and M4A (AAC/MPEG-4) files to MP3. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.
 --- @param options table Upload options.
 --- @return nil|string The GUID of the uploaded audio asset, or nil on failure.
 function assets:UploadAudioAsset(options)
@@ -155,10 +163,32 @@ function assets:UploadClipboardAsset(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- UploadImageAsset: Uploads a generic image asset. Options include path, description, parentFolder, imageType, ord, error, and upload callbacks.
+--- UploadImageAsset: Uploads a generic image asset. Options include path, description, parentFolder, imageType, ord, error, and upload callbacks. Pass core=true to force the upload into the global Core asset store regardless of the current game; ignored for non-admin users.
 --- @param options table Upload options.
 --- @return nil|string The GUID of the uploaded image, or nil on failure.
 function assets:UploadImageAsset(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- UploadChatAttachment: Uploads a supported image, video, or audio file as a uniquely-addressed disposable chat attachment.
+--- @param options any
+--- @return any
+function assets:UploadChatAttachment(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PlayChatAudio: Plays a disposable chat audio attachment locally and returns its playback instance.
+--- @param blobid string
+--- @param extension string
+--- @return any
+function assets:PlayChatAudio(blobid, extension)
+	-- dummy implementation for documentation purposes only
+end
+
+--- UploadChatImage: Uploads a PNG, JPEG, or WebP as a uniquely-addressed disposable chat attachment. Options include path (or 'CLIPBOARD'), error, progress, and upload callbacks. The upload callback receives blob id, width, and height.
+--- @param options table {path: string, error: nil|fun(message: string), progress: nil|fun(progress: number), upload: fun(blobid: string, width: number, height: number)}
+--- @return nil|string The disposable blob id, or nil if the upload could not start.
+function assets:UploadChatImage(options)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -173,6 +203,20 @@ end
 --- @param options table Upload options with path, error, and upload fields.
 --- @return nil|string The GUID of the created wall, or nil on failure.
 function assets:CreateWallAssetFromFile(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CreateTilesheetFromImage: Creates a tilesheet asset from an already-uploaded image asset and returns its GUID synchronously. Options: imageid (image asset guid, required), floor (bool), description (string), error (function called with a message on failure). Dimension rules match CreateTilesheetFromFile (floor textures: multiples of 128px; terrain: square multiples of 128px), enforced when the image's dimensions are known.
+--- @param options table {imageid: string, floor: nil|boolean, description: nil|string, error: nil|fun(message: string)}
+--- @return nil|string The GUID of the created tilesheet, or nil on failure.
+function assets:CreateTilesheetFromImage(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CreateWallFromImage: Creates a wall asset from an already-uploaded image asset and returns its GUID synchronously. Options: imageid (image asset guid, required), description (string), error (function called with a message on failure). Any image is accepted (no wall-strip dimension rules) and the wall renders at the default 1-unit thickness: this exists for decorative edge brushes, not authored wall strips.
+--- @param options table {imageid: string, description: nil|string, error: nil|fun(message: string)}
+--- @return nil|string The GUID of the created wall asset, or nil on failure.
+function assets:CreateWallFromImage(options)
 	-- dummy implementation for documentation purposes only
 end
 

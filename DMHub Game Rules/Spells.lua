@@ -251,6 +251,7 @@ function Spell:GenerateTextDescription(token)
 
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2124
 function ActivatedAbility:DescribeRange()
 	if self.targetType == 'self' then
 		return 'Self'
@@ -268,6 +269,7 @@ function ActivatedAbility:DescribeRange()
 		return string.format("%s %s", MeasurementSystem.NativeToDisplayString(range), string.lower(MeasurementSystem.UnitName()))
 	end
 end
+--]==]
 
 function Spell:DescribeComponents()
 	local result = ""
@@ -773,7 +775,8 @@ function Spell.GetCost(self, casterToken, options)
 	local actionResource = self:ActionResource()
 	if actionResource ~= nil and actionResource ~= "none" then
 		local max = resourcesAvailable[actionResource] or 0
-		local usage = creature:GetResourceUsage(actionResource, "round")
+		local actionResourceInfo = resourcesTable[actionResource]
+		local usage = creature:GetResourceUsage(actionResource, actionResourceInfo and actionResourceInfo.usageLimit or "round")
 		local available = max - usage
 
 		local numberOfActionsCost = self:GetNumberOfActionsCost(creature, { mode = (options or {}).mode or 1 })

@@ -1,1 +1,3096 @@
---Moved to titlescreen mod.
+local mod = dmhub.GetModLoading()
+
+--- DefaultStyles -- registers ThemeEngine's default color scheme and default theme.
+---
+
+-- =============================================================================
+-- Default color scheme -- usage-named colors and gradients
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id          = "default",
+    name        = "Default",
+    description = "The Draw Steel default color palette: warm parchment text on warm-black surfaces.",
+    -- Ported from the Codex design system (claude.ai/design, achromatic
+    -- chrome policy): warm-black surface ladder, parchment text in place
+    -- of stark white, primary-by-value (the parchment doubles as the
+    -- accent/inverse fill), and quiet white-alpha borders.
+    colors = {
+        -- Surfaces (design ladder: #0a0a0b page, #1a1a1e nested strip)
+        bg            = "#0A0A0B",
+        bgAlt         = "#1A1A1E",
+        -- The hover/focus "lift" fill for interactive text fields (search
+        -- bar, inputs): the whole control raises to this gray and holds it
+        -- while focused. Introduced 2026-08-22 to unify the value the
+        -- search-bar rules had shipped as literal #2E2E33.
+        bgRaised      = "#2E2E33",
+        bgInverse     = "#E4DDD0", -- parchment "primary by value" fill
+
+        -- Foreground / text (parchment ladder - the "less stark white")
+        fg            = "#E4DDD0",
+        fgStrong      = "#F2EDE1",
+        fgMuted       = "#8A8A8A",
+        fgPending     = "#7A7468", -- design text-soft: warm-muted secondary
+        fgInverse     = "#0A0A0B", -- text on a parchment fill
+
+        -- Borders (design: depth from quiet 1px edges, not bright frames)
+        border        = "#FFFFFF29", -- control border, white at 0.16
+        -- @border pre-composited over @bg at FULL alpha. The rounded
+        -- `border` frame shader ignores the color's alpha channel
+        -- (measured 2026-08-21: #FFFFFF29 renders as a full-contrast
+        -- ~#909090 line), so any rule drawing a QUIET rounded frame must
+        -- use this token instead of @border.
+        borderSolid   = "#313134",
+        borderInverse = "#7A7468",
+
+        -- Accent + interactive (achromatic: emphasis by value, not hue)
+        accent        = "#E4DDD0",
+        accentHover   = "#F7F3EA",
+
+        -- Status
+        success       = "#4DB88C", -- Also healthy, good, etc.
+        info          = "#E9C868",
+        warning       = "#E8A030", -- Also winded, etc.
+        danger        = "#C94040", -- Also dying, bad, etc.
+
+        -- Disabled
+        disabled      = "#343434",
+
+        --[[
+            Implementation status for abilities. Users will expect these to be
+            consistent across color schemes so the best approach is to avoid
+            redefining these unless they would be difficult to see in your
+            color scheme.
+        ]]--
+        implStatus0   = "#F82FCD",
+        implStatus1   = "#FF0000",
+        implStatus2   = "#CD7F32",
+        implStatus3   = "#C0C0C0",
+        implStatus4   = "#FFD700",
+    },
+    gradients = {
+        -- Surfaces
+        -- Retinted from the old green-black family to the warm-black
+        -- ladder (same values/steps, hue follows the new surfaces).
+        surfaceRadial = {
+            type = "radial",
+            point_a = {x = 0.5, y = 0.5},
+            point_b = {x = 0.5, y = 1.0},
+            stops = {
+                {position = -0.01, color = "#1c1c1e"},
+                {position = 0.00,  color = "#1c1c1e"},
+                {position = 0.12,  color = "#19191b"},
+                {position = 0.25,  color = "#161618"},
+                {position = 0.37,  color = "#131315"},
+                {position = 0.50,  color = "#101012"},
+                {position = 0.62,  color = "#0d0d0f"},
+                {position = 0.75,  color = "#0b0b0d"},
+                {position = 0.87,  color = "#0a0a0c"},
+                {position = 1.00,  color = "#0a0a0b"},
+            },
+        },
+
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#1A1A1E"},
+                {position = 1, color = "#060607"},
+            },
+        },
+
+        -- Bars
+        -- Important: This is used in the title bar
+        barTrack = {
+            point_a = {x = -0.02, y = 0},
+            point_b = {x = 1.02,  y = 0},
+            stops = {
+                {position = 0, color = "#070708"},
+                {position = 1, color = "@bgAlt"},
+            },
+        },
+
+        -- Alpha-fade masks (utility)
+        maskHorizontal = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 0},
+            stops = {
+                {position = 0,   color = "#FFFFFF00"},
+                {position = 0.2, color = "#FFFFFFFF"},
+                {position = 0.8, color = "#FFFFFFFF"},
+                {position = 1,   color = "#FFFFFF00"},
+            },
+        },
+
+        maskVertical = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 0, y = 1},
+            stops = {
+                {position = 0,   color = "#FFFFFF00"},
+                {position = 0.2, color = "#FFFFFFFF"},
+                {position = 0.8, color = "#FFFFFFFF"},
+                {position = 1,   color = "#FFFFFF00"},
+            },
+        },
+    },
+}
+
+-- =============================================================================
+-- Warm Gold color scheme -- warm dark surfaces, cream foreground, gold accents.
+-- The engine falls back to the default scheme for any color name this scheme
+-- doesn't define.
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id          = "warm-gold",
+    name        = "Warm Gold",
+    description = "Warm dark surfaces with bright cream text and gold accents.",
+    colors = {
+        -- Surfaces
+        bg            = "#1B1310",
+        bgAlt         = "#2A1E15",
+        bgRaised      = "#3A2B1E", -- text-field hover/focus lift (see default scheme)
+        bgInverse     = "#E9B86F",
+
+        -- Foreground / text
+        fg            = "#F5E9D3",
+        fgStrong      = "#FFF5DD",
+        fgMuted       = "#A89377",
+        fgPending     = "#8B7960",
+        fgInverse     = "#1B1310",
+
+        -- Borders
+        border        = "#C49562",
+        -- This scheme's @border is already full-alpha, but the rounded
+        -- frame shader path wants a QUIET resting frame; the dark leather
+        -- brown (= this scheme's borderInverse) plays that role.
+        borderSolid   = "#5A4128",
+        borderInverse = "#5A4128",
+
+        -- Accent + interactive
+        accent        = "#B8884C",
+        accentHover   = "#F1D3A5",
+
+        -- Status (kept semantic so they read consistently across schemes)
+        success       = "#6BA84F",
+        info          = "#E9C868",
+        warning       = "#E08A2E",
+        danger        = "#C73131",
+
+        -- Disabled
+        disabled      = "#3A2D22",
+    },
+    gradients = {
+        -- Surfaces -- warm-tinted to match the scheme's brown surface palette.
+        -- Tuned to be noticeable but not loud; mirrors the default scheme's
+        -- approach (top-left lighter, bottom-right darker; radial vignette
+        -- bright at center, darker at edge) but stays inside the warm family.
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#3A2B1E"},
+                {position = 1, color = "#0F0A06"},
+            },
+        },
+
+        surfaceRadial = {
+            type = "radial",
+            point_a = {x = 0.5, y = 0.5},
+            point_b = {x = 0.5, y = 1.0},
+            stops = {
+                {position = -0.01, color = "#2D211A"},
+                {position = 0.00,  color = "#2D211A"},
+                {position = 0.25,  color = "#251A12"},
+                {position = 0.50,  color = "#1D140E"},
+                {position = 0.75,  color = "#160F0A"},
+                {position = 1.00,  color = "#100A06"},
+            },
+        },
+    },
+}
+
+-- =============================================================================
+-- Default theme -- canonical font slots + base widget rules
+-- =============================================================================
+
+ThemeEngine.RegisterTheme{
+    id          = "default",
+    name        = "Default",
+    description = "The Draw Steel theme: rounded corners on bordered surfaces.",
+    colorScheme = "default",
+
+    fonts = {
+        heading = "Berling",
+        label   = "Berling",
+        input   = "LiberationSans",
+        number  = "Newzald",
+        mono    = "Courier",
+    },
+
+    styles = {
+
+        -- =====================================================================
+        -- 1. BASICS -- generic widget vocabulary
+        -- =====================================================================
+        --
+        -- Convention: bgcolor = "white" is image-tint-neutral. Setting it
+        -- on a bgimage-bearing rule opts that surface out of the cascade's
+        -- @bg tint so the asset paints in its natural colors. Used by
+        -- {panel, image}, portraitImage, tooltipIcon, dialogPanel,
+        -- framedPanel, tokenImagePortrait, and similar.
+
+        --[[ Panel ]]
+        {
+            selectors = {"panel"},
+            bgcolor = "@bg",
+            scrollHandleColor = "@fgMuted",
+        },
+        {
+            selectors = {"panel", "surfaceLinear"},
+            bgimage = true,
+            bgcolor = "white",
+            gradient = "@surfaceLinear",
+        },
+        {
+            selectors = {"panel", "surfaceRadial"},
+            bgimage = true,
+            bgcolor = "white",
+            gradient = "@surfaceRadial",
+        },
+        {
+            selectors = {"panel", "barTrack"},
+            bgimage = true,
+            bgcolor = "white",
+            gradient = "@barTrack",
+        },
+        {
+            selectors = {"panel", "blockQuote"},
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            borderColor = "@fgStrong",
+            border = {x1 = 4, x2 = 0, y1 = 0, y2 = 0},
+            hpad = 8,
+            vmargin = 8,
+        },
+        -- Segmented fill bar primitive. {fillBar} is the track surface, sized
+        -- to whatever footprint the caller wants. {fillBarFill} is an inner
+        -- panel whose width represents progress (sized via selfStyle.width
+        -- as a percentage of the track); its bgcolor takes @accent by
+        -- default but can be overridden via selfStyle.bgcolor for
+        -- per-instance hue. The shading gradient is theme-independent.
+        -- {fillBarSegment} panels stripe the track into discrete units,
+        -- each with a 1px @fgStrong border; toggle the `uploading` class
+        -- on the track to dim segments to @fgMuted while a server-side
+        -- update is in flight. For continuous percentage progress, use
+        -- gui.ProgressBar instead.
+        {
+            selectors = {"fillBar"},
+            bgimage = true,
+            bgcolor = "@bg",
+        },
+        {
+            selectors = {"fillBarFill"},
+            bgimage = true,
+            bgcolor = "@accent",
+            gradient = gui.Gradient{
+                point_a = {x = 0, y = 0},
+                point_b = {x = 1, y = 0},
+                stops = {
+                    { position = 0, color = "#484848" },
+                    { position = 1, color = "#C1C1C1" },
+                },
+            },
+        },
+        {
+            selectors = {"fillBarSegment"},
+            bgimage = true,
+            bgcolor = "clear",
+            borderWidth = 1,
+            borderColor = "@fgStrong",
+        },
+        {
+            selectors = {"fillBarSegment", "parent:uploading"},
+            borderColor = "@fgMuted",
+        },
+        -- Image-displaying panels. bgcolor "white" is image-tint-neutral
+        -- (see top of section 1). Borders are intentionally NOT set here --
+        -- callers manage borderWidth / borderColor per their needs.
+        {
+            selectors = {"panel", "image"},
+            bgcolor = "white",
+        },
+        -- Portrait image editor (compendium sidebars on Race / Class /
+        -- Career / etc.). 196x294 with a 2px @border frame; bgcolor
+        -- "white" is image-tint-neutral (see top of section 1).
+        {
+            selectors = {"portraitImage"},
+            bgcolor = "white",
+            borderColor = "@border",
+            borderWidth = 2,
+            width = 196,
+            height = "150% width",
+        },
+        -- Live dice preview surface marker class. The render-texture
+        -- hookup itself (`bgimage = "#DicePreview"`) and the
+        -- image-tint-neutral `bgcolor = "white"` MUST live inline on
+        -- the call site -- the engine's "#" render-target rendering
+        -- doesn't honor cascade-derived properties, and any visual
+        -- chrome we'd add here (border, cornerRadius, bgcolor tint)
+        -- gets fully covered by the render texture anyway. The class
+        -- is kept as a marker so future theme-able properties (e.g.,
+        -- a scheme-driven scene bgcolor set via a runtime hook) have
+        -- a place to land.
+        {
+            selectors = {"panel", "dicePreview"},
+        },
+        -- The icon child gui.Button auto-creates when called with `icon = ...`.
+        -- Tints the bgimage to @fg so the glyph reads against the surrounding
+        -- button surface and follows the active scheme.
+        {
+            selectors = {"panel", "buttonIcon"},
+            bgcolor = "@fg",
+            height = "100%",
+            width = "100%",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:disabled"},
+            bgcolor = "@disabled",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "hover"},
+            brightness = 2,
+        },
+
+        --[[ Label ]]
+        {
+            selectors = {"label"},
+            width = "auto",
+            height = "auto",
+            fontFace = "@label",
+            fontSize = 14,
+            color = "@fgStrong",
+            bold = false,
+        },
+        {
+            selectors = {"label", "sizeXxs"},
+            fontSize = 10,
+            priority = 5,
+        },
+        {
+            selectors = {"label", "sizeXs"},
+            fontSize = 12,
+            priority = 5,
+        },
+        {
+            selectors = {"label", "sizeS"},
+            fontSize = 14,
+            priority = 5,
+        },
+        {
+            selectors = {"label", "sizeM"},
+            fontSize = 16,
+            priority = 5,
+        },
+        {
+            selectors = {"label", "sizeL"},
+            fontSize = 18,
+            priority = 5,
+        },
+        {
+            selectors = {"label", "sizeXl"},
+            fontSize = 24,
+            priority = 5,
+        },
+        {
+            selectors = {"label", "sizeXxl"},
+            fontSize = 28,
+            priority = 5,
+        },
+        {
+            selectors = {"input", "sizeXxs"},
+            fontSize = 10,
+            priority = 5,
+        },
+        {
+            selectors = {"input", "sizeXs"},
+            fontSize = 12,
+            priority = 5,
+        },
+        {
+            selectors = {"input", "sizeS"},
+            fontSize = 14,
+            priority = 5,
+        },
+        {
+            selectors = {"input", "sizeM"},
+            fontSize = 16,
+            priority = 5,
+        },
+        {
+            selectors = {"input", "sizeL"},
+            fontSize = 18,
+            priority = 5,
+        },
+        {
+            selectors = {"input", "sizeXl"},
+            fontSize = 24,
+            priority = 5,
+        },
+        {
+            selectors = {"input", "sizeXxl"},
+            fontSize = 28,
+            priority = 5,
+        },
+        {
+            selectors = {"label", "number"},
+            fontFace = "@number",
+        },
+        {
+            selectors = {"label", "pending"},
+            color = "@fgPending",
+        },
+        {
+            selectors = {"label", "link"},
+            color = "@accent",
+        },
+        {
+            selectors = {"label", "link", "hover"},
+            color = "@accentHover",
+            brightness = 1.2,
+        },
+        {
+            selectors = {"label", "link", "press"},
+            brightness = 0.8,
+        },
+
+        --[[ Button (sizes + states + variants) ]]
+        -- Horizontal padding note: a button is a Label, and SheetLabel routes pad
+        -- into the TMP text margin while reporting zero pad to the layout (see
+        -- SheetLabel._lpad). So hpad here does NOT widen the button -- it only
+        -- insets the text, which makes the minFontSize auto-shrink start earlier
+        -- and guarantees a gutter instead of letting a long label run edge to
+        -- edge. Do NOT add borderBox to compensate; there is nothing to subtract.
+        -- Each size rule sets its own hpad because the small sizes are only a few
+        -- dozen pixels wide and would have no content area left at the large value.
+        {
+            selectors = {"label", "button"},
+            height = 31,
+            width = 129,
+            hpad = 10,
+            bgimage = true,
+            fontFace = "@label",
+            fontSize = 16,
+            minFontSize = 10,
+            textWrap = false,
+            textAlignment = "center",
+            color = "@fg",
+            bgcolor = "@bg",
+            borderColor = "@border",
+            border = 1,
+            borderWidth = 1,
+            fontWeight = "light",
+            bold = false,
+        },
+        {
+            selectors = {"button", "sizeXxs"},
+            width = 24,
+            height = 18,
+            fontSize = 10,
+            hpad = 2,
+            priority = 5,
+        },
+        {
+            selectors = {"button", "sizeXs"},
+            width = 31,
+            height = 20,
+            fontSize = 12,
+            hpad = 3,
+            priority = 5,
+        },
+        {
+            selectors = {"button", "sizeS"},
+            width = 57,
+            height = 26,
+            fontSize = 14,
+            hpad = 6,
+            priority = 5,
+        },
+        {
+            selectors = {"button", "sizeM"},
+            width = 129,
+            height = 31,
+            fontSize = 16,
+            hpad = 10,
+            priority = 5,
+        },
+        {
+            selectors = {"button", "sizeL"},
+            width = 175,
+            height = 35,
+            fontSize = 18,
+            hpad = 12,
+            priority = 5,
+        },
+        {
+            selectors = {"button", "sizeXl"},
+            width = 175,
+            height = 35,
+            fontSize = 18,
+            hpad = 12,
+            priority = 5,
+        },
+        {
+            selectors = {"button", "sizeXxl"},
+            width = 175,
+            height = 35,
+            fontSize = 18,
+            hpad = 12,
+            priority = 5,
+        },
+        {
+            selectors = {"button", "hasIcon"},
+            width = "100% height",
+            border = 0,
+            borderWidth = 0,
+            bgcolor = "clear",
+            -- Icon buttons hold a glyph, not text, and the glyph child is sized
+            -- "100%" of the parent's content area -- which ApplyChildElement
+            -- shrinks by the pad. Measured live, the size classes' hpad does not
+            -- currently reach hasIcon buttons (they stay 24x24 / 32x32 with a
+            -- full-bleed glyph either way), so this is belt-and-braces: it keeps
+            -- the text padding above from ever insetting an icon.
+            pad = 0,
+        },
+        {
+            selectors = {"button", "disabled"},
+            bgcolor = "@disabled",
+            opacity = 0.3,
+        },
+        {
+            selectors = {"label", "button", "~disabled", "hasIcon", "hover"},
+            bgcolor = "@bg"
+        },
+        {
+            selectors = {"label", "button", "~disabled", "~hasIcon", "hover"},
+            bgcolor = "@bgInverse",
+            color = "@fgInverse",
+            borderColor = "@borderInverse",
+            fontWeight = "light",
+        },
+        {
+            selectors = {"label", "button", "press"},
+            transitionTime = 0.1,
+            brightness = 0.7,
+            soundEvent = "Mouse.Click",
+        },
+        {
+            selectors = {"label", "button", "selected"},
+            bgimage = true,
+            color = "@fgInverse",
+            bgcolor = "@bgInverse",
+            borderColor = "@borderInverse",
+            textAlignment = "center",
+            fontWeight = "bold",
+        },
+        {
+            selectors = {"label", "button", "focus"},
+            borderColor = "@fg",
+        },
+
+        --[[ Input ]]
+        -- The ONE canonical text-field look (Control Zoo pass 2026-08-22),
+        -- sharing the search bar's interaction language -- quiet at rest,
+        -- the fill lifts to @bgRaised on hover, the lift holds on focus --
+        -- with two deliberate differences from searchInput:
+        --   1. An editing field keeps an honest 1px resting frame for
+        --      "type here" affordance; a search bar's magnifier already
+        --      carries that job, so search rests frameless.
+        --   2. Focus paints the frame @fgStrong: in a form, the frame is
+        --      what answers "where will my keystrokes go", so the input's
+        --      state ladder tops out above search's fill-only hold.
+        -- Ladder: @borderSolid -> @fgMuted (hover) -> @fgStrong (focus),
+        -- monotonic in both schemes. `border`, NOT `borderWidth` (the
+        -- square widget outline -- see the searchInput comment below), and
+        -- @borderSolid, NOT @border, because the rounded frame shader
+        -- ignores alpha and renders @border as a full-contrast line.
+        {
+            selectors = {"input"},
+            bgimage = true,
+            fontFace = "@input",
+            fontSize = 14,
+            color = "@fg",
+            bgcolor = "@bg",
+            -- Frameless at rest (trial 2026-08-22): painted fill-color,
+            -- like searchInput; the 1px geometry stays so hover/focus
+            -- recolor without shifting pixels.
+            borderColor = "@bg",
+            border = 1,
+            borderWidth = 0,
+            bold = false,
+            height = 26,
+            -- The dims below mirror the legacy Styles.Default 'input-main' rule
+            -- (DMHub Titlescreen/Styles.lua). Every normal surface inherits that
+            -- sheet from its root, so these values change nothing there -- but a
+            -- panel popped out via MoveToNativeWindow becomes its own root and
+            -- loses the ancestor cascade, so the theme sheet must supply them
+            -- itself or popped-out inputs render unpadded at 40x26 instead of
+            -- 60x34. The pads are intentionally additive (no borderBox): inputs
+            -- are not labels, so pad grows the rect AND insets the text, and
+            -- borderBox here would shrink every input in the app.
+            width = 240,
+            hpad = 10,
+            vpad = 4,
+            selectedColor = "#444444",
+        },
+        -- Opt-in resting frame for inputs on surfaces at or below @bg,
+        -- where the frameless well has nothing to contrast against:
+        -- compose `classes = {"bordered"}`. The conjunct rule redirects
+        -- the generic {bordered} @border (alpha token -- renders
+        -- full-contrast through the rounded frame shader) to the quiet
+        -- @borderSolid. Hover/focus below take over the frame color in
+        -- both variants.
+        {
+            selectors = {"input", "bordered"},
+            borderColor = "@borderSolid",
+        },
+        -- ~searchInput: search fields are {input} too, and without the
+        -- exclusion these frame rules race the frameless {searchInput}
+        -- state rules on hover-enter -- the frame won the first resolve
+        -- pass and then faded out as the searchInput override landed
+        -- (flashing frame, MonsterSearch 2026-08-22). Search fields are
+        -- governed entirely by their own state rules below.
+        {
+            selectors = {"input", "hover", "~searchInput"},
+            bgcolor = "@bgRaised",
+            borderColor = "@fgMuted",
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"input", "focus", "~searchInput"},
+            bgcolor = "@bgRaised",
+            borderColor = "@fgStrong",
+        },
+        {
+            selectors = {"inputFaded"},
+            borderColor = "@borderInverse",
+            borderWidth = 3,
+            borderFade = true,
+            bgcolor = "@bg",
+        },
+        -- The ONE canonical search-field look (Control Zoo decision
+        -- 2026-08-20, "solve it once and for all"). History: the default
+        -- shipped borderless, which is invisible on dark surfaces, so the
+        -- title bar and Maps panel each grew their own frame -- and both
+        -- independently chose thin @border + focus @fgStrong. That de
+        -- facto standard is now THE standard, with quiet 14px regular
+        -- type (16 bold outshouted every surface it sat on). Surfaces
+        -- must NOT re-style searchInput locally.
+        {
+            selectors = {"searchInput"},
+            bgimage = true,
+            fontSize = 14,
+            bold = false,
+            borderFade = false,
+            color = "@fg",
+            bgcolor = "@bg",
+            --border, NOT borderWidth: `border` is the rounded shader
+            --frame; `borderWidth` draws the input widget's own SQUARE
+            --outline, which pokes past the pill's end caps as a broken
+            --inner edge (live-debugged on the title bar 2026-08-20 --
+            --red-border/green-fill experiments; the old rule zeroed it
+            --deliberately).
+            border = 1,
+            borderWidth = 0,
+            --no visible border at rest: painted the same color as the
+            --fill (NOT alpha 0 -- the 1px `border` shader IGNORES the
+            --color's alpha channel: @border #FFFFFF29 and #FFFFFF14
+            --both measured as an antialiased ~#909090 WHITE hairline,
+            --title bar 2026-08-21, so alpha-based border tokens render
+            --full-contrast). Keeping border = 1 in the geometry lets
+            --hover (@borderInverse) and focus (@fgStrong) recolor it
+            --without anything shifting.
+            borderColor = "@bg",
+            hpad = 24,
+        },
+        {
+            --hover response is the FILL lightening, not a frame (Venla
+            --2026-08-21): the whole bar lifts to a raised gray. The
+            --border is repainted to match the hover fill so it stays
+            --invisible -- leaving it at the resting @bg would draw a
+            --dark ring around the lightened bar.
+            selectors = {"searchInput", "hover"},
+            bgcolor = "@bgRaised",
+            borderColor = "@bgRaised",
+            transitionTime = 0.15,
+        },
+        {
+            --focused = the highlight HOLDS: same raised fill as hover,
+            --still no frame (Venla 2026-08-21). The caret and typed
+            --text carry the active signal beyond the fill.
+            selectors = {"searchInput", "focus"},
+            bgcolor = "@bgRaised",
+            borderColor = "@bgRaised",
+        },
+        -- Magnifying-glass icon child auto-created by gui.SearchInput.
+        -- Tinted to @fg so the glyph follows the active scheme; the
+        -- structural half (floating, position, size) lives inline at the
+        -- call site -- floating is a property the engine doesn't honor
+        -- through the style cascade.
+        {
+            selectors = {"searchInputIcon"},
+            bgcolor = "@fg",
+        },
+        -- Clear-x child auto-created by gui.SearchInput, shown while the
+        -- field has text. Muted at rest so it reads quieter than the
+        -- typed text beside it; full strength on hover to invite the
+        -- click.
+        {
+            selectors = {"searchInputClear"},
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"searchInputClear", "hover"},
+            bgcolor = "@fgStrong",
+        },
+        -- Color picker main button (gui.ColorPicker mainPanel).
+        -- The button shows the currently-selected color via
+        -- selfStyle.bgcolor (set at runtime by the widget); the theme
+        -- owns the border frame.
+        {
+            selectors = {"colorPicker"},
+            bgimage = true,
+            borderColor = "@border",
+            borderWidth = 2,
+        },
+        {
+            selectors = {"colorPicker", "hover"},
+            borderColor = "@accentHover",
+        },
+        {
+            selectors = {"colorPicker", "press"},
+            borderColor = "@fg",
+        },
+
+        --[[ Dropdown -- closed control + open popup machinery ]]
+        --
+        -- The dropdown's internal sub-element classes (dropdownLabel,
+        -- dropdownTriangle, dropdownBorder, dropdownMenuSub, dropdownOption,
+        -- submenuArrow) are emitted by the DMHub engine itself, so theme
+        -- rules must match those names verbatim.
+        --
+        -- Open state composition: a dropdownBorder container holds a
+        -- dropdownMenuSub (or inline option list) full of dropdownOption
+        -- rows. submenuArrow is the indicator on options that open a sub-popup.
+        {
+            selectors = {"dropdown"},
+            fontFace = "@input",
+            fontSize = 14,
+            color = "@fg",
+            bgcolor = "@bgAlt",
+            borderColor = "@border",
+            border = 2,
+            width = 240,
+            height = 26,
+        },
+        {
+            selectors = {"dropdown", "expandedTop"},
+            border = {x1 = 2, x2 = 2, y1 = 2, y2 = 0},
+        },
+        {
+            selectors = {"dropdown", "expandedBottom"},
+            border = {x1 = 2, x2 = 2, y1 = 0, y2 = 2},
+        },
+        {
+            selectors = {"dropdown", "hover", "~search"},
+            --hover fills use @accentHover, not @fg/@bgInverse: the
+            --parchment text color as a large fill read as aged paper
+            --over warm map art (Venla 2026-08-19; see menuItem hover).
+            bgcolor = "@accentHover",
+        },
+        -- The search field inside an open dropdown popup. It is a
+        -- {searchInput}, so it picks up the base {input} rule's border = 2 --
+        -- and because the dropdown auto-focuses it, {input, focus} recolors
+        -- that border to @fg, drawing a bright box over the dropdown control's
+        -- own frame. Note borderWidth = 0 does NOT clear that border (the
+        -- {searchInput} rule has shipped it for a long time with no effect);
+        -- only border = 0 does. The field's bgcolor is @bg, which already
+        -- matches the popup fill, so the border is the only thing to remove.
+        {
+            selectors = {"dropdownSearch"},
+            border = 0,
+        },
+        {
+            selectors = {"label", "dropdownLabel"},
+            fontFace = "@input",
+            fontSize = 18,
+            minFontSize = 10,
+            color = "@fg",
+            halign = "left",
+            valign = "center",
+            width = "100%-40",
+            height = "100%",
+            hmargin = 6,
+        },
+        {
+            selectors = {"label", "dropdownLabel", "parent:hover"},
+            color = "@fgInverse",
+        },
+        {
+            selectors = {"dropdownTriangle"},
+            height = "30%",
+            -- panels/triangle.png is a 64x64 source: the triangle spans the
+            -- full width at the top and tapers to a point at the bottom, so
+            -- its natural aspect is 1:1. The old "160% height" stretched it
+            -- 60% wider than drawn; 120% is a slight deliberate widening.
+            -- Kept in sync with the inline width in Dropdown.lua, which is
+            -- what actually wins -- this rule is effectively documentation.
+            width = "120% height",
+            bgcolor = "@fg",
+            halign = "right",
+            valign = "center",
+            hmargin = 6,
+        },
+        {
+            selectors = {"dropdownTriangle", "parent:hover"},
+            bgcolor = "@fgInverse",
+        },
+        -- While the popup is open the control hosts the search field and
+        -- deliberately keeps its dark background -- {dropdown, hover, ~search}
+        -- above skips the light hover fill. The triangle must therefore stay
+        -- light too, or it vanishes exactly when the pointer is over it.
+        --
+        -- This has to be a positive override rather than a ~parent:search
+        -- guard on the rule above: the ENGINE itself applies
+        -- dropdownTriangle + parent:hover -> black, so merely removing the Lua
+        -- rules uncovers that instead of fixing anything. Priority 5 is what
+        -- it takes to beat the engine default (see DS_EDITOR_STYLING.md).
+        {
+            selectors = {"dropdownTriangle", "parent:hover", "parent:search"},
+            priority = 5,
+            bgcolor = "@fg",
+        },
+        {
+            selectors = {"dropdownBorder"},
+            bgimage = true,
+            bgcolor = "@bg",
+            border = 2,
+            borderColor = "@border",
+            -- Vertical pad only. Horizontal pad is added OUTSIDE the width the
+            -- popup inherits from the dropdown control, so it made the popup
+            -- 4px wider than the control it hangs off and the two frames
+            -- stepped apart at the join -- most visible beside the search
+            -- field. Options inset themselves horizontally anyway via
+            -- dropdownOption's width = "100%-4", so hpad here was redundant.
+            vpad = 2,
+            hpad = 0,
+            priority = 55,
+        },
+        {
+            selectors = {"dropdownBorder", "vcenter"},
+            border = 2,
+            vpad = 4,
+        },
+        {
+            selectors = {"dropdownBorder", "top"},
+            border = 2,
+        },
+        {
+            selectors = {"dropdownBorder", "detached"},
+            border = 2,
+        },
+        {
+            selectors = {"dropdownMenuSub"},
+            bgimage = true,
+            bgcolor = "@bg",
+            border = 2,
+            borderColor = "@border",
+            pad = 2,
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            valign = "top",
+            hidden = 1,
+        },
+        {
+            selectors = {"dropdownMenuSub", "parent:hover"},
+            hidden = 0,
+        },
+        {
+            selectors = {"dropdownOption"},
+            bgimage = true,
+            width = "100%-4",
+            height = "auto",
+            halign = "center",
+            hpad = 6,
+            fontSize = 18,
+            color = "@fg",
+            bgcolor = "@bg",
+        },
+        {
+            selectors = {"dropdownOption", "hover"},
+            color = "@fgInverse",
+            --@accentHover, not @bgInverse: the aged-paper hover fix
+            --(see menuItem hover).
+            bgcolor = "@accentHover",
+            priority = 5,
+        },
+        {
+            selectors = {"dropdownOption", "searchfocus"},
+            color = "@bg",
+            bgcolor = "@accentHover",
+        },
+        {
+            selectors = {"dropdownOption", "disabled"},
+            color = "@fgMuted",
+        },
+        {
+            selectors = {"submenuArrow"},
+            bgcolor = "@fg",
+        },
+        {
+            selectors = {"submenuArrow", "parent:hover"},
+            bgcolor = "@bg",
+        },
+
+        --[[ Multiselect chip ]]
+        --
+        -- gui.Multiselect renders selected items as removable chips next to
+        -- a Dropdown. Each chip is a {panel, multiselectChip} container
+        -- holding a {label, multiselectChipText} text label and a
+        -- {panel, multiselectChipRemove} delete button (with an X label
+        -- inside) that's hidden until the parent chip is hovered.
+        {
+            selectors = {"panel", "multiselectChip"},
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            pad = 4,
+            margin = 4,
+            bgimage = true,
+            bgcolor = "@bg",
+            border = 1,
+            borderColor = "@border",
+            -- cornerRadius = 2,
+        },
+        {
+            selectors = {"panel", "multiselectChip", "hover"},
+            brightness = 1.2,
+        },
+        {
+            selectors = {"label", "multiselectChipText"},
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            margin = 0,
+            pad = 0,
+            fontFace = "@input",
+            fontSize = 14,
+        },
+        -- No fill on the remove button -- it sits on top of the chip's `@bg`
+        -- via the cascade. The red `@danger` border + X glyph carry the
+        -- "danger zone" signal without an alpha wash.
+        {
+            selectors = {"panel", "multiselectChipRemove"},
+            width = 14,
+            height = 14,
+            halign = "right",
+            valign = "center",
+            lmargin = 4,
+            bgimage = true,
+            border = 1,
+            borderColor = "@danger",
+            -- cornerRadius = 2,
+            bold = true,
+            hidden = 1,
+        },
+        {
+            selectors = {"panel", "multiselectChipRemove", "parent:hover"},
+            hidden = 0,
+        },
+        {
+            selectors = {"panel", "multiselectChipRemove", "hover"},
+            brightness = 1.5,
+        },
+        -- The "X" label inside the remove button. Color is @fg (not @danger)
+        -- so the letter contrasts against its own red-bordered red-wash
+        -- container; the parent's border + faint bg already carry the
+        -- "danger zone" signal so the X just needs to be readable.
+        {
+            selectors = {"label", "multiselectChipRemove"},
+            width = "100%",
+            height = "100%",
+            halign = "center",
+            valign = "center",
+            margin = 0,
+            pad = 0,
+            textAlignment = "center",
+            color = "@fg",
+            fontFace = "@input",
+            fontSize = 8,
+        },
+        {
+            selectors = {"label", "multiselectChipRemove", "parent:hover"},
+            brightness = 1.5,
+        },
+
+        --[[ Slider ]]
+        --
+        -- gui.Slider (Gui.lua wrapper) -- emits sliderHandleBorder /
+        -- sliderHandleInner on its internal handle parts.
+        --
+        -- gui.EnumeratedSliderControl (core widget) -- composed of an
+        -- enumSlider container with a row of enumSliderOption labels.
+        -- The widget's .lua only applies classes; all styling lives here
+        -- so themes/schemes own it.
+        {
+            selectors = {"sliderHandleBorder"},
+            borderWidth = 2,
+            borderColor = "@border",
+            bgcolor = "@bg",
+            bgimage = true,
+            width = "60%",
+            height = "60%",
+            halign = "center",
+            valign = "center",
+        },
+        {
+            selectors = {"sliderHandleInner"},
+            bgimage = true,
+            bgcolor = "@fg",
+            width = "30%",
+            height = "30%",
+            halign = "center",
+            valign = "center",
+        },
+        {
+            selectors = {"sliderNotch"},
+            bgimage = true,
+            bgcolor = "@borderInverse",
+            width = "100%",
+            halign = "center",
+            borderWidth = 0,
+        },
+        {
+            selectors = {"sliderFill"},
+            bgimage = true,
+            bgcolor = "@fg",
+            height = 2,
+            halign = "left",
+            borderWidth = 0,
+        },
+        {
+            selectors = {"enumSlider"},
+            width = "100%",
+            height = 24,
+            flow = "horizontal",
+        },
+        {
+            selectors = {"enumSliderOption"},
+            bgimage = true,
+            bgcolor = "@bg",
+            color = "@fg",
+            borderColor = "@border",
+            borderWidth = 2,
+            fontSize = 12,
+            bold = true,
+            halign = "center",
+            valign = "center",
+            textAlignment = "center",
+            height = "100%",
+        },
+        {
+            selectors = {"enumSliderOption", "selected"},
+            bgcolor = "@bgInverse",
+            color = "@fgInverse",
+            transitionTime = 0.2,
+        },
+        {
+            selectors = {"enumSliderOption", "hover"},
+            bgcolor = "@bgInverse",
+            color = "@fgInverse",
+            brightness = 1.5,
+            transitionTime = 0.2,
+        },
+
+        --[[ MCDM Divider ]]
+        -- gui.MCDMDivider (Gui.lua wrapper) -- a primitive divider widget with
+        -- optional dot/line/peak/v ornaments. The outer panel and the three
+        -- inner panels (left line / icon / right line) all use this class so
+        -- the cascade drives their bgcolor. Callers may still override with
+        -- an explicit bgcolor on the option.
+        {
+            selectors = {"mcdmDivider"},
+            bgcolor = "@border",
+        },
+
+        --[[ Checkbox ]]
+        -- Transparent fill on the checkbox container -- the checkmark and
+        -- check-background panels below paint the visual; the container
+        -- itself just lays out the row.
+        {
+            selectors = {"checkbox"},
+            halign = "left",
+            bgimage = true,
+            flow = "horizontal",
+            bgcolor = "clear",
+            height = 30,
+            width = "auto",
+            minWidth = 200,
+            hpad = 4,
+        },
+        {
+            selectors = {"checkbox", "hover", "~disabled"},
+            borderWidth = 1,
+            borderColor = "@fg",
+        },
+        {
+            selectors = {"checkBackground"},
+            bgimage = true,
+            bgcolor = "@bg",
+            halign = "left",
+            valign = "center",
+            height = "70%",
+            width = "100% height",
+            rmargin = 6,
+            borderColor = "@border",
+            borderWidth = 2,
+        },
+        {
+            selectors = {"checkBackground", "disabled"},
+            saturation = 0,
+        },
+        {
+            selectors = {"checkMark"},
+            bgimage = true,
+            bgcolor = "@fg",
+            halign = "center",
+            valign = "center",
+            width = "50%",
+            height = "50%",
+        },
+        {
+            selectors = {"checkMark", "disabled"},
+            saturation = 0,
+        },
+        {
+            selectors = {"checkboxLabel"},
+            halign = "left",
+            valign = "center",
+            textAlignment = "left",
+            borderWidth = 0,
+            width = "auto",
+            height = "auto",
+            fontSize = 18,
+        },
+        {
+            selectors = {"checkboxLabel", "rightAlign"},
+            rmargin = 8,
+        },
+        {
+            selectors = {"checkboxLabel", "disabled"},
+            color = "@fgMuted",
+        },
+
+        --[[ Tab ]]
+        {
+            selectors = {"tab"},
+            textAlignment = "center",
+            bgimage = true,
+            borderWidth = 1,
+            borderColor = "@border",
+            width = 130,
+            height = 40,
+            fontSize = 18,
+            bgcolor = "@bg",
+            color = "@fgMuted",
+            hpad = 6,
+        },
+        {
+            selectors = {"tab", "hover"},
+            brightness = 1.2,
+        },
+        {
+            selectors = {"tab", "selected"},
+            bold = true,
+            color = "@fgStrong",
+            border = {x1 = 1, x2 = 1, y1 = 0, y2 = 1},
+        },
+        {
+            selectors = {"tabBar"},
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            bgimage = true,
+            borderColor = "@border",
+            border = {x1 = 0, x2 = 0, y1 = 1, y2 = 0},
+        },
+
+        --[[ Tooltip ]]
+        --
+        -- tooltipLabel / tooltipIcon / hasTooltip are engine-emitted on
+        -- gui.Tooltip elements; theme rules match those names verbatim.
+        {
+            selectors = {"label", "tooltipLabel"},
+            color = "@fg",
+            fontSize = 16,
+            width = "auto",
+            height = "auto",
+            halign = "left",
+        },
+        {
+            selectors = {"label", "tooltipLabel", "title"},
+            bold = true,
+            width = "100%",
+            fontSize = 24,
+        },
+        -- bgcolor "white" is image-tint-neutral (see top of section 1).
+        {
+            selectors = {"icon", "tooltipIcon"},
+            halign = "right",
+            valign = "top",
+            width = 32,
+            height = 32,
+            bgcolor = "white",
+        },
+        {
+            selectors = {"hasTooltip"},
+            color = "@accent",
+        },
+        {
+            selectors = {"hasTooltip", "hover"},
+            color = "@accentHover",
+        },
+
+        --[[ Icon button (generic + HUD) ]]
+        --
+        -- iconButton: small accent-able click target. Default size is sizeM
+        -- (24x24); pair with a size class (sizeXs..sizeXxl) to override.
+        -- Pair with a withSuccess / withInfo / withWarning / withDanger
+        -- class to recolor the hover state.
+        --
+        -- gui.Button{ icon = ... } (no `text`) returns a panel with this
+        -- class automatically; see Gui.lua's gui.Button. The button is the
+        -- chrome (size, border, hit-target, selected/hover state); a child
+        -- buttonIcon panel owns the bgimage and tint, so the icon can be
+        -- inset (e.g. 90% under `bordered`) without resizing the button.
+        --
+        {
+            selectors = {"iconButton"},
+            bgcolor = "@fg",
+            width = 24,
+            height = 24,
+            valign = "center",
+        },
+        {
+            selectors = {"iconButton", "hover"},
+            brightness = 1.5,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"iconButton", "press"},
+            brightness = 0.7,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"iconButton", "withSuccess", "hover"},
+            bgcolor = "@success",
+        },
+        {
+            selectors = {"iconButton", "withInfo", "hover"},
+            bgcolor = "@info",
+        },
+        {
+            selectors = {"iconButton", "withWarning", "hover"},
+            bgcolor = "@warning",
+        },
+        {
+            selectors = {"iconButton", "withDanger", "hover"},
+            bgcolor = "@danger",
+        },
+        -- Inner buttonIcon parent: rules for gui.Button-routed iconButtons,
+        -- whose icon lives in a child buttonIcon panel. Mirrors the chrome
+        -- rules above so the icon visual reacts to parent state.
+        {
+            selectors = {"panel", "buttonIcon", "parent:flipped"},
+            scale = {x = -1, y = 1},
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:hover"},
+            brightness = 1.5,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:press"},
+            brightness = 0.7,
+            transitionTime = 0.1,
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:withSuccess", "parent:hover"},
+            bgcolor = "@success",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:withInfo", "parent:hover"},
+            bgcolor = "@info",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:withWarning", "parent:hover"},
+            bgcolor = "@warning",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:withDanger", "parent:hover"},
+            bgcolor = "@danger",
+        },
+        -- Kind variants. Each registered kind class (see gui.iconButtonClasses
+        -- in Gui.lua) supplies its own bgimage on the inner buttonIcon panel
+        -- via parent: selectors; size/tint/hover/press continue to inherit
+        -- from the {iconButton} chrome and {panel, buttonIcon} icon families.
+        {
+            selectors = {"panel", "buttonIcon", "parent:addButton"},
+            bgimage = "ui-icons/Plus.png",
+        },
+        -- Note on hover-circle backplates (tried and removed 2026-08-22):
+        -- a hover-only circle behind the X was prototyped as
+        -- `{iconButton, closeButton}` bgimage = "game-icons/plain-circle.png"
+        -- (a TEXTURE, not cornerRadius -- the rounded shader's radius must
+        -- stay under half the rendered height at any window scale) with a
+        -- clear rest tint and @bgRaised on hover, plus an 85% glyph inset
+        -- for ring clearance (62% shrank the X to ~10px on sizeXs chrome
+        -- buttons). Venla preferred the plain glyph; the generic
+        -- {iconButton, hover} brightness lift is the whole hover state.
+        {
+            selectors = {"panel", "buttonIcon", "parent:closeButton"},
+            -- phosphor's geometric X (Control Zoo pass 2026-08-22),
+            -- replacing the legacy ui-icons/close.png glyph app-wide.
+            bgimage = "phosphor/x-bold.png",
+        },
+        -- Standard inset for close buttons. They are almost always pinned to a
+        -- top corner (halign right/left + valign top + floating), and sitting
+        -- flush against the panel edge looks cramped. A small margin keeps the
+        -- glyph off both the side and the top edge wherever a closeButton is
+        -- used. hmargin (not rmargin) so it works in either top corner.
+        {
+            selectors = {"closeButton"},
+            hmargin = 6,
+            tmargin = 6,
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:copyButton"},
+            bgimage = "icons/icon_app/icon_app_108.png",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:deleteButton"},
+            bgimage = "icons/icon_tool/icon_tool_44.png",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:deleteButton", "parent:hover"},
+            bgcolor = "@danger",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:settingsButton"},
+            bgimage = "panels/gamescreen/settings.png",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:customiseAbilityButton"},
+            bgimage = "ui-icons/pencil.png",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:maximizeButton"},
+            bgimage = "panels/hud/down-arrow.png",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:maximizeButton", "parent:maximized"},
+            scale = {x = 1, y = -1},
+        },
+        -- pagingArrow: the canonical previous/next paging chevron.
+        -- Use `gui.Button{ classes = {"pagingArrow"} }` for the left arrow and
+        -- `gui.Button{ classes = {"pagingArrow", "right"} }` for the right
+        -- arrow (the `right` modifier flips the glyph horizontally). This
+        -- pattern REPLACES the legacy `gui.PaginButton` helper -- there is no
+        -- bespoke constructor; pagingArrow is just an iconButton kind class
+        -- registered in `gui.iconButtonClasses` (Gui.lua), painted here.
+        {
+            selectors = {"panel", "buttonIcon", "parent:pagingArrow"},
+            bgimage = "panels/InventoryArrow.png",
+            width = "50% height",
+            halign = "right",
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:pagingArrow", "parent:right"},
+            scale = {x = -1, y = 1},
+            halign = "left",
+        },
+        -- Inset the icon to be smaler when the button carries the `bordered`
+        -- class, so the glyph doesn't crowd the border. Targets buttonIcon under
+        -- both Button paths (icon-only iconButton and legacy text+icon label).
+        {
+            selectors = {"panel", "buttonIcon", "parent:bordered"},
+            height = "80%",
+            width = "80%",
+            halign = "center",
+            valign = "center",
+            priority = 5,
+        },
+        -- Under `bordered`, the iconButton outer is a paintable surface
+        -- (bgimage = true). Clear its bgcolor so the @fg base tint doesn't
+        -- bleed into the margin around the inset icon. `selected` below
+        -- overrides this with @bgInverse (priority bump) so the inversion
+        -- still works when both classes are present.
+        {
+            selectors = {"iconButton", "bordered"},
+            bgcolor = "clear",
+        },
+        -- Selected state: invert chrome (bg + border) on the outer iconButton
+        -- and flip the icon tint on the inner buttonIcon. The matching rule
+        -- for label/button selected lives in the Button section above.
+        -- priority = 5 so this wins over {"iconButton","bordered"} above
+        -- when both classes apply (cascade specificity is equal otherwise).
+        {
+            selectors = {"iconButton", "selected"},
+            bgcolor = "@accent",
+            borderColor = "@borderInverse",
+            priority = 5,
+        },
+        -- Non-bordered iconButtons carry no bgimage on the outer chrome, so the
+        -- @accent fill from {"iconButton","selected"} above never paints -- the
+        -- only visible pixels are the icon. Tint the icon to @accent so the
+        -- selected glyph reads as the highlight color, instead of knocking out
+        -- to @bg (which is near-invisible against a dark UI). Bordered pills
+        -- override this just below to keep the filled-accent-pill + bg-knockout
+        -- icon look, since their outer chrome is a paintable surface.
+        {
+            selectors = {"panel", "buttonIcon", "parent:selected"},
+            bgcolor = "@accent",
+            priority = 5,
+        },
+        {
+            selectors = {"panel", "buttonIcon", "parent:selected", "parent:bordered"},
+            bgcolor = "@bg",
+            priority = 6,
+        },
+
+        --[[
+            Composable variants.
+        ]]
+        {
+            selectors = {"bordered"},
+            bgimage = true,
+            border = 1,
+            borderColor = "@border",
+        },
+        {
+            selectors = {"noBorder"},
+            border = 0,
+            priority = 5,
+        },
+        {
+            selectors = {"bold"},
+            bold = true,
+            priority = 5,
+        },
+        {
+            selectors = {"transparent"},
+            bgcolor = "clear",
+            priority = 5,
+        },
+        {
+            selectors = {"underline"},
+            underline = true,
+            priority = 5,
+        },
+        -- Generic "this element is clickable" affordance. Composes onto any
+        -- base (panel, bordered surface, label) and brightens it on hover so
+        -- callers don't hand-roll per-component hover rules. Token-free and
+        -- scheme-independent -- brightness is a multiplier, not a color, so
+        -- it tracks every theme without an @token. priority=5 so it beats
+        -- the base rule like the other composable flips above.
+        {
+            selectors = {"hoverable", "hover"},
+            brightness = 1.2,
+            transitionTime = 0.1,
+            priority = 5,
+        },
+        {
+            selectors = {"monospace"},
+            fontFace = "@mono",
+            priority = 5,
+        },
+        {
+            selectors = {"noBold"},
+            bold = false,
+            priority = 5,
+        },
+        {
+            selectors = {"iconButton", "sizeXxs"},
+            width = 12,
+            height = 12,
+            priority = 5,
+        },
+        {
+            selectors = {"iconButton", "sizeXs"},
+            width = 16,
+            height = 16,
+            priority = 5,
+        },
+        {
+            selectors = {"iconButton", "sizeS"},
+            width = 20,
+            height = 20,
+            priority = 5,
+        },
+        {
+            selectors = {"iconButton", "sizeM"},
+            width = 24,
+            height = 24,
+            priority = 5,
+        },
+        {
+            selectors = {"iconButton", "sizeL"},
+            width = 32,
+            height = 32,
+            priority = 5,
+        },
+        {
+            selectors = {"iconButton", "sizeXl"},
+            width = 48,
+            height = 48,
+            priority = 5,
+        },
+        {
+            selectors = {"iconButton", "sizeXxl"},
+            width = 58,
+            height = 58,
+            priority = 5,
+        },
+
+        --[[ Triangle (expand/collapse arrow) ]]
+        --
+        -- Defaults to "closed" (rotate = 90, pointing right). Toggling the
+        -- "expanded" class rotates to point down with a short transition.
+        {
+            selectors = {"triangle"},
+            bgimage = "panels/triangle.png",
+            bgcolor = "@fg",
+            width = 12,
+            height = 12,
+            hmargin = 4,
+            valign = "center",
+            halign = "left",
+        },
+        {
+            selectors = {"triangle", "hover"},
+            brightness = 1.5,
+        },
+
+        --[[ Menu (horizontal menu strip, e.g. title bar dropdowns) ]]
+        {
+            selectors = {"menuItem"},
+            bgimage = true,
+            bgcolor = "clear",
+            hpad = 8,
+        },
+        {
+            selectors = {"menuItem", "hover"},
+            --The search bar's quiet raised lift, not an inverted accent
+            --fill (Venla 2026-08-24: "use the search field's light grey
+            --hover for the other hovers here too"). Supersedes the
+            --@accentHover fill picked 2026-08-19 -- the whole title bar
+            --now shares one hover language: fill lifts to @bgRaised,
+            --content color stays put.
+            bgcolor = "@bgRaised",
+            transitionTime = 0.15,
+        },
+        {
+            --while the item's dropdown is open the plate HOLDS, hover or
+            --not (Venla 2026-08-24, VS Code menu behavior). The class is
+            --managed by the opener (menuOpen on open, cleared on every
+            --close path incl. the closePopup event).
+            selectors = {"menuItem", "menuOpen"},
+            bgcolor = "@bgRaised",
+        },
+        {
+            selectors = {"menuLabel"},
+            fontSize = 16,
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            hmargin = 4,
+            color = "@fg",
+        },
+        --No parent:hover recolor for menuLabel/menuItemIcon: the raised
+        --fill is dark enough that the resting @fg stays readable, same
+        --as typed text in the search bar. (The old @accentHover fill
+        --needed the @bg flip; it left with it, 2026-08-24.)
+        {
+            selectors = {"menuItemIcon"},
+            bgcolor = "@fg",
+        },
+
+        --[[ Context menu ]]
+
+        -- The popup panel itself: frameless flat chrome, VS Code-style
+        -- (Venla 2026-08-24) -- the fill matches the title bar's @bg so a
+        -- menu dropped from the bar reads as the bar continuing, the way
+        -- the search popup continues its field. No border; rounded like
+        -- the rest of the popup family. Supersedes the parchment-framed
+        -- @surfaceLinear look.
+        {
+            selectors = {"contextMenu"},
+            bgimage = true,
+            bgcolor = "@bg",
+            borderWidth = 0,
+            cornerRadius = 7,
+            --breathing room above the first row and below the last, and
+            --it keeps a hovered edge row's square fill inside the
+            --rounded corners (fills do not clip to the radius).
+            vpad = 6,
+            flow = "vertical",
+        },
+
+        -- Rows: transparent at rest so the panel surface paints through;
+        -- hover lifts one surface step, content color stays put (the
+        -- title-bar hover language; the old inverted @accentHover fill
+        -- and its dark-text flips left 2026-08-24). Instant, no fade --
+        -- a fade lags when running the cursor down a list.
+        {
+            selectors = {"contextMenuItem"},
+            bgimage = true,
+            bgcolor = "clear",
+            color = "@fg",
+            borderWidth = 0,
+        },
+        {
+            selectors = {"contextMenuItem", "hover"},
+            bgcolor = "@bgRaised",
+        },
+        {
+            selectors = {"contextMenuItem", "press"},
+            brightness = 1.2,
+        },
+
+        -- Row label
+        {
+            selectors = {"label", "contextMenuLabel"},
+            color = "@fg",
+            fontSize = 16,
+        },
+        {
+            selectors = {"contextMenuLabel", "disabled"},
+            color = "@fgMuted",
+        },
+
+        -- Bind label (keyboard shortcut hint)
+        {
+            selectors = {"contextMenuBind"},
+            color = "@fg",
+            fontSize = 16,
+        },
+        {
+            selectors = {"contextMenuBind", "disabled"},
+            color = "@fgMuted",
+        },
+
+        -- Icon glyph (image-tint to text color)
+        {
+            selectors = {"contextMenuIcon"},
+            bgcolor = "@fg",
+        },
+
+        -- Checkmark glyph
+        {
+            selectors = {"contextMenuCheck"},
+            bgcolor = "@fg",
+        },
+
+        -- Divider: quiet white-alpha hairline (@border), not a parchment
+        -- line -- depth from quiet edges, per the design ladder.
+        {
+            selectors = {"contextMenuDiv"},
+            bgimage = true,
+            bgcolor = "@border",
+            vmargin = 2,
+        },
+
+        -- Submenu arrow (bgimage is the triangle, set inline at construction)
+        {
+            selectors = {"contextMenuArrow"},
+            bgcolor = "@fg",
+        },
+
+        --[[ Table primitives ]]
+        --
+        -- oddRow / evenRow / highlight are emitted by the engine's table
+        -- striping. headerRow is applied by callers on the first row of a
+        -- gui.Table so the theme can style it (bold, darker bg).
+        {
+            selectors = {"label", "tableLabel"},
+            pad = 6,
+            fontSize = 16,
+            width = "auto",
+            height = "auto",
+            color = "@fg",
+        },
+        {
+            selectors = {"row"},
+            width = "auto",
+            height = "auto",
+            bgimage = true,
+        },
+        {
+            selectors = {"row", "headerRow"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"label", "parent:headerRow"},
+            bold = true,
+        },
+        {
+            selectors = {"row", "evenRow"},
+            bgcolor = "@bg",
+        },
+        {
+            selectors = {"row", "oddRow"},
+            bgcolor = "@bgAlt",
+        },
+        {
+            selectors = {"row", "highlight"},
+            bgcolor = "@info",
+        },
+        {
+            selectors = {"row", "hover"},
+            brightness = 1.5,
+        },
+        {
+            selectors = {"row", "selected"},
+            bgcolor = "@accent",
+        },
+        {
+            selectors = {"label", "parent:row", "parent:selected"},
+            color = "@fgInverse",
+        },
+
+        -- =====================================================================
+        -- 2. FORMS -- label/control layouts
+        -- =====================================================================
+
+        --[[ Default form (label-left + control-right) ]]
+        --
+        -- Authoring pattern: row containers take `formRow` (full-width) or
+        -- `formPanel` (compact, used by feature editors). Every child
+        -- (label, input, dropdown, multiselect, ...) takes the single
+        -- namespace class `form`. The cascade conjuncts `form` with each
+        -- child's primitive class to pick the right rule; controls without
+        -- a primitive-specific rule fall through to the `{form}` catch-all.
+        -- `formValue` is a separate read-only-display label class.
+        {
+            selectors = {"formRow"},
+            flow = "horizontal",
+            width = "98%",
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            vmargin = 4,
+        },
+        --[[ Compact horizontal row (used by compendium feature editors) ]]
+        {
+            selectors = {"formPanel"},
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            vmargin = 2,
+        },
+        {
+            selectors = {"label", "form"},
+            fontSize = 18,
+            color = "@fgStrong",
+            width = "auto",
+            height = "auto",
+            minWidth = 140,
+            halign = "left",
+            valign = "center",
+            hmargin = 8,
+        },
+        -- Catch-all for any form child without a primitive-specific rule
+        -- below (multiselect, custom widgets, etc.).
+        {
+            selectors = {"form"},
+            halign = "left",
+            valign = "center",
+        },
+        {
+            selectors = {"input", "form"},
+            fontSize = 16,
+            width = 180,
+            height = 26,
+            color = "@fg",
+            halign = "left",
+            valign = "center",
+            textAlignment = "left",
+        },
+        {
+            selectors = {"input", "form", "multiline"},
+            textAlignment = "topleft",
+        },
+        {
+            selectors = {"dropdown", "form"},
+            halign = "left",
+            vmargin = 4,
+            width = 240,
+            height = 30,
+        },
+        {
+            selectors = {"formValue"},
+            halign = "right",
+            vmargin = 4,
+            width = 180,
+            height = 30,
+            fontSize = 14,
+        },
+
+        --[[ Stacked form (label-above-control) ]]
+        --
+        -- Vertical layout. The row container takes `formStackedRow`; every
+        -- child (label, input, dropdown, multiselect, ...) takes the
+        -- single namespace class `formStacked`. The cascade conjuncts
+        -- `formStacked` with each child's primitive class to pick the
+        -- right rule; controls without a primitive-specific rule fall
+        -- through to the `{formStacked}` catch-all. Compound selectors on
+        -- the input/dropdown rules so the size beats any surface-specific
+        -- {input}/{dropdown} sizes in caller MergeStyles extras.
+        {
+            selectors = {"formStackedRow"},
+            flow = "vertical",
+            width = "70%",
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            lmargin = 12,
+            bmargin = 8,
+        },
+        {
+            selectors = {"label", "formStacked"},
+            fontSize = 18,
+            width = "98%",
+            height = "auto",
+            halign = "left",
+            valign = "top",
+            bmargin = 4,
+            bold = true,
+        },
+        -- Catch-all for any formStacked child without a primitive-specific
+        -- rule below (multiselect, custom widgets, etc.).
+        {
+            selectors = {"formStacked"},
+            width = "98%",
+            halign = "left",
+        },
+        -- Inputs in stacked forms: 98% width, height 30 with internal padding
+        -- so text isn't cramped against the borders. fontSize matches the
+        -- dropdown (18) for visual consistency between input and dropdown
+        -- controls in the same form.
+        {
+            selectors = {"input", "formStacked"},
+            width = "98%",
+            height = 30,
+            halign = "left",
+            hpad = 6,
+            vpad = 4,
+            fontSize = 18,
+        },
+        -- Dropdowns in stacked forms: 98% width and height matching inputs.
+        {
+            selectors = {"dropdown", "formStacked"},
+            width = "98%",
+            height = 30,
+        },
+
+        -- =====================================================================
+        -- 3. CARDS -- collapsible feature-card layouts
+        -- =====================================================================
+        --
+        -- A featureCard is an outer frame holding a featureCardHeader (top
+        -- strip with expand triangle, name display, delete button) and a
+        -- featureCardBody (the body that the card's @bgAlt shows through).
+        -- featureCardNested adjusts width and bottom margin for cards
+        -- rendered inside another card's option list.
+        --
+        -- Used by class / race / background / kit feature editors in the
+        -- compendium UI.
+        {
+            selectors = {"featureCard"},
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            width = "70%",
+            height = "auto",
+            halign = "left",
+            flow = "vertical",
+            bmargin = 12,
+        },
+        {
+            selectors = {"featureCardNested"},
+            width = "70%+8",
+            bmargin = 0,
+        },
+        -- Header: full border drawn here so the card's outer frame sits on
+        -- the top + sides; the bottom edge separates header from body.
+        -- Transparent fill so the card's bgAlt shows through.
+        {
+            selectors = {"featureCardHeader"},
+            bgimage = true,
+            bgcolor = "clear",
+            border = { x1 = 1, x2 = 1, y1 = 1, y2 = 1 },
+            borderColor = "@border",
+            borderBox = true,
+            width = "100%",
+            height = 30,
+            flow = "horizontal",
+            hpad = 0,
+        },
+        {
+            selectors = {"featureCardHeader", "expanded"},
+            border = {x1 = 1, x2 = 1, y1 = 0, y2 = 1},
+        },
+        -- Body: border on left/right/bottom; top edge is the header's bottom
+        -- border. Same fill as the card so the inside reads as one continuous
+        -- bgAlt surface.
+        {
+            selectors = {"featureCardBody"},
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            border = { x1 = 1, x2 = 1, y1 = 1, y2 = 0 },
+            borderColor = "@border",
+            borderBox = true,
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            pad = 12,
+        },
+
+        -- =====================================================================
+        -- 4. DIALOGS -- modal / framed surfaces
+        -- =====================================================================
+
+        --[[ Plain dialog ]]
+        --
+        -- dialogTitle / dialogPanel / dialogBorder are emitted by the
+        -- engine's gui.Dialog construction; theme rules must match those
+        -- names verbatim.
+        {
+            selectors = {"panel", "dialog"},
+            bgimage = true,
+            bgcolor = "white",
+            -- cornerRadius = 4,
+            gradient = "@surfaceLinear",
+            borderWidth = 2.2,
+            borderColor = "@border",
+        },
+        -- Launchable-hosted content. Use this class on the root panel
+        -- returned from `LaunchablePanel.Register{ content = ... }`.
+        -- The launchable host paints its own frame and chrome (close
+        -- button, drag handle, etc.) around our content, so this rule
+        -- stays transparent so we don't double-frame or overwrite the
+        -- host's UI.
+        {
+            selectors = {"panel", "launchablePanel"},
+        },
+        {
+            selectors = {"label", "dialogTitle"},
+            width = "96%",
+            height = "auto",
+            valign = "top",
+            halign = "center",
+            textAlignment = "center",
+            fontSize = 24,
+        },
+        -- bgcolor "white" is image-tint-neutral (see top of section 1).
+        {
+            selectors = {"dialogPanel"},
+            bgimage = "panels/InventorySlot_Background.png",
+            bgcolor = "white",
+            bgslice = 20,
+            border = 10,
+        },
+        {
+            selectors = {"dialogPanel", "fadein"},
+            opacity = 0,
+            uiscale = {x = 0.01, y = 0.01},
+            transitionTime = 0.2,
+        },
+        {
+            selectors = {"dialogBorder"},
+            hidden = 1,
+        },
+
+        --[[ Modal dialog ]]
+        {
+            selectors = {"modalDialog"},
+            bgimage = true,
+            bgcolor = "@bgInverse",
+            borderWidth = 2,
+            borderColor = "@bg",
+            -- cornerRadius = 8,
+        },
+        -- {
+        --     selectors = {"prettyButton"},
+        --     width = 140,
+        --     height = 60,
+        -- },
+        -- {
+        --     selectors = {"prettyButtonLabel"},
+        --     fontSize = 20,
+        --     bold = true,
+        --     textAlignment = "center",
+        --     width = "auto",
+        --     height = "auto",
+        -- },
+        {
+            selectors = {"label", "modalTitle"},
+            halign = "center",
+            valign = "top",
+            textAlignment = "center",
+            width = "80%",
+            height = "auto",
+            tmargin = 24,
+            fontSize = 28,
+            color = "@fgStrong",
+            bold = true,
+        },
+        {
+            selectors = {"label", "modalMessage"},
+            halign = "center",
+            valign = "center",
+            textAlignment = "center",
+            width = "80%",
+            height = "auto",
+            fontSize = 18,
+            color = "@fg",
+        },
+
+        --[[ Framed panel ]]
+        -- @surfaceLinear gradient paints the visible color; bgcolor "white"
+        -- is image-tint-neutral (see top of section 1).
+        {
+            selectors = {"framedPanel"},
+            bgimage = true,
+            bgcolor = "white",
+            -- cornerRadius = 4,
+            gradient = "@surfaceLinear",
+            borderWidth = 2.2,
+            borderColor = "@fg",
+        },
+        {
+            selectors = {"framedPanel", "toplevel"},
+            bgcolor = "@bgAlt",
+            borderWidth = 1,
+            borderColor = "@border",
+            opacity = 1,
+        },
+        {
+            selectors = {"framedPanel", "create", "~hidden", "~collapsed"},
+            soundEvent = "UI.WindowOpen",
+        },
+
+        -- =====================================================================
+        -- 5. UTILITIES -- visibility, animation, scroll
+        -- =====================================================================
+
+        {
+            selectors = {"hidden"},
+            hidden = 1,
+        },
+        {
+            selectors = {"collapsed"},
+            collapsed = 1,
+        },
+        {
+            selectors = {"collapseAnim"},
+            collapsed = 1,
+            transitionTime = 0.1,
+            uiscale = {x = 1, y = 0.001},
+        },
+        {
+            selectors = {"hideForPlayers", "player"},
+            hidden = 1,
+        },
+
+        --[[ Color composition utilities ]]
+        -- Composable color classes. Each scheme color exposes a class so
+        -- callers can opt panels/labels into a token via classes, without
+        -- authoring a one-off rule. Naming convention:
+        --   * Surface tokens (bg*)   -> set `bgcolor`.
+        --   * Foreground tokens (fg*) -> set `color`.
+        --   * Border tokens          -> set `borderColor`.
+        --   * Accent / status / implStatus -> set `color` by default;
+        --     `bg`-/`border`-prefixed variants set the alternate property.
+
+        -- Surfaces
+        { selectors = {"bg"},        bgimage = true, bgcolor = "@bg" },
+        { selectors = {"bgAlt"},     bgimage = true, bgcolor = "@bgAlt" },
+        { selectors = {"bgInverse"}, bgimage = true, bgcolor = "@bgInverse" },
+
+        -- Foregrounds
+        { selectors = {"fg"},        color = "@fg" },
+        { selectors = {"fgStrong"},  color = "@fgStrong" },
+        { selectors = {"fgMuted"},   color = "@fgMuted" },
+        { selectors = {"fgPending"}, color = "@fgPending" },
+        { selectors = {"fgInverse"}, color = "@fgInverse" },
+
+        -- Foreground tints applied as bgcolor (image multiply, etc.)
+        { selectors = {"bgFg"},        bgimage = true, bgcolor = "@fg" },
+        { selectors = {"bgFgStrong"},  bgimage = true, bgcolor = "@fgStrong" },
+        { selectors = {"bgFgMuted"},   bgimage = true, bgcolor = "@fgMuted" },
+        { selectors = {"bgFgPending"}, bgimage = true, bgcolor = "@fgPending" },
+        { selectors = {"bgFgInverse"}, bgimage = true, bgcolor = "@fgInverse" },
+
+        -- Borders
+        { selectors = {"border"},        bgimage = true, borderColor = "@border" },
+        { selectors = {"borderInverse"}, bgimage = true, borderColor = "@borderInverse" },
+
+        -- Accent + interactive (color default; bg/border variants)
+        { selectors = {"accent"},            color       = "@accent" },
+        { selectors = {"accentHover"},       color       = "@accentHover" },
+        { selectors = {"bgAccent"},          bgimage = true, bgcolor     = "@accent" },
+        { selectors = {"bgAccentHover"},     bgimage = true, bgcolor     = "@accentHover" },
+        { selectors = {"borderAccent"},      bgimage = true, borderColor = "@accent" },
+        { selectors = {"borderAccentHover"}, bgimage = true, borderColor = "@accentHover" },
+
+        -- Disabled (the state class lives elsewhere; these are explicit color picks)
+        { selectors = {"fgDisabled"},     color       = "@disabled" },
+        { selectors = {"bgDisabled"},     bgimage = true, bgcolor     = "@disabled" },
+        { selectors = {"borderDisabled"}, bgimage = true, borderColor = "@disabled" },
+
+        -- Implementation status (used by ability/feature impl indicators)
+        { selectors = {"implStatus0"}, color = "@implStatus0", priority = 5 },
+        { selectors = {"implStatus1"}, color = "@implStatus1", priority = 5 },
+        { selectors = {"implStatus2"}, color = "@implStatus2", priority = 5 },
+        { selectors = {"implStatus3"}, color = "@implStatus3", priority = 5 },
+        { selectors = {"implStatus4"}, color = "@implStatus4", priority = 5 },
+
+        -- Implementation status icon (the colored dot painted on compendium
+        -- ability / feature / item entries). Callers attach
+        -- `classes = {"spellImplementationIcon", <status>}` where status is
+        -- `wontimplement` / `unimplemented` / `bronze` / `silver` / `gold`.
+        -- The status modifier picks the matching `@implStatus*` token to
+        -- bgcolor-tint the icon image so the dot retracks the active scheme.
+        {
+            selectors = {"spellImplementationIcon"},
+            width = 16,
+            height = 16,
+            hmargin = 4,
+        },
+        {
+            selectors = {"spellImplementationIcon", "wontimplement"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus0",
+        },
+        {
+            selectors = {"spellImplementationIcon", "unimplemented"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus1",
+        },
+        {
+            selectors = {"spellImplementationIcon", "bronze"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus2",
+        },
+        {
+            selectors = {"spellImplementationIcon", "silver"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus3",
+        },
+        {
+            selectors = {"spellImplementationIcon", "gold"},
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "@implStatus4",
+        },
+
+        --[[ Status color utilities ]]
+        -- Composable accents. The plain status names tint foreground;
+        -- the bg-prefixed names tint background. Use to highlight a
+        -- single label or panel without authoring a one-off rule.
+        {
+            selectors = {"success"},
+            color = "@success",
+        },
+        {
+            selectors = {"info"},
+            color = "@info",
+        },
+        {
+            selectors = {"warning"},
+            color = "@warning",
+        },
+        {
+            selectors = {"danger"},
+            color = "@danger",
+        },
+        {
+            selectors = {"bgSuccess"},
+            bgimage = true,
+            bgcolor = "@success",
+        },
+        {
+            selectors = {"bgInfo"},
+            bgimage = true,
+            bgcolor = "@info",
+        },
+        {
+            selectors = {"bgWarning"},
+            bgimage = true,
+            bgcolor = "@warning",
+        },
+        {
+            selectors = {"bgDanger"},
+            bgimage = true,
+            bgcolor = "@danger",
+        },
+        {
+            selectors = {"borderSuccess"},
+            borderColor = "@success",
+        },
+        {
+            selectors = {"borderInfo"},
+            borderColor = "@info",
+        },
+        {
+            selectors = {"borderWarning"},
+            borderColor = "@warning",
+        },
+        {
+            selectors = {"borderDanger"},
+            borderColor = "@danger",
+        },
+
+        --[[ Token image ]]
+        --
+        -- gui.CreateTokenImage builds a 3-panel structure: outer (tokenImage)
+        -- holds a portrait (tokenImagePortrait) with the token's portrait as
+        -- bgimage, and a frame (tokenImageFrame) overlay. The portrait's
+        -- bgcolor "white" is image-tint-neutral (see top of section 1).
+        --
+        -- The factory also emits the legacy kebab class names alongside these
+        -- so existing non-themed consumers (Styles.lua) keep rendering.
+        {
+            selectors = {"tokenImage"},
+            halign = "center",
+            valign = "center",
+            width = 60,
+            height = 60,
+        },
+        {
+            selectors = {"tokenImagePortrait"},
+            bgcolor = "white",
+            width = "100%",
+            height = "100%",
+        },
+        {
+            selectors = {"tokenImageFrame"},
+            width = "100%",
+            height = "100%",
+        },
+
+        -- =====================================================================
+        -- 6. DOCKABLE PANELS -- dock/tab chrome used by every dockable panel.
+        -- The dock framework (DockablePanel.lua) wires drag/resize/minimize
+        -- behavior in event handlers; this section provides the visual
+        -- cascade those handlers toggle classes on. Themers can re-tint
+        -- every dock surface here.
+        -- =====================================================================
+
+        -- The dock slide-in/out (the 'offscreen' class) is defined as a per-dock
+        -- style in Lua (DockablePanel.CreateSingleDock -> OffscreenStyle), not
+        -- here, because its translation distance must scale with the dock's
+        -- uiscale=dockScale or the restore handle slides off-screen with the dock
+        -- at smaller scales. That style carries both the x offset and the
+        -- transitionTime, and is driven by the class so the slide animates.
+
+        -- Dock frame surface beneath each dock column.
+        {
+            selectors = {"dockFrame"},
+            bgimage = true,
+            bgcolor = "clear",
+            width = "100%",
+            height = "100%",
+            valign = "bottom",
+        },
+        { selectors = {"dockFrame", "~uiblur"},      bgcolor = "@bg" },
+        { selectors = {"dockFrame", "parent:empty"}, collapsed = 1 },
+
+        -- Inner dockable-panel content area.
+        {
+            selectors = {"dockablePanel"},
+            width = "100%",
+            height = "100%",
+            halign = "center",
+            valign = "center",
+            vpad = 4,
+        },
+
+        -- Focus edge: marks the panel whose content tree currently holds
+        -- GUI focus. Several panels are only "armed" while focused (the
+        -- Map Markup drawing tools, the Building editor, the Objects
+        -- panel), and nothing used to show which one that was. A single
+        -- thick accent edge on the LEFT, not a full ring: the same
+        -- selected-state vocabulary the row grammar uses (see
+        -- STYLE_GUIDE.md), scaled up a notch for panel size -- a ring
+        -- around the whole panel outshouted the content it framed.
+        -- Fades rather than snapping, so it reads as state moving
+        -- between panels instead of flickering.
+        {
+            selectors = {"dockPanelFocusOutline"},
+            bgcolor = "clear",
+            borderColor = "@accent",
+            border = {x1 = 4, x2 = 0, y1 = 0, y2 = 0},
+            opacity = 0,
+            transitionTime = 0.15,
+        },
+        {
+            selectors = {"dockPanelFocusOutline", "parent:focused"},
+            opacity = 1,
+        },
+
+        -- Header gradient strip across the top of each panel/tab group.
+        {
+            selectors = {"tabContainer"},
+            bgimage = true,
+            gradient = "@surfaceLinear",
+            bgcolor = "white",
+            borderColor = "@border",
+            border = { x1 = 0, x2 = 0, y1 = 0, y2 = 1 },
+        },
+        { selectors = {"tabContainer", "~mono"}, border = { x1 = 0, x2 = 0, y1 = 1, y2 = 0 } },
+
+        -- Per-tab clickable container.
+        {
+            selectors = {"buttonContainer"},
+            bgimage = true,
+            bgcolor = "clear",
+            borderColor = "@border",
+            border = { y1 = 1, x1 = 0, x2 = 0, y2 = 0 },
+        },
+        {
+            selectors = {"buttonContainer", "selected"},
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            border = { y1 = 0, x1 = 1, x2 = 1, y2 = 1 },
+        },
+        {
+            selectors = {"buttonContainer", "mono"},
+            bgcolor = "clear",
+            border = { y1 = 0, x1 = 0, x2 = 0, y2 = 0 },
+        },
+
+        -- Dock tab icon container. bgcolor tints the icon (set inline as
+        -- bgimage = p.data.icon) with the active scheme's foreground token.
+        -- For full retinting the source PNG should be a white silhouette
+        -- with alpha; colored PNGs will desaturate against the tint.
+        -- Class is `dockTab` (NOT `tab`) to avoid collision with the
+        -- form-style `{tab}` rule in section 1.
+        {
+            selectors = {"dockTab"},
+            width = 20,
+            height = 20,
+            bgcolor = "@fg",
+            halign = "center",
+            valign = "center",
+        },
+        {
+            selectors = {"dockTab", "selected"},
+            bgcolor = "@fgStrong",
+        },
+        {
+            selectors = {"dockTab", "hover"},
+            bgcolor = "@fgStrong",
+        },
+
+        -- Hide tab labels on non-selected tabs when the strip is crowded
+        -- (3+ tabs). The selected tab keeps its label visible.
+        { selectors = {"tabLabel", "crowded", "~selected"}, collapsed = 1 },
+
+        -- Drag preview shown while dragging a panel between docks.
+        { selectors = {"dragGhost"},                         opacity = 0,   bgcolor = "@info" },
+        { selectors = {"dragGhost", "dragging"},             opacity = 0.5 },
+        { selectors = {"dragGhost", "dragging", "deleting"}, bgcolor = "@danger" },
+        { selectors = {"dragGhost", "floatingTarget"},       opacity = 0 },
+
+        -- Vertical drag handles between stacked panels (top-of-panel resize).
+        {
+            selectors = {"verticalDragInvisibleHandle"},
+            width = "100%",
+            y = -4,
+            height = 8,
+            opacity = 0,
+            bgimage = "panels/square.png",
+            bgcolor = "white",
+            valign = "top",
+            halign = "center",
+        },
+        {
+            selectors = {"verticalDragDivider"},
+            width = "100%-8",
+            halign = "center",
+            valign = "top",
+            height = 2,
+        },
+
+        -- Side dock close handle (the icon you click to slide a dock off-screen).
+        -- bgcolor "white" is image-tint-neutral so the dock-handle PNG renders
+        -- at its true colors (then desaturated and brightened by the rule).
+        {
+            selectors = {"dockHandleImage"},
+            width = 32,
+            height = 64,
+            bgimage = "panels/dock-handle.png",
+            bgcolor = "white",
+            saturation = 0,
+            brightness = 2,
+            opacity = 0.8,
+            x = 8,
+        },
+        {
+            selectors = {"dockHandle"},
+            width = 32,
+            height = 64,
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            valign = "bottom",
+            halign = "right",
+        },
+        {
+            selectors = {"dockHandle", "left"},
+            scale = {x = -1},
+            x = 32,
+            y = 8,
+        },
+        {
+            selectors = {"dockHandle", "right"},
+            halign = "left",
+            x = -32,
+            y = 8,
+        },
+        { selectors = {"dockHandle", "parent:empty"}, collapsed = 1 },
+        {
+            selectors = {"dockHandleImage", "hover"},
+            x = -8,
+            transitionTime = 0.1,
+            brightness = 2,
+        },
+
+        -- Collapse / minimize arrow tinting. The PNG is a white silhouette,
+        -- so `bgcolor` retints with the active scheme's foreground tokens.
+        { selectors = {"collapseArrow"},                                  bgcolor = "@fg" },
+        { selectors = {"collapseArrow", "hover"},                         bgcolor = "@fgStrong" },
+        { selectors = {"collapseArrow", "press"},                         bgcolor = "@accent" },
+
+        -- Chevron visibility (minimize/maximize per-panel arrows on the right).
+        { selectors = {"minimizeArrow", "lastExpanded"},                 collapsed = 1 },
+        { selectors = {"collapseArrow", "~minimizeArrow", "minimizeSet"}, collapsed = 1 },
+        { selectors = {"minimizeArrow", "maximized"},                    collapsed = 1 },
+
+        -- =====================================================================
+        -- 7. DRAG & DROP SUPPORT
+        -- The engine uses kebab case.
+        -- =====================================================================
+        {
+            selectors = { 'drag-target' },
+            bgcolor = '@accent',
+            color = "@fgInverse",
+            priority = 5,
+        },
+        {
+            selectors = { 'drag-target-hover' },
+            borderWidth = 2,
+            borderColor = '@accent',
+            bgcolor = '@accentHover',
+            color = "@fgInverse",
+            priority = 5,
+        },
+        {
+            selectors = {"parent:drag-target"},
+            color = "@fgInverse",
+            priority = 5,
+        },
+        {
+            selectors = {"parent:drag-target-hover"},
+            color = "@fgInverse",
+            priority = 5,
+        },
+
+        -- =====================================================================
+        -- Corner radii.
+        --
+        -- 10px on panel-class surfaces, 5px on interactive controls, with
+        -- asymmetric values where only the outer corners should round
+        -- (featureCardHeader/Body when stacked, enum-slider ends, tab tops).
+        -- These live on the base theme deliberately: rounded corners are not
+        -- an option, so every subtree -- including one explicitly styled with
+        -- GetStyles("default") for theme-recovery purposes -- gets them.
+        -- =====================================================================
+
+        -- Panel surfaces
+        { selectors = {"panel", "bordered"},   cornerRadius = 10 },
+        { selectors = {"panel", "dialog"},     cornerRadius = 10 },
+        { selectors = {"modalDialog"},         cornerRadius = 10 },
+        { selectors = {"framedPanel"},         cornerRadius = 10 },
+        { selectors = {"contextMenu"},         cornerRadius = 10 },
+        -- the card root paints the @bgAlt fill (and any accent border), so
+        -- it must round along with its header/body children or its square
+        -- corners peek out from behind them.
+        { selectors = {"featureCard"},         cornerRadius = 10 },
+        { selectors = {"featureCardHeader"},   cornerRadius = 10 },
+        {
+            selectors = {"featureCardHeader", "expanded"},
+            cornerRadius = {x1 = 10, x2 = 0, y1 = 10, y2 = 0},
+        },
+        { selectors = {"featureCardBody"},     cornerRadius = {x1 = 0, x2 = 10, y1 = 0, y2 = 10} },
+
+        -- Interactive controls
+        { selectors = {"label", "button"},        cornerRadius = 5 },
+        { selectors = {"iconButton"},             cornerRadius = 5 },
+        { selectors = {"input"},                  cornerRadius = 5 },
+        --search fields are the one pill-shaped input: form follows
+        --function -- a search box filters, a plain input edits.
+        --7, not 9: the radius must stay UNDER half the field's
+        --RENDERED height or the border path breaks at the end caps --
+        --and window scale shrinks rendered heights below the declared
+        --ones, which is what the old "under half of 20" reasoning
+        --missed. The title bar's 20px field renders 18px in a 1009px
+        --window, where 9 hit the limit and the caps broke (live-
+        --debugged 2026-08-21). The relative forms ("50% height",
+        --"45% height") do NOT fix this: they resolve against the
+        --declared height before scaling, so they break identically
+        --(also tried live). 7 keeps the caps clean down to ~0.78
+        --window scale (15.5px rendered) on the 20px fields.
+        { selectors = {"searchInput"},            cornerRadius = 7 },
+        { selectors = {"dropdown"},               cornerRadius = 5 },
+        { selectors = {"dropdownBorder"},         cornerRadius = 5 },
+        { selectors = {"dropdownMenuSub"},        cornerRadius = 5 },
+        { selectors = {"colorPicker"},            cornerRadius = 5 },
+        { selectors = {"label", "bordered"},      cornerRadius = 5 },
+        { selectors = {"input", "bordered"},      cornerRadius = 5 },
+        { selectors = {"multiselectChip"},        cornerRadius = 5 },
+        { selectors = {"multiselectChipRemove"},  cornerRadius = 5 },
+        -- Enum slider: round only the outer ends so the row reads as one pill.
+        -- x1=top-left, y1=top-right, x2=bottom-right, y2=bottom-left.
+        { selectors = {"enumSliderOption"},       cornerRadius = 0 },
+        { selectors = {"enumSliderOption", "enumSliderFirst"},                     cornerRadius = {x1 = 5, y1 = 0, x2 = 0, y2 = 5} },
+        { selectors = {"enumSliderOption", "enumSliderLast"},                      cornerRadius = {x1 = 0, y1 = 5, x2 = 5, y2 = 0} },
+        { selectors = {"enumSliderOption", "enumSliderFirst", "enumSliderLast"},   cornerRadius = 5 },
+        { selectors = {"checkBackground"},        cornerRadius = 5 },
+        { selectors = {"tab"},                    cornerRadius = {x1 = 5, x2 = 0, y1 = 5, y2 = 0} },
+    },
+}
+
+-- =============================================================================
+-- My Little Pony color scheme
+--
+-- A magic-purple night-sky surface palette with pastel rainbow accents drawn
+-- from the mane-six. Selectable from the standard color scheme picker.
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id          = "my-little-pony",
+    name        = "Carnivorous Pony",
+    description = "Twilight's night-sky purple with pastel mane-six accents.",
+    colors = {
+        -- Surfaces
+        bg            = "#2D1843",
+        bgAlt         = "#3D2257",
+        bgInverse     = "#FFE5F1",
+
+        -- Foreground / text
+        fg            = "#F8C8E0",
+        fgStrong      = "#FFE8F5",
+        fgMuted       = "#A892C4",
+        fgPending     = "#8478A8",
+        fgInverse     = "#2D1843",
+
+        -- Borders
+        border        = "#FF6FAE",
+        borderInverse = "#5A3878",
+
+        -- Accent + interactive
+        accent        = "#56C4E6",
+        accentHover   = "#A0E0F4",
+
+        -- Status (Applejack green, Fluttershy yellow, Applejack orange, Big Mac red)
+        success       = "#88D67A",
+        info          = "#FFE066",
+        warning       = "#FFA864",
+        danger        = "#FF5577",
+
+        -- Disabled
+        disabled      = "#5D4D6E",
+    },
+    gradients = {
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#2D1843"},
+                {position = 1, color = "#5C2868"},
+            },
+        },
+        -- Subtle vignette: bgAlt-ish at center fading to bg at the edge.
+        -- Kept restrained on purpose; MLP is already loud enough without
+        -- a high-contrast radial fighting the rest of the scheme.
+        surfaceRadial = {
+            type = "radial",
+            point_a = {x = 0.5, y = 0.5},
+            point_b = {x = 0.5, y = 1.0},
+            stops = {
+                {position = -0.01, color = "#3D2257"},
+                {position = 0.00,  color = "#3D2257"},
+                {position = 0.25,  color = "#371F50"},
+                {position = 0.50,  color = "#321B4A"},
+                {position = 0.75,  color = "#2F1946"},
+                {position = 1.00,  color = "#2D1843"},
+            },
+        },
+        barTrack = {
+            point_a = {x = -0.02, y = 0},
+            point_b = {x = 1.02, y = 0},
+            stops = {
+                {position = 0, color = "#3D1B5C"},
+                {position = 1, color = "#6B2D9C"},
+                -- {position = 1, color = "#A347D9"},
+            },
+        },
+    },
+}
+
+-- =============================================================================
+-- Void color scheme
+--
+-- Deep cosmic black-purple surfaces with silver starlight text and a muted
+-- arcane purple accent. Intended to feel menacing rather than electric --
+-- accent saturation is intentionally kept low.
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id          = "void",
+    name        = "Void",
+    description = "Deep cosmic black-purple with silver starlight and muted arcane accents.",
+    colors = {
+        -- Surfaces
+        bg            = "#0A0612",
+        bgAlt         = "#16101F",
+        bgInverse     = "#D8D6E0",
+
+        -- Foreground / text
+        fg            = "#C5C2D1",
+        fgStrong      = "#EFEDF5",
+        fgMuted       = "#7A7388",
+        fgPending     = "#5C5668",
+        fgInverse     = "#0A0612",
+
+        -- Borders
+        border        = "#6E6680",
+        borderInverse = "#3A3050",
+
+        -- Accent + interactive (lower-saturation arcane purple)
+        accent        = "#6E3CB0",
+        accentHover   = "#A286C9",
+
+        -- Status (kept semantic so they read consistently across schemes)
+        success       = "#6BA84F",
+        info          = "#E9C868",
+        warning       = "#E08A2E",
+        danger        = "#C73131",
+
+        -- Disabled
+        disabled      = "#2A2336",
+    },
+    gradients = {
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#1A1228"},
+                {position = 1, color = "#04020A"},
+            },
+        },
+        barTrack = {
+            point_a = {x = -0.02, y = 0},
+            point_b = {x = 1.02, y = 0},
+            stops = {
+                {position = 0, color = "#0A0612"},
+                {position = 1, color = "#1F1530"},
+            },
+        },
+    },
+}
+
+-- =============================================================================
+-- Forest color scheme
+--
+-- Deep forest-floor surfaces with sage-cream text, oak-bark bronze borders,
+-- and a muted moss-emerald accent. Brown undertones in the surfaces ground
+-- the green so it reads as a real woodland (canopy + bark + soil) rather
+-- than a flat green wash.
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id          = "forest",
+    name        = "Forest",
+    description = "Deep forest floor with sage-cream text, oak-bark borders, and muted moss-emerald accents.",
+    colors = {
+        -- Surfaces (slight brown undertone in the dark greens)
+        bg            = "#10180E",
+        bgAlt         = "#1E2218",
+        bgInverse     = "#E0E5D2",
+
+        -- Foreground / text (sage-cream, like dappled sunlight)
+        fg            = "#CDD8B8",
+        fgStrong      = "#EAEFD8",
+        fgMuted       = "#7E8A6E",
+        fgPending     = "#5C6555",
+        fgInverse     = "#10180E",
+
+        -- Borders (oak-bark bronze rim ties brown across the chrome)
+        border        = "#7E6A52",
+        borderInverse = "#2A3828",
+
+        -- Accent + interactive (muted moss-emerald, not neon)
+        accent        = "#427B52",
+        accentHover   = "#6FA37A",
+
+        -- Status (kept semantic so they read consistently across schemes)
+        success       = "#6BA84F",
+        info          = "#E9C868",
+        warning       = "#E08A2E",
+        danger        = "#C73131",
+
+        -- Disabled
+        disabled      = "#2A3328",
+    },
+    gradients = {
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#1F3326"},
+                {position = 1, color = "#070D09"},
+            },
+        },
+        barTrack = {
+            point_a = {x = -0.02, y = 0},
+            point_b = {x = 1.02, y = 0},
+            stops = {
+                {position = 0, color = "#10180E"},
+                {position = 1, color = "#1F3326"},
+            },
+        },
+    },
+}
+
+-- =============================================================================
+-- MCDM color scheme
+--
+-- Drawn from the MCDM logo: steel-blue letter faces over a deep navy night
+-- sky, a cream-yellow horizon glow, and a warm amber/sunset border. Surfaces
+-- are deep navy with subtle blue undertones; foreground text reads as steel
+-- blue with cream highlights. Accent is the bright sky-blue from the letter
+-- faces; border is the gold rim. Warning/danger lean into the sunset palette
+-- so semantic colors track the same warm-cool axis as the logo.
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id          = "mcdm",
+    name        = "MCDM",
+    description = "Steel-blue night sky with a cream horizon glow and a warm amber rim, after the MCDM logo.",
+    colors = {
+        -- Surfaces (deep navy with a blue undertone, not pure black)
+        bg            = "#0F1A28",
+        bgAlt         = "#1A2738",
+        bgInverse     = "#C8DCEB",
+
+        -- Foreground / text (steel-blue body, cream-yellow highlight to echo
+        -- the horizon glow inside the logo letters)
+        fg            = "#B8CFE0",
+        fgStrong      = "#F2DEAE",
+        fgMuted       = "#6A89A4",
+        fgPending     = "#4A6680",
+        fgInverse     = "#0F1A28",
+
+        -- Borders (warm amber rim from the logo's outer frame)
+        border        = "#D89540",
+        borderInverse = "#1A2738",
+
+        -- Accent + interactive (bright sky-blue from the letter faces)
+        accent        = "#4A9FD8",
+        accentHover   = "#7CC4EC",
+
+        -- Status (warm side leans sunset; cool side leans cyan-green so it
+        -- reads against the blue surfaces without going neon)
+        success       = "#6BA84F",
+        info          = "#E9C868",
+        warning       = "#E89B36",
+        danger        = "#D63A1C",
+
+        -- Disabled
+        disabled      = "#2A3848",
+    },
+    gradients = {
+        -- Diagonal night-sky wash: lighter navy at the top-left fading to
+        -- near-black at the bottom-right.
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#1A2738"},
+                {position = 1, color = "#070C12"},
+            },
+        },
+        -- Soft vignette: the navy surface lifts slightly at the centre to
+        -- suggest the cream horizon glow without ever competing with the
+        -- accents around it.
+        surfaceRadial = {
+            type = "radial",
+            point_a = {x = 0.5, y = 0.5},
+            point_b = {x = 0.5, y = 1.0},
+            stops = {
+                {position = -0.01, color = "#22344A"},
+                {position = 0.00,  color = "#22344A"},
+                {position = 0.25,  color = "#1C2D40"},
+                {position = 0.50,  color = "#162638"},
+                {position = 0.75,  color = "#121F2E"},
+                {position = 1.00,  color = "#0F1A28"},
+            },
+        },
+        -- Bar track: navy on the left fading to the warm amber rim, mirrors
+        -- the night-sky-meets-sunset transition in the logo border.
+        barTrack = {
+            point_a = {x = -0.02, y = 0},
+            point_b = {x = 1.02,  y = 0},
+            stops = {
+                {position = 0, color = "#0F1A28"},
+                {position = 1, color = "#A86A28"},
+            },
+        },
+    },
+}
+
+-- =============================================================================
+-- My Favorite Colors color scheme
+--
+-- A springtime garden at dusk: dark leaf-shadow surfaces so the blooms pop,
+-- new-leaf cream-green body text, a sunlit pale-yellow for headings, and a
+-- vivid blossom-pink accent with rose-pink chrome -- budding flowers
+-- everywhere. Status colors stay semantic (and conveniently supply the
+-- leaf-green and pollen-yellow the brief asks for).
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id          = "my-favorite-colors",
+    name        = "My Favorite Colors",
+    description = "Springtime garden at dusk: dark surfaces with blossom-pink, leaf-green, and pollen-yellow.",
+    colors = {
+        -- Surfaces (dark garden soil / leaf shadow so the blooms pop)
+        bg            = "#10140D",
+        bgAlt         = "#1C231A",
+        bgInverse     = "#F6DCE7",
+
+        -- Foreground / text (new-leaf green body, sunlit yellow highlight)
+        fg            = "#DCE6C4",
+        fgStrong      = "#F4F1D2",
+        fgMuted       = "#90A074",
+        fgPending     = "#6C7A56",
+        fgInverse     = "#1A0F16",
+
+        -- Borders (rose-pink rim -- flower edges across the chrome)
+        border        = "#C97FA8",
+        borderInverse = "#3A2A33",
+
+        -- Accent + interactive (vivid blossom pink)
+        accent        = "#E85C9E",
+        accentHover   = "#F58CBE",
+
+        -- Status (kept semantic; success/info already read as spring green/yellow)
+        success       = "#6BA84F",
+        info          = "#E9C868",
+        warning       = "#E08A2E",
+        danger        = "#C73131",
+
+        -- Disabled
+        disabled      = "#2A3328",
+    },
+    gradients = {
+        -- Diagonal dusk wash: a hint of twilight plum at the top-left
+        -- settling into deep leaf shadow at the bottom-right.
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#2A1C2E"},
+                {position = 1, color = "#080C06"},
+            },
+        },
+        -- Soft warm vignette: the centre lifts toward green-gold, like late
+        -- sun through the canopy, then falls back to the surface.
+        surfaceRadial = {
+            type = "radial",
+            point_a = {x = 0.5, y = 0.5},
+            point_b = {x = 0.5, y = 1.0},
+            stops = {
+                {position = -0.01, color = "#28311C"},
+                {position = 0.00,  color = "#28311C"},
+                {position = 0.25,  color = "#1E2818"},
+                {position = 0.50,  color = "#171F12"},
+                {position = 0.75,  color = "#12180D"},
+                {position = 1.00,  color = "#10140D"},
+            },
+        },
+        -- Title-bar track: dark stem-green on the left blooming into deep
+        -- rose on the right.
+        barTrack = {
+            point_a = {x = -0.02, y = 0},
+            point_b = {x = 1.02,  y = 0},
+            stops = {
+                {position = 0, color = "#10140D"},
+                {position = 1, color = "#7E2E58"},
+            },
+        },
+    },
+}
+
+-- =============================================================================
+-- High Contrast color scheme.
+--
+-- Built for low vision rather than for looks: true black, pure white text and
+-- loud borders. fg and fgStrong are both pure white on purpose -- there is no
+-- brighter color left for headings, so headings stand out by size instead.
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id           = "high-contrast",
+    name         = "High Contrast",
+    description  = "True black and pure white, at maximum legibility.",
+    highContrast = true,
+    colors = {
+        -- Surfaces
+        bg            = "#000000",
+        bgAlt         = "#16161A",
+        bgRaised      = "#2A2A30", -- text-field hover/focus lift (see default scheme)
+        bgInverse     = "#FFFFFF",
+
+        -- Foreground / text (both white -- see above)
+        fg            = "#FFFFFF",
+        fgStrong      = "#FFFFFF",
+        fgMuted       = "#C4C4C4",
+        fgPending     = "#A8A8A8",
+        fgInverse     = "#000000",
+
+        -- Borders (loud on purpose)
+        border        = "#FFFFFF",
+        borderSolid   = "#FFFFFF",
+        borderInverse = "#000000",
+
+        -- Accent + interactive
+        accent        = "#FFE14D",
+        accentHover   = "#FFFFFF",
+
+        -- Status. The default four are hard to tell apart if you are
+        -- colorblind; these stay distinct.
+        success       = "#B6FF9E",
+        info          = "#B49DFF",
+        warning       = "#FFD24D",
+        danger        = "#FF8A93",
+
+        -- Disabled text still has to be readable, so this is much lighter
+        -- than the default scheme's.
+        disabled      = "#8C8C8C",
+
+        -- implStatus* inherited on purpose: they should mean the same thing
+        -- in every scheme.
+    },
+    gradients = {
+        -- Near-flat on purpose -- a gradient would eat into the contrast.
+        surfaceLinear = {
+            point_a = {x = 0, y = 0},
+            point_b = {x = 1, y = 1},
+            stops = {
+                {position = 0, color = "#16161A"},
+                {position = 1, color = "#000000"},
+            },
+        },
+
+        surfaceRadial = {
+            type = "radial",
+            point_a = {x = 0.5, y = 0.5},
+            point_b = {x = 0.5, y = 1.0},
+            stops = {
+                {position = -0.01, color = "#16161A"},
+                {position = 0.00,  color = "#16161A"},
+                {position = 0.50,  color = "#0B0B0D"},
+                {position = 1.00,  color = "#000000"},
+            },
+        },
+    },
+}
+
+-- =============================================================================
+-- Colorblind Safe color scheme.
+--
+-- Looks like the default scheme -- same surfaces, same text -- but the four
+-- status colors are re-picked so they stay apart for colorblind players. The
+-- default amber info and orange warning are close to the same color even for
+-- normal vision. Turning on Status Icons matters more than the colors do.
+-- =============================================================================
+
+ThemeEngine.RegisterColorScheme{
+    id          = "colorblind-safe",
+    name        = "Colorblind Safe",
+    description = "The default look, with status colors that survive color vision deficiency.",
+    colors = {
+        -- Surfaces -- identical to the default scheme.
+        bg            = "#0A0A0B",
+        bgAlt         = "#1A1A1E",
+        bgRaised      = "#2E2E33",
+        bgInverse     = "#E4DDD0",
+
+        -- Foreground / text. fgMuted and fgPending are lifted; the default
+        -- values were too dark to read comfortably.
+        fg            = "#E4DDD0",
+        fgStrong      = "#F2EDE1",
+        fgMuted       = "#A5A5A5",
+        fgPending     = "#8F8A80",
+        fgInverse     = "#0A0A0B",
+
+        -- Borders. borderSolid is lifted; the default was nearly invisible.
+        border        = "#FFFFFF3D",
+        borderSolid   = "#66666C",
+        borderInverse = "#8F8A80",
+
+        -- Accent + interactive (colorless, as in the default scheme)
+        accent        = "#E4DDD0",
+        accentHover   = "#F7F3EA",
+
+        -- Status -- the point of this scheme.
+        success       = "#A0EE87",
+        info          = "#708CE1",
+        warning       = "#FABD2E",
+        danger        = "#DA6C75",
+
+        -- Disabled. The default was too dark to read.
+        disabled      = "#9A9A9A",
+
+        -- implStatus* inherited on purpose -- see the High Contrast scheme.
+    },
+    -- No gradients: the surfaces match the default scheme, so its gradients
+    -- already fit.
+}
+
+-- Register any user-created custom schemes (persisted per-user on this machine)
+-- so they exist before the active selection is restored -- otherwise a saved
+-- active pick of a custom scheme would fall back to default.
+ThemeEngine.LoadUserColorSchemes()
+
+-- After the schemes are registered, restore the user's saved color-scheme
+-- selection (defaults to the "default" scheme if they haven't picked anything
+-- yet).
+ThemeEngine.RestoreActiveSelection()

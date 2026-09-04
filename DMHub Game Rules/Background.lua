@@ -14,15 +14,20 @@ Background.name = "New Background"
 Background.description = ""
 Background.portraitid = ""
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\DSCareer.lua:17
 function Background.CreateNew()
 	return Background.new{
 	}
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\DSCareer.lua:23
 function Background:Describe()
 	return self.name
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\DSCareer.lua:30
 function Background:FillClassFeatures(choices, result)
 	for i,feature in ipairs(self:GetClassLevel().features) do
 
@@ -33,8 +38,10 @@ function Background:FillClassFeatures(choices, result)
 		end
 	end
 end
+--]==]
 
 --result is filled with a list of { background = Background object, feature = CharacterFeature or CharacterChoice }
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\DSCareer.lua:45
 function Background:FillFeatureDetails(choices, result)
 	for i,feature in ipairs(self:GetClassLevel().features) do
 		local resultFeatures = {}
@@ -49,12 +56,16 @@ function Background:FillFeatureDetails(choices, result)
 	end
 	
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\DSCareer.lua:61
 function Background:FeatureSourceName()
 	return string.format("%s Background Feature", self.name)
 end
+--]==]
 
 --this is where a background stores its modifiers etc, which are very similar to what a class gets.
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\DSCareer.lua:68
 function Background:GetClassLevel()
 	if self:try_get("modifierInfo") == nil then
 		self.modifierInfo = ClassLevel:CreateNew()
@@ -62,7 +73,9 @@ function Background:GetClassLevel()
 
 	return self.modifierInfo
 end
+--]==]
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\DSCareer.lua:77
 function Background.GetDropdownList()
 	local result = {
 		{
@@ -79,3 +92,4 @@ function Background.GetDropdownList()
 	end)
 	return result
 end
+--]==]

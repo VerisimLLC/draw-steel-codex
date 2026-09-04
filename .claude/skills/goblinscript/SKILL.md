@@ -45,6 +45,12 @@ GoblinScript is the domain-specific expression language used throughout DMHub fo
 ### Key Rules
 - **Case-insensitive**: `Stamina`, `stamina`, and `STAMINA` are equivalent.
 - **Spaces in names are ignored for lookup**: `Walking Speed` and `walkingspeed` resolve to the same symbol.
+- **Write identifiers WITHOUT spaces in new formulas** (`WalkingSpeed`, `MaximumStamina`).
+  Spaced spellings are legacy-supported but deprecated: a word that collides with a
+  reserved operator (`has`, `is`, `not`, `and`, `or`, `when`, `where`, `else`) is read
+  as the operator and the formula silently mis-parses -- `Has Cover > 0` never resolves
+  the `Has Cover` attribute, while `HasCover > 0` works. Same rule when NAMING new
+  symbols or custom attributes: avoid reserved words entirely.
 - **Unresolved symbols silently return 0** (or false for booleans). Check spelling carefully.
 - **`self.` prefix** references the subject creature explicitly: `self.Stamina`, `self.Conditions has "Poisoned"`.
 - **Boolean results**: true evaluates to 1, false to 0 in numeric contexts.

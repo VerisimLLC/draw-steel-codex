@@ -65,7 +65,7 @@ CharacterModifier.RegisterAbilityModifier
 					ability.resourceCost = "101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8" --Malice Resource
 				end
 				--When we add a resourceCost, a value of 1 is implied.
-				value = value -1
+				value = string.format("(%s) - 1", value)
 			end
 
 			if operation == "Set" then
@@ -98,8 +98,21 @@ CharacterModifier.RegisterAbilityModifier
 		else
 			local keywords = attr.keywords or {}
 			local abilityKeywords = ability:get_or_add("keywords", {})
+
+			--Once an ability has been split into its Melee/Ranged action bar
+			--variations, each variation must stay single-keyword: a Ranged
+			--variation gaining Melee back (or vice versa) would make the
+			--action bar's own melee/ranged split logic treat it as a fresh
+			--dual-keyword ability again.
+			local isMeleeVariation = ability:try_get("isMeleeVariation", false)
+			local isRangedVariation = ability:try_get("isRangedVariation", false)
+
 			for keyword, _ in pairs(keywords) do
-				abilityKeywords[keyword] = true
+				local blocked = (keyword == "Ranged" and isMeleeVariation)
+					or (keyword == "Melee" and isRangedVariation)
+				if not blocked then
+					abilityKeywords[keyword] = true
+				end
 			end
 			return true
 		end
@@ -163,6 +176,25 @@ CharacterModifier.RegisterAbilityModifier
 
 CharacterModifier.RegisterAbilityModifier
 {
+	id = "targetallegiance",
+	text = "Target Allegiance",
+	operations = { "Set" },
+	--Changes only WHO the ability may target, leaving the target type, radius,
+	--and object targeting untouched. Unlike "Target Type" this works on abilities
+	--whose shape we don't know in advance -- e.g. Synaptic Override forcing an
+	--enemy's own signature ability to be aimed at that enemy's allies.
+	set = function(modifier, creature, ability, operation, value)
+		if value == "ally" or value == "enemy" then
+			ability.targetAllegiance = value
+		elseif value == "all" then
+			ability.targetAllegiance = nil
+		end
+		return true
+	end,
+}
+
+CharacterModifier.RegisterAbilityModifier
+{
 	id = "reasonfilter",
 	text = "Reasoned Filter",
 	operations = { "reasonfilter" },
@@ -205,18 +237,44 @@ CharacterModifier.RegisterAbilityModifier
 		text = "Range",
 		operations = { "Add", "Multiply", "Set" },
 		set = function(modifier, creature, ability, operation, value)
-			local val = nil
+			-- Burst abilities use ability.range as burst radius, not as a distance.
+			-- The "Burst Size" attribute handles those.
+			if ability.targetType == "all" then
+				return true
+			end
+
 			value = dmhub.EvalGoblinScript(value, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), "Calculate Range Modifier")
+
+			-- For line abilities, "range" means the within-distance (ability.lineDistance),
+			-- not the line length (ability.range). Cube abilities already store their
+			-- within-distance in ability.range, so no special case is needed there.
+			if ability.targetType == "line" then
+				local cur = ability.lineDistance
+				if operation == "Set" then
+					ability.lineDistance = tonumber(value)
+				elseif operation == "Multiply" then
+					ability.lineDistance = tonum(cur) * tonum(value)
+				else
+					if type(cur) == "string" and tonumber(cur) == nil then
+						ability.lineDistance = string.format("(%s) + (%s)", cur, value)
+					else
+						ability.lineDistance = tonum(cur) + tonum(value)
+					end
+				end
+				return true
+			end
+
+			local val = nil
 			if operation == "Set" then
 				val = tonumber(value)
 			elseif operation == "Multiply" then
 				val = tonum(ability.range) * tonum(value)
 			else
-                if type(ability.range) == "string" and tonumber(ability.range) == nil then
-                    val = string.format("(%s) + (%s)", ability.range, value)
-                else
-				    val = tonum(ability.range) + tonum(value)
-                end
+				if type(ability.range) == "string" and tonumber(ability.range) == nil then
+					val = string.format("(%s) + (%s)", ability.range, value)
+				else
+					val = tonum(ability.range) + tonum(value)
+				end
 			end
 
 			if val ~= nil then
@@ -284,6 +342,162 @@ CharacterModifier.RegisterAbilityModifier
 			return true
 		end,
 	}
+
+CharacterModifier.RegisterAbilityModifier
+	{
+		id = "burstsize",
+		text = "Burst Size",
+		operations = { "Add", "Multiply", "Set" },
+		set = function(modifier, creature, ability, operation, value)
+			if ability.targetType ~= "all" then
+				return true
+			end
+			local val = nil
+			value = dmhub.EvalGoblinScript(value, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), "Calculate Burst Size Modifier")
+			if operation == "Set" then
+				val = tonumber(value)
+			elseif operation == "Multiply" then
+				val = tonum(ability.range) * tonum(value)
+			else
+				if type(ability.range) == "string" and tonumber(ability.range) == nil then
+					val = string.format("(%s) + (%s)", ability.range, value)
+				else
+					val = tonum(ability.range) + tonum(value)
+				end
+			end
+
+			if val ~= nil then
+				ability.range = val
+			end
+			return true
+		end,
+		documentation = {
+			help = "This GoblinScript is applied to the burst radius of burst-type (Area: All) abilities this modifier affects.",
+			output = "number",
+			examples = {
+				{
+					script = "1",
+					text = "1 is added to the burst radius.",
+				},
+				{
+					script = "2 when level > 5",
+					text = "2 is added to the burst radius when the creature is above level 5.",
+				},
+			},
+			subject = creature.helpSymbols,
+			subjectDescription = "The creature that is affected by this modifier",
+			symbols = {
+				ability = {
+					name = "Ability",
+					type = "ability",
+					desc = "The ability being modified",
+				},
+			},
+		},
+	}
+
+CharacterModifier.RegisterAbilityModifier
+	{
+		id = "cubeedge",
+		text = "Cube Edge",
+		operations = { "Add", "Multiply", "Set" },
+		set = function(modifier, creature, ability, operation, value)
+			if ability.targetType ~= "cube" then
+				return true
+			end
+			local val = nil
+			value = dmhub.EvalGoblinScript(value, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), "Calculate Cube Edge Modifier")
+			local currentRadius = ability:try_get("radius")
+			if operation == "Set" then
+				val = tonumber(value)
+			elseif operation == "Multiply" then
+				val = tonum(currentRadius) * tonum(value)
+			else
+				if type(currentRadius) == "string" and tonumber(currentRadius) == nil then
+					val = string.format("(%s) + (%s)", currentRadius, value)
+				else
+					val = tonum(currentRadius) + tonum(value)
+				end
+			end
+
+			if val ~= nil then
+				ability.radius = val
+			end
+			return true
+		end,
+		documentation = {
+			help = "This GoblinScript is applied to the edge length of cube-type abilities this modifier affects.",
+			output = "number",
+			examples = {
+				{
+					script = "1",
+					text = "1 is added to the cube edge length.",
+				},
+				{
+					script = "2 when level > 5",
+					text = "2 is added to the cube edge length when the creature is above level 5.",
+				},
+			},
+			subject = creature.helpSymbols,
+			subjectDescription = "The creature that is affected by this modifier",
+			symbols = {
+				ability = {
+					name = "Ability",
+					type = "ability",
+					desc = "The ability being modified",
+				},
+			},
+		},
+	}
+
+CharacterModifier.RegisterAbilityModifier
+{
+	id = "linedimensions",
+	text = "Line Dimensions",
+	operations = { "Add", "Multiply", "Set" },
+	set = function(modifier, creature, ability, attr)
+		if ability.targetType ~= "line" then
+			return true
+		end
+		local symbols = GenerateSymbols(creature, modifier:try_get("_tmp_symbols"))
+		local operation = attr.operation or "Add"
+
+		local lengthValue = attr.lengthValue or ""
+		if lengthValue ~= "" then
+			local length = tonum(dmhub.EvalGoblinScript(lengthValue, symbols, "Calculate Line Length Modifier"))
+			if operation == "Set" then
+				ability.range = length
+			elseif operation == "Multiply" then
+				ability.range = tonum(ability.range) * length
+			else
+				if type(ability.range) == "string" and tonumber(ability.range) == nil then
+					ability.range = string.format("(%s) + (%s)", ability.range, lengthValue)
+				else
+					ability.range = tonum(ability.range) + length
+				end
+			end
+		end
+
+		local widthValue = attr.widthValue or ""
+		if widthValue ~= "" then
+			local width = tonum(dmhub.EvalGoblinScript(widthValue, symbols, "Calculate Line Width Modifier"))
+			local currentRadius = ability:try_get("radius")
+			if operation == "Set" then
+				ability.radius = width
+			elseif operation == "Multiply" then
+				ability.radius = tonum(currentRadius) * width
+			else
+				if type(currentRadius) == "string" and tonumber(currentRadius) == nil then
+					ability.radius = string.format("(%s) + (%s)", currentRadius, widthValue)
+				else
+					ability.radius = tonum(currentRadius) + width
+				end
+			end
+		end
+
+		return true
+	end,
+}
 
 CharacterModifier.RegisterAbilityModifier
 	{
@@ -402,15 +616,41 @@ CharacterModifier.RegisterAbilityModifier
 		},
 	} ]]
 
+--Top-level roll flags (minroll/reroll/exploding/critical/...) must be appended to the whole
+--roll as trailing tokens. Wrapping them in +(...) like an additive damage term makes the roll
+--parser treat them as an added sub-expression and silently drop the flag -- e.g. "1d6+(minroll 3)"
+--parses as plain "1d6". Detect a flag-led value and append it directly instead.
+local g_directDamageRollFlags = {
+	"minroll", "reroll", "exploding", "critical", "autocritical",
+	"autosuccess", "autofailure", "nottierone", "nottierthree",
+	"tierup", "tierdown", "extradie", "extradice",
+}
+
+local function DirectDamageRollValueIsFlag(value)
+	local trimmed = string.lower(string.trim(value or ""))
+	for _,keyword in ipairs(g_directDamageRollFlags) do
+		if string.find(trimmed, "^" .. keyword) then
+			return true
+		end
+	end
+	return false
+end
+
 CharacterModifier.RegisterAbilityModifier
 	{
 		id = "directdamageroll",
 		text = "Direct Damage Rolls",
 		operations = { "Add" },
 		set = function(modifier, creature, ability, operation, value)
+			local isFlag = DirectDamageRollValueIsFlag(value)
 			for i,behavior in ipairs(ability.behaviors) do
 				if behavior.typeName == "ActivatedAbilityDamageBehavior" then
-					behavior.roll = string.format("%s+(%s)", behavior.roll, value)
+					if isFlag then
+						--append as a trailing top-level roll flag, not an added damage term.
+						behavior.roll = string.format("%s %s", behavior.roll, value)
+					else
+						behavior.roll = string.format("%s+(%s)", behavior.roll, value)
+					end
 				end
 			end
 		end,
@@ -450,6 +690,41 @@ CharacterModifier.RegisterAbilityModifier
 				},
 			},
 		},
+	}
+
+CharacterModifier.RegisterAbilityModifier
+	{
+		id = "damagetype",
+		text = "Damage Type",
+		operations = { "Set" },
+		set = function(modifier, creature, ability, operation, value)
+			if value == nil or value == "" then
+				return true
+			end
+			value = string.lower(value)
+
+			for _,behavior in ipairs(ability.behaviors) do
+				if behavior.typeName == "ActivatedAbilityDamageBehavior" then
+					--Direct damage behaviors (e.g. monster free strikes) store the
+					--damage type directly. This is the case Raining Cinders hits.
+					behavior.damageType = value
+				elseif behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+					--Power roll tiers store damage as text like "5 fire damage" or
+					--"5 damage". Rewrite the first damage clause of each tier to the
+					--new type. Mirrors the tier rewrite in MCDModifyPowerRolls.lua.
+					local tiers = behavior:try_get("tiers")
+					if tiers ~= nil then
+						for i=1,#tiers do
+							local m = regex.MatchGroups(tiers[i], "^(?<prefix>.*?)(?<damage>\\d+)\\s+([a-zA-Z]+\\s+)?damage(?<suffix>.*)$")
+							if m ~= nil then
+								tiers[i] = m.prefix .. m.damage .. " " .. value .. " damage" .. m.suffix
+							end
+						end
+					end
+				end
+			end
+			return true
+		end,
 	}
 
 --The "replaceBehavior" used to be false (default) for placing new behaviors at the end, and true for replacing behaviors.
@@ -527,7 +802,7 @@ CharacterModifier.TypeInfo.modifyability = {
 		for i,attr in ipairs(modifier.attributes) do
 			local info = abilityModifierOptionsById[attr.id]
 			if info ~= nil then
-				if attr.id == "targettype" or attr.id == "modkeywords" or attr.id == "reasonfilter" or attr.id == "modproperties" then
+				if attr.id == "targettype" or attr.id == "modkeywords" or attr.id == "reasonfilter" or attr.id == "modproperties" or attr.id == "linedimensions" then
 					info.set(modifier, creature, ability, attr)
 				else
 					info.set(modifier, creature, ability, attr.operation, attr.value, attr.condition)
@@ -590,7 +865,7 @@ CharacterModifier.TypeInfo.modifyability = {
 			local children = {}
 
 			if not modifier:try_get("unconditional") then
-				children[#children+1] = modifier:FilterConditionEditor("filterAbility")
+				children[#children+1] = modifier:FilterConditionEditor("filterAbility", Refresh)
 			end
 
 			children[#children+1] = gui.Panel{
@@ -606,6 +881,7 @@ CharacterModifier.TypeInfo.modifyability = {
 					minHeight = 22,
 					maxHeight = 60,
 					multiline = true,
+					characterLimit = 2000,
 					placeholderText = "Enter text to add to ability...",
 					text = modifier:try_get("modifyDescription"),
 					change = function(element)
@@ -616,6 +892,7 @@ CharacterModifier.TypeInfo.modifyability = {
 			}
 
             children[#children+1] = gui.Check{
+				styles = ThemeEngine.GetStyles(),
                 text = "Must Pay Resource Cost",
                 value = modifier:try_get("mustPayResourceCost", false),
                 change = function(element)
@@ -623,6 +900,32 @@ CharacterModifier.TypeInfo.modifyability = {
                     Refresh()
                 end,
             }
+
+            children[#children+1] = gui.Check{
+				styles = ThemeEngine.GetStyles(),
+                text = "Apply to Triggered Abilities",
+                value = modifier:try_get("applyToTriggeredAbilities", false),
+                change = function(element)
+                    modifier.applyToTriggeredAbilities = element.value
+                    Refresh()
+                end,
+            }
+
+            --Power roll triggers can't honor the filterAbility GoblinScript
+            --(no ability to evaluate it against), so hide the toggle when a
+            --filter is set. Re-renders on the next Refresh() after the filter
+            --field changes.
+            if modifier:try_get("filterAbility", "") == "" then
+                children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
+                    text = "Apply to Power Roll Triggers",
+                    value = modifier:try_get("applyToPowerRollTriggers", false),
+                    change = function(element)
+                        modifier.applyToPowerRollTriggers = element.value
+                        Refresh()
+                    end,
+                }
+            end
 
 			local actions = DeepCopy(CharacterResource.GetActionOptions())
 			actions[#actions+1] = {
@@ -632,6 +935,7 @@ CharacterModifier.TypeInfo.modifyability = {
 
             local keywords = modifier:try_get("keywords", {})
             children[#children+1] = gui.KeywordSelector{
+				styles = ThemeEngine.GetStyles(),
                 keywords = keywords,
                 change = function()
                     modifier.keywords = keywords
@@ -647,6 +951,7 @@ CharacterModifier.TypeInfo.modifyability = {
 						text = "Change Action:",
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						classes = "formDropdown",
 						idChosen = modifier:try_get("actionResourceId", "nochange"),
 						options = actions,
@@ -667,15 +972,14 @@ CharacterModifier.TypeInfo.modifyability = {
 				local info = abilityModifierOptionsById[attr.id]
 				if info ~= nil then
 					children[#children+1] = gui.Panel{
-						classes = {"formPanel"},
+						classes = {"formPanel", "formPanel-inline"},
 						gui.Label{
 							classes = {"formLabel"},
 							width = 400,
 							text = info.text,
 						},
-						gui.DeleteItemButton{
-							width = 16,
-							height = 16,
+						gui.Button{
+							classes = {"deleteButton", "sizeXs"},
 							valign = 'center',
 							halign = 'right',
 							click = function(element)
@@ -694,6 +998,7 @@ CharacterModifier.TypeInfo.modifyability = {
 									text = "Operation:",
 								},
 								gui.Dropdown{
+									styles = ThemeEngine.GetStyles(),
 									height = 30,
 									width = 260,
 									fontSize = 16,
@@ -709,6 +1014,7 @@ CharacterModifier.TypeInfo.modifyability = {
 
 						if attr.operation == "Bool" then
 							children[#children+1] = gui.Check{
+								styles = ThemeEngine.GetStyles(),
 								text = info.text,
 								style = {
 									height = 30,
@@ -732,6 +1038,7 @@ CharacterModifier.TypeInfo.modifyability = {
 									text = "Target Type:",
 								},
 								gui.Dropdown{
+									styles = ThemeEngine.GetStyles(),
 									classes = "formDropdown",
 									options = dummyAbility:GetDisplayedTargetTypeOptions(),
 									idChosen = attr.targeting or "self",
@@ -748,6 +1055,7 @@ CharacterModifier.TypeInfo.modifyability = {
 									text = "Affects:",
 								},
 								gui.Dropdown{
+									styles = ThemeEngine.GetStyles(),
 									classes = "formDropdown",
 									options = {
 										{
@@ -847,7 +1155,7 @@ CharacterModifier.TypeInfo.modifyability = {
 
 							for filterIndex,filter in ipairs(reasonedFilters) do
 								children[#children+1] = gui.Panel{
-									classes = {"formPanel"},
+									classes = {"formPanel", "formPanel-inline"},
 									gui.Label{
 										classes = "formLabel",
 										text = "Formula:",
@@ -910,10 +1218,9 @@ CharacterModifier.TypeInfo.modifyability = {
 										},
 									},
 
-									gui.DeleteItemButton{
+									gui.Button{
+										classes = {"deleteButton", "sizeS"},
 										halign = "right",
-										width = 16,
-										height = 16,
 										click = function(element)
 											table.remove(reasonedFilters, filterIndex)
 											Refresh()
@@ -1017,7 +1324,8 @@ CharacterModifier.TypeInfo.modifyability = {
 							children[#children+1] = gui.Panel{
 								classes = {"formPanel"},
 								height = "auto",
-								gui.SetEditor{
+								gui.Multiselect{
+									styles = ThemeEngine.GetStyles(),
 									value = properties,
 									addItemText = "Add Special Property...",
 									options = ActivatedAbility.registeredProperties,
@@ -1025,6 +1333,142 @@ CharacterModifier.TypeInfo.modifyability = {
 										attr.properties = value
 										Refresh()
 									end,
+								},
+							}
+						elseif attr.id == "damagetype" then
+							children[#children+1] = gui.Panel{
+								classes = {"formPanel"},
+								gui.Label{
+									classes = {"formLabel"},
+									text = "Damage Type:",
+								},
+								gui.Dropdown{
+									styles = ThemeEngine.GetStyles(),
+									classes = "formDropdown",
+									options = rules.damageTypesAvailable,
+									idChosen = attr.value,
+									change = function(element)
+										modifier.attributes[i].value = element.idChosen
+										Refresh()
+									end,
+								},
+							}
+						elseif attr.id == "targetallegiance" then
+							children[#children+1] = gui.Panel{
+								classes = {"formPanel"},
+								gui.Label{
+									classes = {"formLabel"},
+									text = "Affects:",
+								},
+								gui.Dropdown{
+									styles = ThemeEngine.GetStyles(),
+									classes = "formDropdown",
+									options = {
+										{
+											id = "all",
+											text = "Any Creatures",
+										},
+										{
+											id = "ally",
+											text = "Allied Creatures",
+										},
+										{
+											id = "enemy",
+											text = "Enemy Creatures",
+										},
+									},
+									idChosen = attr.value or "all",
+									change = function(element)
+										modifier.attributes[i].value = element.idChosen
+										Refresh()
+									end,
+								},
+							}
+						elseif attr.id == "linedimensions" then
+							local lineLengthDoc = {
+								domains = modifier:Domains(),
+								help = "This GoblinScript is applied to the length of line-type abilities this modifier affects.",
+								output = "number",
+								examples = {
+									{
+										script = "1",
+										text = "1 is added to the line length.",
+									},
+									{
+										script = "2 when level > 5",
+										text = "2 is added to the line length when the creature is above level 5.",
+									},
+								},
+								subject = creature.helpSymbols,
+								subjectDescription = "The creature that is affected by this modifier",
+								symbols = {
+									ability = {
+										name = "Ability",
+										type = "ability",
+										desc = "The ability being modified",
+									},
+								},
+							}
+							local lineWidthDoc = {
+								domains = modifier:Domains(),
+								help = "This GoblinScript is applied to the width of line-type abilities this modifier affects.",
+								output = "number",
+								examples = {
+									{
+										script = "1",
+										text = "1 is added to the line width.",
+									},
+									{
+										script = "2 when level > 5",
+										text = "2 is added to the line width when the creature is above level 5.",
+									},
+								},
+								subject = creature.helpSymbols,
+								subjectDescription = "The creature that is affected by this modifier",
+								symbols = {
+									ability = {
+										name = "Ability",
+										type = "ability",
+										desc = "The ability being modified",
+									},
+								},
+							}
+							children[#children+1] = gui.Panel{
+								classes = {"formPanel"},
+								height = "auto",
+								gui.Label{
+									classes = {"formLabel"},
+									text = "Length:",
+								},
+								gui.GoblinScriptInput{
+									height = "auto",
+									width = 360,
+									fontSize = 16,
+									value = attr.lengthValue or "",
+									change = function(element)
+										modifier.attributes[i].lengthValue = element.value
+										Refresh()
+									end,
+									documentation = lineLengthDoc,
+								},
+							}
+							children[#children+1] = gui.Panel{
+								classes = {"formPanel"},
+								height = "auto",
+								gui.Label{
+									classes = {"formLabel"},
+									text = "Width:",
+								},
+								gui.GoblinScriptInput{
+									height = "auto",
+									width = 360,
+									fontSize = 16,
+									value = attr.widthValue or "",
+									change = function(element)
+										modifier.attributes[i].widthValue = element.value
+										Refresh()
+									end,
+									documentation = lineWidthDoc,
 								},
 							}
 						else
@@ -1053,6 +1497,7 @@ CharacterModifier.TypeInfo.modifyability = {
 			end
 
 			children[#children+1] = gui.Dropdown{
+				styles = ThemeEngine.GetStyles(),
 				options = abilityModifierOptions,
 				idChosen = "none",
 				height = 30,
@@ -1089,6 +1534,7 @@ CharacterModifier.TypeInfo.modifyability = {
 						text = "Behaviors Mode:",
 					},
 					gui.Dropdown{
+						styles = ThemeEngine.GetStyles(),
 						options = {
 							{
 								id = "after",

@@ -1,20 +1,35 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 local AddButton = function(options)
 	local args = {
-		style = {
-			width = 32,
-			height = 32,
-			halign = 'right',
-			valign = 'top',
-		},
+		classes = {"addButton", "sizeL"},
+		halign = "right",
+		valign = "top",
 	}
+
+	if options.classes ~= nil then
+		for _,c in ipairs(options.classes) do
+			args.classes[#args.classes+1] = c
+		end
+		options.classes = nil
+	end
 
 	for k,v in pairs(options) do
 		args[k] = v
 	end
 
-	return gui.AddButton(args)
+	return gui.Button(args)
 end
 
 local function FindFeaturePathInObject(feature, obj, path)
@@ -136,13 +151,127 @@ CompendiumPermission.name = "Compendium Permission"
 CompendiumPermission.tableName = "compendiumPermissions"
 CompendiumPermission.visible = true
 
+-- Shared per-entry match test for the compendium left menu and its page lists.
+-- `needle` must already be normalised (Search.Normalize). A menu category
+-- (contentType set) matches if its label or any row in its table matches; a
+-- single row (tableName+key) matches if the item, the table name, or the label
+-- matches. Empty needle matches everything (so clearing restores the list).
+-- One keystroke fans out to several independent sweeps of the same tables
+-- (menu rows, section headings, the "All results (N)" counter, the aggregated
+-- view, the page summary). Memoise MatchKeys per (needle, contentType) so each
+-- table is walked once per needle; the short TTL keeps results fresh across
+-- edits without needing invalidation hooks.
+-- Forward-declared so LibraryPanel's context-search provider (above its
+-- definition) can singularise category labels for its result chips. Assigned
+-- to the real implementation further down the file.
+local CompendiumTypeLabel
+
+local m_matchKeysCache = {needle = nil, time = 0, keys = {}}
+local function MatchKeysCached(contentType, needle)
+	local now = os.clock()
+	if m_matchKeysCache.needle ~= needle or now - m_matchKeysCache.time > 1 then
+		m_matchKeysCache = {needle = needle, time = now, keys = {}}
+	end
+	local cached = m_matchKeysCache.keys[contentType]
+	if cached == nil then
+		cached = Search.MatchKeys(dmhub.GetTable(contentType) or {}, needle)
+		m_matchKeysCache.keys[contentType] = cached
+	end
+	return cached
+end
+
+-- Name-only sibling of MatchKeysCached. The global "compendium-content" provider
+-- matches on the entry NAME only (deliberately narrower than the deep, all-fields
+-- MatchKeysCached), so it needs its own per-needle memo. Without this the provider
+-- re-walked every content table on each keystroke -- and again on every 0.2s
+-- async-PDF poll for the same unchanged needle. Same 1s TTL / single-needle shape
+-- as MatchKeysCached above.
+local m_nameMatchCache = {needle = nil, time = 0, keys = {}}
+local function NameMatchKeysCached(contentType, needle)
+	local now = os.clock()
+	if m_nameMatchCache.needle ~= needle or now - m_nameMatchCache.time > 1 then
+		m_nameMatchCache = {needle = needle, time = now, keys = {}}
+	end
+	local cached = m_nameMatchCache.keys[contentType]
+	if cached == nil then
+		cached = {}
+		local t = dmhub.GetTable(contentType)
+		if t ~= nil then
+			for k,v in unhidden_pairs(t) do
+				local name = (type(v) == "table" and rawget(v, "name")) or nil
+				if type(name) == "string" and Search.MatchesText(name, needle) then
+					cached[#cached+1] = k
+				end
+			end
+		end
+		m_nameMatchCache.keys[contentType] = cached
+	end
+	return cached
+end
+
+local function CompendiumEntryMatches(options, needle)
+	if needle == "" then
+		return true
+	end
+	if options.text ~= nil and Search.MatchesText(options.text, needle) then
+		return true
+	end
+	if options.contentType ~= nil then
+		return #MatchKeysCached(options.contentType, needle) > 0
+	elseif options.tableName ~= nil and options.key ~= nil then
+		local item = (dmhub.GetTable(options.tableName) or {})[options.key]
+		if item ~= nil and Search.MatchesObject(item, needle) then
+			return true
+		end
+		if Search.MatchesText(options.tableName, needle) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Number of matching rows inside a category's table, for the menu count badge.
+-- Returns nil for entries that are not enumerable categories.
+local function CompendiumCategoryMatchCount(options, needle)
+	if options.contentType == nil then
+		return nil
+	end
+	return #MatchKeysCached(options.contentType, needle)
+end
+
 local CreateListHeading = function(options)
 	return gui.Label{
 		text = options.text,
 		hmargin = 3,
 		fontSize = 22,
-		classes = {'list-item'},
+		classes = {'list-item', 'list-heading', 'hideOnSearchMismatch'},
 		bold = true,
+
+		-- On an active filter a section heading stays only if its own text or
+		-- any category beneath it matches; otherwise it collapses so empty
+		-- sections do not leave orphan headers. Clearing restores it.
+		searchCompendium = function(element, text)
+			local needle = Search.Normalize(text)
+			if needle == "" then
+				element:SetClass("searching", false)
+				element:SetClass("matchSearch", false)
+				return
+			end
+
+			element:SetClass("searching", true)
+
+			local match = Search.MatchesText(options.text, needle)
+			if not match and options.matchOptions ~= nil then
+				for _,opt in ipairs(options.matchOptions) do
+					if CompendiumEntryMatches(opt, needle) then
+						match = true
+						break
+					end
+				end
+			end
+
+			element:SetClass("matchSearch", match)
+		end,
 	}
 end
 
@@ -278,24 +407,45 @@ local CreateListItem = function(options)
 	end
 	
 
+	-- Menu categories show a "(N)" badge of how many rows match the active
+	-- filter. Hidden when not searching or when the category matched only by
+	-- name (count 0). Single-row entries do not get a badge.
+	local countBadge = nil
+	if options.contentType ~= nil then
+		countBadge = gui.Label{
+			classes = {'compendiumMatchCount', 'collapsed'},
+			text = "",
+			halign = "right",
+			valign = "center",
+			rmargin = 44,
+			width = "auto",
+			height = "auto",
+		}
+	end
+
 	return gui.Label{
 			bgimage = 'panels/square.png',
 			text = options.text,
-			classes = {'list-item', collapsed, importedClass},
+			classes = {'list-item', 'hideOnSearchMismatch', collapsed, importedClass},
             importedPanel,
 			permissionPanel,
 			lockPanel,
 			modificationsPanel,
+			countBadge,
 
 			newContentMarker,
 
 			data = {
 				ord = options.ord,
+				key = options.key,
                 RepeatSearch = function(element)
                     if m_search ~= nil then
                         local libraryPanel = element:FindParentWithClass('library-panel')
                         if libraryPanel ~= nil then
-                            libraryPanel:FireEventTree("searchCompendium", m_search)
+                            local contentPanels = libraryPanel:GetChildrenWithClass('content-panel')
+                            for _,cp in ipairs(contentPanels) do
+                                cp:FireEventTree("searchCompendium", m_search)
+                            end
                         end
                     end
                 end,
@@ -303,31 +453,29 @@ local CreateListItem = function(options)
 			events = {
 				search = options.search,
                 searchCompendium = function(element, text)
-                    text = string.lower(text)
-                    m_search = text
-                    if text == "" then
+                    local needle = Search.Normalize(text)
+                    m_search = needle
+                    if needle == "" then
                         element:SetClass("searching", false)
                         element:SetClass("matchSearch", false)
-                    else
-                        element:SetClass("searching", true)
-                        if options.contentType ~= nil then
-                            element:SetClass("matchSearch", #SearchTableForText(dmhub.GetTable(options.contentType), text, options.contentType == "charConditions") > 0)
-
-	                    elseif options.tableName ~= nil and options.key ~= nil then
-		                    local table = dmhub.GetTable(options.tableName)
-		                    local item = table[options.key]
-                            element:SetClass("matchSearch", MatchesSearchRecursive(item, text))
-
-                            if string.find(string.lower(options.tableName), text) then
-                                element:SetClass("matchSearch", true)
-                            end
-                        else
-                            element:SetClass("matchSearch", false)
+                        if countBadge ~= nil then
+                            countBadge:SetClass("collapsed", true)
                         end
+                        return
+                    end
 
-                        --if this is a direct search of the title of this section it obviously matches.
-                        if options.text ~= nil and string.find(string.lower(options.text), text) then
-                            element:SetClass("matchSearch", true)
+                    element:SetClass("searching", true)
+
+                    local match = CompendiumEntryMatches(options, needle)
+                    element:SetClass("matchSearch", match)
+
+                    if countBadge ~= nil then
+                        local count = match and CompendiumCategoryMatchCount(options, needle) or 0
+                        if count ~= nil and count > 0 then
+                            countBadge.text = string.format("(%d)", count)
+                            countBadge:SetClass("collapsed", false)
+                        else
+                            countBadge:SetClass("collapsed", true)
                         end
                     end
                 end,
@@ -726,12 +874,30 @@ local ShowOngoingEffectsPanel = function(parentPanel, tableName)
 
 	local sectionHeadings = {}
 	local ongoingEffectItems = {}
+	local m_buildGeneration = 0
+	local m_activeSearch = ""
+
+	-- snapshot of the table keys observed by the previous refresh; nil until
+	-- the panel's first refresh. Distinguishes "the table gained a new entry"
+	-- (auto-select it) from "the row cache is just missing rows" (rebuild
+	-- quietly).
+	local m_knownKeys = nil
 
 	itemsListPanel = gui.Panel{
 		classes = {'list-panel'},
 		vscroll = true,
 		monitorAssets = true,
+		searchCompendium = function(element, text)
+			-- rows created by later build chunks need the active filter applied
+			m_activeSearch = text
+		end,
 		refreshAssets = function(element)
+			m_buildGeneration = m_buildGeneration + 1
+			local generation = m_buildGeneration
+
+			-- gate against auto-selecting anything during the panel's opening
+			-- build; captured once so late chunks agree with the first one
+			local autoSelect = element.aliveTime > 0.2
 
 			local children = {}
 			local ongoingEffectTable = dmhub.GetTable(tableName) or {}
@@ -748,52 +914,194 @@ local ShowOngoingEffectsPanel = function(parentPanel, tableName)
 					local condb = conditionsTable[cb.condition] or {name = "Ungrouped"}
 					return conda.name < condb.name
 				end)
+			else
+				-- rows are appended chunk by chunk, so keys must arrive pre-sorted;
+				-- the old post-build children sort is equivalent (row.text = item.name)
+				table.sort(keys, function(a,b)
+					return (ongoingEffectTable[a].name or "") < (ongoingEffectTable[b].name or "")
+				end)
 			end
 
 			local seenHeadings = {}
 			local newSectionHeadings = {}
 
+			-- Panels pay a per-panel layout cost under vscroll, so building a large
+			-- table's rows in one frame freezes the app (~1.5s at 786 ongoing
+			-- effects). Spread fresh builds across frames; when the reuse cache
+			-- already covers the table (asset refresh while the page is open),
+			-- build in a single pass exactly as before.
+			local missing = 0
 			for _,k in ipairs(keys) do
-				local item = ongoingEffectTable[k]
-				if groupByCondition then
-					local condition = conditionsTable[item.condition] or {name = "Ungrouped"}
-					if not seenHeadings[condition.name] then
-						seenHeadings[condition.name] = true
-
-						local heading = sectionHeadings[condition.name] or gui.Label{
-							text = condition.name,
-							fontSize = 20,
-							bold = true,
-							width = "auto",
-							height = "auto",
-							lmargin = 4,
-						}
-
-						newSectionHeadings[condition.name] = heading
-						children[#children+1] = heading
-					end
+				if ongoingEffectItems[k] == nil then
+					missing = missing + 1
 				end
-				newOngoingEffectItems[k] = ongoingEffectItems[k] or CreateListItem{
-					select = element.aliveTime > 0.2,
-					tableName = tableName,
-					key = k,
-					click = function()
-						SetOngoingEffect(k)
-					end,
-				}
-
-				newOngoingEffectItems[k].text = item.name
-
-				children[#children+1] = newOngoingEffectItems[k]
+			end
+			local chunkSize = #keys
+			if missing > 120 then
+				chunkSize = 80
+				-- chunked build: headings cached from a previous build are
+				-- not covered by the pending-row tail below, so they get
+				-- orphan-destroyed once the first chunk drops them from
+				-- children; create them fresh rather than reuse dead panels
+				sectionHeadings = {}
 			end
 
-            if not groupByCondition then
-			    table.sort(children, function(a,b) return a.text < b.text end)
-            end
+			-- Auto-select only when the table gained exactly one genuinely-new
+			-- entry (the Add button / right-click Duplicate case). This must
+			-- key off table membership, not the row cache: a refresh landing
+			-- while a chunked build is in flight recreates rows whose keys the
+			-- table already had, and select-on-create rebuilds the whole
+			-- editor pane per row (a multi-minute stall at ~900 effects).
+			local selectKey = nil
+			local knownKeys = m_knownKeys
+			m_knownKeys = {}
+			for _,k in ipairs(keys) do
+				m_knownKeys[k] = true
+			end
+			if knownKeys ~= nil then
+				local newKey = nil
+				local newKeyCount = 0
+				for _,k in ipairs(keys) do
+					if not knownKeys[k] then
+						newKeyCount = newKeyCount + 1
+						newKey = k
+					end
+				end
+				if autoSelect and newKeyCount == 1 then
+					selectKey = newKey
+				end
+				if missing > newKeyCount then
+					-- rows lost to an interrupted build being rebuilt; recovery
+					-- is cheap now, but leave a trace in the log in case a user
+					-- reports a stall on this page again
+					printf("OngoingEffect:: refresh recreating %d rows (%d new table entries), no mass auto-select", missing, newKeyCount)
+				end
+			end
 
-			sectionHeadings = newSectionHeadings
-			ongoingEffectItems = newOngoingEffectItems
-			itemsListPanel.children = children
+			local index = 1
+			local prioritized = false
+			local needsSortOnComplete = false
+			local function BuildChunk()
+				if mod.unloaded or generation ~= m_buildGeneration or not element.valid then
+					return
+				end
+
+				-- Deep-links open the page and then apply their filter, selecting
+				-- the target row as soon as it exists; the filter therefore lands
+				-- after the first synchronous chunk. Reorder the remaining keys
+				-- matched-first so the wait is one chunk, not the whole stream.
+				-- Unmatched rows are collapsed while filtering, so their late,
+				-- out-of-order arrival is invisible; a final sort restores
+				-- alphabetical order for when the filter clears.
+				if (not prioritized) and (not groupByCondition) and m_activeSearch ~= "" and index <= #keys then
+					prioritized = true
+					local needle = Search.Normalize(m_activeSearch)
+					if needle ~= "" then
+						local matched, unmatched = {}, {}
+						for i = index, #keys do
+							local k = keys[i]
+							if Search.MatchesObject(ongoingEffectTable[k], needle) or Search.MatchesText(k, needle) then
+								matched[#matched+1] = k
+							else
+								unmatched[#unmatched+1] = k
+							end
+						end
+						if #matched > 0 and #unmatched > 0 then
+							for i = index, #keys do
+								local j = i - index + 1
+								keys[i] = (j <= #matched) and matched[j] or unmatched[j - #matched]
+							end
+							needsSortOnComplete = true
+						end
+					end
+				end
+
+				local target = math.min(index + chunkSize - 1, #keys)
+				local newRows = {}
+				while index <= target do
+					local k = keys[index]
+					local item = ongoingEffectTable[k]
+					if groupByCondition then
+						local condition = conditionsTable[item.condition] or {name = "Ungrouped"}
+						if not seenHeadings[condition.name] then
+							seenHeadings[condition.name] = true
+
+							local heading = sectionHeadings[condition.name] or gui.Label{
+								text = condition.name,
+								fontSize = 20,
+								bold = true,
+								width = "auto",
+								height = "auto",
+								lmargin = 4,
+							}
+
+							newSectionHeadings[condition.name] = heading
+							children[#children+1] = heading
+						end
+					end
+
+					local row = ongoingEffectItems[k] or CreateListItem{
+						select = (k == selectKey),
+						tableName = tableName,
+						key = k,
+						click = function()
+							SetOngoingEffect(k)
+						end,
+					}
+					row.text = item.name
+					newOngoingEffectItems[k] = row
+					-- commit to the cache immediately so a refresh that
+					-- interrupts this build reuses the rows instead of
+					-- recreating them all
+					ongoingEffectItems[k] = row
+					children[#children+1] = row
+					newRows[#newRows+1] = row
+
+					index = index + 1
+				end
+
+				if index <= #keys then
+					-- Mid-build, keep cached rows for the unprocessed keys
+					-- appended after the processed rows: a panel dropped from
+					-- children is orphan-destroyed at end of frame, so a
+					-- cached row must never leave children while a later
+					-- chunk still intends to reuse it. keys are pre-sorted,
+					-- so processed rows followed by pending cached rows in
+					-- key order is already in display order.
+					local combined = {}
+					for _,c in ipairs(children) do
+						combined[#combined+1] = c
+					end
+					for i = index, #keys do
+						local pendingRow = ongoingEffectItems[keys[i]]
+						if pendingRow ~= nil then
+							combined[#combined+1] = pendingRow
+						end
+					end
+					element.children = combined
+				else
+					element.children = children
+				end
+
+				if m_activeSearch ~= "" then
+					for _,row in ipairs(newRows) do
+						row:FireEvent("searchCompendium", m_activeSearch)
+					end
+				end
+
+				if index <= #keys then
+					dmhub.Schedule(0.01, BuildChunk)
+				else
+					sectionHeadings = newSectionHeadings
+					ongoingEffectItems = newOngoingEffectItems
+					if needsSortOnComplete then
+						table.sort(children, function(a,b) return (a.text or "") < (b.text or "") end)
+						element.children = children
+					end
+				end
+			end
+
+			BuildChunk()
 		end,
 	}
 
@@ -835,18 +1143,12 @@ end
 local ShowCustomAttributesPanel = function(parentPanel)
 
 	local attrPanel = gui.Panel{
-		classes = 'attr-panel',
-		styles = {
-			{
-				classes = {'attr-panel'},
-				width = 1200,
-				height = '100%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "100%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local SetAttribute = function(attrid)
@@ -868,6 +1170,10 @@ local ShowCustomAttributesPanel = function(parentPanel)
 	local attrItems = {}
     local sectionHeadings = {}
 
+	--filter box at the top of the list narrows the visible attributes as you
+	--type; matches on the attribute name and its category heading.
+	local m_filter = ""
+
 	itemsListPanel = gui.Panel{
 		classes = {'list-panel'},
 		vscroll = true,
@@ -880,26 +1186,17 @@ local ShowCustomAttributesPanel = function(parentPanel)
 
 			local newHeadings = {}
 
+			local filter = string.lower(m_filter)
+
 			for k,item in pairs(attrTable) do
 
                 local section = item.category
 
-				if newHeadings[section] == nil then
-					newHeadings[section] = sectionHeadings[section] or gui.Label{
-						data = {
-							ord = section,
-						},
-						text = section,
-						fontSize = 20,
-						bold = true,
-						width = "auto",
-						height = "auto",
-						lmargin = 4,
-					}
-
-					children[#children+1] = newHeadings[section]
-                end
-
+				--keep every current attribute in the cache even while it is
+				--filtered out, so clearing the filter reuses the existing
+				--panels instead of recreating them. A recreated list item
+				--auto-selects (CreateListItem's select option) and would yank
+				--the editor open.
 				newAttrItems[k] = attrItems[k] or CreateListItem{
                     ord = section .. "-" .. item.name,
 					select = element.aliveTime > 0.2,
@@ -914,7 +1211,31 @@ local ShowCustomAttributesPanel = function(parentPanel)
 
 				newAttrItems[k].text = item.name
 
-				children[#children+1] = newAttrItems[k]
+				local matches = filter == "" or
+					string.find(string.lower(item.name or ""), filter, 1, true) ~= nil or
+					string.find(string.lower(section or ""), filter, 1, true) ~= nil
+
+				if matches then
+					--only emit a section heading once one of its attributes
+					--survives the filter, so empty sections do not linger.
+					if newHeadings[section] == nil then
+						newHeadings[section] = sectionHeadings[section] or gui.Label{
+							data = {
+								ord = section,
+							},
+							text = section,
+							fontSize = 20,
+							bold = true,
+							width = "auto",
+							height = "auto",
+							lmargin = 4,
+						}
+
+						children[#children+1] = newHeadings[section]
+					end
+
+					children[#children+1] = newAttrItems[k]
+				end
 			end
 
 			table.sort(children, function(a,b) return a.data.ord < b.data.ord end)
@@ -932,6 +1253,24 @@ local ShowCustomAttributesPanel = function(parentPanel)
 			flow = 'vertical',
 			height = '100%',
 			width = 'auto',
+		},
+
+		gui.Input{
+			classes = {'sizeM'},
+			width = 240,
+			height = 22,
+			halign = 'left',
+			vmargin = 4,
+			placeholderText = 'Filter attributes...',
+			editlag = 0.25,
+			edit = function(element)
+				m_filter = element.text
+				itemsListPanel:FireEvent('refreshAssets')
+			end,
+			change = function(element)
+				m_filter = element.text
+				itemsListPanel:FireEvent('refreshAssets')
+			end,
 		},
 
 		itemsListPanel,
@@ -1124,7 +1463,8 @@ local ShowSkillsPanel = function(parentPanel)
 								end
 							end,
 						},
-						gui.CloseButton{
+						gui.Button{
+							classes = {"closeButton"},
 							valign = "center",
 							click = function(element)
 								local itemPanel = element.parent
@@ -1250,24 +1590,13 @@ end
 local ShowResourcesPanel = function(parentPanel)
 
 	local resourcePanel = gui.Panel{
-		classes = 'resource-panel',
+		width = 1200,
 		height = "90%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 		vscroll = true,
-
-		styles = {
-			{
-				classes = {'resource-panel'},
-				width = 1200,
-				height = '100%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			LibraryStyles,
-
-
-		},
-
 	}
 
 	local SetResource = function(resourceid)
@@ -1283,13 +1612,13 @@ local ShowResourcesPanel = function(parentPanel)
 		if devmode() then
 		
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {"formStackedRow"},
 				gui.Label{
-					text = 'Guid:',
-					valign = 'center',
-					minWidth = 100,
+					classes = {"formStacked"},
+					text = "Guid:",
 				},
 				gui.Input{
+					classes = {"formStacked"},
 					text = resource.id,
 				},
 			}
@@ -1297,13 +1626,13 @@ local ShowResourcesPanel = function(parentPanel)
 
 		--the name of the resource.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Name:",
 			},
 			gui.Input{
+				classes = {"formStacked"},
 				text = resource.name,
 				change = function(element)
 					resource.name = element.text
@@ -1314,37 +1643,34 @@ local ShowResourcesPanel = function(parentPanel)
 
 		--the grouping of the resource.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Grouping:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Grouping:",
 			},
-            gui.Dropdown{
-                options = CharacterResource.groupingOptions,
-                idChosen = resource.grouping,
-				width = 200,
-				height = 40,
-				fontSize = 20,
+			gui.Dropdown{
+				classes = {"formStacked"},
+				options = CharacterResource.groupingOptions,
+				idChosen = resource.grouping,
 				change = function(element)
-                    resource.grouping = element.idChosen
+					resource.grouping = element.idChosen
 					UploadResource()
-                end,
-
-            },
+				end,
+			},
 		}
 
 		--whether the resource displays quantity.
-		children[#children+1] = gui.Check{
-			text = "Use in Quantity",
-			halign = "left",
-			fontSize = 22,
-			value = resource.useQuantity,
-			linger = gui.Tooltip("When a spell or ability uses this resource you will specify how many to use."),
-			change = function(element)
-				resource.useQuantity = element.value
-				UploadResource()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Use in Quantity",
+				value = resource.useQuantity,
+				linger = gui.Tooltip("When a spell or ability uses this resource you will specify how many to use."),
+				change = function(element)
+					resource.useQuantity = element.value
+					UploadResource()
+				end,
+			},
 		}
 
 		local quantityLabelPreview = gui.Label{
@@ -1365,38 +1691,34 @@ local ShowResourcesPanel = function(parentPanel)
 		local textColorPanel
 
 		--whether the resource comes in large quantities and should be shown using numbers.
-		children[#children+1] = gui.Check{
-			text = "Large Quantities",
-			halign = "left",
-			fontSize = 22,
-			value = resource.largeQuantity,
-			linger = gui.Tooltip("This resource can come in large quantities and will display as a number instead of individual icons."),
-			change = function(element)
-				resource.largeQuantity = element.value
-				UploadResource()
-				quantityLabelPreview:FireEvent("create")
-				textColorPanel:FireEvent("create")
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Large Quantities",
+				value = resource.largeQuantity,
+				linger = gui.Tooltip("This resource can come in large quantities and will display as a number instead of individual icons."),
+				change = function(element)
+					resource.largeQuantity = element.value
+					UploadResource()
+					quantityLabelPreview:FireEvent("create")
+					textColorPanel:FireEvent("create")
+				end,
+			},
 		}
 
 		textColorPanel = gui.Panel{
-			classes = {'formPanel', cond(resource.largeQuantity, nil, "collapsed-anim")},
+			classes = {"formStackedRow", cond(resource.largeQuantity, nil, "collapseAnim")},
 			create = function(element)
-				element:SetClass("collapsed-anim", not resource.largeQuantity)
+				element:SetClass("collapseAnim", not resource.largeQuantity)
 			end,
 			gui.Label{
-				text = 'Text Color:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Text Color:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = { { id = "light", text = "Light" }, { id = "dark", text = "Dark" }},
 				idChosen = resource.textColor,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					resource.textColor = element.idChosen
 					UploadResource()
@@ -1408,16 +1730,17 @@ local ShowResourcesPanel = function(parentPanel)
 		children[#children+1] = textColorPanel
 
 		--whether the resource is a reaction action, allowing an ability using it to be used as a reaction.
-		children[#children+1] = gui.Check{
-			text = "Is Reaction",
-			halign = "left",
-			fontSize = 22,
-			value = resource.isreaction,
-			linger = gui.Tooltip("Abilities that use this resource as their action can have trigger conditions causing them to trigger."),
-			change = function(element)
-				resource.isreaction = element.value
-				UploadResource()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Is Reaction",
+				value = resource.isreaction,
+				linger = gui.Tooltip("Abilities that use this resource as their action can have trigger conditions causing them to trigger."),
+				change = function(element)
+					resource.isreaction = element.value
+					UploadResource()
+				end,
+			},
 		}
 
 		local largeIconEditor = gui.IconEditor{
@@ -1436,18 +1759,19 @@ local ShowResourcesPanel = function(parentPanel)
 		largeIconEditor:SetClass("collapsed", not resource.hasLargeDisplay)
 
 		--whether the resource is a reaction action, allowing an ability using it to be used as a reaction.
-		children[#children+1] = gui.Check{
-			text = "Has Large Display",
-			halign = "left",
-			fontSize = 22,
-			value = resource.hasLargeDisplay,
-			linger = gui.Tooltip("If checked, this resource will have a large version of the icon to display when a large dialog displays the resource."),
-			change = function(element)
-				resource.hasLargeDisplay = element.value
-				UploadResource()
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Has Large Display",
+				value = resource.hasLargeDisplay,
+				linger = gui.Tooltip("If checked, this resource will have a large version of the icon to display when a large dialog displays the resource."),
+				change = function(element)
+					resource.hasLargeDisplay = element.value
+					UploadResource()
 
-				largeIconEditor:SetClass("collapsed", not resource.hasLargeDisplay)
-			end,
+					largeIconEditor:SetClass("collapsed", not resource.hasLargeDisplay)
+				end,
+			},
 		}
 
 		local currentDisplayMode = 'normal'
@@ -1455,7 +1779,8 @@ local ShowResourcesPanel = function(parentPanel)
 		--the resource's icon.
 		local iconEditor = gui.IconEditor{
 			library = 'resources',
-			margin = 80,
+			vmargin = 12,
+			hmargin = 80,
 			width = 128,
 			height = 128,
 			halign = "left",
@@ -1493,13 +1818,10 @@ local ShowResourcesPanel = function(parentPanel)
 
 		--color is the same for all display modes.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Color:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Color:",
 			},
 			gui.ColorPicker{
 				width = 32,
@@ -1521,20 +1843,15 @@ local ShowResourcesPanel = function(parentPanel)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Blend:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Blend:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = { { id = "normal", text = "Normal" }, { id = "add", text = "Add" }},
 				idChosen = resource.display.normal.blend or 'normal',
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					for k,displayMode in pairs(resource.display) do
 						displayMode.blend = cond(element.idChosen == 'add', 'add', nil)
@@ -1585,20 +1902,15 @@ local ShowResourcesPanel = function(parentPanel)
 
 		--the display mode we are editing.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Display Type:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Display Type:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = CharacterResource.displayModeOptions,
 				idChosen = currentDisplayMode,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					currentDisplayMode = element.idChosen
 					sliders[1].data.setValueNoEvent(resource.display[currentDisplayMode]['hueshift'])
@@ -1610,72 +1922,59 @@ local ShowResourcesPanel = function(parentPanel)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Hue:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Hue:",
 			},
 			sliders[1],
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Saturation:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Saturation:",
 			},
 			sliders[2],
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Brightness:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Brightness:",
 			},
 			sliders[3],
 		}
 
 		--can the resource go negative
-		children[#children+1] = gui.Check{
-			text = "May Be Negative",
-			halign = "left",
-			fontSize = 22,
-			value = resource.mayBeNegative,
-			linger = gui.Tooltip("If checked, this resource may become negative"),
-			change = function(element)
-				resource.mayBeNegative = element.value
-				UploadResource()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "May Be Negative",
+				value = resource.mayBeNegative,
+				linger = gui.Tooltip("If checked, this resource may become negative"),
+				change = function(element)
+					resource.mayBeNegative = element.value
+					UploadResource()
+				end,
+			},
 		}
 
 
 
 		--the resource's refresh frequency.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Refresh:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Refresh:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = CharacterResource.usageLimitOptions,
 				idChosen = resource.usageLimit,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					resource.usageLimit = element.idChosen
 					UploadResource()
@@ -1686,13 +1985,16 @@ local ShowResourcesPanel = function(parentPanel)
 		}
 
         if resource.usageLimit == "unbounded" or resource.usageLimit == "global" then
-            children[#children+1] = gui.Check{
-                text = "Clear Outside of Combat",
-                value = resource.clearOutsideOfCombat,
-                change = function(element)
-                    resource.clearOutsideOfCombat = element.value
-                    UploadResource()
-                end,
+            children[#children+1] = gui.Panel{
+                classes = {"formStackedRow"},
+                gui.Check{
+                    text = "Clear Outside of Combat",
+                    value = resource.clearOutsideOfCombat,
+                    change = function(element)
+                        resource.clearOutsideOfCombat = element.value
+                        UploadResource()
+                    end,
+                },
             }
         end
 
@@ -1763,20 +2065,15 @@ local ShowResourcesPanel = function(parentPanel)
 		})
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Improves Upon:',
-				valign = "center",
-				minWidth = 200,
-				width = 'auto',
-				height = 'auto',
+				classes = {"formStacked"},
+				text = "Improves Upon:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = resourceChoices,
 				idChosen = resource.levelsFrom,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 				change = function(element)
 					resource.levelsFrom = element.idChosen
 					UploadResource()
@@ -2075,6 +2372,222 @@ local ShowGlobalModsPanel = function(parentPanel)
 	}
 
 	parentPanel.children = {leftPanel, modPanel}
+end
+
+--Encounter Rules: a collection of named rule-sets (e.g. "Volcano"). Each set is an
+--EncounterRuleSet in the "encounterRuleSets" table; its rules are GlobalRuleMod objects in the
+--flat "encounterRuleMods" table, grouped by encounterId == the set's id. We reuse the global
+--rule editor verbatim (it is already parameterized by table name).
+local ShowEncounterRulesPanel = function(parentPanel)
+	local setsTableName = EncounterRuleSet.tableName
+	local rulesTableName = EncounterRuleSet.rulesTableName
+
+	local selectedSetId = nil
+
+	--right column: the rule editor, reused as-is from Global Rules.
+	local editorPanel = GlobalRuleMod.CreateEditor()
+
+	--middle column: the rules belonging to the selected set.
+	local rulesListPanel = nil
+	local ruleItems = {}
+	local addRuleButton = nil
+
+	rulesListPanel = gui.Panel{
+		classes = {'list-panel'},
+		vscroll = true,
+		monitorAssets = true,
+		refreshAssets = function(element)
+
+			local children = {}
+			local newRuleItems = {}
+
+			if selectedSetId ~= nil then
+				local rulesTable = dmhub.GetTable(rulesTableName) or {}
+				for k,item in pairs(rulesTable) do
+					if item:try_get("encounterId") == selectedSetId then
+						newRuleItems[k] = ruleItems[k] or CreateListItem{
+							select = element.aliveTime > 0.2,
+							tableName = rulesTableName,
+							key = k,
+							click = function()
+								editorPanel.data.SetGlobalRuleMod(rulesTableName, k)
+							end,
+						}
+
+						newRuleItems[k].text = item.name
+
+						children[#children+1] = newRuleItems[k]
+					end
+				end
+			end
+
+			table.sort(children, function(a,b) return a.text < b.text end)
+
+			ruleItems = newRuleItems
+			rulesListPanel.children = children
+
+		end,
+	}
+
+	addRuleButton = AddButton{
+		click = function(element)
+			if selectedSetId == nil then
+				return
+			end
+
+			local rule = GlobalRuleMod.CreateNew("New Rule")
+			rule.encounterId = selectedSetId
+			dmhub.SetAndUploadTableItem(rulesTableName, rule)
+		end,
+	}
+
+	--editable name for the selected set, shown atop the rules column.
+	local setNameInput = gui.Input{
+		classes = {"formStacked"},
+		text = "",
+		change = function(element)
+			if selectedSetId == nil then
+				return
+			end
+			local setsTable = dmhub.GetTable(setsTableName) or {}
+			local set = setsTable[selectedSetId]
+			if set == nil then
+				return
+			end
+			set.name = element.text
+			dmhub.SetAndUploadTableItem(setsTableName, set)
+		end,
+	}
+
+	--Override the formStackedRow's default 70% width (sized for the wide editor panel) so the
+	--name field does not blow out this narrow column.
+	local setNamePanel = gui.Panel{
+		classes = {"formStackedRow"},
+		width = 300,
+		lmargin = 0,
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Rule Set Name:",
+		},
+		setNameInput,
+	}
+
+	local rulesColumn = gui.Panel{
+		selfStyle = {
+			flow = 'vertical',
+			height = '100%',
+			width = 'auto',
+		},
+
+		setNamePanel,
+		gui.Label{
+			text = "Rules",
+			fontSize = 22,
+			color = "white",
+			bold = true,
+			width = "auto",
+			height = "auto",
+			vmargin = 6,
+		},
+		rulesListPanel,
+		addRuleButton,
+	}
+
+	--select a set (or nil to clear): refresh the rule list, load the name field, clear the
+	--editor, gate the add button.
+	local SelectSet = function(setid)
+		selectedSetId = setid
+		editorPanel.children = {}
+		rulesListPanel:FireEvent('refreshAssets')
+		addRuleButton:SetClass('collapsed', setid == nil)
+		setNamePanel:SetClass('collapsed', setid == nil)
+		if setid ~= nil then
+			local setsTable = dmhub.GetTable(setsTableName) or {}
+			local set = setsTable[setid]
+			if set ~= nil then
+				setNameInput.text = set.name
+			end
+		end
+	end
+
+	--left column: the named encounter rule-sets.
+	local setsListPanel = nil
+	local setItems = {}
+
+	setsListPanel = gui.Panel{
+		classes = {'list-panel'},
+		vscroll = true,
+		monitorAssets = true,
+		refreshAssets = function(element)
+
+			local children = {}
+			local setsTable = dmhub.GetTable(setsTableName) or {}
+			local newSetItems = {}
+
+			local selectedStillPresent = false
+			for k,item in pairs(setsTable) do
+				newSetItems[k] = setItems[k] or CreateListItem{
+					select = element.aliveTime > 0.2,
+					tableName = setsTableName,
+					key = k,
+					click = function()
+						SelectSet(k)
+					end,
+				}
+
+				newSetItems[k].text = item.name
+
+				children[#children+1] = newSetItems[k]
+
+				if k == selectedSetId then
+					selectedStillPresent = true
+				end
+			end
+
+			table.sort(children, function(a,b) return a.text < b.text end)
+
+			setItems = newSetItems
+			setsListPanel.children = children
+
+			--if the selected set was deleted out from under us, clear the selection.
+			if selectedSetId ~= nil and selectedStillPresent == false then
+				SelectSet(nil)
+			end
+
+		end,
+	}
+
+	setsListPanel:FireEvent('refreshAssets')
+
+	local setsColumn = gui.Panel{
+		selfStyle = {
+			flow = 'vertical',
+			height = '100%',
+			width = 'auto',
+		},
+
+		gui.Label{
+			text = "Rule Sets",
+			fontSize = 22,
+			color = "white",
+			bold = true,
+			width = "auto",
+			height = "auto",
+			vmargin = 6,
+		},
+		setsListPanel,
+
+		AddButton{
+			click = function(element)
+				dmhub.SetAndUploadTableItem(setsTableName, EncounterRuleSet.CreateNew("New Encounter"))
+			end,
+		}
+	}
+
+	--start with nothing selected.
+	SelectSet(nil)
+
+	parentPanel.children = {setsColumn, rulesColumn, editorPanel}
 end
 
 local ShowRolltablePanel = function(parentPanel, tableName, tableOptions, editOptions)
@@ -2893,39 +3406,12 @@ end
 local ShowEquipmentCategoriesPanel = function(parentPanel)
 
 	local equipmentCatPanel = gui.Panel{
-		classes = 'equip-cat-panel',
-		styles = {
-			{
-				classes = {'equip-cat-panel'},
-				width = 1200,
-				height = '100%',
-				halign = 'left',
-				flow = 'vertical',
-				pad = 20,
-			},
-			{
-				classes = {'label'},
-				color = 'white',
-				fontSize = 22,
-				width = 'auto',
-				height = 'auto',
-			},
-			{
-				classes = {'input'},
-				width = 200,
-				height = 26,
-				fontSize = 18,
-				color = 'white',
-			},
-			{
-				classes = {'formPanel'},
-				flow = 'horizontal',
-				width = 'auto',
-				height = 'auto',
-				halign = 'left',
-				vmargin = 2,
-			}
-		},
+		width = 1200,
+		height = "100%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local SetId = function(id)
@@ -2938,28 +3424,26 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 		local children = {}
 
         children[#children+1] = gui.Panel{
-            classes = {"formPanel", "devonly"},
+            classes = {"formStackedRow", "devonly"},
 			gui.Label{
-				text = 'GUID:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "GUID:",
 			},
             gui.Input{
-                classes = {"formInput"},
+                classes = {"formStacked"},
                 text = data.id,
-                width = 300,
             },
         }
 
 		--the name of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Name:",
 			},
 			gui.Input{
+				classes = {"formStacked"},
 				text = data.name,
 				change = function(element)
 					data.name = element.text
@@ -2987,18 +3471,15 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 
 		--the superset of this item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Parent Category:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Parent Category:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = supersets,
 				idChosen = data:try_get("superset", "none"),
-				width = 200,
-				height = 40,
-				fontSize = 20,
 
 				change = function(element)
 					local val = element.idChosen
@@ -3014,13 +3495,13 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 
 		--the editor type this category uses
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {"formStackedRow"},
 			gui.Label{
-				text = 'Editor Type:',
-				valign = 'center',
-				minWidth = 100,
+				classes = {"formStacked"},
+				text = "Editor Type:",
 			},
 			gui.Dropdown{
+				classes = {"formStacked"},
 				options = {
 					{
 						id = "Weapon",
@@ -3040,9 +3521,6 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 					},
 				},
 				idChosen = data.editorType,
-				width = 200,
-				height = 40,
-				fontSize = 20,
 
 				change = function(element)
 					data.editorType = element.idChosen
@@ -3051,149 +3529,35 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 			},
 		}
 
-		--whether this type of item can have proficiency.
-		children[#children+1] = gui.Check{
-			text = "Has Proficiency",
-			halign = "left",
-			fontSize = 22,
-			value = data.allowProficiency,
-			change = function(element)
-				data.allowProficiency = element.value
-				UploadData()
-			end,
+		local checkboxes = {
+			{ text = "Has Proficiency", field = "allowProficiency" },
+			{ text = "Individual Items have Proficiency", field = "allowIndividualProficiency" },
+			{ text = "Unarmored", field = "isUnarmored" },
+			{ text = "Tools", field = "isTool" },
+			{ text = "Martial Weapons", field = "isMartial" },
+			{ text = "Melee Weapons", field = "isMelee" },
+			{ text = "Ranged Weapons", field = "isRanged" },
+			{ text = "Is Ammunition", field = "isAmmo" },
+			{ text = "Is Light Source", field = "isLightSource" },
+			{ text = "Sold in Quantity", field = "isQuantity" },
+			{ text = "Is Treasure", field = "isTreasure" },
+			{ text = "Is Artifact", field = "isArtifact" },
+			{ text = "Equipment Packs", field = "isPacks" },
 		}
-
-		--whether individual items in this category have proficiency
-		children[#children+1] = gui.Check{
-			text = "Individual Items have Proficiency",
-			halign = "left",
-			fontSize = 22,
-			value = data.allowIndividualProficiency,
-			change = function(element)
-				data.allowIndividualProficiency = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are unarmored
-		children[#children+1] = gui.Check{
-			text = "Unarmored",
-			halign = "left",
-			fontSize = 22,
-			value = data.isUnarmored,
-			change = function(element)
-				data.isUnarmored = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are tools
-		children[#children+1] = gui.Check{
-			text = "Tools",
-			halign = "left",
-			fontSize = 22,
-			value = data.isTool,
-			change = function(element)
-				data.isTool = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are martial weapons
-		children[#children+1] = gui.Check{
-			text = "Martial Weapons",
-			halign = "left",
-			fontSize = 22,
-			value = data.isMartial,
-			change = function(element)
-				data.isMartial = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are melee weapons
-		children[#children+1] = gui.Check{
-			text = "Melee Weapons",
-			halign = "left",
-			fontSize = 22,
-			value = data.isMelee,
-			change = function(element)
-				data.isMelee = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are ranged weapons
-		children[#children+1] = gui.Check{
-			text = "Ranged Weapons",
-			halign = "left",
-			fontSize = 22,
-			value = data.isRanged,
-			change = function(element)
-				data.isRanged = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are ammunition for other weapons.
-		children[#children+1] = gui.Check{
-			text = "Is Ammunition",
-			halign = "left",
-			fontSize = 22,
-			value = data.isAmmo,
-			change = function(element)
-				data.isAmmo = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are light sources.
-		children[#children+1] = gui.Check{
-			text = "Is Light Source",
-			halign = "left",
-			fontSize = 22,
-			value = data.isLightSource,
-			change = function(element)
-				data.isLightSource = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category come in mass quantities.
-		children[#children+1] = gui.Check{
-			text = "Sold in Quantity",
-			halign = "left",
-			fontSize = 22,
-			value = data.isQuantity,
-			change = function(element)
-				data.isQuantity = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are considered treasure.
-		children[#children+1] = gui.Check{
-			text = "Is Treasure",
-			halign = "left",
-			fontSize = 22,
-			value = data.isTreasure,
-			change = function(element)
-				data.isTreasure = element.value
-				UploadData()
-			end,
-		}
-
-		--whether items in this category are packs of items.
-		children[#children+1] = gui.Check{
-			text = "Equipment Packs",
-			halign = "left",
-			fontSize = 22,
-			value = data.isPacks,
-			change = function(element)
-				data.isPacks = element.value
-				UploadData()
-			end,
-		}
+		table.sort(checkboxes, function(a,b) return a.text < b.text end)
+		for _,cb in ipairs(checkboxes) do
+			children[#children+1] = gui.Panel{
+				classes = {"formStackedRow"},
+				gui.Check{
+					text = cb.text,
+					value = data:try_get(cb.field, false),
+					change = function(element)
+						data[cb.field] = element.value
+						UploadData()
+					end,
+				},
+			}
+		end
 
 
 
@@ -3356,10 +3720,12 @@ end
 
 local ShowImageFoldersPanel = function(parentPanel)
 	local imagesPanel = gui.Panel{
-		classes = 'mainContentPanel',
-		styles = {
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "95%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local itemsListPanel = nil
@@ -3377,13 +3743,13 @@ local ShowImageFoldersPanel = function(parentPanel)
 
 			--the guid of the item.
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {'formStackedRow'},
 				gui.Label{
+					classes = {'formStacked'},
 					text = 'ID (dev only):',
-					valign = 'center',
-					minWidth = 100,
 				},
 				gui.Input{
+					classes = {'formStacked'},
 					text = data.guid,
 				},
 			}
@@ -3391,13 +3757,13 @@ local ShowImageFoldersPanel = function(parentPanel)
 
 		--name/description
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.name,
 				change = function(element)
 					data.name = element.text
@@ -3408,14 +3774,14 @@ local ShowImageFoldersPanel = function(parentPanel)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {"formPanel"},
+			classes = {"formStackedRow"},
 			gui.Label{
+				classes = {'formStacked'},
 				text = "Image Type:",
-				valign = "center",
-				minWidth = 100,
 			},
 
 			gui.Dropdown{
+				classes = {'formStacked'},
 				idChosen = data.imageType,
 				change = function(element)
 					data.imageType = element.idChosen
@@ -3435,27 +3801,29 @@ local ShowImageFoldersPanel = function(parentPanel)
 		}
 
 		--gm only.
-		children[#children+1] = gui.Check{
-			text = "Hidden from Players",
-			halign = "left",
-			fontSize = 22,
-			value = data.gmonly,
-			change = function(element)
-				data.gmonly = element.value
-				UploadData()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Hidden from Players",
+				value = data.gmonly,
+				change = function(element)
+					data.gmonly = element.value
+					UploadData()
+				end,
+			},
 		}
 
 		if dmhub.isAdminAccount then
 			children[#children+1] = gui.Panel{
-				classes = {"formPanel"},
+				classes = {"formStackedRow"},
 
 				gui.Label{
-					classes = {"formLabel"},
+					classes = {"formStacked"},
 					text = "Artist:",
 				},
 
 				gui.Dropdown{
+					classes = {"formStacked"},
 
 					create = function(element)
 						local options = {}
@@ -3570,10 +3938,12 @@ end
 
 local ShowImageAtlasPanel = function(parentPanel)
 	local imagesPanel = gui.Panel{
-		classes = 'mainContentPanel',
-		styles = {
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "95%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local itemsListPanel = nil
@@ -3591,13 +3961,13 @@ local ShowImageAtlasPanel = function(parentPanel)
 
 			--the guid of the item.
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {'formStackedRow'},
 				gui.Label{
+					classes = {'formStacked'},
 					text = 'ID (dev only):',
-					valign = 'center',
-					minWidth = 100,
 				},
 				gui.Input{
+					classes = {'formStacked'},
 					text = data.id,
 					change = function(element)
 						element.text = data.id
@@ -3608,13 +3978,13 @@ local ShowImageAtlasPanel = function(parentPanel)
 
 		--name/description
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.description,
 				change = function(element)
 					data.description = element.text
@@ -3624,51 +3994,57 @@ local ShowImageAtlasPanel = function(parentPanel)
 		}
 
 		children[#children+1] = gui.Panel{
-			classes = {"formPanel"},
+			classes = {"formStackedRow"},
 			gui.Label{
+				classes = {"formStacked"},
 				text = "Tiling:",
-				valign = "center",
-				minWidth = 100,
 			},
-			gui.Input{
-				text = tostring(data.xdiv),
-				valign = "center",
-				width = 20,
-				characterLimit = 2,
-				placeholderText = "",
-				change = function(element)
-					local n = tonumber(element.text)
-					if n == nil or round(n) ~= n or n < 1 or n > 16 then
-						element.text = tostring(data.xdiv)
-						return
-					end
+			gui.Panel{
+				flow = "horizontal",
+				width = "auto",
+				height = "auto",
+				halign = "left",
+				gui.Input{
+					text = tostring(data.xdiv),
+					valign = "center",
+					width = 20,
+					characterLimit = 2,
+					placeholderText = "",
+					change = function(element)
+						local n = tonumber(element.text)
+						if n == nil or round(n) ~= n or n < 1 or n > 16 then
+							element.text = tostring(data.xdiv)
+							return
+						end
 
-					data.xdiv = n
-					UploadData()
-				end,
-			},
-			gui.Label{
-				text = "x",
-				valign = "center",
-				textAlignment = "center",
-				width = 10,
-			},
-			gui.Input{
-				text = tostring(data.ydiv),
-				valign = "center",
-				width = 20,
-				characterLimit = 2,
-				placeholderText = "",
-				change = function(element)
-					local n = tonumber(element.text)
-					if n == nil or round(n) ~= n or n < 1 or n > 16 then
-						element.text = tostring(data.ydiv)
-						return
-					end
+						data.xdiv = n
+						UploadData()
+					end,
+				},
+				gui.Label{
+					text = "x",
+					valign = "center",
+					textAlignment = "center",
+					width = 10,
+					hmargin = 12,
+				},
+				gui.Input{
+					text = tostring(data.ydiv),
+					valign = "center",
+					width = 20,
+					characterLimit = 2,
+					placeholderText = "",
+					change = function(element)
+						local n = tonumber(element.text)
+						if n == nil or round(n) ~= n or n < 1 or n > 16 then
+							element.text = tostring(data.ydiv)
+							return
+						end
 
-					data.ydiv = n
-					UploadData()
-				end,
+						data.ydiv = n
+						UploadData()
+					end,
+				},
 			},
 		}
 
@@ -3677,15 +4053,13 @@ local ShowImageAtlasPanel = function(parentPanel)
 
 		--show the image.
 		children[#children+1] = gui.Panel{
+			classes = {"image", "bordered"},
 			id = "tokenFrameImage",
 			width = 512,
 			height = 512,
 			halign = "left",
 			bgimage = id,
-			bgcolor = "white",
 			vmargin = 10,
-			borderColor = "white",
-			borderWidth = 1,
 			thinkTime = 0.2,
 			think = function(element)
 				local x = data.xdiv
@@ -3707,10 +4081,10 @@ local ShowImageAtlasPanel = function(parentPanel)
 							local children = {}
 							for i=1,x-1 do
 								children[#children+1] = gui.Panel{
+									classes = {"image"},
 									width = 1,
 									height = "100%",
 									lmargin = 512/x,
-									bgcolor = "white",
 									bgimage = "panels/square.png",
 									halign = "left",
 								}
@@ -3727,10 +4101,10 @@ local ShowImageAtlasPanel = function(parentPanel)
 							local children = {}
 							for i=1,y-1 do
 								children[#children+1] = gui.Panel{
+									classes = {"image"},
 									width = "100%",
 									height = 1,
 									tmargin = 512/y,
-									bgcolor = "white",
 									bgimage = "panels/square.png",
 									valign = "top",
 								}
@@ -3771,10 +4145,8 @@ local ShowImageAtlasPanel = function(parentPanel)
 			end,
 		}
 
-		children[#children+1] = gui.PrettyButton{
-			width = 200,
-			height = 50,
-			fontSize = 24,
+		children[#children+1] = gui.Button{
+			classes = {"sizeL"},
 			text = "DELETE",
 			halign = "right",
 			click = function(element)
@@ -3887,10 +4259,12 @@ end
 
 local ShowImagesPanel = function(parentPanel, imageType)
 	local imagesPanel = gui.Panel{
-		classes = 'mainContentPanel',
-		styles = {
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "95%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 	}
 
 	local itemsListPanel = nil
@@ -3908,13 +4282,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 			--the guid of the item.
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {'formStackedRow'},
 				gui.Label{
+					classes = {'formStacked'},
 					text = 'ID (dev only):',
-					valign = 'center',
-					minWidth = 100,
 				},
 				gui.Input{
+					classes = {'formStacked'},
 					text = data.id,
 					change = function(element)
 						element.text = data.id
@@ -3925,13 +4299,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 		--name/description
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.description,
 				change = function(element)
 					data.description = element.text
@@ -3942,13 +4316,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 		--ordering
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Ordering:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = tostring(data.ord),
 				change = function(element)
 					data.ord = tonumber(element.text) or 0
@@ -3959,13 +4333,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 		--zoom.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Zoom:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = tostring(data.tokenZoom),
 				change = function(element)
 					data.tokenZoom = tonumber(element.text) or 0
@@ -3976,15 +4350,13 @@ local ShowImagesPanel = function(parentPanel, imageType)
 
 		--show the image.
 		children[#children+1] = gui.Panel{
+			classes = {"image", "bordered"},
 			id = "tokenFrameImage",
 			width = 256,
 			height = 256,
 			halign = "left",
 			bgimage = id,
-			bgcolor = "white",
 			vmargin = 10,
-			borderColor = "white",
-			borderWidth = 1,
 			imageLoaded = function(element)
 				if element.bgsprite == nil then
 					return
@@ -4015,10 +4387,8 @@ local ShowImagesPanel = function(parentPanel, imageType)
 			end,
 		}
 
-		children[#children+1] = gui.PrettyButton{
-			width = 200,
-			height = 50,
-			fontSize = 24,
+		children[#children+1] = gui.Button{
+			classes = {"sizeL"},
 			text = "DELETE",
 			halign = "right",
 			click = function(element)
@@ -4146,10 +4516,12 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 	game.Refresh()
 
 	local emojiPanel = gui.Panel{
-		classes = 'mainContentPanel',
-		styles = {
-			LibraryStyles,
-		},
+		width = 1200,
+		height = "95%",
+		halign = "left",
+		flow = "vertical",
+		pad = 20,
+		borderBox = true,
 		destroy = function(element)
 			game.currentMap:DestroyPreviewFloor(previewFloor)
 			game.Refresh()
@@ -4192,13 +4564,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 			--the guid of the item.
 			children[#children+1] = gui.Panel{
-				classes = {'formPanel'},
+				classes = {'formStackedRow'},
+				width = "30%",
 				gui.Label{
+					classes = {'formStacked'},
 					text = 'ID (dev only):',
-					valign = 'center',
-					minWidth = 100,
 				},
 				gui.Input{
+					classes = {'formStacked'},
 					text = data.id,
 					change = function(element)
 						element.text = data.id
@@ -4209,13 +4582,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the name of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
+			width = "30%",
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Name:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.description,
 				change = function(element)
 					data.description = element.text
@@ -4226,13 +4600,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the category of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
+			width = "30%",
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Category:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Dropdown{
+				classes = {'formStacked'},
 				options = {
 					{
 						id = "Emoji",
@@ -4271,13 +4646,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the x value of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
+			width = "30%",
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'x:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.x,
 				change = function(element)
 					data.x = element.text
@@ -4288,13 +4664,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the y value of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
+			width = "30%",
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'y:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.y,
 				change = function(element)
 					data.y = element.text
@@ -4305,13 +4682,13 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the width of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Width:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.displayWidth,
 				change = function(element)
 					data.displayWidth = element.text
@@ -4322,13 +4699,13 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the height of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Height:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Input{
+				classes = {'formStacked'},
 				text = data.displayHeight,
 				change = function(element)
 					data.displayHeight = element.text
@@ -4339,13 +4716,13 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 
 		--the blend mode of the item.
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Blend:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Dropdown{
+				classes = {'formStacked'},
 				options = {
 					{
 						id = "blend",
@@ -4365,20 +4742,21 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 			},
 		}
 
-		children[#children+1] = gui.Check{
-			text = "Looping",
-			halign = "left",
-			fontSize = 22,
-			value = data.looping,
-			change = function(element)
-				data.looping = element.value
-				data.fadetime = cond(data.looping, 0.5)
-				data.styles[2].transitionTime = cond(data.looping, 0.5, 0)
-				data.styles[3].transitionTime = cond(data.looping, 0.5, 0)
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Looping",
+				value = data.looping,
+				change = function(element)
+					data.looping = element.value
+					data.fadetime = cond(data.looping, 0.5)
+					data.styles[2].transitionTime = cond(data.looping, 0.5, 0)
+					data.styles[3].transitionTime = cond(data.looping, 0.5, 0)
 
-				UploadData()
-				element.parent:FireEventTree("refreshLoop")
-			end,
+					UploadData()
+					emojiPanel:FireEventTree("refreshLoop")
+				end,
+			},
 		}
 
 		local finishEmojiOptions = {
@@ -4397,18 +4775,17 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 		end
 
 		children[#children+1] = gui.Panel{
-			classes = {'formPanel'},
+			classes = {'formStackedRow'},
 			gui.Label{
+				classes = {'formStacked'},
 				text = 'Finish:',
-				valign = 'center',
-				minWidth = 100,
 			},
 			gui.Dropdown{
-				classes = {cond(not data.looping, "collapsed-anim")},
+				classes = {"formStacked", cond(not data.looping, "collapseAnim")},
 				options = finishEmojiOptions,
 				idChosen = data.finishEmoji or "none",
 				refreshLoop = function(element)
-					element:SetClass("collapsed-anim", not data.looping)
+					element:SetClass("collapseAnim", not data.looping)
 				end,
 
 				change  = function(element)
@@ -4419,26 +4796,28 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 		}
 
 
-		children[#children+1] = gui.Check{
-			text = "Mask",
-			halign = "left",
-			fontSize = 22,
-			value = data.mask,
-			change = function(element)
-				data.mask = element.value
-				UploadData()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Mask",
+				value = data.mask,
+				change = function(element)
+					data.mask = element.value
+					UploadData()
+				end,
+			},
 		}
 
-		children[#children+1] = gui.Check{
-			text = "Behind Token",
-			halign = "left",
-			fontSize = 22,
-			value = data.behind,
-			change = function(element)
-				data.behind = element.value
-				UploadData()
-			end,
+		children[#children+1] = gui.Panel{
+			classes = {"formStackedRow"},
+			gui.Check{
+				text = "Behind Token",
+				value = data.behind,
+				change = function(element)
+					data.behind = element.value
+					UploadData()
+				end,
+			},
 		}
 
 		local childEmojiPanel = gui.Panel{
@@ -4460,12 +4839,14 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 							halign = "left",
 							flow = "horizontal",
 							gui.Label{
+								classes = {"sizeL"},
 								width = 180,
 								height = 30,
-								fontSize = 20,
 								text = childEmoji.description,
 							},
-							gui.CloseButton{
+							gui.Button{
+								classes = {"closeButton"},
+								valign = "center",
 								click = function(element)
 									local items = data.childEmoji
 									table.remove(items, index)
@@ -4513,8 +4894,6 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 			idChosen = "choose",
 			halign = "left",
 			width = 200,
-			height = 40,
-			fontSize = 20,
 			change = function(element)
 				if element.idChosen ~= "choose" then
 					local items = data.childEmoji
@@ -4611,12 +4990,10 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 		--]]
 
 		children[#children+1] = gui.Button{
+			classes = {"sizeL"},
 			text = "Delete",
 			halign = "left",
 			valign = "bottom",
-			width = 140,
-			height = 40,
-			fontSize = 22,
 			click = function(element)
 				data:Delete()
 				UploadData()
@@ -4627,8 +5004,8 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 			width = "auto",
 			height = "auto",
 			floating = true,
-			x = 400,
-			halign = "left",
+			-- x = -40,
+			halign = "right",
 			valign = "top",
 			flow = "vertical",
 
@@ -4989,12 +5366,378 @@ local CompendiumRegistry = {
 
 }
 
+-- Deep-link navigation (global search -> exact compendium item). A live
+-- LibraryPanel publishes its navigate function here; Compendium.Open stashes a
+-- pending request and the live panel (or a freshly-opened one) consumes it.
+local g_pendingNavigation = nil
+local g_libraryNavigate = nil
+
+-- The compendium panel popped out into a native OS window (the companion-app
+-- mechanism the character sheet uses), or nil while it lives in-app. Cleared
+-- in the panel's destroy handler, which fires on every close path alike (the
+-- pop-in button, Escape, the OS window's close button, the unload sweep).
+local g_libraryPopout = nil
+
+-- A Lua reload rebuilds the hud but never reaches a panel living in a native
+-- OS window, so destroy it with the module; the engine then closes windows
+-- whose panel died (the same sweep DocumentSystem's popouts rely on).
+mod.unloadHandlers[#mod.unloadHandlers + 1] = function()
+    if g_libraryPopout ~= nil and g_libraryPopout.valid then
+        g_libraryPopout:DestroySelf()
+    end
+    g_libraryPopout = nil
+end
+
+local function ConsumePendingCompendiumNavigation()
+    if g_pendingNavigation == nil or g_libraryNavigate == nil then
+        return
+    end
+    local nav = g_pendingNavigation
+    g_pendingNavigation = nil
+    g_libraryNavigate(nav)
+end
+
 
 local LibraryPanel = function()
 
 
 	local contentPanel = gui.Panel{
 		classes = {'content-panel'},
+	}
+
+	-- Active filter state, shared so the "Showing X of Y" summary can react to
+	-- both typing and category changes. searchSummary is forward-declared and
+	-- assigned when the menu column is built.
+	local m_searchText = ""
+	local m_currentCategory = nil
+	-- Context-search provider spec, registered while this panel is open (create)
+	-- and withdrawn in destroy. Held here so enumerate can keep its label in
+	-- sync with the focused category.
+	local m_contextSpec = nil
+	local searchSummary = nil
+	local allResultsItem = nil
+	local compendiumSearchInput = nil
+
+	-- Enumerable menu categories: those backed by a GetTable content type the
+	-- user is allowed to see. The aggregated "all results" view and the
+	-- "All results (N)" count both iterate this.
+	local function EnumerableCategories()
+		local cats = {}
+		for _,opt in pairs(CompendiumRegistry) do
+			if opt.contentType ~= nil and ((not opt.admin) or dmhub.isAdminGame) then
+				cats[#cats+1] = opt
+			end
+		end
+		table.sort(cats, function(a,b) return (a.text or "") < (b.text or "") end)
+		return cats
+	end
+
+	-- Select the deep-link target item inside the just-opened category page.
+	-- Most pages use shared CreateListItem rows (matched by name); Inventory
+	-- (tbl_Gear) is the one bespoke page -- draggable item cards keyed by
+	-- data.item.id whose press selects the item into the editor pane. The page
+	-- builds asynchronously, so retry across a few frames until it appears.
+	local function SelectTargetItem(opt, targetKey, attemptsLeft)
+		if opt == nil or targetKey == nil or not contentPanel.valid then
+			return
+		end
+		local t = dmhub.GetTable(opt.contentType) or {}
+		local item = t[targetKey]
+		if item == nil then
+			return
+		end
+
+		local target = nil
+		if opt.contentType == "tbl_Gear" then
+			-- The Inventory page virtualises its card list and keeps its own
+			-- filter, so drive that filter to the item name: it narrows the list
+			-- to the match and realises the (otherwise off-screen) card so we can
+			-- press it (press selects the item into the editor pane).
+			local searchBox = contentPanel:FindChildRecursive(function(e)
+				if not e.valid then
+					return false
+				end
+				local ok, pt = pcall(function() return e.placeholderText end)
+				return ok and pt == "Filter Inventory..."
+			end)
+			if searchBox ~= nil and item.name ~= nil and searchBox.text ~= item.name then
+				searchBox.text = item.name
+				searchBox:FireEvent("edit")
+			end
+			target = contentPanel:FindChildRecursive(function(e)
+				return e.valid and e:HasClass("itemPanel")
+					and e.data ~= nil and e.data.item ~= nil and e.data.item.id == targetKey
+			end)
+			-- Safety: if the item is genuinely not in this view (e.g. gated by a
+			-- visibility toggle) and never realises, clear the filter we set on
+			-- the final attempt so the user is left with the full browsable list,
+			-- not an empty one.
+			if target == nil and (attemptsLeft or 0) <= 1 and searchBox ~= nil and searchBox.text ~= "" then
+				searchBox.text = ""
+				searchBox:FireEvent("edit")
+			end
+		else
+			-- Select the row by its exact key, not its display text. A
+			-- soft-deleted (hidden) item keeps its row in the list (rendered
+			-- collapsed) and, if it shares a name with a live item, a text
+			-- match can press that stale row and open the deleted item. The key
+			-- is unique, so it always selects the row the search result pointed
+			-- at. Fall back to a name match (skipping collapsed/deleted rows)
+			-- for any list page whose rows do not carry a key.
+			target = contentPanel:FindChildRecursive(function(e)
+				return e.valid and e:HasClass("list-item") and not e:HasClass("list-heading")
+					and e.data ~= nil and e.data.key == targetKey
+			end)
+			if target == nil then
+				local targetName = item.name
+				if targetName ~= nil then
+					target = contentPanel:FindChildRecursive(function(e)
+						return e.valid and e:HasClass("list-item") and not e:HasClass("list-heading")
+							and not e:HasClass("collapsed") and e.text == targetName
+					end)
+				end
+			end
+		end
+
+		if target ~= nil then
+			target:FireEvent("press")
+			return
+		end
+
+		if (attemptsLeft or 0) > 0 then
+			dmhub.Schedule(0.1, function()
+				SelectTargetItem(opt, targetKey, attemptsLeft - 1)
+			end)
+		end
+	end
+
+	-- Open a category's page with the active filter applied (the click target
+	-- for an aggregated result row). Mirrors a menu-category click: records the
+	-- category, builds its page, then re-filters that page + the summary.
+	local function openCategoryFiltered(opt, targetKey)
+		if opt == nil or opt.click == nil then
+			return
+		end
+		m_currentCategory = { contentType = opt.contentType, text = opt.text }
+		opt.click(contentPanel)
+		if m_searchText ~= "" then
+			-- Classes used to get a narrower broadcast (editor only, not the list)
+			-- on the belief that deep-matching every class cost seconds; measured
+			-- 2026-06-12 the full sweep is milliseconds (the real cost had been the
+			-- per-panel vscroll tax, fixed separately), so all categories now take
+			-- the same path and the class LIST filters like every other page.
+			contentPanel:FireEventTree("searchCompendium", m_searchText)
+			if searchSummary ~= nil then
+				searchSummary:FireEvent("searchCompendium", m_searchText)
+			end
+		end
+
+		-- Open the specific item the user clicked. Pages build asynchronously
+		-- (monitorAssets/refreshAssets debounce), so the row may not exist yet on
+		-- the first frame -- retry a few frames until it appears, then press it.
+		if targetKey ~= nil then
+			SelectTargetItem(opt, targetKey, 20)
+		end
+	end
+
+	-- Deep-link entry point: open the given category and select the target item,
+	-- pre-filtering by the search needle so the page narrows to the match. This
+	-- is the live navigate function published to g_libraryNavigate and driven by
+	-- Compendium.Open (global-search click-through).
+	local function navigate(nav)
+		if nav == nil or nav.contentType == nil then
+			return
+		end
+		-- Several categories can share a contentType. When they do, pick the
+		-- highest opt.priority one so an arbitrary item always lands in the
+		-- broadest category that contains it (priority defaults to 0; the tie-break
+		-- is exercised by the contentTypes that do register multiple views).
+		local opt = nil
+		for _,o in pairs(CompendiumRegistry) do
+			if o.contentType == nav.contentType and o.click ~= nil and ((not o.admin) or dmhub.isAdminGame) then
+				if opt == nil or (o.priority or 0) > (opt.priority or 0) then
+					opt = o
+				end
+			end
+		end
+		if opt == nil then
+			return
+		end
+
+		local needle = nav.search or ""
+		-- Set m_searchText synchronously so openCategoryFiltered can filter the
+		-- page it is about to open, and ALSO show the needle in the filter box so
+		-- the filter is visible and clearable. (It used to be hidden: clicking
+		-- another category then showed "No matches in X" beside an apparently
+		-- empty box.) Assigning .text fires the input's edit handler after
+		-- editlag; by then the page is open, so that broadcast is an idempotent
+		-- re-filter -- match sweeps are memoised and cheap.
+		m_searchText = Search.Normalize(needle)
+		if compendiumSearchInput ~= nil and compendiumSearchInput.text ~= needle then
+			compendiumSearchInput.text = needle
+		end
+
+		openCategoryFiltered(opt, nav.targetKey)
+
+		-- A popped-out compendium serves deep links too; bring its OS window
+		-- to the front so the navigation is actually seen.
+		if g_libraryPopout ~= nil and g_libraryPopout.valid then
+			pcall(function() g_libraryPopout:RaiseNativeWindow() end)
+		end
+	end
+
+	-- Render aggregated cross-category results into the content pane, grouped by
+	-- category. Each group is capped so rendering stays bounded; the overflow
+	-- row and any result row open that category's filtered page.
+	local PER_GROUP_CAP = 20
+	local m_aggGeneration = 0
+	local function buildAggregated(needle)
+		needle = Search.Normalize(needle)
+		m_aggGeneration = m_aggGeneration + 1
+		local generation = m_aggGeneration
+		if needle == "" then
+			contentPanel.children = {}
+			return
+		end
+
+		-- Matching is cheap (~0.05s worst case across every table); the cost is
+		-- RENDERING: broad needles produce 300+ labels, and panels pay a
+		-- per-panel layout tax under vscroll. Collect all matches up front, then
+		-- stream the labels in across frames so no single frame freezes.
+		local groups = {}
+		local totalResults = 0
+
+		for _,opt in ipairs(EnumerableCategories()) do
+			local t = dmhub.GetTable(opt.contentType)
+			if t ~= nil then
+				local keys = MatchKeysCached(opt.contentType, needle)
+				if #keys > 0 then
+					totalResults = totalResults + #keys
+					keys = table.shallow_copy(keys)
+					table.sort(keys, function(a,b)
+						local na = (t[a] and t[a].name) or tostring(a)
+						local nb = (t[b] and t[b].name) or tostring(b)
+						return na < nb
+					end)
+					groups[#groups+1] = {opt = opt, t = t, keys = keys}
+				end
+			end
+		end
+
+		if totalResults == 0 then
+			contentPanel.children = {
+				gui.Label{
+					classes = {'aggregateEmpty'},
+					text = string.format('No results for "%s"', needle),
+				},
+			}
+			return
+		end
+
+		local scrollPanel = gui.Panel{
+			classes = {'aggregateResultsPanel'},
+			vscroll = true,
+			width = "100%",
+			height = "100%",
+			flow = "vertical",
+		}
+		contentPanel.children = {scrollPanel}
+
+		local groupPanels = {}
+		local gi = 1
+		local rowIndex = 0 -- 0 = heading pending for the current group
+		local function BuildChunk()
+			if mod.unloaded or generation ~= m_aggGeneration or not scrollPanel.valid then
+				return
+			end
+
+			local budget = 80
+			while budget > 0 and gi <= #groups do
+				local g = groups[gi]
+				if rowIndex == 0 then
+					groupPanels[#groupPanels+1] = gui.Label{
+						classes = {'aggregateGroupHeading'},
+						text = string.format("%s (%d)", g.opt.text, #g.keys),
+					}
+					rowIndex = 1
+					budget = budget - 1
+				elseif rowIndex <= math.min(#g.keys, PER_GROUP_CAP) then
+					local capturedOpt = g.opt
+					local capturedKey = g.keys[rowIndex]
+					local item = g.t[capturedKey]
+					local name = (item and item.name) or tostring(capturedKey)
+					groupPanels[#groupPanels+1] = gui.Label{
+						classes = {'aggregateResult'},
+						text = Search.Highlight(name, needle),
+						press = function()
+							openCategoryFiltered(capturedOpt, capturedKey)
+						end,
+					}
+					rowIndex = rowIndex + 1
+					budget = budget - 1
+				else
+					if #g.keys > PER_GROUP_CAP then
+						local capturedOpt = g.opt
+						groupPanels[#groupPanels+1] = gui.Label{
+							classes = {'aggregateMore'},
+							text = string.format("+%d more in %s", #g.keys - PER_GROUP_CAP, g.opt.text),
+							press = function()
+								openCategoryFiltered(capturedOpt)
+							end,
+						}
+						budget = budget - 1
+					end
+					gi = gi + 1
+					rowIndex = 0
+				end
+			end
+
+			scrollPanel.children = groupPanels
+
+			if gi <= #groups then
+				dmhub.Schedule(0.01, BuildChunk)
+			end
+		end
+
+		BuildChunk()
+	end
+
+	-- "All results (N)" entry pinned to the top of the menu while filtering.
+	-- Clicking it returns from a category page to the aggregated view. No
+	-- hidden scope state: the menu always stays a visible navigator.
+	allResultsItem = gui.Label{
+		classes = {'list-item', 'compendiumAllResults', 'collapsed'},
+		bold = true,
+		text = "All results",
+		press = function(element)
+			m_currentCategory = nil
+			-- Clear any selected category so its highlight drops, but do NOT
+			-- mark this nav entry 'selected' itself: the {list-item, selected}
+			-- wash (color @fgInverse) is more specific than our colour rule and
+			-- would render the entry as dark, barely-legible text.
+			for _,sibling in ipairs(element.parent.children) do
+				sibling:SetClass('selected', false)
+			end
+			buildAggregated(m_searchText)
+		end,
+		searchCompendium = function(element, text)
+			local needle = Search.Normalize(text)
+			if needle == "" then
+				element:SetClass("collapsed", true)
+				return
+			end
+
+			local total = 0
+			for _,opt in ipairs(EnumerableCategories()) do
+				local t = dmhub.GetTable(opt.contentType)
+				if t ~= nil then
+					total = total + #MatchKeysCached(opt.contentType, needle)
+				end
+			end
+
+			element:SetClass("collapsed", false)
+			element.text = string.format("All results (%d)", total)
+		end,
 	}
 
 	local recentsCache = nil
@@ -5094,7 +5837,7 @@ local LibraryPanel = function()
 
 	recentsPanel:FireEvent("think")
 
-	local children = {recentsPanel}
+	local children = {allResultsItem, recentsPanel}
 
 	local permissionsTable = dmhub.GetTable(CompendiumPermission.tableName) or {}
 
@@ -5115,13 +5858,18 @@ local LibraryPanel = function()
 		end
 
 
+		table.sort(keys)
+
 		if #keys > 0 then
+			local matchOptions = {}
+			for _,k in ipairs(keys) do
+				matchOptions[#matchOptions+1] = CompendiumRegistry[k]
+			end
 			children[#children+1] = CreateListHeading{
-				text = section
+				text = section,
+				matchOptions = matchOptions,
 			}
 		end
-
-		table.sort(keys)
 
 		for _,key in ipairs(keys) do
 			--shallow copy the table so we can change the click function.
@@ -5132,8 +5880,22 @@ local LibraryPanel = function()
 
 			if info.click ~= nil then
 				local fn = info.click
+				local sectionName = section
+				local itemName = key
+				local contentType = info.contentType
 				info.click = function()
+					track("compendium_view", {
+						section = sectionName,
+						item = itemName,
+						dailyLimit = 30,
+					})
+					m_currentCategory = { contentType = contentType, text = itemName }
 					fn(contentPanel)
+					-- Keep the "Showing X of Y" summary in step with the newly
+					-- opened category while a filter is active.
+					if searchSummary ~= nil then
+						searchSummary:FireEvent("searchCompendium", m_searchText)
+					end
 				end
 			end
 
@@ -5219,11 +5981,251 @@ local LibraryPanel = function()
 		end,
 	}
 
+	compendiumSearchInput = gui.SearchInput{
+		width = 240,
+		height = 20,
+		fontSize = 16,
+		-- "Filter" (not "Search") and positioned inside the compendium,
+		-- so it reads distinct from the title-bar global search.
+		placeholderText = "Filter Compendium...",
+		bgcolor = "transparent",
+		editlag = 0.4,
+		edit = function(element)
+			m_searchText = Search.Normalize(element.text)
+			-- Fire the NORMALISED needle (lowercased + trimmed), not the raw text.
+			-- List items re-normalise internally, but legacy MatchesSearchRecursive
+			-- consumers (e.g. the class editor) match the needle verbatim against a
+			-- lowercased haystack -- a raw mixed-case needle silently never matches.
+			resultPanel:FireEventTree("searchCompendium", m_searchText)
+			-- Default scope is ALL: with no category open, typing shows
+			-- aggregated cross-category results. A category page filters
+			-- itself (above) and is left untouched here.
+			if m_currentCategory == nil then
+				buildAggregated(m_searchText)
+			end
+		end,
+	}
+
+	-- "Showing X of Y" / "No matches" feedback for the open category's list.
+	-- Driven by the current category + active filter; hidden when not filtering
+	-- or no enumerable category is open.
+	searchSummary = gui.Label{
+		classes = {'compendiumSearchSummary', 'collapsed'},
+		text = "",
+		width = 240,
+		height = "auto",
+		searchCompendium = function(element, text)
+			local needle = Search.Normalize(text)
+			local cat = m_currentCategory
+			if needle == "" or cat == nil or cat.contentType == nil then
+				element:SetClass("collapsed", true)
+				return
+			end
+
+			local t = dmhub.GetTable(cat.contentType)
+			if t == nil then
+				element:SetClass("collapsed", true)
+				return
+			end
+
+			local total = 0
+			for _ in unhidden_pairs(t) do total = total + 1 end
+			local shown = #MatchKeysCached(cat.contentType, needle)
+
+			element:SetClass("collapsed", false)
+			element:SetClass("emptyState", shown == 0)
+			if shown == 0 then
+				element.text = string.format("No matches in %s", cat.text or "this category")
+			else
+				element.text = string.format("Showing %d of %d", shown, total)
+			end
+		end,
+	}
+
+	--"Pop out" corner button: parented into the launchable HOST (the framed
+	--panel that also owns the close X) once we land in the hierarchy, so the
+	--two buttons share a row -- the X sits at hmargin/tmargin 6, this one 6px
+	--to its left. It dies with the host on every path that destroys it,
+	--including the popout itself (the popped window's corner control is the
+	--pop-in button instead). borderWidth 0 matches the X's borderless glyph
+	--chrome.
+	local popoutButton = gui.Button{
+		classes = {"sizeXs"},
+		icon = "drawsteel/Icons_Nav_MaxWindow.png",
+		borderWidth = 0,
+		floating = true,
+		halign = "right",
+		valign = "top",
+		tmargin = 6,
+		hmargin = 28,
+		data = {},
+		linger = function(element)
+			gui.Tooltip("Pop out into its own window")(element)
+		end,
+		click = function(element)
+			local root = element.data.libraryRoot
+			if root ~= nil and root.valid then
+				root:FireEvent("popoutCompendium")
+			end
+		end,
+	}
 
 	resultPanel = gui.Panel{
 		classes = {'library-panel'},
+
+		data = {
+			poppedOut = false,
+		},
+
+		--Move the pop-out button into the launchable host's corner, beside
+		--its close X. At create time we are not yet parented (the host
+		--constructs content first), so retry briefly on a schedule -- the
+		--same dance Audio's RaiseHostCloseButton does.
+		attachPopoutButton = function(element)
+			if (not element.valid) or (not popoutButton.valid) or element.data.poppedOut then
+				return
+			end
+			local host = element:FindParentWithClass("framedPanel")
+			if host == nil or (not host.valid) then
+				element.data.popoutButtonAttempts = (element.data.popoutButtonAttempts or 0) + 1
+				if element.data.popoutButtonAttempts < 10 then
+					element:ScheduleEvent("attachPopoutButton", 0.05)
+				end
+				return
+			end
+			popoutButton.data.libraryRoot = element
+			host:AddChild(popoutButton)
+		end,
+
+		--Escape: in-app the launchable host's floating close button claims
+		--escape at this same priority and closes the whole dialog; this
+		--handler replicates that path, and is the ONLY escape claimant in
+		--the popped-out window's own chain (where that button no longer
+		--exists). Either way the compendium ends up destroyed.
+		captureEscape = true,
+		escapePriority = EscapePriority.DMHUB_EXIT_TOOL_DIALOG,
+		escape = function(element)
+			if element.data.poppedOut then
+				--destroying the popped panel closes the OS window (the
+				--engine sweeps native windows whose panel died).
+				element:DestroySelf()
+				return
+			end
+			local host = element:FindParentWithClass("framedPanel")
+			if host ~= nil and host.valid then
+				host:FireEventTree("closePanel")
+				host:DestroySelf()
+			else
+				element:DestroySelf()
+			end
+		end,
+
+		--scheduled by the pop-out corner button: move the compendium into
+		--its own native OS window (the companion-app mechanism the
+		--character sheet uses), destroying the in-app launchable host it
+		--leaves behind.
+		popoutCompendium = function(element)
+			if element.data.poppedOut then
+				return
+			end
+			if GameHud.instance == nil or GameHud.instance.documentsPanel == nil or
+				(not GameHud.instance.documentsPanel.valid) then
+				return
+			end
+			local host = element:FindParentWithClass("framedPanel")
+
+			element.data.poppedOut = true
+			--owner-routed modals fired from inside the compendium land in
+			--this window's own modal layer rather than the main window.
+			element.data.nativeWindowRoot = true
+			g_libraryPopout = element
+
+			--the launchable host's presence ("Browsing Compendium") dies
+			--with the host; carry our own while popped.
+			element.data.popoutPresence = dmhub.PushUserRichStatus("Browsing Compendium")
+
+			--become our own framed surface: the theme's framedPanel+toplevel
+			--rules paint the opaque themed background the host used to
+			--provide; the poppedOut rule pins opacity 1 / square corners.
+			element:SetClass("framedPanel", true)
+			element:SetClass("toplevel", true)
+			element:SetClass("poppedOut", true)
+			element.selfStyle.opacity = 1
+
+			--the two-step popout: park off-screen under documentsPanel for
+			--the layout passes between the reparent and MoveToNativeWindow
+			--(the move measures the panel's rect to size the OS window, so
+			--it must lay out in-hierarchy first, but must never be
+			--user-visible in the app).
+			element.x = -30000
+			element:Unparent()
+			GameHud.instance.documentsPanel:AddChild(element)
+
+			if host ~= nil and host.valid then
+				host:DestroySelf()
+			end
+
+			element:FireEventTree("popout")
+			element:ScheduleEvent("popoutToNativeWindow", 0.15)
+		end,
+
+		popoutToNativeWindow = function(element)
+			if mod.unloaded or (not element.valid) or (not element.data.poppedOut) then
+				return
+			end
+			element:MoveToNativeWindow{
+				scaling = 0.9,
+				resizeable = true,
+				title = "Compendium",
+			}
+		end,
+
+		--fired by the native-window canvas when the popped-out window is
+		--created and whenever the user resizes it (dims arrive in layout
+		--units). Adopt the window's client size; the compendium's layout is
+		--all percentages, so it reflows on its own.
+		resize = function(element, w, h)
+			if not element.data.poppedOut then
+				return
+			end
+			element.x = 0
+			element.selfStyle.width = w
+			element.selfStyle.height = h
+		end,
+
+		--scheduled from create when a popped-out compendium already exists:
+		--this freshly-launched in-app copy is stillborn -- dismiss it (and
+		--the launchable host that built it) after the raise.
+		dismissDuplicateLibrary = function(element)
+			if not element.valid then
+				return
+			end
+			local host = element:FindParentWithClass("framedPanel")
+			if host ~= nil and host.valid then
+				host:DestroySelf()
+			else
+				element:DestroySelf()
+			end
+		end,
+
+		-- Theme provides label/button/input/dropdown/multiselect-chip vocabulary.
+		-- Local extras here are surface-specific to the compendium library:
+		-- the panel sizing (library-panel / content-panel / list-panel), the
+		-- list-item state variants, and the search-result fade behavior.
+		-- Pure theme overrides on {list-item} (fontSize 16, color white) and
+		-- the duplicate {searchableLabel} color='white' rules were dropped so
+		-- the library uses default theme styling.
+		--
+		-- Styles.Default is carried on the panel itself (not just inherited
+		-- from the hud ancestors) because while POPPED OUT this panel is its
+		-- own style-cascade root: without it the engine's global rules --
+		-- notably 'collapsed-anim', which every expando collapse relies on --
+		-- are simply not in scope in the OS window. In-app it duplicates
+		-- rules already arriving from the hud root, which is harmless (the
+		-- same pattern the character-sheet harness uses).
 		styles = {
-			Styles.Default,
+		Styles.Default,
+		ThemeEngine.MergeStyles({
 			{
 				selectors = {'library-panel'},
 				pad = 16,
@@ -5232,6 +6234,17 @@ local LibraryPanel = function()
 				flow = 'horizontal',
 				halign = "center",
 				valign = "center",
+			},
+			{
+				-- Popped out into an OS window: the panel IS the window
+				-- surface (it also gains framedPanel+toplevel for the themed
+				-- background), so paint opaque -- there is no app surface
+				-- behind it to blur through -- and square, since rounded
+				-- corners would show the companion's black clear color.
+				selectors = {'library-panel', 'poppedOut'},
+				priority = 6,
+				opacity = 1,
+				cornerRadius = 0,
 			},
 			{
 				selectors = {'content-panel'},
@@ -5251,68 +6264,282 @@ local LibraryPanel = function()
 				halign = 'left',
 				valign = 'top',
 			},
+			-- list-item base: only surface layout stays here. Color and font
+			-- come from the theme's {label} rule via the cascade.
 			{
 				selectors = {'list-item'},
 				width = '100%',
-                height = "auto",
-                minHeight = 22,
-				fontSize = 16,
+				height = "auto",
+				minHeight = 22,
 				hmargin = 8,
-				color = 'white',
 				bgcolor = 'clear',
 			},
+			-- list-item state variants. Colors mapped to scheme semantics
+			-- where they fit; the dark-red wash for hover/selected stays
+			-- literal because it's a bespoke compendium-selection look.
 			{
 				selectors = {'list-item', 'defocused'},
-				color = '#888888',
+				brightness = 0.7,
 			},
 			{
 				selectors = {'list-item', 'imported'},
-				color = '#888888',
+				brightness = 0.7,
 			},
 			{
 				selectors = {'list-item', 'deleted'},
-				color = 'red',
+				color = '@danger',
 			},
 			{
-				selectors = {'list-item', 'hover'},
-				bgcolor = '#880000',
+				-- exclude headings: they reuse list-item for layout but are
+				-- not interactive, so they should not get the hover wash.
+				selectors = {'list-item', 'hover', '~list-heading'},
+				bgcolor = "@bgInverse", --'#880000',
+				color = "@fgInverse",
+				brightness = 1.2,
 			},
 			{
 				selectors = {'list-item', 'selected'},
-				bgcolor = '#880000',
+				bgcolor = "@bgInverse", --'#880000',
+				color = "@fgInverse"
 			},
 			{
 				selectors = {'list-item', 'searching'},
-				color = '#888888',
+				brightness = 0.5,
 			},
 			{
 				selectors = {'list-item', 'matchSearch'},
-				color = '#ffffff',
+				brightness = 1.5,
 			},
-            {
-                selectors = {'searchableLabel'},
-                color = 'white',
-            },
-            {
-                selectors = {'searchableLabel'},
-                color = 'white',
-            },
-            {
-                selectors = {'searchableLabel', 'searching', '~matchSearch'},
-                color = '#666666',
-            },
-            {
-                selectors = {'hideOnSearchMismatch', 'searching', '~matchSearch'},
-                collapsed = 1,
-            }
+			-- searchableLabel: only the conditional fade-on-no-match rule is
+			-- needed. Default color comes from the theme {label} rule.
+			{
+				selectors = {'searchableLabel', 'searching', '~matchSearch'},
+				brightness = 0.7,
+			},
+			{
+				selectors = {'hideOnSearchMismatch', 'searching', '~matchSearch'},
+				collapsed = 1,
+			},
+			-- Per-category match count shown beside a menu category while filtering.
+			{
+				selectors = {'compendiumMatchCount'},
+				color = '@fgMuted',
+				fontSize = 12,
+				bold = false,
+			},
+			-- Inline clear (X) button inside the filter input.
+			{
+				selectors = {'compendiumClearSearch'},
+				bgcolor = '@fgMuted',
+			},
+			{
+				selectors = {'compendiumClearSearch', 'hover'},
+				bgcolor = '@fgStrong',
+			},
+			-- "Showing X of Y" / "No matches" filter feedback under the input.
+			{
+				selectors = {'compendiumSearchSummary'},
+				color = '@fgMuted',
+				fontSize = 12,
+				hmargin = 8,
+				vmargin = 2,
+			},
+			{
+				selectors = {'compendiumSearchSummary', 'emptyState'},
+				color = '@fg',
+			},
+			-- "All results (N)" entry pinned atop the menu while filtering.
+			-- Uses @fgStrong (brightest text token) for legibility - the accent
+			-- tokens are too low-contrast on the dark menu to read; it stays
+			-- distinct via bold + top position + the count. Hover is left to the
+			-- standard {list-item, hover} rule (inverse wash), which stays
+			-- readable; a custom hover colour here went invisible on it.
+			{
+				selectors = {'compendiumAllResults'},
+				color = '@fgStrong',
+			},
+			-- Aggregated cross-category results pane.
+			{
+				selectors = {'aggregateResultsPanel'},
+				pad = 12,
+				borderBox = true,
+			},
+			{
+				selectors = {'aggregateGroupHeading'},
+				color = '@fgMuted',
+				fontSize = 16,
+				bold = true,
+				width = '100%',
+				height = 'auto',
+				tmargin = 12,
+				bmargin = 4,
+			},
+			{
+				selectors = {'aggregateResult'},
+				color = '@fg',
+				fontSize = 15,
+				width = '100%',
+				height = 'auto',
+				minHeight = 20,
+				lmargin = 12,
+				vmargin = 1,
+			},
+			{
+				selectors = {'aggregateResult', 'hover'},
+				color = '@accentHover',
+			},
+			{
+				selectors = {'aggregateMore'},
+				color = '@fgMuted',
+				fontSize = 13,
+				italics = true,
+				width = '100%',
+				height = 'auto',
+				lmargin = 12,
+				vmargin = 2,
+			},
+			{
+				selectors = {'aggregateMore', 'hover'},
+				color = '@accentHover',
+			},
+			{
+				selectors = {'aggregateEmpty'},
+				color = '@fgMuted',
+				fontSize = 16,
+				halign = 'center',
+				valign = 'top',
+				tmargin = 40,
+			},
+		}),
 		},
 
         create = function(element)
+            -- A popped-out compendium already exists: raise its OS window
+            -- instead of opening a second copy in-app. This panel (and the
+            -- launchable host that just built it) is dismissed a tick later
+            -- (at create time we are not yet parented into the host). It
+            -- deliberately skips publishing the navigator / context provider
+            -- below, so the popout's registrations stay live.
+            if g_libraryPopout ~= nil and g_libraryPopout.valid and g_libraryPopout ~= element then
+                pcall(function() g_libraryPopout:RaiseNativeWindow() end)
+                element:ScheduleEvent("dismissDuplicateLibrary", 0.05)
+                return
+            end
+
             --force parent's opacity to 1 even if blurred.
             local parentPanel = element:FindParentWithClass("framedPanel")
             if parentPanel ~= nil then
                 parentPanel.selfStyle.opacity = 1
                 parentPanel.selfStyle.borderWidth = 2.3
+            end
+
+            element:FireEvent("attachPopoutButton")
+
+            -- Publish this live panel's deep-link navigator and consume any
+            -- pending Compendium.Open request that opened us.
+            g_libraryNavigate = navigate
+            ConsumePendingCompendiumNavigation()
+
+            -- Context-sensitive search: while this panel is open, the global
+            -- title-bar search pins a group scoped to the compendium content the
+            -- user is browsing. When a single category is focused the group
+            -- narrows to it ("In Conditions"); otherwise it spans the whole
+            -- compendium ("In the Compendium"). Either way the rows deep-link
+            -- via Compendium.Open. This is DISTINCT from this panel's own
+            -- "Filter Compendium..." box (which filters the visible lists in
+            -- place): the context group surfaces the same content from the
+            -- GLOBAL search, pinned above the buckets. Priority 50 sits above
+            -- the map (~10) and below a modal PDF viewer (~100). Results are
+            -- matched with the same cached matcher the in-panel filter uses, so
+            -- the two stay consistent. Capped to keep the pinned group + its
+            -- "See all" bounded for broad needles.
+            local CONTEXT_RESULT_CAP = 50
+            m_contextSpec = {
+                id = "compendium-open",
+                priority = 50,
+                label = "In the Compendium",
+                enumerate = function(needle)
+                    if not contentPanel.valid then
+                        return {}
+                    end
+                    -- Scope to the focused category, else every enumerable one.
+                    -- The label is kept in sync here because CollectContextResults
+                    -- reads spec.label AFTER calling enumerate.
+                    local cats
+                    if m_currentCategory ~= nil and CompendiumRegistry[m_currentCategory.text] ~= nil then
+                        cats = { CompendiumRegistry[m_currentCategory.text] }
+                        m_contextSpec.label = string.format("In %s", m_currentCategory.text)
+                    else
+                        cats = EnumerableCategories()
+                        m_contextSpec.label = "In the Compendium"
+                    end
+
+                    local results = {}
+                    for _,opt in ipairs(cats) do
+                        if opt.contentType ~= nil and ((not opt.admin) or dmhub.isAdminGame) then
+                            local t = dmhub.GetTable(opt.contentType)
+                            if t ~= nil then
+                                for _,k in ipairs(MatchKeysCached(opt.contentType, needle)) do
+                                    local v = t[k]
+                                    local name = (type(v) == "table" and rawget(v, "name")) or nil
+                                    if type(name) == "string" then
+                                        local capturedType, capturedKey, capturedName = opt.contentType, k, name
+                                        results[#results+1] = {
+                                            name = name,
+                                            score = Search.Score(name, needle),
+                                            typeLabel = CompendiumTypeLabel(opt.text),
+                                            actionLabel = "Open in Compendium",
+                                            activate = function()
+                                                Compendium.Open{
+                                                    contentType = capturedType,
+                                                    search = capturedName,
+                                                    targetKey = capturedKey,
+                                                }
+                                            end,
+                                        }
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    table.sort(results, function(a,b) return (a.score or 0) > (b.score or 0) end)
+                    while #results > CONTEXT_RESULT_CAP do
+                        table.remove(results)
+                    end
+                    return results
+                end,
+            }
+            Search.RegisterContextProvider(m_contextSpec)
+        end,
+
+        destroy = function(element)
+            -- The pop-out button normally dies with the host it was parented
+            -- into; if it never got attached (e.g. the stillborn duplicate
+            -- path) it is an orphan and must be destroyed with us.
+            if popoutButton.valid and popoutButton.parent == nil then
+                popoutButton:DestroySelf()
+            end
+
+            -- Popout bookkeeping: this fires on every close path alike (the
+            -- pop-in button, Escape, the OS window's close button, the
+            -- module unload sweep).
+            if g_libraryPopout == element then
+                g_libraryPopout = nil
+            end
+            if element.data.popoutPresence ~= nil then
+                dmhub.PopUserRichStatus(element.data.popoutPresence)
+                element.data.popoutPresence = nil
+            end
+
+            -- Withdraw the navigator AND the context provider together, but only
+            -- if this is still the active panel: a reopened panel reassigns
+            -- g_libraryNavigate and re-registers the provider in its create, so a
+            -- late-firing destroy from the OLD panel must not clobber the new
+            -- registration.
+            if g_libraryNavigate == navigate then
+                g_libraryNavigate = nil
+                Search.UnregisterContextProvider("compendium-open")
             end
         end,
 
@@ -5332,20 +6559,14 @@ local LibraryPanel = function()
             height = "95%",
             width="auto",
             flow = "vertical",
-            gui.SearchInput{
-                width = 240,
-                height = 20,
-                fontSize = 16,
-                placeholderText = "Search Compendium...",
-                editlag = 0.4,
-                edit = function(element)
-                    resultPanel:FireEventTree("searchCompendium", trim(element.text))
-                end,
-            },
+            compendiumSearchInput,
+
+            searchSummary,
+
             gui.Panel{
                 classes = {'list-panel'},
                 vscroll = true,
-                height = "100%-24",
+                height = "100%-40",
                 maxHeight = 1080,
 
                 children = children,
@@ -5357,13 +6578,60 @@ local LibraryPanel = function()
 
 		uploadStatus,
 
+		--"Pop in": only visible while popped out (the pop-out button lives
+		--in the launchable HOST's corner instead -- see popoutButton below).
+		--Closes the OS window and reopens the compendium in-app,
+		--deep-linking back to the category that was open. The panel is
+		--destroyed and relaunched through the normal path, so the relaunch
+		--must wait a tick for the destroy to land.
+		gui.Button{
+			classes = {"sizeXs", "collapsed"},
+			icon = "drawsteel/Icons_Nav_MinWindow.png",
+			borderWidth = 0,
+			floating = true,
+			halign = "right",
+			valign = "top",
+			tmargin = 6,
+			hmargin = 6,
+			linger = function(element)
+				gui.Tooltip("Return to the app")(element)
+			end,
+			popout = function(element)
+				element:SetClass("collapsed", false)
+			end,
+			click = function(element)
+				local root = element:FindParentWithClass("library-panel")
+				if root == nil then
+					return
+				end
+				local nav = nil
+				if m_currentCategory ~= nil and m_currentCategory.contentType ~= nil then
+					nav = {contentType = m_currentCategory.contentType}
+					if m_searchText ~= "" then
+						nav.search = m_searchText
+					end
+				end
+				root:DestroySelf()
+				dmhub.Schedule(0.1, function()
+					if mod.unloaded then
+						return
+					end
+					if nav ~= nil then
+						Compendium.Open(nav)
+					else
+						LaunchablePanel.LaunchPanelByName("Compendium")
+					end
+				end)
+			end,
+		},
+
 	}
 
 
 	return resultPanel
 end
 
-local g_LibraryContentTypes = {"characterTypes", "classes", "subclasses", "races", "subraces", "backgrounds", "feats", "parties", "charConditions", "characterOngoingEffects", "creatureTemplates", "currency", "customAttributes", "damageTypes", "equipmentCategories", "featurePrefabs", "globalRuleMods", "languages", "characterResources", "Skills", "lootTables", "VisionType"}
+local g_LibraryContentTypes = {"characterTypes", "classes", "subclasses", "races", "subraces", "backgrounds", "feats", "parties", "charConditions", "characterOngoingEffects", "creatureTemplates", "currency", "customAttributes", "damageTypes", "encounterScripts", "environmentalKeywords", "equipmentCategories", "featurePrefabs", "globalRuleMods", "languages", "characterResources", "Skills", "lootTables", "mapScripts", "VisionType"}
 
 LaunchablePanel.Register{
 	name = "Compendium",
@@ -5374,6 +6642,13 @@ LaunchablePanel.Register{
 	draggable = false,
 	overdocks = true,
 	filtered = function()
+		--a mod-enforced custom interface can remove Compendium access
+		--outright (e.g. Encounter of the Week games).
+		local suppressed = false
+		pcall(function() suppressed = GameHud.CustomInterfaceSuppressesPanel("Compendium") == true end)
+		if suppressed then
+			return true
+		end
 		return (not dmhub.GetSettingValue("permissions.playerlibrary")) and (not dmhub.isDM)
 	end,
 
@@ -5398,6 +6673,22 @@ Compendium = {
 	Styles = LibraryStyles,
 	AddButton = AddButton,
 	CreateListItem = CreateListItem,
+
+	-- Deep-link into the compendium: open the panel and navigate to the exact
+	-- item. nav = {contentType=, search=, targetKey=}. If the panel is already
+	-- open we drive it directly; otherwise we stash the request and the panel
+	-- consumes it on open. The universal global-search click-through.
+	Open = function(nav)
+		if nav == nil or nav.contentType == nil then
+			return
+		end
+		g_pendingNavigation = nav
+		if g_libraryNavigate ~= nil then
+			ConsumePendingCompendiumNavigation()
+		else
+			LaunchablePanel.LaunchPanelByName("Compendium")
+		end
+	end,
 
 	--export show rolltable panel so others can use it.
 	ShowRolltablePanel = ShowRolltablePanel,
@@ -5444,14 +6735,7 @@ Compendium = {
 			height = 940,
 			pad = 8,
 			flow = "vertical",
-			styles = {
-				Styles.Default,
-				Styles.Panel,
-				{
-					classes = {"formPanel"},
-					valign = "top",
-				}
-			},
+			styles = ThemeEngine.GetStyles(),
 
 			gui.Label{
 				classes = {"dialogTitle"},
@@ -5472,7 +6756,8 @@ Compendium = {
 				editor,
 			},
 
-			gui.CloseButton{
+			gui.Button{
+				classes = {"closeButton"},
 				halign = "right",
 				valign = "top",
 				floating = true,
@@ -5575,6 +6860,10 @@ Compendium.RegisterSection{
     ord = 0,
 }
 Compendium.RegisterSection{
+    text = "Prepped",
+    ord = 5,
+}
+Compendium.RegisterSection{
     text = "Rules",
     ord = 10,
 }
@@ -5669,6 +6958,687 @@ end
 
 
 
+local ShowJournalStylesheetsPanel = function(parentPanel)
+    local editorPanel = JournalStylesheet.CreateEditor()
+    local SetData = editorPanel.data.SetData
+
+    local itemsListPanel = nil
+    local stylesheetsItems = {}
+
+    itemsListPanel = gui.Panel{
+        classes = {'list-panel'},
+        vscroll = true,
+        monitorAssets = true,
+        refreshAssets = function(element)
+            local children = {}
+            local stylesheetsTable = dmhub.GetTable(JournalStylesheet.tableName) or {}
+            local newStylesheetsItems = {}
+
+            for k, item in unhidden_pairs(stylesheetsTable) do
+                newStylesheetsItems[k] = stylesheetsItems[k] or CreateListItem{
+                    select = element.aliveTime > 0.2,
+                    tableName = JournalStylesheet.tableName,
+                    key = k,
+                    obliterateOnDelete = true,
+                    click = function()
+                        SetData(JournalStylesheet.tableName, k)
+                    end,
+                }
+                newStylesheetsItems[k].text = item.name
+                children[#children+1] = newStylesheetsItems[k]
+            end
+
+            table.sort(children, function(a, b) return a.text < b.text end)
+
+            stylesheetsItems = newStylesheetsItems
+            itemsListPanel.children = children
+        end,
+    }
+
+    itemsListPanel:FireEvent('refreshAssets')
+
+    local leftPanel = gui.Panel{
+        selfStyle = {
+            flow = 'vertical',
+            height = '100%',
+            width = 'auto',
+        },
+        itemsListPanel,
+        AddButton{
+            click = function(element)
+                dmhub.SetAndUploadTableItem(JournalStylesheet.tableName, JournalStylesheet.CreateNew())
+            end,
+        },
+    }
+
+    parentPanel.children = {leftPanel, editorPanel}
+end
+
+--Editor for a single trait (motivation or pitfall) row: name + description +
+--remove. listField is "motivations" or "pitfalls". Mutates the negotiator and
+--uploads on every change; calls onRemove to rebuild the row list.
+local function CreateNegotiatorTraitRow(negotiator, listField, trait, onRemove)
+    local rowPanel
+    rowPanel = gui.Panel{
+        flow = "horizontal",
+        width = "100%",
+        height = "auto",
+        vmargin = 2,
+        gui.Input{
+            classes = {"sizeS"},
+            width = 160,
+            height = 22,
+            valign = "top",
+            placeholderText = "Name",
+            text = trait.name,
+            change = function(element)
+                trait.name = element.text
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+            end,
+        },
+        gui.Input{
+            classes = {"sizeS"},
+            width = 460,
+            height = "auto",
+            minHeight = 22,
+            hmargin = 8,
+            valign = "top",
+            multiline = true,
+            placeholderText = "Description",
+            text = trait.description,
+            change = function(element)
+                trait.description = element.text
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+            end,
+        },
+        gui.Button{
+            classes = {"sizeS"},
+            text = "Remove",
+            width = 80,
+            height = 22,
+            valign = "top",
+            hmargin = 8,
+            click = function()
+                for i,t in ipairs(negotiator[listField]) do
+                    if t == trait then
+                        table.remove(negotiator[listField], i)
+                        break
+                    end
+                end
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+                onRemove()
+            end,
+        },
+    }
+    return rowPanel
+end
+
+--Builds the labelled list of trait rows (motivations or pitfalls) plus an add
+--button. Rebuilds itself in place when rows are added or removed.
+local function CreateNegotiatorTraitList(negotiator, listField, titleText, addLabel)
+    local rowsPanel
+    local Rebuild
+
+    rowsPanel = gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+    }
+
+    Rebuild = function()
+        local children = {}
+        for _,trait in ipairs(negotiator[listField]) do
+            children[#children+1] = CreateNegotiatorTraitRow(negotiator, listField, trait, Rebuild)
+        end
+        rowsPanel.children = children
+    end
+
+    Rebuild()
+
+    return gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        vmargin = 8,
+        gui.Label{
+            classes = {"bold"},
+            text = titleText,
+            width = "auto",
+            height = "auto",
+        },
+        rowsPanel,
+        AddButton{
+            text = addLabel,
+            halign = "left",
+            click = function()
+                --Make sure this negotiator owns its own list before mutating it.
+                --If the field is still resolving to the shared prototype default
+                --(or is nil), pushing into it would corrupt every other negotiator,
+                --so allocate a fresh table first.
+                local list = negotiator[listField]
+                if list == nil or list == Negotiator[listField] then
+                    list = {}
+                    negotiator[listField] = list
+                end
+                list[#list+1] = NegotiatorTrait.Create{}
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+                Rebuild()
+            end,
+        },
+    }
+end
+
+--Editor for a single negotiator, fetched live from the table by key.
+local function CreateNegotiatorEditor(key)
+    local negotiator = (dmhub.GetTable(Negotiator.tableName) or {})[key]
+    if negotiator == nil then
+        return gui.Panel{ width = 900, height = "95%" }
+    end
+
+    return gui.Panel{
+        width = 900,
+        height = "95%",
+        vscroll = true,
+        flow = "vertical",
+        gui.Input{
+            classes = {"sizeL"},
+            width = 400,
+            height = 26,
+            placeholderText = "Name",
+            text = negotiator.name,
+            change = function(element)
+                negotiator.name = element.text
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+            end,
+        },
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            vmargin = 6,
+            gui.Label{
+                classes = {"bold"},
+                text = "Impression Score",
+                width = "auto",
+                height = 22,
+                valign = "center",
+            },
+            gui.Input{
+                classes = {"sizeS"},
+                width = 60,
+                height = 22,
+                hmargin = 8,
+                valign = "center",
+                text = tostring(negotiator.impressionScore),
+                change = function(element)
+                    local n = tonumber(element.text)
+                    if n ~= nil and n < 100 then
+                        negotiator.impressionScore = math.floor(n)
+                    end
+                    element.text = tostring(negotiator.impressionScore)
+                    dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+                end,
+            },
+        },
+        gui.Input{
+            classes = {"sizeM"},
+            width = 700,
+            height = "auto",
+            minHeight = 24,
+            vmargin = 4,
+            multiline = true,
+            placeholderText = "Flavor Text",
+            text = negotiator.flavorText,
+            change = function(element)
+                negotiator.flavorText = element.text
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+            end,
+        },
+        gui.Input{
+            classes = {"sizeM"},
+            width = 700,
+            height = "auto",
+            minHeight = 48,
+            vmargin = 4,
+            multiline = true,
+            placeholderText = "Description",
+            text = negotiator.description,
+            change = function(element)
+                negotiator.description = element.text
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, negotiator)
+            end,
+        },
+        CreateNegotiatorTraitList(negotiator, "motivations", "Motivations", "Add Motivation"),
+        CreateNegotiatorTraitList(negotiator, "pitfalls", "Pitfalls", "Add Pitfall"),
+    }
+end
+
+local function ShowNegotiatorsPanel(contentPanel)
+    local itemsListPanel
+    local leftPanel
+
+    itemsListPanel = gui.Panel{
+        classes = {"list-panel"},
+        vscroll = true,
+        monitorAssets = true,
+        refreshAssets = function(element)
+            local dataTable = dmhub.GetTable(Negotiator.tableName) or {}
+            local entries = {}
+            for key,item in unhidden_pairs(dataTable) do
+                entries[#entries+1] = { key = key, item = item }
+            end
+            table.sort(entries, function(a,b)
+                local sa = a.item.impressionScore or 0
+                local sb = b.item.impressionScore or 0
+                if sa ~= sb then return sa < sb end
+                return (a.item.name or "") < (b.item.name or "")
+            end)
+
+            local children = {}
+            for _,entry in ipairs(entries) do
+                local key = entry.key
+                local listItem = CreateListItem{
+                    select = element.aliveTime > 0.2,
+                    tableName = Negotiator.tableName,
+                    key = key,
+                    obliterateOnDelete = true,
+                    click = function()
+                        contentPanel.children = {leftPanel, CreateNegotiatorEditor(key)}
+                    end,
+                }
+                listItem.text = string.format("(%s) %s", tostring(entry.item.impressionScore or 0), entry.item.name or "")
+                children[#children+1] = listItem
+            end
+            itemsListPanel.children = children
+        end,
+    }
+
+    itemsListPanel:FireEvent("refreshAssets")
+
+    leftPanel = gui.Panel{
+        selfStyle = {
+            flow = "vertical",
+            height = "100%",
+            width = "auto",
+        },
+        itemsListPanel,
+        AddButton{
+            click = function()
+                dmhub.SetAndUploadTableItem(Negotiator.tableName, Negotiator.CreateNew{})
+            end,
+        },
+    }
+
+    contentPanel.children = {leftPanel}
+end
+
+--Editor for a single montage test, fetched live from the table by key. Reuses
+--MontageDocument:EditPanel (inherited by MontageTest). EditPanel mutates the
+--object in place but does not upload, so a Save button drives the upload.
+local function CreateMontageTestEditor(key)
+    local montage = (dmhub.GetTable(MontageTest.tableName) or {})[key]
+    if montage == nil then
+        return gui.Panel{ width = 900, height = "95%" }
+    end
+
+    return gui.Panel{
+        width = 900,
+        height = "95%",
+        vscroll = true,
+        flow = "vertical",
+        montage:EditPanel(),
+        gui.Button{
+            classes = {"sizeM"},
+            text = "Save",
+            width = 120,
+            height = 30,
+            halign = "left",
+            vmargin = 10,
+            click = function()
+                dmhub.SetAndUploadTableItem(MontageTest.tableName, montage)
+            end,
+        },
+    }
+end
+
+local function ShowMontageTestsPanel(contentPanel)
+    local itemsListPanel
+    local leftPanel
+
+    itemsListPanel = gui.Panel{
+        classes = {"list-panel"},
+        vscroll = true,
+        monitorAssets = true,
+        refreshAssets = function(element)
+            local dataTable = dmhub.GetTable(MontageTest.tableName) or {}
+            local children = {}
+            local entries = {}
+            for key,item in unhidden_pairs(dataTable) do
+                entries[#entries+1] = { key = key, item = item }
+            end
+            table.sort(entries, function(a,b)
+                return (a.item.description or "") < (b.item.description or "")
+            end)
+
+            for _,entry in ipairs(entries) do
+                local key = entry.key
+                local listItem = CreateListItem{
+                    select = element.aliveTime > 0.2,
+                    tableName = MontageTest.tableName,
+                    key = key,
+                    obliterateOnDelete = true,
+                    click = function()
+                        contentPanel.children = {leftPanel, CreateMontageTestEditor(key)}
+                    end,
+                }
+                listItem.text = entry.item.description or "Montage Test"
+                children[#children+1] = listItem
+            end
+            itemsListPanel.children = children
+        end,
+    }
+
+    itemsListPanel:FireEvent("refreshAssets")
+
+    leftPanel = gui.Panel{
+        selfStyle = {
+            flow = "vertical",
+            height = "100%",
+            width = "auto",
+        },
+        itemsListPanel,
+        AddButton{
+            click = function()
+                dmhub.SetAndUploadTableItem(MontageTest.tableName, MontageTest.CreateNew{})
+            end,
+        },
+    }
+
+    contentPanel.children = {leftPanel}
+end
+
+--A glossary term: reference content mirroring the book's glossary - the
+--term, its definition, and a SourceReference to the book and page that
+--defines it (openable directly in the PDF viewer, like ability sources).
+GlossaryTerm = RegisterGameType("GlossaryTerm")
+GlossaryTerm.tableName = "glossaryTerms"
+GlossaryTerm.name = "New Term"
+GlossaryTerm.definition = ""
+--common English words opt out of auto-hinting in documents (the glossary
+--hints feature in MarkdownDocument); their definitions stay reachable via
+--/glossary and the compendium.
+GlossaryTerm.commonWord = false
+
+function GlossaryTerm.CreateNew()
+    return GlossaryTerm.new{}
+end
+
+--Open a glossary source reference at the PRINTED page number: the PDF
+--viewer resolves a STRING starting page against the PDF's page labels
+--(front matter shifts printed pages from raw indices), but silently stays
+--put when nothing matches, so only pass the label form when it exists.
+--Fall back to the printed number as a 0-based index guess.
+function GlossaryTerm.OpenSourcePage(src)
+    if src == nil or src.docid == nil or src.docid == "none" then
+        return
+    end
+    local pdfDoc = assets.pdfDocumentsTable[src.docid]
+    if pdfDoc == nil or pdfDoc.hidden then
+        return
+    end
+    local page = src.page or 1
+    local target = math.max(0, (tonumber(page) or 1) - 1)
+    pcall(function()
+        local want = string.lower(tostring(page))
+        for _, label in ipairs(pdfDoc.doc.summary.pageLabels) do
+            if string.lower(label) == want then
+                target = tostring(page)
+                break
+            end
+        end
+    end)
+    OpenPDFDocument(pdfDoc, target)
+end
+
+--Chat rendering for a shared glossary term (chat.ShareData). The chat
+--system calls Render on every client, so this must be self-contained:
+--name, definition, and the source line when the book is visible.
+function GlossaryTerm:Render(options)
+    options = options or {}
+    options.summary = nil
+
+    local sourceLine = nil
+    local src = self:try_get("sourceReference")
+    if src ~= nil and src.docid ~= nil and src.docid ~= "none" then
+        local pdfDoc = assets.pdfDocumentsTable[src.docid]
+        if pdfDoc ~= nil and not pdfDoc.hidden then
+            sourceLine = string.format("%s, p. %d", pdfDoc.description or "Book", src.page or 1)
+        end
+    end
+
+    local children = {
+        gui.Label{
+            width = "100%",
+            height = "auto",
+            fontSize = 16,
+            bold = true,
+            color = "white",
+            text = self.name or "Term",
+        },
+        gui.Label{
+            width = "100%",
+            height = "auto",
+            vmargin = 4,
+            fontSize = 14,
+            color = "#e8e8e8",
+            text = self.definition or "",
+        },
+    }
+    if sourceLine ~= nil then
+        --clickable: opens the book at the printed page.
+        children[#children + 1] = gui.Label{
+            width = "auto",
+            height = "auto",
+            fontSize = 12,
+            color = "#ffffff77",
+            bgimage = "panels/square.png",
+            bgcolor = "#00000000",
+            hoverCursor = "pressbutton",
+            text = "<u>" .. sourceLine .. "</u>",
+            hover = function(element) element.selfStyle.color = "#ffffffcc" end,
+            dehover = function(element) element.selfStyle.color = "#ffffff77" end,
+            click = function(element)
+                GlossaryTerm.OpenSourcePage(src)
+            end,
+        }
+    end
+
+    local args = {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        children = children,
+    }
+    for k, v in pairs(options) do
+        args[k] = v
+    end
+    return gui.Panel(args)
+end
+
+--Editor for a single glossary term, fetched live from the table by key.
+--Fields upload on change, matching the negotiator editor.
+local function CreateGlossaryTermEditor(key)
+    local term = (dmhub.GetTable(GlossaryTerm.tableName) or {})[key]
+    if term == nil then
+        return gui.Panel{ width = 900, height = "95%" }
+    end
+
+    --source material: reuses SourceReference (book dropdown + page + Open),
+    --the same widget abilities use. Picking a source auto-searches the PDF
+    --for the term's name to prefill the page.
+    local m_source = term:try_get("sourceReference") or SourceReference.new{}
+
+    return gui.Panel{
+        width = 900,
+        height = "95%",
+        vscroll = true,
+        flow = "vertical",
+        --gutter between the term list column and the editor's fields.
+        lmargin = 24,
+        gui.Input{
+            classes = {"sizeL"},
+            width = 400,
+            height = 26,
+            bmargin = 8,
+            placeholderText = "Term",
+            text = term.name,
+            change = function(element)
+                term.name = element.text
+                dmhub.SetAndUploadTableItem(GlossaryTerm.tableName, term)
+            end,
+        },
+        m_source:Editor{
+            object = term,
+            halign = "left",
+            vmargin = 8,
+            change = function(element)
+                term.sourceReference = m_source
+                dmhub.SetAndUploadTableItem(GlossaryTerm.tableName, term)
+            end,
+        },
+        gui.Input{
+            classes = {"sizeM"},
+            width = 700,
+            height = "auto",
+            minHeight = 48,
+            vmargin = 8,
+            multiline = true,
+            placeholderText = "Definition",
+            text = term.definition,
+            change = function(element)
+                term.definition = element.text
+                dmhub.SetAndUploadTableItem(GlossaryTerm.tableName, term)
+            end,
+        },
+        gui.Check{
+            text = "Common word (don't auto-hint)",
+            halign = "left",
+            vmargin = 8,
+            value = cond(term:try_get("commonWord", false), true, false),
+            linger = gui.Tooltip("Applies to all documents, for everyone."),
+            change = function(element)
+                term.commonWord = element.value
+                dmhub.SetAndUploadTableItem(GlossaryTerm.tableName, term)
+            end,
+        },
+    }
+end
+
+local function ShowGlossaryPanel(contentPanel)
+    local itemsListPanel
+    local leftPanel
+
+    --glossaries run long; the filter box narrows the list as you type.
+    local m_filter = ""
+    --key of the term open in the editor. Selection is tracked here rather
+    --than through CreateListItem's select option: that option re-fires the
+    --click on every list refresh, and every field edit uploads (which
+    --refreshes the list), so it would rebuild the editor out from under
+    --mid-entry typing.
+    local m_selectedKey = nil
+
+    local function OpenTerm(key)
+        m_selectedKey = key
+        contentPanel.children = {leftPanel, CreateGlossaryTermEditor(key)}
+    end
+
+    itemsListPanel = gui.Panel{
+        classes = {"list-panel"},
+        vscroll = true,
+        monitorAssets = true,
+        refreshAssets = function(element)
+            local dataTable = dmhub.GetTable(GlossaryTerm.tableName) or {}
+            local entries = {}
+            local filter = string.lower(m_filter)
+            for key,item in unhidden_pairs(dataTable) do
+                if filter == "" or string.find(string.lower(item.name or ""), filter, 1, true) ~= nil then
+                    entries[#entries+1] = { key = key, item = item }
+                end
+            end
+            table.sort(entries, function(a,b)
+                return string.lower(a.item.name or "") < string.lower(b.item.name or "")
+            end)
+
+            local children = {}
+            for _,entry in ipairs(entries) do
+                local key = entry.key
+                --no obliterateOnDelete: deleted terms soft-hide and can be
+                --recovered with the showdeleted setting.
+                local listItem = CreateListItem{
+                    tableName = GlossaryTerm.tableName,
+                    key = key,
+                    click = function()
+                        OpenTerm(key)
+                    end,
+                }
+                listItem.text = entry.item.name or "Term"
+                listItem:SetClass("selected", key == m_selectedKey)
+                children[#children+1] = listItem
+            end
+            itemsListPanel.children = children
+        end,
+    }
+
+    itemsListPanel:FireEvent("refreshAssets")
+
+    leftPanel = gui.Panel{
+        selfStyle = {
+            flow = "vertical",
+            height = "100%",
+            width = "auto",
+        },
+        gui.Input{
+            classes = {"sizeM"},
+            width = 240,
+            height = 22,
+            halign = "left",
+            vmargin = 4,
+            placeholderText = "Filter terms...",
+            editlag = 0.25,
+            edit = function(element)
+                m_filter = element.text
+                itemsListPanel:FireEvent("refreshAssets")
+            end,
+            change = function(element)
+                m_filter = element.text
+                itemsListPanel:FireEvent("refreshAssets")
+            end,
+        },
+        itemsListPanel,
+        AddButton{
+            --left-aligned under the term list (the shared AddButton default
+            --is halign right, which floats the + into the gap beside the
+            --editor column and reads as ambiguous ownership).
+            halign = "left",
+            lmargin = 8,
+            vmargin = 6,
+            click = function()
+                local newTerm = GlossaryTerm.CreateNew()
+                --SetAndUploadTableItem assigns the id onto the object, so
+                --the new term's editor can open immediately.
+                dmhub.SetAndUploadTableItem(GlossaryTerm.tableName, newTerm)
+                local key = nil
+                pcall(function() key = newTerm.id end)
+                if key ~= nil then
+                    OpenTerm(key)
+                end
+            end,
+        },
+    }
+
+    contentPanel.children = {leftPanel}
+end
+
 Compendium.CreateListItem = CreateListItem
 
 local g_registeredPanels = false
@@ -5679,6 +7649,29 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
     end
 
     g_registeredPanels = true;
+
+    Compendium.Register{
+        section = "Prepped",
+        text = "Negotiators",
+        contentType = "negotiators",
+        click = function(contentPanel)
+            ShowNegotiatorsPanel(contentPanel)
+        end,
+    }
+
+    --Montage Tests retired from the compendium: montages are now journal
+    --documents (docType="montage"), created + edited in the journal like any
+    --page, so they no longer need a compendium browser tab. (ShowMontageTests
+    --Panel / CreateMontageTestEditor above are now unused.)
+
+    Compendium.Register{
+        section = "Prepped",
+        text = "Glossary",
+        contentType = "glossaryTerms",
+        click = function(contentPanel)
+            ShowGlossaryPanel(contentPanel)
+        end,
+    }
 
     Compendium.Register{
         section = "Character",
@@ -5763,6 +7756,15 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
 
     Compendium.Register{
         section = "Rules",
+        text = 'Journal Stylesheets',
+        contentType = JournalStylesheet.tableName,
+        click = function(contentPanel)
+            ShowJournalStylesheetsPanel(contentPanel)
+        end,
+    }
+
+    Compendium.Register{
+        section = "Rules",
         text = 'Conditions',
         contentType = "charConditions",
         click = function(contentPanel)
@@ -5781,7 +7783,7 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
 
     Compendium.Register{
         section = "Rules",
-        text = 'OngoingEffects',
+        text = 'Ongoing Effects',
         contentType = "characterOngoingEffects",
         click = function(contentPanel)
             ShowOngoingEffectsPanel(contentPanel, "characterOngoingEffects")
@@ -5870,6 +7872,15 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
         contentType = "globalRuleMods",
         click = function(contentPanel)
             ShowGlobalModsPanel(contentPanel)
+        end,
+    }
+
+    Compendium.Register{
+        section = "Rules",
+        text = 'Encounter Rules',
+        contentType = "encounterRuleMods",
+        click = function(contentPanel)
+            ShowEncounterRulesPanel(contentPanel)
         end,
     }
 
@@ -6069,3 +8080,318 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
     --	end,
     --}
 end)
+
+-- Global-search provider: every enumerable compendium category (monsters,
+-- conditions, ongoing effects, items, classes, ...). Name-only match (no deep
+-- scan) keeps it fast enough to run on every keystroke. CompendiumRegistry is
+-- read lazily inside enumerate so it is fully populated by search time even
+-- though categories register after this file loads.
+--
+-- 2a: activation just opens the Compendium panel. Chunk 2b replaces this with
+-- the universal deep-link locator (open the exact category, filtered to the
+-- clicked item) via Compendium.Open{...}.
+
+-- The registered category text (opt.text) is plural and Title Case for the
+-- left-menu ("Conditions", "Ongoing Effects"). A single search result names one
+-- item, so its type chip reads better singular ("Condition", "Ongoing Effect").
+-- This is a display-only transform on the chip; the registered text and the
+-- menu are untouched.
+local function SingularizeLastWord(label)
+    -- Only the final word is pluralised ("Damage Types" -> "Damage Type").
+    local head, last = string.match(label, "^(.*%s)(%S+)$")
+    if last == nil then
+        head, last = "", label
+    end
+    local lower = string.lower(last)
+    if #last > 3 and string.sub(lower, -4) == "sses" then
+        last = string.sub(last, 1, #last - 2)         -- Classes -> Class
+    elseif #last > 3 and string.sub(lower, -3) == "ies" then
+        last = string.sub(last, 1, #last - 3) .. "y"  -- Ancestries -> Ancestry
+    elseif #last > 2 and string.sub(lower, -1) == "s"
+        and string.sub(lower, -2) ~= "ss"
+        and string.sub(lower, -2) ~= "us"
+        and string.sub(lower, -2) ~= "is" then
+        last = string.sub(last, 1, #last - 1)         -- Conditions -> Condition
+    end
+    return head .. last
+end
+
+function CompendiumTypeLabel(text)
+    if type(text) ~= "string" or text == "" then
+        return text
+    end
+    -- Defensive: split camelCase runs ("OngoingEffects" -> "Ongoing Effects")
+    -- so an un-spaced registration still reads cleanly.
+    local spaced = string.gsub(text, "(%l)(%u)", "%1 %2")
+    return SingularizeLastWord(spaced)
+end
+
+Search.RegisterProvider{
+    id = "compendium-content",
+    bucket = "compendium",
+    enumerate = function(needle)
+        local results = {}
+        -- Canonical category per contentType (highest opt.priority), so items
+        -- backed by several category views sharing one contentType are listed
+        -- once, under the broadest category, and deep-link there.
+        local canonical = {}
+        for _,opt in pairs(CompendiumRegistry) do
+            if opt.contentType ~= nil and ((not opt.admin) or dmhub.isAdminGame) then
+                local cur = canonical[opt.contentType]
+                if cur == nil or (opt.priority or 0) > (cur.priority or 0) then
+                    canonical[opt.contentType] = opt
+                end
+            end
+        end
+        --glossary terms are owned by the dedicated glossary provider below
+        --(definition preview, boosted rank, pops the definition card).
+        canonical["glossaryTerms"] = nil
+        --inventory items are owned by the treasure-items provider below
+        --(item-card hover preview, boosted rank, opens the item in place).
+        canonical["tbl_Gear"] = nil
+        for _,opt in pairs(canonical) do
+            local t = dmhub.GetTable(opt.contentType)
+            if t ~= nil then
+                for _,k in ipairs(NameMatchKeysCached(opt.contentType, needle)) do
+                    local v = t[k]
+                    local name = (type(v) == "table" and rawget(v, "name")) or nil
+                    if type(name) == "string" then
+                        local capturedType, capturedKey, capturedName = opt.contentType, k, name
+                        results[#results+1] = {
+                            name = name,
+                            score = Search.Score(name, needle),
+                            typeLabel = CompendiumTypeLabel(opt.text),
+                            actionLabel = "Open in Compendium",
+                            activate = function()
+                                Compendium.Open{
+                                    contentType = capturedType,
+                                    search = capturedName,
+                                    targetKey = capturedKey,
+                                }
+                            end,
+                        }
+                    end
+                end
+            end
+        end
+        return results
+    end,
+}
+
+-- Global-search provider: the glossary is the CANONICAL entry for a rules
+-- term. Rows preview the definition, outrank same-name compendium content
+-- (+15 keeps an exact glossary match above other exact matches while an
+-- exact match elsewhere still beats a glossary prefix match), and activate
+-- by popping the definition card at the mouse (the /glossary command) --
+-- an answer in place, not a trip to the Compendium. Falls back to opening
+-- the Compendium if the command is unavailable.
+Search.RegisterProvider{
+    id = "glossary",
+    bucket = "compendium",
+    enumerate = function(needle)
+        local results = {}
+        for k, term in unhidden_pairs(dmhub.GetTable(GlossaryTerm.tableName) or {}) do
+            local name = term.name
+            if type(name) == "string" and Search.MatchesText(name, needle) then
+                local capturedName, capturedKey = name, k
+                local definition = term.definition or ""
+                if #definition > 110 then
+                    definition = string.sub(definition, 1, 107) .. "..."
+                end
+                results[#results+1] = {
+                    name = name,
+                    score = Search.Score(name, needle) + 15,
+                    typeLabel = "Glossary",
+                    subLabel = definition,
+                    actionLabel = "Show definition",
+                    activate = function()
+                        local shown = false
+                        pcall(function()
+                            if Commands.glossary ~= nil then
+                                Commands.glossary(capturedName)
+                                shown = true
+                            end
+                        end)
+                        if not shown then
+                            Compendium.Open{
+                                contentType = "glossaryTerms",
+                                search = capturedName,
+                                targetKey = capturedKey,
+                            }
+                        end
+                    end,
+                }
+            end
+        end
+        return results
+    end,
+}
+
+-- Global-search provider: inventory items (treasures). A row is the canonical
+-- "item:Name" link (see LinkResolution.lua): hovering previews the rendered
+-- item card, activating resolves the link and opens that card in place, and a
+-- secondary chip still deep-links to the Compendium. A strong name match
+-- (exact/prefix) gets +20 so typing a treasure's name puts the item above the
+-- rest of the compendium results (it edges out the glossary's +15 only on an
+-- exact match).
+Search.RegisterProvider{
+    id = "treasure-items",
+    bucket = "compendium",
+    enumerate = function(needle)
+        local results = {}
+        local t = dmhub.GetTable("tbl_Gear")
+        if t == nil then
+            return results
+        end
+        local categories = dmhub.GetTable("equipmentCategories") or {}
+        for _,k in ipairs(NameMatchKeysCached("tbl_Gear", needle)) do
+            local item = t[k]
+            local name = (type(item) == "table" and rawget(item, "name")) or nil
+            --only renderable entries: ResolveLink("item:...") returns exactly
+            --these, so anything else would be a dead link.
+            if type(name) == "string" and MarkdownRender.IsRenderable(item) then
+                local score = Search.Score(name, needle)
+                if score >= 75 then
+                    score = score + 20
+                end
+
+                --type chip: the item's own category ("Leveled Treasure",
+                --"Trinket", ...) reads better than a generic "Inventory".
+                local typeLabel = "Item"
+                local cat = categories[item:try_get("equipmentCategory", "")]
+                if cat ~= nil then
+                    pcall(function() typeLabel = cat.name end)
+                end
+
+                local link = "item:" .. name
+                local capturedKey, capturedName = k, name
+                local viewItem = function()
+                    CustomDocument.OpenContent(CustomDocument.ResolveLink(link))
+                end
+                results[#results+1] = {
+                    name = name,
+                    score = score,
+                    typeLabel = typeLabel,
+                    icon = item.iconid,
+                    linkPreview = link,
+                    activate = viewItem,
+                    actions = {
+                        { text = "View item", click = viewItem },
+                        { text = "Open in Compendium", click = function()
+                            Compendium.Open{
+                                contentType = "tbl_Gear",
+                                search = capturedName,
+                                targetKey = capturedKey,
+                            }
+                        end },
+                    },
+                }
+            end
+        end
+        return results
+    end,
+}
+
+-- Global-search provider: buried sub-features surfaced as first-class results
+-- that deep-link to their container filtered to that feature -- not just the
+-- opaque "Conduit"/"Dragon Knight" container. Covers class/subclass features
+-- (e.g. "Healing Grace", "Sermon of Grace") AND ancestry traits, including
+-- deeply-nested purchased traits (e.g. "Draconian Guard"), since VisitAllFeatures
+-- walks the whole feature tree. The feature names are indexed lazily and cached
+-- (the index is large and rarely changes); a classes/subclasses/races table
+-- refresh invalidates it.
+local g_classFeatureIndex = nil
+
+local function BuildClassFeatureIndex()
+    local index = {}
+
+    -- Shared per-content-object walk: append every uniquely-named feature in a
+    -- single ClassLevel to the index. `seen` dedupes names within one container
+    -- (a feature gained at several levels appears once). Guarded so a malformed
+    -- level doesn't drop the whole index.
+    local function indexClassLevel(classLevel, displayName, contentType, key, seen)
+        pcall(function()
+            classLevel:VisitAllFeatures(function(feature)
+                local fname = feature:try_get("name")
+                if type(fname) == "string" and #fname > 0 and not seen[fname] then
+                    seen[fname] = true
+                    index[#index+1] = {
+                        name = fname,
+                        className = displayName,
+                        contentType = contentType,
+                        classKey = key,
+                    }
+                end
+            end)
+        end)
+    end
+
+    -- Classes/subclasses expose a map of named levels.
+    for _,tableName in ipairs({"classes", "subclasses"}) do
+        local t = dmhub.GetTable(tableName) or {}
+        for ck, class in unhidden_pairs(t) do
+            local className = class.name
+            local levels = class:try_get("levels")
+            if type(className) == "string" and type(levels) == "table" then
+                local seen = {}
+                for _,classLevel in pairs(levels) do
+                    indexClassLevel(classLevel, className, tableName, ck, seen)
+                end
+            end
+        end
+    end
+
+    -- Ancestries (races) expose a single class level via GetClassLevel(); their
+    -- signature and purchased traits live as nested features under it. The same
+    -- editor (ClassLevel:CreateEditor) renders both, so the deep-link target key
+    -- works identically.
+    local raceTable = dmhub.GetTable(Race.tableName) or {}
+    for rk, race in unhidden_pairs(raceTable) do
+        local raceName = race.name
+        if type(raceName) == "string" then
+            local classLevel = nil
+            pcall(function() classLevel = race:GetClassLevel() end)
+            if classLevel ~= nil then
+                indexClassLevel(classLevel, raceName, Race.tableName, rk, {})
+            end
+        end
+    end
+
+    return index
+end
+
+dmhub.RegisterEventHandler("refreshTables", function(keys)
+    if keys == nil or keys.classes ~= nil or keys.subclasses ~= nil or keys[Race.tableName] ~= nil then
+        g_classFeatureIndex = nil
+    end
+end)
+
+Search.RegisterProvider{
+    id = "compendium-class-features",
+    bucket = "compendium",
+    enumerate = function(needle)
+        if g_classFeatureIndex == nil then
+            g_classFeatureIndex = BuildClassFeatureIndex()
+        end
+        local results = {}
+        for _,entry in ipairs(g_classFeatureIndex) do
+            if Search.MatchesText(entry.name, needle) then
+                local e = entry
+                results[#results+1] = {
+                    name = e.name,
+                    score = Search.Score(e.name, needle),
+                    typeLabel = e.className,
+                    actionLabel = "Open in Compendium",
+                    activate = function()
+                        Compendium.Open{
+                            contentType = e.contentType,
+                            search = e.name,
+                            targetKey = e.classKey,
+                        }
+                    end,
+                }
+            end
+        end
+        return results
+    end,
+}

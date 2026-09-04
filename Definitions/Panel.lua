@@ -1,5 +1,6 @@
 --- @class Panel 
 --- @field id string The unique id of the panel. If not specified a random id will be assigned. It is important that each panel have a unique ID, so if you assign an ID explicitly ensure it is unique.
+--- @field debugSnapshot @return table Diagnostic: returns a state-snapshot table for this panel (bgimage/raw-image/lifecycle/hierarchy fields). Returns nil if the panel has been recycled out from under this wrapper.
 --- @field idprefix string The prefix of the panel's id. A random ID will be generated but will begin with this prefix.
 --- @field debugBacktrace string|nil 
 --- @field inworld any 
@@ -8,10 +9,12 @@
 --- @field monitorAssets AssetCategory|AssetCategory[] (write-only) A list of asset categories to monitor. When the asset categories are updated, the refreshAssets event will be fired on this panel.
 --- @field constrainToScreen boolean (default=false) If true, the panel will be constrained to the screen area.
 --- @field floating boolean (default=false) A floating panel does not respect the **flow** of its parent. @see Panel.flow
+--- @field renderOnTop boolean (default=false) When true this panel renders on its own top-most sorting canvas at a very high sorting order, drawing above its sibling panels within the same sorting layer. Set it back to false to return the panel to normal sorting.
 --- @field data table An arbitrary table of user data that is attached to the panel. Store any interesting fields here that you want to have associated with the panel.
 --- @field root Panel The root panel of the hierarchy this Panel is within.
 --- @field parent Panel The parent panel of this panel. Returns nil if this panel is at the root of its hierarchy.
 --- @field siblingIndex number (read-only) Returns the 'sibling index' of this panel. The first child of its parent is 1, the second is 2, and so forth.
+--- @field nativeWindowMaximized boolean (read-only) True while the native popout window hosting this panel is maximized.
 --- @field children Panel[] A list of the children of this panel. Note that you may set this panel to a new list of children. Any panels that are left orphaned by doing this are automatically destroyed.
 --- @field selfStyle Style|StyleArgs Any style settings that are set directly on this panel. They do not apply to children, only directly to this panel. Note that styles that are set here override any other styling on the panel. Selectors set on this style are ignored.
 --- @field style Style|StyleArgs Style settings set on this panel, and all of its hierarchical children. Styles here are lower priority than those set in @see selfStyle but higher priority than other styles. Selectors set on this style are ignored.
@@ -33,6 +36,13 @@
 --- @field dragThreshold number (Default: 4) How many pixels the panel has to be dragged before it's considered dragging. This is only relevant if @see draggable is true.
 --- @field dragDelta Vector2 The pixels the mouse has moved since the drag operation began. Will return (0,0) if the panel is not currently begin dragged..
 --- @field playbackSpeed any 
+--- @field videoDuration number (Read-only) The duration in seconds of the video currently shown in this panel's bgimage, or 0 if there is no video (or it is still loading).
+--- @field videoTime number The current playback position in seconds of the video shown in this panel's bgimage. Setting this seeks the video (if the video supports seeking -- see @see videoCanSeek). No-op when there is no video.
+--- @field videoPlaying boolean (Read-only) True if the panel's video is currently playing (initialised and not paused).
+--- @field videoCanSeek boolean (Read-only) True if the panel's video supports seeking/scrubbing (see @see videoTime).
+--- @field videoLooping boolean Whether the panel's video loops when it reaches the end.
+--- @field videoVolume number The audio volume (0..1) of the panel's video. Only has an effect when the video was created with the AUDIO suffix flag and has an audio track; a no-op otherwise.
+--- @field videoMuted boolean Whether the panel's video audio is muted. No-op for videos without an audio track.
 --- @field xdrag number The pixels the panel has been translated horizontally by dragging. 0 if the panel is not currently being dragged.
 --- @field ydrag number The pixels the panel has been translated vertically by dragging. 0 if the panel is not currently being dragged.
 --- @field enabled boolean (Read-only) This is true if the panel is displayed and active. It's false if the panel is collapsed, hidden, or is being destroyed.
@@ -64,6 +74,7 @@
 --- @field tooltip string|Panel|nil When this property is set, the given panel will appear over this element as a tooltip. The tooltip will be disappear automatically when the user moves the mouse away from the panel. It is usually best to set this in response to the 'hover' event. This property will always read as a Panel, but you can set a string, in which case the CreateTooltipPanel global function will be called to create the tooltip panel. Tooltips may have halign and valign styles set on them to control their positioning relative to their parent.
 --- @field tooltipParent Panel The panel to which tooltips spawned from this panel will be parented. By default this will be equal to the panel itself, but you may wish to spawn tooltips from a parent panel instead.
 --- @field popupPositioning Panel|"mouse"|"panel"|{x: number, y: number, lineHeight: number} The positioning of @see popup panels spawned from this panel. They can be positioned relative to this panel, or to the mouse position at the time of spawning the popup. You can also specify a different panel which they will be positioned relative to. You can pass a table with x, y (world-space) and optional lineHeight to anchor the popup at a specific point, such as the caret position in an Input. You can set valign and halign on popup panels to specify how they will be placed relative to their positioning.
+--- @field popupsInheritStyles boolean (Default: false) When true, popups spawned from this panel inherit style and class cascade from this panel and its ancestors, in addition to whatever styles the popup itself defines. By default popups are their own styling island and only see their own styles plus globally-registered styles. Set this on the host panel before assigning to @see popup.
 --- @field popup Panel|nil When this property is set to a panel, that panel will be spawned and placed as a 'popup' over this panel. Popup panels are similar to tooltips in their behavior, but they are removed differently. Usually tooltips are very transient and removed when the user moves the mouse, and cannot be interacted with. Popup panels can be interacted with, and remain until the user clicks away from them, or you manually set popup to nil. Popups are useful for implementing context menus and other small interactive dialogs.
 --- @field interactable boolean (default: true) If this is set to false then the panel becomes non-interactable. It won't respond to or block click, press, or other mouse events.
 --- @field blocksGameInteraction boolean (default: true) If set to false, then this panel does not block the user from interacting with non-UI elements such as the map and tokens on the map.
@@ -91,7 +102,7 @@
 --- @field mapfocus boolean If set to true, this panel receives mappress and maphover events when the user interacts with the game map. These events accept a loc: Loc and pos: Vector2 as arguments. Only one panel may have map focus at a time. Setting map focus to true on a panel will clear any other panel that has map focus.
 --- @field hideObjectsOutOfScroll boolean (default=false) This is relevant only for panels that have @see vscroll set to true. Child panels that are not visible within the scrollable area will automatically be considered hidden.
 --- @field alphaHitTest boolean If set to true (default=false), the panel will only be considered hovered by the mouse if the bgimage of the panel has a non-transparent pixel at the exact position the mouse is at. When set to false, the mouse need only be in the bounding box of the panel.
---- @field dragAndDropExtensions string[]|nil A list of possible file extensions that this panel accepts to be dragged onto it from Windows. When files with matching extensions are dropped onto this panel, the 'dropfiles' event is filed, which takes a string[] of the filenames dropped.
+--- @field dragAndDropExtensions string[]|nil A list of possible file extensions that this panel accepts from an operating-system file drag. While matching files hover over the panel, 'dragfilesenter' and 'dragfilesleave' are fired; releasing them fires 'dropfiles' with a string[] of the filenames dropped.
 --- @field renderpos Vector2 The position the panel is rendering at, relative to its parent.
 --- @field commands string[] A list of the game commands the panel is listening for. When one of these commands is fired, the event with the same name in the panel will be called.
 --- @field distancesToScreenEdge Vector4 The distances to the edge of the screen from the edges of this panel.
@@ -158,10 +169,36 @@ function Panel:Unparent()
 	-- dummy implementation for documentation purposes only
 end
 
---- MoveToNativeWindow: (Experimental!) Unparents the panel and makes it the top of its hierarchy and places it inside a native Windows window outside of the normal VTT interface. This effectively 'pops out' this panel into its own window.
+--- MoveToNativeWindow: (Experimental!) Unparents the panel and makes it the top of its hierarchy and places it inside a native window outside of the normal VTT interface. This effectively 'pops out' this panel into its own window. Pass customTitleBar=true to request a borderless normal toplevel whose title bar is rendered by the panel; customTitleBarHeight describes its draggable band in panel units. Pass the right-anchored interactive control row as customTitleBarControls so its live rendered left edge ends the draggable region; customTitleBarInteractiveRight is the fallback width for older layouts. Gate that UI on dmhub.popoutCustomTitleBarSupported.
 --- @param args any
 --- @return nil
 function Panel:MoveToNativeWindow(args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RaiseNativeWindow: If this panel lives in a native popout window (see MoveToNativeWindow), bring that OS window to the top of the z-order WITHOUT activating it (no focus change -- a locate aid, not a focus steal). Returns false if the panel is not in a native window.
+--- @return boolean
+function Panel:RaiseNativeWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- MinimizeNativeWindow: Minimize the native popout window hosting this panel. Returns false when the panel is not in a custom-titlebar normal popout.
+--- @return boolean
+function Panel:MinimizeNativeWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ToggleMaximizeNativeWindow: Toggle the native popout window hosting this panel between maximized and restored. Returns false when the panel is not in a custom-titlebar normal popout.
+--- @return boolean
+function Panel:ToggleMaximizeNativeWindow()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetInheritedNativeWindowUIScale
+--- @param sourcePanel any
+--- @param panelLocalScale any
+--- @return any
+function Panel.GetInheritedNativeWindowUIScale(sourcePanel, panelLocalScale)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -204,6 +241,25 @@ end
 --- @param other Panel
 --- @return boolean
 function Panel:IsDescendantOf(other)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PlayVideo: Resumes/starts playback of the video currently shown in this panel's bgimage. No-op when there is no video.
+--- @return nil
+function Panel:PlayVideo()
+	-- dummy implementation for documentation purposes only
+end
+
+--- PauseVideo: Pauses the video currently shown in this panel's bgimage (the last frame stays visible). No-op when there is no video.
+--- @return nil
+function Panel:PauseVideo()
+	-- dummy implementation for documentation purposes only
+end
+
+--- transferDragTo: Transfers the active drag from this panel to the target panel. The current drag ends silently (no 'drag' event fired) and a new drag begins on the target panel from the current mouse position.
+--- @param targetValue any
+--- @return nil
+function Panel:transferDragTo(targetValue)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -347,15 +403,9 @@ function Panel:HaltEventPropagation()
 	-- dummy implementation for documentation purposes only
 end
 
---- SetAsDicePreviewPanel
---- @param val boolean
---- @return nil
-function Panel:SetAsDicePreviewPanel(val)
-	-- dummy implementation for documentation purposes only
-end
-
 --- @class PanelArgs:PanelArgsBase 
 --- @field id nil|string The unique id of the panel. If not specified a random id will be assigned. It is important that each panel have a unique ID, so if you assign an ID explicitly ensure it is unique.
+--- @field debugSnapshot nil|@return table Diagnostic: returns a state-snapshot table for this panel (bgimage/raw-image/lifecycle/hierarchy fields). Returns nil if the panel has been recycled out from under this wrapper.
 --- @field idprefix nil|string The prefix of the panel's id. A random ID will be generated but will begin with this prefix.
 --- @field debugBacktrace string|nil 
 --- @field inworld nil|any 
@@ -364,6 +414,7 @@ end
 --- @field monitorAssets nil|AssetCategory|AssetCategory[] (write-only) A list of asset categories to monitor. When the asset categories are updated, the refreshAssets event will be fired on this panel.
 --- @field constrainToScreen nil|boolean (default=false) If true, the panel will be constrained to the screen area.
 --- @field floating nil|boolean (default=false) A floating panel does not respect the **flow** of its parent. @see Panel.flow
+--- @field renderOnTop nil|boolean (default=false) When true this panel renders on its own top-most sorting canvas at a very high sorting order, drawing above its sibling panels within the same sorting layer. Set it back to false to return the panel to normal sorting.
 --- @field data nil|table An arbitrary table of user data that is attached to the panel. Store any interesting fields here that you want to have associated with the panel.
 --- @field root nil|Panel The root panel of the hierarchy this Panel is within.
 --- @field parent nil|Panel The parent panel of this panel. Returns nil if this panel is at the root of its hierarchy.
@@ -388,6 +439,10 @@ end
 --- @field dragThreshold nil|number (Default: 4) How many pixels the panel has to be dragged before it's considered dragging. This is only relevant if @see draggable is true.
 --- @field dragDelta nil|Vector2 The pixels the mouse has moved since the drag operation began. Will return (0,0) if the panel is not currently begin dragged..
 --- @field playbackSpeed nil|any 
+--- @field videoTime nil|number The current playback position in seconds of the video shown in this panel's bgimage. Setting this seeks the video (if the video supports seeking -- see @see videoCanSeek). No-op when there is no video.
+--- @field videoLooping nil|boolean Whether the panel's video loops when it reaches the end.
+--- @field videoVolume nil|number The audio volume (0..1) of the panel's video. Only has an effect when the video was created with the AUDIO suffix flag and has an audio track; a no-op otherwise.
+--- @field videoMuted nil|boolean Whether the panel's video audio is muted. No-op for videos without an audio track.
 --- @field xdrag nil|number The pixels the panel has been translated horizontally by dragging. 0 if the panel is not currently being dragged.
 --- @field ydrag nil|number The pixels the panel has been translated vertically by dragging. 0 if the panel is not currently being dragged.
 --- @field events nil|PanelEventArgs The events that are registered for this panel. When the event with the key in the table is fired on the panel that function is called. The panel itself is always passed as the first argument, and then any other arguments to the event are passed. Some standard events include 'create', 'hover', 'dehover', 'click', 'press'. Some events are also enabled based on other arguments such as 'refreshAssets' and 'think'. @see thinkTime. You can also fire a user-defined event using @see FireEvent and @see FireEventTree
@@ -416,6 +471,7 @@ end
 --- @field tooltip string|Panel|nil When this property is set, the given panel will appear over this element as a tooltip. The tooltip will be disappear automatically when the user moves the mouse away from the panel. It is usually best to set this in response to the 'hover' event. This property will always read as a Panel, but you can set a string, in which case the CreateTooltipPanel global function will be called to create the tooltip panel. Tooltips may have halign and valign styles set on them to control their positioning relative to their parent.
 --- @field tooltipParent nil|Panel The panel to which tooltips spawned from this panel will be parented. By default this will be equal to the panel itself, but you may wish to spawn tooltips from a parent panel instead.
 --- @field popupPositioning nil|Panel|"mouse"|"panel"|{x: number, y: number, lineHeight: number} The positioning of @see popup panels spawned from this panel. They can be positioned relative to this panel, or to the mouse position at the time of spawning the popup. You can also specify a different panel which they will be positioned relative to. You can pass a table with x, y (world-space) and optional lineHeight to anchor the popup at a specific point, such as the caret position in an Input. You can set valign and halign on popup panels to specify how they will be placed relative to their positioning.
+--- @field popupsInheritStyles nil|boolean (Default: false) When true, popups spawned from this panel inherit style and class cascade from this panel and its ancestors, in addition to whatever styles the popup itself defines. By default popups are their own styling island and only see their own styles plus globally-registered styles. Set this on the host panel before assigning to @see popup.
 --- @field popup Panel|nil When this property is set to a panel, that panel will be spawned and placed as a 'popup' over this panel. Popup panels are similar to tooltips in their behavior, but they are removed differently. Usually tooltips are very transient and removed when the user moves the mouse, and cannot be interacted with. Popup panels can be interacted with, and remain until the user clicks away from them, or you manually set popup to nil. Popups are useful for implementing context menus and other small interactive dialogs.
 --- @field interactable nil|boolean (default: true) If this is set to false then the panel becomes non-interactable. It won't respond to or block click, press, or other mouse events.
 --- @field blocksGameInteraction nil|boolean (default: true) If set to false, then this panel does not block the user from interacting with non-UI elements such as the map and tokens on the map.
@@ -438,7 +494,7 @@ end
 --- @field mapfocus nil|boolean If set to true, this panel receives mappress and maphover events when the user interacts with the game map. These events accept a loc: Loc and pos: Vector2 as arguments. Only one panel may have map focus at a time. Setting map focus to true on a panel will clear any other panel that has map focus.
 --- @field hideObjectsOutOfScroll nil|boolean (default=false) This is relevant only for panels that have @see vscroll set to true. Child panels that are not visible within the scrollable area will automatically be considered hidden.
 --- @field alphaHitTest nil|boolean If set to true (default=false), the panel will only be considered hovered by the mouse if the bgimage of the panel has a non-transparent pixel at the exact position the mouse is at. When set to false, the mouse need only be in the bounding box of the panel.
---- @field dragAndDropExtensions string[]|nil A list of possible file extensions that this panel accepts to be dragged onto it from Windows. When files with matching extensions are dropped onto this panel, the 'dropfiles' event is filed, which takes a string[] of the filenames dropped.
+--- @field dragAndDropExtensions string[]|nil A list of possible file extensions that this panel accepts from an operating-system file drag. While matching files hover over the panel, 'dragfilesenter' and 'dragfilesleave' are fired; releasing them fires 'dropfiles' with a string[] of the filenames dropped.
 --- @field renderpos nil|Vector2 The position the panel is rendering at, relative to its parent.
 --- @field commands nil|string[] A list of the game commands the panel is listening for. When one of these commands is fired, the event with the same name in the panel will be called.
 --- @field distancesToScreenEdge nil|Vector4 The distances to the edge of the screen from the edges of this panel.

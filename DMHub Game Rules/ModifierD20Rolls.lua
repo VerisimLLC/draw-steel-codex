@@ -662,9 +662,8 @@ CharacterModifier.TypeInfo.d20 = {
 							classes = {'formLabel'},
 							width = 200,
 							height = 30,
-							gui.DeleteItemButton{
-								width = 16,
-								height = 16,
+							gui.Button{
+								classes = {"delete", "sizeS"},
 								valign = 'center',
 								halign = 'right',
 								click = function(element)
@@ -889,11 +888,10 @@ CharacterModifier.TypeInfo.d20 = {
 			}
 
 			if modifier:try_get("hasCustomTrigger", false) then
-				children[#children+1] = gui.PrettyButton{
+				children[#children+1] = gui.Button{
+					classes = {"sizeL"},
 					halign = "left",
-					width = 220,
 					height = 50,
-					fontSize = 24,
 					text = "Edit Trigger",
 					click = function(element)
 						if modifier:has_key("customTrigger") then

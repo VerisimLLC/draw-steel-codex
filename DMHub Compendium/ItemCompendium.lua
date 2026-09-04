@@ -173,16 +173,21 @@ mod.shared.InventoryCompendiumEditor = function(categories)
 							end
 
 							local match = true
+							local cat = catsTable[item:try_get("equipmentCategory", "")]
+							local catName = cat ~= nil and string.lower(cat.name) or ""
 							for _,term in ipairs(searchTerms) do
 								if match then
 									match = false
-									if TextSearch(item.name, term) then
+									if TextSearch(item.name, term) or TextSearch(catName, term) then
 										match = true
 									end
 								end
 							end
-						
+
 							element:SetClass("collapsed", not match)
+							if match and element.data.init == false then
+								element:FireEvent("expose")
+							end
 						end,
 
 						expose = function(element)
@@ -217,17 +222,14 @@ mod.shared.InventoryCompendiumEditor = function(categories)
 										end,
                                     },
 
-
-
 									gui.ImplementationStatusIcon{
 										refreshInventory = function(element)
 											element:FireEvent("implementation", item:try_get("implementation", 1))
 										end,
 									},
 
-									gui.SettingsButton{
-										width = 16,
-										height = 16,
+									gui.Button{
+										classes = {"settingsButton", "sizeXs"},
 										click = function(element)
 									        gamehud.createItemDialog.data.show(resultPanel, item)
 										end,
@@ -254,7 +256,8 @@ mod.shared.InventoryCompendiumEditor = function(categories)
 		end,
 	}
 
-	local addItemButton = gui.AddButton{
+	local addItemButton = gui.Button{
+		classes = {"addButton"},
 		width = 24,
 		height = 24,
 		halign = "right",
@@ -376,7 +379,6 @@ mod.shared.InventoryCompendiumEditor = function(categories)
                 selectors = {"checkbox-label"},
                 fontSize = 12,
             },
-			Styles.ImplementationIcon,
 		},
 	}
 

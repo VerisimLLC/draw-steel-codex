@@ -37,8 +37,9 @@ function backup.CreateCombatCheckpoint()
 end
 
 --- BackupMap: Creates a backup of the current map's info and details and writes it to disk.
+--- @param timestampOverride any?
 --- @return nil
-function backup.BackupMap()
+function backup.BackupMap(timestampOverride)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -49,7 +50,7 @@ function backup.DeleteBackup(fname)
 	-- dummy implementation for documentation purposes only
 end
 
---- Restore: Restores a game or map from a backup file. The args table must contain 'type' ("game" or "map"), 'fname', and optional 'error'/'success' callbacks.
+--- Restore: Restores a game from a backup file. The args table must contain 'type' ("game"), 'fname', and optional 'error'/'success' callbacks. Game restores also restore all locally-known map backups.
 --- @param args table The restore options with keys: type, fname, error, success.
 --- @return boolean
 function backup.Restore(args)

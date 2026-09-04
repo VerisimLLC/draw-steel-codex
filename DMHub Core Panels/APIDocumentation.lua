@@ -150,7 +150,8 @@ dmhub.RegisterEventHandler("link", function(url)
             end,
         },
 
-        gui.CloseButton{
+        gui.Button{
+            classes = {"closeButton"},
             halign = "right",
             valign = "top",
             click = function(element)

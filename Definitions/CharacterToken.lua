@@ -6,6 +6,7 @@
 --- @field isObject boolean If this token is an object, not a creature
 --- @field isAttackableObject boolean If this token is an attackable object, as opposed to e.g. a corpse.
 --- @field objectComponent any 
+--- @field hasTokenOnThisMap boolean If this token is deployed on the current map.
 --- @field hasTokenOnAnyMap boolean If this token is deployed on a map somewhere.
 --- @field summonerid nil|string (Read-only) the tokenid of the token that summoned this token, if there is one.
 --- @field mountObject nil|LuaObjectComponent The object that this token is mounted on. e.g. sitting on a chair.
@@ -13,6 +14,9 @@
 --- @field saddleUnlocked boolean If mounted on a saddle, returns true if that saddle is in the 'unlocked' state.
 --- @field selfOrMount CharacterToken (Read-only) If mounted on a token, returns the token mounted on. Otherwise is equal to this token itself.
 --- @field mount nil|CharacterToken The token we are mounted on, if there is one.
+--- @field saddleMount nil|CharacterToken (Read-only) The creature whose saddle this token is sitting in, if any. Unlike mount, which walks the whole chain to the creature at the bottom of it, this is the creature directly underneath us.
+--- @field mountedSaddle nil|number (Read-only) Which saddle this token is sitting in on the creature or object it is mounted on, as an index into that creature's saddles. nil when it is not mounted on anything. Pass it back to ClimbOntoCreature to seat the creature in the same saddle again -- restoring a remembered arrangement, for instance.
+--- @field riders CharacterToken[] (Read-only) The creatures currently sitting in this token's saddles -- riders and creatures that have climbed it. Empty if nothing is riding it.
 --- @field valid boolean (Read-only) true if this token is still valid. If saving a reference to a CharacterToken between frames, this should be checked before using it. It will become invalid if the token is deleted.
 --- @field ModifyProperties @param options {execute: (fun():nil), undoable: nil|boolean, combine: nil|boolean, description: nil|string} This allows you to modify the @see properties of this token and upload it to the cloud. Inside the execute function you supply you should modify the properties of the token. This will observe the changes you make and upload only the diffs. If combine is true the upload will try to occur as a transaction with any other uploads happening this frame. Note that this only uploads the @see properties of the token. It doesn't upload the rest of the token details such as appearance. @see UploadToken to upload the full token.
 --- @field uploadable boolean (Read-only) If true, this is a normal CharacterToken that can be uploaded to the cloud service.
@@ -20,6 +24,7 @@
 --- @field appearanceVariationIndex number Which appearance variation the token is currently using.
 --- @field numAppearanceVariations number The number of appearance variations this token has.
 --- @field alternateAppearanceOverride string 
+--- @field hideShadow boolean When true, the token does not cast a drop shadow on the ground.
 --- @field saddlePositions Vector2[] 
 --- @field tokenScale number 
 --- @field saddles number 
@@ -34,6 +39,7 @@
 --- @field playerControlled boolean (Read-only) True if this token is controlled by a player, or by the player's party.
 --- @field playerControlledNotShared boolean (Read-only) True if this token is controlled directly by a player.
 --- @field canControl boolean (Read-only) True if the current user has permissions to control this token (either because they own it, it is in their party, or they are the GM)
+--- @field canControlAsUser boolean (Read-only) True if the current user has permissions to control this token in their own right -- they own it, it is in their party, or they are the GM. Unlike canControl, control that a player host (see dmhub.playerHostMode) has only because its machine hosts the game does NOT count -- so this is the check for UI asking 'is this token mine to drive?'. Identical to canControl in every other game. @see canControl
 --- @field primaryCharacter boolean (Read-only) True if this is the primary character of the current user.
 --- @field playerControlledAndPrimary boolean (Read-only) True if this is the primary character of a player.
 --- @field activeControllerId nil|string (Read-only) the userid of the user who is best suited to responding to prompts on this token right now. Will return nil if the current user is the best suited to responding to prompts on this character.
@@ -52,10 +58,12 @@
 --- @field altitudeInDeciTiles integer (Read-only) The altitude of the token in tenths of a tile. This is the altitude above the bottom of the bottom floor on the map.
 --- @field altitude integer (Read-only) The altitude of the token in tiles. This is the altitude above the bottom of the bottom floor on the map.
 --- @field floorAltitude integer (Read-only) The altitude of the token in tiles. This is relative to the 'zero point' altitude on the current floor.
+--- @field distanceBelowGround integer (Read-only) How many tiles below the ground surface the token is. 0 if at or above ground.
 --- @field characterHeight number (read-only) the number of tiles tall the token is.
 --- @field loc Loc (Read-only) The location the token is at.
 --- @field locsOccupying Loc[] (Read-only) An array of locations the token is occupying. The number of items in this array will be based on the token's creature size.
 --- @field hasConcealment boolean Is true if the token is in a location that has concealment.
+--- @field hasTerrainConcealment boolean Is true if the terrain at the token's location grants concealment by itself, ignoring any concealment contributed by auras or zones.
 --- @field mapid string (Read-only) the id of the map the token is currently on.
 --- @field floorid string (Read-only) the id of the floor the token is currently on.
 --- @field canCurrentlyClimb boolean True if the creature can climb in the current location it is in now.
@@ -68,8 +76,12 @@
 --- @field portraitFrameSaturation number 
 --- @field portraitFrameBrightness number 
 --- @field portraitFrame nil|string 
+--- @field teleportAnimation string The id of the registered token animation (see dmhub.tokenAnimations:RegisterTeleport) played when this token teleports. Empty string -> no animation, logical teleport only.
+--- @field animation CharacterTokenAnimationLua The per-token animation interface used inside a token-animation callback. Provides Light / Billboard / PlayEffect / Tween / SetVisible primitives plus a sound passthrough. Spawns made while a scripted animation is running are tracked and stopped automatically when the animation ends.
 --- @field offTokenPortrait string 
+--- @field inspectPortrait string Up-close 'inspect' variant of offTokenPortrait. For tokens rendering via a spine animation this returns the '#spineinspect:tokenid' image id, which renders a separate live spine portrait framed with the registry's inspectZoom / inspectXOffset / inspectYOffset (independent of the regular portrait* fields). For non-spine tokens this returns the same value as offTokenPortrait, so callers can use it uniformly.
 --- @field portrait string 
+--- @field hasSpineAnimation boolean True if this token currently has an active spine animation (i.e. its portraitid resolved to a spine registry entry and the spine renderer was instantiated).
 --- @field popoutPortrait boolean 
 --- @field popoutScale number 
 --- @field portraitBackground nil|string 
@@ -80,6 +92,7 @@
 --- @field portraitRect Vector4 The rectangle within the portrait to display for this token.
 --- @field radiusInTiles number The radius of the token, in tiles.
 --- @field pos Vector2 (Read-only) The world position the token is at.
+--- @field lookAt nil|Vector2 (Read-only) The world position this token is currently 'looking at', or nil if it isn't looking at anything. Priority: (1) if the token is actively being dragged, the mouse cursor; (2) else if the token is moving along a path, the path's final destination; (3) else if an ability is being cast (see spine.setCurrentCastingToken / setCurrentCastingTargets), then if this token is the caster, the first target's position, else the caster's position; (4) otherwise nil. If the token has a spine animation with an eye IK bone (see spine.register's eyeik option), the bone is driven toward this point each frame, scaled by eyeMult and clamped by eyeRange.
 --- @field posWithParallax Vector2 (Read-only) The world position the token is at, including adjustments due to parallax.
 --- @field portraitZoom number 
 --- @field portraitOffset Vector2 
@@ -104,6 +117,22 @@ end
 --- FindCorpse: Finds the corpse object for this creature
 --- @return any
 function CharacterToken:FindCorpse()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClimbOntoCreature: Put this token into a saddle on another creature, as though it had been dragged onto one -- this is how a creature climbs another creature. A free saddle is used if the creature has one; otherwise an AD-HOC saddle is created for the climber, so a creature with no saddles at all can still be climbed. The ad-hoc saddle exists only while the climber is in it. Pass saddleIndex (as read from the climber's mountedSaddle) to ask for a particular saddle -- restoring a remembered arrangement -- and the first free saddle is used instead if that one is out of range or taken. Returns false if the creature cannot be climbed (it is this token, it is already riding this token, or every saddle is taken).
+--- @param mountToken CharacterToken
+--- @param saddleIndex nil|number
+--- @return boolean
+function CharacterToken:ClimbOntoCreature(mountToken, saddleIndex)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DismountTo: Get out of the saddle this token is in (on a creature or an object) and stand at loc. Pass a loc at the height of the saddle to have the creature drop from there -- the usual falling rules then apply -- or a loc on the ground for it to climb down safely. When slide is true the token climbs down over the usual movement animation instead of appearing at loc; leave it false for a fall, where the drop is the animation. Returns false if the token was not in a saddle.
+--- @param loc Loc
+--- @param slide nil|boolean
+--- @return boolean
+function CharacterToken:DismountTo(loc, slide)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -148,9 +177,15 @@ function CharacterToken:SerializeAppearanceFromString(s)
 	-- dummy implementation for documentation purposes only
 end
 
---- UploadAppearance: Upload the @see appearance section of the token.
---- @return nil
-function CharacterToken:UploadAppearance()
+--- PrepareUploadAppearance: Capture the current appearance and size of the token as a snapshot that can be passed to @see UploadAppearance to make the change undoable.
+--- @return any
+function CharacterToken:PrepareUploadAppearance()
+	-- dummy implementation for documentation purposes only
+end
+
+--- UploadAppearance: Upload the @see appearance section of the token. If a snapshot from @see PrepareUploadAppearance is provided, the change will be undoable.
+--- @param snapshot? string A snapshot from @see PrepareUploadAppearance representing the previous appearance to restore on undo.
+function CharacterToken:UploadAppearance(snapshot)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -294,13 +329,16 @@ end
 
 --- Move
 --- @param loc Loc The location to move to.
---- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures = nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType}
+--- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures = nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number, freeMovement: nil|boolean, forced: nil|boolean}
+--- jumpHeight (only meaningful with movementType='jump'): the jump distance in tiles; the mover clears height-limited walls up to this many tiles tall.
+--- freeMovement: this move is not the creature's move action, so it is exempt from the strict:movement remaining-budget clamp. Set it for ability-granted shifts and moves.
+--- forced: the creature is being pushed, pulled or slid rather than moving itself. Sets path.forced, which drives opportunity attacks, reaping and aura move damage. A straight-line shove is detected without this.
 --- @return nil|LuaPath
 function CharacterToken:Move(loc, options)
 	-- dummy implementation for documentation purposes only
 end
 
---- Teleport: Teleport the token to the target location.
+--- Teleport: Teleport the token to the target location. A token riding in a saddle dismounts as part of the teleport (unless teleportMount is true, which brings the mount along instead).
 --- @param loc Loc
 --- @param teleportMount boolean Teleport the mount also if this creature is mounted.
 function CharacterToken:Teleport(loc, teleportMount)
@@ -323,6 +361,42 @@ end
 --- @param other CharacterToken
 --- @return boolean
 function CharacterToken:IsFriend(other)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetSpineAnimation: Set the spine animation playing on this token. id is the animation name (required); transition is the cross-fade duration in seconds (optional); loop defaults to true; track defaults to 0. No-op if the token doesn't have an active spine animation or if the named animation isn't found in the skeleton.
+--- @param options {id: string, transition: nil|number, loop: nil|boolean, track: nil|number}
+function CharacterToken:SetSpineAnimation(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetSpineIdleFidgets: Configure idle-fidget animations on this token's spine. Pass a list of animation names to interrupt the current loop with periodically; pass nil or an empty list to disable. period is the base interval in seconds (default 30); each token's actual period is jittered +/-10% based on its tokenid hash so identical creatures don't fidget in unison. Timing runs against the synced server clock so all clients trigger the same fidget at the same wall-clock instant. Fidgets only trigger while the current animation is a loop, so explicit non-loop one-shots (attacks, etc.) won't be interrupted.
+--- @param options nil|{animations: nil|string[], period: nil|number}
+function CharacterToken:SetSpineIdleFidgets(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearSpineIdleFidgets: Disable idle-fidget animations on this token's spine. Equivalent to SetSpineIdleFidgets(nil).
+--- @return nil
+function CharacterToken:ClearSpineIdleFidgets()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetSpineAnimation: Returns the name of the currently-playing spine animation on track 0, or nil if no spine animation is active on this token.
+--- @return string
+function CharacterToken:GetSpineAnimation()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetSpineSkin: Set the active skin on this token's spine. Skins control which attachment images are bound to slots, independent of which animation is playing -- e.g. swap a 'winded' skin to expose injury attachments without changing the running animation. Pass nil to revert to the skeleton's first declared skin (typically 'default'). No-op if the token doesn't have an active spine animation. Logs a warning and is a no-op if the named skin doesn't exist on this skeleton.
+--- @param skinName nil|string
+function CharacterToken:SetSpineSkin(arg)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetSpineSkin: Returns the name of the active skin on this token's spine, or nil if no spine animation is active.
+--- @return string
+function CharacterToken:GetSpineSkin()
 	-- dummy implementation for documentation purposes only
 end
 
@@ -353,10 +427,12 @@ function CharacterToken:ShowSheet(tabid)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetLineOfSight: The vision of the other token you have. 1 = full vision. 0 = complete occlusion. 0.5 = half visible.
+--- GetLineOfSight: The vision of the other token you have. 1 = full vision. 0 = complete occlusion. 0.5 = half visible, 0.25 = three-quarters cover. Optionally pass pierceSurfaces to ignore thin walls. The mode argument is "full" (default) to use the full token-aware targeting calculation that samples multiple rays across token footprints, or "basic" to cast a single center-to-center ray (faster but less accurate for large tokens or intervening creatures).
 --- @param otherToken any
+--- @param pierceSurfacesArg any?
+--- @param modeArg any?
 --- @return number
-function CharacterToken:GetLineOfSight(otherToken)
+function CharacterToken:GetLineOfSight(otherToken, pierceSurfacesArg, modeArg)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -364,6 +440,12 @@ end
 --- @param otherTokenOrLoc CharacterToken|LuaPath|Loc
 --- @result number
 function CharacterToken:Distance(otherTokenOrLoc)
+	-- dummy implementation for documentation purposes only
+end
+
+--- IsAdjacentToWall: Returns true if this token's occupied footprint is adjacent to wall collision on its current floor and at its current altitude.
+--- @return boolean
+function CharacterToken:IsAdjacentToWall()
 	-- dummy implementation for documentation purposes only
 end
 
@@ -425,9 +507,25 @@ end
 
 --- MarkMovementRadius: Renders a movement radius marker showing how far the token can move. Returns a reference controlling it. Remember to call Destroy on it when you want the radius to disappear!
 --- @param movementAllowance movement allowance in decitiles.
---- @param args nil|{waypoints: nil|Loc[], mask: nil|Loc[], filter: nil|function, moveFlags: nil|('IgnoreMovementType'|'CannotMoveThroughFriends'|'CanFly'|'IgnoreOtherCreatures'|'Shifting')[] }
+--- @param args nil|{waypoints: nil|Loc[], mask: nil|Loc[], filter: nil|function, moveFlags: nil|('IgnoreMovementType'|'CannotMoveThroughFriends'|'CanFly'|'IgnoreOtherCreatures'|'Shifting'|'IgnoreWalls')[] }
 --- @return LuaMultiObjectReference
 function CharacterToken:MarkMovementRadius(movementAllowance, args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CalculateMovementPerimeter: Returns the exact list of tiles that MarkMovementRadius would highlight, given the same arguments. Uses identical underlying logic, so callers can confine targeting to exactly the tiles the movement radius draws.
+--- @param movementAllowance movement allowance in decitiles.
+--- @param args nil|{waypoints: nil|Loc[], mask: nil|Loc[], filter: nil|function, moveFlags: nil|('IgnoreMovementType'|'CannotMoveThroughFriends'|'CanFly'|'IgnoreOtherCreatures'|'Shifting'|'IgnoreWalls')[] }
+--- @return Loc[]
+function CharacterToken:CalculateMovementPerimeter(movementAllowance, args)
+	-- dummy implementation for documentation purposes only
+end
+
+--- CalculateJumpReachable: Returns every tile a straight-line jump of the given distance and jump height could land on: within distance of the token, no full-height wall or too-tall height-limited wall/block on the line, and no ground along the line rising more than jumpHeight above the takeoff ground. Landing lower is always allowed. Mirrors Move with movementType='jump', so the set matches where such a jump can actually go.
+--- @param distance jump distance in tiles (Chebyshev).
+--- @param jumpHeight the height in tiles the jump clears; also the most the ground may rise above the takeoff along the line or at the landing tile.
+--- @return Loc[]
+function CharacterToken:CalculateJumpReachable(distance, jumpHeight)
 	-- dummy implementation for documentation purposes only
 end
 

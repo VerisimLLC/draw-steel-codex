@@ -1,17 +1,18 @@
 --- Downtime followers information - abstraction of character.followers
 --- @class DTFollowers
 --- @field followers table List of followers as class objects
+--- @field creature Creature The creature that owns these followers
 DTFollowers = RegisterGameType("DTFollowers")
 
 --- Creates a new downtime followers instance
 --- @param followers table The followers on the creature
---- @param token CharacterToken|nil The DMHub token that is the parent of the creature
+--- @param creature Creature The creature that owns the followers
 --- @return DTFollowers instance The new downtime followers instance
-function DTFollowers.CreateNew(followers, token)
+function DTFollowers.CreateNew(followers, creature)
     local instance = DTFollowers.new{
-        followers = {}
+        followers = {},
+        creature = creature,
     }
-    instance.token = token
 
     if followers and type(followers) == "table" and next(followers) then
         for followerId,_ in pairs(followers) do
@@ -30,27 +31,35 @@ function DTFollowers:GetFollower(followerId)
     return self.followers[followerId or ""]
 end
 
---- Retrieve the total number of rolls the followers have
+--- Retrieve the total number of rolls the followers have. Only counts followers
+--- that still resolve to a live character, so rolls stranded on a deleted
+--- follower are not reported as spendable.
 --- @return number numRolls The number of rolls
 function DTFollowers:AggregateAvailableRolls()
-    if self.token and self.token.properties and self.token.properties:IsHero() then
-        local downtimeInfo = self.token.properties:GetDowntimeInfo()
-        if downtimeInfo then
-            return downtimeInfo:AggregateFollowerRolls()
-        end
+    if not (self.creature and self.creature:IsHero()) then
+        return 0
     end
-    return 0
+
+    local downtimeInfo = self.creature:GetDowntimeInfo()
+    if not downtimeInfo then return 0 end
+
+    local total = 0
+    for id,_ in pairs(self.followers or {}) do
+        total = total + downtimeInfo:GetFollowerRolls(id)
+    end
+    return total
 end
 
---- Find all the followers that have available rolls
---- @return table followers The followers with rolls
+--- The followers that still have a roll to spend, keyed by follower id. Feeds
+--- the roll button's picker, which offers the hero and then each of these.
+--- @return table followers Keyed follower id -> follower
 function DTFollowers:GetFollowersWithAvailbleRolls()
     local followers = {}
-    if not (self.token and self.token.properties and self.token.properties:IsHero()) then
+    if not (self.creature and self.creature:IsHero()) then
         return followers
     end
 
-    local downtimeInfo = self.token.properties:GetDowntimeInfo()
+    local downtimeInfo = self.creature:GetDowntimeInfo()
     if not downtimeInfo then return followers end
 
     for id, follower in pairs(self.followers or {}) do
@@ -65,8 +74,7 @@ end
 --- @return DTFollowers|nil followers The downtime followers for the character
 creature.GetDowntimeFollowers = function(self)
     if self:IsHero() then
-        local token = dmhub.LookupToken(self)
-        return DTFollowers.CreateNew(self:try_get(DTConstants.FOLLOWERS_STORAGE_KEY), token)
+        return DTFollowers.CreateNew(self:try_get(DTConstants.FOLLOWERS_STORAGE_KEY), self)
     end
     return nil
 end

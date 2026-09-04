@@ -1,6 +1,93 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 local CreateChatPanel
+
+--Unread tracking, mirroring ChatPanel.lua: the rail's Action Log button
+--shows a new-content marker (with a count) for log entries that arrived
+--since the panel was last on screen, excluding the local user's own
+--actions. "Last viewed" is a per-game high-water server timestamp
+--persisted as a preference; the rail calls markContentSeen while the
+--panel is shown.
+setting{
+	id = "actionlog:lastviewed",
+	default = {},
+	storage = "preference",
+}
+
+--the exact complement of ChatPanel.lua's IsChatMessage: everything that
+--is not plain chat / data / object / custom-on-the-chat-channel renders
+--in the action log (rolls and custom action messages).
+local function IsActionLogMessage(message)
+	return message.messageType ~= "chat" and message.messageType ~= "data" and message.messageType ~= "object" and (message.messageType ~= "custom" or rawget(message.properties, "channel") ~= "chat")
+end
+
+local function ActionLogLastViewed()
+	local t = dmhub.GetSettingValue("actionlog:lastviewed")
+	if type(t) ~= "table" then
+		return nil
+	end
+	return t[dmhub.gameid]
+end
+
+local function ActionLogUnreadCount()
+	local lastViewed = ActionLogLastViewed()
+	if lastViewed == nil then
+		return 0
+	end
+	local count = 0
+	for _,message in ipairs(chat.messages) do
+		if IsActionLogMessage(message) then
+			local ts = message.timestamp
+			if type(ts) == "number" and ts > lastViewed then
+				local uid = nil
+				pcall(function() uid = message.userid end)
+				if uid ~= dmhub.userid then
+					count = count + 1
+				end
+			end
+		end
+	end
+	return count
+end
+
+local function ActionLogMarkViewed()
+	local t = dmhub.GetSettingValue("actionlog:lastviewed")
+	if type(t) ~= "table" then
+		t = {}
+	end
+	local lastViewed = t[dmhub.gameid]
+	local target = os.time() * 1000
+	local anyNew = false
+	for _,message in ipairs(chat.messages) do
+		if IsActionLogMessage(message) then
+			local ts = message.timestamp
+			if type(ts) == "number" then
+				if ts > target then
+					target = ts
+				end
+				if lastViewed ~= nil and ts > lastViewed then
+					anyNew = true
+				end
+			end
+		end
+	end
+	if lastViewed ~= nil and not anyNew then
+		return
+	end
+	t[dmhub.gameid] = target
+	dmhub.SetSettingValue("actionlog:lastviewed", t)
+end
 
 DockablePanel.Register{
 	name = "Action Log",
@@ -8,14 +95,35 @@ DockablePanel.Register{
 	minHeight = 200,
 	vscroll = false,
 	content = function()
+		track("panel_open", {
+			panel = "Action Log",
+			dailyLimit = 30,
+		})
 		return CreateChatPanel()
+	end,
+	hasNewContent = function()
+		--first evaluation for a game baselines "viewed" at now, so
+		--pre-existing history never flags as unread.
+		if ActionLogLastViewed() == nil then
+			ActionLogMarkViewed()
+		end
+		return ActionLogUnreadCount() > 0
+	end,
+	newContentCount = function()
+		return ActionLogUnreadCount()
+	end,
+	markContentSeen = function()
+		ActionLogMarkViewed()
 	end,
 }
 
 local CreateCustomMessagePanel = function(message)
     --gets refreshMessage on message update.
 
-    local panel = message.properties:Render(message)
+    --pcall: a message may come from a client running a newer mod version whose
+    --message type is not registered here; reading .Render on an unknown type raises.
+    local panel = nil
+    pcall(function() panel = message.properties:Render(message) end)
     if panel == nil then
         if devmode() then
             return gui.Label{
@@ -58,20 +166,132 @@ local CreateCustomMessagePanel = function(message)
     return panel
 end
 
-local CreateRollCategoryPanel = function(cat, catInfo)
+-- Determines if a token is acting out of turn (e.g. triggered ability / reaction).
+local function IsOutOfTurn(token)
+    if token == nil then
+        return false
+    end
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then
+        return false
+    end
+    local currentId = q:CurrentInitiativeId()
+    if currentId == nil then
+        return false
+    end
+    return InitiativeQueue.GetInitiativeId(token) ~= currentId
+end
+
+-- Shared card wrapper for all action log entries.
+-- options:
+--   token: CharacterToken (for portrait, name, player color)
+--   content: gui element or table of elements for the card body
+--   classes: additional CSS classes (optional)
+--   nameOverride: string to use instead of token name (optional)
+--   hidePortrait: bool (optional)
+--   hideName: bool (optional)
+function CreateActionLogCard(options)
+    local token = options.token
+    local outOfTurn = IsOutOfTurn(token)
+
+    local playerColor = "#AA0000"
+    if token ~= nil and token.valid and token.playerControlled then
+        playerColor = token.playerColor
+    end
+
+    local portraitPanel = nil
+    if token ~= nil and token.valid and not options.hidePortrait then
+        portraitPanel = gui.CreateTokenImage(token, {
+            classes = {"action-log-portrait"},
+        })
+    end
+
+    local nameLabel = nil
+    if not options.hideName then
+        local name = options.nameOverride
+        if name == nil and token ~= nil and token.valid then
+            name = token.name
+            if not token.canLocalPlayerSeeName then
+                name = "Unknown"
+            end
+        end
+        if name ~= nil then
+            nameLabel = gui.Label{
+                classes = {"action-log-name", "sizeS", "bold"},
+                text = name,
+            }
+        end
+    end
+
+    local content = options.content or {}
+
+    local contentChildren = {}
+    if nameLabel then
+        contentChildren[#contentChildren+1] = nameLabel
+    end
+    for _,child in ipairs(content) do
+        contentChildren[#contentChildren+1] = child
+    end
+
+    local cardClasses = {"action-log-card", "bgAlt", cond(outOfTurn, "out-of-turn")}
+    for _,cls in ipairs(options.classes or {}) do
+        cardClasses[#cardClasses+1] = cls
+    end
+
+    return gui.Panel{
+        classes = cardClasses,
+        --Clip the floating color bar to the card: it is height="100%" which resolves
+        --against the scroll viewport (not this auto-height card), so without clipping it
+        --overshoots downward and bleeds over the entries beneath this one. clip needs a
+        --bgimage to use as the clip mask; the "bgAlt" class supplies one (and its visible
+        --dark fill), so clip alone crops the bar without a clipHidden companion here.
+        clip = true,
+
+        -- Color accent bar (floating so it doesn't affect horizontal flow sizing)
+        gui.Panel{
+            classes = {"action-log-color-bar"},
+            floating = true,
+            bgcolor = playerColor,
+        },
+
+        gui.Panel{
+            classes = {"action-log-card-header"},
+
+            -- Portrait
+            portraitPanel,
+
+            -- Content area
+            gui.Panel{
+                classes = {"action-log-content"},
+                children = contentChildren,
+            },
+        },
+    }
+end
+
+--alreadyComplete: true when this panel is built for a roll that finished in
+--the past (e.g. the log being opened over history). The total label is then
+--created directly in its settled 'complete' state so it does not play the
+--live-roll scale-down animation (base scale 3 -> complete scale 1).
+local CreateRollCategoryPanel = function(cat, catInfo, alreadyComplete)
 
 	local headingLabel = nil
 	if cat ~= 'default' then
 		local text = cat
-	
+
 		headingLabel = gui.Label{
 			classes = {'roll-category-label'},
 			text = text,
 		}
 	end
 
+	local resultClasses = {'roll-category-total'}
+	if alreadyComplete then
+		resultClasses[#resultClasses+1] = 'complete'
+	end
+
 	local resultLabel = gui.Label{
-		classes = {'roll-category-total'},
+		classes = resultClasses,
 		text = tostring(catInfo.total),
 		events = {
 			showresult = function(element)
@@ -258,13 +478,13 @@ local CreateRollCategoryPanel = function(cat, catInfo)
 			if rollType ~= "project_power_roll" then 
 				if boons >= 2 and banes == 0 then
 					children[#children+1] = panelCache['doubleboon'] or gui.Panel{
+						classes = {"bgSuccess"},
 						width = 16,
 						height = 16,
 						halign = "left",
 						valign = "center",
 						bgimage = "panels/triangle.png",
 						rotate = 180,
-						bgcolor = "green",
 						linger = function(element)
 							gui.Tooltip("Double Edge -- +Tier")(element)
 						end,
@@ -275,11 +495,11 @@ local CreateRollCategoryPanel = function(cat, catInfo)
 
 				if banes >= 2 and boons == 0 then
 					children[#children+1] = panelCache['doublebane'] or gui.Panel{
+						classes = {"bgDanger"},
 						width = 16,
 						height = 16,
 						valign = "center",
 						bgimage = "panels/triangle.png",
-						bgcolor = "red",
 						linger = function(element)
 							gui.Tooltip("Double Bane -- -Tier")(element)
 						end,
@@ -345,8 +565,16 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
 	local outcomePanelAdded = false
 
 	if message.forcedResult or (message.properties ~= nil and message.properties.typeName == "RollProperties" and message.properties:HasOutcomes()) then
+		--for a roll that already finished (log opened over history), skip the
+		--hidden/appear pair so the outcome does not play its pop-in animation;
+		--refreshMessage's SetClass('hidden'/'appear', false) are then no-ops.
+		local outcomeClasses = {'roll-message-outcome'}
+		if not message.isComplete then
+			outcomeClasses[#outcomeClasses+1] = 'hidden'
+			outcomeClasses[#outcomeClasses+1] = 'appear'
+		end
 		outcomePanel = gui.Label{
-			classes = {'roll-message-outcome', 'hidden', 'appear'},
+			classes = outcomeClasses,
 			text = ' ',
 		}
 	end
@@ -402,23 +630,40 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
 
 			if outcomePanel ~= nil and message.properties ~= nil then
 				local outcome = message.properties:GetOutcome(message)
-				if outcome ~= nil and #outcome.outcome < 14 then
-					outcomePanel.selfStyle.color = outcome.color or "white"
-					outcomePanel.text = outcome.outcome
-				elseif outcome ~= nil then
-					longFormResultsLabel.text = outcome.outcome
+				if outcome ~= nil then
+					local outcomeText = outcome.outcome
+					if message.tokenid ~= nil then
+						local token = dmhub.GetCharacterById(message.tokenid)
+						if token ~= nil then
+							outcomeText = StringInterpolateGoblinScript(outcomeText, token.properties)
+						end
+					end
+					if #outcomeText < 14 then
+						-- Caller-supplied custom color stays inline; otherwise clear so
+						-- the cascade's @fgStrong on {roll-message-outcome} wins reactively.
+						outcomePanel.selfStyle.color = outcome.color
+						outcomePanel:SetClass("success", false)
+						outcomePanel:SetClass("danger", false)
+						outcomePanel.text = outcomeText
+					else
+						longFormResultsLabel.text = outcomeText
+					end
 				end
 			elseif outcomePanel ~= nil and message.autofailure then
-				outcomePanel.selfStyle.color = "red"
+				outcomePanel.selfStyle.color = nil
+				outcomePanel:SetClass("success", false)
+				outcomePanel:SetClass("danger", true)
 				outcomePanel.text = "Failure"
 			elseif outcomePanel ~= nil and message.autosuccess then
-				outcomePanel.selfStyle.color = "green"
+				outcomePanel.selfStyle.color = nil
+				outcomePanel:SetClass("danger", false)
+				outcomePanel:SetClass("success", true)
 				outcomePanel.text = "Success"
 			end
 
 			for cat,catInfo in pairs(info) do
 
-				local catPanel = catPanels[cat] or CreateRollCategoryPanel(cat, catInfo)
+				local catPanel = catPanels[cat] or CreateRollCategoryPanel(cat, catInfo, complete)
 				catPanel:FireEvent('refreshInfo', catInfo, diceStyle, complete, message)
 
 				if customPanel ~= nil then
@@ -462,99 +707,157 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
 	local avatar = nil
 
 	local avatarPanel = nil
-    
+    local m_cardToken = nil
+
     if not adopted then
         avatarPanel = gui.Panel{
-            classes = {'roll-avatar-panel'},
+            classes = {"action-log-portrait"},
 
             refreshMessage = function(element, message)
                 if avatar == nil and message.tokenid ~= nil then
                     local token = dmhub.GetCharacterById(message.tokenid)
                     if token ~= nil then
+                        m_cardToken = token
                         avatar = gui.CreateTokenImage(token, {
-                            width = 48,
-                            height = 48,
+                            width = 40,
+                            height = 40,
                             valign = "center",
                             halign = "center",
                         })
 
                         element:AddChild(avatar)
-
-                        local name = token:GetNameMaxLength(12)
-                        if name ~= nil and name ~= "" and token.canLocalPlayerSeeName then
-                            element:AddChild(gui.Label{
-                                text = name,
-                                fontSize = 14,
-                                color = message.nickColor,
-                                width = "auto",
-                                height = "auto",
-                                halign = "center",
-                                maxWidth = 60,
-                                textWrap = false,
-                            })
-                        end
                     end
                 end
             end
         }
     end
 
+    local rollContentPanel = gui.Panel{
+        classes = {'chat-message-panel', 'roll-message-panel'},
+        width = "100%-12",
+        halign = "right",
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            vmargin = 0,
+            hmargin = 0,
+            panel,
+        },
 
-    local separator = nil
-    if not adopted then
-	    separator = gui.Panel{
-		    classes = {'separator'},
-	    }
+        forceShowResult = function(element)
+            element:FireEventTree("showresult")
+        end,
+
+        longFormResultsLabel,
+    }
+
+
+    local customPanelWrapper = nil
+    if customPanel ~= nil then
+        customPanelWrapper = gui.Panel{
+            classes = {"action-log-card-custom"},
+            customPanel,
+        }
     end
 
-
     local chatMessagePanel
-	chatMessagePanel = gui.Panel{
-		classes = {"chat-message-panel"},
-		bgimage = "panels/square.png",
-		bgcolor = "clear",
-		flow = "vertical",
-
-		refreshMessage = function(element, message)
-			currentMessage = message
-			panel:FireEvent("refreshMessage", message)
-            if avatarPanel ~= nil then
-			    avatarPanel:FireEventTree("refreshMessage", message)
-            end
-
-            if adopted then
-                chatMessagePanel:SetClassTree("adopted", true)
-            end
-
-
-		end,
-
-        separator,
-
-		gui.Panel{
-			classes = {'chat-message-panel', 'roll-message-panel'},
-			gui.Panel{
-				width = "100%",
-				height = "auto",
-				flow = "horizontal",
-				vmargin = 0,
-				hmargin = 0,
-				avatarPanel,
-				panel,
-			},
-
-			--force the result to show even if it's not complete yet. Useful to allow the user to see it and able to modify it.
-			forceShowResult = function(element)
-				element:FireEventTree("showresult")
-			end,
-
-			longFormResultsLabel,
-			customPanel,
-		},
-	}
-
     if adopted then
+        -- Wrap rollContentPanel in a container that matches the standalone
+        -- card's action-log-content width so dice align consistently.
+        local adoptedRollContent = gui.Panel{
+            width = "100%-70",
+            height = "auto",
+            halign = "right",
+            flow = "vertical",
+            rollContentPanel,
+        }
+
+        chatMessagePanel = gui.Panel{
+            classes = {"chat-message-panel"},
+            flow = "vertical",
+
+            refreshMessage = function(element, message)
+                currentMessage = message
+                panel:FireEvent("refreshMessage", message)
+                chatMessagePanel:SetClassTree("adopted", true)
+            end,
+
+            adoptedRollContent,
+            customPanelWrapper,
+        }
         chatMessagePanel:SetClassTree("adopted", true)
+    else
+        -- Standalone roll: wrap in card layout
+        -- We build the card container and inject content on refreshMessage
+        -- since we need the token from the message.
+        local colorBar = gui.Panel{
+            classes = {"action-log-color-bar"},
+            floating = true,
+            bgcolor = "#888888",
+        }
+
+        local rollNameLabel = gui.Label{
+            classes = {"action-log-name", "sizeS", "bold"},
+            text = "",
+        }
+
+        chatMessagePanel = gui.Panel{
+            classes = {"chat-message-panel"},
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+
+            refreshMessage = function(element, message)
+                currentMessage = message
+                panel:FireEvent("refreshMessage", message)
+                rollContentPanel:SetClassTree("adopted", true)
+                avatarPanel:FireEventTree("refreshMessage", message)
+
+                if m_cardToken ~= nil then
+                    if m_cardToken ~= nil and m_cardToken.valid and m_cardToken.playerControlled then
+                        colorBar.selfStyle.bgcolor = m_cardToken.playerColor
+                    else
+                        local monsterColor = "#AA0000"
+                        colorBar.selfStyle.bgcolor = monsterColor
+                    end
+                    element:SetClass("out-of-turn", IsOutOfTurn(m_cardToken))
+                    if m_cardToken.canLocalPlayerSeeName then
+                        rollNameLabel.text = m_cardToken.name
+                    else
+                        rollNameLabel.text = "Unknown"
+                    end
+                else
+                    rollNameLabel.text = message.playerName or ""
+                end
+            end,
+
+            gui.Panel{
+                classes = {"action-log-card"},
+                --Contain the floating colorBar (height 100% overshoots -- see CreateActionLogCard).
+                --Unlike CreateActionLogCard this card has no "bgAlt" class, so it has no bgimage
+                --for clip to use as a mask; supply an invisible one (square.png + clear + clipHidden)
+                --so clip actually crops the bar without drawing a background of its own.
+                clip = true,
+                clipHidden = true,
+                bgimage = "panels/square.png",
+                bgcolor = "clear",
+
+                colorBar,
+
+                gui.Panel{
+                    classes = {"action-log-card-header"},
+                    avatarPanel,
+
+                    gui.Panel{
+                        classes = {"action-log-content"},
+                        rollNameLabel,
+                        rollContentPanel,
+                    },
+                },
+                customPanelWrapper,
+            },
+        }
     end
 
 	return chatMessagePanel
@@ -615,22 +918,126 @@ end
 --any chat panels that have errors we don't re-try.
 local g_errorPanels = {}
 
+--Set the scroll position so `target` (a top-level entry panel, possibly since
+--adopted deeper into the tree) sits at the top of the viewport. Used after
+--prepending older entries so the entry the user was looking at stays put
+--instead of the view jumping. There is no engine ScrollIntoView; offsets are
+--summed from rendered sibling heights (the same technique as
+--DrawSteelChararcterSheet's ScrollCapabilityIntoView). Returns the content
+--height it measured, or nil if layout has not produced usable numbers yet;
+--the caller retries until the value is stable across calls (layout settled).
+--Engine reads are pcall-guarded -- panel property reads raise rather than
+--return nil.
+local function AnchorScrollToPanel(scrollPanel, target)
+	if target == nil or (not target.valid) or (not scrollPanel.valid) then
+		return nil
+	end
+
+	local windowH = 0
+	pcall(function() windowH = scrollPanel.renderedHeight or 0 end)
+	if windowH <= 0 then
+		return nil
+	end
+
+	local contentH = 0
+	pcall(function()
+		for _,c in ipairs(scrollPanel.children) do
+			contentH = contentH + (c.renderedHeight or 0)
+		end
+	end)
+	if contentH <= 0 then
+		return nil
+	end
+
+	local range = contentH - windowH
+	if range <= 0 then
+		--everything fits; nothing to anchor.
+		return contentH
+	end
+
+	local offset = 0
+	local node = target
+	while node ~= nil and node ~= scrollPanel do
+		local parent = node.parent
+		if parent == nil then
+			return contentH
+		end
+		pcall(function()
+			for _,s in ipairs(parent.children) do
+				if s == node then
+					break
+				end
+				offset = offset + (s.renderedHeight or 0)
+			end
+		end)
+		node = parent
+	end
+
+	local desiredTop = offset
+	if desiredTop < 0 then
+		desiredTop = 0
+	elseif desiredTop > range then
+		desiredTop = range
+	end
+	--vscrollPosition: 1 = top, 0 = bottom.
+	scrollPanel.vscrollPosition = 1 - desiredTop / range
+	return contentH
+end
+
 CreateChatPanel = function()
 
 	local children = {}
 	local messagePanels = {}
     local adoptedPanels = {}
+    --true once refreshChat has completed at least one FULL pass; the incremental path
+    --can only patch an existing build.
+    local m_fullRefreshDone = false
 
-	local chatPanel = gui.Panel{
-		id = 'action-log-panel',
-		vscroll = true,
-        vscrollLockToBottom = true,
-		hideObjectsOutOfScroll = true,
-		hpad = 6,
-		height = "100% available",
+    --LAZY HISTORY: only the newest LOAD_CHUNK action-log messages get panels
+    --when the log is first built; scrolling to the top reveals LOAD_CHUNK
+    --more at a time (see the scroll/loadOlderEntries events below).
+    local LOAD_CHUNK = 12
+    local m_visibleLimit = LOAD_CHUNK
+    --true when the last full pass left older eligible messages unbuilt.
+    local m_hasOlder = false
+    --timestamp at the cutoff of the last full pass; the incremental path
+    --skips creating panels for changed messages older than this -- they have
+    --no panel by design, and its append-only creation would place one out
+    --of order. They are built in order by the full pass when revealed.
+    local m_cutoffTimestamp = nil
+    --guards against re-entrant loads while one is pending or anchoring.
+    local m_loadingOlder = false
+    --set around the synchronous rebuild inside loadOlderEntries so the full
+    --pass does not treat the newly built OLDER panels as new messages and
+    --yank the scroll to the bottom.
+    local m_suppressScrollToBottom = false
+    local m_anchorPanel = nil
+    local m_anchorRetries = 0
+    local m_lastAnchorContentH = nil
+    local m_loadOlderPanel = nil
 
+    --the "Loading older entries..." row shown as the first child while
+    --unbuilt history remains. Recreated if a children assignment that
+    --excluded it (all history loaded) destroyed it.
+    local GetLoadOlderPanel = function()
+        if m_loadOlderPanel == nil or (not m_loadOlderPanel.valid) then
+            m_loadOlderPanel = gui.Label{
+                classes = {"load-older-label"},
+                text = "Loading older entries...",
+            }
+        end
+        return m_loadOlderPanel
+    end
 
-		styles = {
+    local MessageBeforeCutoff = function(message)
+        if m_cutoffTimestamp == nil then
+            return false
+        end
+        local ts = message.timestamp
+        return type(ts) == "number" and ts < m_cutoffTimestamp
+    end
+
+	local chatPanelStyles = {
 			{
 				bgcolor = 'black',
 				halign = 'center',
@@ -648,6 +1055,95 @@ CreateChatPanel = function()
 				bgcolor = Styles.textColor,
 				gradient = Styles.horizontalGradient,
 			},
+
+			{
+				selectors = {'load-older-label'},
+				width = '100%',
+				height = 'auto',
+				tmargin = 4,
+				bmargin = 6,
+				fontSize = 14,
+				textAlignment = 'center',
+				color = '@fgStrong',
+			},
+
+            -- Action log card styles
+            {
+                selectors = {"action-log-card"},
+                flow = "vertical",
+                width = "100%",
+                height = "auto",
+                cornerRadius = 4,
+                vmargin = 2,
+            },
+            {
+                selectors = {"action-log-card", "out-of-turn"},
+                lmargin = 20,
+                width = "100%-20",
+            },
+            {
+                selectors = {"action-log-color-bar"},
+                width = 6,
+                height = "100%",
+                bgimage = "panels/square.png",
+                halign = "left",
+                valign = "top",
+            },
+            {
+                selectors = {"action-log-card-header"},
+                flow = "horizontal",
+                width = "100%",
+                height = "auto",
+            },
+            {
+                selectors = {"action-log-portrait"},
+                width = 40,
+                height = 40,
+                halign = "left",
+                valign = "top",
+                lmargin = 10,
+                tmargin = 6,
+                bmargin = 6,
+                rmargin = 4,
+            },
+            {
+                selectors = {"action-log-content"},
+                flow = "vertical",
+                width = "100%-70",
+                height = "auto",
+                halign = "right",
+                vpad = 4,
+            },
+            {
+                selectors = {"action-log-card-custom"},
+                flow = "vertical",
+                width = "100%",
+                height = "auto",
+                hpad = 10,
+                bmargin = 4,
+                borderBox = true,
+            },
+            {
+                selectors = {"action-log-name"},
+                width = "auto",
+                height = "auto",
+                maxWidth = "100%",
+                halign = "left",
+            },
+            {
+                selectors = {"action-log-detail"},
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textAlignment = "left",
+            },
+            {
+                selectors = {"action-log-subtext"},
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textAlignment = "left",
+            },
 			{
 				selectors = {'visibilityPanel'},
 				halign = "right",
@@ -660,15 +1156,14 @@ CreateChatPanel = function()
 				halign = 'left',
 				width = '100%',
 				height = 'auto',
-				color = 'white',
-				fontSize = '40%',
+				color = '@fgStrong',
+				fontSize = '100%',
 				vmargin = 2,
 			},
             {
                 selectors = {'chat-message-panel', 'adopted'},
-                tmargin = -16,
+                tmargin = 0,
             },
-
 			{
 				selectors = {'chat-message-panel', 'roll-message-panel'},
 				flow = 'vertical',
@@ -684,13 +1179,13 @@ CreateChatPanel = function()
 			{
 				selectors = {'roll-main-panel'},
 				flow = 'vertical',
-				width = "80%",
+				width = "100%",
 				height = "auto",
-				halign = "right",
+				halign = "left",
 			},
 			{
 				selectors = {'roll-message-outcome'},
-				color = 'white',
+				color = '@fgStrong',
 				fontSize = 18,
 				minFontSize = 10,
 				halign = 'center',
@@ -708,7 +1203,7 @@ CreateChatPanel = function()
 			{
 				selectors = {'long-form-message-outcome'},
 				fontSize = 14,
-				color = "white",
+				color = "@fgStrong",
 				width = "100%",
 				height = "auto",
 			},
@@ -729,7 +1224,6 @@ CreateChatPanel = function()
                 selectors = {"rolls-panel", "adopted"},
                 uiscale = 0.7,
                 width = "60%",
-                halign = "right",
             },
 			{
 				selectors = {'roll-category-label'},
@@ -740,7 +1234,7 @@ CreateChatPanel = function()
 				maxWidth = 64,
 				fontSize = 18,
 				minFontSize = 8,
-				color = 'white',
+				color = '@fgStrong',
 			},
 			{
 				selectors = {'roll-category-total'},
@@ -762,7 +1256,7 @@ CreateChatPanel = function()
 				selectors = {'roll-category-total', 'complete'},
 				transitionTime = 0.25,
 				scale = 1,
-				color = 'white',
+				color = '@fgStrong',
 			},
 			{
 				selectors = {'rolls-result-panel'},
@@ -797,15 +1291,15 @@ CreateChatPanel = function()
 			},
 			{
 				selectors = {'single-roll-panel','complete'},
-				color = 'white',
+				color = '@fgStrong',
 			},
 			{
 				selectors = {'single-roll-panel','complete','best'},
-				color = '#aaffaa',
+				color = '@success',
 			},
 			{
 				selectors = {'single-roll-panel','complete','worst'},
-				color = '#ffaaaa',
+				color = '@danger',
 			},
 			{
 				selectors = {'single-roll-panel','complete','dropped'},
@@ -815,58 +1309,307 @@ CreateChatPanel = function()
 				selectors = {'single-roll-panel','label','preview'},
 				opacity = 0.6,
 			},
-		},
+
+			-- Rules previously in MCDMAbilityRollBehavior.lua's g_tableStyles /
+			-- g_boonsBanesStyles / g_RollModifierStyles. Lifted here so the
+			-- chatPanel's reactive cascade carries them -- those packs were
+			-- frozen MergeTokens snapshots that broke theme reactivity.
+			{
+				selectors = {'row', 'highlighted'},
+				transitionTime = 1.0,
+				bgcolor = "@accent",
+			},
+			{
+				selectors = {'label', 'parent:highlighted'},
+				transitionTime = 1.0,
+				color = "@fgInverse",
+			},
+			{
+				selectors = {'row', 'flash'},
+				brightness = 3,
+				transitionTime = 0.3,
+			},
+			{
+				selectors = {'label', 'parent:collapsedAnim'},
+				transitionTime = 0.5,
+				uiscale = {x = 1, y = 0.001},
+			},
+			{
+				selectors = {'amendable', 'row', 'hover'},
+				bgcolor = "@accentHover",
+			},
+			{
+				--Amendable rows fill with the light @accentHover gold on hover, so
+				--flip the tier text to the dark inverse color to stay legible
+				--(mirrors {label, parent:highlighted} above for the accent fill).
+				selectors = {'label', 'parent:amendable', 'parent:hover'},
+				color = "@fgInverse",
+			},
+			{
+				selectors = {'collapsedAnim'},
+				transitionTime = 0.5,
+				uiscale = {x = 1, y = 0.001},
+			},
+			{
+				selectors = {'boonsBanesLabel'},
+				color = "@fgStrong",
+				valign = "center",
+				width = "20%",
+				height = "100%",
+				bgimage = "panels/square.png",
+				textAlignment = "center",
+				borderWidth = 1,
+				borderColor = "@border",
+			},
+			{
+				selectors = {'boonsBanesLabel', 'selected'},
+				bgcolor = "@fgStrong",
+				color = "@bg",
+				bold = true,
+			},
+			{
+				selectors = {'boonsBanesLabel', 'hover', '~selected', 'parent:active'},
+				bgcolor = "@fgStrong",
+				color = "@bg",
+				brightness = 0.9,
+			},
+			{
+				selectors = {'modifierPanel'},
+				bgcolor = "@bgAlt",
+			},
+			{
+				selectors = {'modifierPanel', 'good'},
+				bgcolor = "@success",
+			},
+			{
+				selectors = {'modifierPanel', 'bad'},
+				bgcolor = "@warning",
+			},
+		}
+
+	local chatPanel = gui.Panel{
+		id = 'action-log-panel',
+		vscroll = true,
+        vscrollLockToBottom = true,
+		hideObjectsOutOfScroll = true,
+		hpad = 6,
+		width = "100%-12",
+		height = "100% available",
+
+		styles = ThemeEngine.MergeStyles(chatPanelStyles),
 
 		events = {
 			create = 'refreshChat',
-			refreshChat = function(element)
+			refreshChat = function(element, changeInfo)
+				--dev:diceperf -- per-phase timing of this handler (see engine settings.txt).
+				--os.clock() (CPU seconds) rather than dmhub.Time(), which is frame-quantized.
+				local perfLog = dmhub.GetSettingValue("dev:diceperf")
+				local perfStart = perfLog and os.clock() or 0
+				local perfCreateMs, perfCreates, perfRefreshMs, perfRefreshes = 0, 0, 0, 0
+
+				--INCREMENTAL PATH. The engine passes a change-set with refreshChat (see
+				--ChatPanel.cs RefreshLua): changeInfo.changed maps the top-level message
+				--keys whose content changed (new message, server echo replacing the
+				--message object, amendment arrival, roll completion) to true, and
+				--changeInfo.structural is true when the message SET changed shape
+				--(removal / first load / chat cleared). For a non-structural change on
+				--an already-built log, only the changed panels are touched: existing
+				--panels get refreshMessage, brand-new messages get a panel created and
+				--APPENDED. Nothing else is visited -- in particular the other ~100
+				--message panels and this scroll panel's children list -- which is what
+				--keeps a dice roll's refresh storm (send + echo + completion) off the
+				--frame budget. A structural change, or a refresh before the first full
+				--build (changeInfo == nil for the panel-create event), falls through to
+				--the full pass below.
+				if changeInfo ~= nil and (not changeInfo.structural) and m_fullRefreshDone then
+					--Removed messages (chat is pruned past 128 messages on every send, so
+					--this is routine): destroy just that message's panel.
+					for key,_ in pairs(changeInfo.removed or {}) do
+						local child = messagePanels[key] or adoptedPanels[key]
+						messagePanels[key] = nil
+						adoptedPanels[key] = nil
+						if child ~= nil and child.valid then
+							child:DestroySelf()
+						end
+					end
+
+					local anyNew = false
+					for key,_ in pairs(changeInfo.changed) do
+						--chat.GetRollInfo is a by-key lookup of the same message wrappers
+						--chat.messages holds (any message type, despite the name).
+						local message = chat.GetRollInfo(key)
+						if message ~= nil then
+							local adopted = adoptedPanels[key]
+							if adopted then
+								if adopted.valid then
+									adopted:FireEvent('refreshMessage', message)
+								end
+							else
+								local child = messagePanels[key]
+								--a panel destroyed out from under us (e.g. its adoptive
+								--cast parent was removed) is treated as missing.
+								if child ~= nil and (not child.valid) then
+									messagePanels[key] = nil
+									child = nil
+								end
+								if child ~= nil then
+									child:FireEvent('refreshMessage', message)
+
+									--late adoption: mirrors the full pass below.
+									local adoptiveParentPanel = child.data.adoptCastid and element.data.castPanels and element.data.castPanels[child.data.adoptCastid]
+									if adoptiveParentPanel ~= nil and adoptiveParentPanel.valid then
+										--Unparent BEFORE AddChild: the engine reparent inside AddChild does
+										--NOT remove the panel from its old parent's children list, so
+										--adopting a panel that is already a child of this scroll panel left
+										--a stale alias behind. When the adopted panel was later destroyed
+										--(routine >128-message pruning), the alias became a destroyed-panel
+										--entry and every subsequent children mutation on the scroll panel
+										--logged "Set null as child of panel".
+										child:Unparent()
+										adoptiveParentPanel:AddChild(child)
+										adoptedPanels[key] = child
+									end
+								elseif (not MessageBeforeCutoff(message)) and message.messageType ~= "chat" and message.messageType ~= "data" and message.messageType ~= "object" and (message.messageType ~= "custom" or rawget(message.properties, "channel") ~= "chat") then
+									local adoptCastid = nil
+									if message.messageType == "roll" and message.properties ~= nil then
+										adoptCastid = message.properties:try_get("castid")
+									end
+									local adoptiveParentPanel = adoptCastid and element.data.castPanels and element.data.castPanels[adoptCastid]
+									if adoptiveParentPanel ~= nil and (not adoptiveParentPanel.valid) then
+										adoptiveParentPanel = nil
+									end
+
+									if not g_errorPanels[key] then
+										local ok, result
+
+										--safely try to create the message panel. If it fails, we just skip it.
+										if devmode() then
+											--call unsafely as a dev. We want to get errors.
+											result = CreateSingleChatPanel(message, adoptiveParentPanel)
+											ok = true
+										else
+											ok, result = pcall(CreateSingleChatPanel, message, adoptiveParentPanel)
+										end
+
+										if ok then
+											child = result
+											child.data.adoptCastid = adoptCastid
+										else
+											dmhub.CloudError(string.format("Error creating chat panel in ActionLog: messageType=%s error=%s", tostring(message.messageType), tostring(result)))
+											g_errorPanels[key] = true
+										end
+									end
+
+									if child ~= nil then
+										messagePanels[key] = child
+										child:FireEvent('refreshMessage', message)
+
+										if adoptiveParentPanel ~= nil then
+											adoptiveParentPanel:AddChild(child)
+											adoptedPanels[key] = child
+										else
+											element:AddChild(child)
+											anyNew = true
+
+											if child.data.castid then
+												local castPanels = element.data.castPanels or {}
+												castPanels[child.data.castid] = child
+												element.data.castPanels = castPanels
+											end
+										end
+									end
+								end
+							end
+						end
+					end
+
+					--go to the bottom if we appended new messages, same as the full pass.
+					if anyNew then
+						element.vscrollPosition = 0
+						element:ScheduleEvent("moveToBottom", 0.05)
+					end
+
+					if perfLog then
+						print(string.format("DICEPERF-LUA:: ActionLog refreshChat INCREMENTAL total=%.1fms", (os.clock() - perfStart) * 1000))
+					end
+					return
+				end
+
+				--LAZY HISTORY cutoff: walk backwards counting action-log-eligible
+				--messages; everything before the m_visibleLimit'th newest is left
+				--unbuilt (no panel creation, no further bridge reads) until the
+				--user scrolls to the top and loadOlderEntries raises the limit.
+				local messages = chat.messages
+				local startIndex = 1
+				local hasOlder = false
+				local eligibleCount = 0
+				for i = #messages, 1, -1 do
+					if IsActionLogMessage(messages[i]) then
+						eligibleCount = eligibleCount + 1
+						if eligibleCount > m_visibleLimit then
+							hasOlder = true
+							startIndex = i + 1
+							break
+						end
+					end
+				end
+				m_hasOlder = hasOlder
+				m_cutoffTimestamp = nil
+				if hasOlder then
+					local ts = nil
+					pcall(function() ts = messages[startIndex].timestamp end)
+					if type(ts) == "number" then
+						m_cutoffTimestamp = ts
+					end
+				end
+
 				local newMessagePanels = {}
 				local children = {}
+				if hasOlder then
+					children[#children+1] = GetLoadOlderPanel()
+				end
 				local newMessage = false
-				for i,message in ipairs(chat.messages) do
-                    if adoptedPanels[message.key] then
-                        local panel = adoptedPanels[message.key]
-                        if panel.valid then
-                            panel:FireEvent('refreshMessage', message)
+				for i = startIndex, #messages do
+					local message = messages[i]
+                    --This handler runs on EVERY refreshChat (a dice roll fires it several
+                    --times: send, server echo patches, roll completion) over every message,
+                    --so per-message bridge reads (message.key/.messageType/.properties are
+                    --each a Lua->C# property call) dominated its cost. Messages that already
+                    --have a panel take a fast path with a single bridge read (key); the
+                    --type filtering and cast-adoption lookups only run when a panel is
+                    --first created, with the roll's castid cached on the panel
+                    --(data.adoptCastid) for the late-adoption check on later passes.
+                    local key = message.key
+                    local adopted = adoptedPanels[key]
+                    if adopted then
+                        if adopted.valid then
+                            adopted:FireEvent('refreshMessage', message)
                         end
-                    elseif message.messageType ~= "chat" and message.messageType ~= "data" and message.messageType ~= "object" and (message.messageType ~= "custom" or rawget(message.properties, "channel") ~= "chat") then
-                        newMessage = (messagePanels[message.key] == nil)
-                        local child = messagePanels[message.key]
-
-                        local adoptiveParentPanel = nil
-                        if message.messageType == "roll" and message.properties ~= nil then
-                            adoptiveParentPanel = element.data.castPanels and element.data.castPanels[message.properties:try_get("castid")]
-                        end
-                        
-                        if child == nil and (not g_errorPanels[message.key]) then
-
-                            local ok, result
-
-                            --safely try to create the message panel. If it fails, we just skip it.
-                            if devmode() then
-                                --call unsafely as a dev. We want to get errors.
-                                result = CreateSingleChatPanel(message, adoptiveParentPanel)
-                                ok = true
-                            else
-                                ok, result = pcall(CreateSingleChatPanel, message, adoptiveParentPanel)
-                            end
-
-                            if ok then
-                                child = result
-                            else
-
-                                dmhub.CloudError("Error creating chat panel in ActionLog: ", message.messageType, result)
-                                g_errorPanels[message.key] = true
-                            end
-                        end
-
+                    else
+                        local child = messagePanels[key]
                         if child ~= nil then
-                            newMessagePanels[message.key] = child
+                            --fast path: known message with an existing panel.
+                            newMessagePanels[key] = child
+                            local perfT1 = perfLog and os.clock() or 0
                             child:FireEvent('refreshMessage', message)
+                            if perfLog then
+                                perfRefreshMs = perfRefreshMs + (os.clock() - perfT1) * 1000
+                                perfRefreshes = perfRefreshes + 1
+                            end
 
+                            --late adoption: a roll whose cast panel was created after the
+                            --roll's own panel moves under it as soon as it exists.
+                            local adoptiveParentPanel = child.data.adoptCastid and element.data.castPanels and element.data.castPanels[child.data.adoptCastid]
                             if adoptiveParentPanel ~= nil then
+                                --Unparent first -- see the incremental path above: without this the
+                                --panel stays aliased in this scroll panel's children list, and the
+                                --element.children assignment below would orphan-destroy it out from
+                                --under its adoptive parent.
+                                if child.valid then
+                                    child:Unparent()
+                                end
                                 adoptiveParentPanel:AddChild(child)
-                                adoptedPanels[message.key] = child
+                                adoptedPanels[key] = child
                             else
                                 children[#children+1] = child
 
@@ -876,17 +1619,177 @@ CreateChatPanel = function()
                                     element.data.castPanels = castPanels
                                 end
                             end
+                        elseif message.messageType ~= "chat" and message.messageType ~= "data" and message.messageType ~= "object" and (message.messageType ~= "custom" or rawget(message.properties, "channel") ~= "chat") then
+                            newMessage = true
+
+                            local adoptCastid = nil
+                            if message.messageType == "roll" and message.properties ~= nil then
+                                adoptCastid = message.properties:try_get("castid")
+                            end
+                            local adoptiveParentPanel = adoptCastid and element.data.castPanels and element.data.castPanels[adoptCastid]
+
+                            if not g_errorPanels[key] then
+
+                                local ok, result
+
+                                local perfT0 = perfLog and os.clock() or 0
+
+                                --safely try to create the message panel. If it fails, we just skip it.
+                                if devmode() then
+                                    --call unsafely as a dev. We want to get errors.
+                                    result = CreateSingleChatPanel(message, adoptiveParentPanel)
+                                    ok = true
+                                else
+                                    ok, result = pcall(CreateSingleChatPanel, message, adoptiveParentPanel)
+                                end
+
+                                if perfLog then
+                                    perfCreateMs = perfCreateMs + (os.clock() - perfT0) * 1000
+                                    perfCreates = perfCreates + 1
+                                end
+
+                                if ok then
+                                    child = result
+                                    child.data.adoptCastid = adoptCastid
+                                else
+
+                                    dmhub.CloudError(string.format("Error creating chat panel in ActionLog: messageType=%s error=%s", tostring(message.messageType), tostring(result)))
+                                    g_errorPanels[key] = true
+                                end
+                            end
+
+                            if child ~= nil then
+                                newMessagePanels[key] = child
+                                local perfT1 = perfLog and os.clock() or 0
+                                child:FireEvent('refreshMessage', message)
+                                if perfLog then
+                                    perfRefreshMs = perfRefreshMs + (os.clock() - perfT1) * 1000
+                                    perfRefreshes = perfRefreshes + 1
+                                end
+
+                                if adoptiveParentPanel ~= nil then
+                                    adoptiveParentPanel:AddChild(child)
+                                    adoptedPanels[key] = child
+                                else
+                                    children[#children+1] = child
+
+                                    if child.data.castid then
+                                        local castPanels = element.data.castPanels or {}
+                                        castPanels[child.data.castid] = child
+                                        element.data.castPanels = castPanels
+                                    end
+                                end
+                            end
                         end
                     end
 				end
 
 				messagePanels = newMessagePanels
+				m_fullRefreshDone = true
+				local perfT2 = perfLog and os.clock() or 0
 				element.children = children
+				if perfLog then
+					print(string.format("DICEPERF-LUA:: ActionLog refreshChat total=%.1fms msgs=%d creates=%d createMs=%.1f refreshes=%d refreshMs=%.1f childrenMs=%.1f",
+						(os.clock() - perfStart) * 1000, #chat.messages, perfCreates, perfCreateMs, perfRefreshes, perfRefreshMs, (os.clock() - perfT2) * 1000))
+				end
 
-				--go to the bottom if we have new messages
-				if newMessage then
+				--go to the bottom if we have new messages (but not when the
+				--"new" panels are older history revealed by loadOlderEntries)
+				if newMessage and not m_suppressScrollToBottom then
 					element.vscrollPosition = 0
 					element:ScheduleEvent("moveToBottom", 0.05)
+				end
+
+				--if the log is so short it does not fill the viewport there is
+				--no scrollbar to reach the top with, so top up from history.
+				if m_hasOlder then
+					element:ScheduleEvent("maybeFillViewport", 0.1)
+				end
+			end,
+
+			--the panel is at (or was scrolled to) the top: give the
+			--"Loading older entries..." label a beat on screen, then load.
+			scroll = function(element)
+				if m_hasOlder and (not m_loadingOlder) and element.vscrollPosition >= 0.98 then
+					m_loadingOlder = true
+					element:ScheduleEvent("loadOlderEntries", 0.35)
+				end
+			end,
+
+			loadOlderEntries = function(element)
+				if not m_hasOlder then
+					m_loadingOlder = false
+					return
+				end
+
+				--anchor target: the topmost entry currently built (the first
+				--child that is not the loading label). After the rebuild it is
+				--repositioned at the top of the viewport so the view does not
+				--jump; the revealed older entries sit above it.
+				local anchorPanel = nil
+				pcall(function()
+					for _,c in ipairs(element.children) do
+						if c ~= m_loadOlderPanel then
+							anchorPanel = c
+							break
+						end
+					end
+				end)
+
+				m_visibleLimit = m_visibleLimit + LOAD_CHUNK
+				m_suppressScrollToBottom = true
+				element:FireEvent("refreshChat")
+				m_suppressScrollToBottom = false
+
+				if anchorPanel ~= nil and anchorPanel.valid then
+					m_anchorPanel = anchorPanel
+					m_anchorRetries = 0
+					m_lastAnchorContentH = nil
+					element:ScheduleEvent("anchorOlderEntries", 0.05)
+				else
+					m_loadingOlder = false
+					if m_hasOlder then
+						element:ScheduleEvent("maybeFillViewport", 0.1)
+					end
+				end
+			end,
+
+			--re-anchor until the measured content height is stable across two
+			--attempts (layout of the freshly built panels has settled), then
+			--allow the next load.
+			anchorOlderEntries = function(element)
+				local contentH = AnchorScrollToPanel(element, m_anchorPanel)
+				m_anchorRetries = m_anchorRetries + 1
+				if contentH ~= nil and contentH == m_lastAnchorContentH then
+					m_anchorPanel = nil
+					m_loadingOlder = false
+					if m_hasOlder then
+						element:ScheduleEvent("maybeFillViewport", 0.1)
+					end
+				elseif m_anchorRetries >= 8 then
+					m_anchorPanel = nil
+					m_loadingOlder = false
+				else
+					m_lastAnchorContentH = contentH
+					element:ScheduleEvent("anchorOlderEntries", 0.06)
+				end
+			end,
+
+			maybeFillViewport = function(element)
+				if (not m_hasOlder) or m_loadingOlder then
+					return
+				end
+				local windowH = 0
+				local contentH = 0
+				pcall(function()
+					windowH = element.renderedHeight or 0
+					for _,c in ipairs(element.children) do
+						contentH = contentH + (c.renderedHeight or 0)
+					end
+				end)
+				if windowH > 0 and contentH > 0 and contentH < windowH then
+					m_loadingOlder = true
+					element:FireEvent("loadOlderEntries")
 				end
 			end,
 
@@ -902,6 +1805,12 @@ CreateChatPanel = function()
 	}
 
 	chat.events:Listen(chatPanel)
+
+	ThemeEngine.OnThemeChanged(mod, function()
+		if chatPanel ~= nil and chatPanel.valid then
+			chatPanel.styles = ThemeEngine.MergeStyles(chatPanelStyles)
+		end
+	end)
 
 	local resultPanel = gui.Panel{
 		selfStyle = {

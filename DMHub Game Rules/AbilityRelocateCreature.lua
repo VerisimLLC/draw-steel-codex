@@ -38,6 +38,27 @@ end
 
 --- @param casterToken CharacterToken
 --- @param path LuaPath
+--- @return nil|(Loc[])
+function ActivatedAbility:FindPassedSquareLocs(casterToken, path)
+    for i,behavior in ipairs(self.behaviors) do
+        local result = behavior:FindPassedSquareLocs(self, casterToken, path)
+        if result ~= nil then
+            return result
+        end
+    end
+
+    return nil
+end
+
+--- @param casterToken CharacterToken
+--- @param path LuaPath
+--- @return nil|(Loc[])
+function ActivatedAbilityBehavior:FindPassedSquareLocs(ability, casterToken, path)
+    return nil
+end
+
+--- @param casterToken CharacterToken
+--- @param path LuaPath
 --- @return nil|(CharacterToken[])
 function ActivatedAbilityRelocateCreatureBehavior:FindTargetsInMovementVicinity(ability, casterToken, path)
     if not self.targetMoveVicinity then
@@ -84,12 +105,83 @@ function ActivatedAbilityRelocateCreatureBehavior:FindTargetsInMovementVicinity(
     return result
 end
 
+--- @param casterToken CharacterToken
+--- @param path LuaPath
+--- @return nil|(Loc[])  Every square the creature stood in along its path (starting square included), or nil if the option is off.
+function ActivatedAbilityRelocateCreatureBehavior:FindPassedSquareLocs(ability, casterToken, path)
+    if not self.targetPassedSquares then
+        return nil
+    end
+
+    local result = {}
+    local seen = {}
+
+    --Walk the path and collect every square the creature stood in, including
+    --its starting square. Each square is only added once.
+    for i = 1, #path.steps do
+        local loc = path.steps[i]
+        local occupied = casterToken:LocsOccupyingWhenAt(loc)
+        for _, occLoc in ipairs(occupied) do
+            local key = occLoc.xyfloorOnly.str
+            if not seen[key] then
+                seen[key] = true
+                result[#result+1] = occLoc
+            end
+        end
+    end
+
+    return result
+end
+
 ActivatedAbilityRelocateCreatureBehavior.summary = 'Relocate Creatures'
 ActivatedAbilityRelocateCreatureBehavior.swapCreatures = false
 ActivatedAbilityRelocateCreatureBehavior.targetMoveVicinity = false
 ActivatedAbilityRelocateCreatureBehavior.vicinity = 0
 ActivatedAbilityRelocateCreatureBehavior.vicinityFilter = ""
+ActivatedAbilityRelocateCreatureBehavior.targetPassedSquares = false
 ActivatedAbilityRelocateCreatureBehavior.movementType = "teleport"
+ActivatedAbilityRelocateCreatureBehavior.expendFullMovement = false
+
+--A relocate never charges movement (see the _tmp_freeMovement flag in Cast), so
+--when "Expend Full Movement" is set we bill the creature's entire remaining
+--movement for the turn no matter how far it actually travelled. Only meaningful
+--on the creature's own turn -- a creature shoved around on someone else's turn
+--has no movement pool to spend.
+function ActivatedAbilityRelocateCreatureBehavior:ExpendMovementIfNeeded(casterToken)
+    if not self.expendFullMovement then
+        return
+    end
+
+    if dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden then
+        return
+    end
+
+    if not casterToken.properties:IsOurTurn() then
+        return
+    end
+
+    casterToken:ModifyProperties{
+        description = "Expend Movement",
+        undoable = false,
+        execute = function()
+            local speed = casterToken.properties:CurrentMovementSpeed()
+            casterToken.properties.moveDistance = math.max(casterToken.properties:DistanceMovedThisTurn(), speed)
+            casterToken.properties.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
+        end,
+    }
+end
+
+--Movement type used by targeting previews (ActivatedAbility:GetMovementType).
+--A shift the user has overridden to be a regular move reports "move".
+function ActivatedAbilityRelocateCreatureBehavior:BehaviorMovementType(symbols)
+    if symbols ~= nil and symbols.shiftingOverride ~= nil then
+        if self.movementType == "shift" and (not symbols.shiftingOverride) then
+            return "move"
+        end
+    end
+
+    return self.movementType
+end
 
 function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
     print("Relocate:: Cast relocate", #targets)
@@ -123,6 +215,21 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             movementType = "move"
         end
 
+        -- Charge-jump override (e.g., Panther's Mighty Spring): a creature with
+        -- the "Charge Uses Jump" custom attribute leaps instead of running when
+        -- the Charge action's relocate runs. We identify Charge by ability name
+        -- rather than the Charging momentary attribute because the action bar's
+        -- destructor (from ApplyOnCasting in DrawSteelActionBar.lua) fires at
+        -- finishCasting AFTER Cast() returns but BEFORE the cast coroutine
+        -- reaches this behavior, and `table.remove_value` strips ALL copies of
+        -- the effect, so even the duplicate added by ApplyAbilityDurationEffect's
+        -- :Cast is wiped before we'd see Charging > 0 here.
+        if movementType == "move"
+            and ability.name == "Charge"
+            and casterToken.properties:CalculateNamedCustomAttribute("Charge Uses Jump") > 0 then
+            movementType = "jump"
+        end
+
         local startingOpportunityAttacks = casterToken.properties._tmp_triggeredOpportunityAttacks
 
 		local swapTokens = nil
@@ -135,17 +242,173 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 		end
 
 		if swapTokens ~= nil then
+			--Mirror the teleport branch: track distance moved on the cast so
+			--downstream behaviors (e.g. activationCondition gates like
+			--`Cast.Spaces Moved > 0`) can detect that the swap actually happened.
+			local swapDistance = casterToken:Distance(targets[1].loc)
+			if swapDistance > 0 then
+				options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + swapDistance
+				--teleport-style distance: counted in spacesMoved (above) but excluded
+				--from Cast.SpacesMovedThisInvocation.
+				options.symbols.cast:CountTeleportDistance(swapDistance)
+			end
 			casterToken:SwapPositions(swapTokens[1])
-		elseif movementType == "teleport" then
-            local distance = casterToken:Distance(targets[1].loc)
-            if distance > 0 then
-			    options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + distance
+		elseif movementType == "teleport" or movementType == "relocate" then
+            --Some `applyto` handlers (caster_summoner, caster_companion, etc.) build
+            --target entries as { token = X } without a `loc` field. Fall back to the
+            --token's current loc so teleport works for those targets too.
+            local destLoc = targets[1].loc
+            if destLoc == nil and targets[1].token ~= nil and targets[1].token.valid then
+                destLoc = targets[1].token.loc
+            end
+            if destLoc == nil then
+                print("Relocate:: teleport target has no loc; skipping")
+                return
             end
 
-            local loc = targets[1].loc
-        	casterToken:Teleport(loc.withGroundAltitude)
+            local distance = casterToken:Distance(destLoc)
+            if distance > 0 then
+			    options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + distance
+                --teleport-style distance: counted in spacesMoved (above) but excluded
+                --from Cast.SpacesMovedThisInvocation.
+                options.symbols.cast:CountTeleportDistance(distance)
+            end
+
+            if movementType == "relocate" then
+                casterToken.properties._tmp_suppressTeleportEvent = true
+            end
+
+            --Custom attribute "Force Bring Grabbed Creature": if the teleporting
+            --creature has it set, gather the list of creatures it is currently
+            --grabbing BEFORE we teleport (so we know their pre-teleport positions
+            --for the "closest adjacent" placement heuristic). We do the actual
+            --bring-along teleports AFTER the caster has moved.
+            local bringGrabbed = casterToken.properties:CalculateNamedCustomAttribute("Force Bring Grabbed Creature") > 0
+            local grabbedToBring = nil
+            if bringGrabbed then
+                local g_grabbedid = "70504ebe-3899-41d3-9f60-74b52ce35e39"
+                grabbedToBring = {}
+                casterToken.properties:VisitConditionCasterSource(function(condid, grabbedTok)
+                    if condid == g_grabbedid and grabbedTok ~= nil and grabbedTok.valid then
+                        grabbedToBring[#grabbedToBring+1] = grabbedTok
+                    end
+                end)
+            end
+
+            --The action bar's altitude controller resolves the target loc to an
+            --ABSOLUTE altitude (bounded by the teleport distance), and it is only
+            --offered for teleport targeting -- see
+            --ActivatedAbility:TargetLocMaxElevationChangeFunction. A relocate never
+            --gets one, so its target loc is the raw map-click loc, whose altitude is
+            --a meaningless 0 (Token.GetMouseWorldLoc -> TileUtils.PosToLoc). Taking
+            --the max against that 0 stranded the creature in mid-air over any ground
+            --below altitude 0: relocating out of an 8-deep pit landed it at altitude
+            --0, eight squares up, and the TryFall below immediately dropped it again
+            --for full falling damage. Land on the ground unless a deliberately chosen
+            --altitude could actually have been supplied.
+            local groundLoc = destLoc.withGroundAltitude
+            local landingAltitude = groundLoc.altitude
+            if movementType == "teleport" and (ability.targetType == "emptyspace" or ability.targetType == "anyspace") then
+                landingAltitude = math.max(groundLoc.altitude, destLoc.altitude)
+            end
+            local teleportLoc = groundLoc:WithAltitude(landingAltitude)
+
+            --Teleport bypasses OnMove's leaveadjacent dispatch, so capture enemies
+            --with "Opportunity Attack On Any Movement" adjacent to the origin now
+            --(relocate is a silent reposition that does not provoke, so gate on
+            --teleport only).
+            local teleportOAObservers = nil
+            if movementType == "teleport" then
+                teleportOAObservers = casterToken.properties:CaptureTeleportOpportunityAttackers(casterToken.loc)
+            end
+
+        	casterToken:Teleport(teleportLoc)
+
+            casterToken.properties._tmp_suppressTeleportEvent = nil
+
+            --After the caster teleports, bring along any grabbed creatures.
+            --Placement: closest legal adjacent square (within radius 1 of caster's
+            --new position) to each grabbed creature's pre-teleport location, with
+            --first-come-first-served reservation so two grabbed creatures don't
+            --land on the same square. If no legal square exists for a creature,
+            --it is left behind (its own teleport-trigger / forcemove distance
+            --check will then end the grab normally).
+            if grabbedToBring ~= nil and #grabbedToBring > 0 then
+                local adjacentLocs = casterToken:GetLocsWithinRadius(1)
+                local reserved = {}
+                for _,grabbedTok in ipairs(grabbedToBring) do
+                    if grabbedTok.valid then
+                        local prevLoc = grabbedTok.loc
+                        local bestLoc = nil
+                        local bestDist = nil
+                        for _,candidate in ipairs(adjacentLocs) do
+                            local key = candidate.xyfloorOnly.str
+                            if not reserved[key] then
+                                --Don't drop them on top of the caster's own occupied tiles.
+                                local occupants = game.GetTokensAtLoc(candidate) or {}
+                                local blocked = false
+                                for _,occ in ipairs(occupants) do
+                                    if occ.id ~= grabbedTok.id then
+                                        blocked = true
+                                        break
+                                    end
+                                end
+                                if not blocked then
+                                    local d = candidate:DistanceInTiles(prevLoc)
+                                    if bestDist == nil or d < bestDist then
+                                        bestDist = d
+                                        bestLoc = candidate
+                                    end
+                                end
+                            end
+                        end
+
+                        if bestLoc ~= nil then
+                            reserved[bestLoc.xyfloorOnly.str] = true
+                            --Suppress the grabbed creature's own teleport trigger
+                            --(which would end the Grabbed condition per the
+                            --"if you teleport while Grappled, the condition
+                            --ends" rule) just for this forced relocation.
+                            grabbedTok.properties._tmp_suppressTeleportEvent = true
+                            grabbedTok:Teleport(bestLoc.withGroundAltitude)
+                            grabbedTok.properties._tmp_suppressTeleportEvent = nil
+                        end
+                    end
+                end
+            end
+
+            --Fall check: a creature that teleports into midair falls unless it
+            --can fly (TryFall is a no-op for grounded or flying creatures).
+            --Give the teleport a moment to breathe first: wait for a full game
+            --update to land with the creature in the air (plus a short beat so
+            --the teleport animation can resolve) before the falling rules
+            --engage. Time-capped so a stalled update can't hang the cast.
+            if teleportLoc.altitude > groundLoc.altitude then
+                local updateAtTeleport = dmhub.ngameupdate
+                local startTime = dmhub.Time()
+                while (dmhub.ngameupdate <= updateAtTeleport or dmhub.Time() < startTime + 0.5) and dmhub.Time() < startTime + 2 do
+                    coroutine.yield(0.1)
+                end
+            end
+            if casterToken.valid then
+                casterToken:TryFall()
+            end
+
+            --Now that the teleport (and any fall) has resolved, let flagged enemies
+            --that are no longer adjacent opportunity-attack the departure.
+            if teleportOAObservers ~= nil and casterToken.valid then
+                casterToken.properties:DispatchTeleportOpportunityAttacks(teleportOAObservers)
+            end
         elseif movementType == "jump" then
-		    local path = casterToken:Move(targets[#targets].loc, { ignoreFalling = true, straightline = true, moveThroughFriends = true, ignorecreatures = true, maxCost = 30000, movementType = "jump" })
+            print("JUMP:: TARGET =", targets[1].loc.floor)
+            --The jump distance (in tiles) is also the height the jump can clear: a "jump N" sails over
+            --any height-limited wall/block up to N tiles tall (engine wall-height model). Pass it as
+            --jumpHeight so the straight-line jump path clears those walls instead of being blocked.
+            local jumpHeight = math.floor((ability:GetRange(casterToken.properties)/dmhub.unitsPerSquare) + 0.5)
+		    local path = casterToken:Move(targets[#targets].loc, { ignoreFalling = true, straightline = true, moveThroughFriends = true, ignorecreatures = true, maxCost = 30000, movementType = "jump", jumpHeight = jumpHeight })
+            if path ~= nil then
+                options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps
+            end
 		else
 
             if options.symbols.invoker ~= nil then
@@ -161,10 +424,13 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
             local forcemoveEvent = nil
 			local collisionInfo = nil
+			local throughCreatures = ability:try_get("forcedMovementThroughCreatures", false)
+			local forcedPushOptions = casterToken.properties:GetForcedPushOptions()
 			local abilityDist = ability:GetRange(casterToken.properties)/dmhub.unitsPerSquare
-			if (ability.targeting == "straightline" or ability.targetType == "line") and casterToken.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
+			if ability.targeting == "straightline" or ability.targetType == "line" then
 				local abilityDistForArrow = abilityDist
-				local movementInfo = casterToken:MarkMovementArrow(targets[1].loc, {waypoints = options.symbols.waypoints, straightline = true, ignorecreatures = (ability.targetType == "line"), forcedMovementDistance = abilityDistForArrow})
+				local isVerticalSlide = (options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide")) == "vertical_slide"
+				local movementInfo = casterToken:MarkMovementArrow(targets[1].loc, {waypoints = options.symbols.waypoints, straightline = true, ignorecreatures = (ability.targetType == "line" or throughCreatures), forcedMovementDistance = abilityDistForArrow, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlide})
 				if movementInfo ~= nil then
 
 					local loc = targets[1].loc
@@ -174,27 +440,41 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 					local requestDist = math.min(loc:DistanceInTiles(path.origin), abilityDist)
 					local pathDist = path.destination:DistanceInTiles(path.origin)
 
-                    local overshoot = 0
-                    print("PATHFIND:: DIST =", pathDist, "requestDist=", requestDist)
+                    local freeMovement = path.freeMovementSteps
+                    -- If the path is actually blocked (collision with wall/creature),
+                    -- use full ability distance so collision force reflects max available force.
+                    if path.hasCollision and requestDist < abilityDist then
+                        requestDist = abilityDist
+                    end
+                    local hasCollision = freeMovement < requestDist
+                    local collisionSpeed = requestDist - freeMovement
 
-					if pathDist < requestDist then
-						overshoot = abilityDist - pathDist
+                    -- The engine reports the true force remaining at the moment of
+                    -- collision (path.collisionForce >= 0): distance travelled AND
+                    -- stamina spent breaking earlier walls (e.g. targetable wall
+                    -- voxels) are already deducted, so a second wall or creature is
+                    -- hit with reduced momentum. -1 means the engine recorded no
+                    -- collision -- force spent purely on wall breaks is not a
+                    -- collision, so a clean smash-through deals no collision damage.
+                    local collisionForce = path.collisionForce
+                    if collisionForce ~= nil then
+                        if collisionForce >= 0 then
+                            hasCollision = true
+                            collisionSpeed = collisionForce
+                        elseif not path.hasCollision then
+                            hasCollision = false
+                            collisionSpeed = 0
+                        end
+                    end
+                    print("PATHFIND:: DIST =", pathDist, "freeMovement=", freeMovement, "requestDist=", requestDist, "hasCollision=", hasCollision, "collisionSpeed=", collisionSpeed, "collisionForce=", collisionForce)
 
-						--subtract wall break stamina costs so they don't double-count as collision
-						if path.wallBreaks ~= nil then
-							for _,wb in ipairs(path.wallBreaks) do
-								overshoot = overshoot - wb.staminaCost
-							end
-						end
+					if hasCollision then
+						collisionInfo = {
+							speed = collisionSpeed,
+							collideWith = movementInfo.collideWith,
+						}
 
-						if overshoot > 0 then
-							collisionInfo = {
-								speed = overshoot,
-								collideWith = movementInfo.collideWith,
-							}
-
-							options.symbols.cast.forcedMovementCollision = true
-						end
+						options.symbols.cast.forcedMovementCollision = true
 					end
 
                     if movementType == "move" then
@@ -203,8 +483,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                             hasattacker = options.symbols.invoker ~= nil,
                             type = options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide"),
                             vertical = ability:try_get("forcedMovement", "slide") == "vertical_push" or ability:try_get("forcedMovement", "slide") == "vertical_pull",
-                            collision = overshoot,
-                            collidewithobject = overshoot > 0 and collisionInfo ~= nil and #(collisionInfo.collideWith or {}) == 0,
+                            collision = hasCollision and collisionSpeed or 0,
+                            collidewithobject = hasCollision and collisionInfo ~= nil and #(collisionInfo.collideWith or {}) == 0,
                         }
                         
                         --search for if one of the tokens is considered an object.
@@ -241,7 +521,24 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             end
 
 
-			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist })
+			local isVerticalSlideCast = (options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide")) == "vertical_slide"
+
+			--freeMovement mirrors the _tmp_freeMovement flag set at the top of Cast: an
+			--ability-granted shift/move is not the creature's move action, so the engine must
+			--not clamp it to the creature's remaining strict:movement budget. Without it, a
+			--caster that already used its movement this turn has a negative budget and the
+			--engine rejects the move outright (report 7BE97X9P).
+			--forced tells the engine the creature is being pushed, pulled or slid. The engine
+			--already spots a straight-line shove on its own; this covers a forced move aimed
+			--around a corner, which walks its path like any other move.
+			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true, forced = (options.symbols.forcedmovement ~= nil or ability:try_get("forcedMovement") ~= nil) })
+
+            --A nil path means the engine refused the move outright (no route, or a budget/legality
+            --clamp). There is nothing to fall back on here, but the cast used to continue in total
+            --silence and look like the relocate had happened, so make the failure traceable.
+            if path == nil then
+                print("Relocate:: MOVE REFUSED -- caster did not move. movementType =", movementType, "dest =", targets[#targets].loc.str, "ability =", ability.name)
+            end
 
             --fire wallbreak events for any walls broken during the move
             --(wall erasure and rubble spawning are handled by the engine in TryStraightLineMove)
@@ -257,6 +554,14 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
             --make forced movement happen after the movement so they are in the new location.
             if forcemoveEvent ~= nil then
+                --Expose how far the creature was actually moved and whether the forcing
+                --ability had the Melee keyword, so triggered abilities (e.g. the Orc
+                --Chainlock's "Chain Link") can react to melee forced movement and reuse
+                --the distance. path.numSteps is the real distance moved -- it may be less
+                --than requested if the path was blocked. ability is the forced-movement
+                --clone, which InvokeAbility populates with the parent ability's keywords.
+                forcemoveEvent.distance = math.floor((path ~= nil and path.numSteps) or 0)
+                forcemoveEvent.melee = ability.keywords ~= nil and ability.keywords["Melee"] == true
                 casterToken.properties:DispatchEvent("forcemove", forcemoveEvent)
             end
 
@@ -264,7 +569,70 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 				options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps
 			end
 
-			if collisionInfo ~= nil then
+			--when moving through creatures, trigger collision on each creature in the path.
+			if throughCreatures and path ~= nil and path.steps ~= nil then
+				local forcedMovementType = ability:try_get("forcedMovement", "slide")
+				local hitCreatures = {}
+				for _,step in ipairs(path.steps) do
+					local tokensAtLoc = game.GetTokensAtLoc(step)
+					for _,tok in ipairs(tokensAtLoc or {}) do
+						if tok.id ~= casterToken.id and hitCreatures[tok.id] == nil then
+							hitCreatures[tok.id] = true
+							--see the note on suppressCollisionDamage below.
+							local suppressPassthroughDamage = TargetableObject.TokenSuppressesCollisionDamage(tok)
+							--each side of the collision gets a handle on the other:
+							--the creature passed through sees the mover, the mover
+							--sees the creature it passed through.
+							tok.properties._tmp_forcedMovementCast = options.symbols.cast
+							tok.properties:TriggerEvent("collide", {
+								speed = 1,
+								withobject = false,
+								withcreature = true,
+								nocollisiondamage = suppressPassthroughDamage,
+								pusher = options.symbols.invoker,
+								haspusher = options.symbols.invoker ~= nil,
+								movementtype = forcedMovementType,
+								target = casterToken.properties,
+								hastarget = true,
+								collidedwith = {casterToken.properties},
+							})
+							casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
+							casterToken.properties:TriggerEvent("collide", {
+								speed = 1,
+								withobject = false,
+								withcreature = true,
+								nocollisiondamage = suppressPassthroughDamage,
+								pusher = options.symbols.invoker,
+								haspusher = options.symbols.invoker ~= nil,
+								movementtype = forcedMovementType,
+								target = tok.properties,
+								hastarget = true,
+								collidedwith = {tok.properties},
+							})
+						end
+					end
+				end
+			end
+
+			--filter out passthrough creatures from collision.
+		if collisionInfo ~= nil and collisionInfo.collideWith ~= nil and #collisionInfo.collideWith > 0 then
+			local filtered = {}
+			for _,tok in ipairs(collisionInfo.collideWith) do
+				if tok.properties:CalculateNamedCustomAttribute("Passthrough") == 0 then
+					filtered[#filtered+1] = tok
+				end
+			end
+			collisionInfo.collideWith = filtered
+			if #filtered == 0 then
+				collisionInfo = nil
+			end
+		end
+
+		if collisionInfo ~= nil then
+                -- Keep the terminal post-passthrough creature collision on the
+                -- cast so later behaviors can identify every participant.
+                options.symbols.cast:RecordForcedMovementCreatureCollision(casterToken, collisionInfo.collideWith)
+
                 local forcedMovementType = ability:try_get("forcedMovement", "slide")
                 local withobject = #(collisionInfo.collideWith or {}) == 0
 
@@ -278,18 +646,46 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         end
                     end
                 end
-                print("TRIGGERCOLLIDE:: objects =", #objectsCollidedWith, collisionInfo.speed, withobject, collisionInfo.collideWith)
-                casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
-				casterToken.properties:TriggerEvent("collide", {
-					speed = collisionInfo.speed,
-                    withobject = withobject,
-                    withcreature = not withobject,
-                    pusher = options.symbols.invoker,
-                    haspusher = options.symbols.invoker ~= nil,
-                    movementtype = forcedMovementType,
-				})
+                --Objects flagged "No Collision Damage" run their own collision behavior
+                --instead of the standard damage exchange, so neither side takes the
+                --Collision global rule's damage. Only suppress when everything we hit is
+                --such an object -- a mixed pile, or a plain wall (empty collideWith),
+                --still deals normal damage.
+                local suppressCollisionDamage = #(collisionInfo.collideWith or {}) > 0
+                for _,tok in ipairs(collisionInfo.collideWith or {}) do
+                    if not TargetableObject.TokenSuppressesCollisionDamage(tok) then
+                        suppressCollisionDamage = false
+                        break
+                    end
+                end
 
-                if casterToken.isObject then
+                --Expose what was actually hit. The mover sees everything it ran
+                --into; each thing it ran into sees the mover. A wall collision
+                --has an empty collideWith, so hastarget is false there and
+                --Target is left nil rather than pointing at something wrong.
+                local collidedWithProps = {}
+                for _,tok in ipairs(collisionInfo.collideWith or {}) do
+                    collidedWithProps[#collidedWithProps+1] = tok.properties
+                end
+
+                print("TRIGGERCOLLIDE:: objects =", #objectsCollidedWith, collisionInfo.speed, withobject, collisionInfo.collideWith)
+                if casterToken.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
+                    casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
+                    casterToken.properties:TriggerEvent("collide", {
+                        speed = collisionInfo.speed,
+                        withobject = withobject,
+                        withcreature = not withobject,
+                        nocollisiondamage = suppressCollisionDamage,
+                        pusher = options.symbols.invoker,
+                        haspusher = options.symbols.invoker ~= nil,
+                        movementtype = forcedMovementType,
+                        target = collidedWithProps[1],
+                        hastarget = #collidedWithProps > 0,
+                        collidedwith = collidedWithProps,
+                    })
+                end
+
+                if casterToken.isObject and not TargetableObject.TokenSuppressesCollisionDamage(casterToken) then
                     --hard code damage equal to speed.
                     casterToken:ModifyProperties{
                         description = "Collision",
@@ -306,9 +702,13 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 						speed = collisionInfo.speed,
                         withobject = withobject,
                         withcreature = not withobject,
+                        nocollisiondamage = suppressCollisionDamage,
                         pusher = options.symbols.invoker,
                         haspusher = options.symbols.invoker ~= nil,
                         movementtype = forcedMovementType,
+                        target = casterToken.properties,
+                        hastarget = true,
+                        collidedwith = {casterToken.properties},
 					})
 				end
 
@@ -322,6 +722,69 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         })
                     end
                 end
+			end
+
+			--handle collisions from rebound bounces.
+			if path ~= nil and path.bounceCollisions ~= nil then
+				local forcedMovementType = ability:try_get("forcedMovement", "slide")
+				for _,collision in ipairs(path.bounceCollisions) do
+					local collideWith = collision.collideWith or {}
+					local withobject = #collideWith == 0
+
+					if not withobject then
+						for _,tok in ipairs(collideWith) do
+							if tok.isObject then
+								withobject = true
+								break
+							end
+						end
+					end
+
+					--see the note on suppressCollisionDamage above.
+					local suppressBounceDamage = #collideWith > 0
+					for _,tok in ipairs(collideWith) do
+						if not TargetableObject.TokenSuppressesCollisionDamage(tok) then
+							suppressBounceDamage = false
+							break
+						end
+					end
+
+					--see the note on collidedWithProps above.
+					local bounceCollidedWithProps = {}
+					for _,tok in ipairs(collideWith) do
+						bounceCollidedWithProps[#bounceCollidedWithProps+1] = tok.properties
+					end
+
+					casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
+					casterToken.properties:TriggerEvent("collide", {
+						speed = collision.speed,
+						withobject = withobject,
+						withcreature = not withobject,
+						nocollisiondamage = suppressBounceDamage,
+						pusher = options.symbols.invoker,
+						haspusher = options.symbols.invoker ~= nil,
+						movementtype = forcedMovementType,
+						target = bounceCollidedWithProps[1],
+						hastarget = #bounceCollidedWithProps > 0,
+						collidedwith = bounceCollidedWithProps,
+					})
+
+					for _,tok in ipairs(collideWith) do
+						tok.properties._tmp_forcedMovementCast = options.symbols.cast
+						tok.properties:TriggerEvent("collide", {
+							speed = collision.speed,
+							withobject = withobject,
+							withcreature = not withobject,
+							nocollisiondamage = suppressBounceDamage,
+							pusher = options.symbols.invoker,
+							haspusher = options.symbols.invoker ~= nil,
+							movementtype = forcedMovementType,
+							target = casterToken.properties,
+							hastarget = true,
+							collidedwith = {casterToken.properties},
+						})
+					end
+				end
 			end
 
             if path ~= nil and self.targetMoveVicinity then
@@ -348,12 +811,75 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
                     options.symbols.cast.targets = options.targets
                 end
-                
+
+            end
+
+            --Hand every square the creature moved through to the next behavior
+            --(usually an aura) as a target area. The engine can only make an area
+            --out of squares that touch side-by-side, not corner-to-corner, so a
+            --diagonal step splits the trail into separate areas. A path with no
+            --diagonal steps gives one single area.
+            if path ~= nil and self.targetPassedSquares then
+                local squares = ability:FindPassedSquareLocs(casterToken, path)
+                if squares ~= nil and #squares > 0 then
+                    --Group the squares into runs that touch side-by-side.
+                    local segments = {}
+                    local assigned = {}
+                    for i = 1, #squares do
+                        if not assigned[i] then
+                            assigned[i] = true
+                            local seg = { squares[i] }
+                            local cursor = 1
+                            while cursor <= #seg do
+                                local cur = seg[cursor]
+                                for j = 1, #squares do
+                                    if not assigned[j] then
+                                        local other = squares[j]
+                                        if math.abs(cur.x - other.x) + math.abs(cur.y - other.y) == 1 then
+                                            assigned[j] = true
+                                            seg[#seg+1] = other
+                                        end
+                                    end
+                                end
+                                cursor = cursor + 1
+                            end
+                            segments[#segments+1] = seg
+                        end
+                    end
+
+                    --Make one area shape per group. These are the same arguments wall
+                    --targeting uses to build its area; leaving any of them out makes
+                    --the engine shrink the area down to a single square. checklos is
+                    --false so line of sight cannot remove squares the creature really
+                    --walked through.
+                    local areas = {}
+                    for _, seg in ipairs(segments) do
+                        local anchorLoc = seg[1]
+                        areas[#areas+1] = dmhub.CalculateShape{
+                            shape = "locations",
+                            targetPoint = casterToken:PosAtLoc(anchorLoc),
+                            token = casterToken,
+                            range = #path.steps + 2,
+                            radius = 0,
+                            checklos = false,
+                            locOverride = anchorLoc,
+                            locations = seg,
+                        }
+                    end
+
+                    if #areas == 1 then
+                        options.targetArea = areas[1]
+                    else
+                        options.targetAreaList = areas
+                    end
+                end
             end
 		end
 
         local opportunityAttacks = casterToken.properties._tmp_triggeredOpportunityAttacks - startingOpportunityAttacks
         options.symbols.cast.opportunityAttacksTriggered = options.symbols.cast.opportunityAttacksTriggered + opportunityAttacks
+
+        self:ExpendMovementIfNeeded(casterToken)
 
         ability:CommitToPaying(casterToken, options)
     end
@@ -377,6 +903,7 @@ function ActivatedAbilityRelocateCreatureBehavior:EditorItems(parentPanel)
 			classes = "formDropdown",
 			options = {
 				{id = "teleport", text = "Teleport"},
+				{id = "relocate", text = "Relocate"},
 				{id = "move", text = "Move"},
 				{id = "shift", text = "Shift"},
 				{id = "jump", text = "Jump"},
@@ -386,6 +913,15 @@ function ActivatedAbilityRelocateCreatureBehavior:EditorItems(parentPanel)
 				self.movementType = element.idChosen
 			end,
 		},
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Expend Full Movement",
+		tooltip = "If set, the creature uses up all of its movement for the turn, no matter how many squares it actually moved.",
+		value = self.expendFullMovement,
+		change = function(element)
+			self.expendFullMovement = element.value
+		end,
 	}
 
 	result[#result+1] = gui.Check{
@@ -403,6 +939,15 @@ function ActivatedAbilityRelocateCreatureBehavior:EditorItems(parentPanel)
 		change = function(element)
 			self.targetMoveVicinity = element.value
             parentPanel:FireEventTree("refreshVicinity")
+		end,
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Target Each Square Passed Through",
+		tooltip = "If set, the squares the creature moves through become the target area (including the starting square). Overrides Move Vicinity.",
+		value = self.targetPassedSquares,
+		change = function(element)
+			self.targetPassedSquares = element.value
 		end,
 	}
 

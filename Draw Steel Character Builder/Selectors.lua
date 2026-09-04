@@ -8,6 +8,43 @@ local _getHero = CharacterBuilder._getHero
 local _getState = CharacterBuilder._getState
 local SEL = CharacterBuilder.SELECTOR
 
+-- Dirty hack: classes that are still a work in progress get a "Beta" badge on
+-- their selector button. Keyed by display name.
+local _BETA_ITEM_NAMES = {
+    ["Beastheart"] = true,
+    ["Summoner"] = true,
+}
+
+--- Creates a small "Beta" badge intended to be overlaid (floating) on a
+--- selector button for content that is still incomplete.
+--- @return Panel
+local function _betaBadge()
+    return gui.Label{
+        classes = {"builder-base"},
+        floating = true,
+        halign = "right",
+        valign = "top",
+        hmargin = 4,
+        vmargin = 4,
+        width = "auto",
+        height = "auto",
+        hpad = 6,
+        vpad = 2,
+        borderBox = true,
+        text = "BETA",
+        textAlignment = "center",
+        fontSize = 10,
+        bold = true,
+        color = "@bg",
+        bgimage = true,
+        bgcolor = "@accent",
+        borderWidth = 1,
+        borderColor = "@bg",
+        cornerRadius = 4,
+        hover = gui.Tooltip("This class is still being worked on and is incomplete."),
+    }
+end
+
 --- Creates a panel of selectable item buttons that expands when its selector is active.
 --- Items must have `id` and `name` fields.
 --- @param config {items: table[], selectorName: string, getSelected: fun(character): table|nil, getItem: fun(id): table|nil}
@@ -17,7 +54,7 @@ function CBSelectors._makeItemsPanel(config)
     local buttons = {}
 
     for _,item in ipairs(config.items) do
-        buttons[#buttons+1] = gui.SelectorButton{
+        local itemButton = gui.SelectorButton{
             classes = {"builder-base", "button", "category"},
             width = CBStyles.SIZES.SELECTOR_BUTTON_WIDTH,
             height = CBStyles.SIZES.SELECTOR_BUTTON_HEIGHT,
@@ -43,7 +80,11 @@ function CBSelectors._makeItemsPanel(config)
                 local hero = _getHero()
                 if hero then
                     local tokenSelected = config.getSelected(hero)
-                    element:SetClass("collapsed", tokenSelected and tokenSelected ~= nil) --element.data.id)
+                    -- Once a choice is committed the whole option list is hidden.
+                    -- The rail is for making the choice; after it is made the
+                    -- alternatives are just noise, and switching happens through
+                    -- the Change button on the detail panel.
+                    element:SetClass("collapsed", tokenSelected ~= nil)
                     element:FireEvent("setAvailable", not tokenSelected or tokenSelected == element.data.id)
                     if tokenSelected and tokenSelected == element.data.id and tokenSelected ~= state:Get(config.selectorName .. ".selectedId") then
                         element:FireEvent("press")
@@ -52,6 +93,12 @@ function CBSelectors._makeItemsPanel(config)
                 element:FireEvent("setSelected", state:Get(config.selectorName .. ".selectedId") == element.data.id)
             end,
         }
+
+        if _BETA_ITEM_NAMES[item.name] then
+            itemButton:AddChild(_betaBadge())
+        end
+
+        buttons[#buttons+1] = itemButton
     end
 
     selectorPanel = gui.Panel {
@@ -132,12 +179,36 @@ function CBSelectors._cultureItems()
 end
 
 --- Creates the main selectors panel containing all registered selectors.
+--- Each registered selector may declare `tokenKinds` (default {"hero"}); the
+--- wrapper collapses the selector when the active token's kind is not allowed.
 --- @return Panel
 function CBSelectors.CreatePanel()
 
     local selectors = {}
     for _,selector in ipairs(CharacterBuilder.Selectors) do
-        selectors[#selectors+1] = selector.selector()
+        local kinds = selector.tokenKinds or {"hero"}
+        local kindSet = {}
+        for _,k in ipairs(kinds) do kindSet[k] = true end
+
+        local inner = selector.selector()
+        local wrapper = gui.Panel{
+            classes = {"builder-base", "panel-base"},
+            width = "100%",
+            height = "auto",
+            valign = "top",
+            flow = "vertical",
+            data = { tokenKinds = kindSet },
+            refreshBuilderState = function(element, state)
+                local kind = state:Get("tokenKind") or "hero"
+                local allowed = element.data.tokenKinds[kind] == true
+                element:SetClass("collapsed", not allowed)
+                if not allowed then
+                    element:HaltEventPropagation()
+                end
+            end,
+            inner,
+        }
+        selectors[#selectors+1] = wrapper
     end
 
     local selectorsPanel = gui.Panel{
@@ -369,7 +440,7 @@ function CBSelectors._career()
             return nil
         end,
         button = {
-            text = "Culture",
+            text = "Career",
         }
     }
 end
@@ -491,6 +562,34 @@ CharacterBuilder.RegisterSelector{
     ord = 9,
     selector = CBSelectors._title,
     detail = CBTitleDetail.CreatePanel,
+}
+
+--- @return Panel Choices selector button (catch-all for unscoped CharacterChoice features)
+function CBSelectors._choices()
+    return CBSelectors._makeButton{
+        text = "Choices",
+        data = { selector = SEL.CHOICES },
+        refreshBuilderState = function(element, state)
+            local creature = CharacterBuilder._getCreature()
+            local visible = creature ~= nil and creature.HasBuilderChoices and creature:HasBuilderChoices()
+            element:SetClass("collapsed", not visible)
+            if not visible then return end
+            element:FireEventTree("setSelected", state:Get("activeSelector") == element.data.selector)
+        end,
+        button = {
+            text = "Choices",
+        }
+    }
+end
+
+CharacterBuilder.RegisterSelector{
+    id = SEL.CHOICES,
+    ord = 10,
+    tokenKinds = {"hero","monster"},
+    selector = CBSelectors._choices,
+    -- Lazy reference: CBChoicesDetail loads after Selectors. Avoid evaluating
+    -- the function reference at registration time.
+    detail = function() return CBChoicesDetail.CreatePanel() end,
 }
 
 --[[

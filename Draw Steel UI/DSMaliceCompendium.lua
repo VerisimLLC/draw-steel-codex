@@ -61,11 +61,9 @@ ShowMalice = function(contentPanel)
 	itemsListPanel:FireEvent('refreshAssets')
 
 	local leftPanel = gui.Panel{
-		selfStyle = {
-			flow = 'vertical',
-			height = '100%',
-			width = 'auto',
-		},
+		flow = "vertical",
+		height = "100%",
+		width = "auto",
 
 		itemsListPanel,
         
@@ -90,13 +88,11 @@ CreateEditorPanel = function(key, monsterGroup)
 
     local resultPanel
     resultPanel = gui.Panel{
-        styles = Styles.Form,
-
         flow = "vertical",
         width = 800,
         height = "90%",
         vscroll = true,
-
+        hmargin = 12,
 
         destroy = function()
             if m_dirty then
@@ -105,16 +101,14 @@ CreateEditorPanel = function(key, monsterGroup)
             end
         end,
         gui.Panel{
-            classes = {"formPanel"},
+            classes = {"formRow"},
             gui.Label{
-                classes = {"formLabel"},
+                classes = {"form"},
                 text = "Name:",
-                halign = "left",
             },
             gui.Input{
-                classes = {"formInput"},
+                classes = {"form"},
                 text = monsterGroup.name,
-                halign = "left",
                 change = function(element)
                     monsterGroup.name = element.text
                     dmhub.SetAndUploadTableItem(MonsterGroup.tableName, monsterGroup)
@@ -122,7 +116,7 @@ CreateEditorPanel = function(key, monsterGroup)
             }
         },
 
-        gui.SetEditor{
+        gui.Multiselect{
             value = monsterGroup:try_get("inherits", {}),
             addItemText = "Inherits from Band...",
             options = (function()
@@ -155,30 +149,72 @@ CreateEditorPanel = function(key, monsterGroup)
                 local children = {}
                 for i,ability in ipairs(monsterGroup.maliceAbilities) do
                     children[#children+1] = gui.Panel{
+                        classes = {"row", cond(i % 2 == 0, "evenRow", "oddRow")},
                         flow = "vertical",
                         width = 600,
                         height = "auto",
-                        vpad = 5,
-                        
+                        borderBox = true,
+                        pad = 12,
+
+                        rightClick = function(panelElement)
+                            panelElement.popup = gui.ContextMenu{
+                                entries = {
+                                    {
+                                        text = "Copy",
+                                        click = function()
+                                            panelElement.popup = nil
+                                            dmhub.CopyToInternalClipboard(ability)
+                                            panelElement.parent:FireEvent("refreshAbilities")
+                                        end,
+                                    },
+                                },
+                            }
+                        end,
+
                         gui.Panel{
                             width = "100%",
                             height = "auto",
                             flow = "horizontal",
 
                             gui.Label{
-                                width = 400,
+                                classes = {"sizeS", "bold"},
+                                width = 200,
                                 height = 20,
-                                fontSize = 18,
-                                bold = true,
-                                color = "white",
                                 text = ability.name,
                                 lmargin = 4,
                             },
 
-                            gui.SettingsButton{
+                            gui.Label{
+                                classes = {"sizeS", "fgMuted"},
+                                width = "auto",
+                                height = 20,
+                                text = "Min Level:",
+                                lmargin = 10,
+                                valign = "center",
+                            },
+
+                            gui.Dropdown{
+                                width = 60,
+                                height = 22,
+                                lmargin = 4,
+                                valign = "center",
+                                idChosen = tostring(ability:try_get("minLevel", 1)),
+                                options = (function()
+                                    local opts = {}
+                                    for lvl = 1, 10 do
+                                        opts[#opts+1] = {id = tostring(lvl), text = tostring(lvl)}
+                                    end
+                                    return opts
+                                end)(),
+                                change = function(element)
+                                    ability.minLevel = tonumber(element.idChosen)
+                                    dmhub.SetAndUploadTableItem(MonsterGroup.tableName, monsterGroup)
+                                end,
+                            },
+
+                            gui.Button{
+                                classes = {"settingsButton", "sizeXs"},
                                 halign = "right",
-                                width = 15,
-                                height = 15,
                                 x = -15,
                                 press = function(element)
                                     m_dirty = true
@@ -192,11 +228,10 @@ CreateEditorPanel = function(key, monsterGroup)
                                 end,
                             },
 
-                            gui.DeleteItemButton{
+                            gui.Button{
+                                classes = {"deleteButton", "sizeXs"},
                                 halign = "right",
                                 hpad = 5,
-                                width = 15,
-                                height = 15,
                                 press = function(element)
                                     table.remove(monsterGroup.maliceAbilities, i)
                                     dmhub.SetAndUploadTableItem(MonsterGroup.tableName, monsterGroup)
@@ -207,20 +242,23 @@ CreateEditorPanel = function(key, monsterGroup)
                         },
 
                         gui.DocumentDisplay{
-                            width = 600,
+                            width = "100%",
                             height = "auto",
                             fontSize = 16,
                             text = ability.description,
-                            color = "white",
                         },
                     }
                 end
 
-                children[#children+1] = gui.AddButton{
-                    width = 32,
-                    height = 32,
-                    halign = 'right',
-                    valign = 'bottom',
+                local clipboardHasMaliceAbility = function()
+                    local clipboardItem = dmhub.GetInternalClipboard()
+                    return clipboardItem ~= nil and (clipboardItem.typeName == "MaliceAbility" or clipboardItem.typeName == "ActivatedAbility")
+                end
+
+                children[#children+1] = gui.Button{
+                    classes = {"addButton", "sizeL"},
+                    halign = "right",
+                    valign = "bottom",
 
                     click = function(element)
                         monsterGroup.maliceAbilities[#monsterGroup.maliceAbilities+1] = MaliceAbility.Create{
@@ -230,6 +268,41 @@ CreateEditorPanel = function(key, monsterGroup)
                         element.parent:FireEvent("refreshAbilities")
                     end,
                 }
+
+                children[#children+1] = gui.Button{
+                    classes = {"sizeM"},
+                    halign = "left",
+                    valign = "bottom",
+                    width = "auto",
+                    minWidth = 120,
+                    height = 35,
+                    hpad = 16,
+                    borderBox = true,
+                    text = "Paste Ability",
+
+                    create = function(element)
+                        element:SetClass("collapsed", not clipboardHasMaliceAbility())
+                    end,
+
+                    internalClipboardChanged = function(element)
+                        element:SetClass("collapsed", not clipboardHasMaliceAbility())
+                    end,
+
+                    click = function(element)
+                        if not clipboardHasMaliceAbility() then
+                            return
+                        end
+
+                        local clipboardItem = DeepCopy(dmhub.GetInternalClipboard())
+                        local pasted = MaliceAbility.Create(clipboardItem)
+                        pasted.guid = dmhub.GenerateGuid()
+
+                        monsterGroup.maliceAbilities[#monsterGroup.maliceAbilities+1] = pasted
+                        dmhub.SetAndUploadTableItem(MonsterGroup.tableName, monsterGroup)
+                        element.parent:FireEvent("refreshAbilities")
+                    end,
+                }
+
                 element.children = children
             end,
 

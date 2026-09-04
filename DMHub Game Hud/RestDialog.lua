@@ -1,5 +1,94 @@
 local mod = dmhub.GetModLoading()
 
+-- Dialog-specific class rules for the Respite dialogs in this file.
+-- Component-specific vocabulary (restElement, tokenPanel, hitdie, etc.)
+-- doesn't belong in DefaultStyles, so it lives here. Applied at each
+-- dialog root via:
+--   styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_DialogStyles) }
+-- Colors use @-tokens so they follow scheme switches.
+local g_DialogStyles = {
+	-- Rest-type tab buttons (Respite, etc.).
+	{
+		selectors = {"restElement"},
+		bgcolor = "clear",
+		color = "@fgStrong",
+		width = 140,
+		height = 22,
+		fontSize = 14,
+		textAlignment = "center",
+		halign = "center",
+	},
+	{
+		selectors = {"restElement", "hover"},
+		bgcolor = "@bgInverse",
+		color = "@fgInverse",
+	},
+	{
+		selectors = {"restElement", "selected"},
+		bgcolor = "@bgInverse",
+		color = "@fgInverse",
+	},
+	{
+		selectors = {"restElement", "press"},
+		bgcolor = "@bgInverse",
+		color = "@fgInverse",
+		brightness = 1.2,
+	},
+
+	-- Token list and per-token row.
+	{
+		selectors = {"tokenList"},
+		halign = "center",
+		flow = "vertical",
+		vpad = 16,
+		width = "100%",
+		height = "auto",
+	},
+	{
+		selectors = {"tokenPanel"},
+		bgimage = true,
+		bgcolor = "@bg",
+		width = "98%",
+		height = 80,
+		halign = "center",
+		flow = "horizontal",
+		border = 1,
+		borderColor = "@border",
+		cornerRadius = 4,
+		vmargin = 4,
+	},
+
+	-- Hit point readout next to each token.
+	{
+		selectors = {"hitpointsLabel"},
+		bgimage = true,
+		bgcolor = "@bg",
+		color = "@fgStrong",
+		fontSize = 20,
+		valign = "center",
+		width = 80,
+		height = 22,
+	},
+
+	-- Hit-die tile (short-rest hit-dice picker).
+	-- bgcolor = "white" is intentionally image-tint-neutral so the dice
+	-- icon paints in its natural colors -- do NOT change to a token.
+	{
+		selectors = {"hitdie"},
+		bgcolor = "white",
+		width = 20,
+		height = 20,
+		valign = "center",
+		halign = "left",
+		hmargin = 0,
+	},
+	{
+		selectors = {"hitdie", "hover", "~expended"},
+		priority = 5,
+		brightness = 1.6,
+	},
+}
+
 --This file implements resting, including the dialog and communication for resting.
 
 --A RestRequestToken instance has the following fields:
@@ -11,8 +100,7 @@ RegisterGameType("RestRequestToken")
 -- tokens = string -> RequestRequestToken table.
 RegisterGameType("RestRequest")
 
-local CreateRestDialog
-
+if false then
 LaunchablePanel.Register{
 	name = "Respite",
     menu = "game",
@@ -22,10 +110,28 @@ LaunchablePanel.Register{
 	filtered = function()
 		return not dmhub.isDM
 	end,
+	--Begin the respite game mode directly instead of opening a rest box.
 	content = function()
-		return CreateRestDialog()
+		if GameHud.instance ~= nil then
+			GameHud.instance:BeginRespiteMode()
+		end
+		return nil
 	end,
 }
+end
+
+-- ============================================================================
+-- DEPRECATED: OLD RESPITE "REST BOX" DIALOG
+-- ----------------------------------------------------------------------------
+-- This is the original Game > Respite dialog. It has been replaced by the
+-- respite GAME MODE (see GameHud:BeginRespiteMode in MCDMInitiativeBar.lua),
+-- which the launchable above now triggers directly. The time-lapse control it
+-- provided now lives on the respite mode bar ("Set Time Lapse" / "End Respite").
+-- Kept here (commented out) for reference. To restore, uncomment and repoint
+-- the launchable's `content` back to `CreateRestDialog()`.
+-- ============================================================================
+
+--[[ local CreateRestDialog
 
 CreateRestDialog = function()
 
@@ -39,7 +145,6 @@ CreateRestDialog = function()
 
 	local timeLapseInput = gui.Input{
 			fontSize = 18,
-			color = "white",
 			width = "20%",
 			height = 18,
 			halign = "left",
@@ -88,17 +193,14 @@ CreateRestDialog = function()
 
 	local resultPanel
 
-	local restButton = gui.PrettyButton{
+	local restButton = gui.Button{
+		classes = {"sizeL"},
 		text = "Rest",
 		floating = true,
-		fontSize = 20,
-		bold = true,
 		halign = "right",
 		valign = "bottom",
 		hmargin = 16,
 		vmargin = 16,
-		width = 160,
-		height = 50,
 
 		click = function(element)
 			if m_elapseTime then
@@ -127,41 +229,12 @@ CreateRestDialog = function()
 		end,
 	}
 
-	
+
 
 	resultPanel = gui.Panel{
 		id = 'rest-dialog',
 
-		styles = {
-
-			{
-				valign = "top",
-			},
-			{
-				classes = {'restElement'},
-				bgcolor = '#ffffff00',
-				color = 'white',
-				width = 140,
-				height = 22,
-				fontSize = 14,
-				textAlignment = 'center',
-				halign = 'center',
-			},
-
-			gui.Style{
-				selectors = {'restElement', 'hover'},
-				bgcolor = '#ffffff66',
-			},
-			gui.Style{
-				selectors = {'restElement', 'selected'},
-				bgcolor = '#ff9999aa',
-			},
-
-			gui.Style{
-				selectors = {'restElement', 'press'},
-				bgcolor = '#ff9999cc',
-			},
-		},
+		styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_DialogStyles) },
 
 		width = 600,
 		height = 500,
@@ -177,12 +250,8 @@ CreateRestDialog = function()
 		end,
 
 		gui.Label{
-			fontSize = 30,
-			width = "auto",
-			height = "auto",
+			classes = {"dialogTitle"},
 			text = "Respite",
-			halign = "center",
-			valign = "top",
 			vmargin = 16,
 		},
 
@@ -220,17 +289,20 @@ CreateRestDialog = function()
 		gamehud:CreatePartyTokenPoolSelector{
 			halign = "center",
 			selection = 'All',
+			poolWidth = 500,
+			poolHeight = 200,
 			changeSelection = function(element, tokenids)
 				tokenIdsSelected = tokenids
 				restButton:SetClass("hidden", #tokenids == 0)
 			end,
 		},
 
-		restButton,		
+		restButton,
 	}
 
 	return resultPanel
-end
+end ]]
+
 
 function GameHud:TryHandleRestRequest(requestid, request)
 	local hasTokens = false
@@ -338,11 +410,8 @@ function GameHud:CreateRestingDialog(requestid, request)
 				},
 				rollInput,
 			},
-			gui.PrettyButton{
-				width = 200,
-				height = 50,
-				fontSize = 18,
-				bold = true,
+			gui.Button{
+				classes = {"sizeL"},
 				valign = "bottom",
 				vmargin = 16,
 				text = "Roll Hit Dice",
@@ -415,50 +484,7 @@ function GameHud:CreateRestingDialog(requestid, request)
 			listening = false,
 		},
 
-		styles = {
-			Styles.Panel,
-			{
-				valign = "top",
-			},
-			{
-				classes = {'tokenList'},
-				halign = "center",
-				flow = "vertical",
-				vpad = 16,
-				width = 500,
-				height = 'auto',
-			},
-			{
-				classes = {'tokenPanel'},
-				bgimage = 'panels/square.png',
-				bgcolor = 'black',
-				width = 440,
-				height = 80,
-				halign = "center",
-				flow = 'horizontal',
-			},
-			{
-				classes = {'token-image'},
-			},
-			{
-				classes = {'token-image-frame'},
-			},
-			{
-				classes = {'hitdie'},
-				width = 20,
-				height = 20,
-				bgcolor = 'white',
-				valign = "center",
-				halign = "left",
-				hmargin = 0,
-			},
-			{
-				classes = {'hitdie', 'hover', '~expended'},
-				priority = 5,
-				brightness = 1.6,
-			},
-
-		},
+		styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(g_DialogStyles) },
 
 		width = 600,
 		height = 700,
@@ -474,12 +500,8 @@ function GameHud:CreateRestingDialog(requestid, request)
 		end,
 
 		gui.Label{
-			fontSize = 30,
-			width = "auto",
-			height = "auto",
+			classes = {"dialogTitle"},
 			text = "Respite",
-			halign = "center",
-			valign = "top",
 			vmargin = 16,
 		},
 
@@ -617,17 +639,7 @@ function GameHud:CreateRestingDialog(requestid, request)
 
 							gui.Label{
 								id = "hitpointsLabel",
-								bgimage = "panels/square.png",
-								styles = {
-									{
-										bgcolor = "black",
-									}
-								},
-								fontSize = 20,
-								color = 'white',
-								valign = 'center',
-								width = 80,
-								height = 22,
+								classes = {"hitpointsLabel"},
 								data = {
 								},
 
@@ -667,12 +679,8 @@ function GameHud:CreateRestingDialog(requestid, request)
 
 		rollPanel,
 
-		gui.PrettyButton{
-			classes = cond(dmhub.isDM, nil, "hidden"),
-			width = 220,
-			height = 50,
-			fontSize = 22,
-			bold = true,
+		gui.Button{
+			classes = {"sizeL", cond(dmhub.isDM, nil, "hidden")},
 			valign = "bottom",
 			halign = "center",
 			vmargin = 16,
@@ -680,6 +688,14 @@ function GameHud:CreateRestingDialog(requestid, request)
 			click = function(element)
 				dmhub.CancelActionRequest(requestid)
 				chat.PreviewChat('')
+				--This dialog seeds resting preview dice via chat.PreviewChat('/roll ...')
+				--(hit-dice rolls). chat.PreviewChat('') above only clears them while NO
+				--unarmed registered dice cage exists (the engine's empty-text path is
+				--guarded); otherwise the dice are orphaned and pin __previewdice=true,
+				--hiding the action bar for the rest of the session (same leak as bug
+				--XPWBKEQA in DSRollDialog). Clear explicitly, scoped so armed try-dice
+				--tiles are untouched; pcall for older binaries without the method.
+				pcall(function() dmhub.ClearChatPreviewDice() end)
 
 				for k,tok in pairs(request.info.tokens) do
 					local token = dmhub.GetTokenById(k)
@@ -702,8 +718,8 @@ function GameHud:CreateRestingDialog(requestid, request)
 		},
 
 
-		gui.CloseButton{
-			classes = cond(dmhub.isDM, "hidden"), --the DM doesn't get access to this since they should formally finish the rest when ready.
+		gui.Button{
+            classes = {"closeButton", cond(dmhub.isDM, "hidden")}, --the DM doesn't get access to this since they should formally finish the rest when ready.
 			floating = true,
 			valign = "top",
 			halign = "right",

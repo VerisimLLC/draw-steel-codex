@@ -158,6 +158,16 @@ Commands.RegisterMacro{
     name = "synccamera",
     summary = "sync player cameras",
     doc = "Syncs the camera to the current view for all players.",
+
+    --dmonly: the body below returns early for players. No broadcast option:
+    --dmhub.SyncCamera is the networked call, so the effect already reaches
+    --every client from the one that runs it.
+    commandInfo = {
+        name = "Summon Player Cameras",
+        description = "Pull every player's view to yours, and ping the spot.",
+        dmonly = true,
+    },
+
     command = function()
         if not dmhub.isDM then
             return
@@ -166,6 +176,33 @@ Commands.RegisterMacro{
             speed = 1,
         }
         dmhub.Execute("ping")
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "toggleparallax",
+    summary = "Toggle Disable Parallax",
+    doc = "Toggles the disable parallax state.",
+    command = function()
+        dmhub.SetSettingValue("disableparallax", not dmhub.GetSettingValue("disableparallax"))
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "floorup",
+    summary = "go up a floor",
+    doc = "For the director, switches the active floor to the next floor up; if the 'Auto-hide floors above the selected floor' setting is on, reveals floors up to it and hides floors above it. For a player, looks up one more floor (Forward -> Up 1 -> Up 2 ...), as far as the map's Look Up rules allow.",
+    command = function()
+        FloorNavigation.ChangeFloorRelative(1)
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "floordown",
+    summary = "go down a floor",
+    doc = "For the director, switches the active floor to the next floor down; if the 'Auto-hide floors above the selected floor' setting is on, reveals floors up to it and hides floors above it. For a player, looks down one floor back toward Forward (Up 2 -> Up 1 -> Forward).",
+    command = function()
+        FloorNavigation.ChangeFloorRelative(-1)
     end,
 }
 
@@ -281,14 +318,17 @@ Commands.RegisterMacro{
         targetCharId = tokens[targetIndex].charid
     end
 
-    --we reset to the start of the list, so try to see if any off-map tokens match.
+    --we reset to the start of the list, so try to see if any off-map tokens
+    --match. Only real maps count here: a character with no map (mapid nil or
+    --the empty string) is on no map at all -- it cannot be centered on or
+    --selected -- so it must never be treated as a cycle destination.
     if (cycleToStart or #tokens == 0) and #playerCharactersOffMap > 0 then
         local maps = {game.currentMapId}
         for i,charid in ipairs(playerCharactersOffMap) do
             local token = dmhub.GetCharacterById(charid)
 
             if token ~= nil and token.canControl then
-                if token.mapid ~= nil then
+                if token.mapid ~= nil and token.mapid ~= "" then
                     maps[#maps + 1] = token.mapid
                 end
             end
@@ -313,9 +353,8 @@ Commands.RegisterMacro{
             local nextMapId = maps[nextIndex]
             for i,charid in ipairs(playerCharactersOffMap) do
                 local token = dmhub.GetCharacterById(charid)
-                if token.mapid == nextMapId and (currentCharId == nil or token.charid < currentCharId) then
+                if token ~= nil and token.canControl and token.mapid == nextMapId and (currentCharId == nil or token.charid < currentCharId) then
                     currentCharId = token.charid
-                    break
                 end
             end
 
@@ -363,3 +402,317 @@ Commands.Register{
 --        GameHud.instance.mainDialogPanel:AddChild(CreateShopScreen{ titlescreen = GameHud.instance })
 --    end,
 --}
+
+------------------------------------------------------------------------
+-- Documentation and completions for built-in (C#) engine commands.
+-- These are registered via [GameCommand] in CommandController.cs.
+-- RegisterBuiltinDoc populates Commands._macros so the ChatPanel UI
+-- shows summary, doc, and argument completions without overriding
+-- the C# execution path.
+------------------------------------------------------------------------
+
+local function settingIdCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local result = {}
+    for id, info in pairs(Settings) do
+        result[#result+1] = {text = id, summary = info.description or id}
+    end
+    table.sort(result, function(a, b) return a.text < b.text end)
+    return result
+end
+
+local function allCommandCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local result = {}
+    local seen = {}
+    local macros = Commands.GetAllMacros()
+    for name, info in pairs(macros) do
+        if not seen[name] then
+            seen[name] = true
+            result[#result+1] = {text = name, summary = info.summary or name}
+        end
+    end
+    for name, fn in pairs(Commands) do
+        if type(fn) == "function" and not seen[name] then
+            seen[name] = true
+            result[#result+1] = name
+        end
+    end
+    table.sort(result, function(a, b)
+        local ta = type(a) == "table" and a.text or a
+        local tb = type(b) == "table" and b.text or b
+        return ta < tb
+    end)
+    return result
+end
+
+-- toggle: Toggle a boolean setting by its ID.
+Commands.RegisterBuiltinDoc{
+    name = "toggle",
+    summary = "toggle a setting",
+    doc = "Usage: /toggle <setting id>\nToggles a boolean setting on or off. Use /settingid to find a setting's id by name.",
+    completions = settingIdCompletions,
+}
+
+-- reset: Reset a setting to its default value.
+Commands.RegisterBuiltinDoc{
+    name = "reset",
+    summary = "reset a setting",
+    doc = "Usage: /reset <setting id>\nResets the given setting to its default value.",
+    completions = settingIdCompletions,
+}
+
+-- broadcastdefaultsetting: (Admin only) set a default setting value.
+Commands.RegisterBuiltinDoc{
+    name = "broadcastdefaultsetting",
+    summary = "set default setting (admin)",
+    doc = "Usage: /broadcastdefaultsetting <setting id> <value>\n(Admin only) Sets the default value for a setting across all clients.",
+    completions = settingIdCompletions,
+}
+
+-- help: Show help for a command or list all commands.
+Commands.RegisterBuiltinDoc{
+    name = "help",
+    summary = "show command help",
+    doc = "Usage: /help [command]\nShows help for a specific command, or lists all available commands if no argument is given.",
+    completions = allCommandCompletions,
+}
+
+-- helpall: List all available commands.
+Commands.RegisterBuiltinDoc{
+    name = "helpall",
+    summary = "list all commands",
+    doc = "Usage: /helpall\nLists all available built-in commands.",
+}
+
+-- bind: Bind a keystroke to a command.
+Commands.RegisterBuiltinDoc{
+    name = "bind",
+    summary = "bind a key to a command",
+    doc = "Usage: /bind <key> <command>\nBinds a keystroke to a command. The binding is saved across sessions.\nExample: /bind f5 synccamera",
+    completions = function(args, argIndex)
+        if argIndex == 2 then
+            return allCommandCompletions(args, 1)
+        end
+        return {}
+    end,
+}
+
+-- bindnosave: Bind a keystroke to a command without saving.
+Commands.RegisterBuiltinDoc{
+    name = "bindnosave",
+    summary = "bind a key (no save)",
+    doc = "Usage: /bindnosave <key> <command>\nBinds a keystroke to a command without persisting the binding.",
+    completions = function(args, argIndex)
+        if argIndex == 2 then
+            return allCommandCompletions(args, 1)
+        end
+        return {}
+    end,
+}
+
+-- unbind: Unbind a keystroke.
+Commands.RegisterBuiltinDoc{
+    name = "unbind",
+    summary = "unbind a key",
+    doc = "Usage: /unbind <key>\nRemoves a key binding. The change is saved.",
+}
+
+-- unbindnosave: Unbind a keystroke without saving.
+Commands.RegisterBuiltinDoc{
+    name = "unbindnosave",
+    summary = "unbind a key (no save)",
+    doc = "Usage: /unbindnosave <key>\nRemoves a key binding without persisting the change.",
+}
+
+-- showbinds: List current keybindings.
+Commands.RegisterBuiltinDoc{
+    name = "showbinds",
+    summary = "list keybindings",
+    doc = "Usage: /showbinds\nPrints all current keybindings to the console.",
+}
+
+-- resetbinds: Reset keybindings to defaults.
+Commands.RegisterBuiltinDoc{
+    name = "resetbinds",
+    summary = "reset keybindings",
+    doc = "Usage: /resetbinds\nResets all keybindings to their default values. The change is saved.",
+}
+
+-- center: Center camera on the current token.
+Commands.RegisterBuiltinDoc{
+    name = "center",
+    summary = "center on current token",
+    doc = "Usage: /center [smooth]\nCenters the camera on your current token. Pass 'smooth' for a smooth transition.",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            return {{text = "smooth", summary = "smooth transition"}}
+        end
+        return {}
+    end,
+}
+
+-- ping: Ping the location under the mouse.
+Commands.RegisterBuiltinDoc{
+    name = "ping",
+    summary = "ping mouse location",
+    doc = "Usage: /ping\nPings the current location under the mouse cursor, visible to all players.",
+}
+
+-- rotate: Rotate the current token.
+Commands.RegisterBuiltinDoc{
+    name = "rotate",
+    summary = "rotate current token",
+    doc = "Usage: /rotate [degrees]\nRotates your current token by the given number of degrees. With no argument, resets rotation to 0.",
+}
+
+-- delay: Delay command execution.
+Commands.RegisterBuiltinDoc{
+    name = "delay",
+    summary = "delay execution",
+    doc = "Usage: /delay <seconds>\nDelays command execution by the given number of seconds.",
+
+    --surface in the no-code command builder: in a multi-step command the
+    --engine waits this long after the delay step before running the next
+    --step (CommandController.ExecuteCommandPipe).
+    commandInfo = {
+        name = "Delay",
+        description = "Wait before running the next step.",
+        params = {
+            {name = "Seconds", min = 0.1, max = 10, default = 1, round = 0.1, labelFormat = "%.1f"},
+        },
+    },
+}
+
+-- console: Toggle the debug console.
+Commands.RegisterBuiltinDoc{
+    name = "console",
+    summary = "toggle debug console",
+    doc = "Usage: /console\nShows or hides the debug console.",
+}
+
+-- togglevisibility: Toggle visibility of selected objects/tokens.
+Commands.RegisterBuiltinDoc{
+    name = "togglevisibility",
+    summary = "toggle selected visibility",
+    doc = "Usage: /togglevisibility\n(DM only) Toggles visibility of all selected objects and tokens.",
+}
+
+-- cut/copy/paste: Clipboard operations.
+Commands.RegisterBuiltinDoc{
+    name = "cut",
+    summary = "cut to clipboard",
+    doc = "Usage: /cut\nCuts the current selection to the clipboard.",
+}
+
+Commands.RegisterBuiltinDoc{
+    name = "copy",
+    summary = "copy to clipboard",
+    doc = "Usage: /copy\nCopies the current selection to the clipboard.",
+}
+
+Commands.RegisterBuiltinDoc{
+    name = "paste",
+    summary = "paste from clipboard",
+    doc = "Usage: /paste\nPastes from the clipboard.",
+}
+
+-- objectstotop/objectstobottom: Z-order operations.
+Commands.RegisterBuiltinDoc{
+    name = "objectstotop",
+    summary = "move objects to top",
+    doc = "Usage: /objectstotop\nMoves all selected map objects to the top, above other objects.",
+}
+
+Commands.RegisterBuiltinDoc{
+    name = "objectstobottom",
+    summary = "move objects to bottom",
+    doc = "Usage: /objectstobottom\nMoves all selected map objects to the bottom, below other objects.",
+}
+
+-- resetobj: Reset placed object preview.
+Commands.RegisterBuiltinDoc{
+    name = "resetobj",
+    summary = "reset object placement",
+    doc = "Usage: /resetobj\nResets the state of the object currently being placed.",
+}
+
+-- randrot: Randomize rotation of object being placed.
+Commands.RegisterBuiltinDoc{
+    name = "randrot",
+    summary = "randomize object rotation",
+    doc = "Usage: /randrot\nRandomizes the rotation of the object currently being placed.",
+}
+
+-- randscale: Randomize scale of object being placed.
+Commands.RegisterBuiltinDoc{
+    name = "randscale",
+    summary = "randomize object scale",
+    doc = "Usage: /randscale [scale]\nRandomizes the scale of the object currently being placed. Optionally set a specific scale value.",
+}
+
+-- rotateobject: Rotate the object being placed.
+Commands.RegisterBuiltinDoc{
+    name = "rotateobject",
+    summary = "rotate placed object",
+    doc = "Usage: /rotateobject <degrees>\nRotates the object currently being placed by the given number of degrees.",
+}
+
+-- lua: Execute arbitrary Lua code.
+Commands.RegisterBuiltinDoc{
+    name = "lua",
+    summary = "execute Lua code",
+    doc = "Usage: /lua <code>\nExecutes the given Lua code in the console environment.",
+}
+
+-- roll: Roll dice into chat.
+--
+-- Not a C# command: Commands.roll lives in the engine's core-asset Lua chunk
+-- (Assets/CoreAssets/Lua/commands.txt, loaded before the codex) and calls
+-- dmhub.Roll with the current token as the roller. RegisterBuiltinDoc only
+-- writes Commands._macros, so the core-asset function keeps handling
+-- execution -- do NOT define Commands.roll here, that would shadow it.
+Commands.RegisterBuiltinDoc{
+    name = "roll",
+    summary = "roll dice",
+    doc = "Usage: /roll <expression>\nRolls a dice expression (1d6, 2d10+3, ...) and posts the result to chat, attributed to your current token.",
+
+    --A free-text param: dice expressions are their own little language, so
+    --there is no useful list to pick from. It is the only param, so it takes
+    --the whole argument string.
+    commandInfo = {
+        name = "Roll Dice",
+        description = "Roll a dice expression into chat.",
+        params = {
+            {name = "Dice", type = "text", required = true, placeholder = "1d6"},
+        },
+    },
+}
+
+-- eval: Evaluate a dice expression.
+Commands.RegisterBuiltinDoc{
+    name = "eval",
+    summary = "evaluate dice expression",
+    doc = "Usage: /eval <expression>\nEvaluates a dice or GoblinScript expression and prints the result.",
+}
+
+-- normalizeroll: Normalize a dice expression.
+Commands.RegisterBuiltinDoc{
+    name = "normalizeroll",
+    summary = "normalize dice expression",
+    doc = "Usage: /normalizeroll <expression>\nNormalizes a dice roll expression and prints the canonical form.",
+}
+
+-- getpos: Print current camera position.
+Commands.RegisterBuiltinDoc{
+    name = "getpos",
+    summary = "print camera position",
+    doc = "Usage: /getpos\nPrints the current camera position (x, y) and zoom level.",
+}
+
+-- lockpos: Lock camera to a position.
+Commands.RegisterBuiltinDoc{
+    name = "lockpos",
+    summary = "lock camera position",
+    doc = "Usage: /lockpos <x> <y> <zoom>\nLocks the camera to the given position and zoom level.",
+}

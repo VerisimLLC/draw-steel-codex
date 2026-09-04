@@ -1,5 +1,6 @@
 --- @class CodeModLua 
 --- @field isUsingGit boolean 
+--- @field gitFolderPath nil|string The absolute path of this mod's folder in the git working copy, or nil if the mod is not git-mapped.
 --- @field unmanagedGitFiles any 
 --- @field filesMissingFromGit any 
 --- @field dependencies any 
@@ -52,6 +53,13 @@ end
 --- @param fname any
 --- @return nil
 function CodeModLua:AddFile(fname)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DeleteFile: Permanently removes a file and its entire revision history from the mod, deletes its local/git working copy from disk if present, records a changelist entry, and uploads the change. Returns true if the file was deleted.
+--- @param file any
+--- @return boolean
+function CodeModLua:DeleteFile(file)
 	-- dummy implementation for documentation purposes only
 end
 

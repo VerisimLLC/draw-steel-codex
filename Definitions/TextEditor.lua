@@ -1,0 +1,190 @@
+--- @class TextEditor:Panel 
+--- @field text string The text held in this editor.
+--- @field textNoNotify string An alias of @see text, but if set, no events will fire on the panel. Setting this also resets the undo history so the assigned text becomes the baseline.
+--- @field editlag number When the text is edited, the lag before calling the 'edit' event. All keypresses during this time are coalesced into one event.
+--- @field placeholderText string The grayed text to display when the editor is empty.
+--- @field editable boolean (default=true) If the editor is editable by the user.
+--- @field multiline boolean (default=true) Multiline editor. Kept for parity with gui.Input; a text editor is always multiline.
+--- @field verticalScrollbar boolean (default=false) If true, a vertical scrollbar is shown when content overflows. The handle color can be styled with the scrollHandleColor style property.
+--- @field characterLimit number The maximum number of characters this editor can contain.
+--- @field hasInputFocus boolean True if this editor has the input focus.
+--- @field selectAllOnFocus boolean If set to true, the text will be selected when the user clicks on the editor.
+--- @field caretPosition number The position of the cursor within the editor: the number of BYTES of text before the cursor (Lua string conventions, so text:sub(1, caretPosition) is the text before the cursor).
+--- @field selectionAnchorPosition number The opposite bounds of the selection from @see caretPosition, in the same byte-offset space. If equal to caretPosition there is no selection.
+--- @field blockChangesWhenEditing boolean If set to true, setting @see text in code will fail if the user is editing the text.
+--- @field resetOnDeActivation boolean (default=true) When false, the current selection stays highlighted after the editor loses focus (e.g. to a find bar's search field). Set false while a find UI is open so the match stays visible, then restore to true.
+--- @field placeholderAlpha number The alpha value of placeholder text. (default=0.6)
+--- @field canUndo boolean True if there is an edit that can be undone.
+--- @field canRedo boolean True if there is an edit that can be redone.
+--- @field caretWorldPosition {x: number, y: number, lineHeight: number}|nil Returns the world-space position of the caret and the line height at that position, or nil if not available. Use to position popups near the caret.
+--- @field richDisplay boolean (default=false) Enables display-transform (seamless markdown) mode: the text property stays the raw source and all positions remain source positions, but the rendered display hides syntax and applies TMP style tags per the decoration list supplied via @see SetDecorations. The line/selection at the caret always reveals its raw source (Obsidian-style).
+--- @field debugDisplayText string Debug: the exact string currently handed to the TMP label (the display string in richDisplay mode). For test assertions.
+--- @field debugTransform string Debug: a human-readable dump of the display transform's segment list, or nil when richDisplay is off. For test assertions.
+TextEditor = {}
+
+--- SetTextAndCaret: Sets the text and moves the caret to the given position (a byte offset into the NEW text, same space as @see caretPosition) reliably, even when the editor needs to be re-focused. Fires a 'caretReady' event when the caret is in position.
+--- @param caretPos number
+--- @param newText string
+--- @return nil
+function TextEditor:SetTextAndCaret(caretPos, newText)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetTextUndoable: Sets the text as an undoable programmatic edit WITHOUT grabbing keyboard focus or moving the caret (for widget-driven edits like the table island grid). Unlike setting @see text, the undo history is always preserved -- the assignment is recorded as an undoable step even when the editor has no prior edit history.
+--- @param newText string
+--- @return nil
+function TextEditor:SetTextUndoable(newText)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ScrollByWheel: Scrolls the editor view as if the mouse wheel moved by the given delta (only the sign matters; positive = up). Use from a panel's 'wheel' event to forward wheel input from overlay widgets floating over the editor (e.g. seamless-editor island widgets), which would otherwise swallow it.
+--- @param delta number
+--- @return nil
+function TextEditor:ScrollByWheel(delta)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetCharWorldPosition: Returns the world-space position of the character at the given 1-based byte index (Lua string.find conventions, same space as @see caretPosition) and its line height. Returns nil if the text info is not yet available. Use this to position popups near a specific character.
+--- @param charIndex number
+--- @return any
+function TextEditor:GetCharWorldPosition(charIndex)
+	-- dummy implementation for documentation purposes only
+end
+
+--- Undo: Undo the last edit.
+--- @return nil
+function TextEditor:Undo()
+	-- dummy implementation for documentation purposes only
+end
+
+--- Redo: Redo the last undone edit.
+--- @return nil
+function TextEditor:Redo()
+	-- dummy implementation for documentation purposes only
+end
+
+--- Find: Begin a search for the given query. Selects and scrolls to the first match. Returns the number of matches found.
+--- @param query string
+--- @param caseSensitive boolean
+--- @return number
+function TextEditor:Find(query, caseSensitive)
+	-- dummy implementation for documentation purposes only
+end
+
+--- FindNext: Move the selection to the next match of the current query. Returns true if a match was selected.
+--- @return boolean
+function TextEditor:FindNext()
+	-- dummy implementation for documentation purposes only
+end
+
+--- FindPrev: Move the selection to the previous match of the current query. Returns true if a match was selected.
+--- @return boolean
+function TextEditor:FindPrev()
+	-- dummy implementation for documentation purposes only
+end
+
+--- FindCount: The number of matches for the current query.
+--- @return number
+function TextEditor:FindCount()
+	-- dummy implementation for documentation purposes only
+end
+
+--- FindCurrent: The index (1-based) of the currently selected match, or 0 if none.
+--- @return number
+function TextEditor:FindCurrent()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ReplaceCurrent: Replace the currently selected match with the given replacement and advance to the next match. Returns true if a replacement was made.
+--- @param replacement string
+--- @return boolean
+function TextEditor:ReplaceCurrent(replacement)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ReplaceAll: Replace every match of query with replacement. Returns the number of replacements made.
+--- @param query string
+--- @param replacement string
+--- @param caseSensitive boolean
+--- @return number
+function TextEditor:ReplaceAll(query, replacement, caseSensitive)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearFind: Clear the current find state and any match selection.
+--- @return nil
+function TextEditor:ClearFind()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetColorSpans: Apply per-character color highlighting to the text. Pass a list of span tables, each { from = number, to = number, color = color }, where from/to are 1-based inclusive BYTE offsets (Lua string.find conventions, same space as @see SetDecorations) and color is any color value (e.g. '#e06c75' or core.Color). Spans should not overlap. The colors are preserved across editing, scrolling and find. Pass an empty list (or call ClearColorSpans) to remove all coloring. This does NOT change the text itself -- only how it is rendered, so the source markdown and caret positions are unaffected.
+--- @param spans any
+--- @return nil
+function TextEditor:SetColorSpans(spans)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearColorSpans: Remove all per-character color highlighting applied by @see SetColorSpans and restore the editor's base text color.
+--- @return nil
+function TextEditor:ClearColorSpans()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetDecorations: Replace the display decoration set (requires richDisplay). Pass a list of tables, each { kind = 'hide'|'style'|'replace'|'island', from = number, to = number, ... }. from/to are 1-based inclusive BYTE offsets into the current text (Lua string.find conventions). kind='hide' renders the range as nothing. kind='style' additionally takes open/close TMP tag strings wrapped around the range. kind='replace' takes text (the atomic replacement display text). kind='island' takes id (stable string) and height (reserved pixel height) and renders the range -- whole lines including the trailing newline -- as a fixed-height blank line for an overlay widget. An optional group number links decorations of one markdown construct: the whole group is revealed as raw text while the caret's line or selection touches it.
+--- @param decorations any
+--- @return nil
+function TextEditor:SetDecorations(decorations)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetForcedReveal: Pin a source byte range (1-based, inclusive) revealed as raw text regardless of the caret. Islands intersecting the range render as raw source. Use for edit-in-place affordances.
+--- @param fromByte number
+--- @param toByte number
+--- @return nil
+function TextEditor:SetForcedReveal(fromByte, toByte)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearForcedReveal: Clear the forced reveal set by @see SetForcedReveal.
+--- @return nil
+function TextEditor:ClearForcedReveal()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetIslandHeight: Update the reserved height of the island with the given id (e.g. after its widget was measured).
+--- @param id string
+--- @param height number
+--- @return nil
+function TextEditor:SetIslandHeight(id, height)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ValidateTransform: Debug: run the display transform's invariant checks. Returns nil when everything holds, else a description of the violation. Returns nil when richDisplay is off.
+--- @return any
+function TextEditor:ValidateTransform()
+	-- dummy implementation for documentation purposes only
+end
+
+--- @class TextEditorArgs:PanelArgs 
+--- @field text nil|string The text held in this editor.
+--- @field textNoNotify nil|string An alias of @see text, but if set, no events will fire on the panel. Setting this also resets the undo history so the assigned text becomes the baseline.
+--- @field editlag nil|number When the text is edited, the lag before calling the 'edit' event. All keypresses during this time are coalesced into one event.
+--- @field placeholderText nil|string The grayed text to display when the editor is empty.
+--- @field editable nil|boolean (default=true) If the editor is editable by the user.
+--- @field multiline nil|boolean (default=true) Multiline editor. Kept for parity with gui.Input; a text editor is always multiline.
+--- @field verticalScrollbar nil|boolean (default=false) If true, a vertical scrollbar is shown when content overflows. The handle color can be styled with the scrollHandleColor style property.
+--- @field characterLimit nil|number The maximum number of characters this editor can contain.
+--- @field hasInputFocus nil|boolean True if this editor has the input focus.
+--- @field selectAllOnFocus nil|boolean If set to true, the text will be selected when the user clicks on the editor.
+--- @field caretPosition nil|number The position of the cursor within the editor: the number of BYTES of text before the cursor (Lua string conventions, so text:sub(1, caretPosition) is the text before the cursor).
+--- @field selectionAnchorPosition nil|number The opposite bounds of the selection from @see caretPosition, in the same byte-offset space. If equal to caretPosition there is no selection.
+--- @field blockChangesWhenEditing nil|boolean If set to true, setting @see text in code will fail if the user is editing the text.
+--- @field resetOnDeActivation nil|boolean (default=true) When false, the current selection stays highlighted after the editor loses focus (e.g. to a find bar's search field). Set false while a find UI is open so the match stays visible, then restore to true.
+--- @field placeholderAlpha nil|number The alpha value of placeholder text. (default=0.6)
+--- @field canUndo nil|boolean True if there is an edit that can be undone.
+--- @field canRedo nil|boolean True if there is an edit that can be redone.
+--- @field caretWorldPosition {x: number, y: number, lineHeight: number}|nil Returns the world-space position of the caret and the line height at that position, or nil if not available. Use to position popups near the caret.
+--- @field richDisplay nil|boolean (default=false) Enables display-transform (seamless markdown) mode: the text property stays the raw source and all positions remain source positions, but the rendered display hides syntax and applies TMP style tags per the decoration list supplied via @see SetDecorations. The line/selection at the caret always reveals its raw source (Obsidian-style).
+--- @field debugDisplayText nil|string Debug: the exact string currently handed to the TMP label (the display string in richDisplay mode). For test assertions.
+--- @field debugTransform nil|string Debug: a human-readable dump of the display transform's segment list, or nil when richDisplay is off. For test assertions.
+TextEditorArgs = {}

@@ -28,11 +28,24 @@
 ]]
 CBFeatureSelector = RegisterGameType("CBFeatureSelector")
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 local SELECT_MODES = {SELECT = "SELECT", REMOVE = "REMOVE"}
+local EMPTY_SLOT_TEXT = "Unassigned"
 
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
 local _functionOrValue = CharacterBuilder._functionOrValue
 local _getHero = CharacterBuilder._getHero
+local _getCreature = CharacterBuilder._getCreature
 local _getState = CharacterBuilder._getState
 local _mergeKeyedTables = CharacterBuilder._mergeKeyedTables
 
@@ -101,6 +114,7 @@ function CBFeatureSelector.BuildSelectorPanel(overrides)
         halign = "left",
         valign = "top",
         flow = "vertical",
+        overrides.targetsHeader,
         targetsContainer,
         _functionOrValue(injections.afterTargets),
         gui.MCDMDivider{
@@ -188,6 +202,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 featureId = featureId,
                 itemIndex = itemIndex,
                 option = nil,
+                expanded = false,
             },
             doubleclick = function(element)
                 element:FireEvent("removeItem")
@@ -230,7 +245,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 end
 
                 local option = element.data.option
-                local name = option and option:GetName() or "Empty Slot"
+                local name = option and option:GetName() or EMPTY_SLOT_TEXT
                 if cachedFeature and option then
                     name = cachedFeature:GetOptionDisplayName(option)
                 end
@@ -276,15 +291,26 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                     element:SetClass("filled", element.parent:HasClass("filled"))
                     element:SetClass("selected", element.parent:HasClass("selected"))
                 end,
-                gui.Panel{
-                    classes = {"builder-base", "panel-base", "feature-toggle", "collapsed"},
+                gui.CollapseArrow{
+                    classes = {"collapseSet"},
+                    halign = "left",
+                    valign = "center",
+                    hmargin = 8,
                     customPanel = function(element, panelFn)
                         element:SetClass("collapsed", panelFn == nil)
+                    end,
+                    setExpanded = function(element, expanded)
+                        element:SetClass("collapseSet", not expanded)
+                    end,
+                    press = function(element)
+                        local item = element:FindParentWithClass("feature-target")
+                        item.data.expanded = not item.data.expanded
+                        item:FireEventTree("setExpanded", item.data.expanded)
                     end,
                 },
                 gui.Label{
                     classes = {"builder-base", "label", "feature-target"},
-                    text = "Empty Slot",
+                    text = EMPTY_SLOT_TEXT,
                     updateName = function(element, text)
                         if element.text ~= text then element.text = text end
                     end,
@@ -314,10 +340,33 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         end
                         element.data.panelFn = panelFn
                     end
-                    if element.data.panelFn then element:AddChild(element.data.panelFn()) end
+                    --Mount ONLY when the row is expanded and nothing is mounted.
+                    --Mounting when something is already there leaked duplicate
+                    --cards (report PZ8WG62M: ~392 panels per refresh, FPS 60 -> 2;
+                    --DestroySelf unparents synchronously, so the child count is
+                    --already 0 here when the panel did change). Mounting while
+                    --collapsed built a full card for every row the user never
+                    --opened -- 32 companions made the picker take ~23s to appear
+                    --(report 8QTBJMGC). Collapsed rows just store the closure;
+                    --the card is built on first expand.
+                    if element.data.panelFn ~= nil and #element.children == 0
+                            and element.parent.data.expanded == true then
+                        element:AddChild(element.data.panelFn())
+                    end
+                end,
+                setExpanded = function(element, expanded)
+                    local visible = element.data.panelFn ~= nil and expanded
+                    if visible and #element.children == 0 then
+                        element:AddChild(element.data.panelFn())
+                    end
+                    element:SetClass("collapsed-anim", not visible)
                 end,
                 refreshBuilderState = function(element, state)
-                    local visible = element.data.panelFn ~= nil and element.parent:HasClass("selected")
+                    local item = element.parent
+                    local visible = element.data.panelFn ~= nil and (item.data.expanded == true)
+                    if visible and #element.children == 0 then
+                        element:AddChild(element.data.panelFn())
+                    end
                     element:SetClass("collapsed-anim", not visible)
                 end,
             },
@@ -334,6 +383,32 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         }
     end
 
+    -- When a feature offers an unbounded number of point-costed choices, show
+    -- a running total of points spent of that type on the creature.
+    local pointsHeader = gui.Label{
+        classes = {"builder-base", "label", "collapsed"},
+        halign = "left",
+        valign = "top",
+        bold = true,
+        fontSize = 16,
+        color = CBStyles.COLORS.GOLD,
+        bmargin = 4,
+        text = "",
+        refreshBuilderState = function(element, state)
+            local cachedFeature = getCachedFeature(state, feature:GetGuid())
+            local visible = false
+            if cachedFeature ~= nil and cachedFeature:IsUnbounded() and cachedFeature:CostsPoints() then
+                -- GetPointsName falls back to "Points" when left unnamed.
+                local pointsName = cachedFeature:GetPointsName()
+                local creature = _getCreature()
+                local spent = creature and creature:GetPointsSpentByName(pointsName) or 0
+                element.text = string.format("%d %s spent", spent, pointsName)
+                visible = true
+            end
+            element:SetClass("collapsed", not visible)
+        end,
+    }
+
     local targetsContainer = {
         data = {
             featureId = feature:GetGuid(),
@@ -341,7 +416,12 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         refreshBuilderState = function(element, state)
             local cachedFeature = getCachedFeature(state, element.data.featureId)
             if cachedFeature == nil then return end
+            -- For an unbounded feature, only create the filled slots plus one
+            -- empty slot to fill next; otherwise create a slot per choice.
             local numTargets = cachedFeature:GetNumChoices()
+            if cachedFeature:IsUnbounded() then
+                numTargets = cachedFeature:GetMaxVisibleTargets()
+            end
             for i = #element.children + 1, numTargets do
                 element:AddChild(targetPanel(element.data.featureId, i))
             end
@@ -356,6 +436,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 featureId = featureId,
                 option = nil,
                 panelFn = nil,
+                expanded = false,
             },
             applyFilter = function(element, filterText)
                 if element.data.option == nil then return end
@@ -375,9 +456,6 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 local state = _getState()
                 if state == nil then return false end
 
-                local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
-                if blockSel then return false end
-
                 local option = element.data.option
                 if option == nil then return false end
 
@@ -396,6 +474,15 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 local option = element.data.option
                 if option == nil then return end
 
+                local state = _getState()
+                if state ~= nil then
+                    local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
+                    if blockSel then
+                        if state:Get(selector .. ".selectedItem") == nil then return end
+                        _fireControllerEvent("applyCurrent" .. CharacterBuilder._ucFirst(selector))
+                    end
+                end
+
                 local controller = getFeatureSelController(element)
                 if controller then
                     controller:FireEvent("applyItem", option)
@@ -406,9 +493,15 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
             end,
             hover = function(element)
                 local state = _getState()
-                local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
-                if blockSel then
-                    local tip = string.format("Select your %s before choosing features.", CharacterBuilder._ucFirst(selector))
+                if state ~= nil and state:Get(selector .. ".blockFeatureSelection") == true then
+                    local selectorName = CharacterBuilder._ucFirst(selector)
+                    local selectedItem = state:Get(selector .. ".selectedItem")
+                    local tip
+                    if selectedItem ~= nil then
+                        tip = string.format("Selecting this feature will set your %s to %s.", selectorName, selectedItem.name)
+                    else
+                        tip = string.format("Select your %s before choosing features.", selectorName)
+                    end
                     gui.Tooltip{
                         halign = "center",
                         valign = "top",
@@ -416,8 +509,6 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         vmargin = 20,
                         text = tip,
                         fontSize = 16,
-                        bgimage = true,
-                        bgcolor = CBStyles.COLORS.GOLD,
                     }(element)
                 elseif element.data.panelFn then
                     -- element.tooltip = gui.TooltipFrame(element.data.panelFn(), {
@@ -458,13 +549,13 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 end
                 element:FireEventTree("updateName", name)
                 element:FireEventTree("updateDesc", option:GetDescription())
+                element:FireEventTree("updateImplementation", option:GetImplementation())
                 element:FireEventTree("customPanel", option:Panel())
 
                 -- Enable dragging if selection is allowed
                 local canDrag = false
                 if visible and cachedFeature and option then
-                    local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
-                    canDrag = not blockSel and cachedFeature:AllowSelection(option:GetGuid())
+                    canDrag = cachedFeature:AllowSelection(option:GetGuid())
                 end
                 element.draggable = canDrag
                 element.dragTarget = true
@@ -476,8 +567,14 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
 
                 local state = _getState()
                 if state == nil then return end
+
                 local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
-                if blockSel then return end
+                if blockSel then
+                    if state:Get(selector .. ".selectedItem") == nil then return end
+                    _fireControllerEvent("applyCurrent" .. CharacterBuilder._ucFirst(selector))
+                    element:FireEvent("selectItem")
+                    return
+                end
 
                 local cachedFeature = getCachedFeature(state, element.data.featureId)
                 if cachedFeature == nil then return end
@@ -501,10 +598,21 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 refreshBuilderState = function(element, state)
                     element:SetClass("selected", element.parent:HasClass("selected"))
                 end,
-                gui.Panel{
-                    classes = {"builder-base", "panel-base", "feature-toggle", "collapsed"},
+                gui.CollapseArrow{
+                    classes = {"collapseSet"},
+                    halign = "left",
+                    valign = "center",
+                    hmargin = 8,
                     customPanel = function(element, panelFn)
                         element:SetClass("collapsed", panelFn == nil)
+                    end,
+                    setExpanded = function(element, expanded)
+                        element:SetClass("collapseSet", not expanded)
+                    end,
+                    press = function(element)
+                        local item = element:FindParentWithClass("feature-choice")
+                        item.data.expanded = not item.data.expanded
+                        item:FireEventTree("setExpanded", item.data.expanded)
                     end,
                 },
                 gui.Label{
@@ -512,6 +620,50 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                     text = "",
                     updateName = function(element, text)
                         if element.text ~= text then element.text = text end
+                    end,
+                },
+            },
+            -- Implementation-status badge so the player can see how complete an
+            -- option's mechanics are before choosing it (mirrors the status dot
+            -- the compendium/class editor shows authors). Unset options report
+            -- Unimplemented -- see CBOptionWrapper:GetImplementation.
+            gui.Panel{
+                classes = {"builder-base", "panel-base", "collapsed"},
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                hmargin = 8,
+                tmargin = 2,
+                bmargin = 2,
+                interactable = false,
+                updateImplementation = function(element, impl)
+                    local visible = impl ~= nil
+                    element:SetClass("collapsed", not visible)
+                    if not visible then return end
+                    element:FireEventTree("implementation", impl)
+                    element:FireEventTree("updateImplLabel", impl)
+                end,
+                gui.ImplementationStatusIcon{
+                    halign = "left",
+                    valign = "center",
+                    implementation = 1,
+                },
+                gui.Label{
+                    classes = {"builder-base", "label"},
+                    fontSize = 14,
+                    bold = false,
+                    italics = false,
+                    width = "auto",
+                    height = "auto",
+                    halign = "left",
+                    valign = "center",
+                    text = "",
+                    updateImplLabel = function(element, impl)
+                        element.text = gui.ImplementationStatusValues[impl] or ""
+                        for i = 0, 4 do
+                            element:SetClass("implStatus" .. i, i == impl)
+                        end
                     end,
                 },
             },
@@ -542,10 +694,33 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         end
                         element.data.panelFn = panelFn
                     end
-                    if element.data.panelFn then element:AddChild(element.data.panelFn()) end
+                    --Mount ONLY when the row is expanded and nothing is mounted.
+                    --Mounting when something is already there leaked duplicate
+                    --cards (report PZ8WG62M: ~392 panels per refresh, FPS 60 -> 2;
+                    --DestroySelf unparents synchronously, so the child count is
+                    --already 0 here when the panel did change). Mounting while
+                    --collapsed built a full card for every row the user never
+                    --opened -- 32 companions made the picker take ~23s to appear
+                    --(report 8QTBJMGC). Collapsed rows just store the closure;
+                    --the card is built on first expand.
+                    if element.data.panelFn ~= nil and #element.children == 0
+                            and element.parent.data.expanded == true then
+                        element:AddChild(element.data.panelFn())
+                    end
+                end,
+                setExpanded = function(element, expanded)
+                    local visible = element.data.panelFn ~= nil and expanded
+                    if visible and #element.children == 0 then
+                        element:AddChild(element.data.panelFn())
+                    end
+                    element:SetClass("collapsed-anim", not visible)
                 end,
                 refreshBuilderState = function(element, state)
-                    local visible = element.data.panelFn ~= nil and element.parent:HasClass("selected")
+                    local item = element.parent
+                    local visible = element.data.panelFn ~= nil and (item.data.expanded == true)
+                    if visible and #element.children == 0 then
+                        element:AddChild(element.data.panelFn())
+                    end
                     element:SetClass("collapsed-anim", not visible)
                 end,
             },
@@ -561,13 +736,10 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 end,
                 refreshBuilderState = function(element, state)
                     local visible = false
-                    local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
-                    if not blockSel then
-                        local cachedFeature = getCachedFeature(state, element.parent.data.featureId)
-                        local option = element.parent.data.option
-                        if cachedFeature and option then
-                            visible = cachedFeature:AllowSelection(element.parent.data.option:GetGuid())
-                        end
+                    local cachedFeature = getCachedFeature(state, element.parent.data.featureId)
+                    local option = element.parent.data.option
+                    if cachedFeature and option then
+                        visible = cachedFeature:AllowSelection(element.parent.data.option:GetGuid())
                     end
                     element:SetClass("collapsed", not visible)
                     element.interactable = visible
@@ -602,12 +774,19 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         },
         applyItem = function(element, option)
             local state = _getState()
-            local hero = _getHero()
-            if state and hero then
+            local creature = _getCreature()
+            if state and creature then
                 local cachedFeature = getCachedFeature(state, element.data.featureId)
                 if cachedFeature then
-                    local actionComplete = cachedFeature:SaveSelection(hero, option)
+                    local actionComplete = cachedFeature:SaveSelection(creature, option)
                     if actionComplete then
+                        track("builder_selection", {
+                            featureId = element.data.featureId,
+                            optionId = option:GetGuid(),
+                            optionName = option:GetName(),
+                            isFinal = true,
+                            dailyLimit = 20,
+                        })
                         _fireControllerEvent("tokenDataChanged")
                     end
                 end
@@ -615,12 +794,18 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         end,
         removeItem = function(element, option)
             local state = _getState()
-            local hero = _getHero()
-            if state and hero then
+            local creature = _getCreature()
+            if state and creature then
                 local cachedFeature = getCachedFeature(state, element.data.featureId)
                 if cachedFeature then
-                    local actionComplete = cachedFeature:RemoveSelection(hero, option)
+                    local actionComplete = cachedFeature:RemoveSelection(creature, option)
                     if actionComplete then
+                        track("ability_respec", {
+                            featureId = element.data.featureId,
+                            removedOptionId = option:GetGuid(),
+                            removedOptionName = option:GetName(),
+                            dailyLimit = 10,
+                        })
                         _fireControllerEvent("tokenDataChanged")
                     end
                 end
@@ -632,6 +817,13 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 local cachedFeature = getCachedFeature(state, element.data.featureId)
                 if cachedFeature then
                     if cachedFeature:SetSelectedOption(itemId) then
+                        local option = cachedFeature:GetOption(itemId)
+                        track("builder_ability_view", {
+                            featureId = element.data.featureId,
+                            optionId = itemId,
+                            optionName = option and option:GetName() or nil,
+                            dailyLimit = 20,
+                        })
                         element:FireEventTree("setSelectMode", SELECT_MODES.SELECT)
                         element:FireEventTree("refreshBuilderState", state)
                     end
@@ -673,8 +865,8 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
             press = function(element)
                 local state = _getState()
                 if state == nil then return end
-                local hero = _getHero()
-                if hero == nil then return end
+                local creature = _getCreature()
+                if creature == nil then return end
                 local cachedFeature = getCachedFeature(state, element.data.featureId)
                 if cachedFeature == nil then return end
                 local controller = getFeatureSelController(element)
@@ -683,7 +875,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 dmhub.Roll{
                     roll = rollInfo.roll,
                     description = string.format(feature:GetName()),
-                    tokenid = dmhub.LookupTokenId(hero),
+                    tokenid = dmhub.LookupTokenId(creature),
                     complete = function(rollResult)
                         local rowIndex = rollTable:RowIndexFromDiceResult(rollResult.total)
                         if rowIndex == nil then return end
@@ -735,6 +927,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
     return CBFeatureSelector.BuildSelectorPanel{
         controllerClass = controllerClass,
         header = header,
+        targetsHeader = pointsHeader,
         targetsContainer = targetsContainer,
         optionsContainer = optionsContainer,
         mainPanel = mainPanel,

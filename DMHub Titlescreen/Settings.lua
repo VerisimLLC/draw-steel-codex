@@ -23,6 +23,18 @@ setting{
     default = 0,
 }
 
+--Gates the Patreon feature: the Patreon tab in the module browser and the
+--Patreon/email sections of the account settings. On by default now that the
+--feature ships; no editor field, so it never appears in the settings menus.
+--Turn it off for a session with /set patreonsub false. Remove this setting
+--once the gating is no longer needed at all.
+setting{
+    id = "patreonsub",
+    description = "Show the Patreon features.",
+    storage = "preference",
+    default = true,
+}
+
 setting{
     id = "disableparallax",
     description = "Disable Parallax",
@@ -30,6 +42,237 @@ setting{
 	section = "General",
     editor = "check",
     default = false,
+}
+
+setting{
+    id = "popoutgpu",
+    description = "Use GPU Rendering for Popout Windows",
+    help = "Shares popout frames with the companion app through DirectX. Disable this to use the slower CPU shared-memory path for troubleshooting or comparison.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = true,
+}
+
+setting{
+    id = "popoutfpsfocused",
+    description = "Popout Frame Rate (Focused)",
+    help = "Maximum frame rate for a popout window while it has focus. The actual rate cannot exceed DMHub's current frame rate.",
+    storage = "preference",
+    section = "General",
+    editor = "slider",
+    min = 1,
+    max = 60,
+    round = true,
+    labelFormat = "%d",
+    default = 60,
+}
+
+setting{
+    id = "popoutattached",
+    description = "Attach Popout Windows to Main Window",
+    help = "Popped-out panels behave as part of the main app window: no separate taskbar button, they stay in front of it, and they minimize and restore together with it. Turn this off to make each popout a fully independent OS window.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = true,
+}
+
+setting{
+    id = "popoutfpsunfocused",
+    description = "Popout Frame Rate (Unfocused)",
+    help = "Maximum frame rate for a popout window while it does not have focus. Lower values reduce background rendering cost.",
+    storage = "preference",
+    section = "General",
+    editor = "slider",
+    min = 1,
+    max = 60,
+    round = true,
+    labelFormat = "%d",
+    default = 2,
+}
+
+--The old single "Show Map Overlay" preference, superseded by the split
+--mapoverlay:* settings below. Kept registered (no editor/section, so it never
+--appears in the settings menus) so the one-time migration can still read the
+--stored value; safe to remove once the migration has been out for a while.
+setting{
+    id = "tileheight:overlay",
+    description = "Show Map Overlay (legacy)",
+    storage = "preference",
+    default = false,
+}
+
+--The map overlay, split into layers. Each is also reachable from the map
+--overlay menu on the title bar's terrain chip (see CodexTitleBar), which
+--additionally lists a per-zone-type toggle for every zone type present on the
+--current map. Players only see overlay information on tiles currently inside
+--their vision.
+setting{
+    id = "mapoverlay:walls",
+    description = "Show Walls",
+    help = "Draws the map's walls as lines colored by the cover they grant: black for full cover, greys for partial cover.",
+    storage = "preference",
+    section = "Map",
+    editor = "check",
+    default = false,
+}
+
+setting{
+    id = "mapoverlay:elevation",
+    description = "Show Elevation",
+    help = "Draws contour lines wherever tile elevation changes, and an integer height label inside each region.",
+    storage = "preference",
+    section = "Map",
+    editor = "check",
+    default = false,
+}
+
+--The old opt-OUT zone-type preference from when zone types defaulted to
+--visible, superseded by mapoverlay:shownzones below when they flipped to
+--hidden-by-default. Kept registered (no editor, nothing reads it) so stored
+--values stay harmless; safe to remove once the flip has been out a while.
+setting{
+    id = "mapoverlay:hiddenzones",
+    description = "Hidden Map Overlay Zone Types (legacy)",
+    storage = "preference",
+    default = "",
+}
+
+--';'-joined environmental keyword ids whose painted zones are shown on the
+--map overlay for this user. Zone types default to HIDDEN - like the built-in
+--terrain stripes, this records opt-INs. No editor: managed from the title
+--bar's map overlay menu. (The Map Markup panel's Zones tab shows every zone
+--regardless, so painting is unaffected.)
+setting{
+    id = "mapoverlay:shownzones",
+    description = "Shown Map Overlay Zone Types",
+    storage = "preference",
+    default = "",
+}
+
+--';'-joined built-in terrain rule types (water/difficult/concealment/
+--climbable) whose tile-art stripes are shown. Unlike zones these default
+--HIDDEN: a DM paints zones deliberately, but tile-art rules would stripe
+--every pond on every map by default. No editor: managed from the title
+--bar's map overlay menu, which lists only the types actually present on
+--the map's terrain tiles (dmhub.GetBuiltinTerrainTypesOnMap).
+setting{
+    id = "mapoverlay:shownbuiltins",
+    description = "Shown Built-in Terrain Types",
+    storage = "preference",
+    default = "",
+}
+
+--One-time migration: a user who had the old combined preference on gets the
+--equivalent full overlay from the split settings.
+setting{
+    id = "mapoverlay:migrated",
+    description = "Map overlay settings migrated",
+    storage = "preference",
+    default = false,
+}
+
+if not dmhub.GetSettingValue("mapoverlay:migrated") then
+    dmhub.SetSettingValue("mapoverlay:migrated", true)
+    if dmhub.GetSettingValue("tileheight:overlay") then
+        dmhub.SetSettingValue("mapoverlay:walls", true)
+        dmhub.SetSettingValue("mapoverlay:elevation", true)
+        dmhub.SetSettingValue("mapoverlay:shownbuiltins", "climbable;concealment;difficult;water")
+    end
+end
+
+setting{
+    id = "canopy:defaultradius",
+    description = "Default Canopy Cutaway Radius",
+    help = "Fallback cutaway radius (in tiles) used when a canopy-flagged object has no canopy layer above it. Set negative to disable the fallback cutaway.",
+    storage = "game",
+    section = "Map",
+    editor = "slider",
+    format = "F0",
+    default = 3,
+    min = -1,
+    max = 40,
+}
+
+setting{
+    id = "canopy:defaultfade",
+    description = "Default Canopy Cutaway Fade",
+    help = "Fallback cutaway fade width (in tiles) used when a canopy-flagged object has no canopy layer above it.",
+    storage = "game",
+    section = "Map",
+    editor = "slider",
+    format = "F1",
+    default = 1,
+    min = 0,
+    max = 2,
+}
+
+setting{
+    id = "canopy:defaultminopacity",
+    description = "Default Canopy Minimum Opacity",
+    help = "Fallback minimum opacity used when a canopy-flagged object has no canopy layer above it. 0 means fully transparent at the token.",
+    storage = "game",
+    section = "Map",
+    editor = "slider",
+    format = "F2",
+    default = 0,
+    min = 0,
+    max = 1,
+}
+
+setting{
+    id = "usesystemcursor",
+    description = "Use System Cursor",
+    help = "When enabled, DMHub uses your operating system's default mouse cursor instead of custom themed cursors. Useful on macOS where the custom cursors can appear oversized on Retina displays.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = false,
+}
+
+setting{
+    id = "cursortheme",
+    description = "Animated Cursor",
+    help = "Choose an animated themed mouse cursor. Black Ash shows your pointer half-burned to charcoal, shedding black ash on the wind. Has no effect while Use System Cursor is on.",
+    storage = "preference",
+    section = "General",
+    editor = "dropdown",
+    default = "",
+    enum = {
+        { value = "", text = "Default" },
+        { value = "blackash", text = "Black Ash" },
+    },
+}
+
+setting{
+    id = "p2p:forcewebsocketrelay",
+    description = "Force Server-Relayed Peer Connections",
+    help = "Routes all direct (peer-to-peer) traffic -- token drags, pings, live cursors -- through the game server over your existing connection instead of trying a direct UDP link to other players. Turn this on if peer connections never establish (e.g. a firewall, restrictive NAT, or ISP is blocking UDP). The app also switches to this automatically when it detects the peer link can't be reached, so you normally won't need to set it by hand. Only applies to games on the new server backend.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = false,
+}
+
+setting{
+    id = "showmovementcrosssection",
+    description = "Show Movement Cross-Section",
+    help = "When dragging a token, show a small side-on cross-section diagram in the movement tooltip illustrating the vertical profile of the move (slopes, walls climbed or flown over, falls, and other tokens the path crosses). Turn this off to always show the plain text tooltip.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = true,
+}
+
+setting{
+    id = "redactdirectorlocation",
+    description = "Redact Director Location",
+    help = "When on, directors' rich-status/location is hidden in the Heroes and User Status panels for everyone in the game; only Online/Away/Offline is shown for director users.",
+    storage = "game",
+    section = "General",
+    editor = "check",
+    default = true,
 }
 
 setting{
@@ -678,6 +921,10 @@ setting{
             value = "dither",
             text = "Dim",
         },
+        {
+            value = "roof",
+            text = "Roof",
+        },
     }
 }
 
@@ -737,6 +984,60 @@ setting{
 	default = false,
 }
 
+--dev-only: when set for a game, the game's cloud assets are replaced by a
+--local directory tree of YAML files (see the /localassets macro). Takes
+--effect on the next game load. Edited via the custom Local Assets section
+--in the Editing settings tab (no generic editor). Superseded by
+--localassets:dirs when that is non-empty; kept as a fallback so games
+--configured before the multi-directory feature keep working.
+setting{
+	id = "localassets:dir",
+	description = "Local Assets Directory (dev)",
+	storage = "pergamepreference",
+	default = "",
+}
+
+--dev-only: ordered list of local asset directories, stored as a single
+--newline-delimited string. The FIRST entry is the "top" directory: highest
+--precedence (an item present in several directories loads from the top-most
+--one holding it) and the home for newly created entries. Edited via the
+--custom Local Assets section in the Editing settings tab (no generic
+--editor); the engine reads it in LocalAssetDirectory.MaybeActivate.
+setting{
+	id = "localassets:dirs",
+	description = "Local Assets Directories (dev)",
+	storage = "pergamepreference",
+	default = "",
+}
+
+--dev-only, GLOBAL (not per-game): ordered list of local asset directories
+--(same newline-delimited format as localassets:dirs) used when the game
+--being loaded is this account's Encounter of the Week game. EotW games are
+--created fresh for each encounter, so a per-game preference can never be set
+--for one in advance; this list follows whichever game currently occupies the
+--account's EotW slot. It loads BELOW any per-game list for that game. Edited
+--via the Encounter of the Week block of the Local Assets settings section
+--(no generic editor); the engine reads it in LocalAssetDirectory.ReadEotwDirs.
+setting{
+	id = "localassets:eotwdirs",
+	description = "Encounter of the Week Asset Directories (dev)",
+	storage = "preference",
+	default = "",
+}
+
+--dev-only, GLOBAL (not per-game): explicit path to the git executable used
+--by the local-assets read-only git integration (status badges in the file
+--browser). When empty, the engine auto-detects git from PATH and common
+--install locations; set this only when auto-detection fails. Edited via the
+--git row in the Local Assets settings section; the engine reads it in
+--GitStatusService.ResolveGitPath.
+setting{
+	id = "localassets:gitpath",
+	description = "Git Executable for Local Assets (dev)",
+	storage = "preference",
+	default = "",
+}
+
 setting{
 	id = "showdeleted",
 	description = "Shows library items that have been deleted",
@@ -791,18 +1092,14 @@ setting{
 	default = true,
 }
 
-setting{
-	id = "perf:hidefdice",
-	description = "High Definition Dice",
-	storage = "preference",
-	editor = "check",
-
-	default = true,
-}
+local hidefText = "High Definition"
+if dmhub.platform == "macOS" then
+    hidefText = "Retina Display"
+end
 
 setting{
 	id = "hidef",
-	description = "High Definition",
+	description = hidefText,
 	storage = "preference",
 	editor = "check",
 
@@ -1026,6 +1323,16 @@ setting{
 }
 
 setting{
+	id = "analytics:enabled",
+	description = "Send Anonymous Analytics",
+	help = "When enabled, DMHub sends anonymized gameplay analytics and crash reports to the server to help improve the application. When disabled, no analytics events are transmitted.",
+	storage = "account",
+	section = "General",
+	editor = "check",
+	default = true,
+}
+
+setting{
 	id = "theme.charsheet",
 	description = "Character Sheet Theme",
 	help = "Which theme to use when displaying character sheets",
@@ -1090,6 +1397,58 @@ setting{
 		table.sort(result, function(a,b) return a.text < b.text end)
 		return result
 	end,
+}
+
+--Dice loadout beyond the single default set (equipped from the shop inventory's
+--dice equip panel rather than the settings screen):
+--  diceequipped2   -- any roll with multiple d10s alternates its d10s between
+--                     diceequipped and this (1st/3rd/... = default, 2nd/4th/... =
+--                     this), so the Draw Steel 2d10 power roll mixes the two sets.
+--                     "" = use the default set for every d10.
+--  diceequippedd6  -- the set used for d6- and d3-shaped dice. "" = default set.
+--Both hold a dice asset id (like diceequipped) and are read by the engine via
+--AccountInfo.diceMaterial, which ships them with each roll.
+setting{
+	id = "diceequipped2",
+	storage = "account",
+	default = "",
+}
+
+setting{
+	id = "diceequippedd6",
+	storage = "account",
+	default = "",
+}
+
+--Activated dice "slots": conditional dice choices keyed by the slots authored on
+--dice sets in the Dice Studio (see dicestudio.slots). A table mapping a slot key
+--to the dice asset id activated for it. Slot keys:
+--  "damage:<damageType>"            e.g. "damage:fire"
+--  "class:<classid>"                playing that class
+--  "class:<classid>:<subclassid>"   playing that subclass
+--  "monster:<groupid>"              controlling a monster of that MonsterGroup
+--                                   (or one inheriting from it)
+--Written by the shop inventory's dice equip panel. Consumed by the embedded roll
+--dialog: when a roll it shows matches an activation (most specific key first --
+--damage type, then subclass, class, monster type), the whole roll is skinned
+--with the activated set via dice.SetRollSlotDice.
+setting{
+	id = "diceslotsequipped",
+	storage = "account",
+	default = {},
+}
+
+--Player-authored custom dice slots ("uses"), added from the shop inventory's
+--"Add Uses..." dialog: extra slot records the player attaches to a dice set
+--they own, using the same record shapes the Dice Studio authors (slotType
+--"damage"/"class"/"monster" -- see dicestudio.slots). A table keyed by dice
+--asset id, each value an ARRAY of up to 5 slot records. Custom slots display
+--and activate alongside the set's built-in slots in the equip panel; roll-time
+--consumption is unchanged (activations all land in diceslotsequipped).
+setting{
+	id = "dicecustomslots",
+	storage = "account",
+	default = {},
 }
 
 local diceWithColors = { "Default", "Chalk Stone", "Chrome", "Shiny Marble", }
@@ -1317,6 +1676,35 @@ setting {
 	storage = "preference",
 }
 
+--Which device the app plays audio to. The OS owns the persisted routing (it is
+--keyed to the executable and survives restarts, exactly like assigning the app a
+--device in the Windows volume mixer), so the setting is transient and just
+--mirrors the OS state: initialized from it below, written back through
+--audio.outputDevice on change. Windows only; hidden elsewhere.
+setting {
+	id = "audiooutputdevice",
+	description = "Output Device",
+	help = "The audio device the app plays sound to. This routes the app at the operating system level, the same as assigning it a device in the Windows volume mixer, and is remembered across launches.",
+	section = "Audio",
+	editor = "dropdown",
+	ord = "AAB",
+	default = "",
+	storage = "transient",
+	enumCalc = function()
+		return audio.GetOutputDevices()
+	end,
+	visible = function()
+		return audio.deviceSelectionSupported
+	end,
+	onchange = function()
+		audio.outputDevice = dmhub.GetSettingValue("audiooutputdevice")
+	end,
+}
+
+if audio.deviceSelectionSupported then
+	dmhub.SetSettingValue("audiooutputdevice", audio.outputDevice)
+end
+
 
 setting {
 	id = "dicethreshold",
@@ -1366,16 +1754,6 @@ setting{
 }
 
 setting{
-	id = "preroll",
-	classes = {"dmonly"},
-	description = "DM Pre-rolls",
-	editor = "check",
-	default = false,
-	storage = "preference",
-}
-
-
-setting{
 	id = "monsterSaves:hideFromPlayers",
 	classes = {"dmonly"},
 	description = "Hide saving throws for monsters from players",
@@ -1416,6 +1794,19 @@ setting{
 	description = "Time required to hold down mouse to classify as a long click",
 	default = 0.35,
 	storage = "preference",
+}
+
+setting{
+	id = "macos:cmdAsCtrl",
+	description = "Use Cmd for keyboard shortcuts",
+	help = "When enabled, the Cmd key acts as Ctrl for all keyboard shortcuts (e.g. Cmd+Z for undo). This matches standard macOS behavior. Disable if you want Cmd and Ctrl to be separate modifier keys.",
+	storage = "preference",
+	section = "game",
+	editor = "check",
+	default = true,
+	visible = function()
+		return dmhub.platform == "macOS"
+	end,
 }
 
 setting{
@@ -1479,6 +1870,11 @@ setting{
             value = "polygon",
             text = "Custom Shape",
             bind = "ctrl+p",
+        },
+        {
+            value = "crosssection",
+            text = "Cross Section",
+            bind = "alt+x",
         },
 	},
 }
@@ -1559,6 +1955,36 @@ setting{
 }
 
 setting{
+	id = "measure:distances",
+	description = "Distances",
+	storage = "preference",
+
+	editor = "dropdown",
+	default = "ignorediagonals",
+
+	-- Only relevant for the Ruler and Cross Section when snapping to the grid,
+	-- since the choice only affects how diagonal grid steps are counted (both
+	-- report tile-stepping distances). Without snapping they already report the
+	-- straight-line (Euclidean) length.
+	monitorVisible = {'measure:shape', 'measure:snap'},
+	visible = function()
+		local shape = dmhub.GetSettingValue('measure:shape')
+		return (shape == "ruler" or shape == "crosssection") and dmhub.GetSettingValue('measure:snap') ~= "none"
+	end,
+
+	enum = {
+		{
+			value = "ignorediagonals",
+			text = "Ignore Diagonals",
+		},
+		{
+			value = "euclidean",
+			text = "Euclidean",
+		},
+	},
+}
+
+setting{
 	id = "measure:persistent",
 	description = "Persist on Map",
 	storage = "preference",
@@ -1568,6 +1994,13 @@ setting{
 	editor = "check",
 	default = false,
 	classes = {"dmonly"},
+
+	--the cross-section shape is a live diagram with deliberately no persist-on-map
+	--option (MeasureTool skips its persist branch for it too).
+	monitorVisible = {'measure:shape'},
+	visible = function()
+		return dmhub.GetSettingValue('measure:shape') ~= "crosssection"
+	end,
 }
 
 setting{
@@ -1670,6 +2103,16 @@ setting{
 			text = "Instant",
 		},
 	}
+}
+
+setting{
+	id = "dice:motionblur",
+	description = "Dice Motion Blur",
+	help = "Blurs fast-moving dice so a hard throw reads as a continuous streak instead of a series of discrete stamps. The dice roll is rendered several times per frame at sub-frame positions and averaged; resting and slow dice are unaffected. Slightly more GPU work while dice are in flight.",
+	storage = "preference",
+	section = "Graphics",
+	editor = "check",
+	default = true,
 }
 
 setting{
@@ -1880,7 +2323,7 @@ setting{
 	description = "Map Tiling",
 	storage = "map",
 	default = "squares",
-	onchange = function() dmhub.RefreshMapLayout(); game.Refresh() end,
+	onchange = function() dmhub.RefreshMapLayout() end,
 	editor = "iconbuttons",
 	enum = {
 		{
@@ -1929,7 +2372,7 @@ setting{
 	visible = function()
 		return dmhub.GetSettingValue('maplayout:tiletype') == 'custom'
 	end,
-	onchange = function() dmhub.RefreshMapLayout(); game.Refresh() end,
+	onchange = function() dmhub.RefreshMapLayout() end,
 	editor = "dropdown",
 
 
@@ -1958,7 +2401,7 @@ setting{
 	min = 0.5,
 	max = 2,
 	monitorVisible = {'maplayout:tiletype'},
-	onchange = function() dmhub.RefreshMapLayout(); game.Refresh() end,
+	onchange = function() dmhub.RefreshMapLayout() end,
 	visible = function()
 		return dmhub.GetSettingValue('maplayout:tiletype') == 'custom'
 	end,
@@ -1973,7 +2416,7 @@ setting{
 	min = 0.5,
 	max = 2,
 	monitorVisible = {'maplayout:tiletype'},
-	onchange = function() dmhub.RefreshMapLayout(); game.Refresh() end,
+	onchange = function() dmhub.RefreshMapLayout() end,
 	visible = function()
 		return dmhub.GetSettingValue('maplayout:tiletype') == 'custom'
 	end,
@@ -1988,7 +2431,7 @@ setting{
 	min = 0,
 	max = 0.5,
 	monitorVisible = {'maplayout:tiletype'},
-	onchange = function() dmhub.RefreshMapLayout(); game.Refresh() end,
+	onchange = function() dmhub.RefreshMapLayout() end,
 	visible = function()
 		return dmhub.GetSettingValue('maplayout:tiletype') == 'custom'
 	end,
@@ -2328,7 +2771,7 @@ setting{
 
 setting{
 	id = "gmbroadcastmouse",
-	description = "GM Mouse Position Shared",
+	description = "Director Mouse Cursor Shared",
 	classes = {"dmonly"},
 	section = "Game",
 	default = 1,
@@ -2338,10 +2781,32 @@ setting{
 
 setting{
 	id = "playerbroadcastmouse",
-	description = "Player Mouse Positions Shared",
+	description = "Player Mouse Cursors Shared",
 	classes = {"dmonly"},
 	section = "Game",
 	default = 1,
+	storage = "game",
+	editor = "check",
+}
+
+setting{
+	id = "walls:indestructible",
+	description = "Indestructible Walls",
+	help = "When enabled, forced movement cannot break through walls, regardless of their solidity.",
+	classes = {"dmonly"},
+	section = "Game",
+	default = false,
+	storage = "game",
+	editor = "check",
+}
+
+setting{
+	id = "climbing:alwaysenabled",
+	description = "Climbing Always Enabled",
+	help = "When enabled, creatures can climb anywhere on the map, as if every tile was marked as climbable. Climbable areas marked on the map are still used as normal.",
+	classes = {"dmonly"},
+	section = "Game",
+	default = false,
 	storage = "game",
 	editor = "check",
 }
@@ -2411,6 +2876,18 @@ setting{
 	default = false,
 }
 
+--Read by the engine (NativeWindowManager.CanUseGpuBridge): when false,
+--popout windows use the CPU shared-memory transport instead of the DXGI
+--shared-texture bridge. Debug/test switch; takes effect per-frame, even
+--for windows that are already open.
+setting{
+	id = "popoutgpu",
+	description = "Popout windows use GPU rendering",
+	storage = "preference",
+	editor = "check",
+	default = true,
+}
+
 setting{
 	id = "autoreloadlua",
 	description = "Auto Reload Lua Changes",
@@ -2452,6 +2929,14 @@ setting{
 	editor = "dropdown",
 		enum = {
 		{
+			value = 60,
+			text = "60%",
+		},
+		{
+			value = 70,
+			text = "70%",
+		},
+		{
 			value = 80,
 			text = "80%",
 		},
@@ -2481,3 +2966,97 @@ setting{
 		},
 	},
 }
+
+setting{
+	id = "telemetry_enabled",
+	description = "Send Anonymous Usage Data",
+	help = "Help improve DMHub by sending anonymous usage statistics. No personal information is collected.",
+	storage = "preference",
+	section = "General",
+	editor = "check",
+	default = true,
+}
+
+
+setting{
+    id = "strict:movement",
+    description = "Strictly Enforce Forced Movement Rules",
+    help = "When enabled, players (and a GM viewing as a player) can only place forced movement (push, pull, slide, knockback) on legally reachable tiles. This is separate from the engine's 'Strictly Enforce Movement Rules' setting, which restricts voluntary drag-movement to a token's own turn during combat.",
+    storage = "game",
+    editor = "check",
+    default = false,
+	section = "GameStrictRules",
+}
+
+setting{
+    id = "strict:targeting",
+    description = "Strictly Enforce Targeting Rules",
+    storage = "game",
+    editor = "check",
+    default = false,
+	section = "GameStrictRules",
+}
+
+setting{
+    id = "strict:resources",
+    description = "Strictly Enforce Action Economy and Resource Costs",
+    storage = "game",
+    editor = "check",
+    default = false,
+	section = "GameStrictRules",
+}
+
+
+setting{
+    id = "strict:inventory",
+    description = "Strict Inventory Management",
+    storage = "game",
+    editor = "check",
+    default = false,
+    section = "GameStrictRules",
+}
+
+setting{
+    id = "strict:rolls",
+    description = "Strictly Enforce Rolls",
+    help = "When enabled, a roll's result stands: players (and a GM viewing as a player) cannot re-roll, edit the dice expression, click a tier row to override the outcome, or change which modifiers and edges/banes were applied -- and only the modifiers that actually apply are listed. Backing out of an ability with the card's close button is also refused once its cost has been paid. The Director is never restricted.",
+    storage = "game",
+    editor = "check",
+    default = false,
+    section = "GameStrictRules",
+}
+
+--The engine registers "Strictly Enforce Movement Rules" (core settings.txt)
+--in the plain "Game" section, where it renders among the unrelated toggles
+--above the headings. It is a rules-enforcement setting like the four above,
+--so move it into that section here rather than duplicating the definition --
+--setting{} stores the info table by id and the settings screen reads .section
+--off it, so this one write re-homes the existing row without touching the
+--engine's description, help, default or ordinal.
+local g_engineMovementSetting = rawget(_G, "Settings")
+g_engineMovementSetting = g_engineMovementSetting ~= nil and g_engineMovementSetting["strictmovementrules"] or nil
+if g_engineMovementSetting ~= nil then
+    g_engineMovementSetting.section = "GameStrictRules"
+end
+
+setting{
+    id = "dmhub:do_websocket_impl",
+    description = "Game Server Connection",
+    help = "Which WebSocket implementation to use when connecting to the cloud game server. Try the alternate option if you have trouble connecting (e.g. behind a corporate proxy or VPN). Takes effect on the next reconnect.",
+    storage = "preference",
+    section = "General",
+    editor = "dropdown",
+    default = "best-http",
+    enum = {
+        {
+            value = "best-http",
+            text = "BestHTTP (default)",
+        },
+        {
+            value = "client-websocket",
+            text = "Native ClientWebSocket",
+        },
+    },
+}
+
+dmhub.SetSettingValue("cloudblob:scheme", "r2")

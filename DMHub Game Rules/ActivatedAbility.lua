@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 --This file implements *activated abilities*. Note that spells are a type of activated ability (though see the spells
 --file, since they override some behavior). Attacks are also a type of activated ability.
 --Activated abilities have different behaviors and you can use the examples in here to define your own.
@@ -10,15 +21,17 @@ local mod = dmhub.GetModLoading()
 --- @class ActivatedAbility
 --- @field description string Rules text shown to players.
 --- @field flavor string Flavor/lore text shown in the ability tooltip.
---- @field range number Targeting range in world units.
---- @field lineDistance number Length for line-area targeting.
---- @field rangeDisadvantage string GoblinScript: if truthy, ranged attacks have disadvantage.
+--- @field range number|string|table Targeting range in world units.
+--- @field rangeOriginTokenId nil|string Serialized token id used as the targeting range origin.
+--- @field lineDistance number|string|table Length for line-area targeting.
+--- @field rangeDisadvantage string|number|table GoblinScript: if truthy, ranged attacks have disadvantage.
 --- @field selfTarget boolean If true, the ability always targets the caster.
 --- @field castImmediately boolean If true, auto-casts when there are no targeting choices.
+--- @field environmentRoll boolean|nil If true, the ability's power roll is made by the environment: the caster only executes the roll and it counts as a roll made AGAINST them (their own modifiers are excluded; their defensive "rolls against you" modifiers apply even on a self-cast). Set on abilities synthesized by Aura:GetSimplePowerRollTrigger.
 --- @field recharge boolean|number Recharge roll threshold (false = no recharge mechanic).
 --- @field legendary boolean If true, this is a legendary action.
 --- @field categorization string Ability category string (e.g. "none", "action", "maneuver").
---- @field multipleModes boolean If true, the ability has multiple selectable modes.
+--- @field multipleModes boolean|string If true, the ability has multiple selectable modes.
 --- @field domains table<string, boolean> Domain set this ability belongs to.
 --- @field isSpell boolean If true, this ability is treated as a spell.
 --- @field abilityModification boolean If true, this is a modification of another ability rather than a standalone ability.
@@ -29,27 +42,27 @@ local mod = dmhub.GetModLoading()
 --- @field concentration boolean If true, maintaining this effect requires concentration.
 --- @field silent boolean If true, the ability is triggered by the system and does not show a dialog.
 --- @field castingTime string DEPRECATED. Use actionResourceId instead.
---- @field actionResourceId string The resource id consumed to cast (e.g. the action resource guid).
---- @field actionNumber number Number of action resources consumed.
---- @field resourceCost string Secondary resource id cost ("none" if free).
---- @field resourceNumber number Amount of the secondary resource cost.
---- @field targetFilter string GoblinScript formula to filter valid targets.
---- @field channeledResource string Resource id that can be channeled into this ability for variable power ("none" if unused).
+--- @field actionResourceId string|nil The resource id consumed to cast (e.g. the action resource guid).
+--- @field actionNumber number|string|table Number of action resources consumed.
+--- @field resourceCost string|nil Secondary resource id cost ("none" if free).
+--- @field resourceNumber number|string|table Amount of the secondary resource cost.
+--- @field targetFilter string|number|table GoblinScript formula to filter valid targets.
+--- @field channeledResource string|nil Resource id that can be channeled into this ability for variable power ("none" if unused).
 --- @field channelDescription string Description shown when channeling resource into the ability.
 --- @field channelIncrement number|string Minimum channel increment (number or GoblinScript formula).
 --- @field proximityTargeting boolean If true, targeting uses proximity range instead of ability range.
---- @field proximityRange string Range in world units for proximity targeting.
+--- @field proximityRange string|number|table Range in world units for proximity targeting.
 --- @field behaviors ActivatedAbilityBehavior[] The list of behaviors that execute when the ability is cast.
 ActivatedAbility = RegisterGameType("ActivatedAbility")
 
 --- @class ActivatedAbilityBehavior
 --- @field instant boolean If true, executes immediately (not in a coroutine).
 --- @field customOngoingEffect boolean If true, uses a custom ongoing effect rather than the default.
---- @field duration string Duration type for the effect ("none" by default).
---- @field filterTarget string GoblinScript: if falsy for a target, skip it.
+--- @field duration string|number|nil Duration type for the effect ("none" by default).
+--- @field filterTarget string|number|table GoblinScript: if falsy for a target, skip it.
 --- @field summary string Short display name shown in the ability editor.
 --- @field applyto string Which targets receive this behavior ("targets" or other filter).
---- @field stacks boolean|string Whether the behavior stacks ("1" or false).
+--- @field stacks boolean|string|number|table Whether the behavior stacks ("1" or false).
 --- @field damageType string Default damage type for behaviors that deal damage.
 --- @field durationUntilEndOfTurn boolean If true, the effect lasts until end of caster's turn.
 --- @field mono boolean If true, only one of these behaviors can be in an ability's list at a time.
@@ -101,6 +114,7 @@ ActivatedAbilityModifiersBehavior = RegisterGameType("ActivatedAbilityModifiersB
 ActivatedAbilityApplyMomentaryEffectBehavior = RegisterGameType("ActivatedAbilityApplyMomentaryEffectBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.description = ""
+ActivatedAbility.hasCustomIcon = false
 
 ActivatedAbility.flavor = ""
 
@@ -162,6 +176,8 @@ ActivatedAbility.domains = {}
 ActivatedAbility.isSpell = false
 
 ActivatedAbilityBehavior.mono = false
+ActivatedAbilityBehavior.runOnAccept = true
+ActivatedAbilityBehavior.runOnDismiss = false
 ActivatedAbilityAugmentedAbilityBehavior.mono = true
 ActivatedAbilityCastSpellBehavior.mono = true
 
@@ -251,10 +267,20 @@ end
 ActivatedAbility.proximityTargeting = false
 ActivatedAbility.proximityRange = "5"
 
+--default for abilities serialized before this field existed; Create() sets it explicitly.
+ActivatedAbility.repeatTargets = false
+
 ActivatedAbility.sequentialTargeting = false
 
 --for emptyspace targetType, this is the type of targeting used.
 ActivatedAbility.targeting = "direct"
+
+--for contiguous_wall targeting: whether wall squares may be stacked on top of each
+--other (re-clicking a chosen square adds another cube there instead of deselecting).
+ActivatedAbility.wallStacking = false
+
+--when true, forced movement continues through creatures instead of stopping on collision.
+ActivatedAbility.forcedMovementThroughCreatures = false
 
 --for line type targeting.
 ActivatedAbility.canChooseLowerRange = false
@@ -265,9 +291,11 @@ ActivatedAbility._tmp_temporaryClone = false
 ActivatedAbility.displayOrder = 1
 
 --- @return number
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2963
 function ActivatedAbility:DisplayOrder()
     return self.displayOrder
 end
+--]==]
 
 --- @return ActivatedAbility
 function ActivatedAbility:MakeTemporaryClone()
@@ -284,30 +312,134 @@ end
 ActivatedAbility.keywords = {}
 
 --- @param keyword string
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:244
 function ActivatedAbility:AddKeyword(keyword)
 	if self.keywords == ActivatedAbility.keywords then
 		self.keywords = {}
 	end
 	self.keywords[keyword] = true
 end
+--]==]
 
 --- @param keyword string
 --- @return boolean
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:250
 function ActivatedAbility:HasKeyword(keyword)
 	return self.keywords[keyword] == true
 end
+--]==]
 
 --- @param keyword string
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:255
 function ActivatedAbility:RemoveKeyword(keyword)
 	self.keywords[keyword] = nil
 end
+--]==]
 
 --- @return boolean
 function ActivatedAbility:RequiresConcentration()
 	return cond(self:try_get("concentration"), true, false)
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2869
 function ActivatedAbility:GetTypeIconForActionBar()
+    return nil
+end
+--]==]
+
+function ActivatedAbility:GetIcon()
+    if self.hasCustomIcon then
+        return self.iconid
+    end
+    if self:has_key("villainAction") then
+        return "drawsteel/ability/villain_action_icon.png"
+    end
+
+    if self.targetType == "emptyspace" or self.targetType == "emptyspacefriend" or self.targetType == "anyspace" then
+        for _,behavior in ipairs(self.behaviors or {}) do
+            if behavior.typeName == "ActivatedAbilityRelocateCreatureBehavior" then
+                local movementType = behavior.movementType or "teleport"
+                if movementType == "shift" then
+                    return "drawsteel/ability/move_shift.png"
+                else
+                    return "drawsteel/ability/move.png"
+                end
+            end
+        end
+    end
+
+    if self:HasKeyword("Strike") then
+        if self:HasKeyword("Melee") then
+            if self:HasKeyword("Ranged") then
+                return "drawsteel/ability/versatile_icon.png"
+            else
+                return "drawsteel/ability/melee_icon.png"
+            end
+        elseif self:HasKeyword("Ranged") then
+            return "drawsteel/ability/ranged_icon.png"
+        end
+    end
+
+    if self:HasKeyword("Area") then
+        return "drawsteel/ability/area_icon.png"
+    elseif self.targetType == "self" then
+        return "drawsteel/ability/self_icon.png"
+    end
+
+    return "drawsteel/ability/special_icon.png"
+end
+
+function TriggeredAbility:GetIcon()
+    if not self.hasCustomIcon then
+		return "drawsteel/ability/trigger_icon.png"
+    end
+
+    return self.iconid
+end
+
+-- Cached default display table used when an ability has no custom icon and no
+-- recognized damage type. Returned by reference -- never mutate.
+local g_defaultIconDisplay = {
+    bgcolor = '#ffffffff',
+    hueshift = 0,
+    saturation = 1,
+    brightness = 1,
+}
+
+-- Cached per-damage-type display tables. Lookup is by lowercase damage type
+-- name (matching ActivatedAbility:GetDamageTypesSet() output). Returned by
+-- reference -- never mutate.
+local g_damageTypeIconDisplay = {
+    acid      = { bgcolor = '#89a25eff', hueshift = 0, saturation = 1, brightness = 1 },
+    cold      = { bgcolor = '#2ab6e1ff', hueshift = 0, saturation = 1, brightness = 1 },
+    corruption = { bgcolor = '#f7009cff', hueshift = 0, saturation = 1, brightness = 1 },
+    fire      = { bgcolor = '#fc9300ff', hueshift = 0, saturation = 1, brightness = 1 },
+    holy      = { bgcolor = '#fcfa8bff', hueshift = 0, saturation = 1, brightness = 1 },
+    lightning = { bgcolor = '#71bdffff', hueshift = 0, saturation = 1, brightness = 1 },
+    poison    = { bgcolor = '#72ff01ff', hueshift = 0, saturation = 1, brightness = 1 },
+    psychic   = { bgcolor = '#f8c3d9ff', hueshift = 0, saturation = 1, brightness = 1 },
+    sonic     = { bgcolor = '#1cd1dcff', hueshift = 0, saturation = 1, brightness = 1 },
+}
+
+function ActivatedAbility:GetIconDisplay()
+    if not self.hasCustomIcon then
+        local damageTypes = self:GetDamageTypesSet()
+        for _,dtype in ipairs(damageTypes.strings) do
+            local display = g_damageTypeIconDisplay[dtype]
+            if display ~= nil then
+                return display
+            end
+        end
+        return g_defaultIconDisplay
+    end
+    return self.display
+end
+
+function ActivatedAbility:GetIconGradient()
+    if self.hasCustomIcon then
+        return DisplayGradients.GetGradient(rawget(self, "iconGradient"))
+    end
+
     return nil
 end
 
@@ -437,6 +569,7 @@ function ActivatedAbility.SuppressType(nameOrId)
 end
 
 --- @return boolean
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:515
 function ActivatedAbility:HasAttack()
 	for _,behavior in ipairs(self.behaviors) do
 		if behavior.typeName == "ActivatedAbilityAttackBehavior" then
@@ -446,6 +579,7 @@ function ActivatedAbility:HasAttack()
 
 	return false
 end
+--]==]
 
 --- @return boolean
 function ActivatedAbility:HasSavingThrow()
@@ -663,7 +797,13 @@ function ActivatedAbility.Create(options)
 		end
 	end
 
-	return ActivatedAbility.new(args)
+	local ability = ActivatedAbility.new(args)
+	-- Signals to AbilityEditor that this ability was freshly created so the
+	-- entry modal (Template / Duplicate / Blank) fires on first edit. The
+	-- _tmp_ prefix keeps it out of serialization, so the flag lives only in
+	-- the session the ability was created.
+	ability._tmp_isNewAbility = true
+	return ability
 end
 
 --- Returns the unique id of this ability (uses guid or id field).
@@ -691,6 +831,7 @@ end
 
 --- @param caster creature
 --- @return boolean
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2687
 function ActivatedAbility:AffectedByCover(caster)
 	local behaviors = self:try_get("behaviors", {})
 	for _,behavior in ipairs(behaviors) do
@@ -701,6 +842,7 @@ function ActivatedAbility:AffectedByCover(caster)
 
 	return false
 end
+--]==]
 
 --- @return nil|ActivatedAbilityAttackBehavior
 function ActivatedAbility:GetAttackBehavior()
@@ -785,10 +927,19 @@ function ActivatedAbility:DescribeAOE(casterCreature)
 	return '--'
 end
 
---- Returns the token to use as the origin for range calculations (invoker override or caster).
+--- Returns the token to use as the origin for range calculations (explicit token id, invoker override, or caster).
 --- @param token CharacterToken
 --- @return CharacterToken
 function ActivatedAbility:GetRangeSource(token)
+	local rangeOriginTokenId = self:try_get("rangeOriginTokenId")
+	if rangeOriginTokenId ~= nil then
+		local tok = dmhub.GetTokenById(rangeOriginTokenId)
+
+		if tok ~= nil and tok.valid then
+			return tok
+		end
+	end
+
 	if self:has_key("invoker") and self:try_get("rangeUsesInvoker") then
 		local tok = dmhub.LookupToken(self.invoker)
 
@@ -840,6 +991,7 @@ end
 --- @param castingSymbols table
 --- @param selfRange nil|string|number
 --- @return number
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2969
 function ActivatedAbility:GetRange(casterCreature, castingSymbols, selfRange)
 	if selfRange == nil or selfRange == "" then
 		selfRange = self.range
@@ -895,6 +1047,7 @@ function ActivatedAbility:GetRange(casterCreature, castingSymbols, selfRange)
 
 	return result
 end
+--]==]
 
 function ActivatedAbility:GetRangeDisadvantage(casterCreature, castingSymbols)
 	return self:GetRange(casterCreature, castingSymbols, self.rangeDisadvantage)
@@ -924,6 +1077,9 @@ function ActivatedAbility:GetNumTargets(casterToken, symbols)
 
         return 1
     end
+	if casterToken.properties == nil then
+		return 1
+	end
 	local targets = ExecuteGoblinScript(self.numTargets, casterToken.properties:LookupSymbol(symbols))
 	return targets
 end
@@ -938,9 +1094,11 @@ function ActivatedAbility:CustomTargetShape(casterToken, range, symbols)
 end
 
 --- @return boolean
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2230
 function ActivatedAbility:IsForcedMovement()
     return self:try_get("targeting") == "straightline"
 end
+--]==]
 
 --- @return nil|string
 function ActivatedAbility:ForcedMovementType()
@@ -954,74 +1112,131 @@ end
 --- @return boolean
 function ActivatedAbility:VerticalTargeting()
     local forcedMovement = self:try_get("forcedMovement")
-    if string.starts_with(forcedMovement, "vertical_") then
+    if forcedMovement ~= nil and string.starts_with(forcedMovement, "vertical_") then
         return true
     end
 
     return false
 end
 
-function ActivatedAbility:TargetLocMaxElevationChangeFunction(casterToken, symbols)
-    if self:try_get("targeting") == "straightline" and (self.targetType == "emptyspace" or self.targetType == "anyspace") and symbols.invoker ~= nil then
-        local invoker = symbols.invoker
-        if type(invoker) == "function" then
-            invoker = invoker("self")
+local function ResolveForcedMovementOrigin(symbols)
+    local originLoc = symbols.forcedMovementOrigin
+    local originToken = nil
+
+    local originTokenId = symbols.forcedMovementOriginTokenId
+    if originTokenId ~= nil then
+        originToken = dmhub.GetTokenById(originTokenId)
+        if originToken ~= nil and originToken.valid then
+            return originToken, originLoc or originToken.loc
         end
+    end
 
-        if type(invoker) == "table" then
-            invoker = dmhub.LookupToken(invoker)
-        else
-            invoker = nil
+    --A saved location remains a valid fallback if its source token has left the map.
+    if originLoc ~= nil then
+        return nil, originLoc
+    end
+
+    local invoker = symbols.invoker
+    if type(invoker) == "function" then
+        invoker = invoker("self")
+    end
+
+    if type(invoker) == "table" then
+        originToken = dmhub.LookupToken(invoker)
+        if originToken ~= nil then
+            originLoc = originToken.loc
         end
+    end
 
-        if invoker ~= nil then
-            local startingAltitudeDelta = casterToken.loc.altitude - invoker.loc.altitude
+    return originToken, originLoc
+end
 
-            local originLoc = symbols.forcedMovementOrigin
-
-            if originLoc == nil then
-                originLoc = invoker.loc
+--Creature-origin forced movement is measured edge-to-edge so large tokens do
+--not gain legal diagonal pushes from the arbitrary anchor of their footprint.
+local function ForcedMovementOriginDistanceFunction(originToken, originLoc, movedToken)
+    if originToken ~= nil and originToken.valid then
+        local originLocs = originToken:LocsOccupyingWhenAt(originLoc)
+        return function(loc)
+            local result = nil
+            for _,sourceLoc in ipairs(originLocs) do
+                for _,targetLoc in ipairs(movedToken:LocsOccupyingWhenAt(loc)) do
+                    local distance = sourceLoc:DistanceInTiles(targetLoc)
+                    if result == nil or distance < result then
+                        result = distance
+                    end
+                end
             end
 
+            return result or originLoc:DistanceInTiles(loc)
+        end
+    end
 
-            local forcedMovement = symbols.forcedmovement or self:try_get("forcedMovement")
-            if originLoc ~= nil then
- 
-                local distanceStart = math.max(startingAltitudeDelta, originLoc:DistanceInTiles(casterToken.loc))
+    return function(loc)
+        return originLoc:DistanceInTiles(loc)
+    end
+end
 
-                if forcedMovement == "vertical_push" or forcedMovement == "vertical_pull" then
-                    return function(loc)
-                        local min = nil
-                        local max = nil
-                        for i=-symbols.range,symbols.range do
-                            local moveDistance = loc:DistanceInTiles(casterToken.loc)
-                            local distanceFromPusher = loc:DistanceInTiles(originLoc)
-                            local altitudeDelta = (casterToken.loc.altitude + i) - invoker.loc.altitude
-                            distanceFromPusher = math.max(altitudeDelta, distanceFromPusher)
-                            moveDistance = math.max(moveDistance, math.abs(i))
+function ActivatedAbility:TargetLocMaxElevationChangeFunction(casterToken, symbols)
+    --Teleport targeting: distance is Chebyshev -- max(|dx|, |dy|, |dz|) -- so a
+    --"teleport 5" may end up to 5 squares above or below the creature's current
+    --altitude, independently of the horizontal component (which the radius marker
+    --already bounds). Unlike the forced-movement calculators below, this returns
+    --ABSOLUTE altitudes; landing on the ground at the target tile is the lowest
+    --possible landing spot.
+    if (self.targetType == "emptyspace" or self.targetType == "anyspace") and self:try_get("behaviors") ~= nil and self:GetMovementType(casterToken, symbols) == "teleport" then
+        local range = symbols.range
+        if range == nil then
+            range = self:GetRange(casterToken.properties, symbols) / dmhub.unitsPerSquare
+        end
+        local casterAlt = casterToken.loc.altitude
+        return function(loc)
+            local groundAlt = loc.withGroundAltitude.altitude
+            local minAltitude = math.max(groundAlt, casterAlt - range)
+            local maxAltitude = math.max(minAltitude, casterAlt + range)
+            return minAltitude, maxAltitude
+        end
+    end
 
-                            local allowed
-                            if forcedMovement == "vertical_pull" then
-                                allowed = distanceFromPusher <= (distanceStart - moveDistance)
-                            else
-                                allowed = distanceFromPusher >= (distanceStart + moveDistance)
-                            end
+    if self:try_get("targeting") == "straightline" and (self.targetType == "emptyspace" or self.targetType == "anyspace") and symbols.invoker ~= nil then
+        local originToken, originLoc = ResolveForcedMovementOrigin(symbols)
+        local forcedMovement = symbols.forcedmovement or self:try_get("forcedMovement")
+        if originLoc ~= nil then
+            local distanceFromOrigin = ForcedMovementOriginDistanceFunction(originToken, originLoc, casterToken)
+            local startingAltitudeDelta = casterToken.loc.altitude - originLoc.altitude
+            local distanceStart = math.max(startingAltitudeDelta, distanceFromOrigin(casterToken.loc))
 
-                            if allowed then
-                                if min == nil then
-                                    min = i
-                                end
+            if forcedMovement == "vertical_push" or forcedMovement == "vertical_pull" then
+                return function(loc)
+                    local min = nil
+                    local max = nil
+                    for i=-symbols.range,symbols.range do
+                        local moveDistance = loc:DistanceInTiles(casterToken.loc)
+                        local distanceFromPusher = distanceFromOrigin(loc)
+                        local altitudeDelta = (casterToken.loc.altitude + i) - originLoc.altitude
+                        distanceFromPusher = math.max(altitudeDelta, distanceFromPusher)
+                        moveDistance = math.max(moveDistance, math.abs(i))
 
-                                max = i
-                            end
-
+                        local allowed
+                        if forcedMovement == "vertical_pull" then
+                            allowed = distanceFromPusher <= (distanceStart - moveDistance)
+                        else
+                            allowed = distanceFromPusher >= (distanceStart + moveDistance)
                         end
-                        return (min or 0), (max or 0)
+
+                        if allowed then
+                            if min == nil then
+                                min = i
+                            end
+
+                            max = i
+                        end
+
                     end
-                elseif forcedMovement == "vertical_slide" then
-                    return function(loc)
-                        return -symbols.range, symbols.range
-                    end
+                    return (min or 0), (max or 0)
+                end
+            elseif forcedMovement == "vertical_slide" then
+                return function(loc)
+                    return -symbols.range, symbols.range
                 end
             end
         end
@@ -1035,33 +1250,32 @@ end
 function ActivatedAbility:TargetLocPassesFilterPredicate(casterToken, symbols)
 
     print("MARKER:: PASSES FILTER...")
-    if self:try_get("targeting") == "straightline" and (self.targetType == "emptyspace" or self.targetType == "anyspace") and symbols.invoker ~= nil then
-        local originLoc = symbols.forcedMovementOrigin
 
-        if originLoc == nil then
-            local invoker = symbols.invoker
-            if type(invoker) == "function" then
-                invoker = invoker("self")
+    --transient whitelist of allowed squares (a list of Locs). Set on temporary
+    --ability clones that prompt for a pick restricted to specific squares, e.g.
+    --shift_wall_voxel choosing which vacated square a wall moves into.
+    local restrictLocs = self:try_get("_tmp_restrictLocs")
+    if restrictLocs ~= nil then
+        return function(loc)
+            for _,allowed in ipairs(restrictLocs) do
+                if loc.x == allowed.x and loc.y == allowed.y and loc.floor == allowed.floor then
+                    return true
+                end
             end
-
-            if type(invoker) == "table" then
-                invoker = dmhub.LookupToken(invoker)
-            else
-                invoker = nil
-            end
-            
-            if invoker ~= nil then
-                originLoc = invoker.loc
-            end
+            return false
         end
+    end
+    if self:try_get("targeting") == "straightline" and (self.targetType == "emptyspace" or self.targetType == "anyspace") and symbols.invoker ~= nil then
+        local originToken, originLoc = ResolveForcedMovementOrigin(symbols)
 
         if originLoc ~= nil then
-            local distanceStart = originLoc:DistanceInTiles(casterToken.loc)
+            local distanceFromOrigin = ForcedMovementOriginDistanceFunction(originToken, originLoc, casterToken)
+            local distanceStart = distanceFromOrigin(casterToken.loc)
             local forcedMovement = symbols.forcedmovement or self:try_get("forcedMovement")
             if forcedMovement == "push" or forcedMovement == "pull" or forcedMovement == "vertical_push" or forcedMovement == "vertical_pull" then
                 return function(loc)
                     local moveDistance = loc:DistanceInTiles(casterToken.loc)
-                    local distanceFromPusher = loc:DistanceInTiles(originLoc)
+                    local distanceFromPusher = distanceFromOrigin(loc)
                     if forcedMovement == "push" or forcedMovement == "vertical_push" then
                         return distanceFromPusher >= (distanceStart + moveDistance)
                     else
@@ -1107,6 +1321,10 @@ function ActivatedAbility:TargetLocPassesFilterPredicate(casterToken, symbols)
     print("MARKER:: GENERAL", self.targetType, "X (", self.targetFilter, ")")
 	return function(loc)
 		local symbolizedLoc = Loc.Create(loc)
+		--make the casting token available to Loc GoblinScript fields that must
+		--exclude it (e.g. AdjacentToWater treats other water elementals as
+		--bodies of water, but never the caster itself). _tmp_ = transient.
+		symbolizedLoc._tmp_casterid = casterToken.charid
 		symbolsCopy.target = symbolizedLoc
 
 		local result = GoblinScriptTrue(ExecuteGoblinScript(self.targetFilter, casterToken.properties:LookupSymbol(symbolsCopy), 0, string.format("Target location filter for %s", self.name)))
@@ -1115,19 +1333,69 @@ function ActivatedAbility:TargetLocPassesFilterPredicate(casterToken, symbols)
 end
 
 
+--Returns the failure message for the first abilityFilters entry whose formula
+--evaluates false, or nil if all pass. The failing filter table itself is
+--returned as a second value so callers can inspect extra fields on the entry
+--(e.g. sightlines = true asks the action bar to draw line-of-sight arrows from
+--enemies that can see the caster while the blocked ability is hovered).
+--Callers that use this in an `or` expression naturally truncate to just the
+--message.
 function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
     local filters = self:try_get("abilityFilters", {})
 
+    --HideGate diagnostics: the Hide maneuver's cover/concealment gate is easy to
+    --break silently (a GoblinScript error in a filter formula evaluates to the
+    --default of 1 = pass), so trace its evaluation to the console.
+    local diag = self.name == "Hide"
+    if diag then
+        print(string.format("HideGate:: evaluating %d filter(s) on %s", #filters, self.name))
+    end
+
     for _,filter in ipairs(filters) do
         local result = ExecuteGoblinScript(filter.formula, casterCreature:LookupSymbol{}, 1, "Test ability filter")
+        if diag then
+            print("HideGate:: formula [", filter.formula, "] ->", result, "pass =", GoblinScriptTrue(result))
+        end
         if not GoblinScriptTrue(result) then
-            return StringInterpolateGoblinScript(filter.reason, casterCreature)
+            return StringInterpolateGoblinScript(filter.reason, casterCreature), filter
         end
     end
 
     return nil
 end
 
+
+--Objects can opt into being targeted by abilities that do not normally target
+--objects: if the object's properties (e.g. a Targetable component's
+--TargetableObject) carry a non-empty additionalTargetFilter GoblinScript and it
+--passes when evaluated with this ability bound to the "ability" symbol, the
+--object is targetable by this ability. e.g. 'Ability.Keywords has "Strike"'
+--makes any strike able to target the object.
+--- @param casterToken CharacterToken
+--- @param targetToken CharacterToken
+--- @param symbols table
+--- @return boolean
+function ActivatedAbility:ObjectGrantsTargeting(casterToken, targetToken, symbols)
+	if not targetToken.isAttackableObject then
+		return false
+	end
+
+	local props = targetToken.properties
+	if props == nil then
+		return false
+	end
+
+	local filter = props:try_get("additionalTargetFilter", "")
+	if filter == "" then
+		return false
+	end
+
+	local filterSymbols = table.shallow_copy(symbols or {})
+	filterSymbols.ability = GenerateSymbols(self)
+	filterSymbols.caster = GenerateSymbols(casterToken.properties)
+
+	return GoblinScriptTrue(ExecuteGoblinScript(filter, props:LookupSymbol(filterSymbols), 0, string.format("Additional targeting filter for %s", self.name)))
+end
 
 --- @param casterToken CharacterToken
 --- @param targetToken CharacterToken
@@ -1139,8 +1407,17 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 	local conditionid = self:PrimaryConditionID()
 
 	--if spell cannot target self.
-	if (not self.selfTarget) and casterToken.properties == targetToken.properties then
-		return false
+	--Flag-gated exception: a creature carrying the "Can Target Self" custom attribute (> 0) may
+	--include itself among an ability's targets alongside its other candidates (e.g. a compelled
+	--free strike that may hit an adjacent creature OR itself). The same flag also waives the
+	--ability's allegiance filter for the self target (see isAnyObject below), so a monster whose
+	--free strike is allegiance-restricted to enemies can still choose itself. Inert otherwise.
+	local canTargetSelfOverride = false
+	if casterToken.properties == targetToken.properties then
+		canTargetSelfOverride = casterToken.properties:CalculateNamedCustomAttribute("Can Target Self") > 0
+		if (not self.selfTarget) and (not canTargetSelfOverride) then
+			return false
+		end
 	end
 
 	if not GameSystem.AllowTargeting(casterToken, targetToken, self) then
@@ -1151,9 +1428,9 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 		return false
 	end
 
-    if self.targetType == "all" and casterToken.floorIndex == targetToken.floorIndex and casterToken:GetLineOfSight(targetToken) <= 0 then
+    if self.targetType == "all" and casterToken.floorIndex == targetToken.floorIndex and casterToken:GetLineOfSight(targetToken, casterToken.properties:GetPierceWalls()) <= 0 then
         return false
-    elseif symbols.targetArea ~= nil and targetToken:GetLineOfSight(symbols.targetArea.origin) <= 0 then
+    elseif self.targetType ~= "map" and symbols.targetArea ~= nil and targetToken:GetLineOfSight(symbols.targetArea.origin, targetToken.properties:GetPierceWalls()) <= 0 then
         return false
     end
 
@@ -1186,7 +1463,11 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     else
 
         if (not self.objectTarget) and targetToken.isObject then
-            return false
+            --the object may still grant targeting to this ability via its
+            --additionalTargetFilter (see ObjectGrantsTargeting).
+            if not self:ObjectGrantsTargeting(casterToken, targetToken, symbols) then
+                return false
+            end
         elseif self.objectTarget and targetToken.isObject and (not targetToken.isAttackableObject) then
             return false
         end
@@ -1200,17 +1481,19 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
         end
 
         -- Allegiance checks: objects and creature-objects bypass allegiance filters.
-        local isAnyObject = targetToken.isObject or treatAsObject
+        -- A flagged self target ("Can Target Self") also bypasses them, so an allegiance-
+        -- restricted free strike can still land on the caster itself.
+        local isAnyObject = targetToken.isObject or treatAsObject or canTargetSelfOverride
 
         if self.targetAllegiance == "none" and (not isAnyObject) then
             return false
         end
 
-        if self.targetAllegiance == 'enemy' and casterToken:IsFriend(targetToken) and (not isAnyObject) then
+        if self.targetAllegiance == 'enemy' and IsFriendForTargeting(casterToken, targetToken) and (not isAnyObject) then
             return false
         end
 
-        if self.targetAllegiance == 'ally' and (not casterToken:IsFriend(targetToken)) and (not isAnyObject) then
+        if self.targetAllegiance == 'ally' and (not IsFriendForTargeting(casterToken, targetToken)) and (not isAnyObject) then
             return false
         end
     end
@@ -1235,7 +1518,7 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     symbols = table.shallow_copy(symbols or {})
     symbols.invoker = symbols.invoker or caster
     symbols.caster = caster
-    symbols.enemy = not casterToken:IsFriend(targetToken)
+    symbols.enemy = not IsFriendForTargeting(casterToken, targetToken)
 	symbols.target = GenerateSymbols(targetToken.properties)
 
 	local result = filter == "" or GoblinScriptTrue(ExecuteGoblinScript(filter, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target filter for %s", self.name)))
@@ -1253,6 +1536,51 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     return result
 end
 
+--- Evaluates only the authored filter formulas -- customTargetFilters
+--- (Ability Filters), the Target Filter formula, and Reasoned Filters --
+--- against a prospective target. None of TargetPassesFilter's structural
+--- gates (allegiance, untargetable, line of sight) run here. Use where the
+--- target is predetermined (e.g. a triggered ability targeting its subject)
+--- and only the author's filters should gate it.
+--- @param casterToken CharacterToken
+--- @param targetToken CharacterToken
+--- @param symbols table
+--- @return boolean, nil|string
+function ActivatedAbility:TargetPassesAuthoredFilters(casterToken, targetToken, symbols)
+	local reasonedFilters = self:try_get("reasonedFilters", {})
+	local customFilters = self:try_get("customTargetFilters", {})
+	local filter = self.targetFilter
+	if filter == "" and #reasonedFilters == 0 and #customFilters == 0 then
+		return true
+	end
+
+	--Same symbol environment TargetPassesFilter builds for its formulas.
+	local caster = GenerateSymbols(casterToken.properties)
+	symbols = table.shallow_copy(symbols or {})
+	symbols.invoker = symbols.invoker or caster
+	symbols.caster = caster
+	symbols.enemy = not IsFriendForTargeting(casterToken, targetToken)
+	symbols.target = GenerateSymbols(targetToken.properties)
+
+	for _,customFilter in ipairs(customFilters) do
+		if not GoblinScriptTrue(ExecuteGoblinScript(customFilter, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target filter for %s", self.name))) then
+			return false
+		end
+	end
+
+	if filter ~= "" and not GoblinScriptTrue(ExecuteGoblinScript(filter, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target filter for %s", self.name))) then
+		return false
+	end
+
+	for _,reasonedFilter in ipairs(reasonedFilters) do
+		if not GoblinScriptTrue(ExecuteGoblinScript(reasonedFilter.formula, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target reasoned filter for %s", self.name))) then
+			return false, StringInterpolateGoblinScript(reasonedFilter.reason, symbols)
+		end
+	end
+
+	return true
+end
+
 --- @return boolean
 function ActivatedAbility:CanDuplicateTargets()
 	return self.repeatTargets
@@ -1264,10 +1592,12 @@ end
 --- @return boolean
 function ActivatedAbility:CanSelectMoreTargets(casterToken, targets, symbols)
 	local numTargets = self:GetNumTargets(casterToken, symbols)
+	if type(numTargets) ~= "number" then
+		return false
+	end
 	if self.sequentialTargeting and #targets == 1 then
 		return false
 	end
-    print("ABILITY::", self.name, "MORE TARGETS =", numTargets, ">", #targets)
 	return numTargets > #targets
 end
 
@@ -1294,6 +1624,7 @@ end
 --- @param symbols Symbols
 --- @param synthesizedSpells nil|(ActivatedAbility[])
 --- @return string
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2643
 function ActivatedAbility:PromptText(casterToken, targets, symbols, synthesizedSpells)
 	if self:try_get("promptOverride") ~= nil then
 		return self.promptOverride
@@ -1335,6 +1666,7 @@ function ActivatedAbility:PromptText(casterToken, targets, symbols, synthesizedS
 	return string.format("Choose Target %d/%d", #targets+1, numTargets)
 	
 end
+--]==]
 
 --- if this ability can be cast with these targets.
 --- @param casterToken CharacterToken
@@ -1428,6 +1760,9 @@ function ActivatedAbility:SwitchModes(i)
     result.skippable = self:try_get("skippable")
     result.countsAsCast = self:try_get("countsAsCast")
     result.promptOverride = self:try_get("promptOverride")
+    -- Keep the opt-out across the mode switch, or a minion gets asked for one target
+    -- per squad member.
+    result.disableSquadCoordination = self:try_get("disableSquadCoordination")
 
     if result.resourceCost == "none" then
         result.resourceCost = self.resourceCost
@@ -1496,7 +1831,64 @@ function ActivatedAbility:CommitToPaying(casterToken, options)
 	self:FireUseAbility(casterToken, options)
 end
 
+--Begin recording destructive map edits (heightmap/terrain changes) made by this
+--ability into a persistent, revertible record. Behaviors that modify the map call
+--this around their edits; edits from multiple behaviors of the same cast merge
+--into one record via the cast's castid. Nil-guarded so the codex still loads on
+--engine builds that predate the recording API.
+--- @param ability ActivatedAbility
+--- @param casterToken nil|CharacterToken
+--- @param options table
+--- @param loc nil|Loc|{x: number, y: number} A representative location for jump-to.
+function ActivatedAbility.BeginMapModificationRecording(ability, casterToken, options, loc)
+    if rawget(_G, "game") == nil or game.BeginRecordingMapModification == nil then
+        return
+    end
+
+    local key = nil
+    if options ~= nil and options.symbols ~= nil then
+        key = options.symbols.castid
+    end
+
+    local casterid = nil
+    local casterName = nil
+    if casterToken ~= nil and casterToken.valid then
+        casterid = casterToken.charid
+        casterName = creature.GetTokenDescription(casterToken)
+    end
+
+    local locArg = nil
+    if loc ~= nil then
+        locArg = { x = loc.x, y = loc.y }
+    end
+
+    game.BeginRecordingMapModification{
+        key = key,
+        name = ability.name,
+        casterid = casterid,
+        casterName = casterName,
+        floorid = game.currentFloorId,
+        loc = locArg,
+    }
+end
+
+--Ends the active map modification recording. Safe to call when no recording is
+--active, so FinishCast calls it defensively.
+function ActivatedAbility.EndMapModificationRecording()
+    if rawget(_G, "game") == nil or game.EndRecordingMapModification == nil then
+        return
+    end
+
+    game.EndRecordingMapModification()
+end
+
 function ActivatedAbility:FireUseAbility(casterToken, options)
+	--The caster can be deleted/despawned during a long-running cast coroutine (roll
+	--dialogs, forced movement, AI yields), in which case the token reference survives
+	--but .valid is false and .properties is nil. Everything below dispatches events to
+	--or mutates the caster's properties, so there's nothing valid to do -- bail out the
+	--same way FinishCast's own caster dispatch is guarded below (see ~line 2237).
+	if casterToken == nil or not casterToken.valid or casterToken.properties == nil then return end
 	if (not options.firedUseAbility) and self:CountsAsRegularAbilityCast() then
 		options.firedUseAbility = true
 
@@ -1539,11 +1931,18 @@ function ActivatedAbility:FireUseAbility(casterToken, options)
 			}
 		end
 
-        casterToken.properties:DispatchEvent("useability", {usedability = self, cast = options.cast})
+        casterToken.properties:DispatchEvent("useability", {usedability = self, cast = options.symbols and options.symbols.cast})
 
         for _,target in ipairs(options.targets or {}) do
             if target.token ~= nil then
-                casterToken.properties:DispatchEvent("targetwithability", {usedability = self, cast = options.cast, target = target.token.properties})
+                --attacker/hasattacker mirror the losehitpoints payload so a
+                --reaction to "a creature targets me with an ability" can reach
+                --the creature that used it (targetType = "attacker", or an
+                --Attacker.X condition). Without these the only symbols are the
+                --ability and its target, so the user of the ability was
+                --unreachable and reactions like "the target makes a strike
+                --against me, knock them prone" could not be expressed.
+                casterToken.properties:DispatchEvent("targetwithability", {usedability = self, cast = options.symbols and options.symbols.cast, target = target.token.properties, attacker = casterToken.properties, hasattacker = true})
             end
         end
 	end
@@ -1577,7 +1976,7 @@ function ActivatedAbility:GetCost(casterToken, options)
 
 		local currentMoveSpeed = creature:CurrentMovementSpeed()
 		if creature:DistanceMovedThisTurnInFeet() + moveCost > currentMoveSpeed or currentMoveSpeed <= 0 then
-			canAfford = false
+			result.canAfford = false
 			result.cannotMove = true
 		end
 	end
@@ -1596,7 +1995,7 @@ function ActivatedAbility:GetCost(casterToken, options)
 	local actionResource = self:ActionResource()
 	if actionResource ~= nil and actionResource ~= "none" and resourcesTable[actionResource] ~= nil then
 		local max = resourcesAvailable[actionResource] or 0
-		local usage = creature:GetResourceUsage(actionResource, "round")
+		local usage = creature:GetResourceUsage(actionResource, resourcesTable[actionResource].usageLimit)
 		local available = max - usage
 
 		local numberOfActions = self:GetNumberOfActionsCost(creature, { mode = (options or {}).mode or 1 })
@@ -1638,7 +2037,7 @@ function ActivatedAbility:GetCost(casterToken, options)
 		if resourceInfo ~= nil then
 			local max = resourcesAvailable[self.channeledResource] or 0
 			local usage = creature:GetResourceUsage(self.channeledResource, resourceInfo.usageLimit)
-			local available = max - usage
+			local available = (max - usage) + resourceInfo:AllowResourceBelowZero(casterToken.properties)
             if self.resourceCost == self.channeledResource then
 				local mode = options.mode or 1
                 local resourceNum = ExecuteGoblinScript(self.resourceNumber, casterToken.properties:LookupSymbol{mode = mode}, 0, "Determine resource number for " .. self.name)
@@ -1661,21 +2060,34 @@ function ActivatedAbility:GetCost(casterToken, options)
 
 		--look for any resources of this type in the level progression and spend the first one we find.
 		--the common case is for the progression to just be one resource.
-		local resourceLevels = CharacterResource.GetLevelProgression(self.resourceCost)
+		--Remap heroic resource to the creature's actual resource (e.g. malice for
+		--monsters). Goes through GetHeroicOrMaliceId rather than the raw resourceid
+		--field so summons that share their summoner's heroic resource keep the
+		--heroic cost instead of being remapped to Malice.
+		local effectiveResourceCost = self.resourceCost
+		if effectiveResourceCost == CharacterResource.heroicResourceId then
+			effectiveResourceCost = creature:GetHeroicOrMaliceId()
+		end
+		local resourceLevels = CharacterResource.GetLevelProgression(effectiveResourceCost)
 
 		local mode = options.mode or 1
 		local resourceNum = ExecuteGoblinScript(self.resourceNumber, casterToken.properties:LookupSymbol{mode = mode}, 0, "Determine resource number for " .. self.name)
 
 		if resourceNum == 0 then
 			-- zero cost, no payment needed
-		elseif #resourceLevels > 1 and self.resourceCost == CharacterResource.heroicResourceId then
+		elseif #resourceLevels > 1 and effectiveResourceCost == CharacterResource.heroicResourceId then
 			-- Heroic/epic split: spend base resource first, supplement with epic for the remainder.
 			local paymentOptions = {}
 			local remaining = resourceNum
 			for _, levelResourceId in ipairs(resourceLevels) do
 				local resourceInfo = resourcesTable[levelResourceId]
 				if resourceInfo ~= nil then
-					local max = resourcesAvailable[levelResourceId] or 0
+					local max
+					if resourceInfo.usageLimit == "global" then
+						max = CharacterResource.GetGlobalResource(levelResourceId)
+					else
+						max = resourcesAvailable[levelResourceId] or 0
+					end
 					local usage = creature:GetResourceUsage(levelResourceId, resourceInfo.usageLimit)
 					local available = (max - usage) + resourceInfo:AllowResourceBelowZero(casterToken.properties)
 					local use = math.min(available, remaining)
@@ -1690,17 +2102,22 @@ function ActivatedAbility:GetCost(casterToken, options)
 			end
 			local canAfford = remaining <= 0
 			resourceDetails = {
-				cost = self.resourceCost,
+				cost = effectiveResourceCost,
 				quantity = resourceNum,
 				canAfford = canAfford,
 				paymentOptions = cond(canAfford, paymentOptions, {}),
-				expendedOptions = cond(not canAfford, {resourceid = self.resourceCost, quantity = resourceNum}, {}),
+				expendedOptions = cond(not canAfford, {resourceid = effectiveResourceCost, quantity = resourceNum}, {}),
 			}
 		else
 			for levelNum,resourceCost in ipairs(resourceLevels) do
 				local resourceInfo = resourcesTable[resourceCost]
 				if resourceInfo ~= nil then
-					local max = resourcesAvailable[resourceCost] or 0
+					local max
+					if resourceInfo.usageLimit == "global" then
+						max = CharacterResource.GetGlobalResource(resourceCost)
+					else
+						max = resourcesAvailable[resourceCost] or 0
+					end
 					local usage = creature:GetResourceUsage(resourceCost, resourceInfo.usageLimit)
 					local available = (max - usage) + resourceInfo:AllowResourceBelowZero(casterToken.properties)
 					local canAfford = available >= resourceNum
@@ -1709,7 +2126,7 @@ function ActivatedAbility:GetCost(casterToken, options)
 					--set to the highest resource we have, and being affordable we short-circuit immediately.
 					if resourceDetails == nil or max > 0 or canAfford then
 						resourceDetails = {
-							cost = self.resourceCost,
+							cost = effectiveResourceCost,
 							quantity = resourceNum,
 							canAfford = canAfford,
 							paymentOptions = cond(canAfford, {{resourceid = resourceCost, quantity = resourceNum}}, {}),
@@ -1755,13 +2172,6 @@ function ActivatedAbility.ExpectedResourceConsumptionFromCurrentCast()
 	for i,entry in ipairs(cost.details) do
 		for _,payment in ipairs(entry.paymentOptions) do
             result[payment.resourceid] = (result[payment.resourceid] or 0) + (payment.quantity or 1)
-        end
-    end
-
-    local improvCosts = info.options.improvementCosts
-    if improvCosts ~= nil then
-        for _, ic in ipairs(improvCosts) do
-            result[ic.resourceId] = (result[ic.resourceId] or 0) + ic.costAmt
         end
     end
 
@@ -1812,7 +2222,6 @@ function ActivatedAbility:ConsumeResources(casterToken, options)
 
             execute = function()
                 local cost = options.costOverride or self:GetCost(tok)
-                print("COST:: CONSUME", cost)
 
                 local resourceTable = dmhub.GetTable("characterResources")
 
@@ -1867,7 +2276,7 @@ function ActivatedAbility:CastInstantPortion(casterToken, targets, options)
 		if behavior.instant then
             --I don't think we should filter this just because we're already in a coroutine?
 			--if (not options.alreadyInCoroutine) and (not behavior:IsFiltered(self, casterToken, options)) then
-			if (not behavior:IsFiltered(self, casterToken, options)) then
+			if behavior.hasCast and (not behavior:IsFiltered(self, casterToken, options)) then
 				behavior:Cast(self, casterToken, behavior:ApplyToTargets(self, casterToken, targets, options), options)
 			end
 		else
@@ -1878,6 +2287,7 @@ function ActivatedAbility:CastInstantPortion(casterToken, targets, options)
 	return haveNonInstant
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:2915
 function ActivatedAbility:SynthesizeAbilities(creature)
 	
 	if #self.behaviors > 0 then
@@ -1886,6 +2296,7 @@ function ActivatedAbility:SynthesizeAbilities(creature)
 
 	return nil
 end
+--]==]
 
 function ActivatedAbilityBehavior:SynthesizeAbilities(ability, creature)
 	return nil
@@ -1956,7 +2367,13 @@ local function DestroyLineOfSight(options)
     options.markLineOfSight = nil
 end
 
+--Removes a cast's red targeting arrows. options.markLineOfSight can be one
+--marker or a table of them, and destroying twice is safe. Other files should
+--call this instead of destroying markers by hand.
+ActivatedAbility.DestroyLineOfSight = DestroyLineOfSight
+
 function ActivatedAbility:RecordAbilityUsage(casterToken, options)
+    if not casterToken.valid then return end
     local params = {
         type = "use_ability",
         userid = dmhub.userid,
@@ -1981,11 +2398,37 @@ function ActivatedAbility:RecordAbilityUsage(casterToken, options)
         if cast.spacesMoved > 0 then
             params.spacesMoved = cast.spacesMoved
         end
+
+        if cast.healing > 0 then
+            params.totalHealing = cast.healing
+        end
+
+        local targetCount = 0
+        for _,target in ipairs(cast:try_get("targets", {})) do
+            if target.token ~= nil then
+                targetCount = targetCount + 1
+            end
+        end
+        if targetCount > 0 then
+            params.targetCount = targetCount
+        end
+
+        if cast.heroicresourcesgained > 0 then
+            params.surgesGained = cast.heroicresourcesgained
+        end
     end
 
-    if dmhub.isDM then
+    --director attribution: a Director's casts, plus director-run creatures
+    --cast on a player host (the Monster AI's monsters) -- but a player
+    --host's own hero casts count as player casts.
+    if dmhub.isDM or (IsDMOrPlayerHost() and not casterToken.playerControlled) then
         params.director = true
     end
+
+    --Whether this user has the "New Experimental UI" (icon rails) turned on.
+    --Recorded on every event, including false, so an absent field means an
+    --older client rather than a user who has the setting off.
+    params.newUI = dmhub.GetSettingValue("iconrail") == true
 
     if casterToken.properties:IsHero() then
         local classInfo = casterToken.properties:GetClass()
@@ -2005,11 +2448,28 @@ function ActivatedAbility:RecordAbilityUsage(casterToken, options)
             end
         end
 
+        local heroLevel = casterToken.properties:Level()
+        if heroLevel > 0 then
+            params.heroLevel = heroLevel
+        end
+
     elseif casterToken.properties:IsMonster() then
         params.monster = casterToken.properties:try_get("monster_type")
     end
 
-    analytics.Event(params)
+    local q = dmhub.initiativeQueue
+    if q ~= nil and not q.hidden then
+        params.roundNumber = q.round
+        params.turnInRound = q.turn
+    end
+
+    if game.currentMap ~= nil then
+        params.mapName = game.currentMap.description
+    end
+
+    if dmhub.GetSettingValue("telemetry_enabled") ~= false then
+        analytics.Event(params)
+    end
 end
 
 function ActivatedAbility:FinishCast(casterToken, options)
@@ -2017,6 +2477,11 @@ function ActivatedAbility:FinishCast(casterToken, options)
         return
     end
     options.executedFinish = true
+
+    --defensive: make sure an errored map-modifying behavior can never leave a
+    --map modification recording active past the end of its cast.
+    ActivatedAbility.EndMapModificationRecording()
+
     DestroyLineOfSight(options)
 
 	if options ~= nil then
@@ -2043,6 +2508,10 @@ function ActivatedAbility:FinishCast(casterToken, options)
 	end
 
 	GameSystem.OnEndCastActivatedAbility(casterToken, self, options)
+
+	if self:CountsAsRegularAbilityCast() and casterToken ~= nil and casterToken.valid and casterToken.properties ~= nil then
+        casterToken.properties:DispatchEvent("finishability", {usedability = self, cast = options.symbols and options.symbols.cast})
+    end
 end
 
 
@@ -2075,8 +2544,6 @@ CastActivatedAbilityChatMessage = RegisterGameType("CastActivatedAbilityChatMess
 CastActivatedAbilityChatMessage.status = "complete"
 
 function CastActivatedAbilityChatMessage.Render(self, message)
-    local resultPanel
-
     local m_status = self.status
 
     local token = self:GetCasterToken()
@@ -2091,8 +2558,8 @@ function CastActivatedAbilityChatMessage.Render(self, message)
     local targetTokenPanels = {}
     for _,tok in ipairs(self:GetTargetTokens()) do
         targetTokenPanels[#targetTokenPanels+1] = gui.CreateTokenImage(tok, {
-            width = 32,
-            height = 32,
+            width = 28,
+            height = 28,
             valign = "center",
             halign = "left",
 
@@ -2113,21 +2580,14 @@ function CastActivatedAbilityChatMessage.Render(self, message)
 
     local m_statusCount = 0
     local statusLabel = gui.Label{
-        floating = true,
-        fontSize = 12,
-        width = 70,
-        height = "auto",
-        halign = "right",
-        valign = "top",
-        text = "Executing",
-        textAlignment = "left",
+        classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
+        text = "",
 
         think = function(element)
             m_statusCount = m_statusCount + 1
             if m_statusCount > 3 then
                 m_statusCount = 0
             end
-
             element:FireEvent("updateMessage")
         end,
 
@@ -2137,50 +2597,91 @@ function CastActivatedAbilityChatMessage.Render(self, message)
                 for i=1,m_statusCount do
                     text = text .. "."
                 end
-
                 element.text = text
             elseif m_status == "aborted" then
                 element.text = "Aborted"
             elseif m_status == "error" then
                 element.text = "Error"
             else
-                element.text = "Complete"
+                element.text = ""
             end
         end,
     }
 
     statusLabel:FireEvent("updateMessage")
 
+    local abilityTypeText = ""
+    if ability.AbilityTypeDescription ~= nil then
+        abilityTypeText = ability:AbilityTypeDescription()
+    end
 
-    local tokenPanel = gui.CreateTokenImage(token,{
-        scale = 0.9,
-        valign = "center",
-        halign = "left",
-
-        interactable = true,
+    local abilityLabel = gui.Label{
+        classes = {"action-log-detail", "sizeXs", "fg"},
+        text = ability.name,
         hover = function(element)
-            local tok = token
-            local text = string.format("<b>%s</b>", tok.name)
-            local messages = self:try_get("tokenMessages", {})
-            local messageLog = messages[tok.charid] or {}
-            if messageLog ~= nil then
-                for _,msg in ipairs(messageLog) do
-                    text = text .. "\n" .. msg
-                end
+            local tok = self:GetCasterToken()
+            if tok == nil then
+                return
             end
-            gui.Tooltip(text)(element)
-        end
-    })
+            local dock = element:FindParentWithClass("dock")
+            if dock == nil then
+                return
+            end
+            element.tooltipParent = dock
+            element.tooltip = CreateAbilityTooltip(ability, {halign = dock.data.TooltipAlignment(), token = tok, width = 540})
+        end,
+    }
 
+    local typeLabel = nil
+    if abilityTypeText ~= "" then
+        typeLabel = gui.Label{
+            classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
+            text = abilityTypeText,
+        }
+    end
 
-    resultPanel = gui.Panel{
+    local targetsPanel = nil
+    if #targetTokenPanels > 0 then
+        targetsPanel = gui.Panel{
+            floating = true,
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "top",
+            flow = "horizontal",
+            wrap = true,
+            maxWidth = 90,
+            rmargin = 6,
+            tmargin = 2,
+            children = targetTokenPanels,
+        }
+    end
+
+    --Build the content list densely: typeLabel and targetsPanel may be nil, and a
+    --nil hole in the array makes CreateActionLogCard's ipairs stop early, leaving
+    --statusLabel (and targetsPanel) created but never attached to a parent -- the
+    --engine leak sweep then destroys them and reports the leak.
+    local cardContent = {abilityLabel}
+    if typeLabel ~= nil then
+        cardContent[#cardContent+1] = typeLabel
+    end
+    cardContent[#cardContent+1] = statusLabel
+    if targetsPanel ~= nil then
+        cardContent[#cardContent+1] = targetsPanel
+    end
+
+    local card = CreateActionLogCard{
+        token = token,
+        content = cardContent,
+    }
+
+    local resultPanel = gui.Panel{
         classes = {"chat-message-panel"},
 
         data = {
-            --advertise that we are willing to adopt roll panels using this castid.
             castid = self:try_get("castid"),
         },
- 
+
         flow = "vertical",
         width = "100%",
         height = "auto",
@@ -2188,68 +2689,22 @@ function CastActivatedAbilityChatMessage.Render(self, message)
         refreshMessage = function(element, message)
             self = message.properties
             m_status = message.properties.status
-            if m_status == "executing" then
-                statusLabel.thinkTime = 0.25
-            else
-                statusLabel.thinkTime = nil
+            --statusLabel may have been recycled/destroyed out from under this closure
+            --during teardown (its panel reads as nil once recycled), while the parent
+            --resultPanel that fires refreshMessage is still alive. Setting .thinkTime on
+            --a dead panel NREs in the C# setter, so guard on validity (same pattern the
+            --action log uses for stored message-panel refs).
+            if statusLabel.valid then
+                if m_status == "executing" then
+                    statusLabel.thinkTime = 0.25
+                else
+                    statusLabel.thinkTime = nil
+                end
+                statusLabel:FireEvent("updateMessage")
             end
-
-            statusLabel:FireEvent("updateMessage")
         end,
 
-        gui.Panel{
-			classes = {'separator'},
-		},
-
-        gui.Panel{
-
-            width = "100%",
-            height = "auto",
-            flow = "horizontal",
-
-            tokenPanel,
-
-            gui.Panel{
-                flow = "vertical",
-                width = "100%-80",
-                height = "auto",
-                halign = "right",
-                valign = "top",
-
-                gui.Label{
-                    fontSize = 14,
-                    width = "auto",
-                    height = "auto",
-                    maxWidth = 420,
-                    halign = "left",
-                    valign = "top",
-                    text = string.format("<b>%s</b>", ability.name),
-                    hover = function(element)
-                        local token = self:GetCasterToken()
-                        if token == nil then
-                            return
-                        end
-	                    local dock = element:FindParentWithClass("dock")
-	                    element.tooltipParent = dock
-
-					    local tooltip = CreateAbilityTooltip(ability, {halign = dock.data.TooltipAlignment(), token = token, width = 540})
-                        print("HOVER ABILITY::", ability)
-                        element.tooltip = tooltip
-                    end,
-                },
-
-                statusLabel,
-
-                gui.Panel{
-                    width = "50%",
-                    height = "auto",
-                    halign = "left",
-                    flow = "horizontal",
-                    wrap = true,
-                    children = targetTokenPanels,
-                }
-            },
-        },
+        card,
     }
 
     return resultPanel
@@ -2296,10 +2751,18 @@ end
 --- @param targets { loc = Loc, token = CharacterToken }[]
 --- @param options table
 function ActivatedAbility:Cast(casterToken, targets, options)
+	--While the Director has the game frozen, players cannot act. Refuse here,
+	--before the chat message and before any resources are spent -- this is the
+	--central funnel every ability activation path goes through. Real hosting
+	--check: the Monster AI's casts on a player host must never be refused.
+	if dmhub.frozen and not IsDMOrPlayerHost() then
+		print("Cast:: refused; the game is frozen")
+		return
+	end
+
 	options = options or {}
 	options.symbols = options.symbols or {}
     options.symbols.castid = dmhub.GenerateGuid()
-
 
     local targetTokenIds = {}
     for i,target in ipairs(targets) do
@@ -2308,7 +2771,9 @@ function ActivatedAbility:Cast(casterToken, targets, options)
         end
     end
 
-    if options.chatMessage == nil and self:ShowChatMessageOnCast() then
+    --options.dismiss is set only for a dismissed triggered ability: it runs
+    --its On Dismiss behaviors silently, with no "executing" chat message.
+    if options.chatMessage == nil and (not options.dismiss) and self:ShowChatMessageOnCast() then
         local abilityClone = table.shallow_copy(self)
         setmetatable(abilityClone, getmetatable(self))
         abilityClone.invoker = nil
@@ -2329,6 +2794,17 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 	options.alreadyInCoroutine = dmhub.inCoroutine
 	options.symbols.ability = self
     options.symbols.caster = options.symbols.caster or casterToken.properties
+    --charges the player selected live on options.charges (set during GetCost/cost
+    --payment), but tier rules text and invoked sub-abilities read the {Charges}
+    --GoblinScript symbol from options.symbols. Copy it across so {Charges} resolves.
+    options.symbols.charges = options.symbols.charges or options.charges or self:DefaultCharges()
+
+    --footprint of the caster at the start of the cast, before any behavior has
+    --moved them. Used by summon behaviors that anchor placement on the caster's
+    --former space (e.g. "minions appear in the space the caster leaves behind").
+    if options.casterStartLocs == nil then
+        options.casterStartLocs = casterToken:LocsOccupyingWhenAt(casterToken.loc)
+    end
 
 	if self.targetType == 'self' and #targets == 0 then
 		targets[#targets+1] = { loc = casterToken.loc, token = casterToken }
@@ -2344,11 +2820,22 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 			ability = self,
 			targets = targets,
             mode = options.symbols.mode or 1,
+            --LuaShape (or nil for non-area abilities). Stashed so GoblinScript
+            --formulas can call Cast.WithinArea(creature) to test whether a
+            --creature (e.g. Caster.Companion) is inside the cast's area shape.
+            --`_tmp_` prefix marks it transient -- LuaShape is userdata and won't
+            --survive cross-network serialization (DeepCopy for runOnController
+            --invokes, database writes, etc.), so we strip it from any
+            --serialized form and let WithinArea silently return false on the
+            --receiving side.
+            _tmp_targetArea = options.targetArea,
 		}
 	end
 
 	if self:has_key("OnBeginCast") then
-		self.OnBeginCast(self)
+		--Pass options so OnBeginCast wrappers can install OnFinishCastHandlers that
+		--survive engine serialization stripping function fields off the ability mid-cast.
+		self.OnBeginCast(self, options)
 	end
 
 	if self:has_key("castingLevel") and type(self.castingLevel) == "number" and self.castingLevel >= self:try_get("level", 1) then
@@ -2480,6 +2967,174 @@ function ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot)
     return false
 end
 
+--Actions deferred until the ability casts currently resolving on this client
+--have finished. Used to hold back remote invokes generated mid-cast (e.g. a
+--triggered reaction activated from the roll dialog that grants the target a
+--teleport) so the remote player is not prompted to move a token that the
+--in-progress cast is still resolving a forced move against: riders resolve
+--"after the triggering effect resolves".
+--Each entry: { casts = {co -> true}, fn = function, time = enqueue time }.
+local g_deferredCastCompleteActions = {}
+local g_deferredCastSweepScheduled = false
+local g_lastDeferredStallLog = 0
+
+--A cast coroutine parked on a prompt that never resolves stays "suspended"
+--forever: it is only removed from coroutineStorage by its atexit, which never
+--runs. Without a deadline the deferred action behind it waits for the rest of
+--the session, and -- worse -- every LATER trigger re-snapshots the same zombie,
+--so one stranded invoke silently disables all automated triggered abilities on
+--the client (no start-of-combat heroic resources, no summon prompts, no
+--"survive at 1 Stamina" traits; the cost is charged before the deferral, so the
+--player is billed for each one). Once an entry has been blocked this long we
+--give up on its blockers. Releasing early can let a deferred prompt land while
+--a real cast is still resolving -- the exact thing the deferral exists to
+--prevent -- so the deadline is deliberately generous rather than tight: a
+--slightly out-of-order prompt beats losing every trigger for the session.
+local DEFERRED_CAST_ABANDON_SECONDS = 30
+
+local function ScheduleDeferredCastSweep()
+    --backstop in case a cast coroutine dies without its atexit running.
+    if g_deferredCastSweepScheduled then
+        return
+    end
+    g_deferredCastSweepScheduled = true
+    dmhub.Schedule(2, function()
+        g_deferredCastSweepScheduled = false
+        if mod.unloaded then
+            return
+        end
+        ActivatedAbility.FlushCastCompleteActions()
+        if #g_deferredCastCompleteActions > 0 then
+            ScheduleDeferredCastSweep()
+        end
+    end)
+end
+
+--Runs fn once every ability cast that was active when this was called has
+--finished, including the calling cast if invoked from inside one. Runs fn
+--immediately when no casts are active.
+function ActivatedAbility.RunWhenCastsComplete(fn)
+    local casts = {}
+    for co,_ in pairs(ActivatedAbility.coroutineStorage) do
+        if coroutine.status(co) ~= "dead" then
+            casts[co] = true
+        end
+    end
+
+    if next(casts) == nil then
+        fn()
+        return
+    end
+
+    g_deferredCastCompleteActions[#g_deferredCastCompleteActions+1] = {
+        casts = casts,
+        fn = fn,
+        time = dmhub.Time(),
+    }
+
+    ScheduleDeferredCastSweep()
+end
+
+function ActivatedAbility.FlushCastCompleteActions()
+    --Abandon casts that have blocked a deferred action past the deadline. The
+    --eviction from coroutineStorage is the load-bearing part: dropping the
+    --coroutine from just this entry's set would leave the zombie visible to
+    --every future RunWhenCastsComplete snapshot, turning "triggers are dead"
+    --into "every trigger is DEFERRED_CAST_ABANDON_SECONDS late, forever".
+    --Evicting it also unblocks any other entry waiting on the same cast, stops
+    --it inflating CountActiveCasts/TokenHasOtherActiveCasts, and is safe for
+    --the readers of coroutineStorage: every CurrentCastInfo() caller is
+    --nil-guarded. The abort flags mirror the restoreFromBackup teardown so the
+    --cast unwinds through FinishCast at its next behavior boundary if it ever
+    --does wake up.
+    local abandonNow = dmhub.Time()
+    for _,entry in ipairs(g_deferredCastCompleteActions) do
+        if entry.time ~= nil and abandonNow - entry.time > DEFERRED_CAST_ABANDON_SECONDS then
+            for co,_ in pairs(entry.casts) do
+                local info = ActivatedAbility.coroutineStorage[co]
+                if info ~= nil and coroutine.status(co) ~= "dead" then
+                    local age = "?"
+                    if info.startTime ~= nil then
+                        age = string.format("%d", math.floor(abandonNow - info.startTime))
+                    end
+                    printf("CASTSTALL:: abandoning stalled cast %s (caster=%s age=%ss) after it blocked a deferred action for %ds",
+                        tostring(info.ability ~= nil and info.ability.name or "?"),
+                        tostring(info.casterToken ~= nil and info.casterToken.valid and info.casterToken.name or "?"),
+                        age, math.floor(abandonNow - entry.time))
+                    ActivatedAbility.coroutineStorage[co] = nil
+                    if info.options ~= nil then
+                        info.options.abort = true
+                        info.options.stopProcessing = true
+                    end
+                end
+            end
+        end
+    end
+
+    local i = 1
+    while i <= #g_deferredCastCompleteActions do
+        local entry = g_deferredCastCompleteActions[i]
+        local ready = true
+        for co,_ in pairs(entry.casts) do
+            if ActivatedAbility.coroutineStorage[co] ~= nil and coroutine.status(co) ~= "dead" then
+                ready = false
+                break
+            end
+        end
+
+        if ready then
+            table.remove(g_deferredCastCompleteActions, i)
+            local ok, err = pcall(entry.fn)
+            if not ok then
+                printf("RunWhenCastsComplete:: error in deferred action: %s", tostring(err))
+            end
+        else
+            i = i + 1
+        end
+    end
+
+    --Log-only staleness telemetry: when deferred actions have been blocked for
+    --a long time, name the live casts blocking them so a "triggered abilities
+    --stopped working" session shows its culprit in the bug-report log instead
+    --of failing silently (a stranded invoke here starves EVERY deferred
+    --trigger on the client for the rest of the session). No behavior change:
+    --the queue still waits indefinitely. Throttled to one line per minute.
+    if #g_deferredCastCompleteActions > 0 then
+        local now = dmhub.Time()
+        local oldest = nil
+        for _,entry in ipairs(g_deferredCastCompleteActions) do
+            if entry.time ~= nil and (oldest == nil or entry.time < oldest) then
+                oldest = entry.time
+            end
+        end
+        if oldest ~= nil and now - oldest > 60 and now - g_lastDeferredStallLog > 60 then
+            g_lastDeferredStallLog = now
+            local blockers = {}
+            local list = {}
+            for _,entry in ipairs(g_deferredCastCompleteActions) do
+                for co,_ in pairs(entry.casts) do
+                    local info = ActivatedAbility.coroutineStorage[co]
+                    if info ~= nil and coroutine.status(co) ~= "dead" and blockers[co] == nil then
+                        local age = "?"
+                        if info.startTime ~= nil then
+                            age = string.format("%d", math.floor(now - info.startTime))
+                        end
+                        local casterName = "?"
+                        if info.casterToken ~= nil and info.casterToken.valid then
+                            casterName = tostring(info.casterToken.name)
+                        end
+                        blockers[co] = true
+                        list[#list+1] = string.format("%s (caster=%s age=%ss)",
+                            tostring(info.ability ~= nil and info.ability.name or "?"), casterName, age)
+                    end
+                end
+            end
+            printf("CASTSTALL:: %d deferred action(s) blocked for %ds by %d live cast(s): %s",
+                #g_deferredCastCompleteActions, math.floor(now - oldest), #list, table.concat(list, "; "))
+        end
+    end
+end
+
 function ActivatedAbility.CountActiveCasts()
     local count = 0
     for co,_ in pairs(ActivatedAbility.coroutineStorage) do
@@ -2491,19 +3146,83 @@ function ActivatedAbility.CountActiveCasts()
     return count
 end
 
---- Returns the movement type for relocate-creature behaviors ("move", "shift", etc.), or nil if none.
+--- The movement type this behavior imparts on the ability ("move", "shift",
+--- "jump", "teleport", ...), or nil if it isn't a movement behavior. Behaviors
+--- that move the caster override this so targeting previews key off it.
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbilityBehavior:BehaviorMovementType(symbols)
+    return nil
+end
+
+--- Returns the movement type for movement behaviors ("move", "shift", etc.), or nil if none.
 --- @param token CharacterToken
 --- @param symbols nil|table
 --- @return nil|string
 function ActivatedAbility:GetMovementType(token, symbols)
     for _,behavior in ipairs(self.behaviors) do
-        if behavior.typeName == "ActivatedAbilityRelocateCreatureBehavior" then
-            if symbols ~= nil and symbols.shiftingOverride ~= nil then
-                if behavior.movementType == "shift" and (not symbols.shiftingOverride) then
-                    return "move"
-                end
-            end
-            return behavior.movementType
+        local movementType = behavior:BehaviorMovementType(symbols)
+        if movementType ~= nil then
+            return movementType
+        end
+    end
+
+    return nil
+end
+
+--- The display name of what this behavior PLACES in the ability's targeted
+--- square -- a summoned creature, a conjured object -- or nil when the behavior
+--- places nothing. Square-targeted abilities preview as a movement by default
+--- ("Movement: 3 squares"), which is wrong for an ability that moves nobody, so
+--- behaviors that put something new on the map name it here and the targeting
+--- prompt and hovered-square label speak about placement instead.
+--- @param casterToken CharacterToken
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbilityBehavior:BehaviorPlacementName(casterToken, symbols)
+    return nil
+end
+
+--- The name of the creature/object this ability places in its targeted square,
+--- or nil if it places nothing (or places something whose identity is not known
+--- until the caster picks during the cast).
+--- @param casterToken CharacterToken
+--- @param symbols nil|table
+--- @return nil|string
+function ActivatedAbility:GetPlacementName(casterToken, symbols)
+    for _,behavior in ipairs(self:try_get("behaviors", {})) do
+        local name = behavior:BehaviorPlacementName(casterToken, symbols)
+        if name ~= nil then
+            return name
+        end
+    end
+
+    return nil
+end
+
+--- Per-tier targeting rings drawn while this behavior's ability is being
+--- targeted, or nil for ordinary single-ring targeting. Each entry:
+--- {tier: integer, tiles: integer, height: integer, radius: number,
+---  color: string, label: string}, ordered by ascending tiles.
+--- @param ability ActivatedAbility
+--- @param token CharacterToken
+--- @param symbols nil|table
+--- @return nil|table[]
+function ActivatedAbilityBehavior:GetTargetingTierRadii(ability, token, symbols)
+    return nil
+end
+
+--- Per-tier targeting rings for this ability ({tier, tiles, height, radius,
+--- color, label}[]), or nil if no behavior provides them. The action bar draws
+--- one colored ring per entry instead of the single white range ring.
+--- @param token CharacterToken
+--- @param symbols nil|table
+--- @return nil|table[]
+function ActivatedAbility:GetTargetingTierRadii(token, symbols)
+    for _,behavior in ipairs(self.behaviors) do
+        local radii = behavior:GetTargetingTierRadii(self, token, symbols)
+        if radii ~= nil then
+            return radii
         end
     end
 
@@ -2551,6 +3270,10 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
         end
         options.atexit = true
 	    self:FinishCast(casterToken, options)
+
+        --deliver any remote invokes that were held back until casts finished
+        --resolving (see RunWhenCastsComplete).
+        ActivatedAbility.FlushCastCompleteActions()
     end)
 
     if co ~= nil then
@@ -2559,6 +3282,8 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
             casterToken = casterToken,
             targets = targets,
             options = options,
+            --for the CASTSTALL staleness log in FlushCastCompleteActions.
+            startTime = dmhub.Time(),
         }
     end
 
@@ -2589,8 +3314,8 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 	options.targets = targets
 
 	for i,behavior in ipairs(self.behaviors) do
-		print("CastCoroutine:: behavior " .. i .. "/" .. #self.behaviors .. " type=" .. tostring(behavior.typeName) .. " instant=" .. tostring(behavior.instant) .. " filtered=" .. tostring(behavior:IsFiltered(self, casterToken, options)) .. " abort=" .. tostring(options.abort) .. " stopProcessing=" .. tostring(options.stopProcessing))
-		if not behavior.instant and (not behavior:IsFiltered(self, casterToken, options)) then
+		print("CastCoroutine::", self.name, "behavior " .. i .. "/" .. #self.behaviors .. " type=" .. tostring(behavior.typeName) .. " instant=" .. tostring(behavior.instant) .. " filtered=" .. tostring(behavior:IsFiltered(self, casterToken, options)) .. " abort=" .. tostring(options.abort) .. " stopProcessing=" .. tostring(options.stopProcessing))
+		if not behavior.instant and behavior.hasCast and (not behavior:IsFiltered(self, casterToken, options)) then
             if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
                 CharacterPanel.HighlightAbilitySection{
                     ability = self,
@@ -2613,24 +3338,39 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 		end
 	end
 
+	print("CastCoroutine::", self.name, "end behaviors")
+
+	-- Villain Action consumption: any ability marked with the `villainAction`
+	-- field that runs to completion (not aborted) marks itself as used for
+	-- the encounter and spends the per-round VA budget. This fires regardless
+	-- of how the cast was invoked (Villain Action strip, action bar menu,
+	-- /act command, AI), so the strip's state stays accurate.
+	--
+	-- Wrapped in pcall so a transient doc-transaction failure or any other
+	-- runtime issue here can't take down the surrounding cast cleanup
+	-- (which is what frees dmhub.blockTokenSelection, pops the caster
+	-- stack, etc.).
+	if not options.abort then
+		local villainAction = self:try_get("villainAction")
+		if villainAction ~= nil and villainAction ~= "" and casterToken ~= nil and casterToken.valid and VillainActionState ~= nil then
+			local ok, err = pcall(function()
+				VillainActionState.MarkUsed(casterToken.charid, villainAction)
+				if CharacterResource.GetVillainActions() > 0 then
+					CharacterResource.SetVillainActions(0, "Villain Action used")
+				end
+			end)
+			if not ok then
+				print("Villain Action consumption hook failed:", tostring(err))
+			end
+		end
+	end
+
     if restoreTargets ~= nil then
         options.symbols.cast.targets = restoreTargets
     end
 
 	if (options.pay or (options.payIfNotAborted and (not options.abort))) and not options.alreadyPaid then
 		self:ConsumeResources(casterToken, options)
-		if options.improvementCosts ~= nil and #options.improvementCosts > 0 then
-			local costs = options.improvementCosts
-			casterToken:ModifyProperties{
-				description = "Ability Improvement Cost",
-				undoable = false,
-				execute = function()
-					for _, ic in ipairs(costs) do
-						casterToken.properties:ConsumeResource(ic.resourceId, ic.refreshType, ic.costAmt, ic.name)
-					end
-				end,
-			}
-		end
 		options.alreadyPaid = true
 	end
 
@@ -2665,11 +3405,12 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 			end
 		end
 		
+	print("CastCoroutine::", self.name, "end with invoke")
 		gamehud.actionBarPanel:FireEventTree("invokeAbility", casterToken, self, options.symbols)
 		return
 	end
 
-	if self.keywords["Strike"] then
+	if self.keywords["Strike"] and not options.abort then
 		local castInfo = options.symbols.cast
 		for _, target in ipairs(castInfo.targets or {}) do
 			if target.token ~= nil then
@@ -2679,16 +3420,31 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
                     if castInfo:has_key("tokenToTier") and type(castInfo.tokenToTier) == "table" then
                         tier = castInfo.tokenToTier[targetToken.charid] or 0
                     end
+                    -- For minion squad attacks, use the specific minion assigned to this target
+                    local attackerProperties = casterToken.properties
+                    if options.symbols.targetPairs ~= nil then
+                        for _, pair in ipairs(options.symbols.targetPairs) do
+                            if pair.b == targetToken.charid then
+                                local attackerToken = dmhub.GetTokenById(pair.a)
+                                if attackerToken ~= nil and attackerToken.valid then
+                                    attackerProperties = attackerToken.properties
+                                end
+                                break
+                            end
+                        end
+                    end
+
                     targetToken.properties:TriggerEvent("attacked", {
                         outcome = tier,
                         roll = castInfo:try_get("total", 0),
-                        attacker = GenerateSymbols(casterToken.properties),
+                        attacker = GenerateSymbols(attackerProperties),
                     })
                 end
 			end
 		end
 	end
 
+	print("CastCoroutine::", self.name, "FinishCast()")
 	self:FinishCast(casterToken, options)
 end
 
@@ -2949,6 +3705,19 @@ end
 --- @param options nil|table
 function ActivatedAbilityBehavior:IsFiltered(ability, casterToken, options)
 
+    --Accept/Dismiss phase filter: each behavior independently opts in to the
+    --accept path (runOnAccept) and/or the dismiss path (runOnDismiss). On the
+    --dismiss path (options.dismiss == true), behaviors with runOnDismiss=false
+    --are filtered out; on the accept path, behaviors with runOnAccept=false
+    --are filtered out. A behavior with both flags set fires on both paths.
+    local dismissPath = options ~= nil and options.dismiss == true
+    if dismissPath and not self.runOnDismiss then
+        return true
+    end
+    if (not dismissPath) and (not self.runOnAccept) then
+        return true
+    end
+
     if casterToken ~= nil and self:has_key("strainSelection") then
         local strainSelection = self.strainSelection
         local isStrained = casterToken.properties:IsStrained()
@@ -3059,16 +3828,33 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
 
 	elseif self.applyto == "caster" then
         if options.symbols.targetPairs ~= nil then
-            --minion signature abilities have a list of target pairs, so we
-            --use that to find the list of casters in the squad.
+            --Squad coordinated strike: caster-benefit behaviors (heal, shift,
+            --move, etc.) apply only to the MAIN attacker of each creature in
+            --the target list -- the first targetPairs entry for that creature.
+            --Deduped so a minion that is main attacker of two creatures only
+            --benefits once. Targets without a pairing fall back to the caster.
             result = {}
-            for _,pair in ipairs(options.symbols.targetPairs) do
-                local casterToken = dmhub.GetTokenById(pair.a)
-                if casterToken ~= nil and casterToken.valid then
-                    result[#result+1] = {
-                        token = casterToken,
-                    }
+            local seen = {}
+            for _,target in ipairs(targets) do
+                if target.token ~= nil then
+                    local attackerTok = casterToken
+                    if options.symbols.cast ~= nil then
+                        attackerTok = options.symbols.cast:MainAttackerForTarget(options.symbols, target.token, casterToken)
+                    end
+                    if attackerTok ~= nil and attackerTok.valid and not seen[attackerTok.charid] then
+                        seen[attackerTok.charid] = true
+                        result[#result+1] = {
+                            token = attackerTok,
+                        }
+                    end
                 end
+            end
+            if #result == 0 then
+                result = {
+                    {
+                        token = casterToken,
+                    },
+                }
             end
         else
             result = {
@@ -3100,6 +3886,54 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
         for _,tok in ipairs(dmhub.allTokens) do
             if tok.mountedOn == charid then
                 result[#result+1] = { token = tok }
+            end
+        end
+    elseif self.applyto == 'caster_mount' then
+        --The creature the caster is riding or climbing; empty when not mounted.
+        result = {}
+
+        local mountToken = casterToken.mount
+        if mountToken ~= nil and mountToken.valid then
+            result[#result+1] = { token = mountToken }
+        end
+    elseif self.applyto == 'caster_summoner' then
+        result = {}
+
+        local summonerid = casterToken.summonerid
+        if summonerid ~= nil and summonerid ~= "" then
+            local summonerToken = dmhub.GetTokenById(summonerid)
+            if summonerToken ~= nil and summonerToken.valid then
+                result[#result+1] = { token = summonerToken }
+            end
+        end
+    elseif self.applyto == 'caster_companion' then
+        result = {}
+
+        local companionid = casterToken.properties:try_get("companionid", false)
+        if companionid then
+            local companionToken = dmhub.GetTokenById(companionid)
+
+            --A companionid naming a character that no longer exists used to
+            --leave this empty, and every behavior downstream (replenish above
+            --all) drops out silently on an empty target list. Ask the game
+            --system's resolver, which can recover the companion from its
+            --token-side back-link. pcall because this branch is generic rules
+            --and the resolver belongs to the Beastheart module.
+            if companionToken == nil or not companionToken.valid then
+                pcall(function()
+                    companionToken = casterToken.properties:GetCompanionToken()
+                end)
+            end
+
+            if companionToken ~= nil and companionToken.valid then
+                result[#result+1] = { token = companionToken }
+            else
+                --Not silent: a caster that claims a companion and resolves to
+                --nothing is the shape of report EXY2RYBS, which took a server
+                --state dump to diagnose because it left no trace.
+                dmhub.Debug(string.format(
+                    "COMPANION:: applyto caster_companion resolved 0 targets; caster %s has companionid %s",
+                    tostring(casterToken.charid), tostring(companionid)))
             end
         end
     elseif self.applyto == 'caster_including_squad' then
@@ -3201,6 +4035,12 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
 				end
 			end
 		end
+	elseif GameSystem.ApplyToTargetsByID[self.applyto] ~= nil and GameSystem.ApplyToTargetsByID[self.applyto].resolve ~= nil then
+
+		--registered applyto options may supply their own resolve function which
+		--computes the target list directly (e.g. Draw Steel's caster_mentor).
+		result = GameSystem.ApplyToTargetsByID[self.applyto].resolve(ability, casterToken, targets, options) or {}
+
 	elseif GameSystem.ApplyToTargetsByID[self.applyto] ~= nil then
 
 		--these are custom roll groups. When calling RegisterRollType in the GameSystem we define applyto in the outcomes
@@ -3256,9 +4096,17 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
 
 
 		for i,item in ipairs(result) do
-            if item.token ~= nil then
+            if item.token ~= nil and item.token.properties ~= nil and casterToken.properties ~= nil then
                 symbols.target = item.token.properties
-                symbols.caster = casterToken.properties
+                local filterCasterToken = casterToken
+                if options.symbols.targetPairs ~= nil and options.symbols.cast ~= nil then
+                    --A squad signature can assign a different minion to each
+                    --target. Filters on target-side behaviors should evaluate
+                    --Caster against that target's main attacker, matching the
+                    --source used when the behavior is ultimately resolved.
+                    filterCasterToken = options.symbols.cast:MainAttackerForTarget(options.symbols, item.token, casterToken)
+                end
+                symbols.caster = filterCasterToken.properties
                 symbols.targetnumber = i
                 symbols.numberoftargets = #result
                 local passFilter = nil
@@ -3435,6 +4283,9 @@ function ActivatedAbilityBehavior:DescribeRoll(casterCreature, ability, options)
 	return dmhub.EvalGoblinScript(self.roll, casterCreature:LookupSymbol((options or {}).symbols), "Ability or spell roll")
 end
 
+--optional message posted to the chat/action log when this behavior heals a nonzero amount.
+ActivatedAbilityHealBehavior.chatMessage = ""
+
 function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, options)
 
     --filter out any targets that cannot heal.
@@ -3494,6 +4345,7 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
 			finished = true
             ability:CommitToPaying(casterToken, options)
 			options.symbols.cast.healroll = rollInfo.total
+			local totalHealed = 0
 			for i,target in ipairs(targets) do
 				local targetCreature = target.token.properties
 				for catName,value in pairs(rollInfo.categories) do
@@ -3504,6 +4356,7 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
                         healAmount = math.floor(healAmount / 2)
                     end
 
+                    local damageBefore = targetCreature.damage_taken
                     ability.RecordTokenMessage(target.token, options, string.format("Regained %d Stamina", healAmount))
 					target.token:ModifyProperties{
 						description = "Regained Stamina",
@@ -3513,6 +4366,53 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
 					}
 
 					options.symbols.cast.healing = options.symbols.cast.healing + healAmount
+					totalHealed = totalHealed + healAmount
+
+					local overheal = math.max(0, healAmount - damageBefore)
+					local healParams = {
+						ability = ability.name,
+						amount = healAmount,
+						dailyLimit = 50,
+					}
+					if casterToken.properties:IsHero() then
+						local classInfo = casterToken.properties:GetClass()
+						if classInfo ~= nil then
+							healParams.source = classInfo.name
+						end
+					elseif casterToken.properties:IsMonster() then
+						healParams.source = casterToken.properties:try_get("monster_type")
+					end
+					if targetCreature:IsHero() then
+						local targetClass = targetCreature:GetClass()
+						if targetClass ~= nil then
+							healParams.target = targetClass.name
+						end
+					elseif targetCreature:IsMonster() then
+						healParams.target = targetCreature:try_get("monster_type")
+					end
+					if overheal > 0 then
+						healParams.overheal = overheal
+					end
+					track("healing_done", healParams)
+				end
+			end
+
+			--optional chat note, only when we actually healed something.
+			--<<total>> in the message is replaced with the total stamina actually regained.
+			if totalHealed > 0 and self:try_get("chatMessage", "") ~= "" then
+				local msg = string.gsub(self.chatMessage, "<<total>>", tostring(totalHealed))
+				--Post an action-log card showing the healed creature and amount.
+				--tokenMessages on the cast card only render as hover tooltips (and
+				--not at all for the caster), so this is the visible record.
+				chat.SendCustom(HealChatMessage.new{
+					tokenid = targets[1].token.charid,
+					amount = totalHealed,
+					text = msg,
+				})
+				--Also surface the note on the cast's action-log card (no-op when the
+				--cast has no card, e.g. Hidden helper abilities).
+				for _,target in ipairs(targets) do
+					ability.RecordTokenMessage(target.token, options, msg)
 				end
 			end
 
@@ -3695,6 +4595,7 @@ function ActivatedAbilityAttackBehavior:ExpectedDamageRoll(ability, casterToken,
 	return roll
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMAttack.lua:305
 function ActivatedAbilityAttackBehavior:Cast(ability, casterToken, targets, options)
 
 	for i,target in ipairs(targets) do
@@ -3871,6 +4772,7 @@ function ActivatedAbilityAttackBehavior:Cast(ability, casterToken, targets, opti
 		end
 	end
 end
+--]==]
 
 function ActivatedAbilityApplyOngoingEffectBehavior:ConditionID()
 	if self:try_get("ongoingEffect") == nil then
@@ -3933,6 +4835,45 @@ function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, t
 	end
 
 	options.haveOngoingDC = false
+
+	--Apply/purge pairing: when this same ability also contains a later Purge
+	--Ongoing Effects behavior for this exact effect (e.g. Dread March's
+	--"Cannot Be Removed" bookkeeping around each undead's invoked move+strike),
+	--the effect's lifetime is meant to be bounded by this cast. A cast canceled
+	--between the apply and the purge (canceling the invoked move/strike kills
+	--the cast coroutine) used to leak the effect permanently. Track what we
+	--apply so a FinishCast handler -- guaranteed to run even on cancel via the
+	--cast coroutine's atexit -- can remove anything the purge behavior never
+	--got to. When the purge behavior DID run the effect is already gone and the
+	--handler is a no-op.
+	--
+	--ORDER MATTERS: only a purge that runs AFTER this apply is a pairing. A purge
+	--BEFORE the apply is the opposite idiom -- "clear whatever state I'm in, then
+	--set the new one" -- e.g. the Stormwight kits' "Animal Form: X", which purges
+	--its own form effect first so re-shifting is idempotent, then re-applies it.
+	--Treating that leading purge as a pairing made the FinishCast handler delete
+	--the effect the cast had just applied, so the form never stuck (report NA3SCFH5).
+	--
+	--CastCoroutine calls behavior:Cast(ability, ...) with the very object it is
+	--iterating out of ability.behaviors, so myIndex is found on every normal path.
+	--If we somehow cannot locate ourselves, fall back to the old order-blind match
+	--rather than silently dropping the leak protection.
+	local myIndex = nil
+	for i,b in ipairs(ability.behaviors) do
+		if b == self then
+			myIndex = i
+			break
+		end
+	end
+
+	local hasPurgePair = false
+	for i,b in ipairs(ability.behaviors) do
+		if (myIndex == nil or i > myIndex) and b.typeName == "ActivatedAbilityPurgeEffectsBehavior" and b.mode == "effect" and b.ongoingEffect == self.ongoingEffect then
+			hasPurgePair = true
+			break
+		end
+	end
+	local pairedApplications = nil
 
 	for i,target in ipairs(targets) do
 		local skip = false
@@ -4176,6 +5117,46 @@ function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, t
 						end
 					end
 				}
+
+				if hasPurgePair and newEffect ~= nil then
+					pairedApplications = pairedApplications or {}
+					pairedApplications[#pairedApplications+1] = {
+						tokenid = target.token.charid,
+						casterid = casterid,
+					}
+				end
+			end
+		end
+	end
+
+	if pairedApplications ~= nil then
+		local effectid = self.ongoingEffect
+		options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
+		options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function(finishAbility, finishCaster, finishOptions)
+			for _,application in ipairs(pairedApplications) do
+				local tok = dmhub.GetTokenById(application.tokenid)
+				if tok ~= nil and tok.valid and tok.properties ~= nil then
+					local staleSeqs = {}
+					for _,effect in ipairs(tok.properties:ActiveOngoingEffects()) do
+						if effect.ongoingEffectid == effectid then
+							local ci = effect:try_get("casterInfo")
+							if ci ~= nil and ci.tokenid == application.casterid then
+								staleSeqs[#staleSeqs+1] = effect.seq
+							end
+						end
+					end
+					if #staleSeqs > 0 then
+						tok:ModifyProperties{
+							description = "Remove ongoing effect (cast ended)",
+							undoable = false,
+							execute = function()
+								for _,seq in ipairs(staleSeqs) do
+									tok.properties:RemoveOngoingEffectBySeq(seq)
+								end
+							end,
+						}
+					end
+				end
 			end
 		end
 	end
@@ -4479,6 +5460,12 @@ ActivatedAbilityForcedMovementBehavior.moveTypeOptions = {
 }
 
 ActivatedAbilityForcedMovementBehavior.moveType = "push"
+
+--Optional override for the prompt shown when the movement resolves. Blank uses the
+--generic "You may push/pull the target N squares". Supports {GoblinScript} formulas
+--and <<range>> for the post-adjustment distance.
+ActivatedAbilityForcedMovementBehavior.promptText = ""
+
 function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targets, options)
     ability:CommitToPaying(casterToken, options)
 
@@ -4502,7 +5489,117 @@ function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targe
 	for i,target in ipairs(targetsSorted) do
 		symbols.target = GenerateSymbols(target.properties)
 		local distance = ExecuteGoblinScript(self.distance, casterToken.properties:LookupSymbol(symbols), 0, string.format("Calculate %s distance: %s", self.moveType, ability.name))
-		target:ForcedPush(casterToken, distance*sign)
+
+		-- Convert to squares for modifier math
+		local distanceInSquares = distance / dmhub.unitsPerSquare
+
+		-- Big Versus Little: +1 square if Weapon+Melee and caster larger
+		local adjustments = {}
+		local sizeDifferenceBonus = 0
+		if ability.keywords["Weapon"] and ability.keywords["Melee"] then
+			local isKnockback = ability:IsKnockbackManeuver()
+			local casterSize = casterToken.properties:CreatureSizeWhenForceMoving(isKnockback)
+			local targetSize = target.properties:CreatureSizeWhenBeingForceMoved(isKnockback)
+			if casterSize > targetSize then
+				sizeDifferenceBonus = 1
+				adjustments[#adjustments+1] = "Big Versus Little: +1"
+			end
+		end
+
+		-- Stability
+		local stability = target.properties:Stability()
+		if stability ~= 0 and casterToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0 then
+			stability = 0
+			adjustments[#adjustments+1] = "Ignoring Stability"
+		end
+
+		-- Forced Movement Increase (on target)
+		local forcedMovementIncrease = target.properties:CalculateNamedCustomAttribute("Forced Movement Increase")
+		if forcedMovementIncrease > 0 then
+			adjustments[#adjustments+1] = string.format("Forced Movement Increase: +%d", forcedMovementIncrease)
+		end
+
+		-- Forced Movement Bonus (on caster)
+		local forcedMovementBonus = casterToken.properties:ForcedMovementBonus(self.moveType)
+		if forcedMovementBonus > 0 then
+			local describe = casterToken.properties:DescribeForcedMovementBonus(self.moveType)
+			local textItems = {}
+			for _,entry in ipairs(describe) do
+				textItems[#textItems+1] = entry.key
+			end
+			if #textItems > 0 then
+				adjustments[#adjustments+1] = string.format("Forced Movement Bonus (%s): +%d", table.concat(textItems, ", "), forcedMovementBonus)
+			end
+		end
+
+		local range = math.max(0, distanceInSquares - stability + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus)
+
+		if range <= 0 then
+			if stability > 0 then
+				--Per-encounter hero stat: stability fully prevented the forced
+				--movement -- the hero stood firm. Single-fire on the resolving
+				--client; TrackHeroStats self-guards to heroes. (This file already
+				--leans on Draw Steel globals here -- see MCDMUtils below.)
+				LiveEncounter.TrackHeroStats(target.charid, "standsFirm")
+				local abilityBase = MCDMUtils.GetStandardAbility("Too Much Stability")
+				if abilityBase then
+					local abilityClone = DeepCopy(abilityBase)
+					abilityClone.recordTargets = true
+					abilityClone.keywords = ability.keywords
+					abilityClone.notooltip = true
+					abilityClone.skippable = true
+					local invokeSymbols = { invoker = GenerateSymbols(casterToken.properties), cast = symbols.cast, forcedMovementOrigin = symbols.forcedMovementOrigin, forcedMovementOriginTokenId = symbols.forcedMovementOriginTokenId }
+					ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, abilityClone, target, "prompt", invokeSymbols, options)
+				end
+			end
+		else
+			if stability > 0 then
+				adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
+			end
+
+			local abilityName = "Forced Movement: " .. self.moveType
+			local description = string.format("You may %s the target %d square%s", self.moveType, range, range > 1 and "s" or "")
+
+			--An authored promptText replaces the generic wording. <<range>> resolves to
+			--the distance after Stability and the other adjustments below, so a custom
+			--prompt keeps naming the number of squares the target will actually move.
+			local promptText = self:try_get("promptText", "")
+			if trim(promptText) ~= "" then
+				description = string.gsub(promptText, "<<range>>", string.format("%d", range))
+				description = StringInterpolateGoblinScript(description, casterToken.properties:LookupSymbol{})
+			end
+
+			local abilityAttr = {
+				name = string.gsub(self.moveType, "^%l", string.upper) .. "!",
+				range = range,
+				description = description,
+				invoker = casterToken.properties,
+				promptOverride = description,
+			}
+
+			if #adjustments > 0 then
+				abilityAttr.promptOverride = abilityAttr.promptOverride .. " (" .. table.concat(adjustments, ", ") .. ")"
+			end
+
+			local abilityClone = DeepCopy(MCDMUtils.GetStandardAbility(abilityName))
+			if abilityClone ~= nil then
+				MCDMUtils.DeepReplace(abilityClone, "<<range>>", string.format("%d", range))
+				for k,v in pairs(abilityAttr) do
+					abilityClone[k] = v
+				end
+
+				abilityClone.recordTargets = true
+				abilityClone.keywords = ability.keywords
+				abilityClone.notooltip = true
+				abilityClone.skippable = true
+
+				local invokeSymbols = { invoker = GenerateSymbols(casterToken.properties), cast = symbols.cast, forcedMovementOrigin = symbols.forcedMovementOrigin, forcedMovementOriginTokenId = symbols.forcedMovementOriginTokenId }
+				ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, abilityClone, target, "prompt", invokeSymbols, options)
+			else
+				-- Fallback if standard ability template not found
+				target:ForcedPush(casterToken, range * dmhub.unitsPerSquare * sign)
+			end
+		end
 	end
 end
 
@@ -4531,6 +5628,7 @@ function ActivatedAbility:GenerateTextDescription(token)
 	return description
 end
 
+--[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMActivatedAbility.lua:563
 function ActivatedAbility:Render(options, params)
 
 	params = params or {}
@@ -4656,9 +5754,12 @@ function ActivatedAbility:Render(options, params)
 
 			gui.Panel{
 				halign = "right",
-				bgimage = self.iconid,
+				bgimage = self:GetIcon(),
 				classes = "icon",
-				selfStyle = self.display,
+				selfStyle = self:GetIconDisplay(),
+				create = function(element)
+					element.selfStyle.gradient = self:GetIconGradient()
+				end,
 			},
 		},
 
@@ -4680,6 +5781,7 @@ function ActivatedAbility:Render(options, params)
 	return gui.Panel(args)
 	
 end
+--]==]
 
 function ActivatedAbility:GetCastingEmote()
 	if self:try_get("castingEmote") ~= nil then
@@ -4704,12 +5806,208 @@ function ActivatedAbility:GetDamageTypesSet()
 	local result = {}
 
 	for i,behavior in ipairs(self:try_get("behaviors", {})) do
-		behavior:AccumulateDamageTypes(self, result)
+		if behavior.IsDerivedFrom and behavior.IsDerivedFrom("ActivatedAbilityBehavior") then
+			behavior:AccumulateDamageTypes(self, result)
+		end
 	end
 
 	return StringSet.new{
 		strings = result
 	}
+end
+
+--- Shows a modal list of abilities and returns the one the user chose, or nil if they
+--- canceled (or if there was nothing to choose from). Must be called from inside a
+--- coroutine -- it yields until the dialog is dismissed.
+---
+--- Shared by ActivatedAbilityStealAbilityBehavior (steal an ability off a target) and
+--- ActivatedAbilityInvokeAbilityBehavior's "chooseClassAbility" mode (borrow an ability
+--- off your own class/subclass level lists).
+---
+--- Sizing note: GameHud:ModalDialog consumes options.width/options.height for the dialog
+--- FRAME and builds our content panel with no size of its own, so it auto-sizes to its
+--- content. Percentage widths inside it therefore collapse -- the rows and the scroll
+--- region use concrete widths, matching the pattern in AbilitySummon's squad dialog.
+---
+--- @param choices ActivatedAbility[] The abilities to offer.
+--- @param dialogOptions nil|{title: nil|string, buttonText: nil|string, emptyText: nil|string, detailText: nil|fun(ability: ActivatedAbility):nil|string}
+--- @param casterToken nil|CharacterToken Whose perspective ability tooltips render from.
+--- @return nil|ActivatedAbility
+function ActivatedAbility.ShowAbilityChoiceDialog(choices, dialogOptions, casterToken)
+	dialogOptions = dialogOptions or {}
+
+	local chosenOption = nil
+	local canceled = false
+	local finished = false
+
+	--Nothing to choose from: say why rather than showing an empty box.
+	if #choices == 0 then
+		gamehud:ModalDialog{
+			title = dialogOptions.title or "Choose an Ability",
+			buttons = {
+				{
+					text = "Close",
+					escapeActivates = true,
+					click = function()
+						finished = true
+					end,
+				},
+			},
+			width = 560,
+			height = 280,
+			flow = "vertical",
+			children = {
+				gui.Label{
+					classes = {"modalMessage"},
+					text = dialogOptions.emptyText or "There are no abilities available to choose from.",
+					width = 480,
+					height = "auto",
+					halign = "center",
+					valign = "center",
+				},
+			},
+		}
+
+		while not finished do
+			coroutine.yield(0.1)
+		end
+
+		return nil
+	end
+
+	local optionPanels = {}
+
+	for i,option in ipairs(choices) do
+		local detail = nil
+		if dialogOptions.detailText ~= nil then
+			detail = dialogOptions.detailText(option)
+		end
+
+		local panel = gui.Panel{
+			classes = {"abilityOption"},
+			data = {
+				ability = option,
+			},
+			gui.Label{
+				classes = {"abilityOptionName"},
+				text = option.name,
+			},
+			gui.Label{
+				classes = {"abilityOptionDetail", cond(detail == nil or detail == "", "collapsed")},
+				text = detail or "",
+			},
+			press = function(element)
+				for _,p in ipairs(optionPanels) do
+					p:SetClass("selected", p == element)
+				end
+
+				chosenOption = choices[i]
+			end,
+			hover = function(element)
+				element.tooltip = CreateAbilityTooltip(option, {
+					token = casterToken,
+					halign = "right",
+					width = 500,
+					pad = 8,
+				})
+			end,
+		}
+
+		if chosenOption == nil then
+			panel:SetClass("selected", true)
+			chosenOption = option
+		end
+
+		optionPanels[#optionPanels+1] = panel
+	end
+
+	gamehud:ModalDialog{
+		title = dialogOptions.title or "Choose an Ability",
+		buttons = {
+			{
+				text = dialogOptions.buttonText or "Choose",
+				click = function()
+					finished = true
+				end,
+			},
+			{
+				text = "Cancel",
+				escapeActivates = true,
+				click = function()
+					finished = true
+					canceled = true
+				end,
+			},
+		},
+
+		styles = ThemeEngine.MergeTokens{
+			{
+				selectors = {"abilityOption"},
+				width = 496,
+				height = 34,
+				flow = "horizontal",
+				halign = "center",
+				valign = "top",
+				vmargin = 2,
+				hpad = 12,
+				borderBox = true,
+				bgimage = true,
+				bgcolor = "clear",
+			},
+			{ selectors = {"abilityOption","hover"},    bgcolor = "@bgAlt" },
+			{ selectors = {"abilityOption","selected"}, bgcolor = "@bgInverse" },
+
+			{
+				selectors = {"abilityOptionName"},
+				width = "60%",
+				height = "auto",
+				valign = "center",
+				halign = "left",
+				textAlignment = "left",
+				fontSize = 18,
+				color = "@fg",
+			},
+			{ selectors = {"abilityOptionName","parent:selected"}, color = "@fgInverse" },
+
+			{
+				selectors = {"abilityOptionDetail"},
+				width = "40%",
+				height = "auto",
+				valign = "center",
+				halign = "right",
+				textAlignment = "right",
+				fontSize = 14,
+				color = "@fgMuted",
+			},
+			{ selectors = {"abilityOptionDetail","parent:selected"}, color = "@fgInverse" },
+		},
+
+		width = 560,
+		height = 560,
+		flow = "vertical",
+
+		children = {
+			gui.Panel{
+				flow = "vertical",
+				vscroll = true,
+				width = 520,
+				height = 400,
+				halign = "center",
+				valign = "top",
+				children = optionPanels,
+			},
+		}
+	}
+
+	while not finished do
+		coroutine.yield(0.1)
+	end
+
+	if canceled then
+		return nil
+	end
+
+	return chosenOption
 end
 
 local g_lookupSymbols = {
@@ -4863,6 +6161,51 @@ local g_lookupSymbols = {
 			return false
 		end
 	end,
+
+    powerrollusesmight = function(c)
+        for _,behavior in ipairs(c.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                local roll = string.lower(behavior:try_get("roll", ""))
+                if string.find(roll, "might") then
+                    return true
+                end
+            end
+        end
+    end,
+
+    powerrollusesagility = function(c)
+        for _,behavior in ipairs(c.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                local roll = string.lower(behavior:try_get("roll", ""))
+                if string.find(roll, "agility") then
+                    return true
+                end
+            end
+        end
+    end,
+
+    --The following symbols are only populated on candidate abilities harvested from a
+    --class/subclass level list (see AbilityInvokeAbility's "chooseClassAbility" mode).
+    --On any other ability they read as their neutral defaults.
+    classlevel = function(c)
+        return c:try_get("_tmp_classLevel", 0)
+    end,
+
+    levelsabove = function(c)
+        return c:try_get("_tmp_levelsAbove", 0)
+    end,
+
+    class = function(c)
+        return c:try_get("_tmp_className", "")
+    end,
+
+    known = function(c)
+        return c:try_get("_tmp_abilityKnown", false)
+    end,
+
+    prerequisitesmet = function(c)
+        return c:try_get("_tmp_prerequisitesMet", true)
+    end,
 }
 
 local g_helpCasting = {
@@ -4891,7 +6234,7 @@ local g_helpCasting = {
 
 local g_helpSymbols = {
 	__name = "ability",
-	__sampleFields = {"level", "school"},
+	__sampleFields = {"level"},
 
 
 	name = {
@@ -5000,7 +6343,53 @@ local g_helpSymbols = {
 		type = "function",
 		desc = "Returns whether this ability inflicts the provided condition",
 		examples = {'Ability.Inflicts("Frightened")'},
-	}
+	},
+
+    powerrollusesmight = {
+        name = "Power Roll Uses Might",
+        type = "boolean",
+        desc = "Whether the power roll for this ability uses might. Only valid for abilities with a power roll behavior.",
+    },
+
+    powerrollusesagility = {
+        name = "Power Roll Uses Agility",
+        type = "boolean",
+        desc = "Whether the power roll for this ability uses agility. Only valid for abilities with a power roll behavior.",
+    },
+
+    classlevel = {
+        name = "Class Level",
+        type = "number",
+        desc = "For an ability offered by a class or subclass level list, the level that offers it. Zero for any other ability.",
+        examples = {"Class Level = 5"},
+    },
+
+    levelsabove = {
+        name = "Levels Above",
+        type = "number",
+        desc = "For an ability offered by a class or subclass level list, how far above the character's level in that class it is offered. 1 means it could be learned one level from now, 0 or less means it is already available.",
+        examples = {"Levels Above = 1", "Levels Above <= 0"},
+    },
+
+    class = {
+        name = "Class",
+        type = "text",
+        desc = "For an ability offered by a class or subclass level list, the name of the class or subclass offering it. Empty for any other ability.",
+        examples = {'Class is "Tactician"'},
+    },
+
+    known = {
+        name = "Known",
+        type = "boolean",
+        desc = "For an ability offered by a class or subclass level list, whether the character already has this ability.",
+        examples = {"not Known"},
+    },
+
+    prerequisitesmet = {
+        name = "Prerequisites Met",
+        type = "boolean",
+        desc = "For an ability offered by a class or subclass level list, whether the character meets the prerequisites of the feature that grants it. True for any other ability.",
+    },
 }
 
 ActivatedAbility.lookupSymbols = g_lookupSymbols
@@ -5046,4 +6435,19 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
 			desc = documentation,
 		}
 	end
+end)
+
+--Reset-turn / backup-restore teardown. Fires on every client whenever a
+--minor- backupid lands (CombatCheckpoint.Restore). Sets the abort flag on
+--every live cast coroutine so CastCoroutine breaks at the next behavior
+--boundary and unwinds through FinishCast (which marks the chat message
+--"aborted"). Also clears any unsubmitted dice preview.
+dmhub.RegisterEventHandler("restoreFromBackup", function()
+    for co, info in pairs(ActivatedAbility.coroutineStorage) do
+        if coroutine.status(co) ~= "dead" and info.options ~= nil then
+            info.options.abort = true
+            info.options.stopProcessing = true
+        end
+    end
+    dmhub.CancelCurrentRoll()
 end)

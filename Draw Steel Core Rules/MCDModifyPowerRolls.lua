@@ -4,6 +4,15 @@ CharacterModifier.DeregisterType("d20")
 
 CharacterModifier.displayCondition = ""
 
+-- Optional coordination metadata for modifiers chosen after the dice land.
+-- An empty group preserves the ordinary independent-checkbox behavior. Mods
+-- that share a non-empty group behave as a single choice. consumeOncePerRoll
+-- prevents a modifier copied across several targets from billing once per
+-- target; it is deliberately opt-in so existing Draw Steel modifiers retain
+-- their current semantics.
+CharacterModifier.afterRollExclusiveGroup = ""
+CharacterModifier.consumeOncePerRoll = false
+
 local g_powerRollTypes = {
     {
         id = "all",
@@ -30,17 +39,87 @@ local g_powerRollTypes = {
         text = "Project Roll",
     },
     {
+        id = "fishing_roll",
+        text = "Fishing Roll",
+    },
+    {
         id = "enemy_ability_power_roll",
         text = "Enemy Ability Rolls vs Us",
     },
 }
 
-local function RollTypeMatches(modifier, rollType)
+--Resolves the value of the characteristic used for a power roll, or nil when
+--the roll uses no characteristic (so callers leave the GoblinScript symbol
+--absent). Tests and resistance rolls carry the characteristic id directly in
+--options.attribute; ability rolls keep their characteristic in the roll formula
+--(e.g. "2d10 + Reason"), resolved via the ability itself.
+local function ResolveRollCharacteristic(creature, options)
+    local attrid = options.attribute
+    if attrid ~= nil and attrid ~= "none" then
+        return creature:AttributeMod(attrid)
+    end
+    if options.ability ~= nil and options.ability.GetRollCharacteristicValue ~= nil then
+        return options.ability:GetRollCharacteristicValue(creature)
+    end
+    return nil
+end
+
+--A damageTypeMappings value may be a plain string (legacy: one destination
+--type) or a list of strings (the user picks one at roll time). Returns the
+--value normalized to a list of destination damage types.
+--- @param value string|string[]
+--- @return string[]
+function CharacterModifier.DamageMappingDestinations(value)
+    if type(value) == "table" then
+        return value
+    end
+    return {value}
+end
+
+--Resolves which destination damage type a mapping should convert to, taking
+--into account any roll-time choice stored on this modifier instance (set by
+--the roll dialog's badge dropdown). Falls back to the first destination.
+--- @param source string
+--- @param value string|string[]
+--- @return string
+function CharacterModifier:ResolveDamageMappingDestination(source, value)
+    local dests = CharacterModifier.DamageMappingDestinations(value)
+    if #dests <= 1 then
+        return dests[1]
+    end
+
+    local choices = self:try_get("_tmp_damageTypeChoices")
+    if choices ~= nil then
+        for _,d in ipairs(dests) do
+            if d == choices[source] then
+                return d
+            end
+        end
+    end
+
+    return dests[1]
+end
+
+local function RollTypeMatches(modifier, rollType, options)
     if modifier.rollType == "all" and rollType ~= "enemy_ability_power_roll" then
         return true
     end
 
-    return rollType == modifier.rollType
+    if rollType ~= modifier.rollType then
+        return false
+    end
+
+    --Only apply "Enemy Ability Rolls vs Us" to harmful abilities:
+    --the caster must not be a friend of the target.
+    if rollType == "enemy_ability_power_roll" and options ~= nil and options.caster ~= nil and options.target ~= nil then
+        local casterToken = dmhub.LookupToken(options.caster)
+        local targetToken = dmhub.LookupToken(options.target)
+        if casterToken ~= nil and targetToken ~= nil and casterToken:IsFriend(targetToken) then
+            return false
+        end
+    end
+
+    return true
 end
 
 
@@ -204,9 +283,80 @@ CharacterModifier.TypeInfo.power = {
 		if modifier:try_get("hasCustomTrigger", false) and modifier:has_key("customTrigger") then
             local token = dmhub.LookupToken(creature)
 
-            
+
             print("TRIGGER:: TRIGGER", token.charid)
-			modifier.customTrigger:Trigger(modifier, creature, modifier:AppendSymbols{}, nil, modContext)
+            --Deferred until the casts currently resolving on this client
+            --complete (see ActivatedAbility.RunWhenCastsComplete): a custom
+            --trigger activated from the roll dialog (e.g. In All This
+            --Confusion's teleport) resolves after the triggering ability
+            --finishes (damage, forced movement), not mid-cast. Deferring here,
+            --at the source, also covers the locally-controlled-target case,
+            --where the invoke behavior runs ExecuteInvoke directly instead of
+            --going through the (already deferred) remoteInvokes queue. It also
+            --lifts the trigger's cast out of the ModifyProperties execute
+            --block this runs inside (see ConsumeResource in DSRollDialog).
+            ActivatedAbility.RunWhenCastsComplete(function()
+                if token == nil or not token.valid then
+                    return
+                end
+                --The contextual target types (abilitycaster / abilitytarget /
+                --triggerer) resolve inside Trigger's targeting from the
+                --symbols appended here; no subject resolution is needed.
+                modifier.customTrigger:Trigger(modifier, creature, modifier:AppendSymbols{}, nil, modContext)
+            end)
+		end
+
+		--Arm-on-toggle (Elemental Avatar / Dragonseal): when a power modifier
+		--carrying an armEffect is applied (its roll-dialog checkbox is checked),
+		--apply that marker ongoing effect to the caster synchronously HERE, at
+		--roll-confirm -- before the strike's damage lands. A dealdamage trigger
+		--can then read the flag the marker grants and deliver on this same
+		--strike. (The customTrigger above is deferred until after the cast, so
+		--it is too late to gate same-strike delivery.)
+		--
+		--armEffectApplyTo = "target" marks the ability's TARGET instead of the
+		--modifier's owner. Required whenever the creature a later trigger has to
+		--identify is not the owner -- e.g. Shadow Elf Knightfell's Trick of the
+		--Eye halves ONE ally's damage, so the marker has to name that ally.
+		--Marking the owner there yields a global on/off flag that every damaged
+		--ally in range matches, firing the redirect once per target instead of
+		--once for the protected one.
+		local armEffect = modifier:try_get("armEffect")
+		if armEffect ~= nil then
+			local armSubject = creature
+			if modifier:try_get("armEffectApplyTo", "self") == "target" then
+				--symbol contexts are installed as GenerateSymbols lookup
+				--functions (see CharacterModifier:InstallSymbolsFromContext);
+				--calling with "self" unwraps back to the creature. Same idiom
+				--as the "subject" applyto in ActivatedAbility:GetTargets.
+				local abilityTarget = modifier:try_get("_tmp_symbols", {}).abilitytarget
+				if type(abilityTarget) == "function" then
+					abilityTarget = abilityTarget("self")
+				end
+
+				if abilityTarget ~= nil then
+					armSubject = abilityTarget
+				end
+			end
+
+			local armToken = dmhub.LookupToken(armSubject)
+			if armToken ~= nil and armToken.valid then
+				if armSubject == creature then
+					--the owner's properties are already inside the caller's
+					--ModifyProperties block (see ConsumeResource in DSRollDialog).
+					armToken.properties:ApplyOngoingEffect(armEffect, 0, nil, {})
+				else
+					--a different token: needs its own ModifyProperties or the
+					--mutation never uploads.
+					armToken:ModifyProperties{
+						description = "Arm Triggered Effect",
+						undoable = false,
+						execute = function()
+							armToken.properties:ApplyOngoingEffect(armEffect, 0, nil, {})
+						end,
+					}
+				end
+			end
 		end
 
         if modifier:has_key("baseModifier") and (modifier:try_get("gobefore", false)) and (not modifier:try_get("overridebase", false)) then
@@ -217,6 +367,11 @@ CharacterModifier.TypeInfo.power = {
 
     hintPowerRoll = function(self, creature, rollType, options)
         options = options or {}
+
+        --Imported/YAML-authored modifiers may lack activationCondition
+        --entirely (only the editor's init path sets it); treat missing
+        --as false, matching the init default.
+        local activationCondition = self:try_get("activationCondition", false)
 
         if type(self:try_get("activationAfterRoll", false)) == "string" then
             return {
@@ -233,7 +388,7 @@ CharacterModifier.TypeInfo.power = {
         end
 
 
-        if (self.activationCondition == false) or (not RollTypeMatches(self, rollType)) then
+        if (activationCondition == false) or (not RollTypeMatches(self, rollType, options)) then
             return {
                 result = false,
                 justification = {}
@@ -249,7 +404,7 @@ CharacterModifier.TypeInfo.power = {
                 if options.ability:HasKeyword(keyword) then
                     matchCount = matchCount + 1
                 else
-                    keywordFail[#keywordFail+1] = keyword
+                    keywordFail[#keywordFail+1] = ActivatedAbility.CanonicalKeyword(keyword)
                 end
             end
 
@@ -277,23 +432,39 @@ CharacterModifier.TypeInfo.power = {
             }
         end
 
-        if self.activationCondition == true then
+        if activationCondition == true then
             return {
                 result = true,
                 justification = {}
             }
         end
 
-		local lookupFunction = creature:LookupSymbol(self:AppendSymbols{
+		local powerRollSymbols = self:AppendSymbols{
 			ability = GenerateSymbols(options.ability),
 			target = GenerateSymbols(options.target),
+			--Expose the creature making the roll so activation conditions can test
+			--the attacker (e.g. "Caster.Keywords has 'Olothec'" on an
+			--enemy_ability_power_roll modifier). options.caster is the roller;
+			--for enemy ability rolls that is the attacker striking the bearer.
+			caster = options.caster ~= nil and GenerateSymbols(options.caster) or nil,
             title = options.title or "",
-		})
+		}
+
+		--Expose the value of the characteristic used for this roll (e.g. 2 for a
+		--Might +2 roll, -1 for an Agility -1 roll). Left absent when the roll uses
+		--no characteristic so a condition can tell "no characteristic" apart from
+		--"characteristic of 0".
+		local rollCharacteristic = ResolveRollCharacteristic(creature, options)
+		if rollCharacteristic ~= nil then
+			powerRollSymbols.rollcharacteristic = rollCharacteristic
+		end
+
+		local lookupFunction = creature:LookupSymbol(powerRollSymbols)
 
         print("POWER ROLL:: OPTIONS:", options)
 
         return {
-            result = GoblinScriptTrue(ExecuteGoblinScript(self.activationCondition, lookupFunction, 0, "Power Roll Activation Condition")),
+            result = GoblinScriptTrue(ExecuteGoblinScript(activationCondition, lookupFunction, 0, "Power Roll Activation Condition")),
             justification = {},
         }
     end,
@@ -314,7 +485,9 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
-        if #self:try_get("skills", {}) > 0 and rollType == "test_power_roll" and options.skills ~= nil then
+        --The roll tells us which skill is being used, so just check against that.
+        --An opposed test is rolled with a skill exactly like an ordinary test is.
+        if #self:try_get("skills", {}) > 0 and (rollType == "test_power_roll" or rollType == "opposed_power_roll") and options.skills ~= nil then
             local hasSkill = false
             for _,skillid in ipairs(self.skills) do
                 for _,skillid2 in ipairs(options.skills) do
@@ -330,17 +503,18 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
-        if #self:try_get("skills", {}) > 0 and rollType == "opposed_power_roll" then
+        --No skill came with the roll: this is a defender's modifier being offered
+        --against someone else's opposed ability, so read the skill off that
+        --ability's attack side instead.
+        if #self:try_get("skills", {}) > 0 and rollType == "opposed_power_roll" and options.skills == nil then
             if options.ability and options.ability.behaviors then
                 local behaviors = options.ability.behaviors or {}
                 for _, behavior in ipairs(behaviors) do
                     if behavior.typeName == "ActivatedAbilityOpposedRollBehavior" then
                         local hasSkill = false
-                        local skillInfo
-                        for _,skillid in pairs(behavior.attackAttributes) do
+                        for _,attr in ipairs(behavior.attackAttributes) do
                             for _, modSkillId in pairs(self.skills) do
-                                if skillid == modSkillId then
-                                    skillInfo = skillid
+                                if type(attr) == "table" and attr.skill == modSkillId then
                                     hasSkill = true
                                     break
                                 end
@@ -355,22 +529,31 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
-        if not RollTypeMatches(self, rollType) then
+        if not RollTypeMatches(self, rollType, options) then
             return false
         end
 
         if not self:PassesFilter(creature) then
             return false
         end
-            
+
         if self.displayCondition ~= "" then
-            local lookupFunction = creature:LookupSymbol(self:AppendSymbols{
+            local displaySymbols = self:AppendSymbols{
                 ability = GenerateSymbols(options.ability),
                 target = GenerateSymbols(options.target),
                 caster = GenerateSymbols(options.caster),
                 cast = options.symbols and GenerateSymbols(options.symbols.cast),
                 title = options.title or "",
-            })
+            }
+
+            --See hintPowerRoll: expose the characteristic value used for this
+            --roll, absent when the roll uses no characteristic.
+            local rollCharacteristic = ResolveRollCharacteristic(creature, options)
+            if rollCharacteristic ~= nil then
+                displaySymbols.rollcharacteristic = rollCharacteristic
+            end
+
+            local lookupFunction = creature:LookupSymbol(displaySymbols)
 
             if not GoblinScriptTrue(ExecuteGoblinScript(self.displayCondition, lookupFunction, 0, "Power Roll Activation Condition")) then
                 return false
@@ -384,7 +567,7 @@ CharacterModifier.TypeInfo.power = {
         if type(self:try_get("activationAfterRoll", false)) ~= "string" then
             return false
         end
-        if not RollTypeMatches(self, rollType) then
+        if not RollTypeMatches(self, rollType, options) then
             return false
         end
         if not self:PassesFilter(creature) then
@@ -396,7 +579,7 @@ CharacterModifier.TypeInfo.power = {
     hintPowerRollAfter = function(self, creature, rollType, options)
         options = options or {}
 
-        if not RollTypeMatches(self, rollType) then
+        if not RollTypeMatches(self, rollType, options) then
             return { result = false, justification = {} }
         end
 
@@ -464,6 +647,9 @@ CharacterModifier.TypeInfo.power = {
         end
 
         local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self.modtype]
+        if modType == nil then
+            return roll
+        end
         if modType.remove_edge or modType.ignore_edges then
             local m = regex.MatchGroups(roll, "^(?<prefix>.*?)(?<edge>\\d+)\\s+edge(?<suffix>.*)$")
             if m ~= nil then
@@ -665,18 +851,29 @@ CharacterModifier.TypeInfo.power = {
 
         local damageTypeMappings = self:try_get("damageTypeMappings")
         if damageTypeMappings ~= nil then
+            --Resolve each mapping value (possibly a list of candidate
+            --destinations) down to the single chosen destination type.
             if damageTypeMappings["all"] ~= nil then
-                local mapto = damageTypeMappings["all"]
+                local mapto = self:ResolveDamageMappingDestination("all", damageTypeMappings["all"])
                 damageTypeMappings = {}
                 for _,damageType in ipairs(rules.damageTypesAvailable) do
                     damageTypeMappings[damageType] = mapto
                 end
+            else
+                local resolved = {}
+                for k,v in pairs(damageTypeMappings) do
+                    resolved[k] = self:ResolveDamageMappingDestination(k, v)
+                end
+                damageTypeMappings = resolved
             end
             for i=1,#rollProperties.tiers do
                 local tier = rollProperties.tiers[i]
                 for k,v in pairs(damageTypeMappings) do
                     if k == "untyped" then
-                        local m = regex.MatchGroups(tier, "^(?<prefix>.*?)(?<damage>\\d+)\\s+([a-zA-Z]+\\s+)?damage(?<suffix>.*)$")
+                        --Untyped means untyped: only match a number followed directly by
+                        --"damage" with no damage-type word in between. Typed damage is
+                        --only converted when its own type key is in the mappings.
+                        local m = regex.MatchGroups(tier, "^(?<prefix>.*?)(?<damage>\\d+)\\s+damage(?<suffix>.*)$")
                         if m ~= nil then
                             tier = m.prefix .. m.damage .. " " .. v .. " damage" .. m.suffix
                         end
@@ -770,17 +967,100 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
+        local damageReduction = self:try_get("damageReduction", "")
+        if damageReduction ~= "" then
+            local reduction = ExecuteGoblinScript(damageReduction, lookupFunction, 0, "Damage reduction")
+            reduction = tonumber(reduction) or 0
+            if reduction > 0 then
+                for i,tier in ipairs(rollProperties.tiers) do
+                    local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+(\\+\\s*\\d+d\\d+\\s+)?([a-zA-Z]+\\s+)?damage", {indexes = true})
+                    if match ~= nil then
+                        local index = match.damage.index
+                        local length = match.damage.length
+                        local before = string.sub(tier, 1, index-1)
+                        local after = string.sub(tier, index+length)
+                        local damageValue = round(tonumber(match.damage.value))
+                        damageValue = math.max(0, round(damageValue - reduction))
+                        rollProperties.tiers[i] = string.format("%s%d%s", before, damageValue, after)
+                    end
+                end
+            end
+        end
+
         for i,adjustment in ipairs(self:try_get("adjustments", {})) do
-            local pattern = "^(?<prefix>.*)(?<type>" .. adjustment.type .. ")\\s+(?<value>\\d+)(?<postfix>.*)$"
+            local typePattern = adjustment.type
+            if typePattern == "any" then typePattern = "push|pull|slide" end
+            local pattern = "^(?<prefix>.*)(?<type>" .. typePattern .. ")\\s+(?<value>\\d+)(?<postfix>.*)$"
 
             for j,tier in ipairs(rollProperties.tiers) do
                 local match = regex.MatchGroups(tier, pattern)
                 if match ~= nil then
-                    local adj = ExecuteGoblinScript(adjustment.value, lookupFunction, 1, "Determine adjustment")
                     local value = safe_toint(match.value)
-                    local newValue = math.max(0, value + (adj or 0))
-                    rollProperties.tiers[j] = string.format("%s%s %d%s", match.prefix, match.type, newValue, match.postfix)
+                    local newValue
+                    if adjustment.operation == "multiply" then
+                        local adj = ExecuteGoblinScript(adjustment.value, lookupFunction, 1, "Determine adjustment")
+                        newValue = math.max(0, math.floor(value * (adj or 1)))
+                    else
+                        local adj = ExecuteGoblinScript(adjustment.value, lookupFunction, 1, "Determine adjustment")
+                        newValue = math.max(0, value + (adj or 0))
+                    end
+                    local prefix = match.prefix
+                    local typeOutput = match.type
+                    if self:try_get("vertical", false) and match.type ~= "jump" then
+                        prefix = regex.ReplaceAll(prefix, "vertical\\s+$", "")
+                        typeOutput = "vertical " .. match.type
+                    end
+                    rollProperties.tiers[j] = string.format("%s%s %d%s", prefix, typeOutput, newValue, match.postfix)
                 end
+            end
+        end
+
+        --replaceForcedMovement rewrites the forced-movement TYPE word in each tier
+        --(e.g. "push 2" -> "slide 2"). The displayed power table updates live, and
+        --because forced movement is resolved by parsing the tier text (see
+        --TierSymbols in MCDMAbilityRollBehavior.lua), the actual resolved movement
+        --changes type as well. Value/distance is left untouched -- use `adjustments`
+        --to change distance. Shape: { from = "push", to = "slide" }. `from` may be
+        --"any" to match push/pull/slide regardless of original type.
+        local replaceForcedMovement = self:try_get("replaceForcedMovement")
+        if replaceForcedMovement ~= nil and replaceForcedMovement.from ~= nil and replaceForcedMovement.to ~= nil then
+            local fromPattern = replaceForcedMovement.from
+            if fromPattern == "any" then
+                fromPattern = "push|pull|slide"
+            end
+            local pattern = "^(?<prefix>.*?)(?<vert>vertical\\s+)?(?<type>" .. fromPattern .. ")(?<gap>\\s+\\d+)(?<postfix>.*)$"
+            for j,tier in ipairs(rollProperties.tiers) do
+                local output = ""
+                local rest = tier
+                local match = regex.MatchGroups(rest, pattern)
+                while match ~= nil do
+                    output = output .. match.prefix .. (match.vert or "") .. replaceForcedMovement.to .. match.gap
+                    rest = match.postfix
+                    match = regex.MatchGroups(rest, pattern)
+                end
+                rollProperties.tiers[j] = output .. rest
+            end
+        end
+
+        --Upgrade every end-of-turn condition clause in the power table to save ends,
+        --e.g. "M<2 slowed (eot)" becomes "M<2 slowed (save ends)". Shadow Elf's
+        --Manifold Piercer. Like replaceForcedMovement above, this rewrites the tier
+        --TEXT rather than signalling the infliction site: the text is the contract the
+        --power table parser reads, so the condition then lands with duration "save"
+        --with no further plumbing, and the token shows the same condition icon it
+        --always would.
+        if self:try_get("convertEotToSaveEnds", false) then
+            local pattern = "^(?<prefix>.*?)\\((?:eot|EoT)\\)(?<postfix>.*)$"
+            for j,tier in ipairs(rollProperties.tiers) do
+                local output = ""
+                local rest = tier
+                local match = regex.MatchGroups(rest, pattern)
+                while match ~= nil do
+                    output = output .. match.prefix .. "(save ends)"
+                    rest = match.postfix
+                    match = regex.MatchGroups(rest, pattern)
+                end
+                rollProperties.tiers[j] = output .. rest
             end
         end
 
@@ -866,7 +1146,18 @@ CharacterModifier.TypeInfo.power = {
     modifyPowerRollCasting = function(self, creature, ability, options)
         if self:try_get("overrideCost", false) then
             local tempCopy = DeepCopy(ability)
-            tempCopy.resourceNumber = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(options.symbols), 0, "Override Resource Cost")
+
+            --The cost formula must see the modifier's own context symbols
+            --(Stacks, OngoingEffect, Aura) on top of the cast symbols, the same
+            --way the cost shown in the roll dialog is calculated. Copy the cast
+            --symbols first so AppendSymbols does not write into the live table.
+            local costSymbols = {}
+            for k,v in pairs(options.symbols or {}) do
+                costSymbols[k] = v
+            end
+            self:AppendSymbols(costSymbols)
+
+            tempCopy.resourceNumber = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(costSymbols), 0, "Override Resource Cost")
             local tok = dmhub.LookupToken(creature)
             local costInfo = tempCopy:GetCost(tok)
             
@@ -894,18 +1185,54 @@ CharacterModifier.TypeInfo.power = {
                 firstRefresh = false
             end
 
+            --Imported/YAML-authored modifiers may lack activationCondition
+            --entirely (only the editor's init path sets it); treat missing
+            --as false, matching the init default.
+            local activationCondition = modifier:try_get("activationCondition", false)
+
             local conditionType = "condition"
-            if modifier.activationCondition == false then
+            if activationCondition == false then
                 if type(modifier:try_get("activationAfterRoll", false)) == "string" then
                     conditionType = "condition_after_roll"
                 else
                     conditionType = "never"
                 end
-            elseif modifier.activationCondition == true then
+            elseif activationCondition == true then
                 conditionType = "always"
             end
 
             local children = {}
+
+            --Spoiler eyelid: wraps/unwraps the modifier name in {#...} spoiler
+            --markup (see PowerRollSpoilers in Timeline/EmbeddedRollDialog) so
+            --authors don't need to remember the markup. A spoilered name hides
+            --the modifier's name and description from players in the roll
+            --dialogs until the director reveals it.
+            local spoilerEye = nil
+            local spoilers = rawget(_G, "PowerRollSpoilers")
+            if spoilers ~= nil then
+                local spoilered = spoilers.HasSpoiler(modifier.name or "")
+                spoilerEye = gui.VisibilityPanel{
+                    visible = not spoilered,
+                    hmargin = 6,
+                    valign = "center",
+                    hoverCursor = "hand",
+                    click = function(element)
+                        local name = modifier.name or ""
+                        if spoilers.HasSpoiler(name) then
+                            modifier.name = spoilers.Strip(name)
+                        elseif name ~= "" then
+                            modifier.name = "{#" .. name .. "}"
+                        end
+                        Refresh()
+                    end,
+                    linger = function(element)
+                        gui.Tooltip(cond(spoilers.HasSpoiler(modifier.name or ""),
+                            "This modifier is a spoiler: players see its name and description redacted in the roll dialog until the director reveals it. Click to make it visible to players.",
+                            "This modifier is visible to players. Click to hide its name and description from players as a spoiler."))(element)
+                    end,
+                }
+            end
 
             children[#children+1] = gui.Panel{
                 classes = {"formPanel"},
@@ -921,6 +1248,7 @@ CharacterModifier.TypeInfo.power = {
                         Refresh()
                     end,
                 },
+                spoilerEye,
             }
 
             children[#children+1] = gui.Panel{
@@ -953,6 +1281,7 @@ CharacterModifier.TypeInfo.power = {
                 },
 
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
 					height = 30,
 					width = 260,
                     valign = "center",
@@ -980,6 +1309,7 @@ CharacterModifier.TypeInfo.power = {
                     },
 
                     gui.Dropdown{
+                        styles = ThemeEngine.GetStyles(),
                         height = 30,
                         width = 260,
                         valign = "center",
@@ -1005,11 +1335,10 @@ CharacterModifier.TypeInfo.power = {
                             height = 30,
                             width = 160,
                             halign = "left",
-                            gui.DeleteItemButton{
+                            gui.Button{
+                                classes = {"deleteButton", "sizeXs"},
                                 halign = "right",
                                 valign = "center",
-                                height = 12,
-                                width = 12,
                                 click = function()
                                     table.remove(skills, i)
                                     Refresh()
@@ -1020,6 +1349,7 @@ CharacterModifier.TypeInfo.power = {
                 end
 
                 children[#children+1] = gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     height = 30,
                     width = 260,
                     fontSize = 16,
@@ -1045,6 +1375,7 @@ CharacterModifier.TypeInfo.power = {
                 },
 
 				gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
 					height = 30,
 					width = 260,
 					fontSize = 16,
@@ -1107,6 +1438,7 @@ CharacterModifier.TypeInfo.power = {
                 }
 
                 children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
                     style = {
                         height = 30,
                         width = 160,
@@ -1138,6 +1470,7 @@ CharacterModifier.TypeInfo.power = {
 
                 if table.count_elements(keywords) >= 2 then
                     children[#children+1] = gui.Check{
+                        styles = ThemeEngine.GetStyles(),
                         style = {
                             height = 30,
                             width = 220,
@@ -1165,6 +1498,7 @@ CharacterModifier.TypeInfo.power = {
                 },
 
 				gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
 					height = 30,
 					width = 260,
 					fontSize = 16,
@@ -1227,6 +1561,7 @@ CharacterModifier.TypeInfo.power = {
 				},
 
 				gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
 					height = 30,
 					width = 260,
 					fontSize = 16,
@@ -1273,7 +1608,7 @@ CharacterModifier.TypeInfo.power = {
 
 			}
 
-            if modifier.activationCondition ~= true and modifier.activationCondition ~= false then
+            if activationCondition ~= true and activationCondition ~= false then
                 local helpSymbols = CharacterModifier.defaultHelpSymbols
                 if modifier.rollType == "ability_power_roll" or modifier.rollType == "enemy_ability_power_roll" then
                     helpSymbols = g_powerRollSymbols
@@ -1290,6 +1625,11 @@ CharacterModifier.TypeInfo.power = {
                     type = "text",
                     desc = "The title of the roll",
                     examples = "Recall Lore Test to Recall Location of Amulet",
+                }
+                helpSymbols.rollcharacteristic = {
+                    name = "Roll Characteristic",
+                    type = "number",
+                    desc = "The value of the characteristic used for this roll, e.g. 2 for a Might +2 roll. Absent if the roll uses no characteristic.",
                 }
 
                 children[#children+1] = gui.GoblinScriptInput{
@@ -1315,7 +1655,7 @@ CharacterModifier.TypeInfo.power = {
 
                 children[#children+1] = gui.GoblinScriptInput{
 					placeholderText = "Enter activation criteria...",
-					value = modifier.activationCondition,
+					value = activationCondition,
 					change = function(element)
 						modifier.activationCondition = element.value
 						Refresh()
@@ -1401,6 +1741,7 @@ CharacterModifier.TypeInfo.power = {
                 },
 
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = ActivatedAbilityPowerRollBehavior.s_modificationTypes,
                     valign = "center",
                     idChosen = modifier.modtype,
@@ -1436,6 +1777,7 @@ CharacterModifier.TypeInfo.power = {
                 },
 
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = {
                         {
                             id = "none",
@@ -1539,6 +1881,7 @@ CharacterModifier.TypeInfo.power = {
 
             if options.triggered then
                 children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
                     style = {
                         height = 30,
                         width = 160,
@@ -1589,6 +1932,7 @@ CharacterModifier.TypeInfo.power = {
                             text = "Retarget Range:",
                         },
                         gui.Dropdown{
+                            styles = ThemeEngine.GetStyles(),
                             idChosen = modifier:try_get("changeTargetRange", "none"),
                             options = {
                                 {
@@ -1663,6 +2007,100 @@ CharacterModifier.TypeInfo.power = {
                         }
                     }
 
+                    --Reasoned retarget filters: in addition to the all-inclusive
+                    --filter above, these mark a target as invalid (with a reason
+                    --surfaced to the user as a tooltip) rather than hiding it.
+                    local reasonedFilters = modifier:try_get("changeTargetReasonedFilters", {})
+
+                    if #reasonedFilters > 0 then
+                        children[#children+1] = gui.Label{
+                            classes = {"formLabel"},
+                            width = "auto",
+                            height = "auto",
+                            halign = "left",
+                            tmargin = 6,
+                            text = "Reasoned Filters:",
+                        }
+                    end
+
+                    for index,reasonedFilter in ipairs(reasonedFilters) do
+                        children[#children+1] = gui.Panel{
+                            classes = {"formPanel"},
+                            gui.Label{
+                                classes = {"formLabel"},
+                                text = "Filter:",
+                            },
+                            gui.GoblinScriptInput{
+                                value = reasonedFilter.formula or "",
+                                change = function(element)
+                                    reasonedFilter.formula = element.value
+                                    Refresh()
+                                end,
+
+                                documentation = {
+                                    domains = modifier:Domains(),
+                                    help = "A target that fails this GoblinScript is still shown but cannot be selected, and the reason below is surfaced to the user as a tooltip.",
+                                    output = "boolean",
+                                    examples = {
+                                    },
+                                    subject = creature.helpSymbols,
+                                    subjectDescription = "The potential new target of the power roll.",
+                                    symbols = helpSymbols,
+                                },
+                            },
+                            gui.Button{
+                                classes = {"deleteButton", "sizeXs"},
+                                halign = "right",
+                                valign = "center",
+                                x = 30,
+                                press = function()
+                                    table.remove(reasonedFilters, index)
+                                    modifier.changeTargetReasonedFilters = reasonedFilters
+                                    Refresh()
+                                end,
+                            },
+                        }
+
+                        children[#children+1] = gui.Panel{
+                            classes = {"formPanel"},
+                            gui.Label{
+                                classes = {"formLabel"},
+                                text = "Reason:",
+                            },
+                            gui.Input{
+                                classes = {"formInput"},
+                                width = 300,
+                                characterLimit = 200,
+                                placeholderText = "Enter reason...",
+                                text = reasonedFilter.reason or "",
+                                change = function(element)
+                                    reasonedFilter.reason = element.text
+                                    Refresh()
+                                end,
+                            },
+                        }
+                    end
+
+                    children[#children+1] = gui.Button{
+                        width = "auto",
+                        height = "auto",
+                        minWidth = 220,
+                        hpad = 16,
+                        vpad = 6,
+                        borderBox = true,
+                        fontSize = 16,
+                        halign = "left",
+                        text = "Add Reasoned Filter",
+                        click = function(element)
+                            modifier.changeTargetReasonedFilters = modifier:try_get("changeTargetReasonedFilters", {})
+                            modifier.changeTargetReasonedFilters[#modifier.changeTargetReasonedFilters+1] = {
+                                formula = "",
+                                reason = "",
+                            }
+                            Refresh()
+                        end,
+                    }
+
                     children[#children+1] = gui.Panel{
                         classes = {"formPanel"},
                         gui.Label{
@@ -1671,6 +2109,7 @@ CharacterModifier.TypeInfo.power = {
                         },
 
                         gui.Dropdown{
+                            styles = ThemeEngine.GetStyles(),
                             options = {
                                 {
                                     id = "all",
@@ -1758,6 +2197,7 @@ CharacterModifier.TypeInfo.power = {
                         text = "Damage Type:",
                     },
                     gui.Dropdown{
+                        styles = ThemeEngine.GetStyles(),
                         idChosen = modifier:try_get("damageModifierType", "none"),
                         options = damageTypeOptions,
                         change = function(element)
@@ -1775,6 +2215,7 @@ CharacterModifier.TypeInfo.power = {
                     text = "Damage Multiplier:",
                 },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     options = {
                         {
                             id = "full",
@@ -1810,6 +2251,7 @@ CharacterModifier.TypeInfo.power = {
 
             local AddDamageType
             local dropdownDestType = gui.Dropdown{
+                styles = ThemeEngine.GetStyles(),
                 idChosen = "none",
                 fontSize = 12,
                 width = 120,
@@ -1823,6 +2265,7 @@ CharacterModifier.TypeInfo.power = {
             damageTypeOptions[#damageTypeOptions+1] = {id = "all", text = "All"}
 
             local dropdownSourceType = gui.Dropdown{
+                styles = ThemeEngine.GetStyles(),
                 idChosen = "none",
                 fontSize = 12,
                 width = 120,
@@ -1838,39 +2281,75 @@ CharacterModifier.TypeInfo.power = {
                     return
                 end
 
+                local source = dropdownSourceType.idChosen
+                local destType = dropdownDestType.idChosen
+
+                --A source may map to multiple candidate destinations; the user
+                --chooses between them at roll time. Single mappings stay stored
+                --as a plain string for compatibility with existing content.
                 local mappings = modifier:get_or_add("damageTypeMappings", {})
-                mappings[dropdownSourceType.idChosen] = dropdownDestType.idChosen
+                local existing = mappings[source]
+                if existing == nil then
+                    mappings[source] = destType
+                elseif type(existing) == "table" then
+                    local found = false
+                    for _,d in ipairs(existing) do
+                        if d == destType then
+                            found = true
+                            break
+                        end
+                    end
+                    if not found then
+                        existing[#existing+1] = destType
+                    end
+                elseif existing ~= destType then
+                    mappings[source] = {existing, destType}
+                end
                 Refresh()
             end
 
             local damageTypeChildren = {}
 
             for k,v in sorted_pairs(modifier:try_get("damageTypeMappings", {})) do
-                damageTypeChildren[#damageTypeChildren+1] = gui.Label{
-                    text = string.format("%s -> %s", k, v),
-                    width = "auto",
-                    height = "auto",
-                    fontSize = 14,
-                    gui.DeleteItemButton{
-                        x = 12,
-                        width = 8,
-                        height = 8,
-                        halign = "right",
-                        valign = "center",
-                        press = function()
-                            modifier.damageTypeMappings[k] = nil
-                            Refresh()
-                        end,
-                    },
-                }
+                for _,destType in ipairs(CharacterModifier.DamageMappingDestinations(v)) do
+                    damageTypeChildren[#damageTypeChildren+1] = gui.Label{
+                        text = string.format("%s -> %s", k, destType),
+                        width = "auto",
+                        height = "auto",
+                        fontSize = 14,
+                        gui.Button{
+                            classes = {"deleteButton", "sizeXxs"},
+                            styles = ThemeEngine.GetStyles(),
+                            x = 12,
+                            halign = "right",
+                            valign = "center",
+                            press = function()
+                                local mappings = modifier.damageTypeMappings
+                                local dests = {}
+                                for _,d in ipairs(CharacterModifier.DamageMappingDestinations(mappings[k])) do
+                                    if d ~= destType then
+                                        dests[#dests+1] = d
+                                    end
+                                end
+                                if #dests == 0 then
+                                    mappings[k] = nil
+                                elseif #dests == 1 then
+                                    mappings[k] = dests[1]
+                                else
+                                    mappings[k] = dests
+                                end
+                                Refresh()
+                            end,
+                        },
+                    }
+                end
             end
 
-            local hasAll = modifier:try_get("damageTypeMappings", {})["all"] ~= nil
             damageTypeChildren[#damageTypeChildren+1] = gui.Panel{
                 flow = "horizontal",
                 width = "auto",
                 height = "auto",
-                classes = {cond(hasAll, "collapsed"), cond(modifier.rollType == "project_roll", "collapsed-anim")},
+                classes = {cond(modifier.rollType == "project_roll", "collapsed-anim")},
 
                 dropdownSourceType,
                 gui.Label{
@@ -1893,6 +2372,7 @@ CharacterModifier.TypeInfo.power = {
                 gui.Panel{
                     width = 300,
                     height = "auto",
+                    halign = "left",
                     flow = "vertical",
                     children = damageTypeChildren,
                 }
@@ -1928,6 +2408,7 @@ CharacterModifier.TypeInfo.power = {
 
             if modifier:try_get("surges", "") ~= "" then
                 children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
                     text = "Surges can be Kept",
                     value = modifier:try_get("surgesCanBeKept", false),
                     change = function(element)
@@ -1944,6 +2425,7 @@ CharacterModifier.TypeInfo.power = {
                     text = "Change Surge Damage to:",
                 },
                 gui.Dropdown{
+                    styles = ThemeEngine.GetStyles(),
                     idChosen = modifier:try_get("surgeDamageType", "none"),
                     options = rules.damageTypesAvailable,
                     change = function(element)
@@ -1968,7 +2450,9 @@ CharacterModifier.TypeInfo.power = {
                 },
 
                 gui.Panel{
-                    classes = {"formLabel"},
+                    width = "auto",
+                    height = "auto",
+                    halign = "left",
                     flow = "vertical",
                     create = function(element)
                         local children = {}
@@ -1976,9 +2460,11 @@ CharacterModifier.TypeInfo.power = {
                         for i,adjustment in ipairs(adjustments) do
                             local panel = gui.Panel{
                                 flow = "horizontal",
-                                width = "100%",
+                                width = "auto",
                                 height = 30,
+                                halign = "left",
                                 gui.Dropdown{
+                                    styles = ThemeEngine.GetStyles(),
                                     width = 120,
                                     halign = "left",
                                     options = {
@@ -1998,10 +2484,35 @@ CharacterModifier.TypeInfo.power = {
                                             id = "jump",
                                             text = "jump",
                                         },
+                                        {
+                                            id = "any",
+                                            text = "any",
+                                        },
                                     },
                                     idChosen = adjustment.type,
                                     change = function(element)
                                         adjustments[i].type = element.idChosen
+                                        Refresh()
+                                    end,
+                                },
+
+                                gui.Dropdown{
+                                    styles = ThemeEngine.GetStyles(),
+                                    width = 110,
+                                    halign = "left",
+                                    options = {
+                                        {
+                                            id = "add",
+                                            text = "add",
+                                        },
+                                        {
+                                            id = "multiply",
+                                            text = "multiply",
+                                        },
+                                    },
+                                    idChosen = adjustment.operation or "add",
+                                    change = function(element)
+                                        adjustments[i].operation = element.idChosen
                                         Refresh()
                                     end,
                                 },
@@ -2027,10 +2538,10 @@ CharacterModifier.TypeInfo.power = {
                                     },
                                 },
 
-                                gui.DeleteItemButton{
-                                    halign = "right",
-                                    width = 12,
-                                    height = 12,
+                                gui.Button{
+                                    classes = {"deleteButton", "sizeXs"},
+                                    valign = "center",
+                                    lmargin = 8,
                                     click = function()
                                         table.remove(adjustments, i)
                                         Refresh()
@@ -2041,9 +2552,8 @@ CharacterModifier.TypeInfo.power = {
                             children[#children+1] = panel
                         end
 
-                        children[#children+1] = gui.AddButton{
-                            width = 16,
-                            height = 16,
+                        children[#children+1] = gui.Button{
+                            classes = {"addButton", "sizeXs"},
                             halign = "left",
                             click = function(element)
                                 adjustments[#adjustments+1] = {
@@ -2060,6 +2570,104 @@ CharacterModifier.TypeInfo.power = {
                 },
             }
 
+            --Replace Forced Movement: rewrites the movement-type word in each tier
+            --(e.g. push -> slide). Stored as modifier.replaceForcedMovement = {from=, to=}.
+            local replaceForcedMovement = modifier:try_get("replaceForcedMovement")
+            children[#children+1] = gui.Panel{
+                classes = {"formPanel", cond(modifier.rollType == "project_roll", "collapsed-anim")},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "Replace Movement:",
+                },
+                gui.Panel{
+                    flow = "horizontal",
+                    width = "auto",
+                    height = 30,
+                    halign = "left",
+                    gui.Dropdown{
+                        styles = ThemeEngine.GetStyles(),
+                        width = 110,
+                        halign = "left",
+                        textDefault = "(none)",
+                        options = {
+                            { id = "none", text = "(none)"},
+                            { id = "any", text = "any"},
+                            { id = "push", text = "push"},
+                            { id = "pull", text = "pull"},
+                            { id = "slide", text = "slide"},
+                        },
+                        idChosen = (replaceForcedMovement and replaceForcedMovement.from) or "none",
+                        change = function(element)
+                            if element.idChosen == "none" then
+                                modifier.replaceForcedMovement = nil
+                            else
+                                local r = modifier:get_or_add("replaceForcedMovement", {})
+                                r.from = element.idChosen
+                                r.to = r.to or "slide"
+                            end
+                            Refresh()
+                        end,
+                    },
+                    gui.Label{
+                        text = "->",
+                        textAlignment = "center",
+                        halign = "center",
+                        valign = "center",
+                        fontSize = 22,
+                        width = 40,
+                        height = "auto",
+                    },
+                    gui.Dropdown{
+                        styles = ThemeEngine.GetStyles(),
+                        width = 110,
+                        halign = "left",
+                        classes = {cond(replaceForcedMovement == nil, "collapsed")},
+                        options = {
+                            { id = "push", text = "push"},
+                            { id = "pull", text = "pull"},
+                            { id = "slide", text = "slide"},
+                        },
+                        idChosen = (replaceForcedMovement and replaceForcedMovement.to) or "slide",
+                        change = function(element)
+                            local r = modifier:get_or_add("replaceForcedMovement", {})
+                            r.to = element.idChosen
+                            r.from = r.from or "push"
+                            Refresh()
+                        end,
+                    },
+                },
+            }
+
+            local hasVerticalAdjustment = false
+            for _,adj in ipairs(modifier:try_get("adjustments", {})) do
+                if adj.type == "push" or adj.type == "pull" or adj.type == "slide" then
+                    hasVerticalAdjustment = true
+                    break
+                end
+            end
+
+            children[#children+1] = gui.Panel{
+                classes = {"formPanel", cond(not hasVerticalAdjustment, "collapsed-anim")},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "",
+                },
+                gui.Check{
+                    styles = ThemeEngine.GetStyles(),
+                    style = {
+                        height = 30,
+                        width = 160,
+                        fontSize = 18,
+                        halign = "left",
+                    },
+                    text = "Add Vertical",
+                    value = modifier:try_get("vertical", false),
+                    change = function(element)
+                        modifier.vertical = element.value
+                        Refresh()
+                    end,
+                },
+            }
 
             children[#children+1] = gui.Panel{
                 classes = {"formPanel", cond(modifier.rollType == "project_roll", "collapsed-anim")},
@@ -2082,8 +2690,41 @@ CharacterModifier.TypeInfo.power = {
                 },
             }
 
+            --Optional opt-in: also fire the "Add to Table" rule on the owning
+            --creature's free strikes (which resolve as flat damage and skip
+            --the power-roll modifier pipeline). The activation condition and
+            --keyword filters above still gate the modifier per free strike.
+            --Hidden when addText is empty since there's nothing to add.
+            local addTextTrimmed = trim(modifier:try_get("addText", ""))
+            local hideApplyToFreeStrikes = (modifier.rollType == "project_roll") or (addTextTrimmed == "")
             children[#children+1] = gui.Panel{
-                classes = {"formPanel", cond(modifier.rollType == "project_roll", "collapsed-anim")},
+                classes = {"formPanel", cond(hideApplyToFreeStrikes, "collapsed-anim")},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "",
+                },
+                gui.Check{
+                    styles = ThemeEngine.GetStyles(),
+                    style = {
+                        height = 30,
+                        width = 260,
+                        fontSize = 18,
+                        halign = "left",
+                    },
+                    text = "Also Apply to Monster Free Strikes",
+                    value = modifier:try_get("applyToFreeStrikes", false),
+                    hover = function(element)
+                        gui.Tooltip("When checked, this modifier's 'Add to Table' rule will also fire when the creature uses a free strike (monster or companion). The modifier's activation condition and keyword filters still gate it.")(element)
+                    end,
+                    change = function(element)
+                        modifier.applyToFreeStrikes = element.value
+                        Refresh()
+                    end,
+                },
+            }
+
+            children[#children+1] = gui.Panel{
+                classes = {"formPanel", "formPanel-inline", cond(modifier.rollType == "project_roll", "collapsed-anim")},
                 gui.Label{
                     classes = {"formLabel"},
                     text = "Replace in Table:",
@@ -2121,6 +2762,7 @@ CharacterModifier.TypeInfo.power = {
 
             if options.triggered then
                 children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
                     style = {
                         height = 30,
                         width = 160,
@@ -2133,8 +2775,10 @@ CharacterModifier.TypeInfo.power = {
                     change = function(element)
                         modifier.hasTriggerBefore = element.value
                         if element.value and modifier:has_key("triggerBefore") == false then
+                            --The event id is never consulted for a modifier-fired
+                            --trigger; "custom" just labels it honestly.
                             modifier.triggerBefore = TriggeredAbility.Create{
-                                trigger = "d20roll",
+                                trigger = "custom",
                             }
                         end
                         Refresh()
@@ -2142,21 +2786,22 @@ CharacterModifier.TypeInfo.power = {
                 }
 
                 if modifier:try_get("hasTriggerBefore", false) then
-                    children[#children+1] = gui.PrettyButton{
+                    children[#children+1] = gui.Button{
+                        classes = {"sizeL"},
                         halign = "left",
                         width = 220,
-                        height = 50,
-                        fontSize = 24,
                         text = "Edit Trigger",
                         click = function(element)
                             local fn = function(element, modifier, savefn)
                                 if modifier:has_key("triggerBefore") then
                                     element.root:AddChild(modifier.triggerBefore:ShowEditActivatedAbilityDialog{
                                         title = "Edit Trigger",
-                                        hide = {"appearance", "abilityInfo"},
+                                        customTriggerContext = {
+                                            note = "Fires when this trigger is activated, before the triggering ability resolves.",
+                                        },
                                         destroy = savefn,
                                     })
-                                end    
+                                end
                             end
             
                             element.root:FireEventTree("editCompendiumFeature", modifier, fn)
@@ -2195,7 +2840,7 @@ CharacterModifier.TypeInfo.power = {
             end
 
             children[#children+1] = gui.Check{
-
+                styles = ThemeEngine.GetStyles(),
 				style = {
 					height = 30,
 					width = 160,
@@ -2208,8 +2853,14 @@ CharacterModifier.TypeInfo.power = {
 				change = function(element)
 					modifier.hasCustomTrigger = element.value
 					if element.value and modifier:has_key("customTrigger") == false then
+						--The event id is never consulted for a modifier-fired
+						--trigger; "custom" just labels it honestly.
+						--modifierCustomTrigger makes the Target dropdown offer
+						--the contextual creatures (Ability Caster/Target,
+						--Triggerer) the roll dialog installs at fire time.
 						modifier.customTrigger = TriggeredAbility.Create{
-							trigger = "d20roll",
+							trigger = "custom",
+							modifierCustomTrigger = true,
 						}
 					end
 					Refresh()
@@ -2217,21 +2868,48 @@ CharacterModifier.TypeInfo.power = {
 			}
 
 			if modifier:try_get("hasCustomTrigger", false) then
-				children[#children+1] = gui.PrettyButton{
+				children[#children+1] = gui.Button{
+                    classes = {"sizeL"},
 					halign = "left",
 					width = 220,
-					height = 50,
-					fontSize = 24,
 					text = "Edit Trigger",
 					click = function(element)
                         local fn = function(element, modifier, savefn)
                             if modifier:has_key("customTrigger") then
                                 element.root:AddChild(modifier.customTrigger:ShowEditActivatedAbilityDialog{
                                     title = "Edit Trigger",
-                                    hide = {"appearance", "abilityInfo"},
+                                    customTriggerContext = {
+                                        note = "Fires automatically after a roll this modifier applies to resolves.",
+                                        subjectOptions = true,
+                                        --Help entries for the symbols installed on the
+                                        --modifier at roll time (see the
+                                        --InstallSymbolsFromContext call in DSRollDialog).
+                                        symbols = {
+                                            abilitycaster = {
+                                                name = "Ability Caster",
+                                                type = "creature",
+                                                desc = "The creature that used the ability whose roll this modifier applied to.",
+                                            },
+                                            abilitytarget = {
+                                                name = "Ability Target",
+                                                type = "creature",
+                                                desc = "The creature targeted by the roll this modifier applied to.",
+                                            },
+                                            triggerer = {
+                                                name = "Triggerer",
+                                                type = "creature",
+                                                desc = "The creature whose modifier fired this trigger (usually the modifier's owner).",
+                                            },
+                                            tier = {
+                                                name = "Tier",
+                                                type = "number",
+                                                desc = "The tier result of the power roll this modifier applied to.",
+                                            },
+                                        },
+                                    },
                                     destroy = savefn,
                                 })
-                            end    
+                            end
                         end
         
                         element.root:FireEventTree("editCompendiumFeature", modifier, fn)
@@ -2375,4 +3053,935 @@ function CharacterModifier:BuffOrDebuff(context)
     if typeInfo.buffOrDebuff ~= nil then
         return typeInfo.buffOrDebuff(self, context)
     end
+end
+
+-- ============================================================
+-- ABILITY CUSTOMISATION (CORE)
+-- Allows players to personalise each ability on their character:
+--   * Rename the ability (display only; original name preserved for GoblinScript)
+--   * Override flavour text
+--   * Add character speech variations (spoken when the ability is cast)
+--   * Add a flat damage bonus and/or potency bonus (via ModifyPowerRoll)
+--   * Adjust range fields based on the ability's targeting type
+--
+-- Data is stored per-character in creature.abilityCustomisations,
+-- keyed by the lower-cased original ability name.  The dialog is opened
+-- from the character sheet via ActivatedAbility:ShowCustomisationDialog.
+-- ============================================================
+
+-- Default field on creature: per-ability customisation overrides.
+-- Keyed by lower-cased original ability name; values are plain tables.
+creature.abilityCustomisations = {}
+
+-- ---------------------------------------------------------------------------
+-- CharacterModifier type: abilitycustomisation
+-- ---------------------------------------------------------------------------
+CharacterModifier.RegisterType('abilitycustomisation', 'Ability Customisation')
+
+CharacterModifier.TypeInfo.abilitycustomisation = {
+    init = function(modifier)
+    end,
+
+    -- willModifyAbility is only called from SynthesizeAbilities (cast-spell
+    -- behavior) and is not on the hot path for GetActivatedAbilities.
+    -- Return true conservatively; all gate logic lives in modifyAbility.
+    willModifyAbility = function(modifier, creature, ability)
+        return true
+    end,
+
+    modifyAbility = function(modifier, creature, ability)
+        local customisations = modifier:try_get("_tmp_customisations")
+        if customisations == nil then return ability end
+
+        -- Key by original name in case another modifier renamed the ability first.
+        local key = string.lower(ability.name)
+        local origName = ability:try_get("_tmp_originalName")
+        if origName ~= nil then key = string.lower(origName) end
+
+        local data = customisations[key]
+        if data == nil then return ability end
+
+        local displayName        = data.displayName      or ""
+        local flavorText         = data.flavorText        or ""
+        local variations         = data.variations        or {}
+        local damageBonus        = data.damageBonus       or 0
+        local potencyBonus       = data.potencyBonus      or 0
+        local damageTypeMappings = data.damageTypeMappings or {}
+        local rangeBonus         = data.rangeBonus        or 0
+        local meleeRangeBonus    = data.meleeRangeBonus   or 0
+        local rangedRangeBonus   = data.rangedRangeBonus  or 0
+        local burstBonus         = data.burstBonus        or 0
+        local cubeBonus          = data.cubeBonus         or 0
+        local cubeWithinBonus    = data.cubeWithinBonus   or 0
+        local lineLengthBonus    = data.lineLengthBonus   or 0
+        local lineWidthBonus     = data.lineWidthBonus    or 0
+        local lineWithinBonus    = data.lineWithinBonus   or 0
+
+        local hasDamageTypeMappings = next(damageTypeMappings) ~= nil
+
+        local hasChange =
+            displayName ~= "" or flavorText ~= "" or #variations > 0
+            or damageBonus ~= 0 or potencyBonus ~= 0 or hasDamageTypeMappings
+            or rangeBonus ~= 0 or meleeRangeBonus ~= 0 or rangedRangeBonus ~= 0
+            or burstBonus ~= 0
+            or cubeBonus ~= 0 or cubeWithinBonus ~= 0
+            or lineLengthBonus ~= 0 or lineWidthBonus ~= 0 or lineWithinBonus ~= 0
+        if not hasChange then return ability end
+
+        ability = ability:MakeTemporaryClone()
+
+        -- Display name override (original preserved for GoblinScript).
+        if displayName ~= "" then
+            ability._tmp_originalName = ability:try_get("_tmp_originalName") or ability.name
+            ability.name = displayName
+        end
+
+        -- Flavor text override.
+        if flavorText ~= "" then
+            ability.flavor = flavorText
+        end
+
+        -- Character speech (spoken when cast; applyto="caster" targets self).
+        if #variations > 0 then
+            local speechBehavior = ActivatedAbilityCharacterSpeechBehavior.new{
+                applyto    = "caster",
+                variations = DeepCopy(variations),
+            }
+            ability.behaviors[#ability.behaviors+1] = speechBehavior
+        end
+
+        -- Damage / potency / damage-type conversion via
+        -- ActivatedAbilityModifyPowerRollBehavior.
+        if damageBonus ~= 0 or potencyBonus ~= 0 or hasDamageTypeMappings then
+            local behaviorGuid = dmhub.GenerateGuid()
+            local powerMod = CharacterModifier.new{
+                guid        = dmhub.GenerateGuid(),
+                sourceguid  = behaviorGuid,
+                name        = "Ability Customisation",
+                description = "",
+                behavior    = "power",
+                domains     = {},
+            }
+            CharacterModifier.TypeInfo.power.init(powerMod)
+            powerMod.rollType            = "ability_power_roll"
+            powerMod.activationCondition = true
+            if damageBonus ~= 0 then
+                powerMod.damageModifier = tostring(damageBonus)
+            end
+            if potencyBonus ~= 0 then
+                powerMod.potencymod = tostring(potencyBonus)
+            end
+            if hasDamageTypeMappings then
+                powerMod.damageTypeMappings = DeepCopy(damageTypeMappings)
+            end
+            ability.behaviors[#ability.behaviors+1] = ActivatedAbilityModifyPowerRollBehavior.new{
+                guid     = behaviorGuid,
+                modifier = powerMod,
+            }
+        end
+
+        -- Range adjustments (spinner values are in squares; convert to world units).
+        -- ability.range/radius/lineDistance may hold a plain number OR a GoblinScript
+        -- formula string (e.g. "3 + level"). Adding a number straight to a formula
+        -- string errors ("attempt to add a 'string' with a 'number'"), so formula
+        -- values are extended as a GoblinScript addition instead, mirroring the
+        -- string-vs-number handling in the "range" ability modifier above.
+        --
+        -- The result is floored at 0: a negative dimension (e.g. a cube edge
+        -- driven below zero by a negative bonus) crashes the engine's shape fill
+        -- with an out-of-memory error, since the fill loop treats the negative
+        -- extent as effectively unbounded. For formula strings the floor is
+        -- applied as GoblinScript max(0, ...) so it also holds after the formula
+        -- resolves at runtime.
+        local function AddBonus(current, bonus, default)
+            if type(current) == "string" and tonumber(current) == nil then
+                return string.format("max(0, (%s) + %s)", current, tostring(bonus))
+            end
+            return math.max(0, tonum(current, default) + bonus)
+        end
+
+        local ups = dmhub.unitsPerSquare
+        local tt  = ability:try_get("targetType", "")
+        if tt == "all" then
+            -- Burst: radius is stored in ability.range.
+            if burstBonus ~= 0 then
+                ability.range = AddBonus(ability.range, burstBonus * ups, ups)
+            end
+        elseif tt == "cube" then
+            -- Cube: edge size in ability.radius, within distance in ability.range.
+            if cubeBonus ~= 0 then
+                ability.radius = AddBonus(ability.radius, cubeBonus * ups, ups)
+            end
+            if cubeWithinBonus ~= 0 then
+                ability.range = AddBonus(ability.range, cubeWithinBonus * ups, ups)
+            end
+        elseif tt == "line" then
+            -- Line: length in ability.range, width in ability.radius,
+            --       within in ability.lineDistance (squares, not world units).
+            if lineLengthBonus ~= 0 then
+                ability.range = AddBonus(ability.range, lineLengthBonus * ups, ups)
+            end
+            if lineWidthBonus ~= 0 then
+                ability.radius = AddBonus(ability.radius, lineWidthBonus * ups, ups)
+            end
+            if lineWithinBonus ~= 0 then
+                ability.lineDistance = AddBonus(ability.lineDistance, lineWithinBonus, 1)
+            end
+        else
+            -- Melee, ranged, self, etc.: standard range field.
+            --
+            -- An ability with both the Melee and Ranged keywords gets bifurcated
+            -- (ActivatedAbility:BifurcateIntoMeleeAndRanged) into separate melee
+            -- and ranged variations for the action bar, each carrying its own
+            -- range. Modifiers run once on the merged ability and once on each
+            -- variation (variation objects are already temporary clones, so
+            -- MakeTemporaryClone -- and the mutations below -- apply in place
+            -- even though the per-variation call's return value is discarded by
+            -- the caller). Prefer the variation-specific bonus so melee and
+            -- ranged can be tuned independently; the merged (non-split) ability
+            -- and any ability without both keywords keeps using the plain
+            -- rangeBonus.
+            if ability:try_get("isMeleeVariation", false) then
+                if meleeRangeBonus ~= 0 then
+                    ability.range = AddBonus(ability.range, meleeRangeBonus * ups, ups)
+                end
+            elseif ability:try_get("isRangedVariation", false) then
+                if rangedRangeBonus ~= 0 then
+                    ability.range = AddBonus(ability.range, rangedRangeBonus * ups, ups)
+                end
+            elseif rangeBonus ~= 0 then
+                ability.range = AddBonus(ability.range, rangeBonus * ups, ups)
+            end
+        end
+
+        return ability
+    end,
+
+    createEditor = function(modifier, element)
+        -- Customisation is accessed through ShowCustomisationDialog, not an
+        -- inline modifier editor.  Nothing needed here.
+    end,
+}
+
+-- ---------------------------------------------------------------------------
+-- Inject the customisation modifier into every creature's modifier pipeline
+-- whenever creature.abilityCustomisations is non-empty.
+-- ---------------------------------------------------------------------------
+creature.RegisterFeatureCalculation{
+    id = "abilitycustomisation_core",
+    FillFeatures = function(c, features)
+        local customisations = c:try_get("abilityCustomisations") or {}
+        if next(customisations) == nil then return end
+
+        local modifier = CharacterModifier.new{
+            guid     = "abilitycustomisation_core",
+            name     = "Ability Customisation",
+            behavior = "abilitycustomisation",
+        }
+        -- _tmp_ prefix: transient, not serialized.  Rebuilt each cycle.
+        modifier._tmp_customisations = customisations
+
+        local pseudoFeature = {
+            FillModifiers = function(self, creature, result)
+                result[#result+1] = { mod = modifier }
+            end,
+        }
+        features[#features+1] = pseudoFeature
+    end,
+}
+
+-- ---------------------------------------------------------------------------
+-- Compatibility patches
+-- Guards prevent double-application when the external
+-- Character_Ability_Customisation_e94f mod is also installed.
+-- ---------------------------------------------------------------------------
+
+-- Patch 1: GoblinScript Ability.Name returns the pre-rename name.
+if not rawget(_G, "g_abilityCust_namePatchApplied") then
+    _G.g_abilityCust_namePatchApplied = true
+    local _origLookupName = ActivatedAbility.lookupSymbols.name
+    ActivatedAbility.lookupSymbols.name = function(c)
+        local orig = c:try_get("_tmp_originalName")
+        if orig ~= nil then return orig end
+        return _origLookupName(c)
+    end
+end
+
+-- Patch 2: Named invoke lookup can find renamed abilities by temporarily
+-- restoring original names during GetActivatedAbilities.
+if not rawget(_G, "g_abilityCust_invokePatchApplied") then
+    _G.g_abilityCust_invokePatchApplied = true
+
+    local g_invokeLookupActive = false
+
+    local _origGetActivatedAbilities = creature.GetActivatedAbilities
+    function creature:GetActivatedAbilities(options)
+        local abilities = _origGetActivatedAbilities(self, options)
+        if g_invokeLookupActive then
+            for _, ab in ipairs(abilities) do
+                local orig = ab:try_get("_tmp_originalName")
+                if orig ~= nil then ab.name = orig end
+            end
+        end
+        return abilities
+    end
+
+    local _origInvokeCast = ActivatedAbilityInvokeAbilityBehavior.Cast
+    function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, targets, options)
+        local wasActive = g_invokeLookupActive
+        if self.abilityType == "named" then g_invokeLookupActive = true end
+        local result = _origInvokeCast(self, ability, casterToken, targets, options)
+        g_invokeLookupActive = wasActive
+        return result
+    end
+
+    local _origInvocationInvoke = AbilityInvocation.Invoke
+    function AbilityInvocation:Invoke()
+        local wasActive = g_invokeLookupActive
+        if self.abilityType == "named" then g_invokeLookupActive = true end
+        local result = _origInvocationInvoke(self)
+        g_invokeLookupActive = wasActive
+        return result
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- Dialog: ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
+-- Opens a floating editor for personalising this ability on the given token.
+-- Returns the dialog panel; caller should call parentPanel:AddChild(dialog).
+-- ---------------------------------------------------------------------------
+
+-- Helper: a horizontal row with an optional label and a tightly-packed
+-- [-] [value] [+] spinner group.  getValue/setValue are zero-argument closures.
+-- Returns a table { panel = <Panel>, sync = <function> } so callers can
+-- force-refresh the displayed value (e.g. from a Reset button).
+local function MakeSpinner(labelText, getValue, setValue)
+    local valueLabel
+    local function SyncLabel()
+        if valueLabel ~= nil and valueLabel.valid then
+            valueLabel.text = tostring(getValue())
+        end
+    end
+
+    valueLabel = gui.Label{
+        classes       = {"sizeM"},
+        text          = tostring(getValue()),
+        width         = 36,
+        height        = 22,
+        valign        = "center",
+        textAlignment = "Center",
+    }
+
+    -- Pack [-] [value] [+] into a tight sub-panel so they stay together.
+    local spinGroup = gui.Panel{
+        flow   = "horizontal",
+        width  = "auto",
+        height = "auto",
+        gui.Button{
+            text   = "-",
+            width  = 22,
+            height = 22,
+            press  = function()
+                setValue(getValue() - 1)
+                SyncLabel()
+            end,
+        },
+        valueLabel,
+        gui.Button{
+            text   = "+",
+            width  = 22,
+            height = 22,
+            press  = function()
+                setValue(getValue() + 1)
+                SyncLabel()
+            end,
+        },
+    }
+
+    local rowChildren = {}
+    if labelText ~= nil and labelText ~= "" then
+        rowChildren[#rowChildren+1] = gui.Label{
+            classes = {"formLabel"},
+            text    = labelText,
+        }
+    end
+    rowChildren[#rowChildren+1] = spinGroup
+
+    local row = gui.Panel{
+        classes = {"formPanel"},
+        width   = "100%",
+    }
+    row.children = rowChildren
+    return { panel = row, sync = SyncLabel }
+end
+
+function ActivatedAbility:ShowCustomisationDialog(token, parentPanel)
+    -- Use the original ability name (before any prior rename) as the storage key.
+    local abilityOrigName = self:try_get("_tmp_originalName") or self.name
+    local abilityKey      = string.lower(abilityOrigName)
+
+    -- Load current saved data for this ability (may be empty/absent).
+    local srcData = (token.properties:try_get("abilityCustomisations") or {})[abilityKey] or {}
+
+    -- Working copy -- all edits stay here until "Save & Close" is pressed.
+    local wd = {
+        displayName      = srcData.displayName      or "",
+        flavorText       = srcData.flavorText        or "",
+        variations       = DeepCopy(srcData.variations       or {}),
+        damageBonus      = srcData.damageBonus       or 0,
+        potencyBonus     = srcData.potencyBonus      or 0,
+        damageTypeMappings = DeepCopy(srcData.damageTypeMappings or {}),
+        rangeBonus       = srcData.rangeBonus        or 0,
+        meleeRangeBonus  = srcData.meleeRangeBonus   or 0,
+        rangedRangeBonus = srcData.rangedRangeBonus  or 0,
+        burstBonus       = srcData.burstBonus        or 0,
+        cubeBonus        = srcData.cubeBonus         or 0,
+        cubeWithinBonus  = srcData.cubeWithinBonus   or 0,
+        lineLengthBonus  = srcData.lineLengthBonus   or 0,
+        lineWidthBonus   = srcData.lineWidthBonus    or 0,
+        lineWithinBonus  = srcData.lineWithinBonus   or 0,
+    }
+
+    local targetType = self:try_get("targetType", "")
+
+    -- An ability with both keywords gets bifurcated into separate melee/ranged
+    -- variations for the action bar (ActivatedAbility:BifurcateIntoMeleeAndRanged),
+    -- each with its own range. When that applies, offer melee- and ranged-specific
+    -- range bonuses instead of one bonus shared by both variations.
+    local isMeleeAndRanged = self:HasKeyword("Melee") and self:HasKeyword("Ranged")
+
+    -- Forward declarations (closures below capture these upvalues).
+    local dialog
+    local variationsContainer
+    local variationsInner
+    local RebuildVariations
+    local damageTypeContainer
+    local damageTypeInner
+    local RebuildDamageTypes
+
+    local function CloseDialog()
+        if dialog ~= nil and dialog.valid then
+            dialog:DestroySelf()
+        end
+        dialog = nil
+    end
+
+    local function SaveAndClose()
+        local isEmpty =
+            wd.displayName == "" and wd.flavorText == ""
+            and #wd.variations == 0
+            and wd.damageBonus == 0 and wd.potencyBonus == 0
+            and next(wd.damageTypeMappings) == nil
+            and wd.rangeBonus == 0
+            and wd.meleeRangeBonus == 0 and wd.rangedRangeBonus == 0
+            and wd.burstBonus == 0
+            and wd.cubeBonus == 0 and wd.cubeWithinBonus == 0
+            and wd.lineLengthBonus == 0 and wd.lineWidthBonus == 0
+            and wd.lineWithinBonus == 0
+        token:ModifyProperties{
+            description = "Customize Ability",
+            execute = function()
+                local cust = DeepCopy(
+                    token.properties:try_get("abilityCustomisations") or {}
+                )
+                if isEmpty then
+                    cust[abilityKey] = nil
+                else
+                    cust[abilityKey] = wd
+                end
+                token.properties.abilityCustomisations = cust
+            end,
+        }
+        CloseDialog()
+    end
+
+    -- Helper: build the list of variation input panels from wd.variations.
+    -- Called at initial dialog build time AND by RebuildVariations after the
+    -- dialog exists (e.g. when the user adds or removes a variation entry).
+    local function BuildVariationChildren()
+        local vChildren = {}
+        for i, entry in ipairs(wd.variations) do
+            local idx = i
+            vChildren[#vChildren+1] = gui.Panel{
+                classes = {"formPanel"},
+                width   = "100%",
+                gui.Input{
+                    classes     = {"formInput"},
+                    width       = 360,
+                    height      = "auto",
+                    minHeight   = 20,
+                    maxHeight   = 140,
+                    halign      = "left",
+                    multiline   = true,
+                    text        = entry,
+                    change      = function(element)
+                        wd.variations[idx] = element.text
+                    end,
+                },
+                gui.Button{
+                    classes = {"deleteButton"},
+                    width   = 16,
+                    height  = 16,
+                    press   = function()
+                        table.remove(wd.variations, idx)
+                        RebuildVariations()
+                    end,
+                },
+            }
+        end
+        -- Empty input for adding new variations.
+        vChildren[#vChildren+1] = gui.Panel{
+            classes = {"formPanel"},
+            width   = "100%",
+            gui.Input{
+                classes         = {"formInput"},
+                width           = 380,
+                height          = "auto",
+                minHeight       = 20,
+                maxHeight       = 140,
+                halign          = "left",
+                multiline       = true,
+                placeholderText = "Add new speech variation...",
+                change          = function(element)
+                    if element.text ~= "" then
+                        wd.variations[#wd.variations+1] = element.text
+                        RebuildVariations()
+                    end
+                end,
+            },
+        }
+        return vChildren
+    end
+
+    -- RebuildVariations is only called AFTER the dialog exists (user interaction).
+    -- By that point variationsInner is already parented, so setting its children
+    -- does NOT cause variationsContainer to drift in the dialog's child list.
+    RebuildVariations = function()
+        variationsInner.children = BuildVariationChildren()
+    end
+
+    -- Build the initial children BEFORE creating variationsInner so we can
+    -- pass them via the panel constructor (integer keys) rather than via the
+    -- .children setter.  Setting .children on an unparented panel before it
+    -- is used as a constructor argument triggers a DMHub internal ordering
+    -- side-effect that mis-sorts variationsContainer within the dialog.
+    local initVChildren = BuildVariationChildren()
+    local variationsInnerProps = {
+        flow   = "vertical",
+        width  = "100%",
+        height = "auto",
+    }
+    for i, child in ipairs(initVChildren) do
+        variationsInnerProps[i] = child
+    end
+    variationsInner = gui.Panel(variationsInnerProps)
+
+    -- Static outer wrapper: the header label never changes, so the whole
+    -- variationsContainer is stable in the dialog's child list.
+    variationsContainer = gui.Panel{
+        width  = "100%",
+        height = "auto",
+        flow   = "vertical",
+        gui.Label{
+            classes = {"bold"},
+            text    = "Character Speech",
+            width   = "100%",
+            vmargin = 4,
+        },
+        variationsInner,
+    }
+
+    -- Collect all spinner sync functions so ResetAll can refresh them.
+    local spinnerSyncs = {}
+
+    -- Build range spinners based on the ability's targeting type.
+    local rangeRows = {}
+    rangeRows[#rangeRows+1] = gui.Label{
+        classes = {"bold"},
+        text    = "Range",
+        width   = "100%",
+        vmargin = 4,
+    }
+    if targetType == "all" then
+        local s = MakeSpinner("Burst Size Bonus:",
+            function() return wd.burstBonus end, function(v) wd.burstBonus = v end)
+        spinnerSyncs[#spinnerSyncs+1] = s.sync
+        rangeRows[#rangeRows+1] = s.panel
+    elseif targetType == "cube" then
+        local s1 = MakeSpinner("Cube Size Bonus:",
+            function() return wd.cubeBonus end, function(v) wd.cubeBonus = v end)
+        local s2 = MakeSpinner("Within Bonus:",
+            function() return wd.cubeWithinBonus end, function(v) wd.cubeWithinBonus = v end)
+        spinnerSyncs[#spinnerSyncs+1] = s1.sync
+        spinnerSyncs[#spinnerSyncs+1] = s2.sync
+        rangeRows[#rangeRows+1] = s1.panel
+        rangeRows[#rangeRows+1] = s2.panel
+    elseif targetType == "line" then
+        local s1 = MakeSpinner("Length Bonus:",
+            function() return wd.lineLengthBonus end, function(v) wd.lineLengthBonus = v end)
+        local s2 = MakeSpinner("Width Bonus:",
+            function() return wd.lineWidthBonus end, function(v) wd.lineWidthBonus = v end)
+        local s3 = MakeSpinner("Within Bonus:",
+            function() return wd.lineWithinBonus end, function(v) wd.lineWithinBonus = v end)
+        spinnerSyncs[#spinnerSyncs+1] = s1.sync
+        spinnerSyncs[#spinnerSyncs+1] = s2.sync
+        spinnerSyncs[#spinnerSyncs+1] = s3.sync
+        rangeRows[#rangeRows+1] = s1.panel
+        rangeRows[#rangeRows+1] = s2.panel
+        rangeRows[#rangeRows+1] = s3.panel
+    elseif isMeleeAndRanged then
+        -- Split into melee- and ranged-specific bonuses so each action-bar
+        -- variation (see BifurcateIntoMeleeAndRanged) can be tuned separately.
+        local s1 = MakeSpinner("Melee Range Bonus:",
+            function() return wd.meleeRangeBonus end, function(v) wd.meleeRangeBonus = v end)
+        local s2 = MakeSpinner("Ranged Range Bonus:",
+            function() return wd.rangedRangeBonus end, function(v) wd.rangedRangeBonus = v end)
+        spinnerSyncs[#spinnerSyncs+1] = s1.sync
+        spinnerSyncs[#spinnerSyncs+1] = s2.sync
+        rangeRows[#rangeRows+1] = s1.panel
+        rangeRows[#rangeRows+1] = s2.panel
+    else
+        local s = MakeSpinner("Range Bonus:",
+            function() return wd.rangeBonus end, function(v) wd.rangeBonus = v end)
+        spinnerSyncs[#spinnerSyncs+1] = s.sync
+        rangeRows[#rangeRows+1] = s.panel
+    end
+
+    -- Forward-declare input panel refs so ResetAll can clear their text.
+    local displayNameInput
+    local flavorTextInput
+
+    local function ResetAll()
+        wd.displayName      = ""
+        wd.flavorText       = ""
+        wd.variations       = {}
+        wd.damageBonus      = 0
+        wd.potencyBonus     = 0
+        wd.damageTypeMappings = {}
+        wd.rangeBonus       = 0
+        wd.meleeRangeBonus  = 0
+        wd.rangedRangeBonus = 0
+        wd.burstBonus       = 0
+        wd.cubeBonus        = 0
+        wd.cubeWithinBonus  = 0
+        wd.lineLengthBonus  = 0
+        wd.lineWidthBonus   = 0
+        wd.lineWithinBonus  = 0
+        -- Refresh spinner value labels.
+        for _, sync in ipairs(spinnerSyncs) do sync() end
+        -- Clear text inputs.
+        if displayNameInput ~= nil and displayNameInput.valid then
+            displayNameInput.text = ""
+        end
+        if flavorTextInput ~= nil and flavorTextInput.valid then
+            flavorTextInput.text = ""
+        end
+        -- Rebuild the speech variations and damage-type sections.
+        RebuildVariations()
+        RebuildDamageTypes()
+    end
+
+    -- Damage & potency spinners.
+    local dmgSpinner = MakeSpinner("Damage Bonus:",
+        function() return wd.damageBonus end, function(v) wd.damageBonus = v end)
+    local potSpinner = MakeSpinner("Potency Bonus:",
+        function() return wd.potencyBonus end, function(v) wd.potencyBonus = v end)
+    spinnerSyncs[#spinnerSyncs+1] = dmgSpinner.sync
+    spinnerSyncs[#spinnerSyncs+1] = potSpinner.sync
+
+    -- Damage-type conversion. Mirrors the presentation used by the
+    -- "Modify Power Rolls" modifier editor (see the damageTypeMappings editor
+    -- above): a running list of "<source> -> <dest>" rows with delete buttons,
+    -- plus a [source] -> [dest] add row. "All" as the source converts every
+    -- damage type. Mappings are stored on wd.damageTypeMappings as
+    -- { [sourceType] = destType }, the same shape the power modifier consumes.
+    local destTypeOptions = { { id = "none", text = "Choose..." } }
+    local sourceTypeOptions = { { id = "none", text = "Choose..." } }
+    for _, damageType in ipairs(rules.damageTypesAvailable) do
+        destTypeOptions[#destTypeOptions+1]   = { id = damageType, text = damageType }
+        sourceTypeOptions[#sourceTypeOptions+1] = { id = damageType, text = damageType }
+    end
+    -- "All" is only meaningful as a source (convert every type to one type).
+    sourceTypeOptions[#sourceTypeOptions+1] = { id = "all", text = "All" }
+
+    local function BuildDamageTypeChildren()
+        local children = {}
+
+        -- Existing mappings, one row per source->dest pair.
+        for source, dest in sorted_pairs(wd.damageTypeMappings) do
+            for _, destType in ipairs(CharacterModifier.DamageMappingDestinations(dest)) do
+                local capturedSource = source
+                local capturedDest   = destType
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel"},
+                    width   = "100%",
+                    gui.Label{
+                        classes = {"sizeM"},
+                        width   = "auto",
+                        height  = "auto",
+                        valign  = "center",
+                        text    = string.format("%s -> %s",
+                            capturedSource == "all" and "All" or capturedSource, capturedDest),
+                    },
+                    gui.Button{
+                        classes = {"deleteButton"},
+                        width   = 16,
+                        height  = 16,
+                        valign  = "center",
+                        press   = function()
+                            -- Drop just this destination; collapse the stored
+                            -- value back to a plain string or remove the source.
+                            local dests = {}
+                            for _, d in ipairs(CharacterModifier.DamageMappingDestinations(wd.damageTypeMappings[capturedSource])) do
+                                if d ~= capturedDest then dests[#dests+1] = d end
+                            end
+                            if #dests == 0 then
+                                wd.damageTypeMappings[capturedSource] = nil
+                            elseif #dests == 1 then
+                                wd.damageTypeMappings[capturedSource] = dests[1]
+                            else
+                                wd.damageTypeMappings[capturedSource] = dests
+                            end
+                            RebuildDamageTypes()
+                        end,
+                    },
+                }
+            end
+        end
+
+        -- Add row: [source] -> [dest]. Adding commits as soon as both are set.
+        local sourceDropdown
+        local destDropdown
+        local function TryAdd()
+            if sourceDropdown.idChosen == "none" or destDropdown.idChosen == "none" then
+                return
+            end
+            wd.damageTypeMappings[sourceDropdown.idChosen] = destDropdown.idChosen
+            RebuildDamageTypes()
+        end
+        sourceDropdown = gui.Dropdown{
+            styles   = ThemeEngine.GetStyles(),
+            -- Default the source to "All" so the common case (convert every
+            -- damage type) only needs a destination picked; TryAdd commits as
+            -- soon as the destination is chosen.
+            idChosen = "all",
+            fontSize = 12,
+            width    = 130,
+            height   = 22,
+            valign   = "center",
+            options  = sourceTypeOptions,
+            change   = function() TryAdd() end,
+        }
+        destDropdown = gui.Dropdown{
+            styles   = ThemeEngine.GetStyles(),
+            idChosen = "none",
+            fontSize = 12,
+            width    = 130,
+            height   = 22,
+            valign   = "center",
+            options  = destTypeOptions,
+            change   = function() TryAdd() end,
+        }
+        children[#children+1] = gui.Panel{
+            flow    = "horizontal",
+            width   = "100%",
+            height  = "auto",
+            vmargin = 2,
+            sourceDropdown,
+            gui.Label{
+                classes = {"bold"},
+                width   = "auto",
+                height  = "auto",
+                hmargin = 6,
+                valign  = "center",
+                text    = "->",
+            },
+            destDropdown,
+        }
+
+        return children
+    end
+
+    -- Build initial children BEFORE creating damageTypeInner so they are passed
+    -- via the constructor (integer keys) rather than the .children setter, for
+    -- the same child-ordering reason documented on the variations section above.
+    local initDmgTypeChildren = BuildDamageTypeChildren()
+    local damageTypeInnerProps = {
+        flow   = "vertical",
+        width  = "100%",
+        height = "auto",
+    }
+    for i, child in ipairs(initDmgTypeChildren) do
+        damageTypeInnerProps[i] = child
+    end
+    damageTypeInner = gui.Panel(damageTypeInnerProps)
+
+    RebuildDamageTypes = function()
+        damageTypeInner.children = BuildDamageTypeChildren()
+    end
+
+    damageTypeContainer = gui.Panel{
+        width  = "100%",
+        height = "auto",
+        flow   = "vertical",
+        gui.Label{
+            classes = {"bold"},
+            text    = "Damage Type",
+            width   = "100%",
+            vmargin = 4,
+        },
+        damageTypeInner,
+    }
+
+    -- Assemble the dialog child list.
+    local dChildren = {}
+
+    -- Title row.
+    dChildren[#dChildren+1] = gui.Panel{
+        width   = "100%",
+        height  = 36,
+        flow    = "horizontal",
+        halign  = "center",
+        valign  = "center",
+        gui.Label{
+            classes = {"bold", "sizeXl"},
+            text    = "Customize: " .. abilityOrigName,
+        },
+        gui.Button{
+            classes  = {"closeButton"},
+            floating = true,
+            halign   = "right",
+            valign   = "center",
+            rmargin  = 4,
+            press    = CloseDialog,
+        },
+    }
+
+    -- Display name.
+    displayNameInput = gui.Input{
+        classes         = {"formInput"},
+        width           = 330,
+        height          = 26,
+        lmargin         = 16,
+        halign          = "right",
+        text            = wd.displayName,
+        placeholderText = "Leave blank to keep original name",
+        change          = function(element)
+            wd.displayName = element.text
+        end,
+    }
+    dChildren[#dChildren+1] = gui.Panel{
+        classes = {"formPanel"},
+        width   = "100%",
+        gui.Label{ classes = {"formLabel"}, text = "Display Name:" },
+        displayNameInput,
+    }
+
+    -- Flavor text.
+    flavorTextInput = gui.Input{
+        classes         = {"formInput"},
+        width           = 330,
+        height          = "auto",
+        minHeight       = 26,
+        maxHeight       = 140,
+        lmargin         = 16,
+        halign          = "right",
+        multiline       = true,
+        text            = wd.flavorText,
+        placeholderText = "Leave blank to keep original flavor text",
+        change          = function(element)
+            wd.flavorText = element.text
+        end,
+    }
+
+    dChildren[#dChildren+1] = gui.Panel{
+        classes = {"formPanel"},
+        width   = "100%",
+        gui.Label{ classes = {"formLabel"}, text = "Flavor Text:" },
+        flavorTextInput,
+    }
+
+    -- Damage & potency section header.
+    dChildren[#dChildren+1] = gui.Label{
+        classes = {"bold"},
+        text    = "Damage & Potency",
+        width   = "100%",
+        vmargin = 4,
+    }
+    dChildren[#dChildren+1] = dmgSpinner.panel
+    dChildren[#dChildren+1] = potSpinner.panel
+
+    -- Damage-type conversions (only when the ability actually deals damage
+    -- would be ideal, but abilities can gain damage from other sources, so it
+    -- is always offered -- an unused mapping is harmless).
+    dChildren[#dChildren+1] = damageTypeContainer
+
+    -- Range rows.
+    for _, row in ipairs(rangeRows) do
+        dChildren[#dChildren+1] = row
+    end
+
+    -- Speech variations (pre-populated above; always second-to-last).
+    dChildren[#dChildren+1] = variationsContainer
+
+    -- Action buttons.
+    dChildren[#dChildren+1] = gui.Panel{
+        width   = "100%",
+        height  = 50,
+        halign  = "center",
+        flow    = "horizontal",
+        vmargin = 8,
+        gui.Button{
+            text   = "Save & Close",
+            width  = 170,
+            height = 34,
+            press  = SaveAndClose,
+        },
+        gui.Button{
+            text   = "Cancel",
+            width  = 120,
+            height = 34,
+            press  = CloseDialog,
+        },
+        gui.Button{
+            text    = "Reset All",
+            width   = 110,
+            height  = 34,
+            lmargin = 12,
+            press   = ResetAll,
+        },
+    }
+
+    -- Construct the framed panel from the assembled children list.
+    --
+    -- Centering (halign/valign) and floating live on an OUTER wrapper, NOT on
+    -- this framed panel. Setting halign on a panel scrambles the order of that
+    -- panel's own children in the engine's layout (an ordering side-effect that
+    -- pushed sections like the range spinners or Character Speech below the
+    -- action buttons). Keeping halign off the framed panel preserves the child
+    -- order; the wrapper positions the dialog on screen instead.
+    local framedProps = {
+        styles    = ThemeEngine.GetStyles(),
+        classes   = {"framedPanel"},
+        width     = 540,
+        height    = "auto",
+        flow      = "vertical",
+        pad       = 16,
+        borderBox = true,
+    }
+    for i, child in ipairs(dChildren) do
+        framedProps[i] = child
+    end
+    local framedPanel = gui.Panel(framedProps)
+
+    dialog = gui.Panel{
+        floating = true,
+        halign   = "center",
+        valign   = "center",
+        width    = "auto",
+        height   = "auto",
+        framedPanel,
+    }
+
+    return dialog
 end

@@ -1,5 +1,58 @@
 local mod = dmhub.GetModLoading()
 
+-- Style pack for `gamehud:CreatePartyTokenPoolSelector`. Applied via
+-- ThemeEngine.MergeTokens on the function's result panel so the selector
+-- looks the same regardless of which dialog calls it -- the function
+-- carries its own styling instead of leaning on the caller's cascade.
+local g_TokenPoolStyles = {
+	{
+		selectors = {"tokenPanel"},
+		bgcolor = "@bg",
+		cornerRadius = 8,
+		width = 64,
+		height = 64,
+		halign = "left",
+	},
+	{
+		selectors = {"tokenPanel", "hover"},
+		borderColor = "@border",
+		borderWidth = 2,
+		bgcolor = "@bgInverse",
+		color = "@fgInverse",
+		brightness = 0.5,
+	},
+	{
+		selectors = {"tokenPanel", "selected"},
+		borderColor = "@fgStrong",
+		borderWidth = 2,
+		bgcolor = "@bgInverse",
+		color = "@fgInverse",
+	},
+	{
+		selectors = {"tokenPoolShortcut"},
+		color = "@fgMuted",
+		fontSize = 16,
+		width = "auto",
+		height = "auto",
+		valign = "center",
+		halign = "center",
+	},
+	{
+		selectors = {"tokenPoolShortcut", "hover"},
+		color = "@fgStrong",
+	},
+	{
+		selectors = {"shortcutDivider"},
+		bgimage = true,
+		bgcolor = "@fgMuted",
+		halign = "center",
+		valign = "center",
+		margin = 4,
+		width = 2,
+		height = 16,
+	},
+}
+
 --A RollCheck instance has the following fields:
 -- type = "test_power_roll"/"resistance_power_roll"/"skill"/"initiative"/"flat"/"table"/"custom"
 -- id = the test_power_roll, resistance_power_roll, or skill being tested
@@ -29,6 +82,7 @@ RollCheck.consequences = ''
 RollCheck.explanation = ''
 
 RollRequest.contest = false
+RollRequest.dicetower = false
 
 RollCheck.customChecks = {}
 
@@ -173,7 +227,12 @@ function RollCheck:GetRoll(creature)
 	elseif self.type == "custom" then
 		return self:try_get("roll", "1d6")
 	else
-		return string.format("%s+%d", GameSystem.BaseSkillRoll, creature:SkillMod(Skill.SkillsById[self.id]))
+		local skillInfo = Skill.SkillsById[self.id]
+		if skillInfo == nil then
+			printf("WARNING: RollCheck:GetRoll -- unknown skill id '%s' for roll type '%s', returning base roll", tostring(self.id), tostring(self.type))
+			return GameSystem.BaseSkillRoll
+		end
+		return string.format("%s+%d", GameSystem.BaseSkillRoll, creature:SkillMod(skillInfo))
 	end
 end
 
@@ -189,7 +248,7 @@ function RollCheck:GetModifiers(creature, rollRequest)
 		end
 	end
 
-	if self.type == "test_power_roll" then
+	if self.type == "test_power_roll" or self.type == "resistance_power_roll" then
 		local skill = self:GetSkill()
 		local skills = nil
 		if skill ~= nil then
@@ -216,9 +275,38 @@ function RollCheck:GetModifiers(creature, rollRequest)
 
 		--Modifiers included from the Roll
 		local rollModifiers = self:try_get("modifiers", {})
-		--Modifiers for the creature making the roll
-		local result = creature:GetModifiersForPowerRoll(self:GetRoll(creature), "test_power_roll", {attribute = self.id, skills = skills})
-		if creature:ProficientInSkill(skill) then
+
+        local checkOptions = self:try_get("options", {})
+        local modifierOptions = {
+            attribute = self.id,
+            skills = skills,
+            --The ability that started this opposed test, so a modifier can ask
+            --questions like "Ability.name is Search for Hidden Creatures".
+            ability = checkOptions.ability,
+            title = rollRequest ~= nil and rollRequest:try_get("title"),
+        }
+
+		--Modifiers for the creature making the roll. An opposed test is still a
+		--test, so ask for both kinds: a modifier set to "Tests" and one set to
+		--"Opposed Tests" should each show up here.
+		local result = creature:GetModifiersForPowerRoll(self:GetRoll(creature), "test_power_roll", modifierOptions)
+
+		--A modifier set to "All" roll types answers both questions, so remember
+		--what we already have and don't list it twice.
+		local alreadyListed = {}
+		for _,mod in ipairs(result) do
+			alreadyListed[mod.modifier:try_get("guid") or mod.modifier] = true
+		end
+
+		for _,mod in ipairs(creature:GetModifiersForPowerRoll(self:GetRoll(creature), "opposed_power_roll", modifierOptions)) do
+			local key = mod.modifier:try_get("guid") or mod.modifier
+			if not alreadyListed[key] then
+				alreadyListed[key] = true
+				result[#result+1] = mod
+			end
+		end
+
+		if skill ~= nil and creature:ProficientInSkill(skill) then
             for _,mod in ipairs(result) do
                 if mod.modifier.name == "Skilled" then
                     mod.hint.result = true
@@ -237,7 +325,12 @@ function RollCheck:GetModifiers(creature, rollRequest)
 	elseif self.type == "custom" then
 		return {}
 	else
-		return creature:GetModifiersForSkillCheckRoll(Skill.SkillsById[self.id], self:try_get("options"))
+		local skillInfo = Skill.SkillsById[self.id]
+		if skillInfo == nil then
+			printf("WARNING: RollCheck:GetModifiers -- unknown skill id '%s' for roll type '%s', returning empty modifiers", tostring(self.id), tostring(self.type))
+			return {}
+		end
+		return creature:GetModifiersForSkillCheckRoll(skillInfo, self:try_get("options"))
 	end
 	
 end
@@ -335,6 +428,238 @@ function RollCheck.LoadSkills()
 end
 
 
+--A roll request whose checks carry options.parallelWithRollDialog = true is
+--allowed to surface its prompt while another roll dialog is on screen. Used by
+--triggered tests (e.g. Devilish Charm's Presence test) that must resolve while
+--the roll that triggered them is still open and pending. Everything else keeps
+--the historical behavior of deferring until no roll dialog is shown. pcall
+--guarded so an exotic request payload can never break the listener panel.
+local function RequestAllowsParallelPrompt(request)
+    local result = false
+    pcall(function()
+        if request.info.typeName ~= "RollRequest" then
+            return
+        end
+        for _,check in ipairs(request.info.checks or {}) do
+            local opts = check:try_get("options")
+            if opts ~= nil and opts.parallelWithRollDialog then
+                result = true
+                return
+            end
+        end
+    end)
+    return result
+end
+
+local function HaveParallelPromptRequest()
+    for _,request in pairs(dmhub.GetPlayerActionRequests() or {}) do
+        if RequestAllowsParallelPrompt(request) then
+            return true
+        end
+    end
+    return false
+end
+
+--Roll types shown in the newer Timeline roller (the one that mounts under the
+--ability card) instead of the old floating dialog. Anything not listed here
+--keeps the old dialog. Move one type over at a time.
+local g_timelineRollTypes = {
+    opposed_power_roll = true,
+}
+
+--Wraps the old floating dialog so callers can treat both dialogs the same way.
+local function LegacyPromptHandle(rollid)
+    return {
+        rollid = rollid,
+        IsShown = function()
+            local dialog = gamehud ~= nil and gamehud.rollDialog or nil
+            return dialog ~= nil and dialog.valid and dialog.data ~= nil
+                and dialog.data.IsShown ~= nil and dialog.data.IsShown()
+        end,
+        LiveRollId = function()
+            local dialog = gamehud ~= nil and gamehud.rollDialog or nil
+            return dialog ~= nil and dialog.valid and dialog.data ~= nil and dialog.data.rollid or nil
+        end,
+        Cancel = function()
+            local dialog = gamehud ~= nil and gamehud.rollDialog or nil
+            if dialog ~= nil and dialog.valid and dialog.data ~= nil and dialog.data.Cancel ~= nil then
+                dialog.data.Cancel()
+            end
+        end,
+    }
+end
+
+--Show a requested roll in the Timeline roller. Returns a handle, or nil if we
+--could not get a Timeline surface and the caller should use the old dialog.
+--
+--dialogParams is modified in place on success (we add the header text and wrap
+--the finish callbacks), so only call this when we are committed to this route.
+local function ShowTimelinePrompt(check, dialogParams)
+    if rawget(_G, "CharacterPanel") == nil or CharacterPanel.EmbedPromptRollDialog == nil then
+        return nil
+    end
+
+    local checkOptions = check:try_get("options", {})
+
+    local casterToken = nil
+    if checkOptions.casterid ~= nil then
+        casterToken = dmhub.GetTokenById(checkOptions.casterid)
+    end
+
+    local mount = CharacterPanel.EmbedPromptRollDialog{
+        token = casterToken,
+        ability = checkOptions.ability,
+    }
+
+    if mount == nil or mount.dialog == nil or not mount.dialog.valid
+       or mount.dialog.data == nil or mount.dialog.data.ShowDialog == nil then
+        return nil
+    end
+
+    --The Timeline roller shows no title of its own, so hand it the same two
+    --lines the old dialog printed above the roll.
+    local headerLines = {}
+    if dialogParams.description ~= nil and dialogParams.description ~= "" then
+        headerLines[#headerLines+1] = string.format("<b>%s</b>", dialogParams.description)
+    end
+    if dialogParams.explanation ~= nil and dialogParams.explanation ~= "" then
+        headerLines[#headerLines+1] = dialogParams.explanation
+    end
+    dialogParams.promptHeader = table.concat(headerLines, "\n")
+
+    --Put the ability card away again if we were the ones who put it up. Nothing
+    --else will: only a real ability cast installs a teardown handler.
+    local tornDown = false
+    local function Teardown()
+        if tornDown then
+            return
+        end
+        tornDown = true
+
+        if mount.dialog ~= nil and mount.dialog.valid and mount.dialog.data ~= nil then
+            mount.dialog.data.promptPending = nil
+        end
+
+        if mount.locked then
+            CharacterPanel.UnlockDisplayAbility()
+        end
+        if mount.ownedAbility ~= nil then
+            --Safe if someone else has since taken the card over; HideAbility
+            --only acts when the card is still showing this ability.
+            CharacterPanel.HideAbility(mount.ownedAbility)
+        end
+    end
+
+    local resolved = false
+    local origComplete = dialogParams.completeRoll
+    local origCancel = dialogParams.cancelRoll
+
+    --Original first so the action request is always written, teardown after.
+    dialogParams.completeRoll = function(rollInfo)
+        resolved = true
+        if origComplete ~= nil then
+            origComplete(rollInfo)
+        end
+        Teardown()
+    end
+
+    dialogParams.cancelRoll = function()
+        resolved = true
+        if origCancel ~= nil then
+            origCancel()
+        end
+        Teardown()
+    end
+
+    --Give the freshly mounted dialog time to build itself before the roll goes
+    --in; see mount.showDelay. ShowDialog handles this for us: outside a
+    --coroutine it picks a roll id, reschedules itself, and hands the id back
+    --now, so the request bookkeeping below still gets its id immediately.
+    dialogParams.delay = mount.showDelay
+
+    local rollid = mount.dialog.data.ShowDialog(dialogParams)
+
+    if not mount.dialog.valid or rollid == nil then
+        --ShowDialog bailed. Undo everything and let the caller fall back.
+        dialogParams.completeRoll = origComplete
+        dialogParams.cancelRoll = origCancel
+        dialogParams.promptHeader = nil
+        dialogParams.delay = nil
+        Teardown()
+        return nil
+    end
+
+    --If the panel is destroyed without finishing -- displaced by a new cast, or
+    --the card closed from somewhere else -- neither callback fires, which would
+    --leave the request stuck waiting on a roll that can no longer happen. Watch
+    --for that and release it.
+    --
+    --Only a DESTROYED panel counts. The dialog hides itself the moment the dice
+    --are thrown and stays hidden while they are still in the air, so "hidden" is
+    --not "finished" -- and the roll keeps calling into the panel the whole time,
+    --so we must never destroy it here either.
+    local Watch
+    Watch = function()
+        if mod.unloaded or tornDown or resolved then
+            return
+        end
+
+        local dialog = mount.dialog
+        if dialog == nil or not dialog.valid then
+            resolved = true
+            if origCancel ~= nil then
+                origCancel()
+            end
+            Teardown()
+            return
+        end
+
+        dmhub.Schedule(0.25, Watch)
+    end
+    dmhub.Schedule(0.25, Watch)
+
+    return {
+        rollid = rollid,
+        IsShown = function()
+            local dialog = mount.dialog
+            return dialog ~= nil and dialog.valid and dialog.data ~= nil
+                and dialog.data.IsShown ~= nil and dialog.data.IsShown()
+        end,
+        LiveRollId = function()
+            local dialog = mount.dialog
+            return dialog ~= nil and dialog.valid and dialog.data ~= nil and dialog.data.rollid or nil
+        end,
+        Cancel = function()
+            local dialog = mount.dialog
+            if dialog ~= nil and dialog.valid and dialog.data ~= nil and dialog.data.Cancel ~= nil then
+                dialog.data.Cancel()
+            end
+        end,
+    }
+end
+
+--Show a requested roll in whichever dialog that roll type uses.
+local function ShowRollPrompt(check, dialogParams)
+    if check == nil then
+        return nil
+    end
+
+    local customInfo = check:CustomInfo()
+    if customInfo ~= nil and customInfo.ShowDialog ~= nil then
+        return LegacyPromptHandle(customInfo.ShowDialog(check, dialogParams))
+    end
+
+    if g_timelineRollTypes[check.type] then
+        local handle = ShowTimelinePrompt(check, dialogParams)
+        if handle ~= nil then
+            return handle
+        end
+        --No Timeline surface available; fall through to the old dialog.
+    end
+
+    return LegacyPromptHandle(gamehud.rollDialog.data.ShowDialog(dialogParams))
+end
+
 --this is a hidden panel which just listens for required rolls.
 function GameHud:RequireRollListenerPanel()
 
@@ -342,8 +667,10 @@ function GameHud:RequireRollListenerPanel()
 	local autoCancelId = nil
 
 	--tracks the ID of the roll dialog we are showing. This way we can cancel that dialog
-	--if needed due to the roll request being retracted.
+	--if needed due to the roll request being retracted. showingPrompt is the handle
+	--for whichever dialog that turned out to be -- the roll type decides.
 	local showingRollId = nil
+	local showingPrompt = nil
 	local rollRequestId = nil
 
 	--track rolls we currently have ongoing
@@ -357,24 +684,41 @@ function GameHud:RequireRollListenerPanel()
 		monitorGame = "/actionRequests",
 
 		refreshGame = function(element)
-			if self.rollDialog.data.IsShown() then
-				if showingRollId == gamehud.rollDialog.data.rollid then
-					--we requested the current roll dialog that is shown. See if our reason
-					--for doing so has been canceled, in which case we want to close that dialog.
-					if dmhub.GetPlayerActionRequest(rollRequestId) == nil then
-						self.rollDialog.data.Cancel()
-					end
-				end
+			--Defer if ANY roll dialog is on screen, not just the legacy singleton.
+			--Otherwise a table roll (e.g. the Conduit prayer, which routes to the
+			--standalone host) pops on top of an in-flight ability/ongoing-effect
+			--roll shown in the embedded dialog. See CharacterPanel.AnyRollDialogShown.
+			--Exception: requests flagged parallelWithRollDialog (see
+			--RequestAllowsParallelPrompt above) surface immediately; only the
+			--flagged requests are processed in that state, everything else keeps
+			--deferring until the blocking dialog closes.
+			local dialogShown = CharacterPanel.AnyRollDialogShown()
 
-				--we are currently blocked by the roll dialog. Try again in a little while.
+			if dialogShown and showingPrompt ~= nil and showingPrompt.IsShown()
+			   and showingRollId == showingPrompt.LiveRollId() then
+				--we requested the current roll dialog that is shown. See if our reason
+				--for doing so has been canceled, in which case we want to close that dialog.
+				if dmhub.GetPlayerActionRequest(rollRequestId) == nil then
+					showingPrompt.Cancel()
+				end
+			end
+
+			if dialogShown then
+				--we are currently blocked by a roll dialog. Try again in a little
+				--while. (Also scheduled in the parallel fall-through, so deferred
+				--non-flagged requests still surface once the dialog closes.)
 				element:ScheduleEvent("refreshGame", 0.2)
 
-				return
+				if not HaveParallelPromptRequest() then
+					return
+				end
 			end
 
 			local requests = dmhub.GetPlayerActionRequests()
 			for k,request in pairs(requests) do
-				if request.info.typeName == 'RestRequest' then
+				if dialogShown and not RequestAllowsParallelPrompt(request) then
+					--still deferred behind the open roll dialog.
+				elseif request.info.typeName == 'RestRequest' then
 					--request for resting, see if we want to handle it and if we do go over to that.
 					if self:TryHandleRestRequest(k, request) then
 						return
@@ -399,7 +743,12 @@ function GameHud:RequireRollListenerPanel()
 						if info.status == nil then
 							local tok = dmhub.GetTokenById(tokid)
 							local rollid = k .. tokid
-							if tok ~= nil and tok.properties and ((info.forceuserid == nil and tok.canControl and (dmhub.isDM == false or tok.playerControlled == false or not havePlayersOnline)) or info.forceuserid == dmhub.loginUserid) and not currentRolls[rollid] then
+							--who does this client prompt for: a plain player, anything they control;
+							--a DM/host, non-player tokens (or anything with no players online); a
+							--player host additionally their OWN tokens -- canControl is host-wide
+							--for them, so ownership is the discriminator. (playerHostMode reads
+							--nil on engine builds without it, keeping the old behavior exactly.)
+							if tok ~= nil and tok.properties and ((info.forceuserid == nil and tok.canControl and (IsDMOrPlayerHost() == false or tok.playerControlled == false or not havePlayersOnline or (dmhub.playerHostMode == true and tok.ownerId == dmhub.loginUserid))) or info.forceuserid == dmhub.loginUserid) and not currentRolls[rollid] then
 								numPrompts = numPrompts+1
 							end
 						end
@@ -412,7 +761,12 @@ function GameHud:RequireRollListenerPanel()
 						if info.status == nil then
 							local tok = dmhub.GetTokenById(tokid)
 							local rollid = k .. tokid
-							if tok ~= nil and tok.properties and ((info.forceuserid == nil and tok.canControl and (dmhub.isDM == false or tok.playerControlled == false or not havePlayersOnline)) or info.forceuserid == dmhub.loginUserid) and not currentRolls[rollid] then
+							--who does this client prompt for: a plain player, anything they control;
+							--a DM/host, non-player tokens (or anything with no players online); a
+							--player host additionally their OWN tokens -- canControl is host-wide
+							--for them, so ownership is the discriminator. (playerHostMode reads
+							--nil on engine builds without it, keeping the old behavior exactly.)
+							if tok ~= nil and tok.properties and ((info.forceuserid == nil and tok.canControl and (IsDMOrPlayerHost() == false or tok.playerControlled == false or not havePlayersOnline or (dmhub.playerHostMode == true and tok.ownerId == dmhub.loginUserid))) or info.forceuserid == dmhub.loginUserid) and not currentRolls[rollid] then
 
 								local checks = {}
 
@@ -437,6 +791,13 @@ function GameHud:RequireRollListenerPanel()
 								local ShowPromptDialog
 								ShowPromptDialog = function(checkIndex, nofadein)
 									local check = checks[checkIndex]
+									if check == nil then
+										--The request asked this token to roll but handed it no
+										--checks to roll. Badly authored content can do this;
+										--don't take the client down over it.
+										printf("WARNING: roll request %s has no check %d for token %s -- nothing to prompt.", tostring(k), checkIndex, tostring(tokid))
+										return
+									end
 
 									--build a list of alternate options.
 									local alternateOptions = {}
@@ -449,9 +810,12 @@ function GameHud:RequireRollListenerPanel()
                                     if check:has_key("rollProperties") then
                                         rollProperties = check.rollProperties
                                     elseif check:has_key("tableRef") then
-										rollProperties = RollProperties.new{}
-										rollProperties.tableRef = check.tableRef
-									end
+                                        --Must be the RollOnTableProperties subclass so
+                                        --the action log renders table rows; base
+                                        --RollProperties has no table-aware CustomPanel.
+                                        rollProperties = RollOnTableProperties.new{}
+                                        rollProperties.tableRef = check.tableRef
+                                    end
 
 									local autoroll = nil
 									if autoRollId == k then
@@ -459,7 +823,9 @@ function GameHud:RequireRollListenerPanel()
 										if autoCancelId == k then
 											autoroll = "cancel"
 										end
-									elseif dmhub.isDM and tok.playerControlled == false then
+									--real hosting check: monster resistance rolls must keep
+									--auto-resolving on a player host or the AI stalls on a prompt.
+									elseif IsDMOrPlayerHost() and tok.playerControlled == false then
 										if check.type == "resistance_power_roll" then
 											autoroll = {
 												id = "monsterSaves",
@@ -505,13 +871,16 @@ function GameHud:RequireRollListenerPanel()
 										type = rollType,
 										subtype = check.type,
 										nofadein = nofadein,
+										dicetower = request.info.dicetower,
 
                                         PopulateCustom = PopulateCustom,
 
 										alternateOptions = alternateOptions,
 										alternateChosen = checkIndex,
 										chooseAlternate = function(alternateIndex)
-										    gamehud.rollDialog.data.Cancel()
+										    if showingPrompt ~= nil then
+										        showingPrompt.Cancel()
+										    end
 											ShowPromptDialog(alternateIndex, true)
 										end,
 
@@ -532,13 +901,17 @@ function GameHud:RequireRollListenerPanel()
 										end,
 										completeRoll = function(rollInfo)
 											local req = dmhub.GetPlayerActionRequest(k)
-                                                print("ROLLINFO:: XCOMPLETE ROLL", req)
 											if req ~= nil and req.info.tokens[tokid] ~= nil then
 												req:BeginChanges()
 												req.info.tokens[tokid].status = 'complete'
 												req.info.tokens[tokid].result = rollInfo.total
+												req.info.tokens[tokid].naturalRoll = rollInfo.naturalRoll
 												req.info.tokens[tokid].boons = rollInfo.boons
 												req.info.tokens[tokid].banes = rollInfo.banes
+												req.info.tokens[tokid].dice = RollUtils.SortedDice(rollInfo)
+												req.info.tokens[tokid].isCrit = RollUtils.IsCrit(rollInfo)
+												req.info.tokens[tokid].rollid = rollInfo.key
+												req.info.tokens[tokid].modifiersUsed = rollInfo.properties ~= nil and rollInfo.properties:try_get("modifiersUsed", {}) or {}
 
 												if rollInfo.forcedResult then
 													req.info.tokens[tokid].forcedResult = rollInfo.autosuccess
@@ -546,7 +919,8 @@ function GameHud:RequireRollListenerPanel()
 												
 												if rollInfo.properties then
 													local matchingOutcome = rollInfo.properties:try_get("overrideOutcome") or rollInfo.properties:GetOutcome(rollInfo)
-													if matchingOutcome then
+													if matchingOutcome and matchingOutcome.outcome ~= nil then
+														matchingOutcome.outcome = StringInterpolateGoblinScript(matchingOutcome.outcome, tok.properties)
 														req.info.tokens[tokid].outcome = matchingOutcome
 													end
 												end
@@ -579,13 +953,9 @@ function GameHud:RequireRollListenerPanel()
 										end,
 									}
 
-                                    print("SHOWDIALOG:: PARAMS", json(dialogParams))
 
-									if check:CustomInfo() ~= nil and check:CustomInfo().ShowDialog ~= nil then
-										showingRollId = check:CustomInfo().ShowDialog(check, dialogParams)
-									else
-										showingRollId = gamehud.rollDialog.data.ShowDialog(dialogParams)
-									end
+									showingPrompt = ShowRollPrompt(check, dialogParams)
+									showingRollId = showingPrompt ~= nil and showingPrompt.rollid or nil
 								end
 
 								ShowPromptDialog(1)
@@ -628,6 +998,11 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 	local selection = args.selection
 	args.selection = nil
 
+	local poolWidth = args.poolWidth
+	args.poolWidth = nil
+	local poolHeight = args.poolHeight
+	args.poolHeight = nil
+
 	local GetSelectedTokens = function()
 		local result = {}
 		for i,panel in ipairs(tokenPanels) do
@@ -664,8 +1039,8 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 	local CreateTokenPanel = function(token)
 
 		return gui.Panel{
-			bgimage = 'panels/square.png',
-			classes = 'token-panel',
+			bgimage = true,
+			classes = {"tokenPanel"},
 			data = {
 				token = token,
 			},
@@ -696,81 +1071,29 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 	end
 
 	local tokenPool = gui.Panel{
-		bgimage = 'panels/square.png',
-		bgcolor = 'black',
+		classes = {"bordered"},
+		halign = "left",
+		lmargin = 12,
+		width = poolWidth or 210,
+		height = poolHeight or 210,
 		cornerRadius = 8,
-		border = 2,
-		borderColor = '#888888',
-		width = 210,
-		height = 210,
 		pad = 4,
 		vscroll = true,
 		vmargin = 8,
-		flow = 'horizontal',
+		flow = "horizontal",
 		wrap = true,
-
-		styles = {
-			{
-				classes = {'token-panel'},
-				bgcolor = 'black',
-				cornerRadius = 8,
-				width = 64,
-				height = 64,
-				halign = 'left',
-			},
-			{
-				classes = {'token-panel', 'hover'},
-				borderColor = 'grey',
-				borderWidth = 2,
-				bgcolor = '#441111',
-			},
-			{
-				classes = {'token-panel', 'selected'},
-				borderColor = 'white',
-				borderWidth = 2,
-				bgcolor = '#882222',
-			},
-
-		},
 
 		children = tokenPanels
 	}
 
 	local tokenPoolSelection = gui.Panel{
-		flow = 'horizontal',
-		halign = 'center',
-		width = 'auto',
-		height = 'auto',
-
-		styles = {
-			{
-				classes = {'token-pool-shortcut'},
-				color = '#aaaaaa',
-				fontSize = 16,
-				width = 'auto',
-				height = 'auto',
-				valign = 'center',
-				halign = 'center',
-			},
-			{
-				classes = {'token-pool-shortcut', 'hover'},
-				color = 'white',
-			},
-			{
-				classes = {'shortcut-divider'},
-				bgimage = 'panels/square.png',
-				halign = 'center',
-				valign = 'center',
-				margin = 4,
-				width = 2,
-				height = 16,
-				bgcolor = '#aaaaaa',
-			},
-
-		},
+		flow = "horizontal",
+		halign = "left",
+		width = poolWidth or 210,
+		height = "auto",
 
 		gui.Label{
-			classes = 'token-pool-shortcut',
+			classes = {"tokenPoolShortcut"},
 			text = 'All',
 			create = function(element)
 				if selection == 'All' then
@@ -793,10 +1116,10 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 			end,
 		},
 		gui.Panel{
-			classes = {'shortcut-divider'},
+			classes = {"shortcutDivider"},
 		},
 		gui.Label{
-			classes = 'token-pool-shortcut',
+			classes = {"tokenPoolShortcut"},
 			text = 'Party',
 			create = function(element)
 				if selection == 'Party' then
@@ -811,10 +1134,10 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 			end,
 		},
 		gui.Panel{
-			classes = {'shortcut-divider'},
+			classes = {"shortcutDivider"},
 		},
 		gui.Label{
-			classes = 'token-pool-shortcut',
+			classes = {"tokenPoolShortcut"},
 			text = 'None',
 			click = function(element)
 				for i,tokenPanel in ipairs(tokenPanels) do
@@ -826,9 +1149,10 @@ function GameHud:CreatePartyTokenPoolSelector(args)
 	}
 
 	local options = {
-		width = 'auto',
+		width = 600,
 		height = 'auto',
 		flow = "vertical",
+		styles = ThemeEngine.MergeTokens(g_TokenPoolStyles),
 
 		tokenPool,
 		tokenPoolSelection,
@@ -864,23 +1188,24 @@ function ShowRequireRollDialog(args)
 	local checkTypeIndexes = {checkTypeIndex} --the actual multi-selection of which items we have selected.
 
     local m_skills = args.skills
+    local m_dicetower = false
 
     local m_tierInputs = nil
 	local specializationChecks = {}
 
 	local CreateRollTypeOption = function(options)
-		return gui.Label{
-			classes = {'roll-type-option', cond(options.selected, 'selected', nil)},
-			bgimage = 'panels/square.png',
+		return gui.Button{
+			classes = {"sizeM", "rollTypeButton", cond(options.selected, "selected", nil)},
 			text = options.text,
+			hmargin = 4,
 			press = function(element)
-				local siblings = element.parent:GetChildrenWithClass('roll-type-option')
+				local siblings = element.parent:GetChildrenWithClass("rollTypeButton")
 				for i,item in ipairs(siblings) do
-					item:SetClass('selected', item == element)
+					item:SetClass("selected", item == element)
 				end
 
 				checkSelectedIndex = options.index
-				g_requireRollDialog:FireEventTree('refreshDiceCheck')
+				g_requireRollDialog:FireEventTree("refreshDiceCheck")
 			end,
 		}
 	end
@@ -892,18 +1217,6 @@ function ShowRequireRollDialog(args)
 			if checkSelectedIndex == -1 then
 				checkSelectedIndex = i
 			end
-			if #rollTypes ~= 0 then
-
-				rollTypes[#rollTypes+1] = gui.Panel{
-					bgimage = 'panels/square.png',
-					bgcolor = '#aaaaaa',
-					hmargin = 8,
-					width = 2,
-					height = 20,
-					valign = 'center',
-					halign = 'center',
-				}
-			end
 			rollTypes[#rollTypes+1] = CreateRollTypeOption{ index = i, text = check.name, selected = (i == checkSelectedIndex) }
 		end
 	end
@@ -912,6 +1225,7 @@ function ShowRequireRollDialog(args)
 
 	g_requireRollDialog = gui.Panel{
 		id = 'require-roll-dialog',
+        classes = {"framedPanel"},
 
 		destroy = function(element)
 			if g_requireRollDialog == element then
@@ -919,140 +1233,40 @@ function ShowRequireRollDialog(args)
 			end
 		end,
 
-		styles = {
-			{
-				classes = {'formLabel'},
-				fontSize = 18,
-				color = 'white',
-				width = 'auto',
-				height = 'auto',
-			},
+		styles = ThemeEngine.GetStyles(),
 
-			{
-				classes = {'input'},
-				width = 140,
-				height = 20,
-				fontSize = 18,
-			},
-
-			{
-				classes = {'check-summary'},
-				width = '100%',
-				height = 80,
-				valign = 'top',
-				textAlignment = 'center',
-				fontSize = 28,
-				color = 'white',
-			},
-
-			{
-				classes = {'result-panel'},
-				flow = "horizontal",
-				width = "100%",
-				height = 70,
-				valign = 'top',
-			},
-
-			{
-				classes = {'result-panel-scroll'},
-				width = '94%',
-				height = 340,
-				valign = 'center',
-				flow = 'vertical',
-			},
-
-			{
-				classes = {'result-status-label'},
-				fontSize = 18,
-				color = 'white',
-				width = 80,
-				textAlignment = 'left',
-				height = 'auto',
-				halign = 'left',
-				valign = 'center',
-			},
-			{
-				classes = {'result-outcome-label'},
-				fontSize = 14,
-				color = 'white',
-				width = 100,
-				textAlignment = 'left',
-				height = 'auto',
-				halign = 'left',
-				valign = 'center',
-			},
-			{
-				classes = {'result-consequences-table'},
-				width = 140,
-				flow = "vertical",
-				height = "auto",
-				valign = "center",
-			},
-			{
-				classes = {'consequenceLabel'},
-				width = 140,
-				fontSize = 14,
-				color = 'red',
-				height = "auto",
-			},
-			{
-				classes = {'consequenceLabel', 'avoided'},
-				color = 'grey',
-			},
-		},
-
-		halign = 'center',
-		valign = 'center',
+		halign = "center",
+		valign = "center",
 
 		width = 900,
 		height = 600,
 
-		flow = 'vertical',
+		flow = "vertical",
 
         gui.Label{
+            classes = {"modalTitle"},
             tmargin = 16,
-            width = "auto",
-            height = "auto",
-            fontSize = 24,
             text = args.title or "",
-            halign = "center",
         },
-		
+
 		gui.Panel{
-			id = 'roll-type-panel',
-			flow = 'horizontal',
-			halign = 'center',
-			valign = 'top',
+			id = "roll-type-panel",
+			flow = "horizontal",
+			halign = "center",
+			valign = "top",
+			width = "auto",
+			height = "auto",
 			vmargin = 6,
-			flow = 'horizontal',
-			width = 'auto',
-			height = 'auto',
+			styles = ThemeEngine.MergeTokens({
+				{
+					selectors = {"rollTypeButton", "selected"},
+					borderWidth = 2,
+					borderColor = "@accent",
+				},
+			}),
             create = function(element)
                 element:SetClass("collapsed", args.powerRollTable ~= nil)
             end,
-
-			styles = {
-				{
-					classes = 'roll-type-option',
-					fontSize = 24,
-					width = 'auto',
-					height = 'auto',
-					color = '#aaaaaa',
-					bgcolor = 'clear',
-				},
-				{
-					classes = {'roll-type-option', 'hover'},
-					color = '#ffffff',
-					transitionTime = 0.1,
-				},
-				{
-					classes = {'roll-type-option', 'selected'},
-					color = '#ffffff',
-					border = { x1 = 0, x2 = 0, y2 = 0, y1 = 2 },
-					borderColor = '#ffffff',
-					transitionTime = 0.2,
-				},
-			},
 
 			children = rollTypes,
 		},
@@ -1060,7 +1274,6 @@ function ShowRequireRollDialog(args)
 		gui.Panel{
 			id = 'main-check-panel',
 			flow = 'horizontal',
-
 			vmargin = 10,
 			width = '90%',
 			height = '80%',
@@ -1090,9 +1303,9 @@ function ShowRequireRollDialog(args)
 				flow = "vertical",
 
 				gui.Panel{
+					classes = {"collapsed"},
 					width = "auto",
 					height = "auto",
-					classes = {"collapsed"},
 					refreshDiceCheck = function(element)
 						local checkInfo = RollCheck.Checks[checkSelectedIndex]
 						if checkInfo.group == nil then
@@ -1104,6 +1317,7 @@ function ShowRequireRollDialog(args)
 
 						element.children = {
 							gui.Dropdown{
+								classes = {"form"},
 								options = checkInfo.groups,
 								idChosen = checkInfo.group:Get(),
 								width = 160,
@@ -1118,36 +1332,38 @@ function ShowRequireRollDialog(args)
 				},
 
 				gui.Panel{
-					id = 'check-type-list',
-					height = '100% available',
+					id = "check-type-list",
+					height = "100% available",
 					width = 210,
-					flow = 'vertical',
+					flow = "vertical",
 					vscroll = true,
-					styles = {
+
+					styles = ThemeEngine.MergeTokens({
 						{
-							classes = 'check-type-item',
-							bgimage = 'panels/square.png',
-							bgcolor = 'clear',
+							selectors = {"checkTypeItem"},
+							bgimage = true,
+							bgcolor = "clear",
 							fontSize = 16,
 							minFontSize = 12,
-							textAlignment = 'left',
+							textAlignment = "left",
 							hpad = 3,
-							halign = 'left',
-							valign = 'top',
+							halign = "left",
+							valign = "top",
 							width = 200,
 							minHeight = 22,
 							height = "auto",
 						},
 						{
-							classes = {'check-type-item', 'selected'},
-							bgcolor = '#660000',
+							selectors = {"checkTypeItem", "selected"},
+							bgcolor = "@bgInverse",
+							color = "@fgInverse",
 						},
 						{
-							classes = {'check-type-item', 'hover'},
-							bgcolor = '#660000',
+							selectors = {"checkTypeItem", "hover"},
+							bgcolor = "@bgInverse",
+							color = "@fgInverse",
 						},
-					},
-					
+					}),
 
 					refreshDiceCheck = function(element)
 						local children = {}
@@ -1175,7 +1391,7 @@ function ShowRequireRollDialog(args)
                                 end
                             end
 							children[#children+1] = gui.Label{
-								classes = {'check-type-item', cond(selected, 'selected'), cond(checkInfo.group ~= nil and checkInfo.group:Get() ~= check.group, 'collapsed')},
+								classes = {"checkTypeItem", cond(selected, "selected"), cond(checkInfo.group ~= nil and checkInfo.group:Get() ~= check.group, "collapsed")},
 								text = check.text,
 								press = function(element)
 									local multiselect = dmhub.modKeys.ctrl or dmhub.modKeys.shift
@@ -1224,7 +1440,9 @@ function ShowRequireRollDialog(args)
 					end,
 				},
 
-                gui.SetEditor{
+                gui.Multiselect{
+					valign = "bottom",
+					bmargin = 24,
                     options = Skill.skillsDropdownOptions,
                     value = table.list_to_set(m_skills),
                     addItemText = "Choose Skill...",
@@ -1314,8 +1532,6 @@ function ShowRequireRollDialog(args)
                 gui.Dropdown{
                     textDefault = "Choose Table...",
                     width = 320,
-                    height = 24,
-                    hasSearch = true,
                     create = function(element)
                         element:SetClass("collapsed", args.powerRollTable ~= nil)
                     end,
@@ -1336,8 +1552,19 @@ function ShowRequireRollDialog(args)
 
                         m_tierInputs = {}
 
+                        --Tier labels: the three standard tiers plus an optional 4th "Critical"
+                        --tier (natural 19-20). The Critical row stays collapsed unless the
+                        --selected power table actually defines a 4th tier, so plain 3-tier
+                        --rolls look unchanged.
+                        local tierLabels = {}
                         for i=1,#GameSystem.TierNames do
-                            local name = GameSystem.TierNames[i]
+                            tierLabels[i] = GameSystem.TierNames[i]
+                        end
+                        tierLabels[#tierLabels+1] = "Critical"
+
+                        for i=1,#tierLabels do
+                            local name = tierLabels[i]
+                            local isCritical = (i > #GameSystem.TierNames)
                             local input = gui.Input{
                                 width = "70%",
                                 height = "auto",
@@ -1364,6 +1591,10 @@ function ShowRequireRollDialog(args)
                             local panel = gui.TableRow{
                                 width = "100%",
                                 height = "auto",
+                                update = isCritical and function(element)
+                                    local powerTable = args.powerRollTable or PowerRollTableGroup.GetPowerTable(g_selectedPowerRoll:Get())
+                                    element:SetClass("collapsed", powerTable == nil or powerTable.tiers[i] == nil)
+                                end or nil,
                                 gui.Label{
                                     width = "30%",
                                     height = 22,
@@ -1374,6 +1605,10 @@ function ShowRequireRollDialog(args)
                                 },
                                 input,
                             }
+
+                            if isCritical then
+                                panel:FireEvent("update")
+                            end
 
                             children[#children+1] = panel
                         end
@@ -1386,11 +1621,11 @@ function ShowRequireRollDialog(args)
             },
 
 			gui.Panel{
-				flow = 'vertical',
-				width = 'auto',
-				height = 'auto',
-                halign = 'right',
-				valign = 'top',
+				flow = "vertical",
+				width = "auto",
+				height = "auto",
+				valign = "top",
+				lmargin = 20,
 
 				gamehud:CreatePartyTokenPoolSelector{
 					initiative = (args.checkType == "Initiative"),
@@ -1402,20 +1637,64 @@ function ShowRequireRollDialog(args)
 			},
 		},
 
-		gui.PrettyButton{
-			text = 'Submit',
-			floating = true,
-			halign = 'right',
-			valign = 'bottom',
-			margin = 18,
-			create = function(element)
-				element:SetClass('hidden', #tokenIdsSelected == 0)
-			end,
-			changePartySelection = function(element)
-				element:FireEvent('create')
-			end,
+		gui.Panel{
+			flow = "horizontal",
+			width = "90%",
+			height = "auto",
+			halign = "center",
+			valign = "bottom",
+			tmargin = -90,
 
-			click = function(element)
+			gui.Panel{
+				width = "50%",
+				height = "auto",
+				halign = "left",
+				gui.Check{
+					text = "Dice Tower (hide result from players)",
+					halign = "left",
+					valign = "center",
+					value = false,
+					fontSize = 14,
+					change = function(element)
+						m_dicetower = element.value
+					end,
+				},
+			},
+
+			gui.Panel{
+				width = "25%",
+				height = "auto",
+				halign = "center",
+				gui.Button{
+					classes = {"sizeM"},
+					text = "Cancel",
+					halign = "right",
+					valign = "center",
+					escapeActivates = true,
+					escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+					click = function(element)
+						CloseRequireRollDialog()
+					end,
+				},
+			},
+
+			gui.Panel{
+				width = "25%",
+				height = "auto",
+				halign = "right",
+				gui.Button{
+					classes = {"sizeM"},
+					text = "Submit",
+					halign = "right",
+					valign = "center",
+					create = function(element)
+						element:SetClass("hidden", #tokenIdsSelected == 0)
+					end,
+					changePartySelection = function(element)
+						element:FireEvent("create")
+					end,
+
+					click = function(element)
 
 				local ensureInitiativeShown = false
 
@@ -1444,6 +1723,12 @@ function ShowRequireRollDialog(args)
                             local tiers = {}
                             for i=1,#m_tierInputs do
                                 tiers[i] = m_tierInputs[i].text
+                            end
+
+                            --Drop an empty trailing "Critical" tier so non-critical rolls stay
+                            --3-tier (never send tiers[4] = "").
+                            if tiers[4] ~= nil and string.match(tiers[4], "%S") == nil then
+                                tiers[4] = nil
                             end
 
                             check.options.tiers = tiers
@@ -1476,10 +1761,13 @@ function ShowRequireRollDialog(args)
                     title = args.title,
 					checks = checks,
 					tokens = tokensSelected,
+					dicetower = m_dicetower,
 				})
 
 				gamehud:ShowRollSummaryDialog(actionid)
 			end,
+				},
+			},
 		},
 
 	}
@@ -1497,7 +1785,7 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 
 	local iscomplete = false
 
-	local closeButton = gui.PrettyButton{
+	local closeButton = gui.Button{
 			text = 'Cancel',
 			floating = true,
 			halign = 'right',
@@ -1537,7 +1825,7 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 
 	local summaryPanel = gui.Label{
 		text = string.format("Requested a %s", action.info:Describe()),
-		classes = {'check-summary'},
+		classes = {"modalTitle"},
 		interactable = false,
 	}
 
@@ -1556,10 +1844,12 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 
 	local resultsPanels = {}
 
+	local rowIndex = 0
 	for k,v in pairs(action.info.tokens) do
 		local tok = dmhub.GetCharacterById(k)
 		if tok ~= nil then
 
+			rowIndex = rowIndex + 1
             numTokens = numTokens + 1
 			if ((v.forceuserid == nil and tok.canControl and (dmhub.isDM == false or tok.playerControlled == false or not havePlayersOnline)) or v.forceuserid == dmhub.loginUserid) then
                 numLocal = numLocal + 1
@@ -1568,23 +1858,21 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
             local checkInfo = action.info.checks[1]
 
 			local outcomeLabel = gui.Label{
-				classes = {'result-outcome-label'},
-				text = '',
+				classes = {"sizeL", "resultOutcomeLabel"},
+				text = "",
 			}
 
 			local consequencesTable = gui.Panel{
-				classes = {'result-consequences-table'},
+				classes = {"resultConsequencesTable"},
 			}
 
 			local againButton = nil
 			
 			if dmhub.isDM then
 				againButton = gui.Button{
-					text = 'Re-roll',
-					halign = 'right',
-					width = 80,
-					height = 24,
-					fontSize = 16,
+					classes = {"sizeS"},
+					text = "Re-roll",
+					halign = "right",
 					margin = 16,
 					data = {
 						takeroll = false,
@@ -1615,12 +1903,9 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 			local panel
 
 			local removeButton = gui.Button{
-				classes = {"hidden"},
-				text = 'Remove',
+				classes = {"sizeS", "hidden"},
+				text = "Remove",
 				halign = "right",
-				width = 80,
-				height = 24,
-				fontSize = 14,
 				margin = 16,
 				click = function(element)
 					action:BeginChanges()
@@ -1631,13 +1916,31 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 
 			}
 
-			panel = gui.Panel{
-				classes = {'result-panel'},
+			--Shown beside the Take Roll button once the DM takes a roll that is
+			--queued behind another dialog (the listener defers while
+			--CharacterPanel.AnyRollDialogShown). Gives the click a visible effect
+			--even though the actual roll prompt is suppressed until the blocking
+			--dialog is resolved.
+			local waitingLabel = gui.Label{
+				classes = {"sizeS", "hidden"},
+				text = "Waiting...",
+				halign = "right",
+				valign = "center",
+				rmargin = 100,
+			}
 
-				gui.CreateTokenImage(tok),
+			panel = gui.Panel{
+				classes = {"resultPanel", "row", cond(rowIndex % 2 == 1, "evenRow", "oddRow")},
+
+				gui.CreateTokenImage(tok, {
+					width = 32,
+					height = 32,
+					halign = "left",
+					valign = "center",
+				}),
 
 				gui.Label{
-					classes = {'result-status-label'},
+					classes = {"sizeL", "resultStatusLabel"},
 					create = function(element)
 						element:FireEvent('refreshAction')
 					end,
@@ -1646,6 +1949,8 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 						local actionInfo = action.info.tokens[k]
 						if actionInfo ~= nil then
 							removeButton:SetClass("hidden", true)
+							--Hide by default; the queued-Take-Roll branch below re-shows it.
+							waitingLabel:SetClass("hidden", true)
 							if actionInfo.status == 'dialog' then
 								if actionInfo.userid ~= nil then
 									element.text = string.format("%s is preparing to roll...", dmhub.GetDisplayName(actionInfo.userid))
@@ -1695,6 +2000,13 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 								element.text = 'Waiting...'
 								if againButton ~= nil then
 									againButton:FireEvent("takeroll", true)
+								end
+
+								--The DM took this roll (forceuserid is them) but it has
+								--not been shown yet -- it is queued behind another dialog.
+								--Surface that beside the button so the click reads as acted on.
+								if actionInfo.forceuserid == dmhub.loginUserid then
+									waitingLabel:SetClass("hidden", false)
 								end
 							end
 						end
@@ -1772,6 +2084,8 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 				againButton,
 
 				removeButton,
+
+				waitingLabel,
 			}
 
 			resultsPanels[#resultsPanels+1] = panel
@@ -1783,9 +2097,64 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
     end
 
 	local resultPanelScroll = gui.Panel{
-		classes = {'result-panel-scroll'},
+		classes = {"resultPanelScroll", "bordered"},
+		halign = "center",
+		pad = 8,
 		vscroll = true,
 		children = resultsPanels,
+
+		styles = ThemeEngine.MergeTokens({
+			{
+				selectors = {"resultPanelScroll"},
+				width = "94%",
+				height = 340,
+				valign = "center",
+				flow = "vertical",
+			},
+			{
+				selectors = {"resultPanel"},
+				flow = "horizontal",
+				width = "100%",
+				height = 70,
+				valign = "top",
+			},
+			{
+				selectors = {"resultStatusLabel"},
+				width = 80,
+				textAlignment = "left",
+				halign = "left",
+				valign = "center",
+			},
+			{
+				selectors = {"resultOutcomeLabel"},
+				-- fontSize = 14,
+				-- color = "@fgStrong",
+				width = 100,
+				lmargin = 12,
+				textAlignment = "left",
+				height = "auto",
+				halign = "left",
+				valign = "center",
+			},
+			{
+				selectors = {"resultConsequencesTable"},
+				width = 140,
+				flow = "vertical",
+				height = "auto",
+				valign = "center",
+			},
+			{
+				selectors = {"consequenceLabel"},
+				width = 140,
+				fontSize = 14,
+				color = "@danger",
+				height = "auto",
+			},
+			{
+				selectors = {"consequenceLabel", "avoided"},
+				color = "@fgMuted",
+			},
+		}),
 
 		monitorGame = "/actionRequests",
 

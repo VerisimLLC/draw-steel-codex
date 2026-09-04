@@ -4,3 +4,10 @@
 --- @field wallParallax number 
 --- @field previewSpriteRect any 
 WallAsset = {}
+
+--- TryGetMarkupColor
+--- @param color any
+--- @return boolean
+function WallAsset:TryGetMarkupColor(color)
+	-- dummy implementation for documentation purposes only
+end

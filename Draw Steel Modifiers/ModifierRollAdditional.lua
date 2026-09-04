@@ -63,6 +63,7 @@ CharacterModifier.TypeInfo.powertableadditional = {
             }
 
             children[#children+1] = gui.Check{
+                styles = ThemeEngine.GetStyles(),
                 classes = { "formCheck" },
                 text = "Go before existing modifier",
                 value = modifier.additionalModifier:try_get("gobefore", false),

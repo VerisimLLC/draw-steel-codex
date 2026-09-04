@@ -104,7 +104,7 @@ function ActivatedAbilityInitiativeBehavior:Cast(ability, casterToken, targets, 
                             local speed = token.properties:CurrentMovementSpeed()
                             if speed > 0 then
                                 token.properties.moveDistance = speed
-                                token.properties.moveDistanceRoundId = q:GetRoundId()
+                                token.properties.moveDistanceRoundId = q:GetTurnId()
                             end
                         end,
                     }

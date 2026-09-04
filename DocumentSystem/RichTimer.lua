@@ -18,9 +18,6 @@ function RichTimer.CreateDisplay(self)
     local clicks = self.clicks
     
     resultPanel = gui.Panel {
-
-        bgimage = true,
-        bgcolor = "clear",
         width = 100,
         height = 100,
         halign = "left",

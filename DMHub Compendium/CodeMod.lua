@@ -56,12 +56,11 @@ CreateEditor = function(panelArgs)
 	local sortby = dmhub.GetSettingValue("codemodsorting")
 
 	local permissionsPanel = gui.Label{
+		classes = {"sizeM"},
 		text = "",
 		width = "auto",
 		height = "auto",
 		valign = "top",
-		fontSize = 16,
-		color = "white",
 		maxWidth = 600,
 
 		refreshMod = function(element)
@@ -78,7 +77,8 @@ CreateEditor = function(panelArgs)
 	}
 
 	local devSettingsButton = gui.Button{
-		fontSize = 14,
+		classes = {"sizeM"},
+		width = 160,
 		text = "Dev Settings",
 		click = function(element)
 			code.UserEditCodeDevConfig()
@@ -98,10 +98,10 @@ CreateEditor = function(panelArgs)
     }
 
     local gitStatusLabel = gui.Label{
+        classes = {"sizeS"},
         width = "auto",
         height = "auto",
         hmargin = 8,
-        fontSize = 14,
         valign = "center",
         refreshMod = function(element)
             if mod.isUsingGit then
@@ -113,13 +113,13 @@ CreateEditor = function(panelArgs)
     }
 
 	local idPanel = gui.Panel{
-		classes = {"formPanel"},
+		classes = {"formStackedRow"},
 		gui.Label{
 			text = "ModID:",
-			classes = {"formLabel"},
+			classes = {"formStacked"},
 		},
 		gui.Input{
-			classes = {"formInput"},
+			classes = {"formStacked"},
 			editable = false,
 			refreshMod = function(element)
 				element.text = mod.modid
@@ -128,13 +128,13 @@ CreateEditor = function(panelArgs)
 	}
 
 	local namePanel = gui.Panel{
-		classes = {"formPanel"},
+		classes = {"formStackedRow"},
 		gui.Label{
 			text = "Name:",
-			classes = {"formLabel"},
+			classes = {"formStacked"},
 		},
 		gui.Input{
-			classes = {"formInput"},
+			classes = {"formStacked"},
 			change = function(element)
 				mod.name = element.text
 				mod:Upload()
@@ -146,17 +146,17 @@ CreateEditor = function(panelArgs)
 	}
 
 	local descriptionPanel = gui.Panel{
-		classes = {"formPanel"},
+		classes = {"formStackedRow"},
 		gui.Label{
 			text = "Description:",
-			classes = {"formLabel"},
+			classes = {"formStacked"},
 		},
 		gui.Input{
-			classes = {"formInput"},
+			classes = {"formStacked"},
 			multiline = true,
-			width = 600,
 			height = "auto",
 			minHeight = 100,
+			textAlignment = "topLeft",
 			change = function(element)
 				mod.description = element.text
 				mod:Upload()
@@ -168,110 +168,58 @@ CreateEditor = function(panelArgs)
 		},
 	}
 
-	local addDependencyDropdown = gui.Dropdown{
-		width = 240,
-		height = 30,
-		fontSize = 16,
-        sort = true,
-        
-		refreshMod = function(element)
-			local options = {
-				{
-					id = "none",
-					text = "Add Dependency...",
-				}
-			}
-
-			local dependencies = mod.dependencies
-
-			local modsLoaded = code.loadedMods
-			for _,modid in pairs(modsLoaded) do
-				if modid ~= mod.modid and not list_contains(dependencies, modid) then
-					local dependencyMod = code.GetMod(modid)
-					options[#options+1] = {
-						id = dependencyMod.modid,
-						text = dependencyMod.name,
-					}
-				end
-			end
-
-			element.options = options
-
-			element.idChosen = "none"
-
-			element:SetClass("collapsed", #options == 1)
-		end,
-
-		change = function(element)
-			if element.idChosen ~= "none" then
-				local dependencies = mod.dependencies
-				dependencies[#dependencies+1] = element.idChosen
-				mod.dependencies = dependencies
-                mod:Upload()
-
-				element.parent:FireEventTree("refreshMod")
-			end
-		end,
-	}
-
-	local dependenciesToPanels = {}
-
 	local dependenciesPanel = gui.Panel{
-		flow = "vertical",
-		width = "auto",
-		height = "auto",
-		addDependencyDropdown,
+		classes = {"formStackedRow"},
+		gui.Label{
+			classes = {"formStacked"},
+			text = "Dependencies:",
+		},
+		--gui.Multiselect captures options/value at construction, so rebuild it
+		--each time the selected mod changes (refreshMod) with that mod's
+		--available dependencies + currently-selected set.
+		gui.Panel{
+			classes = {"formStacked"},
+			height = "auto",
+			refreshMod = function(element)
+				local options = {}
+				for _,modid in pairs(code.loadedMods) do
+					if modid ~= mod.modid then
+						local dependencyMod = code.GetMod(modid)
+						if dependencyMod ~= nil then
+							options[#options+1] = {
+								id = dependencyMod.modid,
+								text = dependencyMod.name,
+							}
+						end
+					end
+				end
 
-		refreshMod = function(element)
-			local children = {}
+				local value = {}
+				for _,dependencyid in ipairs(mod.dependencies) do
+					value[dependencyid] = true
+				end
 
-            local newDependenciesToPanels = {}
-
-			for _,dependencyid in ipairs(mod.dependencies) do
-				local panel = newDependenciesToPanels[dependencyid] or gui.Panel{
-					width = "auto",
-					height = "auto",
-					flow = "horizontal",
-					vmargin = 4,
-					gui.Label{
-						fontSize = 14,
-						width = "auto",
-						height = "auto",
-						valign = "center",
-						minWidth = 220,
-						text = code.GetMod(dependencyid).name,
-					},
-
-					gui.DeleteItemButton{
-						width = 16,
-						height = 16,
-						click = function(element)
-                            local dependencies = mod.dependencies
-                            local newDependencies = {}
-                            for _,d in ipairs(dependencies) do
-                                if d ~= dependencyid then
-                                    newDependencies[#newDependencies+1] = d
-                                end
-                            end
-                            mod.dependencies = newDependencies
-                            mod:Upload()
-
+				element.children = {
+					gui.Multiselect{
+						addItemText = "Add Dependency...",
+						options = options,
+						value = value,
+						change = function(el, val)
+							local newDependencies = {}
+							for id,_ in pairs(val) do
+								newDependencies[#newDependencies+1] = id
+							end
+							mod.dependencies = newDependencies
+							mod:Upload()
 						end,
 					},
 				}
-
-				newDependenciesToPanels[dependencyid] = panel
-				children[#children+1] = panel
-			end
-
-            dependenciesToPanels = newDependenciesToPanels
-			children[#children+1] = addDependencyDropdown
-
-			element.children = children
-		end,
+			end,
+		},
 	}
 
-	local addFileButton = gui.AddButton{
+	local addFileButton = gui.Button{
+		classes = {"addButton"},
 		halign = "left",
 		click = function(element)
 			mod:AddFile()
@@ -286,26 +234,6 @@ CreateEditor = function(panelArgs)
 		width = "100%",
 		height = "auto",
 		flow = "vertical",
-		styles = {
-			{
-				selectors = {"label", "~button"},
-				fontSize = 14,
-				color = "white",
-				height = "auto",
-				valign = "center",
-				hmargin = 8,
-			},
-			{
-				selectors = {"fileEntry", "drag-target"},
-				borderWidth = 1,
-				borderColor = "#ffffff66",
-			},
-			{
-				selectors = {"fileEntry", "drag-target-hover"},
-				borderWidth = 2,
-				borderColor = "#ffffffff",
-			},
-		},
 		addFileButton,
 		refreshMod = function(element)
 			local newFilePanels = {}
@@ -346,8 +274,7 @@ CreateEditor = function(panelArgs)
 
 					--the header.
 					gui.Panel{
-						classes = {"fileEntry"},
-						bgimage = "panels/square.png",
+						classes = {"row", "fileEntry", "sizeL"},
 						dragTarget = true,
 						
 						data = {
@@ -366,6 +293,110 @@ CreateEditor = function(panelArgs)
 							printf("REORDER: %d -> %d", element.data.ord, target.data.ord)
 							mod:ReorderFiles(element.data.ord, target.data.ord)
 							mod:Upload()
+						end,
+
+						rightClick = function(element)
+							if not mod.canedit then
+								return
+							end
+
+							--the enclosing filerow panel; captured now so the delete
+							--handler can clear expandedPanel if this row was expanded.
+							local rowPanel = element.parent
+
+							element.popup = gui.ContextMenu{
+								width = 300,
+								entries = {
+									{
+										text = "Delete from Module...",
+										click = function()
+											local numRevisions = f.numRevisions
+											local message
+											if numRevisions > 1 then
+												local firstDate = dmhub.FormatTimestamp(f.revisions[1].timestamp, "yyyy-MM-dd")
+												message = string.format("You are about to permanently delete <b>%s.lua</b> from this module, destroying its entire revision history: <b>%d revisions</b> dating back to %s. None of those revisions will be recoverable. Any local or git working copy of the file will also be deleted from disk.", f.name, numRevisions, firstDate)
+											else
+												message = string.format("You are about to permanently delete <b>%s.lua</b> from this module. Any local or git working copy of the file will also be deleted from disk. This cannot be undone.", f.name)
+											end
+
+											--files with a long history get an extra gate:
+											--the name must be typed back to confirm.
+											local confirmInput = nil
+											local messagePanel = nil
+											if numRevisions >= 5 then
+												message = message .. string.format("\n\nThis file has a long history. If you are absolutely sure, type its name (%s) below to confirm.", f.name)
+												confirmInput = gui.Input{
+													width = 300,
+													height = 24,
+													halign = "center",
+													vmargin = 8,
+													placeholderText = "Type the file name to confirm",
+												}
+												messagePanel = gui.Panel{
+													width = "90%",
+													height = "auto",
+													halign = "center",
+													flow = "vertical",
+													gui.Label{
+														classes = {"modalMessage"},
+														text = message,
+													},
+													confirmInput,
+												}
+											end
+
+											local modalArgs = {
+												title = string.format("Delete %s.lua?", f.name),
+												panel = messagePanel,
+												options = {
+													{
+														text = "Cancel",
+														execute = function() end,
+													},
+													{
+														text = "Delete Forever",
+														execute = function()
+															if confirmInput ~= nil then
+																local typed = string.gsub(confirmInput.text or "", "^%s*(.-)%s*$", "%1")
+																if string.lower(typed) ~= string.lower(f.name) then
+																	gui.ModalMessage{
+																		title = "Nothing Deleted",
+																		message = "The name you typed did not match, so the file was not deleted.",
+																	}
+																	return
+																end
+															end
+
+															if mod:DeleteFile(f) then
+																if expandedPanel == rowPanel then
+																	expandedPanel = nil
+																end
+
+																--destroy the row now so refreshMod never fires on
+																--panels whose handlers read the deleted (invalid) file.
+																if rowPanel ~= nil and rowPanel.valid then
+																	rowPanel:DestroySelf()
+																end
+																resultPanel:FireEventTree("refreshMod")
+															end
+														end,
+													},
+												},
+											}
+
+											if messagePanel == nil then
+												modalArgs.message = message
+											end
+
+											gui.ModalMessage(modalArgs)
+										end,
+									},
+								},
+
+								click = function()
+									element.popup = nil
+								end,
+							}
 						end,
 
 						gui.Label{
@@ -404,7 +435,7 @@ CreateEditor = function(panelArgs)
 						},
 
 						gui.Button{
-							classes = {"tiny"},
+							classes = {"sizeXs"},
 							text = "Edit",
 							valign = "center",
 							create = function(element)
@@ -433,7 +464,7 @@ CreateEditor = function(panelArgs)
 						},
 
 						gui.Button{
-							classes = {"tiny"},
+							classes = {"sizeXs"},
 							text = "Merge",
 							valign = "center",
 							create = function(element)
@@ -467,7 +498,7 @@ CreateEditor = function(panelArgs)
 						},
 
                         gui.Button{
-							classes = {"tiny", "collapsed"},
+							classes = {"sizeXs", "collapsed"},
 							text = "Accept Merge",
 							valign = "center",
                             merging = function(element)
@@ -549,8 +580,7 @@ CreateEditor = function(panelArgs)
 
 							for i,rev in ipairs(revisions) do
 								local p = revisionPanels[i] or gui.Panel{
-									classes = {"revisionPanel"},
-									bgimage = "panels/square.png",
+									classes = {"row", "revisionPanel"},
 
 									rightClick = function(element)
 										element.popup = gui.ContextMenu{
@@ -573,24 +603,23 @@ CreateEditor = function(panelArgs)
 									gui.Panel{
 										classes = {"revisionHeader"},
 										gui.Label{
+											classes = {"sizeS"},
 											width = 200,
 											height = "auto",
-											fontSize = 14,
 											text = dmhub.FormatTimestamp(rev.timestamp, "yyyy-MM-dd HH:mm"),
 										},
 
 										gui.Label{
+											classes = {"sizeS"},
 											width = 80,
 											height = "auto",
-											fontSize = 14,
 											text = string.format("#%d", i)
 										},
 
 										gui.Button{
-											classes = {cond(i == 1, "hidden")},
+											classes = {cond(i == 1, "hidden"), "sizeXs"},
 											width = 40,
 											height = 16,
-											fontSize = 12,
 											text = "Diff",
 											click = function(element)
 
@@ -606,9 +635,9 @@ CreateEditor = function(panelArgs)
 										},
 
 										gui.Label{
+											classes = {"sizeS"},
 											width = 140,
 											height = "auto",
-											fontSize = 14,
 											text = rev.engineVersion,
 										},
 									},
@@ -628,30 +657,29 @@ CreateEditor = function(panelArgs)
 
 							if f.hasLocalChanges then
 								local p = revisionPanels["local"] or gui.Panel{
-									classes = {"revisionPanel"},
-									bgimage = "panels/square.png",
+									classes = {"row", "revisionPanel"},
 									minHeight = 30,
 
 									gui.Panel{
 										classes = {"revisionHeader"},
 										gui.Label{
+											classes = {"sizeS"},
 											width = 200,
 											height = "auto",
-											fontSize = 14,
 											text = "Unsubmitted",
 										},
 
 										gui.Label{
+											classes = {"sizeS"},
 											width = 140,
 											height = "auto",
-											fontSize = 14,
 											text = string.format("#%d*", #revisions+1)
 										},
 
 										gui.Button{
+											classes = {"sizeXs"},
 											width = 40,
 											height = 16,
-											fontSize = 12,
 											text = "Diff",
 											click = function(element)
 												printf("DIFF:: STARTING")
@@ -695,6 +723,16 @@ CreateEditor = function(panelArgs)
 				table.sort(rows, function(a,b) return a.data.file.name < b.data.file.name end)
 			end
 
+			-- Zebra-stripe each file row's header (fileEntry) using the theme's
+			-- evenRow/oddRow rules. Done after sort so stripes follow final order.
+			for j, row in ipairs(rows) do
+				local fileEntry = row.children and row.children[1]
+				if fileEntry then
+					fileEntry:SetClass("evenRow", j % 2 == 0)
+					fileEntry:SetClass("oddRow",  j % 2 == 1)
+				end
+			end
+
 			rows[#rows+1] = addFileButton
 
 			filePanels = newFilePanels
@@ -732,57 +770,55 @@ CreateEditor = function(panelArgs)
 					width = "auto",
 					height = "auto",
 
+					--the header (inline so it's always children[1], available
+					--for post-sort zebra striping by the parent table).
+					gui.Panel{
+						classes = {"row", "fileEntry", "sizeS"},
+						click = function(element)
+							local siblings = element.parent.children
+							for i = 2, #siblings do
+								siblings[i]:SetClass("collapsed", not siblings[i]:HasClass("collapsed"))
+							end
+						end,
+
+						gui.Label{
+							classes = {"fileName", "fileEntry"},
+							halign = "left",
+							width = 340,
+							textOverflow = "ellipsis",
+							text = changelist.comment,
+						},
+
+						gui.Label{
+							classes = {"fileName", "fileEntry"},
+							halign = "left",
+							width = 160,
+							text = dmhub.FormatTimestamp(changelist.timestamp, "yyyy-MM-dd HH:mm")
+						},
+
+						gui.Label{
+							classes = {"fileName", "fileEntry"},
+							halign = "left",
+							width = 160,
+							text = changelist.engineVersion,
+						},
+
+                        gui.Label{
+                            classes = {"fileName", "fileEntry"},
+							halign = "left",
+                            lmargin = 8,
+							width = 360,
+							text = changelist.guid,
+                        },
+					},
+
 					create = function(element)
-						local children = {}
-
-						children[#children+1] = 
-							gui.Panel{
-								classes = {"fileEntry"},
-								bgimage = "panels/square.png",
-								click = function(element)
-									for i=2,#children do
-										children[i]:SetClass("collapsed", not children[i]:HasClass("collapsed"))
-									end
-								end,
-
-								gui.Label{
-									classes = {"fileName", "fileEntry"},
-									halign = "left",
-									width = 340,
-									fontSize = 14,
-									textOverflow = "ellipsis",
-									text = changelist.comment,
-								},
-
-								gui.Label{
-									classes = {"fileName", "fileEntry"},
-									halign = "left",
-									width = 160,
-									fontSize = 14,
-									text = dmhub.FormatTimestamp(changelist.timestamp, "yyyy-MM-dd HH:mm")
-								},
-
-								gui.Label{
-									classes = {"fileName", "fileEntry"},
-									halign = "left",
-									width = 160,
-									fontSize = 14,
-									text = changelist.engineVersion,
-								},
-
-                                gui.Label{
-                                    classes = {"fileName", "fileEntry"},
-									halign = "left",
-                                    lmargin = 8,
-									width = 360,
-									fontSize = 14,
-									text = changelist.guid,
-                                }
-							}
-						
+						--Preserve the inline-constructed header at children[1]
+						--and append one collapsed row per file in the changelist.
+						local newChildren = { element.children[1] }
 						for _,fname in ipairs(changelist.files) do
-							children[#children+1] = gui.Panel{
-								classes = {"fileEntry", "collapsed"},
+							newChildren[#newChildren+1] = gui.Panel{
+								classes = {"fileEntry", "collapsed", "sizeS"},
 								gui.Panel{
 									--padding.
 									width = 40,
@@ -792,14 +828,13 @@ CreateEditor = function(panelArgs)
 									classes = {"fileName", "fileEntry"},
 									halign = "left",
 									width = 340,
-									fontSize = 14,
 									textOverflow = "ellipsis",
 									text = fname,
 								},
 							}
 						end
 
-						element.children = children
+						element.children = newChildren
 					end,
 
 				}
@@ -810,14 +845,25 @@ CreateEditor = function(panelArgs)
 
 			table.sort(children, function(a,b) return a.data.changelist.timestamp > b.data.changelist.timestamp end)
 
+			-- Zebra-stripe each changelist's header (children[1] of the filerow)
+			-- using the theme's evenRow/oddRow rules. Done after sort so stripes
+			-- follow final order.
+			for j, entry in ipairs(children) do
+				local fileEntry = entry.children and entry.children[1]
+				if fileEntry then
+					fileEntry:SetClass("evenRow", j % 2 == 0)
+					fileEntry:SetClass("oddRow",  j % 2 == 1)
+				end
+			end
+
 			element.children = children
 
 			changelistEntries = newChangelistEntries
 		end,
 	}
 
-	local checkoutButton = gui.PrettyButton{
-		fontSize = 18,
+	local checkoutButton = gui.Button{
+		classes = {"sizeL"},
 		text = "Check Out Code",
 		click = function(element)
 			--force developer mode on.
@@ -855,7 +901,7 @@ CreateEditor = function(panelArgs)
 		multiline = true,
 		minHeight = 60,
 		characterLimit = 256,
-		textAlignment = "topleft",
+		textAlignment = "topLeft",
 		placeholderText = "Describe your changes...",
 		refreshMod = function(element)
 			element.placeholderText = cond(submitPatch, "Write patch notes...", "Describe your changes...")
@@ -877,6 +923,7 @@ CreateEditor = function(panelArgs)
 		width = 160,
 		height = 24,
 		halign = "left",
+		lmargin = 8,
 		text = dmhub.version,
 	}
 
@@ -885,8 +932,8 @@ CreateEditor = function(panelArgs)
         width = "auto",
         height = "auto",
         gui.Label{
+            classes = {"sizeS"},
             text = "Engine Version:",
-            fontSize = 14,
             width = "auto",
             height = "auto",
             valign = "center",
@@ -895,9 +942,8 @@ CreateEditor = function(panelArgs)
     }
 
     cannotCheckinText = gui.Label{
-        classes = {"collapsed"},
+        classes = {"collapsed", "sizeL"},
         vmargin = 4,
-        fontSize = 18,
         width = "auto",
         height = "auto",
         maxWidth = 800,
@@ -924,7 +970,8 @@ CreateEditor = function(panelArgs)
     }
 
 	checkinButton = gui.Button{
-		fontSize = 18,
+		classes = {"sizeL"},
+        width = 220,
 		text = "Check In Code",
 		click = function(element)
             local mergingRequired = false
@@ -1016,8 +1063,8 @@ CreateEditor = function(panelArgs)
 		end,
 	}
 
-	patchButton = gui.PrettyButton{
-		fontSize = 18,
+	patchButton = gui.Button{
+		classes = {"sizeL"},
 		text = "Submit Patch",
 		click = function(element)
 
@@ -1033,8 +1080,8 @@ CreateEditor = function(panelArgs)
 	}
 
 
-	local editModButton = gui.PrettyButton{
-		fontSize = 18,
+	local editModButton = gui.Button{
+		classes = {"sizeL"},
 		halign = "left",
 		text = "Open Code Folder",
 		click = function(element)
@@ -1045,8 +1092,8 @@ CreateEditor = function(panelArgs)
 		end,
 	}
 
-	local revertButton = gui.PrettyButton{
-		fontSize = 18,
+	local revertButton = gui.Button{
+		classes = {"sizeL"},
 		halign = "left",
 		text = "Revert Changes",
 		click = function(element)
@@ -1093,24 +1140,23 @@ CreateEditor = function(panelArgs)
 						flow = "horizontal",
 
 						gui.Label{
+							classes = {"sizeS"},
 							text = patch.ownerName,
 							width = 240,
 							height = "auto",
-							fontSize = 14,
 						},
 
 						gui.Label{
+							classes = {"sizeXs"},
 							text = DescribeServerTimestamp(patch.timestamp),
 							width = 160,
 							height = "auto",
-							fontSize = 12,
 						},
 
 						gui.Button{
-							classes = {cond(mod.checkedout, "hidden")},
+							classes = {cond(mod.checkedout, "hidden"), "sizeXs"},
 							width = 70,
 							height = 16,
-							fontSize = 12,
 							hmargin = 4,
 							text = "Check Out",
 							refreshMod = function(element)
@@ -1128,8 +1174,8 @@ CreateEditor = function(panelArgs)
 						},
 
 						gui.Label{
+							classes = {"sizeXs"},
 							text = patch.comment,
-							fontSize = 12,
 							width = 300,
 							height = "auto",
 						},
@@ -1173,8 +1219,8 @@ CreateEditor = function(panelArgs)
 	}
 
 	local searchCaseCheck = gui.Check{
+		classes = {"sizeXxs"},
 		height = 14,
-		fontSize = 10,
 		text = "Match Case",
         minWidth = 0,
 		value = not g_searchInsensitiveSetting:Get(),
@@ -1185,9 +1231,9 @@ CreateEditor = function(panelArgs)
 	}
 
 	local searchWholeWordCheck = gui.Check{
+		classes = {"sizeXxs"},
         text = "Whole Word",
 		height = 14,
-		fontSize = 10,
         minWidth = 0,
 		value = g_searchWholeWordSetting:Get(),
 		change = function(element)
@@ -1197,9 +1243,9 @@ CreateEditor = function(panelArgs)
 	}
 
 	local searchRegexCheck = gui.Check{
+		classes = {"sizeXxs"},
         text = "Regex",
 		height = 14,
-		fontSize = 10,
         minWidth = 0,
 		value = g_searchRegexSetting:Get(),
 		change = function(element)
@@ -1212,14 +1258,18 @@ CreateEditor = function(panelArgs)
         flow = "horizontal",
         width = "auto",
         height = "auto",
+		vmargin = 12,
         searchCaseCheck,
         searchWholeWordCheck,
         searchRegexCheck,
     }
 
-	local searchInput = gui.Input{
+	--the canonical search field; look comes from DefaultStyles'
+	--searchInput rules.
+	local searchInput = gui.SearchInput{
 		placeholderText = "Search...",
 		text = "",
+		borderBox = true,
 		halign = "left",
 		valign = "top",
 		editlag = 0.25,
@@ -1247,11 +1297,11 @@ CreateEditor = function(panelArgs)
 			},
 		},
 
+		classes = {"sizeM"},
 		idChosen = sortby,
 		hmargin = 16,
 		width = 240,
 		height = 30,
-		fontSize = 16,
 
 		change = function(element)
 			sortby = element.idChosen
@@ -1276,8 +1326,9 @@ CreateEditor = function(panelArgs)
 	}
 
 	local codePanel = gui.Panel{
+		classes = {"featureCardBody"},
 		flow = "vertical",
-		width = "auto",
+		width = "96%",
 		height = "auto",
 		valign = "top",
 		searchAndOrderingPanel,
@@ -1285,9 +1336,9 @@ CreateEditor = function(panelArgs)
 	}
 
 	local changesPanel = gui.Panel{
-		classes = {"collapsed"},
+		classes = {"collapsed", "featureCardBody"},
 		flow = "vertical",
-		width = "auto",
+		width = "96%",
 		height = "auto",
 		valign = "top",
 		changelistTable,
@@ -1305,7 +1356,8 @@ CreateEditor = function(panelArgs)
 	end
 
 	local imageRows = {}
-	local addImageButton = gui.AddButton{
+	local addImageButton = gui.Button{
+		classes = {"addButton"},
 		click = function()
 			local imageSeq = 1
 			while resourceNameUsed(string.format("image%d", imageSeq)) do
@@ -1321,9 +1373,9 @@ CreateEditor = function(panelArgs)
 	}
 
 	local imagesPanel = gui.Panel{
-		classes = {"collapsed"},
+		classes = {"collapsed", "featureCardBody"},
 		flow = "vertical",
-		width = 1200,
+		width = "96%",
 		height = "auto",
 
 		addImageButton,
@@ -1335,45 +1387,48 @@ CreateEditor = function(panelArgs)
 			for i,resource in ipairs(mod.resources) do
 				local panel = imageRows[resource.guid] or gui.Panel{
 					flow = "horizontal",
-					width = 600,
-					height = 80,
-					gui.Label{
-						hmargin = 8,
-						fontSize = 16,
-						width = 140,
-						height = "auto",
-						text = "Name:",
-						halign = "left",
-					},
-
-					gui.Input{
-						width = 200,
-						fontSize = 16,
-						height = 20,
-						text = resource.name,
-						change = function(element)
-							element.text = trim(element.text)
-							local valid = element.text ~= ""
-							for _,otherResource in ipairs(mod.resources) do
-								if otherResource.guid ~= resource.guid and otherResource.name == element.text then
-									valid = false
+					width = "auto",
+					height = "auto",
+					valign = "center",
+					vmargin = 4,
+					gui.Panel{
+						classes = {"formStackedRow"},
+						width = 300,
+						valign = "center",
+						gui.Label{
+							classes = {"formStacked"},
+							text = "Name:",
+						},
+						gui.Input{
+							classes = {"formStacked"},
+							text = resource.name,
+							change = function(element)
+								element.text = trim(element.text)
+								local valid = element.text ~= ""
+								for _,otherResource in ipairs(mod.resources) do
+									if otherResource.guid ~= resource.guid and otherResource.name == element.text then
+										valid = false
+									end
 								end
-							end
 
-							if valid then
-								resource.name = element.text
-								mod:Upload()
-							else
-								element.text = resource.name
-							end
-						end,
+								if valid then
+									resource.name = element.text
+									mod:Upload()
+								else
+									element.text = resource.name
+								end
+							end,
+						},
 					},
 
 					gui.IconEditor{
+						classes = {"bordered"},
 						library = "resources",
 						width = 64,
 						height = 64,
-						halign = "right",
+						halign = "left",
+						valign = "center",
+						hmargin = 12,
 						value = resource.assetGuid,
 						change = function(element)
 							resource.assetGuid = element.value
@@ -1397,9 +1452,8 @@ CreateEditor = function(panelArgs)
 	local CreateTabHeading = function(text, panel)
 		return gui.Label{
 			classes = {"tab", cond(panel:HasClass("collapsed"), nil, "selected")},
-			bgimage = "panels/square.png",
 			text = text,
-			click = function(element)
+			press = function(element)
 				for _,el in ipairs(element.parent.children) do
 					el:FireEvent("selected", el == element)
 				end
@@ -1414,39 +1468,11 @@ CreateEditor = function(panelArgs)
 	end
 
 	local tabHeading = gui.Panel{
-		styles = {
-			{
-				selectors = {"tab"},
-				width = 180,
-				height = "auto",
-				textAlignment = "left",
-				halign = "left",
-				fontSize = 20,
-				hmargin = 20,
-				color = "#999999",
-				bgcolor = "clear",
-			},
-			{
-				selectors = {"tab", "hover"},
-				color = "#cccccc",
-			},
-			{
-				selectors = {"tab", "press"},
-				color = "#777777",
-			},
-			{
-				selectors = {"tab", "selected"},
-				color = "white",
-				transitionTime = 0.2,
-				bgcolor = "#ff000044",
-			},
-		},
-		width = "auto",
-		height = "auto",
+		classes = {"tabBar"},
+		width = "96%",
 		halign = "left",
 		valign = "top",
-		vmargin = 12,
-		flow = "horizontal",
+		tmargin = 12,
 		CreateTabHeading("Code", codePanel),
 		CreateTabHeading("Changes", changesPanel),
 		CreateTabHeading("Images", imagesPanel),
@@ -1456,26 +1482,32 @@ CreateEditor = function(panelArgs)
 	errorPanel = gui.Panel{
 		flow = "vertical",
 		vscroll = true,
-		width = "90%",
+		width = "96%",
 		height = "20%",
 		halign = "left",
 		create = function(element)
 			code.logEvent:Listen(element)
 		end,
 		log = function(element, str, color)
-			color = color or "white"
 			element:AddChild(gui.Label{
+				classes = {"sizeS"},
 				text = str,
 				width = "100%-16",
 				height = "auto",
 				halign = "center",
 				textAlignment = "left",
-				fontSize = 14,
 				color = color,
 			})
 		end,
 		error = function(element, str)
-			element:FireEvent("log", "#ff7777")
+			element:AddChild(gui.Label{
+				classes = {"sizeS", "danger"},
+				text = str,
+				width = "100%-16",
+				height = "auto",
+				halign = "center",
+				textAlignment = "left",
+			})
 		end,
 	}
 
@@ -1485,59 +1517,26 @@ CreateEditor = function(panelArgs)
 		flow = "vertical",
 		classes = {"hidden"},
 		styles = {
-			Styles.Form,
-			{
-				selectors = {"formLabel"},
-				halign = "left",
-				valign = "center",
-			},
-			{
-				selectors = {"formInput"},
-				halign = "left",
-				valign = "center",
-			},
-			{
-				selectors = {"fileName"},
-				width = 160,
-				halign = "left",
-				color = "white",
-			},
-			{
-				selectors = {"fileName", "nomatch"},
-				color = "grey",
-				priority = 2,
-			},
+			--layout-only markers (no colors/fonts -- surfaces come from {row});
+			--the one state color uses a theme token so it stays scheme-aware.
 			{
 				selectors = {"fileEntry"},
-				bgcolor = "#333333ff",
-				fontSize = 18,
+				flow = "horizontal",
 				height = 20,
 				width = "100%",
-				flow = "horizontal",
 				textAlignment = "left",
 			},
 			{
-				selectors = {"fileEntry", "hover"},
-				bgcolor = "#883333ff",
-			},
-			{
-				selectors = {"fileEntry", "press"},
-				bgcolor = "#553333ff",
+				selectors = {"nomatch"},
+				color = "@fgMuted",
+				opacity = 0.4,
+				priority = 2,
 			},
 			{
 				selectors = {"revisionPanel"},
-				bgcolor = "black",
 				flow = "vertical",
 				height = "auto",
 				width = "100%",
-			},
-			{
-				selectors = {"revisionPanel", "selected"},
-				bgcolor = "#666600",
-			},
-			{
-				selectors = {"revisionPanel", "hover"},
-				bgcolor = "#880000",
 			},
 			{
 				selectors = {"revisionHeader"},
@@ -1634,8 +1633,8 @@ CreateEditor = function(panelArgs)
                                 height = "auto",
 
                                 gui.Label{
+                                    classes = {"sizeS"},
                                     text = file,
-                                    fontSize = 14,
                                     width = "auto",
                                     height = "auto",
                                     minWidth = 180,
@@ -1643,8 +1642,8 @@ CreateEditor = function(panelArgs)
                                 },
 
                                 gui.Label{
+                                    classes = {"sizeS"},
                                     text = "Not in Mod",
-                                    fontSize = 14,
                                     width = "auto",
                                     height = "auto",
                                     minWidth = 100,
@@ -1652,9 +1651,9 @@ CreateEditor = function(panelArgs)
                                 },
 
                                 gui.Button{
+                                    classes = {"sizeXs"},
                                     halign = "left",
                                     text = "Add to Mod",
-                                    fontSize = 12,
                                     width = 100,
                                     height = 20,
                                     hmargin = 8,
@@ -1707,8 +1706,8 @@ CreateEditor = function(panelArgs)
                                 height = "auto",
 
                                 gui.Label{
+                                    classes = {"sizeS"},
                                     text = file,
-                                    fontSize = 14,
                                     width = "auto",
                                     height = "auto",
                                     minWidth = 180,
@@ -1716,8 +1715,8 @@ CreateEditor = function(panelArgs)
                                 },
 
                                 gui.Label{
+                                    classes = {"sizeS"},
                                     text = "Not in Git",
-                                    fontSize = 14,
                                     width = "auto",
                                     height = "auto",
                                     minWidth = 100,
@@ -1725,9 +1724,9 @@ CreateEditor = function(panelArgs)
                                 },
 
                                 gui.Button{
+                                    classes = {"sizeXs"},
                                     halign = "left",
                                     text = "Add to Mod",
-                                    fontSize = 12,
                                     width = 100,
                                     height = 20,
                                     hmargin = 8,
@@ -1791,26 +1790,13 @@ CreateCodeDiffPanel = function()
 		height = 900,
 
 		styles = {
-			Styles.Panel,
 			{
 				selectors = {"codeline"},
 				width = "95%",
 				height = "auto",
 				halign = "left",
 				hmargin = 4,
-				fontSize = 14,
-				height = "auto",
 				pad = 2,
-				bgimage = "panels/square.png",
-				bgcolor = "black",
-			},
-			{
-				selectors = {"codeline", "delete"},
-				bgcolor = "#770000",
-			},
-			{
-				selectors = {"codeline", "add"},
-				bgcolor = "#007700",
 			},
 		},
 
@@ -1835,7 +1821,7 @@ CreateCodeDiffPanel = function()
 					if entry.common ~= nil then
 						for _,line in ipairs(entry.common) do
 							lines[#lines+1] = gui.Label{
-								classes = {"codeline"},
+								classes = {"codeline", "sizeS"},
 								text = line,
 							}
 						end
@@ -1844,7 +1830,7 @@ CreateCodeDiffPanel = function()
 					if entry.a ~= nil then
 						for _,line in ipairs(entry.a) do
 							lines[#lines+1] = gui.Label{
-								classes = {"codeline", "delete"},
+								classes = {"codeline", "danger", "sizeS"},
 								text = line,
 							}
 						end
@@ -1853,7 +1839,7 @@ CreateCodeDiffPanel = function()
 					if entry.b ~= nil then
 						for _,line in ipairs(entry.b) do
 							lines[#lines+1] = gui.Label{
-								classes = {"codeline", "add"},
+								classes = {"codeline", "success", "sizeS"},
 								text = line,
 							}
 						end
@@ -1865,11 +1851,10 @@ CreateCodeDiffPanel = function()
 			end,
 		},
 
-		gui.CloseButton{
+		gui.Button{
+			classes = {"closeButton"},
 			halign = "right",
 			valign = "top",
-			width = 24,
-			height = 24,
 			hmargin = 8,
 			vmargin = 8,
 			click = function(element)

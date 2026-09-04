@@ -130,8 +130,8 @@ CharacterModifier.TypeInfo.aura = {
 				}
 			}
 
-			children[#children+1] = gui.PrettyButton{
-				width = 200,
+			children[#children+1] = gui.Button{
+				classes = {"sizeL"},
 				height = 50,
 				text = "Edit Aura",
 				click = function(element)

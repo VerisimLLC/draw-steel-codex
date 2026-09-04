@@ -15,3 +15,13 @@ function coroutine.safe_sleep_while(predicate)
         coroutine.yield()
     end
 end
+
+function sleep(seconds)
+    local start = dmhub.Time()
+    local target = start + seconds
+    while dmhub.Time() < target do
+        coroutine.yield()
+    end
+
+    return dmhub.Time() - start
+end

@@ -1,15 +1,113 @@
 --- @class DiceStudioLua Provides the Lua interface for the Dice Studio, allowing creation and customization of dice sets. Admin-only.
 --- @field canSave boolean True if the current dice set has a file and can be saved.
 --- @field uploaded boolean True if the current dice set has been uploaded to the cloud.
+--- @field currentVersion number The version number of the version currently open in the studio.
+--- @field liveVersion number The version number of the loaded set's LIVE version -- the one users of the dice consume.
+--- @field isLiveVersion boolean True when the version currently open in the studio is the set's live version.
+--- @field notes string Artist notes about the current version (the Version Notes box). Saved and uploaded with the version.
+--- @field hasUnsavedChanges boolean True when the studio state differs from the current version's last save. Used to prompt before switching versions or dice sets. False while no set is loaded (or in the brief window before the post-load baseline snapshot is taken).
 --- @field dicePanelStyles table Gets or sets the dice panel style table containing bgcolor, trimcolor, and color fields.
+--- @field displayName string Gets or sets the player-facing display name for this dice set. This is the name shown to end users wherever a dice set is presented (e.g. the 'Dice Set' setting dropdown); it is independent of the internal/authoring name (which identifies the local file and cloud document). An empty string means 'no override -- fall back to the internal name'.
 --- @field font string Gets or sets the font name used for the dice face numbers.
 --- @field fontOptions string[] Gets a list of available font names for dice faces.
 --- @field border string Gets or sets the border style name for the dice. Returns 'None' if no border is set.
 --- @field borderOptions string[] Gets a list of available border style names, including 'None'.
 --- @field customDiceModel string Gets or sets the custom dice 3D model name, or nil if using the default model.
+--- @field script string The custom Lua script attached to this dice set, or an empty string if none. The script runs once per die instance as a sandboxed coroutine and may inspect/modify each die (see DiceInstanceLua). Setting it re-binds any live preview dice so the studio shows the effect immediately.
+--- @field slots table An array of 'slot' tables describing purposes this dice set is suited for (e.g. dealing fire damage, playing a Shadow, or playing an Undead monster). Each entry has a slotType field: 'damage' entries carry a damageType string; 'class' entries carry a classid string and an optional subclassid string; 'monster' entries carry a groupid string (a MonsterGroup table id). Authored in the Dice Studio Slots section; saves and uploads with the set. Owners activate slots from the shop (the diceslotsequipped setting) and the roll dialog skins matching rolls with the activated set (dice.SetRollSlotDice).
+--- @field haloEnabled boolean Whether this dice set draws a glowing outline/halo around each die (see haloColor/haloRadius/haloSoftness/haloIntensity for its look). A dice script can also toggle this per-die via die.halo.
+--- @field haloColor Color The color of the dice outline/halo. HDR: values above 1 make it glow brighter.
+--- @field haloRadius number The thickness of the dice outline/halo in die-local units. 0 == no halo.
+--- @field haloSoftness number Softness of the outline/halo outer edge, 0 (crisp outline) to 1 (soft glow).
+--- @field haloIntensity number HDR brightness multiplier of the outline/halo (higher = glows brighter).
+--- @field rayBurstEnabled boolean Whether this dice set fires a burst of light rays outward past each die's silhouette when it lands. The die's surface material can only draw rays inside the die itself; this carries them into the surrounding area. See rayBurstColor/rayBurstSize/rayBurstDuration/rayBurstIntensity/rayBurstSaturation/rayBurstCount/rayBurstContrast/rayBurstSpeed/rayBurstInnerRadius for its look.
+--- @field rayBurstColor Color The color of the landing ray burst. HDR: values above 1 make it glow brighter.
+--- @field rayBurstSize number How far the landing ray burst reaches, as a multiple of the die's diameter (3 == three dice wide).
+--- @field rayBurstDuration number How long the landing ray burst lasts, in seconds, from flare to fully faded.
+--- @field rayBurstIntensity number HDR brightness multiplier of the landing ray burst (higher = glows brighter).
+--- @field rayBurstSaturation number How much rainbow survives in the landing ray burst, 0 (pure white rays) to 1 (full rainbow).
+--- @field rayBurstCount number How many beams the landing ray burst fans out around the circle.
+--- @field rayBurstContrast number Sharpness of the landing ray burst's beams: low = soft washes of light, high = thin crisp spokes.
+--- @field rayBurstSpeed number How fast the landing ray burst's two beam layers counter-rotate and shimmer. 0 == frozen.
+--- @field rayBurstInnerRadius number How far out the landing ray burst's rays start, as a fraction of its radius, so the die's face stays readable.
+--- @field rayBurstStreaks number Streaky filament texture streaming outward through the landing burst's beams: 0 = clean wedges, 1 = fully smeared fine rays.
+--- @field rayBurstCoreFlash number A soft white-hot flash at the burst's centre during its attack, fading by mid-burst.
+--- @field rayBurstRing number A thin pastel ring that expands with the landing burst's wavefront.
+--- @field mapWarpEnabled boolean Whether each landing die warps the map underneath it, pulling the world image toward the die like a black hole (the die itself stays undistorted on top). See mapWarpStrength/mapWarpRadius/mapWarpSwirl/mapWarpDuration for its feel.
+--- @field mapWarpStrength number How hard the landing warp pulls the map toward the die at its peak (0 = no pull; ~0.35 = a strong visible yank).
+--- @field mapWarpRadius number The landing warp's reach, in multiples of the die's on-screen diameter.
+--- @field mapWarpSwirl number Rotational drag of the landing warp (radians at the centre at peak) -- the map swirls around the die like an accretion disc as it is pulled in. 0 = straight radial pull.
+--- @field mapWarpDuration number How long the landing warp lasts, in seconds, from the initial yank to fully relaxed.
+--- @field mapWarpFlip boolean Reverses the landing warp's direction: the map is shoved outward from the die (mirrored swirl included) instead of sucked into it.
+--- @field infallHaloEnabled boolean Whether each die carries an 'infall halo': the Event Horizon surface material's infalling-light filaments continued past the die's silhouette on a quad behind it, so light streams into the die from the space around it. The filament look (color/speed/twist/softness/reach) mirrors the set's surface material Infall settings automatically. See infallHaloReach/infallHaloBrightness.
+--- @field infallHaloReach number The infall halo's reach: quad size in multiples of the die's diameter.
+--- @field infallHaloBrightness number Brightness multiplier of the infall halo, applied on top of the surface material's Infall Streaks brightness.
+--- @field infallHaloOpacity number Opacity (coverage) multiplier of the infall halo: how solid the filaments read over the map. Brightness only raises their emitted color; this thickens them.
+--- @field trailSpritesEnabled boolean Whether the dice drop procedural trail sprites (petals/stars/sparks/embers/bubbles plus soft haze puffs) along their path while moving. Entirely slider-driven -- see trailShape/trailColorA/trailColorB/trailRate/trailSize/trailSizeVariation/trailLifetime/trailFlutter/trailSpin/trailTwinkle/trailIntensity/trailHaze/trailHazeColor/trailHazeSize.
+--- @field trailShape string The trail sprite shape: 'petal', 'star4', 'star5', 'spark', 'ember', or 'bubble'.
+--- @field trailColorA Color First trail sprite color. Each sprite is born a random blend of trailColorA and trailColorB.
+--- @field trailColorB Color Second trail sprite color. Each sprite is born a random blend of trailColorA and trailColorB.
+--- @field trailRate number Trail sprites emitted per second while the die moves.
+--- @field trailSize number Trail sprite size, as a fraction of the die's diameter.
+--- @field trailSizeVariation number Random variation in trail sprite size: 0 = uniform, 1 = wildly varied.
+--- @field trailLifetime number Seconds a trail sprite lives before fading out (haze puffs live 1.6x this).
+--- @field trailFlutter number Side-to-side petal-fall sway of the trail sprites.
+--- @field trailSpin number How fast trail sprites rotate.
+--- @field trailTwinkle number Per-sprite brightness flicker of the trail.
+--- @field trailGlow number Soft luminous halo around each trail sprite, plus a white-hot HDR core spike on sparks and stars -- the sharp camera-flare sparkle look. 0 = crisp flat shapes.
+--- @field trailIntensity number HDR brightness multiplier of the trail sprites (values above 1 glow/bloom).
+--- @field trailHaze number Opacity of the soft fading haze puffs laid under the trail sprites (0 = no haze).
+--- @field trailHazeColor Color Tint of the trail's soft haze puffs.
+--- @field trailHazeSize number Haze puff size, as a multiple of the trail sprite size.
+--- @field trailHueVariation number Per-sprite random hue shift around the born trail color: 0 = exact colors, 1 = full rainbow.
+--- @field trailFall number Downward drift speed of the trail sprites (0 = they hang in the air where dropped).
+--- @field trailSpread number Trail emission radius around the die, in fractions of its diameter.
+--- @field trail2Enabled boolean Whether a second, independent trail sprite layer is emitted alongside the first (e.g. petals over sparks). It has its own shape/colors/rate/size and shares the motion/glow/lifetime sliders.
+--- @field trail2Shape string The second trail layer's sprite shape: 'petal', 'star4', 'star5', 'spark', 'ember', or 'bubble'.
+--- @field trail2ColorA Color The second trail layer's first color.
+--- @field trail2ColorB Color The second trail layer's second color.
+--- @field trail2Rate number The second trail layer's sprites emitted per second while the die moves.
+--- @field trail2Size number The second trail layer's sprite size, as a fraction of the die's diameter.
+--- @field trail2SizeVariation number The second trail layer's random size variation: 0 = uniform, 1 = wildly varied.
+--- @field trailHazeRate number Haze puffs emitted per second while the die moves (independent of the sprite rates).
+--- @field trailHazeGrowth number How much each haze puff expands over its life, like dissipating smoke (0 = holds its size).
+--- @field trailHazeWisp number Haze wispiness: 0 = smooth round puffs, 1 = fully ragged swirling smoke tendrils.
+--- @field trailHazeLifetime number Haze puff lifetime, as a multiple of the trail lifetime.
+--- @field trailHazeDrift number How fast the haze drifts away from where it was laid down.
+--- @field trailIdle number Trail emission multiplier while the die is at rest: 0 = trails only while moving; higher lets a 'gas' set seep vapor while it sits on the table.
+--- @field trailBurstCount number Number of haze puffs that billow outward in a ring the moment the die settles (0 = no landing burst).
+--- @field trailBurstSpeed number Outward speed of the landing-burst puffs (they bloom fast, then damping makes the cloud hang and dissipate).
+--- @field constellationEnabled boolean Whether this set's dice form a CONSTELLATION: once every one of them has settled (2+ dice on the table), glowing lines trace between them link by link -- a star-chart spanning tree -- shimmer while the dice linger, and fade out with the dice. See constellationColor/constellationWidth/constellationBrightness/constellationDrawTime/constellationPulse.
+--- @field constellationColor Color The constellation lines' color (alpha scales their opacity).
+--- @field constellationWidth number Constellation line thickness, in fractions of the die's diameter.
+--- @field constellationBrightness number HDR brightness multiplier of the constellation lines (values above 1 glow/bloom).
+--- @field constellationDrawTime number Seconds each constellation link takes to trace; links draw one after another.
+--- @field constellationPulse number Shimmer travelling along the constellation lines (0 = steady glow).
+--- @field constellationLoop number How readily the constellation closes its figures with extra links beyond the spanning tree: 0 = pure tree (no loops), 1 = maximally looped, like real star charts closing their polygons.
+--- @field resultLinger number Extra seconds this set's dice linger on the table after a roll before fading (on top of the stock ~3s). Useful for sets whose payoff plays out after landing, e.g. the constellation.
+--- @field billboardEnabled boolean Whether this dice set renders a glowing billboard inside each die: a camera-facing quad drawn behind the die body, so a semi-transparent die reads as having a glow suspended inside it. See billboardImage/billboardColorInner/billboardColorOuter/billboardSize/billboardFalloff/billboardIntensity for its look. A dice script can also toggle this per-die via die.billboard.
+--- @field billboardImage string The image asset id of an artist-supplied billboard glow image, or an empty string to render the procedural radial gradient instead. In image mode the image is tinted by billboardColorInner and its own alpha is its coverage.
+--- @field billboardColorInner Color The billboard gradient's center color (HDR: values above 1 glow brighter). In image mode this tints the image.
+--- @field billboardColorOuter Color The billboard gradient's outer/edge color (HDR). Only used in gradient mode (no image set).
+--- @field billboardSize number The billboard quad's size as a fraction of the die's bounding-box size (1 == die-sized). 0 == effectively off.
+--- @field billboardStretch number Horizontal-only stretch of the billboard quad (1 = square, matching billboardSize in both axes). Values above 1 stretch the quad sideways without growing it vertically -- for image billboards that read as a beam, e.g. a lensing streak reaching out past the die's sides.
+--- @field billboardFalloff number The billboard gradient's falloff exponent (higher = tighter, more concentrated core). Only used in gradient mode.
+--- @field billboardIntensity number HDR brightness multiplier of the billboard glow (higher = glows brighter).
+--- @field specialMovement "none"|"teleport"|"portal" The special movement dice in this set perform during a roll: 'none', 'teleport', or 'portal'. 'teleport' makes a die freeze and jump across the playfield (wrapping at the edges) near the end of its roll. 'portal' spawns a pair of portals on the playfield surfaces when the die is hurled and the die passes through one to emerge from the other. Reconciles with legacy teleporting dice sets.
+--- @field teleporting boolean Deprecated: use specialMovement instead. True iff specialMovement == 'teleport'. Kept so existing UI that toggles teleporting keeps working; setting it true selects 'teleport', false selects 'none'.
+--- @field physicsEnabled boolean Whether this dice set overrides the global dice physics settings with its own per-set 'feel' (see physicsGravity/physicsVelocity/physicsDrag/physicsAngularDrag/physicsBounciness). When false the set rolls with the global dice:* settings.
+--- @field physicsGravity number Per-set gravity multiplier (dice 'heft'); only used when physicsEnabled is true. Higher = the die falls and settles harder. Matches the global dice:gravity default (22) for a plastic feel.
+--- @field physicsVelocity number Per-set launch-velocity scale (throw energy); only used when physicsEnabled is true. Matches the global dice:velocity default (5).
+--- @field physicsDrag number Per-set linear drag (skitter damping); only used when physicsEnabled is true. Higher = the die stops sooner. Matches the global dice:drag default (1.5).
+--- @field physicsAngularDrag number Per-set angular drag (tumble damping); only used when physicsEnabled is true. Higher = the die's spin dies sooner. Matches the global dice:angulardrag default (1).
+--- @field physicsBounciness number Per-set bounciness / restitution (0..1); only used when physicsEnabled is true. Higher = bouncier. Matches the global dice:bounciness default (0.8).
+--- @field teleportVelocity number For teleporting dice: the linear speed at or below which a die's teleport jump triggers (it is then 'almost at a stop').
+--- @field teleportDistance number For teleporting dice: how far the die jumps, as a fraction (0-1) of the playfield width.
+--- @field teleportDuration number For teleporting dice: how long the jump slide takes, in seconds (lower = faster).
+--- @field portalCreationTime number For portal dice: seconds the die must be airborne before its first wall/floor collision passes it through a portal (the first such collision after this window triggers it, once per throw). Also the lead time the portals are shown before the impact.
+--- @field portalFlashPeriod number For portal dice: duration in seconds of the brightness flash a die pulses as it enters a portal. The flash peak is timed to the moment of entry (it begins half this period before impact). 0 disables it.
+--- @field portalFlashIntensity number For portal dice: peak brightness multiplier of the portal-entry flash (1 = no flash).
 --- @field customDiceModelOptions table[] Gets a list of available custom dice model options, each as a table with id and text fields.
---- @field particles table<string, boolean> Gets or sets the active particle system names as a table of name-to-true entries.
---- @field particleOptions string[] Gets a list of available particle system names.
 --- @field curves DiceCurveLua[] Gets or sets the list of dice curve modifiers applied to the dice.
 --- @field allCurveInputs table[] Gets a list of all available curve input types, each as a table with id and text fields.
 --- @field builtinMaterialProperties DiceMaterialStudioProperties Gets the built-in material properties for the dice, initializing from the d20 mesh if needed.
@@ -17,9 +115,13 @@
 --- @field textMaterialProperties DiceMaterialStudioProperties Gets the text material properties used for dice face number rendering.
 --- @field showText boolean Gets or sets whether dice face text/numbers are displayed in the studio.
 --- @field surfaceMaterialName nil|string Gets the name of the current surface material override, or nil if none is set.
+--- @field availableNumberMaterials string[] Gets the list of available numbers-material names (base-shader variants that draw the die numbers, e.g. the star-flood numbers material). Empty when none are registered.
+--- @field numbersMaterialName nil|string Gets or sets the current set's numbers-material name (a base-shader variant for the die numbers, e.g. 'StarfieldNumbersDiceMaterial'), or nil for the stock base.
 --- @field material nil|DiceMaterialLua Gets or sets the surface material override for the dice. Set to nil to clear.
+--- @field hideBaseMaterial boolean Whether the base dice material is hidden entirely so that only the custom surface material is shown. When true, the engraved face numbers and the border cage are not rendered. Has no visible effect unless a surface material is set.
 --- @field finishVideoEffect DiceVideoEffect Gets the video effect played when dice finish rolling.
 --- @field availableMaterials DiceMaterialLua[] Gets a list of all available dice materials.
+--- @field previewScale number Gets or sets the scale of the dice shown in the dice studio preview.
 DiceStudioLua = {}
 
 --- Activate: Activates the Dice Studio view.
@@ -40,27 +142,34 @@ function DiceStudioLua:UpdateMaterial()
 	-- dummy implementation for documentation purposes only
 end
 
---- Save: Saves the current dice set to its existing file.
+--- Save: Saves the current dice set to its existing file. With versioning this writes the current version's snapshot (versions/v{n}/data.json); when the current version is the live one it also refreshes the set root's data.json (the live copy users of the local file see).
 --- @return nil
 function DiceStudioLua:Save()
 	-- dummy implementation for documentation purposes only
 end
 
---- SaveAs: Saves the current dice set to a new file with the given name.
+--- SaveAs: Saves the current dice set to a new file with the given name. The new set starts over at Version 1, which is its live version.
 --- @param name string
 --- @return nil
 function DiceStudioLua:SaveAs(name)
 	-- dummy implementation for documentation purposes only
 end
 
---- Load: Loads a dice set from a local file by name.
+--- New: Creates a brand-new dice set from the Dice Studio defaults and saves it to a new local file with the given name. Unlike SaveAs -- which copies the currently-loaded dice -- New discards the current edits and starts from a clean slate.
+--- @param name string
+--- @return nil
+function DiceStudioLua:New(name)
+	-- dummy implementation for documentation purposes only
+end
+
+--- Load: Loads a dice set from a local file by name. Opens the set's LIVE version; use LoadVersion to open a different version of the loaded set.
 --- @param name string
 --- @return nil
 function DiceStudioLua:Load(name)
 	-- dummy implementation for documentation purposes only
 end
 
---- Upload: Uploads the current dice set to the cloud. The set must have been saved first.
+--- Upload: Uploads the current VERSION of the dice set to the cloud (to /DiceVersions/{id}/v{n}). When the current version is the live one it also updates the players' live doc at /CoreAssetsCurrent/dice/{id}. The set must have been saved first. Throws if the current account is not signed in as an admin.
 --- @return nil
 function DiceStudioLua:Upload()
 	-- dummy implementation for documentation purposes only
@@ -69,6 +178,180 @@ end
 --- GetLocalFiles: Gets a list of locally saved dice set files, each as a table with id and text fields.
 --- @return table
 function DiceStudioLua:GetLocalFiles()
+	-- dummy implementation for documentation purposes only
+end
+
+--- DownloadCloudDice: Downloads an already-uploaded (cloud) dice set by its cloud id and saves it as a local Dice Studio file, so it appears in the local dice list (GetLocalFiles). The local copy keeps the cloud name and id, so editing it and then calling Save/Upload updates the same cloud document. If a local set with the same name already exists it is overwritten. Returns the local name on success, or nil if no uploaded dice has that id.
+--- @param id string  The cloud dice id (guid), e.g. an entry's `id` from dice.GetAllDice().
+--- @return string|nil
+function DiceStudioLua:DownloadCloudDice(id)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetVersions: Lists the loaded set's saved versions, sorted ascending, each as a table with version (number), notes (string), and live (boolean) fields. Empty if no set is loaded.
+--- @return {version: number, notes: string, live: boolean}[]
+function DiceStudioLua:GetVersions()
+	-- dummy implementation for documentation purposes only
+end
+
+--- NewVersion: Creates a new version of the loaded set -- a clone of the studio's current state (including any unsaved edits; the version you were on keeps its last save) -- saves it, and switches the studio to it. The live version is unchanged. Returns the new version number, or 0 if no set is loaded.
+--- @return number
+function DiceStudioLua:NewVersion()
+	-- dummy implementation for documentation purposes only
+end
+
+--- LoadVersion: Loads the given version of the currently-loaded dice set into the studio, discarding any unsaved edits (callers should check hasUnsavedChanges first). No-op with an error log if that version has no saved file.
+--- @param version number
+function DiceStudioLua:LoadVersion(version)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetLive: Makes the version currently open in the studio the set's LIVE version. Saves the version first, updates the local live copy, and -- when the set has been uploaded -- immediately pushes this version to the players' live doc at /CoreAssetsCurrent/dice/{id} (users pick it up on the live-asset push / next app start).
+--- @return nil
+function DiceStudioLua:SetLive()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ValidateScript: Compiles the given dice-script source in the sandbox without running it, returning an empty string if it compiles cleanly or the error message otherwise. Used by the Script editor to show inline status. Does not change the current script.
+--- @param src string
+--- @return string
+function DiceStudioLua:ValidateScript(src)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventEffect: Gets the prefab name currently bound to the given dice lifecycle event. Returns an empty string if nothing is bound.
+--- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail, portal.
+--- @return string
+function DiceStudioLua:GetEventEffect(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetEventEffect: Binds (or clears) a prefab to a dice lifecycle event. Pass nil or an empty string to clear.
+--- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail, portal.
+--- @param effectName string|nil
+function DiceStudioLua:SetEventEffect(eventName, effectName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventEffectOptions: Gets the list of effect prefab names registered as available for the given dice lifecycle event.
+--- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail, portal.
+--- @return string[]
+function DiceStudioLua:GetEventEffectOptions(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventEffectList: Gets the list of effects bound to the given event, in authored order. An event can have several effects, each with its own tunables; each is returned as a DiceEventEffectBindingLua wrapper. Returns an empty list if nothing is bound.
+--- @param eventName string
+--- @return DiceEventEffectBindingLua[]
+function DiceStudioLua:GetEventEffectList(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- AddEventEffect: Adds another effect to the given event and returns its DiceEventEffectBindingLua wrapper (so its tunables can be set). Pass the effect prefab name, or nil/empty to add an unbound slot. Returns nil if the event name is invalid.
+--- @param eventName string
+--- @param effectName string|nil
+--- @return DiceEventEffectBindingLua|nil
+function DiceStudioLua:AddEventEffect(eventName, effectName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- RemoveEventEffect: Removes a single effect (previously obtained from GetEventEffectList/AddEventEffect) from its event. No-op if the binding is not part of the current dice set.
+--- @param binding DiceEventEffectBindingLua
+function DiceStudioLua:RemoveEventEffect(binding)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ClearEventEffects: Removes ALL effects bound to the given event.
+--- @param eventName string
+function DiceStudioLua:ClearEventEffects(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PlayRawBinding: Plays a single bound effect's prefab raw (at world origin, no parenting/layer/transform changes) for debugging its appearance. Takes a DiceEventEffectBindingLua from GetEventEffectList/AddEventEffect.
+--- @param binding DiceEventEffectBindingLua
+function DiceStudioLua:PlayRawBinding(binding)
+	-- dummy implementation for documentation purposes only
+end
+
+--- FirePreviewEffect: Test-fires a dice lifecycle event on all currently spawned studio preview dice. For pulses, instantiates the bound one-shot prefab. For state effects (RollWaiting, TravelTail), re-spawns the attached instance so the restart is visible.
+--- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail, portal.
+function DiceStudioLua:FirePreviewEffect(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- PlayRawEffect: Plays the prefab bound to the named lifecycle event at world origin with no parenting, layer, or transform changes. For debugging the prefab's raw visual appearance.
+--- @param eventName string
+function DiceStudioLua:PlayRawEffect(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetSoundEventOptions: Gets the sorted list of all registered sound event names, for the Sounds section dropdowns.
+--- @return string[]
+function DiceStudioLua:GetSoundEventOptions()
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventSound: Gets the sound event name bound to the given dice lifecycle event, or an empty string if nothing is bound.
+--- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, teleport, reappear, exit.
+--- @return string
+function DiceStudioLua:GetEventSound(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetEventSound: Binds (or clears) a sound event to a dice lifecycle event. Pass nil or an empty string to clear.
+--- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, teleport, reappear, exit, numberglow.
+--- @param soundEventName string|nil
+function DiceStudioLua:SetEventSound(eventName, soundEventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetEventSoundVolume: Gets the volume multiplier (1 = authored volume) for the event's bound sound, or 1 if nothing is bound.
+--- @param eventName string
+--- @return number
+function DiceStudioLua:GetEventSoundVolume(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetEventSoundVolume: Sets the volume multiplier for the event's bound sound. No-op if nothing is bound to the event.
+--- @param eventName string
+--- @param volume number
+function DiceStudioLua:SetEventSoundVolume(eventName, volume)
+	-- dummy implementation for documentation purposes only
+end
+
+--- FirePreviewSound: Test-plays the sound bound to the given dice lifecycle event (at the bound volume). No-op if nothing is bound.
+--- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, teleport, reappear, exit, numberglow.
+function DiceStudioLua:FirePreviewSound(eventName)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetImpactFamily: Gets the dice impact-sound family id bound to the set, or an empty string for the default (copper) family.
+--- @return string
+function DiceStudioLua:GetImpactFamily()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetImpactFamily: Sets the dice impact-sound family id. Pass an empty string for the default (copper) family. Clears any legacy generic Impact (BounceHit) sound binding, which the family choice supersedes.
+--- @param id string
+function DiceStudioLua:SetImpactFamily(id)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetImpactFamilyVolume: Gets the impact family volume multiplier (1 = the family's authored volume).
+--- @return number
+function DiceStudioLua:GetImpactFamilyVolume()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetImpactFamilyVolume: Sets the impact family volume multiplier (0..2; 1 = the family's authored volume).
+--- @param volume number
+function DiceStudioLua:SetImpactFamilyVolume(volume)
+	-- dummy implementation for documentation purposes only
+end
+
+--- FirePreviewImpact: Test-plays the set's chosen impact family at a hard-hit speed (through the Dice.Impact dispatcher).
+--- @return nil
+function DiceStudioLua:FirePreviewImpact()
 	-- dummy implementation for documentation purposes only
 end
 
@@ -89,6 +372,34 @@ end
 --- @param id string The material category.
 --- @return DiceMaterialLua
 function DiceStudioLua:GetMaterial(id)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetMaterialForType: Gets the per-die-type surface material override for the die with the given face count, or nil if that die type has no override (it falls back to the default 'material'). Note that d100 shares the d10 slot.
+--- @param numFaces number  The die's face count (e.g. 4, 6, 8, 10, 12, 20).
+--- @return nil|DiceMaterialLua
+function DiceStudioLua:GetMaterialForType(numFaces)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetMaterialForType: Sets the per-die-type surface material override for the die with the given face count. Pass nil to clear the override so that die type falls back to the default 'material'. Note that d100 shares the d10 slot.
+--- @param numFaces number  The die's face count (e.g. 4, 6, 8, 10, 12, 20).
+--- @param material nil|DiceMaterialLua
+function DiceStudioLua:SetMaterialForType(numFaces, value)
+	-- dummy implementation for documentation purposes only
+end
+
+--- HasMaterialForType: True if the die with the given face count has a per-die-type surface material override (as opposed to falling back to the default 'material').
+--- @param numFaces number  The die's face count (e.g. 4, 6, 8, 10, 12, 20).
+--- @return boolean
+function DiceStudioLua:HasMaterialForType(numFaces)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetMaterialPropertiesForType: Gets the tuned surface-material properties for the die with the given face count: the per-type override's properties when that die type has an override, otherwise the default surface material properties.
+--- @param numFaces number  The die's face count (e.g. 4, 6, 8, 10, 12, 20).
+--- @return DiceMaterialStudioProperties
+function DiceStudioLua:GetMaterialPropertiesForType(numFaces)
 	-- dummy implementation for documentation purposes only
 end
 

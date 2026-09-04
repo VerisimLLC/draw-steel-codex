@@ -1,894 +1,56 @@
---- Project roll dialog for making downtime project rolls
---- @class DTProjectRollDialog
-DTProjectRollDialog = RegisterGameType("DTProjectRollDialog")
-DTProjectRollDialog.__index = DTProjectRollDialog
+--- The project roll request.
+--- This file's dialog is gone: project rolls go through the game's own roll
+--- dialog via DTProjectEditor.PerformProjectRoll, which is what brings titles,
+--- complications and kit modifiers to bear on them. What stays is the request
+--- itself, which never belonged to that dialog - it drives RollCheck and
+--- dmhub.SendActionRequest directly, and DTProjectEditor is its only caller.
+--- It extends creature rather than living in this file's own namespace, which
+--- is exactly why deleting the dialog took it out by accident once already.
 
---- Creates a project roll dialog for AddChild usage
---- @param options table Table with data, options, and callback functions
---- @return table|nil panel The GUI panel ready for AddChild
-function DTProjectRollDialog.CreateAsChild(options)
-    if not options then return end
-    if not options.callbacks then options.callbacks = {} end
-
-    options.callbacks.confirmHandler = function(rolls)
-        if options.callbacks and options.callbacks.confirm then
-            options.callbacks.confirm(rolls)
-        end
-    end
-
-    options.callbacks.cancelHandler = function()
-        if options.callbacks and options.callbacks.cancel then
-            options.callbacks.cancel()
-        end
-    end
-
-    return DTProjectRollDialog._createPanel(options)
-end
-
---- Private helper to create the roll dialog panel structure
---- @param options table Table with data, options, and callback functions
---- @return table panel The GUI panel structure
-function DTProjectRollDialog._createPanel(options)
-    local resultPanel = nil
-    local roller = options.roller
-
-    local rollerName = roller:GetName() or "(unknown)"
-
-    local skillList = roller:GetSkillsKnown()
-    local skillLookup = {}
-    for _, item in ipairs(skillList) do
-        skillLookup[item.id] = item.text
-    end
-
-    resultPanel = gui.Panel {
-        styles = DTHelpers.GetDialogStyles(),
-        classes = {"rollController", "DTDialog"},
-        width = 860,
-        height = 500,
-        floating = true,
-        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
-        captureEscape = true,
-        data = {
-            edges = 0,
-            banes = 0,
-            bonuses = 0,
-            itemLists = {
-                edges = {},
-                banes = {},
-                bonuses = {},
-            },
-            rolls = {},
-            project = options.data.project,
-
-            isRolling = false,
-            close = function(element, force)
-                if force or not element.data.isRolling then
-                    resultPanel:DestroySelf()
-                end
-            end,
-            getProject = function(element)
-                return element.data.project
-            end,
-            getItemList = function(element, listName)
-                return element.data.itemLists[listName]
-            end,
-            calculateRoll = function(element)
-                local banes = math.min(2, element.data.banes) * -1
-                local edges = math.min(2, element.data.edges)
-                local edgeVsBane = edges + banes
-
-                local seen, bonuses = {}, 0
-                for _, item in pairs(element.data.itemLists.bonuses) do
-                    if not seen[item.description] then
-                        seen[item.description] = true
-                        bonuses = bonuses + item.value
-                    end
-                end
-
-                local totalBonus = (edgeVsBane * 2) + bonuses
-                local rollString = string.format("2d10%+d", totalBonus)
-
-                return rollString
-            end,
-        },
-
-        create = function(element)
-            element:FireEvent("updateForm")
-        end,
-
-        addItem = function(element, listName, item)
-            element.data.itemLists[listName][item.id] = item
-            element:FireEvent("updateForm")
-        end,
-
-        removeItem = function(element, listName, itemId)
-            if element.data.itemLists[listName][itemId] then
-                element.data.itemLists[listName][itemId] = nil
-                element:FireEvent("updateForm")
-            end
-        end,
-
-        updateForm = function(element)
-            element.data.banes = 0
-            for _, item in pairs(element.data.itemLists.banes) do
-                element.data.banes = element.data.banes + (item.value or 0)
-            end
-            element.data.edges = 0
-            for _, item in pairs(element.data.itemLists.edges) do
-                element.data.edges = element.data.edges + (item.value or 0)
-            end
-            element.data.bonuses = 0
-            for _, item in pairs(element.data.itemLists.bonuses) do
-                element.data.bonuses = element.data.bonuses + (item.value or 0)
-            end
-            element:FireEventTree("updateFields")
-        end,
-
-        updateTitle = function(element, newTitle)
-            local title = element:Get("dlgTitle")
-            if title then
-                title:FireEvent("updateTitle", newTitle)
-            end
-        end,
-
-        executeRoll = function(element)
-            local audit = ""
-            local adjustDetails = element:GetChildrenWithClassRecursive("adjustDetail")
-            if adjustDetails and #adjustDetails > 0 then
-                for _, detail in ipairs(adjustDetails) do
-                    local label, text = detail.data.getTypeAndText(detail)
-                    if #audit > 0 then audit = audit .. "; " end
-                    audit = string.format("%s<b>%s</b> %s", audit, label, text)
-                end
-            end
-
-            local rollString = element.data.calculateRoll(element)
-            local token = CharacterSheet.instance.data.info.token
-            element.data.isRolling = true
-            element.data.rolls = {}
-
-            local function keepRollingBreakthroughs(previousRoll, isFirstRoll)
-                -- Roll recursively for as long as we keep rolling breakthroughs.
-                if isFirstRoll or previousRoll:GetNaturalRoll() >= DTConstants.BREAKTHROUGH_MIN then
-                    if not isFirstRoll then
-                        element:FireEventTree("updateTitle", "Rolling a Breakthrough!")
-                    end
-                    local newRoll = DTRoll.CreateNew()
-                    dmhub.Roll {
-                        guid = dmhub.GenerateGuid(),
-                        roll = rollString,
-                        description = (isFirstRoll and "Project Roll" or "Breakthrough Roll") .. " - " .. options.projectTitle,
-                        tokenid = token.id,
-                        complete = function(rollInfo)
-                            newRoll:SetAudit(audit)
-                                :SetRollGuid(rollInfo.key)
-                                :SetRollString(rollString)
-                                :SetRolledBy(roller:GetName())
-                                :SetRolledByID(token.id or "")
-                                :SetRolledByFollowerID(roller:GetFollowerID())
-                                :SetNaturalRoll(rollInfo.naturalRoll)
-                                :SetBreakthrough(not isFirstRoll)
-                                :SetAmount(rollInfo.total)
-                            element.data.rolls[#element.data.rolls + 1] = newRoll
-                            keepRollingBreakthroughs(newRoll, false)
-                        end,
-                    }
-                else
-                    -- Breakthrough chain complete - return all rolls
-                    element.data.isRolling = false
-                    options.callbacks.confirmHandler(element.data.rolls)
-                    element:FireEvent("close", true)
-                end
-            end
-
-            keepRollingBreakthroughs(nil, true)
-        end,
-
-        close = function(element, force)
-            element.data.close(element, force)
-        end,
-
-        escape = function(element)
-            if element.data.isRolling then return end
-            options.callbacks.cancelHandler(element)
-            element:FireEvent("close")
-        end,
-
-        children = {
-            -- Header
-            gui.Label{
-                classes = {"DTLabel", "DTBase"},
-                text = string.format("Roll on Project %s as %s", options.projectTitle or "unnamed", rollerName),
-                fontSize = 24,
-                width = "100%",
-                height = 30,
-                textAlignment = "center",
-                updateTitle = function(element, newText)
-                    element.text = newText
-                end,
-            },
-            gui.MCDMDivider { width = "50%", layout = "dot" },
-
-            -- Form content
-            gui.Panel{
-                classes = {"DTPanel", "DTBase"},
-                width = "100%",
-                height = "100%-110",
-                flow = "vertical",
-                vmargin = 10,
-                borderColor = "red",
-                children = {
-                    -- Top row - Edges, Banes, Bonuses
-                    gui.Panel {
-                        classes = {"DTPanel", "DTBase"},
-                        width = "100%-10",
-                        height = "60%-7",
-                        valign = "top",
-                        flow = "horizontal",
-                        borderColor = "blue",
-                        children = {
-                            -- Left Side - Edges
-                            gui.Panel {
-                                classes = {"edgesController", "DTPanel", "DTBase"},
-                                width = "33%-5",
-                                height = "100%-10",
-                                valign = "top",
-                                flow = "vertical",
-                                borderColor = "yellow",
-                                children = {
-                                    gui.Label {
-                                        classes = {"DTLabel", "DTBase"},
-                                        text = "Edges",
-                                        width = "100%",
-                                        textAlignment = "center",
-                                        valign = "top",
-                                        updateFields = function(element)
-                                            local controller = element:FindParentWithClass("rollController")
-                                            if controller then
-                                                local edges = controller.data.edges or 0
-                                                element.text = string.format("Edges x%d", edges)
-                                            end
-                                        end,
-                                    },
-                                    gui.MCDMDivider { width = "50%", layout = "dot" },
-                                    gui.Panel {
-                                        classes = {"DTPanel", "DTBase"},
-                                        width = "100%-8",
-                                        height = "auto",
-                                        flow = "vertical",
-                                        borderColor = "cyan",
-                                        children = {
-                                            DTProjectRollDialog._makeExtraAdjustmentCheckText("edges"),
-                                            DTProjectRollDialog._makeExtraAdjustmentCheckText("edges"),
-                                        }
-                                    }
-                                }
-                            },
-                            -- Center - Banes
-                            gui.Panel {
-                                classes = {"banesController", "DTPanel", "DTBase"},
-                                width = "33%-5",
-                                height = "100%-10",
-                                valign = "top",
-                                flow = "vertical",
-                                borderColor = "yellow",
-                                children = {
-                                    gui.Label {
-                                        classes = {"DTLabel", "DTBase"},
-                                        text = "Banes",
-                                        width = "100%",
-                                        textAlignment = "center",
-                                        valign = "top",
-                                        updateFields = function(element)
-                                            local controller = element:FindParentWithClass("rollController")
-                                            if controller then
-                                                local banes = controller.data.banes or 0
-                                                element.text = string.format("Banes x%d", banes)
-                                            end
-                                        end,
-                                    },
-                                    gui.MCDMDivider { width = "50%", layout = "dot" },
-                                    gui.Panel {
-                                        classes = {"DTPanel", "DTBase"},
-                                        width = "100%-8",
-                                        height = "auto",
-                                        flow = "vertical",
-                                        vpad = 7,
-                                        borderColor = "cyan",
-                                        children = {
-                                            gui.Check {
-                                                classes = {"DTCheck", "DTBase"},
-                                                value = false,
-                                                text = "Language Penalty",
-                                                data = {
-                                                    banes = 0,
-                                                },
-                                                create = function(element)
-                                                    local rollController = element:FindParentWithClass("rollController")
-                                                    if rollController then
-                                                        local project = rollController.data.getProject(rollController)
-                                                        local creature = CharacterSheet.instance.data.info.token.properties
-                                                        if project then
-                                                            local langPenalty = DTBusinessRules.CalcLangPenalty(project:GetProjectSourceLanguages(), roller:GetLanguagesKnown())
-                                                            if langPenalty then
-                                                                if langPenalty == DTConstants.LANGUAGE_PENALTY.RELATED.key then
-                                                                    element.data.banes = 1
-                                                                    element.value = true
-                                                                elseif langPenalty == DTConstants.LANGUAGE_PENALTY.UNKNOWN.key then
-                                                                    element.data.banes = 2
-                                                                    element.value = true
-                                                                end
-                                                                element.data.SetText(string.format("Language Penalty (%s x%d)", DTConstants.GetDisplayText(DTConstants.LANGUAGE_PENALTY, langPenalty), element.data.banes))
-                                                            end
-                                                        end
-                                                    end
-                                                    element:FireEvent("change")
-                                                    element.interactable = (element.data.banes ~= 0)
-                                                end,
-                                                change = function(element)
-                                                    if element.data.banes == 0 then
-                                                        if element.value ~= false then element.value = false end
-                                                        return
-                                                    end
-                                                    local rollController = element:FindParentWithClass("rollController")
-                                                    if rollController then
-                                                        if element.value then
-                                                            local item = {
-                                                                id = element.id,
-                                                                value = element.data.banes,
-                                                                description = element.data.GetText(),
-                                                            }
-                                                            rollController:FireEvent("addItem", "banes", item)
-                                                        else
-                                                            rollController:FireEvent("removeItem", "banes", element.id)
-                                                        end
-                                                    end
-                                                end,
-                                            },
-                                            DTProjectRollDialog._makeExtraAdjustmentCheckText("banes"),
-                                            DTProjectRollDialog._makeExtraAdjustmentCheckText("banes"),
-                                        }
-                                    }
-                                }
-                            },
-                            -- Right - Bonuses
-                            gui.Panel {
-                                classes = {"bonusesController", "DTPanel", "DTBase"},
-                                width = "33%-5",
-                                height = "100%-10",
-                                valign = "top",
-                                flow = "vertical",
-                                borderColor = "yellow",
-                                children = {
-                                    gui.Label {
-                                        classes = {"DTLabel", "DTBase"},
-                                        text = "Bonuses",
-                                        width = "100%",
-                                        textAlignment = "center",
-                                        valign = "top",
-                                        updateFields = function(element)
-                                            local controller = element:FindParentWithClass("rollController")
-                                            if controller then
-                                                local bonuses = controller.data.bonuses or 0
-                                                element.text = string.format("Bonuses: %+d", bonuses)
-                                            end
-                                        end,
-                                    },
-                                    gui.MCDMDivider { width = "50%", layout = "dot" },
-                                    gui.Panel {
-                                        classes = {"skillListController", "DTPanel", "DTBase"},
-                                        width = "100%-8",
-                                        height = "auto",
-                                        flow = "vertical",
-                                        borderColor = "cyan",
-                                        children = {
-                                            gui.Label {
-                                                classes = {"DTLabel", "DTBase"},
-                                                width = "100%-10",
-                                                height = "30",
-                                                textAlignment = "left",
-                                                hmargin = 2,
-                                                text = "+? (Attribute)",
-                                                create = function(element)
-                                                    local controller = element:FindParentWithClass("rollController")
-                                                    if controller then
-                                                        local project = controller.data.project
-                                                        local characteristics = project:GetTestCharacteristics()
-
-                                                        -- Find characteristic with highest base value
-                                                        local attrId = nil
-                                                        local attrVal = -100
-                                                        for _, charId in ipairs(characteristics) do
-                                                            local a = roller:GetCharacteristic(charId)
-                                                            if a and a > attrVal then
-                                                                attrId = charId
-                                                                attrVal = a
-                                                            end
-                                                        end
-
-                                                        local attrName = DTConstants.GetDisplayText(DTConstants.CHARACTERISTICS, attrId)
-                                                        local text = string.format("Characteristic: %s (%+d)", attrName, attrVal)
-                                                        if text ~= element.text then
-                                                            element.text = text
-                                                            local item = {
-                                                                id = element.id,
-                                                                value = attrVal,
-                                                                description = text
-                                                            }
-                                                            controller:FireEvent("addItem", "bonuses", item)
-                                                        end
-                                                    end
-                                                end,
-                                            },
-                                            gui.Panel{
-                                                classes = {"extraBonusController"},
-                                                width = "98%",
-                                                height = "auto",
-                                                flow = "vertical",
-                                                pad = 0,
-                                                margin = 0,
-                                                data = {
-                                                    isChecked = false,
-                                                    value = 0,
-                                                    description = "",
-                                                },
-                                                updateChecked = function(element, isChecked)
-                                                    element.data.isChecked = isChecked
-                                                    element:FireEvent("updateRollController")
-                                                end,
-                                                updateDescription = function(element, description)
-                                                    local s1 = description or ""
-                                                    if element.data.description ~= s1 then
-                                                        element.data.description = s1
-                                                        element:FireEvent("updateRollController")
-                                                    end
-                                                end,
-                                                updateFields = function(element)
-                                                    element:FireEventTree("updateField", element)
-                                                end,
-                                                updateValue = function(element, value)
-                                                    element.data.value = value
-                                                    element:FireEvent("updateRollController")
-                                                end,
-                                                updateRollController = function(element)
-                                                    local rollController = element:FindParentWithClass("rollController")
-                                                    if rollController then
-                                                        if not element.data.isChecked then
-                                                            rollController:FireEvent("removeItem", "bonuses", element.id)
-                                                        else
-                                                            local item = {
-                                                                id = element.id,
-                                                                value = element.data.value,
-                                                                description = string.format("%s (%+d)", #element.data.description > 0 and element.data.description or "(no description)" , element.data.value)
-                                                            }
-                                                            rollController:FireEvent("addItem", "bonuses", item)
-                                                        end
-                                                    end
-                                                end,
-                                                children = {
-                                                    gui.Check {
-                                                        classes = {"DTCheck", "DTBase"},
-                                                        width = "100%",
-                                                        halign = "left",
-                                                        value = false,
-                                                        text = "Additional Bonus",
-                                                        placement = "left",
-                                                        change = function(element)
-                                                            local fieldController = element:FindParentWithClass("extraBonusController")
-                                                            if fieldController then
-                                                                fieldController:FireEvent("updateChecked", element.value)
-                                                            end
-                                                        end,
-                                                    },
-                                                    gui.Panel{
-                                                        width = "90%",
-                                                        height = "auto",
-                                                        halign = "right",
-                                                        valign = "top",
-                                                        flow = "horizontal",
-                                                        updateField = function(element, controller)
-                                                            if controller then
-                                                                element.interactable = controller.data.isChecked
-                                                                element:SetClass("collapsed", not element.interactable)
-                                                            end
-                                                        end,
-                                                        gui.Label{
-                                                            classes = {"DTInput", "DTBase"},
-                                                            editable = true,
-                                                            numeric = true,
-                                                            characterLimit = 2,
-                                                            swallowPress = true,
-                                                            text = "0",
-                                                            width = 60,
-                                                            pad = 4,
-                                                            height = 30,
-                                                            cornerRadius = 4,
-                                                            fontSize = 20,
-                                                            bgimage = "panels/square.png",
-                                                            border = 1,
-                                                            textAlignment = "center",
-                                                            valign = "center",
-                                                            halign = "left",
-                                                            create = function(element)
-                                                                element.text = element.parent.parent.data.value
-                                                            end,
-                                                            change = function(element)
-                                                                local numericValue = tonumber(element.text) or tonumber(element.text:match("%-?%d+")) or 0
-                                                                element.text = string.format("%+d", numericValue)
-                                                                local fieldController = element:FindParentWithClass("extraBonusController")
-                                                                if fieldController then
-                                                                    fieldController:FireEvent("updateValue", numericValue)
-                                                                end
-                                                            end,
-                                                        },
-                                                        gui.Input {
-                                                            classes = {"DTInput", "DTBase", "collapsed"},
-                                                            width = "90%-64",
-                                                            halign="right",
-                                                            hmargin = 4,
-                                                            placeholderText = "Enter description...",
-                                                            interactable = false,
-                                                            style = {
-                                                                selectors = {"collapsed"},
-                                                                height = 0,
-                                                                hidden = 1
-                                                            },
-                                                            editlag = 0.5,
-                                                            change = function(element)
-                                                                local fieldController = element:FindParentWithClass("extraBonusController")
-                                                                if fieldController then
-                                                                    fieldController:FireEvent("updateDescription", element.text)
-                                                                end
-                                                            end,
-                                                            edit = function(element)
-                                                                element:FireEvent("change")
-                                                            end,
-                                                            updateField = function(element, controller)
-                                                                if controller then
-                                                                    element.interactable = controller.data.isChecked
-                                                                    element:SetClass("collapsed", not element.interactable)
-                                                                end
-                                                            end
-                                                        },
-                                                    },
-                                                },
-                                            },
-                                            gui.Multiselect{
-                                                options = skillList,
-                                                classes = {"DTPanel", "DTBase"},
-                                                dropdown = {
-                                                    classes = {"DTDropdown", "DTBase"},
-                                                },
-                                                chips = {
-                                                    classes = {"DTChip"}
-                                                },
-                                                width = "98%",
-                                                halign = "left",
-                                                vmargin = 4,
-                                                textDefault = "Select a skill...",
-                                                sort = true,
-                                                chipPos = "bottom",
-                                                data = {
-                                                    skillLookup = skillLookup,
-                                                    skillsSelected = {},
-                                                },
-                                                change = function(element)
-                                                    local newSelectedDict = element.value
-                                                    local curSelected = element.data.skillsSelected or {}
-                                                    local skillLookup = element.data.skillLookup
-                                                    -- Convert dictionary to array
-                                                    local newSelectedArray = {}
-                                                    for id, flag in pairs(newSelectedDict) do
-                                                        if flag then
-                                                            newSelectedArray[#newSelectedArray + 1] = id
-                                                        end
-                                                    end
-                                                    local changed = DTHelpers.SyncArrays(curSelected, newSelectedArray)
-                                                    if changed then
-                                                        element.data.skillsSelected = curSelected
-                                                        local rollController = element:FindParentWithClass("rollController")
-                                                        if rollController then
-                                                            rollController:FireEvent("removeItem", "bonuses", element.id)
-                                                            if #curSelected > 0 then
-                                                                local description = skillLookup[curSelected[1]]
-                                                                for i = 2, #curSelected do
-                                                                    description = description .. ", " .. skillLookup[curSelected[i]]
-                                                                end
-                                                                local value = 2 * #curSelected
-
-                                                                local item = {
-                                                                    id = element.id,
-                                                                    value = value,
-                                                                    description = string.format("Skill%s: %s (%+d)", #curSelected > 1 and "s" or "", description, value)
-                                                                }
-                                                                rollController:FireEvent("addItem", "bonuses", item)
-                                                            end
-                                                        end
-                                                    end
-                                                end,
-                                            },
-                                        }
-                                    }
-                                }
-                            },
-                        }
-                    },
-
-                    -- Bottom row - Summary
-                    gui.Panel {
-                        classes = {"DTPanel", "DTBase"},
-                        width = "100%-10",
-                        height = "40%-7",
-                        valign = "top",
-                        flow = "vertical",
-                        borderColor = "blue",
-                        children = {
-                            DTProjectRollDialog._makeExtraAdjustmentLabel("edges"),
-                            DTProjectRollDialog._makeExtraAdjustmentLabel("banes"),
-                            DTProjectRollDialog._makeExtraAdjustmentLabel("bonuses"),
-                            gui.Panel {
-                                classes = {"DTPanel", "DTBase"},
-                                width = "100%-10",
-                                height = "auto",
-                                valign = "top",
-                                flow = "horizontal",
-                                borderColor = "yellow",
-                                children = {
-                                    gui.Label {
-                                        classes = {"DTLabel", "DTBase"},
-                                        width = 80,
-                                        height = 30,
-                                        valign = "center",
-                                        textAlignment = "left",
-                                        text = "Roll:"
-                                    },
-                                    gui.Label {
-                                        classes = {"DTLabel", "DTBase"},
-                                        width = "100%-100",
-                                        height = 30,
-                                        valign = "center",
-                                        textAlignment = "left",
-                                        bold = false,
-                                        text = "Calculating...",
-                                        updateFields = function(element)
-                                            local controller = element:FindParentWithClass("rollController")
-                                            if controller then
-                                                element.text = controller.data.calculateRoll(controller)
-                                            end
-                                        end,
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-
-            -- Button panel
-            gui.Panel{
-                classes = {"DTPanel", "DTBase"},
-                width = "100%",
-                height = 40,
-                vmargin = 10,
-                halign = "center",
-                valign = "bottom",
-                flow = "horizontal",
-                borderColor = "red",
-                children = {
-                    gui.Button{
-                        classes = {"DTButton", "DTBase"},
-                        text = "Cancel",
-                        width = 120,
-                        halign = "center",
-                        click = function(element)
-                            local controller = element:FindParentWithClass("rollController")
-                            if controller then
-                                controller:FireEvent("escape")
-                            end
-                        end
-                    },
-                    gui.Button{
-                        classes = {"DTButton", "DTBase"},
-                        text = "Roll",
-                        width = 120,
-                        halign = "center",
-                        click = function(element)
-                            local controller = element:FindParentWithClass("rollController")
-                            if controller then
-                                controller:FireEvent("executeRoll")
-                            end
-                        end
-                    }
-                }
-            }
-        },
-    }
-
-    return resultPanel
-end
-
---- Create a row showing either Edges or Banes descriptions
---- @param adjustType string Bane or Edge, either case is fine
---- @return Panel panel The panel containing the description
-function DTProjectRollDialog._makeExtraAdjustmentLabel(adjustType)
-
-    local lower, proper = adjustType:lower(), adjustType:sub(1, 1):upper() .. adjustType:sub(2):lower()
-    local defaultLabel = string.format("No %s selected", proper)
-
-    return gui.Panel {
-        classes = {"adjustDetail", "DTPanel", "DTBase"},
-        width = "100%-10",
-        height = "auto",
-        valign = "top",
-        flow = "horizontal",
-        borderColor = "yellow",
-        data = {
-            getTypeAndText = function(element)
-                local labelField = element:GetChildrenWithClass("adjustLabel")[1]
-                local textField = element:GetChildrenWithClass("adjustText")[1]
-                return labelField.text, textField.text
-            end
-        },
-        children = {
-            gui.Label {
-                classes = {"adjustLabel", "DTLabel", "DTBase"},
-                width = 80,
-                height = 30,
-                valign = "center",
-                textAlignment = "left",
-                text = proper .. ":"
-            },
-            gui.Label {
-                classes = {"adjustText", "DTLabel", "DTBase"},
-                width = "100%-100",
-                height = 30,
-                valign = "center",
-                textAlignment = "left",
-                bold = false,
-                text = defaultLabel,
-                updateFields = function(element)
-                    local controller = element:FindParentWithClass("rollController")
-                    if controller then
-                        local items = controller.data.getItemList(controller, lower)
-                        local text = ""
-                        for _, item in pairs(items) do
-                            local description = #item.description > 0 and item.description or "(no description)"
-                            if #text > 0 then text = text .. ", " end
-                            text = string.format("%s%s", text, description)
-                        end
-                        if #text == 0 then text = defaultLabel end
-                        if text ~= element.text then element.text = text end
-                    end
-                end,
-            }
-        }
-    }
-end
-
---- Create a field with a checkbox on top and hidden text on bottom
---- such that when checked, it shows the field
---- @param adjustType string Bane or Edge, either case is fine
---- @return Panel panel The panel containing the control
-function DTProjectRollDialog._makeExtraAdjustmentCheckText(adjustType)
-    local lower, proper = adjustType:lower(), adjustType:sub(1, 1):upper() .. adjustType:sub(2):lower()
-
-    return gui.Panel {
-        classes = {"extraBaneEdgeController"},
-        width = "98%",
-        height = "auto",
-        flow = "vertical",
-        pad = 0,
-        margin = 0,
-        data = {
-            isChecked = false,
-            value = 1,
-            description = "",
-        },
-        updateChecked = function(element, isChecked)
-            element.data.isChecked = isChecked
-            element:FireEvent("updateRollController")
-        end,
-        updateDescription = function(element, description)
-            local s1 = description or ""
-            if element.data.description ~= s1 then
-                element.data.description = s1
-                element:FireEvent("updateRollController")
-            end
-        end,
-        updateFields = function(element)
-            element:FireEventTree("updateField", element)
-        end,
-        updateRollController = function(element)
-            local rollController = element:FindParentWithClass("rollController")
-            if rollController then
-                if not element.data.isChecked then
-                    rollController:FireEvent("removeItem", lower, element.id)
-                else
-                    local item = {
-                        id = element.id,
-                        value = element.data.value,
-                        description = string.format("%s (x%d)", #element.data.description > 0 and element.data.description or "(no description)" , element.data.value)
-                    }
-                    rollController:FireEvent("addItem", lower, item)
-                end
-            end
-        end,
-        children = {
-            gui.Check {
-                classes = {"DTCheck", "DTBase"},
-                width = "100%",
-                halign = "left",
-                value = false,
-                text = string.format("Additional %s (x1)", proper),
-                placement = "left",
-                change = function(element)
-                    local fieldController = element:FindParentWithClass("extraBaneEdgeController")
-                    if fieldController then
-                        fieldController:FireEvent("updateChecked", element.value)
-                    end
-                end,
-            },
-                gui.Input {
-                    classes = {"DTInput", "DTBase", "collapsed"},
-                    width = "80%",
-                    halign="right",
-                    placeholderText = "Enter description...",
-                    interactable = false,
-                    style = {
-                        selectors = {"collapsed"},
-                        height = 0,
-                        hidden = 1
-                    },
-                    editlag = 0.5,
-                    change = function(element)
-                        local fieldController = element:FindParentWithClass("extraBaneEdgeController")
-                        if fieldController then
-                            fieldController:FireEvent("updateDescription", element.text)
-                        end
-                    end,
-                    edit = function(element)
-                        element:FireEvent("change")
-                    end,
-                    updateField = function(element, controller)
-                        if controller then
-                            element.interactable = controller.data.isChecked
-                            element:SetClass("collapsed", not element.interactable)
-                        end
-                    end
-                },
-            }
-        }
-end
-
-
+--- The player-facing project roll. Without this registration RollCheck falls
+--- through to its unknown-skill fallback, and the roll goes out as a bare 2d10
+--- with no characteristic and no modifiers to tick. `rollType` picks the dialog,
+--- while GetModifiers passes "project_roll", the modifier pipeline's own scope
+--- for Skilled, the language banes and the class/title project edges.
 RollCheck.RegisterCustom{
     id = "project_power_roll",
     rollType = "power_roll_custom",
-	Describe = function(check, isplayer)
+
+    Describe = function(check, isplayer)
         return check.info.explanation
     end,
-	GetRoll = function(check, creature)
+
+    GetRoll = function(check, creature)
         return "2d10 + " .. creature:AttributeMod(check.info.attrid)
     end,
-	GetModifiers = function(check, creature)
-        --Modifiers included from the Roll
-		local rollModifiers = check:try_get("modifiers", {})
-        local result = creature:GetModifiersForPowerRoll(check:GetRoll(creature), "project_roll", {attribute = check.info.attrid, skills = check.skills})
 
+    GetModifiers = function(check, creature)
+        local roll = check:GetRoll(creature)
+        local options = {
+            attribute = check.info.attrid,
+            skills = check.skills,
+        }
+
+        local result = creature:GetModifiersForPowerRoll(roll, "project_roll", options)
+
+        --Skilled is offered rather than applied: the pipeline cannot know the
+        --skill was chosen for this project, so proficiency is confirmed here.
         local skillsTable = GetTableCached("Skills")
         for _, skillid in ipairs(check.skills or {}) do
             local skill = skillsTable[skillid]
-            if creature:ProficientInSkill(skill) then
-                for _,mod in ipairs(result) do
-                    if mod.modifier.name == "Skilled" then
-                        mod.hint.result = true
+            if skill ~= nil and creature:ProficientInSkill(skill) then
+                for _, entry in ipairs(result) do
+                    if entry.modifier.name == "Skilled" then
+                        entry.hint.result = true
                     end
                 end
             end
         end
 
+        --A project source in a language the hero does not know costs them the
+        --Unknown Language penalty, softened to Related Language if they know a
+        --language related to it.
         local langs = creature:LanguagesKnown()
-		local languagesTable = GetTableCached("languages")
         local relatedLanguages = GetTableCached("languageRelations")
 
         local languageKnown = false
@@ -908,32 +70,34 @@ RollCheck.RegisterCustom{
             end
         end
 
-        for _, mod in pairs(result) do
+        for _, entry in ipairs(result) do
             if not languageKnown and not languageRelated then
-                if mod.modifier.name == "Unknown Language" then
-                    mod.hint.result = true
-                    mod.hint.justification = {"<color=#FF0000>You do not know the language(s) of the project source.</color>"}
+                if entry.modifier.name == "Unknown Language" then
+                    entry.hint.result = true
+                    entry.hint.justification = {"<color=#FF0000>You do not know the language(s) of the project source.</color>"}
                 end
             elseif not languageKnown and languageRelated then
-                if mod.modifier.name == "Related Language" then
-                    mod.hint.result = true
-                    mod.hint.justification = {"<color=#FF0000>You do not know the project source language(s), but you know a related language.</color>"}
+                if entry.modifier.name == "Related Language" then
+                    entry.hint.result = true
+                    entry.hint.justification = {"<color=#FF0000>You do not know the project source language(s), but you know a related language.</color>"}
                 end
             end
         end
 
-        --Add roll modifiers to the result
-		for _, mod in pairs(rollModifiers ) do
-			result[#result+1] = mod
-		end
+        --Modifiers the caller put on the check itself, such as a complication's.
+        for _, entry in pairs(check:try_get("modifiers", {})) do
+            result[#result + 1] = entry
+        end
 
         return result
     end,
+
     ShowDialog = function(check, dialogOptions)
+        --Presentation axis: the chat card reads this type to suppress the tier
+        --badges a project roll does not have.
         dialogOptions.rollProperties = RollProperties.new{
             type = "project_power_roll",
         }
-        --dialogOptions.PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(dialogOptions.rollProperties, dialogOptions.creature)
         return GameHud.instance.rollDialog.data.ShowDialog(dialogOptions)
     end,
 }
@@ -954,7 +118,8 @@ function creature:RequestProjectRoll(casterToken, options)
     
     local attrid = options.attrid or "mgt"
     local explanation = options.explanation or "Project Roll"
-    explanation = explanation..string.format(" (%s)", attrid)
+    explanation = explanation..string.format(" (%s)",
+        DTConstants.GetDisplayText(DTConstants.CHARACTERISTICS, attrid))
     local title = options.title or explanation
 
     local check = RollCheck.new{
@@ -998,8 +163,7 @@ function creature:RequestProjectRoll(casterToken, options)
     if not resultTable.result or resultTable.action == nil then
         return nil
     end
-    print("THC:: RESULT::", json(resultTable))
-    
+
     local action = resultTable.action
     if action.info == nil or action.info.tokens == nil then
         return nil
@@ -1011,20 +175,469 @@ function creature:RequestProjectRoll(casterToken, options)
     if tokenResult == nil then
         return nil
     end
+
+    --A cancelled or abandoned request still carries a token entry; it just has
+    --no roll in it. Without this the caller records a roll of nothing, which
+    --then clamps to 1 point of progress the hero never earned.
+    if tokenResult.status ~= "complete" then
+        return nil
+    end
     
     local result = tokenResult.result or 0
     local boons = tokenResult.boons or 0
     local banes = tokenResult.banes or 0
-    print("THC:: ACTION::", json(action.info))
-    
+
     -- Call the callback if provided
     if options.callback then
         options.callback(result, boons, banes)
     end
-    
+
     return {
         boons = boons,
         banes = banes,
         total = result,
+        naturalRoll = tokenResult.naturalRoll or 0,
+        --Breakthrough reads this rather than naturalRoll >= 19: a modifier that
+        --appends a die makes the natural total unreliable, and this is measured
+        --from the highest two faces.
+        isCrit = tokenResult.isCrit == true,
+        dice = tokenResult.dice or {},
+        rollid = tokenResult.rollid or "",
+        modifiersUsed = tokenResult.modifiersUsed or {},
     }
 end
+--- Project event dialog
+--- A project that stops at a milestone owes the table a roll. This rolls it -
+--- either here or by asking the hero's player - shows what came up, and then
+--- resolves the stop by setting the next milestone and putting the project
+--- back to work.
+--- @class DTEventRollDialog
+DTEventRollDialog = RegisterGameType("DTEventRollDialog")
+
+local WIDTH = 560
+local RESULT_HEIGHT = 150
+
+-- Sized to its contents rather than eyeballed: the two form rows carry a 26
+-- high control, the roll buttons are 35, the result panel is RESULT_HEIGHT,
+-- and each of the four takes vmargin 8 top and bottom. The shell adds a 40
+-- header, a 60 footer and its padding at both ends.
+local HEIGHT = (26 + 16) + (35 + 16) + (RESULT_HEIGHT + 16) + (26 + 16) + 40 + 60 + 24
+
+local HERO_NAME_LIMIT = 24
+
+--- The subtitle is a single line, so a name past the limit is cut and marked
+--- rather than left to crowd out the project title beside it.
+--- @param name string|nil
+--- @return string
+local function ShortHeroName(name)
+    if name == nil or name == "" then
+        return "Unknown Hero"
+    end
+
+    if #name <= HERO_NAME_LIMIT then
+        return name
+    end
+
+    return trim(name:sub(1, HERO_NAME_LIMIT)) .. "..."
+end
+
+--- The row text behind a dice total, read the way RollOnTableProperties does
+--- @param tableRef RollTableReference The events table reference
+--- @param total number The dice total rolled
+--- @return string|nil text The row's text, nil when the total is off the table
+local function EventTextForTotal(tableRef, total)
+    local t = tableRef:GetTable()
+    if t == nil then return nil end
+
+    local rowIndex = t:RowIndexFromDiceResult(total)
+    if rowIndex == nil or t.rows[rowIndex] == nil then return nil end
+
+    for _, item in ipairs(t.rows[rowIndex].value.items) do
+        local str = item:ToString()
+        if str ~= nil then return str end
+    end
+
+    return nil
+end
+
+--- Drops the shared "Downtime Event:" prefix from an event table's name. Every
+--- table in the list carries it, so it is noise under a field already labelled
+--- Event Table. The compendium keeps the full names.
+--- @param options table List of { id, text } pairs from DTHelpers.GetEventTableOptions
+--- @return table options The same list with shortened text
+local function StripEventTablePrefix(options)
+    local result = {}
+
+    for _, option in ipairs(options) do
+        local text = option.text
+        if string.starts_with(text, DTConstants.EVENTS_TABLE_PREFIX) then
+            text = trim(text:sub(#DTConstants.EVENTS_TABLE_PREFIX + 1))
+        end
+
+        result[#result + 1] = {
+            id = option.id,
+            text = text,
+        }
+    end
+
+    return result
+end
+
+--- The event table a project starts the dialog on: the one named on the activity
+--- the project came from, falling back to Crafting and Research when the project
+--- has no activity, the activity names no table, or that table is no longer offered.
+--- @param project DTProject The project stopped at a milestone
+--- @param options table The event table dropdown options
+--- @return string tableId The GUID of the event table to select
+local function DefaultEventTableId(project, options)
+    local activityId = project:GetActivityID()
+    if activityId ~= "" then
+        local activity = (dmhub.GetTable(DowntimeActivity.tableName) or {})[activityId]
+        if activity ~= nil then
+            local tableId = activity:GetEventTableId()
+            if tableId ~= "" and DTHelpers.OptionsContain(options, tableId) then
+                return tableId
+            end
+        end
+    end
+
+    return DTConstants.EVENTS_TABLE_ID
+end
+
+--- Shows the project event dialog
+--- @param args table project The project stopped at a milestone, heroToken The
+---        token whose sheet this was opened from and who is asked to roll
+function DTEventRollDialog.ShowDialog(args)
+    local project = args ~= nil and args.project or nil
+    local heroToken = args ~= nil and args.heroToken or nil
+    if project == nil or heroToken == nil then
+        return
+    end
+
+    local tableOptions = StripEventTablePrefix(DTHelpers.GetEventTableOptions())
+    local selectedTableId = DefaultEventTableId(project, tableOptions)
+
+    --Both roll paths read the table through here, so they always roll whatever
+    --the dropdown currently shows rather than a reference captured at open time.
+    local function CurrentTableRef()
+        return RollTableReference.CreateRef(DTConstants.EVENTS_TABLE, selectedTableId)
+    end
+
+    if CurrentTableRef():GetTable() == nil then
+        return
+    end
+
+    --Forward-declared so the handlers below capture them as upvalues.
+    local resultLabel
+    local milestoneInput
+
+    local function SetResult(text)
+        if resultLabel == nil or not resultLabel.valid then
+            return
+        end
+        local hasText = text ~= nil and #text > 0
+        resultLabel.text = hasText and text or "No event rolled yet."
+        resultLabel:SetClass("fgMuted", not hasText)
+    end
+
+    --The Director rolls it themself, with dice rather than the game's table
+    --dialog. That dialog is an embedded panel: given a tableRef it mounts into
+    --the hud's standaloneRollHost, which sits below both the character sheet and
+    --the modal layer, so from in here it rolls where nobody can see it. Dice are
+    --drawn by the engine and answer to no layer, and the table's own
+    --RollOnTableProperties still puts the event text on the chat card.
+    local function DirectorRoll()
+        local tableRef = CurrentTableRef()
+        local eventsTable = tableRef:GetTable()
+        if eventsTable == nil then
+            return
+        end
+
+        local rollInfo = eventsTable:CalculateRollInfo()
+        if rollInfo == nil then
+            return
+        end
+
+        dmhub.Roll{
+            roll = rollInfo.roll,
+            description = eventsTable.name,
+            tokenid = heroToken.id,
+            creature = heroToken.properties,
+            properties = RollOnTableProperties.new{ tableRef = tableRef },
+            complete = function(info)
+                SetResult(EventTextForTotal(tableRef, info.total))
+            end,
+        }
+    end
+
+    --Hands the roll to the hero's player and waits for it to come back.
+    local function RequestRoll()
+        local tableRef = CurrentTableRef()
+        local eventsTable = tableRef:GetTable()
+        if eventsTable == nil then
+            return
+        end
+
+        local check = RollCheck.new{
+            type = "table",
+            id = "custom",
+            group = "custom",
+            text = eventsTable.name,
+            tableRef = tableRef,
+            rollProperties = RollOnTableProperties.new{ tableRef = tableRef },
+        }
+
+        local tokens = {}
+        tokens[heroToken.id] = {}
+
+        dmhub.Coroutine(function()
+            local resultTable = {}
+            local actionid = dmhub.SendActionRequest(RollRequest.new{
+                title = "Project Event",
+                checks = {check},
+                tokens = tokens,
+            })
+
+            AwaitRequestedActionCoroutine(actionid, resultTable)
+            while resultTable.result == nil do
+                coroutine.yield(0.1)
+            end
+
+            --A cancelled or abandoned request still carries a token entry; it
+            --just has no roll in it.
+            local action = resultTable.action
+            local tokenResult = nil
+            if action ~= nil and action.info ~= nil and action.info.tokens ~= nil then
+                tokenResult = action.info.tokens[heroToken.id]
+            end
+            if tokenResult == nil or tokenResult.status ~= "complete" then
+                return
+            end
+
+            SetResult(EventTextForTotal(tableRef, tokenResult.result or 0))
+        end)
+    end
+
+    --Resolving the stop is the whole point of the dialog: the next milestone
+    --goes in and the project goes back to work.
+    local function Resolve()
+        local value = math.max(0, math.floor(tonumber(milestoneInput.text) or 0))
+
+        heroToken:ModifyProperties{
+            description = "Resolve Downtime Project Milestone",
+            undoable = false,
+            execute = function()
+                project:SetMilestoneThreshold(value)
+                    :SetStatus(DTConstants.STATUS.ACTIVE.key)
+            end,
+        }
+
+        dmhub.Schedule(0.1, function()
+            DTSettings.Touch()
+            DTShares.Touch()
+        end)
+    end
+
+    resultLabel = gui.Label{
+        classes = {"form", "fgMuted"},
+        width = "100%-16",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        textWrap = true,
+        text = "No event rolled yet.",
+    }
+
+    milestoneInput = gui.Input{
+        classes = {"input", "form"},
+        width = 100,
+        textAlignment = "center",
+        text = tostring(DTBusinessRules.CalcNextMilestone(project) or 0),
+    }
+
+    local dlg = DialogShell.CreateNew{
+        title = "Roll A Project Event",
+        subtitle = string.format("%s for %s", project:GetTitle(),
+            ShortHeroName(heroToken.name)),
+        width = WIDTH,
+        height = HEIGHT,
+        footerCells = {50, 50},
+        close = "modal",
+        escape = true,
+    }
+
+    dlg:SetWorkingContent{
+        gui.Panel{
+            classes = {"formRow"},
+            width = "94%",
+            halign = "center",
+            vmargin = 8,
+
+            gui.Label{
+                classes = {"label", "form"},
+                text = "Event Table:",
+            },
+
+            gui.Dropdown{
+                classes = {"dropdown", "form"},
+                width = 280,
+                options = tableOptions,
+                idChosen = selectedTableId,
+                change = function(element)
+                    selectedTableId = element.idChosen
+                end,
+            },
+        },
+
+        gui.Panel{
+            width = "94%",
+            height = "auto",
+            halign = "center",
+            flow = "horizontal",
+            vmargin = 8,
+
+            --Handing the roll to a player is the Director's move. A player who
+            --has been given these controls is already the one rolling, so they
+            --get the one button and it takes the middle of the row alone.
+            dmhub.isDM and gui.Button{
+                classes = {"sizeL"},
+                text = "Request Roll",
+                hmargin = 8,
+                click = function()
+                    RequestRoll()
+                end,
+            } or nil,
+
+            gui.Button{
+                classes = {"sizeL"},
+                text = "Roll",
+                hmargin = 8,
+                halign = (not dmhub.isDM) and "center" or nil,
+                click = function()
+                    DirectorRoll()
+                end,
+            },
+        },
+
+        --A d100 row can run long, so the text scrolls rather than pushing
+        --the milestone field off the bottom of the dialog.
+        gui.Panel{
+            width = "94%",
+            height = RESULT_HEIGHT,
+            halign = "center",
+            vmargin = 8,
+            vscroll = true,
+
+            resultLabel,
+        },
+
+        gui.Panel{
+            classes = {"formRow"},
+            width = "94%",
+            halign = "center",
+            vmargin = 8,
+
+            gui.Label{
+                classes = {"label", "form"},
+                text = "Next Milestone:",
+            },
+
+            milestoneInput,
+        },
+    }
+
+    dlg:AddFooterButton{
+        slot = "left",
+        text = "Cancel",
+        click = function(shell)
+            shell:Close()
+        end,
+    }
+
+    dlg:AddFooterButton{
+        slot = "right",
+        text = "Resolve",
+        click = function(shell)
+            Resolve()
+            shell:Close()
+        end,
+    }
+
+    gui.ShowModal(dlg:Root())
+end
+
+RollCheck.RegisterCustom{
+    id = "project_power_roll",
+    rollType = "power_roll_custom",
+    Describe = function(check, isplayer)
+        return check.info.explanation
+    end,
+    GetRoll = function(check, creature)
+        return "2d10 + " .. creature:AttributeMod(check.info.attrid)
+    end,
+    GetModifiers = function(check, creature)
+        --Modifiers included from the Roll
+        local rollModifiers = check:try_get("modifiers", {})
+        local result = creature:GetModifiersForPowerRoll(check:GetRoll(creature), "project_roll", {attribute = check.info.attrid, skills = check.skills})
+
+        local skillsTable = GetTableCached("Skills")
+        for _, skillid in ipairs(check.skills or {}) do
+            local skill = skillsTable[skillid]
+            if creature:ProficientInSkill(skill) then
+                for _,mod in ipairs(result) do
+                    if mod.modifier.name == "Skilled" then
+                        mod.hint.result = true
+                    end
+                end
+            end
+        end
+
+        local langs = creature:LanguagesKnown()
+        local languagesTable = GetTableCached("languages")
+        local relatedLanguages = GetTableCached("languageRelations")
+
+        local languageKnown = false
+        local languageRelated = false
+
+        for _, lang in ipairs(check.languages or {}) do
+            if langs[lang] then
+                languageKnown = true
+                break
+            elseif relatedLanguages[lang] then
+                for related, _ in pairs(relatedLanguages[lang].related) do
+                    if langs[related] then
+                        languageRelated = true
+                        break
+                    end
+                end
+            end
+        end
+
+        for _, mod in pairs(result) do
+            if not languageKnown and not languageRelated then
+                if mod.modifier.name == "Unknown Language" then
+                    mod.hint.result = true
+                    mod.hint.justification = {"<color=#FF0000>You do not know the language(s) of the project source.</color>"}
+                end
+            elseif not languageKnown and languageRelated then
+                if mod.modifier.name == "Related Language" then
+                    mod.hint.result = true
+                    mod.hint.justification = {"<color=#FF0000>You do not know the project source language(s), but you know a related language.</color>"}
+                end
+            end
+        end
+
+        --Add roll modifiers to the result
+        for _, mod in pairs(rollModifiers ) do
+            result[#result+1] = mod
+        end
+
+        return result
+    end,
+    ShowDialog = function(check, dialogOptions)
+        dialogOptions.rollProperties = RollProperties.new{
+            type = "project_power_roll",
+        }
+        return GameHud.instance.rollDialog.data.ShowDialog(dialogOptions)
+    end,
+}

@@ -79,6 +79,47 @@ mod.shared.MapPackTileStyles = function()
 			valign = "center",
 			hmargin = 12,
 		},
+		{
+			selectors = {"mapPackDetailTitle"},
+			fontSize = 22,
+			bold = true,
+			width = "100%",
+			height = "auto",
+			textWrap = true,
+			vmargin = 6,
+		},
+		{
+			selectors = {"mapPackDetailText"},
+			fontSize = 14,
+			width = "100%",
+			height = "auto",
+			textWrap = true,
+			vmargin = 4,
+		},
+		{
+			selectors = {"mapPackChip"},
+			bgimage = "panels/square.png",
+			bgcolor = "@bg",
+			cornerRadius = 10,
+			width = "auto",
+			height = "auto",
+			hpad = 8,
+			vpad = 3,
+			margin = 3,
+			fontSize = 12,
+			borderWidth = 1,
+			borderColor = "@fg",
+		},
+		{
+			selectors = {"mapPackChip", "hover"},
+			borderColor = "@accent",
+		},
+		{
+			selectors = {"mapPackChip", "selected"},
+			borderWidth = 2,
+			borderColor = "@accent",
+			bold = true,
+		},
 	})
 end
 

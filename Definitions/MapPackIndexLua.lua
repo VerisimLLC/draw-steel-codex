@@ -55,8 +55,9 @@ end
 
 --- Adds one map from a map pack to the current game without installing the
 --- pack's module, arming the appearance at options.variantIndex (default 0).
+--- options.name, when given, becomes the added map's name instead of the pack's.
 --- If the map is already in the game a fresh copy with new ids is added.
---- @param options {pack: string, mapid: string, variantIndex: nil|integer, success: nil|fun(mapid: string), error: nil|fun(msg: string)}
+--- @param options {pack: string, mapid: string, variantIndex: nil|integer, name: nil|string, success: nil|fun(mapid: string), error: nil|fun(msg: string)}
 --- @return nil
 function MapPackIndexLua.AddMapToGame(options)
 	-- dummy implementation for documentation purposes only

@@ -50,24 +50,115 @@ mod.shared.ShowCreateMapDialog = function()
 
     local selectedMap = nil
     local m_packEntry = nil
+    local m_packEntries = {}
     local m_search = ""
     local m_dialog = nil
 
     local m_mapName = "New Map"
+    --the name the dialog last filled in by itself (a pack map's name), so a
+    --user edit is kept when they switch tiles but an untouched name follows
+    --the selection.
+    local m_autoName = m_mapName
 
     --tile type is always squares for now.
     local tileType = "squares"
 
     local createButton
-    local nameRow
+    local nameInput
     local packGrid
     local packStatus
+
+    --details pane (right of the grid) --------------------------------------
+    local detailImage = gui.Panel{
+        width = 340,
+        height = 240,
+        halign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "white",
+        cornerRadius = 6,
+    }
+    local detailTitle = gui.Label{ classes = {"mapPackDetailTitle"}, text = "Select a map" }
+    local detailInfo = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
+    local detailKeywords = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
+    local appearancesHeading = gui.Label{
+        classes = {"mapPackDetailText", "hidden"},
+        bold = true,
+        text = "Appearances",
+    }
+    local variantsPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        wrap = true,
+        halign = "left",
+    }
+
+    local SelectPackEntry
+
+    --every index entry for the same map as entry, in variant order.
+    local SiblingVariants = function(entry)
+        local result = {}
+        for _, other in ipairs(m_packEntries) do
+            if other.pack == entry.pack and other.id == entry.id then
+                result[#result + 1] = other
+            end
+        end
+        table.sort(result, function(a, b) return a.variantIndex < b.variantIndex end)
+        return result
+    end
+
+    local RefreshDetails = function()
+        local entry = m_packEntry
+        if entry == nil then
+            detailImage.bgimage = "panels/square.png"
+            detailImage.width = 340
+            detailImage.height = 240
+            detailTitle.text = "Select a map"
+            detailInfo.text = ""
+            detailKeywords.text = ""
+            variantsPanel.children = {}
+            appearancesHeading:SetClass("hidden", true)
+            return
+        end
+
+        detailImage.bgimage = mod.shared.MapPackThumbImage(entry)
+        --fit the preview inside 340x240 keeping the map's aspect ratio.
+        local w = tonumber(entry.tilesW) or 1
+        local h = tonumber(entry.tilesH) or 1
+        if w < 1 then w = 1 end
+        if h < 1 then h = 1 end
+        local scale = math.min(340 / w, 240 / h)
+        detailImage.width = math.floor(w * scale)
+        detailImage.height = math.floor(h * scale)
+        detailTitle.text = entry.name
+        local summary = entry.description
+        if summary == nil or summary == "" then
+            summary = entry.sceneName
+        end
+        detailInfo.text = string.format("%s\n%d x %d tiles", summary, entry.tilesW, entry.tilesH)
+        detailKeywords.text = "Keywords: " .. table.concat(entry.keywords, ", ")
+
+        local chips = {}
+        for _, sibling in ipairs(SiblingVariants(entry)) do
+            chips[#chips + 1] = gui.Label{
+                classes = {"mapPackChip", cond(sibling == entry, "selected")},
+                text = cond(sibling.variant ~= "", sibling.variant, "Default"),
+                data = { entry = sibling },
+                press = function(element)
+                    SelectPackEntry(element.data.entry)
+                end,
+            }
+        end
+        variantsPanel.children = chips
+        appearancesHeading:SetClass("hidden", #chips <= 1)
+    end
 
     local ClearPackSelection = function()
         m_packEntry = nil
         for _, tile in ipairs(packGrid.children) do
             tile:SetClass("selected", false)
         end
+        RefreshDetails()
     end
 
     local UpdateCreateButton = function()
@@ -76,7 +167,15 @@ mod.shared.ShowCreateMapDialog = function()
         else
             createButton.text = "Create Map"
         end
-        nameRow:SetClass("hidden", m_packEntry ~= nil)
+    end
+
+    --fill the name field from the selection unless the user typed their own.
+    local SetAutoName = function(name)
+        if m_mapName == m_autoName then
+            m_mapName = name
+            nameInput.text = name
+        end
+        m_autoName = name
     end
 
     local MapItemPress = function(element)
@@ -85,10 +184,11 @@ mod.shared.ShowCreateMapDialog = function()
             el:SetClass("selected", el == element)
         end
         ClearPackSelection()
+        SetAutoName("New Map")
         UpdateCreateButton()
     end
 
-    local SelectPackEntry = function(entry)
+    SelectPackEntry = function(entry)
         m_packEntry = entry
         if selectedMap ~= nil and selectedMap.valid then
             for _, el in ipairs(selectedMap.parent.children) do
@@ -98,6 +198,8 @@ mod.shared.ShowCreateMapDialog = function()
         for _, tile in ipairs(packGrid.children) do
             tile:SetClass("selected", tile.data.entry == entry)
         end
+        SetAutoName(entry.sceneName ~= "" and entry.sceneName or entry.name)
+        RefreshDetails()
         UpdateCreateButton()
     end
 
@@ -120,14 +222,14 @@ mod.shared.ShowCreateMapDialog = function()
             return
         end
 
-        local entries = mappacks.Search{
+        m_packEntries = mappacks.Search{
             text = m_search,
             maxResults = 400,
         }
 
         local tiles = {}
         local stillSelected = nil
-        for _, entry in ipairs(entries) do
+        for _, entry in ipairs(m_packEntries) do
             tiles[#tiles + 1] = mod.shared.CreateMapPackTile(entry, SelectPackEntry)
             if m_packEntry ~= nil and entry.pack == m_packEntry.pack and entry.id == m_packEntry.id and entry.variantIndex == m_packEntry.variantIndex then
                 stillSelected = entry
@@ -137,10 +239,10 @@ mod.shared.ShowCreateMapDialog = function()
 
         if mappacks.count == 0 then
             packStatus.text = "No map packs are available yet."
-        elseif #entries == 0 then
+        elseif #m_packEntries == 0 then
             packStatus.text = "No maps match your search."
         else
-            packStatus.text = string.format("%d of %d maps", #entries, mappacks.count)
+            packStatus.text = string.format("%d of %d maps", #m_packEntries, mappacks.count)
         end
 
         if stillSelected ~= nil then
@@ -151,11 +253,12 @@ mod.shared.ShowCreateMapDialog = function()
         end
     end
 
-    local AddPackMap = function(entry)
+    local AddPackMap = function(entry, name)
         mappacks.AddMapToGame{
             pack = entry.pack,
             mapid = entry.id,
             variantIndex = entry.variantIndex,
+            name = name,
             success = function(mapid)
                 dmhub.Coroutine(function()
                     for i = 1, 200 do
@@ -179,19 +282,12 @@ mod.shared.ShowCreateMapDialog = function()
         }
     end
 
-    nameRow = gui.Panel{
-        classes = {"formRow"},
-        gui.Label{
-            classes = {"form"},
-            text = "Map Name:",
-        },
-        gui.Input{
-            classes = {"form"},
-            text = m_mapName,
-            change = function(element)
-                m_mapName = element.text
-            end,
-        },
+    nameInput = gui.Input{
+        classes = {"form"},
+        text = m_mapName,
+        change = function(element)
+            m_mapName = element.text
+        end,
     }
 
     createButton = gui.Button{
@@ -201,8 +297,9 @@ mod.shared.ShowCreateMapDialog = function()
         click = function(element)
             if m_packEntry ~= nil then
                 local entry = m_packEntry
+                local name = m_mapName
                 gui.CloseModal()
-                AddPackMap(entry)
+                AddPackMap(entry, name)
                 return
             end
 
@@ -242,7 +339,7 @@ mod.shared.ShowCreateMapDialog = function()
 
 	m_dialog = gui.Panel{
 		classes = {"framedPanel"},
-		width = 1400,
+		width = 1700,
 		height = 940,
 		styles = ThemeEngine.MergeStyles(mod.shared.MapPackTileStyles()),
 
@@ -335,7 +432,14 @@ mod.shared.ShowCreateMapDialog = function()
                 valign = "top",
                 halign = "center",
                 vmargin = 4,
-                nameRow,
+                gui.Panel{
+                    classes = {"formRow"},
+                    gui.Label{
+                        classes = {"form"},
+                        text = "Map Name:",
+                    },
+                    nameInput,
+                },
             },
 
             gui.Label{
@@ -346,33 +450,62 @@ mod.shared.ShowCreateMapDialog = function()
 
             gui.Panel{
                 width = "100%",
-                height = 40,
+                height = 530,
                 flow = "horizontal",
-                halign = "left",
-                vmargin = 4,
-                gui.Input{
-                    classes = {"form"},
-                    width = 400,
-                    placeholderText = "Search maps...",
-                    editlag = 0.25,
-                    edit = function(element)
-                        m_search = element.text
-                        RefreshPackGrid()
-                    end,
-                    change = function(element)
-                        m_search = element.text
-                        RefreshPackGrid()
-                    end,
-                },
-                packStatus,
-            },
-
-            gui.Panel{
-                width = "100%",
-                height = 430,
-                vscroll = true,
                 valign = "top",
-                packGrid,
+
+                gui.Panel{
+                    width = "100%-420",
+                    height = "100%",
+                    flow = "vertical",
+                    valign = "top",
+
+                    gui.Panel{
+                        width = "100%",
+                        height = 40,
+                        flow = "horizontal",
+                        halign = "left",
+                        vmargin = 4,
+                        gui.Input{
+                            classes = {"form"},
+                            width = 400,
+                            placeholderText = "Search maps...",
+                            editlag = 0.25,
+                            edit = function(element)
+                                m_search = element.text
+                                RefreshPackGrid()
+                            end,
+                            change = function(element)
+                                m_search = element.text
+                                RefreshPackGrid()
+                            end,
+                        },
+                        packStatus,
+                    },
+
+                    gui.Panel{
+                        width = "100%",
+                        height = "100%-48",
+                        vscroll = true,
+                        valign = "top",
+                        packGrid,
+                    },
+                },
+
+                gui.Panel{
+                    width = 400,
+                    height = "100%",
+                    flow = "vertical",
+                    valign = "top",
+                    hmargin = 10,
+                    vscroll = true,
+                    detailImage,
+                    detailTitle,
+                    detailInfo,
+                    appearancesHeading,
+                    variantsPanel,
+                    detailKeywords,
+                },
             },
 
             gui.Panel{

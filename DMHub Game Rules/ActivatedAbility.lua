@@ -3734,7 +3734,24 @@ function ActivatedAbilityBehavior:IsFiltered(ability, casterToken, options)
 	if options and options.symbols and options.symbols.cast and options.symbols.cast.tier ~= 0 and #self:try_get("tiersSelected", {}) > 0 then
         --see if the tier filter filters it out.
         if not table.contains(self.tiersSelected, options.symbols.cast.tier) then
-            return true
+            --cast.tier is a scalar written by SetTierResult on a last-writer-wins basis, so
+            --with a multi-target roll it only reflects one target. Consult the per-target map
+            --before dropping the behavior: if ANY target landed on a selected tier, let the
+            --behavior through and let ApplyToTargets do the per-target filtering it already does.
+            local anyTierMatches = false
+            local tokenToTier = options.symbols.cast:try_get("tokenToTier")
+            if type(tokenToTier) == "table" then
+                for _,tier in pairs(tokenToTier) do
+                    if table.contains(self.tiersSelected, tier) then
+                        anyTierMatches = true
+                        break
+                    end
+                end
+            end
+
+            if not anyTierMatches then
+                return true
+            end
         end
     end
 

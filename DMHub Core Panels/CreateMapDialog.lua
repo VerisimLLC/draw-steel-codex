@@ -77,7 +77,7 @@ mod.shared.ShowCreateMapDialog = function()
         bgcolor = "white",
         cornerRadius = 6,
     }
-    local detailTitle = gui.Label{ classes = {"mapPackDetailTitle"}, text = "Select a map" }
+    local detailTitle = gui.Label{ classes = {"mapPackDetailTitle"}, text = "" }
     local detailInfo = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
     local detailKeywords = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
     local appearancesHeading = gui.Label{
@@ -91,6 +91,23 @@ mod.shared.ShowCreateMapDialog = function()
         flow = "horizontal",
         wrap = true,
         halign = "left",
+    }
+
+    --the whole pane stays hidden until a pack map is selected.
+    local detailPanel = gui.Panel{
+        classes = {"hidden"},
+        width = 400,
+        height = "100%",
+        flow = "vertical",
+        valign = "top",
+        hmargin = 10,
+        vscroll = true,
+        detailImage,
+        detailTitle,
+        detailInfo,
+        appearancesHeading,
+        variantsPanel,
+        detailKeywords,
     }
 
     local SelectPackEntry
@@ -109,15 +126,8 @@ mod.shared.ShowCreateMapDialog = function()
 
     local RefreshDetails = function()
         local entry = m_packEntry
+        detailPanel:SetClass("hidden", entry == nil)
         if entry == nil then
-            detailImage.bgimage = "panels/square.png"
-            detailImage.width = 340
-            detailImage.height = 240
-            detailTitle.text = "Select a map"
-            detailInfo.text = ""
-            detailKeywords.text = ""
-            variantsPanel.children = {}
-            appearancesHeading:SetClass("hidden", true)
             return
         end
 
@@ -492,20 +502,7 @@ mod.shared.ShowCreateMapDialog = function()
                     },
                 },
 
-                gui.Panel{
-                    width = 400,
-                    height = "100%",
-                    flow = "vertical",
-                    valign = "top",
-                    hmargin = 10,
-                    vscroll = true,
-                    detailImage,
-                    detailTitle,
-                    detailInfo,
-                    appearancesHeading,
-                    variantsPanel,
-                    detailKeywords,
-                },
+                detailPanel,
             },
 
             gui.Panel{

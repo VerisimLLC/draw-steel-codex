@@ -78,6 +78,7 @@ mod.shared.ShowCreateMapDialog = function()
         cornerRadius = 6,
     }
     local detailTitle = gui.Label{ classes = {"mapPackDetailTitle"}, text = "" }
+    local detailCreator = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
     local detailInfo = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
     local detailKeywords = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
     local appearancesHeading = gui.Label{
@@ -104,6 +105,7 @@ mod.shared.ShowCreateMapDialog = function()
         vscroll = true,
         detailImage,
         detailTitle,
+        detailCreator,
         detailInfo,
         appearancesHeading,
         variantsPanel,
@@ -141,6 +143,16 @@ mod.shared.ShowCreateMapDialog = function()
         detailImage.width = math.floor(w * scale)
         detailImage.height = math.floor(h * scale)
         detailTitle.text = entry.name
+        detailCreator.text = ""
+        mod.shared.GetMapPackCreator(entry, function(info)
+            --the lookup may land after the user moved on to another map.
+            if m_packEntry ~= entry or not detailCreator.valid then
+                return
+            end
+            if info.displayName ~= nil and info.displayName ~= "" then
+                detailCreator.text = "By " .. info.displayName
+            end
+        end)
         local summary = entry.description
         if summary == nil or summary == "" then
             summary = entry.sceneName

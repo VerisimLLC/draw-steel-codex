@@ -523,10 +523,16 @@ function CampaignTracker.RegisterSection(args)
         error("CampaignTracker.RegisterSection: requires { id = string, create = function }")
     end
 
+    --remember which mod registered this so the section can be dropped once
+    --that mod unloads (the Lua state outlives a game, so a module's section
+    --would otherwise linger into the next campaign). nil when not loading a mod.
+    local ownerMod = dmhub.GetModLoading()
+
     CampaignTracker._sections[args.id] = {
         id = args.id,
         ord = args.ord or 100,
         create = args.create,
+        mod = ownerMod,
     }
 
     dmhub.FireGlobalEvent(SECTIONS_CHANGED_EVENT)
@@ -544,7 +550,10 @@ end
 local function GetSortedSections()
     local result = {}
     for _, section in pairs(CampaignTracker._sections) do
-        result[#result + 1] = section
+        --skip sections whose owning mod has been unloaded.
+        if section.mod == nil or section.mod.unloaded ~= true then
+            result[#result + 1] = section
+        end
     end
     table.sort(result, function(a, b)
         if a.ord ~= b.ord then

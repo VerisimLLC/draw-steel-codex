@@ -49,27 +49,206 @@ end
 mod.shared.ShowCreateMapDialog = function()
 
     local selectedMap = nil
+    local m_packEntry = nil
+    local m_search = ""
+    local m_dialog = nil
 
     local m_mapName = "New Map"
+
+    --tile type is always squares for now.
+    local tileType = "squares"
+
+    local createButton
+    local nameRow
+    local packGrid
+    local packStatus
+
+    local ClearPackSelection = function()
+        m_packEntry = nil
+        for _, tile in ipairs(packGrid.children) do
+            tile:SetClass("selected", false)
+        end
+    end
+
+    local UpdateCreateButton = function()
+        if m_packEntry ~= nil then
+            createButton.text = "Add Map"
+        else
+            createButton.text = "Create Map"
+        end
+        nameRow:SetClass("hidden", m_packEntry ~= nil)
+    end
 
     local MapItemPress = function(element)
         selectedMap = element
         for _,el in ipairs(element.parent.children) do
             el:SetClass("selected", el == element)
         end
+        ClearPackSelection()
+        UpdateCreateButton()
     end
 
-    local tileType = "squares"
+    local SelectPackEntry = function(entry)
+        m_packEntry = entry
+        if selectedMap ~= nil and selectedMap.valid then
+            for _, el in ipairs(selectedMap.parent.children) do
+                el:SetClass("selected", false)
+            end
+        end
+        for _, tile in ipairs(packGrid.children) do
+            tile:SetClass("selected", tile.data.entry == entry)
+        end
+        UpdateCreateButton()
+    end
 
-	local dialogPanel = gui.Panel{
+    packGrid = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        wrap = true,
+        valign = "top",
+        halign = "left",
+    }
+
+    packStatus = gui.Label{
+        classes = {"mapPackStatus"},
+        text = "Syncing map packs...",
+    }
+
+    local RefreshPackGrid = function()
+        if m_dialog == nil or not m_dialog.valid or not mappacks.synced then
+            return
+        end
+
+        local entries = mappacks.Search{
+            text = m_search,
+            maxResults = 400,
+        }
+
+        local tiles = {}
+        local stillSelected = nil
+        for _, entry in ipairs(entries) do
+            tiles[#tiles + 1] = mod.shared.CreateMapPackTile(entry, SelectPackEntry)
+            if m_packEntry ~= nil and entry.pack == m_packEntry.pack and entry.id == m_packEntry.id and entry.variantIndex == m_packEntry.variantIndex then
+                stillSelected = entry
+            end
+        end
+        packGrid.children = tiles
+
+        if mappacks.count == 0 then
+            packStatus.text = "No map packs are available yet."
+        elseif #entries == 0 then
+            packStatus.text = "No maps match your search."
+        else
+            packStatus.text = string.format("%d of %d maps", #entries, mappacks.count)
+        end
+
+        if stillSelected ~= nil then
+            SelectPackEntry(stillSelected)
+        elseif m_packEntry ~= nil then
+            ClearPackSelection()
+            UpdateCreateButton()
+        end
+    end
+
+    local AddPackMap = function(entry)
+        mappacks.AddMapToGame{
+            pack = entry.pack,
+            mapid = entry.id,
+            variantIndex = entry.variantIndex,
+            success = function(mapid)
+                dmhub.Coroutine(function()
+                    for i = 1, 200 do
+                        if game.GetMap(mapid) ~= nil then
+                            break
+                        end
+                        coroutine.yield(0.05)
+                    end
+                    local map = game.GetMap(mapid)
+                    if map ~= nil then
+                        map:Travel()
+                    end
+                end)
+            end,
+            error = function(msg)
+                gui.ModalMessage{
+                    title = "Could not add map",
+                    message = msg,
+                }
+            end,
+        }
+    end
+
+    nameRow = gui.Panel{
+        classes = {"formRow"},
+        gui.Label{
+            classes = {"form"},
+            text = "Map Name:",
+        },
+        gui.Input{
+            classes = {"form"},
+            text = m_mapName,
+            change = function(element)
+                m_mapName = element.text
+            end,
+        },
+    }
+
+    createButton = gui.Button{
+        classes = {"sizeL"},
+        halign = "left",
+        text = "Create Map",
+        click = function(element)
+            if m_packEntry ~= nil then
+                local entry = m_packEntry
+                gui.CloseModal()
+                AddPackMap(entry)
+                return
+            end
+
+            local mapType = selectedMap.data.type
+            gui.CloseModal()
+
+            if mapType == "import" then
+                mod.shared.ImportMap{
+                    tileType = tileType,
+                    nofade = true,
+                    finish = function(info)
+                        mod.shared.FinishMapImport(m_mapName, info)
+                    end,
+                }
+            else
+                local guid = game.CreateMap{
+                    description = m_mapName
+                }
+
+                dmhub.Coroutine(function()
+                    while game.GetMap(guid) == nil do
+                        coroutine.yield(0.05)
+                    end
+
+                    local map = game.GetMap(guid)
+                    map:Travel()
+
+                    while game.currentMapId ~= guid do
+                        coroutine.yield(0.05)
+                    end
+
+                    dmhub.SetSettingValue("maplayout:tiletype", tileType)
+                end)
+            end
+        end,
+    }
+
+	m_dialog = gui.Panel{
 		classes = {"framedPanel"},
 		width = 1400,
 		height = 940,
-		styles = ThemeEngine.GetStyles(),
+		styles = ThemeEngine.MergeStyles(mod.shared.MapPackTileStyles()),
 
         gui.Panel{
             width = "100%-24",
-            height = "100%-48",
+            height = "100%-32",
             halign = "center",
             valign = "center",
 
@@ -78,6 +257,7 @@ mod.shared.ShowCreateMapDialog = function()
             gui.Label{
                 classes = {"modalTitle"},
                 text = "Create Map",
+                vmargin = 0,
             },
 
             gui.Panel{
@@ -86,7 +266,7 @@ mod.shared.ShowCreateMapDialog = function()
                 valign = "top",
                 width = "auto",
                 height = "auto",
-                vmargin = 16,
+                vmargin = 8,
 
                 styles = ThemeEngine.MergeTokens({
                     {
@@ -153,69 +333,46 @@ mod.shared.ShowCreateMapDialog = function()
                 height = "auto",
                 flow = "vertical",
                 valign = "top",
-                vmargin = 16,
+                halign = "center",
+                vmargin = 4,
+                nameRow,
+            },
 
-                gui.Panel{
-                    classes = {"formRow"},
-                    gui.Label{
-                        classes = {"form"},
-                        text = "Map Name:",
-                    },
-                    gui.Input{
-                        classes = {"form"},
-                        text = m_mapName,
-                        change = function(element)
-                            m_mapName = element.text
-                        end,
-                    },
+            gui.Label{
+                classes = {"modalTitle"},
+                text = "...or Use an Existing Map",
+                vmargin = 4,
+            },
+
+            gui.Panel{
+                width = "100%",
+                height = 40,
+                flow = "horizontal",
+                halign = "left",
+                vmargin = 4,
+                gui.Input{
+                    classes = {"form"},
+                    width = 400,
+                    placeholderText = "Search maps...",
+                    editlag = 0.25,
+                    edit = function(element)
+                        m_search = element.text
+                        RefreshPackGrid()
+                    end,
+                    change = function(element)
+                        m_search = element.text
+                        RefreshPackGrid()
+                    end,
                 },
+                packStatus,
+            },
 
-
-                gui.Panel{
-                    classes = {"formRow"},
-                    gui.Label{
-                        classes = {"form"},
-                        text = "Tile Type:",
-                    },
-
-                    gui.Panel{
-                        classes = {"form"},
-                        width = "auto",
-                        height = "auto",
-                        flow = "horizontal",
-                        halign = "left",
-
-                        select = function(element, target)
-                            tileType = target.data.id
-                            for _,child in ipairs(element.children) do
-                                child:SetClass("selected", target == child)
-                            end
-                        end,
-
-                        -- THEME_EXAMPLE: Bordered, selectable icon buttons
-                        gui.Button{
-                            classes = {"sizeXl", "bordered", "selected"},
-                            data = {id = "squares"},
-                            hmargin = 8,
-                            icon = "ui-icons/tile-square.png",
-                            click = function(element) element.parent:FireEvent("select", element) end,
-                        },
-                        gui.Button{
-                            classes = {"sizeXl", "bordered"},
-                            data = {id = "flattop"},
-                            hmargin = 8,
-                            icon = "ui-icons/tile-flathex.png",
-                            click = function(element) element.parent:FireEvent("select", element) end,
-                        },
-                        gui.Button{
-                            classes = {"sizeXl", "bordered"},
-                            data = {id = "pointtop"},
-                            hmargin = 8,
-                            icon = "ui-icons/tile-pointyhex.png",
-                            click = function(element) element.parent:FireEvent("select", element) end,
-                        },
-                    }
-                }
+            gui.Panel{
+                width = "100%",
+                height = 430,
+                vscroll = true,
+                valign = "top",
+                packGrid,
             },
 
             gui.Panel{
@@ -223,50 +380,7 @@ mod.shared.ShowCreateMapDialog = function()
                 height = 48,
                 halign = "center",
                 valign = "bottom",
-
-                gui.Button{
-                    classes = {"sizeL"},
-                    halign = "left",
-                    text = "Create Map",
-                    click = function(element)
-                        local mapType = selectedMap.data.type
-
-                        gui.CloseModal()
-
-                        if mapType == "import" then
-                            mod.shared.ImportMap{
-                                tileType = tileType,
-                                nofade = true,
-                                finish = function(info)
-                                    mod.shared.FinishMapImport(m_mapName, info)
-                                end,
-                            }
-                        else
-
-                            local guid = game.CreateMap{
-                                description = m_mapName
-                            }
-                            dmhub.Coroutine(function()
-                                while game.GetMap(guid) == nil do
-                                    coroutine.yield(0.05)
-                                end
-
-
-                                local map = game.GetMap(guid)
-
-                                map:Travel()
-
-                                while game.currentMapId ~= guid do
-                                    coroutine.yield(0.05)
-                                end
-
-                                dmhub.SetSettingValue("maplayout:tiletype", tileType)
-                            end)
-
-                        end
-                    end,
-                },
-
+                createButton,
                 gui.Button{
                     classes = {"sizeL"},
                     halign = "right",
@@ -281,8 +395,25 @@ mod.shared.ShowCreateMapDialog = function()
         }
     }
 
-    gui.ShowModal(dialogPanel)
+    gui.ShowModal(m_dialog)
 
+    if mappacks.synced then
+        RefreshPackGrid()
+    end
+
+    --re-sync on every open so newly published packs appear; only changed
+    --pack index blobs are downloaded.
+    mappacks.Sync{
+        success = function()
+            RefreshPackGrid()
+        end,
+        error = function(msg)
+            RefreshPackGrid()
+            if m_dialog ~= nil and m_dialog.valid then
+                packStatus.text = msg
+            end
+        end,
+    }
 end
 
 local function isClockwise(polygon)

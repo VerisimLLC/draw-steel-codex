@@ -1346,6 +1346,7 @@ local function buildSetupSection(ability, refreshSection, fireChange, editorOpti
                         ability.resourceNumber = tonumber(text)
                     else
                         ability.resourceCost = "none"
+                        ability.resourceNumber = nil
                     end
                     element.text = cond(ability.resourceCost == "none", "", ability.resourceNumber)
                 end,

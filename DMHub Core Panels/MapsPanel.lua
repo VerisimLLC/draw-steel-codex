@@ -1393,6 +1393,18 @@ CreateMapDialog = function()
 				hover = gui.Tooltip("Create a Folder"),
 			},
 			gui.Button{
+				id = "map-dialog-button-map-packs",
+				width = 26,
+				height = 26,
+				valign = "center",
+				hmargin = 4,
+				icon = "phosphor/map-trifold.png",
+				click = function(element)
+					mod.shared.ShowMapPackBrowser()
+				end,
+				hover = gui.Tooltip("Browse Map Packs"),
+			},
+			gui.Button{
 				id = "map-dialog-button-create-map",
 				classes = {"addButton"},
 				width = 26,

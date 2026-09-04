@@ -67,6 +67,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
         caster_companion = true,
         caster_summoner = true,
         caster_riders = true,
+        caster_mount = true,
         caster_mentor = true,
         caster_including_squad = true,
     }

@@ -213,12 +213,35 @@ function CBFeatureCache._processFeatures(opts, hero, features)
         return result
     end
 
+    -- levelChoices can hold orphaned entries under a guid that no longer
+    -- resolves (e.g. homebrew content whose guid changed). Track which guids
+    -- are actually live so the uniqueness sweep below can ignore stale ones.
+    local liveFeatureGuids = {}
+    local function collectLiveGuid(feature)
+        if feature.IsDerivedFrom("CharacterChoice") and passesPrereq(feature) then
+            liveFeatureGuids[feature.guid] = true
+        end
+    end
+    for _,item in ipairs(features) do
+        local itemFeatures = _safeGet(item, "features")
+        local itemFeature = _safeGet(item, "feature")
+        if itemFeatures ~= nil then
+            for _,feature in ipairs(itemFeatures) do
+                collectLiveGuid(feature)
+            end
+        elseif itemFeature ~= nil then
+            collectLiveGuid(item.feature)
+        else
+            collectLiveGuid(item)
+        end
+    end
+
     local function addFeature(feature, level)
         if not passesPrereq(feature) then return end
         if level == nil or level == 0 then
             level = levelFromPrereq(feature) or level
         end
-        local cacheFeature = CBFeatureWrapper.CreateNew(hero, feature, level)
+        local cacheFeature = CBFeatureWrapper.CreateNew(hero, feature, level, liveFeatureGuids)
         if cacheFeature then
             local guid = cacheFeature:GetGuid()
             keyed[guid] = cacheFeature
@@ -262,8 +285,9 @@ end
 --- @param hero character
 --- @param feature CharacterChoice
 --- @param level integer
+--- @param liveFeatureGuids table|nil set of feature guids live in this build, used to scope uniqueness checks against stale levelChoices entries
 --- @return CBFeatureWrapper|nil
-function CBFeatureWrapper.CreateNew(hero, feature, level)
+function CBFeatureWrapper.CreateNew(hero, feature, level, liveFeatureGuids)
     if not feature.IsDerivedFrom("CharacterChoice") then return nil end
 
     local category = CBFeatureWrapper._deriveCategory(feature)
@@ -276,6 +300,7 @@ function CBFeatureWrapper.CreateNew(hero, feature, level)
         categoryOrder = categoryOrder,
         currentOptionId = nil,
         level = level,
+        liveFeatureGuids = liveFeatureGuids,
     }
 
     newObj:Update(hero)
@@ -748,12 +773,17 @@ function CBFeatureWrapper:_excludeChoice(hero, choice)
     local fn = validators[self.feature.typeName]
     if fn then return fn(hero, choice) end
 
-    -- Look for it in any level choice
+    -- Look for it in any level choice that's still backed by a live feature.
+    -- A dead key (see liveFeatureGuids above) can hold a leftover guid that
+    -- happens to match a different, current unique choice and wrongly hide it.
     local choiceId = choice:GetGuid()
     local levelChoices = hero:GetLevelChoices() or {}
-    for _,featureChoices in pairs(levelChoices) do
-        for _,id in ipairs(featureChoices) do
-            if id == choiceId then return true end
+    local liveFeatureGuids = self:try_get("liveFeatureGuids")
+    for featureId,featureChoices in pairs(levelChoices) do
+        if liveFeatureGuids == nil or liveFeatureGuids[featureId] then
+            for _,id in ipairs(featureChoices) do
+                if id == choiceId then return true end
+            end
         end
     end
     -- local featureChoices = levelChoices[self:GetGuid()] or {}
@@ -1887,10 +1917,10 @@ local function categoriserHasUnmadeChoice(creature, feature)
         if num == nil or num <= 0 then return end
         local made = creature:GetLevelChoices()[feature.guid] or {}
         if feature:try_get("costsPoints") then
-            --For a point-buy slot NumChoices is the POINTS BUDGET, not a pick
-            --count: two picks costing 2+1 complete a 3-point slot. Judge
-            --completeness by points spent (mirrors FeatureUnspentChoices in
-            --Draw Steel V/DrawSteelChararcterSheet.lua).
+            --A point-buy slot's NumChoices is the POINTS BUDGET, not a pick
+            --count -- two picks costing 3 points complete a 3-point slot --
+            --so completeness is judged by points spent, as the character
+            --sheet's FeatureUnspentChoices does.
             local options = feature:GetOptions(creature:GetLevelChoices()) or {}
             local spent = 0
             for _,choiceid in ipairs(made) do
@@ -1902,8 +1932,8 @@ local function categoriserHasUnmadeChoice(creature, feature)
                 end
             end
             if spent < num then unmade = true end
-        else
-            if #made < num then unmade = true end
+        elseif #made < num then
+            unmade = true
         end
     end)
     return unmade
@@ -1923,8 +1953,12 @@ local function categoriserFeatureGrantsSkillOrLanguage(feature)
         for _,m in ipairs(feature:try_get("modifiers", {})) do
             local subtype = m:try_get("subtype")
             local skills = m:try_get("skills")
+            --A "power" modifier's skills list SCOPES an edge or bane to those
+            --skill tests, it does not grant the skills, so it is not a grant.
+            local grantsSkillList = m:try_get("behavior") ~= "power"
+                and type(skills) == "table" and #skills > 0
             if subtype == "skill" or subtype == "language"
-                or (type(skills) == "table" and #skills > 0) then
+                or grantsSkillList then
                 found = true
                 return
             end

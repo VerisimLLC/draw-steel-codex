@@ -3877,6 +3877,14 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
                 result[#result+1] = { token = tok }
             end
         end
+    elseif self.applyto == 'caster_mount' then
+        --The creature the caster is riding or climbing; empty when not mounted.
+        result = {}
+
+        local mountToken = casterToken.mount
+        if mountToken ~= nil and mountToken.valid then
+            result[#result+1] = { token = mountToken }
+        end
     elseif self.applyto == 'caster_summoner' then
         result = {}
 

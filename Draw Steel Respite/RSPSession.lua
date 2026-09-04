@@ -609,7 +609,13 @@ function RSPSession.BeginGameEffects()
     if info.initiativeQueue == nil then
         info.initiativeQueue = InitiativeQueue.Create()
     end
+    --A fresh queue is born visible (InitiativeQueue.Create sets hidden=false,
+    --gameMode="combat"), and visible is what the whole app reads as "a fight is
+    --running" -- the initiative bar, the "Round N" title, and CombatInProgress
+    --below all key off hidden, not gameMode. Only a map that has never hosted a
+    --fight reaches this, which is why it hid until now.
     info.initiativeQueue.gameMode = "respite"
+    info.initiativeQueue.hidden = true
     info.UploadInitiative()
 
     RSPSession.NotifyActivities("onStart")

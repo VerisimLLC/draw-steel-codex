@@ -6709,7 +6709,7 @@ function creature:PersistentAbilities()
                     local targetToken = dmhub.GetTokenById(targetid)
                     local usable = targetToken ~= nil and targetToken.valid and targetToken.properties ~= nil
                         and (not targetToken.properties:IsDead())
-                    if usable and persistence:try_get("inrange") == true and selfToken ~= nil then
+                    if usable and persistence.inrange == true and selfToken ~= nil then
                         local range = ability:GetRange(self)
                         if type(range) == "number" and selfToken:Distance(targetToken) > range then
                             usable = false
@@ -6761,7 +6761,7 @@ function creature:PersistentAbilities()
             --offering the trigger (start of turn, target alive) should not be
             --restated there.
             local promptText
-            local customPrompt = persistence:try_get("promptText")
+            local customPrompt = persistence.promptText
             if type(customPrompt) == "string" and trim(customPrompt) ~= "" then
                 promptText = string.format("%s: %s; %s", tr("Persistence"), ability.name, customPrompt)
             else

@@ -4,6 +4,14 @@ local mod = dmhub.GetModLoading()
 --kept as a default so old serialized data doesn't error on access.
 ActivatedAbility.effectImplemented = true
 
+--hideSightlines: while this ability waits at its cast confirmation prompt, the
+--action bar draws red sight-line arrows from every enemy with a clear view of
+--the caster -- the same arrows the Hide maneuver's cover-or-concealment gate
+--shows on hover. Set it on "you may hide" prompt abilities (e.g. the one Black
+--Ash Teleport invokes after the teleport) so the player can see who would spot
+--them before deciding to hide.
+ActivatedAbility.hideSightlines = false
+
 local g_settingTargetObjects = setting {
     id = "targetobjects",
     default = false,

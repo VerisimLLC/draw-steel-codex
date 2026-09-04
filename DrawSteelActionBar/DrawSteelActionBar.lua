@@ -10772,6 +10772,11 @@ CreateAbilityController = function()
             g_currentAbility = nil
             g_currentSymbols = {}
             FreeTargetLineOfSightRays()
+
+            --Free any hide-prompt sight-line arrows owned by the cast prompt.
+            if g_filterSightlines.owner == "castPrompt" then
+                ClearFilterSightlineRays()
+            end
             element.mapfocus = false
             element.captureEscape = false
 
@@ -13175,6 +13180,18 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             end
             g_castMessage.data.promptText = promptText
             g_castMessage:FireEvent("refresh")
+
+            --A hideSightlines ability (e.g. the "you may hide" prompt Black Ash
+            --Teleport invokes after the teleport lands) shows the Hide gate's red
+            --enemy sight-line arrows while its confirmation prompt is up, so the
+            --player can see who would spot them before choosing to hide. The
+            --"castPrompt" owner string keeps these distinct from hover-owned
+            --arrows; cancelCasting clears them.
+            if g_currentAbility:try_get("hideSightlines", false) then
+                ShowFilterSightlineRays("castPrompt")
+            elseif g_filterSightlines.owner == "castPrompt" then
+                ClearFilterSightlineRays()
+            end
 
             g_castModesPanel:FireEvent("refreshModes")
             g_forcedMovementTypePanel:FireEvent("refreshForcedMovement")

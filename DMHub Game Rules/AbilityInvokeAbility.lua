@@ -131,6 +131,13 @@ ActivatedAbility.RegisterType
 ActivatedAbilityInvokeAbilityBehavior.summary = 'Invoke Ability'
 ActivatedAbilityInvokeAbilityBehavior.promptText = ''
 
+--Set on invokes whose prompt asks the player to decide a hide that depends on
+--cover or concealment: the invoked ability shows the Hide maneuver's red enemy
+--sight-line arrows while its prompt is up. It lives here rather than on the
+--invoked ability because the "may hide" helper abilities are shared by content
+--whose rules differ -- some grant the hide with no cover needed at all.
+ActivatedAbilityInvokeAbilityBehavior.hideSightlines = false
+
 --if true we will invoke on the caster token.
 ActivatedAbilityInvokeAbilityBehavior.invokeOnCaster = false
 ActivatedAbilityInvokeAbilityBehavior.runOnController = false
@@ -549,6 +556,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         abilityAttr = {
                             promptOverride = cond(self.promptText ~= "", StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{})),
                             disableSquadCoordination = cond(not self:try_get("useSquadCoordination", false), true),
+                            hideSightlines = cond(self:try_get("hideSightlines", false), true),
                         }
                     }
 
@@ -715,6 +723,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                         if self.promptText ~= "" then
                             abilityClone.promptOverride = StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{})
+                        end
+
+                        if self:try_get("hideSightlines", false) then
+                            abilityClone.hideSightlines = true
                         end
 
                         -- Apply forced movement bonuses if this is a forced movement ability
@@ -1624,6 +1636,14 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 		value = self:try_get("useSquadCoordination", false),
 		change = function(element)
 			self.useSquadCoordination = element.value
+		end,
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Show Hide Sight-Lines",
+		value = self:try_get("hideSightlines", false),
+		change = function(element)
+			self.hideSightlines = element.value
 		end,
 	}
 

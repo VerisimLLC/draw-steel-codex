@@ -3166,16 +3166,41 @@ function CharSheet.AppearancePanel()
                         
                     end
 
+                    local token = info.token
+                    local light = token.properties:GetEquippedLightSource()
+                    local lightEntry = nil
+                    if light ~= nil then
+                        lightEntry = equipmentTable[light]
+                    end
+
+                    --Always offer whatever the token actually has equipped, even when it
+                    --didn't pass the filter above. If the equipment category caches came up
+                    --empty this session, filtering the equipped item out would present a
+                    --perfectly valid light source as "(Invalid)".
+                    if lightEntry ~= nil then
+                        local haveEquipped = false
+                        for _, option in ipairs(options) do
+                            if option.id == light then
+                                haveEquipped = true
+                                break
+                            end
+                        end
+
+                        if not haveEquipped then
+                            options[#options + 1] = {
+                                id = light,
+                                text = lightEntry.name,
+                            }
+                        end
+                    end
+
                     table.sort(options, function(a, b)
                         return a.text < b.text
                     end)
                     table.insert(options, 1, { id = "none", text = "None" })
                     element.options = options
 
-                    local token = info.token
-                    local light = token.properties:GetEquippedLightSource()
-
-                    if light == nil or equipmentTable[light] == nil then
+                    if lightEntry == nil then
                         element.idChosen = "none"
                     else
                         element.idChosen = light

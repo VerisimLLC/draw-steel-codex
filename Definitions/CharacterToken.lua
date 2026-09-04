@@ -62,7 +62,7 @@
 --- @field characterHeight number (read-only) the number of tiles tall the token is.
 --- @field loc Loc (Read-only) The location the token is at.
 --- @field locsOccupying Loc[] (Read-only) An array of locations the token is occupying. The number of items in this array will be based on the token's creature size.
---- @field hasConcealment boolean Is true if the token is in a location that has concealment.
+--- @field hasConcealment boolean Is true if the token is in a location that has concealment. A creature bigger than one tile is only concealed when every tile it occupies has concealment.
 --- @field hasTerrainConcealment boolean Is true if the terrain at the token's location grants concealment by itself, ignoring any concealment contributed by auras or zones.
 --- @field mapid string (Read-only) the id of the map the token is currently on.
 --- @field floorid string (Read-only) the id of the floor the token is currently on.

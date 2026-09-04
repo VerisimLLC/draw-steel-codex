@@ -770,7 +770,20 @@ function GameHud:CreateToolbarPanel()
 					end
 				end,
 				press = function()
+					--Commands.GetCommandInfo only knows the launchable-panel and
+					--command registries; panels like Maps and the Measuring Tool
+					--are dockable panels now, so fall back to the toolbar's own
+					--candidate list (which covers both registries) or the button
+					--is inert.
 					local info = Commands.GetCommandInfo(itemName)
+					if info == nil then
+						for _,candidate in ipairs(ToolbarCandidates()) do
+							if candidate.name == itemName then
+								info = candidate
+								break
+							end
+						end
+					end
 					if info ~= nil and info.click ~= nil then
 						info.click()
 					end

@@ -14,6 +14,7 @@
 --- @field tileType string
 --- @field keywords string[]
 --- @field description string
+--- @field footstep string recommended default footstep surface name ("" if none)
 MapPackIndexEntry = {}
 
 --- @class MapPackInfo

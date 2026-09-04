@@ -957,6 +957,57 @@ local function SerializeTriggerContext(symbols, targets)
 	return serializedSymbols, serializedTargets
 end
 
+--Triggers that fire as the subject STARTS to move, so subjectRange has to be
+--measured from where it set off.
+local g_departureTriggers = {
+    move = true,
+    teleport = true,
+}
+
+--Distance for a subjectRange gate. On a departure trigger the subject's token
+--may already sit at its destination -- the observer's client applies the moved
+--location before draining its triggeredEvents queue -- so measure from
+--path.steps[1], the square it left. No path, or any other trigger, uses the
+--live token.
+local function SubjectRangeDistance(triggerName, subjectToken, casterToken, symbols)
+    if not g_departureTriggers[triggerName] then
+        return subjectToken:Distance(casterToken)
+    end
+
+    --pcall: PathMoved has no default for 'path', so reading it can raise.
+    local steps = nil
+    local size = 1
+    local pathMoved = symbols and symbols.path
+    if pathMoved ~= nil then
+        pcall(function()
+            steps = pathMoved.path.steps
+            size = pathMoved.size or 1
+        end)
+    end
+
+    if steps == nil or #steps == 0 then
+        return subjectToken:Distance(casterToken)
+    end
+
+    local origin = steps[1]
+    if size <= 1 then
+        return casterToken:Distance(origin)
+    end
+
+    --A size-N token covers N x N squares from that step; take the nearest.
+    local result = nil
+    for i = 1, size do
+        for j = 1, size do
+            local distance = casterToken:Distance(origin:dir(i - 1, j - 1))
+            if result == nil or distance < result then
+                result = distance
+            end
+        end
+    end
+
+    return result
+end
+
 --auraControllerToken: token controlling an aura this is triggered from, or can be nil for a regular trigger attached to the creature it's triggering on.
 --- @param characterModifier CharacterModifier
 --- @param creature Creature
@@ -1084,7 +1135,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
         if subjectRangeFormula ~= "" then
             local range = ExecuteGoblinScript(subjectRangeFormula, creature:LookupSymbol(symbols), nil, "Calculate Subject Range")
             if range ~= nil then
-                local distance = subjectToken:Distance(casterToken)
+                local distance = SubjectRangeDistance(self:try_get("trigger", ""), subjectToken, casterToken, symbols)
                 range = tonumber(range)
                 if distance > range then
                     --out of range.

@@ -11,7 +11,7 @@ end
 
 local function GenerateStandardStrikeExecuteFunction()
     return function(self, ai, token, scoringInfo, ability)
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
 
         local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
@@ -75,7 +75,7 @@ MonsterAI:RegisterMove{
         end
     end,
     execute = function(self, ai, token, scoringInfo, ability)
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
         ai:Speech(token, {"Knockback!", "I'll give you a good shove"})
         ai.Sleep(0.5)
@@ -123,7 +123,7 @@ MonsterAI:RegisterMove{
         end
     end,
     execute = function(self, ai, token, scoringInfo, ability)
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
         ai:Speech(token, {"I'll get my hands on you!", "I'll grab you!", "You're not getting away!"})
         ai.Sleep(0.5)
@@ -155,7 +155,7 @@ MonsterAI:RegisterMove{
         end
     end,
     execute = function(self, ai, token, scoringInfo, ability)
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
         ai:Speech(token, {"Aid Attack!", "Help me get them!"})
         ai.Sleep(0.5)
@@ -178,7 +178,7 @@ MonsterAI:RegisterMove{
         end
     end,
     execute = function(self, ai, token, scoringInfo, ability)
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
 
         local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
         ai:ExecuteAbility(token, ability, targets)
@@ -193,7 +193,7 @@ MonsterAI:RegisterMove{
     abilities = {"Bury the Point"},
     score = GenerateStandardStrikeScoreFunction(2),
     execute = function(self, ai, token, scoringInfo, ability)
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
 
         ai.Sleep(1.0)
         ai:Speech(token, {"Bury the Point!", "I'll bury this spear in you!"})
@@ -211,15 +211,13 @@ MonsterAI:RegisterMove{
     monsters = {"Goblin Pirate Assassin", "Goblin Assassin"},
     abilities = {"Shadow Chains"},
     score = function(self, ai, token, ability)
-        print("AI:: SCORE CALLED WITH ABILITY", ability)
         local loc,score = ai:FindBestMoveToUseStrike(token, ability)
-        print("AI:: BEST LOC TO USE STRIKE", loc)
         if loc ~= nil then
             return {score = score*0.4, loc = loc} --the scoring will make it more desirable than sword stab as long as there are three targets.
         end
     end,
     execute = function(self, ai, token, scoringInfo, ability)
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(1.0)
         ai:Speech(token, "Shadow Chains!")
 
@@ -235,15 +233,13 @@ MonsterAI:RegisterMove{
     monsters = {"Goblin Pirate Assassin", "Goblin Assassin"},
     abilities = {"Sword Stab"},
     score = function(self, ai, token, ability)
-        print("AI:: SCORE CALLED WITH ABILITY", ability)
         local loc = ai:FindBestMoveToUseStrike(token, ability)
-        print("AI:: BEST LOC TO USE STRIKE", loc)
         if loc ~= nil then
             return {score = 1, loc = loc}
         end
     end,
     execute = function(self, ai, token, scoringInfo, ability)
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
 
         ai:Speech(token, {"Take this!", "Feel my blade!", "Die!"})
         local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
@@ -270,7 +266,7 @@ MonsterAI:RegisterMove{
     end,
     execute = function(self, ai, token, scoringInfo, ability)
         ai:Speech(token, {"You can't catch me!", "Now you see me, now you don't!", "Try to find me!"})
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
 
         ai:ExecuteAbility(token, ability, {})
     end,
@@ -292,7 +288,7 @@ MonsterAI:RegisterMove{
         return nil
     end,
     execute = function(self, ai, token, scoringInfo, ability)
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
         ai:Speech(token, {"Shadow Drag!", "I'll pull you over here!"})
         ai.Sleep(0.5)
@@ -317,7 +313,7 @@ MonsterAI:RegisterMove{
         return nil
     end,
     execute = function(self, ai, token, scoringInfo, ability)
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
         ai:Speech(token, {"I'll warp your very existence!", "Twist Shape!"})
         ai.Sleep(0.5)
@@ -338,7 +334,7 @@ MonsterAI:RegisterMove{
         return {score = score*0.9, loc = loc} --this scoring will make it prefers to use drag unless it can get three heroes.
     end,
     execute = function(self, ai, token, scoringInfo, ability)
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
         ai:Speech(token, {"Blistering Element!", "I'll end you all!"})
         ai.Sleep(0.5)
@@ -355,7 +351,7 @@ MonsterAI:RegisterMove{
     description = "Will position to hit two targets if possible.",
     score = GenerateStandardStrikeScoreFunction(1),
     execute = function(self, ai, token, scoringInfo, ability)
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         local targets = ai:FindValidTargetsOfStrike(token, ability, scoringInfo.loc)
         ai.Sleep(0.5)
         if #targets >= 2 then
@@ -392,14 +388,12 @@ MonsterAI:RegisterMove{
         fakeAbility.chargeDistanceOverride = 3
         local loc, score = ai:FindBestMoveToUseStrike(token, leapAbility, function(targetToken)
             --we only want to leap on targets small enough to knock prone.
-            print("AI:: TARGET SIZE:", targetToken.tileSize)
             if targetToken.tileSize > 1 then
                 return -1
             end
 
             return 2
         end)
-        print("AI:: LEAP:", loc, score)
         if loc ~= nil and score ~= nil then
             return {score = score, loc = loc}
         end
@@ -409,7 +403,7 @@ MonsterAI:RegisterMove{
         fakeAbility:AddKeyword("Charge")
         fakeAbility.chargeDistanceOverride = 3
 
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         local targets = ai:FindValidTargetsOfStrike(token, fakeAbility, scoringInfo.loc)
         ai.Sleep(0.5)
         if targets == nil or #targets == 0 or targets[1].charge == nil then
@@ -467,7 +461,7 @@ MonsterAI:RegisterMove{
     end,
 
     execute = function(self, ai, token, scoringInfo, ability)
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
 
         ai:ExecuteAbility(token, ability)
@@ -500,7 +494,7 @@ MonsterAI:RegisterMove{
     end,
 
     execute = function(self, ai, token, scoringInfo, ability)
-        local path = token:Move(scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
+        local path = ai:MoveToken(token, scoringInfo.loc, {maxCost = 10000, ignoreFalling = false})
         ai.Sleep(0.5)
 
         ai:ExecuteAbility(token, ability)

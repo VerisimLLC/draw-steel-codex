@@ -49,12 +49,36 @@ shadow-elves.lua
 ### The Turn Loop
 
 1. `MonsterAIPanel.lua` runs a coroutine (`MonsterAIThread`) that polls the initiative queue.
-2. When it is a non-player turn, it creates a `MonsterAI` instance and calls `PlayTurnCoroutine(initiativeid)`.
+2. When it is a non-player turn, it creates a `MonsterAI` instance and calls `PlayTurnSafely(initiativeid)`.
 3. Score all registered start-of-turn Malice abilities, use the highest-scoring affordable option that meets its threshold, and wait for it to resolve.
 4. For each token in that initiative entry:
+   - If the actual actor is outside the usable map view, pan and sync the camera before it begins. Shared initiative entries can therefore pan again as each distinct monster acts without recentering monsters that are already visible.
    - Minions: find their Signature Ability and execute it as a coordinated squad strike (`ExecuteSquadStrike`).
-   - Non-minions: iterate up to 6 times calling `FindAndExecuteMove()`, which scores every registered move and executes the best one. The loop breaks when no move scores above 0.
+   - Non-minions: iterate up to 6 times calling `FindAndExecuteMove()`, which scores every registered move and executes the best one. A scoring or execution error quarantines that move for the actor; `"failed"` continues to another cycle, while `"none"` or `"unsafe"` stops the actor.
 5. After all tokens act, initiative advances automatically.
+
+### Error containment
+
+AI actions yield while movement, speech, prompts, and casts resolve, so action
+boundaries use `RunYieldingFunction` rather than a plain `pcall`. It drives the
+action in a child coroutine, forwards delays, and returns errors to the caller.
+
+- A move scoring failure is logged and quarantined for that actor.
+- A move execution failure is logged, quarantined, and followed by a bounded
+  wait for active casts to settle before another move is considered.
+- Each actor has an outer yielding boundary whose cleanup always restores AI
+  token control and prompt callbacks.
+- `PlayTurnSafely` is the final turn boundary. If an unexpected error escapes,
+  it waits briefly for casts, advances only if the same initiative is still
+  current, and returns control to the persistent AI process.
+- `MonsterAIThread` also contains errors from trigger polling, initiative
+  selection, and camera work so an unrelated framework exception cannot kill
+  the background process. A failed registered trigger is best-effort dismissed
+  after token-control cleanup so the roll that offered it can continue.
+
+Failed move quarantine is per actor and each failure consumes one of the six
+cycles. This prevents a broken highest-scoring move from being selected in a
+tight loop while still allowing lower-scoring legal moves to run.
 
 ### Six Registration Systems
 
@@ -186,6 +210,38 @@ The AI's decision-making is score-based:
 2. **Target scoring within a move**: `FindBestMoveToUseStrike` iterates every reachable tile, evaluates valid targets from that position, and picks the tile that maximizes `numTargets + edges*0.1 - movementCost*0.001`.
 3. **Edge adjustments**: For each potential target at each position, active tactics add/subtract from the edge score. Line of sight obstruction subtracts 1 edge. Being a ranged attacker adjacent to enemies subtracts 1 edge.
 
+### Decision Logging
+
+The framework writes structured decision records to `Player.log` through a
+single `print()` call per record. Every line begins with `AI::` and names the
+event followed by stable `key=value` fields. Turn, actor, action category, move
+registration, ability, score, plan, targets, result, and rejection reason are
+included whenever they apply.
+
+Normal turn logging includes:
+
+- Initiative and actor start/finish events.
+- Every move registered for the monster that is disabled, missing an ability,
+  unaffordable, rejected by scoring, or accepted as a legal candidate.
+- The selected move's exact category (`Main Action`, `Maneuver`, and so on),
+  registration ID, ability names, score, and winning plan.
+- Every issued movement and every ability cast, including readable target
+  names and cast completion time.
+- Malice, villain action, prompt, trigger, minion squad, and synthesized-move
+  decisions.
+
+Use `ai:LogDecision(event, fields)` for new framework or band diagnostics so
+the current turn/move context is retained. A score callback may return a second
+string value when it returns `nil`; the framework records that value as the
+specific rejection reason:
+
+```lua
+return nil, "requires at least two enemies in the burst"
+```
+
+Avoid per-path-tile prints. Summarize the winning target plan instead so the
+actual action names and decision sequence remain readable.
+
 ### Key Helper Methods
 
 | Method | What it does |
@@ -194,8 +250,9 @@ The AI's decision-making is score-based:
 | `ai:FindBestMoveToUseBurst(token, ability, scorefn?)` | Same but for burst/area abilities (targetType "all") |
 | `ai:FindBestLinePlan(token, ability, options?)` | Scores line areas aimed at candidate tokens or locations. Supports `candidates`, `scorefn`, `symbols`, `checklos`, and placed-line `locOverride`; returns the best plan with its endpoint, targets, and score |
 | `ai:FindValidTargetsOfStrike(token, ability, loc, range?)` | Returns sorted array of `{token, loc, charge, edges}` for valid targets from a position |
-| `ai:ExecuteAbility(casterToken, ability, targets?, options?)` | Moves, displays line-of-sight rays, invokes the ability, waits for resolution |
+| `ai:ExecuteAbility(casterToken, ability, targets?, options?)` | Displays a three-pulse labeled telegraph for placed target areas, preserves the full area target list, invokes the original target type, and waits for resolution |
 | `ai:Speech(token, text, options?)` | Makes a token say something (text can be a string or array for random selection) |
+| `ai:FindMostSeniorInitiativeGroupMember(tokens)` | Chooses a live initiative-group leader by non-minion status, squad captain status, then highest EV; exact ties retain token order |
 | `ai:FindReachableConcealment()` | Finds the nearest reachable concealed tile |
 | `ai:FindClosestEnemy()` | Returns the nearest enemy token |
 | `ai:DistanceFromNearestEnemy(token)` | Returns distance to the closest enemy |
@@ -322,6 +379,19 @@ For burst abilities, omit the targets parameter:
 ```lua
 ai:ExecuteAbility(token, ability)  -- auto-targets all in range
 ```
+
+For placed cube, line, cone, and map areas, pass the original ability plus the
+chosen shape and every filtered creature inside it:
+```lua
+ai:ExecuteAbility(token, ability, targets, {
+    symbols = {targetArea = area},
+    targetArea = area,
+})
+```
+
+Do not rewrite an area ability to `target` or replace its `numTargets`. The
+execution helper preserves the supplied area target list and passes the shape
+through the normal `Cast()` contract.
 
 ### Step 7: Handle Prompts (If Needed)
 

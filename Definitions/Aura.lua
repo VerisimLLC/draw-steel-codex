@@ -4,8 +4,9 @@ Aura = {}
 
 --- MovementDamageApplies
 --- @param movementType any
+--- @param forced boolean
 --- @return boolean
-function Aura:MovementDamageApplies(movementType)
+function Aura:MovementDamageApplies(movementType, forced)
 	-- dummy implementation for documentation purposes only
 end
 

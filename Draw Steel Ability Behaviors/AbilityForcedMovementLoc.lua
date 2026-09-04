@@ -36,6 +36,7 @@ function ActivatedAbilityForcedMovementLocBehavior:Cast(ability, casterToken, ta
         end
 
         options.symbols.forcedMovementOrigin = target.token.loc
+        options.symbols.forcedMovementOriginTokenId = target.token.charid
         print("ORIGIN:: set origin =", target.token.loc.str)
     elseif self.type == "aura" then
         local aura = options.symbols.aura
@@ -46,6 +47,7 @@ function ActivatedAbilityForcedMovementLocBehavior:Cast(ability, casterToken, ta
 
         local origin = aura:GetArea().origin
         options.symbols.forcedMovementOrigin = origin
+        options.symbols.forcedMovementOriginTokenId = nil
         print("ORIGIN:: set origin =", origin.str)
     elseif self.type == "creature" then
         local rangeFormula = self:try_get("creatureRange", "")
@@ -89,6 +91,7 @@ function ActivatedAbilityForcedMovementLocBehavior:Cast(ability, casterToken, ta
         end
 
         local chosenLoc = nil
+        local chosenTokenId = nil
         local done = false
         print("ORIGIN:: prompting for creature, candidates=", #candidates, "range=", tostring(rangeLimit))
         GameHud.instance.actionBarPanel:FireEventTree("chooseTargetToken", {
@@ -100,6 +103,7 @@ function ActivatedAbilityForcedMovementLocBehavior:Cast(ability, casterToken, ta
                 print("ORIGIN:: choose fired ->", targetToken and targetToken.charid)
                 if targetToken ~= nil and targetToken.valid then
                     chosenLoc = targetToken.loc
+                    chosenTokenId = targetToken.charid
                 end
                 done = true
             end,
@@ -115,6 +119,7 @@ function ActivatedAbilityForcedMovementLocBehavior:Cast(ability, casterToken, ta
 
         if chosenLoc ~= nil then
             options.symbols.forcedMovementOrigin = chosenLoc
+            options.symbols.forcedMovementOriginTokenId = chosenTokenId
             print("ORIGIN:: set origin =", chosenLoc.str)
         end
     end

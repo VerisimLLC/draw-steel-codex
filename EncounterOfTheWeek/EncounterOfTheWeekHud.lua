@@ -875,12 +875,14 @@ local function CreatePanelButton(panelName)
     }
 end
 
---The bottom-left corner strip: the Chat and Action Log buttons survive
---the takeover (user direction 2026-08-28) so players keep chat and the
---roll history.
+--The bottom-left corner strip: the Journal, Chat and Action Log buttons
+--survive the takeover (user direction 2026-08-28 for chat/log,
+--2026-08-30 for the journal) so players keep the encounter's briefing
+--documents, chat, and the roll history. Journal sits ABOVE the other two
+--(vertical flow, so first in the list is the topmost button).
 local function CreateCornerButtonsPanel()
     local buttons = {}
-    for _, name in ipairs({"Chat", "Action Log"}) do
+    for _, name in ipairs({"Journal", "Chat", "Action Log"}) do
         buttons[#buttons+1] = CreatePanelButton(name)
     end
     if #buttons == 0 then

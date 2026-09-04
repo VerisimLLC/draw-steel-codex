@@ -129,6 +129,46 @@ local HERO_CARD_GROW_TIME = 0.3
 --finds nothing new.
 local PORTRAIT_WARM_RESCAN_SECONDS = 2
 local PORTRAIT_WARM_PASSES = 8
+--Warming is amortized: mounting every portrait panel in one tick made the
+--engine decode a dozen textures inside a single frame, which was most of
+--the hitch a cold open used to show. A handful per tick spreads that over
+--frames. The first pass now starts as soon as the screen is built, which
+--is UNDER the loading veil: the veil waits for the warm-up to settle before
+--it reveals (see PortraitWarmupSettled), so those decodes are spent on a
+--deliberate loading screen instead of hitching a screen the player is
+--already looking at.
+local PORTRAIT_WARM_BATCH = 3
+local PORTRAIT_WARM_BATCH_SECONDS = 0.05
+local PORTRAIT_WARM_START_SECONDS = 0.05
+
+--Opening the screen is not free: building the panel tree, connecting to
+--the lobby and pulling the first textures cost a beat or two, and doing
+--all of it inline meant the screen appeared and then froze mid-paint for
+--a second or more. So a cheap veil (text only -- nothing that has to
+--stream) goes up first, the real screen is built behind it, and the two
+--cross-fade once the build has settled. Every delay below is measured
+--from the moment the preceding step FINISHED -- ScheduleEvent is
+--wall-clock, so a build that stalls the frame pushes the reveal back
+--instead of uncovering a half-drawn screen.
+local VEIL_FADE_IN_SECONDS = 0.12
+--let the veil paint and finish fading in before the build stalls a frame.
+local VEIL_BUILD_DELAY_SECONDS = 0.15
+--after the build returns, a beat for layout before we start asking whether
+--the screen's art has arrived.
+local VEIL_SETTLE_SECONDS = 0.35
+local VEIL_CROSSFADE_SECONDS = 0.3
+
+--After that beat the veil WAITS for the screen's streamed art (the
+--portraits, warmed by CreatePortraitWarmer) instead of revealing on a
+--timer, so the texture decodes land behind the veil rather than hitching a
+--screen the player is already looking at. Two escape hatches keep that
+--from inheriting the worst case of the slowest -- or a never-arriving --
+--image, which is exactly what sank the rejected Add-a-Hero cover: a
+--stretch with NO progress at all counts as settled, and a hard deadline
+--reveals regardless.
+local VEIL_WAIT_POLL_SECONDS = 0.1
+local VEIL_WAIT_IDLE_SECONDS = 0.5
+local VEIL_WAIT_MAX_SECONDS = 4
 
 --── pregen hero cache ────────────────────────────────────────────────
 --The codex-encounteroftheweek module ships premade heroes as module
@@ -408,11 +448,27 @@ local function EligiblePortraitImageIds()
     return result
 end
 
+--How the warm-up is going, for the loading veil to wait on (see
+--PortraitWarmupSettled). Replaced wholesale by each new warmer; the veil
+--only ever looks at the current screen's.
+local m_warmState = nil
+
 --The warmer panel. Floating and 1x1, so it takes part in no layout.
 local function CreatePortraitWarmer()
     --ids already given a panel; a warm panel is never removed, so the
     --texture stays resident for as long as the screen is open.
     local m_warmed = {}
+
+    --Progress for this screen. 'changed' is stamped by anything that counts
+    --as progress -- a panel mounted, a texture arrived -- so the veil can
+    --tell "still streaming" from "nothing is ever going to arrive".
+    local warmState = {
+        mounted = 0,
+        ready = 0,
+        drained = false,
+        changed = dmhub.Time(),
+    }
+    m_warmState = warmState
 
     return gui.Panel{
         id = "eotwPortraitWarmer",
@@ -424,19 +480,36 @@ local function CreatePortraitWarmer()
         height = 1,
         flow = "none",
 
-        --deferred a tick rather than fired inline: the first pass adds
-        --children, and doing that while the panel is still starting is
-        --asking for trouble.
+        --deferred rather than fired inline: the first pass adds children,
+        --and doing that while the panel is still starting is asking for
+        --trouble. The delay is long enough to clear the screen's opening
+        --cross-fade too, so no texture decode lands during the reveal.
         create = function(element)
-            element:ScheduleEvent("warmPortraits", 0.01, PORTRAIT_WARM_PASSES)
+            element:ScheduleEvent("warmPortraits", PORTRAIT_WARM_START_SECONDS, PORTRAIT_WARM_PASSES)
         end,
 
+        --One pass = mount panels for the ids found this scan, but only
+        --PORTRAIT_WARM_BATCH of them per tick: each panel makes the engine
+        --stream and decode a texture, and doing a dozen at once costs a
+        --visible frame. A pass that fills its batch comes straight back for
+        --the rest; a pass with room to spare has drained the current
+        --eligible set and waits out the rescan interval.
         warmPortraits = function(element, passesLeft)
             local added = 0
             for _,id in ipairs(EligiblePortraitImageIds()) do
+                if added >= PORTRAIT_WARM_BATCH then
+                    break
+                end
                 if m_warmed[id] == nil then
                     m_warmed[id] = true
                     added = added + 1
+                    warmState.mounted = warmState.mounted + 1
+                    warmState.changed = dmhub.Time()
+
+                    --reported once per panel: imageLoaded fires on create
+                    --for a texture that is already resident and again if
+                    --the panel's image is later re-initialized.
+                    local reported = false
                     element:AddChild(gui.Panel{
                         interactable = false,
                         width = 1,
@@ -445,22 +518,62 @@ local function CreatePortraitWarmer()
                         valign = "top",
                         bgimage = id,
                         bgcolor = "white",
+                        imageLoaded = function(warmPanel)
+                            if reported then
+                                return
+                            end
+                            reported = true
+                            warmState.ready = warmState.ready + 1
+                            warmState.changed = dmhub.Time()
+                        end,
                     })
                 end
+            end
+
+            --more waiting in this scan: keep going without spending a pass.
+            if added >= PORTRAIT_WARM_BATCH then
+                element:ScheduleEvent("warmPortraits", PORTRAIT_WARM_BATCH_SECONDS, passesLeft)
+                return
             end
 
             --Done: the pregen cache has landed and this pass found nothing
             --new, so the eligible set is complete. While m_pregens is still
             --nil the snapshot (or its art registration) is in flight, so
-            --keep looking until the passes run out.
+            --keep looking until the passes run out. Either way there is no
+            --more warming to come, which is what 'drained' tells the veil:
+            --from here on, only the mounted panels' textures are pending.
             if m_pregens ~= nil and added == 0 then
+                warmState.drained = true
                 return
             end
             if passesLeft > 1 then
                 element:ScheduleEvent("warmPortraits", PORTRAIT_WARM_RESCAN_SECONDS, passesLeft - 1)
+            else
+                warmState.drained = true
             end
         end,
     }
+end
+
+--Whether the warm-up has quiesced, which is what the loading veil holds
+--for: every panel the warmer has mounted has reported its texture and the
+--eligible set is drained, OR nothing at all has moved for
+--VEIL_WAIT_IDLE_SECONDS. The idle rule is what makes this safe to gate the
+--UI on. An image whose record exists but whose texture never arrives fires
+--no imageLoaded and would otherwise hold the veil until the deadline every
+--single time -- the exact failure that sank the rejected Add-a-Hero cover
+--(see the design doc). If nothing is arriving, the screen is as loaded as
+--it is ever going to be, so reveal it.
+local function PortraitWarmupSettled()
+    local st = m_warmState
+    if st == nil then
+        --no warmer mounted: nothing to wait for.
+        return true
+    end
+    if st.drained and st.ready >= st.mounted then
+        return true
+    end
+    return dmhub.Time() - st.changed >= VEIL_WAIT_IDLE_SECONDS
 end
 
 --Eagerly warm the cache shortly after the titlescreen loads (deferred so
@@ -477,11 +590,210 @@ end)
 --The currently mounted EotW screen, if any (nil or destroyed when closed).
 local m_screen = nil
 
+--The loading veil, while an open is in flight (see CreateLoadingVeil).
+local m_veil = nil
+
 local CreateScreen
+
+--The veil the screen is built behind. Deliberately cheap: a flat dark
+--panel and two labels, no streamed art of its own, so it can be up and
+--painted within a frame of the click. It owns the whole opening sequence
+--(build, settle, cross-fade) because every step has to be scheduled from
+--the end of the previous one -- see the VEIL_* constants.
+local function CreateLoadingVeil(root)
+    --the screen's authoring scale (same math as CreateScreen), so the
+    --veil's title is the size the screen's title will be.
+    local dialog = root.data.dialog
+    local uiscale = dialog.width / 1920
+    if 1920 * (dialog.height / dialog.width) < 1080 then
+        uiscale = dialog.height / 1080
+    end
+
+    return gui.Panel{
+        id = "eotwLoadingVeil",
+        classes = { "eotwVeil" },
+        floating = true,
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        flow = "none",
+        bgimage = "panels/square.png",
+
+        --swallow clicks on the titlescreen underneath for the length of
+        --the open. Escape cancels it outright -- a player who changes
+        --their mind should not have to wait for the screen to arrive and
+        --then close it.
+        captureEscape = true,
+        escape = function(element)
+            if m_screen ~= nil and m_screen.valid then
+                m_screen:DestroySelf()
+                m_screen = nil
+            end
+            element:DestroySelf()
+        end,
+
+        styles = {
+            Styles.Default,
+            {
+                selectors = { "eotwVeil" },
+                bgcolor = "#08070bfa",
+                opacity = 1,
+            },
+            {
+                selectors = { "eotwVeil", "create" },
+                opacity = 0,
+                transitionTime = VEIL_FADE_IN_SECONDS,
+            },
+            {
+                selectors = { "eotwVeil", "dying" },
+                opacity = 0,
+                transitionTime = VEIL_CROSSFADE_SECONDS,
+            },
+        },
+
+        data = { blocker = nil, waitDeadline = 0 },
+
+        create = function(element)
+            element:ScheduleEvent("buildScreen", VEIL_BUILD_DELAY_SECONDS)
+        end,
+
+        --Build the real screen, hidden, underneath. This is the expensive
+        --step and may well stall the frame; the veil is already painted,
+        --so that stall is spent on a deliberate loading screen instead of
+        --on a half-drawn one.
+        buildScreen = function(element)
+            if mod.unloaded or root == nil or not root.valid then
+                element:DestroySelf()
+                return
+            end
+
+            --make sure the pregen list is (being) loaded by the time the
+            --player reaches a game's slot picker.
+            EncounterOfTheWeek.CachePregens()
+
+            m_screen = CreateScreen{ titlescreen = root }
+            m_screen:SetClass("eotwOpening", true)
+            root:AddChild(m_screen)
+
+            --The screen is invisible behind the veil but NOT inert: it has
+            --to render, since that is what makes its textures stream, and
+            --a live panel takes clicks whatever its opacity. So cap it
+            --with a transparent blocker -- added last, so it sits above
+            --everything in the screen including the floating close button
+            --(which lands under the titlescreen link that opened us). The
+            --reveal drops it; the self-destruct is the safety net for a
+            --reveal that never comes.
+            element.data.blocker = gui.Panel{
+                id = "eotwOpeningBlocker",
+                floating = true,
+                width = "100%",
+                height = "100%",
+                halign = "center",
+                valign = "center",
+                bgimage = "panels/square.png",
+                bgcolor = "clear",
+                create = function(blocker)
+                    --outlives the longest possible wait, so it is a safety
+                    --net for a reveal that never comes and never a race
+                    --with one that is merely slow.
+                    blocker:ScheduleEvent("destroySelf", VEIL_SETTLE_SECONDS + VEIL_WAIT_MAX_SECONDS + 2)
+                end,
+                destroySelf = function(blocker)
+                    blocker:DestroySelf()
+                end,
+            }
+            m_screen:AddChild(element.data.blocker)
+
+            --The settle beat covers layout and gets the warmer going; after
+            --it the veil polls for the art rather than revealing blind.
+            element.data.waitDeadline = dmhub.Time() + VEIL_SETTLE_SECONDS + VEIL_WAIT_MAX_SECONDS
+            element:ScheduleEvent("waitForImages", VEIL_SETTLE_SECONDS)
+        end,
+
+        --Hold the veil while the screen's portraits are still streaming, so
+        --the decodes hitch the veil instead of the revealed screen. Both
+        --exits out of PortraitWarmupSettled (all-arrived, or nothing moving)
+        --are backed by the deadline here, so a trickle of art that keeps
+        --reporting progress forever cannot hold the screen hostage either.
+        waitForImages = function(element)
+            if PortraitWarmupSettled() == false and dmhub.Time() < element.data.waitDeadline then
+                element:ScheduleEvent("waitForImages", VEIL_WAIT_POLL_SECONDS)
+                return
+            end
+
+            element:FireEvent("revealScreen")
+        end,
+
+        revealScreen = function(element)
+            if element.data.blocker ~= nil and element.data.blocker.valid then
+                element.data.blocker:DestroySelf()
+            end
+            element.data.blocker = nil
+
+            --the screen can be gone already (escape, or a game load
+            --started under us); either way the veil's job is over.
+            if m_screen ~= nil and m_screen.valid then
+                m_screen:SetClass("eotwOpening", false)
+            end
+            element:SetClass("dying", true)
+            element:ScheduleEvent("destroySelf", VEIL_CROSSFADE_SECONDS + 0.05)
+        end,
+
+        destroySelf = function(element)
+            element:DestroySelf()
+        end,
+
+        destroy = function(element)
+            if m_veil == element then
+                m_veil = nil
+            end
+        end,
+
+        gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            valign = "center",
+            flow = "vertical",
+            uiscale = uiscale,
+
+            gui.Label{
+                text = "Encounter of the Week",
+                fontSize = 48,
+                bold = true,
+                color = Styles.textColor,
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                vmargin = 8,
+            },
+
+            --the usual codex loading ticker (see CreateGameLoadingScreen);
+            --fixed width so the growing dots do not shuffle it sideways.
+            gui.Label{
+                text = "Loading",
+                fontSize = 22,
+                color = Styles.textColor,
+                opacity = 0.7,
+                width = 200,
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                data = { n = 0 },
+                thinkTime = 0.25,
+                think = function(element)
+                    element.data.n = (element.data.n + 1) % 4
+                    element.text = "Loading" .. string.rep(".", element.data.n)
+                end,
+            },
+        },
+    }
+end
 
 --Opens the Encounter of the Week screen over the titlescreen, hosted on
 --CodexTitlescreenRoot the same way the shop screen is. No-op if the screen
---is already open or we are not at the titlescreen.
+--is already open (or opening) or we are not at the titlescreen.
 function EncounterOfTheWeek.ShowScreen()
     if m_screen ~= nil and m_screen.valid then
         --a screen hidden for a game load (see the beginLoading handler)
@@ -492,17 +804,19 @@ function EncounterOfTheWeek.ShowScreen()
         return
     end
 
+    --an open already in flight; a second click must not stack a second
+    --veil (nor a second screen behind it).
+    if m_veil ~= nil and m_veil.valid then
+        return
+    end
+
     local root = rawget(_G, "CodexTitlescreenRoot")
     if root == nil or not root.valid then
         return
     end
 
-    --make sure the pregen list is (being) loaded by the time the player
-    --reaches a game's slot picker.
-    EncounterOfTheWeek.CachePregens()
-
-    m_screen = CreateScreen{ titlescreen = root }
-    root:AddChild(m_screen)
+    m_veil = CreateLoadingVeil(root)
+    root:AddChild(m_veil)
 end
 
 --Builds the full-screen EotW panel: overview text, the games list driven by
@@ -2516,6 +2830,16 @@ CreateScreen = function(args)
         styles = {
             Styles.Default,
             Styles.Panel,
+            --The opening cross-fade. The screen is BUILT carrying
+            --"eotwOpening" (so it starts invisible with no transition to
+            --play), and the veil sheds the class once the build has
+            --settled; this rule's transitionTime is what the ramp back to
+            --full opacity then runs over. See CreateLoadingVeil.
+            {
+                selectors = { "framedPanel", "eotwOpening" },
+                opacity = 0,
+                transitionTime = VEIL_CROSSFADE_SECONDS,
+            },
         },
 
         captureEscape = true,
@@ -2914,6 +3238,16 @@ local function SweepStaleScreen(retriesLeft)
         --this generation owns a live screen; nothing stale to sweep.
         return
     end
+    --A veil from the previous generation is stale by the same argument,
+    --and worse than a stale screen: its scheduled build bails on
+    --mod.unloaded, so left alone it sits there opaque and inert. Sweep it
+    --whether or not a stale screen turned up.
+    for _,ch in ipairs(root.children) do
+        if ch.id == "eotwLoadingVeil" and ch.valid and ch ~= m_veil then
+            ch:DestroySelf()
+        end
+    end
+
     local found = false
     for _,ch in ipairs(root.children) do
         if ch.id == "encounterOfTheWeekScreen" and ch.valid then

@@ -16,12 +16,338 @@ MonsterAI.abilities = {}
 MonsterAI.tactics = {}
 MonsterAI.maliceAbilities = {}
 MonsterAI.villainActions = {}
+MonsterAI.deferredTriggerLog = {}
 MonsterAI.paths = false
 MonsterAI.log = {}
 MonsterAI.active = false
 MonsterAI.maliceAbilityMinimumScore = 0.65
+MonsterAI.areaTelegraphBlinks = 3
+MonsterAI.areaTelegraphOnTime = 0.35
+MonsterAI.areaTelegraphOffTime = 0.15
 
 MonsterAI.activeTactics = {}
+
+local g_moveResultExecuted = "executed"
+local g_moveResultFailed = "failed"
+local g_moveResultUnsafe = "unsafe"
+local g_moveResultNone = "none"
+
+local g_aiLogFieldOrder = {
+    "turn",
+    "round",
+    "cycle",
+    "actor",
+    "actorId",
+    "monster",
+    "category",
+    "move",
+    "ability",
+    "action",
+    "prompt",
+    "trigger",
+    "score",
+    "threshold",
+    "reason",
+    "plan",
+    "from",
+    "to",
+    "targets",
+    "result",
+    "duration",
+}
+
+local g_aiLogCategoryNames = {
+    ["Main Actions"] = "Main Action",
+    ["Basic Strikes"] = "Basic Strike",
+    ["Maneuvers"] = "Maneuver",
+    ["Malice Abilities"] = "Malice Ability",
+    ["Villain Actions"] = "Villain Action",
+    ["Tactics"] = "Tactic",
+}
+
+local function AILogText(value)
+    local result = tostring(value or "")
+    result = string.gsub(result, "[\r\n\t]+", " ")
+    result = string.gsub(result, "|", "/")
+    result = string.gsub(result, '"', '\\"')
+    return result
+end
+
+local function AILogValue(value)
+    if type(value) == "number" then
+        if value == math.floor(value) then
+            return tostring(value)
+        end
+        return string.format("%.3f", value)
+    elseif type(value) == "boolean" then
+        return tostring(value)
+    end
+    return string.format('"%s"', AILogText(value))
+end
+
+function MonsterAI.TokenLogName(token)
+    if token == nil then
+        return "none"
+    end
+
+    local result = nil
+    pcall(function()
+        result = creature.GetTokenDescription(token)
+    end)
+    if result == nil or result == "" then
+        result = token.charid or "unknown token"
+    end
+    return AILogText(result)
+end
+
+function MonsterAI.LocLogName(loc)
+    if loc == nil then
+        return "none"
+    end
+
+    local result = nil
+    pcall(function()
+        result = string.format("(%d,%d,%d)", loc.x, loc.y, loc.altitude or 0)
+    end)
+    return result or "unknown location"
+end
+
+function MonsterAI.TargetsLogName(targets)
+    local result = {}
+    for _,targetInfo in ipairs(targets or {}) do
+        local token = nil
+        local loc = nil
+        pcall(function()
+            token = targetInfo.token
+            loc = targetInfo.loc
+        end)
+        if token == nil then
+            local charid = nil
+            pcall(function() charid = targetInfo.charid end)
+            if charid ~= nil then
+                token = targetInfo
+            end
+        end
+
+        if token ~= nil and token.charid ~= nil then
+            result[#result+1] = string.format("%s [%s]",
+                MonsterAI.TokenLogName(token), AILogText(token.charid))
+        elseif loc ~= nil then
+            result[#result+1] = MonsterAI.LocLogName(loc)
+        end
+    end
+    if #result == 0 then
+        return "none"
+    end
+    return table.concat(result, ", ")
+end
+
+function MonsterAI.TargetScoresLogName(targets)
+    local result = {}
+    for _,targetInfo in ipairs(targets or {}) do
+        if targetInfo.token ~= nil then
+            local detail = string.format("%s edges=%s",
+                MonsterAI.TokenLogName(targetInfo.token), tostring(targetInfo.edges or 0))
+            if targetInfo.edgeReasons ~= nil and #targetInfo.edgeReasons > 0 then
+                detail = detail .. " [" .. table.concat(targetInfo.edgeReasons, ", ") .. "]"
+            end
+            result[#result+1] = detail
+        end
+    end
+    if #result == 0 then
+        return "none"
+    end
+    return table.concat(result, "; ")
+end
+
+function MonsterAI.AbilitiesLogName(abilities)
+    local result = {}
+    for _,ability in ipairs(abilities or {}) do
+        local abilityName = nil
+        if type(ability) == "string" then
+            abilityName = ability
+        else
+            pcall(function() abilityName = ability.name end)
+        end
+        result[#result+1] = AILogText(abilityName or ability)
+    end
+    if #result == 0 then
+        return "none"
+    end
+    return table.concat(result, ", ")
+end
+
+function MonsterAI.AbilityActionLogName(ability)
+    if ability == nil then
+        return "Unknown Action"
+    end
+    if ability:try_get("villainAction") ~= nil or ability.categorization == "Villain Action" then
+        return "Villain Action"
+    end
+
+    local resourceid = ability:ActionResource()
+    if resourceid == CharacterResource.actionResourceId then
+        return "Main Action"
+    elseif resourceid == CharacterResource.maneuverResourceId then
+        return "Maneuver"
+    elseif resourceid == CharacterResource.freeManeuverResourceId then
+        return "Free Maneuver"
+    elseif resourceid == CharacterResource.triggerResourceId then
+        return "Triggered Action"
+    elseif resourceid == CharacterResource.villainActionId then
+        return "Villain Action"
+    elseif ability.categorization == "Malice" then
+        return "Malice Ability"
+    elseif ability.categorization == "Move" then
+        return "Move"
+    elseif resourceid == nil then
+        return "Free Action"
+    end
+
+    local resources = dmhub.GetTable(CharacterResource.tableName) or {}
+    local resourceInfo = resources[resourceid]
+    if resourceInfo ~= nil and resourceInfo.name ~= nil then
+        return resourceInfo.name
+    end
+    return string.format("Other Action (%s)", tostring(resourceid))
+end
+
+function MonsterAI.AbilityActionsLogName(abilities)
+    local result = {}
+    local seen = {}
+    for _,ability in ipairs(abilities or {}) do
+        local name = MonsterAI.AbilityActionLogName(ability)
+        if not seen[name] then
+            seen[name] = true
+            result[#result+1] = name
+        end
+    end
+    if #result == 0 then
+        return "No Ability Action"
+    end
+    return table.concat(result, ", ")
+end
+
+function MonsterAI.MoveCategoryLogName(move)
+    if move == nil then
+        return "Unknown Move"
+    end
+    return g_aiLogCategoryNames[move.category] or move.category or "Main Action"
+end
+
+function MonsterAI.ScoringPlanLogName(scoringInfo)
+    if type(scoringInfo) ~= "table" then
+        return "none"
+    end
+
+    local result = {}
+    if scoringInfo.loc ~= nil then
+        result[#result+1] = "move-to " .. MonsterAI.LocLogName(scoringInfo.loc)
+    end
+    if scoringInfo.targetLoc ~= nil then
+        result[#result+1] = "aim-at " .. MonsterAI.LocLogName(scoringInfo.targetLoc)
+    elseif scoringInfo.center ~= nil then
+        result[#result+1] = "center-on " .. MonsterAI.LocLogName(scoringInfo.center)
+    end
+    if scoringInfo.targets ~= nil then
+        result[#result+1] = "targets " .. MonsterAI.TargetsLogName(scoringInfo.targets)
+    end
+    if scoringInfo.enemies ~= nil or scoringInfo.allies ~= nil then
+        result[#result+1] = string.format("enemies=%s allies=%s",
+            tostring(scoringInfo.enemies or 0), tostring(scoringInfo.allies or 0))
+    end
+    if scoringInfo.mode ~= nil then
+        result[#result+1] = "mode=" .. tostring(scoringInfo.mode)
+    end
+    if scoringInfo.reason ~= nil then
+        result[#result+1] = AILogText(scoringInfo.reason)
+    end
+    if #result == 0 then
+        return "no additional plan details"
+    end
+    return table.concat(result, "; ")
+end
+
+function MonsterAI:LogDecision(event, fields)
+    if self:try_get("_tmp_suppressDecisionLogs", false) then
+        return
+    end
+
+    fields = fields or {}
+    local values = {}
+    local context = self:try_get("_tmp_aiLogContext") or {}
+    for key,value in pairs(context) do
+        values[key] = value
+    end
+    for key,value in pairs(fields) do
+        values[key] = value
+    end
+
+    local parts = {"AI:: " .. event}
+    local written = {}
+    for _,key in ipairs(g_aiLogFieldOrder) do
+        if values[key] ~= nil then
+            parts[#parts+1] = string.format("%s=%s", key, AILogValue(values[key]))
+            written[key] = true
+        end
+    end
+
+    local remaining = {}
+    for key,_ in pairs(values) do
+        if not written[key] then
+            remaining[#remaining+1] = key
+        end
+    end
+    table.sort(remaining)
+    for _,key in ipairs(remaining) do
+        parts[#parts+1] = string.format("%s=%s", key, AILogValue(values[key]))
+    end
+
+    print(table.concat(parts, " | "))
+end
+
+function MonsterAI:SetLogContext(token, fields)
+    local context = {}
+    for key,value in pairs(fields or {}) do
+        context[key] = value
+    end
+    if token ~= nil then
+        context.actor = self.TokenLogName(token)
+        context.actorId = token.charid
+        if token.properties ~= nil then
+            context.monster = token.properties:try_get("monster_type", "")
+        end
+    end
+    self._tmp_aiLogContext = context
+end
+
+function MonsterAI:SetMoveLogContext(token, move)
+    local context = {}
+    for key,value in pairs(self:try_get("_tmp_aiLogContext") or {}) do
+        context[key] = value
+    end
+    context.category = self.MoveCategoryLogName(move)
+    context.move = move ~= nil and move.id or nil
+    self:SetLogContext(token, context)
+end
+
+local function AIAbilityUnavailableReason(token, ability)
+    local cost = ability:GetCost(token)
+    local unavailable = {}
+    local resources = dmhub.GetTable(CharacterResource.tableName) or {}
+    for _,detail in ipairs(cost.details or {}) do
+        if detail.canAfford == false then
+            local resourceInfo = resources[detail.cost]
+            local resourceName = resourceInfo ~= nil and resourceInfo.name or detail.cost or "resource"
+            unavailable[#unavailable+1] = string.format("%s x%s",
+                tostring(resourceName), tostring(detail.quantity or 1))
+        end
+    end
+    if #unavailable > 0 then
+        return "cannot afford " .. table.concat(unavailable, ", ")
+    end
+    return "ability:CanAfford returned false"
+end
 
 creature._tmp_ai_aidAttack = false
 
@@ -31,19 +357,18 @@ Commands.RegisterMacro{
     doc = "Usage: /playai\nPlays an AI turn for the current initiative entry. Requires an active initiative queue.",
     command = function(str)
 
+        local ai = MonsterAI.new{}
         local queue = dmhub.initiativeQueue
         if queue == nil or queue.hidden then
-            print("AI:: No initiative queue active.")
+            ai:LogDecision("TURN ABORTED", {reason = "no initiative queue is active"})
             return
         end
 
         local initiativeid = dmhub.initiativeQueue:CurrentInitiativeId()
         if not initiativeid then
-            print("AI:: No current initiative ID.")
+            ai:LogDecision("TURN ABORTED", {reason = "initiative queue has no current entry"})
             return
         end
-
-        local ai = MonsterAI.new{}
 
         ai:PlayTurn(initiativeid)
     end,
@@ -59,7 +384,249 @@ function MonsterAI.Sleep(seconds)
     end
 end
 
+--Shared initiatives can contain monsters on opposite sides of the map. Focus
+--a new actor unless its whole token is already inside the usable map view.
+function MonsterAI:FocusCameraOnActor(token)
+    if not self.TokenIsLiveCombatant(token)
+        or self:try_get("_tmp_focusedActorId") == token.charid then
+        return false
+    end
+
+    self._tmp_focusedActorId = token.charid
+    local bounds = dmhub.cameraUsableBounds
+    local pos = token.pos
+    local halfSize = (token.tileSize or 1)*0.5
+    if token.hasTokenOnThisMap and bounds ~= nil and pos ~= nil
+        and pos.x - halfSize >= bounds.x1 and pos.x + halfSize <= bounds.x2
+        and pos.y - halfSize >= bounds.y1 and pos.y + halfSize <= bounds.y2 then
+        return false
+    end
+
+    if not dmhub.CenterOnToken(token.charid, {smooth = true}) then
+        self._tmp_focusedActorId = nil
+        return false
+    end
+
+    dmhub.SyncCamera{
+        speed = 1,
+    }
+    self.Sleep(1)
+    return true
+end
+
+-- A mounted rider plans and performs ordinary AI movement with the creature
+-- carrying it. The rider remains the caster for every ability and target test.
+function MonsterAI:GetMovementToken(token)
+    if token == nil or not token.valid then
+        return token
+    end
+
+    local movementToken = token.selfOrMount
+    if movementToken ~= nil and movementToken.valid then
+        return movementToken
+    end
+
+    return token
+end
+
+-- The game permits sufficiently different creature sizes to share a space.
+-- AI movement may pass through creatures, but should not deliberately end there.
+function MonsterAI:MovementLocOverlapsCreature(token, loc)
+    local movementToken = self:GetMovementToken(token)
+    if movementToken == nil or not movementToken.valid or loc == nil then
+        return false
+    end
+
+    if movementToken.loc.str == loc.str then
+        return false
+    end
+
+    local ourBottom = loc.altitude
+    local ourTop = ourBottom + movementToken.tileSize - 1
+    for _,occupiedLoc in ipairs(movementToken:LocsOccupyingWhenAt(loc)) do
+        for _,other in ipairs(dmhub.GetTokensAtLoc(occupiedLoc) or {}) do
+            if other.valid and not other.isObject and other.properties ~= nil
+                and not other.properties:IsDead() then
+                local otherMovementToken = self:GetMovementToken(other)
+                local movesWithUs = otherMovementToken ~= nil
+                    and otherMovementToken.valid
+                    and otherMovementToken.charid == movementToken.charid
+                local verticallyOverlaps = other.altitude <= ourTop
+                    and other.altitude + other.tileSize - 1 >= ourBottom
+                if not movesWithUs and verticallyOverlaps then
+                    return true, other
+                end
+            end
+        end
+    end
+
+    return false
+end
+
+function MonsterAI:CalculateMovementPaths(token, movementAllowanceDecis, flags)
+    local movementToken = self:GetMovementToken(token)
+    local paths = movementToken:CalculatePathfindingArea(movementAllowanceDecis, flags or {})
+    local rejectedKeys = {}
+    for key,pathInfo in pairs(paths) do
+        if self:MovementLocOverlapsCreature(token, pathInfo.loc) then
+            rejectedKeys[#rejectedKeys+1] = key
+        end
+    end
+    for _,key in ipairs(rejectedKeys) do
+        paths[key] = nil
+    end
+    return paths
+end
+
+function MonsterAI:CalculateRemainingMovementPaths(token, flags)
+    local movementToken = self:GetMovementToken(token)
+    local remainingMovement = math.max(0,
+        movementToken.properties:CurrentMovementSpeed()
+        - movementToken.properties:DistanceMovedThisTurn())
+    return self:CalculateMovementPaths(token, remainingMovement*10, flags)
+end
+
+function MonsterAI:MoveToken(token, loc, options)
+    local movementToken = self:GetMovementToken(token)
+    local fromLoc = movementToken ~= nil and movementToken.loc or nil
+    local overlapsCreature, creature = self:MovementLocOverlapsCreature(token, loc)
+    if overlapsCreature then
+        self:LogDecision("MOVEMENT REJECTED", {
+            actor = self.TokenLogName(token),
+            actorId = token ~= nil and token.charid or nil,
+            from = self.LocLogName(fromLoc),
+            to = self.LocLogName(loc),
+            movementToken = movementToken ~= token and self.TokenLogName(movementToken) or nil,
+            targets = self.TargetsLogName({{token = creature}}),
+            reason = "destination footprint overlaps another live creature",
+        })
+        return nil
+    end
+    self:LogDecision("MOVEMENT START", {
+        actor = self.TokenLogName(token),
+        actorId = token ~= nil and token.charid or nil,
+        from = self.LocLogName(fromLoc),
+        to = self.LocLogName(loc),
+        movementToken = movementToken ~= token and self.TokenLogName(movementToken) or nil,
+        freeMovement = options ~= nil and options.freeMovement == true or nil,
+    })
+    local result = movementToken:Move(loc, options)
+    self:LogDecision("MOVEMENT ISSUED", {
+        actor = self.TokenLogName(token),
+        actorId = token ~= nil and token.charid or nil,
+        from = self.LocLogName(fromLoc),
+        to = self.LocLogName(loc),
+        result = result ~= nil and "path accepted" or "no path returned",
+    })
+    return result
+end
+
+function MonsterAI:ExecuteWithTheoreticalMovementLoc(token, loc, fn)
+    local movementToken = self:GetMovementToken(token)
+    return movementToken:ExecuteWithTheoreticalLoc(loc, fn)
+end
+
+function MonsterAI:MovementTokenIsAtLoc(token, loc)
+    local movementToken = self:GetMovementToken(token)
+    return loc ~= nil and movementToken.loc.str == loc.str
+end
+
+local function OrderMountedRidersFirst(tokens)
+    local tokensById = {}
+    local ridersByMountId = {}
+    for _,token in ipairs(tokens) do
+        tokensById[token.charid] = token
+    end
+
+    for _,token in ipairs(tokens) do
+        local mountId = token.mountedOn
+        if mountId ~= nil and tokensById[mountId] ~= nil then
+            ridersByMountId[mountId] = ridersByMountId[mountId] or {}
+            ridersByMountId[mountId][#ridersByMountId[mountId]+1] = token
+        end
+    end
+
+    local result = {}
+    local emitted = {}
+    local visiting = {}
+    local function EmitToken(token)
+        if emitted[token.charid] or visiting[token.charid] then
+            return
+        end
+
+        visiting[token.charid] = true
+        for _,rider in ipairs(ridersByMountId[token.charid] or {}) do
+            EmitToken(rider)
+        end
+        visiting[token.charid] = nil
+        emitted[token.charid] = true
+        result[#result+1] = token
+    end
+
+    for _,token in ipairs(tokens) do
+        EmitToken(token)
+    end
+
+    return result
+end
+
+-- Choose the leader for a shared initiative. Non-minions outrank minions,
+-- squad captains outrank other non-minions, and EV breaks remaining ties.
+function MonsterAI:FindMostSeniorInitiativeGroupMember(tokens)
+    local best = nil
+    local bestNonMinion = false
+    local bestCaptain = false
+    local bestEV = -math.huge
+
+    for _,token in ipairs(tokens or {}) do
+        if token ~= nil and token.valid and token.properties ~= nil
+            and not token.properties:IsDead() then
+            local nonMinion = not token.properties.minion
+            local captain = nonMinion and token.properties:MinionSquad() ~= nil
+            local ev = token.properties:EV()
+            if best == nil
+                or (nonMinion and not bestNonMinion)
+                or (nonMinion == bestNonMinion and captain and not bestCaptain)
+                or (nonMinion == bestNonMinion and captain == bestCaptain and ev > bestEV) then
+                best = token
+                bestNonMinion = nonMinion
+                bestCaptain = captain
+                bestEV = ev
+            end
+        end
+    end
+
+    return best
+end
+
+function MonsterAI:TelegraphAreaAbility(ability, area, symbols)
+    local label = ability.name or "Area Ability"
+    if symbols ~= nil and symbols.spellname ~= nil then
+        label = symbols.spellname
+    end
+
+    for i = 1, self.areaTelegraphBlinks do
+        local marker = area:Mark{
+            color = "white",
+            video = "divinationline.webm",
+            label = label,
+        }
+        self.Sleep(self.areaTelegraphOnTime)
+        marker:Destroy()
+        self.Sleep(self.areaTelegraphOffTime)
+    end
+end
+
 function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols, options)
+    local invokerMonsterType = invokerToken.properties:try_get("monster_type", "")
+    self:LogDecision("PROMPT RECEIVED", {
+        actor = self.TokenLogName(casterToken),
+        actorId = casterToken ~= nil and casterToken.charid or nil,
+        ability = abilityClone.name,
+        prompt = string.format("%s:%s", invokerMonsterType, abilityClone.name),
+        invoker = self.TokenLogName(invokerToken),
+    })
+
     --the ability directly inserted the expected targets.
     local expectedEntry = self:try_get("_tmp_expectedPromptTarget")
     if expectedEntry ~= nil and expectedEntry.casterid == invokerToken.charid then
@@ -76,7 +643,11 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
             if target.token == nil or casterToken:Distance(target.token) <= range then
                 targets[#targets+1] = target
             else
-                print("AI:: expected prompt target", target.token.name, "now out of range; dropping")
+                self:LogDecision("PROMPT TARGET REJECTED", {
+                    ability = abilityClone.name,
+                    targets = self.TargetsLogName({target}),
+                    reason = "planned target is now out of range",
+                })
             end
         end
 
@@ -102,6 +673,12 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
                 self.Sleep(expectedEntry.sleep)
             end
             options.targets = targets
+            self:LogDecision("PROMPT RESOLVED", {
+                ability = abilityClone.name,
+                prompt = "expected targets",
+                targets = self.TargetsLogName(targets),
+                result = "automatic",
+            })
             return "inherit"
         end
     end
@@ -109,8 +686,8 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
     --try_get: the invoker can be an object token (e.g. a wall voxel
     --prompting for a target near it), whose TargetableObject
     --properties have no monster_type field.
-    local invokerMonsterType = invokerToken.properties:try_get("monster_type", "")
-    local handler = self.prompts[abilityClone.name] or self.prompts[string.format("%s:%s", invokerMonsterType, abilityClone.name)]
+    local qualifiedPrompt = string.format("%s:%s", invokerMonsterType, abilityClone.name)
+    local handler = self.prompts[abilityClone.name] or self.prompts[qualifiedPrompt]
     if handler ~= nil then
         local result = handler.handler(self, invokerToken, casterToken, abilityClone, symbols, options)
         if result ~= nil then
@@ -118,13 +695,57 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
                 options[k] = v
             end
 
+            self:LogDecision("PROMPT RESOLVED", {
+                ability = abilityClone.name,
+                prompt = handler.id or qualifiedPrompt,
+                targets = self.TargetsLogName(result.targets),
+                result = result.abilityOverride ~= nil
+                    and string.format("automatic with ability %s", result.abilityOverride.name)
+                    or "automatic",
+            })
             return "inherit"
         end
+
+        self:LogDecision("PROMPT DEFERRED", {
+            ability = abilityClone.name,
+            prompt = handler.id or qualifiedPrompt,
+            reason = "registered handler returned no automatic choice",
+            result = "Director prompt",
+        })
     else
-        print("AI:: No handler for prompt ability:", string.format("%s:%s", invokerMonsterType, abilityClone.name))
+        self:LogDecision("PROMPT DEFERRED", {
+            ability = abilityClone.name,
+            prompt = qualifiedPrompt,
+            reason = "no registered AI prompt handler",
+            result = "Director prompt",
+        })
     end
 
     return "prompt"
+end
+
+--AI actions yield while movement, casts, and prompts resolve. Drive them in a
+--child coroutine so an error can be returned without killing the AI process.
+local function RunYieldingFunction(fn)
+    local thread = coroutine.create(fn)
+    while coroutine.status(thread) ~= "dead" do
+        local ok, delay = coroutine.resume(thread)
+        if not ok then
+            local err = delay
+            pcall(function()
+                err = debug.traceback(thread, tostring(delay))
+            end)
+            return false, err
+        end
+        if coroutine.status(thread) ~= "dead" then
+            coroutine.yield(type(delay) == "number" and delay or 0.1)
+        end
+    end
+    return true
+end
+
+function MonsterAI:RunYieldingFunction(fn)
+    return RunYieldingFunction(fn)
 end
 
 function MonsterAI:BeginTokenControl(token)
@@ -205,14 +826,46 @@ function MonsterAI:HandleAvailableTrigger(token, triggerInfo)
     end
 
     self.token = token
+    self:SetLogContext(token)
+    local triggerText = triggerInfo:GetText()
+    local triggerLogKey = string.format("%s:%s", token.charid, tostring(triggerInfo.id))
+    self:LogDecision("TRIGGER CONSIDERED", {
+        category = "Triggered Action",
+        move = registeredTrigger.id,
+        ability = triggerInfo.abilityName,
+        trigger = triggerText,
+    })
     local decision = registeredTrigger.handler(self, token, triggerInfo)
     if decision == true then
         decision = {activate = true}
     end
 
     if type(decision) ~= "table" or (not decision.activate and not decision.dismiss) then
+        if not self.deferredTriggerLog[triggerLogKey] then
+            self.deferredTriggerLog[triggerLogKey] = true
+            self:LogDecision("TRIGGER DEFERRED", {
+                category = "Triggered Action",
+                move = registeredTrigger.id,
+                ability = triggerInfo.abilityName,
+                trigger = triggerText,
+                reason = "handler returned no activate or dismiss decision",
+                result = "Director decision",
+            })
+        end
         return false
     end
+    self.deferredTriggerLog[triggerLogKey] = nil
+
+    self:LogDecision("TRIGGER DECIDED", {
+        category = "Triggered Action",
+        move = registeredTrigger.id,
+        ability = triggerInfo.abilityName,
+        trigger = triggerText,
+        targets = decision.expectedPrompt ~= nil
+            and self.TargetsLogName(decision.expectedPrompt.targets) or nil,
+        result = decision.dismiss and "dismiss" or "activate",
+        mode = decision.mode,
+    })
 
     if decision.expectedPrompt ~= nil then
         local expectedPrompt = table.shallow_copy(decision.expectedPrompt)
@@ -220,49 +873,67 @@ function MonsterAI:HandleAvailableTrigger(token, triggerInfo)
         self:SetTargetsForExpectedPrompt(expectedPrompt)
     end
 
-    local controlInfo = self:BeginTokenControl(token)
+    local startedAt = dmhub.Time()
+    local ok, err = self:RunWithTokenControl(token, function()
+        token:ModifyProperties{
+            description = string.format("AI Trigger: %s", registeredTrigger.id),
+            undoable = false,
+            execute = function()
+                if decision.dismiss then
+                    triggerInfo.dismissed = true
+                elseif type(decision.mode) == "number" and decision.mode > 1 then
+                    --ActiveTrigger stores alternate modes zero-based relative to the
+                    --ability's mode list: true selects mode 1, 1 selects mode 2, etc.
+                    triggerInfo.triggered = decision.mode - 1
+                else
+                    triggerInfo.triggered = true
+                end
 
-    token:ModifyProperties{
-        description = string.format("AI Trigger: %s", registeredTrigger.id),
-        undoable = false,
-        execute = function()
-            if decision.dismiss then
-                triggerInfo.dismissed = true
-            elseif type(decision.mode) == "number" and decision.mode > 1 then
-                --ActiveTrigger stores alternate modes zero-based relative to the
-                --ability's mode list: true selects mode 1, 1 selects mode 2, etc.
-                triggerInfo.triggered = decision.mode - 1
+                token.properties:DispatchAvailableTrigger(triggerInfo)
+            end,
+        }
+
+        --An accepted trigger may wait for the cast that caused it to finish before
+        --starting its own cast. Keep AI prompt control installed until the prompt is
+        --gone and all casts have been idle for a short grace period.
+        local deadline = dmhub.Time() + 45
+        local idleSince = nil
+        while token.valid and token.properties ~= nil and dmhub.Time() < deadline do
+            local availableTriggers = token.properties:GetAvailableTriggers() or {}
+            local triggerPending = availableTriggers[triggerInfo.id] ~= nil
+            local castPending = ActivatedAbility.CountActiveCasts() > 0
+            if not triggerPending and not castPending then
+                idleSince = idleSince or dmhub.Time()
+                if dmhub.Time() - idleSince >= 0.3 then
+                    break
+                end
             else
-                triggerInfo.triggered = true
+                idleSince = nil
             end
 
-            token.properties:DispatchAvailableTrigger(triggerInfo)
-        end,
-    }
-
-    --An accepted trigger may wait for the cast that caused it to finish before
-    --starting its own cast. Keep AI prompt control installed until the prompt is
-    --gone and all casts have been idle for a short grace period.
-    local deadline = dmhub.Time() + 45
-    local idleSince = nil
-    while token.valid and dmhub.Time() < deadline do
-        local availableTriggers = token.properties:GetAvailableTriggers() or {}
-        local triggerPending = availableTriggers[triggerInfo.id] ~= nil
-        local castPending = ActivatedAbility.CountActiveCasts() > 0
-        if not triggerPending and not castPending then
-            idleSince = idleSince or dmhub.Time()
-            if dmhub.Time() - idleSince >= 0.3 then
-                break
-            end
-        else
-            idleSince = nil
+            coroutine.yield(0.1)
         end
+    end)
 
-        coroutine.yield(0.1)
+    if not ok then
+        self:LogDecision("TRIGGER ERROR", {
+            category = "Triggered Action",
+            move = registeredTrigger.id,
+            ability = triggerInfo.abilityName,
+            trigger = triggerText,
+            reason = "execution failed: " .. tostring(err),
+        })
+        error(err)
     end
 
-    self:EndTokenControl(token, controlInfo)
-    self._tmp_expectedPromptTarget = nil
+    self:LogDecision("TRIGGER FINISHED", {
+        category = "Triggered Action",
+        move = registeredTrigger.id,
+        ability = triggerInfo.abilityName,
+        trigger = triggerText,
+        result = decision.dismiss and "dismissed" or "activated",
+        duration = dmhub.Time() - startedAt,
+    })
     return true
 end
 
@@ -275,9 +946,64 @@ function MonsterAI:PlayTurn(initiativeid)
         --parks the elevation whenever this coroutine yields, so the user still
         --sees player vision and player UI throughout.
         ElevateToHostPermissions()
-        self:PlayTurnCoroutine(initiativeid)
+        self:PlayTurnSafely(initiativeid)
         DropHostPermissions()
     end)
+end
+
+function MonsterAI:PlayTurnSafely(initiativeid)
+    local ok, err = RunYieldingFunction(function()
+        self:PlayTurnCoroutine(initiativeid)
+    end)
+    if ok then
+        return true
+    end
+
+    local queue = dmhub.initiativeQueue
+    pcall(function()
+        self:SetLogContext(nil, {
+            turn = initiativeid,
+            round = queue ~= nil and queue.round or nil,
+        })
+        self:LogDecision("TURN ERROR", {
+            reason = tostring(err),
+            result = "recovering and advancing initiative",
+        })
+    end)
+
+    --A failed action can leave a cast finishing asynchronously. Give it a short
+    --grace period before advancing, but never let it strand the initiative.
+    local idle = false
+    RunYieldingFunction(function()
+        idle = self:WaitForAbilityIdle(5)
+    end)
+    if not idle then
+        pcall(function()
+            self:LogDecision("TURN RECOVERY", {
+                reason = "ability casts did not become idle within 5 seconds",
+                result = "advancing initiative anyway",
+            })
+        end)
+    end
+
+    queue = dmhub.initiativeQueue
+    if queue ~= nil and not queue.hidden and queue:CurrentInitiativeId() == initiativeid then
+        local advanceOk, advanceErr = pcall(function()
+            GameHud.instance:NextInitiative(function()
+                dmhub:UploadInitiativeQueue()
+            end)
+        end)
+        if not advanceOk then
+            pcall(function()
+                self:LogDecision("TURN RECOVERY ERROR", {
+                    reason = tostring(advanceErr),
+                    result = "initiative could not be advanced",
+                })
+            end)
+        end
+    end
+
+    return false, err
 end
 
 function MonsterAI:PlayTurnCoroutine(initiativeid)
@@ -288,9 +1014,25 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
     if queue ~= nil and (not queue.hidden) and initiativeid == queue:CurrentInitiativeId() then
 
         local tokens = InitiativeQueue.GetTokensForInitiativeId(initiativeid)
-        tokens = tokens or {}
+        tokens = OrderMountedRidersFirst(tokens or {})
+        local turnTargets = {}
+        for _,turnToken in ipairs(tokens) do
+            turnTargets[#turnTargets+1] = {token = turnToken}
+        end
+        self:SetLogContext(nil, {
+            turn = initiativeid,
+            round = queue.round,
+        })
+        self:LogDecision("TURN START", {
+            targets = self.TargetsLogName(turnTargets),
+            tokenCount = #tokens,
+        })
 
         self:HandleMaliceAbilityStartOfTurn(initiativeid, tokens, queue)
+        self:SetLogContext(nil, {
+            turn = initiativeid,
+            round = queue.round,
+        })
 
         for i=1,#tokens do
             local token = tokens[i]
@@ -300,12 +1042,19 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
             self.squadCaptain = false
             self.squadMembers = squadMembers
             self.activeTactics = {}
-            if token.valid and token.properties.minion then
+            if token.valid and token.properties ~= nil and token.properties.minion then
                 squadid = token.properties:MinionSquad()
                 for j=1,i-1 do
                     local otherToken = tokens[j]
-                    if otherToken.properties.minion and otherToken.properties:MinionSquad() == squadid then
-                        print("AI:: Already processed minion squad")
+                    if otherToken.valid and otherToken.properties ~= nil
+                        and otherToken.properties.minion and otherToken.properties:MinionSquad() == squadid then
+                        self:SetLogContext(token, {
+                            turn = initiativeid,
+                            round = queue.round,
+                        })
+                        self:LogDecision("ACTOR SKIPPED", {
+                            reason = "minion squad was already processed by an earlier member",
+                        })
                         alreadyProcessed = true
                         break
                     end
@@ -313,7 +1062,8 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
 
                 for j=i,#tokens do
                     local otherToken = tokens[j]
-                    if otherToken.valid and otherToken.properties.minion and otherToken.properties:MinionSquad() == squadid then
+                    if otherToken.valid and otherToken.properties ~= nil
+                        and otherToken.properties.minion and otherToken.properties:MinionSquad() == squadid then
                         squadMembers[#squadMembers+1] = {token = otherToken}
                     end
                 end
@@ -321,7 +1071,8 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
 
             if #squadMembers > 0 then
                 for j=1,#tokens do
-                    if tokens[j].valid and not tokens[j].properties.minion then
+                    if tokens[j].valid and tokens[j].properties ~= nil
+                        and not tokens[j].properties.minion then
                         local minionSquad = tokens[j].properties:MinionSquad()
                         if minionSquad == squadid then
                             self.squadCaptain = tokens[j]
@@ -331,95 +1082,135 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
                 end
             end
 
-            if token.valid and (not alreadyProcessed) and (not token.properties:IsDead()) then
-                self.token = token
-                self.squad = squadMembers
+            if self.TokenIsLiveCombatant(token) and (not alreadyProcessed) then
+                local controls = {}
+                local ok, actorErr = RunYieldingFunction(function()
+                    self.token = token
+                    self:SetLogContext(token, {
+                        turn = initiativeid,
+                        round = queue.round,
+                    })
+                    self:FocusCameraOnActor(token)
+                    self.squad = squadMembers
 
-                if token.properties.minion then
-                    self.squad = {}
-                else
-                    self.squad = false
-                end
-
-                local promptCallback = function(invokerToken, casterToken, abilityClone, symbols, options)
-                    return self:HandlePrompt(invokerToken, casterToken, abilityClone, symbols, options)
-                end
-
-                if #self.squadMembers > 0 then
-                    for _,member in ipairs(self.squadMembers) do
-                        member.token.properties._tmp_aicontrol = member.token.properties._tmp_aicontrol + 1
-                        member.token.properties._tmp_aipromptCallback = promptCallback
+                    if token.properties.minion then
+                        self.squad = {}
+                    else
+                        self.squad = false
                     end
-                else
-                    token.properties._tmp_aicontrol = token.properties._tmp_aicontrol + 1
-                    token.properties._tmp_aipromptCallback = promptCallback
-                end
 
-                self.activeTactics = {}
-                for id,tactic in pairs(self.tactics) do
-                    if self.MoveMatchesMonster(token, tactic) then
-                        self.activeTactics[id] = tactic
-                    end
-                end
-
-                local tokens = dmhub.allTokens
-
-                local aidAttackGuid = "e234f1f4-9953-43bd-894c-d96adbb63f84"
-                self.enemyTokens = {}
-                self.allyTokens = {}
-
-                for _,tok in ipairs(tokens) do
-                    local tokenInitiativeId = InitiativeQueue.GetInitiativeId(tok)
-                    if tokenInitiativeId ~= nil and queue.entries[tokenInitiativeId] ~= nil and not tok.properties:IsDead() then
-                        if not dmhub.TokensAreFriendly(token, tok) then
-                            self.enemyTokens[#self.enemyTokens+1] = tok
-
-                            local hasAidAttack = false
-                            for _,effect in ipairs(tok.properties:ActiveOngoingEffects()) do
-                                if effect.ongoingEffectid == aidAttackGuid then
-                                    hasAidAttack = true
-                                    break
-                                end
+                    if #self.squadMembers > 0 then
+                        for _,member in ipairs(self.squadMembers) do
+                            if self.TokenIsLiveCombatant(member.token) then
+                                controls[#controls+1] = {
+                                    token = member.token,
+                                    info = self:BeginTokenControl(member.token),
+                                }
                             end
-                            tok.properties._tmp_ai_aidAttack = hasAidAttack
-                        else
-                            self.allyTokens[#self.allyTokens+1] = tok
+                        end
+                    else
+                        controls[#controls+1] = {
+                            token = token,
+                            info = self:BeginTokenControl(token),
+                        }
+                    end
+
+                    self:SetupCombatants(token, queue)
+                    self._tmp_synthesizedAbilitiesUsed = {}
+                    self._tmp_synthesizedPlanningFailed = false
+                    self._tmp_failedMoves = {}
+
+                    local tacticNames = table.keys(self.activeTactics)
+                    table.sort(tacticNames)
+                    self:LogDecision("ACTOR START", {
+                        abilities = self.AbilitiesLogName(self.abilities),
+                        activeTactics = #tacticNames > 0 and table.concat(tacticNames, ", ") or "none",
+                        allies = #self.allyTokens,
+                        enemies = #self.enemyTokens,
+                        minion = token.properties.minion,
+                        squadMembers = #self.squadMembers,
+                    })
+
+                    for cycle=1,6 do
+                        self:SetLogContext(token, {
+                            turn = initiativeid,
+                            round = queue.round,
+                            cycle = cycle,
+                        })
+                        self:SetupCombatants(token, queue)
+                        self.paths = self:CalculateRemainingMovementPaths(token)
+                        self:LogDecision("MOVE CYCLE START", {
+                            reachableLocations = #table.values(self.paths),
+                        })
+
+                        local result = self:FindAndExecuteMove()
+                        self:LogDecision("MOVE CYCLE FINISHED", {
+                            result = result,
+                        })
+                        if result == g_moveResultNone or result == g_moveResultUnsafe then
+                            break
                         end
                     end
+                end)
+
+                for _,control in ipairs(controls) do
+                    pcall(function()
+                        self:EndTokenControl(control.token, control.info)
+                    end)
                 end
+                self._tmp_expectedPromptTarget = nil
 
-                self.abilities = token.properties:GetActivatedAbilities()
-                self._tmp_synthesizedAbilitiesUsed = {}
-
-                for i=1,6 do
-                    self.paths = token:CalculatePathfindingArea((token.properties:CurrentMovementSpeed() - token.properties:DistanceMovedThisTurn())*10, {})
-
-                    local result = self:FindAndExecuteMove()
-                    print("AI:: Execute move:", i, "result =", result)
-                    if not result then
-                        break
+                pcall(function()
+                    self:SetLogContext(token, {
+                        turn = initiativeid,
+                        round = queue.round,
+                    })
+                    if ok then
+                        self:LogDecision("ACTOR FINISHED", {
+                            result = self.TokenIsLiveCombatant(token)
+                                and "completed" or "token became invalid",
+                        })
+                    else
+                        self:LogDecision("ACTOR ERROR", {
+                            reason = tostring(actorErr),
+                            result = "remaining actions skipped; continuing turn",
+                        })
                     end
-                end
-
-                if #self.squadMembers > 0 then
-                    for _,member in ipairs(self.squadMembers) do
-                        member.token.properties._tmp_aicontrol = member.token.properties._tmp_aicontrol - 1
-                        member.token.properties._tmp_aipromptCallback = nil
-                    end
-                else
-                    token.properties._tmp_aicontrol = token.properties._tmp_aicontrol - 1
-                    token.properties._tmp_aipromptCallback = nil
-                end
+                end)
             else
-                print("AI:: Token no longer valid for initiative ID", initiativeid)
+                if not alreadyProcessed then
+                    self:SetLogContext(token, {
+                        turn = initiativeid,
+                        round = queue.round,
+                    })
+                    self:LogDecision("ACTOR SKIPPED", {
+                        reason = not token.valid and "token is no longer valid"
+                            or token.properties == nil and "token has no properties"
+                            or "token is dead",
+                    })
+                end
             end
         end
 
+        self:SetLogContext(nil, {
+            turn = initiativeid,
+            round = queue.round,
+        })
+        self:LogDecision("TURN FINISHED", {
+            result = "advancing initiative",
+        })
         GameHud.instance:NextInitiative(function()
             dmhub:UploadInitiativeQueue()
         end)
         
         coroutine.yield(0.5)
+    else
+        self:SetLogContext(nil, {turn = initiativeid})
+        self:LogDecision("TURN ABORTED", {
+            reason = queue == nil and "no initiative queue"
+                or queue.hidden and "initiative queue is hidden"
+                or "initiative entry is no longer current",
+        })
     end
 end
 
@@ -441,11 +1232,44 @@ local function FindMaliceAbilityByName(token, name)
     end
 end
 
+function MonsterAI.TokenIsLiveCombatant(token)
+    return token ~= nil and token.valid and token.properties ~= nil
+        and not token.properties:IsDead()
+end
+
+function MonsterAI:RefreshCombatants(queue)
+    self.enemyTokens = {}
+    self.allyTokens = {}
+    local token = self.token
+    if not self.TokenIsLiveCombatant(token) then
+        return
+    end
+
+    for _,other in ipairs(dmhub.allTokens) do
+        local initiativeid = InitiativeQueue.GetInitiativeId(other)
+        if self.TokenIsLiveCombatant(other) and initiativeid ~= nil
+            and queue ~= nil and queue.entries[initiativeid] ~= nil then
+            if dmhub.TokensAreFriendly(token, other) then
+                self.allyTokens[#self.allyTokens+1] = other
+            else
+                self.enemyTokens[#self.enemyTokens+1] = other
+
+                local hasAidAttack = false
+                for _,effect in ipairs(other.properties:ActiveOngoingEffects()) do
+                    if effect.ongoingEffectid == "e234f1f4-9953-43bd-894c-d96adbb63f84" then
+                        hasAidAttack = true
+                        break
+                    end
+                end
+                other.properties._tmp_ai_aidAttack = hasAidAttack
+            end
+        end
+    end
+end
+
 function MonsterAI:SetupCombatants(token, queue)
     self.token = token
     self.abilities = token.properties:GetActivatedAbilities()
-    self.enemyTokens = {}
-    self.allyTokens = {}
     self.activeTactics = {}
 
     for id,tactic in pairs(self.tactics) do
@@ -454,17 +1278,7 @@ function MonsterAI:SetupCombatants(token, queue)
         end
     end
 
-    for _,other in ipairs(dmhub.allTokens) do
-        local initiativeid = InitiativeQueue.GetInitiativeId(other)
-        if other.valid and other.properties ~= nil and initiativeid ~= nil
-            and queue.entries[initiativeid] ~= nil and not other.properties:IsDead() then
-            if dmhub.TokensAreFriendly(token, other) then
-                self.allyTokens[#self.allyTokens+1] = other
-            else
-                self.enemyTokens[#self.enemyTokens+1] = other
-            end
-        end
-    end
+    self:RefreshCombatants(queue)
 end
 
 local function InitiativeEntryHasLiveToken(initiativeid)
@@ -487,25 +1301,20 @@ local function CountFutureVillainActionWindows(queue, endedInitiativeId, ownerIn
     return result
 end
 
-local function RunYieldingFunction(fn)
-    local thread = coroutine.create(fn)
-    while coroutine.status(thread) ~= "dead" do
-        local ok, delay = coroutine.resume(thread)
-        if not ok then
-            return false, delay
-        end
-        if coroutine.status(thread) ~= "dead" then
-            coroutine.yield(type(delay) == "number" and delay or 0.1)
-        end
-    end
-    return true
-end
-
 function MonsterAI:RunWithTokenControl(token, fn)
     local controlInfo = self:BeginTokenControl(token)
     local ok, err = RunYieldingFunction(fn)
-    self:EndTokenControl(token, controlInfo)
+    local cleanupOk, cleanupErr = pcall(function()
+        self:EndTokenControl(token, controlInfo)
+    end)
     self._tmp_expectedPromptTarget = nil
+    if not cleanupOk then
+        if ok then
+            return false, cleanupErr
+        end
+        return false, string.format("%s; token control cleanup failed: %s",
+            tostring(err), tostring(cleanupErr))
+    end
     return ok, err
 end
 
@@ -516,13 +1325,14 @@ function MonsterAI:WaitForAbilityIdle(timeout)
         if ActivatedAbility.CountActiveCasts() <= 0 then
             idleSince = idleSince or dmhub.Time()
             if dmhub.Time() - idleSince >= 0.3 then
-                return
+                return true
             end
         else
             idleSince = nil
         end
         coroutine.yield(0.1)
     end
+    return false
 end
 
 local g_aiMinionDeathPendingTimeout = 125
@@ -694,7 +1504,10 @@ function MonsterAI:ResolvePendingMinionDeaths(timeout)
         if #choices > 0 then
             for _,choice in ipairs(choices) do
                 if ConfirmAIMinionDeath(choice.token, choice.attacker) then
-                    print("AI:: Chose minion to die:", creature.GetTokenDescription(choice.token))
+                    self:LogDecision("MINION DEATH SELECTED", {
+                        targets = self.TargetsLogName({{token = choice.token}}),
+                        reason = "squad damage requires a minion death",
+                    })
                 end
             end
             self.Sleep(0.1)
@@ -739,6 +1552,15 @@ function MonsterAI:HandleMaliceAbilityStartOfTurn(initiativeid, actingTokens, qu
         return false
     end
 
+    self:SetLogContext(nil, {
+        turn = initiativeid,
+        round = queue.round,
+    })
+    self:LogDecision("MALICE WINDOW START", {
+        malice = CharacterResource.GetMalice(),
+        registrations = #table.values(self.maliceAbilities),
+    })
+
     local bestCandidate = nil
     for _,registration in pairs(self.maliceAbilities) do
         local groupTokens = {}
@@ -753,17 +1575,42 @@ function MonsterAI:HandleMaliceAbilityStartOfTurn(initiativeid, actingTokens, qu
             end
         end
 
-        if #eligibleCasters > 0 and registration.abilities ~= nil and registration.abilities[1] ~= nil then
+        if #groupTokens > 0 and #eligibleCasters == 0 then
+            self:LogDecision("MALICE REJECTED", {
+                category = self.MoveCategoryLogName(registration),
+                move = registration.id,
+                ability = registration.abilities ~= nil and registration.abilities[1] or nil,
+                reason = "registration is disabled for every matching acting monster",
+            })
+        elseif #eligibleCasters > 0 and registration.abilities ~= nil and registration.abilities[1] ~= nil then
             local caster = nil
             local ability = nil
+            local unavailableReasons = {}
+            local unavailableByToken = {}
+            local function RecordUnavailable(token, reason)
+                if not unavailableByToken[token.charid] then
+                    unavailableByToken[token.charid] = true
+                    unavailableReasons[#unavailableReasons+1] = string.format("%s %s",
+                        self.TokenLogName(token), reason)
+                end
+            end
             for pass=1,2 do
                 for _,token in ipairs(eligibleCasters) do
                     if pass == 2 or not token.properties.minion then
                         local candidateAbility = FindMaliceAbilityByName(token, registration.abilities[1])
-                        if candidateAbility ~= nil and candidateAbility:CanAfford(token) then
-                            caster = token
-                            ability = candidateAbility
-                            break
+                        if candidateAbility == nil then
+                            RecordUnavailable(token, "lacks " .. registration.abilities[1])
+                        elseif not candidateAbility:CanAfford(token) then
+                            RecordUnavailable(token, AIAbilityUnavailableReason(token, candidateAbility))
+                        else
+                            local filterFailure = candidateAbility:AbilityFilterFailureMessage(token.properties)
+                            if filterFailure ~= nil then
+                                RecordUnavailable(token, "blocked: " .. tostring(filterFailure))
+                            else
+                                caster = token
+                                ability = candidateAbility
+                                break
+                            end
                         end
                     end
                 end
@@ -773,6 +1620,10 @@ function MonsterAI:HandleMaliceAbilityStartOfTurn(initiativeid, actingTokens, qu
             end
 
             if caster ~= nil then
+                self:SetLogContext(caster, {
+                    turn = initiativeid,
+                    round = queue.round,
+                })
                 self:SetupCombatants(caster, queue)
                 local context = {
                     actingTokens = actingTokens,
@@ -785,9 +1636,15 @@ function MonsterAI:HandleMaliceAbilityStartOfTurn(initiativeid, actingTokens, qu
                     round = queue.round,
                 }
 
-                local ok, scoringInfo = pcall(registration.score, registration, self, caster, ability, context)
+                local ok, scoringInfo, scoringReason = pcall(
+                    registration.score, registration, self, caster, ability, context)
                 if not ok then
-                    print(string.format("AI:: Malice ability scoring failed [%s]: %s", registration.id, tostring(scoringInfo)))
+                    self:LogDecision("MALICE ERROR", {
+                        category = self.MoveCategoryLogName(registration),
+                        move = registration.id,
+                        ability = ability.name,
+                        reason = "scoring failed: " .. tostring(scoringInfo),
+                    })
                     self:LogMove(caster.properties.monster_type, registration.id, "Scoring failed: " .. tostring(scoringInfo))
                 else
                     if type(scoringInfo) == "number" then
@@ -799,6 +1656,16 @@ function MonsterAI:HandleMaliceAbilityStartOfTurn(initiativeid, actingTokens, qu
                         local minimumScore = tonumber(registration.minimumScore) or self.maliceAbilityMinimumScore
                         self:LogMove(caster.properties.monster_type, registration.id,
                             string.format("Score %.2f; threshold %.2f", score, minimumScore))
+                        self:LogDecision("MALICE CANDIDATE", {
+                            category = self.MoveCategoryLogName(registration),
+                            move = registration.id,
+                            ability = ability.name,
+                            action = self.AbilityActionLogName(ability),
+                            score = score,
+                            threshold = minimumScore,
+                            plan = self.ScoringPlanLogName(scoringInfo),
+                            result = score >= minimumScore and "eligible" or "below threshold",
+                        })
 
                         if score >= minimumScore and (bestCandidate == nil or score > bestCandidate.score
                             or (score == bestCandidate.score and registration.id < bestCandidate.registration.id)) then
@@ -814,18 +1681,53 @@ function MonsterAI:HandleMaliceAbilityStartOfTurn(initiativeid, actingTokens, qu
                     else
                         self:LogMove(caster.properties.monster_type, registration.id,
                             "Could not use at the start of this turn", {onlyIfEmpty = true})
+                        self:LogDecision("MALICE REJECTED", {
+                            category = self.MoveCategoryLogName(registration),
+                            move = registration.id,
+                            ability = ability.name,
+                            reason = scoringReason or "score callback returned no legal plan",
+                        })
                     end
                 end
+            else
+                self:LogDecision("MALICE REJECTED", {
+                    category = self.MoveCategoryLogName(registration),
+                    move = registration.id,
+                    ability = registration.abilities[1],
+                    reason = #unavailableReasons > 0
+                        and table.concat(unavailableReasons, "; ")
+                        or "no eligible caster has a legal, affordable ability",
+                })
             end
         end
     end
 
     if bestCandidate == nil then
+        self:SetLogContext(nil, {
+            turn = initiativeid,
+            round = queue.round,
+        })
+        self:LogDecision("MALICE WINDOW FINISHED", {
+            result = "no Malice ability selected",
+        })
         return false
     end
 
     local registration = bestCandidate.registration
     local caster = bestCandidate.caster
+    self:SetLogContext(caster, {
+        turn = initiativeid,
+        round = queue.round,
+        category = self.MoveCategoryLogName(registration),
+        move = registration.id,
+    })
+    self:LogDecision("MALICE SELECTED", {
+        ability = bestCandidate.ability.name,
+        action = self.AbilityActionLogName(bestCandidate.ability),
+        score = bestCandidate.score,
+        plan = self.ScoringPlanLogName(bestCandidate.scoringInfo),
+    })
+    self:FocusCameraOnActor(caster)
     self:SetupCombatants(caster, queue)
     local execute = registration.execute or function(_, ai, token, scoringInfo, ability)
         ai:ExecuteAbility(token, ability)
@@ -835,13 +1737,20 @@ function MonsterAI:HandleMaliceAbilityStartOfTurn(initiativeid, actingTokens, qu
     end)
 
     if not ok then
-        print(string.format("AI:: Malice ability execution failed [%s]: %s", registration.id, tostring(err)))
+        self:LogDecision("MALICE ERROR", {
+            ability = bestCandidate.ability.name,
+            reason = "execution failed: " .. tostring(err),
+        })
         self:LogMove(caster.properties.monster_type, registration.id, "Execution failed: " .. tostring(err))
         return false
     end
 
     self:WaitForAbilityIdle()
     self:LogMove(caster.properties.monster_type, registration.id, "Executed at the start of the turn")
+    self:LogDecision("MALICE FINISHED", {
+        ability = bestCandidate.ability.name,
+        result = "executed",
+    })
     return true
 end
 
@@ -849,14 +1758,41 @@ function MonsterAI:ExecuteVillainActionCandidate(candidate)
     local token = candidate.token
     local ability = candidate.ability
     local action = candidate.action
+    self:SetLogContext(token, {
+        turn = candidate.context.endedInitiativeId,
+        round = candidate.context.round,
+        category = self.MoveCategoryLogName(action),
+        move = action.id,
+    })
     if not self.active or token == nil or not token.valid or token.properties:IsDead() then
+        self:LogDecision("VILLAIN ACTION CANCELLED", {
+            ability = ability ~= nil and ability.name or nil,
+            reason = not self.active and "Monster AI stopped"
+                or token == nil and "caster is missing"
+                or not token.valid and "caster is invalid"
+                or "caster is dead",
+        })
         return false
     end
     if CharacterResource.GetVillainActions() <= 0
         or VillainActionState.HasUsed(token.charid, candidate.slot)
         or not ability:CanAfford(token) then
+        self:LogDecision("VILLAIN ACTION CANCELLED", {
+            ability = ability.name,
+            reason = CharacterResource.GetVillainActions() <= 0 and "no villain action budget remains"
+                or VillainActionState.HasUsed(token.charid, candidate.slot) and "this villain action was already used"
+                or AIAbilityUnavailableReason(token, ability),
+        })
         return false
     end
+
+    self:LogDecision("VILLAIN ACTION SELECTED", {
+        ability = ability.name,
+        action = self.AbilityActionLogName(ability),
+        score = candidate.score,
+        plan = self.ScoringPlanLogName(candidate.scoringInfo),
+        slot = candidate.slot,
+    })
 
     dmhub.CenterOnToken(token.charid, {smooth = true})
     local subtitle = string.gsub(candidate.slot, "3", "III")
@@ -879,13 +1815,20 @@ function MonsterAI:ExecuteVillainActionCandidate(candidate)
     end)
 
     if not ok then
-        print(string.format("AI:: Villain Action execution failed [%s]: %s", action.id, tostring(err)))
+        self:LogDecision("VILLAIN ACTION ERROR", {
+            ability = ability.name,
+            reason = "execution failed: " .. tostring(err),
+        })
         self:LogMove(token.properties.monster_type, action.id, "Execution failed: " .. tostring(err))
         return false
     end
 
     self:WaitForAbilityIdle()
     self:LogMove(token.properties.monster_type, action.id, "Executed villain action")
+    self:LogDecision("VILLAIN ACTION FINISHED", {
+        ability = ability.name,
+        result = "executed",
+    })
     return true
 end
 
@@ -902,6 +1845,14 @@ function MonsterAI:HandleVillainActionWindow(context)
         return
     end
     local slot = string.format("Villain Action %d", round)
+    self:SetLogContext(nil, {
+        turn = context.endedInitiativeId,
+        round = round,
+    })
+    self:LogDecision("VILLAIN ACTION WINDOW START", {
+        slot = slot,
+        budget = CharacterResource.GetVillainActions(),
+    })
 
     -- End-turn triggers get a short grace period to start and finish before a
     -- villain action is scored in the same between-turn window.
@@ -925,12 +1876,22 @@ function MonsterAI:HandleVillainActionWindow(context)
                     if ability ~= nil and ability:try_get("villainAction") == slot
                         and not VillainActionState.HasUsed(token.charid, slot)
                         and ability:CanAfford(token) then
+                        self:SetLogContext(token, {
+                            turn = context.endedInitiativeId,
+                            round = round,
+                        })
                         self:SetupCombatants(token, context.initiativeQueue)
-                        local ok, scoringInfo = pcall(action.score, action, self, token, ability, context)
+                        local ok, scoringInfo, scoringReason = pcall(
+                            action.score, action, self, token, ability, context)
                         if ok and type(scoringInfo) == "number" then
                             scoringInfo = {score = scoringInfo}
                         elseif not ok then
-                            print(string.format("AI:: Villain Action scoring failed [%s]: %s", action.id, tostring(scoringInfo)))
+                            self:LogDecision("VILLAIN ACTION ERROR", {
+                                category = self.MoveCategoryLogName(action),
+                                move = action.id,
+                                ability = ability.name,
+                                reason = "scoring failed: " .. tostring(scoringInfo),
+                            })
                             scoringInfo = nil
                         end
 
@@ -960,7 +1921,41 @@ function MonsterAI:HandleVillainActionWindow(context)
                             self:LogMove(token.properties.monster_type, action.id, string.format(
                                 "Score %.2f; chance %.2f; roll %.2f; %d window(s) including now%s",
                                 score, chance, roll, windowsIncludingNow, cond(candidate.forced, "; forced", "")))
+                            self:LogDecision("VILLAIN ACTION CANDIDATE", {
+                                category = self.MoveCategoryLogName(action),
+                                move = action.id,
+                                ability = ability.name,
+                                action = self.AbilityActionLogName(ability),
+                                score = score,
+                                plan = self.ScoringPlanLogName(scoringInfo),
+                                chance = chance,
+                                roll = roll,
+                                remainingWindows = windowsIncludingNow,
+                                result = candidate.forced and "forced in final window"
+                                    or roll <= chance and "passed use roll"
+                                    or "failed use roll",
+                            })
+                        elseif ok then
+                            self:LogDecision("VILLAIN ACTION REJECTED", {
+                                category = self.MoveCategoryLogName(action),
+                                move = action.id,
+                                ability = ability.name,
+                                reason = scoringReason or "score callback returned no legal plan",
+                            })
                         end
+                    elseif ability ~= nil and ability:try_get("villainAction") == slot then
+                        self:SetLogContext(token, {
+                            turn = context.endedInitiativeId,
+                            round = round,
+                        })
+                        self:LogDecision("VILLAIN ACTION REJECTED", {
+                            category = self.MoveCategoryLogName(action),
+                            move = action.id,
+                            ability = ability.name,
+                            reason = VillainActionState.HasUsed(token.charid, slot)
+                                and "this villain action was already used"
+                                or AIAbilityUnavailableReason(token, ability),
+                        })
                     end
                 end
             end
@@ -986,6 +1981,14 @@ function MonsterAI:HandleVillainActionWindow(context)
 
     if bestCandidate ~= nil then
         self:ExecuteVillainActionCandidate(bestCandidate)
+    else
+        self:SetLogContext(nil, {
+            turn = context.endedInitiativeId,
+            round = round,
+        })
+        self:LogDecision("VILLAIN ACTION WINDOW FINISHED", {
+            result = "no villain action selected",
+        })
     end
 end
 
@@ -993,10 +1996,12 @@ function MonsterAI:FindClosestEnemy()
     local closestEnemy = nil
     local closestDistance = nil
     for _,enemy in ipairs(self.enemyTokens) do
-        local dist = self.token:Distance(enemy)
-        if closestDistance == nil or dist < closestDistance then
-            closestDistance = dist
-            closestEnemy = enemy
+        if self.TokenIsLiveCombatant(enemy) then
+            local dist = self.token:Distance(enemy)
+            if closestDistance == nil or dist < closestDistance then
+                closestDistance = dist
+                closestEnemy = enemy
+            end
         end
     end
 
@@ -1011,29 +2016,38 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
     local filteredTokens = {}
     for i=1,#self.enemyTokens do
         local enemy = self.enemyTokens[i]
-        local canTarget = ability:TargetPassesFilter(token, enemy, {})
-        if canTarget and enemy.properties:HasNamedCondition("Hidden") and ability:HasKeyword("Strike") then
-            local ignoreRange = token.properties:CalculateNamedCustomAttribute("Ignore Hidden Within Range") or 0
-            if ignoreRange <= 0 or token:Distance(enemy) > ignoreRange then
-                canTarget = false
+        if self.TokenIsLiveCombatant(enemy) then
+            local canTarget = ability:TargetPassesFilter(token, enemy, {})
+            if canTarget and enemy.properties:HasNamedCondition("Hidden") and ability:HasKeyword("Strike") then
+                local ignoreRange = token.properties:CalculateNamedCustomAttribute("Ignore Hidden Within Range") or 0
+                if ignoreRange <= 0 or token:Distance(enemy) > ignoreRange then
+                    canTarget = false
+                end
             end
-        end
-        if canTarget then
-            filteredTokens[#filteredTokens+1] = enemy
+            if canTarget then
+                filteredTokens[#filteredTokens+1] = enemy
+            end
         end
     end
 
     local hasCharge = ability:HasKeyword("Charge") or ability.name == "Melee Free Strike"
     range = range or ability:GetRange(token.properties)
+    local chargeRange = range
+    if ability.meleeAndRanged then
+        chargeRange = ability.meleeVariation:GetRange(token.properties)
+    elseif meleeAbility and rangedAbility then
+        chargeRange = ability:try_get("meleeRange", 1)
+    end
     local result = {}
-    token:ExecuteWithTheoreticalLoc(loc, function()
+    local movementToken = self:GetMovementToken(token)
+    self:ExecuteWithTheoreticalMovementLoc(token, loc, function()
         for i=1,#filteredTokens do
             local enemy = filteredTokens[i]
             local dist = token:Distance(enemy)
 
             local chargeLoc = nil
             if hasCharge then
-                local movementInfo = token:MarkMovementArrow(enemy.loc, {straightline = true, ignorecreatures = false, moveThroughFriends = true})
+                local movementInfo = movementToken:MarkMovementArrow(enemy.loc, {straightline = true, ignorecreatures = false, moveThroughFriends = true})
                 --check that the move doesn't make us fall down.
                 if movementInfo ~= nil then
                     local path = movementInfo.path
@@ -1049,9 +2063,14 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
 
                 if movementInfo ~= nil then
                     local chargeDist = movementInfo.path.destination:DistanceInTiles(movementInfo.path.origin)
-                    if chargeDist <= ability:try_get("chargeDistanceOverride", token.properties:CurrentMovementSpeed()) then
-                        local dest = movementInfo.path.destination
-                        dist = enemy:Distance(dest)
+                    local dest = movementInfo.path.destination
+                    local targetDist = enemy:Distance(dest)
+                    -- A stopped or zero-length arrow is not a charge. Dual-mode
+                    -- strikes must also finish inside their melee variation's range.
+                    if chargeDist > 0
+                        and chargeDist <= ability:try_get("chargeDistanceOverride", movementToken.properties:CurrentMovementSpeed())
+                        and targetDist <= chargeRange then
+                        dist = targetDist
                         chargeLoc = dest
                     end
                 end
@@ -1062,17 +2081,22 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
                 if los > 0 then
 
                     local edges = 0
+                    local edgeReasons = {}
 
                     --obstruction.
                     if los < 1 then
                         edges = edges - 1
+                        edgeReasons[#edgeReasons+1] = "obstruction -1"
                     end
 
                     local tokenLoc = chargeLoc or loc
 
-                    for _,tactic in pairs(self.activeTactics) do
+                    for tacticid,tactic in pairs(self.activeTactics) do
                         local score = tactic.score(self, token, tokenLoc, enemy, ability) or 0
                         edges = edges + score
+                        if score ~= 0 then
+                            edgeReasons[#edgeReasons+1] = string.format("%s %+.2f", tacticid, score)
+                        end
                     end
 
                     --nearby enemies with ranged penalty
@@ -1087,10 +2111,17 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
 
                         if hasNearbyEnemies then
                             edges = edges - 1
+                            edgeReasons[#edgeReasons+1] = "ranged while adjacent -1"
                         end
                     end
 
-                    result[#result+1] = { token = enemy, loc = enemy.loc, charge = chargeLoc, edges = edges }
+                    result[#result+1] = {
+                        token = enemy,
+                        loc = enemy.loc,
+                        charge = chargeLoc,
+                        edges = edges,
+                        edgeReasons = edgeReasons,
+                    }
                 end
             end
         end
@@ -1098,7 +2129,7 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
     end)
 
     if hasCharge then
-        token:ClearMovementArrow()
+        movementToken:ClearMovementArrow()
     end
 
     table.sort(result, function(a,b) return a.edges > b.edges end)
@@ -1123,7 +2154,6 @@ function MonsterAI:FindSquadMemberStrikeOptions(squadMember, ability)
                 local deltaCharge = {x = target.token.loc.x - target.charge.x, y = target.token.loc.y - target.charge.y}
                 local dotProduct = deltaMove.x * deltaCharge.x + deltaMove.y * deltaCharge.y
                 cost = cost - dotProduct*0.5
-                print("AI:: Charge dot product for", squadMember.token.loc.x, squadMember.token.loc.y, "to", target.token.loc.x, target.token.loc.y, "via", target.charge.x, target.charge.y, "is", dotProduct, "adjusted cost =", cost)
             end
             local existing = squadMember.possibleTargets[target.token.charid]
             if existing == nil then
@@ -1141,19 +2171,26 @@ function MonsterAI:FindSquadMemberStrikeOptions(squadMember, ability)
         end
     end
 
-    print("AI:: SQUAD MEMBER HAS POSSIBLE TARGETS:", table.keys(squadMember.possibleTargets))
-
     return squadMember.possibleTargets
 end
 
 function MonsterAI:ExecuteSquadStrike(ability)
+    self:LogDecision("MOVE SELECTED", {
+        category = "Main Action",
+        move = "Minion Signature Ability",
+        ability = ability.name,
+        action = self.AbilityActionLogName(ability),
+        result = string.format("coordinating %d minion(s)", #self.squadMembers),
+    })
     local logMessage = nil
     local rays = {}
     local targetPairs = {}
     local assignedTargets = {}
     for _,squadMember in ipairs(self.squadMembers) do
 
-        squadMember.paths = squadMember.token:CalculatePathfindingArea(squadMember.token.properties:CurrentMovementSpeed()*10, {})
+        local movementToken = self:GetMovementToken(squadMember.token)
+        squadMember.paths = self:CalculateMovementPaths(squadMember.token,
+            movementToken.properties:CurrentMovementSpeed()*10)
 
         local options = self:FindSquadMemberStrikeOptions(squadMember, ability)
         local bestOption = nil
@@ -1171,21 +2208,33 @@ function MonsterAI:ExecuteSquadStrike(ability)
         end
 
         if bestOption ~= nil then
+            self:LogDecision("MINION ASSIGNMENT", {
+                actor = self.TokenLogName(squadMember.token),
+                actorId = squadMember.token.charid,
+                category = "Main Action",
+                move = "Minion Signature Ability",
+                ability = ability.name,
+                from = self.LocLogName(squadMember.token.loc),
+                to = self.LocLogName(bestOption.loc),
+                targets = self.TargetsLogName({{token = bestOption.token}}),
+                plan = bestOption.charge ~= nil
+                    and string.format("charge through %s", self.LocLogName(bestOption.charge))
+                    or "strike from destination",
+            })
             assignedTargets[bestOption.token.charid] = (assignedTargets[bestOption.token.charid] or 0) + 1
-            local path = squadMember.token:Move(bestOption.loc, {maxCost = 10000, ignoreFalling = false})
+            local path = self:MoveToken(squadMember.token, bestOption.loc, {maxCost = 10000, ignoreFalling = false})
             self.Sleep(0.6)
 
 
             if bestOption.charge ~= nil then
                 self:Speech(squadMember.token, "Charge!")
                 self.Sleep(0.3)
-                print("AI:: CHARGE TO", bestOption.charge.x, bestOption.charge.y)
                 --freeMovement: a Charge is a main action whose movement belongs to the
                 --ability, not to the creature's move action, so it must not be charged
                 --against -- or clamped by -- the remaining move budget under
                 --strict:movement. Without this the move above eats the budget and the
                 --charge silently becomes a no-op, leaving the striker out of range.
-                local path = squadMember.token:Move(bestOption.charge, {maxCost = 10000, ignoreFalling = false, freeMovement = true})
+                local path = self:MoveToken(squadMember.token, bestOption.charge, {maxCost = 10000, ignoreFalling = false, freeMovement = true})
                 self.Sleep(1)
             end
 
@@ -1198,6 +2247,15 @@ function MonsterAI:ExecuteSquadStrike(ability)
                 end)
                 targetPairs[#targetPairs+1] = {a = squadMember.token.charid, b = bestOption.token.charid}
             end
+        else
+            self:LogDecision("MINION ASSIGNMENT REJECTED", {
+                actor = self.TokenLogName(squadMember.token),
+                actorId = squadMember.token.charid,
+                category = "Main Action",
+                move = "Minion Signature Ability",
+                ability = ability.name,
+                reason = "no legal target can be reached",
+            })
         end
     end
 
@@ -1241,6 +2299,18 @@ function MonsterAI:ExecuteSquadStrike(ability)
         self:LogMove(self.token.properties.monster_type, "Minion Signature Ability", logMessage)
     end
 
+    local finalTargets = {}
+    for _,pair in ipairs(targetPairs) do
+        finalTargets[#finalTargets+1] = {token = dmhub.GetTokenById(pair.b)}
+    end
+    self:LogDecision("MOVE FINISHED", {
+        category = "Main Action",
+        move = "Minion Signature Ability",
+        ability = ability.name,
+        targets = self.TargetsLogName(finalTargets),
+        result = logMessage,
+    })
+
     return #targetPairs > 0
 end
 
@@ -1261,6 +2331,8 @@ function MonsterAI:FindBestMoveToUseStrike(token, ability, scorefn)
     local numTargets = ability:GetNumTargets(token)
     local bestScore = 0
     local bestMove = nil
+    local bestTargets = nil
+    local bestCost = nil
     for _,info in pairs(self.paths) do
         local destLoc = info.loc
 
@@ -1283,8 +2355,6 @@ function MonsterAI:FindBestMoveToUseStrike(token, ability, scorefn)
                 end
             end
 
-            print("AI:: Max Edges for loc", destLoc.x, destLoc.y, "is", maxEdges)
-
             score = score + (maxEdges or 0)*0.1
         end
 
@@ -1293,7 +2363,32 @@ function MonsterAI:FindBestMoveToUseStrike(token, ability, scorefn)
         if score > bestScore then
             bestScore = score
             bestMove = destLoc
+            bestTargets = targets
+            bestCost = info.cost
         end
+    end
+
+    if bestMove ~= nil then
+        local selectedTargets = {}
+        for i=1,math.min(numTargets, #(bestTargets or {})) do
+            selectedTargets[#selectedTargets+1] = bestTargets[i]
+        end
+        self:LogDecision("TARGET PLAN", {
+            ability = ability.name,
+            action = self.AbilityActionLogName(ability),
+            score = bestScore,
+            plan = string.format("move-to %s; movement-cost=%s; %s",
+                self.LocLogName(bestMove), tostring(bestCost or 0),
+                self.TargetScoresLogName(selectedTargets)),
+            targets = self.TargetsLogName(selectedTargets),
+            result = "legal strike plan",
+        })
+    else
+        self:LogDecision("TARGET PLAN REJECTED", {
+            ability = ability.name,
+            action = self.AbilityActionLogName(ability),
+            reason = "no reachable location has a legal strike target",
+        })
     end
 
     return bestMove, bestScore
@@ -1305,16 +2400,19 @@ function MonsterAI:FindBestMoveToUseBurst(token, ability, scorefn)
     local bestScore = nil
     local bestCost = nil
     local bestMove = nil
+    local bestTargets = nil
     local allTokens = dmhub.allTokens
     local symbols = {mode = 1}
     for _,info in pairs(self.paths) do
         local score = 0
         local destLoc = info.loc
+        local targets = {}
 
-        token:ExecuteWithTheoreticalLoc(destLoc, function()
+        self:ExecuteWithTheoreticalMovementLoc(token, destLoc, function()
             for _,targetToken in ipairs(allTokens) do
                 if targetToken.valid and targetToken:Distance(token) <= range and ability:TargetPassesFilter(token, targetToken, symbols) then
                     score = score + scorefn(targetToken)
+                    targets[#targets+1] = {token = targetToken}
                 end
             end
         end)
@@ -1324,7 +2422,27 @@ function MonsterAI:FindBestMoveToUseBurst(token, ability, scorefn)
             bestScore = score
             bestCost = cost
             bestMove = destLoc
+            bestTargets = targets
         end
+    end
+
+
+    if bestMove ~= nil then
+        self:LogDecision("TARGET PLAN", {
+            ability = ability.name,
+            action = self.AbilityActionLogName(ability),
+            score = bestScore,
+            plan = string.format("move-to %s; movement-cost=%s; burst",
+                self.LocLogName(bestMove), tostring(bestCost or 0)),
+            targets = self.TargetsLogName(bestTargets),
+            result = "best burst plan",
+        })
+    else
+        self:LogDecision("TARGET PLAN REJECTED", {
+            ability = ability.name,
+            action = self.AbilityActionLogName(ability),
+            reason = "no reachable burst location",
+        })
     end
 
     return bestMove, bestScore
@@ -1393,6 +2511,23 @@ function MonsterAI:FindBestLinePlan(token, ability, options)
                 area:Destroy()
             end
         end
+    end
+
+    if options.logPlan ~= false and best ~= nil then
+        self:LogDecision("TARGET PLAN", {
+            ability = ability.name,
+            action = self.AbilityActionLogName(ability),
+            score = best.score,
+            plan = string.format("line aimed at %s", self.LocLogName(best.targetLoc)),
+            targets = self.TargetsLogName(best.targets),
+            result = "best line plan",
+        })
+    elseif options.logPlan ~= false then
+        self:LogDecision("TARGET PLAN REJECTED", {
+            ability = ability.name,
+            action = self.AbilityActionLogName(ability),
+            reason = "no candidate line produced a legal area",
+        })
     end
 
     return best
@@ -1703,7 +2838,7 @@ function MonsterAI:FindSynthesizedBurstPlan(token, ability)
 
     for _,pathInfo in pairs(self.paths or {}) do
         local targets = {}
-        token:ExecuteWithTheoreticalLoc(pathInfo.loc, function()
+        self:ExecuteWithTheoreticalMovementLoc(token, pathInfo.loc, function()
             for _,target in ipairs(dmhub.allTokens) do
                 if IsLiveSynthesizedTarget(target)
                     and target:Distance(token) <= range
@@ -1779,7 +2914,7 @@ function MonsterAI:FindSynthesizedCubePlan(token, ability)
 
     for _,pathInfo in pairs(self.paths or {}) do
         local checked = {}
-        token:ExecuteWithTheoreticalLoc(pathInfo.loc, function()
+        self:ExecuteWithTheoreticalMovementLoc(token, pathInfo.loc, function()
             for _,enemy in ipairs(self.enemyTokens or {}) do
                 if IsLiveSynthesizedTarget(enemy)
                     and token:Distance(enemy) <= range
@@ -1826,6 +2961,7 @@ function MonsterAI:FindSynthesizedLinePlan(token, ability)
 
         local plan = self:FindBestLinePlan(token, ability, {
             candidates = candidates,
+            logPlan = false,
             scorefn = function(target)
                 if target.isObject then
                     return 0
@@ -1912,15 +3048,31 @@ end
 function MonsterAI:FindBestSynthesizedAbilityMove(token, abilities, claimedAbilities)
     local best = nil
     local used = self:try_get("_tmp_synthesizedAbilitiesUsed", {})
+    local failedMoves = self:try_get("_tmp_failedMoves", {})
 
     for _,ability in ipairs(abilities) do
         local key = SynthesizedAbilityKey(ability)
-        if not claimedAbilities[ability.name] and not used[key] then
-            local profile = self:GetSynthesizedAbilityProfile(token, ability)
+        local moveid = SynthesizedMoveId(ability)
+        if not claimedAbilities[ability.name] and not used[key] and not failedMoves[moveid] then
+            local profile, profileReason = self:GetSynthesizedAbilityProfile(token, ability)
+            local registration = {
+                id = moveid,
+                category = "Main Actions",
+            }
+            self:SetMoveLogContext(token, registration)
             if profile ~= nil then
-                local moveid = SynthesizedMoveId(ability)
+                if profile.actionResource == CharacterResource.maneuverResourceId
+                    or profile.actionResource == CharacterResource.freeManeuverResourceId then
+                    registration.category = "Maneuvers"
+                    self:SetMoveLogContext(token, registration)
+                end
                 if not ability:CanAfford(token) then
                     self:LogMove(token.properties.monster_type, moveid, "Could not afford", {onlyIfEmpty = true})
+                    self:LogDecision("MOVE REJECTED", {
+                        ability = ability.name,
+                        action = self.AbilityActionLogName(ability),
+                        reason = AIAbilityUnavailableReason(token, ability),
+                    })
                 else
                     local plan = self:FindSynthesizedAbilityPlan(token, ability, profile)
                     local maliceCost = SynthesizedMaliceCost(token, ability)
@@ -1934,14 +3086,34 @@ function MonsterAI:FindBestSynthesizedAbilityMove(token, abilities, claimedAbili
                         self:LogMove(token.properties.monster_type, moveid, string.format(
                             "Score: %.2f (confidence %.2f; %s)",
                             plan.score, profile.confidence, profile.reason))
+                        self:LogDecision("MOVE CANDIDATE", {
+                            ability = ability.name,
+                            action = self.AbilityActionLogName(ability),
+                            score = plan.score,
+                            plan = self.ScoringPlanLogName(plan),
+                            reason = string.format("synthesized at %.2f confidence from %s",
+                                profile.confidence, profile.reason),
+                            result = "legal synthesized candidate",
+                        })
                         if best == nil or plan.score > best.score then
                             best = plan
                         end
                     else
                         self:LogMove(token.properties.monster_type, moveid,
                             "Could not find a safe, worthwhile target plan", {onlyIfEmpty = true})
+                        self:LogDecision("MOVE REJECTED", {
+                            ability = ability.name,
+                            action = self.AbilityActionLogName(ability),
+                            reason = "could not find a safe, worthwhile synthesized target plan",
+                        })
                     end
                 end
+            else
+                self:LogDecision("MOVE REJECTED", {
+                    ability = ability.name,
+                    action = self.AbilityActionLogName(ability),
+                    reason = "not eligible for synthesized AI: " .. tostring(profileReason),
+                })
             end
         end
     end
@@ -1951,11 +3123,11 @@ end
 
 
 local function MoveForSynthesizedPlan(ai, token, loc)
-    if loc == nil or loc.str == token.loc.str then
+    if loc == nil or ai:MovementTokenIsAtLoc(token, loc) then
         ai.Sleep(0.2)
         return false
     end
-    token:Move(loc, {maxCost = 10000, ignoreFalling = false})
+    ai:MoveToken(token, loc, {maxCost = 10000, ignoreFalling = false})
     ai.Sleep(0.6)
     return true
 end
@@ -2000,8 +3172,6 @@ function MonsterAI:ExecuteSynthesizedAbilityPlan(token, plan)
     end
 
     local abilityClone = DeepCopy(ability)
-    abilityClone.targetType = "target"
-    abilityClone.numTargets = math.max(1, #targets)
     self:ExecuteAbility(token, abilityClone, targets, {
         symbols = {targetArea = area},
         targetArea = area,
@@ -2036,70 +3206,331 @@ function MonsterAI.MoveMatchesMonster(token, move, includeDisabled)
     return false
 end
 
+--Initiative eagerness evaluates the same registered and synthesized move scores
+--used on a real turn, but does not execute anything or emit each planning log.
+function MonsterAI:FindTurnEagernessMove(token, queue)
+    if not self.TokenIsLiveCombatant(token)
+        or not token.properties:has_key("monster_type") then
+        return {score = 0, reason = "not a live monster"}
+    end
+
+    local previousSuppressLogs = self:try_get("_tmp_suppressDecisionLogs", false)
+    self._tmp_suppressDecisionLogs = true
+
+    local result = nil
+    local scoringErrors = {}
+    local ok, err = pcall(function()
+        self.squad = false
+        self.squadCaptain = false
+        self.squadMembers = {}
+        self._tmp_failedMoves = {}
+        self._tmp_synthesizedAbilitiesUsed = {}
+        self._tmp_synthesizedPlanningFailed = false
+        self:SetupCombatants(token, queue)
+        self.paths = self:CalculateRemainingMovementPaths(token)
+
+        local abilities = self.abilities or {}
+        if token.properties.minion then
+            for _,ability in ipairs(abilities) do
+                if ability.categorization == "Signature Ability" and ability:CanAfford(token) then
+                    local loc, strikeScore = self:FindBestMoveToUseStrike(token, ability)
+                    if loc ~= nil then
+                        result = {
+                            score = strikeScore,
+                            moveId = "Minion Signature Ability",
+                            abilityName = ability.name,
+                            scoringInfo = {loc = loc},
+                        }
+                        return
+                    end
+                end
+            end
+
+            result = {
+                score = 0,
+                moveId = "Minion Signature Ability",
+                reason = "no reachable target for an affordable Signature Ability",
+            }
+            return
+        end
+
+        local bestMove = nil
+        local bestScoringInfo = nil
+        local bestAbilities = nil
+        for moveid,move in pairs(self.moves) do
+            local matchesMonster = self.MoveMatchesMonster(token, move)
+            local usingAbilities = {}
+            if matchesMonster and move.abilities ~= nil then
+                for i=1,#move.abilities do
+                    local ability = FindAbilityByName(abilities, move.abilities[i])
+                    if ability == nil or not ability:CanAfford(token) then
+                        matchesMonster = false
+                        break
+                    end
+                    usingAbilities[#usingAbilities+1] = ability
+                end
+            end
+
+            if matchesMonster then
+                local scoreOk, scoringInfo = pcall(
+                    move.score, move, self, token,
+                    usingAbilities[1], usingAbilities[2], usingAbilities[3])
+                if not scoreOk then
+                    scoringErrors[#scoringErrors+1] = string.format("%s: %s", moveid, tostring(scoringInfo))
+                elseif type(scoringInfo) == "table" and type(scoringInfo.score) == "number"
+                    and scoringInfo.score > 0
+                    and (bestScoringInfo == nil or scoringInfo.score > bestScoringInfo.score) then
+                    bestMove = move
+                    bestScoringInfo = scoringInfo
+                    bestAbilities = usingAbilities
+                end
+            end
+        end
+
+        local synthesizedMove = nil
+        local synthesizedOk, synthesizedResult = pcall(
+            self.FindBestSynthesizedAbilityMove, self,
+            token, abilities, self:GetClaimedAbilityNames(token))
+        if synthesizedOk then
+            synthesizedMove = synthesizedResult
+        else
+            scoringErrors[#scoringErrors+1] = "Synthesized Abilities: " .. tostring(synthesizedResult)
+        end
+
+        if synthesizedMove ~= nil
+            and (bestScoringInfo == nil or synthesizedMove.score > bestScoringInfo.score) then
+            result = {
+                score = synthesizedMove.score,
+                moveId = SynthesizedMoveId(synthesizedMove.ability),
+                abilityName = synthesizedMove.ability.name,
+                scoringInfo = synthesizedMove,
+            }
+        elseif bestMove ~= nil then
+            result = {
+                score = bestScoringInfo.score,
+                moveId = bestMove.id,
+                abilityName = self.AbilitiesLogName(bestAbilities),
+                scoringInfo = bestScoringInfo,
+            }
+        else
+            result = {
+                score = 0,
+                reason = "no legal move scored above zero",
+            }
+        end
+    end)
+
+    self._tmp_suppressDecisionLogs = previousSuppressLogs
+    if not ok then
+        return {score = 0, reason = "eagerness scoring failed: " .. tostring(err)}
+    end
+    if #scoringErrors > 0 then
+        result.scoringErrors = table.concat(scoringErrors, "; ")
+    end
+    return result
+end
+
+--Urgency starts at zero at 13 + twice the monster's level and reaches one at
+--4 + level stamina. Minions use the fixed urgency requested by the scheduler.
+function MonsterAI.TurnUrgency(token)
+    if token.properties.minion then
+        return 0.7
+    end
+
+    local level = tonumber(token.properties:CharacterLevel()) or 1
+    local urgencyStartsAt = 13 + level*2
+    local fullyUrgentAt = 4 + level
+    local stamina = token.properties:CurrentHitpoints()
+    return math.max(0, math.min(1,
+        (urgencyStartsAt - stamina) / (urgencyStartsAt - fullyUrgentAt)))
+end
+
+function MonsterAI:HandleMoveExecutionFailure(moveid, abilityName, err)
+    self._tmp_failedMoves = self:try_get("_tmp_failedMoves", {})
+    self._tmp_failedMoves[moveid] = true
+    self._tmp_expectedPromptTarget = nil
+
+    pcall(function()
+        self:LogMove(self.token.properties.monster_type, moveid,
+            "Execution failed: " .. tostring(err))
+    end)
+    pcall(function()
+        self:LogDecision("MOVE ERROR", {
+            ability = abilityName,
+            reason = "execution failed: " .. tostring(err),
+            result = "move quarantined for this actor",
+        })
+    end)
+
+    if not self:WaitForAbilityIdle(5) then
+        self:LogDecision("MOVE RECOVERY ERROR", {
+            ability = abilityName,
+            reason = "ability casts did not become idle within 5 seconds",
+            result = "remaining actions skipped for this actor",
+        })
+        return g_moveResultUnsafe
+    end
+
+    return g_moveResultFailed
+end
+
 function MonsterAI:FindAndExecuteMove()
     local token = self.token
+    local searchContext = {}
+    for key,value in pairs(self:try_get("_tmp_aiLogContext") or {}) do
+        searchContext[key] = value
+    end
 
-    if not token.valid then
-        print("AI:: Token no longer valid.")
-        return false
+    if not self.TokenIsLiveCombatant(token) then
+        self:LogDecision("MOVE SEARCH ABORTED", {
+            reason = "token is no longer a live combatant",
+        })
+        return g_moveResultNone
     end
 
     if not token.properties:has_key("monster_type") then
-        print("AI:: Not a monster")
-        return false
+        self:LogDecision("MOVE SEARCH ABORTED", {
+            reason = "token has no monster type",
+        })
+        return g_moveResultNone
     end
 
     local abilities = self.abilities
     local bestScore = {score = 0}
     local bestMove = nil
-    local c = token.properties
-
+    local failedMoves = self:try_get("_tmp_failedMoves", {})
+    self._tmp_failedMoves = failedMoves
 
     if token.properties.minion then
+        local moveid = "Minion Signature Ability"
+        if failedMoves[moveid] then
+            self:LogDecision("MOVE REJECTED", {
+                category = "Main Action",
+                move = moveid,
+                reason = "move failed earlier during this actor's turn",
+            })
+            return g_moveResultNone
+        end
         for _,ability in ipairs(abilities) do
-            if ability.categorization == "Signature Ability" and ability:CanAfford(token) then
-                print("AI:: Minions executing squad strike:", ability.name)
-                return self:ExecuteSquadStrike(ability)
+            if ability.categorization == "Signature Ability" then
+                if not ability:CanAfford(token) then
+                    self:LogDecision("MOVE REJECTED", {
+                        category = "Main Action",
+                        move = "Minion Signature Ability",
+                        ability = ability.name,
+                        action = self.AbilityActionLogName(ability),
+                        reason = AIAbilityUnavailableReason(token, ability),
+                    })
+                else
+                    self:SetMoveLogContext(token, {
+                        id = moveid,
+                        category = "Main Actions",
+                    })
+                    local executed = false
+                    local ok, err = RunYieldingFunction(function()
+                        executed = self:ExecuteSquadStrike(ability)
+                    end)
+                    if not ok then
+                        return self:HandleMoveExecutionFailure(moveid, ability.name, err)
+                    end
+                    return executed and g_moveResultExecuted or g_moveResultNone
+                end
             end
         end
 
-        print("AI: No signature ability found")
-        return 
+        self:LogDecision("MOVE SEARCH FINISHED", {
+            reason = "minion has no affordable Signature Ability",
+            result = "no legal move",
+        })
+        return g_moveResultNone
     end
 
     for moveid,move in pairs(self.moves) do
-        local matchesMonster = self.MoveMatchesMonster(token, move)
+        local registeredForMonster = self.MoveMatchesMonster(token, move, true)
+        local matchesMonster = registeredForMonster and self.MoveMatchesMonster(token, move)
 
         local usingAbilities = {}
-        if matchesMonster and move.abilities ~= nil then
+        if registeredForMonster and failedMoves[moveid] then
+            matchesMonster = false
+            self:SetMoveLogContext(token, move)
+            self:LogDecision("MOVE REJECTED", {
+                ability = self.AbilitiesLogName(move.abilities),
+                reason = "move failed earlier during this actor's turn",
+            })
+        elseif registeredForMonster and not matchesMonster then
+            self:SetMoveLogContext(token, move)
+            self:LogDecision("MOVE REJECTED", {
+                ability = self.AbilitiesLogName(move.abilities),
+                reason = "disabled for this monster in the Monster AI panel",
+            })
+        elseif matchesMonster and move.abilities ~= nil then
             for i=1,#move.abilities do
                 local ability = FindAbilityByName(abilities, move.abilities[i])
                 if ability == nil then
+                    self:SetMoveLogContext(token, move)
+                    self:LogDecision("MOVE REJECTED", {
+                        ability = move.abilities[i],
+                        reason = "required ability is not present on the actor",
+                    })
                     matchesMonster = false
                     break
                 end
 
                 if not ability:CanAfford(token) then
-                    print("AI:: Cannot afford ability:", ability.name)
+                    self:SetMoveLogContext(token, move)
+                    self:LogDecision("MOVE REJECTED", {
+                        ability = ability.name,
+                        action = self.AbilityActionLogName(ability),
+                        reason = AIAbilityUnavailableReason(token, ability),
+                    })
                     self:LogMove(self.token.properties.monster_type, moveid, "Could not afford", {onlyIfEmpty = true})
                     matchesMonster = false
                     break
                 end
-
-                print("AI:: Can afford ability:", ability.name)
 
                 usingAbilities[#usingAbilities+1] = ability
             end
         end
         
         if matchesMonster then
-            local score = move.score(move, self, token, usingAbilities[1], usingAbilities[2], usingAbilities[3])
-            if score ~= nil then
+            self:SetMoveLogContext(token, move)
+            self:LogDecision("MOVE SCORING", {
+                ability = self.AbilitiesLogName(usingAbilities),
+                action = self.AbilityActionsLogName(usingAbilities),
+                result = "all required abilities are present and affordable",
+            })
+            local ok, score, scoringReason = pcall(
+                move.score, move, self, token,
+                usingAbilities[1], usingAbilities[2], usingAbilities[3])
+            if not ok then
+                failedMoves[moveid] = true
+                self:LogDecision("MOVE ERROR", {
+                    ability = self.AbilitiesLogName(usingAbilities),
+                    reason = "scoring failed: " .. tostring(score),
+                    result = "move quarantined for this actor",
+                })
+                self:LogMove(self.token.properties.monster_type, moveid,
+                    "Scoring failed: " .. tostring(score))
+            elseif type(score) == "table" and type(score.score) == "number" then
                 self:LogMove(self.token.properties.monster_type, moveid, string.format("Score: %.2f", score.score))
+                self:LogDecision("MOVE CANDIDATE", {
+                    ability = self.AbilitiesLogName(usingAbilities),
+                    action = self.AbilityActionsLogName(usingAbilities),
+                    score = score.score,
+                    plan = self.ScoringPlanLogName(score),
+                    result = score.score > 0 and "legal candidate" or "non-positive score",
+                })
             else
                 self:LogMove(self.token.properties.monster_type, moveid, "Could not make move", {onlyIfEmpty = true})
+                self:LogDecision("MOVE REJECTED", {
+                    ability = self.AbilitiesLogName(usingAbilities),
+                    reason = scoringReason or (score == nil
+                        and "score callback returned no legal plan"
+                        or "score callback returned no numeric score"),
+                })
             end
-            if score ~= nil and score.score > bestScore.score then
+            if type(score) == "table" and type(score.score) == "number"
+                and score.score > bestScore.score then
                 score.usingAbilities = usingAbilities
                 bestScore = score
                 bestMove = move
@@ -2107,32 +3538,121 @@ function MonsterAI:FindAndExecuteMove()
         end
     end
 
-    local synthesizedMove = self:FindBestSynthesizedAbilityMove(
-        token, abilities, self:GetClaimedAbilityNames(token))
+    local synthesizedMove = nil
+    if not self:try_get("_tmp_synthesizedPlanningFailed", false) then
+        local synthesizedOk, synthesizedResult = pcall(
+            self.FindBestSynthesizedAbilityMove, self,
+            token, abilities, self:GetClaimedAbilityNames(token))
+        if synthesizedOk then
+            synthesizedMove = synthesizedResult
+        else
+            self._tmp_synthesizedPlanningFailed = true
+            self:LogDecision("MOVE ERROR", {
+                move = "Synthesized Abilities",
+                reason = "planning failed: " .. tostring(synthesizedResult),
+                result = "synthesized moves quarantined for this actor",
+            })
+        end
+    end
     if synthesizedMove ~= nil and synthesizedMove.score > bestScore.score then
-        local executed = self:ExecuteSynthesizedAbilityPlan(token, synthesizedMove)
         local moveid = SynthesizedMoveId(synthesizedMove.ability)
+        local synthesizedRegistration = {
+            id = moveid,
+            category = "Main Actions",
+        }
+        if synthesizedMove.profile.actionResource == CharacterResource.maneuverResourceId
+            or synthesizedMove.profile.actionResource == CharacterResource.freeManeuverResourceId then
+            synthesizedRegistration.category = "Maneuvers"
+        else
+            synthesizedRegistration.category = "Main Actions"
+        end
+        self:SetMoveLogContext(token, synthesizedRegistration)
+        self:LogDecision("MOVE SELECTED", {
+            ability = synthesizedMove.ability.name,
+            action = self.AbilityActionLogName(synthesizedMove.ability),
+            score = synthesizedMove.score,
+            plan = self.ScoringPlanLogName(synthesizedMove),
+            result = "synthesized fallback outranked registered moves",
+        })
+        local executed = false
+        local ok, err = RunYieldingFunction(function()
+            executed = self:ExecuteSynthesizedAbilityPlan(token, synthesizedMove)
+        end)
+        if not ok then
+            return self:HandleMoveExecutionFailure(
+                moveid, synthesizedMove.ability.name, err)
+        end
         self:LogMove(self.token.properties.monster_type, moveid,
             cond(executed, "Executed synthesized move", "Synthesized move could not complete"))
+        self:LogDecision("MOVE FINISHED", {
+            ability = synthesizedMove.ability.name,
+            result = executed and "executed" or "could not complete",
+        })
         if executed then
-            return true
+            return g_moveResultExecuted
         end
+    elseif synthesizedMove ~= nil then
+        local moveid = SynthesizedMoveId(synthesizedMove.ability)
+        local synthesizedRegistration = {
+            id = moveid,
+            category = "Main Actions",
+        }
+        if synthesizedMove.profile.actionResource == CharacterResource.maneuverResourceId
+            or synthesizedMove.profile.actionResource == CharacterResource.freeManeuverResourceId then
+            synthesizedRegistration.category = "Maneuvers"
+        end
+        self:SetMoveLogContext(token, synthesizedRegistration)
+        self:LogDecision("MOVE NOT SELECTED", {
+            ability = synthesizedMove.ability.name,
+            score = synthesizedMove.score,
+            reason = string.format("score did not exceed selected registered move score %.3f", bestScore.score),
+        })
     end
 
     if bestMove ~= nil then
-        bestMove.execute(bestMove, self, token, bestScore, bestScore.usingAbilities[1], bestScore.usingAbilities[2], bestScore.usingAbilities[3])
+        self:SetMoveLogContext(token, bestMove)
+        self:LogDecision("MOVE SELECTED", {
+            ability = self.AbilitiesLogName(bestScore.usingAbilities),
+            action = self.AbilityActionsLogName(bestScore.usingAbilities),
+            score = bestScore.score,
+            plan = self.ScoringPlanLogName(bestScore),
+            result = "highest-scoring legal registered move",
+        })
+        self:LogDecision("MOVE EXECUTION START", {
+            ability = self.AbilitiesLogName(bestScore.usingAbilities),
+        })
+        local ok, err = RunYieldingFunction(function()
+            bestMove.execute(bestMove, self, token, bestScore,
+                bestScore.usingAbilities[1], bestScore.usingAbilities[2],
+                bestScore.usingAbilities[3])
+        end)
+        if not ok then
+            return self:HandleMoveExecutionFailure(
+                bestMove.id, self.AbilitiesLogName(bestScore.usingAbilities), err)
+        end
         self:LogMove(self.token.properties.monster_type, bestMove.id, "Executed move")
-        return true
+        self:LogDecision("MOVE FINISHED", {
+            ability = self.AbilitiesLogName(bestScore.usingAbilities),
+            result = "execution function completed",
+        })
+        return g_moveResultExecuted
     end
 
-    return false
+    self:SetLogContext(token, searchContext)
+    self:LogDecision("MOVE SEARCH FINISHED", {
+        reason = "no move scored above zero",
+        result = "no legal move",
+    })
+    return g_moveResultNone
 end
 
 function MonsterAI:DistanceFromNearestEnemy(token)
     local result = 999
     for _,enemy in ipairs(self.enemyTokens) do
-        local dist = token:Distance(enemy)
-        result = math.min(result, dist)
+        if self.TokenIsLiveCombatant(enemy) then
+            local dist = token:Distance(enemy)
+            result = math.min(result, dist)
+        end
     end
     return result
 end
@@ -2140,13 +3660,48 @@ end
 function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
 
     if not ability:CanAfford(casterToken) then
-        print("AI:: Cannot afford ability:", ability.name)
+        self:LogDecision("ABILITY CAST REJECTED", {
+            actor = self.TokenLogName(casterToken),
+            actorId = casterToken ~= nil and casterToken.charid or nil,
+            ability = ability.name,
+            action = self.AbilityActionLogName(ability),
+            reason = AIAbilityUnavailableReason(casterToken, ability),
+        })
         return
+    end
+
+    if targets ~= nil then
+        local liveTargets = {}
+        for _,targetInfo in ipairs(targets) do
+            if targetInfo.token == nil or self.TokenIsLiveCombatant(targetInfo.token) then
+                liveTargets[#liveTargets+1] = targetInfo
+            end
+        end
+        targets = liveTargets
+        if ability.targetType == "target" and #targets == 0 then
+            self:LogDecision("ABILITY CAST REJECTED", {
+                actor = self.TokenLogName(casterToken),
+                actorId = casterToken ~= nil and casterToken.charid or nil,
+                ability = ability.name,
+                action = self.AbilityActionLogName(ability),
+                reason = "no live targets remain",
+            })
+            return false
+        end
     end
 
     options = options or {}
     local symbols = options.symbols or {}
     symbols.mode = symbols.mode or 1
+
+    --Target filters read the symbols while cast behaviors read the options.
+    --Keep both views on the exact area the AI selected.
+    local targetArea = options.targetArea or symbols.targetArea
+    if targetArea ~= nil then
+        options.targetArea = targetArea
+        symbols.targetArea = targetArea
+    end
+    local hasTargetArea = targetArea ~= nil or options.targetAreaList ~= nil
 
     if targets == nil then
         targets = {}
@@ -2155,53 +3710,108 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
             local range = ability:GetRange(casterToken.properties)
             --a burst ability.
             for _,token in ipairs(dmhub.allTokens) do
-                if ability:TargetPassesFilter(casterToken, token, symbols) and token:Distance(casterToken) <= range then
+                if self.TokenIsLiveCombatant(token)
+                    and ability:TargetPassesFilter(casterToken, token, symbols)
+                    and token:Distance(casterToken) <= range then
                     targets[#targets+1] = { token = token }
                 end
             end
         end
-    else
+    elseif not hasTargetArea then
+        --Placed areas already supply every creature inside the shape. Area
+        --abilities report one target, so resizing would discard valid targets.
         local numTargets = ability:GetNumTargets(casterToken)
         table.resize_array(targets, numTargets)
     end
 
-    --if this is a melee and ranged ability, choose the appropriate variation.
-    if ability.meleeAndRanged then
-        local meleeRange = ability.meleeVariation:GetRange(casterToken.properties)
-        local inMeleeRange = true
-        for _,target in ipairs(targets) do
-            if target.token ~= nil and casterToken:Distance(target.token) > meleeRange then
-                inMeleeRange = false
-                break
-            end
-        end
-
-        if inMeleeRange then
-            ability = ability.meleeVariation
-        else
-            ability = ability.rangedVariation
-        end
-    end
-
+    local chargeAttempted = false
     for _,target in ipairs(targets) do
         if target.charge ~= nil then
+            chargeAttempted = true
             local token = casterToken
             if symbols.targetPairs ~= nil then
                 for _,p in ipairs(symbols.targetPairs) do
                     token = dmhub.GetTokenById(p.a)
                 end
             end
-
-            self.Sleep(1)
-            self:Speech(token, "Charge!")
-            self.Sleep(0.5)
-
-            --freeMovement: the Charge's movement is part of the ability, not the
-            --creature's move action (see the matching note in ExecuteSquadStrike).
-            local path = token:Move(target.charge, {maxCost = 10000, ignoreFalling = false, freeMovement = true})
-            self.Sleep(1)
+            local chargeLoc = target.charge
             target.charge = nil
+
+            if not self:MovementTokenIsAtLoc(token, chargeLoc) then
+                self.Sleep(1)
+                self:Speech(token, "Charge!")
+                self.Sleep(0.5)
+
+                --freeMovement: the Charge's movement is part of the ability, not the
+                --creature's move action (see the matching note in ExecuteSquadStrike).
+                self:MoveToken(token, chargeLoc, {maxCost = 10000, ignoreFalling = false, freeMovement = true})
+                self.Sleep(1)
+            end
         end
+    end
+
+    local function AbilityTargetsAreLegal(candidateAbility)
+        local function PairIsLegal(actor, target)
+            if not self.TokenIsLiveCombatant(actor)
+                or not self.TokenIsLiveCombatant(target) then
+                return false
+            end
+            local candidateRange = candidateAbility:GetRange(actor.properties, symbols)
+            return actor:Distance(target) <= candidateRange
+                and candidateAbility:TargetPassesFilter(actor, target, symbols)
+                and actor:GetLineOfSight(target, actor.properties:GetPierceWalls()) > 0
+        end
+
+        if symbols.targetPairs ~= nil then
+            for _,pair in ipairs(symbols.targetPairs) do
+                if not PairIsLegal(dmhub.GetTokenById(pair.a), dmhub.GetTokenById(pair.b)) then
+                    return false
+                end
+            end
+            return true
+        end
+
+        for _,targetInfo in ipairs(targets) do
+            if targetInfo.token ~= nil
+                and not PairIsLegal(casterToken, targetInfo.token) then
+                return false
+            end
+        end
+        return true
+    end
+
+    -- Select the variation from the real post-movement position. A failed
+    -- charge may fall back to ranged, but can never authorize a distant melee cast.
+    if ability.meleeAndRanged then
+        if AbilityTargetsAreLegal(ability.meleeVariation) then
+            ability = ability.meleeVariation
+        elseif AbilityTargetsAreLegal(ability.rangedVariation) then
+            ability = ability.rangedVariation
+        else
+            self:LogDecision("ABILITY CAST REJECTED", {
+                actor = self.TokenLogName(casterToken),
+                actorId = casterToken ~= nil and casterToken.charid or nil,
+                ability = ability.name,
+                action = self.AbilityActionLogName(ability),
+                targets = self.TargetsLogName(targets),
+                reason = "no melee or ranged variation is legal from the actual position",
+            })
+            return false
+        end
+    elseif chargeAttempted and not AbilityTargetsAreLegal(ability) then
+        self:LogDecision("ABILITY CAST REJECTED", {
+            actor = self.TokenLogName(casterToken),
+            actorId = casterToken ~= nil and casterToken.charid or nil,
+            ability = ability.name,
+            action = self.AbilityActionLogName(ability),
+            targets = self.TargetsLogName(targets),
+            reason = "charge movement did not leave every target in legal range and line of sight",
+        })
+        return false
+    end
+
+    if targetArea ~= nil and options.telegraphArea ~= false then
+        self:TelegraphAreaAbility(ability, targetArea, symbols)
     end
 
     local rays = {}
@@ -2229,7 +3839,16 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
     --and nothing else in a run reads multipleModes.
     ability.multipleModes = false
 
-    print("AI:: USING ABILITY:", ability.name, "on", #targets)
+    local startedAt = dmhub.Time()
+    self:LogDecision("ABILITY CAST START", {
+        actor = self.TokenLogName(casterToken),
+        actorId = casterToken ~= nil and casterToken.charid or nil,
+        ability = ability.name,
+        action = self.AbilityActionLogName(ability),
+        targets = self.TargetsLogName(targets),
+        mode = symbols.mode,
+        targetType = ability.targetType,
+    })
     options.symbols = symbols
     options.targets = targets
     options.countsAsCast = true
@@ -2245,17 +3864,21 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
         finished = true
     end
 
-
-    print("AI:: Execute invoke with targets =", targets)
     ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, ability, casterToken, "inherit", symbols, options)
 
-
-    print("AI:: RUNNING...")
     while not finished do
         coroutine.yield(0.1)
     end
 
-    print("AI:: FINISHED ABILITY")
+    self:LogDecision("ABILITY CAST FINISHED", {
+        actor = self.TokenLogName(casterToken),
+        actorId = casterToken ~= nil and casterToken.charid or nil,
+        ability = ability.name,
+        action = self.AbilityActionLogName(ability),
+        targets = self.TargetsLogName(targets),
+        result = "OnFinishCast received",
+        duration = dmhub.Time() - startedAt,
+    })
     self.Sleep(options.sleep or 1.0)
 
     self:ResolvePendingMinionDeaths()
@@ -2272,7 +3895,7 @@ function MonsterAI:FindReachableConcealment()
         local destLoc = info.loc
 
         if bestScore == nil or info.cost < bestScore then
-            self.token:ExecuteWithTheoreticalLoc(destLoc, function()
+            self:ExecuteWithTheoreticalMovementLoc(self.token, destLoc, function()
                 if self.token.properties:IsConcealed() then
                     bestLoc = info.loc
                     bestScore = info.cost
@@ -2733,7 +4356,7 @@ local function TestAIExecuteGeneric(ai, token, ability)
                 return 1
             end)
             if loc ~= nil and (score or 0) > 0 then
-                token:Move(loc, {maxCost = 10000, ignoreFalling = false})
+                ai:MoveToken(token, loc, {maxCost = 10000, ignoreFalling = false})
                 ai.Sleep(0.5)
             end
             ai:ExecuteAbility(token, ability)
@@ -2744,7 +4367,7 @@ local function TestAIExecuteGeneric(ai, token, ability)
                 return
             end
 
-            token:Move(loc, {maxCost = 10000, ignoreFalling = false})
+            ai:MoveToken(token, loc, {maxCost = 10000, ignoreFalling = false})
             ai.Sleep(0.5)
 
             local targets = ai:FindValidTargetsOfStrike(token, ability, loc)
@@ -2916,11 +4539,12 @@ Commands.RegisterMacro{
             else
                 TestAISetupOutOfCombat(ai, token)
             end
+            ai:SetLogContext(token, {turn = "/testai"})
 
             ai.log.analysis = ai:Analysis()
             ai.log.updatedAnalysis = dmhub.GenerateGuid()
 
-            ai.paths = token:CalculatePathfindingArea((token.properties:CurrentMovementSpeed() - token.properties:DistanceMovedThisTurn())*10, {})
+            ai.paths = ai:CalculateRemainingMovementPaths(token)
 
             --minion signature abilities execute as a squad strike, like the AI turn loop does.
             if token.properties.minion and ability.categorization == "Signature Ability" then
@@ -3005,6 +4629,12 @@ Commands.RegisterMacro{
             local best = nil
             for _,candidate in ipairs(candidates) do
                 local move = candidate.move
+                ai:SetMoveLogContext(token, move)
+                ai:LogDecision("MOVE SCORING", {
+                    ability = ai.AbilitiesLogName(candidate.usingAbilities),
+                    action = ai.AbilityActionsLogName(candidate.usingAbilities),
+                    result = "/testai candidate",
+                })
                 local ok, scoringInfo
                 if candidate.isVillainAction then
                     ok, scoringInfo = pcall(move.score, move, ai, token, candidate.usingAbilities[1], context)
@@ -3020,16 +4650,36 @@ Commands.RegisterMacro{
                     end
                     if type(scoringInfo) == "table" and type(scoringInfo.score) == "number" then
                         candidate.scoringInfo = scoringInfo
+                        ai:LogDecision("MOVE CANDIDATE", {
+                            ability = ai.AbilitiesLogName(candidate.usingAbilities),
+                            action = ai.AbilityActionsLogName(candidate.usingAbilities),
+                            score = scoringInfo.score,
+                            plan = ai.ScoringPlanLogName(scoringInfo),
+                            result = "legal /testai candidate",
+                        })
                         if best == nil or scoringInfo.score > best.scoringInfo.score then
                             best = candidate
                         end
                     end
+                else
+                    ai:LogDecision("MOVE REJECTED", {
+                        ability = ai.AbilitiesLogName(candidate.usingAbilities),
+                        reason = "score callback returned no legal plan for /testai",
+                    })
                 end
             end
 
             if best ~= nil then
                 local move = best.move
                 TestAIMessage(string.format("%s: executing AI move \"%s\" (score %.2f).", tokenName, move.id, best.scoringInfo.score))
+                ai:SetMoveLogContext(token, move)
+                ai:LogDecision("MOVE SELECTED", {
+                    ability = ai.AbilitiesLogName(best.usingAbilities),
+                    action = ai.AbilityActionsLogName(best.usingAbilities),
+                    score = best.scoringInfo.score,
+                    plan = ai.ScoringPlanLogName(best.scoringInfo),
+                    result = "/testai selected this registered move",
+                })
                 local ok, err = ai:RunWithTokenControl(token, function()
                     if best.isVillainAction then
                         move.execute(move, ai, token, best.scoringInfo, best.usingAbilities[1], context)
@@ -3040,6 +4690,14 @@ Commands.RegisterMacro{
                 ai:WaitForAbilityIdle()
                 if not ok then
                     TestAIMessage(string.format("execution of AI move \"%s\" failed: %s", move.id, tostring(err)))
+                    ai:LogDecision("MOVE ERROR", {
+                        reason = "execution failed: " .. tostring(err),
+                    })
+                else
+                    ai:LogDecision("MOVE FINISHED", {
+                        ability = ai.AbilitiesLogName(best.usingAbilities),
+                        result = "/testai execution completed",
+                    })
                 end
                 return
             end
@@ -3050,6 +4708,16 @@ Commands.RegisterMacro{
             end
 
             TestAIMessage(string.format("%s: no AI move is registered for \"%s\"; using generic execution.", tokenName, ability.name))
+            ai:SetMoveLogContext(token, {
+                id = "/testai generic: " .. ability.name,
+                category = ability:ActionResource() == CharacterResource.maneuverResourceId
+                    and "Maneuvers" or "Main Actions",
+            })
+            ai:LogDecision("MOVE SELECTED", {
+                ability = ability.name,
+                action = ai.AbilityActionLogName(ability),
+                result = "/testai generic execution",
+            })
             TestAIExecuteGeneric(ai, token, ability)
             ai:WaitForAbilityIdle()
         end

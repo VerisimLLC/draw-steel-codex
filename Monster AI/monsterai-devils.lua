@@ -84,9 +84,9 @@ local function Speak(ai, token, moveid)
 end
 
 local function MoveCinematically(ai, token, loc)
-    local moving = loc ~= nil and loc.str ~= token.loc.str
+    local moving = loc ~= nil and not ai:MovementTokenIsAtLoc(token, loc)
     if moving then
-        token:Move(loc, {maxCost = 10000, ignoreFalling = false})
+        ai:MoveToken(token, loc, {maxCost = 10000, ignoreFalling = false})
     end
     ai.Sleep(cond(moving, movementPause, stationaryPause))
 end

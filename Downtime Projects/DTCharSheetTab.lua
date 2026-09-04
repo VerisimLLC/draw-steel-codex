@@ -6,9 +6,11 @@ DTCharSheetTab = RegisterGameType("DTCharSheetTab")
 
 local mod = dmhub.GetModLoading()
 
-local playersEditProjectRols = setting{
+--- The id is kept as it was: changing it would orphan the value every game has
+--- already stored against it.
+local playersManageProjects = setting{
 	id = "permission:playersprojectrolls",
-	description = "Players Edit Project Rolls",
+	description = "Players Manage Downtime Projects",
 	editor = "check",
 	default = false,
 
@@ -17,15 +19,20 @@ local playersEditProjectRols = setting{
 	classes = {"dmonly"},
 }
 
-local CanEditProjectRolls = function()
-	return dmhub.isDM or playersEditProjectRols:Get()
+--- May the current user work the Director's controls on a downtime project -
+--- status, milestones, adjustments, the event roll? True for the Director
+--- always, and for a player only while the game hands it to them. Asked again
+--- on every refresh, since the permission can be granted with a sheet open.
+--- @return boolean
+function DTCharSheetTab.CanManageProjects()
+	return dmhub.isDM or playersManageProjects:Get()
 end
 
 --- Whether this game lets players roll from the project detail. The setting
---- alone, unlike CanEditProjectRolls.
+--- alone, unlike CanManageProjects.
 --- @return boolean
 function DTCharSheetTab.RollingFromSheetEnabled()
-	return playersEditProjectRols:Get()
+	return playersManageProjects:Get()
 end
 
 function DTCharSheetTab.GetToken()
@@ -214,14 +221,14 @@ function DTCharSheetTab._createHeaderPanel()
     --the Director has handed it to them. Re-checked on every refresh, since the
     --permission can be granted while the sheet is open.
     local activitiesButton = gui.Button {
-        classes = {"settingsButton", "sizeS", cond(not CanEditProjectRolls(), "collapsed")},
+        classes = {"settingsButton", "sizeS", cond(not DTCharSheetTab.CanManageProjects(), "collapsed")},
         halign = "left",
         valign = "center",
         linger = function(element)
             gui.Tooltip("Set downtime activities for this hero and their followers")(element)
         end,
         refreshToken = function(element)
-            element:SetClass("collapsed", not CanEditProjectRolls())
+            element:SetClass("collapsed", not DTCharSheetTab.CanManageProjects())
         end,
         click = function()
             DTActivitiesDialog.ShowDialog(getToken())
@@ -312,8 +319,8 @@ function DTCharSheetTab._createHeaderPanel()
             flow = "horizontal",
             halign = "right",
             valign = "center",
-            addButton,
-        },
+            addButton,
+        },
     }
 end
 
@@ -354,8 +361,8 @@ function DTCharSheetTab._createBodyPanel()
                 refreshToken = function(element)
                     DTCharSheetTab._refreshProjectsList(element)
                 end
-            },
-        },
+            },
+        },
     }
 end
 

@@ -660,6 +660,203 @@ function Encounter.TagWaveTokensFromSpawn(self, charids)
     end
 end
 
+-- ===========================================================================
+-- Saved mount relationships
+--
+-- A monster sitting in another monster's saddle -- a goblin riding a wolf, or
+-- anything that has climbed a bigger creature -- is part of an encounter's
+-- setup just as much as where it stands, so it is banked and restored
+-- alongside group.spawnlocs.
+--
+-- The tokens are deleted and respawned as brand new characters every cycle, so
+-- a saved mount cannot name a charid. It names a SLOT: the (group index, spawn
+-- slot) pair positions are already keyed by. group.mounts is a dense LIST of
+-- records -- never a slot-keyed sparse array, which serialization compacts,
+-- shifting every later entry:
+--
+--   { slot       = the rider's own spawn slot,
+--     mountGroup = group index of the creature it is riding,
+--     mountSlot  = that creature's spawn slot,
+--     saddle     = the saddle index it sat in }
+--
+-- Only mounts that are part of the same encounter are recorded: a monster
+-- riding a hero's horse is left alone, since nothing here respawns that horse.
+-- ===========================================================================
+
+-- The mount recorded for one spawn slot, or nil if that slot rides nothing.
+function Encounter.GetMountForSlot(self, groupIndex, slot)
+    local group = self.groups[groupIndex]
+    if group == nil then
+        return nil
+    end
+
+    for _,entry in ipairs(group.mounts or {}) do
+        if entry.slot == slot then
+            return entry
+        end
+    end
+
+    return nil
+end
+
+-- Keep saved mounts pointing at the right groups after a group is deleted from
+-- the plan: a mount names its group by INDEX, so references to the group that
+-- went away are dropped and references past it shift down. Call it immediately
+-- after table.remove on encounter.groups.
+function Encounter.RepairMountsAfterGroupRemoved(self, removedIndex)
+    for _,group in ipairs(self.groups) do
+        if group.mounts ~= nil then
+            local kept = {}
+            for _,entry in ipairs(group.mounts) do
+                if entry.mountGroup ~= removedIndex then
+                    if entry.mountGroup > removedIndex then
+                        entry.mountGroup = entry.mountGroup - 1
+                    end
+                    kept[#kept+1] = entry
+                end
+            end
+            group.mounts = kept
+        end
+    end
+end
+
+-- Bank the mount relationships among a set of placed tokens, ready for the
+-- tokens to be deleted. entries is a list of
+--   { group = <group index>, slot = <spawn slot>, token = <CharacterToken> }
+-- in the same slot numbering the caller banks positions with. Every group named
+-- in entries has its saved mounts REPLACED, so a monster taken off its mount
+-- before saving stops being recorded.
+function Encounter.RecordMounts(self, entries)
+    local entryOfCharid = {}
+    local cleared = {}
+    for _,entry in ipairs(entries) do
+        if not cleared[entry.group] then
+            cleared[entry.group] = true
+            local group = self.groups[entry.group]
+            if group ~= nil then
+                group.mounts = {}
+            end
+        end
+
+        if entry.token ~= nil then
+            entryOfCharid[entry.token.charid] = entry
+        end
+    end
+
+    for _,entry in ipairs(entries) do
+        local token = entry.token
+        --saddleMount is the creature directly underneath; mount would walk the
+        --whole chain to the bottom of a stack of riders.
+        local mountToken = token ~= nil and token.saddleMount or nil
+        local mountEntry = mountToken ~= nil and entryOfCharid[mountToken.charid] or nil
+        local group = self.groups[entry.group]
+        if mountEntry ~= nil and group ~= nil then
+            group.mounts[#group.mounts+1] = {
+                slot = entry.slot,
+                mountGroup = mountEntry.group,
+                mountSlot = mountEntry.slot,
+                --which seat: a mount with several authored saddles (a howdah, a
+                --wagon) puts its riders back where the Director sat them.
+                saddle = token.mountedSaddle or 0,
+            }
+        end
+    end
+end
+
+-- Seat riders back onto their mounts from the encounter's saved mounts. entries
+-- is the same shape RecordMounts takes, holding the tokens just spawned. A mount
+-- reference naming a slot that is not in entries is skipped -- the creature it
+-- rides is not being placed in this pass (a reinforcement riding a monster that
+-- was placed up front, say), so there is nothing to seat it on.
+--
+-- An entry marked mountOnly is a token that is ALREADY on the map: it is offered
+-- as something to seat riders on, but is not itself re-seated. That is how a
+-- group placed on its own finds a mount belonging to a group placed earlier
+-- without disturbing creatures the Director has since moved or dismounted.
+function Encounter.RestoreMounts(self, entries)
+    --CHARIDS, not the token objects the caller was handed. A token straight out of
+    --game.SpawnTokenFromBestiaryLocally is not yet backed by a live map token, and
+    --ClimbOntoCreature on one silently returns false (it bails on a null token).
+    --Looking the same charid up again with dmhub.GetTokenById gives a wrapper that
+    --works right away -- this is what made saved mounts appear to be ignored.
+    local charidAtSlot = {}
+    for _,entry in ipairs(entries) do
+        if entry.token ~= nil then
+            charidAtSlot[string.format("%d:%d", entry.group, entry.slot)] = entry.token.charid
+        end
+    end
+
+    local riders = {}
+    for _,entry in ipairs(entries) do
+        local mountRef = nil
+        if not entry.mountOnly then
+            mountRef = self:GetMountForSlot(entry.group, entry.slot)
+        end
+
+        local mountCharid = nil
+        if mountRef ~= nil then
+            mountCharid = charidAtSlot[string.format("%d:%d", mountRef.mountGroup, mountRef.mountSlot)]
+        end
+
+        if mountCharid ~= nil and entry.token ~= nil then
+            --how deep in a stack of riders this one sits, so a stack is rebuilt
+            --from the bottom up rather than in whatever order the groups spawned.
+            --The walk is bounded in case saved data ever describes a loop.
+            local depth = 0
+            local walk = mountRef
+            while walk ~= nil and depth < 20 do
+                depth = depth + 1
+                walk = self:GetMountForSlot(walk.mountGroup, walk.mountSlot)
+            end
+
+            riders[#riders+1] = {
+                charid = entry.token.charid,
+                mountCharid = mountCharid,
+                saddle = mountRef.saddle or 0,
+                depth = depth,
+            }
+        end
+    end
+
+    if #riders == 0 then
+        return
+    end
+
+    table.sort(riders, function(a,b) return a.depth < b.depth end)
+
+    --A token that has not resolved yet (the engine's own placement path hands the
+    --charids over before they are queryable) is retried for a couple of seconds
+    --rather than dropped.
+    local attempts = 20
+    local function Seat()
+        if mod.unloaded then
+            return
+        end
+
+        local remaining = {}
+        for _,rider in ipairs(riders) do
+            local riderToken = dmhub.GetTokenById(rider.charid)
+            local mountToken = dmhub.GetTokenById(rider.mountCharid)
+            local seated = false
+            if riderToken ~= nil and mountToken ~= nil then
+                seated = riderToken:ClimbOntoCreature(mountToken, rider.saddle)
+            end
+
+            if not seated then
+                remaining[#remaining+1] = rider
+            end
+        end
+
+        riders = remaining
+        if #riders > 0 and attempts > 0 then
+            attempts = attempts - 1
+            dmhub.Schedule(0.1, Seat)
+        end
+    end
+
+    Seat()
+end
+
 -- LiveEncounter represents the state of an encounter that is currently running
 -- (i.e. that has been pushed live into an initiative queue). It derives from
 -- Encounter and begins life as a deep copy of an authored Encounter, re-typed as a
@@ -1100,10 +1297,16 @@ function LiveEncounter:GetMonsterGroups()
     return result
 end
 
--- The hero tokens currently in the battle (every IsHero entry in the initiative queue,
--- deduped, including the dead -- fallen heroes stay in initiative). This is what the
--- victory screen displays, so heroes appear as long as combat is live, independent of
--- whether the onset snapshot was captured. Returns a list of tokens.
+-- The hero tokens in the battle: every IsHero entry in the initiative queue
+-- (deduped), plus any onset hero whose token the queue no longer resolves -- a
+-- dead hero can be removed from the battlefield entirely (e.g. the Encounter of
+-- the Week hero-death rule despawns them), and the victory screen and battle
+-- log must still show everyone who STARTED the fight, not just the survivors.
+-- Off-queue heroes resolve via GetCharacterById, which finds despawned tokens
+-- anywhere in the game; their stats and role history key off charid as normal.
+-- Heroes appear as long as combat is live even when the onset snapshot was
+-- never captured (the snapshot only adds the removed ones back). Returns a
+-- list of tokens.
 function LiveEncounter:GetBattleHeroTokens()
     local q = dmhub.initiativeQueue
     local result = {}
@@ -1120,6 +1323,18 @@ function LiveEncounter:GetBattleHeroTokens()
                     seen[token.charid] = true
                     result[#result + 1] = token
                 end
+            end
+        end
+    end
+
+    --onset heroes the queue no longer resolves (their token was despawned or
+    --deleted mid-fight); they still count as participants.
+    for _, h in ipairs(self:GetOnsetHeroes()) do
+        if not seen[h.charid] then
+            seen[h.charid] = true
+            local token = dmhub.GetCharacterById(h.charid)
+            if token ~= nil and token.valid and token.properties ~= nil and token.properties:IsHero() then
+                result[#result + 1] = token
             end
         end
     end
@@ -2744,6 +2959,10 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
     local fallbackIndex = 0
     --spawned reinforcement tokenids, for the monster-group onset snapshot below.
     local spawnedTokenIds = {}
+    --the same tokens tagged with the slot they arrived in, so saved mounts among
+    --the reinforcements are re-seated once the whole wave is down. A rider whose
+    --mount was placed up front (not part of this wave) is left standing.
+    local mountEntries = {}
 
     for groupIndex, group in ipairs(self.groups) do
         if group.wave == waveid then
@@ -2843,6 +3062,11 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
                         spawnedCount = spawnedCount + 1
                         spawnedInGroup = true
                         spawnedTokenIds[#spawnedTokenIds+1] = token.charid
+                        mountEntries[#mountEntries+1] = {
+                            group = groupIndex,
+                            slot = slot,
+                            token = token,
+                        }
                     end
                 end
             end
@@ -2854,6 +3078,9 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
             end
         end
     end
+
+    --put reinforcements that were saved riding each other back in the saddle.
+    self:RestoreMounts(mountEntries)
 
     --extend the monster-group onset snapshot with the freshly arrived groups, so
     --reinforcements get their own card (and stat attribution) on the victory

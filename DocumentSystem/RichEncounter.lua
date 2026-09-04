@@ -754,7 +754,24 @@ function RichEncounter.CreateDisplay(self)
                 initiativeQueue = nil
             end
             self.spawns = {}
-            for _,group in ipairs(self.encounter:CloneForNumberOfHeroes().groups) do
+
+            --CloneForNumberOfHeroes drops groups gated off at this party size, so
+            --the clone's group indexes are not the authored ones. Saved mounts name
+            --authored (group, slot) pairs, so map each clone group back to the group
+            --it came from as we walk. Same numHeroes for both or they disagree.
+            local numHeroes = dmhub.GetSettingValue("numheroes")
+            local authoredIndexes = {}
+            for i,group in ipairs(self.encounter.groups) do
+                if group.minHeroes == nil or group.minHeroes <= numHeroes then
+                    authoredIndexes[#authoredIndexes+1] = i
+                end
+            end
+
+            --every token we place, tagged with the slot it went into, so the saved
+            --mount relationships can be re-seated once the whole encounter is down.
+            local mountEntries = {}
+
+            for cloneIndex,group in ipairs(self.encounter:CloneForNumberOfHeroes(numHeroes).groups) do
                 --Reinforcement groups (assigned to a wave) are not placed up front;
                 --they arrive when their wave triggers, so skip them here.
                 if group.wave ~= nil then
@@ -794,6 +811,9 @@ function RichEncounter.CreateDisplay(self)
                         local loc = (group.spawnlocs or {})[index] or (group.spawnlocs or {})[1]
                         local appearanceInfo = (group.appearances or {})[index]
                         local invisibleToPlayers = group.invisibleToPlayers or {}
+                        --this monster's slot in the group's flat spawn order; saved
+                        --positions and saved mounts are both keyed by it.
+                        local slot = index
                         index = index+1
 
                         if loc ~= nil then
@@ -845,6 +865,14 @@ function RichEncounter.CreateDisplay(self)
                             game.UpdateCharacterTokens()
 
                             self.spawns[#self.spawns+1] = token.charid
+
+                            if authoredIndexes[cloneIndex] ~= nil then
+                                mountEntries[#mountEntries+1] = {
+                                    group = authoredIndexes[cloneIndex],
+                                    slot = slot,
+                                    token = token,
+                                }
+                            end
                         end
                     end
 
@@ -855,6 +883,11 @@ function RichEncounter.CreateDisplay(self)
 
                 ::continue::
             end
+
+            --Put any monster that was saved riding another monster in this encounter
+            --back in its saddle. Runs after every group is placed so a rider's mount
+            --is already on the map.
+            self.encounter:RestoreMounts(mountEntries)
 
             self:UploadDocument()
             if initiativeQueue ~= nil then
@@ -867,10 +900,14 @@ function RichEncounter.CreateDisplay(self)
             self.spawns = nil
             local index = 1
             local numHeroes = dmhub.GetSettingValue("numheroes")
+            --every token we bank, tagged with the slot it is banked into, so the
+            --mounts among them can be recorded once we know every token's slot.
+            local mountEntries = {}
             print("SPAWN:: DESPAWNING MONSTERS:", #self.encounter.groups)
-            for _,group in ipairs(self.encounter.groups) do
+            for groupIndex,group in ipairs(self.encounter.groups) do
                 group.appearances = {}
                 group.invisibleToPlayers = {}
+                group.mounts = {}
                 --reinforcement (wave) groups are not placed up front, so they have no
                 --tokens to despawn; skip them to keep the charid index aligned with spawn.
                 if group.wave == nil and (group.minHeroes == nil or numHeroes >= group.minHeroes) then
@@ -893,6 +930,12 @@ function RichEncounter.CreateDisplay(self)
                                 else
                                     group.appearances[#group.appearances+1] = false
                                 end
+
+                                mountEntries[#mountEntries+1] = {
+                                    group = groupIndex,
+                                    slot = spawnIndex,
+                                    token = token,
+                                }
 
                                 spawnIndex = spawnIndex + 1
                             end
@@ -940,10 +983,21 @@ function RichEncounter.CreateDisplay(self)
                         else
                             group.appearances[slot] = false
                         end
+                        mountEntries[#mountEntries+1] = {
+                            group = gidx,
+                            slot = slot,
+                            token = token,
+                        }
                         waveCharids[#waveCharids+1] = token.charid
                     end
                 end
             end
+
+            --Bank which monsters were riding which, before the tokens go away. It has
+            --to be one pass over everything: a mount is saved as the slot it occupies,
+            --so a rider in one group riding a monster in another can only be resolved
+            --once every token's slot is known.
+            self.encounter:RecordMounts(mountEntries)
 
             game.DeleteCharacters(charids)
             if #waveCharids > 0 then

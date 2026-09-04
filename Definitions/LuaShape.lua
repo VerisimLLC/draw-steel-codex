@@ -28,7 +28,7 @@ function LuaShape:ContainsToken(token)
 end
 
 --- Mark: Mark this shape on the map, returning a reference that you should call Destroy() on when you want to stop displaying it.
---- @param args {color: Color, video: nil|string, showLocs: nil|boolean}
+--- @param args {color: Color, video: nil|string, showLocs: nil|boolean, label: nil|string} Set label to attach the standard aura label to the marker.
 --- @return LuaObjectReference
 function LuaShape:Mark(args)
 	-- dummy implementation for documentation purposes only

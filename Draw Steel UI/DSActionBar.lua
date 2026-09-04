@@ -4839,6 +4839,11 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                         dismiss = true
                                     end
 
+                                    --set when we start a trigger-before action below: the accept then
+                                    --flags the record as resolving, holding the caster's roll until
+                                    --the complete callback clears it.
+                                    local waitingOnTriggerBefore = false
+
                                     if (not trigger.triggered) and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                         --if we trigger some action before the trigger.
                                         local triggerBefore = trigger.powerRollModifier.powerRollModifier:try_get("triggerBefore")
@@ -4846,6 +4851,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
                                         --we commit to it if we use the trigger so we disappear the trigger.
                                         dismiss = true
+                                        waitingOnTriggerBefore = true
 
                                         triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{}, nil, { mod = trigger.powerRollModifier }, {
                                             complete = function()
@@ -4889,6 +4895,26 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                                         end
                                                     end
                                                 end
+
+                                                --The caster's roll dialog holds its roll while the record's
+                                                --resolving flag is set, so the trigger-before action (e.g.
+                                                --Parry's shift) lands before damage and forced movement.
+                                                --Clear it now that the action has fully resolved -- even if
+                                                --the panel has since closed.
+                                                if triggerToken.valid then
+                                                    local live = triggerToken.properties:GetAvailableTriggers() or {}
+                                                    local liveTrigger = live[key]
+                                                    if liveTrigger ~= nil and liveTrigger.resolving then
+                                                        triggerToken:ModifyProperties{
+                                                            undoable = false,
+                                                            description = "Trigger",
+                                                            execute = function()
+                                                                liveTrigger.resolving = false
+                                                                triggerToken.properties:DispatchAvailableTrigger(liveTrigger)
+                                                            end,
+                                                        }
+                                                    end
+                                                end
                                             end,
                                         })
                                     end
@@ -4905,6 +4931,13 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                                 trigger.retargetid = nil
                                             else
                                                 trigger.triggered = true
+                                            end
+
+                                            --the trigger-before action (e.g. Parry's shift) is still
+                                            --running: mark the record so the caster's roll dialog holds
+                                            --the roll until the complete callback clears this.
+                                            if waitingOnTriggerBefore then
+                                                trigger.resolving = true
                                             end
 											token.properties:DispatchAvailableTrigger(trigger)
 										end,

@@ -65,7 +65,7 @@ setting{
     onchange = function()
         --Apply the new scale live to any docks that already exist. Docks are
         --only created once a game is active; bail out otherwise.
-        if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+        if rawget(_G, "gamehud") == nil or rawget(gamehud, "leftDock") == nil then
             return
         end
         for _,dock in ipairs(gamehud:Docks()) do
@@ -2388,7 +2388,7 @@ DockablePanel = {
 	--Views feature to capture the working layout.
 	GetDockPanels = function(side)
 		local result = {}
-		if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+		if rawget(_G, "gamehud") == nil or rawget(gamehud, "leftDock") == nil then
 			return result
 		end
 		local dock = cond(side == "right", gamehud.rightDock, gamehud.leftDock)
@@ -2411,7 +2411,7 @@ DockablePanel = {
 	--mechanics as Deserialize. Used by the icon rail so a dock opened from
 	--the rail carries that rail side's panels.
 	SetDockPanels = function(side, names)
-		if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+		if rawget(_G, "gamehud") == nil or rawget(gamehud, "leftDock") == nil then
 			return
 		end
 		local dock = cond(side == "right", gamehud.rightDock, gamehud.leftDock)
@@ -2544,7 +2544,7 @@ DockablePanel = {
 
 						-- Docks are only created once a game is active. Bail out
 						-- silently when invoked from the lobby.
-						if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+						if rawget(_G, "gamehud") == nil or rawget(gamehud, "leftDock") == nil then
 							return
 						end
 
@@ -2668,7 +2668,7 @@ DockablePanel = {
 
 
 	FindInstance = function(identifier)
-        if gamehud == nil or rawget(gamehud,"leftDock") == nil then
+        if rawget(_G, "gamehud") == nil or rawget(gamehud,"leftDock") == nil then
             return nil
         end
 		for _,dock in ipairs({gamehud.leftDock, gamehud.rightDock, gamehud.floatingDock}) do
@@ -3018,7 +3018,7 @@ end
 --with layout and the scaled dock drifts off its edge. See the setScale dock
 --event and the note in CreateSingleDock.
 local function ApplyDockScale()
-	if gamehud == nil or rawget(gamehud, "leftDock") == nil then
+	if rawget(_G, "gamehud") == nil or rawget(gamehud, "leftDock") == nil then
 		return
 	end
 	for _,dock in ipairs(gamehud:Docks()) do

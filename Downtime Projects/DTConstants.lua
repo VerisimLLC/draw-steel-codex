@@ -15,6 +15,19 @@ DTConstants.FOLLOWER_ROLLS_KEY = "followerRolls"
 --- The natural roll at and above which is considered a crit or breakthrough
 DTConstants.BREAKTHROUGH_MIN = 19
 
+--- Testing only, ships false. A breakthrough needs a natural 19+, which is a 3%
+--- event and cannot be waited for. With this on, the FIRST roll of every project
+--- roll chain lands its dice on 10 and 10, so the engine's own crit detection
+--- fires exactly as it would on a real crit and the breakthrough follows.
+--- Only the first roll is rigged, or the chain would never end.
+--- Turn it on for BOTH clients: a roll is thrown wherever its dialog opens,
+--- which is not always the client the button was pressed on.
+DTConstants.DEBUG_FORCE_CRIT = false
+
+--- Appended to a rigged roll's title so the hook recognises it whichever client
+--- throws it, and so a tester can see at a glance that the roll is not honest.
+DTConstants.DEBUG_FORCE_CRIT_MARK = " [FORCED CRIT]"
+
 --- Valid language penalty values used in downtime projects and rolls
 DTConstants.LANGUAGE_PENALTY = {
     DTConstant.CreateNew("NONE", 1, "None"),

@@ -44,9 +44,9 @@ local function LocKey(loc)
 end
 
 local function MoveCinematically(ai, token, loc)
-    local moving = loc ~= nil and LocKey(loc) ~= LocKey(token.loc)
+    local moving = loc ~= nil and not ai:MovementTokenIsAtLoc(token, loc)
     if moving then
-        token:Move(loc, {maxCost = 10000, ignoreFalling = false})
+        ai:MoveToken(token, loc, {maxCost = 10000, ignoreFalling = false})
     end
     ai.Sleep(moving and movementPause or stationaryPause)
 end
@@ -123,8 +123,6 @@ end
 
 local function ExecuteAreaAbility(ai, token, ability, area, targets)
     local abilityClone = DeepCopy(ability)
-    abilityClone.targetType = "target"
-    abilityClone.numTargets = math.max(1, #targets)
     ai:ExecuteAbility(token, abilityClone, targets, {
         sleep = abilityPause,
         symbols = {targetArea = area},

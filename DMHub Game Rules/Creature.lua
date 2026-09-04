@@ -7014,10 +7014,14 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 						cond._tmp_endAbility = ongoingEffect:GetEndAbility()
 						cond.casterInfo = casterInfo
 						cond.seq = highestSeq + 1
-						if options.stacks == nil then
-							cond.stacks = 1
+						--per-caster tracking decides WHICH instance we land on; once we have it,
+						--the effect's own stacking config still governs what happens to its stacks.
+						if ongoingEffect.stackable and not ongoingEffect.clearStacksWhenApplying then
+							cond.stacks = (cond.stacks or 1) + (options.stacks or 1)
+						elseif ongoingEffect.stackable then
+							cond.stacks = math.max((cond.stacks or 1), (options.stacks or 1))
 						else
-							cond.stacks = options.stacks
+							cond.stacks = options.stacks or 1
 						end
 						cond:Refresh(duration)
 						result = cond
@@ -7467,10 +7471,21 @@ end
 
 -- Returns whether casterToken treats targetToken as a friend for TARGETING purposes.
 -- Mirrors casterToken:IsFriend, except a creature with the "Count Allies as Enemies"
--- attribute treats allies within N squares (N = attribute value) as enemies.
+-- attribute treats allies within N squares (N = attribute value) as enemies, and a
+-- creature with the "Count As Ally To Enemies" attribute forces everyone (even actual
+-- enemies) to treat it as a friend. The target-side "cannot be treated as enemy" check
+-- runs first and wins over both the base relationship and the caster-side attribute,
+-- since it represents an effect the target is actively using to protect itself.
 function IsFriendForTargeting(casterToken, targetToken)
     if casterToken == nil or targetToken == nil then
         return false
+    end
+
+    if targetToken.properties ~= nil then
+        local forcedFriend = targetToken.properties:CalculateNamedCustomAttribute("Count As Ally To Enemies")
+        if forcedFriend ~= nil and forcedFriend > 0 then
+            return true
+        end
     end
 
     local isFriend = casterToken:IsFriend(targetToken)
@@ -10088,6 +10103,12 @@ ActiveTrigger.triggered = false
 ActiveTrigger.dismissed = false
 ActiveTrigger.ping = false
 ActiveTrigger.retargetid = false
+--Set when a power-roll trigger with a trigger-before action (e.g. Vanguard's
+--Parry shift) is accepted, and cleared when that action finishes resolving on
+--the owner's client. While any player trigger has this set, the caster's roll
+--dialog holds the roll -- so the before-action completes before the tier
+--effects (damage, forced movement) execute.
+ActiveTrigger.resolving = false
 ActiveTrigger.text = "Trigger"
 --A multi-mode trigger (a TriggeredAbility with multipleModes) keeps mode 1 out
 --of the modes list: activateText/activateRules are its name and rules, and

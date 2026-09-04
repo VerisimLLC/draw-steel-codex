@@ -21,6 +21,19 @@ local g_triggerCardWidth = 178
 local g_triggerCardHPad = 6
 local g_triggerCardOuterWidth = g_triggerCardWidth + g_triggerCardHPad*2
 
+--How tall the card list may grow before it scrolls. An ability that offers one
+--trigger per damaged target -- Parry against a multi-target hit, or a minion
+--squad -- can produce a dozen at once, and without a bound they push the
+--Dismiss bar off the bottom of the screen and paint over each other.
+local g_triggerListMaxHeight = 520
+
+--The scroller alone is wider than the cards, so its bar overhangs to the right
+--of the stack rather than sitting over the card edge -- which is where the
+--heroic resource cost diamond is. The container keeps the card width, so the
+--cards stay put relative to the trigger button below them.
+local g_triggerScrollbarWidth = 20
+local g_triggerListWidth = g_triggerCardOuterWidth + g_triggerScrollbarWidth
+
 -- Build the candidate retarget list for a triggered ability that changes its
 -- target. Every token passing the all-inclusive changeTargetFilter is returned
 -- in `targets`. A token that additionally fails one of the "reasoned" filters is
@@ -112,12 +125,31 @@ local function RunTriggerRetargetChoice(element, triggerToken, trigger)
                     t.triggered = true
                     t.retargetid = newTargetToken.charid
                     t.triggerBeforeRetarget = false
+                    --resolution is now complete; release the caster's roll hold.
+                    t.resolving = false
                     triggerToken.properties:DispatchAvailableTrigger(t)
                 end,
             }
         end,
 
         cancel = function()
+            --the choice was abandoned: withdraw the resolving hold so the
+            --caster's roll doesn't keep waiting on a picker nobody is using.
+            if triggerToken == nil or not triggerToken.valid then
+                return
+            end
+            triggerToken:ModifyProperties{
+                undoable = false,
+                description = "Trigger",
+                execute = function()
+                    local live = triggerToken.properties:GetAvailableTriggers() or {}
+                    local t = live[trigid]
+                    if t ~= nil and t.resolving then
+                        t.resolving = false
+                        triggerToken.properties:DispatchAvailableTrigger(t)
+                    end
+                end,
+            }
         end,
     })
 end
@@ -213,11 +245,22 @@ mod.shared.CreateTriggerPanel = function()
         end,
     }
 
+    --The cards scroll in here rather than in the panel that also holds the
+    --Dismiss bar, so a long list never pushes that bar out of reach.
+    local triggerListPanel = gui.Panel{
+        width = g_triggerListWidth,
+        height = "auto",
+        maxHeight = g_triggerListMaxHeight,
+        flow = "vertical",
+        valign = "bottom",
+        vscroll = true,
+    }
+
 	local activeTriggersPanel
 
 	activeTriggersPanel = gui.Panel{
 		floating = true,
-		width = 190,
+		width = g_triggerCardOuterWidth,
 		height = 1,
 		vmargin = -20,
 		halign = "left",
@@ -234,9 +277,9 @@ mod.shared.CreateTriggerPanel = function()
 			styles = {
                 {
                     selectors = {"dismissAllPanel"},
-                    width = 190,
+                    width = g_triggerCardOuterWidth,
                     height = 24,
-                    halign = "center",
+                    halign = "left",
                     fontSize = 14,
                     vpad = 4,
                     hpad = 8,
@@ -258,7 +301,7 @@ mod.shared.CreateTriggerPanel = function()
                     vpad = 6,
                     hpad = g_triggerCardHPad,
                     vmargin = 0,
-                    halign = "center",
+                    halign = "left",
                     valign = "bottom",
                     bgimage = true,
 
@@ -495,6 +538,9 @@ mod.shared.CreateTriggerPanel = function()
                 Styles.TriggerStyles,
 			},
 
+            --Both declared here so they are parented from construction; refresh
+            --only ever re-fills the scroller's children.
+            triggerListPanel,
             dismissAllPanel,
 
 			refresh = function(element)
@@ -674,6 +720,11 @@ mod.shared.CreateTriggerPanel = function()
                                         dismiss = true
                                     end
 
+                                    --set when we start a trigger-before action below: the accept then
+                                    --flags the record as resolving, holding the caster's roll until
+                                    --the complete callback clears it.
+                                    local waitingOnTriggerBefore = false
+
                                     if (not trigger.triggered) and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                         --if we trigger some action before the trigger.
                                         local triggerBefore = trigger.powerRollModifier.powerRollModifier:try_get("triggerBefore")
@@ -681,9 +732,13 @@ mod.shared.CreateTriggerPanel = function()
 
                                         --we commit to it if we use the trigger so we disappear the trigger.
                                         dismiss = true
+                                        waitingOnTriggerBefore = true
 
                                         triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, g_token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{}, nil, { mod = trigger.powerRollModifier }, {
                                             complete = function()
+                                                --set when resolution continues in the retarget picker,
+                                                --which then owns clearing the resolving flag.
+                                                local handedOffToRetarget = false
                                                 if parentElement ~= nil and parentElement.valid then
                                                     if availableTriggers == nil then
                                                         return
@@ -737,8 +792,30 @@ mod.shared.CreateTriggerPanel = function()
                                                                 and freshTrigger.powerRollModifier
                                                                 and freshTrigger.powerRollModifier.powerRollModifier:try_get("changeTarget")
                                                                 and not freshTrigger.retargetid then
+                                                            handedOffToRetarget = true
                                                             RunTriggerRetargetChoice(parentElement, triggerToken, freshTrigger)
                                                         end
+                                                    end
+                                                end
+
+                                                --The caster's roll dialog holds its roll while the record's
+                                                --resolving flag is set, so the trigger-before action (e.g.
+                                                --Parry's shift) lands before damage and forced movement.
+                                                --Clear it now that the action has fully resolved -- even if
+                                                --the panel has since closed. When resolution was handed off
+                                                --to the retarget picker, that flow clears it instead.
+                                                if (not handedOffToRetarget) and triggerToken.valid then
+                                                    local live = triggerToken.properties:GetAvailableTriggers() or {}
+                                                    local liveTrigger = live[key]
+                                                    if liveTrigger ~= nil and liveTrigger.resolving then
+                                                        triggerToken:ModifyProperties{
+                                                            undoable = false,
+                                                            description = "Trigger",
+                                                            execute = function()
+                                                                liveTrigger.resolving = false
+                                                                triggerToken.properties:DispatchAvailableTrigger(liveTrigger)
+                                                            end,
+                                                        }
                                                     end
                                                 end
                                             end,
@@ -757,6 +834,13 @@ mod.shared.CreateTriggerPanel = function()
                                                 trigger.retargetid = nil
                                             else
                                                 trigger.triggered = true
+                                            end
+
+                                            --the trigger-before action (e.g. Parry's shift) is still
+                                            --running: mark the record so the caster's roll dialog holds
+                                            --the roll until the complete callback clears this.
+                                            if waitingOnTriggerBefore then
+                                                trigger.resolving = true
                                             end
 											g_token.properties:DispatchAvailableTrigger(trigger)
 										end,
@@ -1079,6 +1163,11 @@ mod.shared.CreateTriggerPanel = function()
                                         dismiss = true
                                     end
 
+                                    --set when we start a trigger-before action below: the accept then
+                                    --flags the record as resolving, holding the caster's roll until
+                                    --the complete callback clears it.
+                                    local waitingOnTriggerBefore = false
+
                                     if (not trigger.triggered) and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                         --if we trigger some action before the trigger.
                                         local triggerBefore = trigger.powerRollModifier.powerRollModifier:try_get("triggerBefore")
@@ -1086,9 +1175,13 @@ mod.shared.CreateTriggerPanel = function()
 
                                         --we commit to it if we use the trigger so we disappear the trigger.
                                         dismiss = true
+                                        waitingOnTriggerBefore = true
 
                                         triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, g_token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{}, nil, { mod = trigger.powerRollModifier }, {
                                             complete = function()
+                                                --set when resolution continues in the retarget picker,
+                                                --which then owns clearing the resolving flag.
+                                                local handedOffToRetarget = false
                                                 if parentElement ~= nil and parentElement.valid then
                                                     if availableTriggers == nil then
                                                         return
@@ -1142,8 +1235,30 @@ mod.shared.CreateTriggerPanel = function()
                                                                 and freshTrigger.powerRollModifier
                                                                 and freshTrigger.powerRollModifier.powerRollModifier:try_get("changeTarget")
                                                                 and not freshTrigger.retargetid then
+                                                            handedOffToRetarget = true
                                                             RunTriggerRetargetChoice(parentElement, triggerToken, freshTrigger)
                                                         end
+                                                    end
+                                                end
+
+                                                --The caster's roll dialog holds its roll while the record's
+                                                --resolving flag is set, so the trigger-before action (e.g.
+                                                --Parry's shift) lands before damage and forced movement.
+                                                --Clear it now that the action has fully resolved -- even if
+                                                --the panel has since closed. When resolution was handed off
+                                                --to the retarget picker, that flow clears it instead.
+                                                if (not handedOffToRetarget) and triggerToken.valid then
+                                                    local live = triggerToken.properties:GetAvailableTriggers() or {}
+                                                    local liveTrigger = live[key]
+                                                    if liveTrigger ~= nil and liveTrigger.resolving then
+                                                        triggerToken:ModifyProperties{
+                                                            undoable = false,
+                                                            description = "Trigger",
+                                                            execute = function()
+                                                                liveTrigger.resolving = false
+                                                                triggerToken.properties:DispatchAvailableTrigger(liveTrigger)
+                                                            end,
+                                                        }
                                                     end
                                                 end
                                             end,
@@ -1162,6 +1277,13 @@ mod.shared.CreateTriggerPanel = function()
                                                 trigger.retargetid = nil
                                             else
                                                 trigger.triggered = true
+                                            end
+
+                                            --the trigger-before action (e.g. Parry's shift) is still
+                                            --running: mark the record so the caster's roll dialog holds
+                                            --the roll until the complete callback clears this.
+                                            if waitingOnTriggerBefore then
+                                                trigger.resolving = true
                                             end
 											g_token.properties:DispatchAvailableTrigger(trigger)
 										end,
@@ -1591,9 +1713,9 @@ mod.shared.CreateTriggerPanel = function()
 				element:SetClass("collapsed", #children == 0)
                 activeTriggersPanel.data.hasTriggers = #children > 0
 
-                children[#children+1] = dismissAllPanel
-
-				element.children = children
+                --Cards into the scroller, Dismiss bar outside it so it stays put.
+                triggerListPanel.children = children
+				element.children = {triggerListPanel, dismissAllPanel}
 				m_activeTriggerPanels = newTriggerPanels
 			end,
 		}

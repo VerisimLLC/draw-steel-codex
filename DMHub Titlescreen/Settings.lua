@@ -1010,6 +1010,21 @@ setting{
 	default = "",
 }
 
+--dev-only, GLOBAL (not per-game): ordered list of local asset directories
+--(same newline-delimited format as localassets:dirs) used when the game
+--being loaded is this account's Encounter of the Week game. EotW games are
+--created fresh for each encounter, so a per-game preference can never be set
+--for one in advance; this list follows whichever game currently occupies the
+--account's EotW slot. It loads BELOW any per-game list for that game. Edited
+--via the Encounter of the Week block of the Local Assets settings section
+--(no generic editor); the engine reads it in LocalAssetDirectory.ReadEotwDirs.
+setting{
+	id = "localassets:eotwdirs",
+	description = "Encounter of the Week Asset Directories (dev)",
+	storage = "preference",
+	default = "",
+}
+
 --dev-only, GLOBAL (not per-game): explicit path to the git executable used
 --by the local-assets read-only git integration (status badges in the file
 --browser). When empty, the engine auto-detects git from PATH and common

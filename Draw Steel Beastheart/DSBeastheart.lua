@@ -51,6 +51,10 @@ local function LinkCompanion(beastheartToken, companionToken, bestiaryId)
         companionToken.name = storedName
     end
 
+    -- Same for the player's sticky look for this companion type. Must land
+    -- before UploadToken: that uploads appearance, ModifyProperties does not.
+    beastheartToken.properties:ApplyCompanionAppearance(bestiaryId, companionToken)
+
     companionToken:UploadToken("Summoned")
 
     beastheartToken:ModifyProperties{

@@ -18,18 +18,32 @@ local function CurrentPhase()
     return session ~= nil and session.phase or RSPConstants.phaseSetup
 end
 
---- The heroes this Respite covers. Followers do not appear here: the hero is
---- the unit of completion.
---- @return string[] charids
-local function Roster()
-    return RSPSession.CoveredHeroes(RSPSession.Roster())
+--- Every hero the Respite covers, each with its followers beneath it, as the
+--- players see their own. A hero the non-participants setting excluded still
+--- appears when they have followers, since followers may always act.
+--- @return table[] entries
+local function Entries()
+    return RSPSession.ActingEntries(RSPSession.Roster())
 end
 
---- Every row here is a hero, so every row carries a completion state.
+--- The row the pane opens on. The first entry rather than the first hero: when
+--- every hero is sitting the Respite out, the list starts on a follower.
+--- @return string|nil charid
+local function FirstSelectable()
+    local entries = Entries()
+    return entries[1] ~= nil and entries[1].charid or nil
+end
+
+--- A follower's rolls live on the hero it follows, so the entry's owner is
+--- what gets asked.
 --- @param charid string
---- @return boolean
-local function Completion(charid)
-    return RSPSession.IsDone(charid)
+--- @param owner nil|string the hero this row follows
+--- @return number rolls
+local function RollsFor(charid, owner)
+    if owner ~= nil then
+        return RSPSession.FollowerRolls(owner, charid)
+    end
+    return RSPSession.HeroRolls(charid)
 end
 
 --- Does this hero have something the Director must act on? Asked of every
@@ -46,23 +60,6 @@ local function NeedsAttention(charid)
         charid = charid,
         since = RSPSession.StartedAt,
     }
-end
-
---- How far the table has got, for the line under the roster.
---- @return string
-local function CompletionCountText()
-    local roster = Roster()
-    local done = 0
-    for _, charid in ipairs(roster) do
-        if RSPSession.IsDone(charid) then
-            done = done + 1
-        end
-    end
-
-    if #roster > 0 and done >= #roster then
-        return "All Characters Complete"
-    end
-    return string.format("%d/%d Characters Complete", done, #roster)
 end
 
 --- What each activity has to report about the selected hero, under a heading
@@ -121,22 +118,40 @@ local function BuildWorkingArea()
     local feed
 
     list = RSPWidgets.CharacterList{
-        roster = Roster(),
-        rolls = RSPSession.CombinedRolls,
-        status = Completion,
+        roster = Entries,
+        rolls = RollsFor,
         attention = NeedsAttention,
+
+        -- A hero opens straight onto their Downtime tab, which is what the
+        -- Director wants from this list. That tab is registered hero-only, so a
+        -- follower has none and opens on the sheet's default panel instead.
+        sheet = function(charid, owner)
+            local token = dmhub.GetCharacterById(charid)
+            if token == nil then
+                return
+            end
+
+            if owner ~= nil then
+                token:ShowSheet()
+            else
+                token:ShowSheet(RSPConstants.sheetTabDowntime)
+            end
+        end,
 
         highlight = function(charid)
             return list ~= nil and list.data.selected == charid
         end,
 
-        click = function(charid)
+        -- Selecting a follower highlights that row but reports on the hero it
+        -- follows: the feed is written per hero, and a follower's work is part
+        -- of its hero's story rather than a story of its own.
+        click = function(charid, owner)
             if list ~= nil and list.valid then
                 list.data.selected = charid
                 list:FireEventTree("respiteChanged")
             end
             if feed ~= nil and feed.valid then
-                feed:FireEvent("showCharacter", charid)
+                feed:FireEvent("showCharacter", owner or charid)
             end
         end,
     }
@@ -202,19 +217,18 @@ local function BuildWorkingArea()
             element.children = sections
         end,
 
-        -- Open on the first hero rather than an empty pane. The roster is read
+        -- Open on the first row rather than an empty pane. The roster is read
         -- directly: by the time this is on screen the list has its selection,
         -- and the pane must not depend on a later tick to have any content.
         create = function(element)
-            local roster = Roster()
             element:FireEvent("showCharacter",
-                (list ~= nil and list.data.selected) or roster[1])
+                (list ~= nil and list.data.selected) or FirstSelectable())
         end,
     }
 
-    local roster = Roster()
-    if list ~= nil and #roster > 0 then
-        list.data.selected = roster[1]
+    local opening = FirstSelectable()
+    if list ~= nil and opening ~= nil then
+        list.data.selected = opening
     end
 
     return gui.Panel{
@@ -231,8 +245,8 @@ local function BuildWorkingArea()
             halign = "left",
             valign = "top",
 
-            -- The list fills what the count line leaves. It scrolls on its
-            -- own, so a long roster costs the count nothing.
+            -- The list scrolls on its own, so a long roster stays inside the
+            -- pane rather than pushing it taller.
             gui.Panel{
                 width = "100%",
                 height = RSPConstants.directorListHeight,
@@ -243,21 +257,6 @@ local function BuildWorkingArea()
                 list,
             },
 
-            -- The count belongs to the list it counts, not to the footer: it
-            -- reads as the last line of the roster rather than as one of the
-            -- controls that close the Respite.
-            gui.Label{
-                classes = {"sizeM", "noBold"},
-                width = "100%",
-                height = "auto",
-                halign = "left",
-                valign = "bottom",
-                tmargin = 6,
-                text = CompletionCountText(),
-                respiteChanged = function(element)
-                    element.text = CompletionCountText()
-                end,
-            },
         },
 
         gui.Panel{

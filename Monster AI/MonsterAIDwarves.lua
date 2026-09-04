@@ -72,11 +72,18 @@ local function CanSpendMalice(amount)
 end
 
 local function MoveCinematically(ai, token, loc)
-    local moving = loc ~= nil and loc.str ~= token.loc.str
+    local moving = loc ~= nil and not ai:MovementTokenIsAtLoc(token, loc)
     if moving then
-        token:Move(loc, {maxCost = 10000, ignoreFalling = false})
+        ai:MoveToken(token, loc, {maxCost = 10000, ignoreFalling = false})
     end
     ai.Sleep(cond(moving, movementPause, stationaryPause))
+end
+
+local function Speak(ai, token, lines)
+    if lines ~= nil then
+        ai:Speech(token, lines)
+        ai.Sleep(stationaryPause)
+    end
 end
 
 local function EmptyLoc(loc)
@@ -148,6 +155,7 @@ end
 local function ExecuteStrikePlan(ai, token, scoringInfo, ability, options)
     options = options or {}
     MoveCinematically(ai, token, scoringInfo.loc)
+    Speak(ai, token, options.speech)
     ai:ExecuteAbility(token, options.ability or ability, scoringInfo.targets, {
         sleep = options.sleep or abilityPause,
         symbols = options.symbols,
@@ -173,7 +181,9 @@ local function RegisterStrike(args)
             if args.execute ~= nil then
                 args.execute(self, ai, token, scoringInfo, ability)
             else
-                ExecuteStrikePlan(ai, token, scoringInfo, ability)
+                ExecuteStrikePlan(ai, token, scoringInfo, ability, {
+                    speech = args.speech,
+                })
             end
         end,
     }
@@ -234,8 +244,6 @@ end
 local function ExecuteAreaAbility(ai, token, ability, area, targets, options)
     options = options or {}
     local abilityClone = options.ability or DeepCopy(ability)
-    abilityClone.targetType = "target"
-    abilityClone.numTargets = math.max(1, #targets)
     ai:ExecuteAbility(token, abilityClone, targets, {
         sleep = options.sleep or abilityPause,
         symbols = options.symbols or {targetArea = area},
@@ -276,8 +284,10 @@ local function FindBestCubePlanAtCurrentLoc(token, ability, candidates)
     return best
 end
 
-local function ExecuteCubePlan(ai, token, scoringInfo, ability)
+local function ExecuteCubePlan(ai, token, scoringInfo, ability, options)
+    options = options or {}
     MoveCinematically(ai, token, scoringInfo.loc)
+    Speak(ai, token, options.speech)
     local area = BuildCubeArea(token, ability, scoringInfo.center)
     local targets = TokensInArea(token, ability, area, {})
     ExecuteAreaAbility(ai, token, ability, area, targets)
@@ -300,7 +310,9 @@ local function RegisterCube(args)
             end
         end,
         execute = function(self, ai, token, scoringInfo, ability)
-            ExecuteCubePlan(ai, token, scoringInfo, ability)
+            ExecuteCubePlan(ai, token, scoringInfo, ability, {
+                speech = args.speech,
+            })
         end,
     }
 end
@@ -415,6 +427,19 @@ MonsterAI:RegisterTactic{
 -- Gunner.
 --------------------------------------------------------------------------------
 
+local dwarfGunnerSpeech = {
+    portableBallista = {
+        "Let's line up this shot...",
+        "Now where's a wall I can nail you to?",
+        "You're on the wrong end of a Dwarvish Ballista",
+    },
+    newlyRestrained = {
+        "Huh, got you all tied up!",
+        "All fun and games until you get nailed to something.",
+        "Won't be getting out of that easily.",
+    },
+}
+
 RegisterStrike{
     id = "Dwarf Gunner: Portable Ballista",
     monsters = {"Dwarf Gunner"},
@@ -422,7 +447,16 @@ RegisterStrike{
     description = "Fire the ballista from range and let the forced-movement handler seek a restraining collision.",
     score = 1.05,
     execute = function(self, ai, token, scoringInfo, ability)
-        ExecuteStrikePlan(ai, token, scoringInfo, PortableBallistaForAI(ability))
+        MoveCinematically(ai, token, scoringInfo.loc)
+        local target = scoringInfo.targets[1].token
+        local wasRestrained = HasCondition(target, "Restrained")
+        Speak(ai, token, dwarfGunnerSpeech.portableBallista)
+        ai:ExecuteAbility(token, PortableBallistaForAI(ability), scoringInfo.targets, {
+            sleep = abilityPause,
+        })
+        if not wasRestrained and HasCondition(target, "Restrained") then
+            Speak(ai, token, dwarfGunnerSpeech.newlyRestrained)
+        end
     end,
 }
 
@@ -666,12 +700,26 @@ RegisterCube{
 -- Trapper.
 --------------------------------------------------------------------------------
 
+local dwarfTrapperSpeech = {
+    concussiveBolts = {
+        "I'll knock you into next week!",
+        "You won't see this coming!",
+        "Everyone has a plan until a Dwarf nails them to a wall!",
+    },
+    steamPoweredSnare = {
+        "Now, I'll ensnare you!",
+        "Let's see you escape from this!",
+        "You won't get away!",
+    },
+}
+
 RegisterStrike{
     id = "Dwarf Trapper: Concussive Bolts",
     monsters = {"Dwarf Trapper"},
     ability = "Concussive Bolts",
     description = "Use the trapper's long-range signature strike and push enemies into hazards.",
     score = 1.05,
+    speech = dwarfTrapperSpeech.concussiveBolts,
 }
 
 RegisterCube{
@@ -682,6 +730,7 @@ RegisterCube{
     description = "Spend 3 Malice to place a persistent snare under at least two enemies without catching allies.",
     minimumEnemies = 2,
     score = 1.5,
+    speech = dwarfTrapperSpeech.steamPoweredSnare,
 }
 
 --------------------------------------------------------------------------------
@@ -852,6 +901,13 @@ MonsterAI:RegisterMove{
 -- Dwarf start-of-turn Malice abilities.
 --------------------------------------------------------------------------------
 
+local rappellingBarrageSpeech = {
+    "Rappelling Barrage!",
+    "Come Dwarves, let them have it!",
+    "Dwarves, forward!!!",
+    "All of you, attack!",
+}
+
 local function TacticsForToken(token)
     local result = {}
     for id,tactic in pairs(MonsterAI.tactics) do
@@ -866,9 +922,7 @@ local function FindGrantedFreeStrikePlan(ai, actor)
     if not LiveCreature(actor) then
         return nil
     end
-    local movement = math.max(0,
-        actor.properties:CurrentMovementSpeed() - actor.properties:DistanceMovedThisTurn())
-    local paths = actor:CalculatePathfindingArea(movement*10, {})
+    local paths = ai:CalculateRemainingMovementPaths(actor)
     local oldTactics = ai.activeTactics
     ai.activeTactics = TacticsForToken(actor)
     local best = nil
@@ -877,6 +931,7 @@ local function FindGrantedFreeStrikePlan(ai, actor)
         if ability.name == "Melee Free Strike" or ability.name == "Ranged Free Strike" then
             local granted = DeepCopy(ability)
             ClearAbilityCosts(granted)
+            granted.disableSquadCoordination = true
             granted.name = "Rappelling Free Strike"
             if granted.keywords ~= nil then
                 granted.keywords.Charge = nil
@@ -924,6 +979,11 @@ MonsterAI:RegisterMaliceAbility{
         end
         if climbBehavior == nil then
             return
+        end
+
+        local leader = ai:FindMostSeniorInitiativeGroupMember(context.actingTokens)
+        if leader ~= nil then
+            Speak(ai, leader, rappellingBarrageSpeech)
         end
 
         local targets = {}

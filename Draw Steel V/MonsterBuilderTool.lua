@@ -13,7 +13,7 @@ local mod = dmhub.GetModLoading()
 
 DockablePanel.Register{
     name = "Body Banks",
-    icon = "phosphor/hammer.png",
+    icon = "phosphor/dna-bold.png",
     menu = "tools",
     dmonly = true,
     launch = function()

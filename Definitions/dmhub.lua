@@ -110,6 +110,7 @@
 --- @field directorlessGame boolean (read-only) true if this game is directorless -- nobody plays the Director. A property of the GAME (set when it is created), so it is the same for every client and is already true when the game loads. In such a game the host's machine keeps real hosting authority (dmhub.isDMOrPlayerHost) while their user is presented and treated as a player (see dmhub.playerHostMode).
 --- @field playerHostMode boolean (read-only) Player-host mode: true when this is a directorless game AND this client has real hosting status. dmhub.isDM reads false here (player vision, rules enforcement, player UI) while dmhub.isDMOrPlayerHost keeps reporting the real hosting status. Derived from the game record, so it is correct from load with no arming step -- set GameInfo.directorless at creation (lobby:CreateGame{directorless = true}) rather than switching it on in-session. To let one client act as Director anyway for debugging, see dmhub.playerHostModeSuppressed.
 --- @field playerHostModeSuppressed boolean Debug/recovery escape hatch: while true, THIS client acts as the Director in a directorless game instead of as a player host. Client-only and session-scoped -- it does not touch the game record, so no other player is affected. Changing it flips dmhub.isDM, which forces the same full view-as-player refresh the Director's 'view as player' command uses, so expect the game to reload; it is a debugging action, not a normal-play one. Setting it has no effect (and causes no refresh) in a game that is not directorless.
+--- @field tooltipsSuppressed boolean Tooltip Suppression Mode: while true, no tooltip is displayed anywhere on this client -- panel hover tooltips, map/tile tooltips, and the token-drag movement tooltip (and with it the movement cross-section diagram it carries). Any tooltip already on screen is dismissed the moment this is set. Client-only and session-scoped: it lives on the game session, so leaving the game always restores tooltips even if a mod forgets to clear it. Prefer the core codex wrapper GameHud.SetTooltipsSuppressed(key, value), which also stops the cross-section diagram being rendered at all and lets several mods hold the suppression independently.
 --- @field inGame boolean (read-only) true if we are currently in-game
 --- @field isLobbyGame boolean (read-only) true if in lobby
 --- @field gameid string (Read-only) The gameid of the current game.
@@ -753,6 +754,20 @@ end
 --- @param text string Search text; case-insensitive substring match.
 --- @return { path: string, fileName: string, id: string|nil, displayName: string|nil, category: string, tableid: string|nil, dirIndex: number, directory: string, shadowed: boolean }[]|nil
 function dmhub.LocalAssetsSearch(text)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsCloudDiff: Compares the game's LIVE cloud asset store against the local YAML tree that is masking it. Local assets mode is per-client: the cloud assets keep arriving and keep being updated by other people playing the game, they are just not used. Each reported item has a state of 'cloudOnly' (in the cloud, nowhere on disk -- invisible to you right now), 'differs' (in both, with different content) or 'localOnly' (on disk only; omitted unless includeLocalOnly). Items whose content matches are not reported. Categories and items are sorted by display name. Dev mode only; returns nil when local assets mode is not active.
+--- @param includeLocalOnly nil|boolean Also report items that exist on disk but not in the cloud (off by default -- with a large overlay directory these dominate the list).
+--- @return { available: boolean, directory: string|nil, counts: { cloudOnly: number, differs: number, localOnly: number }, categories: { name: string, items: { category: string, tableid: string|nil, id: string, displayName: string|nil, state: string, mtime: number|nil }[] }[] }|nil
+function dmhub.LocalAssetsCloudDiff(includeLocalOnly)
+	-- dummy implementation for documentation purposes only
+end
+
+--- LocalAssetsImportFromCloud: Copies the named items out of the game's live cloud asset store into the local YAML tree. An item that already has a file on disk is overwritten in place, wherever in the directory list it lives; a new one is created in the TOP directory. The items are applied to the running game as well, so they appear without a reload. Only 'cloudOnly' and 'differs' items make sense here -- a 'localOnly' item has nothing in the cloud to copy and is counted as failed. Dev mode only; returns nil when local assets mode is not active.
+--- @param items { category: string, tableid: nil|string, id: string }[] Items to copy down, in the shape LocalAssetsCloudDiff returns them.
+--- @return { imported: number, failed: number, directory: string }|nil
+function dmhub.LocalAssetsImportFromCloud(items)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1918,14 +1933,14 @@ function dmhub.CenterOnLoc(args)
 	-- dummy implementation for documentation purposes only
 end
 
---- SelectToken: Select the token with the given id, clearing selection of other tokens.
+--- SelectToken: Select the token with the given id, clearing selection of other tokens. The token is only selected if the user controls it in their own right (see CharacterToken.canControlAsUser); the selection is cleared regardless.
 --- @param charid string
 --- @return nil
 function dmhub.SelectToken(charid)
 	-- dummy implementation for documentation purposes only
 end
 
---- AddTokenToSelection: Add the token with the given id to the selection.
+--- AddTokenToSelection: Add the token with the given id to the selection. Does nothing unless the user controls the token in their own right (see CharacterToken.canControlAsUser).
 --- @param tokenid string
 --- @return nil
 function dmhub.AddTokenToSelection(tokenid)

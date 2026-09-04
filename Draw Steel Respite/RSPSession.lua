@@ -3,11 +3,9 @@ local mod = dmhub.GetModLoading()
 --- One character's standing in a Respite.
 --- @class RSPCharacter
 --- @field participating boolean
---- @field done boolean
 RSPCharacter = RegisterGameType("RSPCharacter")
 
 RSPCharacter.participating = false
-RSPCharacter.done = false
 
 --- @param args nil|table
 --- @return RSPCharacter
@@ -23,7 +21,8 @@ end
 --- @field phase string
 --- @field daysElapsed number
 --- @field location string optional, where the Respite is taken
---- @field activityCount number
+--- @field activityCount number the heroes' allowance
+--- @field followerActivityCount number followers' allowance; unset means it has always matched activityCount
 --- @field nonParticipantsMayAct boolean
 --- @field journal boolean write the Respite up when it ends
 --- @field activities table<string, table> per-activity availability for this Respite
@@ -135,17 +134,34 @@ function RSPSession.ActivityCount()
     return session ~= nil and session.activityCount or RSPConstants.activitiesMin
 end
 
+--- The followers' allowance. A session from before the split stores no field
+--- of its own and reads as the hero allowance, which is what it was granting.
+--- @return number
+function RSPSession.FollowerActivityCount()
+    local session = RSPSession.Active()
+    if session == nil then
+        return RSPConstants.activitiesMin
+    end
+    return session:try_get("followerActivityCount") or session.activityCount
+end
+
 --- @return boolean
 function RSPSession.NonParticipantsMayAct()
     local session = RSPSession.Active()
     return session ~= nil and session.nonParticipantsMayAct or false
 end
 
---- Days and activities move together. Setting the days resets the activity
---- allowance to match; setting the activities alone leaves the days be.
+--- Days and activities move together. Setting the days resets the hero
+--- allowance to match; setting the activities alone leaves the days be. The
+--- follower allowance rides along only while it matches the heroes' - one
+--- deliberately set apart stays where it was put.
 --- @param days number
 function RSPSession.SetDaysElapsed(days)
     RSPSession.Mutate("Set respite days elapsed", function(session)
+        local followers = session:try_get("followerActivityCount") or session.activityCount
+        if followers == session.activityCount then
+            session.followerActivityCount = days
+        end
         session.daysElapsed = days
         session.activityCount = days
     end)
@@ -158,10 +174,23 @@ function RSPSession.SetLocation(location)
     end)
 end
 
+--- Sets the heroes' allowance. The followers' rides along only while the two
+--- match, so a Director who has split them keeps what they set.
 --- @param count number
 function RSPSession.SetActivityCount(count)
     RSPSession.Mutate("Set respite downtime activities", function(session)
+        local followers = session:try_get("followerActivityCount") or session.activityCount
+        if followers == session.activityCount then
+            session.followerActivityCount = count
+        end
         session.activityCount = count
+    end)
+end
+
+--- @param count number
+function RSPSession.SetFollowerActivityCount(count)
+    RSPSession.Mutate("Set respite follower downtime activities", function(session)
+        session.followerActivityCount = count
     end)
 end
 
@@ -580,7 +609,13 @@ function RSPSession.BeginGameEffects()
     if info.initiativeQueue == nil then
         info.initiativeQueue = InitiativeQueue.Create()
     end
+    --A fresh queue is born visible (InitiativeQueue.Create sets hidden=false,
+    --gameMode="combat"), and visible is what the whole app reads as "a fight is
+    --running" -- the initiative bar, the "Round N" title, and CombatInProgress
+    --below all key off hidden, not gameMode. Only a map that has never hosted a
+    --fight reaches this, which is why it hid until now.
     info.initiativeQueue.gameMode = "respite"
+    info.initiativeQueue.hidden = true
     info.UploadInitiative()
 
     RSPSession.NotifyActivities("onStart")
@@ -651,31 +686,6 @@ function RSPSession.Start()
         -- that came before it. Everything the Director is shown is derived
         -- from this one number plus what the features already record.
         session.startedAt = dmhub.serverTime
-    end)
-end
-
---- @param charid string
---- @return boolean
-function RSPSession.IsDone(charid)
-    local session = RSPSession.Active()
-    if session == nil then
-        return false
-    end
-    local entry = (session.characters or {})[charid]
-    return entry ~= nil and entry.done or false
-end
-
---- @param charid string
---- @param done boolean
-function RSPSession.SetDone(charid, done)
-    RSPSession.Mutate("Set respite completion", function(session)
-        session.characters = session.characters or {}
-        local entry = session.characters[charid]
-        if entry == nil then
-            entry = RSPCharacter.CreateNew{}
-            session.characters[charid] = entry
-        end
-        entry.done = done
     end)
 end
 
@@ -756,6 +766,35 @@ end
 --- Heroes with their followers indented beneath them, ready for a list.
 --- @param charids string[] heroes, already in the order they should appear
 --- @return table[] entries {charid, indent}
+--- The rows a run step shows. Every covered hero with its followers beneath
+--- it, plus any hero the non-participants rule excluded who still has
+--- followers: followers may always act, and the hero row is what they hang
+--- under. Such a hero is listed but never paid, so its own count reads zero.
+--- A hero excluded with no followers is left out, which is the whole point of
+--- the setting.
+--- @param charids string[] the heroes to consider
+--- @return table[] entries
+function RSPSession.ActingEntries(charids)
+    local covered = {}
+    for _, charid in ipairs(RSPSession.CoveredHeroes(charids)) do
+        covered[charid] = true
+    end
+
+    local entries = {}
+    for _, charid in ipairs(charids) do
+        local followers = RSPSession.FollowersOf(charid)
+        if covered[charid] or #followers > 0 then
+            entries[#entries + 1] = {charid = charid, indent = false}
+            for _, followerId in ipairs(followers) do
+                entries[#entries + 1] = {charid = followerId, indent = true, owner = charid}
+            end
+        end
+    end
+    return entries
+end
+
+--- @param charids string[]
+--- @return table[] entries
 function RSPSession.EntriesWithFollowers(charids)
     local entries = {}
     for _, charid in ipairs(charids) do
@@ -901,26 +940,40 @@ function RSPSession.CombinedRolls(charid)
     return rolls
 end
 
---- Hand out downtime activities. Every covered hero and each of their
---- followers gets one roll per activity, so unticking non-participants narrows
---- who is paid as well as who appears. Takes an explicit count so extending a
---- Respite pays only the extension.
---- @param amount nil|number defaults to the Respite's activity allowance
-function RSPSession.GrantActivityRolls(amount)
+--- Hand out downtime activities. Followers are always paid, whatever the
+--- non-participants setting says: that setting governs heroes only, and a
+--- hero sitting the Respite out does not stop their artisan working. A hero
+--- is paid only when the Respite covers them. Takes an explicit count so
+--- extending a Respite pays only the extension.
+--- @param amount nil|number defaults to the Respite's hero allowance
+--- @param followerAmount nil|number defaults to amount, then to the follower allowance
+function RSPSession.GrantActivityRolls(amount, followerAmount)
     if not dmhub.isDM then
         return
     end
 
     local count = amount or RSPSession.ActivityCount()
-    if count <= 0 then
+    local followerCount = followerAmount or amount or RSPSession.FollowerActivityCount()
+    if count <= 0 and followerCount <= 0 then
         return
     end
 
-    for _, heroId in ipairs(RSPSession.CoveredHeroes(RSPSession.Roster())) do
+    local roster = RSPSession.Roster()
+
+    local covered = {}
+    for _, heroId in ipairs(RSPSession.CoveredHeroes(roster)) do
+        covered[heroId] = true
+    end
+
+    for _, heroId in ipairs(roster) do
         local token = dmhub.GetCharacterById(heroId)
         local followerIds = RSPSession.FollowersOf(heroId)
+        local payHero = covered[heroId] == true and count > 0
+        local payFollowers = followerCount > 0 and #followerIds > 0
 
-        if token ~= nil and token.properties ~= nil then
+        -- An excluded hero with no followers has nothing owed, so the upload
+        -- their properties would cost is skipped entirely.
+        if token ~= nil and token.properties ~= nil and (payHero or payFollowers) then
             token:ModifyProperties{
                 description = "Grant respite downtime rolls",
                 execute = function()
@@ -929,9 +982,13 @@ function RSPSession.GrantActivityRolls(amount)
                         return
                     end
 
-                    info:GrantRolls(count)
-                    for _, followerId in ipairs(followerIds) do
-                        info:GrantFollowerRolls(followerId, count)
+                    if payHero then
+                        info:GrantRolls(count)
+                    end
+                    if payFollowers then
+                        for _, followerId in ipairs(followerIds) do
+                            info:GrantFollowerRolls(followerId, followerCount)
+                        end
                     end
                 end,
             }

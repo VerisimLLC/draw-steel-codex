@@ -48,7 +48,7 @@ end
 --- @return Panel
 function CBKitDetail._overviewPanel()
 
-    local BEASTHEART_CLASS_ID = "9a583e69-2775-4b39-a52d-1b1dce0dd39e"
+    local BEASTHEART_CLASS_ID = "0380181e-acad-4cdb-ae6d-c7cd11df6ad2"
     local COMPANION_DEFAULT_MELEE_TEXT = "+0/+0/+4"
 
     local function isBeastheartHero(hero)

@@ -51,7 +51,7 @@ function DTDirectorPanel:_buildMainPanel()
         refreshGame = function(element)
             directorPanel:_refreshPanelContent(element)
         end,
-        self:_buildContentPanel(),
+        self:_buildContentPanel(),
     }
 end
 
@@ -223,7 +223,7 @@ function DTDirectorPanel:_buildCharacterHeader(characterInfo, contentPanel, tabT
                     character:ShowSheet("Downtime")
                 end
             end
-        },
+        },
     }
 end
 
@@ -269,7 +269,7 @@ function DTDirectorPanel:_buildProjectDetail(projectEntry, tabType)
             valign = "center",
             hmargin = 20,
             wrap = true,
-        },
+        },
     }
 end
 
@@ -313,7 +313,7 @@ function DTDirectorPanel:_buildCharacterSection(characterInfo, characterProjects
         flow = "vertical",
         valign = "top",
         headerPanel,
-        contentPanel,
+        contentPanel,
     }
 end
 
@@ -509,7 +509,7 @@ function DTDirectorPanel:_buildContentPanel()
             fontSize = 9.5,
             data = {tabName = "Completed"},
             press = function() selectTab("Completed") end,
-        },
+        },
     }
 
     local outerPanel = gui.Panel {
@@ -518,7 +518,7 @@ function DTDirectorPanel:_buildContentPanel()
         flow = "vertical",
         styles = ThemeEngine.GetStyles(),
         tabsPanel,
-        contentPanel,
+        contentPanel,
     }
 
     -- Refresh the cascade when the active theme/scheme changes so the

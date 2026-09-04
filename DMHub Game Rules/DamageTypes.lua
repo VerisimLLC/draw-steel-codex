@@ -50,8 +50,10 @@ dmhub.RegisterEventHandler("refreshTables", function()
 		return
 	end
 
+	--wait for the table to actually have damage types in it. It can show up empty
+	--on the first refresh, which used to leave every damage type dropdown blank.
 	local damageTypesTable = dmhub.GetTable(DamageType.tableName)
-	if damageTypesTable == nil then
+	if damageTypesTable == nil or next(damageTypesTable) == nil then
 		return
 	end
 

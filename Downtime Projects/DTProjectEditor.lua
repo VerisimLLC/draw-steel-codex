@@ -44,7 +44,9 @@ end
 --- Creates the project editor form for a downtime project
 --- @return table panel The form panel with input fields
 function DTProjectEditor:_createProjectForm()
-    local isDM = dmhub.isDM
+    --The Director's controls on a project, which a game may also hand to its
+    --players. Read once per build; the panels rebuild when the sheet refreshes.
+    local canManage = DTCharSheetTab.CanManageProjects()
     local progress = self.project:GetProgress()
 
     local projectFormStyles = {
@@ -588,7 +590,7 @@ function DTProjectEditor:_createProjectForm()
 
     --A project parked at a milestone owes the events table a roll, so the
     --Director gets the dice here rather than having to go and find the table.
-    local eventsRollButton = isDM and gui.Button {
+    local eventsRollButton = canManage and gui.Button {
         classes = {"sizeM", "collapsed"},
         icon = "panels/initiative/initiative-dice.png",
         halign = "right",
@@ -668,7 +670,7 @@ function DTProjectEditor:_createProjectForm()
                         and project ~= nil
                         and project:GetStatus() == DTConstants.STATUS.MILESTONE.key)
                 end,
-                isDM and gui.Dropdown {
+                canManage and gui.Dropdown {
                     classes = {"form"},
                     width = "100%",
                     options = DTHelpers.ListToDropdownOptions(DTConstants.STATUS),
@@ -739,14 +741,14 @@ function DTProjectEditor:_createProjectForm()
             refreshToken = function(element)
                 local project = element.data.getProject(element)
                 local status = project and project:GetStatus()
-                if isDM or status == DTConstants.STATUS.PAUSED.key or status == DTConstants.STATUS.MILESTONE.key then
+                if canManage or status == DTConstants.STATUS.PAUSED.key or status == DTConstants.STATUS.MILESTONE.key then
                     element.text = "Status Reason:"
                 else
                     element.text = ""
                 end
             end
         },
-        isDM and gui.Input {
+        canManage and gui.Input {
             classes = {"form"},
             width = "94%",
             editlag = 0.5,
@@ -809,7 +811,7 @@ function DTProjectEditor:_createProjectForm()
     }
 
     -- Milestone field (label + input + suggestion button, DM only)
-    local milestoneInput = gui.Input {
+    local milestoneInput = canManage and gui.Input {
         classes = {"form"},
         width = "100%",
         textAlignment = "center",
@@ -853,11 +855,11 @@ function DTProjectEditor:_createProjectForm()
                 end)
             end
         end
-    }
+    } or nil
 
     --Carries the width so it can give back the space the suggestion button
     --takes, leaving the field its usual size when there is nothing to suggest.
-    local milestoneInputWrap = gui.Panel {
+    local milestoneInputWrap = canManage and gui.Panel {
         classes = {"milestoneInputWrap"},
         halign = "left",
         valign = "center",
@@ -877,12 +879,12 @@ function DTProjectEditor:_createProjectForm()
                 project ~= nil and DTBusinessRules.CalcNextMilestone(project) ~= nil)
         end,
 milestoneInput,
-    }
+    } or nil
 
     --Fills the milestone in for the Director in one click. The next stop is a
     --function of the goal and the progress, both of which move while the sheet
     --is open, so it is recomputed on every refresh rather than at build time.
-    local milestoneSuggestButton = gui.Button {
+    local milestoneSuggestButton = canManage and gui.Button {
         classes = {"sizeS", "collapsed"},
         icon = "phosphor/book-light.png",
         halign = "right",
@@ -930,13 +932,13 @@ milestoneInput,
                 DTShares.Touch()
             end)
         end
-    }
+    } or nil
 
     --The goal and the progress both move on other clients - a player rolling on
     --a shared project, the Director editing the goal from their own panel - and
     --the downtime settings ping is how those changes reach this sheet. The
     --document is not up when the sheet builds, so the monitor is attached later.
-    local milestoneWatcher = isDM and gui.Panel {
+    local milestoneWatcher = canManage and gui.Panel {
         width = 0,
         height = 0,
         create = function(element)
@@ -954,7 +956,7 @@ milestoneInput,
         end,
     } or nil
 
-    local milestoneField = isDM and gui.Panel {
+    local milestoneField = canManage and gui.Panel {
         width = "98%",
         height = "auto",
         flow = "vertical",
@@ -1508,15 +1510,15 @@ function DTProjectEditor:_createRollsPanel()
                     self:_createRollButton({
                         --The hero owns this project and holds the rolls, so
                         --both sides of the record are the sheet's own token.
-                        confirm = function(rolls, controller, roller)
-                            local token = getToken()
+                        confirm = function(rolls, context, roller)
+                            local token = context.heroToken
                             if token == nil then
                                 return
                             end
 
                             DTProjectEditor.RecordProjectRolls{
                                 projectToken = token,
-                                projectId = controller.data.project:GetID(),
+                                projectId = context.project:GetID(),
                                 rolls = rolls,
                                 rollHolderToken = token,
                                 rollerCharid = roller:GetTokenID(),
@@ -1720,10 +1722,12 @@ function DTProjectEditor:_createRollButton(options)
         end,
 
         refreshToken = function(element)
-            --The roll is addressed to whoever controls the token, which the
-            --Director never is.
+            --The Director always gets this button: the request goes to whoever
+            --controls the token, and the summary window it raises lets them
+            --take the roll themselves. Players get it while the game hands
+            --rolling to them.
             element:SetClass("collapsed",
-                dmhub.isDM or not DTCharSheetTab.RollingFromSheetEnabled())
+                not (dmhub.isDM or DTCharSheetTab.RollingFromSheetEnabled()))
 
             local isEnabled = false
             element.data.tooltipText = "Project not found?"
@@ -1773,14 +1777,34 @@ function DTProjectEditor:_createRollButton(options)
             --brings titles, complications and kit modifiers to bear on them.
             --The roll itself lives in PerformProjectRoll so the Respite can
             --run the same one for a roller it has already chosen.
+            --The roll outlives the sheet - the Director's is closed below - so
+            --the completion path is handed captured values rather than the
+            --controller panel and a fresh getToken(), both of which are gone by
+            --the time the roll comes back.
+            local rollContext = {
+                project = project,
+                heroToken = token,
+            }
+
             local function showRollDialog(roller)
+                --The Director's roll raises the summary window, which is a
+                --floating panel: the full-screen sheet covers it completely.
+                --Scheduled rather than immediate because the context-menu
+                --callers below still touch their popup on this frame.
+                if dmhub.isDM then
+                    dmhub.Schedule(0, function()
+                        if mod.unloaded then return end
+                        dmhub.CloseCharacterSheet()
+                    end)
+                end
+
                 DTProjectEditor.PerformProjectRoll{
                     project = project,
                     roller = roller,
                     heroToken = token,
                     onRolls = function(rolls)
                         if confirmCallback then
-                            confirmCallback(rolls, controller, roller)
+                            confirmCallback(rolls, rollContext, roller)
                         end
                     end,
                 }
@@ -1978,16 +2002,16 @@ function DTProjectEditor:_createSharedProjectButtons(ownerName, ownerId)
         --The progress goes to the project's owner; the roll comes off the
         --roller's own hero, which is the sheet this is being viewed from. On a
         --shared project those are two different people.
-        confirm = function(rolls, controller, roller)
+        confirm = function(rolls, context, roller)
             local ownerToken = dmhub.GetCharacterById(ownerId)
-            local heroToken = getToken()
+            local heroToken = context.heroToken
             if ownerToken == nil or heroToken == nil then
                 return
             end
 
             DTProjectEditor.RecordProjectRolls{
                 projectToken = ownerToken,
-                projectId = controller.data.project:GetID(),
+                projectId = context.project:GetID(),
                 rolls = rolls,
                 rollHolderToken = heroToken,
                 rollerCharid = roller:GetTokenID(),
@@ -2345,7 +2369,7 @@ function DTProjectEditor._createProgressListItem(item, deleteEvent)
                     text = userDisplay,
                 },
             },
-            dmhub.isDM and gui.Button {
+            DTCharSheetTab.CanManageProjects() and gui.Button {
                 classes = {"deleteButton", "sizeXs"},
                 floating = true,
                 halign = "right",
@@ -2419,17 +2443,29 @@ function DTProjectEditor.PerformProjectRoll(args)
     --skills is left empty deliberately. A project does not declare which
     --skills apply, so there is nothing to hint from; the Skilled modifier is
     --offered and the roller ticks it if it applies.
+    local baseTitle = string.format("Project roll - %s", projectTitle)
+
     local options = {
         attrid = attrid,
-        explanation = string.format("Project roll - %s", projectTitle),
-        title = string.format("Project roll - %s", projectTitle),
+        explanation = baseTitle,
+        title = baseTitle,
         skills = {},
         languages = project:GetProjectSourceLanguages(),
         modifiers = {},
-        --Awaited headlessly rather than through the roll summary window, which
-        --would open behind the surface that launched it.
-        silent = true,
+        --The Director rolls through the summary window, which shows the roll
+        --they just asked for and offers Take Roll to make it themselves. A
+        --player has nothing to watch there, so their request is awaited
+        --headlessly as before.
+        silent = not dmhub.isDM,
     }
+
+    --Testing only. Marks the first roll so the OnBeforeRoll hook at the end of
+    --this file can land it on a crit; the mark is dropped after that roll so the
+    --breakthrough is thrown honestly and the chain terminates.
+    if DTConstants.DEBUG_FORCE_CRIT then
+        options.title = baseTitle .. DTConstants.DEBUG_FORCE_CRIT_MARK
+        options.explanation = options.title
+    end
 
     dmhub.Coroutine(function()
         local rolls = {}
@@ -2450,6 +2486,30 @@ function DTProjectEditor.PerformProjectRoll(args)
             if not info.isCrit then
                 break
             end
+
+            --The crit earns another roll, so say so before asking for it: the
+            --prompt is otherwise identical to the one just answered and reads
+            --as the same dice being asked for twice.
+            DramaticBanner.Show{
+                tokenid = rollingToken.charid,
+                text = "Breakthrough!",
+                subtitle = string.format("%s rolled a breakthrough on %s",
+                    roller:GetName(), projectTitle),
+            }
+
+            --Held until the banner has cleared, so the roll dialog does not
+            --open over the announcement meant to explain it.
+            local remaining = DramaticBanner.TimeUntilDone()
+            while remaining > 0 do
+                coroutine.yield(math.min(remaining, 0.1))
+                remaining = DramaticBanner.TimeUntilDone()
+            end
+
+            --Names the next roll for what it is. Carries no forced-crit mark,
+            --so a rigged first roll cannot chain into a rigged second one.
+            local breakthroughTitle = string.format("Breakthrough - %s", projectTitle)
+            options.title = breakthroughTitle
+            options.explanation = breakthroughTitle
         end
 
         if #rolls > 0 and args.onRolls ~= nil then
@@ -2639,9 +2699,29 @@ function DTProjectEditor._respiteProgressBar(project)
     }
 end
 
+local SHARED_BY_NAME_LIMIT = 24
+
+--- Credits the hero who shared a project, beside its title. A long name is cut
+--- and marked so it cannot crowd out the title it sits next to.
+--- @param token nil|CharacterToken the hero the project belongs to
+--- @return string text
+local function SharedByText(token)
+    local name = token ~= nil and token.name or nil
+    if name == nil or name == "" then
+        name = "Unknown Hero"
+    end
+
+    if #name > SHARED_BY_NAME_LIMIT then
+        name = trim(name:sub(1, SHARED_BY_NAME_LIMIT)) .. "..."
+    end
+
+    return string.format("(shared by %s)", name)
+end
+
 --- One project as the Respite shows it: read only, plus a roll button for the
 --- entity the player has selected.
---- @param args table project, ownerToken, heroToken, roller and rollsLeft()
+--- @param args table project, ownerToken, heroToken, roller, rollsLeft() and
+---        shared, which credits the owner beside the title
 --- @return Panel
 function DTProjectEditor._respiteProjectCard(args)
     local project = args.project
@@ -2718,19 +2798,32 @@ function DTProjectEditor._respiteProjectCard(args)
                 width = 34,
                 height = 34,
                 halign = "left",
-                valign = "center",
+                valign = "bottom",
             }),
 
             gui.Label{
                 classes = {"sizeM", "bold"},
-                width = "70%-34",
+                width = "auto",
                 height = "auto",
                 halign = "left",
-                valign = "center",
+                valign = "bottom",
                 hmargin = 8,
                 textWrap = false,
                 text = project:GetTitle(),
             },
+
+            -- Only a shared project names anyone: on a hero's own project the
+            -- owner is the person reading the card.
+            args.shared and gui.Label{
+                classes = {"fg", "sizeS", "noBold"},
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "bottom",
+                italics = true,
+                textWrap = false,
+                text = SharedByText(args.ownerToken),
+            } or nil,
 
             rollButton,
         },
@@ -2796,14 +2889,14 @@ function DTProjectEditor._respiteProjectCards(args)
         local downtimeInfo = heroToken.properties:GetDowntimeInfo()
         if downtimeInfo ~= nil then
             for _, project in ipairs(downtimeInfo:GetSortedProjects() or {}) do
-                entries[#entries + 1] = {project = project, ownerToken = heroToken}
+                entries[#entries + 1] = {project = project, ownerToken = heroToken, shared = false}
             end
         end
 
         for _, shared in ipairs(DTBusinessRules.GetSharedProjectsForRecipient(heroId) or {}) do
             local ownerToken = dmhub.GetCharacterById(shared.ownerId)
             if shared.project ~= nil and ownerToken ~= nil then
-                entries[#entries + 1] = {project = shared.project, ownerToken = ownerToken}
+                entries[#entries + 1] = {project = shared.project, ownerToken = ownerToken, shared = true}
             end
         end
 
@@ -2816,6 +2909,7 @@ function DTProjectEditor._respiteProjectCards(args)
                     rollerCharid = args.charid,
                     roller = roller,
                     rollsLeft = rollsLeft,
+                    shared = entry.shared,
                 }
             end
         end
@@ -3315,3 +3409,58 @@ function DTProjectEditor.PaintRespiteDirectorFeed(args)
         list,
     }
 end
+
+--- Testing only, and inert unless DTConstants.DEBUG_FORCE_CRIT is on.
+--- A breakthrough is only reachable on a natural 19+, so there is no practical
+--- way to exercise it by rolling. PerformProjectRoll marks the first roll of a
+--- chain; this lands that roll's dice on 10 and 10, which makes the engine's own
+--- RollUtils.IsCrit fire exactly as it would on an honest crit. Everything
+--- downstream - detection, the re-request, the recorded audit - runs unaltered.
+--- Chained onto any hook already installed rather than replacing it, and the
+--- shim is captured in a _G slot so repeated reloads neither nest nor lose it.
+local function InstallForceCritHook()
+    local rollDialog = rawget(_G, "RollDialog")
+    if rollDialog == nil then
+        return
+    end
+
+    --Capture a genuinely foreign hook once; never capture our own shim.
+    local current = rollDialog.OnBeforeRoll
+    if type(current) == "function" and current ~= rawget(_G, "DTForceCritShim") then
+        _G.DTForceCritPrev = current
+    end
+
+    if rawget(_G, "DTForceCritShim") == nil then
+        _G.DTForceCritShim = function(info)
+            if DTConstants.DEBUG_FORCE_CRIT
+                and info ~= nil
+                and info.rollArgs ~= nil
+                and type(info.description) == "string"
+                and string.find(info.description, DTConstants.DEBUG_FORCE_CRIT_MARK, 1, true) ~= nil then
+
+                --The dice tumble normally and land on these faces, so the
+                --natural roll, tier and crit detection all populate as usual.
+                info.rollArgs.forcedDice = {
+                    {numFaces = 10, result = 10},
+                    {numFaces = 10, result = 10},
+                }
+            end
+
+            local prev = rawget(_G, "DTForceCritPrev")
+            if type(prev) == "function" then
+                return prev(info)
+            end
+            return nil
+        end
+    end
+
+    if rollDialog.OnBeforeRoll ~= _G.DTForceCritShim then
+        rollDialog.OnBeforeRoll = _G.DTForceCritShim
+    end
+end
+
+--RollDialog is defined after this file loads, so the install is deferred.
+dmhub.Schedule(0, function()
+    if mod.unloaded then return end
+    InstallForceCritHook()
+end)

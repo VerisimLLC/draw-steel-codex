@@ -15,6 +15,7 @@
 --- @field selfOrMount CharacterToken (Read-only) If mounted on a token, returns the token mounted on. Otherwise is equal to this token itself.
 --- @field mount nil|CharacterToken The token we are mounted on, if there is one.
 --- @field saddleMount nil|CharacterToken (Read-only) The creature whose saddle this token is sitting in, if any. Unlike mount, which walks the whole chain to the creature at the bottom of it, this is the creature directly underneath us.
+--- @field mountedSaddle nil|number (Read-only) Which saddle this token is sitting in on the creature or object it is mounted on, as an index into that creature's saddles. nil when it is not mounted on anything. Pass it back to ClimbOntoCreature to seat the creature in the same saddle again -- restoring a remembered arrangement, for instance.
 --- @field riders CharacterToken[] (Read-only) The creatures currently sitting in this token's saddles -- riders and creatures that have climbed it. Empty if nothing is riding it.
 --- @field valid boolean (Read-only) true if this token is still valid. If saving a reference to a CharacterToken between frames, this should be checked before using it. It will become invalid if the token is deleted.
 --- @field ModifyProperties @param options {execute: (fun():nil), undoable: nil|boolean, combine: nil|boolean, description: nil|string} This allows you to modify the @see properties of this token and upload it to the cloud. Inside the execute function you supply you should modify the properties of the token. This will observe the changes you make and upload only the diffs. If combine is true the upload will try to occur as a transaction with any other uploads happening this frame. Note that this only uploads the @see properties of the token. It doesn't upload the rest of the token details such as appearance. @see UploadToken to upload the full token.
@@ -119,10 +120,11 @@ function CharacterToken:FindCorpse()
 	-- dummy implementation for documentation purposes only
 end
 
---- ClimbOntoCreature: Put this token into a saddle on another creature, as though it had been dragged onto one -- this is how a creature climbs another creature. A free saddle is used if the creature has one; otherwise an AD-HOC saddle is created for the climber, so a creature with no saddles at all can still be climbed. The ad-hoc saddle exists only while the climber is in it. Returns false if the creature cannot be climbed (it is this token, it is already riding this token, or every saddle is taken).
+--- ClimbOntoCreature: Put this token into a saddle on another creature, as though it had been dragged onto one -- this is how a creature climbs another creature. A free saddle is used if the creature has one; otherwise an AD-HOC saddle is created for the climber, so a creature with no saddles at all can still be climbed. The ad-hoc saddle exists only while the climber is in it. Pass saddleIndex (as read from the climber's mountedSaddle) to ask for a particular saddle -- restoring a remembered arrangement -- and the first free saddle is used instead if that one is out of range or taken. Returns false if the creature cannot be climbed (it is this token, it is already riding this token, or every saddle is taken).
 --- @param mountToken CharacterToken
+--- @param saddleIndex nil|number
 --- @return boolean
-function CharacterToken:ClimbOntoCreature(mountToken)
+function CharacterToken:ClimbOntoCreature(mountToken, saddleIndex)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -327,9 +329,10 @@ end
 
 --- Move
 --- @param loc Loc The location to move to.
---- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures = nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number, freeMovement: nil|boolean}
+--- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures = nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number, freeMovement: nil|boolean, forced: nil|boolean}
 --- jumpHeight (only meaningful with movementType='jump'): the jump distance in tiles; the mover clears height-limited walls up to this many tiles tall.
 --- freeMovement: this move is not the creature's move action, so it is exempt from the strict:movement remaining-budget clamp. Set it for ability-granted shifts and moves.
+--- forced: the creature is being pushed, pulled or slid rather than moving itself. Sets path.forced, which drives opportunity attacks, reaping and aura move damage. A straight-line shove is detected without this.
 --- @return nil|LuaPath
 function CharacterToken:Move(loc, options)
 	-- dummy implementation for documentation purposes only

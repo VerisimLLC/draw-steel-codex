@@ -24,18 +24,9 @@ RuleUtils = {
         return coverInfo == nil or coverInfo.coverModifier < 1
     end,
 
-    --Retarget pickers (Goaded, Meat Shield, ...) redirect a strike from the
-    --creature casting it to a new target. The new target still has to be one
-    --the caster could actually strike: inside the ability's distance and in the
-    --caster's line of effect. This adds a reason for each candidate in
-    --`targets` that fails either check, keyed by charid, in the same shape as
-    --changeTargetReasonedFilters so the picker shows the token greyed out with
-    --that tooltip. Candidates that already carry a reason are left alone.
-    --`range` is in squares (what ActivatedAbility:GetRange returns).
-    --One-line prompt for the retarget picker's cast message, replacing the
-    --generic "Choose a target". Names the striker and the strike's reach when
-    --the picker is limited to the original ability's range (rangeType ==
-    --"ability"), so the player knows why some tokens are greyed out.
+    --Prompt shown when a retarget picker (Goaded, Meat Shield) is limited to the
+    --original strike's range. Names the striker and its reach so the player can
+    --see why some tokens are greyed out.
     RetargetPromptText = function(sourceToken, range, rangeType)
         if rangeType ~= "ability" or sourceToken == nil or not sourceToken.valid then
             return "Choose a new target for the strike"
@@ -57,6 +48,9 @@ RuleUtils = {
         return string.format("Choose a new target within %s %s and line of effect of %s", rangeText, unit, sourceName)
     end,
 
+    --Greys out retarget candidates the striker could not actually hit. Adds a
+    --tooltip to `reasons` (charid -> text, the shape changeTargetReasonedFilters
+    --uses) for any target beyond `range` squares or with no line of effect.
     AddRetargetRangeReasons = function(targets, reasons, sourceToken, range)
         if sourceToken == nil or not sourceToken.valid then
             return

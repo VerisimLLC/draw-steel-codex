@@ -12413,7 +12413,7 @@ function creature:HasCondition(conditionid)
         local effectInfo = ongoingEffects[i]
 		if effectInfo.seq > seqFound then
 			local ongoingEffectInfo = ongoingEffectsTable[effectInfo.ongoingEffectid]
-            if ongoingEffectInfo.condition == conditionid then
+            if ongoingEffectInfo ~= nil and ongoingEffectInfo.condition == conditionid then
                 local casterInfo = effectInfo:try_get("casterInfo")
 				seqFound = effectInfo.seq
                 result = (casterInfo and casterInfo.tokenid) or true

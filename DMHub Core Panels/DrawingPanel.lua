@@ -63,6 +63,11 @@ setting{
 			icon = 'panels/hud/icon_line_tool_82.png',
 			help = "Free draw tool",
 		},
+		{
+			value = 'eraser',
+			icon = 'phosphor/eraser-fill.png',
+			help = "Eraser: rub out parts of strokes. Players can only erase their own strokes; the Director can erase anyone's.",
+		},
 	},
 }
 
@@ -89,6 +94,18 @@ setting{
 }
 
 setting{
+    id = "whiteboarderaserwidth",
+    description = "Eraser Size",
+    help = "Size of the eraser",
+    storage = "transient",
+
+    editor = "slider",
+    default = 40,
+    min = 5,
+    max = 100,
+}
+
+setting{
     id = "whiteboardplayeraccess",
     description = "Players Can Draw",
     help = "Allow players to draw on the whiteboard",
@@ -104,9 +121,38 @@ CreateWhiteboardPanel = function()
 
     local resultPanel
 
+    --label-above-control layout, like the Elevation Editor and Map Settings.
+    local stackedOpts = {stacked = true}
+
     local toolPanel = CreateSettingsEditor("whiteboardtool")
-    local colorPanel = CreateSettingsEditor("whiteboardcolor")
-    local widthPanel = CreateSettingsEditor("whiteboardwidth")
+    local colorPanel = CreateSettingsEditor("whiteboardcolor", stackedOpts)
+    local widthPanel = CreateSettingsEditor("whiteboardwidth", stackedOpts)
+    local eraserWidthPanel = CreateSettingsEditor("whiteboarderaserwidth", stackedOpts)
+
+    --The pen's colour/width only matter to the pen and the eraser size only to
+    --the eraser, so each group shows for its own tool.
+    local penOptions = gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        colorPanel,
+        widthPanel,
+    }
+
+    local eraserOptions = gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        eraserWidthPanel,
+    }
+
+    local RefreshToolOptions = function()
+        local eraser = dmhub.GetSettingValue("whiteboardtool") == "eraser"
+        penOptions:SetClass("collapsed", eraser)
+        eraserOptions:SetClass("collapsed", not eraser)
+    end
+
+    RefreshToolOptions()
 
     local GetActiveWhiteboardTool = function()
         if dmhub.isDM == false and not dmhub.GetSettingValue("whiteboardplayeraccess") then
@@ -118,7 +164,11 @@ CreateWhiteboardPanel = function()
                 tool = dmhub.GetSettingValue("whiteboardtool"),
                 color = dmhub.GetSettingValue("whiteboardcolor"),
                 width = dmhub.GetSettingValue("whiteboardwidth")*0.001,
-            } 
+                --the eraser's diameter, in the same units as the pen width
+                --(WhiteboardController.eraserRadius halves it). Scaled 5x
+                --relative to the pen: at the pen's scale it was far too small.
+                eraserWidth = dmhub.GetSettingValue("whiteboarderaserwidth")*0.005,
+            }
         end
 
         return nil
@@ -163,27 +213,52 @@ CreateWhiteboardPanel = function()
             text = "The GM has disabled the whiteboard",
         },
 
-        toolPanel,
-        colorPanel,
-        widthPanel,
-
-        gui.Button{
-            text = "Clear",
-            vmargin = 8,
-            minWidth = 120,
-            click = function(element)
-                whiteboard:ClearMine()
-            end,
+        --the iconbuttons editor has no label of its own; give the tool row
+        --the same stacked heading as the fields below it.
+        gui.Label{
+            classes = {"formStacked", "sizeXs"},
+            width = "98%",
+            hmargin = 2,
+            text = "Tool:",
         },
+        --the iconbuttons row spreads its buttons across whatever width it is
+        --given; box it to the width of its two buttons so they sit together
+        --under the label like the other controls.
+        gui.Panel{
+            width = 90,
+            height = "auto",
+            halign = "left",
+            lmargin = 6,
+            toolPanel,
+        },
+        penOptions,
+        eraserOptions,
 
-        gui.Button{
-            classes = {"hideForPlayers"},
-            text = "Clear Players",
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            halign = "center",
             vmargin = 8,
-            minWidth = 120,
-            click = function(element)
-                whiteboard:ClearOthers()
-            end,
+
+            gui.Button{
+                text = "Clear",
+                hmargin = 4,
+                minWidth = 120,
+                click = function(element)
+                    whiteboard:ClearMine()
+                end,
+            },
+
+            gui.Button{
+                classes = {"hideForPlayers"},
+                text = "Clear Players",
+                hmargin = 4,
+                minWidth = 120,
+                click = function(element)
+                    whiteboard:ClearOthers()
+                end,
+            },
         },
 
 
@@ -224,6 +299,7 @@ CreateWhiteboardPanel = function()
         monitor = function(element)
             printf("MONITOR:: PANEL %s %s", json(dmhub.isDM), json(dmhub.GetSettingValue("whiteboardplayeraccess")))
             RefreshWhiteboardAccess(element)
+            RefreshToolOptions()
         end,
 
         clickpanel = function(element)
@@ -244,7 +320,7 @@ CreateWhiteboardPanel = function()
             end
 
             if not gui.ChildHasFocus(element) then
-                --press the first (only) tool button rather than just focusing the
+                --press the first tool button rather than just focusing the
                 --panel: that selects the free draw tool and takes focus in one go.
                 toolPanel:FireEventTree("pressfirst")
             end
@@ -265,6 +341,11 @@ CreateWhiteboardPanel = function()
         --outside the dock (the document system's PanelDocument bridge), and
         --focus events can fire while detached. Guard like Objects.lua does.
         childfocus = function(element)
+            --Focus IS the whiteboard's armed state, so gaining it is arming:
+            --claim the map so any latched map tool (Map Markup, the Elevation
+            --Editor) puts itself down. See DMHub Core UI/MapToolArbiter.lua.
+            MapTools.Claim("whiteboard")
+
             local dockPanel = element:FindParentWithClass("dockablePanel")
             if dockPanel ~= nil then
                 dockPanel:SetClass("highlightPanel", true)
@@ -272,12 +353,23 @@ CreateWhiteboardPanel = function()
         end,
 
         childdefocus = function(element)
+            MapTools.Release("whiteboard")
+
             local dockPanel = element:FindParentWithClass("dockablePanel")
             if dockPanel ~= nil then
                 dockPanel:SetClass("highlightPanel", false)
             end
         end,
     }
+
+    --Somebody else armed: the whiteboard is focus-armed, so putting it down
+    --means giving up focus. Re-registering on each build is deliberate - the
+    --registry keys by id, so the newest panel instance owns the entry.
+    MapTools.Register("whiteboard", function()
+        if resultPanel ~= nil and resultPanel.valid and gui.ChildHasFocus(resultPanel) then
+            gui.SetFocus(nil)
+        end
+    end)
 
     return resultPanel
 

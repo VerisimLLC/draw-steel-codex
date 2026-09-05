@@ -69,7 +69,7 @@ everyone until explicitly accepted.
 | 26 | 2026-08-26 | Minimize is DROPPED in v1 - the one deliberate capability drop from the 47-item inventory. The docked surface is non-blocking by construction. Revisit if playtests miss it. | The affordance existed to mitigate a fullscreen dialog that no longer exists. |
 | 27 | 2026-08-26 | Phasing = slices S1-S6 as ordered in section 3.7 (card-solo first, then wire, requested tests, shared roster + Accept, resistance rolls, modifier space + retirement). Each slice independently shippable and leaves the app working. | De-risks the new card before the new sync; Howl lands at S5. |
 | 28 | 2026-08-26 (critique) | Host & gate policy: the test card stops counting as a blocking roll dialog once the local player's controls collapse; test/resistance prompts are flagged `parallelWithRollDialog`; an ability cast displaces the card with a "Test pending: <name>" banner and the card re-renders from the doc on teardown; re-roll and Take Roll are IN-CARD transitions (controls (re-)expand in place / inline on the row), never fresh listener prompts; requester-side serialization - no new request sends while this requester has an unresolved one (hold + auto-send on Accept). This SPECIFIES #24's queue promise. | All three critics independently hit this: the old plumbing was safe only because tests lived in a separate singleton dialog. |
-| 29 | 2026-08-26 (critique) | Tier-click guard rails refining #18: pre-roll clicks are a TWO-STEP commit in place (first click highlights + shows an inline "Declare Tier N - no roll" chip, second click commits); post-roll override stays one-step; owners can withdraw their own declaration/override before Accept (attributed); the director's override requires an explicit visible row selection (non-color marker + "Overriding: <name>" line) and table clicks are INERT with no row selected; outcome-text expansion lives ONLY on roster rows (dedicated chevron zone), never on the tier table. | Two critics flagged the unguarded pre-roll click as a blocker (read-gesture collision); the focused-row ambiguity was a mode-error factory. Gesture preserved, accidents prevented. PENDING RICKY: the two-step pre-roll commit slightly softens his "just click it" ask - veto restores one-step. |
+| 29 | 2026-08-26 (critique) | Tier-click guard rails refining #18: pre-roll clicks are a TWO-STEP commit in place (first click highlights + shows an inline "Declare Tier N - no roll" chip, second click commits); post-roll override stays one-step; owners can withdraw their own declaration/override before Accept (attributed); the director's override requires an explicit visible row selection (non-color marker + "Overriding: <name>" line) and table clicks are INERT with no row selected; outcome-text expansion lives ONLY on roster rows (dedicated chevron zone), never on the tier table. | Two critics flagged the unguarded pre-roll click as a blocker (read-gesture collision); the focused-row ambiguity was a mode-error factory. Gesture preserved, accidents prevented. Two-step pre-roll commit confirmed by Ricky. |
 | 30 | 2026-08-26 (critique) | Accept-timing refinements to #13: a row with unresolved after-roll options shows a "Deciding" state and its owner commits with "Keep result" - Accept arms on all-COMMITTED, not all-rolled (rows with no options auto-commit). Accept exists ONLY for requested rolls; solo self-initiated tests apply on dice settle (no roster, no gate). Existing AI/dice-tower auto-proceed maps to auto-commit/auto-Accept. On supersede or fast chaining, clients keep a presentation-only linger of an unread resolved roster until Done or timeout. | Without this, Accept races the after-roll window it exists to protect, solo sheet tests would regress behind a gate, and chained requests would erase resolved state mid-read. |
 | 31 | 2026-08-26 (critique) | Redaction hardening of #25: non-privileged clients see redacted rows with a COLLAPSED state set (Waiting / Rolling / Done only) and value-free attribution ("Director adjusted this result"); full states, values, and attribution render only for the director and the row's owner. Redaction is itself a text+form state (label + placeholder glyph). | The state grammar and attribution lines were a metagame side channel through the redaction. |
 | 32 | 2026-08-26 (critique) | Accessibility & responsiveness contract: all roster/card sizes in em/sp with a declared column-drop order for Font Size 120-140% (bonus column folds into expand first, then dice minis become totals-only) and a 12px base floor; tier is ALWAYS numeral/glyph + position, color reinforcement only; every pulse/flash routes through the animation setting, batch landings coalesce (max one flash/sec); "your roll is pending" and "Accept armed" get persistent VISUAL states (header treatment + icon-rail badge/dock pulse) with sound as reinforcement; director row actions behind a per-row kebab (Take Roll inline only on Disconnected rows), 24px minimum targets, confirm on Re-roll of a Rolled/Overridden row; row grammar is two-layer (glance: portrait/name/state-tier/total; detail on expand: dice, bonus, attribution); landed tier row gets a persistent non-color marker; declined rows show owner-side "Roll anyway" until Accept. Keyboard operability recorded out of scope (framework has no keyboard path). | Consolidated from the accessibility critique; the 140% Font Size failure was a blocker. |
@@ -289,34 +289,27 @@ Font Size 80-140% roster sweep (S1, S4).
 
 ## 6. Implementation log
 
-### S1 - Test card, solo (2026-08-26) - BUILT, live-verified, NOT committed
+### S1 - Test card, solo (2026-08-26) - built and live-verified
 
-- `TestRollCard` game type + `:Render` appended to `Draw Steel Core
-  Rules/MCDMActivatedAbility.lua` (new-file registration tool not exposed by
-  this bridge, so it lives with the card style machinery it reuses:
-  `SpellRenderStyles`, `ActionColorKeyStyles`, the close-button contract).
+- `TestRollCard` game type + `:Render` live in `Draw Steel Core
+  Rules/MCDMActivatedAbility.lua` beside the card style machinery it reuses
+  (`SpellRenderStyles`, `ActionColorKeyStyles`, the close-button contract).
   Band = `ms-action-none` graphite pending Q1.
-- Sidebar branch added in `Timeline/AbilitySidebar.lua` showAbility
-  (TestRollCard renders like TriggeredAbilityDisplay; placed BEFORE the raw
-  `categorization` read, which raises on unknown game-type fields).
-- `Draw Steel Core Rules/MCDMCreature.lua`: new local `ShowSoloTestRoll`
-  helper (queue-wait + card display + embed + ShowDialog with the synthetic
-  single-target tier-refresh plumbing); `ShowCharacteristicRollDialog` and
-  `RollCustomPowerTableTest` are now thin wrappers. The journal path GAINED
-  the Timeline surface, showDialogDuringRoll, amendable, and post-roll tier
-  refresh (it used the legacy centered singleton before). Characteristic
-  tests pass no cardTiers (placeholders not worth showing statically).
-- Live-verified in the Delian Tomb game (Wolf's Den map): Might Test card and
-  Climb the Cliff card both render docked right with band/row/dialog/tiers;
-  cancel via close button tears down card + dialog cleanly; both dialogs
-  cancelled after verification, no rolls thrown.
-- Trap for the next reader: a nil child in a gui.Panel constructor's array
-  part truncates ipairs -- optional children (the skill line) are appended to
-  an args table instead.
-- S1 leftovers: Font Size 80-140% sweep (J gate), theme-switch check, copy
-  pass (K) incl. the "Skills:" line wording, Q1 band color, and Ricky's own
-  field test. The `SKILLED::` debug print in RollCustomPowerTableTest is
-  pre-existing noise, left untouched.
+- `Timeline/AbilitySidebar.lua` showAbility renders a TestRollCard like a
+  TriggeredAbilityDisplay, branching before the raw `categorization` read
+  (which raises on unknown game-type fields).
+- `Draw Steel Core Rules/MCDMCreature.lua`: local `ShowSoloTestRoll` helper
+  (queue-wait + card + embed + ShowDialog with single-target tier refresh);
+  `ShowCharacteristicRollDialog` and `RollCustomPowerTableTest` are thin
+  wrappers over it. The journal path gained the Timeline surface,
+  showDialogDuringRoll, amendable, and post-roll tier refresh. Characteristic
+  tests pass no cardTiers.
+- Verified live: Might Test and Climb the Cliff cards render docked right;
+  close tears down card + dialog cleanly.
+- Gotcha: a nil child in a gui.Panel constructor's array part truncates
+  ipairs, so optional children (the skill line) are appended to an args table.
+- Leftovers: Font Size 80-140% sweep (J gate), theme-switch check, copy pass
+  (K) incl. the "Skills:" line, Q1 band color, field test.
 
 ## Appendix E: Evidence (verified 2026-08-26, file:line anchors from audits)
 

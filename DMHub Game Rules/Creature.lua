@@ -5683,6 +5683,10 @@ function creature:FillTemporalActiveModifiers(result)
                         for i,mod in ipairs(riderInfo.modifiers) do
                             result[#result+1] = {
                                 mod = mod,
+                                --Carried so the roll dialog can say who inflicted the
+                                --condition this rider came in on (see
+                                --CharacterModifier.AppendSourceText).
+                                sourceDescription = v.sourceDescription,
                             }
                         end
                     end

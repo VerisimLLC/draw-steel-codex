@@ -3212,6 +3212,25 @@ function CharacterModifier:GetSummaryText()
 	return string.format("<b>%s</b>--%s", self.name, self.description)
 end
 
+--- Appends "who gave you this" to a modifier tooltip, when we know it. `modContext` is
+--- the entry from creature:GetActiveModifiers(); a modifier that arrived on a condition
+--- rider carries the inflicting condition's sourceDescription (e.g. "Inflicted by Ogre
+--- Goon 2's <b>Grabby Hand</b> ability"). Call it AFTER any GoblinScript interpolation,
+--- so a token name in the source text is never treated as a formula.
+--- Deliberately a static, not a method: a hot reload cannot add methods to modifier
+--- instances that are already deserialized.
+--- @param text string
+--- @param modContext nil|table
+--- @return string
+function CharacterModifier.AppendSourceText(text, modContext)
+	local sourceDescription = modContext ~= nil and modContext.sourceDescription or nil
+	if sourceDescription == nil or sourceDescription == "" then
+		return text
+	end
+
+	return string.format("%s\n%s", text, sourceDescription)
+end
+
 --Below here we have functions that can be called on any modifier to see
 --how it behaves in various circumstances.
 

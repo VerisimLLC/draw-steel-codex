@@ -2222,6 +2222,24 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
                 casterToken.properties:AddAura(auraInstance)
             end,
         }
+
+        --"Until Ability Ends": the aura only illustrates the cast (e.g. the line a
+        --thrown creature flies down), so take it away in the cast's finish
+        --handlers instead of waiting for a turn or round event.
+        if self:try_get("duration") == "endcast" then
+            options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
+            options.OnFinishCastHandlers[#options.OnFinishCastHandlers + 1] = function()
+                if not casterToken.valid then
+                    return
+                end
+                casterToken:ModifyProperties {
+                    description = "Remove Aura",
+                    execute = function()
+                        casterToken.properties:RemoveAura(guid)
+                    end,
+                }
+            end
+        end
     end
 end
 

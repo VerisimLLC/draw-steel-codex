@@ -3358,7 +3358,6 @@ function GameHud.CreateEmbeddedRollDialog()
                         if creature ~= nil then
                             tooltip = StringInterpolateGoblinScript(tooltip, creature)
                         end
-                        --Names the condition/ability this modifier came from, when known.
                         tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
                         for i, justification in ipairs(mod.hint.justification) do
                             tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
@@ -3729,7 +3728,6 @@ function GameHud.CreateEmbeddedRollDialog()
                         if creature ~= nil then
                             tooltip = StringInterpolateGoblinScript(tooltip, creature)
                         end
-                        --Names the condition/ability this modifier came from, when known.
                         tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
                         for i, justification in ipairs(mod.hint.justification) do
                             tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),

@@ -5683,6 +5683,8 @@ function creature:FillTemporalActiveModifiers(result)
                         for i,mod in ipairs(riderInfo.modifiers) do
                             result[#result+1] = {
                                 mod = mod,
+                                --Carried so the roll dialog can name the inflicting ability.
+                                sourceDescription = v.sourceDescription,
                             }
                         end
                     end

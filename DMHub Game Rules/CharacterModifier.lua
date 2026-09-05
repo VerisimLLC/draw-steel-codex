@@ -3212,6 +3212,22 @@ function CharacterModifier:GetSummaryText()
 	return string.format("<b>%s</b>--%s", self.name, self.description)
 end
 
+--- Appends the "Inflicted by X's <b>Y</b> ability" attribution to a modifier tooltip, if
+--- modContext (an entry from creature:GetActiveModifiers()) carries a sourceDescription.
+--- Call AFTER GoblinScript interpolation, so a token name is never parsed as a formula.
+--- Static, not a method: hot reload cannot add methods to already-deserialized modifiers.
+--- @param text string
+--- @param modContext nil|table
+--- @return string
+function CharacterModifier.AppendSourceText(text, modContext)
+	local sourceDescription = modContext ~= nil and modContext.sourceDescription or nil
+	if sourceDescription == nil or sourceDescription == "" then
+		return text
+	end
+
+	return string.format("%s\n%s", text, sourceDescription)
+end
+
 --Below here we have functions that can be called on any modifier to see
 --how it behaves in various circumstances.
 

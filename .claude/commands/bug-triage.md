@@ -18,20 +18,16 @@ Use `<scratch>` for the session scratchpad directory.
 
 ## Steps
 
-1. **Close out merged fix PRs.** Do this FIRST, before the fetch -- it is entirely
-   independent of whether there is new feedback this run, and most runs have none.
-   Preview, then run for real:
+1. **Close out merged fix PRs.** FIRST, before the fetch; it does not depend on new
+   feedback. Preview, then run for real:
    `python3 "<admin>/bug-report-check-prs.py" --dry-run`
-   then the same without `--dry-run`. It asks GitHub what became of every fix PR
-   triage has raised that is still awaiting a merge and, for each one that landed,
-   messages + closes the reporter's ticket, replies in the issue's Discord thread,
-   archives that thread, and marks the issue `fixed`. A PR closed WITHOUT merging is
-   recorded as rejected and nobody is contacted -- that bug is still open.
-   An "archive thread" step reading "no bot token configured" is expected until a
-   Discord bot token is set up; it does not mean the closeout failed.
-   "Nothing to check" is the normal, common output. Each step is recorded as it
-   succeeds, so a partial failure retries safely: if the script exits non-zero, note
-   the failing PRs in your summary and carry on with the rest of the triage.
+   then the same without `--dry-run`. For every triage-raised fix PR still awaiting a
+   merge it asks GitHub what happened; a merged PR gets the reporter's ticket messaged
+   and closed, a reply and archive on the issue's Discord thread, and the issue marked
+   `fixed`. A PR closed without merging is recorded as rejected and nobody is contacted.
+   "Nothing to check" is the normal output; an "archive thread: no bot token configured"
+   line is expected until a bot token exists. Steps are recorded as they succeed, so on
+   a non-zero exit note the failing PRs in your summary and carry on.
 
 2. **Fetch.** Redirect stdout to a file so no stray stderr line corrupts the JSON:
    `python3 "<admin>/bug-report-fetch.py" > <scratch>/fetch.json`
@@ -78,12 +74,10 @@ Use `<scratch>` for the session scratchpad directory.
    `fix` object + analysis body. Dispatch fixers ONE AT A TIME -- they share the
    `/Users/rickywhite/triage` checkouts, so concurrent fixers would collide; never launch two in
    one message. Per result:
-   - `pr` returned: do BOTH of these to that entry in plan.json --
-     (a) append `\n**Fix PR:** <url>` to its `body`, and
-     (b) set its `pr` field to the fixer's returned object verbatim
-     (`{"url","repo","branch","summary"}`).
-     (b) is what registers the PR for merge tracking; without it the PR is linked in
-     Discord but the issue is never closed out when it lands.
+   - `pr` returned: in that plan.json entry, (a) append `\n**Fix PR:** <url>` to its
+     `body` and (b) set its `pr` field to the fixer's returned object verbatim
+     (`{"url","repo","branch","summary"}`). (b) registers the PR for merge tracking;
+     without it the issue is never closed out when the PR lands.
    - `skipped` / `error`: change nothing in the body (the post keeps its "Suggested
      fix" text); record the reason for your summary. Do not retry a skip; retry an
      `error` at most once if it looks transient (network), else move on.

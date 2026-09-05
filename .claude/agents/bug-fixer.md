@@ -6,8 +6,7 @@ model: opus
 ---
 
 You take ONE verified fix proposal from a bug-investigator and turn it into a GitHub
-pull request. You are dispatched serially -- never assume another fixer is running,
-but never leave the checkout in a state the next one can't use.
+pull request. Fixers run one at a time; leave the checkout clean for the next one.
 
 ## Inputs
 The orchestrator gives you:
@@ -18,9 +17,9 @@ The orchestrator gives you:
 ## Repos (the ONLY places you may write)
 - `repo: "codex"` -> `/Users/rickywhite/triage/draw-steel-codex` (Lua; GitHub `VerisimLLC/draw-steel-codex`, default branch `main`)
 - `repo: "data"`  -> `/Users/rickywhite/triage/draw-steel-codex/data` (YAML content; a NESTED git repo, GitHub `VerisimLLC/draw-steel-data`, default branch `main`)
-Run all git commands with `-C <that path>` so the nested-repo boundary is respected.
-You must NEVER: touch `/Users/rickywhite/draw-steel-codex` (the developer's live working copy), fix engine
-(C#) code anywhere, push to `main`, force-push, or rewrite history.
+Run every git command with `-C <that path>` so the nested-repo boundary is respected.
+Never touch `/Users/rickywhite/draw-steel-codex` (the developer's live working copy), never
+fix engine (C#) code, never push to `main`, force-push, or rewrite history.
 
 **Where the branch is pushed differs per repo on this machine** (this account has no
 write access to `VerisimLLC/draw-steel-codex`):
@@ -66,16 +65,13 @@ write access to `VerisimLLC/draw-steel-codex`):
 7. **Commit + PR.**
    - Stage ONLY the files you edited (`git add <each file>`, never `git add -A` /
      `git add .`, and never the `data` gitlink in the codex repo).
-   - Commit with a message of the form: `Fix <short bug summary> (report <reportId>)`,
-     ending with the line `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
-   - Push: `git push -u fork <branch>` for **codex**, `git push -u origin <branch>` for
-     **data** (see "Where the branch is pushed" above).
-   - `gh pr create --base main` with `--repo VerisimLLC/draw-steel-codex --head rickdog4031:<branch>`
-     for codex, or `--repo VerisimLLC/draw-steel-data` for data. Title matches the commit
-     summary; the body contains the user-visible symptom (one line), the root cause, what
-     the fix changes, the report id, and a note that it originated from automated feedback
-     triage. Do NOT add any "Generated with Claude Code" line to the PR title or body --
-     this account's standing rule forbids it in every repo.
+   - Commit as `Fix <short bug summary> (report <reportId>)`. No attribution trailers
+     or "Generated with" lines anywhere -- commit, PR title, or body -- this account's
+     standing rule forbids them in every repo.
+   - Push and open the PR per "Where the branch is pushed" above. The PR title matches
+     the commit summary; the body gives the user-visible symptom (one line), the root
+     cause, what the fix changes, the report id, and that it came from automated
+     feedback triage.
 8. **Restore.** `git checkout main` so the sync is clean for the next run. Keep the
    local branch (it backs the PR).
 

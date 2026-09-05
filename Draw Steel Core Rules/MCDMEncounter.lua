@@ -281,7 +281,7 @@ function Encounter.MainMonster(encounter)
     for i, group in ipairs(encounter.groups) do
         for monsterid, value in pairs(group.monsters) do
             local monster = assets.monsters[monsterid]
-            if mainmonster == nil or monster.properties:EV() > mainmonster.properties:EV() then
+            if monster ~= nil and (mainmonster == nil or monster.properties:EV() > mainmonster.properties:EV()) then
                 mainmonster = monster
             end
         end
@@ -364,10 +364,13 @@ function Encounter.CountEDS(self)
         for monsterid, quantity in pairs(group.monsters) do
             local monster = assets.monsters[monsterid]
 
-            if monster.properties.minion then
-                EDSTotal = EDSTotal + round((assets.monsters[monsterid].properties:EV() * quantity) / 4)
-            else
-                EDSTotal = EDSTotal + (assets.monsters[monsterid].properties:EV() * quantity)
+            if monster ~= nil then
+                local entryEV = monster.properties:EV() * quantity
+                if monster.properties.minion then
+                    entryEV = round(entryEV / 4)
+                end
+
+                EDSTotal = EDSTotal + entryEV
             end
         end
     end

@@ -568,3 +568,138 @@ function ActivatedAbilityJumpBehavior:EditorItems(parentPanel)
     self:FilterEditor(parentPanel, result)
     return result
 end
+
+---------------------------------------------------------------------------
+-- Hop In Place
+--
+-- Plays the ogre-style jump without moving the creature: the token springs up
+-- the screen and drops back onto its own square, with an optional landing
+-- screen shake. Used by abilities like the Ogre malice feature Shockwave
+-- ("jumps and lands on their rear") where nothing relocates and the player
+-- should not be asked to pick a destination.
+--
+-- How it works: token.animation tweens only run inside the engine's scripted
+-- token-animation context, and the only Lua entry point into that context is a
+-- registered teleport style. So the behavior sets the token's teleport style to
+-- the hop, teleports the token to its own square (which the engine happily
+-- animates on every client), then restores the previous style. The shake runs
+-- inside the animation, so each client feels it locally without a broadcast.
+---------------------------------------------------------------------------
+
+local HOP_STYLE = "hopinplace"
+local HOP_STYLE_SHAKE = "hopinplaceshake"
+local HOP_HEIGHT_TILES = 2
+local HOP_UP_SECONDS = 0.35
+local HOP_DOWN_SECONDS = 0.25
+
+local function HopAnimation(shake)
+    return function(token, targetLoc, opts)
+        local anim = token.animation
+        anim:Tween{ translate = targetLoc:dir(0, HOP_HEIGHT_TILES), duration = HOP_UP_SECONDS, easing = "easeOut" }
+        sleep(HOP_UP_SECONDS)
+        anim:Tween{ translate = targetLoc, duration = HOP_DOWN_SECONDS, easing = "easeIn" }
+        sleep(HOP_DOWN_SECONDS)
+        if shake then
+            dmhub.ScreenShake(0.4, 0.5, 12, 90)
+        end
+        sleep(0.1)
+    end
+end
+
+dmhub.tokenAnimations:RegisterTeleport{
+    id = HOP_STYLE,
+    name = "Hop In Place",
+    hidden = true,
+    animation = HopAnimation(false),
+}
+
+dmhub.tokenAnimations:RegisterTeleport{
+    id = HOP_STYLE_SHAKE,
+    name = "Hop In Place (Shake)",
+    hidden = true,
+    animation = HopAnimation(true),
+}
+
+RegisterGameType("ActivatedAbilityHopBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbilityHopBehavior.summary = 'Hop In Place'
+ActivatedAbilityHopBehavior.shake = true
+
+ActivatedAbility.RegisterType
+{
+    id = 'hop_in_place',
+    text = 'Hop In Place',
+    createBehavior = function()
+        return ActivatedAbilityHopBehavior.new{
+            applyto = "caster",
+        }
+    end
+}
+
+--Run the hop on one token. The teleport style change is uploaded first so other
+--clients know which animation to play when the same-square teleport reaches them;
+--the previous style is put back once the hop has had time to finish everywhere.
+local function HopToken(tok, shake)
+    local style = HOP_STYLE
+    if shake then
+        style = HOP_STYLE_SHAKE
+    end
+
+    local previous = tok.teleportAnimation or ""
+    tok.teleportAnimation = style
+    tok:UploadAppearance()
+
+    --A same-square teleport must not read as a real teleport to the rules
+    --(it would end a Grabbed condition, for one).
+    tok.properties._tmp_suppressTeleportEvent = true
+    tok:Teleport(tok.loc)
+    tok.properties._tmp_suppressTeleportEvent = nil
+
+    dmhub.Schedule(HOP_UP_SECONDS + HOP_DOWN_SECONDS + 1, function()
+        if mod.unloaded or not tok.valid then
+            return
+        end
+        if tok.teleportAnimation == style then
+            tok.teleportAnimation = previous
+            tok:UploadAppearance()
+        end
+    end)
+end
+
+function ActivatedAbilityHopBehavior:Cast(ability, casterToken, targets, options)
+    local hopped = false
+    for _, target in ipairs(targets or {}) do
+        local tok = target.token
+        if tok ~= nil and tok.valid then
+            HopToken(tok, self.shake)
+            hopped = true
+        end
+    end
+
+    ability:CommitToPaying(casterToken, options)
+
+    --Hold the cast until the hop lands so whatever follows (a roll dialog, the
+    --burst) appears after the landing rather than mid-air.
+    if hopped and coroutine.isyieldable() then
+        local landAt = dmhub.Time() + HOP_UP_SECONDS + HOP_DOWN_SECONDS
+        while dmhub.Time() < landAt do
+            coroutine.yield(0.05)
+        end
+    end
+end
+
+function ActivatedAbilityHopBehavior:EditorItems(parentPanel)
+    local result = {}
+    self:ApplyToEditor(parentPanel, result)
+    self:FilterEditor(parentPanel, result)
+
+    result[#result + 1] = gui.Check{
+        text = "Shake screen on landing",
+        value = self.shake,
+        change = function(element)
+            self.shake = element.value
+        end,
+    }
+
+    return result
+end

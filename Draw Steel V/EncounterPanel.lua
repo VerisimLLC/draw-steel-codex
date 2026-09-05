@@ -4790,13 +4790,15 @@ CreateEncounterPanel = function()
                     for key, quantity in pairs(monstertable) do
                         local currentmonster = assets.monsters[key]
 
-                        if headmonster == nil then
-                            headmonster = currentmonster
-                        end
+                        if currentmonster ~= nil then
+                            if headmonster == nil then
+                                headmonster = currentmonster
+                            end
 
-                        if currentmonster.properties:EV() > highestev then
-                            highestev = currentmonster.properties:EV()
-                            headmonster = currentmonster
+                            if currentmonster.properties:EV() > highestev then
+                                highestev = currentmonster.properties:EV()
+                                headmonster = currentmonster
+                            end
                         end
                     end
 

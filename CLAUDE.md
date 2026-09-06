@@ -243,7 +243,7 @@ Write comments (and notes on multiline changes) for a junior dev unfamiliar with
 
 ## `Definitions/` Files
 
-These are **LuaLS stub files** (LSP type annotations) for the closed-source DMHub engine API. They define the types and signatures of engine globals but contain only dummy `-- dummy implementation` bodies. Do not add real logic here. When the engine API has a function you want to call, its signature will be in one of these files.
+These are **LuaLS stub files** (LuaCATS annotations, every file `---@meta`) for the closed-source DMHub engine API, generated from the C# bridge attributes by the engine's `LuaDocumentor` -- never hand-edit them, a regen overwrites the folder. When the engine API has a function you want to call, its signature will be in one of these files. How the stubs, the `GameType` class convention and the checker fit together is in [`../LUA_TYPING_REFERENCE.md`](../LUA_TYPING_REFERENCE.md).
 
 Key stubs:
 - `dmhub.lua` — the main `dmhub` global (game state, tokens, scheduling, file I/O, events)

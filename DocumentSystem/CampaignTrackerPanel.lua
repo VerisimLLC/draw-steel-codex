@@ -550,9 +550,14 @@ end
 
 local function GetSortedSections()
     local result = {}
-    for _, section in pairs(CampaignTracker._sections) do
-        --skip sections whose owning mod has been unloaded.
-        if section.mod == nil or section.mod.unloaded ~= true then
+    for id, section in pairs(CampaignTracker._sections) do
+        if section.mod ~= nil and section.mod.unloaded == true then
+            --the owning mod is gone, so drop the section outright rather than
+            --just skipping it -- otherwise _sections accumulates one dead entry
+            --per module visited for the life of the app session. (Clearing an
+            --existing key during a pairs() traversal is well-defined in Lua.)
+            CampaignTracker._sections[id] = nil
+        else
             result[#result + 1] = section
         end
     end

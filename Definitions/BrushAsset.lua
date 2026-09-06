@@ -1,17 +1,15 @@
---- @class BrushAsset:GameAsset Base class for all game assets (images, audio, etc.) stored in the cloud asset system.
---- @field tipAsset any 
---- @field textureAsset any 
+---@meta
+
+--- Base class for all game assets (images, audio, etc.) stored in the cloud asset system.
+--- @class BrushAsset:GameAsset
+--- @field tipAsset ImageAsset
+--- @field textureAsset ImageAsset
 BrushAsset = {}
 
 --- CalculateParameter
---- @param paramid string
+--- @param paramid? string
 --- @return number
-function BrushAsset:CalculateParameter(paramid)
-	-- dummy implementation for documentation purposes only
-end
+function BrushAsset:CalculateParameter(paramid) end
 
 --- OnLoad
---- @return nil
-function BrushAsset:OnLoad()
-	-- dummy implementation for documentation purposes only
-end
+function BrushAsset:OnLoad() end

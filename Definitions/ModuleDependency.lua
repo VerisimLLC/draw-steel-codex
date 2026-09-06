@@ -1,23 +1,19 @@
---- @class ModuleDependency 
+---@meta
+
+--- @class ModuleDependency
 ModuleDependency = {}
 
 --- CompareVersionNum
---- @param a string
---- @param b string
+--- @param a? string
+--- @param b? string
 --- @return number
-function ModuleDependency.CompareVersionNum(a, b)
-	-- dummy implementation for documentation purposes only
-end
+function ModuleDependency.CompareVersionNum(a, b) end
 
 --- Clone
---- @return any
-function ModuleDependency:Clone()
-	-- dummy implementation for documentation purposes only
-end
+--- @return ModuleDependency
+function ModuleDependency:Clone() end
 
 --- Equals
---- @param other any
+--- @param other? ModuleDependency
 --- @return boolean
-function ModuleDependency:Equals(other)
-	-- dummy implementation for documentation purposes only
-end
+function ModuleDependency:Equals(other) end

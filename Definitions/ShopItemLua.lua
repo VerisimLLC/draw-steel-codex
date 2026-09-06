@@ -1,4 +1,7 @@
---- @class ShopItemLua Lua interface for a shop item, providing read/write access to its name, price, images, and other metadata.
+---@meta
+
+--- Lua interface for a shop item, providing read/write access to its name, price, images, and other metadata.
+--- @class ShopItemLua
 --- @field name string The display name of this shop item.
 --- @field details string The detailed description text of this shop item.
 --- @field keywords string Comma-separated keywords for searching.
@@ -22,8 +25,5 @@
 --- @field ctime number The creation timestamp of this shop item.
 ShopItemLua = {}
 
---- Upload: Uploads changes to this shop item to the cloud.
---- @return nil
-function ShopItemLua:Upload()
-	-- dummy implementation for documentation purposes only
-end
+--- Uploads changes to this shop item to the cloud.
+function ShopItemLua:Upload() end

@@ -1,94 +1,64 @@
---- @class StudioDiceInfo 
+---@meta
+
+--- @class StudioDiceInfo
 StudioDiceInfo = {}
 
 --- Save
---- @return nil
-function StudioDiceInfo:Save()
-	-- dummy implementation for documentation purposes only
-end
+function StudioDiceInfo:Save() end
 
 --- WriteTo
---- @param dir string
---- @return nil
-function StudioDiceInfo:WriteTo(dir)
-	-- dummy implementation for documentation purposes only
-end
+--- @param dir? string
+function StudioDiceInfo:WriteTo(dir) end
 
 --- GetSpecialMovement
 --- @return string
-function StudioDiceInfo:GetSpecialMovement()
-	-- dummy implementation for documentation purposes only
-end
+function StudioDiceInfo:GetSpecialMovement() end
 
 --- SetSpecialMovement
---- @param mode string
---- @return nil
-function StudioDiceInfo:SetSpecialMovement(mode)
-	-- dummy implementation for documentation purposes only
-end
+--- @param mode? string
+function StudioDiceInfo:SetSpecialMovement(mode) end
 
 --- GetEventEffect
---- @param ev any
+--- @param ev? any
 --- @return string
-function StudioDiceInfo:GetEventEffect(ev)
-	-- dummy implementation for documentation purposes only
-end
+function StudioDiceInfo:GetEventEffect(ev) end
 
 --- GetEventBinding
---- @param ev any
+--- @param ev? any
 --- @return any
-function StudioDiceInfo:GetEventBinding(ev)
-	-- dummy implementation for documentation purposes only
-end
+function StudioDiceInfo:GetEventBinding(ev) end
 
 --- GetEventBindings
---- @param ev any
---- @return any
-function StudioDiceInfo:GetEventBindings(ev)
-	-- dummy implementation for documentation purposes only
-end
+--- @param ev? any
+--- @return any[]
+function StudioDiceInfo:GetEventBindings(ev) end
 
 --- SetEventEffect
---- @param ev any
---- @param effectName string
---- @return nil
-function StudioDiceInfo:SetEventEffect(ev, effectName)
-	-- dummy implementation for documentation purposes only
-end
+--- @param ev? any
+--- @param effectName? string
+function StudioDiceInfo:SetEventEffect(ev, effectName) end
 
 --- GetEventSoundBinding
---- @param ev any
+--- @param ev? any
 --- @return any
-function StudioDiceInfo:GetEventSoundBinding(ev)
-	-- dummy implementation for documentation purposes only
-end
+function StudioDiceInfo:GetEventSoundBinding(ev) end
 
 --- GetEventSound
---- @param ev any
+--- @param ev? any
 --- @return string
-function StudioDiceInfo:GetEventSound(ev)
-	-- dummy implementation for documentation purposes only
-end
+function StudioDiceInfo:GetEventSound(ev) end
 
 --- SetEventSound
---- @param ev any
---- @param soundEventName string
---- @return nil
-function StudioDiceInfo:SetEventSound(ev, soundEventName)
-	-- dummy implementation for documentation purposes only
-end
+--- @param ev? any
+--- @param soundEventName? string
+function StudioDiceInfo:SetEventSound(ev, soundEventName) end
 
 --- GetEventSoundVolume
---- @param ev any
+--- @param ev? any
 --- @return number
-function StudioDiceInfo:GetEventSoundVolume(ev)
-	-- dummy implementation for documentation purposes only
-end
+function StudioDiceInfo:GetEventSoundVolume(ev) end
 
 --- SetEventSoundVolume
---- @param ev any
---- @param volume number
---- @return nil
-function StudioDiceInfo:SetEventSoundVolume(ev, volume)
-	-- dummy implementation for documentation purposes only
-end
+--- @param ev? any
+--- @param volume? number
+function StudioDiceInfo:SetEventSoundVolume(ev, volume) end

@@ -1,8 +1,7 @@
---- @class LuaObjectReference 
+---@meta
+
+--- @class LuaObjectReference
 LuaObjectReference = {}
 
 --- Destroy
---- @return nil
-function LuaObjectReference:Destroy()
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectReference:Destroy() end

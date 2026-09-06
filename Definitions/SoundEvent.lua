@@ -1,10 +1,10 @@
---- @class SoundEvent 
---- @field assets any 
+---@meta
+
+--- @class SoundEvent
+--- @field assets AudioAsset[]
 SoundEvent = {}
 
 --- Play
---- @param args any
+--- @param args? any
 --- @return any
-function SoundEvent:Play(args)
-	-- dummy implementation for documentation purposes only
-end
+function SoundEvent:Play(args) end

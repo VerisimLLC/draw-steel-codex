@@ -1,26 +1,20 @@
---- @class TilesheetAsset:ImageAsset An image asset stored in the cloud, with support for keywords, color adjustments, and sprite generation.
+---@meta
+
+--- An image asset stored in the cloud, with support for keywords, color adjustments, and sprite generation.
+--- @class TilesheetAsset:ImageAsset
 TilesheetAsset = {}
 
 --- OnBeforeLoadImage
---- @return nil
-function TilesheetAsset:OnBeforeLoadImage()
-	-- dummy implementation for documentation purposes only
-end
+function TilesheetAsset:OnBeforeLoadImage() end
 
 --- GetTilePPU
 --- @return number
-function TilesheetAsset:GetTilePPU()
-	-- dummy implementation for documentation purposes only
-end
+function TilesheetAsset:GetTilePPU() end
 
 --- GetTileScale
 --- @return number
-function TilesheetAsset:GetTileScale()
-	-- dummy implementation for documentation purposes only
-end
+function TilesheetAsset:GetTileScale() end
 
 --- Clone
---- @return any
-function TilesheetAsset:Clone()
-	-- dummy implementation for documentation purposes only
-end
+--- @return TilesheetAsset
+function TilesheetAsset:Clone() end

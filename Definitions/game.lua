@@ -1,4 +1,7 @@
---- @class game Provides access to game state including maps, floors, tokens, and characters.
+---@meta
+
+--- Provides access to game state including maps, floors, tokens, and characters.
+--- @class game
 --- @field currentMap MapManifestLua Gets the current active map.
 --- @field currentMapId string Gets the ID string of the current active map.
 --- @field currentFloorIndex number Gets the zero-based index of the current floor in the map's floor list.
@@ -10,208 +13,144 @@
 --- @field mapFolders MapFolderLua[] Gets a list of all map folders in the current game.
 game = {}
 
---- GetFloor: Gets a floor by its ID. Returns nil if the floor does not exist.
+--- Gets a floor by its ID. Returns nil if the floor does not exist.
 --- @param floorid string|number The floor ID.
 --- @return nil|MapFloorLua
-function game.GetFloor(floorid)
-	-- dummy implementation for documentation purposes only
-end
+function game.GetFloor(floorid) end
 
---- DeleteFloor: Deletes a floor and all its child floors from the current map.
+--- Deletes a floor and all its child floors from the current map.
 --- @param luaFloorid string|number The floor ID to delete.
-function game.DeleteFloor(luaFloorid)
-	-- dummy implementation for documentation purposes only
-end
+function game.DeleteFloor(luaFloorid) end
 
---- PrepareDeleteFloor: Prepares patch and unpatch dictionaries for deleting a floor. Used internally by DeleteFloor.
---- @param floorid string
---- @param evacuationFloor any
---- @param patch any
---- @param unpatch any
---- @return nil
-function game.PrepareDeleteFloor(floorid, evacuationFloor, patch, unpatch)
-	-- dummy implementation for documentation purposes only
-end
+--- Prepares patch and unpatch dictionaries for deleting a floor. Used internally by DeleteFloor.
+--- @param floorid? string
+--- @param evacuationFloor? number?
+--- @param patch? table<string, any>
+--- @param unpatch? table<string, any>
+function game.PrepareDeleteFloor(floorid, evacuationFloor, patch, unpatch) end
 
---- MergeFloors: Merges two floors together, combining their terrain, objects, and raster data. Returns the resulting floor ID.
+--- Merges two floors together, combining their terrain, objects, and raster data. Returns the resulting floor ID.
 --- @param floorid string|number The target floor ID.
 --- @param srcid string|number The source floor ID to merge into the target.
 --- @return string
-function game.MergeFloors(floorid, srcid)
-	-- dummy implementation for documentation purposes only
-end
+function game.MergeFloors(floorid, srcid) end
 
---- PrepareMergeFloors: Prepares patch and unpatch dictionaries for merging two floors. Used internally by MergeFloors.
---- @param groupid string
---- @param floorid string
---- @param srcid string
---- @param patch any
---- @param unpatch any
+--- Prepares patch and unpatch dictionaries for merging two floors. Used internally by MergeFloors.
+--- @param groupid? string
+--- @param floorid? string
+--- @param srcid? string
+--- @param patch? table<string, any>
+--- @param unpatch? table<string, any>
 --- @return string
-function game.PrepareMergeFloors(groupid, floorid, srcid, patch, unpatch)
-	-- dummy implementation for documentation purposes only
-end
+function game.PrepareMergeFloors(groupid, floorid, srcid, patch, unpatch) end
 
---- ChangeMap: Changes the active map, optionally navigating to a specific floor.
+--- Changes the active map, optionally navigating to a specific floor.
 --- @param map MapManifestLua The map to switch to.
 --- @param floor nil|MapFloorLua Optional floor to navigate to.
-function game.ChangeMap(map, floor)
-	-- dummy implementation for documentation purposes only
-end
+function game.ChangeMap(map, floor) end
 
---- FloorIsAboveGround: Returns whether the given floor is above ground level. Accepts a floor ID string, MapFloorLua, or nil for the current floor.
---- @return number
-function game.FloorIsAboveGround()
-	-- dummy implementation for documentation purposes only
-end
+--- Returns whether the given floor is above ground level. Accepts a floor ID string, MapFloorLua, or nil for the current floor.
+--- @param floor nil|string|MapFloorLua
+--- @return boolean
+function game.FloorIsAboveGround(floor) end
 
---- Refresh: Refreshes game details from the server. Options table can specify currentMap, floors, and tokens to selectively refresh.
+--- Refreshes game details from the server. Options table can specify currentMap, floors, and tokens to selectively refresh.
 --- @param options nil|table Optional refresh filters with currentMap (boolean), floors (string[]), and tokens (string[]).
-function game.Refresh(options)
-	-- dummy implementation for documentation purposes only
-end
+function game.Refresh(options) end
 
---- CreateCharacter: Creates a new character of the given type and subtype, returning its ID. Defaults to type 'character' and empty subtype.
+--- Creates a new character of the given type and subtype, returning its ID. Defaults to type 'character' and empty subtype.
 --- @param chartype nil|string The character type, e.g. 'character'.
 --- @param subtype nil|string The character subtype.
 --- @return string
-function game.CreateCharacter(chartype, subtype, locValue)
-	-- dummy implementation for documentation purposes only
-end
+function game.CreateCharacter(chartype, subtype) end
 
---- DeleteCharacters: Deletes multiple characters by their IDs.
+--- Deletes multiple characters by their IDs.
 --- @param charids string[] A table of character ID strings to delete.
-function game.DeleteCharacters(charids)
-	-- dummy implementation for documentation purposes only
-end
+function game.DeleteCharacters(charids) end
 
---- LookupObject: Looks up an object instance on a floor by its floor and object IDs.
+--- Looks up an object instance on a floor by its floor and object IDs.
 --- @param floorid string The floor ID.
 --- @param objectid string The object ID.
 --- @return LuaObjectInstance
-function game.LookupObject(floorid, objectid)
-	-- dummy implementation for documentation purposes only
-end
+function game.LookupObject(floorid, objectid) end
 
---- GetObjectsWithAffinityToCharacter: Gets all objects on visible floors that have an affinity to the specified character.
+--- Gets all objects on visible floors that have an affinity to the specified character.
 --- @param charid string The character ID.
 --- @return table
-function game.GetObjectsWithAffinityToCharacter(charid)
-	-- dummy implementation for documentation purposes only
-end
+function game.GetObjectsWithAffinityToCharacter(charid) end
 
---- GetAurasAtLoc: Gets all auras active at the given location. Returns nil if no auras are found.
---- @param loc LuaLoc The location to query.
+--- Gets all auras active at the given location. Returns nil if no auras are found.
+--- @param loc Loc The location to query.
 --- @return nil|Aura[]
-function game.GetAurasAtLoc(loc)
-	-- dummy implementation for documentation purposes only
-end
+function game.GetAurasAtLoc(loc) end
 
---- GetCharacterById: Gets a character token by its ID. Returns nil if not found.
+--- Gets a character token by its ID. Returns nil if not found.
 --- @param id string The character ID.
---- @return nil|LuaCharacterToken
-function game.GetCharacterById(id)
-	-- dummy implementation for documentation purposes only
-end
+--- @return nil|CharacterToken
+function game.GetCharacterById(id) end
 
---- GetGameGlobalCharacters: Gets a table of all characters that have an owner, keyed by character ID.
---- @return table<string, LuaCharacterToken>
-function game.GetGameGlobalCharacters()
-	-- dummy implementation for documentation purposes only
-end
+--- Gets a table of all characters that have an owner, keyed by character ID.
+--- @return table<string, CharacterToken>
+function game.GetGameGlobalCharacters() end
 
---- GetTokensAtLoc: Gets all character tokens at the given location. Returns nil if none are found.
---- @param loc LuaLoc The location to query.
---- @return nil|LuaCharacterToken[]
-function game.GetTokensAtLoc(loc)
-	-- dummy implementation for documentation purposes only
-end
+--- Gets all character tokens at the given location. Returns nil if none are found.
+--- @param loc Loc The location to query.
+--- @return nil|CharacterToken[]
+function game.GetTokensAtLoc(loc) end
 
---- UnsummonTokens: Removes the specified tokens from the game with an unsummon animation.
+--- Removes the specified tokens from the game with an unsummon animation.
 --- @param tokenidList string[] A table of token ID strings to unsummon.
-function game.UnsummonTokens(tokenidList)
-	-- dummy implementation for documentation purposes only
-end
+function game.UnsummonTokens(tokenidList) end
 
---- SpawnTokenFromBestiaryLocally: Spawns a token from a bestiary entry at the given location locally without uploading. Pass a nil loc to create the character without putting it on a map -- it exists in the game and can be placed later, like any character that hasn't been dropped on the map yet. Returns the created token, or nil if the bestiary entry is not found.
+--- Spawns a token from a bestiary entry at the given location locally without uploading. Pass a nil loc to create the character without putting it on a map -- it exists in the game and can be placed later, like any character that hasn't been dropped on the map yet. Returns the created token, or nil if the bestiary entry is not found.
 --- @param id string The bestiary entry ID.
---- @param loc nil|LuaLoc The location to spawn at, or nil to create the character unplaced.
+--- @param loc nil|Loc The location to spawn at, or nil to create the character unplaced.
 --- @param options nil|table Optional settings; fitLocation (boolean) controls whether the location is adjusted for token size.
---- @return nil|LuaCharacterToken
-function game.SpawnTokenFromBestiaryLocally(id, loc, options)
-	-- dummy implementation for documentation purposes only
-end
+--- @return nil|CharacterToken
+function game.SpawnTokenFromBestiaryLocally(id, loc, options) end
 
---- UpdateCharacterTokens: Forces a refresh of all character token visuals.
---- @return nil
-function game.UpdateCharacterTokens()
-	-- dummy implementation for documentation purposes only
-end
+--- Forces a refresh of all character token visuals.
+function game.UpdateCharacterTokens() end
 
---- GetMap: Gets a map manifest by its ID. Returns nil if not found.
+--- Gets a map manifest by its ID. Returns nil if not found.
 --- @param id string The map ID.
 --- @return nil|MapManifestLua
-function game.GetMap(id)
-	-- dummy implementation for documentation purposes only
-end
+function game.GetMap(id) end
 
---- CreateMapFolder: Creates a new map folder with a default name and appends it after existing folders.
---- @return nil
-function game.CreateMapFolder()
-	-- dummy implementation for documentation purposes only
-end
+--- Creates a new map folder with a default name and appends it after existing folders.
+function game.CreateMapFolder() end
 
---- CreateMap: Creates a new map with the given options and returns its GUID.
+--- Creates a new map with the given options and returns its GUID.
 --- @param options nil|table Optional map creation settings.
-function game.CreateMap(options)
-	-- dummy implementation for documentation purposes only
-end
+--- @return string
+function game.CreateMap(options) end
 
---- DuplicateMap: Asynchronously duplicates a map and calls the callback when complete.
+--- Asynchronously duplicates a map and calls the callback when complete.
 --- @param mapid string The ID of the map to duplicate.
 --- @param oncomplete function Called when duplication is complete.
-function game.DuplicateMap(mapid, oncomplete)
-	-- dummy implementation for documentation purposes only
-end
+function game.DuplicateMap(mapid, oncomplete) end
 
---- BeginRecordingMapModification: Begin recording destructive map modifications (heightmap and terrain edits) into a persistent record. All map edits until EndRecordingMapModification is called are captured so they can be reverted later. Recordings with the same key merge into a single record, grouping the edits of one ability cast.
+--- Begin recording destructive map modifications (heightmap and terrain edits) into a persistent record. All map edits until EndRecordingMapModification is called are captured so they can be reverted later. Recordings with the same key merge into a single record, grouping the edits of one ability cast.
 --- @param options {key: nil|string, name: nil|string, casterid: nil|string, casterName: nil|string, floorid: nil|string, loc: nil|{x: number, y: number}}
-function game.BeginRecordingMapModification(options)
-	-- dummy implementation for documentation purposes only
-end
+function game.BeginRecordingMapModification(options) end
 
---- EndRecordingMapModification: End the active map modification recording, persisting the record if any map edits were captured. Safe to call when no recording is active.
---- @return nil
-function game.EndRecordingMapModification()
-	-- dummy implementation for documentation purposes only
-end
+--- End the active map modification recording, persisting the record if any map edits were captured. Safe to call when no recording is active.
+function game.EndRecordingMapModification() end
 
---- BeginWallVoxelBatch: Begin batching wall-voxel column synchronization. Column terrain operations remain current locally, but their server patches and the expensive map rebuild are deferred until EndWallVoxelBatch. Safe to call when a batch is already active.
---- @return nil
-function game.BeginWallVoxelBatch()
-	-- dummy implementation for documentation purposes only
-end
+--- Begin batching wall-voxel column synchronization. Column terrain operations remain current locally, but their server patches and the expensive map rebuild are deferred until EndWallVoxelBatch. Batches nest: Begin/End are refcounted and only the outermost End publishes, so a helper that batches internally composes with a batched caller. Pair every Begin with an End in the same synchronous burst -- a batch left open is flushed when the next one starts on a later frame, and may not span a coroutine yield.
+function game.BeginWallVoxelBatch() end
 
---- EndWallVoxelBatch: End the active wall-voxel batch, publishing all accumulated terrain-operation edits in one non-undoable patch and rebuilding the map once if any column changed. Safe to call when no batch is active.
---- @return nil
-function game.EndWallVoxelBatch()
-	-- dummy implementation for documentation purposes only
-end
+--- End the active wall-voxel batch. The outermost End publishes all accumulated terrain-operation edits in one non-undoable patch and rebuilds the map once if any column changed; an inner End of a nested batch just decrements the count. Safe to call when no batch is active.
+function game.EndWallVoxelBatch() end
 
---- AddMapModificationVoxel: Attach a wall-voxel object (as returned by floor:SpawnObjectLocal) to the active map modification recording. Wall voxels persist outside the map document, so recordings reference them directly instead of capturing commands; deleting the record destroys whichever of its voxels still survive. No-op if no recording is active.
---- @param obj ObjectInstance The spawned wall-voxel object.
-function game.AddMapModificationVoxel(obj)
-	-- dummy implementation for documentation purposes only
-end
+--- Attach a wall-voxel object (as returned by floor:SpawnObjectLocal) to the active map modification recording. Wall voxels persist outside the map document, so recordings reference them directly instead of capturing commands; deleting the record destroys whichever of its voxels still survive. No-op if no recording is active.
+--- @param obj LuaObjectInstance The spawned wall-voxel object.
+function game.AddMapModificationVoxel(obj) end
 
---- GetMapModifications: Get the recorded map modifications for the current map, sorted newest first. Each entry has id, key, name, casterid, casterName, floorid, x, y, timestamp, count (the number of captured edit commands), voxelCount (wall voxels recorded, for wall-building records), and voxelsRemaining (how many of those voxels still exist on the map).
+--- Get the recorded map modifications for the current map, sorted newest first. Each entry has id, key, name, casterid, casterName, floorid, x, y, timestamp, count (the number of captured edit commands), voxelCount (wall voxels recorded, for wall-building records), and voxelsRemaining (how many of those voxels still exist on the map).
 --- @return {id: string, key: string, name: string, casterid: nil|string, casterName: nil|string, floorid: string, x: number, y: number, timestamp: number, count: number, voxelCount: number, voxelsRemaining: number}[]
-function game.GetMapModifications()
-	-- dummy implementation for documentation purposes only
-end
+function game.GetMapModifications() end
 
---- DeleteMapModification: Revert a recorded map modification, restoring the captured pre-modification state, and delete its record. For wall-building records this destroys whichever recorded wall voxels still survive. Command reverts are a single undoable step (undoing re-applies the modification and restores the record); wall-voxel removal is not undoable.
+--- Revert a recorded map modification, restoring the captured pre-modification state, and delete its record. For wall-building records this destroys whichever recorded wall voxels still survive. Command reverts are a single undoable step (undoing re-applies the modification and restores the record); wall-voxel removal is not undoable.
 --- @param id string The modification record id, as returned by GetMapModifications.
-function game.DeleteMapModification(id)
-	-- dummy implementation for documentation purposes only
-end
+function game.DeleteMapModification(id) end

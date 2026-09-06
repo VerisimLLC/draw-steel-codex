@@ -1,23 +1,16 @@
---- @class LuaCodeModDocumentSnapshot 
+---@meta
+
+--- @class LuaCodeModDocumentSnapshot
 LuaCodeModDocumentSnapshot = {}
 
 --- Transaction
---- @param fn any
---- @return nil
-function LuaCodeModDocumentSnapshot:Transaction(fn)
-	-- dummy implementation for documentation purposes only
-end
+--- @param fn? any
+function LuaCodeModDocumentSnapshot:Transaction(fn) end
 
 --- BeginChange
---- @return nil
-function LuaCodeModDocumentSnapshot:BeginChange()
-	-- dummy implementation for documentation purposes only
-end
+function LuaCodeModDocumentSnapshot:BeginChange() end
 
 --- CompleteChange
---- @param description string
---- @param args any
---- @return nil
-function LuaCodeModDocumentSnapshot:CompleteChange(description, args)
-	-- dummy implementation for documentation purposes only
-end
+--- @param description? string
+--- @param args? any
+function LuaCodeModDocumentSnapshot:CompleteChange(description, args) end

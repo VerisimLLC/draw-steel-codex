@@ -1,67 +1,46 @@
---- @class CodeModInterface 
---- @field isowner boolean 
---- @field canedit boolean 
---- @field modid string 
---- @field unloaded boolean 
+---@meta
+
+--- @class CodeModInterface
+--- @field isowner boolean
+--- @field canedit boolean
+--- @field modid string
+--- @field unloaded boolean
 CodeModInterface = {}
 
 --- GetMod
 --- @return any
-function CodeModInterface:GetMod()
-	-- dummy implementation for documentation purposes only
-end
+function CodeModInterface:GetMod() end
 
 --- RegisterDocumentForCheckpointBackups
---- @param id string
---- @return nil
-function CodeModInterface:RegisterDocumentForCheckpointBackups(id)
-	-- dummy implementation for documentation purposes only
-end
+--- @param id? string
+function CodeModInterface:RegisterDocumentForCheckpointBackups(id) end
 
 --- GetDocumentPath
---- @param id string
+--- @param id? string
 --- @return any
-function CodeModInterface:GetDocumentPath(id)
-	-- dummy implementation for documentation purposes only
-end
+function CodeModInterface:GetDocumentPath(id) end
 
---- GetDocumentSnapshot
---- @return number
-function CodeModInterface.GetDocumentSnapshot()
-	-- dummy implementation for documentation purposes only
-end
+--- Returns a snapshot of one of this mod's documents, creating it from the mod's default document (or an empty table) if it does not exist yet in the game.
+--- @param id string The document id within this mod.
+--- @return LuaCodeModDocumentSnapshot
+function CodeModInterface:GetDocumentSnapshot(id) end
 
 --- OpenDocumentDebugURL
---- @param docid string
---- @return nil
-function CodeModInterface:OpenDocumentDebugURL(docid)
-	-- dummy implementation for documentation purposes only
-end
+--- @param docid? string
+function CodeModInterface:OpenDocumentDebugURL(docid) end
 
 --- SaveDefaultDocuments
---- @param callback any
---- @return nil
-function CodeModInterface:SaveDefaultDocuments(callback)
-	-- dummy implementation for documentation purposes only
-end
+--- @param callback? any
+function CodeModInterface:SaveDefaultDocuments(callback) end
 
 --- CallEnterGame
---- @return nil
-function CodeModInterface:CallEnterGame()
-	-- dummy implementation for documentation purposes only
-end
+function CodeModInterface:CallEnterGame() end
 
 --- GlobalStyle
---- @param t any
---- @return nil
-function CodeModInterface:GlobalStyle(t)
-	-- dummy implementation for documentation purposes only
-end
+--- @param t? any
+function CodeModInterface:GlobalStyle(t) end
 
 --- RecordEventHandlerInstance
---- @param eventName string
---- @param guid string
---- @return nil
-function CodeModInterface:RecordEventHandlerInstance(eventName, guid)
-	-- dummy implementation for documentation purposes only
-end
+--- @param eventName? string
+--- @param guid? string
+function CodeModInterface:RecordEventHandlerInstance(eventName, guid) end

@@ -1,22 +1,17 @@
---- @class previewScene Provides an interface for managing objects and settings in a fake (preview) game environment.
+---@meta
+
+--- Provides an interface for managing objects and settings in a fake (preview) game environment.
+--- @class previewScene
 previewScene = {}
 
---- CreateObject: Creates a new object instance from the given asset ID and adds it to the fake game environment.
+--- Creates a new object instance from the given asset ID and adds it to the fake game environment.
 --- @param assetid string The asset ID of the object to create.
 --- @return LuaObjectInstance
-function previewScene:CreateObject(assetid)
-	-- dummy implementation for documentation purposes only
-end
+function previewScene:CreateObject(assetid) end
 
---- ClearObjects: Removes all objects from the fake game environment.
---- @return nil
-function previewScene:ClearObjects()
-	-- dummy implementation for documentation purposes only
-end
+--- Removes all objects from the fake game environment.
+function previewScene:ClearObjects() end
 
---- SetTimeOfDay: Sets the time of day in the fake game environment, tracking the previous value for transitions.
---- @param id string
---- @return nil
-function previewScene:SetTimeOfDay(id)
-	-- dummy implementation for documentation purposes only
-end
+--- Sets the time of day in the fake game environment, tracking the previous value for transitions.
+--- @param id? string
+function previewScene:SetTimeOfDay(id) end

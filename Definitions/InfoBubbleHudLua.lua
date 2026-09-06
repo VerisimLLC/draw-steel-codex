@@ -1,35 +1,25 @@
---- @class InfoBubbleHudLua 
---- @field id string 
---- @field floorid string 
---- @field sheet any 
---- @field icon string 
---- @field description string 
---- @field document any 
---- @field draggedRecently boolean 
---- @field locked boolean 
+---@meta
+
+--- @class InfoBubbleHudLua
+--- @field id string
+--- @field floorid string
+--- @field sheet any
+--- @field icon string
+--- @field description string
+--- @field document any
+--- @field draggedRecently boolean
+--- @field locked boolean
 InfoBubbleHudLua = {}
 
 --- BeginChanges
---- @return nil
-function InfoBubbleHudLua:BeginChanges()
-	-- dummy implementation for documentation purposes only
-end
+function InfoBubbleHudLua:BeginChanges() end
 
 --- CompleteChanges
---- @param description string
---- @return nil
-function InfoBubbleHudLua:CompleteChanges(description)
-	-- dummy implementation for documentation purposes only
-end
+--- @param description? string
+function InfoBubbleHudLua:CompleteChanges(description) end
 
 --- Delete
---- @return nil
-function InfoBubbleHudLua:Delete()
-	-- dummy implementation for documentation purposes only
-end
+function InfoBubbleHudLua:Delete() end
 
 --- BeginDragging
---- @return nil
-function InfoBubbleHudLua:BeginDragging()
-	-- dummy implementation for documentation purposes only
-end
+function InfoBubbleHudLua:BeginDragging() end

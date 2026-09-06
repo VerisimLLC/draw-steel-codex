@@ -1,4 +1,7 @@
---- @class DiceEventEffectBindingLua A single particle effect bound to a dice lifecycle event, with its own prefab and tunables. One event can have several. Obtain via DiceStudioLua.GetEventEffectList or AddEventEffect.
+---@meta
+
+--- A single particle effect bound to a dice lifecycle event, with its own prefab and tunables. One event can have several. Obtain via DiceStudioLua.GetEventEffectList or AddEventEffect.
+--- @class DiceEventEffectBindingLua
 --- @field effectName string The effect prefab name bound here, or an empty string if this slot is unbound (renders nothing). Set to nil/empty to unbind.
 --- @field enabled boolean Whether this effect fires (true by default). Set false to keep the effect in the list with its tunables but suppress playback.
 --- @field scale number Uniform scale multiplier (1 = authored size).

@@ -1,2 +1,4 @@
---- @class ModuleStats 
+---@meta
+
+--- @class ModuleStats
 ModuleStats = {}

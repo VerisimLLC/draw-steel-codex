@@ -1,2 +1,4 @@
---- @class Option 
+---@meta
+
+--- @class Option
 Option = {}

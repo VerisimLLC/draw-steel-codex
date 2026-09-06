@@ -1,2 +1,4 @@
---- @class ConnectionErrorStatus 
+---@meta
+
+--- @class ConnectionErrorStatus
 ConnectionErrorStatus = {}

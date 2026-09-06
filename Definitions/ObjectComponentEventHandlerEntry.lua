@@ -1,2 +1,4 @@
---- @class ObjectComponentEventHandlerEntry 
+---@meta
+
+--- @class ObjectComponentEventHandlerEntry
 ObjectComponentEventHandlerEntry = {}

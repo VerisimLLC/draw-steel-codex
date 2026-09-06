@@ -1,4 +1,7 @@
---- @class LuaDicePreviewScene Provides control over the dice preview scene used to render dice in a UI context.
+---@meta
+
+--- Provides control over the dice preview scene used to render dice in a UI context.
+--- @class LuaDicePreviewScene
 --- @field assetid string Sets the dice set asset identifier to preview. (Write-only)
 --- @field selectedIndex number The index of the currently selected die in the preview.
 --- @field dragging boolean Sets whether the user is currently dragging a die in the preview. (Write-only)
@@ -12,15 +15,9 @@
 --- @field bgtexture string Sets a background texture by image asset identifier. Set to nil or empty string to hide the background texture. (Write-only)
 LuaDicePreviewScene = {}
 
---- PlayExit: Plays the current preview dice's Exit effect and starts their fade-out over fadeOutDuration seconds (pass <= 0 for the die's default vanish time), e.g. to animate the die out as the shop's featured-dice carousel switches sets.
---- @param fadeOutDuration number
---- @return nil
-function LuaDicePreviewScene:PlayExit(fadeOutDuration)
-	-- dummy implementation for documentation purposes only
-end
+--- Plays the current preview dice's Exit effect and starts their fade-out over fadeOutDuration seconds (pass <= 0 for the die's default vanish time), e.g. to animate the die out as the shop's featured-dice carousel switches sets.
+--- @param fadeOutDuration? number
+function LuaDicePreviewScene:PlayExit(fadeOutDuration) end
 
---- CancelExit: Cancels an in-flight exit fade (see PlayExit): dice that are fading out or have already faded are faded back up to full opacity. No-op when the dice are fully visible, so it is safe to call unconditionally when a view takes over the shared preview scene.
---- @return nil
-function LuaDicePreviewScene:CancelExit()
-	-- dummy implementation for documentation purposes only
-end
+--- Cancels an in-flight exit fade (see PlayExit): dice that are fading out or have already faded are faded back up to full opacity. No-op when the dice are fully visible, so it is safe to call unconditionally when a view takes over the shared preview scene.
+function LuaDicePreviewScene:CancelExit() end

@@ -1,5 +1,7 @@
---- @class LuaObjectKeyFrameData 
---- @field name string 
---- @field animDuration number 
---- @field deltas any 
+---@meta
+
+--- @class LuaObjectKeyFrameData
+--- @field name string
+--- @field animDuration number
+--- @field deltas any
 LuaObjectKeyFrameData = {}

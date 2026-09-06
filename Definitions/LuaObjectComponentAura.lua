@@ -1,2 +1,4 @@
---- @class LuaObjectComponentAura:LuaObjectComponent 
+---@meta
+
+--- @class LuaObjectComponentAura:LuaObjectComponent
 LuaObjectComponentAura = {}

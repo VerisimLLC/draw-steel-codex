@@ -1,3 +1,5 @@
---- @class LuaSheetCheckbox:Panel 
---- @field isChecked any 
+---@meta
+
+--- @class LuaSheetCheckbox:Panel
+--- @field isChecked any
 LuaSheetCheckbox = {}

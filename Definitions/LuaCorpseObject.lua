@@ -1,2 +1,4 @@
---- @class LuaCorpseObject:LuaObjectComponent 
+---@meta
+
+--- @class LuaCorpseObject:LuaObjectComponent
 LuaCorpseObject = {}

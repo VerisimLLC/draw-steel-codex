@@ -1,29 +1,19 @@
---- @class EventSourceLua 
---- @field hasListeners boolean 
+---@meta
+
+--- @class EventSourceLua
+--- @field hasListeners boolean
 EventSourceLua = {}
 
 --- Listen
---- @param panel any
---- @return nil
-function EventSourceLua:Listen(panel)
-	-- dummy implementation for documentation purposes only
-end
+--- @param panel? any
+function EventSourceLua:Listen(panel) end
 
 --- Unlisten
---- @param panel any
---- @return nil
-function EventSourceLua:Unlisten(panel)
-	-- dummy implementation for documentation purposes only
-end
+--- @param panel? any
+function EventSourceLua:Unlisten(panel) end
 
 --- Push
---- @return nil
-function EventSourceLua:Push()
-	-- dummy implementation for documentation purposes only
-end
+function EventSourceLua:Push() end
 
 --- Pop
---- @return nil
-function EventSourceLua:Pop()
-	-- dummy implementation for documentation purposes only
-end
+function EventSourceLua:Pop() end

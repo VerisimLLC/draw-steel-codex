@@ -1,17 +1,16 @@
---- @class TranslationInfo:GameAsset Represents a single translation language pack containing translated string mappings.
+---@meta
+
+--- Represents a single translation language pack containing translated string mappings.
+--- @class TranslationInfo:GameAsset
 --- @field name string The display name of this translation language.
 TranslationInfo = {}
 
---- GetString: Returns the translated string for the given source text, or nil if no translation exists.
+--- Returns the translated string for the given source text, or nil if no translation exists.
 --- @return nil|string
-function TranslationInfo:GetString(from)
-	-- dummy implementation for documentation purposes only
-end
+--- @param from? string
+function TranslationInfo:GetString(from) end
 
---- SetString: Sets or removes the translation for the given source text. Pass nil or empty string to remove a translation.
---- @param from string
---- @param to string
---- @return nil
-function TranslationInfo:SetString(from, to)
-	-- dummy implementation for documentation purposes only
-end
+--- Sets or removes the translation for the given source text. Pass nil or empty string to remove a translation.
+--- @param from? string
+--- @param to? string
+function TranslationInfo:SetString(from, to) end

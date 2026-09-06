@@ -1,22 +1,16 @@
---- @class LuaStopwatch A stopwatch for measuring elapsed time.
+---@meta
+
+--- A stopwatch for measuring elapsed time.
+--- @class LuaStopwatch
 --- @field milliseconds number (Read-only) The number of milliseconds elapsed since the stopwatch was created.
 LuaStopwatch = {}
 
 --- Init
---- @return nil
-function LuaStopwatch:Init()
-	-- dummy implementation for documentation purposes only
-end
+function LuaStopwatch:Init() end
 
---- Stop: Stops the stopwatch from counting further.
---- @return nil
-function LuaStopwatch:Stop()
-	-- dummy implementation for documentation purposes only
-end
+--- Stops the stopwatch from counting further.
+function LuaStopwatch:Stop() end
 
---- Report: Stops the stopwatch and logs the elapsed time with the given label to the debug console.
---- @param str string
---- @return nil
-function LuaStopwatch:Report(str)
-	-- dummy implementation for documentation purposes only
-end
+--- Stops the stopwatch and logs the elapsed time with the given label to the debug console.
+--- @param str? string
+function LuaStopwatch:Report(str) end

@@ -1,2 +1,4 @@
---- @class LuaGoblinScriptDebugEntry 
+---@meta
+
+--- @class LuaGoblinScriptDebugEntry
 LuaGoblinScriptDebugEntry = {}

@@ -1,3 +1,5 @@
---- @class ModalDialogInfo 
---- @field panel any 
+---@meta
+
+--- @class ModalDialogInfo
+--- @field panel any
 ModalDialogInfo = {}

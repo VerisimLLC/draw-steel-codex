@@ -1,21 +1,23 @@
---- @class Style 
+---@meta
+
+--- @class Style: StyleArgs
 --- @field id string The id of the style.
---- @field classes string[] An alias for @see selectors
---- @field selectors string[] The selection criteria by which this style will be applied to panels. A value like {"hover"} means that the style will only apply to panels with the 'hover' class. The panel must match all selected criteria, so {"hover", "active"} means that the panel must have the hover and active classes. Using ~ in front of a class name means the panel must NOT have the class. Using # references a panel's id instead of its class. putting parent: in front of a class means that the panel's parent must have that class. {'parent:hover', 'active', '~icon'} means we only match a panel if the parent has hover, if the panel has the active class and the panel does not have the icon class.
+--- @field classes string|string[] An alias for @see selectors
+--- @field selectors string|string[] The selection criteria by which this style will be applied to panels. A value like {"hover"} means that the style will only apply to panels with the 'hover' class. The panel must match all selected criteria, so {"hover", "active"} means that the panel must have the hover and active classes. Using ~ in front of a class name means the panel must NOT have the class. Using # references a panel's id instead of its class. putting parent: in front of a class means that the panel's parent must have that class. {'parent:hover', 'active', '~icon'} means we only match a panel if the parent has hover, if the panel has the active class and the panel does not have the icon class.
 --- @field borderImage string (write-only) the image to use for the panel's border.
 --- @field bgimageReadable boolean Set this to true if the bgimage specified in this style must be readable. This should be used for panels that have alphaHitTest set to true. Avoid setting this since it has performance implications.
 --- @field bgimage string|boolean The image to set as the background of this panel. May set to true to be a white square (same as 'panels/square.png') or false to make no bgimage. If left unset the panel will not have a background image. Note that the background image is the main display of most panels, so if this is not set the panel will be invisible, though its children may still be visible. This can be set to 'panels/square.png' to set to a plain white square image (which can then have further styling set to it). It can also be set to an image uploaded in a mod, e.g. bgimage = mod.images.myicon
 --- @field blend "blend"|"add"|"premultiplied" The blend mode used when drawing the panel. "blend" (default) = straight-alpha over; "add" = additive; "premultiplied" = premultiplied-alpha over, for images whose texture is already premultiplied (e.g. spine model renders '#spinemodel:...', so their additive parts composite correctly).
---- @field soundEvent any 
+--- @field soundEvent any
 --- @field inherit_selectors boolean (Default=false) If set to true, selectors match if they match any parent. If false, the selectors must match the panel itself, and parent panels are not considered.
 --- @field setting nil|string (write-only) if this is set to the id of a setting, then that setting must be true for this style to apply. Otherwise it will be ignored.
 --- @field priority number (Default=0) the priority of the style compared to other styles. Higher priority styles will be prioritized over lower-priority styles. Note that selfStyle set on a panel is always the highest priority.
 --- @field transitionTime number (Default=0) When this is set to a non zero value, class changes that cause this style to be applied or removed from the panel will transition over this amount of time. For example, if a style is applied that sets opacity = 0 with transitionTime = 1, the panel will fade over the period of a second.
 --- @field easing Easing The easing this panel will use when applying @see transitionTime
---- @field hidden number When set to 1, the panel will be hidden. A hidden panel is completely non-interactive and invisible. All its children will also be hidden. It can still receive programmatic events. A hidden panel still takes up space in the flow.
---- @field collapsed number When set to 1, the panel will be collapsed. A collapsed panel is completely non-interactive and invisible. All its children will also be hidden. It can still receive programmatic events. A collapsed panel differs from a hidden panel in that it does not take up any space.
---- @field fontFace FontFace The font face that will be used for any text displayed on the panel.
---- @field fontSize number (write-only) The font size to use when displaying text on this label. @see minFontSize
+--- @field hidden boolean|number When set to true (or 1), the panel will be hidden. A hidden panel is completely non-interactive and invisible. All its children will also be hidden. It can still receive programmatic events. A hidden panel still takes up space in the flow.
+--- @field collapsed boolean|number When set to true (or 1), the panel will be collapsed. A collapsed panel is completely non-interactive and invisible. All its children will also be hidden. It can still receive programmatic events. A collapsed panel differs from a hidden panel in that it does not take up any space.
+--- @field fontFace FontFace|string The font face that will be used for any text displayed on the panel. FontFace lists the engine's built-in faces; module-supplied fonts are named by their own asset names.
+--- @field fontSize number|string (write-only) The font size to use when displaying text on this label. A string is a percentage of the panel height, e.g. '60%'. @see minFontSize
 --- @field minFontSize nil|number (write-only) If set, the font size used when displaying text will automatically be reduced to make the text fit in the available area. It will be as small as minFontSize if necessary to make all the text display.
 --- @field fontDilate nil|number (write-only) Sets the amount to dilate the font by.
 --- @field fontSoftness nil|number (write-only) Sets the font softness to use.
@@ -75,7 +77,7 @@
 --- @field translate nil|Vector2 The amount to translate the panel. This happens after calculating the panel's normal placement and does not alter the placement calculation of other panels.
 --- @field scale number|Vector2Arg The amount to scale the panel. This does not affect layout or positioning of other panels.
 --- @field uiscale number|Vector2Arg The amount to scale the panel. This DOES affect the panel's calculated size for layout purposes and thus the position of other panels.
---- @field pivot Vector2Arg (default=0.5,0.5) the position around which the panel 
+--- @field pivot Vector2Arg (default=0.5,0.5) the position around which the panel
 --- @field bold boolean Whether to display text as bold. @see fontWeight for more control over a font's weight.
 --- @field underline boolean Whether to display text as underlined.
 --- @field italics boolean Whether to display text as italics.
@@ -103,107 +105,107 @@
 --- @field borderBox boolean (Default=false) When set, the panel uses border-box sizing: the specified width and height include padding. Without this flag (the default content-box behavior), padding is added on top of the specified width/height.
 Style = {}
 
---- @class StyleArgs 
---- @field id nil|string The id of the style.
---- @field classes nil|string[] An alias for @see selectors
---- @field selectors nil|string[] The selection criteria by which this style will be applied to panels. A value like {"hover"} means that the style will only apply to panels with the 'hover' class. The panel must match all selected criteria, so {"hover", "active"} means that the panel must have the hover and active classes. Using ~ in front of a class name means the panel must NOT have the class. Using # references a panel's id instead of its class. putting parent: in front of a class means that the panel's parent must have that class. {'parent:hover', 'active', '~icon'} means we only match a panel if the parent has hover, if the panel has the active class and the panel does not have the icon class.
---- @field borderImage nil|string (write-only) the image to use for the panel's border.
---- @field bgimageReadable nil|boolean Set this to true if the bgimage specified in this style must be readable. This should be used for panels that have alphaHitTest set to true. Avoid setting this since it has performance implications.
---- @field bgimage nil|string|boolean The image to set as the background of this panel. May set to true to be a white square (same as 'panels/square.png') or false to make no bgimage. If left unset the panel will not have a background image. Note that the background image is the main display of most panels, so if this is not set the panel will be invisible, though its children may still be visible. This can be set to 'panels/square.png' to set to a plain white square image (which can then have further styling set to it). It can also be set to an image uploaded in a mod, e.g. bgimage = mod.images.myicon
---- @field blend nil|"blend"|"add"|"premultiplied" The blend mode used when drawing the panel. "blend" (default) = straight-alpha over; "add" = additive; "premultiplied" = premultiplied-alpha over, for images whose texture is already premultiplied (e.g. spine model renders '#spinemodel:...', so their additive parts composite correctly).
---- @field soundEvent nil|any 
---- @field inherit_selectors nil|boolean (Default=false) If set to true, selectors match if they match any parent. If false, the selectors must match the panel itself, and parent panels are not considered.
---- @field setting nil|string (write-only) if this is set to the id of a setting, then that setting must be true for this style to apply. Otherwise it will be ignored.
---- @field priority nil|number (Default=0) the priority of the style compared to other styles. Higher priority styles will be prioritized over lower-priority styles. Note that selfStyle set on a panel is always the highest priority.
---- @field transitionTime nil|number (Default=0) When this is set to a non zero value, class changes that cause this style to be applied or removed from the panel will transition over this amount of time. For example, if a style is applied that sets opacity = 0 with transitionTime = 1, the panel will fade over the period of a second.
---- @field easing nil|Easing The easing this panel will use when applying @see transitionTime
---- @field hidden nil|number When set to 1, the panel will be hidden. A hidden panel is completely non-interactive and invisible. All its children will also be hidden. It can still receive programmatic events. A hidden panel still takes up space in the flow.
---- @field collapsed nil|number When set to 1, the panel will be collapsed. A collapsed panel is completely non-interactive and invisible. All its children will also be hidden. It can still receive programmatic events. A collapsed panel differs from a hidden panel in that it does not take up any space.
---- @field fontFace nil|FontFace The font face that will be used for any text displayed on the panel.
---- @field fontSize nil|number (write-only) The font size to use when displaying text on this label. @see minFontSize
---- @field minFontSize nil|number (write-only) If set, the font size used when displaying text will automatically be reduced to make the text fit in the available area. It will be as small as minFontSize if necessary to make all the text display.
---- @field fontDilate nil|number (write-only) Sets the amount to dilate the font by.
---- @field fontSoftness nil|number (write-only) Sets the font softness to use.
---- @field textAlignment nil|TextAlignment The alignment of the text displayed in this panel.
---- @field textOverflow nil|TextOverflowMode The behavior to use when the text cannot fit in the available area of the panel.
---- @field fontWeight nil|FontWeight The weight of the font to use when displaying text in this panel.
---- @field bgcolor nil|string|Color|NamedColor The color used when rendering the bgimage when displaying this panel. This color will be combined with any color in the bgimage. If you set the color to "white" the bgimage will be drawn without modification. Accepts HTML-style colors, e.g. "#ff0000" -- draw in flat red. "#00ff0088" -- draw in green with partial transparency.
---- @field borderColor nil|string|Color|NamedColor The color of the panel's border.
---- @field textOutlineColor nil|string|Color|NamedColor The color of the panel's text outline. @see textOutlineWidth
---- @field textGlowColor nil|string|Color|NamedColor The color of any text glow
---- @field textGlowPower nil|number The power of the text glow
---- @field textGlowOffset nil|number The offset of the text glow
---- @field textGlowInner nil|number The inner offset of the text glow
---- @field color nil|string|Color|NamedColor The color of text drawn on the panel.
---- @field highlightedColor nil|string|Color|NamedColor The color of text highlighting on the panel.
---- @field scrollHandleColor nil|NamedColor|string|Color The color of the scroll handle.
---- @field halign nil|"left"|"center"|"right" The horizontal alignment of the panel within its parent.
---- @field valign nil|"top"|"center"|"bottom" The vertical alignment of the panel within its parent.
---- @field flow nil|"none"|"horizontal"|"vertical" The method used to position this panel's children. none = the children will be positioned within this panel, based on their @see halign and @see valign. @see hmargin and @see vmargin will be used to keep them away from the edges of the panel. No attempt will be made to stop the child panels from overlapping. horizontal = the panels will be placed in order, left to right. @see valign will be used to control how children are positioned vertically. @see hmargin will be used to decide how much space to place between panels. If @see wrap is true, then if there is not enough space the children will wrap to a new row, otherwise they will overflow the area unless hscroll is set on the panel. Flow of vertical is similar to horizontal except the panels are arranged vertically, top to bottom instead of left to right. Floating child panels will all be placed as though flow = none.
---- @field textWrap nil|boolean If true, text that cannot fit will be wrapped to a new line. If false, text will never be wrapped across multiple lines and @see textOverflow will be used to handle text that doesn't fit in the panel's area.
---- @field wrap nil|boolean If true, then if child panels when @see flow is horizontal or vertical don't fit in the available space, they will be wrapped into columns or rows.
---- @field pad nil|number The padding, in pixels to place round the edge of the panel. Padding is considered part of the panel.
---- @field hpad nil|number The horizontal padding, in pixels to place round the edge of the panel. Padding is considered part of the panel.
---- @field vpad nil|number The vertical padding, in pixels to place round the edge of the panel. Padding is considered part of the panel.
---- @field tpad nil|number The vertical (top) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see vpad and @see pad for the top side.
---- @field bpad nil|number The vertical (bottom) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see vpad and @see pad for the bottom side.
---- @field lpad nil|number The horizontal (left) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see hpad and @see pad for the left side.
---- @field rpad nil|number The horizontal (right) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see hpad and @see pad for the right side.
---- @field margin nil|number The margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of horizontal or vertical.
---- @field hmargin nil|number The horizontal margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of horizontal.
---- @field vmargin nil|number The vertical margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of vertical.
---- @field tmargin nil|number The vertical (top) margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of vertical.
---- @field bmargin nil|number The vertical (bottom) margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of vertical.
---- @field lmargin nil|number The horizontal (left) margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of horizontal.
---- @field rmargin nil|number The horizontal (right) margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of horizontal.
---- @field width nil|"auto"|string|number The width of the panel. If a number, it represents the width in pixels. 'auto' will calculated the width based on any child panels as well as text. A string may also be used, giving the width as a percentage, such as "40%" in which case it is 40% of the width of its parent. A percentage may have a fixed pixel value subtracted from it, such as "100%-40" in which case the width is 100% of the parent width minus 40 pixels. You can also set to a value based on the height, like "50% height" to set the width of the panel to half the height of the panel. "100% height" is a common way to make a panel square. Font-relative forms are also supported: "1.5em" is 1.5 times the panel's computed fontSize multiplied by the user's Font Size setting, and "20sp" is 20 pixels multiplied by the Font Size setting alone -- use these for icons, rows, and gutters that should scale with text. em/sp accept the additive offset ("1.5em+4", "2em-6") but cannot be combined with "available". An em dimension resolves against the fontSize as cascaded when its style rule applies, so set fontSize in the same rule or an earlier (more general) one. The "available" form (e.g. "100% available") makes the panel consume the space left over in the parent after all other children are measured; it works on both axes. On the parent's flow axis, siblings using "available" divide the leftover space proportional to their percentage, which acts as a flex-grow weight: "200% available" takes twice the share of "100% available", and equal percentages split evenly. Each share is clamped by the panel's min/max on that axis, with clamped remainders redistributed to the other "available" siblings. An additive offset applies after distribution ("100% available-8" is the share minus 8 pixels). On the cross axis of a flow parent, or in a flow = "none" parent, there is no sibling competition and "available" stretches to fill the parent's content area (the percentage is ignored). On the flow axis of a wrap container "available" is not supported and falls back to "auto" with a console warning. Note that @see minWidth and @see maxWidth can be used to place lower and upper bounds on width; they accept the same dimension forms as width, not just numbers.
---- @field height nil|"auto"|string|number The height of the panel. @see width for details on usage, including the "available" form, which works the same on both axes.
---- @field minWidth nil|number|string The minimum possible width for this panel. A number is in pixels; a string may use any of the dimension forms accepted by @see width, such as "50%".
---- @field maxWidth nil|number|string The maximum possible width for this panel. A number is in pixels; a string may use any of the dimension forms accepted by @see width, such as "50%".
---- @field minHeight nil|number|string The minimum possible height for this panel. A number is in pixels; a string may use any of the dimension forms accepted by @see height, such as "50%".
---- @field maxHeight nil|number|string The maximum possible height for this panel. A number is in pixels; a string may use any of the dimension forms accepted by @see height, such as "50%".
---- @field brightness nil|number (default=1) The brightness of the panel. A value of above 1 can cause the panel to 'shine' brightly and spill light out over the nearby area.
---- @field hueshift nil|number (default=0) the amount to shift the hue of this panel.
---- @field saturation nil|number (default=1) the saturation to apply to this panel.
---- @field contrast nil|number (default=1) the contrast to apply to this panel.
---- @field inversion nil|number (default=1) the color inversion to apply to this panel.
---- @field opacity nil|number (default=1) the opacity of this panel. Setting this to 1 makes the panel fully opaque, to 0 makes it fully transparent.
---- @field alphaThreshold nil|number (default=nil) If set, when drawing this panel the alpha won't be used to fade the panel, but rather, pixels below this threshold will be fully transparent, and pixels above it will be fully opaque.
---- @field alphaThresholdFade nil|number (default=0) When using @see alphaThreshold, this value determines the alpha range where pixels fade from being fully opaque to fully transparent.
---- @field textOutlineWidth nil|number The width of the outline around text. @see textOutlineColor
---- @field imageRect nil|Vector4Arg (default=nil) when nil, the entire bgimage is drawn. When set to a vector, it specifies the normalized vector (going from (0,0) to (1,1)) within the image that will be drawn.
---- @field rotate nil|number The rotation to apply to this panel, in degrees. Panels will be rotated around their @see pivot.
---- @field rotateNumber nil|number rotation, always as a number.
---- @field edgeFade nil|number The number of pixels at the edge of the panel that the panel fades out.
---- @field x nil|number The amount to translate the panel on the x axis. This happens after calculating the panel's normal placement and does not alter the placement calculation of other panels.
---- @field y nil|number The amount to translate the panel on the y axis. This happens after calculating the panel's normal placement and does not alter the placement calculation of other panels.
---- @field translate nil|Vector2 The amount to translate the panel. This happens after calculating the panel's normal placement and does not alter the placement calculation of other panels.
---- @field scale nil|number|Vector2Arg The amount to scale the panel. This does not affect layout or positioning of other panels.
---- @field uiscale nil|number|Vector2Arg The amount to scale the panel. This DOES affect the panel's calculated size for layout purposes and thus the position of other panels.
---- @field pivot nil|Vector2Arg (default=0.5,0.5) the position around which the panel 
---- @field bold nil|boolean Whether to display text as bold. @see fontWeight for more control over a font's weight.
---- @field underline nil|boolean Whether to display text as underlined.
---- @field italics nil|boolean Whether to display text as italics.
---- @field border nil|number|Vector4 (default=0) When set to a Vector4, the widths of each side are represented. When set to a number, all wides have that width border. @see borderColor
---- @field stretch nil|Vector4 (experimental!) A stretch to apply to the panel, deforming it.
---- @field bgslice nil|Vector4 When set to a Vector4, a rectangle within the normalized coordinates of the bgimage is specified. This inner rectangle will be stretched to fill the panel, while the edges will maintain their width and height.
---- @field cornerRadius nil|number|string|Vector4 (default=0) When set to a number, this controls the rounding of corners when drawing the panel. As an example, if you have a 64x64 panel and set cornerRadius to 32, a perfect circle will be drawn. Setting to a Vector4 will make each corner have a different radius. You can also set to a string with a dimension calculation similar to @see width and @see height. For instance if you have a rectangular panel which is much widget than it is tall, "50% height" will make it perfectly rounded at each end.
---- @field borderWidth nil|number The width of the border. A simpler way of writing @see border.
---- @field borderStyle nil|"solid"|"dashed"|"dotted" (default="solid") How the border line is drawn. "solid" is a continuous band. "dashed" breaks it into rectangular dashes and "dotted" into round dots, both measured as arc length around the panel's perimeter, so the pattern flows continuously through rounded corners (@see cornerRadius). Unless you set @see borderDash and @see borderGap the dash and gap lengths are derived from the border width. Ignored when @see borderImage is set. @see border
---- @field borderDash nil|number The length of each dash (or the diameter of each dot) when @see borderStyle is "dashed" or "dotted". If left unset a default is derived from the border width: twice the width for dashes, exactly the width for dots.
---- @field borderGap nil|number The length of the gap between dashes or dots when @see borderStyle is "dashed" or "dotted". If left unset a default is derived from the border width: one and a half times the width for dashes, exactly the width for dots.
---- @field borderDashPhase nil|number (default=0) Shifts the dash/dot pattern along the panel's perimeter. Animating this over time gives a 'marching ants' effect. @see borderStyle
---- @field gradient nil|Gradient The gradient that will be used when rendering the bgimage for this panel.
---- @field strikethrough nil|boolean Draws text with strikethrough.
---- @field notranslation nil|boolean Will suppress translation of text into other languages for this panel.
---- @field uppercase nil|boolean Text on this panel will be rendered as uppercase.
---- @field lowercase nil|boolean Text on this panel will be rendered as lowercase.
---- @field smallcaps nil|boolean Text on this panel will be rendered as uppercase, with lower case letters displayed in a smaller font size but still uppercase.
---- @field beveledcorners nil|boolean Corners on this panel will be beveled rather than rounded according to cornerRadius.
---- @field gradientMapping nil|boolean Gradients will be mapped based on color values rather than on position within the panel.
---- @field autosizeimage nil|boolean @see width and @see height should both be set to auto to use this field. When set, the size of the panel will be set to the size of the bgimage. @see minWidth, @see maxWidth, @see minHeight, @see maxHeight will all still be respected, and the dimensions of the image will be changed to maintain the aspect ratio of the bgimage. Without this setting the bgimage's dimensions and aspect ratio are ignored and it is made to stretch across the panel.
---- @field borderFade nil|boolean (Default=false) When set, the border will fade out along its dimensions.
---- @field nostretch nil|boolean (Default=false) When set, the bgimage will not be stretched across the panel. Instead, if the aspect ratio of the panel and the bgimage don't match, only part of the bgimage will be displayed, but it won't be stretched.
---- @field worldspace nil|boolean (Experimental!) If set, the panel is placed in world space rather than in UI space.
---- @field borderBox nil|boolean (Default=false) When set, the panel uses border-box sizing: the specified width and height include padding. Without this flag (the default content-box behavior), padding is added on top of the specified width/height.
+--- @class StyleArgs
+--- @field id? string The id of the style.
+--- @field classes? string|string[] An alias for @see selectors
+--- @field selectors? string|string[] The selection criteria by which this style will be applied to panels. A value like {"hover"} means that the style will only apply to panels with the 'hover' class. The panel must match all selected criteria, so {"hover", "active"} means that the panel must have the hover and active classes. Using ~ in front of a class name means the panel must NOT have the class. Using # references a panel's id instead of its class. putting parent: in front of a class means that the panel's parent must have that class. {'parent:hover', 'active', '~icon'} means we only match a panel if the parent has hover, if the panel has the active class and the panel does not have the icon class.
+--- @field borderImage? string (write-only) the image to use for the panel's border.
+--- @field bgimageReadable? boolean Set this to true if the bgimage specified in this style must be readable. This should be used for panels that have alphaHitTest set to true. Avoid setting this since it has performance implications.
+--- @field bgimage? string|boolean The image to set as the background of this panel. May set to true to be a white square (same as 'panels/square.png') or false to make no bgimage. If left unset the panel will not have a background image. Note that the background image is the main display of most panels, so if this is not set the panel will be invisible, though its children may still be visible. This can be set to 'panels/square.png' to set to a plain white square image (which can then have further styling set to it). It can also be set to an image uploaded in a mod, e.g. bgimage = mod.images.myicon
+--- @field blend? "blend"|"add"|"premultiplied" The blend mode used when drawing the panel. "blend" (default) = straight-alpha over; "add" = additive; "premultiplied" = premultiplied-alpha over, for images whose texture is already premultiplied (e.g. spine model renders '#spinemodel:...', so their additive parts composite correctly).
+--- @field soundEvent? any
+--- @field inherit_selectors? boolean (Default=false) If set to true, selectors match if they match any parent. If false, the selectors must match the panel itself, and parent panels are not considered.
+--- @field setting? nil|string (write-only) if this is set to the id of a setting, then that setting must be true for this style to apply. Otherwise it will be ignored.
+--- @field priority? number (Default=0) the priority of the style compared to other styles. Higher priority styles will be prioritized over lower-priority styles. Note that selfStyle set on a panel is always the highest priority.
+--- @field transitionTime? number (Default=0) When this is set to a non zero value, class changes that cause this style to be applied or removed from the panel will transition over this amount of time. For example, if a style is applied that sets opacity = 0 with transitionTime = 1, the panel will fade over the period of a second.
+--- @field easing? Easing The easing this panel will use when applying @see transitionTime
+--- @field hidden? boolean|number When set to true (or 1), the panel will be hidden. A hidden panel is completely non-interactive and invisible. All its children will also be hidden. It can still receive programmatic events. A hidden panel still takes up space in the flow.
+--- @field collapsed? boolean|number When set to true (or 1), the panel will be collapsed. A collapsed panel is completely non-interactive and invisible. All its children will also be hidden. It can still receive programmatic events. A collapsed panel differs from a hidden panel in that it does not take up any space.
+--- @field fontFace? FontFace|string The font face that will be used for any text displayed on the panel. FontFace lists the engine's built-in faces; module-supplied fonts are named by their own asset names.
+--- @field fontSize? number|string (write-only) The font size to use when displaying text on this label. A string is a percentage of the panel height, e.g. '60%'. @see minFontSize
+--- @field minFontSize? nil|number (write-only) If set, the font size used when displaying text will automatically be reduced to make the text fit in the available area. It will be as small as minFontSize if necessary to make all the text display.
+--- @field fontDilate? nil|number (write-only) Sets the amount to dilate the font by.
+--- @field fontSoftness? nil|number (write-only) Sets the font softness to use.
+--- @field textAlignment? TextAlignment The alignment of the text displayed in this panel.
+--- @field textOverflow? TextOverflowMode The behavior to use when the text cannot fit in the available area of the panel.
+--- @field fontWeight? FontWeight The weight of the font to use when displaying text in this panel.
+--- @field bgcolor? string|ColorArg|NamedColor The color used when rendering the bgimage when displaying this panel. This color will be combined with any color in the bgimage. If you set the color to "white" the bgimage will be drawn without modification. Accepts HTML-style colors, e.g. "#ff0000" -- draw in flat red. "#00ff0088" -- draw in green with partial transparency.
+--- @field borderColor? string|ColorArg|NamedColor The color of the panel's border.
+--- @field textOutlineColor? string|ColorArg|NamedColor The color of the panel's text outline. @see textOutlineWidth
+--- @field textGlowColor? string|ColorArg|NamedColor The color of any text glow
+--- @field textGlowPower? number The power of the text glow
+--- @field textGlowOffset? number The offset of the text glow
+--- @field textGlowInner? number The inner offset of the text glow
+--- @field color? string|ColorArg|NamedColor The color of text drawn on the panel.
+--- @field highlightedColor? string|ColorArg|NamedColor The color of text highlighting on the panel.
+--- @field scrollHandleColor? NamedColor|string|ColorArg The color of the scroll handle.
+--- @field halign? "left"|"center"|"right" The horizontal alignment of the panel within its parent.
+--- @field valign? "top"|"center"|"bottom" The vertical alignment of the panel within its parent.
+--- @field flow? "none"|"horizontal"|"vertical" The method used to position this panel's children. none = the children will be positioned within this panel, based on their @see halign and @see valign. @see hmargin and @see vmargin will be used to keep them away from the edges of the panel. No attempt will be made to stop the child panels from overlapping. horizontal = the panels will be placed in order, left to right. @see valign will be used to control how children are positioned vertically. @see hmargin will be used to decide how much space to place between panels. If @see wrap is true, then if there is not enough space the children will wrap to a new row, otherwise they will overflow the area unless hscroll is set on the panel. Flow of vertical is similar to horizontal except the panels are arranged vertically, top to bottom instead of left to right. Floating child panels will all be placed as though flow = none.
+--- @field textWrap? boolean If true, text that cannot fit will be wrapped to a new line. If false, text will never be wrapped across multiple lines and @see textOverflow will be used to handle text that doesn't fit in the panel's area.
+--- @field wrap? boolean If true, then if child panels when @see flow is horizontal or vertical don't fit in the available space, they will be wrapped into columns or rows.
+--- @field pad? number The padding, in pixels to place round the edge of the panel. Padding is considered part of the panel.
+--- @field hpad? number The horizontal padding, in pixels to place round the edge of the panel. Padding is considered part of the panel.
+--- @field vpad? number The vertical padding, in pixels to place round the edge of the panel. Padding is considered part of the panel.
+--- @field tpad? number The vertical (top) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see vpad and @see pad for the top side.
+--- @field bpad? number The vertical (bottom) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see vpad and @see pad for the bottom side.
+--- @field lpad? number The horizontal (left) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see hpad and @see pad for the left side.
+--- @field rpad? number The horizontal (right) padding, in pixels to place round the edge of the panel. Padding is considered part of the panel. Overrides @see hpad and @see pad for the right side.
+--- @field margin? number The margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of horizontal or vertical.
+--- @field hmargin? number The horizontal margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of horizontal.
+--- @field vmargin? number The vertical margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of vertical.
+--- @field tmargin? number The vertical (top) margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of vertical.
+--- @field bmargin? number The vertical (bottom) margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of vertical.
+--- @field lmargin? number The horizontal (left) margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of horizontal.
+--- @field rmargin? number The horizontal (right) margin, in pixels to place round the edge of the panel. This is the space between the panel and the edge of the parent, as well as the distance from sibling panels when the parent has a @see flow of horizontal.
+--- @field width? "auto"|string|number The width of the panel. If a number, it represents the width in pixels. 'auto' will calculated the width based on any child panels as well as text. A string may also be used, giving the width as a percentage, such as "40%" in which case it is 40% of the width of its parent. A percentage may have a fixed pixel value subtracted from it, such as "100%-40" in which case the width is 100% of the parent width minus 40 pixels. You can also set to a value based on the height, like "50% height" to set the width of the panel to half the height of the panel. "100% height" is a common way to make a panel square. Font-relative forms are also supported: "1.5em" is 1.5 times the panel's computed fontSize multiplied by the user's Font Size setting, and "20sp" is 20 pixels multiplied by the Font Size setting alone -- use these for icons, rows, and gutters that should scale with text. em/sp accept the additive offset ("1.5em+4", "2em-6") but cannot be combined with "available". An em dimension resolves against the fontSize as cascaded when its style rule applies, so set fontSize in the same rule or an earlier (more general) one. The "available" form (e.g. "100% available") makes the panel consume the space left over in the parent after all other children are measured; it works on both axes. On the parent's flow axis, siblings using "available" divide the leftover space proportional to their percentage, which acts as a flex-grow weight: "200% available" takes twice the share of "100% available", and equal percentages split evenly. Each share is clamped by the panel's min/max on that axis, with clamped remainders redistributed to the other "available" siblings. An additive offset applies after distribution ("100% available-8" is the share minus 8 pixels). On the cross axis of a flow parent, or in a flow = "none" parent, there is no sibling competition and "available" stretches to fill the parent's content area (the percentage is ignored). On the flow axis of a wrap container "available" is not supported and falls back to "auto" with a console warning. Note that @see minWidth and @see maxWidth can be used to place lower and upper bounds on width; they accept the same dimension forms as width, not just numbers.
+--- @field height? "auto"|string|number The height of the panel. @see width for details on usage, including the "available" form, which works the same on both axes.
+--- @field minWidth? number|string The minimum possible width for this panel. A number is in pixels; a string may use any of the dimension forms accepted by @see width, such as "50%".
+--- @field maxWidth? number|string The maximum possible width for this panel. A number is in pixels; a string may use any of the dimension forms accepted by @see width, such as "50%".
+--- @field minHeight? number|string The minimum possible height for this panel. A number is in pixels; a string may use any of the dimension forms accepted by @see height, such as "50%".
+--- @field maxHeight? number|string The maximum possible height for this panel. A number is in pixels; a string may use any of the dimension forms accepted by @see height, such as "50%".
+--- @field brightness? number (default=1) The brightness of the panel. A value of above 1 can cause the panel to 'shine' brightly and spill light out over the nearby area.
+--- @field hueshift? number (default=0) the amount to shift the hue of this panel.
+--- @field saturation? number (default=1) the saturation to apply to this panel.
+--- @field contrast? number (default=1) the contrast to apply to this panel.
+--- @field inversion? number (default=1) the color inversion to apply to this panel.
+--- @field opacity? number (default=1) the opacity of this panel. Setting this to 1 makes the panel fully opaque, to 0 makes it fully transparent.
+--- @field alphaThreshold? nil|number (default=nil) If set, when drawing this panel the alpha won't be used to fade the panel, but rather, pixels below this threshold will be fully transparent, and pixels above it will be fully opaque.
+--- @field alphaThresholdFade? number (default=0) When using @see alphaThreshold, this value determines the alpha range where pixels fade from being fully opaque to fully transparent.
+--- @field textOutlineWidth? number The width of the outline around text. @see textOutlineColor
+--- @field imageRect? nil|Vector4Arg (default=nil) when nil, the entire bgimage is drawn. When set to a vector, it specifies the normalized vector (going from (0,0) to (1,1)) within the image that will be drawn.
+--- @field rotate? nil|number The rotation to apply to this panel, in degrees. Panels will be rotated around their @see pivot.
+--- @field rotateNumber? number rotation, always as a number.
+--- @field edgeFade? nil|number The number of pixels at the edge of the panel that the panel fades out.
+--- @field x? nil|number The amount to translate the panel on the x axis. This happens after calculating the panel's normal placement and does not alter the placement calculation of other panels.
+--- @field y? nil|number The amount to translate the panel on the y axis. This happens after calculating the panel's normal placement and does not alter the placement calculation of other panels.
+--- @field translate? nil|Vector2Arg The amount to translate the panel. This happens after calculating the panel's normal placement and does not alter the placement calculation of other panels.
+--- @field scale? number|Vector2Arg The amount to scale the panel. This does not affect layout or positioning of other panels.
+--- @field uiscale? number|Vector2Arg The amount to scale the panel. This DOES affect the panel's calculated size for layout purposes and thus the position of other panels.
+--- @field pivot? Vector2Arg (default=0.5,0.5) the position around which the panel
+--- @field bold? boolean Whether to display text as bold. @see fontWeight for more control over a font's weight.
+--- @field underline? boolean Whether to display text as underlined.
+--- @field italics? boolean Whether to display text as italics.
+--- @field border? number|Vector4Arg (default=0) When set to a Vector4, the widths of each side are represented. When set to a number, all wides have that width border. @see borderColor
+--- @field stretch? nil|Vector4Arg (experimental!) A stretch to apply to the panel, deforming it.
+--- @field bgslice? nil|Vector4Arg When set to a Vector4, a rectangle within the normalized coordinates of the bgimage is specified. This inner rectangle will be stretched to fill the panel, while the edges will maintain their width and height.
+--- @field cornerRadius? number|string|Vector4Arg (default=0) When set to a number, this controls the rounding of corners when drawing the panel. As an example, if you have a 64x64 panel and set cornerRadius to 32, a perfect circle will be drawn. Setting to a Vector4 will make each corner have a different radius. You can also set to a string with a dimension calculation similar to @see width and @see height. For instance if you have a rectangular panel which is much widget than it is tall, "50% height" will make it perfectly rounded at each end.
+--- @field borderWidth? number The width of the border. A simpler way of writing @see border.
+--- @field borderStyle? "solid"|"dashed"|"dotted" (default="solid") How the border line is drawn. "solid" is a continuous band. "dashed" breaks it into rectangular dashes and "dotted" into round dots, both measured as arc length around the panel's perimeter, so the pattern flows continuously through rounded corners (@see cornerRadius). Unless you set @see borderDash and @see borderGap the dash and gap lengths are derived from the border width. Ignored when @see borderImage is set. @see border
+--- @field borderDash? number The length of each dash (or the diameter of each dot) when @see borderStyle is "dashed" or "dotted". If left unset a default is derived from the border width: twice the width for dashes, exactly the width for dots.
+--- @field borderGap? number The length of the gap between dashes or dots when @see borderStyle is "dashed" or "dotted". If left unset a default is derived from the border width: one and a half times the width for dashes, exactly the width for dots.
+--- @field borderDashPhase? number (default=0) Shifts the dash/dot pattern along the panel's perimeter. Animating this over time gives a 'marching ants' effect. @see borderStyle
+--- @field gradient? nil|Gradient The gradient that will be used when rendering the bgimage for this panel.
+--- @field strikethrough? boolean Draws text with strikethrough.
+--- @field notranslation? boolean Will suppress translation of text into other languages for this panel.
+--- @field uppercase? boolean Text on this panel will be rendered as uppercase.
+--- @field lowercase? boolean Text on this panel will be rendered as lowercase.
+--- @field smallcaps? boolean Text on this panel will be rendered as uppercase, with lower case letters displayed in a smaller font size but still uppercase.
+--- @field beveledcorners? boolean Corners on this panel will be beveled rather than rounded according to cornerRadius.
+--- @field gradientMapping? boolean Gradients will be mapped based on color values rather than on position within the panel.
+--- @field autosizeimage? boolean @see width and @see height should both be set to auto to use this field. When set, the size of the panel will be set to the size of the bgimage. @see minWidth, @see maxWidth, @see minHeight, @see maxHeight will all still be respected, and the dimensions of the image will be changed to maintain the aspect ratio of the bgimage. Without this setting the bgimage's dimensions and aspect ratio are ignored and it is made to stretch across the panel.
+--- @field borderFade? boolean (Default=false) When set, the border will fade out along its dimensions.
+--- @field nostretch? boolean (Default=false) When set, the bgimage will not be stretched across the panel. Instead, if the aspect ratio of the panel and the bgimage don't match, only part of the bgimage will be displayed, but it won't be stretched.
+--- @field worldspace? boolean (Experimental!) If set, the panel is placed in world space rather than in UI space.
+--- @field borderBox? boolean (Default=false) When set, the panel uses border-box sizing: the specified width and height include padding. Without this flag (the default content-box behavior), padding is added on top of the specified width/height.
 StyleArgs = {}

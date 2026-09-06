@@ -1,13 +1,13 @@
---- @class ChatMessageShareObjectInfoLua:ChatMessageInfoLua 
---- @field messageType any 
---- @field formattedText any 
---- @field tableid string 
---- @field objectid string 
+---@meta
+
+--- @class ChatMessageShareObjectInfoLua:ChatMessageInfoLua
+--- @field messageType any
+--- @field formattedText any
+--- @field tableid string
+--- @field objectid string
 ChatMessageShareObjectInfoLua = {}
 
 --- SetInfo
---- @param info any
+--- @param info? any
 --- @return boolean
-function ChatMessageShareObjectInfoLua:SetInfo(info)
-	-- dummy implementation for documentation purposes only
-end
+function ChatMessageShareObjectInfoLua:SetInfo(info) end

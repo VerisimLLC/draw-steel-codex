@@ -1,86 +1,59 @@
---- @class LuaSheetMapImport:Panel 
---- @field errorMessage any 
---- @field path any 
---- @field paths any 
+---@meta
+
+--- @class LuaSheetMapImport:Panel
+--- @field errorMessage any
+--- @field path any
+--- @field paths any
 --- @field imageFromId string Set the image to display from a cloud image ID (asset ID or md5:hash). This loads the image from the ImageManager cache instead of a local file path.
---- @field pathIndex any 
---- @field instructionsText any 
---- @field haveConfirm any 
---- @field haveNext any 
---- @field havePrevious any 
---- @field tileDim any 
---- @field error any 
---- @field zoom any 
---- @field tileType any 
---- @field lockDimensions boolean 
---- @field tileScaling number 
---- @field imageDim any 
---- @field imageWidth number 
---- @field imageHeight number 
+--- @field pathIndex any
+--- @field instructionsText any
+--- @field haveConfirm any
+--- @field haveNext any
+--- @field havePrevious any
+--- @field tileDim any
+--- @field error any
+--- @field zoom any
+--- @field tileType any
+--- @field lockDimensions boolean
+--- @field tileScaling number
+--- @field imageDim any
+--- @field imageWidth number
+--- @field imageHeight number
 LuaSheetMapImport = {}
 
 --- Next
---- @return nil
-function LuaSheetMapImport:Next()
-	-- dummy implementation for documentation purposes only
-end
+function LuaSheetMapImport:Next() end
 
 --- Previous
---- @return nil
-function LuaSheetMapImport:Previous()
-	-- dummy implementation for documentation purposes only
-end
+function LuaSheetMapImport:Previous() end
 
 --- Confirm
---- @param callback any
---- @return nil
-function LuaSheetMapImport:Confirm(callback)
-	-- dummy implementation for documentation purposes only
-end
+--- @param callback? any
+function LuaSheetMapImport:Confirm(callback) end
 
 --- SetWidth
---- @param w any
---- @return nil
-function LuaSheetMapImport:SetWidth(w)
-	-- dummy implementation for documentation purposes only
-end
+--- @param w? any
+function LuaSheetMapImport:SetWidth(w) end
 
 --- SetHeight
---- @param h any
---- @return nil
-function LuaSheetMapImport:SetHeight(h)
-	-- dummy implementation for documentation purposes only
-end
+--- @param h? any
+function LuaSheetMapImport:SetHeight(h) end
 
 --- SetMapDimensions
---- @param tilesW any
---- @param tilesH any
---- @return nil
-function LuaSheetMapImport:SetMapDimensions(tilesW, tilesH)
-	-- dummy implementation for documentation purposes only
-end
+--- @param tilesW? any
+--- @param tilesH? any
+function LuaSheetMapImport:SetMapDimensions(tilesW, tilesH) end
 
 --- GetCalibrationData
 --- @return any
-function LuaSheetMapImport:GetCalibrationData()
-	-- dummy implementation for documentation purposes only
-end
+function LuaSheetMapImport:GetCalibrationData() end
 
 --- ApplyCalibrationTo
---- @param targetObj any
---- @return nil
-function LuaSheetMapImport:ApplyCalibrationTo(targetObj)
-	-- dummy implementation for documentation purposes only
-end
+--- @param targetObj? any
+function LuaSheetMapImport:ApplyCalibrationTo(targetObj) end
 
 --- CreateGridless
---- @return nil
-function LuaSheetMapImport:CreateGridless()
-	-- dummy implementation for documentation purposes only
-end
+function LuaSheetMapImport:CreateGridless() end
 
 --- ClearMarkers
---- @return nil
-function LuaSheetMapImport:ClearMarkers()
-	-- dummy implementation for documentation purposes only
-end
+function LuaSheetMapImport:ClearMarkers() end

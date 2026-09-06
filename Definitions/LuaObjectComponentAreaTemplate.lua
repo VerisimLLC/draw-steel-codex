@@ -1,8 +1,8 @@
---- @class LuaObjectComponentAreaTemplate:LuaObjectComponent 
+---@meta
+
+--- @class LuaObjectComponentAreaTemplate:LuaObjectComponent
 LuaObjectComponentAreaTemplate = {}
 
 --- GetFilledLocs
 --- @return any
-function LuaObjectComponentAreaTemplate:GetFilledLocs()
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectComponentAreaTemplate:GetFilledLocs() end

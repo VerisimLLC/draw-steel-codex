@@ -1,17 +1,16 @@
---- @class TileImageAsset:ImageAsset An image asset stored in the cloud, with support for keywords, color adjustments, and sprite generation.
---- @field pivot any 
+---@meta
+
+--- An image asset stored in the cloud, with support for keywords, color adjustments, and sprite generation.
+--- @class TileImageAsset:ImageAsset
+--- @field pivot Loc
 TileImageAsset = {}
 
 --- GetPivot
---- @param tex any
---- @return any
-function TileImageAsset:GetPivot(tex)
-	-- dummy implementation for documentation purposes only
-end
+--- @param tex? any
+--- @return Vector2
+function TileImageAsset:GetPivot(tex) end
 
 --- GetPPU
---- @param tex any
+--- @param tex? any
 --- @return number
-function TileImageAsset:GetPPU(tex)
-	-- dummy implementation for documentation purposes only
-end
+function TileImageAsset:GetPPU(tex) end

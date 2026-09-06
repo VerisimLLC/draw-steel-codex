@@ -1,29 +1,23 @@
---- @class CharacterAppearance 
---- @field effectiveTokenScaling number 
+---@meta
+
+--- @class CharacterAppearance
+--- @field effectiveTokenScaling number
 CharacterAppearance = {}
 
 --- GetPortraitId
 --- @return string
-function CharacterAppearance:GetPortraitId()
-	-- dummy implementation for documentation purposes only
-end
+function CharacterAppearance:GetPortraitId() end
 
 --- GetOffTokenPortraitId
 --- @return string
-function CharacterAppearance:GetOffTokenPortraitId()
-	-- dummy implementation for documentation purposes only
-end
+function CharacterAppearance:GetOffTokenPortraitId() end
 
 --- Equals
---- @param other any
+--- @param other? CharacterAppearance
 --- @return boolean
-function CharacterAppearance:Equals(other)
-	-- dummy implementation for documentation purposes only
-end
+function CharacterAppearance:Equals(other) end
 
 --- SameAsBestiary
---- @param other any
+--- @param other? CharacterAppearance
 --- @return boolean
-function CharacterAppearance:SameAsBestiary(other)
-	-- dummy implementation for documentation purposes only
-end
+function CharacterAppearance:SameAsBestiary(other) end

@@ -1,30 +1,22 @@
---- @class LuaObjectComponentEventHandler:LuaObjectComponent 
+---@meta
+
+--- @class LuaObjectComponentEventHandler:LuaObjectComponent
 LuaObjectComponentEventHandler = {}
 
 --- GetPossibleEvents
 --- @return any
-function LuaObjectComponentEventHandler:GetPossibleEvents()
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectComponentEventHandler:GetPossibleEvents() end
 
 --- GetEventEntry
---- @param eventid string
+--- @param eventid? string
 --- @return any
-function LuaObjectComponentEventHandler:GetEventEntry(eventid)
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectComponentEventHandler:GetEventEntry(eventid) end
 
 --- SetEventEntry
---- @param eventid string
---- @param handled boolean
---- @return nil
-function LuaObjectComponentEventHandler:SetEventEntry(eventid, handled)
-	-- dummy implementation for documentation purposes only
-end
+--- @param eventid? string
+--- @param handled? boolean
+function LuaObjectComponentEventHandler:SetEventEntry(eventid, handled) end
 
 --- TriggerEvent
---- @param eventid string
---- @return nil
-function LuaObjectComponentEventHandler:TriggerEvent(eventid)
-	-- dummy implementation for documentation purposes only
-end
+--- @param eventid? string
+function LuaObjectComponentEventHandler:TriggerEvent(eventid) end

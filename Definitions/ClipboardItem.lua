@@ -1,35 +1,24 @@
---- @class ClipboardItem:ImageAsset An image asset stored in the cloud, with support for keywords, color adjustments, and sprite generation.
---- @field dimensions any 
+---@meta
+
+--- An image asset stored in the cloud, with support for keywords, color adjustments, and sprite generation.
+--- @class ClipboardItem:ImageAsset
+--- @field dimensions any
 ClipboardItem = {}
 
 --- NormalizeErases
---- @return nil
-function ClipboardItem:NormalizeErases()
-	-- dummy implementation for documentation purposes only
-end
+function ClipboardItem:NormalizeErases() end
 
 --- Paste
---- @param options any
---- @return nil
-function ClipboardItem:Paste(options)
-	-- dummy implementation for documentation purposes only
-end
+--- @param options? any
+function ClipboardItem:Paste(options) end
 
 --- GetPivot
---- @param tex any
---- @return any
-function ClipboardItem:GetPivot(tex)
-	-- dummy implementation for documentation purposes only
-end
+--- @param tex? any
+--- @return Vector2
+function ClipboardItem:GetPivot(tex) end
 
 --- Upload
---- @return nil
-function ClipboardItem:Upload()
-	-- dummy implementation for documentation purposes only
-end
+function ClipboardItem:Upload() end
 
 --- Delete
---- @return nil
-function ClipboardItem:Delete()
-	-- dummy implementation for documentation purposes only
-end
+function ClipboardItem:Delete() end

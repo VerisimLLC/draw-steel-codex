@@ -1,24 +1,17 @@
---- @class GameCommand 
---- @field executing boolean 
---- @field busy boolean 
+---@meta
+
+--- @class GameCommand
+--- @field executing boolean
+--- @field busy boolean
 GameCommand = {}
 
 --- AddCommandToGroup
---- @param cmd any
---- @return nil
-function GameCommand:AddCommandToGroup(cmd)
-	-- dummy implementation for documentation purposes only
-end
+--- @param cmd? GameCommand
+function GameCommand:AddCommandToGroup(cmd) end
 
 --- Execute
---- @param isRedo boolean?
---- @return nil
-function GameCommand:Execute(isRedo)
-	-- dummy implementation for documentation purposes only
-end
+--- @param isRedo? boolean
+function GameCommand:Execute(isRedo) end
 
 --- Undo
---- @return nil
-function GameCommand:Undo()
-	-- dummy implementation for documentation purposes only
-end
+function GameCommand:Undo() end

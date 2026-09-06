@@ -1,2 +1,4 @@
---- @class ErrorEntry 
+---@meta
+
+--- @class ErrorEntry
 ErrorEntry = {}

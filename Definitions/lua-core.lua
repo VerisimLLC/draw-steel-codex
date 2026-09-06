@@ -1,3 +1,5 @@
+---@meta
+
 math.randomseed(os.time())
 
 nbsp = '<color=#00000000>.</color>'
@@ -678,6 +680,7 @@ end
 
 setmetatable(_G, {
 	__index = function(_, n)
+		---@diagnostic disable-next-line: undefined-field
 		if dmhub.protectedCode then
 			error("Attempt to read uninitialized variable "..n, 2)
 		end
@@ -714,6 +717,7 @@ function ModifyTokenProperties(token, options)
 	end
 
 	if dmhub.inCoroutine then
+		---@diagnostic disable-next-line: deprecated
 		dmhub.PushNativeCCallCoroutineContext()
 	end
 
@@ -722,6 +726,7 @@ function ModifyTokenProperties(token, options)
 	--now executed any synchronous coroutines that were called while we
 	--were modifying the token properties.
 	if dmhub.inCoroutine then
+		---@diagnostic disable-next-line: deprecated
 		local context = dmhub.PopNativeCCallCoroutineContext()
 		if context ~= nil then
 			while #context > 0 do

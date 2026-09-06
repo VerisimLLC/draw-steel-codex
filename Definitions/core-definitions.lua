@@ -1,8 +1,9 @@
---- @alias integer number
+---@meta
 
 --- @alias Vector2Arg Vector2|{x: number, y: number}
 --- @alias Vector3Arg Vector3|{x: number, y: number, z: number}
 --- @alias Vector4Arg Vector4|{x1: number, x2: number, y1: number, y2: number}
+--- @alias ColorArg Color|string|{r: number, g: number, b: number, a: number?}|{h: number, s: number, v: number, a: number?}
 
 --- @class SettingRef
 SettingRef = {}
@@ -19,7 +20,7 @@ function SettingRef:Set(val)
 end
 
 --- setting: Register a setting.
---- @param info {id: string, description: string, help: string, storage: SettingStorage, enum: {value: any, icon: nil|string, text: nil|string, help: nil|string}[], editor: nil|"slider"|"iconbuttons"|"iconlibrary"|"dropdown"|"check"|"color"}
+--- @param info {id: string, description: string, help: string, storage: SettingStorage, enum: {value: any, icon: nil|string, text: nil|string, help: nil|string}[], editor: nil|"slider"|"sliderexponential"|"iconbuttons"|"iconlibrary"|"dropdown"|"check"|"color"|"text"|"input"|"buttonincrement"}
 function setting(info)
 	--dummy code
 end
@@ -27,7 +28,7 @@ end
 --- A roll definition, from DiceHarness.cs RollInfo.FromLua
 --- @class RollDefinition
 --- @field roll nil|string Either this should be defined, or @see categories
---- @field categories nil|table<string, {mod: nil|number, primary: nil|boolean, typedMods: table<string,int>, attr: table<string,int>, groups: {numDice: nil|number, numFaces: nil|number, numKeep: nil|number, subtract: nil|boolean, multiply: nil|number, }[] }>
+--- @field categories nil|table<string, {mod: nil|number, primary: nil|boolean, typedMods: table<string,integer>, attr: table<string,integer>, groups: {numDice: nil|number, numFaces: nil|number, numKeep: nil|number, subtract: nil|boolean, multiply: nil|number}[] }>
 --- @field amendable nil|boolean Whether this roll is still open to being changed.
 --- @field silent nil|boolean
 --- @field instant nil|boolean

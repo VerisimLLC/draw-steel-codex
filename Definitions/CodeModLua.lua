@@ -1,161 +1,113 @@
---- @class CodeModLua 
---- @field isUsingGit boolean 
+---@meta
+
+--- @class CodeModLua
+--- @field isUsingGit boolean
 --- @field gitFolderPath nil|string The absolute path of this mod's folder in the git working copy, or nil if the mod is not git-mapped.
---- @field unmanagedGitFiles any 
---- @field filesMissingFromGit any 
---- @field dependencies any 
---- @field valid boolean 
---- @field canWrite boolean 
---- @field name string 
---- @field description string 
---- @field resources any 
---- @field isowner boolean 
---- @field canedit boolean 
---- @field files any 
---- @field patches any 
---- @field changelists any 
---- @field checkedout boolean 
---- @field isModified boolean 
---- @field filesThatMayRequireMerge nil|CodeModFileLua[] 
---- @field localChangeEvent any 
---- @field hasLocalChanges boolean 
+--- @field unmanagedGitFiles any
+--- @field filesMissingFromGit any
+--- @field dependencies any
+--- @field valid boolean
+--- @field canWrite boolean
+--- @field name string
+--- @field description string
+--- @field resources any
+--- @field isowner boolean
+--- @field canedit boolean
+--- @field files any
+--- @field patches any
+--- @field changelists any
+--- @field checkedout boolean
+--- @field isModified boolean
+--- @field filesThatMayRequireMerge nil|CodeModFileLua[]
+--- @field localChangeEvent any
+--- @field hasLocalChanges boolean
 CodeModLua = {}
 
 --- ReplicateToGit
---- @return nil
-function CodeModLua:ReplicateToGit()
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:ReplicateToGit() end
 
 --- ReplicateFileToGit
---- @param fname string
+--- @param fname? string
 --- @return boolean
-function CodeModLua:ReplicateFileToGit(fname)
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:ReplicateFileToGit(fname) end
 
 --- AddResource
---- @param p any
---- @return nil
-function CodeModLua:AddResource(p)
-	-- dummy implementation for documentation purposes only
-end
+--- @param p? any
+function CodeModLua:AddResource(p) end
 
 --- ReorderFiles
---- @param a number
---- @param b number
---- @return nil
-function CodeModLua:ReorderFiles(a, b)
-	-- dummy implementation for documentation purposes only
-end
+--- @param a? number
+--- @param b? number
+function CodeModLua:ReorderFiles(a, b) end
 
 --- AddFile
---- @param fname any
---- @return nil
-function CodeModLua:AddFile(fname)
-	-- dummy implementation for documentation purposes only
-end
+--- @param fname? any
+function CodeModLua:AddFile(fname) end
 
---- DeleteFile: Permanently removes a file and its entire revision history from the mod, deletes its local/git working copy from disk if present, records a changelist entry, and uploads the change. Returns true if the file was deleted.
---- @param file any
+--- Permanently removes a file and its entire revision history from the mod, deletes its local/git working copy from disk if present, records a changelist entry, and uploads the change. Returns true if the file was deleted.
+--- @param file? any
 --- @return boolean
-function CodeModLua:DeleteFile(file)
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:DeleteFile(file) end
 
 --- Upload
---- @return nil
-function CodeModLua:Upload()
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:Upload() end
 
 --- RepairLocal
 --- @return boolean
-function CodeModLua:RepairLocal()
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:RepairLocal() end
 
 --- ImportLocal
---- @return nil
-function CodeModLua:ImportLocal()
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:ImportLocal() end
 
 --- DeleteLocalFiles
---- @return nil
-function CodeModLua:DeleteLocalFiles()
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:DeleteLocalFiles() end
 
 --- OpenFile
---- @param file any
+--- @param file? any
 --- @return boolean
-function CodeModLua:OpenFile(file)
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:OpenFile(file) end
 
 --- OpenFileMerge
---- @param file any
+--- @param file? any
 --- @return boolean
-function CodeModLua:OpenFileMerge(file)
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:OpenFileMerge(file) end
 
 --- AcceptFileMerge
---- @param file any
---- @return nil
-function CodeModLua:AcceptFileMerge(file)
-	-- dummy implementation for documentation purposes only
-end
+--- @param file? any
+function CodeModLua:AcceptFileMerge(file) end
 
 --- AutoMergeFile
---- @param file any
+--- @param file? any
 --- @return boolean
-function CodeModLua:AutoMergeFile(file)
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:AutoMergeFile(file) end
 
 --- GetFileMergeInfo
---- @param file any
+--- @param file? any
 --- @return any
-function CodeModLua:GetFileMergeInfo(file)
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:GetFileMergeInfo(file) end
 
 --- SaveMerged
---- @param file any
+--- @param file? any
 --- @return boolean
-function CodeModLua:SaveMerged(file)
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:SaveMerged(file) end
 
 --- OpenLocal
---- @return nil
-function CodeModLua:OpenLocal()
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:OpenLocal() end
 
 --- CommitChanges
---- @param comment string
---- @param engineVersion string
---- @param oncomplete any
+--- @param comment? string
+--- @param engineVersion? string
+--- @param oncomplete? any
 --- @return string
-function CodeModLua:CommitChanges(comment, engineVersion, oncomplete)
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:CommitChanges(comment, engineVersion, oncomplete) end
 
 --- SubmitPatch
---- @param comment string
---- @param engineVersion string
+--- @param comment? string
+--- @param engineVersion? string
 --- @return string
-function CodeModLua:SubmitPatch(comment, engineVersion)
-	-- dummy implementation for documentation purposes only
-end
+function CodeModLua:SubmitPatch(comment, engineVersion) end
 
 --- CheckOutPatch
---- @param patchid string
---- @param callback any
---- @return nil
-function CodeModLua:CheckOutPatch(patchid, callback)
-	-- dummy implementation for documentation purposes only
-end
+--- @param patchid? string
+--- @param callback? any
+function CodeModLua:CheckOutPatch(patchid, callback) end

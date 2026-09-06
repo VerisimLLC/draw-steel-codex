@@ -1,4 +1,7 @@
---- @class WorldDistortionHandleLua A local handle to a world distortion created by dmhub.CreateWorldDistortion. The effect is automatically removed when its duration elapses or the client changes map; call Stop() for immediate removal.
+---@meta
+
+--- A local handle to a world distortion created by dmhub.CreateWorldDistortion. The effect is automatically removed when its duration elapses or the client changes map; call Stop() for immediate removal.
+--- @class WorldDistortionHandleLua
 --- @field alive boolean True while the distortion is active on this client.
 --- @field strength number The effect strength. For heatwave this is displacement in screen pixels; for radial effects it is the kernel's dimensionless strength (vortex uses radians).
 --- @field edgeFade number Inward feather width in tiles for heatwave, clamped to 0..0.5. Zero restores a hard tile boundary. Has no effect on radial effects.
@@ -13,28 +16,18 @@
 --- @field radius number Radius in map tiles for radial effects. Has no effect on heatwave.
 WorldDistortionHandleLua = {}
 
---- SetCenter: Moves a radial effect to a new map location. Has no effect on heatwave.
+--- Moves a radial effect to a new map location. Has no effect on heatwave.
 --- @param loc Loc
 --- @return nil
-function WorldDistortionHandleLua:SetCenter(loc)
-	-- dummy implementation for documentation purposes only
-end
+function WorldDistortionHandleLua:SetCenter(loc) end
 
---- SetLocs: Replaces the exact tile mask of a heatwave effect. Has no effect on radial effects.
+--- Replaces the exact tile mask of a heatwave effect. Has no effect on radial effects.
 --- @param locs Loc[]
 --- @return nil
-function WorldDistortionHandleLua:SetLocs(locs)
-	-- dummy implementation for documentation purposes only
-end
+function WorldDistortionHandleLua:SetLocs(locs) end
 
---- Stop: Removes the distortion immediately. Safe to call more than once.
---- @return nil
-function WorldDistortionHandleLua:Stop()
-	-- dummy implementation for documentation purposes only
-end
+--- Removes the distortion immediately. Safe to call more than once.
+function WorldDistortionHandleLua:Stop() end
 
---- Destroy: Alias for Stop().
---- @return nil
-function WorldDistortionHandleLua:Destroy()
-	-- dummy implementation for documentation purposes only
-end
+--- Alias for Stop().
+function WorldDistortionHandleLua:Destroy() end

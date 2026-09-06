@@ -1,15 +1,11 @@
---- @class AudioFolderLua:AssetLua 
---- @field assetFolder any 
+---@meta
+
+--- @class AudioFolderLua:AssetLua
+--- @field assetFolder AssetFolder
 AudioFolderLua = {}
 
 --- Upload
---- @return nil
-function AudioFolderLua:Upload()
-	-- dummy implementation for documentation purposes only
-end
+function AudioFolderLua:Upload() end
 
 --- Delete
---- @return nil
-function AudioFolderLua:Delete()
-	-- dummy implementation for documentation purposes only
-end
+function AudioFolderLua:Delete() end

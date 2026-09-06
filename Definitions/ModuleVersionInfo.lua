@@ -1,3 +1,5 @@
---- @class ModuleVersionInfo 
---- @field createTimestamp any 
+---@meta
+
+--- @class ModuleVersionInfo
+--- @field createTimestamp any
 ModuleVersionInfo = {}

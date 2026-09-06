@@ -1,49 +1,37 @@
---- @class i18n Provides Lua access to the translation system for managing language packs and translated strings.
+---@meta
+
+--- Provides Lua access to the translation system for managing language packs and translated strings.
+--- @class i18n
 --- @field translations string[] Returns a list of translation pack IDs available in the current game.
 i18n = {}
 
---- GetStrings: Returns a list of all translatable strings collected from game assets.
+--- Returns a list of all translatable strings collected from game assets.
 --- @return string[]
-function i18n.GetStrings()
-	-- dummy implementation for documentation purposes only
-end
+function i18n.GetStrings() end
 
---- hash: Returns the MD5 hash of the given string, used as a key for translation lookups.
---- @param str string
+--- Returns the MD5 hash of the given string, used as a key for translation lookups.
+--- @param str? string
 --- @return string
-function i18n.hash(str)
-	-- dummy implementation for documentation purposes only
-end
+function i18n.hash(str) end
 
---- GetTranslation: Returns the TranslationInfo for the given translation pack ID, or nil if not found.
+--- Returns the TranslationInfo for the given translation pack ID, or nil if not found.
 --- @return nil|TranslationInfo
-function i18n.GetTranslation(id)
-	-- dummy implementation for documentation purposes only
-end
+--- @param id? string
+function i18n.GetTranslation(id) end
 
---- DeleteTranslation: Deletes the translation pack with the given ID from the current game.
---- @param id string
---- @return nil
-function i18n.DeleteTranslation(id)
-	-- dummy implementation for documentation purposes only
-end
+--- Deletes the translation pack with the given ID from the current game.
+--- @param id? string
+function i18n.DeleteTranslation(id) end
 
---- CreateTranslation: Creates a new empty translation pack with default settings and uploads it to the current game.
---- @return nil
-function i18n.CreateTranslation()
-	-- dummy implementation for documentation purposes only
-end
+--- Creates a new empty translation pack with default settings and uploads it to the current game.
+function i18n.CreateTranslation() end
 
---- UploadTranslation: Uploads or updates a translation pack with the given ID and TranslationInfo data.
+--- Uploads or updates a translation pack with the given ID and TranslationInfo data.
 --- @param translationid string The ID of the translation pack.
 --- @param translationInfo TranslationInfo The translation data to upload.
-function i18n.UploadTranslation(translationid, translationInfo)
-	-- dummy implementation for documentation purposes only
-end
+function i18n.UploadTranslation(translationid, translationInfo) end
 
---- LanguageIDToKey: Converts a language identifier (e.g. 'en') to its corresponding translation pack key, or nil if not found.
---- @param langid string
+--- Converts a language identifier (e.g. 'en') to its corresponding translation pack key, or nil if not found.
+--- @param langid? string
 --- @return string
-function i18n.LanguageIDToKey(langid)
-	-- dummy implementation for documentation purposes only
-end
+function i18n.LanguageIDToKey(langid) end

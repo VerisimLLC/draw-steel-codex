@@ -1,25 +1,21 @@
---- @class GameAsset Base class for all game assets (images, audio, etc.) stored in the cloud asset system.
---- @field cachePath string 
---- @field sizeInKBytes number 
+---@meta
+
+--- Base class for all game assets (images, audio, etc.) stored in the cloud asset system.
+--- @class GameAsset
+--- @field cachePath string
+--- @field sizeInKBytes number
 GameAsset = {}
 
 --- ValidationCheck
---- @param objtype string
---- @param guid string
+--- @param objtype? string
+--- @param guid? string
 --- @return boolean
-function GameAsset:ValidationCheck(objtype, guid)
-	-- dummy implementation for documentation purposes only
-end
+function GameAsset:ValidationCheck(objtype, guid) end
 
 --- MatchesSearch
---- @param searchLowercase string
+--- @param searchLowercase? string
 --- @return boolean
-function GameAsset:MatchesSearch(searchLowercase)
-	-- dummy implementation for documentation purposes only
-end
+function GameAsset:MatchesSearch(searchLowercase) end
 
 --- OnLoad
---- @return nil
-function GameAsset:OnLoad()
-	-- dummy implementation for documentation purposes only
-end
+function GameAsset:OnLoad() end

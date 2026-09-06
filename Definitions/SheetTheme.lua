@@ -2,6 +2,9 @@
 
 --- Base class for all game assets (images, audio, etc.) stored in the cloud asset system.
 --- @class SheetTheme:GameAsset
+--- @field id string
+--- @field themeType string
+--- @field sections table<string, any>
 SheetTheme = {}
 
 --- GetBaseTheme

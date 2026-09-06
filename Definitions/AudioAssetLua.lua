@@ -12,6 +12,7 @@
 --- @field loudnessLufs any
 --- @field loudnessMeasured any
 --- @field normalizeGainTrimDb any
+--- @field id string
 AudioAssetLua = {}
 
 --- Play

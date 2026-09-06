@@ -5,6 +5,7 @@
 --- @field sheet any
 --- @field width any
 --- @field height any
+--- @field isCreating boolean
 SheetContainer = {}
 
 --- Close

@@ -17,6 +17,9 @@
 --- @field numVisibleCharacters any
 --- @field realtimeInteractions any
 --- @field gmonly boolean
+--- @field key string
+--- @field isProvisional boolean
+--- @field isLocal boolean
 ChatMessageInfoLua = {}
 
 --- SetInfo

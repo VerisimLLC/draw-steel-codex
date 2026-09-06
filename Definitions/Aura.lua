@@ -2,6 +2,7 @@
 
 --- @class Aura
 --- @field token nil|CharacterToken The token that cast and controls this aura, if any.
+--- @field auraInstance AuraInstance
 Aura = {}
 
 --- MovementDamageApplies

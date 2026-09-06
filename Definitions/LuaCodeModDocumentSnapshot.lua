@@ -1,6 +1,11 @@
 ---@meta
 
 --- @class LuaCodeModDocumentSnapshot
+--- @field modid string
+--- @field docid string
+--- @field path string
+--- @field data any
+--- @field isnew boolean
 LuaCodeModDocumentSnapshot = {}
 
 --- Transaction

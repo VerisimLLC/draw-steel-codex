@@ -21,6 +21,7 @@
 --- @field filesThatMayRequireMerge nil|CodeModFileLua[]
 --- @field localChangeEvent any
 --- @field hasLocalChanges boolean
+--- @field modid string
 CodeModLua = {}
 
 --- ReplicateToGit

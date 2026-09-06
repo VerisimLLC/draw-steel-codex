@@ -8,6 +8,7 @@
 --- @field error nil|string The current error message from the import process, or nil if no error has occurred.
 --- @field uploadCostKB number The estimated upload cost in kilobytes for all pending imports.
 --- @field haveEnoughBandwidth boolean True if the account has enough upload bandwidth remaining to complete the pending imports.
+--- @field options nil|table Options table associated with this importer instance.
 import = {}
 
 --- Creates a new LuaImport instance.

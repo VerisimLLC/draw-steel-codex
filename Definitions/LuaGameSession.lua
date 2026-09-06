@@ -12,4 +12,7 @@
 --- @field lastContactKnown boolean True if we actually know when this player was last in contact. False when the session record carries no timestamp, in which case @see timeSinceLastContact is meaningless (see the note there).
 --- @field dm boolean True if this player is the Dungeon Master.
 --- @field primaryCharacter string The identifier of this player's primary character.
+--- @field ping number The ping latency to this player in milliseconds.
+--- @field p2pheartbeat number The peer-to-peer heartbeat timestamp.
+--- @field p2pconnection nil|string The peer-to-peer connection type: 'direct' for hole-punched connection, 'relay' for proxied connection, or nil if no P2P connection.
 LuaGameSession = {}

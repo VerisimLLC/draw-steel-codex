@@ -1,6 +1,14 @@
 ---@meta
 
 --- @class TileGameRules
+--- @field hole boolean
+--- @field water boolean
+--- @field difficultTerrain boolean
+--- @field stairs boolean
+--- @field concealment boolean
+--- @field climbHeight number
+--- @field climbersOnly boolean
+--- @field surfaceType number
 TileGameRules = {}
 
 --- CloneInto

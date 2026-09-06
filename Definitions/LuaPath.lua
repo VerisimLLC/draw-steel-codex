@@ -27,6 +27,9 @@
 --- @field destination any
 --- @field origin any
 --- @field steps Loc[]
+--- @field properties any
+--- @field valid boolean
+--- @field teleport boolean
 LuaPath = {}
 
 --- DeepCopy

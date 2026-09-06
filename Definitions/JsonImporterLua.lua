@@ -1,6 +1,7 @@
 ---@meta
 
 --- @class JsonImporterLua
+--- @field rows string[][]
 JsonImporterLua = {}
 
 --- Get

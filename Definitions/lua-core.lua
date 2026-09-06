@@ -229,9 +229,13 @@ IsDerivedFrom = function(a,b)
 	return IsDerivedFrom(info ~= nil and info.base, b)
 end
 
----@param typeName string
----@param baseTypeName string|nil
----@return table
+---Registers (or extends) a game type and installs it as the global named typeName.
+---The returned table is the type itself: annotate the assignment with
+---`--- @class <typeName>: GameType` (or `: <baseTypeName>`) so the checker knows it.
+---@generic T
+---@param typeName `T`
+---@param baseTypeName? string
+---@return T
 function RegisterGameType(typeName, baseTypeName)
 
 	if baseTypeName ~= nil and baseTypeName ~= typeName and g_registerGameTypes[baseTypeName] == nil then

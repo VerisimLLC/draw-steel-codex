@@ -3,6 +3,8 @@
 --- The main interface for registering and managing dice sets, video effects, and dice preview interactions.
 --- @class dice
 --- @field defaultDiceSet DiceSetLua The default dice set used when no specific set is selected.
+--- @field effects table<string, DiceVideoEffectLua> A table mapping effect id to its DiceVideoEffectLua instance.
+--- @field diceSets table<string, DiceSetLua> A table mapping dice set id to its DiceSetLua instance.
 dice = {}
 
 --- Registers a new video effect from a table definition.

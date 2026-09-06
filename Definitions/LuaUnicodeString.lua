@@ -2,6 +2,7 @@
 
 --- @class LuaUnicodeString
 --- @field Length number
+--- @field str string
 LuaUnicodeString = {}
 
 --- Substring

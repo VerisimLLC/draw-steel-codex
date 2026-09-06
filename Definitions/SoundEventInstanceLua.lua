@@ -9,6 +9,7 @@
 --- @field delay number
 --- @field time number
 --- @field duration number
+--- @field args any
 SoundEventInstanceLua = {}
 
 --- SetStopAfter

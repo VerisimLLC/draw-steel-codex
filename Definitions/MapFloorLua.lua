@@ -43,6 +43,7 @@
 --- @field playerCharactersOnFloor any
 --- @field playerCharactersOnLayer any
 --- @field supportsSolidOperations boolean True when this engine build supports solid=true in ExecutePolygonOperation (solid block drawing) and invisible-only solid erasing. Callers drawing solids must check this: older engines treat a solid op as a plain floor draw.
+--- @field floorid string
 MapFloorLua = {}
 
 --- AdjustParallaxPositionOnGround

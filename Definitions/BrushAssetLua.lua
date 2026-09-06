@@ -12,6 +12,7 @@
 --- @field fadeRadius number
 --- @field description string
 --- @field ord any
+--- @field guid string
 BrushAssetLua = {}
 
 --- GetParameter

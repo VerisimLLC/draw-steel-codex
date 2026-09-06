@@ -1,6 +1,10 @@
 ---@meta
 
 --- @class LuaTargetingMarkers
+--- @field destroyEvent any
+--- @field destroyLineOfSightEvent any
+--- @field token CharacterToken
+--- @field destToken CharacterToken
 LuaTargetingMarkers = {}
 
 --- AdoptIntoCoroutine

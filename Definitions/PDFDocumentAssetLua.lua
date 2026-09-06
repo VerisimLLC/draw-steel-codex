@@ -11,6 +11,7 @@
 --- @field hiddenFromPlayers any
 --- @field hidden any
 --- @field doc PDFDocument
+--- @field id string
 PDFDocumentAssetLua = {}
 
 --- HaveReadPermissions

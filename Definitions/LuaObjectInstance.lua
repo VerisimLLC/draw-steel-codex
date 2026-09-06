@@ -30,6 +30,8 @@
 --- @field valid boolean
 --- @field components any
 --- @field path string
+--- @field floorid string
+--- @field objid string
 LuaObjectInstance = {}
 
 --- SetBaseImageFromAsset

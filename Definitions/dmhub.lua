@@ -179,6 +179,8 @@
 --- @field windowMaximized boolean True while the application window is maximized. Use to choose between the maximize and restore glyphs.
 --- @field supportsWorldDistortions boolean (read-only) True on engine builds that support dmhub.CreateWorldDistortion and WorldDistortionHandleLua.
 --- @field supportsParticleSystems boolean (read-only) True on engine builds that support dmhub.CreateParticleSystem and ParticleSystemHandleLua.
+--- @field rulerToolActive boolean Whether the ruler measurement tool is currently active.
+--- @field forceRefreshLogin boolean When set to true, forces a refresh of the login state on the next frame.
 dmhub = {}
 
 --- TestFunction

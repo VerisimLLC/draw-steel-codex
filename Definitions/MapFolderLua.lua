@@ -9,6 +9,7 @@
 --- @field description string
 --- @field parentFolder any
 --- @field ord number
+--- @field folderid string
 MapFolderLua = {}
 
 --- MarkUndo

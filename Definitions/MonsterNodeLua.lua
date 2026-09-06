@@ -8,6 +8,7 @@
 --- @field folder nil|MonsterFolderLua (Read-only) Get the folder entry if this is a folder, or nil if it's actually a monster.
 --- @field children MonsterNodeLua[]
 --- @field parentNode string
+--- @field id string
 MonsterNodeLua = {}
 
 --- Create a duplicate of this entry in the bestiary.

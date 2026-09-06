@@ -8,4 +8,6 @@
 --- @field comment string
 --- @field engineVersion string
 --- @field files any
+--- @field codemod any
+--- @field changelist any
 CodeModChangelistLua = {}

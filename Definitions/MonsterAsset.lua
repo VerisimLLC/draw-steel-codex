@@ -3,6 +3,9 @@
 --- Base class for all game assets (images, audio, etc.) stored in the cloud asset system.
 --- @class MonsterAsset:GameAsset
 --- @field monsterTypeName string
+--- @field info any
+--- @field fork string
+--- @field forkTime number
 MonsterAsset = {}
 
 --- RecordFork

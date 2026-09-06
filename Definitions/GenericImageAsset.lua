@@ -6,6 +6,10 @@
 --- @field tokenMaskTexture any
 --- @field tokenMaskInclusiveTexture any
 --- @field textureReadable boolean
+--- @field imageType any
+--- @field tokenZoom number
+--- @field ownerid string
+--- @field disableCompression boolean
 GenericImageAsset = {}
 
 --- OnBeforeLoadImage

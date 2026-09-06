@@ -2,6 +2,9 @@
 
 --- Registry of token animations. Mods register category-specific entries via RegisterTeleport / RegisterDeath / RegisterTransformation. Each category has an `xxxAnimations` table iterable from Lua (`for id, entry in pairs(dmhub.tokenAnimations.teleportAnimations) do ... end`).
 --- @class TokenAnimationsLuaInterface
+--- @field teleportAnimations any Map of registered teleport-animation id -> entry table. Iterable from Lua.
+--- @field deathAnimations any Map of registered death-animation id -> entry table. Iterable from Lua. (Not yet consumed by the engine -- placeholder for future use.)
+--- @field transformationAnimations any Map of registered transformation-animation id -> entry table. Iterable from Lua. (Not yet consumed by the engine -- placeholder for future use.)
 TokenAnimationsLuaInterface = {}
 
 --- Register a teleport animation. The `animation` function is called locally on each client when a token with appearance.teleportAnimation == this id teleports, or when whatever moved the token named this id as the style for that teleport (e.g. a teleporter object). Signature: function(token: CharacterToken, targetLoc: Loc, opts: table). The opts table has fields crossMap (boolean), fromLoc (Loc), fromMap (string). Set `hidden = true` on the entry to keep it out of the character sheet's per-token Teleportation picker -- for styles imposed by something other than the token itself.

@@ -5,6 +5,8 @@
 --- @field percentComplete any
 --- @field sheets any
 --- @field sizeInfo any
+--- @field numErrors number
+--- @field numSuccesses number
 ObjectImportLua = {}
 
 --- Destroy

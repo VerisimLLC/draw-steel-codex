@@ -1,6 +1,7 @@
 ---@meta
 
 --- @class LuaMultiObjectReference
+--- @field destroyEvent any
 LuaMultiObjectReference = {}
 
 --- Destroy

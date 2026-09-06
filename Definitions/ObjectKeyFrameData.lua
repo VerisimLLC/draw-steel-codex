@@ -1,6 +1,11 @@
 ---@meta
 
 --- @class ObjectKeyFrameData
+--- @field guid string
+--- @field name string
+--- @field animDuration number
+--- @field objectInactive boolean
+--- @field components table<string, any>
 ObjectKeyFrameData = {}
 
 --- ApproximateEqual

@@ -9,6 +9,7 @@
 --- @field parentFolder string
 --- @field parentNode any
 --- @field children any
+--- @field id string
 AssetNodeBaseLua = {}
 
 --- Returns a json representation of this node.

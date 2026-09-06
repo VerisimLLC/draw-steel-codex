@@ -12,4 +12,6 @@
 --- @field frameSaturation number
 --- @field frameBrightness number
 --- @field characterName any
+--- @field appearance CharacterAppearance
+--- @field imageAssets table<string, GenericImageAsset>
 LuaCharacterAppearance = {}

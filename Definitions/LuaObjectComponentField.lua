@@ -8,6 +8,9 @@
 --- @field prettyName string
 --- @field arguments any
 --- @field canUpload boolean
+--- @field array boolean
+--- @field options any
+--- @field tooltip string
 LuaObjectComponentField = {}
 
 --- GetEditingInfo

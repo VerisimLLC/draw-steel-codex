@@ -3,6 +3,11 @@
 --- An image asset stored in the cloud, with support for keywords, color adjustments, and sprite generation.
 --- @class ClipboardItem:ImageAsset
 --- @field dimensions any
+--- @field guid string
+--- @field details string
+--- @field clip any[][]
+--- @field layers table<string, any>
+--- @field objects table<string, any>
 ClipboardItem = {}
 
 --- NormalizeErases

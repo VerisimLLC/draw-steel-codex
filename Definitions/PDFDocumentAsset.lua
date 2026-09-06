@@ -4,6 +4,9 @@
 --- @class PDFDocumentAsset:GameAsset
 --- @field hasBookmarks boolean
 --- @field cachePath string
+--- @field imageId string
+--- @field bookmarks table<string, PDFBookmark>
+--- @field ownerid string
 PDFDocumentAsset = {}
 
 --- SetBookmarks

@@ -3,4 +3,5 @@
 --- Lua wrapper for a player's details within a game, such as their party assignment.
 --- @class LuaGamePlayerDetails
 --- @field partyid string The party identifier this player belongs to.
+--- @field details any
 LuaGamePlayerDetails = {}

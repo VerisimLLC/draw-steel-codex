@@ -23,6 +23,7 @@
 --- @field hidden boolean True if this item is soft-hidden from the admin shop list. An item that is on the store (onsale or preview) is never hidden.
 --- @field featured boolean True if this item is featured in the shop. Only items that are live on the store (onsale) can be featured.
 --- @field ctime number The creation timestamp of this shop item.
+--- @field id string The unique identifier of this shop item.
 ShopItemLua = {}
 
 --- Uploads changes to this shop item to the cloud.

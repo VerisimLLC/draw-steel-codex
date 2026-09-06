@@ -5,6 +5,11 @@
 --- @field canedit boolean
 --- @field modid string
 --- @field unloaded boolean
+--- @field instanceGuid string
+--- @field images table<string,string>
+--- @field shared table
+--- @field enterGameHandlers function[]
+--- @field unloadHandlers function[]
 CodeModInterface = {}
 
 --- GetMod

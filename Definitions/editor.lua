@@ -7,6 +7,7 @@
 --- @field markupDoorDebug string Diagnostic dump of the markup door (openable wall) system: controller liveness, registered doors, icon pool state, and a raw per-operation filter trace. For debugging only.
 --- @field supportsObjectPlacementPreview boolean True when this build supports the object placement preview for the markup object-editing filter: the object tool shows its placement ghost but does NOT place on click while the filter is active (the Map Markup panel owns placement), and the ghost's position is readable via objectPlacementPreviewPos.
 --- @field objectPlacementPreviewPos nil|Vector2 The (snapped) map position of the object tool's placement preview ('ghost'), or nil when no preview is showing. While the markup object-editing filter is active, place at exactly this position so the placed object lands under the ghost.
+--- @field hud any The underlying DMSheetHud instance.
 editor = {}
 
 --- Fills the current map floor with the given terrain type. Pass nil to clear the terrain fill.

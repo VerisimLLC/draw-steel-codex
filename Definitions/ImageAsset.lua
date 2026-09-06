@@ -9,6 +9,16 @@
 --- @field sizeInKBytes number
 --- @field textureCached boolean
 --- @field textureReadable boolean
+--- @field keywords string[] Search keywords associated with this image.
+--- @field imageId string The MD5 hash identifier of the image data.
+--- @field license string
+--- @field tint Color
+--- @field hueShift number
+--- @field saturation number
+--- @field brightness number
+--- @field contrast number
+--- @field width number
+--- @field height number
 ImageAsset = {}
 
 --- ValidationCheck

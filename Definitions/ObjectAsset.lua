@@ -3,6 +3,9 @@
 --- An image asset stored in the cloud, with support for keywords, color adjustments, and sprite generation.
 --- @class ObjectAsset:ImageAsset
 --- @field textureReadable boolean
+--- @field previewType string
+--- @field components table<string, any>
+--- @field children table<string, any>
 ObjectAsset = {}
 
 --- OnBeforeLoadImage

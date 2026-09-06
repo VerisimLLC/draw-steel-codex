@@ -9,6 +9,7 @@
 --- @field gmonly boolean
 --- @field imageType string
 --- @field table any
+--- @field guid string
 ImageLibraryAssetLua = {}
 
 --- Upload

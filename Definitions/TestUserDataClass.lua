@@ -2,6 +2,7 @@
 
 --- @class TestUserDataClass
 --- @field propertyTest number
+--- @field n number
 TestUserDataClass = {}
 
 --- MyFunction

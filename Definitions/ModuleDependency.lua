@@ -1,6 +1,13 @@
 ---@meta
 
 --- @class ModuleDependency
+--- @field moduleid string
+--- @field versionid string
+--- @field versionnum string
+--- @field ord number
+--- @field autoUpdate boolean
+--- @field parentModuleId string
+--- @field disabled boolean
 ModuleDependency = {}
 
 --- CompareVersionNum

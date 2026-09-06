@@ -5,6 +5,8 @@
 --- @field valid any
 --- @field type any
 --- @field properties any
+--- @field partyid string
+--- @field partyDetails any
 LuaPartyInfo = {}
 
 --- BeginChanges

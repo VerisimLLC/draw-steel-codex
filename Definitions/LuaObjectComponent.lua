@@ -18,6 +18,10 @@
 --- @field properties any
 --- @field objectInstance any
 --- @field levelObject any
+--- @field ordinal number
+--- @field floorid string
+--- @field objid string
+--- @field componentid string
 LuaObjectComponent = {}
 
 --- SetProperty

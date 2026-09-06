@@ -10,6 +10,8 @@
 --- @field numRevisions any
 --- @field changeTimestamp any
 --- @field name string
+--- @field modid string
+--- @field fileid string
 CodeModFileLua = {}
 
 --- MatchesSearch

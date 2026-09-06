@@ -19,6 +19,7 @@
 --- @field characterIndex table Index of the game's important characters (assigned to a player or a party), read from the game's cached metadata without connecting to the game. Returns a table keyed by character id; each entry has id, name, and optionally owner (userid), party (party asset id), summary, and portrait (image id, registered so it can be used directly as a bgimage). Games last saved by older client versions may lack the party and portrait fields.
 --- @field contentSummary nil|table Summary counts of the game's own content from cached metadata: monsters, classes, races, kits, and other (remaining compendium entries). Nil for games that have not yet been opened by a client version that records summaries.
 --- @field playerInfo table Per-player info for this game keyed by userid, read from the game's cached metadata: displayName, summary, and appearance (a CharacterAppearance whose portrait images are usable in the current context).
+--- @field gameid string
 LuaGameInfo = {}
 
 --- MatchesSearch

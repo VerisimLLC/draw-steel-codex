@@ -5,6 +5,8 @@
 --- @field valid boolean True if this action request has a valid requester.
 --- @field requester string The user ID of the player who made this action request.
 --- @field info table The Lua table containing the action request data.
+--- @field id string The unique identifier of this action request.
+--- @field request any
 LuaPlayerActionRequest = {}
 
 --- Begins tracking changes to this action request's info for undo support.

@@ -3,6 +3,7 @@
 --- @class ActiveRollLua
 --- @field guid string
 --- @field amendable any
+--- @field expires number
 ActiveRollLua = {}
 
 --- Amend

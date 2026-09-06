@@ -13,6 +13,7 @@
 --- @field ord any
 --- @field properties any
 --- @field inCurrentGame boolean
+--- @field id string
 MonsterAssetLua = {}
 
 --- Render

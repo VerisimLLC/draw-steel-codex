@@ -4,6 +4,7 @@
 --- @field name string
 --- @field url string
 --- @field bannerImage string
+--- @field id string
 ArtistLua = {}
 
 --- Upload

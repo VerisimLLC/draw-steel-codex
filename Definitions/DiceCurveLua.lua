@@ -5,4 +5,5 @@
 --- @field input string
 --- @field targetType string
 --- @field targetField string
+--- @field curveData any
 DiceCurveLua = {}

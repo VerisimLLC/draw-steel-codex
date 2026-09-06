@@ -3,6 +3,7 @@
 --- Represents a single translation language pack containing translated string mappings.
 --- @class TranslationInfo:GameAsset
 --- @field name string The display name of this translation language.
+--- @field identifier string The language identifier code for this translation (e.g. 'en', 'fr').
 TranslationInfo = {}
 
 --- Returns the translated string for the given source text, or nil if no translation exists.

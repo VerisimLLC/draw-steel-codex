@@ -1003,8 +1003,9 @@ local function CreateMonsterEntry(nodeid, startHidden)
 
         local level = nil
         pcall(function() level = props:Level() end)
+        level = tonumber(level)
         if level ~= nil and level > 0 then
-            parts[#parts + 1] = string.format("Level %d", level)
+            parts[#parts + 1] = string.format("Level %d", round(level))
         end
 
         local role = nil

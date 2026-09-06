@@ -1921,7 +1921,7 @@ function gui.Slider(args)
 				local w = trackWidth()
 				if w ~= lastTrackWidth and w > 0 then
 					lastTrackWidth = w
-					element.dragBounds = { x1 = 0, y1 = handley, x2 = w, y2 = handley }
+					element.dragBounds = core.Vector4(0, handley, w, handley)
 					mainPanel:FireEventTree('updateValue')
 				end
 			end,

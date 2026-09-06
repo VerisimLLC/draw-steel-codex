@@ -1393,7 +1393,7 @@ local function CreateMonsterEntry(nodeid, startHidden)
                             --popout art overflows its nominal rect; use the
                             --inset crop CreateTokenImage uses for it.
                             local b = 0.14
-                            element.data.baseRect = {x1 = b, y1 = b, x2 = 1 - b, y2 = 1 - b}
+                            element.data.baseRect = core.Vector4(b, b, 1 - b, 1 - b)
                         else
                             element.data.baseRect = monster.portraitRect
                         end
@@ -2818,7 +2818,7 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
                                 --popout art overflows its nominal rect; use
                                 --the inset crop CreateTokenImage uses for it.
                                 local b = 0.14
-                                element.data.baseRect = {x1 = b, y1 = b, x2 = 1 - b, y2 = 1 - b}
+                                element.data.baseRect = core.Vector4(b, b, 1 - b, 1 - b)
                             else
                                 element.data.baseRect = token.portraitRect
                             end

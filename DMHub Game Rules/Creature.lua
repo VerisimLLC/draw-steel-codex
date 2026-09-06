@@ -11503,7 +11503,7 @@ function creature:EventDropImage(path)
 			dmhub.AddAndUploadImageToLibrary("Avatar", imageid)
 
 			token.portrait = imageid
-			token.portraitOffset = {x = 0, y = 0}
+			token.portraitOffset = core.Vector2(0, 0)
 			token.portraitZoom = 1
 			token:UploadAppearance(snapshot)
 			dmhub.Debug("COMPLETED PASTE")
@@ -11511,7 +11511,7 @@ function creature:EventDropImage(path)
 		addlocal = function(imageid)
 			dmhub.AddImageToLibraryLocally("Avatar", imageid)
 			token.portrait = imageid
-			token.portraitOffset = {x = 0, y = 0}
+			token.portraitOffset = core.Vector2(0, 0)
 			token.portraitZoom = 1
 			token:RefreshAppearanceLocally()
 			dmhub.Debug("ADD LOCAL")
@@ -11561,7 +11561,7 @@ function creature:EventPaste()
 			dmhub.AddAndUploadImageToLibrary("Avatar", imageid)
 
 			token.portrait = imageid
-			token.portraitOffset = {x = 0, y = 0}
+			token.portraitOffset = core.Vector2(0, 0)
 			token.portraitZoom = 1
 			token:UploadAppearance(snapshot)
 			dmhub.Debug("COMPLETED PASTE")
@@ -11570,7 +11570,7 @@ function creature:EventPaste()
 			dmhub.AddImageToLibraryLocally("Avatar", imageid)
 
 			token.portrait = imageid
-			token.portraitOffset = {x = 0, y = 0}
+			token.portraitOffset = core.Vector2(0, 0)
 			token.portraitZoom = 1
 			token:RefreshAppearanceLocally()
 		end

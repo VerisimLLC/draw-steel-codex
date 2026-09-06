@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 --- Shared vocabulary for the Respite feature.
+--- @class RSPConstants: GameType
 RSPConstants = RegisterGameType("RSPConstants")
 
 -- Identity

@@ -3,7 +3,7 @@ local mod = dmhub.GetModLoading()
 --A Variant can currently be text, a currency, an item, or a roll on a table.
 --In the future we can add more possibilities.
 
---- @class VariantValue
+--- @class VariantValue: GameType
 --- @field min number Minimum possible value.
 --- @field max number Maximum possible value.
 --- @field avg number Average (expected) value.
@@ -48,7 +48,7 @@ function VariantValue:Mult(num)
 end
 
 
---- @class Variant
+--- @class Variant: GameType
 --- @field type string Variant content type: "text", "currency", "item", "tableRoll", "resource", "monster".
 --- @field quantity number|string Quantity of the item/roll granted (can be a dice expression).
 --- @field key nil|string Key into the relevant data table (e.g. item id, monster key).
@@ -520,7 +520,7 @@ function Variant:CreateEditor(options)
 	return resultPanel
 end
 
---- @class VariantCollection
+--- @class VariantCollection: GameType
 --- @field items Variant[] Ordered list of Variant entries in this collection.
 --- An ordered list of Variant entries, typically representing a loot table or reward set.
 VariantCollection = RegisterGameType("VariantCollection")

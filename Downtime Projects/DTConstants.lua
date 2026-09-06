@@ -1,6 +1,6 @@
 --- Shared constants for the Downtime Projects system
 --- Provides centralized constant definitions used across multiple downtime classes
---- @class DTConstants
+--- @class DTConstants: GameType
 DTConstants = RegisterGameType("DTConstants")
 
 DTConstants.DEVMODE = false

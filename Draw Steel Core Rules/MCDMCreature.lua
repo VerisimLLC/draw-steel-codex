@@ -5017,6 +5017,7 @@ end
 -- "Fire Immunity 5" for innate resistances) and hovering it shows the source's
 -- description. Purpose is to communicate to all players WHY the damage was reduced or
 -- increased and where to look for it.
+--- @class DamageModifierChatMessage: GameType
 DamageModifierChatMessage = RegisterGameType("DamageModifierChatMessage")
 DamageModifierChatMessage.victimid = ""
 DamageModifierChatMessage.attackerid = ""

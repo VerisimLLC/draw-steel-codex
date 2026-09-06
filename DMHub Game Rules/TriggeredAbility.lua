@@ -1841,6 +1841,7 @@ end
 --Records travel on the caster's remoteInvokes queue: PumpRemoteInvokes in
 --Creature.lua deserializes the record on the controlling client and calls
 --Invoke(), mirroring AbilityInvocation in AbilityInvokeAbility.lua.
+--- @class TriggeredAbilityRemoteExecution: GameType
 TriggeredAbilityRemoteExecution = RegisterGameType("TriggeredAbilityRemoteExecution")
 
 --Ships an accepted trigger cast to the caster's controlling client. Symbols

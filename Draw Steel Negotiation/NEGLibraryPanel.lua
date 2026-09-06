@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 --- The list of prepared negotiations, down the left of the Director's window.
+--- @class NEGLibraryPanel: GameType
 NEGLibraryPanel = RegisterGameType("NEGLibraryPanel")
 
 --- Rows and headers advertise themselves with one class; the theme already

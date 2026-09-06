@@ -1,7 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 
---- @class CustomAttribute
+--- @class CustomAttribute: GameType
 --- @field name string Display name of the attribute.
 --- @field tableName string Data table name ("customAttributes").
 --- @field attributeType string Value type: "number", "string", or "creatureSet".
@@ -53,7 +53,7 @@ function CustomAttribute:RemovePossibleStringValue(val)
 	self:SetPossibleStringValues(newValues)
 end
 
---- @class AttributeType
+--- @class AttributeType: GameType
 AttributeType = RegisterGameType("AttributeType")
 
 --- @class AttributeTypeNumber:AttributeType
@@ -85,7 +85,7 @@ function AttributeTypeCreatureSet.MakeFilterValue(expr)
 	return "filter:" .. (expr or "")
 end
 
---- @class CreatureSet
+--- @class CreatureSet: GameType
 --- @field creatures string[] Token ids of live creatures explicitly added at runtime (e.g. by AbilityCreatureSet).
 --- @field bestiaryids string[] Bestiary GUIDs (keys in `assets.monsters`) resolved from modifier values at modify time.
 CreatureSet = RegisterGameType("CreatureSet")
@@ -245,7 +245,7 @@ RegisterGoblinScriptSymbol(CreatureSet, {
     end,
 })
 
---- @class StringSet
+--- @class StringSet: GameType
 --- @field strings string[] The strings in this set.
 StringSet = RegisterGameType("StringSet")
 StringSet.strings = {}

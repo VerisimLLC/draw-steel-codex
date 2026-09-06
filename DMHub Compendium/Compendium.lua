@@ -7360,6 +7360,7 @@ end
 --A glossary term: reference content mirroring the book's glossary - the
 --term, its definition, and a SourceReference to the book and page that
 --defines it (openable directly in the PDF viewer, like ability sources).
+--- @class GlossaryTerm: GameType
 GlossaryTerm = RegisterGameType("GlossaryTerm")
 GlossaryTerm.tableName = "glossaryTerms"
 GlossaryTerm.name = "New Term"

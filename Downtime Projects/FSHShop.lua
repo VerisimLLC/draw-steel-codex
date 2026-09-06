@@ -5,7 +5,7 @@ local mod = dmhub.GetModLoading()
 --- event can hand over points and those are spendable. Purchases happen one at
 --- a time and the total is re-read after each, since buying the Fishing event
 --- can produce an event that awards more.
---- @class FSHShop
+--- @class FSHShop: GameType
 FSHShop = RegisterGameType("FSHShop")
 
 --- What the Tackle table sells, in the order the rules list it.

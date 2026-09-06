@@ -1,6 +1,6 @@
 --- Downtime character sheet tab for managing downtime activities and projects
 --- Provides a dedicated interface for tracking downtime activities within the character sheet
---- @class DTCharSheetTab
+--- @class DTCharSheetTab: GameType
 --- @field _instance DTCharSheetTab The singleton instance of this class
 DTCharSheetTab = RegisterGameType("DTCharSheetTab")
 

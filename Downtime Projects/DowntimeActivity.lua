@@ -3,7 +3,7 @@ local mod = dmhub.GetModLoading()
 --- A Downtime Activity definition: a reusable template a Director authors in the
 --- compendium and which can later seed a downtime project. Field names mirror
 --- DTProject / equipment items so values map straight across.
---- @class DowntimeActivity
+--- @class DowntimeActivity: GameType
 --- @field id string GUID identifier (engine-managed for table items)
 --- @field name string Display name (also the compendium list label)
 --- @field itemPrerequisite string Short text describing any prerequisite

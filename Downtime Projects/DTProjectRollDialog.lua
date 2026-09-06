@@ -116,7 +116,7 @@ end
 --- either here or by asking the hero's player - shows what came up, and then
 --- resolves the stop by setting the next milestone and putting the project
 --- back to work.
---- @class DTEventRollDialog
+--- @class DTEventRollDialog: GameType
 DTEventRollDialog = RegisterGameType("DTEventRollDialog")
 
 local WIDTH = 560

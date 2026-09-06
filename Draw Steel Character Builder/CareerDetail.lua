@@ -1,6 +1,7 @@
 --[[
     Career detail / selectors
 ]]
+--- @class CBCareerDetail: GameType
 CBCareerDetail = RegisterGameType("CBCareerDetail")
 
 local mod = dmhub.GetModLoading()

@@ -34,7 +34,7 @@ local g_markdownStyle = gui.MarkdownStyle {
 -- merging down to g_defaultSkin (the built-in root that mirrors today's look).
 -- =============================================================================
 
----@class JournalStylesheet
+---@class JournalStylesheet: GameType
 JournalStylesheet = RegisterGameType("JournalStylesheet")
 JournalStylesheet.tableName = "journalStyles"
 JournalStylesheet.name = "New Stylesheet"
@@ -1293,7 +1293,7 @@ end
 -- Test hook.
 MarkdownDocument.__ApplyInlineClasses = ApplyInlineClasses
 
----@class RichTag
+---@class RichTag: GameType
 ---@field pattern false|string
 RichTag = RegisterGameType("RichTag")
 RichTag.pattern = false

@@ -975,7 +975,7 @@ function Encounter.StartCombatWithTokens(args)
     return true
 end
 
---- @class RollInitiativeChatMessage
+--- @class RollInitiativeChatMessage: GameType
 --- @field winner "players"|"monsters"
 --- @field playerTokenIds string[]
 --- @field monsterTokenIds string[]

@@ -398,7 +398,7 @@ function ActivatedAbilityDamageBehavior:AccumulateDamageTypes(ability, result)
 	result[#result+1] = self.damageType
 end
 
---- @class ActivatedAbilityDamageChatMessage
+--- @class ActivatedAbilityDamageChatMessage: GameType
 --- @field ability ActivatedAbility
 ActivatedAbilityDamageChatMessage = RegisterGameType("ActivatedAbilityDamageChatMessage")
 ActivatedAbilityDamageChatMessage.amount = 0

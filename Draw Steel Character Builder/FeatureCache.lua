@@ -2,8 +2,11 @@
     A cache and wrappers for our features
     to support the builder
 ]]
+--- @class CBFeatureCache: GameType
 CBFeatureCache = RegisterGameType("CBFeatureCache")
+--- @class CBFeatureWrapper: GameType
 CBFeatureWrapper = RegisterGameType("CBFeatureWrapper")
+--- @class CBOptionWrapper: GameType
 CBOptionWrapper = RegisterGameType("CBOptionWrapper")
 
 local _formatOrder = CharacterBuilder._formatOrder

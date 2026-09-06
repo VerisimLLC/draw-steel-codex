@@ -1,7 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 --- Select Item Dialog for choosing the source of a downtime project
---- @class DTSelectItemDialog
+--- @class DTSelectItemDialog: GameType
 DTSelectItemDialog = RegisterGameType("DTSelectItemDialog")
 
 local WIDTH = 500

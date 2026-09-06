@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class CharacterOngoingEffect
+--- @class CharacterOngoingEffect: CharacterFeature
 CharacterOngoingEffect = RegisterGameType("CharacterOngoingEffect", "CharacterFeature")
 CharacterOngoingEffect.tableName = "characterOngoingEffects"
 CharacterOngoingEffect.stackable = false
@@ -208,7 +208,7 @@ function CharacterOngoingEffect:GetEndAbility()
 end
 
 --a point in time in the game.
---- @class TimePoint
+--- @class TimePoint: GameType
 TimePoint = RegisterGameType("TimePoint")
 
 function TimePoint.Create()
@@ -302,7 +302,7 @@ function TimePoint:RoundsSince()
 	return roundsPassed
 end
 
---- @class CharacterOngoingEffectInstance
+--- @class CharacterOngoingEffectInstance: GameType
 --- @field ongoingEffectid string
 --- @field duration nil|number time in rounds
 --- @field time TimePoint time when effect was added.

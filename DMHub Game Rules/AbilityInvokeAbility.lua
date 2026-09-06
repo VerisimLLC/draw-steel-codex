@@ -1,9 +1,9 @@
 local mod = dmhub.GetModLoading()
 
---- @class ActivatedAbilityInvokeAbilityBehavior
+--- @class ActivatedAbilityInvokeAbilityBehavior: ActivatedAbilityBehavior
 ActivatedAbilityInvokeAbilityBehavior = RegisterGameType("ActivatedAbilityInvokeAbilityBehavior", "ActivatedAbilityBehavior")
 
---- @class AbilityInvocation
+--- @class AbilityInvocation: GameType
 AbilityInvocation = RegisterGameType("AbilityInvocation")
 
 AbilityUtils = {

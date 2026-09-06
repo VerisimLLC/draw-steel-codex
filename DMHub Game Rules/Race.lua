@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class Race
+--- @class Race: GameType
 --- @field name string Display name (e.g. "Elf", "Human").
 --- @field tableName string Data table name ("races").
 --- @field height number Default height in feet.

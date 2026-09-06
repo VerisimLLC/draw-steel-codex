@@ -41,7 +41,7 @@ end
 
 --- @module DrawSteelMinion
 
---- @class DrawSteelMinion
+--- @class DrawSteelMinion: GameType
 --- @field squads nil|table<string, {color: string}> Per-session squad color overrides, keyed by squad name.
 --- Manages Draw Steel minion squads, including per-squad color assignment.
 DrawSteelMinion = RegisterGameType("DrawSteelMinion")

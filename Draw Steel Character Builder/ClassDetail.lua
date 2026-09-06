@@ -1,6 +1,7 @@
 --[[
     Class detail / selectors
 ]]
+--- @class CBClassDetail: GameType
 CBClassDetail = RegisterGameType("CBClassDetail")
 
 local mod = dmhub.GetModLoading()

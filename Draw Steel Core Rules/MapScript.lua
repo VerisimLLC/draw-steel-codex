@@ -61,7 +61,7 @@ local mod = dmhub.GetModLoading()
 --                              diff, the map-change check, and
 --                              mod.unloadHandlers.
 
---- @class MapScript
+--- @class MapScript: GameType
 --- @field name string Display name of the library script.
 --- @field description string What the script does, shown in pickers and the compendium.
 --- @field code string The Lua source; must return a definition table.

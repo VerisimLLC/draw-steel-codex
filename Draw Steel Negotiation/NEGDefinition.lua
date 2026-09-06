@@ -3,7 +3,7 @@ local mod = dmhub.GetModLoading()
 --- One motivation or pitfall on a prepared negotiation: which of the twelve it
 --- is, and what it means to this NPC. The catalog carries no description of
 --- its own - what the trait means here is the Director's to write.
---- @class NEGTrait
+--- @class NEGTrait: GameType
 --- @field id string row identity, so a row survives its trait changing
 --- @field trait string a NEGRules.traits id
 --- @field note string this NPC's take on it
@@ -22,7 +22,7 @@ end
 
 --- A prepared, reusable negotiation. A run copies one wholesale and never
 --- writes back to it.
---- @class NEGDefinition
+--- @class NEGDefinition: GameType
 --- @field id string
 --- @field name string what the negotiation is called
 --- @field npcName string who the heroes are facing

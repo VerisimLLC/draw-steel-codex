@@ -28,10 +28,14 @@ local mod = dmhub.GetModLoading()
 --- @field armorClassModifier number Armor class bonus from equipping this shield.
 
 --Types defined as core types by DMHub.
+--- @class equipment: GameType
 equipment = RegisterGameType("equipment")
 
+--- @class weapon: equipment
 weapon = RegisterGameType("weapon", "equipment")
+--- @class armor: equipment
 armor = RegisterGameType("armor", "equipment")
+--- @class shield: equipment
 shield = RegisterGameType("shield", "equipment")
 
 equipment.tableName = "tbl_Gear"

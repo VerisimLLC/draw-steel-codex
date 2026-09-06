@@ -26,6 +26,7 @@
         - afterOptions
         - extraChildren (an array)
 ]]
+--- @class CBFeatureSelector: GameType
 CBFeatureSelector = RegisterGameType("CBFeatureSelector")
 
 local function track(eventType, fields)

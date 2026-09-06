@@ -4,7 +4,9 @@
     Make a background characteristic / roll table behave like
     a feature choice for purposes of the character builder.
 ]]
+--- @class CharacterIncidentChoice: CharacterChoice
 CharacterIncidentChoice = RegisterGameType("CharacterIncidentChoice", "CharacterChoice")
+--- @class CharacterIncidentOption: GameType
 CharacterIncidentOption = RegisterGameType("CharacterIncidentOption")
 
 CharacterIncidentChoice.name = "Incident"

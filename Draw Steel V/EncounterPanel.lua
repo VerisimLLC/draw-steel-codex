@@ -87,8 +87,10 @@ end
 
 --Encounter is defined in Draw Steel Core Rules/MCDMEncounter.lua (data + rules).
 --We re-fetch the registered type here so the UI methods below can attach to it.
+--- @class Encounter: GameType
 Encounter = RegisterGameType('Encounter')
 
+--- @class EncounterFolder: GameType
 EncounterFolder = RegisterGameType('EncounterFolder')
 
 EncounterFolder.tableName = 'encounterfolders'

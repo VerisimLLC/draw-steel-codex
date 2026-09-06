@@ -5,7 +5,7 @@ local mod = dmhub.GetModLoading()
 --- a volume slider. Display/scale/alignment mirror RichImage; the transport bar
 --- is driven by the panel video bridge added to SheetPanel (videoTime,
 --- videoDuration, PlayVideo/PauseVideo, videoVolume, videoMuted, ...).
----@class RichVideo
+---@class RichVideo: RichTag
 RichVideo = RegisterGameType("RichVideo", "RichTag")
 RichVideo.tag = "video"
 RichVideo.image = false      -- asset id of the video / animated webp

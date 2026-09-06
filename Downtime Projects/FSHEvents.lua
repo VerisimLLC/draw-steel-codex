@@ -5,7 +5,7 @@ local mod = dmhub.GetModLoading()
 --- puts the full text in front of the player, and is explicit about what it
 --- applied and what a human still has to run: several of these results are
 --- fiction the Director adjudicates, not mechanics.
---- @class FSHEvents
+--- @class FSHEvents: GameType
 FSHEvents = RegisterGameType("FSHEvents")
 
 --- How a result is handled.

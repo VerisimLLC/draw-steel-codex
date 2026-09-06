@@ -13,7 +13,7 @@ function creature:GrantTemporaryStamina(amount, note, granterTokenId)
 end
 
 
---- @class ActivatedAbilityTemporaryStaminaChatMessage
+--- @class ActivatedAbilityTemporaryStaminaChatMessage: GameType
 --- @field ability ActivatedAbility
 ActivatedAbilityTemporaryStaminaChatMessage = RegisterGameType("ActivatedAbilityTemporaryStaminaChatMessage")
 ActivatedAbilityTemporaryStaminaChatMessage.amount = 0

@@ -1,6 +1,6 @@
 --- Business logic and game rule calculations for downtime system
 --- Domain-specific operations for projects, characters, and game mechanics
---- @class DTBusinessRules
+--- @class DTBusinessRules: GameType
 DTBusinessRules = RegisterGameType("DTBusinessRules")
 
 --- Calculates the language penalty based on whether any known language

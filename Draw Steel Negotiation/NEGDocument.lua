@@ -9,6 +9,7 @@ local mod = dmhub.GetModLoading()
 --- Derives from MarkdownDocument, not CustomDocument: the content, annotations
 --- and the rich renderer all live there, and GetTextContent raises on a bare
 --- CustomDocument, which declares no content field.
+--- @class NEGDocument: MarkdownDocument
 NEGDocument = RegisterGameType("NEGDocument", "MarkdownDocument")
 
 NEGDocument.docType = "negotiation"

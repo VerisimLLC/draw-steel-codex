@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class Anim
+--- @class Anim: GameType
 --- Namespace for attack animation coroutine utilities (melee, ranged, spell, etc.).
 Anim = RegisterGameType("Anim")
 

@@ -1,7 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 
---- @class WeaponProperty
+--- @class WeaponProperty: GameType
 --- @field tableName string Data table name ("weaponProperties").
 --- @field name string Display name.
 --- @field details string Rules text describing this property.

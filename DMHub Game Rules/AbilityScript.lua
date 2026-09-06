@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class ActivatedAbilityScriptBehavior
+--- @class ActivatedAbilityScriptBehavior: ActivatedAbilityBehavior
 ActivatedAbilityScriptBehavior = RegisterGameType("ActivatedAbilityScriptBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilityScriptBehavior.summary = "Lua Script"

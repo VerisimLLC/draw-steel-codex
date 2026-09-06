@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class GameSystem
+--- @class GameSystem: GameType
 --- @field rollTypes table[] Registered roll type descriptors for this game system.
 --- @field leveledProficiencyTypes table[] Proficiency types that scale with level.
 --- @field HitpointsName string Localized term for hit points.
@@ -35,7 +35,7 @@ local mod = dmhub.GetModLoading()
 --- @field AllowBoonsForRoll fun(options: table): boolean Returns true if boons/banes apply to the given roll.
 GameSystem = RegisterGameType("GameSystem")
 
---- @class RollRules
+--- @class RollRules: GameType
 --- Settings and overrides for how a specific roll type is executed.
 RollRules = RegisterGameType("RollRules")
 

@@ -161,7 +161,7 @@ function Aura.Create(options)
     return result
 end
 
---- @class AuraInstance
+--- @class AuraInstance: GameType
 --- @field aura Aura The Aura definition this instance belongs to.
 --- @field casterid string Token id of the creature that cast/owns this aura.
 --- @field guid string Unique identifier.
@@ -1873,7 +1873,7 @@ function AuraInstance:GetChildInstances()
     return result
 end
 
---- @class AuraComponent
+--- @class AuraComponent: GameType
 --- @field casterid string Token id of the creature that owns the aura.
 --- @field auraid string Guid of the AuraInstance on the caster.
 --- The object component attached to the placed map object representing an aura.

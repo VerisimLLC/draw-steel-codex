@@ -29,6 +29,7 @@ local mod = dmhub.GetModLoading()
 -- Storage type: a MarkdownDocument subtype stored in its own table.
 ----------------------------------------------------------------------
 
+--- @class CampaignNote: MarkdownDocument
 CampaignNote = RegisterGameType("CampaignNote", "MarkdownDocument")
 
 --Upload() routes to self.tableName, so rows land in our own table.
@@ -2896,7 +2897,7 @@ end
 --  nextLabel: string|false   display name for the next scene
 ----------------------------------------------------------------------
 
----@class RichExit
+---@class RichExit: RichTag
 RichExit = RegisterGameType("RichExit", "RichTag")
 RichExit.tag = "exit"
 RichExit.hasEdit = false

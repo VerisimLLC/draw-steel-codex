@@ -4,7 +4,7 @@ local mod = dmhub.GetModLoading()
 --- Each Trip lives in its own document keyed by the hero, written only by the
 --- client that started it. That single-writer rule is what keeps concurrent
 --- Trips from racing each other.
---- @class FSHTrip
+--- @class FSHTrip: GameType
 FSHTrip = RegisterGameType("FSHTrip")
 
 FSHTrip.STATUS = {

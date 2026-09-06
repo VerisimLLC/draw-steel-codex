@@ -25,6 +25,7 @@ local TEMPLATE_CATEGORIES = {
 -- 1. AbilityTemplate game type
 -- ============================================================================
 
+--- @class AbilityTemplate: GameType
 AbilityTemplate = RegisterGameType("AbilityTemplate")
 AbilityTemplate.tableName = "abilityTemplates"
 AbilityTemplate.name = "New Template"

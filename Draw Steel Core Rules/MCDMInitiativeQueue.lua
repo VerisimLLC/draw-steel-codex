@@ -25,10 +25,10 @@ end
 -- get to move. The "current initiative entry" -- aka whose turn it is -- is the highest initiative that is eligible to move this round.
 -- When a token ends their turn, their initiative entry has the current round incremented.
 
---- @class InitiativeQueue
+--- @class InitiativeQueue: GameType
 InitiativeQueue = RegisterGameType("InitiativeQueue")
 
---- @class InitiativeQueueEntry
+--- @class InitiativeQueueEntry: GameType
 InitiativeQueueEntry = RegisterGameType("InitiativeQueueEntry")
 
 function InitiativeQueue:GameModeInfo()

@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
----@class RichReminder
+---@class RichReminder: RichTag
 RichReminder = RegisterGameType("RichReminder", "RichTag")
 RichReminder.tag = "reminder"
 

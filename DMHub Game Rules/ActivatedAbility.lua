@@ -18,7 +18,7 @@ end
 --- @alias AbilityTarget {loc: Loc, token = nil|CharacterToken}
 --- @alias Symbols table|function
 
---- @class ActivatedAbility
+--- @class ActivatedAbility: GameType
 --- @field description string Rules text shown to players.
 --- @field flavor string Flavor/lore text shown in the ability tooltip.
 --- @field range number|string|table Targeting range in world units.
@@ -55,7 +55,7 @@ end
 --- @field behaviors ActivatedAbilityBehavior[] The list of behaviors that execute when the ability is cast.
 ActivatedAbility = RegisterGameType("ActivatedAbility")
 
---- @class ActivatedAbilityBehavior
+--- @class ActivatedAbilityBehavior: GameType
 --- @field instant boolean If true, executes immediately (not in a coroutine).
 --- @field customOngoingEffect boolean If true, uses a custom ongoing effect rather than the default.
 --- @field duration string|number|nil Duration type for the effect ("none" by default).
@@ -92,7 +92,7 @@ ActivatedAbilityApplyOngoingEffectBehavior = RegisterGameType("ActivatedAbilityA
 --- @class ActivatedAbilityRemoveOngoingEffectBehavior:ActivatedAbilityBehavior
 ActivatedAbilityRemoveOngoingEffectBehavior = RegisterGameType("ActivatedAbilityRemoveOngoingEffectBehavior", "ActivatedAbilityBehavior")
 
---- @class ActivatedAbilityAbilityAuraBehavior:ActivatedAbilityBehavior
+--- @class ActivatedAbilityAuraBehavior:ActivatedAbilityBehavior
 ActivatedAbilityAuraBehavior = RegisterGameType("ActivatedAbilityAuraBehavior", "ActivatedAbilityBehavior")
 
 --- @class ActivatedAbilityMoveAuraBehavior:ActivatedAbilityBehavior
@@ -2597,7 +2597,7 @@ end
 
 ActivatedAbility.recordTargets = false
 
---- @class CastActivatedAbilityChatMessage
+--- @class CastActivatedAbilityChatMessage: GameType
 --- @field ability ActivatedAbility
 CastActivatedAbilityChatMessage = RegisterGameType("CastActivatedAbilityChatMessage")
 

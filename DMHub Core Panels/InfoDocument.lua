@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
----@class InfoDocument
+---@class InfoDocument: GameType
 ---@field docid string|false a reference to a markdown document in the journal.
 InfoDocument = RegisterGameType("InfoDocument")
 RegisterGameType("InfoDocumentSection")

@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
----@class RichCounter
+---@class RichCounter: RichTag
 RichCounter = RegisterGameType("RichCounter", "RichTag")
 RichCounter.tag = "counter"
 RichCounter.pattern = "^(?<number>[0-9]+)$"

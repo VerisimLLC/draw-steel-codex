@@ -1,6 +1,7 @@
 --[[
     Selectors - managing the options on the left side of the builder
 ]]
+--- @class CBSelectors: GameType
 CBSelectors = RegisterGameType("CBSelectors")
 
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent

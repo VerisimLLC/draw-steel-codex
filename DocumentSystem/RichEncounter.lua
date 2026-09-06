@@ -1,7 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 
----@class RichEncounter
+---@class RichEncounter: RichTag
 RichEncounter = RegisterGameType("RichEncounter", "RichTag")
 RichEncounter.tag = "encounter"
 

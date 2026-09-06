@@ -4,6 +4,7 @@ local mod = dmhub.GetModLoading()
 --- Everything here reads the Respite that is ending, so it has to run before
 --- the session is cleared away. The activities supply their own words: this
 --- file knows how to lay a document out and nothing about what happened in it.
+--- @class RSPJournal: GameType
 RSPJournal = RegisterGameType("RSPJournal")
 
 --- The folder the write-ups go in, or nil when it does not exist yet

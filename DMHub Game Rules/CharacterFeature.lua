@@ -5,7 +5,7 @@ local mod = dmhub.GetModLoading()
 --modifiers that are applied to the creature that has the feature. It is most typical for a CharacterFeature
 --to contain just one modifier.
 
---- @class CharacterFeature
+--- @class CharacterFeature: GameType
 --- @field guid nil|string Unique identifier for this feature instance.
 --- @field name nil|string Display name of the feature.
 --- @field source nil|string Human-readable source description (e.g. "Fighter", "Race Trait").

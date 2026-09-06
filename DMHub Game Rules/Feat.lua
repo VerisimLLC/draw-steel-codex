@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class CharacterFeat
+--- @class CharacterFeat: GameType
 --- @field name string Display name of the feat.
 --- @field description string Rules text.
 --- @field tableName string Data table name ("feats").
@@ -495,7 +495,7 @@ function CharacterTemplate:FeatureSourceName()
 	return "Creature Template"
 end
 
---- @class CharacterSingleFeat
+--- @class CharacterSingleFeat: GameType
 --- @field featid string Id of the specific feat granted (or "none").
 --- @field name string Display name ("Single Feat").
 --- A CharacterFeature-like wrapper that grants exactly one specific feat.

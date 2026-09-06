@@ -3,7 +3,7 @@ local mod = dmhub.GetModLoading()
 --This file implements character modifiers. A character modifier is placed on a creature, most often
 --by a Character Feature or an Ongoing Effect and modifies the character's rules in some way.
 
---- @class CharacterModifier
+--- @class CharacterModifier: GameType
 --- @field name string Display name of the modifier.
 --- @field description string Human-readable description of what this modifier does.
 --- @field guid string Unique identifier for this modifier instance.

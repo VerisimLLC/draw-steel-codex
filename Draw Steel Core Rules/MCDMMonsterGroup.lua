@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class MonsterGroup
+--- @class MonsterGroup: GameType
 --- @field name string Display name.
 --- @field tableName string Data table name ("MonsterGroup").
 --- @field reach number Default reach in world units.

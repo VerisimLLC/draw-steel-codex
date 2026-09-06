@@ -2,6 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- The negotiation in play. One body serves both sides: the Director's carries
 --- the live scales and the eyes; the players' carries only what is revealed.
+--- @class NEGRunPanel: GameType
 NEGRunPanel = RegisterGameType("NEGRunPanel")
 
 --- A form label over its value, matching the configuration screen.

@@ -243,6 +243,7 @@ end
 --- Action log message posted when the director reveals a spoilered modifier.
 --- Renders live from the shared reveal document, so the director can hide the
 --- spoiler again from the message itself and players' views update in place.
+--- @class SpoilerRevealChatMessage: GameType
 SpoilerRevealChatMessage = RegisterGameType("SpoilerRevealChatMessage")
 SpoilerRevealChatMessage.spoilerKey = ""
 SpoilerRevealChatMessage.spoilerName = ""

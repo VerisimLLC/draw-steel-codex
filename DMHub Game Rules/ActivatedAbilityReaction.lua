@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class ActivatedAbilityReaction
+--- @class ActivatedAbilityReaction: GameType
 --- @field type string Reaction trigger type id (e.g. "none", "onAttacked", "onDamaged").
 ActivatedAbilityReaction = RegisterGameType("ActivatedAbilityReaction")
 

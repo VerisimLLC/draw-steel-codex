@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
----@class RichImage
+---@class RichImage: RichTag
 RichImage = RegisterGameType("RichImage", "RichTag")
 RichImage.tag = "image"
 RichImage.image = false

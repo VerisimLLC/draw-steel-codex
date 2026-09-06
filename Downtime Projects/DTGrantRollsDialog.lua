@@ -22,7 +22,7 @@ end
 --- One hero and their downtime followers, each with their own count. Where the
 --- Grant dialog deals in deltas across the whole party, this one sets the
 --- numbers outright for a single hero.
---- @class DTActivitiesDialog
+--- @class DTActivitiesDialog: GameType
 DTActivitiesDialog = RegisterGameType("DTActivitiesDialog")
 
 --- Widths of the "- [n] +" control, which reads the same as the Respite's.

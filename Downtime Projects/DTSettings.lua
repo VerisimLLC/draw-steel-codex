@@ -1,6 +1,6 @@
 --- Settings manager for downtime system configuration
 --- Handles document-based storage of global downtime settings
---- @class DTSettings
+--- @class DTSettings: GameType
 --- @field mod table The Codex mod loading instance
 --- @field documentName string The name of the document used for settings storage
 DTSettings = RegisterGameType("DTSettings")

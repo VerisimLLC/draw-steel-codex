@@ -1,5 +1,6 @@
 local mod = dmhub.GetModLoading()
 
+--- @class Persistence: GameType
 Persistence = RegisterGameType("Persistence")
 Persistence.name = ""
 

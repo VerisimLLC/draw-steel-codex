@@ -1,6 +1,7 @@
 --[[
     Kit detail / selectors
 ]]
+--- @class CBKitDetail: GameType
 CBKitDetail = RegisterGameType("CBKitDetail")
 
 local mod = dmhub.GetModLoading()

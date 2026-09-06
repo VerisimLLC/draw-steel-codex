@@ -3,6 +3,7 @@ local mod = dmhub.GetModLoading()
 
 --This file implements the important Creature type, which is a base type for both characters and monsters.
 
+--- @class GameSystem: GameType
 GameSystem = RegisterGameType("GameSystem")
 
 --- @class StatHistoryEntry
@@ -14,7 +15,7 @@ GameSystem = RegisterGameType("GameSystem")
 --- @field attackerid nil|string
 --- @field refreshid nil|string
 
---- @class StatHistory Keeps history of a stat.
+--- @class StatHistory: GameType Keeps history of a stat.
 --- @field entries StatHistoryEntry[] The list of entries the stat history has.
 StatHistory = RegisterGameType("StatHistory")
 
@@ -110,7 +111,7 @@ function StatHistory:MostRecentTimestamp(attackerid, disposition)
 	return timestamp
 end
 
---- @class CharacterAttribute
+--- @class CharacterAttribute: GameType
 --- @field baseValue nil|number Base (unmodified) value of this attribute.
 --- @field id nil|string Attribute id (e.g. "str", "dex", "int").
 --- @field name nil|string Display name (e.g. "Strength").
@@ -154,7 +155,7 @@ function CharacterAttribute.ModifierStr(self)
 	end
 end
 
---- @class creature
+--- @class creature: GameType
 --- @field max_hitpoints number The creature's maximum hitpoints (stamina in Draw Steel).
 --- @field temporary_hitpoints nil|number Current temporary hitpoints.
 --- @field damage_taken nil|number Total damage taken so far.
@@ -2801,7 +2802,7 @@ function creature:RollDeathSavingThrow(args)
 end
 
 --Lua properties that we attach to a dice roll.
---- @class RollProperties
+--- @class RollProperties: GameType
 --- @field displayType string How the roll result is displayed: "none", "attack", "damage", etc.
 --- @field criticalHitDamage boolean If true, this roll contributes to critical hit extra damage.
 --- @field lowerIsBetter boolean If true, lower roll values are treated as better outcomes.
@@ -6675,7 +6676,7 @@ function creature:OnMove(path)
     end
 end
 
---- @class PathMoved
+--- @class PathMoved: GameType
 PathMoved = RegisterGameType("PathMoved")
 PathMoved.size = 1
 

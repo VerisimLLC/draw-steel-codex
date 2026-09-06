@@ -26,6 +26,7 @@ local mod = dmhub.GetModLoading()
 --modifier gated on the jump skill, e.g. the Fury's Mighty Leaps) previews
 --only two rings, with the tier 2 ring shown as the guaranteed one.
 
+--- @class ActivatedAbilityJumpBehavior: ActivatedAbilityBehavior
 ActivatedAbilityJumpBehavior = RegisterGameType("ActivatedAbilityJumpBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilityJumpBehavior.summary = 'Jump (Roll to Target)'

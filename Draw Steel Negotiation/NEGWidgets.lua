@@ -2,6 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- Small pieces shared by the negotiation surfaces. No styles table here: one
 --- would shadow the inherited ThemeEngine cascade for the whole subtree.
+--- @class NEGWidgets: GameType
 NEGWidgets = RegisterGameType("NEGWidgets")
 
 --- A label-over-control form row.

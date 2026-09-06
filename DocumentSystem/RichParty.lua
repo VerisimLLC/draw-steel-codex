@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
----@class RichParty
+---@class RichParty: RichTag
 RichParty = RegisterGameType("RichParty", "RichTag")
 RichParty.tag = "party"
 RichParty.hasEdit = "hidden"

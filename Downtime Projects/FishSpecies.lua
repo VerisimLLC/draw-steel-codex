@@ -1,6 +1,6 @@
 --- A fish species: the named, sized creature a scoring cast produces
 --- Lives in the Director-editable FishSpecies compendium table.
---- @class FishSpecies
+--- @class FishSpecies: GameType
 --- @field id string GUID identifier (engine-managed for table items)
 --- @field name string Display name
 --- @field waterType string An FSHConstants.WATER_TYPE key

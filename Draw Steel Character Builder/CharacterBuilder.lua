@@ -77,6 +77,7 @@
 
 local mod = dmhub.GetModLoading()
 
+--- @class CharacterBuilder: GameType
 CharacterBuilder = RegisterGameType("CharacterBuilder")
 
 CharacterBuilder.CONTROLLER_CLASS = "builderPanel"

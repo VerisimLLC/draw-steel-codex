@@ -18,7 +18,7 @@ ActivatedAbility.RegisterType
 	end
 }
 
---- @class ResourceChatMessage
+--- @class ResourceChatMessage: GameType
 --- @field tokenid string
 --- @field resourceid string
 --- @field quantity number
@@ -136,7 +136,7 @@ function ResourceChatMessage:Undo(message)
     message:UploadProperties(self)
 end
 
---- @class HealChatMessage
+--- @class HealChatMessage: GameType
 --- @field tokenid string
 --- @field amount number
 --- @field text string

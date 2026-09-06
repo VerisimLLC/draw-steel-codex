@@ -1,6 +1,6 @@
 --- In-place project editor for character sheet integration
 --- Provides real-time editing of project fields within the character sheet
---- @class DTProjectEditor
+--- @class DTProjectEditor: GameType
 --- @field project DTProject The project being edited
 DTProjectEditor = RegisterGameType("DTProjectEditor")
 

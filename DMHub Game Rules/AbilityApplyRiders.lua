@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class ActivatedAbilityApplyRidersBehavior
+--- @class ActivatedAbilityApplyRidersBehavior: ActivatedAbilityBehavior
 ActivatedAbilityApplyRidersBehavior = RegisterGameType("ActivatedAbilityApplyRidersBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilityApplyRidersBehavior.summary = "Add Condition Riders"

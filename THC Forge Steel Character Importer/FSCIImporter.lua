@@ -1,5 +1,5 @@
 --- FSCIImporter handles importing a Forge Steel character into the Codex.
---- @class FSCIImporter
+--- @class FSCIImporter: GameType
 --- @field fsJson string The raw Forge Steel JSON string
 --- @field fsData table The parsed Forge Steel data structure
 --- @field token table The Codex token representing the new character

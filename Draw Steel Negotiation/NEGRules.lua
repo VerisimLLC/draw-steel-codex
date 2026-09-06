@@ -3,6 +3,7 @@ local mod = dmhub.GetModLoading()
 --- The published negotiation rules, as data: the trait catalog, the starting
 --- attitudes, the offer an interest score buys, and the language rule. Nothing
 --- here draws anything.
+--- @class NEGRules: GameType
 NEGRules = RegisterGameType("NEGRules")
 
 --- The twelve traits, in the order the rulebook lists them. The same list

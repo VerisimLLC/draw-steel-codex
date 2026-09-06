@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class Background
+--- @class Background: GameType
 --- @field name string Display name of the career/background.
 --- @field description string Descriptive text.
 --- @field portraitid string Asset id for the career portrait.

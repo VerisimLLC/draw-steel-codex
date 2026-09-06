@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
----@class RichTimer
+---@class RichTimer: RichTag
 RichTimer = RegisterGameType("RichTimer", "RichTag")
 RichTimer.tag = "timer"
 RichTimer.identifier = false

@@ -1,7 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 
----@class CustomDocument
+---@class CustomDocument: GameType
 ---@field id string
 ---@field title string
 ---@field content false|string

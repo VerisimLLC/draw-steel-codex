@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class CharacterType
+--- @class CharacterType: GameType
 --- @field tableName string Data table name ("characterTypes").
 --- @field name string Display name.
 --- @field description string Rules/lore text.

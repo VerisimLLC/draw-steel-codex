@@ -4,6 +4,7 @@
     Make the baseAttributes selection behave like a
     feature choice for purposes of the character builder.
 ]]
+--- @class CharacterCharacteristicChoice: CharacterChoice
 CharacterCharacteristicChoice = RegisterGameType("CharacterCharacteristicChoice", "CharacterChoice")
 
 --- Construct from a class

@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 --- Director Step 3: the Respite in progress, and how far along everyone is.
+--- @class RSPDirectorActPanel: GameType
 RSPDirectorActPanel = RegisterGameType("RSPDirectorActPanel")
 
 local INSTRUCTIONS = [[

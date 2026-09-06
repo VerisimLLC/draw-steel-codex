@@ -1,7 +1,7 @@
 --- Shared constants for the Fishing feature
 --- Provides the enum vocabulary, size bands, and species presentation pools
 --- used across the fishing classes.
---- @class FSHConstants
+--- @class FSHConstants: GameType
 FSHConstants = RegisterGameType("FSHConstants")
 
 --- Turns on every testing affordance at once: the Trip's starting points, the

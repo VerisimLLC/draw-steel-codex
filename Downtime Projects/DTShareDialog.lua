@@ -1,5 +1,5 @@
 --- Share dialog for sharing downtime projects with other characters
---- @class DTShareDialog
+--- @class DTShareDialog: GameType
 DTShareDialog = RegisterGameType("DTShareDialog")
 
 local WIDTH = 500

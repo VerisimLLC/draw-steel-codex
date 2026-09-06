@@ -3,7 +3,7 @@ local mod = dmhub.GetModLoading()
 --this implements Resource rules. Note that part of this file includes adding functionality to creatures
 --to control how they manage their resources.
 
---- @class CharacterResource
+--- @class CharacterResource: GameType
 CharacterResource = RegisterGameType("CharacterResource")
 
 local g_sharedGlobalResourceDoc = "globalResourcesv2"
@@ -1093,7 +1093,7 @@ dmhub.RegisterEventHandler("refreshTables", function(updated)
 	end
 end)
 
---- @class CharacterResourceCollection
+--- @class CharacterResourceCollection: GameType
 --- @field helpSymbols table GoblinScript help symbol table for this collection (keyed by resource name).
 --- @field lookupSymbols table GoblinScript lookup symbols populated from resource table data.
 --- Represents all resources a character currently has, used as the GoblinScript "resources" object.

@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 --- Shared vocabulary for the Negotiation feature.
+--- @class NEGConstants: GameType
 NEGConstants = RegisterGameType("NEGConstants")
 
 -- Identity

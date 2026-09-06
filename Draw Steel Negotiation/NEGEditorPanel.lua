@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 --- The configuration surface for the selected negotiation.
+--- @class NEGEditorPanel: GameType
 NEGEditorPanel = RegisterGameType("NEGEditorPanel")
 
 --- One motivation or pitfall: which of the twelve, and what it means here.

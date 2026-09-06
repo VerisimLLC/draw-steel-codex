@@ -43,6 +43,7 @@ local g_numHeroesSetting = setting {
     }
 }
 
+--- @class Encounter: GameType
 Encounter = RegisterGameType('Encounter')
 
 Encounter.name = 'New Encounter'
@@ -862,6 +863,7 @@ end
 -- Encounter and begins life as a deep copy of an authored Encounter, re-typed as a
 -- LiveEncounter so it is its own distinct type -- it inherits all of Encounter's
 -- fields and methods but can carry live-only state and extensions.
+--- @class LiveEncounter: Encounter
 LiveEncounter = RegisterGameType("LiveEncounter", "Encounter")
 
 -- Its own table name so it is distinguished from authored encounters.
@@ -3771,7 +3773,7 @@ end
 -- cached victory text is what player-facing surfaces display, so player
 -- clients never execute encounter-script code.
 
---- @class EncounterScript
+--- @class EncounterScript: GameType
 --- @field name string Display name of the library script.
 --- @field description string What the script does, shown in pickers and the compendium.
 --- @field code string The Lua source; must return a definition table.
@@ -4102,7 +4104,7 @@ end
 -- EncounterScriptInstance: a script attached to an encounter
 -- ---------------------------------------------------------------------------
 
---- @class EncounterScriptInstance
+--- @class EncounterScriptInstance: GameType
 --- @field scriptid string Id into the encounterScripts table or a "builtin:" id; "" = inline custom code.
 --- @field code string Inline Lua source (custom scripts only).
 --- @field name string Cached display name, refreshed from the definition at edit time.

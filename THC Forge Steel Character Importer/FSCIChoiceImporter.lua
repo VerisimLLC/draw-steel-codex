@@ -1,6 +1,6 @@
 --- FSCIChoiceImporter handles importing choices made in a Forge Steel character
 --- into the complex Codex choices
---- @class FSCIChoiceImporter
+--- @class FSCIChoiceImporter: GameType
 --- @field availableFeatures table The features available in the Codex
 --- @field levelChoices table The calculated list of selected features formatted for the character
 --- @field featureData table The full feature objects keyed by GUID

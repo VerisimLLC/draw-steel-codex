@@ -424,6 +424,7 @@ MCDMMotivation.motivations = {
 --token during play. A Negotiator is the GM-authored archetype from the manual's
 --"Sample Negotiators": a name, an impression score, flavor text, a description,
 --and free-form named motivations and pitfalls.
+--- @class NegotiatorTrait: GameType
 NegotiatorTrait = RegisterGameType("NegotiatorTrait")
 NegotiatorTrait.name = ""
 NegotiatorTrait.description = ""
@@ -436,6 +437,7 @@ function NegotiatorTrait.Create(args)
     }
 end
 
+--- @class Negotiator: GameType
 Negotiator = RegisterGameType("Negotiator")
 Negotiator.tableName = "negotiators"
 Negotiator.name = "New Negotiator"
@@ -634,6 +636,7 @@ end
 -- LiveNegotiation: the in-play state, carried in the shared presentdialog
 -- doc's livedata (mirrors LiveMontage). Everything the stage + rail read.
 --------------------------------------------------------------------------------
+--- @class LiveNegotiation: GameType
 LiveNegotiation = RegisterGameType("LiveNegotiation")
 LiveNegotiation.docid = ""          --the backing NegotiationDocument id.
 LiveNegotiation.npcName = ""
@@ -735,6 +738,7 @@ end
 -- journal document type (unlike montage, whose registration is commented
 -- out). The read view is a scene page; "Begin Negotiation" presents the stage.
 --------------------------------------------------------------------------------
+--- @class NegotiationDocument: CustomDocument
 NegotiationDocument = RegisterGameType("NegotiationDocument", "CustomDocument")
 NegotiationDocument.nodeType = "negotiation"
 NegotiationDocument.docType = "negotiation"   --pins the semantic type (see DocumentSystem.lua)

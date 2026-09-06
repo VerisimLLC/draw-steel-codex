@@ -744,6 +744,7 @@ end
 -- document). Object tables are module-exportable and have no seed-on-empty PUT
 -- race. Live playback state stays in the audioPlaylistState document; game-mode
 -- bindings move to the small audioPlaylistBindings document below.
+--- @class AudioPlaylist: GameType
 AudioPlaylist = RegisterGameType("AudioPlaylist")
 AudioPlaylist.tableName = "audioPlaylists"
 AudioPlaylist.name = "New playlist"
@@ -898,7 +899,7 @@ local audioEventLogSfx = setting{
     onchange = function() if WriteAudioLogSubscription ~= nil then WriteAudioLogSubscription() end end,
 }
 
---- @class AudioLogChatMessage
+--- @class AudioLogChatMessage: GameType
 AudioLogChatMessage = RegisterGameType("AudioLogChatMessage")
 AudioLogChatMessage.text = ""
 AudioLogChatMessage.kind = ""   --"" = transition line, "effect" = soundboard sound effect
@@ -2294,6 +2295,7 @@ end
 -- of the definition in the audioVariantPoolCycle document so a cycle-mode fire does not
 -- churn a content row every tap. The separate audioVariantPoolLoops doc (live loop
 -- state) is unchanged.
+--- @class VariantPool: GameType
 VariantPool = RegisterGameType("VariantPool")
 VariantPool.tableName = "audioVariantPools"
 VariantPool.pool = true            -- kept so existing "entry.pool == true" validity

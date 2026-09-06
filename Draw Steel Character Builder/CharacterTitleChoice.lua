@@ -6,6 +6,7 @@ local mod = dmhub.GetModLoading()
     Make a Title choice behave like a feature choice
     for purposes of the character builder.
 ]]
+--- @class CharacterTitleChoice: CharacterChoice
 CharacterTitleChoice = RegisterGameType("CharacterTitleChoice", "CharacterChoice")
 
 CharacterTitleChoice.description = "Title Choice"

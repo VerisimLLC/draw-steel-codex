@@ -1,7 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 --- One hero at the table. Who is present decides the language patience bonus.
---- @class NEGParticipant
+--- @class NEGParticipant: GameType
 --- @field charid string
 --- @field name string
 --- @field included boolean
@@ -18,7 +18,7 @@ end
 
 --- A negotiation in play. Holds its own copy of the definition, so editing the
 --- prepared version mid-run does not disturb it.
---- @class NEGLive
+--- @class NEGLive: GameType
 --- @field defid string what it was started from, for the library's play marker
 --- @field def NEGDefinition a copy, never the library's object
 --- @field interest number
@@ -199,6 +199,7 @@ function NEGLive:TerminalReason()
 end
 
 --- The one negotiation in play, and everything that moves it.
+--- @class NEGRun: GameType
 NEGRun = RegisterGameType("NEGRun")
 
 mod:RegisterDocumentForCheckpointBackups(NEGConstants.activeRunDoc)

@@ -13,7 +13,7 @@ end
 
 --- Downtime Director Panel - Main dockable panel for downtime project management
 --- Provides the primary interface for directors to manage downtime projects and settings
---- @class DTDirectorPanel
+--- @class DTDirectorPanel: GameType
 --- @field downtimeSettings DTSettings The downtime settings for shared data management
 DTDirectorPanel = RegisterGameType("DTDirectorPanel")
 

@@ -1,6 +1,6 @@
 --- Downtime project containing all project data and progress tracking
 --- Represents a complete downtime project with status tracking, rolls, and adjustments
---- @class DTProject
+--- @class DTProject: GameType
 --- @field id string GUID identifier for this project
 --- @field ownerId string GUID identifier of the owner of this project
 --- @field sortOrder number The sort order for this objective

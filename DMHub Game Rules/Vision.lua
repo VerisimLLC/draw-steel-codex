@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class VisionType
+--- @class VisionType: GameType
 --- @field name string Display name (e.g. "Darkvision", "Tremorsense").
 --- @field tableName string Data table name ("VisionType").
 --- @field type string Vision behavior id: "none", "normal", or "dark".

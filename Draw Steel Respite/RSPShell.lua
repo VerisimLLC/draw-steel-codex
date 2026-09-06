@@ -4,6 +4,7 @@ local mod = dmhub.GetModLoading()
 --- and footer band - comes from DialogShell; what stays here is the wizard:
 --- which step the session's phase calls for, and when the window has outlived
 --- the Respite it was following.
+--- @class RSPShell: GameType
 RSPShell = RegisterGameType("RSPShell")
 
 --- How many Respite windows this client has open. The Director's offer asks

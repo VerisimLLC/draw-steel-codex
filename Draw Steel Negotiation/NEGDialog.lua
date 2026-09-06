@@ -4,6 +4,7 @@ local mod = dmhub.GetModLoading()
 --- and footer band - comes from DialogShell; what stays here is which pane the
 --- run's status calls for, and when a player's window has outlived the
 --- negotiation it was following.
+--- @class NEGDialog: GameType
 NEGDialog = RegisterGameType("NEGDialog")
 
 --- How many negotiation windows this client has open. A board pushed to a

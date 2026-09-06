@@ -419,6 +419,7 @@ local function RenderChatAttachment(attachment, message)
 	}
 end
 
+--- @class ChatAttachmentMessage: GameType
 ChatAttachmentMessage = RegisterGameType("ChatAttachmentMessage")
 ChatAttachmentMessage.channel = "chat"
 ChatAttachmentMessage.chatAttachmentBlobId = false
@@ -432,6 +433,7 @@ function ChatAttachmentMessage:Render(message)
 	return RenderChatAttachment(self, message)
 end
 
+--- @class ChatImageMessage: GameType
 ChatImageMessage = RegisterGameType("ChatImageMessage")
 ChatImageMessage.channel = "chat"
 ChatImageMessage.chatImageBlobId = false

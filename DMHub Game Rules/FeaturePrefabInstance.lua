@@ -3,7 +3,7 @@ local mod = dmhub.GetModLoading()
 --One of these is an instance of a FeaturePrefab. It is like a CharacterFeatureChoice,
 --but instead wraps/references a prefab which will itself be a choice and may filter
 --options from it.
---- @class FeaturePrefabInstance
+--- @class FeaturePrefabInstance: GameType
 --- @field prefabSetGuid string Guid of the CharacterFeaturePrefabs collection containing the prefab.
 --- @field prefabGuid string Guid of the specific CharacterFeature prefab within the collection.
 --- A CharacterChoice-like wrapper that references a feature prefab by guid rather than embedding it inline.

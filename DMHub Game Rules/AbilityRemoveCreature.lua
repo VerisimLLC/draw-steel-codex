@@ -415,7 +415,7 @@ function ActivatedAbilityRemoveCreatureBehavior:EditorItems(parentPanel)
 	return result
 end
 
---- @class CorpseComponent
+--- @class CorpseComponent: GameType
 CorpseComponent = RegisterGameType("CorpseComponent")
 
 CorpseComponent.charid = "none"

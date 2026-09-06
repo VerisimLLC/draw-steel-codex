@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class CustomField
+--- @class CustomField: GameType
 --- @field name string Display name of the field.
 --- @field type string Field value type (currently only "number").
 --- @field default number Default value when unset.
@@ -34,7 +34,7 @@ function CustomField:GetValue(obj)
     return self.default
 end
 
---- @class CustomFieldCollection
+--- @class CustomFieldCollection: GameType
 --- @field name string Display name ("Custom Fields").
 --- @field tableName string Data table name ("customfields").
 --- @field fieldTypes string[] Data type ids that support custom fields (e.g. {"spells"}).
@@ -230,7 +230,7 @@ function CustomFieldCollection.CreateEditor(dataType)
 
 end
 
---- @class CustomFieldInstance
+--- @class CustomFieldInstance: GameType
 --- @field fieldType string Data type id this instance belongs to (e.g. "spells").
 --- @field dataType string Id of the CustomFieldCollection schema this instance follows.
 --- A live instance of custom field values attached to a game object (stored as `obj.customFields`).

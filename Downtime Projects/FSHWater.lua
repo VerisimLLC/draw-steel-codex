@@ -4,7 +4,7 @@ local mod = dmhub.GetModLoading()
 --- One at a time, opened and closed by the Director, and the only gate on
 --- whether players may start fishing. Held in a shared document so every client
 --- sees the same water without the module pushing anything.
---- @class FSHWater
+--- @class FSHWater: GameType
 FSHWater = RegisterGameType("FSHWater")
 
 local documentName = "fsh_water"

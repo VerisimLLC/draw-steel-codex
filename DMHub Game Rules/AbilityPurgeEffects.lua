@@ -17,7 +17,7 @@ ActivatedAbility.RegisterType
 }
 
 
---- @class ActivatedAbilityPurgeEffectsChatMessage
+--- @class ActivatedAbilityPurgeEffectsChatMessage: GameType
 --- @field ability ActivatedAbility
 ActivatedAbilityPurgeEffectsChatMessage = RegisterGameType("ActivatedAbilityPurgeEffectsChatMessage")
 ActivatedAbilityPurgeEffectsChatMessage.conditions = {}

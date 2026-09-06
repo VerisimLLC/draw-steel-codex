@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class GlobalRuleMod
+--- @class GlobalRuleMod: GameType
 --- @field TableName string Data table name ("globalRuleMods").
 --- @field applyCharacters boolean If true, this modifier applies to player characters.
 --- @field applyMonsters boolean If true, this modifier applies to monsters.

@@ -2,6 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --- Paste a negotiation in as JSON. Takes over the right pane rather than
 --- opening a dialog of its own.
+--- @class NEGImportPanel: GameType
 NEGImportPanel = RegisterGameType("NEGImportPanel")
 
 --- @param onDone fun(defid: string|nil) selects what arrived, or clears

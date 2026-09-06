@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class EquipmentCategory
+--- @class EquipmentCategory: GameType
 --- @field tableName string Data table name ("equipmentCategories").
 --- @field name string Display name.
 --- @field editorType string Editor category shown in the compendium ("Gear", "Weapon", "Armor", etc.).

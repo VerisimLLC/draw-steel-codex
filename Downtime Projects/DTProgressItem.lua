@@ -1,6 +1,6 @@
 --- Base class for items that affect project progress
 --- Provides common functionality for rolls and adjustments
---- @class DTProgressItem
+--- @class DTProgressItem: GameType
 --- @field id string GUID identifier for this item
 --- @field amount number The progress value this item contributes
 --- @field commitDate string|osdate ISO date when this item was committed

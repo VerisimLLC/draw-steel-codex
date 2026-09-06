@@ -1,6 +1,7 @@
 --[[
     Complication Detail
 ]]
+--- @class CBComplicationDetail: GameType
 CBComplicationDetail = RegisterGameType("CBComplicationDetail")
 
 local SEL = CharacterBuilder.SELECTOR

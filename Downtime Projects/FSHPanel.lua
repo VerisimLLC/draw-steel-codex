@@ -3,7 +3,7 @@ local mod = dmhub.GetModLoading()
 --- The Fishing dock panel
 --- One shared panel for the whole table: roles differ only in which controls
 --- are live. This is the feature's entire voice, so nothing here goes to chat.
---- @class FSHPanel
+--- @class FSHPanel: GameType
 FSHPanel = RegisterGameType("FSHPanel")
 
 --- Builds dropdown options from a list of DTConstant instances

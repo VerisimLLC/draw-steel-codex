@@ -34,7 +34,7 @@ function MontageDocument:GetDifficultyInfo(numHeroes)
     return result
 end
 
----@class MontageChallenge
+---@class MontageChallenge: GameType
 ---@field name string
 ---@field details string
 ---@field characteristics table<string,boolean>
@@ -44,10 +44,10 @@ MontageChallenge.name = "Challenge"
 MontageChallenge.details = ""
 MontageChallenge.maximum = 1
 
----@class MontageConsequence
+---@class MontageConsequence: GameType
 MontageConsequence = RegisterGameType("MontageConsequence")
 
----@class MontageOutcome
+---@class MontageOutcome: GameType
 ---@field text string
 ---@field victoriesHard number
 ---@field victoriesMedium number
@@ -57,13 +57,13 @@ MontageOutcome.text = ""
 MontageOutcome.victoriesHard = 0
 MontageOutcome.victoriesMedium = 0
 
----@class LiveMontageParticipant
+---@class LiveMontageParticipant: GameType
 ---@field tokenid string
 LiveMontageParticipant = RegisterGameType("LiveMontageParticipant")
 LiveMontageParticipant.tokenid = ""
 
 --representation of an actual montage test in flight.
----@class LiveMontage
+---@class LiveMontage: GameType
 ---@field participants table<string, LiveMontageParticipant>
 LiveMontage = RegisterGameType("LiveMontage")
 LiveMontage.participants = {}
@@ -1201,6 +1201,7 @@ GameHud.RegisterPresentableDialog {
 --runner resolves it (CreateMontageTestUI reads the documents table). Sites
 --that iterate the montage set must now filter on docType=="montage" because
 --the documents table holds every journal document.
+--- @class MontageTest: MontageDocument
 MontageTest = RegisterGameType("MontageTest", "MontageDocument")
 MontageTest.tableName = CustomDocument.tableName   --"documents" (was "montageTests")
 

@@ -5413,7 +5413,7 @@ local g_beginRoundStyles = {
     }
 }
 
---- @class BeginRoundChatMessage
+--- @class BeginRoundChatMessage: GameType
 BeginRoundChatMessage = RegisterGameType("BeginRoundChatMessage")
 BeginRoundChatMessage.round = 0
 function BeginRoundChatMessage.Render(self, message)
@@ -5482,7 +5482,7 @@ function BeginRoundChatMessage.Render(self, message)
     return resultPanel
 end
 
---- @class StartOfTurnChatMessage
+--- @class StartOfTurnChatMessage: GameType
 StartOfTurnChatMessage = RegisterGameType("StartOfTurnChatMessage")
 StartOfTurnChatMessage.tokenids = {}
 

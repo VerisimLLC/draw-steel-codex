@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class Deity
+--- @class Deity: GameType
 --- @field name string Display name.
 --- @field description string Lore/description text.
 --- @field tableName string Data table name ("Deities").
@@ -8,7 +8,7 @@ local mod = dmhub.GetModLoading()
 --- @field domainList table[] List of domain references {id, text} associated with this deity.
 Deity = RegisterGameType("Deity")
 
---- @class DeityDomain
+--- @class DeityDomain: GameType
 --- @field name string Display name.
 --- @field tableName string Data table name ("DeityDomains").
 DeityDomain = RegisterGameType("DeityDomain")

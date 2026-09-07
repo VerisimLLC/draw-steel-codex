@@ -1398,19 +1398,7 @@ mod.shared.ShowCreateMapDialog = function()
                 halign = "left",
                 flow = "horizontal",
                 gui.Panel{ classes = {"cmHeaderIcon"}, bgimage = "phosphor/map-trifold.png" },
-                gui.Label{ classes = {"cmHeaderTitle"}, text = "Create Map", rmargin = 16 },
-                --the standard search field: magnifier, clear x, and the
-                --shared searchInput look. It fires "search" with the
-                --trimmed, lowercased text.
-                gui.SearchInput{
-                    width = 400,
-                    valign = "center",
-                    placeholderText = "Search maps...",
-                    search = function(element, str)
-                        m_search = str
-                        RefreshPackGrid()
-                    end,
-                },
+                gui.Label{ classes = {"cmHeaderTitle"}, text = "Create Map" },
             },
             --anchored to the bar's right edge as a group, so the widths of
             --the title and search field can never push the close button out.
@@ -1419,6 +1407,19 @@ mod.shared.ShowCreateMapDialog = function()
                 height = "100%",
                 halign = "right",
                 flow = "horizontal",
+                --the standard search field: magnifier, clear x, and the
+                --shared searchInput look. It fires "search" with the
+                --trimmed, lowercased text.
+                gui.SearchInput{
+                    width = 400,
+                    valign = "center",
+                    rmargin = 16,
+                    placeholderText = "Search maps...",
+                    search = function(element, str)
+                        m_search = str
+                        RefreshPackGrid()
+                    end,
+                },
                 packStatus,
                 gui.Panel{
                     classes = {"cmClose"},

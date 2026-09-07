@@ -1085,13 +1085,20 @@ mod.shared.ShowCreateMapDialog = function()
         border = {x1 = 0, x2 = 1, y1 = 0, y2 = 0},
         borderColor = "@border",
     }
+    --the sidebar rows copy the Maps panel's list grammar exactly
+    --(BuildMapListStyles in MapsPanel.lua): 34px quiet rows with hpad 12,
+    --14px names, 13px bold section headers over a 0.35 hairline, 11px
+    --muted counts, 0.2 seams.
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmNavItem"},
+        flow = "horizontal",
         bgimage = "panels/square.png",
         bgcolor = "clear",
         width = "100%",
-        height = 38,
-        halign = "center",
+        height = 34,
+        halign = "left",
+        hpad = 12,
+        borderBox = true,
     }
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmNavItem", "hover"},
@@ -1103,13 +1110,14 @@ mod.shared.ShowCreateMapDialog = function()
         bgcolor = "@bgAlt",
         border = {x1 = 3, x2 = 0, y1 = 0, y2 = 0},
         borderColor = "@accent",
+        priority = 5,
     }
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmNavIcon"},
-        width = 20,
-        height = 20,
+        width = 18,
+        height = 18,
         valign = "center",
-        hmargin = 12,
+        rmargin = 8,
         bgcolor = "@fg",
     }
     tileStyles[#tileStyles + 1] = {
@@ -1118,6 +1126,7 @@ mod.shared.ShowCreateMapDialog = function()
         color = "@fg",
         width = "auto",
         height = "auto",
+        halign = "left",
         valign = "center",
     }
     tileStyles[#tileStyles + 1] = {
@@ -1127,31 +1136,54 @@ mod.shared.ShowCreateMapDialog = function()
     }
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmNavCount"},
-        fontSize = 12,
+        fontSize = 11,
         color = "@fgMuted",
         width = "auto",
         height = "auto",
         valign = "center",
         halign = "right",
-        hmargin = 12,
     }
+    --section header: the folder-header grammar (13px bold over a hairline).
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmNavSection"},
-        fontSize = 11,
+        fontSize = 13,
         bold = true,
-        color = "@fgMuted",
+        color = "@fg",
         width = "auto",
         height = "auto",
-        hmargin = 14,
+        halign = "left",
+        valign = "center",
     }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavSectionHeader"},
+        flow = "horizontal",
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        width = "100%",
+        height = 30,
+        tmargin = 8,
+        hpad = 12,
+        borderBox = true,
+        halign = "left",
+    }
+    --the header's underline, a step brighter than row seams.
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavRule"},
+        bgimage = "panels/square.png",
+        bgcolor = "@border",
+        opacity = 0.35,
+        width = "100%",
+        height = 1,
+    }
+    --seam between the source rows and the library section.
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmNavDivider"},
         bgimage = "panels/square.png",
         bgcolor = "@border",
-        width = "100%-24",
+        opacity = 0.2,
+        width = "100%",
         height = 1,
-        halign = "center",
-        vmargin = 10,
+        vmargin = 8,
     }
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmPreview"},
@@ -1173,6 +1205,7 @@ mod.shared.ShowCreateMapDialog = function()
         selectors = {"cmFooterDivider"},
         bgimage = "panels/square.png",
         bgcolor = "@border",
+        opacity = 0.35,
         width = "100%",
         height = 1,
         valign = "bottom",
@@ -1328,7 +1361,11 @@ mod.shared.ShowCreateMapDialog = function()
                 },
                 sourceNav,
                 gui.Panel{ classes = {"cmNavDivider"} },
-                gui.Label{ classes = {"cmNavSection"}, halign = "left", text = "MAP LIBRARY", vmargin = 4 },
+                gui.Panel{
+                    classes = {"cmNavSectionHeader"},
+                    gui.Label{ classes = {"cmNavSection"}, text = "Map Library" },
+                },
+                gui.Panel{ classes = {"cmNavRule"} },
                 libraryNav,
             },
         }

@@ -1359,6 +1359,7 @@ mod.shared.ShowCreateMapDialog = function()
                     hmargin = 14,
                     vmargin = 16,
                 },
+                gui.Panel{ classes = {"cmNavRule"}, bmargin = 8 },
                 sourceNav,
                 gui.Panel{ classes = {"cmNavDivider"} },
                 gui.Panel{

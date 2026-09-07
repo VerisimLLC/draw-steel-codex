@@ -73,17 +73,19 @@ mod.shared.ShowCreateMapDialog = function()
     local m_search = ""
     local m_dialog = nil
 
-    --fixed dialog geometry; the grid pages are sized from it.
-    local DIALOG_WIDTH = 1700
-    local DIALOG_INSET = 24
-    local DETAIL_WIDTH = 516
-    --the preview image fills the pane width; height is capped so the text
+    --fixed dialog geometry: a sources sidebar on the left, the library grid
+    --in the middle and a docked preview pane on the right.
+    local DIALOG_WIDTH = 1560
+    local DIALOG_HEIGHT = 900
+    local SIDEBAR_WIDTH = 270
+    local PREVIEW_WIDTH = 400
+    local FOOTER_HEIGHT = 72
+    --the preview image fits the pane width; height is capped so the text
     --below it stays in view.
-    local DETAIL_IMAGE_W = DETAIL_WIDTH
-    --shorter than the pane could hold so the shared-markup list below the
-    --text stays in view.
-    local DETAIL_IMAGE_H = 400
-    local DETAIL_MARGIN = 10
+    local DETAIL_IMAGE_W = PREVIEW_WIDTH - 24
+    local DETAIL_IMAGE_H = 280
+    --the grid shows this many fixed-size tile columns and scrolls.
+    local GRID_COLUMNS = 5
 
     --community markup (Map Markup panel share icon): the shared markup sets
     --listed for the selected pack map, and the one chosen to add it with.
@@ -92,7 +94,6 @@ mod.shared.ShowCreateMapDialog = function()
     local markupHeading
     local markupList
     local markupStatus
-    local GRID_WIDTH = DIALOG_WIDTH - DIALOG_INSET - DETAIL_WIDTH - DETAIL_MARGIN * 2
 
     local m_mapName = "New Map"
     --the name the dialog last filled in by itself (a pack map's name), so a
@@ -107,6 +108,9 @@ mod.shared.ShowCreateMapDialog = function()
     local nameInput
     local packGrid
     local packStatus
+    --builds the sidebar's library filter rows once the index has synced;
+    --assigned in the packs-enabled branch below.
+    local BuildLibraryNav = function() end
 
     --Patreon gating (see mod.shared.MapPackPatreonState): the creator record
     --of the selected pack map (name, website, campaign page), what the
@@ -208,16 +212,38 @@ mod.shared.ShowCreateMapDialog = function()
         halign = "left",
     }
 
-    --the whole pane stays hidden until a pack map is selected.
-    local detailPanel = gui.Panel{
-        classes = {"hidden"},
-        width = DETAIL_WIDTH,
+    --the preview pane docks right of the grid and is always present; a
+    --placeholder fills it until a pack map is selected.
+    local previewPlaceholder = gui.Panel{
+        width = "100%",
         height = "auto",
-        floating = true,
-        halign = "right",
         valign = "center",
         flow = "vertical",
-        hmargin = DETAIL_MARGIN,
+        gui.Panel{
+            width = 44,
+            height = 44,
+            halign = "center",
+            bgimage = "phosphor/book-open.png",
+            bgcolor = "#888888ff",
+        },
+        gui.Label{
+            classes = {"mapPackDetailText"},
+            width = "80%",
+            halign = "center",
+            textAlignment = "center",
+            vmargin = 10,
+            text = "Select a map to preview it here.",
+        },
+    }
+    local detailContent = gui.Panel{
+        classes = {"hidden"},
+        width = "100%-24",
+        height = "100%-16",
+        halign = "center",
+        valign = "top",
+        vmargin = 8,
+        vscroll = true,
+        flow = "vertical",
         detailImage,
         detailTitle,
         detailCreator,
@@ -229,6 +255,14 @@ mod.shared.ShowCreateMapDialog = function()
         markupHeading,
         markupStatus,
         markupList,
+    }
+    local detailPanel = gui.Panel{
+        classes = {"cmPreview"},
+        width = PREVIEW_WIDTH,
+        height = "100%",
+        valign = "top",
+        previewPlaceholder,
+        detailContent,
     }
 
     local SelectPackEntry
@@ -565,7 +599,8 @@ mod.shared.ShowCreateMapDialog = function()
 
     local RefreshDetails = function()
         local entry = m_packEntry
-        detailPanel:SetClass("hidden", entry == nil)
+        detailContent:SetClass("hidden", entry == nil)
+        previewPlaceholder:SetClass("hidden", entry ~= nil)
         RefreshMarkupList()
         if entry == nil then
             return
@@ -706,35 +741,31 @@ mod.shared.ShowCreateMapDialog = function()
         UpdateCreateButton()
     end
 
-    --the grid is paged: the search keeps only lightweight index entries and
-    --tiles (and their thumbnails) exist for the current page alone, so the
-    --dialog stays cheap however many maps the index holds. Every page is
-    --exactly two rows of fixed-size cells.
-    local GRID_ROWS = 2
+    --the grid scrolls but stays cheap: the search keeps only lightweight
+    --index entries, and tiles (and their thumbnails) are built a chunk at a
+    --time -- a Show More card at the end of the grid appends the next chunk.
     local cellW, cellH = mod.shared.MapPackTileCellSize()
-    local gridColumns = math.max(1, math.floor(GRID_WIDTH / cellW))
-    local pageSize = gridColumns * GRID_ROWS
-    local m_page = 1
+    local GRID_CHUNK = GRID_COLUMNS * 6
+    local m_shown = GRID_CHUNK
 
-    local pageLabel
-    local prevArrow
-    local nextArrow
-
-    local NumPages = function()
-        return math.max(1, math.ceil(#m_packEntries / pageSize))
-    end
+    --which pack the library sidebar has filtered to; nil is all packs.
+    local m_packFilter = nil
 
     --only built with the pack browser itself; with the dev gate off nothing
     --would parent these.
     if packsEnabled then
         packGrid = gui.Panel{
             --a little slack so rounding never wraps the last column.
-            width = gridColumns * cellW + 4,
-            height = GRID_ROWS * cellH,
+            width = GRID_COLUMNS * cellW + 4,
+            --auto + maxHeight is what makes vscroll engage (same pattern as
+            --markupList above); the cap is the content row's height.
+            height = "auto",
+            maxHeight = DIALOG_HEIGHT - 56 - FOOTER_HEIGHT - 12,
             flow = "horizontal",
             wrap = true,
             valign = "top",
             halign = "left",
+            vscroll = true,
         }
 
         packStatus = gui.Label{
@@ -743,35 +774,36 @@ mod.shared.ShowCreateMapDialog = function()
         }
     end
 
-    --builds tiles for the current page only.
-    local RenderPage = function()
-        local numPages = NumPages()
-        if m_page > numPages then
-            m_page = numPages
-        elseif m_page < 1 then
-            m_page = 1
-        end
-
+    --builds tiles for the entries shown so far, plus the Show More card
+    --when more remain.
+    local RenderTiles
+    RenderTiles = function()
+        local count = math.min(#m_packEntries, m_shown)
         local tiles = {}
-        local first = (m_page - 1) * pageSize + 1
-        local last = math.min(#m_packEntries, first + pageSize - 1)
-        for i = first, last do
+        for i = 1, count do
             local entry = m_packEntries[i]
             local tile = mod.shared.CreateMapPackTile(entry, SelectPackEntry)
-            tile:SetClass("selected", entry == m_packEntry)
+            tile:SetClass("selected", SameEntry(entry, m_packEntry))
             tiles[#tiles + 1] = tile
         end
+        if #m_packEntries > count then
+            --a tile-sized card so the grid rhythm holds; data = {} keeps
+            --SelectPackEntry's tile.data.entry reads nil-safe.
+            tiles[#tiles + 1] = gui.Panel{
+                classes = {"cmShowMore"},
+                data = {},
+                flow = "vertical",
+                press = function(element)
+                    m_shown = m_shown + GRID_CHUNK
+                    RenderTiles()
+                end,
+                gui.Label{
+                    classes = {"cmShowMoreLabel"},
+                    text = string.format("Show More\n%d of %d", count, #m_packEntries),
+                },
+            }
+        end
         packGrid.children = tiles
-
-        pageLabel.text = string.format("Page %d/%d", m_page, numPages)
-        pageLabel:SetClass("hidden", #m_packEntries == 0)
-        prevArrow:SetClass("hidden", m_page <= 1)
-        nextArrow:SetClass("hidden", m_page >= numPages)
-    end
-
-    local GoToPage = function(page)
-        m_page = page
-        RenderPage()
     end
 
     local RefreshPackGrid = function()
@@ -779,11 +811,12 @@ mod.shared.ShowCreateMapDialog = function()
             return
         end
 
-        --the full match list; entries are small tables and only the current
-        --page becomes widgets.
+        --the full match list; entries are small tables and only the shown
+        --chunk becomes widgets.
         local searching = m_search:match("%S") ~= nil
         m_packEntries = DiversifyEntries(mappacks.Search{
             text = m_search,
+            pack = m_packFilter,
             maxResults = 100000,
         }, searching)
 
@@ -809,7 +842,7 @@ mod.shared.ShowCreateMapDialog = function()
         else
             --the grid shows one entry per map without a search, so count
             --maps rather than the index's variant entries.
-            local mapCount = #DiversifyEntries(mappacks.Search{ text = "", maxResults = 100000 }, false)
+            local mapCount = #DiversifyEntries(mappacks.Search{ text = "", pack = m_packFilter, maxResults = 100000 }, false)
             if searching then
                 local matchedMaps = #DiversifyEntries(m_packEntries, false)
                 packStatus.text = string.format("%d of %d maps, %d appearances", matchedMaps, mapCount, #m_packEntries)
@@ -818,80 +851,25 @@ mod.shared.ShowCreateMapDialog = function()
             end
         end
 
+        --a fresh list starts back at one chunk, grown as needed so a kept
+        --selection is always among the built tiles.
+        m_shown = GRID_CHUNK
+        if selectedIndex ~= nil and selectedIndex > m_shown then
+            m_shown = math.ceil(selectedIndex / GRID_CHUNK) * GRID_CHUNK
+        end
+
         if stillSelected ~= nil then
-            --keep the selection and show the page it lives on.
             m_packEntry = stillSelected
-            m_page = math.floor((selectedIndex - 1) / pageSize) + 1
-            RenderPage()
+            RenderTiles()
             SelectPackEntry(stillSelected)
         else
-            m_page = 1
             if m_packEntry ~= nil then
                 m_packEntry = nil
                 RefreshDetails()
                 UpdateCreateButton()
             end
-            RenderPage()
+            RenderTiles()
         end
-    end
-
-    --inventory-style paging arrows under the grid; the right arrow is the
-    --same image mirrored.
-    local ArrowPanel = function(flipped, onClick)
-        return gui.Panel{
-            classes = {"paging-arrow"},
-            bgcolor = "white",
-            bgimage = "panels/InventoryArrow.png",
-            height = "100%",
-            width = "50% height",
-            hmargin = 40,
-            halign = cond(flipped, "right", "left"),
-            scale = cond(flipped, {x = -1, y = 1}, nil),
-            click = onClick,
-        }
-    end
-
-    local pagingPanel
-    if packsEnabled then
-        prevArrow = ArrowPanel(false, function()
-            GoToPage(m_page - 1)
-        end)
-        nextArrow = ArrowPanel(true, function()
-            GoToPage(m_page + 1)
-        end)
-        pageLabel = gui.Label{
-            classes = {"mapPackPageLabel"},
-            text = "",
-        }
-
-        pagingPanel = gui.Panel{
-            width = "100%",
-            height = 32,
-            flow = "horizontal",
-            valign = "bottom",
-            styles = ThemeEngine.MergeTokens({
-                {
-                    selectors = {"mapPackPageLabel"},
-                    fontSize = 16,
-                    width = "auto",
-                    height = "auto",
-                    halign = "center",
-                    valign = "center",
-                    color = "@fg",
-                },
-                {
-                    selectors = {"paging-arrow", "hover"},
-                    brightness = 2,
-                },
-                {
-                    selectors = {"paging-arrow", "press"},
-                    brightness = 0.7,
-                },
-            }),
-            prevArrow,
-            pageLabel,
-            nextArrow,
-        }
     end
 
     local AddPackMap = function(entry, name, markupId)
@@ -1099,191 +1077,314 @@ mod.shared.ShowCreateMapDialog = function()
 		vmargin = 2,
 	}
 
-    --the map pack browser, built only when the dev gate is on. Off, an
-    --empty placeholder keeps the dialog body's child list unchanged.
-    local existingMapsSection
-    if packsEnabled == false then
-        existingMapsSection = gui.Panel{ width = 0, height = 0 }
-    else
-        existingMapsSection = gui.Panel{
+    --sidebar, preview pane, footer and Show More styles for the picker
+    --layout. All local to this dialog; nothing lands in DefaultStyles.
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmSidebar"},
+        bgimage = "panels/square.png",
+        bgcolor = "@bgAlt",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavItem"},
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        width = "100%-24",
+        height = 42,
+        halign = "center",
+        cornerRadius = 6,
+        vmargin = 1,
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavItem", "hover"},
+        bgcolor = "@bgRaised",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavItem", "selected"},
+        bgcolor = "@bgRaised",
+        borderWidth = 1,
+        borderColor = "@accent",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavIcon"},
+        width = 20,
+        height = 20,
+        valign = "center",
+        hmargin = 12,
+        bgcolor = "@fg",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavLabel"},
+        fontSize = 14,
+        color = "@fg",
+        width = "auto",
+        height = "auto",
+        valign = "center",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavCount"},
+        fontSize = 12,
+        color = "@fgMuted",
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        halign = "right",
+        hmargin = 12,
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavSection"},
+        fontSize = 11,
+        bold = true,
+        color = "@fgMuted",
+        width = "auto",
+        height = "auto",
+        hmargin = 14,
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavDivider"},
+        bgimage = "panels/square.png",
+        bgcolor = "@border",
+        width = "100%-24",
+        height = 1,
+        halign = "center",
+        vmargin = 10,
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmPreview"},
+        bgimage = "panels/square.png",
+        bgcolor = "@bgAlt",
+        cornerRadius = 8,
+        borderWidth = 1,
+        borderColor = "@border",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmFooter"},
+        bgimage = "panels/square.png",
+        bgcolor = "@bgAlt",
+        borderWidth = 1,
+        borderColor = "@border",
+    }
+    --the Show More card sits in the grid at tile size so the rhythm holds.
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmShowMore"},
+        bgimage = "panels/square.png",
+        bgcolor = "@bgAlt",
+        cornerRadius = 6,
+        width = cellW - 12,
+        height = cellH - 12,
+        margin = 6,
+        halign = "left",
+        borderWidth = 1,
+        borderColor = "@border",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmShowMore", "hover"},
+        bgcolor = "@bgRaised",
+        borderColor = "@accentHover",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmShowMoreLabel"},
+        fontSize = 14,
+        color = "@fg",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+    }
+
+    if packsEnabled then
+        --sidebar: the two creation sources (the same selection group the
+        --old tiles formed: MapItemPress lights one and clears the other).
+        local sourceNav = gui.Panel{
             width = "100%",
             height = "auto",
             flow = "vertical",
             valign = "top",
+            gui.Panel{
+                classes = {"cmNavItem", "selected"},
+                flow = "horizontal",
+                press = MapItemPress,
+                create = function(element)
+                    selectedMap = element
+                end,
+                data = { type = "empty" },
+                gui.Panel{ classes = {"cmNavIcon"}, halign = "left", bgimage = "phosphor/squares-four.png" },
+                gui.Label{ classes = {"cmNavLabel"}, halign = "left", text = "Blank Map" },
+            },
+            gui.Panel{
+                classes = {"cmNavItem"},
+                flow = "horizontal",
+                press = MapItemPress,
+                data = { type = "import" },
+                gui.Panel{ classes = {"cmNavIcon"}, halign = "left", bgimage = "phosphor/upload-simple-bold.png" },
+                gui.Label{ classes = {"cmNavLabel"}, halign = "left", text = "Import Image or UVTT" },
+            },
+        }
 
+        --library filters: All Maps plus one row per pack, labeled with the
+        --creator's display name once the async lookup lands.
+        local libraryNav
+        local LibraryFilterItem = function(label, count, packid, selected)
+            local nameLabel = gui.Label{ classes = {"cmNavLabel"}, halign = "left", text = label }
+            return gui.Panel{
+                classes = {"cmNavItem", cond(selected, "selected")},
+                flow = "horizontal",
+                data = { pack = packid, label = nameLabel },
+                press = function(element)
+                    m_packFilter = element.data.pack
+                    for _, other in ipairs(libraryNav.children) do
+                        other:SetClass("selected", other == element)
+                    end
+                    RefreshPackGrid()
+                end,
+                gui.Panel{
+                    classes = {"cmNavIcon"},
+                    halign = "left",
+                    bgimage = cond(packid == nil, "phosphor/book-open.png", "phosphor/user.png"),
+                },
+                nameLabel,
+                gui.Label{ classes = {"cmNavCount"}, text = tostring(count) },
+            }
+        end
+
+        libraryNav = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            valign = "top",
+        }
+
+        local m_builtLibraryNav = false
+        BuildLibraryNav = function()
+            if m_builtLibraryNav or not mappacks.synced or not libraryNav.valid then
+                return
+            end
+            m_builtLibraryNav = true
+            local all = DiversifyEntries(mappacks.Search{ text = "", maxResults = 100000 }, false)
+            local packOrder = {}
+            local packInfo = {}
+            for _, e in ipairs(all) do
+                local info = packInfo[e.pack]
+                if info == nil then
+                    info = { count = 0, entry = e }
+                    packInfo[e.pack] = info
+                    packOrder[#packOrder + 1] = e.pack
+                end
+                info.count = info.count + 1
+            end
+            local rows = { LibraryFilterItem("All Maps", #all, nil, true) }
+            --only worth filtering when there is more than one pack.
+            if #packOrder > 1 then
+                for _, packid in ipairs(packOrder) do
+                    local info = packInfo[packid]
+                    local row = LibraryFilterItem("Map Pack", info.count, packid, false)
+                    rows[#rows + 1] = row
+                    mod.shared.GetMapPackCreator(info.entry, function(creator)
+                        if row.valid and creator ~= nil and (creator.displayName or "") ~= "" then
+                            row.data.label.text = creator.displayName
+                        end
+                    end)
+                end
+            end
+            libraryNav.children = rows
+        end
+
+        local sidebar = gui.Panel{
+            classes = {"cmSidebar"},
+            width = SIDEBAR_WIDTH,
+            height = "100%",
+            flow = "vertical",
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                valign = "top",
+                flow = "vertical",
                 gui.Label{
                     classes = {"modalTitle"},
-                    text = "...or Use an Existing Map",
-                    vmargin = 4,
+                    text = "Create Map",
+                    halign = "left",
+                    hmargin = 14,
+                    vmargin = 16,
                 },
-
-                gui.Panel{
-                    width = "100%",
-                    --search row, two grid rows, paging bar.
-                    height = 48 + GRID_ROWS * cellH + 40,
-                    flow = "horizontal",
-                    valign = "top",
-
-                    gui.Panel{
-                        width = string.format("100%%-%d", DETAIL_WIDTH + DETAIL_MARGIN * 2),
-                        height = "100%",
-                        flow = "vertical",
-                        valign = "top",
-                        --the row's only child; without this it centers and slides
-                        --under the floating details pane.
-                        halign = "left",
-
-                        gui.Panel{
-                            width = "100%",
-                            height = 40,
-                            flow = "horizontal",
-                            halign = "left",
-                            vmargin = 4,
-                            --the standard search field: magnifier, clear x,
-                            --and the shared searchInput look. It fires
-                            --"search" with the trimmed, lowercased text.
-                            gui.SearchInput{
-                                width = 400,
-                                placeholderText = "Search maps...",
-                                search = function(element, str)
-                                    m_search = str
-                                    RefreshPackGrid()
-                                end,
-                            },
-                            packStatus,
-                        },
-
-                        gui.Panel{
-                            width = "100%",
-                            height = "100%-48",
-                            flow = "vertical",
-                            valign = "top",
-                            packGrid,
-                            pagingPanel,
-                        },
-                    },
-                },
+                sourceNav,
+                gui.Panel{ classes = {"cmNavDivider"} },
+                gui.Label{ classes = {"cmNavSection"}, halign = "left", text = "MAP LIBRARY", vmargin = 4 },
+                libraryNav,
+            },
         }
-    end
 
-	m_dialog = gui.Panel{
-		classes = {"framedPanel"},
-		--without the pack browser the dialog is just the two tiles, the name
-		--field and the buttons, so it shrinks to fit them.
-		width = packsEnabled and DIALOG_WIDTH or 700,
-		height = packsEnabled and 940 or 320,
-		styles = ThemeEngine.MergeStyles(tileStyles),
+        createButton.valign = "center"
+        nameInput.valign = "center"
 
-        gui.Panel{
-            width = string.format("100%%-%d", DIALOG_INSET),
-            height = "100%-32",
-            halign = "center",
-            valign = "center",
-
+        local main = gui.Panel{
+            width = string.format("100%%-%d", SIDEBAR_WIDTH),
+            height = "100%",
             flow = "vertical",
 
-            gui.Label{
-                classes = {"modalTitle"},
-                text = "Create Map",
-                vmargin = 0,
-            },
-
+            --search row
             gui.Panel{
+                width = "100%-40",
+                height = 56,
+                halign = "center",
                 flow = "horizontal",
-                halign = "center",
-                valign = "top",
-                width = "auto",
-                height = "auto",
-                vmargin = 8,
-
-                styles = ThemeEngine.MergeTokens({
-                    {
-                        selectors = {"mapItem"},
-                        bgimage = true,
-                        bgcolor = "@bg",
-                        cornerRadius = 12,
-                        width = 1920*0.1,
-                        height = 1080*0.1,
-                        halign = "center",
-                        hmargin = 8,
-                    },
-                    {
-                        selectors = {"mapItem", "hover"},
-                        borderWidth = 2,
-                        borderColor = "@accent",
-                    },
-                    {
-                        selectors = {"mapItem", "selected"},
-                        borderWidth = 2,
-                        borderColor = "@fg",
-                    },
-                    {
-                        selectors = {"mapText"},
-                        fontSize = 14,
-                        width = "auto",
-                        height = "auto",
-                        textAlignment = "center",
-                    },
-                }),
-
-                gui.Panel{
-                    classes = {"mapItem", "selected"},
-                    press = MapItemPress,
-                    create = function(element)
-                        selectedMap = element
+                --the standard search field: magnifier, clear x, and the
+                --shared searchInput look. It fires "search" with the
+                --trimmed, lowercased text.
+                gui.SearchInput{
+                    width = 400,
+                    halign = "left",
+                    valign = "center",
+                    placeholderText = "Search maps...",
+                    search = function(element, str)
+                        m_search = str
+                        RefreshPackGrid()
                     end,
-                    data = {
-                        type = "empty",
-                    },
-                    gui.Label{
-                        classes = {"mapText"},
-                        text = "Empty Map",
-                        interactable = false,
-                    },
                 },
-
                 gui.Panel{
-                    classes = {"mapItem"},
-                    press = MapItemPress,
-                    data = {
-                        type = "import",
-                    },
-                    gui.Label{
-                        classes = {"mapText"},
-                        text = "Import an Image\nor UVTT file",
-                        interactable = false,
-                    },
+                    width = "auto",
+                    height = "100%",
+                    halign = "right",
+                    packStatus,
                 },
             },
 
+            --grid + preview
             gui.Panel{
-                width = 600,
-                height = "auto",
-                flow = "vertical",
+                width = "100%-40",
+                height = string.format("100%%-%d", 56 + FOOTER_HEIGHT + 12),
+                halign = "center",
                 valign = "top",
-                halign = "center",
-                vmargin = 4,
+                flow = "horizontal",
                 gui.Panel{
-                    classes = {"formRow"},
-                    gui.Label{
-                        classes = {"form"},
-                        text = "Map Name:",
-                    },
-                    nameInput,
+                    width = string.format("100%%-%d", PREVIEW_WIDTH + 10),
+                    height = "100%",
+                    halign = "left",
+                    valign = "top",
+                    packGrid,
                 },
+                detailPanel,
             },
 
-            existingMapsSection,
-
+            --footer action bar: the name travels with the commit buttons.
             gui.Panel{
-                width = 600,
-                height = 48,
-                halign = "center",
+                classes = {"cmFooter"},
+                width = "100%",
+                height = FOOTER_HEIGHT,
                 valign = "bottom",
-                createButton,
+                flow = "horizontal",
+                gui.Label{
+                    classes = {"form"},
+                    width = "auto",
+                    valign = "center",
+                    hmargin = 20,
+                    text = "Map Name:",
+                },
+                nameInput,
+                gui.Panel{ width = "100%-900", height = 1 },
                 gui.Button{
                     classes = {"sizeL"},
-                    halign = "right",
+                    valign = "center",
+                    hmargin = 12,
                     text = "Cancel",
                     escapeActivates = true,
                     escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
@@ -1291,13 +1392,147 @@ mod.shared.ShowCreateMapDialog = function()
                         gui.CloseModal()
                     end,
                 },
+                createButton,
             },
-
-            --the details pane floats beside the whole dialog body, vertically
-            --centered, so it is not confined to the map browser row.
-            detailPanel,
         }
-    }
+
+        m_dialog = gui.Panel{
+            classes = {"framedPanel"},
+            width = DIALOG_WIDTH,
+            height = DIALOG_HEIGHT,
+            styles = ThemeEngine.MergeStyles(tileStyles),
+            flow = "horizontal",
+            sidebar,
+            main,
+        }
+    else
+        --without the pack browser the dialog is just the two tiles, the
+        --name field and the buttons, so it shrinks to fit them.
+        m_dialog = gui.Panel{
+            classes = {"framedPanel"},
+            width = 700,
+            height = 320,
+            styles = ThemeEngine.MergeStyles(tileStyles),
+
+            gui.Panel{
+                width = "100%-24",
+                height = "100%-32",
+                halign = "center",
+                valign = "center",
+
+                flow = "vertical",
+
+                gui.Label{
+                    classes = {"modalTitle"},
+                    text = "Create Map",
+                    vmargin = 0,
+                },
+
+                gui.Panel{
+                    flow = "horizontal",
+                    halign = "center",
+                    valign = "top",
+                    width = "auto",
+                    height = "auto",
+                    vmargin = 8,
+
+                    styles = ThemeEngine.MergeTokens({
+                        {
+                            selectors = {"mapItem"},
+                            bgimage = true,
+                            bgcolor = "@bg",
+                            cornerRadius = 12,
+                            width = 1920*0.1,
+                            height = 1080*0.1,
+                            halign = "center",
+                            hmargin = 8,
+                        },
+                        {
+                            selectors = {"mapItem", "hover"},
+                            borderWidth = 2,
+                            borderColor = "@accent",
+                        },
+                        {
+                            selectors = {"mapItem", "selected"},
+                            borderWidth = 2,
+                            borderColor = "@fg",
+                        },
+                        {
+                            selectors = {"mapText"},
+                            fontSize = 14,
+                            width = "auto",
+                            height = "auto",
+                            textAlignment = "center",
+                        },
+                    }),
+
+                    gui.Panel{
+                        classes = {"mapItem", "selected"},
+                        press = MapItemPress,
+                        create = function(element)
+                            selectedMap = element
+                        end,
+                        data = {
+                            type = "empty",
+                        },
+                        gui.Label{
+                            classes = {"mapText"},
+                            text = "Empty Map",
+                            interactable = false,
+                        },
+                    },
+
+                    gui.Panel{
+                        classes = {"mapItem"},
+                        press = MapItemPress,
+                        data = {
+                            type = "import",
+                        },
+                        gui.Label{
+                            classes = {"mapText"},
+                            text = "Import an Image\nor UVTT file",
+                            interactable = false,
+                        },
+                    },
+                },
+
+                gui.Panel{
+                    width = 600,
+                    height = "auto",
+                    flow = "vertical",
+                    valign = "top",
+                    halign = "center",
+                    vmargin = 4,
+                    gui.Panel{
+                        classes = {"formRow"},
+                        gui.Label{
+                            classes = {"form"},
+                            text = "Map Name:",
+                        },
+                        nameInput,
+                    },
+                },
+
+                gui.Panel{
+                    width = 600,
+                    height = 48,
+                    halign = "center",
+                    valign = "bottom",
+                    createButton,
+                    gui.Button{
+                        classes = {"sizeL"},
+                        halign = "right",
+                        text = "Cancel",
+                        escapeActivates = true,
+                        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+                        click = function(element)
+                            gui.CloseModal()
+                        end,
+                    },
+                },
+            }
+        }
+    end
 
     gui.ShowModal(m_dialog)
 
@@ -1306,6 +1541,7 @@ mod.shared.ShowCreateMapDialog = function()
     end
 
     if mappacks.synced then
+        BuildLibraryNav()
         RefreshPackGrid()
     end
 
@@ -1313,9 +1549,11 @@ mod.shared.ShowCreateMapDialog = function()
     --pack index blobs are downloaded.
     mappacks.Sync{
         success = function()
+            BuildLibraryNav()
             RefreshPackGrid()
         end,
         error = function(msg)
+            BuildLibraryNav()
             RefreshPackGrid()
             if m_dialog ~= nil and m_dialog.valid then
                 packStatus.text = msg

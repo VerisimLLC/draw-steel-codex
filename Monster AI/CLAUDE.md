@@ -57,6 +57,18 @@ shadow-elves.lua
    - Non-minions: iterate up to 6 times calling `FindAndExecuteMove()`, which scores every registered move and executes the best one. A scoring or execution error quarantines that move for the actor; `"failed"` continues to another cycle, while `"none"` or `"unsafe"` stops the actor.
 5. After all tokens act, initiative advances automatically.
 
+### Player reactions during AI movement
+
+`MonsterAI:MoveToken` does not return until the token's path animation finishes
+and every player-controlled trigger caused by that movement is resolved. A
+movement activity ID follows remote event delivery into each trigger; pending
+markers on the player tokens keep the host waiting through Activate/Dismiss and,
+when accepted, through the triggered cast's finish callback. Multiple players
+and multiple prompts are handled as one barrier. If a reaction leaves a minion
+squad owing deaths, the barrier also remains up while the red-skull choices and
+their Monster Death removals resolve. Stopping the AI while it waits aborts the
+remaining monster turn without advancing initiative.
+
 ### Error containment
 
 AI actions yield while movement, speech, prompts, and casts resolve, so action
@@ -134,8 +146,10 @@ A **prompt** handles abilities that require a secondary targeting choice during 
 
 The generic `Free Strike` handler uses `abilityOverride` to choose the best legal
 immediate melee or ranged free strike. It deliberately removes charge movement,
-does not take control of player-owned creatures, and is reusable by any AI-driven
-effect that invokes the standard Free Strike ability.
+does not take control of player-owned creatures, and also recognizes shared
+wrapper names such as `Invoked Ability` when every synthesized choice is a Basic
+Attack. Monster-qualified prompt handlers are tried first and can fall through
+to this generic handler by returning `nil`.
 
 The generic `Push!`, `Pull!`, and `Slide!` handler recognizes
 `vertical_push`, `vertical_pull`, and `vertical_slide`. It uses the ability's

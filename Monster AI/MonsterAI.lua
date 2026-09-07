@@ -11,6 +11,8 @@ MonsterAI.triggerHandlersByMonsterText = {}
 MonsterAI.triggerHandlersByText = {}
 MonsterAI.token = false
 MonsterAI.squadMembers = {}
+MonsterAI.chargeProbeCache = false --per-frame memo used by ChargeProbe.
+MonsterAI.chargeProbeCacheTime = -1
 MonsterAI.squadCaptain = false
 MonsterAI.abilities = {}
 MonsterAI.tactics = {}
@@ -486,7 +488,103 @@ function MonsterAI:CalculateRemainingMovementPaths(token, flags)
     return self:CalculateMovementPaths(token, remainingMovement*10, flags)
 end
 
-function MonsterAI:MoveToken(token, loc, options)
+function MonsterAI:CountPendingActivityReactions(activityId)
+    local result = 0
+    for _,token in ipairs(dmhub.allTokens) do
+        if token.valid and token.playerControlled and token.properties ~= nil then
+            result = result + token.properties:CountPendingAIActivityReactions(activityId)
+        end
+    end
+    return result
+end
+
+--Count squad deaths that still need a player confirmation. This mirrors the
+--red-skull eligibility in DrawSteelTokenHud, except that an available trigger
+--does not hide the debt here: after the skull is clicked, death triggers and
+--the Monster Death removal must finish before movement can continue.
+function MonsterAI:CountPendingMinionDeathConfirmations()
+    local countedSquads = {}
+    local result = 0
+    for _,token in ipairs(dmhub.GetTokens{haveProperties = true}) do
+        local props = token.properties
+        if token.valid and props ~= nil and props.minion and not props.minionDead
+            and props:has_key("_tmp_minionSquad") then
+            local squad = props._tmp_minionSquad
+            local healthSingle = squad.health_single or 0
+            local damageTaken = squad.damage_taken or 0
+            local gated = (props:CalculateNamedCustomAttribute("Gated Minion Deaths") or 0) > 0
+            if not countedSquads[squad] and not gated and healthSingle > 0
+                and damageTaken >= healthSingle then
+                local deathOverflows = damageTaken
+                    >= ((squad.num_recently_damaged or 0) + 1) * healthSingle
+                local isDirectTarget = props.minionDamageTime == squad.damage_time
+
+                --While damage timestamps are still arriving, the HUD withholds
+                --the skull. Treat that as pending too so a cross-client update
+                --cannot briefly look settled and release the movement barrier.
+                if squad.damage_time_pending or isDirectTarget or deathOverflows then
+                    countedSquads[squad] = true
+                    local deathsOwed = math.floor(damageTaken / healthSingle)
+                    local liveMinions = math.max(1, squad.liveMinions or deathsOwed)
+                    result = result + math.min(liveMinions, deathsOwed)
+                end
+            end
+        end
+    end
+    return result
+end
+
+function MonsterAI:WaitForMovementActivity(movementToken, activityId)
+    while movementToken.valid and movementToken.isMoving do
+        coroutine.yield(0.05)
+    end
+
+    local pending = self:CountPendingActivityReactions(activityId)
+    local pendingMinionDeaths = self:CountPendingMinionDeathConfirmations()
+    if pending == 0 and pendingMinionDeaths == 0 then
+        return true
+    end
+
+    self:LogDecision("PLAYER REACTION WAIT START", {
+        activity = activityId,
+        pendingPlayerPrompts = pending,
+        pendingMinionDeaths = pendingMinionDeaths,
+        result = "waiting for player prompts and minion death confirmations",
+    })
+
+    local startedAt = dmhub.Time()
+    local idleSince = nil
+    local isAIRunning = rawget(MonsterAI, "IsAIRunning")
+    local cancelWhenAIStops = MonsterAI.active and isAIRunning ~= nil
+        and isAIRunning()
+    while true do
+        if mod.unloaded or (cancelWhenAIStops and not MonsterAI.active) then
+            return false, mod.unloaded and "Monster AI module unloaded"
+                or "Monster AI stop requested"
+        end
+
+        pending = self:CountPendingActivityReactions(activityId)
+        pendingMinionDeaths = self:CountPendingMinionDeathConfirmations()
+        if pending == 0 and pendingMinionDeaths == 0 then
+            idleSince = idleSince or dmhub.Time()
+            if dmhub.Time() - idleSince >= 0.3 then
+                break
+            end
+        else
+            idleSince = nil
+        end
+        coroutine.yield(0.1)
+    end
+
+    self:LogDecision("PLAYER REACTION WAIT FINISHED", {
+        activity = activityId,
+        result = "all player prompts and minion death confirmations resolved",
+        duration = dmhub.Time() - startedAt,
+    })
+    return true
+end
+
+function MonsterAI:MoveToken(token, loc, options, continueIfActorDies)
     local movementToken = self:GetMovementToken(token)
     local fromLoc = movementToken ~= nil and movementToken.loc or nil
     local overlapsCreature, creature = self:MovementLocOverlapsCreature(token, loc)
@@ -500,7 +598,7 @@ function MonsterAI:MoveToken(token, loc, options)
             targets = self.TargetsLogName({{token = creature}}),
             reason = "destination footprint overlaps another live creature",
         })
-        return nil
+        return nil, true
     end
     self:LogDecision("MOVEMENT START", {
         actor = self.TokenLogName(token),
@@ -510,7 +608,16 @@ function MonsterAI:MoveToken(token, loc, options)
         movementToken = movementToken ~= token and self.TokenLogName(movementToken) or nil,
         freeMovement = options ~= nil and options.freeMovement == true or nil,
     })
-    local result = movementToken:Move(loc, options)
+    local activityId = dmhub.GenerateGuid()
+    local previousActivityId = movementToken.properties:try_get("_tmp_aiActivityId")
+    movementToken.properties._tmp_aiActivityId = activityId
+    local moveOk, result = pcall(function()
+        return movementToken:Move(loc, options)
+    end)
+    movementToken.properties._tmp_aiActivityId = previousActivityId
+    if not moveOk then
+        error(result)
+    end
     self:LogDecision("MOVEMENT ISSUED", {
         actor = self.TokenLogName(token),
         actorId = token ~= nil and token.charid or nil,
@@ -518,7 +625,28 @@ function MonsterAI:MoveToken(token, loc, options)
         to = self.LocLogName(loc),
         result = result ~= nil and "path accepted" or "no path returned",
     })
-    return result
+
+    if result ~= nil then
+        local completed, reason = self:WaitForMovementActivity(movementToken, activityId)
+        if not completed then
+            self._tmp_abortTurn = reason
+            error(reason)
+        end
+        if not self.TokenIsLiveCombatant(token) then
+            if continueIfActorDies then
+                self:LogDecision("MOVEMENT ACTOR LOST", {
+                    actor = self.TokenLogName(token),
+                    actorId = token ~= nil and token.charid or nil,
+                    reason = "actor is no longer a live combatant after a player reaction",
+                    result = "caller may continue with other actors",
+                })
+                return result, false
+            end
+            self._tmp_actorInterrupted = "actor is no longer a live combatant after a player reaction"
+            error(self._tmp_actorInterrupted)
+        end
+    end
+    return result, true
 end
 
 function MonsterAI:ExecuteWithTheoreticalMovementLoc(token, loc, fn)
@@ -687,8 +815,28 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
     --prompting for a target near it), whose TargetableObject
     --properties have no monster_type field.
     local qualifiedPrompt = string.format("%s:%s", invokerMonsterType, abilityClone.name)
-    local handler = self.prompts[abilityClone.name] or self.prompts[qualifiedPrompt]
-    if handler ~= nil then
+    --Monster-qualified handlers get the first chance to answer shared wrapper
+    --names. A nil result can then fall through to the generic handler.
+    local handlers = {}
+    local qualifiedHandler = self.prompts[qualifiedPrompt]
+    local genericHandler = self.prompts[abilityClone.name]
+    if qualifiedHandler ~= nil then
+        handlers[#handlers+1] = {
+            handler = qualifiedHandler,
+            name = qualifiedHandler.id or qualifiedPrompt,
+        }
+    end
+    if genericHandler ~= nil and genericHandler ~= qualifiedHandler then
+        handlers[#handlers+1] = {
+            handler = genericHandler,
+            name = genericHandler.id or abilityClone.name,
+        }
+    end
+
+    local attemptedHandlers = {}
+    for _,entry in ipairs(handlers) do
+        local handler = entry.handler
+        attemptedHandlers[#attemptedHandlers+1] = entry.name
         local result = handler.handler(self, invokerToken, casterToken, abilityClone, symbols, options)
         if result ~= nil then
             for k,v in pairs(result) do
@@ -697,7 +845,7 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
 
             self:LogDecision("PROMPT RESOLVED", {
                 ability = abilityClone.name,
-                prompt = handler.id or qualifiedPrompt,
+                prompt = entry.name,
                 targets = self.TargetsLogName(result.targets),
                 result = result.abilityOverride ~= nil
                     and string.format("automatic with ability %s", result.abilityOverride.name)
@@ -705,11 +853,13 @@ function MonsterAI:HandlePrompt(invokerToken, casterToken, abilityClone, symbols
             })
             return "inherit"
         end
+    end
 
+    if #attemptedHandlers > 0 then
         self:LogDecision("PROMPT DEFERRED", {
             ability = abilityClone.name,
-            prompt = handler.id or qualifiedPrompt,
-            reason = "registered handler returned no automatic choice",
+            prompt = table.concat(attemptedHandlers, ", "),
+            reason = "registered handlers returned no automatic choice",
             result = "Director prompt",
         })
     else
@@ -821,9 +971,14 @@ function MonsterAI:HandleAvailableTrigger(token, triggerInfo)
     end
 
     local registeredTrigger = self:FindTriggerHandler(token, triggerInfo)
-    if registeredTrigger == nil then
+    --Hostile cards are forced rules debts such as Bleeding damage and saves.
+    --Human players get a red prompt, but an AI creature has no choice to make.
+    local mandatoryTrigger = triggerInfo.hostile == true
+    if registeredTrigger == nil and not mandatoryTrigger then
         return false
     end
+
+    local triggerHandlerId = mandatoryTrigger and "Mandatory Trigger" or registeredTrigger.id
 
     self.token = token
     self:SetLogContext(token)
@@ -831,11 +986,12 @@ function MonsterAI:HandleAvailableTrigger(token, triggerInfo)
     local triggerLogKey = string.format("%s:%s", token.charid, tostring(triggerInfo.id))
     self:LogDecision("TRIGGER CONSIDERED", {
         category = "Triggered Action",
-        move = registeredTrigger.id,
+        move = triggerHandlerId,
         ability = triggerInfo.abilityName,
         trigger = triggerText,
     })
-    local decision = registeredTrigger.handler(self, token, triggerInfo)
+    local decision = mandatoryTrigger and {activate = true}
+        or registeredTrigger.handler(self, token, triggerInfo)
     if decision == true then
         decision = {activate = true}
     end
@@ -845,7 +1001,7 @@ function MonsterAI:HandleAvailableTrigger(token, triggerInfo)
             self.deferredTriggerLog[triggerLogKey] = true
             self:LogDecision("TRIGGER DEFERRED", {
                 category = "Triggered Action",
-                move = registeredTrigger.id,
+                move = triggerHandlerId,
                 ability = triggerInfo.abilityName,
                 trigger = triggerText,
                 reason = "handler returned no activate or dismiss decision",
@@ -858,7 +1014,7 @@ function MonsterAI:HandleAvailableTrigger(token, triggerInfo)
 
     self:LogDecision("TRIGGER DECIDED", {
         category = "Triggered Action",
-        move = registeredTrigger.id,
+        move = triggerHandlerId,
         ability = triggerInfo.abilityName,
         trigger = triggerText,
         targets = decision.expectedPrompt ~= nil
@@ -876,7 +1032,7 @@ function MonsterAI:HandleAvailableTrigger(token, triggerInfo)
     local startedAt = dmhub.Time()
     local ok, err = self:RunWithTokenControl(token, function()
         token:ModifyProperties{
-            description = string.format("AI Trigger: %s", registeredTrigger.id),
+            description = string.format("AI Trigger: %s", triggerHandlerId),
             undoable = false,
             execute = function()
                 if decision.dismiss then
@@ -918,7 +1074,7 @@ function MonsterAI:HandleAvailableTrigger(token, triggerInfo)
     if not ok then
         self:LogDecision("TRIGGER ERROR", {
             category = "Triggered Action",
-            move = registeredTrigger.id,
+            move = triggerHandlerId,
             ability = triggerInfo.abilityName,
             trigger = triggerText,
             reason = "execution failed: " .. tostring(err),
@@ -928,7 +1084,7 @@ function MonsterAI:HandleAvailableTrigger(token, triggerInfo)
 
     self:LogDecision("TRIGGER FINISHED", {
         category = "Triggered Action",
-        move = registeredTrigger.id,
+        move = triggerHandlerId,
         ability = triggerInfo.abilityName,
         trigger = triggerText,
         result = decision.dismiss and "dismissed" or "activated",
@@ -1008,6 +1164,7 @@ end
 
 function MonsterAI:PlayTurnCoroutine(initiativeid)
     local queue = dmhub.initiativeQueue
+	self._tmp_abortTurn = nil
 
     self.log.analysis = self:Analysis()
 
@@ -1034,6 +1191,7 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
             round = queue.round,
         })
 
+        local processedSquads = {}
         for i=1,#tokens do
             local token = tokens[i]
             local alreadyProcessed = false
@@ -1042,37 +1200,35 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
             self.squadCaptain = false
             self.squadMembers = squadMembers
             self.activeTactics = {}
-            if token.valid and token.properties ~= nil and token.properties.minion then
+            if self.TokenIsLiveCombatant(token) and token.properties.minion then
                 squadid = token.properties:MinionSquad()
-                for j=1,i-1 do
-                    local otherToken = tokens[j]
-                    if otherToken.valid and otherToken.properties ~= nil
-                        and otherToken.properties.minion and otherToken.properties:MinionSquad() == squadid then
-                        self:SetLogContext(token, {
-                            turn = initiativeid,
-                            round = queue.round,
-                        })
-                        self:LogDecision("ACTOR SKIPPED", {
-                            reason = "minion squad was already processed by an earlier member",
-                        })
-                        alreadyProcessed = true
-                        break
-                    end
-                end
-
-                for j=i,#tokens do
-                    local otherToken = tokens[j]
-                    if otherToken.valid and otherToken.properties ~= nil
-                        and otherToken.properties.minion and otherToken.properties:MinionSquad() == squadid then
-                        squadMembers[#squadMembers+1] = {token = otherToken}
+                local squadKey = squadid or token.charid
+                if processedSquads[squadKey] then
+                    self:SetLogContext(token, {
+                        turn = initiativeid,
+                        round = queue.round,
+                    })
+                    self:LogDecision("ACTOR SKIPPED", {
+                        reason = "minion squad action was already processed",
+                    })
+                    alreadyProcessed = true
+                else
+                    --The coordinated action belongs to the squad, so remember it
+                    --independently of whichever minion happens to start the work.
+                    processedSquads[squadKey] = true
+                    for j=1,#tokens do
+                        local otherToken = tokens[j]
+                        if self.TokenIsLiveCombatant(otherToken) and otherToken.properties.minion
+                            and otherToken.properties:MinionSquad() == squadid then
+                            squadMembers[#squadMembers+1] = {token = otherToken}
+                        end
                     end
                 end
             end
 
             if #squadMembers > 0 then
                 for j=1,#tokens do
-                    if tokens[j].valid and tokens[j].properties ~= nil
-                        and not tokens[j].properties.minion then
+                    if self.TokenIsLiveCombatant(tokens[j]) and not tokens[j].properties.minion then
                         local minionSquad = tokens[j].properties:MinionSquad()
                         if minionSquad == squadid then
                             self.squadCaptain = tokens[j]
@@ -1119,6 +1275,7 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
                     self._tmp_synthesizedAbilitiesUsed = {}
                     self._tmp_synthesizedPlanningFailed = false
                     self._tmp_failedMoves = {}
+					self._tmp_actorInterrupted = nil
 
                     local tacticNames = table.keys(self.activeTactics)
                     table.sort(tacticNames)
@@ -1147,7 +1304,8 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
                         self:LogDecision("MOVE CYCLE FINISHED", {
                             result = result,
                         })
-                        if result == g_moveResultNone or result == g_moveResultUnsafe then
+                        if squadid ~= nil or self:try_get("_tmp_abortTurn") ~= nil
+                            or result == g_moveResultNone or result == g_moveResultUnsafe then
                             break
                         end
                     end
@@ -1190,12 +1348,23 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
                     })
                 end
             end
+
+			if self:try_get("_tmp_abortTurn") ~= nil then
+				break
+			end
         end
 
         self:SetLogContext(nil, {
             turn = initiativeid,
             round = queue.round,
         })
+		if self:try_get("_tmp_abortTurn") ~= nil then
+			self:LogDecision("TURN PAUSED", {
+				reason = self._tmp_abortTurn,
+				result = "initiative left on the current monster",
+			})
+			return
+		end
         self:LogDecision("TURN FINISHED", {
             result = "advancing initiative",
         })
@@ -1237,10 +1406,10 @@ function MonsterAI.TokenIsLiveCombatant(token)
         and not token.properties:IsDead()
 end
 
-function MonsterAI:RefreshCombatants(queue)
+function MonsterAI:RefreshCombatants(queue, referenceToken)
     self.enemyTokens = {}
     self.allyTokens = {}
-    local token = self.token
+    local token = referenceToken or self.token
     if not self.TokenIsLiveCombatant(token) then
         return
     end
@@ -2008,6 +2177,75 @@ function MonsterAI:FindClosestEnemy()
     return closestEnemy
 end
 
+--Straight-line charge probe from the mover's CURRENT (possibly theoretical)
+--location to an enemy. Returns {dest = <Loc>, chargeDist = <tiles>} when there
+--is a usable charge line, or nil when there is no path or the move would drop
+--us more than a tile.
+--
+--This is the most expensive call in the AI's scoring pass: each probe walks a
+--full straight-line path through the engine's move-cost function (~1.2ms
+--measured over 15-20 tiles), and the initiative pass asks for the same
+--origin/target pairs once per candidate actor -- 68% of the probes in a
+--measured dwarf encounter were exact duplicates. So results are memoized per
+--frame, keyed by (mover, origin, target): nothing moves within a frame, and
+--the memo dies with it. Same idiom as the action bar's per-frame pathCache.
+--
+--Only the destination (a Loc, which is a C# struct and so copied by value) and
+--the step count are kept. The Pathfind.Path object is deliberately NOT cached,
+--because the engine reuses it on the next MarkMovementArrow call.
+function MonsterAI:ChargeProbe(movementToken, enemy)
+    local now = dmhub.Time()
+    if self.chargeProbeCacheTime ~= now then
+        self.chargeProbeCache = {}
+        self.chargeProbeCacheTime = now
+    end
+
+    local from = movementToken.loc
+    local to = enemy.loc
+    local key = string.format("%s|%d,%d,%d,%d|%d,%d,%d,%d", movementToken.id,
+        from.x, from.y, from.floor, from.altitude,
+        to.x, to.y, to.floor, to.altitude)
+
+    local cached = self.chargeProbeCache[key]
+    if cached ~= nil then
+        if cached == false then
+            return nil
+        end
+        return cached
+    end
+
+    --false (not nil) is stored for "no charge line", so a negative result is
+    --remembered rather than re-probed on every lookup.
+    local probe = false
+    local movementInfo = movementToken:MarkMovementArrow(to, {straightline = true, ignorecreatures = false, moveThroughFriends = true})
+    if movementInfo ~= nil then
+        local path = movementInfo.path
+        --check that the move doesn't make us fall down.
+        local altitude = game.currentFloor:GetAltitudeAtLoc(path.origin)
+        local falls = false
+        for _,step in ipairs(path.steps) do
+            local fallDistance = altitude - game.currentFloor:GetAltitudeAtLoc(step)
+            if fallDistance > 1 then
+                falls = true
+                break
+            end
+        end
+
+        if not falls then
+            probe = {
+                dest = path.destination,
+                chargeDist = path.destination:DistanceInTiles(path.origin),
+            }
+        end
+    end
+
+    self.chargeProbeCache[key] = probe
+    if probe == false then
+        return nil
+    end
+    return probe
+end
+
 function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
 
     local meleeAbility = ability:HasKeyword("Melee")
@@ -2041,37 +2279,34 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
     local result = {}
     local movementToken = self:GetMovementToken(token)
     self:ExecuteWithTheoreticalMovementLoc(token, loc, function()
+        --A charge is only possible when the enemy is within movement + charge
+        --range. The probe's destination always lies on the straight line from
+        --here toward the enemy, so the acceptance test below (chargeDist <=
+        --maxChargeDistance and targetDist <= chargeRange) implies
+        --dist <= maxChargeDistance + chargeRange by the triangle inequality:
+        --anything failing this gate could never have been accepted. It is worth
+        --gating because probes are expensive and most of them are hopeless --
+        --in a measured dwarf encounter 86% of the probes this function fired
+        --were aimed at targets too far away to ever charge.
+        local maxChargeDistance = ability:try_get("chargeDistanceOverride", movementToken.properties:CurrentMovementSpeed()) or 0
+        local chargeReach = maxChargeDistance + chargeRange
+
         for i=1,#filteredTokens do
             local enemy = filteredTokens[i]
             local dist = token:Distance(enemy)
 
             local chargeLoc = nil
-            if hasCharge then
-                local movementInfo = movementToken:MarkMovementArrow(enemy.loc, {straightline = true, ignorecreatures = false, moveThroughFriends = true})
-                --check that the move doesn't make us fall down.
-                if movementInfo ~= nil then
-                    local path = movementInfo.path
-                    local altitude = game.currentFloor:GetAltitudeAtLoc(path.origin)
-                    for _,step in ipairs(path.steps) do
-                        local fallDistance = altitude - game.currentFloor:GetAltitudeAtLoc(step)
-                        if fallDistance > 1 then
-                            movementInfo = nil
-                            break
-                        end
-                    end
-                end
-
-                if movementInfo ~= nil then
-                    local chargeDist = movementInfo.path.destination:DistanceInTiles(movementInfo.path.origin)
-                    local dest = movementInfo.path.destination
-                    local targetDist = enemy:Distance(dest)
+            if hasCharge and dist <= chargeReach then
+                local probe = self:ChargeProbe(movementToken, enemy)
+                if probe ~= nil then
+                    local targetDist = enemy:Distance(probe.dest)
                     -- A stopped or zero-length arrow is not a charge. Dual-mode
                     -- strikes must also finish inside their melee variation's range.
-                    if chargeDist > 0
-                        and chargeDist <= ability:try_get("chargeDistanceOverride", movementToken.properties:CurrentMovementSpeed())
+                    if probe.chargeDist > 0
+                        and probe.chargeDist <= maxChargeDistance
                         and targetDist <= chargeRange then
                         dist = targetDist
-                        chargeLoc = dest
+                        chargeLoc = probe.dest
                     end
                 end
             end
@@ -2175,10 +2410,12 @@ function MonsterAI:FindSquadMemberStrikeOptions(squadMember, ability)
 end
 
 function MonsterAI:ExecuteSquadStrike(ability)
+    local abilityName = ability.name
+    local monsterType = self.token.properties:try_get("monster_type", "Minion")
     self:LogDecision("MOVE SELECTED", {
         category = "Main Action",
         move = "Minion Signature Ability",
-        ability = ability.name,
+        ability = abilityName,
         action = self.AbilityActionLogName(ability),
         result = string.format("coordinating %d minion(s)", #self.squadMembers),
     })
@@ -2186,82 +2423,152 @@ function MonsterAI:ExecuteSquadStrike(ability)
     local rays = {}
     local targetPairs = {}
     local assignedTargets = {}
-    for _,squadMember in ipairs(self.squadMembers) do
 
-        local movementToken = self:GetMovementToken(squadMember.token)
-        squadMember.paths = self:CalculateMovementPaths(squadMember.token,
-            movementToken.properties:CurrentMovementSpeed()*10)
-
-        local options = self:FindSquadMemberStrikeOptions(squadMember, ability)
-        local bestOption = nil
-        local bestScore = nil
-        for _,option in pairs(options) do
-            local score = option.cost
-            if assignedTargets[option.token.charid] ~= nil then
-                score = score + 10000*assignedTargets[option.token.charid]
-            end
-
-            if bestOption == nil or score < bestScore then
-                bestOption = option
-                bestScore = score
+    --Reactions to a later member's movement can kill an attacker that already
+    --has a pairing. Keep the shared plan limited to creatures still on the map.
+    local function RefreshAssignments()
+        local livePairs = {}
+        local liveAssignedTargets = {}
+        for _,pair in ipairs(targetPairs) do
+            local attacker = dmhub.GetTokenById(pair.a)
+            local target = dmhub.GetTokenById(pair.b)
+            if self.TokenIsLiveCombatant(attacker) and self.TokenIsLiveCombatant(target) then
+                livePairs[#livePairs+1] = pair
+                liveAssignedTargets[pair.b] = (liveAssignedTargets[pair.b] or 0) + 1
             end
         end
+        targetPairs = livePairs
+        assignedTargets = liveAssignedTargets
+    end
 
-        if bestOption ~= nil then
-            self:LogDecision("MINION ASSIGNMENT", {
-                actor = self.TokenLogName(squadMember.token),
-                actorId = squadMember.token.charid,
-                category = "Main Action",
-                move = "Minion Signature Ability",
-                ability = ability.name,
-                from = self.LocLogName(squadMember.token.loc),
-                to = self.LocLogName(bestOption.loc),
-                targets = self.TargetsLogName({{token = bestOption.token}}),
-                plan = bestOption.charge ~= nil
-                    and string.format("charge through %s", self.LocLogName(bestOption.charge))
-                    or "strike from destination",
-            })
-            assignedTargets[bestOption.token.charid] = (assignedTargets[bestOption.token.charid] or 0) + 1
-            local path = self:MoveToken(squadMember.token, bestOption.loc, {maxCost = 10000, ignoreFalling = false})
-            self.Sleep(0.6)
+    for _,squadMember in ipairs(self.squadMembers) do
+        RefreshAssignments()
+        local memberToken = squadMember.token
+        if self.TokenIsLiveCombatant(memberToken) then
+            local memberName = self.TokenLogName(memberToken)
+            local memberId = memberToken.charid
+            local queue = dmhub.initiativeQueue
+            if queue ~= nil and not queue.hidden then
+                --A reaction can remove cached allies while another squad member
+                --is moving. Rebuild the lists before the next member plans.
+                self:RefreshCombatants(queue, memberToken)
+            end
+            local movementToken = self:GetMovementToken(memberToken)
+            squadMember.paths = self:CalculateMovementPaths(memberToken,
+                movementToken.properties:CurrentMovementSpeed()*10)
 
+            local options = self:FindSquadMemberStrikeOptions(squadMember, ability)
+            local bestOption = nil
+            local bestScore = nil
+            for _,option in pairs(options) do
+                local score = option.cost
+                if assignedTargets[option.token.charid] ~= nil then
+                    score = score + 10000*assignedTargets[option.token.charid]
+                end
 
-            if bestOption.charge ~= nil then
-                self:Speech(squadMember.token, "Charge!")
-                self.Sleep(0.3)
-                --freeMovement: a Charge is a main action whose movement belongs to the
-                --ability, not to the creature's move action, so it must not be charged
-                --against -- or clamped by -- the remaining move budget under
-                --strict:movement. Without this the move above eats the budget and the
-                --charge silently becomes a no-op, leaving the striker out of range.
-                local path = self:MoveToken(squadMember.token, bestOption.charge, {maxCost = 10000, ignoreFalling = false, freeMovement = true})
-                self.Sleep(1)
+                if bestOption == nil or score < bestScore then
+                    bestOption = option
+                    bestScore = score
+                end
             end
 
-            local toka = squadMember.token
-            local tokb = bestOption.token
+            if bestOption ~= nil then
+                self:LogDecision("MINION ASSIGNMENT", {
+                    actor = memberName,
+                    actorId = memberId,
+                    category = "Main Action",
+                    move = "Minion Signature Ability",
+                    ability = abilityName,
+                    from = self.LocLogName(memberToken.loc),
+                    to = self.LocLogName(bestOption.loc),
+                    targets = self.TargetsLogName({{token = bestOption.token}}),
+                    plan = bestOption.charge ~= nil
+                        and string.format("charge through %s", self.LocLogName(bestOption.charge))
+                        or "strike from destination",
+                })
 
-            if toka ~= nil and toka.valid and (not toka.properties:IsDead()) and tokb ~= nil and tokb.valid then
-                dmhub.Schedule(0.8, function()
-                    rays[#rays+1] = dmhub.MarkLineOfSight(toka, tokb, toka.properties:GetPierceWalls())
-                end)
-                targetPairs[#targetPairs+1] = {a = squadMember.token.charid, b = bestOption.token.charid}
+                local _, memberSurvived = self:MoveToken(memberToken, bestOption.loc,
+                    {maxCost = 10000, ignoreFalling = false}, true)
+                self.Sleep(0.6)
+
+                if memberSurvived and self.TokenIsLiveCombatant(memberToken)
+                    and bestOption.charge ~= nil then
+                    self:Speech(memberToken, "Charge!")
+                    self.Sleep(0.3)
+                    --A Charge's movement is part of the ability, not the creature's
+                    --move action, so it does not consume the remaining move budget.
+                    local _, chargeSurvived = self:MoveToken(memberToken, bestOption.charge,
+                        {maxCost = 10000, ignoreFalling = false, freeMovement = true}, true)
+                    memberSurvived = chargeSurvived
+                    self.Sleep(1)
+                end
+
+                local targetToken = bestOption.token
+                if memberSurvived and self.TokenIsLiveCombatant(memberToken)
+                    and self.TokenIsLiveCombatant(targetToken) then
+                    assignedTargets[targetToken.charid] = (assignedTargets[targetToken.charid] or 0) + 1
+                    targetPairs[#targetPairs+1] = {a = memberId, b = targetToken.charid}
+                    dmhub.Schedule(0.8, function()
+                        if self.TokenIsLiveCombatant(memberToken)
+                            and self.TokenIsLiveCombatant(targetToken) then
+                            rays[#rays+1] = dmhub.MarkLineOfSight(memberToken, targetToken,
+                                memberToken.properties:GetPierceWalls())
+                        end
+                    end)
+                else
+                    self:LogDecision("MINION ASSIGNMENT CANCELLED", {
+                        actor = memberName,
+                        actorId = memberId,
+                        category = "Main Action",
+                        move = "Minion Signature Ability",
+                        ability = abilityName,
+                        targets = self.TargetsLogName({{token = targetToken}}),
+                        reason = memberSurvived and "target is no longer a live combatant"
+                            or "attacker died while player reactions resolved",
+                        result = "continuing with surviving squad members",
+                    })
+                end
+            else
+                self:LogDecision("MINION ASSIGNMENT REJECTED", {
+                    actor = memberName,
+                    actorId = memberId,
+                    category = "Main Action",
+                    move = "Minion Signature Ability",
+                    ability = abilityName,
+                    reason = "no legal target can be reached",
+                })
             end
         else
-            self:LogDecision("MINION ASSIGNMENT REJECTED", {
-                actor = self.TokenLogName(squadMember.token),
-                actorId = squadMember.token.charid,
+            self:LogDecision("MINION ASSIGNMENT CANCELLED", {
+                actor = self.TokenLogName(memberToken),
+                actorId = memberToken ~= nil and memberToken.charid or nil,
                 category = "Main Action",
                 move = "Minion Signature Ability",
-                ability = ability.name,
-                reason = "no legal target can be reached",
+                ability = abilityName,
+                reason = "squad member is no longer a live combatant",
+                result = "continuing with surviving squad members",
             })
         end
     end
 
-    if #targetPairs > 0 then
-        if self.squadCaptain and self.squadCaptain.valid then
-            if ability:HasKeyword("Melee") then
+    RefreshAssignments()
+    local casterToken = nil
+    local castAbility = nil
+    for _,pair in ipairs(targetPairs) do
+        local candidate = dmhub.GetTokenById(pair.a)
+        if self.TokenIsLiveCombatant(candidate) then
+            castAbility = FindAbilityByName(candidate.properties:GetActivatedAbilities(), abilityName)
+            if castAbility ~= nil and castAbility:CanAfford(candidate) then
+                casterToken = candidate
+                break
+            end
+        end
+    end
+
+    local executed = false
+    if #targetPairs > 0 and casterToken ~= nil then
+        if self.squadCaptain and self.TokenIsLiveCombatant(self.squadCaptain) then
+            if castAbility:HasKeyword("Melee") then
                 self:Speech(self.squadCaptain, {"Attack together!", "Strike as one!", "Get 'em, boys!"})
             else
                 self:Speech(self.squadCaptain, {"Fire at will!", "Take them down!", "Shoot them down like dogs!"})
@@ -2285,8 +2592,11 @@ function MonsterAI:ExecuteSquadStrike(ability)
             end
         end
 
-        self:ExecuteAbility(self.token, ability, targets, {symbols = symbols, sleep = 2.0})
+        self:ExecuteAbility(casterToken, castAbility, targets, {symbols = symbols, sleep = 2.0})
+        executed = true
         logMessage = string.format("Executed on %d targets", #targets)
+    elseif #targetPairs > 0 then
+        logMessage = "No surviving attacker could cast the signature ability"
     else
         logMessage = "Could not find any targets"
     end
@@ -2296,7 +2606,7 @@ function MonsterAI:ExecuteSquadStrike(ability)
     end
 
     if logMessage then
-        self:LogMove(self.token.properties.monster_type, "Minion Signature Ability", logMessage)
+        self:LogMove(monsterType, "Minion Signature Ability", logMessage)
     end
 
     local finalTargets = {}
@@ -2306,12 +2616,12 @@ function MonsterAI:ExecuteSquadStrike(ability)
     self:LogDecision("MOVE FINISHED", {
         category = "Main Action",
         move = "Minion Signature Ability",
-        ability = ability.name,
+        ability = abilityName,
         targets = self.TargetsLogName(finalTargets),
         result = logMessage,
     })
 
-    return #targetPairs > 0
+    return executed
 end
 
 function MonsterAI:FindBestMoveToUseStrike(token, ability, scorefn)
@@ -3350,6 +3660,26 @@ function MonsterAI:HandleMoveExecutionFailure(moveid, abilityName, err)
     self._tmp_failedMoves[moveid] = true
     self._tmp_expectedPromptTarget = nil
 
+	if self:try_get("_tmp_abortTurn") ~= nil then
+		self:LogDecision("MOVE ABORTED", {
+			ability = abilityName,
+			reason = self._tmp_abortTurn,
+			result = "remaining turn paused",
+		})
+		return g_moveResultUnsafe
+	end
+
+	if self:try_get("_tmp_actorInterrupted") ~= nil then
+		local reason = self._tmp_actorInterrupted
+		self._tmp_actorInterrupted = nil
+		self:LogDecision("MOVE INTERRUPTED", {
+			ability = abilityName,
+			reason = reason,
+			result = "remaining actions skipped for this actor",
+		})
+		return g_moveResultUnsafe
+	end
+
     pcall(function()
         self:LogMove(self.token.properties.monster_type, moveid,
             "Execution failed: " .. tostring(err))
@@ -3825,19 +4155,10 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
 
     ability = ability:MakeTemporaryClone()
 
-    --The AI has already resolved which mode it is casting: callers pass a
-    --SwitchModes clone plus a matching symbols.mode (or default to mode 1).
-    --SwitchModes deliberately keeps multipleModes/modeList on its result, so
-    --RequiresPromptWhenCast() would return true and ExecuteInvoke would route
-    --this cast to the action bar's manual mode/target UI -- which, for a cast
-    --whose targets are locs, builds an EMPTY symbols.allowedtargets and strands
-    --the cast on an unanswerable "Choose Target" prompt. Clearing the flag
-    --keeps the cast on the immediate Cast path. Note MakeTemporaryClone above
-    --returns the SAME object when the ability is already a temporary clone
-    --(e.g. entries in ai.abilities), so this write can land on the run's
-    --cached instance -- benign, since AI mode switching works off modeList
-    --and nothing else in a run reads multipleModes.
-    ability.multipleModes = false
+    --Keep multipleModes intact because behavior mode filters depend on it.
+    --The AI already chose symbols.mode above, defaulting to mode 1, so only
+    --the mode picker should be bypassed when this ability is invoked.
+    options.modeResolved = true
 
     local startedAt = dmhub.Time()
     self:LogDecision("ABILITY CAST START", {

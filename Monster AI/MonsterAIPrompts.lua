@@ -27,15 +27,17 @@ MonsterAI:RegisterPrompt{
     end,
 }
 
--- Granted free strikes use the standard "Free Strike" augmented-ability
--- wrapper. A creature can have both melee and ranged synthesized choices, so
--- resolving the prompt requires choosing a concrete ability as well as a
--- target. Keep this generic so any AI-controlled invoke of that standard
--- ability can use it.
-local function LiveAIControlledCreature(token)
+--Granted free strikes arrive through augmented-ability wrappers. A creature
+--can have both melee and ranged synthesized choices, so resolution requires a
+--concrete ability as well as a target. The shared handler recognizes both the
+--standard Free Strike wrapper and generic Invoked Ability wrappers.
+local function AIControlledCreature(token)
     return token ~= nil and token.valid and not token.isObject
-        and token.properties ~= nil and not token.properties:IsDead()
-        and not token.playerControlled
+        and token.properties ~= nil and not token.playerControlled
+end
+
+local function LiveAIControlledCreature(token)
+    return AIControlledCreature(token) and not token.properties:IsDead()
 end
 
 local function IsActiveCombatant(token)
@@ -96,7 +98,9 @@ local function FreeStrikeTargetScore(targetInfo)
 end
 
 local function FindBestImmediateFreeStrike(ai, actor, abilities)
-    if not LiveAIControlledCreature(actor) then
+    --Death-triggered grants resolve before the creature is removed, so the
+    --caster can already report dead while still being allowed this strike.
+    if not AIControlledCreature(actor) then
         return nil
     end
 
@@ -160,6 +164,29 @@ local function FindBestImmediateFreeStrike(ai, actor, abilities)
     return plan
 end
 
+local freeStrikeSpeech = {
+    "Take This!",
+    "Die!",
+    "I'll take a swing!",
+}
+
+local dyingFreeStrikeSpeech = {
+    "I'll take you with me!",
+    "We die together!",
+    "I won't go easily!",
+}
+
+local function SpeakBeforeFreeStrike(ai, token)
+    local lines = freeStrikeSpeech
+    local dying = token.properties:CurrentHitpoints() <= 0
+        or token.properties:try_get("_tmp_minionDeathPending") ~= nil
+    if dying then
+        lines = dyingFreeStrikeSpeech
+    end
+    ai:Speech(token, lines)
+    MonsterAI.Sleep(0.5)
+end
+
 MonsterAI:RegisterPrompt{
     prompts = {"Adjacent Ally Makes Free Strike"},
     handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
@@ -194,24 +221,39 @@ MonsterAI:RegisterPrompt{
     end,
 }
 
-MonsterAI:RegisterPrompt{
-    prompts = {"Free Strike"},
-    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
-        if not LiveAIControlledCreature(casterToken) then
+local function HandleFreeStrikePrompt(ai, invokerToken, casterToken, abilityClone, symbols, options)
+    if not AIControlledCreature(casterToken) then
+        return nil
+    end
+
+    local synthesized = abilityClone:SynthesizeAbilities(casterToken.properties) or {}
+    if abilityClone.name ~= "Free Strike" then
+        if #synthesized == 0 then
             return nil
         end
-
-        local synthesized = abilityClone:SynthesizeAbilities(casterToken.properties) or {}
-        local plan = FindBestImmediateFreeStrike(ai, casterToken, synthesized)
-        if plan == nil then
-            return {targets = {}}
+        for _,ability in ipairs(synthesized) do
+            if ability.categorization ~= "Basic Attack" then
+                return nil
+            end
         end
+    end
 
-        return {
-            targets = {{token = plan.target.token}},
-            abilityOverride = plan.ability,
-        }
-    end,
+    local plan = FindBestImmediateFreeStrike(ai, casterToken, synthesized)
+    if plan == nil then
+        return {targets = {}}
+    end
+
+    SpeakBeforeFreeStrike(ai, casterToken)
+    return {
+        targets = {{token = plan.target.token}},
+        abilityOverride = plan.ability,
+    }
+end
+
+MonsterAI:RegisterPrompt{
+    id = "Generic Free Strike",
+    prompts = {"Free Strike", "Invoked Ability"},
+    handler = HandleFreeStrikePrompt,
 }
 
 local verticalForcedMovementTypes = {

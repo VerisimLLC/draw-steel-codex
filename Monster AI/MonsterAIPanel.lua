@@ -31,6 +31,33 @@ local g_thread = nil
 local g_terminate = false
 local g_status = nil
 
+local g_playerTurnClaimAbilities = {
+    ["hesitation is weakness"] = true,
+}
+
+--A player can claim the next turn through one of these prompts even when it is
+--currently the monsters' side. Leave initiative unclaimed until they answer it.
+local function FindPendingPlayerTurnClaimTrigger(queue)
+    local entriesUnmoved = queue:EntriesUnmoved()
+    for _,token in ipairs(dmhub.allTokens) do
+        if MonsterAI.TokenIsLiveCombatant(token) and token.playerControlled then
+            local initiativeid = InitiativeQueue.GetInitiativeId(token)
+            if initiativeid ~= nil and queue:IsEntryPlayer(initiativeid)
+                and entriesUnmoved[initiativeid] ~= nil then
+                for _,trigger in pairs(token.properties:GetAvailableTriggers(true) or {}) do
+                    local abilityName = trigger.abilityName
+                    if not trigger.dismissed and type(abilityName) == "string"
+                        and g_playerTurnClaimAbilities[string.lower(abilityName)] then
+                        return trigger
+                    end
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
 MonsterAI:RegisterTrigger{
     id = "Opportunity Attack",
     triggers = {"Opportunity Attack"},
@@ -170,6 +197,9 @@ local function MonsterAIThread(process)
         if (not handledTrigger) and queue ~= nil and (not queue.hidden)
             and not GameHud.BetweenTurnTransitionInProgress() and (not queue:IsPlayersTurn()) then
             local initiativeid = queue:CurrentInitiativeId()
+            if initiativeid == nil and FindPendingPlayerTurnClaimTrigger(queue) ~= nil then
+                return
+            end
 
             if initiativeid == nil then
                 local entriesUnmoved = queue:EntriesUnmoved()
@@ -238,6 +268,7 @@ local function MonsterAIThread(process)
 
                 if initiativeid ~= nil and dmhub.initiativeQueue == queue
                     and queue:ChoosingTurn() and not queue:IsPlayersTurn()
+                    and FindPendingPlayerTurnClaimTrigger(queue) == nil
                     and queue:EntriesUnmoved()[initiativeid] ~= nil then
                     lifecycleAI:SetLogContext(nil, {
                         turn = initiativeid,

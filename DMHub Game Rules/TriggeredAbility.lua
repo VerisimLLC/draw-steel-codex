@@ -1000,7 +1000,11 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
 		self:ExecuteTriggerCast{
 			dismiss = remoteExecution.dismiss,
-			argOptions = {alreadyPaid = remoteExecution.alreadyPaid},
+			argOptions = {
+				alreadyPaid = remoteExecution.alreadyPaid,
+				aiActivityId = remoteExecution.aiActivityId,
+				aiReactionId = remoteExecution.aiReactionId,
+			},
 			casterToken = casterToken,
 			symbols = symbols,
 			targets = remoteExecution.targets,
@@ -1381,7 +1385,18 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 		}
 	end
 
-    print("MANDATORY::", json(symbols.remote), "mandatory =", self:IsMandatory(cond(symbols.remote, nil, casterToken)))
+	local aiActivityId = symbols ~= nil and symbols.aiActivityId or nil
+	local aiReactionId = nil
+	if casterToken.playerControlled and type(aiActivityId) == "string" and aiActivityId ~= "" then
+		aiReactionId = dmhub.GenerateGuid()
+		argOptions.aiActivityId = aiActivityId
+		argOptions.aiReactionId = aiReactionId
+		casterToken.properties:BeginPendingAIActivityReaction(aiActivityId, aiReactionId)
+	else
+		aiActivityId = nil
+	end
+
+	print("MANDATORY::", json(symbols.remote), "mandatory =", self:IsMandatory(cond(symbols.remote, nil, casterToken)))
 	if self:IsMandatory(cond(symbols.remote, nil, casterToken)) then
 		-- For mandatory triggers with a usage limit, pay the full cost upfront
 		-- before entering the coroutine. This prevents the same trigger from
@@ -1395,13 +1410,19 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			casterToken.properties:DispatchEvent("finishability", {usedability = self})
 		end
 	else
-		dmhub.Coroutine(function()
-			local guid = dmhub.GenerateGuid()
+		local guid = aiReactionId or dmhub.GenerateGuid()
 
+		dmhub.Coroutine(function()
 			--Register as the live watcher for this prompt before it becomes
 			--visible: an acceptance is consumed by this coroutine, never by
 			--the orphan-recovery path -- see ActivateOrphanedTrigger.
 			g_liveTriggerWatchers[guid] = true
+
+			local function CompleteAIReaction()
+				if aiActivityId ~= nil and casterToken ~= nil and casterToken.valid then
+					casterToken.properties:CompletePendingAIActivityReaction(aiActivityId, guid)
+				end
+			end
 
             local targetids = {}
             for i,tok in ipairs(targets) do
@@ -1492,15 +1513,16 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 modes = modes,
                 heroicResourceCost = tonumber(cost),
                 hostile = self.hostile,
-                --Hostile prompts each represent a separate debt (e.g. two
-                --Bleeding losses from two actions), so they never merge.
-                noDeduplicate = self:try_get("allowDuplicateTriggers", false) or self.hostile,
+                --Hostile prompts and AI movement reactions each represent a
+                --separate decision, so neither may merge with an older card.
+                noDeduplicate = self:try_get("allowDuplicateTriggers", false) or self.hostile or aiActivityId ~= nil,
                 abilityGuid = self:try_get("guid"),
                 abilityName = self.name,
                 watcherUserid = dmhub.userid,
                 auraControllerId = auraControllerId,
                 execSymbols = serializedSymbols,
                 execTargets = serializedTargets,
+				aiActivityId = aiActivityId or false,
 			}
 
             if self:ActionResource() == CharacterResource.triggerResourceId then
@@ -1683,6 +1705,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
                 if #removes > 0 and #targets == 0 then
                     --no targets left, so cancel.
+					CompleteAIReaction()
                     return
                 end
 
@@ -1714,6 +1737,8 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 						symbols = symbols,
 						targets = targets,
 						auraControllerToken = auraControllerToken,
+						aiActivityId = aiActivityId,
+						aiReactionId = guid,
 					})
 				else
 					dmhub.Schedule(0.01, function() --make execute in the main thread with a schedule.
@@ -1726,6 +1751,8 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 						end
 					end)
 				end
+			else
+				CompleteAIReaction()
 			end
 		end)
 	end
@@ -1738,6 +1765,15 @@ end
 --the controlling player's machine.
 --args: dismiss, argOptions, casterToken, symbols, targets, characterModifier,
 --creature, auraControllerToken, modContext.
+local function CompleteAIReactionFromOptions(casterToken, argOptions)
+	if casterToken ~= nil and casterToken.valid
+		and type(argOptions.aiActivityId) == "string"
+		and type(argOptions.aiReactionId) == "string" then
+		casterToken.properties:CompletePendingAIActivityReaction(
+			argOptions.aiActivityId, argOptions.aiReactionId)
+	end
+end
+
 function TriggeredAbility:ExecuteTriggerCast(args)
 	local argOptions = args.argOptions or {}
 	local casterToken = args.casterToken
@@ -1774,6 +1810,7 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 		for i, handler in ipairs(options.OnFinishCastHandlers or {}) do
 			handler(self, casterToken, options)
 		end
+		CompleteAIReactionFromOptions(casterToken, argOptions)
 
 		return
 	end
@@ -1799,6 +1836,7 @@ function TriggeredAbility:ExecuteTriggerCast(args)
 
 	if g_triggerDepth > 8 then
 		printf("Too many triggers stacked in the same frame, aborting.")
+		CompleteAIReactionFromOptions(casterToken, argOptions)
 		return
 	end
 
@@ -1870,6 +1908,8 @@ function TriggeredAbility:SendTriggerCastToController(controllerid, args)
 		targets = serializedTargets,
 		dismiss = args.dismiss == true,
 		alreadyPaid = args.alreadyPaid == true,
+		aiActivityId = args.aiActivityId or false,
+		aiReactionId = args.aiReactionId or false,
 	}
 
 	--Held back until the casts currently resolving on this client complete,
@@ -1932,6 +1972,10 @@ function TriggeredAbilityRemoteExecution:Invoke()
 
 	if characterModifier == nil then
 		printf("RemoteTrigger:: could not find triggered ability %s (%s) on the caster; dropping remote trigger execution.", tostring(self:try_get("abilityName")), tostring(abilityGuid))
+		CompleteAIReactionFromOptions(casterToken, {
+			aiActivityId = self:try_get("aiActivityId", false),
+			aiReactionId = self:try_get("aiReactionId", false),
+		})
 		return false
 	end
 
@@ -1950,6 +1994,10 @@ function TriggeredAbilityRemoteExecution:Invoke()
 	end
 
 	if #targets == 0 then
+		CompleteAIReactionFromOptions(casterToken, {
+			aiActivityId = self:try_get("aiActivityId", false),
+			aiReactionId = self:try_get("aiReactionId", false),
+		})
 		return false
 	end
 
@@ -1972,6 +2020,8 @@ function TriggeredAbilityRemoteExecution:Invoke()
 			targets = targets,
 			dismiss = self:try_get("dismiss", false),
 			alreadyPaid = self:try_get("alreadyPaid", false),
+			aiActivityId = self:try_get("aiActivityId", false),
+			aiReactionId = self:try_get("aiReactionId", false),
 		},
 	})
 
@@ -2005,6 +2055,10 @@ function TriggeredAbility.ActivateOrphanedTrigger(casterToken, triggerid)
 		--already consumed.
 		return
 	end
+	local aiReactionOptions = {
+		aiActivityId = record:try_get("aiActivityId", false),
+		aiReactionId = record.id,
+	}
 
 	if record.triggered == false or record.dismissed then
 		return
@@ -2067,6 +2121,7 @@ function TriggeredAbility.ActivateOrphanedTrigger(casterToken, triggerid)
 
 	if characterModifier == nil then
 		printf("OrphanTrigger:: could not find triggered ability %s (%s) on the caster; canceling the prompt.", tostring(record.abilityName), tostring(record.abilityGuid))
+		CompleteAIReactionFromOptions(casterToken, aiReactionOptions)
 		return
 	end
 
@@ -2103,11 +2158,13 @@ function TriggeredAbility.ActivateOrphanedTrigger(casterToken, triggerid)
 
 		if not ok then
 			printf("OrphanTrigger:: failed to reconstruct context for %s: %s", tostring(record.abilityName), tostring(err))
+			CompleteAIReactionFromOptions(casterToken, aiReactionOptions)
 			return
 		end
 
 		if #targets == 0 then
 			printf("OrphanTrigger:: no surviving targets for %s; canceling the prompt.", tostring(record.abilityName))
+			CompleteAIReactionFromOptions(casterToken, aiReactionOptions)
 			return
 		end
 
@@ -2133,6 +2190,8 @@ function TriggeredAbility.ActivateOrphanedTrigger(casterToken, triggerid)
 				targets = targets,
 				dismiss = false,
 				alreadyPaid = false,
+				aiActivityId = aiReactionOptions.aiActivityId,
+				aiReactionId = aiReactionOptions.aiReactionId,
 			},
 		})
 	end)
@@ -2171,6 +2230,7 @@ function TriggeredAbility:TriggerCo(targets, characterModifier, casterToken, cre
                 if argOptions.complete then
                     argOptions.complete()
                 end
+				CompleteAIReactionFromOptions(casterToken, argOptions)
             end,
         },
 	}

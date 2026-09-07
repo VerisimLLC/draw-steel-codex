@@ -4950,7 +4950,13 @@ function creature:RefreshToken(token)
 	if triggeredEvents ~= nil and #triggeredEvents > 0 and triggeredEvents[1] and triggeredEvents[1].userid and triggeredEvents[1].userid == dmhub.userid then
 		local token = dmhub.LookupToken(self)
 		if token ~= nil then
+			local aiReactionDispatchIds = {}
 			for _,eventInfo in ipairs(triggeredEvents) do
+				local serializedInfo = eventInfo.info
+				if serializedInfo ~= nil and type(serializedInfo.aiReactionDispatchId) == "string" then
+					aiReactionDispatchIds[#aiReactionDispatchIds+1] = serializedInfo.aiReactionDispatchId
+				end
+
 				if TimestampAgeInSeconds(eventInfo.timestamp) < 30 then
                     local info = eventInfo.info
                     if info ~= nil then
@@ -4974,9 +4980,19 @@ function creature:RefreshToken(token)
 			end
 
 			token:ModifyProperties{
-				description = "Clear Triggers",
+			description = "Clear Triggers",
 				execute = function()
 					self.triggeredEvents = nil
+
+					local pendingReactions = self:try_get("pendingAIActivityReactions")
+					if pendingReactions ~= nil then
+						for _,reactionId in ipairs(aiReactionDispatchIds) do
+							pendingReactions[reactionId] = nil
+						end
+						if next(pendingReactions) == nil then
+							self.pendingAIActivityReactions = nil
+						end
+					end
 				end,
 			}
 		end
@@ -6383,7 +6399,16 @@ function creature:OnMove(path)
     if ourToken == nil then
         return
     end
-	self:DispatchEvent("move", {
+
+    local aiActivityId = self:try_get("_tmp_aiActivityId")
+    local function MovementEventInfo(info)
+        if aiActivityId ~= nil and aiActivityId ~= false then
+            info.aiActivityId = aiActivityId
+        end
+        return info
+    end
+
+	self:DispatchEvent("move", MovementEventInfo{
         path = PathMoved.new{
             path = path,
             size = ourToken.tileSize,
@@ -6559,7 +6584,7 @@ function creature:OnMove(path)
                     
                     if overlapping and not movedThroughTokens[otherToken.charid] then
                         --we moved through this token for the first time this turn.
-                        ourToken.properties:DispatchEvent("movethrough", {
+                        ourToken.properties:DispatchEvent("movethrough", MovementEventInfo{
                             path = PathMoved.new{
                                 path = path,
                                 size = ourTileSize,
@@ -6640,7 +6665,7 @@ function creature:OnMove(path)
 
                     if withinVerticalReach and (not tok:IsFriend(self)) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:TargetPassesFilter("opportunityattack", self) then
                         if notImmuneForThisObserver and tok.properties:CanMakeOpportunityAttacks() then
-                            tok.properties:DispatchEvent("leaveadjacent", { movingcreature = self })
+                            tok.properties:DispatchEvent("leaveadjacent", MovementEventInfo{ movingcreature = self })
                             self._tmp_triggeredOpportunityAttacks = self._tmp_triggeredOpportunityAttacks + 1
                         end
 
@@ -6648,7 +6673,7 @@ function creature:OnMove(path)
                         --whose text reads "moves or shifts away" uses this single
                         --trigger rather than needing one of each.
                         if departureNotImmuneForThisObserver then
-                            tok.properties:DispatchEvent("leaveadjacentorshift", { movingcreature = self })
+                            tok.properties:DispatchEvent("leaveadjacentorshift", MovementEventInfo{ movingcreature = self })
                         end
                     end
 
@@ -6662,7 +6687,7 @@ function creature:OnMove(path)
                     --(banes, opportunityattack target filter, CanMakeOpportunityAttacks)
                     --describe the enemy's reaction, not the mover's own trait.
                     if willingDeparture and withinVerticalReach and (not tok:IsFriend(self)) and self:CanUseTriggeredAbilities() then
-                        self:DispatchEvent("departadjacent", { departedcreature = tok.properties })
+                        self:DispatchEvent("departadjacent", MovementEventInfo{ departedcreature = tok.properties })
                     end
                 end
             end
@@ -9848,6 +9873,8 @@ function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localF
 	return true
 end
 
+local g_aiActivityReactionExpirySeconds = 600
+
 --Serialization helpers for event payloads that cross the network (the
 --triggeredEvents and remoteInvokes queues written via ModifyProperties).
 --Event info can hold live objects nested inside tables: e.g. info.cast is an
@@ -10015,6 +10042,14 @@ function creature:DispatchEvent(eventName, info)
 		return
 	end
 
+	local aiActivityId = info ~= nil and info.aiActivityId or nil
+	local aiReactionDispatchId = nil
+	if token.playerControlled and type(aiActivityId) == "string" and aiActivityId ~= "" then
+		aiReactionDispatchId = dmhub.GenerateGuid()
+		info = table.shallow_copy(info)
+		info.aiReactionDispatchId = aiReactionDispatchId
+	end
+
 
     if info ~= nil then
         local serializedInfo = {}
@@ -10069,6 +10104,20 @@ function creature:DispatchEvent(eventName, info)
 				eventName = eventName,
 				info = info,
 			}
+
+			if aiReactionDispatchId ~= nil then
+				local pendingReactions = self:get_or_add("pendingAIActivityReactions", {})
+				for id,entry in pairs(pendingReactions) do
+					if type(entry) ~= "table" or entry.timestamp == nil
+						or TimestampAgeInSeconds(entry.timestamp) > g_aiActivityReactionExpirySeconds then
+						pendingReactions[id] = nil
+					end
+				end
+				pendingReactions[aiReactionDispatchId] = {
+					activityId = aiActivityId,
+					timestamp = ServerTimestamp(),
+				}
+			end
 		end,
 	}
 end
@@ -10119,6 +10168,7 @@ end
 --- @field auraControllerId false|string
 --- @field execSymbols false|table SerializeEventValue-encoded event symbols for orphan recovery.
 --- @field execTargets false|table SerializeEventValue-encoded targets for orphan recovery.
+--- @field aiActivityId false|string The Monster AI movement activity waiting for this prompt.
 ActiveTrigger = RegisterGameType("ActiveTrigger")
 ActiveTrigger.id = ""
 ActiveTrigger.charid = ""
@@ -10174,6 +10224,7 @@ ActiveTrigger.watcherUserid = false
 ActiveTrigger.auraControllerId = false
 ActiveTrigger.execSymbols = false
 ActiveTrigger.execTargets = false
+ActiveTrigger.aiActivityId = false
 
 --A prompt card that offers an ability invocation rather than a triggered
 --ability: a serialization-safe AbilityInvocation record (see
@@ -10189,6 +10240,80 @@ ActiveTrigger.invocation = false
 --them -- see ActiveTrigger.RefreshAllTimers. Entries created before this field
 --existed have 0 here and fall back to timestamp.
 ActiveTrigger.expiryTimestamp = 0
+
+--A movement event marker is replaced by one marker per prompt on the player's
+--token. The AI host can see these records, so it can wait across clients without
+--keeping the prompt card alive after the player has made a choice.
+function creature:BeginPendingAIActivityReaction(activityId, reactionId)
+    if type(activityId) ~= "string" or activityId == "" or type(reactionId) ~= "string" or reactionId == "" then
+        return
+    end
+
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return
+    end
+
+    token:ModifyProperties{
+        description = "Begin AI Reaction",
+        undoable = false,
+        combine = true,
+        execute = function()
+            local pendingReactions = self:get_or_add("pendingAIActivityReactions", {})
+            for id,entry in pairs(pendingReactions) do
+                if type(entry) ~= "table" or entry.timestamp == nil
+                    or TimestampAgeInSeconds(entry.timestamp) > g_aiActivityReactionExpirySeconds then
+                    pendingReactions[id] = nil
+                end
+            end
+            pendingReactions[reactionId] = {
+                activityId = activityId,
+                timestamp = ServerTimestamp(),
+            }
+        end,
+    }
+end
+
+function creature:CompletePendingAIActivityReaction(activityId, reactionId)
+    if type(reactionId) ~= "string" or reactionId == "" then
+        return
+    end
+
+    local token = dmhub.LookupToken(self)
+    local pendingReactions = self:try_get("pendingAIActivityReactions")
+    if token == nil or pendingReactions == nil then
+        return
+    end
+
+    local entry = pendingReactions[reactionId]
+    if entry == nil or (type(activityId) == "string" and entry.activityId ~= activityId) then
+        return
+    end
+
+    token:ModifyProperties{
+        description = "Complete AI Reaction",
+        undoable = false,
+        combine = true,
+        execute = function()
+            pendingReactions[reactionId] = nil
+            if next(pendingReactions) == nil then
+                self.pendingAIActivityReactions = nil
+            end
+        end,
+    }
+end
+
+function creature:CountPendingAIActivityReactions(activityId)
+    local result = 0
+    for _,entry in pairs(self:try_get("pendingAIActivityReactions", {})) do
+        if type(entry) == "table" and entry.activityId == activityId
+            and entry.timestamp ~= nil
+            and TimestampAgeInSeconds(entry.timestamp) <= g_aiActivityReactionExpirySeconds then
+            result = result + 1
+        end
+    end
+    return result
+end
 
 --How long a trigger prompt stays available before it ages out. This is a
 --garbage-collection backstop, not a gameplay timer: in combat the sustain
@@ -10561,6 +10686,19 @@ function creature:ClearAvailableTrigger(triggerInfo)
     --DispatchAvailableTrigger's early-out, so this is the only hook that sees it.
     local cleared = availableTriggers[triggerInfo.id]
     local isInteraction = cleared ~= nil and (cleared.triggered ~= false or cleared.dismissed)
+
+	--A declined or expired AI-correlated prompt has no cast completion callback,
+	--so clearing the card also completes its pending reaction marker. Accepted
+	--prompts keep the marker until their cast reports OnFinish.
+	if cleared ~= nil and cleared.aiActivityId ~= false and (cleared.triggered == false or cleared.dismissed) then
+		local pendingReactions = self:try_get("pendingAIActivityReactions")
+		if pendingReactions ~= nil then
+			pendingReactions[cleared.id] = nil
+			if next(pendingReactions) == nil then
+				self.pendingAIActivityReactions = nil
+			end
+		end
+	end
 
 	local deletes = {}
 	for key,value in pairs(availableTriggers) do

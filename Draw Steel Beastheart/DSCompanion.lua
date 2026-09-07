@@ -601,7 +601,20 @@ end
 -- sheet, the Languages GoblinScript symbol -- derives from this tally, and
 -- because a tally dedupes for free: a language both of them know just counts
 -- twice and is still known once.
-local g_languageShareAttribute = "Shares Languages With Companion"
+--creature:CalculateNamedCustomAttribute memoizes per creature until the compendium
+--tables change, so a value read before an ongoing effect was applied stays stale for
+--the rest of the session. Both hooks below are asked mid-session, after an effect may
+--have been applied, so they read through the uncached GetCustomAttribute path instead.
+local function CustomAttributeValue(c, lookupSymbol)
+    local attrInfo = CustomAttribute.attributeInfoByLookupSymbol[lookupSymbol]
+    if attrInfo == nil then
+        return 0
+    end
+
+    return c:GetCustomAttribute(attrInfo)
+end
+
+local g_languageShareSymbol = "shareslanguageswithcompanion"
 local g_languageShareRecursion = 0
 
 local g_companionLanguageCountsBase = creature.LanguageCounts
@@ -616,7 +629,7 @@ function AnimalCompanion:LanguageCounts()
         return counts
     end
 
-    if summoner.properties:CalculateNamedCustomAttribute(g_languageShareAttribute) <= 0 then
+    if CustomAttributeValue(summoner.properties, g_languageShareSymbol) <= 0 then
         return counts
     end
 
@@ -632,6 +645,28 @@ function AnimalCompanion:LanguageCounts()
     end
 
     return counts
+end
+
+-- Companion-keyword abilities normally belong to the companion: every creature
+-- drops them via g_defaultExcludeKeywords in creature:GetActivatedAbilities, and
+-- AnimalCompanion mirrors that by excluding "Beastheart" instead. Content that
+-- lets a beastheart use them (the Werewolf Tooth Pendant's hybrid form) sets the
+-- attribute below, which clears the exclusion for that character only. The
+-- abilities are already on the beastheart -- this only stops them being filtered.
+--
+-- Only fills in a default: a caller that names its own excludeKeywords keeps it,
+-- so the companion's own "Beastheart" exclusion is never affected.
+local g_useCompanionAbilitiesSymbol = "usecompanionabilities"
+
+local g_baseCharacterGetActivatedAbilities = character.GetActivatedAbilities
+function character:GetActivatedAbilities(options)
+    if (options == nil or options.excludeKeywords == nil)
+       and CustomAttributeValue(self, g_useCompanionAbilitiesSymbol) > 0 then
+        options = table.shallow_copy(options or {})
+        options.excludeKeywords = {}
+    end
+
+    return g_baseCharacterGetActivatedAbilities(self, options)
 end
 
 -- Per Beastheart "Modify Companion" support: any modifier on the summoner

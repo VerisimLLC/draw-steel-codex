@@ -2312,6 +2312,7 @@ function CharacterPanel.EmbedPromptRollDialog(args)
 
     local ownedAbility = nil
     local locked = false
+    local lockId = nil
 
     if displayed == nil then
         --Nothing on the sidebar: put the ability card up ourselves, and lock it
@@ -2320,9 +2321,14 @@ function CharacterPanel.EmbedPromptRollDialog(args)
             return nil
         end
 
-        CharacterPanel.UnlockDisplayAbility()
-        if not CharacterPanel.DisplayAbility(token, ability, nil, {lock = true}) then
-            CharacterPanel.UnlockDisplayAbility()
+        --Force: the stale-dialog check above already established that nothing
+        --live owns the card. An id-only lock (no coroutine): this path may run
+        --outside any coroutine, and the roll outlives the caller anyway.
+        CharacterPanel.ForceUnlockDisplayAbility()
+        local shown
+        shown, lockId = CharacterPanel.DisplayAbility(token, ability, nil, {lock = true})
+        if not shown then
+            CharacterPanel.UnlockDisplayAbility(lockId)
             return nil
         end
         ownedAbility = ability
@@ -2349,7 +2355,7 @@ function CharacterPanel.EmbedPromptRollDialog(args)
             CharacterPanel.HideAbility(ownedAbility)
         end
         if locked then
-            CharacterPanel.UnlockDisplayAbility()
+            CharacterPanel.UnlockDisplayAbility(lockId)
         end
         return nil
     end
@@ -2367,6 +2373,9 @@ function CharacterPanel.EmbedPromptRollDialog(args)
         dialog = dialog,
         ownedAbility = ownedAbility,
         locked = locked,
+        --The display-lock id when `locked`; the caller's teardown passes it to
+        --CharacterPanel.UnlockDisplayAbility. nil when we own no lock.
+        lockId = lockId,
         --The dialog is only a specification until the UI builds it a frame or
         --two later. Its dice cage registers itself as the panel the 3D dice live
         --in from its own create handler, so showing the roll in this same frame
@@ -2440,10 +2449,69 @@ if standaloneRollHostPanelForReload and standaloneRollHostPanelForReload.valid t
     GameHud.instance:InitStandaloneRollHost(standaloneRollHostPanelForReload)
 end
 
-local g_abilityLocked = false
+--The ability-card display lock. While held, DisplayAbility refuses to displace
+--an embedded roll dialog, so a stray hover (the action bar's ability / trigger
+--previews) cannot tear a live roll down.
+--
+--Owned, not a boolean: the lock is a record {id, coid} and only the holder of
+--`id` can release it. This used to be a single global flag, and any cast that
+--finished after a LATER cast had taken the lock cleared the later cast's lock
+--(seen live: an opportunity attack's roll behavior unlocked after the Monster
+--AI's Handaxes cast had acquired; a trigger hover then destroyed the Handaxes
+--dialog mid-roll, the cast aborted, and the engine's held-open amendable roll
+--completed into the dead panel).
+--
+--`coid` is optional. When set (AcquireAbilityRollDialog passes its cast
+--coroutine), the lock is treated as expired once that coroutine is no longer
+--running, so a cast that errors out before its unlock cannot pin the card.
+--Direct DisplayAbility(lock=true) callers whose coroutine ends while the roll
+--is still up (the characteristic test roll) get an id-only lock with no expiry.
+local g_abilityLock = nil
 
-function CharacterPanel.UnlockDisplayAbility()
-    g_abilityLocked = false
+local function NewDisplayLock(coid)
+    return {
+        id = dmhub.GenerateGuid(),
+        coid = coid,
+    }
+end
+
+local function DisplayLockHeld()
+    if g_abilityLock == nil then
+        return false
+    end
+    if g_abilityLock.coid ~= nil and not coroutine.IsCoroutineWithIdStillRunning(g_abilityLock.coid) then
+        g_abilityLock = nil
+        return false
+    end
+    return true
+end
+
+--Release the display lock. Only the holder of `lockId` may release it; a
+--mismatched (or nil) id is a no-op, which is what stops a finishing cast from
+--unlocking a card that a later cast has since locked.
+function CharacterPanel.UnlockDisplayAbility(lockId)
+    if lockId == nil or g_abilityLock == nil or g_abilityLock.id ~= lockId then
+        return false
+    end
+    g_abilityLock = nil
+    return true
+end
+
+--Release the display lock whoever holds it. For the paths that have already
+--decided to displace the current card (AcquireAbilityRollDialog after its
+--queue loop, the characteristic roll after waiting for every roll surface to
+--clear). Never call this from a roll's own cleanup -- use the id.
+function CharacterPanel.ForceUnlockDisplayAbility()
+    g_abilityLock = nil
+end
+
+--Take the display lock without displaying anything. Used by
+--AcquireAbilityRollDialog's REUSE path, where a later behavior of the same cast
+--rides on the dialog an earlier behavior (which has since unlocked) put up.
+--Returns the lock id.
+function CharacterPanel.LockDisplayAbility(coid)
+    g_abilityLock = NewDisplayLock(coid)
+    return g_abilityLock.id
 end
 
 function CharacterPanel.DisplayAbility(token, ability, symbols, options)
@@ -2461,6 +2529,20 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
     -- such as AcquireAbilityRollDialog proceed to embed the roll into the parent card.
     if ability ~= nil and ability:try_get("categorization") == "Hidden"
         and g_displayedAbility ~= nil then
+        --The card on screen is hosting a roll that is still in flight (its cast
+        --holds the display lock). This sub-ability is NOT that cast's child, so it
+        --must not ride on the card: aliasing it would let its own FinishCast
+        --HideAbility tear the card -- and the live roll dialog inside it -- down,
+        --cancelling that roll. Seen live: the Monster AI's Concussive Bolts roll
+        --held open for a player's accepted Parry; the Parry's Shift (Hidden)
+        --aliased into the AI's card, and finishing the Shift destroyed the AI's
+        --dialog, so the cast ended with no damage. Refuse instead -- callers treat
+        --a refusal as cosmetic and the invoke prompt still runs on the action bar.
+        --(A cast's own later behaviors never hit this: the roll behavior releases
+        --the lock before the next behavior runs.)
+        if DisplayLockHeld() then
+            return false
+        end
         --Remember that this sub-ability is riding on the parent's card, so the
         --teardown call HideAbility(g_currentAbility) can still find and close it.
         if not AbilityOwnsDisplayedCard(ability) then
@@ -2474,7 +2556,7 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
     end)
     if embeddedRoll ~= nil then
         --could not displace existing ability.
-        if g_abilityLocked then
+        if DisplayLockHeld() then
             return false
         end
 
@@ -2496,11 +2578,16 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
     end
     panel:FireEventTree("showAbility", token, ability, symbols, displayOptions)
 
+    --options.lock: take the display lock for this card. Returned as the second
+    --value; pass it to UnlockDisplayAbility to release. options.lockCoroutine
+    --(a coroutine id) makes the lock expire with that coroutine -- see
+    --g_abilityLock above.
+    local lockId = nil
     if options.lock then
-        g_abilityLocked = true
+        lockId = CharacterPanel.LockDisplayAbility(options.lockCoroutine)
     end
 
-    return true
+    return true, lockId
 end
 
 --Acquire an embedded roll dialog for an ability-roll behavior, serializing
@@ -2579,8 +2666,15 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
             if existing.data ~= nil then
                 existing.data.rollRelinquished = false
             end
+            --Re-take the display lock for this cast: the earlier behavior that
+            --put the dialog up released its lock when its roll finished, which
+            --left the shared dialog unprotected for every behavior after it.
+            local reuseLockId = nil
+            if displayOptions ~= nil and displayOptions.lock then
+                reuseLockId = CharacterPanel.LockDisplayAbility(coid)
+            end
             print("AcquireRollDialog:: REUSE (own cast's dialog)")
-            return existing, false
+            return existing, false, reuseLockId
         end
 
         --Another cast's dialog. Displace only when its roll is finished
@@ -2614,8 +2708,12 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
         ::continue::
     end
 
-    --Clear any stale lock so DisplayAbility's displace guard does not refuse us.
-    CharacterPanel.UnlockDisplayAbility()
+    --Steal any lock still held: the queue loop above only lets us through once
+    --the previous dialog's roll is finished, its owner is dead, or it is
+    --untracked, so whatever lock remains is stale. Force is correct here and
+    --ONLY here -- it is what lets behaviors that never unlock (damage, save,
+    --replenish) hand the card on.
+    CharacterPanel.ForceUnlockDisplayAbility()
 
     --Do not raise a *visible* card for a roll that may never show one: build it
     --invisible and let the dialog reveal it when it un-hides (RevealAbilityCard).
@@ -2636,8 +2734,11 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
         acquireDisplayOptions[k] = v
     end
     acquireDisplayOptions.deferReveal = not cardAlreadyUp
+    --Tie the lock to this cast coroutine so it expires if the cast dies before
+    --the behavior's own unlock.
+    acquireDisplayOptions.lockCoroutine = coid
 
-    local displayed = CharacterPanel.DisplayAbility(token, ability, symbols, acquireDisplayOptions)
+    local displayed, lockId = CharacterPanel.DisplayAbility(token, ability, symbols, acquireDisplayOptions)
 
     --_tmp_aicontrol is a counter, raised while the Monster AI holds the token
     --(MonsterAI:BeginTokenControl). The dialog itself reads the same flag off
@@ -2694,7 +2795,7 @@ function CharacterPanel.AcquireAbilityRollDialog(token, ability, symbols, displa
 
     print(string.format("AcquireRollDialog:: CREATE coid=%s displayed=%s dialogValid=%s",
         tostring(coid), tostring(displayed), tostring(dialog ~= nil and dialog.valid)))
-    return dialog, displayed
+    return dialog, displayed, lockId
 end
 
 --Fade in a card that AcquireAbilityRollDialog built invisible. Called by the

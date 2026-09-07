@@ -541,7 +541,7 @@ local function ShowTimelinePrompt(check, dialogParams)
         end
 
         if mount.locked then
-            CharacterPanel.UnlockDisplayAbility()
+            CharacterPanel.UnlockDisplayAbility(mount.lockId)
         end
         if mount.ownedAbility ~= nil then
             --Safe if someone else has since taken the card over; HideAbility

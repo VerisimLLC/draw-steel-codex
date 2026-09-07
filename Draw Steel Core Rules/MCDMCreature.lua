@@ -4894,7 +4894,11 @@ function creature:ShowCharacteristicRollDialog(attrid)
                 },
             }
 
-            CharacterPanel.UnlockDisplayAbility()
+            --Force: we waited above for every roll surface to clear, so any lock
+            --left is stale. The new lock is id-only (no coroutine): this
+            --coroutine returns as soon as the dialog is scheduled, while the roll
+            --stays up until the next AcquireAbilityRollDialog displaces it.
+            CharacterPanel.ForceUnlockDisplayAbility()
             displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true, renderAsAbility = true})
         end
 

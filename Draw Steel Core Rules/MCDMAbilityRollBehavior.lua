@@ -1614,7 +1614,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     --Acquire the embedded roll dialog, queuing behind any other ability roll
     --in progress. The helper installs the cast-aware HideAbility OnFinishCast
     --handler itself. See CharacterPanel.AcquireAbilityRollDialog.
-    local dialog, displaying = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
+    local dialog, displaying, displayLockId = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
     print("Timeline:: Displaying:", displaying)
 
     local rollKey
@@ -1792,7 +1792,8 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         coroutine.yield(0.02)
     end
 
-    CharacterPanel.UnlockDisplayAbility()
+    --Our own lock only: a no-op if a later cast has since taken the card.
+    CharacterPanel.UnlockDisplayAbility(displayLockId)
 
     if refreshAtPanel ~= nil and refreshAtPanel.valid then
         refreshAtPanel:FireEvent("clearInteracting")

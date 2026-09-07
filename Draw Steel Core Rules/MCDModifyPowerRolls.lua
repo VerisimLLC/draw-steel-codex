@@ -619,25 +619,27 @@ CharacterModifier.TypeInfo.power = {
             roll = CharacterModifier.TypeInfo.power.modifyPowerRoll(self.baseModifier, creature, rollType, roll, options)
         end
 
-        if self.modtype == "none" or self.modtype == "suppresseffects" then
+        local modtype = self:try_get("modtype", "none")
+
+        if modtype == "none" or modtype == "suppresseffects" then
             return roll
         end
 
-        print("MODIFY:: MOD ROLL", self.modtype)
+        print("MODIFY:: MOD ROLL", modtype)
 
-        if self.modtype == "appendroll" or self.modtype == "replaceroll" then 
+        if modtype == "appendroll" or modtype == "replaceroll" then 
             local newRoll = dmhub.EvalGoblinScript(self:try_get("replaceText"), creature:LookupSymbol(), "Power Roll Replacement")
             
             --we only consider the "2d10 + xxx" part as the 'roll' to replace. Anything after that should be kept.
             local m = regex.MatchGroups(roll, "^(?<roll>2d10(?:\\s*[+-]\\s*\\d+)?)(?<suffix>.*)$")
             if m ~= nil then
-                if self.modtype == "appendroll" then
+                if modtype == "appendroll" then
                     roll = m.roll .. " + " .. newRoll .. m.suffix
                 else
                     roll = newRoll .. m.suffix
                 end
             else
-                if self.modtype == "appendroll" then
+                if modtype == "appendroll" then
                     roll = tostring(roll) .. " + " .. newRoll
                 else
                     roll = newRoll
@@ -646,7 +648,7 @@ CharacterModifier.TypeInfo.power = {
             return roll
         end
 
-        local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self.modtype]
+        local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[modtype]
         if modType == nil then
             return roll
         end
@@ -682,7 +684,7 @@ CharacterModifier.TypeInfo.power = {
     end,
 
     buffOrDebuff = function(self, context)
-        local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self.modtype]
+        local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self:try_get("modtype", "none")]
         local buffOrDebuff = modType.value
         if tonumber(buffOrDebuff) then
             if buffOrDebuff > 0 then
@@ -697,7 +699,7 @@ CharacterModifier.TypeInfo.power = {
         if not targetPanel.data.init then
 
             local description = ""
-            local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self.modtype]
+            local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self:try_get("modtype", "none")]
             if modType ~= nil and not modType.hideText then
                 description = modType.text
             end
@@ -1105,7 +1107,7 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
-        if self.modtype == "suppresseffects" then
+        if self:try_get("modtype", "none") == "suppresseffects" then
             local damageMultiplier = self:try_get("damageMultiplier", "full")
             for i,tier in ipairs(rollProperties.tiers) do
                 local m = regex.MatchGroups(tier, "^(?<prefix>.*?)(?<damage>\\d+\\s+[^0-9]*damage)(?<suffix>.*)$")
@@ -1168,7 +1170,7 @@ CharacterModifier.TypeInfo.power = {
     end,
 
     applyToRollLateness = function(self)
-        local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self.modtype]
+        local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self:try_get("modtype", "none")]
         if modType ~= nil then
             return modType.lateness or 0
         end
@@ -1733,6 +1735,8 @@ CharacterModifier.TypeInfo.power = {
             end
 
 
+            local modtype = modifier:try_get("modtype", "none")
+
             children[#children+1] = gui.Panel{
                 classes = {"formPanel"},
                 gui.Label{
@@ -1744,7 +1748,7 @@ CharacterModifier.TypeInfo.power = {
                     styles = ThemeEngine.GetStyles(),
                     options = ActivatedAbilityPowerRollBehavior.s_modificationTypes,
                     valign = "center",
-                    idChosen = modifier.modtype,
+                    idChosen = modtype,
                     change = function(element)
                         modifier.modtype = element.idChosen
                         Refresh()
@@ -1753,10 +1757,10 @@ CharacterModifier.TypeInfo.power = {
             }
 
             children[#children+1] = gui.Panel{
-                classes = {"formPanel", cond(modifier.modtype ~= "replaceroll" and modifier.modtype ~= "appendroll", 'collapsed-anim')},
+                classes = {"formPanel", cond(modtype ~= "replaceroll" and modtype ~= "appendroll", 'collapsed-anim')},
                 gui.Label{
                     classes = {"formLabel"},
-                    text = cond(modifier.modtype == "replaceroll", "Replace roll with:", "Append to roll:"),
+                    text = cond(modtype == "replaceroll", "Replace roll with:", "Append to roll:"),
                 },
                 gui.Input{
                     classes = {"formInput"},

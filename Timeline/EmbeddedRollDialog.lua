@@ -1129,7 +1129,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
         local enabledModifiers = GetEnabledModifiers()
         for _, mod in ipairs(enabledModifiers) do
-            local modInfo = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[mod.modifier.modtype]
+            local modInfo = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[mod.modifier:try_get("modtype", "none")]
             if modInfo ~= nil and not modInfo.hideText then
                 local labelType = "neutral"
                 if modInfo.value > 0 then

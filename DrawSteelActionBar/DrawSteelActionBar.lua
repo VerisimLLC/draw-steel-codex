@@ -8326,7 +8326,7 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
 
     local modifiers = sourceToken.properties:DescribeModifiersOnTarget(ability, targetToken)
     for _,m in ipairs(modifiers) do
-        local modInfo = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[m.modifier.modtype]
+        local modInfo = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[m.modifier:try_get("modtype", "none")]
         local labelType = "neutral"
         if modInfo ~= nil and (modInfo.value or 0) > 0 then
             labelType = "buff"

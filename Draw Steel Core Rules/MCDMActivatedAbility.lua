@@ -4,6 +4,14 @@ local mod = dmhub.GetModLoading()
 --kept as a default so old serialized data doesn't error on access.
 ActivatedAbility.effectImplemented = true
 
+--hideSightlines: while this ability waits at its cast confirmation prompt, the
+--action bar draws red sight-line arrows from every enemy with a clear view of
+--the caster -- the same arrows the Hide maneuver's cover-or-concealment gate
+--shows on hover. Set it on "you may hide" prompt abilities (e.g. the one Black
+--Ash Teleport invokes after the teleport) so the player can see who would spot
+--them before deciding to hide.
+ActivatedAbility.hideSightlines = false
+
 --The targeting-mode slider on the ability card. Its positions, in slider order:
 --  "enemies" -- enemy creatures only; the caster's own side is never offered
 --  false     -- any creature, friend or foe
@@ -17,6 +25,7 @@ ActivatedAbility.effectImplemented = true
 --and everything else (heals, buffs, grabs) has to be able to name an ally, so
 --both of those read "enemies" as plain false -- any creature -- and the slider
 --shows that position instead.
+
 local g_settingTargetObjects = setting {
     id = "targetobjects",
     default = "enemies",

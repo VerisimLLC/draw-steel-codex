@@ -2398,7 +2398,7 @@ CreateJournalPanel = function(options)
                 end
 
                 for k, doc in unhidden_pairs(customDocs) do
-                    local parentFolder = doc.parentFolder
+                    local parentFolder = doc.parentFolder or "private"
                     local members = foldersToMembers[parentFolder] or {}
                     members[k] = doc
                     foldersToMembers[parentFolder] = members

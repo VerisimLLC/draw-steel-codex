@@ -44,6 +44,9 @@ status.json
 
 Definitions/version.txt
 
+# Claude Code local overrides
+.claude.local.md
+site/
 .mcp.json 
 
 # Compendium content 

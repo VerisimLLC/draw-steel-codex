@@ -1,0 +1,79 @@
+site_name: Draw Steel Codex Wiki
+site_description: Code documentation for the Draw Steel Codex DMHub mod
+repo_url: https://github.com/VerisimLLC/draw-steel-codex
+repo_name: VerisimLLC/draw-steel-codex
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  font:
+    text: Lato
+    code: Roboto Mono
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Architecture:
+    - Overview: architecture/overview.md
+    - Module Map: architecture/module-map.md
+    - Loading System: architecture/loading-system.md
+  - Design Patterns:
+    - Game Types: patterns/game-types.md
+    - Data Tables: patterns/data-tables.md
+    - Token Mutations: patterns/token-mutations.md
+    - Shared Documents: patterns/shared-documents.md
+    - UI Framework: patterns/ui-framework.md
+    - GoblinScript: patterns/goblinscript.md
+  - Modules:
+    - Engine API (Definitions): modules/definitions.md
+    - Game Rules (Foundation): modules/game-rules.md
+    - Draw Steel Rules: modules/draw-steel-rules.md
+    - Character Builder: modules/character-builder.md
+    - UI & Panels: modules/ui-panels.md
+    - Abilities: modules/abilities.md
+    - Document System: modules/document-system.md
+    - Utilities: modules/utilities.md
+  - Reference:
+    - File Index: reference/file-index.md
+    - Glossary: reference/glossary.md

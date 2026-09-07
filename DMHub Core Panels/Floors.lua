@@ -1716,6 +1716,7 @@ CreateLayersPanel = function()
 
 							gui.Panel{
 								classes = {'floorPanelIconPanel'},
+								swallowPress = true,
 								press = function(element)
 									floor.floorInvisible = not floor.floorInvisible
 									element:FireEventTree("refreshGame")

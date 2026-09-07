@@ -24,7 +24,7 @@ function MM.BuildPropsMode()
     local PropsOnCurrentFloor = function(assetid)
         local result = {}
         local floor = game.currentFloor
-        if floor == nil then
+        if floor == nil or floor.valid == false then
             return result
         end
         for _,obj in pairs(floor.objects) do
@@ -46,7 +46,7 @@ function MM.BuildPropsMode()
             return nil
         end
         local floor = game.currentFloor
-        if floor == nil then
+        if floor == nil or floor.valid == false then
             return nil
         end
         local obj = floor:GetObject(m.props.editingId)
@@ -69,7 +69,7 @@ function MM.BuildPropsMode()
             return result
         end
         local floor = game.currentFloor
-        if floor == nil then
+        if floor == nil or floor.valid == false then
             return result
         end
         for _,objid in ipairs(ids) do

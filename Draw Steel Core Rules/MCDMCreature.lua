@@ -3618,7 +3618,10 @@ creature.RegisterSymbol {
 --as enemies, matching the Monster AI's combatant enumeration.
 function creature:GetRelevantEnemyTokens()
     local token = dmhub.LookupToken(self)
-    if token == nil or not token.valid then
+    --floorid is nil when the wrapper has no token on the loaded map. A
+    --compendium/bestiary stat block still yields a "valid" token wrapper, but
+    --it has no map presence, so no enemy on the map is relevant to it.
+    if token == nil or not token.valid or token.floorid == nil then
         return {}
     end
 
@@ -3671,21 +3674,18 @@ function creature:CalculateCoverFromEnemies()
     --GoblinScript operator, making the attribute's name unparseable in a
     --formula with its natural spacing.
     if (self:CalculateNamedCustomAttribute("Has Cover") or 0) > 0 then
-        print("HideGate:: cover check: creature has the Has Cover attribute; counts as cover from all")
         result.any = true
         self._tmp_coverFromEnemies = result
         return result
     end
 
     local token = dmhub.LookupToken(self)
-    if token == nil or not token.valid then
-        print("HideGate:: cover check: creature has no valid token; vacuous result (all=true)")
-    else
-        local enemies = self:GetRelevantEnemyTokens()
-        local q = dmhub.initiativeQueue
-        print(string.format("HideGate:: cover check: %d relevant enemies (combat=%s)",
-            #enemies, tostring(q ~= nil and (not q.hidden))))
-        for _,enemyTok in ipairs(enemies) do
+    --Requires a token on the loaded map: dmhub.GetCoverInfo raycasts between
+    --two scene tokens and hard-crashes on one that has none. A compendium
+    --stat block (e.g. rendering an ability tooltip on its sheet) reports
+    --valid = true but has no map token; floorid is nil in exactly that case.
+    if token ~= nil and token.valid and token.floorid ~= nil then
+        for _,enemyTok in ipairs(self:GetRelevantEnemyTokens()) do
             local pierce = 0
             if enemyTok.properties ~= nil then
                 pierce = enemyTok.properties:GetPierceWalls()
@@ -3693,8 +3693,6 @@ function creature:CalculateCoverFromEnemies()
             --favorTarget = true: hider-favoring bias -- any sampled sightline the enemy
             --has that clips an obstruction counts as the hider being behind cover.
             local coverInfo = dmhub.GetCoverInfo(enemyTok, token, pierce, true)
-            print(string.format("HideGate::   enemy %s -> %s",
-                tostring(enemyTok.name), coverInfo ~= nil and ("cover: " .. tostring(coverInfo.description)) or "NO COVER"))
             if coverInfo ~= nil then
                 result.any = true
             else
@@ -4928,6 +4926,14 @@ end
 
 local g_creatureSetCurrentHitpoints = creature.SetCurrentHitpoints
 function creature.SetCurrentHitpoints(self, amount, note)
+    if type(amount) == 'string' then
+        amount = tonumber(amount)
+    end
+
+    if type(amount) ~= 'number' then
+        return
+    end
+
     if (not mod.unloaded) and self.minion and self:has_key("_tmp_minionSquad") then
         local token = dmhub.LookupToken(self)
         if token ~= nil then
@@ -6716,7 +6722,7 @@ function creature:PersistentAbilities()
                     local targetToken = dmhub.GetTokenById(targetid)
                     local usable = targetToken ~= nil and targetToken.valid and targetToken.properties ~= nil
                         and (not targetToken.properties:IsDead())
-                    if usable and persistence:try_get("inrange") == true and selfToken ~= nil then
+                    if usable and persistence.inrange == true and selfToken ~= nil then
                         local range = ability:GetRange(self)
                         if type(range) == "number" and selfToken:Distance(targetToken) > range then
                             usable = false
@@ -6768,7 +6774,7 @@ function creature:PersistentAbilities()
             --offering the trigger (start of turn, target alive) should not be
             --restated there.
             local promptText
-            local customPrompt = persistence:try_get("promptText")
+            local customPrompt = persistence.promptText
             if type(customPrompt) == "string" and trim(customPrompt) ~= "" then
                 promptText = string.format("%s: %s; %s", tr("Persistence"), ability.name, customPrompt)
             else

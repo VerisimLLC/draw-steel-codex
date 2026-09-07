@@ -424,6 +424,87 @@ local function DiagramRender(diagramPanel, token, path, alternates, damages)
 	return true
 end
 
+--Where to put the movement tooltip so it never covers the mover, the destination or
+--the arrow: just outside the bounding box of the whole path, on whichever side has
+--the most room inside dmhub.cameraUsableBounds -- the same rect Panel.ShowTooltip
+--clamps to, so the clamp cannot drag it back over the box. Anchoring at the box EDGE
+--makes the clearance independent of the tooltip's size. All world coordinates:
+--valign 'top' = higher world y, halign 'right' = higher world x. The returned anchor
+--is a world point, which FloatTooltipNearTile accepts in place of a Loc.
+--Shared by the drag-move flow (GameHud.TokenMoving) and ability movement targeting
+--(ShowMovementDiagram in DrawSteelActionBar.lua).
+--- @param token CharacterToken the moving token
+--- @param path LuaPath the (previewed) movement path
+--- @return Vector2 anchor, string halign, string valign
+function GameHud.MovementTooltipPlacement(token, path)
+	--Bounding box of the whole path, expanded by the mover's footprint (+ a bit for the arrow ribbon).
+	local pad = (token.tileSize or 1)*0.5 + 0.15
+	local minx, miny, maxx, maxy = nil, nil, nil, nil
+	for _,step in ipairs(path.steps) do
+		local p = token:PosAtLoc(step)
+		if minx == nil then
+			minx, miny, maxx, maxy = p.x, p.y, p.x, p.y
+		else
+			if p.x < minx then minx = p.x elseif p.x > maxx then maxx = p.x end
+			if p.y < miny then miny = p.y elseif p.y > maxy then maxy = p.y end
+		end
+	end
+	if minx == nil then
+		local p = token:PosAtLoc(path.destination)
+		minx, miny, maxx, maxy = p.x, p.y, p.x, p.y
+	end
+	minx, miny, maxx, maxy = minx - pad, miny - pad, maxx + pad, maxy + pad
+
+	--Keep the hovered tile inside the box too: during ability targeting it can be well
+	--outside the path -- a jump that lands short at a wall while the user aims past it --
+	--and a tooltip just off the path box would then sit on the cursor. mouseLoc is nil
+	--when the pointer is over UI rather than the map.
+	local mouseLoc = dmhub.mouseLoc
+	if mouseLoc ~= nil then
+		local cursorPad = 1.2
+		if mouseLoc.x - cursorPad < minx then minx = mouseLoc.x - cursorPad end
+		if mouseLoc.x + cursorPad > maxx then maxx = mouseLoc.x + cursorPad end
+		if mouseLoc.y - cursorPad < miny then miny = mouseLoc.y - cursorPad end
+		if mouseLoc.y + cursorPad > maxy then maxy = mouseLoc.y + cursorPad end
+	end
+
+	local cx = (minx + maxx)*0.5
+	local cy = (miny + maxy)*0.5
+	local gap = 0.3
+
+	--rough OVER-estimate of the tooltip's world size (text + diagram), used only to pick the roomiest
+	--side. Over-estimating is safe: it just biases us away from a side that is too tight.
+	local worldPerPixel = 0.1
+	local screenDims = dmhub.screenDimensions
+	if dmhub.cameraZoom ~= nil and screenDims ~= nil and screenDims.y > 0 then
+		worldPerPixel = (dmhub.cameraZoom*2) / screenDims.y
+	end
+	local ttW = 430 * worldPerPixel
+	local ttH = 640 * worldPerPixel
+
+	--Four candidate placements: tooltip fully outside the box, one per side. `slack` is how much room is
+	--left over after fitting the tooltip on that side (positive = fits without the clamp shoving it back).
+	local halign, valign, anchorx, anchory
+	local bounds = dmhub.cameraUsableBounds
+	if bounds == nil then
+		halign, valign, anchorx, anchory = 'right', 'center', maxx + gap, cy
+	else
+		local candidates = {
+			{ slack = (bounds.x2 - maxx) - ttW, halign = 'right',  valign = 'center', anchorx = maxx + gap, anchory = cy },
+			{ slack = (minx - bounds.x1) - ttW, halign = 'left',   valign = 'center', anchorx = minx - gap, anchory = cy },
+			{ slack = (bounds.y2 - maxy) - ttH, halign = 'center', valign = 'top',    anchorx = cx, anchory = maxy + gap },
+			{ slack = (miny - bounds.y1) - ttH, halign = 'center', valign = 'bottom', anchorx = cx, anchory = miny - gap },
+		}
+		local best = candidates[1]
+		for i = 2, #candidates do
+			if candidates[i].slack > best.slack then best = candidates[i] end
+		end
+		halign, valign, anchorx, anchory = best.halign, best.valign, best.anchorx, best.anchory
+	end
+
+	return core.Vector2(anchorx, anchory), halign, valign
+end
+
 --The diagram panel that lives inside the map tooltip. Updates (or collapses)
 --in response to the "args" event fired on the tooltip tree by the tiletooltip
 --handler below.
@@ -1503,6 +1584,28 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 							interactable = false,
 							halign = halign,
 							valign = valign,
+
+							--Cursor dodge: while the cursor is inside the tooltip's
+							--bounds, fade the tree so the map stays readable. Opacity
+							--does not cascade, so the class goes on every panel
+							--(SetClassTree). Fading rather than hiding or moving keeps
+							--the geometry stable, so this cannot oscillate.
+							styles = {
+								{
+									selectors = {"cursor-under-tooltip"},
+									opacity = 0.1,
+									transitionTime = 0.1,
+								},
+							},
+							thinkTime = 0.05,
+							think = function(element)
+								--mousePoint is normalized within the panel; values outside
+								--(0,1) -- including the (0,0) reported when the mouse is
+								--elsewhere -- mean the cursor is not over the tooltip.
+								local p = element.mousePoint
+								local over = p ~= nil and p.x > 0 and p.x < 1 and p.y > 0 and p.y < 1
+								element:SetClassTree("cursor-under-tooltip", over)
+							end,
 						}
 					)
 				)

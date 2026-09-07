@@ -1233,7 +1233,7 @@ function ActivatedAbility:TargetLocMaxElevationChangeFunction(casterToken, symbo
     --Teleport targeting: distance is Chebyshev -- max(|dx|, |dy|, |dz|) -- so a
     --"teleport 5" may end up to 5 squares above or below the creature's current
     --altitude, independently of the horizontal component (which the radius marker
-    --already bounds). Unlike the forced-movement calculators below, this returns
+    --already bounds). Like the forced-movement calculators below, this returns
     --ABSOLUTE altitudes; landing on the ground at the target tile is the lowest
     --possible landing spot.
     if (self.targetType == "emptyspace" or self.targetType == "anyspace") and self:try_get("behaviors") ~= nil and self:GetMovementType(casterToken, symbols) == "teleport" then
@@ -1257,6 +1257,12 @@ function ActivatedAbility:TargetLocMaxElevationChangeFunction(casterToken, symbo
             local distanceFromOrigin = ForcedMovementOriginDistanceFunction(originToken, originLoc, casterToken)
             local startingAltitudeDelta = casterToken.loc.altitude - originLoc.altitude
             local distanceStart = math.max(startingAltitudeDelta, distanceFromOrigin(casterToken.loc))
+
+            --The vertical calculators below work in deltas internally but must
+            --return ABSOLUTE altitudes, since the action bar's altitude controller
+            --feeds the result straight into loc:WithAltitude. Anchor them on the
+            --altitude of the creature being moved.
+            local casterAlt = casterToken.loc.altitude
 
             if forcedMovement == "vertical_push" or forcedMovement == "vertical_pull" then
                 return function(loc)
@@ -1285,11 +1291,11 @@ function ActivatedAbility:TargetLocMaxElevationChangeFunction(casterToken, symbo
                         end
 
                     end
-                    return (min or 0), (max or 0)
+                    return casterAlt + (min or 0), casterAlt + (max or 0)
                 end
             elseif forcedMovement == "vertical_slide" then
                 return function(loc)
-                    return -symbols.range, symbols.range
+                    return casterAlt - symbols.range, casterAlt + symbols.range
                 end
             end
         end
@@ -1403,19 +1409,8 @@ end
 function ActivatedAbility:AbilityFilterFailureMessage(casterCreature)
     local filters = self:try_get("abilityFilters", {})
 
-    --HideGate diagnostics: the Hide maneuver's cover/concealment gate is easy to
-    --break silently (a GoblinScript error in a filter formula evaluates to the
-    --default of 1 = pass), so trace its evaluation to the console.
-    local diag = self.name == "Hide"
-    if diag then
-        print(string.format("HideGate:: evaluating %d filter(s) on %s", #filters, self.name))
-    end
-
     for _,filter in ipairs(filters) do
         local result = ExecuteGoblinScript(filter.formula, casterCreature:LookupSymbol{}, 1, "Test ability filter")
-        if diag then
-            print("HideGate:: formula [", filter.formula, "] ->", result, "pass =", GoblinScriptTrue(result))
-        end
         if not GoblinScriptTrue(result) then
             return StringInterpolateGoblinScript(filter.reason, casterCreature), filter
         end
@@ -3949,6 +3944,14 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
             if tok.mountedOn == charid then
                 result[#result+1] = { token = tok }
             end
+        end
+    elseif self.applyto == 'caster_mount' then
+        --The creature the caster is riding or climbing; empty when not mounted.
+        result = {}
+
+        local mountToken = casterToken.mount
+        if mountToken ~= nil and mountToken.valid then
+            result[#result+1] = { token = mountToken }
         end
     elseif self.applyto == 'caster_summoner' then
         result = {}

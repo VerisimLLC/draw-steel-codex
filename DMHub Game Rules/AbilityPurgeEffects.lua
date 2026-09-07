@@ -1236,6 +1236,23 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
         selections[data.token.id] = {}
     end
 
+    -- Submit stays disabled until at least one effect is chosen.  Forward-declared
+    -- because the chip press handlers below close over it.
+    local submitButton
+    local function RefreshSubmitEnabled()
+        if submitButton == nil then
+            return
+        end
+        local anySelected = false
+        for _, list in pairs(selections) do
+            if #list > 0 then
+                anySelected = true
+                break
+            end
+        end
+        submitButton:SetClass("disabled", not anySelected)
+    end
+
     -- Build one row per target token.
     local tokenRows = {}
     for _, data in ipairs(targetDataList) do
@@ -1288,6 +1305,8 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
                         element:SetClass("purge-chip-selected", true)
                         selections[tokenId] = {capturedItem}
                     end
+
+                    RefreshSubmitEnabled()
                 end,
 
                 children = chipChildren,
@@ -1374,19 +1393,25 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
 
     mainChildren[#mainChildren+1] = gui.Panel{ classes = {"purge-divider"} }
 
+    -- Starts disabled: nothing is pre-selected, so there is nothing to submit yet.
+    submitButton = gui.Panel{
+        classes = {"purge-submit", "disabled"},
+        press = function(element)
+            if element:HasClass("disabled") then
+                return
+            end
+            finished = true
+            gui.CloseModal()
+        end,
+        gui.Label{
+            classes = {"purge-button-label"},
+            text = "Submit",
+        },
+    }
+
     mainChildren[#mainChildren+1] = gui.Panel{
         classes = {"purge-button-row"},
-        gui.Panel{
-            classes = {"purge-submit"},
-            press = function(element)
-                finished = true
-                gui.CloseModal()
-            end,
-            gui.Label{
-                classes = {"purge-button-label"},
-                text = "Submit",
-            },
-        },
+        submitButton,
         gui.Panel{
             classes = {"purge-cancel"},
             escapeActivates = true,
@@ -1398,7 +1423,7 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
             end,
             gui.Label{
                 classes = {"purge-button-label"},
-                text = "Cancel",
+                text = "Pass",
             },
         },
     }
@@ -1569,9 +1594,13 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
                 cornerRadius = 4,
             },
             {
-                selectors = {"panel", "purge-submit", "hover"},
+                selectors = {"panel", "purge-submit", "hover", "~disabled"},
                 brightness = 1.25,
                 transitionTime = 0.1,
+            },
+            {
+                selectors = {"panel", "purge-submit", "disabled"},
+                borderColor = "#4A3A28",
             },
             {
                 selectors = {"panel", "purge-cancel"},
@@ -1598,6 +1627,10 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
                 height = "auto",
                 halign = "center",
                 valign = "center",
+            },
+            {
+                selectors = {"label", "purge-button-label", "parent:disabled"},
+                color = "#6E6A62",
             },
         },
 

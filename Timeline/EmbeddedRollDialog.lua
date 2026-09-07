@@ -3359,6 +3359,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         if creature ~= nil then
                             tooltip = StringInterpolateGoblinScript(tooltip, creature)
                         end
+                        tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
                         for i, justification in ipairs(mod.hint.justification) do
                             tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
                                 justification)
@@ -3728,6 +3729,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         if creature ~= nil then
                             tooltip = StringInterpolateGoblinScript(tooltip, creature)
                         end
+                        tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
                         for i, justification in ipairs(mod.hint.justification) do
                             tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
                                 justification)
@@ -4312,6 +4314,67 @@ function GameHud.CreateEmbeddedRollDialog()
         resultPanel:FireEventTree("dispatchTriggerUpdates")
     end
 
+    --Cached per-defender modifier copies, keyed "<modifier guid>/<defender charid>".
+    local m_defenderAfterRollCopies = {}
+
+    --Pass 3 of the after-roll modifier collection: the defender's own "Enemy
+    --Ability Rolls vs Us" modifiers, e.g. "an enemy who scores a tier 1 against
+    --you becomes frightened of you". Passes 1 and 2 only ever ask the roller.
+    --Scans every target, not just the one on display: the list is dialog-wide but
+    --gets rebuilt inside the per-target cycle in RecalculateMultiTargets.
+    local CollectDefenderAfterRollModifiers = function(result)
+        --"Enemy Ability Rolls vs Us" only pairs with an ability power roll; the
+        --gate keeps these out of the damage and test dialogs that share this code.
+        if rollType ~= "ability_power_roll" then
+            return
+        end
+
+        local defenderTokens = {}
+        if m_multitargets ~= nil then
+            for _, t in ipairs(m_multitargets) do
+                defenderTokens[#defenderTokens + 1] = t.token
+            end
+        elseif targetCreature ~= nil then
+            defenderTokens[1] = dmhub.LookupToken(targetCreature)
+        end
+
+        for _, defenderToken in ipairs(defenderTokens) do
+            if defenderToken ~= nil and defenderToken.valid and defenderToken.properties ~= creature then
+                local defenderMods = defenderToken.properties:GetAfterRollModifiersForPowerRoll(
+                    "enemy_ability_power_roll", {
+                        ability = m_options.ability,
+                        target  = defenderToken.properties,
+                        caster  = creature,
+                        title   = m_options.title or "",
+                        symbols = m_symbols,
+                    })
+
+                for _, mod in ipairs(defenderMods) do
+                    --casterCharid names the defender as the acting creature, which
+                    --the dialog otherwise defaults to the roller. Copied so the
+                    --shared class-feature modifier is left alone, and cached so the
+                    --entry merge keeps the player's checkbox state across passes.
+                    local key = tostring(mod.modifier:try_get("guid", "")) .. "/" .. defenderToken.charid
+                    local modifier = m_defenderAfterRollCopies[key]
+                    if modifier == nil then
+                        modifier = DeepCopy(mod.modifier)
+                        modifier.casterCharid = defenderToken.charid
+                        m_defenderAfterRollCopies[key] = modifier
+                    end
+
+                    --Not modFromTarget: that flag prefixes the row with "Target
+                    --is", which reads wrong for the defender's own feature.
+                    result[#result + 1] = {
+                        modifier    = modifier,
+                        context     = { mod = modifier },
+                        hint        = mod.hint,
+                        isAfterRoll = true,
+                    }
+                end
+            end
+        end
+    end
+
     RecalculateMultiTargets = function()
         if m_multitargets == nil or rollProperties == nil then
             return
@@ -4550,6 +4613,9 @@ function GameHud.CreateEmbeddedRollDialog()
                         end
                     end
                 end
+
+                -- Pass 3: the targets' own "Enemy Ability Rolls vs Us" after-roll modifiers.
+                CollectDefenderAfterRollModifiers(recollected)
 
                 -- Merge with existing entries to preserve any user override values.
                 local existingByModifier = {}
@@ -6331,6 +6397,9 @@ function GameHud.CreateEmbeddedRollDialog()
                                 end
                             end
 
+                            -- Pass 3: the targets' own "Enemy Ability Rolls vs Us" after-roll modifiers.
+                            CollectDefenderAfterRollModifiers(m_afterRollModifierEntries)
+
                             if #m_afterRollModifierEntries > 0 then
                                 m_options.modifiers = m_options.modifiers or {}
                                 for _, entry in ipairs(m_afterRollModifierEntries) do
@@ -6338,6 +6407,13 @@ function GameHud.CreateEmbeddedRollDialog()
                                 end
                                 resultPanel:FireEventTree('prepare', m_options)
                                 CalculateRollText{}
+
+                                --Acceptance consumes each target's modifiersUsed
+                                --snapshot, taken before the dice landed, so the
+                                --entries just added need a fresh pass to be seen.
+                                if m_multitargets ~= nil then
+                                    RecalculateMultiTargets()
+                                end
                             end
 
                             -- Auto-resolve for game systems with no manual Accept /

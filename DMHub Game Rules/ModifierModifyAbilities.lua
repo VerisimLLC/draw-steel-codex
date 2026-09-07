@@ -176,6 +176,25 @@ CharacterModifier.RegisterAbilityModifier
 
 CharacterModifier.RegisterAbilityModifier
 {
+	id = "targetallegiance",
+	text = "Target Allegiance",
+	operations = { "Set" },
+	--Changes only WHO the ability may target, leaving the target type, radius,
+	--and object targeting untouched. Unlike "Target Type" this works on abilities
+	--whose shape we don't know in advance -- e.g. Synaptic Override forcing an
+	--enemy's own signature ability to be aimed at that enemy's allies.
+	set = function(modifier, creature, ability, operation, value)
+		if value == "ally" or value == "enemy" then
+			ability.targetAllegiance = value
+		elseif value == "all" then
+			ability.targetAllegiance = nil
+		end
+		return true
+	end,
+}
+
+CharacterModifier.RegisterAbilityModifier
+{
 	id = "reasonfilter",
 	text = "Reasoned Filter",
 	operations = { "reasonfilter" },
@@ -1328,6 +1347,37 @@ CharacterModifier.TypeInfo.modifyability = {
 									classes = "formDropdown",
 									options = rules.damageTypesAvailable,
 									idChosen = attr.value,
+									change = function(element)
+										modifier.attributes[i].value = element.idChosen
+										Refresh()
+									end,
+								},
+							}
+						elseif attr.id == "targetallegiance" then
+							children[#children+1] = gui.Panel{
+								classes = {"formPanel"},
+								gui.Label{
+									classes = {"formLabel"},
+									text = "Affects:",
+								},
+								gui.Dropdown{
+									styles = ThemeEngine.GetStyles(),
+									classes = "formDropdown",
+									options = {
+										{
+											id = "all",
+											text = "Any Creatures",
+										},
+										{
+											id = "ally",
+											text = "Allied Creatures",
+										},
+										{
+											id = "enemy",
+											text = "Enemy Creatures",
+										},
+									},
+									idChosen = attr.value or "all",
 									change = function(element)
 										modifier.attributes[i].value = element.idChosen
 										Refresh()

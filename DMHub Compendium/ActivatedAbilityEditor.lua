@@ -1913,6 +1913,10 @@ function ActivatedAbilityBehavior:ApplyToEditor(parentPanel, list)
 			text = "Caster's Riders",
 		},
 		{
+			id = "caster_mount",
+			text = "Caster's Mount",
+		},
+		{
 			id = "caster_summoner",
 			text = "Caster's Summoner",
 		},

@@ -3077,7 +3077,37 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
 
 # Status
 
-- 2026-09-06 (latest): **`C:\dev\eotw` is now a git repository.** The EotW
+- 2026-09-06 (latest): **Module version 9 PUBLISHED -- it fixes v8's
+  `balancing` wire shape.**
+  - dataid `e9f6386c-1a55-4fd4-be17-27a34e403de1`, streamed 16,508B, snapshot
+    139,379B, blobs `Nbz938ZxMTDGysfBU0sy4A==` (4,804B) and
+    `rPS499QYlOGXHZp/G1/+uw==` (24,732B, unchanged from v8). Published as
+    `python tools/eotw_publish/publish_eotw.py --assets-dir "C:/dev/eotw" --assets-dir "C:/dev/dmhub/draw-steel-codex/data" --publish --force`.
+  - **What changed vs v8**: the encounter document `645e4522` and nothing else
+    (`--verify-against d8b02254` reported exactly one differing row before the
+    publish; every other table, the map, the 9 pregens, the codemods and the
+    `venla-deliantomb` dependency matched). The difference is not new authoring
+    -- it is the SHAPE of `groups[].balancing`. v8 carried it as
+    `{"2": {monsters: ...}}`, Firebase's sparse-array rendering (0-based key 2
+    = hero count 3), which is precisely the wire shape
+    `validate_engine_shapes` exists to catch: an array encoded as a
+    numeric-keyed object decodes to **null** for a `List<>` field on the
+    installing engine, so v8's per-hero-count balancing most likely did not
+    survive install at all. It shipped because v8 used `--force`. The YAML on
+    disk holds the dense 7-entry array the codex deliberately builds
+    (`EncounterPanel.lua:932` seeds indices 1..7 so index == hero count
+    survives serialization), so simply republishing from `C:\dev\eotw`
+    corrects it; the engine shape preflight now reports OK rather than being
+    forced past. Re-verified after publishing: `--verify-against e9f6386c`
+    matches on every table including `documents rows VALUES MATCH`.
+  - `--force` was still needed for the same standing warning v6-v8 shipped
+    under (floor object `62b484a3` -> asset `5939fe95`, low severity: the
+    placed object embeds its own copy of the art).
+  - UNTESTED: a game installing v9 and the balancing actually applying at a
+    non-default hero count -- the fix is reasoned from the wire shape and the
+    preflight, not observed in a running install.
+
+- 2026-09-06: **`C:\dev\eotw` is now a git repository.** The EotW
   authoring directory -- the sole home of `room-1.yaml` (the week's encounter),
   `start.yaml` (the Start keyword) and `hero-death.yaml` (the Hero Death rule),
   plus their `_meta.yaml` descriptors -- had been loose files on disk with no

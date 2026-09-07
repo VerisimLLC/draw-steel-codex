@@ -3,7 +3,7 @@ name: implement-content
 description: Implement compendium content for DMHub -- monsters, items, ongoing effects, abilities, and other game data. Use when asked to "implement a monster", "create a creature", "build an item", "add a compendium entry", or generate any Draw Steel game content as YAML data.
 metadata:
   author: draw-steel-codex
-  version: "1.0.0"
+  version: "1.1.0"
   argument-hint: <content-description>
 ---
 
@@ -373,6 +373,7 @@ All reference docs live in the `data/` submodule under `data/docs/`.
 | File | What it contains |
 |---|---|
 | `data/docs/RULES_REFERENCE.md` | Draw Steel game rules (combat, conditions, power rolls, monster/encounter building) |
+| `data/docs/reference/IMPLEMENTATION-PATTERNS.md` | Recurring YAML shapes: potency gates, movement, triggers |
 | `data/monsters/<uuid>.yaml` | Example monster files -- study for exact YAML patterns |
 | `data/objectTables/<tablefolder>/` | Example compendium entries by type |
 
@@ -393,6 +394,11 @@ The most common errors:
 6. **`display` table is REQUIRED** on CharacterOngoingEffect
 7. **`reasonedFilters` replaces `targetFilter`** -- don't use both for the same restriction
 8. **`ongoingEffectCustom`** is editor-only state; has NO runtime effect
+9. **Feature `tags:` are required metadata** on every CharacterFeature you author -- see
+   "Feature Tags" below. An untagged feature renders as a normal visible feature row, which
+   is wrong for ability-grant wrappers and plumbing carriers.
+10. **Potency gates need `filterTarget`** -- `not Cast.PassesPotency(Target, "M", "Average")`.
+    There is no `potencyAttr` field, and the `not` matters
 
 ### Modifier Name Must Match Parent Feature
 
@@ -642,6 +648,20 @@ For complex conditions, use a separate `ActivatedAbilityApplyOngoingEffectBehavi
   duration: save_ends
 ```
 
+### Gating a Behavior Behind a Potency Check
+
+A behavior with `tiersSelected` applies to **every** target of those tiers. If the rules
+text gates the effect on a potency check ("I<{Average}, cursed"), add the gate yourself:
+
+```yaml
+  filterTarget: not Cast.PassesPotency(Target, "I", "Average")
+```
+
+`Cast.PassesPotency` returns true when the target RESISTS, so the gate is nearly always
+negated. There is no `potencyAttr` field. Standard conditions need none of this -- the
+parser resolves `M<{Weak}, prone` from tier text natively. Details in
+`data/docs/reference/MONSTERS.md`, "Potency with ongoing effects".
+
 ## Damage Formulas
 
 ### Monster Damage Scaling (from rules)
@@ -795,6 +815,78 @@ characterFeatures:
               roll: "5"
               damageType: force
 ```
+
+## Feature Tags (Required Metadata)
+
+Every `CharacterFeature` carries a `tags:` map that declares how it renders on the
+character sheet, tac panel, and the companion monster builder. Set it deliberately on
+every feature you author -- untagged means "normal visible feature row".
+
+```yaml
+- __typeName: CharacterFeature
+  name: "Prickly Situation"
+  tags:
+    Trigger: true
+```
+
+**Vocabulary** (exact strings, case-sensitive):
+
+- **Display-kind tags** -- at most ONE per feature; precedence `Hidden` > `Trigger` > `Ability`:
+  - `Hidden` -- not shown; for pure plumbing/stat carriers with no book text of their own.
+  - `Trigger` -- renders as a triggered-action card.
+  - `Ability` -- renders as an ability card.
+  - *(untagged)* -- normal visible feature (traits, book prose).
+- **Pillar tags** -- `Combat`, `Exploration`, `Montage`, `Negotiation`, `Respite`.
+  Filter chips on HERO content only; multiple allowed. Never on monster features.
+- **`Core Feature`** -- NEVER apply without explicit user sign-off. Policy is one per
+  qualifying class and the list is deliberately held at exactly 3 (Tactician Mark,
+  Censor Judgment, Talent Clarity). Propose it if a new class's base mechanic seems to
+  qualify; do not set it yourself.
+
+Note: feature `tags:` are unrelated to the ability `categorization:` field
+(`Hidden`/`Trait`/etc. on ActivatedAbility) -- set both where applicable.
+
+**Monster features** (display-kind only, no pillars):
+
+| Feature shape | Tag |
+|---|---|
+| Trigger display card, `type: trigger` or `free` | `Trigger` |
+| Trigger display card, `type: passive` (or no `type`, book trait) | untagged |
+| Wraps an activated ability -- by the wrapped `actionResourceId`: Triggered / Free Triggered action | `Trigger` |
+| Wraps an activated ability: Main / Maneuver / Villain / Free Maneuver | `Ability` |
+| Bare trigger modifier with a manual-version card | `Trigger` |
+| Bare trigger modifier, no card | untagged |
+| Pure stat/plumbing carrier (modifiers only, no book text) | `Hidden` |
+| Real content NOT printed on the statblock (e.g. a dragon's Domain) | untagged (visible) |
+| Any feature on a `treatAsObject` monster | no tags at all |
+
+**Hero content** (classes, subclasses, ancestries, kits, perks, titles, complications):
+
+- **Book-statblock gate**: tag `Ability`/`Trigger` ONLY when the book prints the granted
+  ability as an actual stat block (its own keywords/action-type block). Trigger vs
+  Ability follows the IMPLEMENTATION's action resource, not the book's grant wording.
+- Book **prose** that happens to be implemented as a trigger or ability stays untagged
+  (visible) with pillar tags -- the book's presentation wins the display.
+- **Exception**: out-of-combat-utility ability wrappers (e.g. utility perks) stay
+  visible with pillar tags even when the book prints a stat block.
+- `Hidden`: one-time grants (Renown, Wealth, trinkets, recovery-count or characteristic
+  increases), skill/language grants, per-option choice instances, plumbing carriers.
+- **Pillar tags go on visible rows only** -- a row suppressed by `Hidden`/`Trigger`/`Ability`
+  gets NO pillar tags. Tag `Combat` whenever the effect operates in combat (multi-tag is
+  normal, e.g. Respite + Combat). `Negotiation` only when the formal negotiation system
+  engages (patience/interest/motivation effects); intimidation is the threat lane, not
+  Negotiation; informal social interaction is `Exploration`.
+
+**When a call is genuinely ambiguous**, do NOT guess a suppressing tag:
+
+- **No statblock/book reference was given** (homebrew spec'd in chat, unextracted
+  supplement): STOP AND ASK before writing the YAML -- request the printed statblock, or
+  a display-kind ruling, stating the implementation shape you plan ("implementing this as
+  a trigger with a display card; is it printed as a stat block or prose?").
+- **Reference in hand but prose-vs-statblock is unclear**: leave the feature untagged
+  (visible is the safe default) and flag it as an open tag call in your completion
+  summary, quoting the source text and describing the implementation shape so the user
+  can rule.
 
 ## Flat Damage Bonuses
 

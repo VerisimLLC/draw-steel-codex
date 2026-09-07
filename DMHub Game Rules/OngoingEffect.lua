@@ -168,6 +168,26 @@ function CharacterOngoingEffect:GetDisplayDisplay()
 	return self.display
 end
 
+--Rules text for tooltips. A duration-only effect ("Frightened (save ends)") has no
+--description of its own, so fall back to the linked condition's rules.
+--Static, not a method: hot reload does not add methods to already-deserialized table
+--entries, so effect:GetDisplayDescription() would raise until the next restart.
+function CharacterOngoingEffect.GetDisplayDescription(effect)
+	local desc = effect:try_get("description", "")
+	if desc ~= "" then
+		return desc
+	end
+
+	if effect.condition ~= "none" then
+		local cond = effect:GetCondition()
+		if cond ~= nil then
+			return cond:try_get("description", "")
+		end
+	end
+
+	return ""
+end
+
 function CharacterOngoingEffect:GetEndAbility()
 	if self.canEndWithAction then
 		local resourceid = self.endActionType

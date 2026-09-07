@@ -1334,5 +1334,6 @@ if TacPanel ~= nil and TacPanel.RegisterHeroicResourceDisplay ~= nil then
         id = "rampage",
         create = CreateRampageBox,
         ord = 2,
+        classic = true,
     }
 end

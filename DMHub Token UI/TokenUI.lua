@@ -338,36 +338,34 @@ local CalculateStatusIcons = function(token)
                         casterid = casterInfo.tokenid
                     end
 
+					--Rules text first, caster appended -- the caster used to replace the rules.
+					local title = ongoingEffectInfo.name
+					if condInfo ~= nil then
+						title = condInfo.name
+					end
+
+					local stacksText = ""
+					if ongoingEffectInfo.stackable and cond.stacks > 1 then
+						stacksText = string.format(" (%d)", cond.stacks)
+					end
+
+					local descText = CharacterOngoingEffect.GetDisplayDescription(ongoingEffectInfo)
+					if descText ~= "" then
+						hoverText = string.format("%s%s: %s", title, stacksText, descText)
+					else
+						hoverText = string.format("%s%s", title, stacksText)
+					end
+
 					if condInfo ~= nil and casterInfo ~= nil and casterInfo.tokenid ~= nil then
 						local casterToken = dmhub.GetTokenById(casterInfo.tokenid)
 						if casterToken ~= nil then
-							hoverText = string.format("%s: %s", condInfo.name, casterToken.description)
-							casterid = casterInfo.tokenid
-						else
-							hoverText = "no caster"
+							hoverText = string.format("%s\n\nInflicted by %s", hoverText, casterToken.description)
 						end
-					elseif condInfo ~= nil then
-						if condInfo.description ~= "" then
-							hoverText = string.format("%s: %s", condInfo.name, condInfo.description)
-						else
-							hoverText = condInfo.name
-						end
-					else
-
-						local stacksText = ""
-						if ongoingEffectInfo.stackable and cond.stacks > 1 then
-							stacksText = string.format(" (%d)", cond.stacks)
-						end
-						if ongoingEffectInfo.description ~= "" then
-							hoverText = string.format("%s%s: %s", ongoingEffectInfo.name, stacksText, ongoingEffectInfo.description)
-						else
-							hoverText = ongoingEffectInfo.name
-						end
-
-                        if rawget(cond, "sourceDescription") ~= nil and cond.sourceDescription ~= "" then
-                            hoverText = hoverText .. "\n\n" .. cond.sourceDescription
-                        end
 					end
+
+                    if rawget(cond, "sourceDescription") ~= nil and cond.sourceDescription ~= "" then
+                        hoverText = hoverText .. "\n\n" .. cond.sourceDescription
+                    end
 
 					result[#result+1] = {
 						id = cond.ongoingEffectid,

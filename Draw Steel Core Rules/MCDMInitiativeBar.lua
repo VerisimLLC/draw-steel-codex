@@ -3534,7 +3534,13 @@ function GameHud.CreateInitiativeBar(self, info)
 					if info.initiativeQueue == nil then
 						info.initiativeQueue = InitiativeQueue.Create()
 					end
+					--Conditional, not a flat true: this block runs for EVERY
+					--mode, combat included, and rollinitiative below sends a
+					--hidden queue to the combat setup dialog instead of
+					--starting the fight. Only the modes without initiative
+					--want the queue kept out of sight.
 					info.initiativeQueue.gameMode = mod.id
+					info.initiativeQueue.hidden = not mod.hasinitiative
 					info.UploadInitiative()
 
 					if mod.hasinitiative then
@@ -5119,7 +5125,11 @@ function GameHud:BeginRespiteMode()
 	if info.initiativeQueue == nil then
 		info.initiativeQueue = InitiativeQueue.Create()
 	end
+	--A fresh queue is born visible, and visible is what the app reads as combat.
+	--Only a map with no queue yet reaches the Create above, so this bites the
+	--first respite on a map that has never had a fight.
 	info.initiativeQueue.gameMode = "respite"
+	info.initiativeQueue.hidden = true
 	info.UploadInitiative()
 
 	--"Until Respite" ongoing effects end when the respite begins, not when it ends.

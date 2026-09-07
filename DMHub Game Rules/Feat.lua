@@ -393,22 +393,79 @@ function CharacterFeatChoice:_cache()
 	g_optCache[self.tag] = optCache
 end
 
+--A feat is only offered to a creature that can use it. If every feature the feat grants
+--is gated behind prerequisites this creature fails, it is not a legal pick, so keep it
+--out of the picker entirely rather than letting it be chosen and then do nothing.
+local function CreatureCanTakeFeat(featid, creature)
+	if creature == nil or featid == nil then
+		return true
+	end
+
+	local featsTable = dmhub.GetTable(CharacterFeat.tableName) or {}
+	local feat = featsTable[featid]
+	if feat == nil then
+		return true
+	end
+
+	local modifierInfo = feat:try_get("modifierInfo")
+	if modifierInfo == nil then
+		return true
+	end
+
+	local features = modifierInfo:try_get("features", {})
+	if #features == 0 then
+		return true
+	end
+
+	for _,feature in ipairs(features) do
+		local prerequisites = feature:try_get("prerequisites", {})
+		if #prerequisites == 0 then
+			return true
+		end
+
+		for _,prerequisite in ipairs(prerequisites) do
+			if prerequisite:Met(creature) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+--The option caches are keyed by tag and shared by every character, so a per-creature
+--view has to be a new list; never mutate the cached tables.
+local function FilterFeatsForCreature(options, creature)
+	if creature == nil then
+		return options
+	end
+
+	local result = {}
+	for _,entry in ipairs(options) do
+		if CreatureCanTakeFeat(entry.id or entry.guid, creature) then
+			result[#result+1] = entry
+		end
+	end
+
+	return result
+end
+
 function CharacterFeatChoice:Choices(numOption, existingChoices, creature)
 	if self.tag == nil or #self.tag == 0 or self.tag == "feat" then
 		if #g_allCache == 0 then self:_cache() end
-		return g_allCache
+		return FilterFeatsForCreature(g_allCache, creature)
 	end
 	if g_tagCache[self.tag] == nil then self:_cache() end
-	return g_tagCache[self.tag]
+	return FilterFeatsForCreature(g_tagCache[self.tag], creature)
 end
 
-function CharacterFeatChoice:GetOptions(choices)
+function CharacterFeatChoice:GetOptions(choices, creature)
 	if self.tag == nil or #self.tag == 0 or self.tag == "feat" then
 		if #g_allCache == 0 then self:_cache() end
-		return g_allCache
+		return FilterFeatsForCreature(g_allCache, creature)
 	end
 	if g_optCache[self.tag] == nil then self:_cache() end
-	return g_optCache[self.tag]
+	return FilterFeatsForCreature(g_optCache[self.tag], creature)
 end
 
 function CharacterFeatChoice:GetDescription()

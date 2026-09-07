@@ -220,11 +220,8 @@ mod.shared.ShowCreateMapDialog = function()
         valign = "center",
         flow = "vertical",
         gui.Panel{
-            width = 44,
-            height = 44,
-            halign = "center",
+            classes = {"cmPreviewGlyph"},
             bgimage = "phosphor/book-open.png",
-            bgcolor = "#888888ff",
         },
         gui.Label{
             classes = {"mapPackDetailText"},
@@ -1079,29 +1076,32 @@ mod.shared.ShowCreateMapDialog = function()
 
     --sidebar, preview pane, footer and Show More styles for the picker
     --layout. All local to this dialog; nothing lands in DefaultStyles.
+    --One quiet ground: the framedPanel surface runs under the whole dialog,
+    --regions are separated by hairlines, and only hover/selected rows fill.
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmSidebar"},
         bgimage = "panels/square.png",
-        bgcolor = "@bgAlt",
+        bgcolor = "clear",
+        border = {x1 = 0, x2 = 1, y1 = 0, y2 = 0},
+        borderColor = "@border",
     }
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmNavItem"},
         bgimage = "panels/square.png",
         bgcolor = "clear",
-        width = "100%-24",
-        height = 42,
+        width = "100%",
+        height = 38,
         halign = "center",
-        cornerRadius = 6,
-        vmargin = 1,
     }
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmNavItem", "hover"},
-        bgcolor = "@bgRaised",
+        bgcolor = "@bgAlt",
+        transitionTime = 0.1,
     }
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmNavItem", "selected"},
-        bgcolor = "@bgRaised",
-        borderWidth = 1,
+        bgcolor = "@bgAlt",
+        border = {x1 = 3, x2 = 0, y1 = 0, y2 = 0},
         borderColor = "@accent",
     }
     tileStyles[#tileStyles + 1] = {
@@ -1119,6 +1119,11 @@ mod.shared.ShowCreateMapDialog = function()
         width = "auto",
         height = "auto",
         valign = "center",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavLabel", "parent:selected"},
+        bold = true,
+        color = "@fgStrong",
     }
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmNavCount"},
@@ -1151,23 +1156,37 @@ mod.shared.ShowCreateMapDialog = function()
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmPreview"},
         bgimage = "panels/square.png",
-        bgcolor = "@bgAlt",
+        bgcolor = "clear",
         cornerRadius = 8,
         borderWidth = 1,
         borderColor = "@border",
     }
     tileStyles[#tileStyles + 1] = {
+        selectors = {"cmPreviewGlyph"},
+        width = 44,
+        height = 44,
+        halign = "center",
+        bgcolor = "@fgMuted",
+    }
+    --a hairline above the footer separates it from the grid row.
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmFooterDivider"},
+        bgimage = "panels/square.png",
+        bgcolor = "@border",
+        width = "100%",
+        height = 1,
+        valign = "bottom",
+    }
+    tileStyles[#tileStyles + 1] = {
         selectors = {"cmFooter"},
         bgimage = "panels/square.png",
-        bgcolor = "@bgAlt",
-        borderWidth = 1,
-        borderColor = "@border",
+        bgcolor = "clear",
     }
     --the Show More card sits in the grid at tile size so the rhythm holds.
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmShowMore"},
         bgimage = "panels/square.png",
-        bgcolor = "@bgAlt",
+        bgcolor = "clear",
         cornerRadius = 6,
         width = cellW - 12,
         height = cellH - 12,
@@ -1178,8 +1197,9 @@ mod.shared.ShowCreateMapDialog = function()
     }
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmShowMore", "hover"},
-        bgcolor = "@bgRaised",
+        bgcolor = "@bgAlt",
         borderColor = "@accentHover",
+        transitionTime = 0.1,
     }
     tileStyles[#tileStyles + 1] = {
         selectors = {"cmShowMoreLabel"},
@@ -1372,6 +1392,11 @@ mod.shared.ShowCreateMapDialog = function()
                 height = FOOTER_HEIGHT,
                 valign = "bottom",
                 flow = "horizontal",
+                gui.Panel{
+                    classes = {"cmFooterDivider"},
+                    floating = true,
+                    valign = "top",
+                },
                 gui.Label{
                     classes = {"form"},
                     width = "auto",

@@ -1390,19 +1390,27 @@ mod.shared.ShowCreateMapDialog = function()
         --map count and close at the right.
         local headerBar = gui.Panel{
             classes = {"cmHeader"},
-            gui.Panel{ classes = {"cmHeaderIcon"}, bgimage = "phosphor/map-trifold.png" },
-            gui.Label{ classes = {"cmHeaderTitle"}, text = "Create Map", rmargin = 16 },
-            --the standard search field: magnifier, clear x, and the
-            --shared searchInput look. It fires "search" with the
-            --trimmed, lowercased text.
-            gui.SearchInput{
-                width = 400,
-                valign = "center",
-                placeholderText = "Search maps...",
-                search = function(element, str)
-                    m_search = str
-                    RefreshPackGrid()
-                end,
+            --grouped so the bar's leftover width cannot spread the items
+            --apart; the bar holds exactly a left group and a right group.
+            gui.Panel{
+                width = "auto",
+                height = "100%",
+                halign = "left",
+                flow = "horizontal",
+                gui.Panel{ classes = {"cmHeaderIcon"}, bgimage = "phosphor/map-trifold.png" },
+                gui.Label{ classes = {"cmHeaderTitle"}, text = "Create Map", rmargin = 16 },
+                --the standard search field: magnifier, clear x, and the
+                --shared searchInput look. It fires "search" with the
+                --trimmed, lowercased text.
+                gui.SearchInput{
+                    width = 400,
+                    valign = "center",
+                    placeholderText = "Search maps...",
+                    search = function(element, str)
+                        m_search = str
+                        RefreshPackGrid()
+                    end,
+                },
             },
             --anchored to the bar's right edge as a group, so the widths of
             --the title and search field can never push the close button out.

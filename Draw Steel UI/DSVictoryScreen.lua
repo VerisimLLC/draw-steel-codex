@@ -2283,8 +2283,37 @@ local function BuildMonsterCard(live, group, roleInfo)
         portraitPanel.bgimage = group.fallbackInfo.portrait
     end
 
+    -- Name line(s). A squad reads as its captain(s) on the main line with the
+    -- minions on a second, smaller line ("Dwarf Driver x1" / "Dwarf Axethrower
+    -- x4") instead of a single "Dwarf Driver x5". Counts are shown on every
+    -- line when the group has minions so the two lines add up; a plain group
+    -- with no minions keeps the old "Name xN" (count only when more than one).
     local nameText = name
-    if group.memberCount > 1 then
+    local minionText = nil
+    local composition = group.composition
+    if composition ~= nil and (#composition.captains > 0 or #composition.minions > 0) then
+        local function FormatLines(entries, alwaysCount)
+            local lines = {}
+            for _, e in ipairs(entries) do
+                if alwaysCount or e.count > 1 then
+                    lines[#lines+1] = string.format("%s x%d", e.name, e.count)
+                else
+                    lines[#lines+1] = e.name
+                end
+            end
+            return table.concat(lines, "\n")
+        end
+        local hasMinions = #composition.minions > 0
+        if #composition.captains > 0 then
+            nameText = FormatLines(composition.captains, hasMinions)
+            if hasMinions then
+                minionText = FormatLines(composition.minions, true)
+            end
+        else
+            --minion-only group: the minions are the headline.
+            nameText = FormatLines(composition.minions, false)
+        end
+    elseif group.memberCount > 1 then
         nameText = string.format("%s x%d", name, group.memberCount)
     end
 
@@ -2302,6 +2331,24 @@ local function BuildMonsterCard(live, group, roleInfo)
         fontSize = 20,
         fontWeight = "bold",
     }
+
+    local minionLabel = nil
+    if minionText ~= nil then
+        minionLabel = gui.Label{
+            classes = {"victoryFade", "fg"},
+            interactable = false,
+            text = minionText,
+            width = "100%",
+            height = "auto",
+            halign = "center",
+            tmargin = 2,
+            textAlignment = "center",
+            textWrap = true,
+            fontFace = "Book",
+            fontSize = 14,
+            fontWeight = "bold",
+        }
+    end
 
     -- Survivors bar: same chrome as the hero Stamina bar, filled by the fraction
     -- of the group still standing.
@@ -2415,7 +2462,7 @@ local function BuildMonsterCard(live, group, roleInfo)
             { selectors = {"scalein", "~shown"}, transitionTime = 0.6, scale = 1.3,},
         },
 
-        children = { portraitPanel, nameLabel, survivorsBar, roleTitleLabel, roleTextLabel },
+        children = { portraitPanel, nameLabel, minionLabel, survivorsBar, roleTitleLabel, roleTextLabel },
 
         fadeOut = function(card)
             card:SetClassTree("shown", false)

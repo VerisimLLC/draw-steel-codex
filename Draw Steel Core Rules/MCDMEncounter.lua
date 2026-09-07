@@ -1259,6 +1259,54 @@ function LiveEncounter:GetMonsterGroups()
 
         local memberCount = #tokens + #missing
 
+        --Composition: the group's members bucketed into captains (non-minions)
+        --and minions, each grouped by monster type in order of first appearance,
+        --so the victory card can read "Dwarf Driver" over "Dwarf Axethrower x4"
+        --rather than "Dwarf Driver x5". nil when any member's kind is unknown
+        --(a pre-snapshot queue), in which case the card falls back to "name xN".
+        local captains, minions = {}, {}
+        local byKey = {}
+        local complete = true
+        local function AddMember(isMinion, typeName)
+            if typeName == nil or typeName == "" then
+                complete = false
+                return
+            end
+            local key = (isMinion and "m:" or "c:") .. typeName
+            local entry = byKey[key]
+            if entry == nil then
+                entry = { name = typeName, count = 0, minion = isMinion }
+                byKey[key] = entry
+                local list = cond(isMinion, minions, captains)
+                list[#list+1] = entry
+            end
+            entry.count = entry.count + 1
+        end
+        for _, tok in ipairs(tokens) do
+            local mtype = tok.properties:try_get("monster_type")
+            if mtype == nil or mtype == "" then
+                mtype = tok.description
+            end
+            AddMember(tok.properties:try_get("minion", false) == true, mtype)
+        end
+        for _, m in ipairs(missing) do
+            if m.token ~= nil then
+                local mtype = m.token.properties:try_get("monster_type")
+                if mtype == nil or mtype == "" then
+                    mtype = m.token.description
+                end
+                AddMember(m.token.properties:try_get("minion", false) == true, mtype)
+            elseif m.info ~= nil then
+                AddMember(m.info.minion == true, m.info.monsterType)
+            else
+                complete = false
+            end
+        end
+        local composition = nil
+        if complete then
+            composition = { captains = captains, minions = minions }
+        end
+
         local displayName = name
         if displayName == nil or displayName == "" then
             local entry = q ~= nil and q.entries[groupid] or nil
@@ -1281,6 +1329,7 @@ function LiveEncounter:GetMonsterGroups()
             allDead = aliveCount == 0,
             primaryToken = primaryToken,
             fallbackInfo = fallbackInfo,
+            composition = composition,
         }
     end
 

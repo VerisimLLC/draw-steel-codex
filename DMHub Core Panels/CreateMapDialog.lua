@@ -1,5 +1,20 @@
 local mod = dmhub.GetModLoading()
 
+--Dev gate for the map-pack browser ("...or Use an Existing Map") in the
+--create-map dialog. No editor field, so it never appears in the settings UI;
+--turn it on with: /set dev:patreonmaps true
+setting{
+    id = "dev:patreonmaps",
+    description = "Show the map pack browser in the create map dialog.",
+    default = false,
+    storage = "preference",
+}
+
+--True if the map pack browser should be offered to this user.
+local function PatreonMapsEnabled()
+    return dmhub.GetSettingValue("dev:patreonmaps") == true
+end
+
 local function ComponentTypeMatches(value, componentType)
     if value == nil then
         return false
@@ -48,11 +63,36 @@ end
 
 mod.shared.ShowCreateMapDialog = function()
 
+    --map packs are dev-gated; with them off the dialog is just the
+    --empty/import choice and the name field.
+    local packsEnabled = PatreonMapsEnabled()
+
     local selectedMap = nil
     local m_packEntry = nil
     local m_packEntries = {}
     local m_search = ""
     local m_dialog = nil
+
+    --fixed dialog geometry; the grid pages are sized from it.
+    local DIALOG_WIDTH = 1700
+    local DIALOG_INSET = 24
+    local DETAIL_WIDTH = 516
+    --the preview image fills the pane width; height is capped so the text
+    --below it stays in view.
+    local DETAIL_IMAGE_W = DETAIL_WIDTH
+    --shorter than the pane could hold so the shared-markup list below the
+    --text stays in view.
+    local DETAIL_IMAGE_H = 400
+    local DETAIL_MARGIN = 10
+
+    --community markup (Map Markup panel share icon): the shared markup sets
+    --listed for the selected pack map, and the one chosen to add it with.
+    local m_markupId = nil
+    local m_markupMapKey = nil
+    local markupHeading
+    local markupList
+    local markupStatus
+    local GRID_WIDTH = DIALOG_WIDTH - DIALOG_INSET - DETAIL_WIDTH - DETAIL_MARGIN * 2
 
     local m_mapName = "New Map"
     --the name the dialog last filled in by itself (a pack map's name), so a
@@ -68,10 +108,19 @@ mod.shared.ShowCreateMapDialog = function()
     local packGrid
     local packStatus
 
+    --Patreon gating (see mod.shared.MapPackPatreonState): the creator record
+    --of the selected pack map (name, website, campaign page), what the
+    --create button currently does, and a fingerprint of the account's
+    --Patreon state so a link or pledge landing while the dialog is open
+    --refreshes the badges and the button by itself.
+    local m_creator = nil
+    local m_buttonMode = "create"
+    local m_patreonSignature = nil
+
     --details pane (right of the grid) --------------------------------------
     local detailImage = gui.Panel{
-        width = 340,
-        height = 240,
+        width = DETAIL_IMAGE_W,
+        height = DETAIL_IMAGE_H,
         halign = "center",
         bgimage = "panels/square.png",
         bgcolor = "white",
@@ -79,6 +128,30 @@ mod.shared.ShowCreateMapDialog = function()
     }
     local detailTitle = gui.Label{ classes = {"mapPackDetailTitle"}, text = "" }
     local detailCreator = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
+    --the Patreon line under the creator: the glyph plus what the selected
+    --appearance needs, or that the account's membership covers it.
+    local detailAccessIcon = gui.Panel{
+        classes = {"mapPackPatreonIcon"},
+        width = 16,
+        height = 16,
+        valign = "top",
+        vmargin = 2,
+    }
+    local detailAccessText = gui.Label{
+        classes = {"mapPackDetailText"},
+        width = "100%-24",
+        vmargin = 0,
+        text = "",
+    }
+    local detailAccess = gui.Panel{
+        classes = {"hidden"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        vmargin = 4,
+        detailAccessIcon,
+        detailAccessText,
+    }
     local detailInfo = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
     local detailKeywords = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
     local appearancesHeading = gui.Label{
@@ -94,31 +167,291 @@ mod.shared.ShowCreateMapDialog = function()
         halign = "left",
     }
 
+    --"Codex Enhancements" with the Codex logo beside it.
+    markupHeading = gui.Panel{
+        classes = {"hidden"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        vmargin = 8,
+        gui.Panel{
+            width = 18,
+            height = 18,
+            halign = "left",
+            valign = "center",
+            rmargin = 6,
+            bgimage = "ui-icons/codex-logo.png",
+            bgcolor = "white",
+        },
+        gui.Label{
+            classes = {"mapPackDetailText"},
+            width = "auto",
+            vmargin = 0,
+            halign = "left",
+            valign = "center",
+            bold = true,
+            text = "Codex Enhancements",
+        },
+    }
+    markupStatus = gui.Label{
+        classes = {"mapPackDetailText", "hidden"},
+        fontSize = 12,
+        text = "",
+    }
+    markupList = gui.Panel{
+        width = "100%",
+        height = "auto",
+        maxHeight = 220,
+        vscroll = true,
+        flow = "vertical",
+        halign = "left",
+    }
+
     --the whole pane stays hidden until a pack map is selected.
     local detailPanel = gui.Panel{
         classes = {"hidden"},
-        width = 400,
-        height = "100%",
+        width = DETAIL_WIDTH,
+        height = "auto",
+        floating = true,
+        halign = "right",
+        valign = "center",
         flow = "vertical",
-        valign = "top",
-        hmargin = 10,
-        vscroll = true,
+        hmargin = DETAIL_MARGIN,
         detailImage,
         detailTitle,
         detailCreator,
+        detailAccess,
         detailInfo,
         appearancesHeading,
         variantsPanel,
         detailKeywords,
+        markupHeading,
+        markupStatus,
+        markupList,
     }
 
     local SelectPackEntry
 
-    --every index entry for the same map as entry, in variant order.
+    local SameMap = function(a, b)
+        return a ~= nil and b ~= nil and a.pack == b.pack and a.id == b.id
+    end
+
+    local SameEntry = function(a, b)
+        return SameMap(a, b) and a.variantIndex == b.variantIndex
+    end
+
+    --"12 walls, 3 zones, 2 footstep regions, 1 prop" for a shared markup set.
+    local MarkupPartsText = function(info)
+        local parts = {}
+        local function add(n, singular, plural)
+            if n > 0 then
+                parts[#parts + 1] = string.format("%d %s", n, cond(n == 1, singular, plural))
+            end
+        end
+        add(info.walls, "wall", "walls")
+        add(info.zones, "zone", "zones")
+        add(info.footsteps, "footstep region", "footstep regions")
+        if info.footstepDefault and info.footsteps == 0 then
+            parts[#parts + 1] = "footstep default"
+        end
+        add(info.props, "prop", "props")
+        add(info.elevation, "elevation area", "elevation areas")
+        if #parts == 0 then
+            return "settings only"
+        end
+        return table.concat(parts, ", ")
+    end
+
+    local RefreshMarkupStatus = function()
+        if m_markupId == nil then
+            markupStatus.text = "Choose a set to add the map with that markup, or none for the plain map."
+        else
+            for _, row in ipairs(markupList.children) do
+                if row.data.info.id == m_markupId then
+                    markupStatus.text = string.format("The map will be added with %s's markup.", row.data.info.author)
+                    return
+                end
+            end
+            m_markupId = nil
+            markupStatus.text = "Choose a set to add the map with that markup, or none for the plain map."
+        end
+    end
+
+    local RefreshMarkupList
+    local MarkupRow = function(info)
+        --checkmark slot: always takes its space so the text does not shift
+        --when a row is selected; only visible on the selected row.
+        local checkPanel = gui.Panel{
+            classes = {"mapPackMarkupCheck", cond(info.id == m_markupId, "checked")},
+            bgimage = "phosphor/check-bold.png",
+        }
+        local row
+        row = gui.Panel{
+            classes = {"mapPackMarkupRow", cond(info.id == m_markupId, "selected")},
+            data = { info = info, check = checkPanel },
+            flow = "vertical",
+            press = function(element)
+                if m_markupId == info.id then
+                    m_markupId = nil
+                else
+                    m_markupId = info.id
+                end
+                for _, other in ipairs(markupList.children) do
+                    local selected = other.data.info.id == m_markupId
+                    other:SetClass("selected", selected)
+                    other.data.check:SetClass("checked", selected)
+                end
+                RefreshMarkupStatus()
+            end,
+
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                checkPanel,
+                gui.Label{
+                    classes = {"mapPackMarkupAuthor"},
+                    text = cond(info.author ~= "", info.author, "Anonymous"),
+                },
+                gui.Label{
+                    classes = {"mapPackMarkupParts"},
+                    text = MarkupPartsText(info),
+                },
+                --the uploader can take their own set down again.
+                gui.Panel{
+                    classes = {"iconButton", cond(info.mine, nil, "hidden")},
+                    bgimage = "phosphor/trash-fill.png",
+                    width = 16,
+                    height = 16,
+                    halign = "right",
+                    valign = "center",
+                    --the row's press selects the set; deleting must not.
+                    swallowPress = true,
+                    hover = gui.Tooltip("Delete your shared markup"),
+                    press = function(element)
+                        gui.ModalMessage{
+                            title = "Delete Shared Markup",
+                            message = "Remove this markup set for everyone? This cannot be undone.",
+                            options = {
+                                {
+                                    text = "Delete",
+                                    execute = function()
+                                        mappacks.DeleteMarkup{
+                                            pack = info.pack,
+                                            mapid = info.mapid,
+                                            id = info.id,
+                                            success = function()
+                                                if m_markupId == info.id then
+                                                    m_markupId = nil
+                                                end
+                                                m_markupMapKey = nil
+                                                RefreshMarkupList()
+                                            end,
+                                            error = function(msg)
+                                                gui.ModalMessage{ title = "Could not delete", message = msg }
+                                            end,
+                                        }
+                                    end,
+                                },
+                                {
+                                    text = "Cancel",
+                                },
+                            },
+                        }
+                    end,
+                },
+            },
+            gui.Label{
+                classes = {"mapPackMarkupDescription", cond(info.description ~= "", nil, "collapsed")},
+                text = info.description,
+            },
+        }
+        return row
+    end
+
+    --lists the markup sets shared for the selected map; fetched once per map
+    --(variants of one map share its list) and cleared when nothing is
+    --selected.
+    RefreshMarkupList = function()
+        local entry = m_packEntry
+        local key = nil
+        if entry ~= nil then
+            key = entry.pack .. "/" .. entry.id
+        end
+        if key == m_markupMapKey then
+            return
+        end
+        m_markupMapKey = key
+        m_markupId = nil
+        markupList.children = {}
+        markupHeading:SetClass("hidden", true)
+        markupStatus:SetClass("hidden", true)
+        if entry == nil then
+            return
+        end
+
+        mappacks.ListMarkup{
+            pack = entry.pack,
+            mapid = entry.id,
+            success = function(list)
+                if m_markupMapKey ~= key or not markupList.valid then
+                    return
+                end
+                if #list == 0 then
+                    return
+                end
+                local rows = {}
+                for _, info in ipairs(list) do
+                    rows[#rows + 1] = MarkupRow(info)
+                end
+                markupList.children = rows
+                markupHeading:SetClass("hidden", false)
+                markupStatus:SetClass("hidden", false)
+                RefreshMarkupStatus()
+            end,
+            error = function(msg)
+                if m_markupMapKey ~= key or not markupList.valid then
+                    return
+                end
+                markupHeading:SetClass("hidden", false)
+                markupStatus:SetClass("hidden", false)
+                markupStatus.text = "Could not load shared markup: " .. tostring(msg)
+            end,
+        }
+    end
+
+    --the index's current record for an entry (each search evaluates the
+    --owned flag live against the account's pledges), or the entry itself if
+    --it is no longer listed.
+    local FreshEntry = function(entry)
+        for _, other in ipairs(mappacks.Search{ text = "", pack = entry.pack, maxResults = 100000 }) do
+            if SameEntry(other, entry) then
+                return other
+            end
+        end
+        return entry
+    end
+
+    --a fingerprint of everything the Patreon gating depends on, so a change
+    --(account linked, pledge landing or lapsing) can be noticed by polling.
+    local PatreonSignature = function()
+        local parts = {}
+        for _, e in ipairs(dmhub.patreonOrgEntitlements or {}) do
+            parts[#parts + 1] = string.format("%s:%s:%d", tostring(e.orgid), tostring(e.entitled), tonumber(e.cents) or 0)
+        end
+        table.sort(parts)
+        table.insert(parts, 1, tostring(dmhub.patreonUserId))
+        return table.concat(parts, "|")
+    end
+
+    --every index entry for the same map as entry, in variant order. Taken
+    --from the whole index rather than the grid, which only shows one
+    --variant per map unless a search asked for more.
     local SiblingVariants = function(entry)
         local result = {}
-        for _, other in ipairs(m_packEntries) do
-            if other.pack == entry.pack and other.id == entry.id then
+        for _, other in ipairs(mappacks.Search{ text = "", pack = entry.pack, maxResults = 100000 }) do
+            if SameMap(other, entry) then
                 result[#result + 1] = other
             end
         end
@@ -126,46 +459,169 @@ mod.shared.ShowCreateMapDialog = function()
         return result
     end
 
+    --the entries the grid shows for a search result. Without a search each
+    --map appears once, as its lowest-numbered variant. With a search every
+    --matching variant is kept but ordered so a not-yet-seen map always comes
+    --before another variant of a map already listed. Within a map the
+    --variants are ranked by how well they matched (matchScore from the
+    --engine: whole-word keyword hits outrank prefix hits like "cave" on
+    --"cavern"), so a search shows the variant that earned the match rather
+    --than the map's base appearance; maps in turn are ranked by their best
+    --variant. Variant index breaks ties, so an empty search (every score 0)
+    --keeps index order.
+    local BetterMatch = function(a, b)
+        local sa = a.matchScore or 0
+        local sb = b.matchScore or 0
+        if sa ~= sb then
+            return sa > sb
+        end
+        return a.variantIndex < b.variantIndex
+    end
+
+    local DiversifyEntries = function(entries, searching)
+        local byMap = {}
+        local order = {}
+        for _, entry in ipairs(entries) do
+            local key = entry.pack .. "/" .. entry.id
+            local group = byMap[key]
+            if group == nil then
+                group = {}
+                byMap[key] = group
+                order[#order + 1] = group
+            end
+            group[#group + 1] = entry
+        end
+
+        for _, group in ipairs(order) do
+            table.sort(group, BetterMatch)
+        end
+
+        --stable: groups whose best variants tie keep their index order.
+        for i, group in ipairs(order) do
+            group.ord = i
+        end
+        table.sort(order, function(a, b)
+            local sa = a[1].matchScore or 0
+            local sb = b[1].matchScore or 0
+            if sa ~= sb then
+                return sa > sb
+            end
+            return a.ord < b.ord
+        end)
+
+        local result = {}
+        local round = 1
+        local added = true
+        while added do
+            added = false
+            for _, group in ipairs(order) do
+                if group[round] ~= nil then
+                    result[#result + 1] = group[round]
+                    added = true
+                end
+            end
+            round = round + 1
+            if not searching then
+                break
+            end
+        end
+        return result
+    end
+
+    local UpdateCreateButton
+
+    --the Patreon line for the selected appearance; hidden for a free one.
+    local RefreshAccessLine = function()
+        local entry = m_packEntry
+        local state = nil
+        if entry ~= nil then
+            state = mod.shared.MapPackPatreonState(entry)
+        end
+        detailAccess:SetClass("hidden", state == nil)
+        if state == nil then
+            return
+        end
+
+        local creatorName = nil
+        if m_creator ~= nil then
+            creatorName = m_creator.displayName
+        end
+        local text = mod.shared.MapPackPatreonText(entry, creatorName)
+        if state == "locked" then
+            local access = mappacks.GetPackAccess(entry.pack)
+            if not access.linked then
+                text = text .. ". Link your Patreon account to unlock it."
+            elseif (access.cents or 0) > 0 then
+                text = text .. string.format(". Your current pledge is %s.", mod.shared.MapPackTierText(access.cents))
+            else
+                text = text .. "."
+            end
+        else
+            text = text .. "."
+        end
+        detailAccessIcon.bgimage = mod.shared.MapPackPatreonIcon(entry)
+        detailAccessText.text = text
+    end
+
     local RefreshDetails = function()
         local entry = m_packEntry
         detailPanel:SetClass("hidden", entry == nil)
+        RefreshMarkupList()
         if entry == nil then
             return
         end
 
         detailImage.bgimage = mod.shared.MapPackThumbImage(entry)
-        --fit the preview inside 340x240 keeping the map's aspect ratio.
+        --fit the preview inside the pane keeping the map's aspect ratio.
         local w = tonumber(entry.tilesW) or 1
         local h = tonumber(entry.tilesH) or 1
         if w < 1 then w = 1 end
         if h < 1 then h = 1 end
-        local scale = math.min(340 / w, 240 / h)
+        local scale = math.min(DETAIL_IMAGE_W / w, DETAIL_IMAGE_H / h)
         detailImage.width = math.floor(w * scale)
         detailImage.height = math.floor(h * scale)
         detailTitle.text = entry.name
         detailCreator.text = ""
+        m_creator = nil
+        RefreshAccessLine()
         mod.shared.GetMapPackCreator(entry, function(info)
             --the lookup may land after the user moved on to another map.
-            if m_packEntry ~= entry or not detailCreator.valid then
+            --(SameEntry rather than identity: a live refresh swaps the
+            --selected entry for the index's fresh record of it.)
+            if not SameEntry(m_packEntry, entry) or not detailCreator.valid then
                 return
             end
+            m_creator = info
             if info.displayName ~= nil and info.displayName ~= "" then
                 detailCreator.text = "By " .. info.displayName
             end
+            RefreshAccessLine()
+            UpdateCreateButton()
         end)
         local summary = entry.description
         if summary == nil or summary == "" then
             summary = entry.sceneName
         end
         detailInfo.text = string.format("%s\n%d x %d tiles", summary, entry.tilesW, entry.tilesH)
-        detailKeywords.text = "Keywords: " .. table.concat(entry.keywords, ", ")
+        --entry.keywords is the handful of representative tags; the long
+        --searchTerms list only feeds the search box and is not shown.
+        local tags = {}
+        for _, tag in ipairs(entry.keywords) do
+            tags[#tags + 1] = tag:sub(1, 1):upper() .. tag:sub(2)
+        end
+        detailKeywords.text = cond(#tags > 0, "Tags: " .. table.concat(tags, ", "), "")
 
         local chips = {}
+        local creatorName = nil
+        if m_creator ~= nil then
+            creatorName = m_creator.displayName
+        end
         for _, sibling in ipairs(SiblingVariants(entry)) do
-            chips[#chips + 1] = gui.Label{
-                classes = {"mapPackChip", cond(sibling == entry, "selected")},
+            chips[#chips + 1] = mod.shared.CreateMapPackChip{
+                entry = sibling,
                 text = cond(sibling.variant ~= "", sibling.variant, "Default"),
-                data = { entry = sibling },
+                selected = SameEntry(sibling, entry),
+                creatorName = creatorName,
                 press = function(element)
                     SelectPackEntry(element.data.entry)
                 end,
@@ -177,18 +633,32 @@ mod.shared.ShowCreateMapDialog = function()
 
     local ClearPackSelection = function()
         m_packEntry = nil
-        for _, tile in ipairs(packGrid.children) do
-            tile:SetClass("selected", false)
+        --no grid when the pack browser is gated off.
+        if packGrid ~= nil then
+            for _, tile in ipairs(packGrid.children) do
+                tile:SetClass("selected", false)
+            end
         end
         RefreshDetails()
     end
 
-    local UpdateCreateButton = function()
+    --the button follows the selection: Create Map for a new map, Add Map for
+    --a pack appearance the account may add, and for a gated one it lacks
+    --access to, Link Patreon (no Patreon account attached: opens the Account
+    --settings, which host the link flow) or Join Patreon (attached, but the
+    --pledge does not cover it: opens the creator's Patreon page).
+    UpdateCreateButton = function()
+        local mode = "create"
         if m_packEntry ~= nil then
-            createButton.text = "Add Map"
-        else
-            createButton.text = "Create Map"
+            mode = "add"
+            if mod.shared.MapPackPatreonState(m_packEntry) == "locked" then
+                local access = mappacks.GetPackAccess(m_packEntry.pack)
+                mode = cond(access.linked, "join", "link")
+            end
         end
+        m_buttonMode = mode
+        local labels = { create = "Create Map", add = "Add Map", link = "Link Patreon", join = "Join Patreon" }
+        createButton.text = labels[mode]
     end
 
     --fill the name field from the selection unless the user typed their own.
@@ -217,70 +687,220 @@ mod.shared.ShowCreateMapDialog = function()
                 el:SetClass("selected", false)
             end
         end
+        --a variant chosen from the chips may not have its own tile; then
+        --light the first tile the grid shows for that map instead.
+        local litTile = nil
         for _, tile in ipairs(packGrid.children) do
-            tile:SetClass("selected", tile.data.entry == entry)
+            if SameEntry(tile.data.entry, entry) then
+                litTile = tile
+                break
+            elseif litTile == nil and SameMap(tile.data.entry, entry) then
+                litTile = tile
+            end
+        end
+        for _, tile in ipairs(packGrid.children) do
+            tile:SetClass("selected", tile == litTile)
         end
         SetAutoName(entry.sceneName ~= "" and entry.sceneName or entry.name)
         RefreshDetails()
         UpdateCreateButton()
     end
 
-    packGrid = gui.Panel{
-        width = "100%",
-        height = "auto",
-        flow = "horizontal",
-        wrap = true,
-        valign = "top",
-        halign = "left",
-    }
+    --the grid is paged: the search keeps only lightweight index entries and
+    --tiles (and their thumbnails) exist for the current page alone, so the
+    --dialog stays cheap however many maps the index holds. Every page is
+    --exactly two rows of fixed-size cells.
+    local GRID_ROWS = 2
+    local cellW, cellH = mod.shared.MapPackTileCellSize()
+    local gridColumns = math.max(1, math.floor(GRID_WIDTH / cellW))
+    local pageSize = gridColumns * GRID_ROWS
+    local m_page = 1
 
-    packStatus = gui.Label{
-        classes = {"mapPackStatus"},
-        text = "Syncing map packs...",
-    }
+    local pageLabel
+    local prevArrow
+    local nextArrow
+
+    local NumPages = function()
+        return math.max(1, math.ceil(#m_packEntries / pageSize))
+    end
+
+    --only built with the pack browser itself; with the dev gate off nothing
+    --would parent these.
+    if packsEnabled then
+        packGrid = gui.Panel{
+            --a little slack so rounding never wraps the last column.
+            width = gridColumns * cellW + 4,
+            height = GRID_ROWS * cellH,
+            flow = "horizontal",
+            wrap = true,
+            valign = "top",
+            halign = "left",
+        }
+
+        packStatus = gui.Label{
+            classes = {"mapPackStatus"},
+            text = "Syncing map packs...",
+        }
+    end
+
+    --builds tiles for the current page only.
+    local RenderPage = function()
+        local numPages = NumPages()
+        if m_page > numPages then
+            m_page = numPages
+        elseif m_page < 1 then
+            m_page = 1
+        end
+
+        local tiles = {}
+        local first = (m_page - 1) * pageSize + 1
+        local last = math.min(#m_packEntries, first + pageSize - 1)
+        for i = first, last do
+            local entry = m_packEntries[i]
+            local tile = mod.shared.CreateMapPackTile(entry, SelectPackEntry)
+            tile:SetClass("selected", entry == m_packEntry)
+            tiles[#tiles + 1] = tile
+        end
+        packGrid.children = tiles
+
+        pageLabel.text = string.format("Page %d/%d", m_page, numPages)
+        pageLabel:SetClass("hidden", #m_packEntries == 0)
+        prevArrow:SetClass("hidden", m_page <= 1)
+        nextArrow:SetClass("hidden", m_page >= numPages)
+    end
+
+    local GoToPage = function(page)
+        m_page = page
+        RenderPage()
+    end
 
     local RefreshPackGrid = function()
         if m_dialog == nil or not m_dialog.valid or not mappacks.synced then
             return
         end
 
-        m_packEntries = mappacks.Search{
+        --the full match list; entries are small tables and only the current
+        --page becomes widgets.
+        local searching = m_search:match("%S") ~= nil
+        m_packEntries = DiversifyEntries(mappacks.Search{
             text = m_search,
-            maxResults = 400,
-        }
+            maxResults = 100000,
+        }, searching)
 
-        local tiles = {}
+        --keep the selected variant if its map is still listed, even when
+        --the grid shows a different variant of it.
         local stillSelected = nil
-        for _, entry in ipairs(m_packEntries) do
-            tiles[#tiles + 1] = mod.shared.CreateMapPackTile(entry, SelectPackEntry)
-            if m_packEntry ~= nil and entry.pack == m_packEntry.pack and entry.id == m_packEntry.id and entry.variantIndex == m_packEntry.variantIndex then
+        local selectedIndex = nil
+        for i, entry in ipairs(m_packEntries) do
+            if SameEntry(entry, m_packEntry) then
                 stillSelected = entry
+                selectedIndex = i
+                break
+            elseif stillSelected == nil and SameMap(entry, m_packEntry) then
+                stillSelected = FreshEntry(m_packEntry)
+                selectedIndex = i
             end
         end
-        packGrid.children = tiles
 
         if mappacks.count == 0 then
             packStatus.text = "No map packs are available yet."
         elseif #m_packEntries == 0 then
             packStatus.text = "No maps match your search."
         else
-            packStatus.text = string.format("%d of %d maps", #m_packEntries, mappacks.count)
+            --the grid shows one entry per map without a search, so count
+            --maps rather than the index's variant entries.
+            local mapCount = #DiversifyEntries(mappacks.Search{ text = "", maxResults = 100000 }, false)
+            if searching then
+                local matchedMaps = #DiversifyEntries(m_packEntries, false)
+                packStatus.text = string.format("%d of %d maps, %d appearances", matchedMaps, mapCount, #m_packEntries)
+            else
+                packStatus.text = string.format("%d maps", mapCount)
+            end
         end
 
         if stillSelected ~= nil then
+            --keep the selection and show the page it lives on.
+            m_packEntry = stillSelected
+            m_page = math.floor((selectedIndex - 1) / pageSize) + 1
+            RenderPage()
             SelectPackEntry(stillSelected)
-        elseif m_packEntry ~= nil then
-            ClearPackSelection()
-            UpdateCreateButton()
+        else
+            m_page = 1
+            if m_packEntry ~= nil then
+                m_packEntry = nil
+                RefreshDetails()
+                UpdateCreateButton()
+            end
+            RenderPage()
         end
     end
 
-    local AddPackMap = function(entry, name)
+    --inventory-style paging arrows under the grid; the right arrow is the
+    --same image mirrored.
+    local ArrowPanel = function(flipped, onClick)
+        return gui.Panel{
+            classes = {"paging-arrow"},
+            bgcolor = "white",
+            bgimage = "panels/InventoryArrow.png",
+            height = "100%",
+            width = "50% height",
+            hmargin = 40,
+            halign = cond(flipped, "right", "left"),
+            scale = cond(flipped, {x = -1, y = 1}, nil),
+            click = onClick,
+        }
+    end
+
+    local pagingPanel
+    if packsEnabled then
+        prevArrow = ArrowPanel(false, function()
+            GoToPage(m_page - 1)
+        end)
+        nextArrow = ArrowPanel(true, function()
+            GoToPage(m_page + 1)
+        end)
+        pageLabel = gui.Label{
+            classes = {"mapPackPageLabel"},
+            text = "",
+        }
+
+        pagingPanel = gui.Panel{
+            width = "100%",
+            height = 32,
+            flow = "horizontal",
+            valign = "bottom",
+            styles = ThemeEngine.MergeTokens({
+                {
+                    selectors = {"mapPackPageLabel"},
+                    fontSize = 16,
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    color = "@fg",
+                },
+                {
+                    selectors = {"paging-arrow", "hover"},
+                    brightness = 2,
+                },
+                {
+                    selectors = {"paging-arrow", "press"},
+                    brightness = 0.7,
+                },
+            }),
+            prevArrow,
+            pageLabel,
+            nextArrow,
+        }
+    end
+
+    local AddPackMap = function(entry, name, markupId)
         mappacks.AddMapToGame{
             pack = entry.pack,
             mapid = entry.id,
             variantIndex = entry.variantIndex,
             name = name,
+            markupId = markupId,
             success = function(mapid)
                 dmhub.Coroutine(function()
                     for i = 1, 200 do
@@ -312,16 +932,61 @@ mod.shared.ShowCreateMapDialog = function()
         end,
     }
 
+    m_patreonSignature = PatreonSignature()
+
     createButton = gui.Button{
         classes = {"sizeL"},
         halign = "left",
         text = "Create Map",
+
+        --the engine mirrors /Patrons live, so a Patreon link or a pledge
+        --made while this dialog is open shows up here within seconds: the
+        --grid is re-searched (fresh owned flags on every entry) and the
+        --details and button follow.
+        thinkTime = 0.5,
+        think = function(element)
+            local signature = PatreonSignature()
+            if signature ~= m_patreonSignature then
+                m_patreonSignature = signature
+                RefreshPackGrid()
+            end
+        end,
+
         click = function(element)
+            if m_buttonMode == "link" then
+                --the Account tab of the settings hosts the Patreon link
+                --flow. The settings sheet lives in the hud's dialog layer,
+                --BELOW modals, so this dialog has to close first or the
+                --settings open behind it (verified live 2026-09-05).
+                gui.CloseModal()
+                dmhub.ShowPlayerSettings{ tab = "Account" }
+                return
+            end
+            if m_buttonMode == "join" then
+                local url = nil
+                if m_creator ~= nil then
+                    url = m_creator.campaignUrl
+                    if url == nil or url == "" then
+                        url = m_creator.url
+                    end
+                end
+                if url ~= nil and url ~= "" then
+                    dmhub.OpenURL(url)
+                else
+                    gui.ModalMessage{
+                        title = "Patreon",
+                        message = "This creator has not listed a Patreon page yet.",
+                    }
+                end
+                return
+            end
+
             if m_packEntry ~= nil then
                 local entry = m_packEntry
                 local name = m_mapName
+                local markupId = m_markupId
                 gui.CloseModal()
-                AddPackMap(entry, name)
+                AddPackMap(entry, name, markupId)
                 return
             end
 
@@ -359,14 +1024,158 @@ mod.shared.ShowCreateMapDialog = function()
         end,
     }
 
+	--the grid lays out each wrapped row by the tiles' own alignment; without
+	--this a short row spreads its tiles across the full width.
+	local tileStyles = mod.shared.MapPackTileStyles()
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackTile"},
+		halign = "left",
+	}
+
+	--shared-markup rows under the details pane.
+	--deselected rows read as grey and dim; the selected one gets the
+	--accent border, full brightness and a checkmark in the left slot.
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupRow"},
+		bgimage = "panels/square.png",
+		bgcolor = "@bg",
+		cornerRadius = 6,
+		width = "100%",
+		height = "auto",
+		pad = 6,
+		vmargin = 2,
+		borderWidth = 1,
+		borderColor = "@fgMuted",
+		borderBox = true,
+		opacity = 0.55,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupRow", "hover"},
+		borderColor = "@fg",
+		opacity = 0.8,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupRow", "selected"},
+		borderWidth = 2,
+		borderColor = "@accent",
+		opacity = 1,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupCheck"},
+		width = 16,
+		height = 16,
+		valign = "center",
+		rmargin = 8,
+		bgcolor = "@accent",
+		opacity = 0,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupCheck", "checked"},
+		opacity = 1,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupAuthor"},
+		fontSize = 14,
+		bold = true,
+		width = "auto",
+		height = "auto",
+		valign = "center",
+		rmargin = 8,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupParts"},
+		fontSize = 12,
+		width = "auto",
+		height = "auto",
+		valign = "center",
+		opacity = 0.8,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupDescription"},
+		fontSize = 13,
+		width = "100%",
+		height = "auto",
+		textWrap = true,
+		vmargin = 2,
+	}
+
+    --the map pack browser, built only when the dev gate is on. Off, an
+    --empty placeholder keeps the dialog body's child list unchanged.
+    local existingMapsSection
+    if packsEnabled == false then
+        existingMapsSection = gui.Panel{ width = 0, height = 0 }
+    else
+        existingMapsSection = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            valign = "top",
+
+                gui.Label{
+                    classes = {"modalTitle"},
+                    text = "...or Use an Existing Map",
+                    vmargin = 4,
+                },
+
+                gui.Panel{
+                    width = "100%",
+                    --search row, two grid rows, paging bar.
+                    height = 48 + GRID_ROWS * cellH + 40,
+                    flow = "horizontal",
+                    valign = "top",
+
+                    gui.Panel{
+                        width = string.format("100%%-%d", DETAIL_WIDTH + DETAIL_MARGIN * 2),
+                        height = "100%",
+                        flow = "vertical",
+                        valign = "top",
+                        --the row's only child; without this it centers and slides
+                        --under the floating details pane.
+                        halign = "left",
+
+                        gui.Panel{
+                            width = "100%",
+                            height = 40,
+                            flow = "horizontal",
+                            halign = "left",
+                            vmargin = 4,
+                            --the standard search field: magnifier, clear x,
+                            --and the shared searchInput look. It fires
+                            --"search" with the trimmed, lowercased text.
+                            gui.SearchInput{
+                                width = 400,
+                                placeholderText = "Search maps...",
+                                search = function(element, str)
+                                    m_search = str
+                                    RefreshPackGrid()
+                                end,
+                            },
+                            packStatus,
+                        },
+
+                        gui.Panel{
+                            width = "100%",
+                            height = "100%-48",
+                            flow = "vertical",
+                            valign = "top",
+                            packGrid,
+                            pagingPanel,
+                        },
+                    },
+                },
+        }
+    end
+
 	m_dialog = gui.Panel{
 		classes = {"framedPanel"},
-		width = 1700,
-		height = 940,
-		styles = ThemeEngine.MergeStyles(mod.shared.MapPackTileStyles()),
+		--without the pack browser the dialog is just the two tiles, the name
+		--field and the buttons, so it shrinks to fit them.
+		width = packsEnabled and DIALOG_WIDTH or 700,
+		height = packsEnabled and 940 or 320,
+		styles = ThemeEngine.MergeStyles(tileStyles),
 
         gui.Panel{
-            width = "100%-24",
+            width = string.format("100%%-%d", DIALOG_INSET),
             height = "100%-32",
             halign = "center",
             valign = "center",
@@ -464,58 +1273,7 @@ mod.shared.ShowCreateMapDialog = function()
                 },
             },
 
-            gui.Label{
-                classes = {"modalTitle"},
-                text = "...or Use an Existing Map",
-                vmargin = 4,
-            },
-
-            gui.Panel{
-                width = "100%",
-                height = 530,
-                flow = "horizontal",
-                valign = "top",
-
-                gui.Panel{
-                    width = "100%-420",
-                    height = "100%",
-                    flow = "vertical",
-                    valign = "top",
-
-                    gui.Panel{
-                        width = "100%",
-                        height = 40,
-                        flow = "horizontal",
-                        halign = "left",
-                        vmargin = 4,
-                        gui.Input{
-                            classes = {"form"},
-                            width = 400,
-                            placeholderText = "Search maps...",
-                            editlag = 0.25,
-                            edit = function(element)
-                                m_search = element.text
-                                RefreshPackGrid()
-                            end,
-                            change = function(element)
-                                m_search = element.text
-                                RefreshPackGrid()
-                            end,
-                        },
-                        packStatus,
-                    },
-
-                    gui.Panel{
-                        width = "100%",
-                        height = "100%-48",
-                        vscroll = true,
-                        valign = "top",
-                        packGrid,
-                    },
-                },
-
-                detailPanel,
-            },
+            existingMapsSection,
 
             gui.Panel{
                 width = 600,
@@ -533,11 +1291,19 @@ mod.shared.ShowCreateMapDialog = function()
                         gui.CloseModal()
                     end,
                 },
-            }
+            },
+
+            --the details pane floats beside the whole dialog body, vertically
+            --centered, so it is not confined to the map browser row.
+            detailPanel,
         }
     }
 
     gui.ShowModal(m_dialog)
+
+    if packsEnabled == false then
+        return
+    end
 
     if mappacks.synced then
         RefreshPackGrid()

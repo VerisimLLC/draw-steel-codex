@@ -1627,6 +1627,103 @@ local CreateAssetsHierarchy = function(moduleInstance)
 	return resultPanel
 end
 
+--Module types. Each entry is an option in the Module Type dropdown at the top
+--of the publish dialog; the chosen id is stored on the module record as
+--moduleInstance.moduleType so the rest of the app can tell packs apart.
+--
+--validate (optional) inspects the current selection and returns two lists of
+--strings: errors, which block Proceed until fixed, and warnings, which only
+--advise. It receives ctx = {
+--  includedAssets  = {guid -> true} the entries the author has checked,
+--  dependencyAssets = {guid -> {guids that need it}} from the dependency
+--                     searcher, covering the checked entries and everything
+--                     they pull in,
+--  assetInfo       = {guid -> {type, displayName}} for every entry shown }.
+local g_moduleTypes = {
+	{
+		id = "general",
+		text = "General Content",
+		description = "A module holding any mix of content: maps, characters, compendium entries, code and more.",
+	},
+	{
+		id = "mappack",
+		text = "Map Pack",
+		description = "A collection of maps. A Map Pack must contain at least one map and should only include content its maps use, such as the objects placed on them.",
+		validate = function(ctx)
+			local errors = {}
+			local warnings = {}
+
+			--guid -> true if a checked map needs this entry, directly or
+			--through a chain of other dependencies. Seeded false before the
+			--walk so a dependency cycle cannot recurse forever.
+			local memo = {}
+			local RequiredByMap
+			RequiredByMap = function(guid)
+				if memo[guid] ~= nil then
+					return memo[guid]
+				end
+				memo[guid] = false
+				local parents = ctx.dependencyAssets[guid]
+				if parents ~= nil then
+					for _,parent in ipairs(parents) do
+						local info = ctx.assetInfo[parent]
+						if (info ~= nil and info.type == "map") or RequiredByMap(parent) then
+							memo[guid] = true
+							break
+						end
+					end
+				end
+				return memo[guid]
+			end
+
+			local nmaps = 0
+			local unused = {}
+			for guid,_ in pairs(ctx.includedAssets) do
+				local info = ctx.assetInfo[guid]
+				if info ~= nil then
+					if info.type == "map" then
+						nmaps = nmaps+1
+					--image libraries are exempt: the dependency searcher does not
+					--track them, so they would always read as unused.
+					elseif info.type ~= "image library" and not RequiredByMap(guid) then
+						unused[#unused+1] = info.displayName
+					end
+				end
+			end
+
+			if nmaps == 0 then
+				errors[#errors+1] = "A Map Pack must contain at least one map."
+			end
+
+			if #unused > 0 then
+				table.sort(unused)
+				local shown = {}
+				for i=1,math.min(#unused, 5) do
+					shown[i] = unused[i]
+				end
+				local names = table.concat(shown, ", ")
+				if #unused > #shown then
+					names = string.format("%s and %d more", names, #unused - #shown)
+				end
+				warnings[#warnings+1] = string.format("%d %s not used by any map in this pack: %s", #unused, cond(#unused == 1, "entry is", "entries are"), names)
+			end
+
+			return errors, warnings
+		end,
+	},
+}
+
+--Looks up a module type by id, falling back to the first (General Content)
+--for nil or an id this build does not know.
+local GetModuleType = function(id)
+	for _,info in ipairs(g_moduleTypes) do
+		if info.id == id then
+			return info
+		end
+	end
+	return g_moduleTypes[1]
+end
+
 local showShareModuleDialog = function(options)
 	--nil for a new module.
 	local moduleid = options.moduleid
@@ -1648,7 +1745,19 @@ local showShareModuleDialog = function(options)
 	local addressableAssets = {}
 	local m_dependencyAssets = {}
 
+	--guid -> {type, displayName} for every entry in the dialog, addressable
+	--or not, so module type validators can tell maps from everything else.
+	local assetInfo = {}
+
+	--errors from the selected module type's validator; while non-empty the
+	--Proceed button stays hidden on the content page.
+	local m_moduleTypeErrors = {}
+
 	local moduleInstance = options.moduleInfo or module.CreateModule()
+
+	--resolve the type through the known list so a brand new module records
+	--"general" explicitly and an unknown id from a newer build falls back.
+	moduleInstance.moduleType = GetModuleType(moduleInstance.moduleType).id
 
 	if moduleInstance.publishingProperties.includedAssets ~= nil then
 		includedAssets = DeepCopy(moduleInstance.publishingProperties.includedAssets)
@@ -1770,6 +1879,11 @@ local showShareModuleDialog = function(options)
 				--Deleting an existing module bypasses the terms-agreement gate.
 				if moduleInstance.deleted then
 					shareButton:SetClass("hidden", false)
+					return
+				end
+				--The module type's rules must be satisfied before leaving the content page.
+				if npage == 1 and #m_moduleTypeErrors > 0 then
+					shareButton:SetClass("hidden", true)
 					return
 				end
 				shareButton:SetClass("hidden", npage == 2 and isNewModule and ((not moduleInstance.idvalid) or (not authorIdsAvailable[moduleInstance.authorid])) or (npage == 2 and (not conditionsAgreed)))
@@ -2850,6 +2964,87 @@ local showShareModuleDialog = function(options)
 		text = cond(isNewModule, "Create a Module", "Update Module"),
 	}
 
+	--Module Type: dropdown at the top of the dialog, a line describing the
+	--chosen type, and the errors/warnings its validator raises against the
+	--current selection. Re-validated on every updatecounts, which the think
+	--handler fires after each dependency recompute.
+	local moduleTypeDescription = gui.Label{
+		classes = {"moduleTypeDescription"},
+		text = GetModuleType(moduleInstance.moduleType).description,
+	}
+
+	local moduleTypeMessages = gui.Panel{
+		classes = {"moduleTypeMessages", "collapsed"},
+	}
+
+	local RefreshModuleType = function()
+		local typeInfo = GetModuleType(moduleInstance.moduleType)
+		moduleTypeDescription.text = typeInfo.description
+
+		local errors, warnings = {}, {}
+		if typeInfo.validate ~= nil then
+			errors, warnings = typeInfo.validate{
+				includedAssets = includedAssets,
+				dependencyAssets = m_dependencyAssets,
+				assetInfo = assetInfo,
+			}
+		end
+		m_moduleTypeErrors = errors
+
+		local children = {}
+		for _,msg in ipairs(errors) do
+			children[#children+1] = gui.Label{
+				classes = {"moduleTypeMessage", "moduleTypeError"},
+				text = msg,
+			}
+		end
+		for _,msg in ipairs(warnings) do
+			children[#children+1] = gui.Label{
+				classes = {"moduleTypeMessage", "moduleTypeWarning"},
+				text = msg,
+			}
+		end
+		moduleTypeMessages.children = children
+		moduleTypeMessages:SetClass("collapsed", #children == 0)
+
+		shareButton:FireEvent("refreshModule")
+	end
+
+	local moduleTypeOptions = {}
+	for i,info in ipairs(g_moduleTypes) do
+		moduleTypeOptions[i] = { id = info.id, text = info.text }
+	end
+
+	local moduleTypePanel = gui.Panel{
+		classes = {"moduleTypePanel"},
+		updatecounts = function(element)
+			RefreshModuleType()
+		end,
+
+		gui.Panel{
+			classes = {'form-entry'},
+			width = "100%",
+
+			gui.Label{
+				classes = {'formLabel'},
+				text = 'Module Type:',
+			},
+
+			gui.Dropdown{
+				options = moduleTypeOptions,
+				idChosen = moduleInstance.moduleType,
+				width = 260,
+				change = function(element)
+					moduleInstance.moduleType = element.idChosen
+					RefreshModuleType()
+				end,
+			},
+		},
+
+		moduleTypeDescription,
+		moduleTypeMessages,
+	}
+
 
 	footerPanel = gui.Panel{
 		classes = {'footer-panel'},
@@ -2861,6 +3056,8 @@ local showShareModuleDialog = function(options)
 		vscroll = true,
 
 		createModuleLabel,
+
+		moduleTypePanel,
 
 		publishingPanel,
 
@@ -2991,6 +3188,44 @@ local showShareModuleDialog = function(options)
 				height = "auto",
 				halign = "center",
 			},
+			{
+				selectors = {'moduleTypePanel'},
+				width = '60%',
+				height = 'auto',
+				halign = 'center',
+				valign = 'top',
+				flow = 'vertical',
+				vmargin = 8,
+			},
+			{
+				selectors = {'moduleTypeDescription'},
+				width = '100%',
+				height = 'auto',
+				fontSize = 14,
+				color = '@fg',
+				vmargin = 4,
+			},
+			{
+				selectors = {'moduleTypeMessages'},
+				width = '100%',
+				height = 'auto',
+				flow = 'vertical',
+			},
+			{
+				selectors = {'moduleTypeMessage'},
+				width = '100%',
+				height = 'auto',
+				fontSize = 14,
+				vmargin = 2,
+			},
+			{
+				selectors = {'moduleTypeMessage', 'moduleTypeError'},
+				color = '@danger',
+			},
+			{
+				selectors = {'moduleTypeMessage', 'moduleTypeWarning'},
+				color = '@warning',
+			},
 	}
 
 	-- Bind the hidden-entries onChange now that dialogPanel/moduleInstance
@@ -3044,6 +3279,10 @@ local showShareModuleDialog = function(options)
 
 		createasset = function(element, check)
 			dmhub.Debug(string.format("CREATE ASSET:: %s", check.data.assetid))
+			assetInfo[check.data.assetid] = {
+				type = check.data.type,
+				displayName = check.data.displayName,
+			}
 			if check.data.addressable ~= false then
 				allAssets[check.data.assetid] = {
 					check = check
@@ -3427,7 +3666,8 @@ end
 --cards from a handful of authors. Cached for the session: a creator adding a
 --module to their Patreon list mid-session will not show until the next launch,
 --which is fine for a browse grid and is the price of not refetching per card.
-local g_patreonOrgInfo = {}        --orgid (lower) -> {modules=set, campaign={name,url}|nil, displayName}, once loaded
+local g_patreonOrgInfo = {}        --orgid (lower) -> {modules=set, campaign={name,url}|nil, displayName, logo, url, time}, once loaded
+local g_patreonOrgInfoMaxAge = 300 --seconds a cached entry serves before it is looked up again (branding edits show up within this)
 local g_patreonOrgWaiting = {}     --orgid (lower) -> list of callbacks, while in flight
 
 --callback receives {modules = set of fullid (lower), campaign = {name, url} or
@@ -3442,7 +3682,7 @@ local function QueryPatreonOrgInfo(orgid, callback)
 	local key = string.lower(orgid)
 
 	local cached = g_patreonOrgInfo[key]
-	if cached ~= nil then
+	if cached ~= nil and (cached.time == nil or dmhub.Time() - cached.time < g_patreonOrgInfoMaxAge) then
 		callback(cached)
 		return
 	end
@@ -3456,6 +3696,7 @@ local function QueryPatreonOrgInfo(orgid, callback)
 	g_patreonOrgWaiting[key] = {callback}
 
 	local finish = function(result)
+		result.time = dmhub.Time()
 		g_patreonOrgInfo[key] = result
 		local queue = g_patreonOrgWaiting[key]
 		g_patreonOrgWaiting[key] = nil
@@ -3475,10 +3716,14 @@ local function QueryPatreonOrgInfo(orgid, callback)
 			--url}), published when the creator links their campaign. It is
 			--what lets the offer panel name the actual creator and open the
 			--right campaign instead of hardcoding MCDM's.
+			--logo and url are the organization's branding, set by its owner
+			--in Settings > Editing; both nil until set.
 			finish({
 				modules = modules,
 				campaign = rawget(info, "patreonCampaign"),
 				displayName = info.displayName,
+				logo = rawget(info, "logo"),
+				url = rawget(info, "url"),
 			})
 		end,
 		failure = function(msg)
@@ -3733,12 +3978,18 @@ local CreateModuleDisplaySlot = function(options)
 			--rather than leave the previous module's livery on a recycled slot.
 			local fullid = moduleInfo.fullid
 			element:SetClass("patreonModule", false)
-			QueryPatreonModulesForOrg(moduleInfo.authorid, function(patreonModules)
+			QueryPatreonOrgInfo(moduleInfo.authorid, function(info)
 				--the slot is reused as the grid scrolls and re-searches, so a
 				--late answer must be checked against what the card shows NOW,
 				--not against the module that asked for it.
 				if element.valid and element.data.moduleInfo ~= nil and element.data.moduleInfo.fullid == fullid then
-					element:SetClass("patreonModule", patreonModules[string.lower(fullid)] == true)
+					element:SetClass("patreonModule", (info.modules or {})[string.lower(fullid)] == true)
+
+					--an organization is credited by its display name rather
+					--than its raw author id.
+					if info.displayName ~= nil and info.displayName ~= "" then
+						authorLabel.text = string.format("by %s", info.displayName)
+					end
 				end
 			end)
 
@@ -4219,6 +4470,33 @@ mod.shared.ShowDownloadShareDialog = function(options)
 		data = {
 			search = "",
 		}
+	}
+
+	--organization branding under the author line: the logo the owner
+	--uploaded and a link to their website. Both stay collapsed for modules
+	--published by an organization without branding, or by a person.
+	local detailedDisplayOrgLogo = gui.Panel{
+		classes = {"collapsed"},
+		width = "auto",
+		height = "auto",
+		maxWidth = 240,
+		maxHeight = 96,
+		autosizeimage = true,
+		bgcolor = "white",
+		halign = "left",
+		vmargin = 4,
+	}
+
+	local detailedDisplayOrgLink = gui.Label{
+		classes = {"authorLabel", "link", "collapsed"},
+		data = {
+			url = nil,
+		},
+		click = function(element)
+			if element.data.url ~= nil then
+				dmhub.OpenURL(element.data.url)
+			end
+		end,
 	}
 	local detailedDisplayID = gui.Label{
 		classes = {"idLabel"},
@@ -4926,6 +5204,9 @@ mod.shared.ShowDownloadShareDialog = function(options)
 			local authorid = moduleInfo.authorid
 			element:SetClass("patreonModule", false)
 			m_patreonOrgOffer = nil
+			detailedDisplayOrgLogo:SetClass("collapsed", true)
+			detailedDisplayOrgLink:SetClass("collapsed", true)
+			detailedDisplayOrgLink.data.url = nil
 			QueryPatreonOrgInfo(authorid, function(info)
 				if element.valid and element.data.moduleInfo ~= nil and element.data.moduleInfo.fullid == fullid then
 					local offered = (info.modules or {})[string.lower(fullid)] == true
@@ -4937,6 +5218,23 @@ mod.shared.ShowDownloadShareDialog = function(options)
 						campaign = info.campaign,
 						displayName = info.displayName,
 					}
+
+					--organization branding: display name as the author, then
+					--the logo and website when the owner has set them.
+					if info.displayName ~= nil and info.displayName ~= "" then
+						detailedDisplayAuthor.text = string.format("by %s", info.displayName)
+					end
+
+					if info.logo ~= nil then
+						detailedDisplayOrgLogo.bgimage = info.logo
+						detailedDisplayOrgLogo:SetClass("collapsed", false)
+					end
+
+					if info.url ~= nil and info.url ~= "" then
+						detailedDisplayOrgLink.text = info.url
+						detailedDisplayOrgLink.data.url = info.url
+						detailedDisplayOrgLink:SetClass("collapsed", false)
+					end
 				end
 			end)
 
@@ -5007,6 +5305,8 @@ mod.shared.ShowDownloadShareDialog = function(options)
 			vscroll = true,
 			detailedDisplayTitle,
 			detailedDisplayAuthor,
+			detailedDisplayOrgLogo,
+			detailedDisplayOrgLink,
 			detailedDisplayID,
 			detailedDisplayDeprecated,
 			detailedDisplayPanel,

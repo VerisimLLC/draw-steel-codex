@@ -1491,19 +1491,26 @@ mod.shared.ShowCreateMapDialog = function()
                     text = "Map Name:",
                 },
                 nameInput,
-                gui.Panel{ width = "100%-900", height = 1 },
-                gui.Button{
-                    classes = {"sizeL"},
-                    valign = "center",
-                    hmargin = 12,
-                    text = "Cancel",
-                    escapeActivates = true,
-                    escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
-                    click = function(element)
-                        gui.CloseModal()
-                    end,
+                --right-anchored group: immune to the name field's width and
+                --the create button's changing labels (Add Map, Link Patreon).
+                gui.Panel{
+                    width = "auto",
+                    height = "100%",
+                    halign = "right",
+                    flow = "horizontal",
+                    gui.Button{
+                        classes = {"sizeL"},
+                        valign = "center",
+                        hmargin = 12,
+                        text = "Cancel",
+                        escapeActivates = true,
+                        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+                        click = function(element)
+                            gui.CloseModal()
+                        end,
+                    },
+                    createButton,
                 },
-                createButton,
             },
         }
 

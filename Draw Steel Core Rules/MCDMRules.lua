@@ -1312,23 +1312,9 @@ GameSystem.OnEndCastActivatedAbility = function(casterToken, ability, options)
 	end
 end
 
-local friendlyFire = setting{
-    id = "friendlyfire",
-    description = "Friendly Fire",
-    storage = "game",
-	section = "game",
-	editor = "check",
-    dmonly = true,
-    default = false,
-}
-
 local g_hiddenConditionId = "31daf7f6-f77c-4f73-8eab-43e2d0f123c0"
 
 function GameSystem.AllowTargeting(casterToken, targetToken, ability)
-	if friendlyFire:Get() == false and ability:HasKeyword("Strike") and ability:HasKeyword("Area") and casterToken:IsFriend(targetToken) then
-		return false
-	end
-
 	-- Hidden: "While you are hidden from another creature, the creature can't
 	-- target you with abilities that don't have the Area keyword." A creature
 	-- with the Hidden condition is treated as hidden from all its enemies:

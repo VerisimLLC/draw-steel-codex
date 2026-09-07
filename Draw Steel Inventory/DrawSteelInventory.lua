@@ -1537,49 +1537,12 @@ function GameHud.CreateInventoryDialog(self, options)
 
 	local addItemSlot = nil
 	local partyItemsSlot = nil
-	local generateShopSlot = nil
 	local refreshShopSlot = nil
 	local addItemsPanel = nil
 
 
 	if hasAddItem then
 		if dmhub.isDM then
-			generateShopSlot = gui.Button{
-				icon = "ui-icons/d20.png",
-				classes = {"iconButton", "sizeXl"},
-				tooltip = "Generate Inventory from Table",
-				hmargin = 4,
-				click = function(element)
-					if token == nil then
-						return
-					end
-					local clearInventoryCheck
-					clearInventoryCheck = {
-						text = "Clear existing inventory",
-						value = dmhub.GetSettingValue("inventory:generationclears"),
-						change = function(val)
-							dmhub.SetSettingValue("inventory:generationclears", val)
-						end,
-					}
-					ShowRollableTableSelectionDialog{
-						root = resultPanel.root,
-						tableName = "lootTables",
-						checkboxes = {
-							clearInventoryCheck,
-						},
-						click = function(element, items)
-							token:BeginChanges()
-							token.properties:RollLoot{
-								lootTable = items[1],
-								clear = dmhub.GetSettingValue("inventory:generationclears"),
-								newItems = newItems,
-							}
-							token:CompleteChanges('Generate loot')
-							resultPanel:FireEventTree('refreshInventory')
-						end,
-					}
-				end,
-			}
 			refreshShopSlot = gui.Button{
 				icon = "panels/hud/clockwise-rotation.png",
 				classes = {"iconButton", "sizeXl"},
@@ -1651,7 +1614,6 @@ function GameHud.CreateInventoryDialog(self, options)
 				uiscale = 0.7,
 				flow = "horizontal",
 				refreshShopSlot,
-				generateShopSlot,
 				partyItemsSlot,
 				addItemSlot,
 			}

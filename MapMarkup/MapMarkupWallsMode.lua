@@ -86,8 +86,8 @@ function MM.BuildWallsMode()
         if palettePanel ~= nil and palettePanel.valid then
             palettePanel:FireEvent("refreshchips")
         end
-        if contentPanel ~= nil and contentPanel.valid then
-            contentPanel:FireEventTree("refreshwallcolors")
+        if m.markupHud ~= nil and m.markupHud.valid then
+            m.markupHud:FireEventTree("refreshwallcolors")
         end
     end
 
@@ -251,9 +251,9 @@ function MM.BuildWallsMode()
         --the selection can flip between openable and plain types, which
         --hides/shows the Draw As toggle. The Wall Color swatches follow the
         --selected type too.
-        if contentPanel ~= nil and contentPanel.valid then
-            contentPanel:FireEventTree("refreshdoorchip")
-            contentPanel:FireEventTree("refreshwallcolors")
+        if m.markupHud ~= nil and m.markupHud.valid then
+            m.markupHud:FireEventTree("refreshdoorchip")
+            m.markupHud:FireEventTree("refreshwallcolors")
         end
     end
 
@@ -598,11 +598,11 @@ function MM.BuildWallsMode()
         if toolsPanel ~= nil and toolsPanel.valid then
             toolsPanel:FireEvent("rebuildtools")
         end
-        if contentPanel ~= nil and contentPanel.valid then
-            contentPanel:FireEventTree("refreshdoorchip")
+        if m.markupHud ~= nil and m.markupHud.valid then
+            m.markupHud:FireEventTree("refreshdoorchip")
             --a palette change can change which type is selected (and a
             --remote edit can change its color) - resync the swatches.
-            contentPanel:FireEventTree("refreshwallcolors")
+            m.markupHud:FireEventTree("refreshwallcolors")
         end
     end
 

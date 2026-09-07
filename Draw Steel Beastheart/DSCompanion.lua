@@ -595,6 +595,45 @@ function character.SkillProficiencyLevel(self, skillInfo)
     return PickHigherProficiency(own, shared)
 end
 
+-- Language sharing, granted by a perk that sets the attribute below on the
+-- beastheart (Voice of the Wild). Hooked on LanguageCounts rather than
+-- LanguagesKnown because every other consumer -- the chat language picker, the
+-- sheet, the Languages GoblinScript symbol -- derives from this tally, and
+-- because a tally dedupes for free: a language both of them know just counts
+-- twice and is still known once.
+local g_languageShareAttribute = "Shares Languages With Companion"
+local g_languageShareRecursion = 0
+
+local g_companionLanguageCountsBase = creature.LanguageCounts
+function AnimalCompanion:LanguageCounts()
+    local counts = g_companionLanguageCountsBase(self)
+    if g_languageShareRecursion > 0 then
+        return counts
+    end
+
+    local summoner = self:SummonerToken()
+    if summoner == nil or summoner.properties == nil then
+        return counts
+    end
+
+    if summoner.properties:CalculateNamedCustomAttribute(g_languageShareAttribute) <= 0 then
+        return counts
+    end
+
+    --guards the pathological case of a beastheart being another beastheart's companion.
+    g_languageShareRecursion = g_languageShareRecursion + 1
+    local shared = summoner.properties:LanguagesKnown()
+    g_languageShareRecursion = g_languageShareRecursion - 1
+
+    for langid,known in pairs(shared or {}) do
+        if known then
+            counts[langid] = (counts[langid] or 0) + 1
+        end
+    end
+
+    return counts
+end
+
 -- Per Beastheart "Modify Companion" support: any modifier on the summoner
 -- whose behavior implements modifyCompanion gets a chance to contribute extra
 -- modifiers to this companion's effective modifier list. Captures

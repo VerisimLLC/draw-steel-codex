@@ -1843,16 +1843,28 @@ dmhub.TokenMovingOnPath = function(args)
     --like). The Settings-registry check keeps this quiet (no engine error
     --log per step) when the MapMarkup module, which registers the setting,
     --isn't loaded.
+    --A map with several appearances (map variations) may give the selected
+    --one its own default, which then stands in for the map-wide default -
+    --including 0, "use tile surfaces", which is why a non-nil variation
+    --answer never falls through to the map-wide setting.
     local painted = nil
+    local variationDefault = nil
     pcall(function()
         local markup = rawget(_G, "MapMarkupFootsteps")
         if markup ~= nil and args.position ~= nil then
             painted = markup.GetPaintedSurfaceAt(args.token.floorid,
                 math.floor(args.position.x + 0.5), math.floor(args.position.y + 0.5))
         end
+        if markup ~= nil and markup.GetVariationDefaultSurface ~= nil then
+            variationDefault = markup.GetVariationDefaultSurface(args.token.floorid)
+        end
     end)
     if painted ~= nil and AudioSurfaceTypes.surfaces[painted] ~= nil then
         surfaceInfo = AudioSurfaceTypes.surfaces[painted]
+    elseif variationDefault ~= nil then
+        if AudioSurfaceTypes.surfaces[variationDefault] ~= nil then
+            surfaceInfo = AudioSurfaceTypes.surfaces[variationDefault]
+        end
     else
         local settingsTable = rawget(_G, "Settings")
         if settingsTable ~= nil and settingsTable["markup:footstepdefault"] ~= nil then

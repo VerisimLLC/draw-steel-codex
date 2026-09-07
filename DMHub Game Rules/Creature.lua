@@ -578,16 +578,28 @@ function creature:PlayLandingFootstep(surfaceType)
         --Settings-registry check keeps this quiet (no engine error log)
         --when the MapMarkup module, which registers the setting, isn't
         --loaded.
+        --A map with several appearances (map variations) may give the
+        --selected one its own default, which stands in for the map-wide
+        --default - including 0, "use tile surfaces", so a non-nil variation
+        --answer never falls through to the map-wide setting.
         local painted = nil
+        local variationDefault = nil
         pcall(function()
             local markup = rawget(_G, "MapMarkupFootsteps")
             local token = dmhub.LookupToken(self)
             if markup ~= nil and token ~= nil and token.loc ~= nil then
                 painted = markup.GetPaintedSurfaceAt(token.floorid, token.loc.x, token.loc.y)
             end
+            if markup ~= nil and markup.GetVariationDefaultSurface ~= nil and token ~= nil then
+                variationDefault = markup.GetVariationDefaultSurface(token.floorid)
+            end
         end)
         if painted ~= nil and AudioSurfaceTypes.surfaces[painted] ~= nil then
             entry = AudioSurfaceTypes.surfaces[painted]
+        elseif variationDefault ~= nil then
+            if AudioSurfaceTypes.surfaces[variationDefault] ~= nil then
+                entry = AudioSurfaceTypes.surfaces[variationDefault]
+            end
         else
             local settingsTable = rawget(_G, "Settings")
             if settingsTable ~= nil and settingsTable["markup:footstepdefault"] ~= nil then

@@ -9998,6 +9998,45 @@ function TacPanel.AddConditionMenu(args)
         local auras = creature:try_get("auras", {})
         local items = {}
 
+        --Repair custom auras whose area shape lost its description. Such a shape is
+        --permanently broken (area.valid == false): it covers no tiles, cannot be
+        --repositioned, and re-serializes as broken on every save, so the record never
+        --heals on its own -- and before the engine guards landed it threw on every aura
+        --rebuild, which aborted the whole game-details update for every client on the
+        --map (report Q6N647ZW). This panel is where the user already sees and edits
+        --these auras, so rebuild the shape here with the same default the Add button
+        --uses. One pass: the rebuilt shapes are valid, so a re-entrant rebuild finds
+        --nothing to do. Gated on canControl so merely viewing someone else's token
+        --never issues a write the server would reject.
+        local brokenAuras = {}
+        if primaryToken.canControl then
+            for _, auraInstance in ipairs(auras) do
+                if rawget(auraInstance, "custom") == true then
+                    local area = auraInstance:try_get("area")
+                    if area == nil or area.valid == false then
+                        brokenAuras[#brokenAuras + 1] = auraInstance
+                    end
+                end
+            end
+        end
+
+        if #brokenAuras > 0 then
+            primaryToken:ModifyProperties{
+                description = "Repair Custom Aura",
+                execute = function()
+                    for _, auraInstance in ipairs(brokenAuras) do
+                        auraInstance.area = dmhub.CalculateShape{
+                            shape = "radiusfromcreature",
+                            token = primaryToken,
+                            range = 100,
+                            radius = 1,
+                        }
+                    end
+                end,
+            }
+            primaryToken:UpdateAuras()
+        end
+
         for index, auraInstance in ipairs(auras) do
             if rawget(auraInstance, "custom") == true then
                 local capturedIndex = index

@@ -1532,11 +1532,34 @@ function AuraInstance:HasExpired()
     return false
 end
 
+--Aura instances already reported as having a broken area shape, keyed by guid, so
+--GetArea -- which runs for every aura on every rebuild -- reports each one once.
+local g_reportedBrokenAuraAreas = {}
+
 --this is called by DMHub to get the locs an aura fills.
 --- Returns the Shape object describing the aura's area, or nil if not yet placed.
 --- @return table|nil
 function AuraInstance:GetArea()
-    return self:try_get("area")
+    local area = self:try_get("area")
+
+    --A LuaShape that was serialized while its description was missing is written out
+    --as data:"null" and comes back permanently broken (area.valid == false): it covers
+    --no tiles, cannot be positioned or drawn, and re-serializes as broken every save,
+    --so it never heals. Report "no area" rather than handing callers a shape that only
+    --looks usable -- every caller here already handles nil. See report Q6N647ZW.
+    if area ~= nil and area.valid == false then
+        --Named once per aura instance so a broken record is still findable in the
+        --console: the custom-aura panel repairs the ones it owns, but an aura created
+        --by an ability would otherwise vanish with no trace at all.
+        local guid = self:try_get("guid")
+        if guid ~= nil and g_reportedBrokenAuraAreas[guid] == nil then
+            g_reportedBrokenAuraAreas[guid] = true
+            dmhub.Debug(string.format("Aura '%s' (guid=%s, caster=%s) has an area shape with no description; it covers nothing and needs replacing.", tostring(self:try_get("name", "(unnamed)")), tostring(guid), tostring(self:try_get("casterid", "(none)"))))
+        end
+        return nil
+    end
+
+    return area
 end
 
 --- Returns the applyto filter id from the Aura definition.

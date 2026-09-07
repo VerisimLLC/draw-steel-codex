@@ -1404,15 +1404,22 @@ mod.shared.ShowCreateMapDialog = function()
                     RefreshPackGrid()
                 end,
             },
-            gui.Panel{ width = "100%-660", height = 1 },
-            packStatus,
+            --anchored to the bar's right edge as a group, so the widths of
+            --the title and search field can never push the close button out.
             gui.Panel{
-                classes = {"cmClose"},
-                bgimage = "phosphor/x-bold.png",
-                lmargin = 16,
-                press = function(element)
-                    gui.CloseModal()
-                end,
+                width = "auto",
+                height = "100%",
+                halign = "right",
+                flow = "horizontal",
+                packStatus,
+                gui.Panel{
+                    classes = {"cmClose"},
+                    bgimage = "phosphor/x-bold.png",
+                    lmargin = 16,
+                    press = function(element)
+                        gui.CloseModal()
+                    end,
+                },
             },
         }
 

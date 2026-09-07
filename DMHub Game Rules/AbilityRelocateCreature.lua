@@ -183,6 +183,60 @@ function ActivatedAbilityRelocateCreatureBehavior:BehaviorMovementType(symbols)
     return self.movementType
 end
 
+--Revalidate before moving, then let each native segment finish before starting
+--the next. A stopped charge must not proceed to its attack behavior.
+function ActivatedAbilityRelocateCreatureBehavior:ExecuteGuaranteedCharge(casterToken, targetLoc, chargeOptions, options, ability)
+    local ok, plan = pcall(function() return casterToken:PlanCharge(targetLoc, chargeOptions) end)
+    if not ok or plan == nil or plan.validCharge ~= true then
+        options.abort = true
+        options.stopProcessing = true
+        return
+    end
+
+    casterToken:ClearMovementArrow()
+    local moved = 0
+    for _, segment in ipairs(plan.chargeSegments) do
+        --Movement reactions can change speed or knock the charger prone at
+        --takeoff. Check the remaining allowance before starting each segment.
+        if ability ~= nil then
+            local current = ability:GetChargeJumpOptions(casterToken, options.symbols)
+            local segmentDistance = casterToken.loc:DistanceInTiles(segment.expectedLoc)
+            if current == nil or current.chargeDistance - moved < segmentDistance
+                or (segment.jump and (current.chargeJumpDistance < segmentDistance
+                    or current.chargeJumpHeight < segment.jumpHeight)) then
+                options.abort = true
+                options.stopProcessing = true
+                return
+            end
+        end
+        local path = casterToken:Move(segment.loc, {
+            straightline = true,
+            moveThroughFriends = false,
+            ignorecreatures = segment.jump,
+            ignoreFalling = segment.jump,
+            maxCost = math.floor(chargeOptions.chargeDistance * 1000 + 100),
+            movementType = cond(segment.jump, "jump", "walk"),
+            jumpHeight = segment.jumpHeight,
+            chargeDistance = chargeOptions.chargeDistance,
+            chargeJumpLanding = segment.jump,
+            freeMovement = true,
+        })
+        if path ~= nil then
+            moved = moved + path.numSteps
+            options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps
+        end
+        while casterToken.valid and casterToken.isMoving do
+            coroutine.yield(0.05)
+        end
+        if path == nil or not casterToken.valid
+            or casterToken.loc.str ~= segment.expectedLoc.str then
+            options.abort = true
+            options.stopProcessing = true
+            return
+        end
+    end
+end
+
 function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
     print("Relocate:: Cast relocate", #targets)
 
@@ -241,7 +295,24 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			end
 		end
 
-		if swapTokens ~= nil then
+        local chargeOptions = nil
+        if movementType == "move" then
+            chargeOptions = ability:GetChargeJumpOptions(casterToken, options.symbols)
+        end
+
+        if chargeOptions ~= nil then
+            self:ExecuteGuaranteedCharge(casterToken, targets[#targets].loc, chargeOptions, options, ability)
+            if options.abort then
+                --Stopping before the attack also skips Charge's final cleanup.
+                --Run its purge now so the temporary Charging effect cannot linger.
+                for _, behavior in ipairs(ability.behaviors) do
+                    if behavior.typeName == "ActivatedAbilityPurgeEffectsBehavior" then
+                        behavior:Cast(ability, casterToken,
+                            behavior:ApplyToTargets(ability, casterToken, targets, options), options)
+                    end
+                end
+            end
+        elseif swapTokens ~= nil then
 			--Mirror the teleport branch: track distance moved on the cast so
 			--downstream behaviors (e.g. activationCondition gates like
 			--`Cast.Spaces Moved > 0`) can detect that the swap actually happened.

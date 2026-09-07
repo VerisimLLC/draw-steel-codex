@@ -2955,10 +2955,12 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 	end
 end
 
+--- @param options nil|{modeResolved: nil|boolean}
 --- @return boolean Returns true if this ability requires some kind of player prompt when cast. It can't auto-target if invoked. Used with augmented abilities etc.
-function ActivatedAbility:RequiresPromptWhenCast()
-    -- Multi-mode abilities need a prompt so the user can choose a mode.
-    if self.multipleModes and self:has_key("modeList") then
+function ActivatedAbility:RequiresPromptWhenCast(options)
+    -- Multi-mode abilities need a prompt unless the caller already chose one.
+    if self.multipleModes and self:has_key("modeList")
+        and not (options ~= nil and options.modeResolved) then
         return true
     end
 

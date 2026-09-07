@@ -7,8 +7,8 @@ local mod = dmhub.GetModLoading()
 --GetTargetingTierRadii and DrawSteelActionBar). Once a tile is chosen this
 --behavior computes the tier actually needed to get there -- distance AND
 --height, since a tall height-limited wall inside baseline distance still
---forces a test ("longer or higher"). If tier 1 suffices the jump executes
---immediately with no roll; otherwise a test power roll dialog is shown and
+--requires a higher tier ("longer or higher"). If the required tier is guaranteed,
+--the jump executes with no roll; otherwise a test power roll dialog is shown and
 --the rolled tier decides where the jump really lands: on the chosen tile, or
 --short along the straight line (possibly falling, e.g. into a chasm the
 --player needed tier 3 to clear).
@@ -83,7 +83,7 @@ end
 --clamped to the caster's remaining movement this turn (rules: you can't jump
 --farther than the movement allowance of the effect that lets you move).
 --Clamp semantics match the "jump N" rule command in MCDMAbilityBehavior.
-function ActivatedAbilityJumpBehavior:GetTierDistances(ability, casterToken)
+function ActivatedAbilityJumpBehavior:GetTierDistances(ability, casterToken, movementAllowance)
     local creature = casterToken.properties
     local lookup = creature:LookupSymbol()
 
@@ -92,7 +92,10 @@ function ActivatedAbilityJumpBehavior:GetTierDistances(ability, casterToken)
         movedThisTurn = creature:DistanceMovedThisTurn()
     end
 
-    local movementAllowed = math.max(0, creature:CurrentMovementSpeed() - movedThisTurn)
+    local movementAllowed = movementAllowance
+    if movementAllowed == nil then
+        movementAllowed = math.max(0, creature:CurrentMovementSpeed() - movedThisTurn)
+    end
 
     local result = {}
     for i = 1, 3 do
@@ -129,6 +132,48 @@ function ActivatedAbilityJumpBehavior:RollCannotBeTierOne(ability, casterToken)
     return false
 end
 
+--Use the same guaranteed tier for targeting labels and skipping unnecessary rolls.
+function ActivatedAbilityJumpBehavior:GetGuaranteedTier(ability, casterToken)
+    if self:RollCannotBeTierOne(ability, casterToken) then
+        return 2
+    end
+    return 1
+end
+
+--Use the creature's actual Jump action so skill and attribute modifiers match
+--ordinary jumps. Charge grants its own movement even after the move action.
+function ActivatedAbility:GetChargeJumpOptions(casterToken, symbols, abilities)
+    if self.name ~= "Charge"
+        or casterToken.properties:CalculateNamedCustomAttribute("Charge Allows Jump") <= 0
+        or casterToken.properties:CalculateNamedCustomAttribute("Charge Uses Jump") > 0 then
+        return nil
+    end
+
+    local hasPlanner, planner = pcall(function() return casterToken.PlanCharge end)
+    if not hasPlanner or planner == nil then
+        return nil
+    end
+
+    local distance = self:GetRange(casterToken.properties, symbols) / dmhub.unitsPerSquare
+    local result = {chargeDistance = distance, chargeJumpDistance = 0, chargeJumpHeight = 0}
+    if casterToken.properties:try_get("_tmp_prone", false) then
+        return result
+    end
+    for _, jumpAbility in ipairs(abilities or casterToken.properties:GetActivatedAbilities()) do
+        if jumpAbility.name == "Jump" then
+            for _, behavior in ipairs(jumpAbility.behaviors) do
+                if behavior.typeName == "ActivatedAbilityJumpBehavior" then
+                    local tier = behavior:GetGuaranteedTier(jumpAbility, casterToken)
+                    result.chargeJumpDistance = behavior:GetTierDistances(jumpAbility, casterToken, distance)[tier]
+                    result.chargeJumpHeight = behavior:GetTierHeights(jumpAbility, casterToken)[tier]
+                    return result
+                end
+            end
+        end
+    end
+    return result
+end
+
 --Consulted by the action bar (via ActivatedAbility:GetTargetingTierRadii) to
 --draw one ring per tier during targeting.
 --
@@ -150,14 +195,11 @@ function ActivatedAbilityJumpBehavior:GetTargetingTierRadii(ability, casterToken
 
     local heights = self:GetTierHeights(ability, casterToken)
 
-    --A caster who cannot roll below tier 2 (e.g. the Fury's Mighty Leaps) is
-    --guaranteed the tier 2 jump, so only two rings are DRAWN, restyled so the
-    --tier 2 ring reads as the safe one. The tier 1 ring stays in the list
-    --marked invisible: the action bar still needs it to tell the baseline
-    --auto-jump zone (no roll at all) apart from the guaranteed tier 2 zone
-    --(a roll happens, success assured), but it draws no outline and produces
-    --no shortfall marker (a tier 1 landing cannot be rolled).
-    local hideTierOne = self:RollCannotBeTierOne(ability, casterToken)
+    --Keep the baseline ring for selecting the lowest sufficient jump height.
+    --When tier 2 is guaranteed, hide tier 1's outline and shortfall marker:
+    --both tiers execute without rolling, and a rolled jump cannot land at tier 1.
+    local guaranteedTier = self:GetGuaranteedTier(ability, casterToken)
+    local hideTierOne = guaranteedTier > 1
 
     local result = {}
     for i = 1, 3 do
@@ -168,6 +210,7 @@ function ActivatedAbilityJumpBehavior:GetTargetingTierRadii(ability, casterToken
             end
             local ring = {
                 tier = i,
+                guaranteed = i <= guaranteedTier,
                 tiles = dists[i],
                 height = heights[i],
                 radius = dists[i] * dmhub.unitsPerSquare,
@@ -361,7 +404,7 @@ function ActivatedAbilityJumpBehavior:RollForTier(ability, casterToken, options,
     local m_result = nil
     local m_canceled = false
 
-    local dialog = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
+    local dialog, _, displayLockId = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
     if dialog == nil or not dialog.valid then
         dialog = GameHud.instance.rollDialog
     end
@@ -451,7 +494,8 @@ function ActivatedAbilityJumpBehavior:RollForTier(ability, casterToken, options,
         coroutine.yield(0.02)
     end
 
-    CharacterPanel.UnlockDisplayAbility()
+    --Our own lock only: a no-op if a later cast has since taken the card.
+    CharacterPanel.UnlockDisplayAbility(displayLockId)
 
     if m_canceled then
         casterToken:ClearMovementArrow()
@@ -547,10 +591,10 @@ function ActivatedAbilityJumpBehavior:Cast(ability, casterToken, targets, option
     casterToken:ClearMovementArrow()
 
     local tier
-    if requiredTier == 1 then
-        --Baseline jump: automatic, no test (rules: a long jump up to your
-        --jump distance at baseline height is always successful).
-        tier = 1
+    if requiredTier ~= nil and requiredTier <= self:GetGuaranteedTier(ability, casterToken) then
+        --A roll cannot improve whether this target is reached, so use the
+        --lowest sufficient tier for its jump height and movement cost.
+        tier = requiredTier
         ability:CommitToPaying(casterToken, options)
     else
         tier = self:RollForTier(ability, casterToken, options, dists, heights, requiredTier, targetLoc)

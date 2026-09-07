@@ -1335,7 +1335,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 end
             end
 
-            if abilityClone:RequiresPromptWhenCast() then
+            if abilityClone:RequiresPromptWhenCast(options) then
                 local synth = abilityClone:SynthesizeAbilities(casterToken.properties)
                 if synth ~= nil and #synth == 1 then
                     --if exactly one synthesized ability then just auto-cast it?
@@ -1352,7 +1352,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                 end
             end
 
-            if (not aiResolvedTargeting) and (abilityClone:RequiresPromptWhenCast() or abilityClone:try_get("promptOverride") ~= nil) then
+            if (not aiResolvedTargeting) and (abilityClone:RequiresPromptWhenCast(options) or abilityClone:try_get("promptOverride") ~= nil) then
                 abilityClone.skippable = true
                 gamehud.actionBarPanel:FireEventTree("invokeAbility", casterToken, abilityClone, symbols, invokerCallback, {instantCast = true, targets = targets})
             else

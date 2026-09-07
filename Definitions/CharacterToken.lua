@@ -266,9 +266,11 @@ function CharacterToken:TryFall() end
 
 --- Move
 --- @param loc Loc The location to move to.
---- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures: nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number, freeMovement: nil|boolean}
+--- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures: nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number, freeMovement: nil|boolean, chargeDistance: nil|number, chargeJumpLanding: nil|boolean}
 --- jumpHeight (only meaningful with movementType='jump'): the jump distance in tiles; the mover clears height-limited walls up to this many tiles tall.
 --- freeMovement: this move is not the creature's move action, so it is exempt from the strict:movement remaining-budget clamp. Set it for ability-granted shifts and moves.
+--- chargeDistance: charge allowance in tiles, allowing a planned charge segment beyond the usual straight-line step cap.
+--- chargeJumpLanding: normalize a planned jump segment's landing to ground rather than retaining the altitude of terrain crossed.
 --- @return nil|LuaPath
 function CharacterToken:Move(loc, options) end
 
@@ -419,6 +421,14 @@ function CharacterToken:CalculateJumpReachable(distance, jumpHeight) end
 --- @param options nil|table
 --- @return nil|{path: LuaPath, collideWith: CharacterToken[]}
 function CharacterToken:MarkMovementArrow(targetLoc, options) end
+
+--- Plan a complete straight charge with at most one guaranteed jump, without moving.
+--- Distances are in tiles. Nil means the complete destination is unreachable.
+--- MarkMovementArrow accepts these same charge options to preview the plan.
+--- @param targetLoc Loc
+--- @param options {chargeDistance:number, chargeJumpDistance:number, chargeJumpHeight:number}
+--- @return nil|{validCharge:boolean, path:LuaPath, chargeSegments:{loc:Loc, expectedLoc:Loc, jump:boolean, jumpHeight:number}[], jumpLabelLoc:nil|Loc, jumpStart:nil|Loc, jumpEnd:nil|Loc, jumpHeight:nil|number}
+function CharacterToken:PlanCharge(targetLoc, options) end
 
 --- ClearMovementArrow
 function CharacterToken:ClearMovementArrow() end

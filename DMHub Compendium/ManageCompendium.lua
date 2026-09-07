@@ -25,7 +25,16 @@ local function ActionButtons(...)
 	return result
 end
 
-local function CreateMonsterTableView()
+--Builds the Monsters / Bestiary Folders sections. Both live in the
+--bestiary and share one row shape (name, module history, deleted status,
+--Revert / Undelete), differing only in which asset table they list and
+--which history bridge describes it.
+--  options.title       heading text
+--  options.entries     function() -> table of id -> AssetLua-like entry
+--                      (needs .hidden, :Upload(), :ObliterateGameChanges())
+--  options.history     function(id) -> module history list
+--  options.name        function(entry) -> display name
+local function CreateBestiaryTableView(options)
 	local guids = {}
 
 	local expanded = false
@@ -38,7 +47,7 @@ local function CreateMonsterTableView()
 		text = "0",
 
 		guids = function(element, guids)
-			local t = assets.monsters
+			local t = options.entries()
 			local num = 0
 			local selected = 0
 			for k,entry in pairs(t) do
@@ -80,7 +89,7 @@ local function CreateMonsterTableView()
 
 		gui.Label{
 			classes = {"headingText"},
-			text = "Monsters",
+			text = options.title,
 		},
 
 		headingCountText,
@@ -102,13 +111,13 @@ local function CreateMonsterTableView()
 
 		expose = function(element)
 			local children = {}
-			local t = assets.monsters
+			local t = options.entries()
 			local newChildPanels = {}
 			for k,entry in pairs(t) do
 				
 				local panel = childPanels[k]
 				if panel == nil and guids[k] then
-					local history = module.GetMonsterEntryChanges(k)
+					local history = options.history(k)
 
 					local GenerateHistoryDesc = function()
 						local historyDesc = ""
@@ -156,9 +165,9 @@ local function CreateMonsterTableView()
 									height = 20,
 									fontSize = 14,
 									click = function(element)
-                                        local monster = assets.monsters[k]
-                                        if monster ~= nil then
-                                            monster:ObliterateGameChanges()
+                                        local target = options.entries()[k]
+                                        if target ~= nil then
+                                            target:ObliterateGameChanges()
                                         end
 										table.remove(history, index)
 										--panel:FireEventTree("regenhistory")
@@ -188,10 +197,11 @@ local function CreateMonsterTableView()
 						}
 					end
 
+					local name = options.name(entry)
 					panel = gui.Panel{
 						classes = {"entryPanel"},
 						data = {
-							ord = string.lower(entry.name or "")
+							ord = string.lower(name or "")
 						},
 						--gui.Label{
 						--	classes = {"entryLabel", "id"},
@@ -199,7 +209,7 @@ local function CreateMonsterTableView()
 						--},
 						gui.Label{
 							classes = {"entryLabel", "name"},
-							text = entry.name or "Unknown",
+							text = name or "Unknown",
 						},
 						gui.Label{
 							classes = {"entryLabel", "history"},
@@ -247,6 +257,28 @@ local function CreateMonsterTableView()
 	}
 
 	return resultPanel
+end
+
+local function CreateMonsterTableView()
+	return CreateBestiaryTableView{
+		title = "Monsters",
+		entries = function() return assets.monsters end,
+		history = module.GetMonsterEntryChanges,
+		name = function(entry) return entry.name end,
+	}
+end
+
+--Deleting a bestiary folder only marks the folder hidden; the monsters
+--inside are untouched and simply stop being reachable from the tree. This
+--section is the only place a hidden folder shows up, so it is where the
+--user gets it (and its contents) back.
+local function CreateMonsterFolderTableView()
+	return CreateBestiaryTableView{
+		title = "Bestiary Folders",
+		entries = function() return assets.monsterFolders end,
+		history = module.GetMonsterFolderChanges,
+		name = function(entry) return entry.description end,
+	}
 end
 
 local function CreateObjectTableView(tableName)
@@ -825,6 +857,7 @@ local CreateModManager = function()
 	end
 
     nodes[#nodes+1] = CreateMonsterTableView()
+    nodes[#nodes+1] = CreateMonsterFolderTableView()
 
 	local assetNames = {}
 	local assetNamesSorted = {}

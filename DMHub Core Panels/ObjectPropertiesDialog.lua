@@ -1606,6 +1606,245 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 end
 
 
+--Area Template rectangles have no width or height: the object's own position
+--is one corner and targetPoint is a signed delta to the other. The engine
+--registers no editable field for it and SetProperty cannot convert a Lua
+--value into a Vector2, so reads and writes both go through a json round-trip.
+local AreaTemplateComponentType = "LuaObjectComponentAreaTemplate"
+local AreaTemplateComponentName = "Area Template"
+
+--resolve the owning object instance and the component's key on it.
+local AreaTemplateTarget = function(component)
+	local inst = component.objectInstance
+	if inst == nil then
+		return nil, nil
+	end
+
+	for key,c in pairs(inst.components) do
+		if c.componentType == AreaTemplateComponentType then
+			return inst, key
+		end
+	end
+
+	return nil, nil
+end
+
+--the round-trip cannot tell an empty list from an empty dict and drops the
+--key with a console warning, so clear empties before writing the doc back.
+local StripEmptyTables
+StripEmptyTables = function(doc)
+	for k,v in pairs(doc) do
+		if type(v) == "table" then
+			if next(v) == nil then
+				doc[k] = nil
+			else
+				StripEmptyTables(v)
+			end
+		end
+	end
+end
+
+--round to the nearest whole square, ties away from zero so negative deltas
+--don't drift toward zero.
+local RoundSquares = function(n)
+	if n < 0 then
+		return -math.floor(-n + 0.5)
+	end
+
+	return math.floor(n + 0.5)
+end
+
+local GetAreaTemplateDelta = function(component)
+	local inst, key = AreaTemplateTarget(component)
+	if inst == nil then
+		return nil, nil
+	end
+
+	local doc = inst:ComponentToJson(key)
+	if doc == nil or doc.targetPoint == nil then
+		return nil, nil
+	end
+
+	return doc.targetPoint.x, doc.targetPoint.y
+end
+
+local SetAreaTemplateDelta = function(component, x, y)
+	local inst, key = AreaTemplateTarget(component)
+	if inst == nil then
+		return
+	end
+
+	local doc = inst:ComponentToJson(key)
+	if doc == nil or doc.targetPoint == nil then
+		return
+	end
+
+	StripEmptyTables(doc)
+	doc.targetPoint = {
+		x = x,
+		y = y,
+	}
+	inst:AddComponentFromJson(key, doc)
+	inst:Upload()
+end
+
+--AddComponent has no factory entry for Area Template, so a new one is built
+--from json instead, seeded with a visible default rectangle.
+local AddAreaTemplateComponent = function(node)
+	node:AddComponentFromJson("template", {
+		["@class"] = "ObjectComponentAreaTemplate",
+		shape = "Rectangle",
+		targetPoint = {
+			x = 4,
+			y = -4,
+		},
+		color = {
+			r = 1,
+			g = 0.6509804,
+			b = 0,
+			a = 1,
+		},
+		coneAngle = 0,
+		lineWidth = 0,
+		label = "",
+		labelPosition = 1,
+		hidden = false,
+		disabled = false,
+		_floorIndex = node.floorIndex or 0,
+	})
+end
+
+--Area Template is absent from assets.objectComponentOptions, so it is spliced
+--into the Display group here, leaving the caller's availability filter to run.
+local WithAreaTemplateOption = function(availableOptions)
+	local result = {}
+	for i,optionInfo in ipairs(availableOptions) do
+		if optionInfo.submenu ~= nil and optionInfo.text == "Display" then
+			local submenu = {}
+			for j,subOptionInfo in ipairs(optionInfo.submenu) do
+				submenu[#submenu+1] = subOptionInfo
+			end
+
+			submenu[#submenu+1] = {
+				id = AreaTemplateComponentName,
+				text = AreaTemplateComponentName,
+			}
+
+			table.sort(submenu, function(a,b)
+				return a.text < b.text
+			end)
+
+			result[#result+1] = {
+				text = optionInfo.text,
+				submenu = submenu,
+			}
+		else
+			result[#result+1] = optionInfo
+		end
+	end
+
+	return result
+end
+
+--one width or height row: -/+ buttons around an editable box. The value is
+--rounded for display only; the other axis is left exactly as it was, so
+--editing one never silently snaps the other.
+local CreateAreaTemplateSizeRow = function(components, axis, prettyName)
+	local input
+
+	local GetValue = function()
+		local x, y = GetAreaTemplateDelta(components[1])
+		if x == nil then
+			return 0
+		end
+
+		return RoundSquares(cond(axis == "x", x, y))
+	end
+
+	local SetValue = function(value)
+		for _,component in ipairs(components) do
+			local x, y = GetAreaTemplateDelta(component)
+			if x ~= nil then
+				if axis == "x" then
+					SetAreaTemplateDelta(component, value, y)
+				else
+					SetAreaTemplateDelta(component, x, value)
+				end
+			end
+		end
+	end
+
+	local Step = function(delta)
+		SetValue(GetValue() + delta)
+		input.text = tostring(GetValue())
+	end
+
+	input = gui.Input{
+		text = tostring(GetValue()),
+		halign = "left",
+		valign = "center",
+		hmargin = 4,
+		height = 20,
+		width = 60,
+		fontSize = 14,
+		events = {
+			change = function(element)
+				local num = tonumber(element.text)
+				if num ~= nil then
+					SetValue(RoundSquares(num))
+				end
+
+				element.text = tostring(GetValue())
+			end,
+		},
+	}
+
+	return gui.Panel{
+		bgimage = true,
+		classes = {"field-editor-panel"},
+		flow = "vertical",
+		height = "auto",
+		refreshObjects = function(element)
+			input.text = tostring(GetValue())
+		end,
+
+		gui.Label{
+			text = prettyName,
+			classes = {"field-description-label"},
+			selfStyle = {
+				bmargin = 4,
+			},
+		},
+
+		gui.Panel{
+			flow = "horizontal",
+			width = "auto",
+			height = "auto",
+			halign = "left",
+
+			gui.Button{
+				classes = {"sizeXxs"},
+				text = "-",
+				valign = "center",
+				press = function(element)
+					Step(-1)
+				end,
+			},
+
+			input,
+
+			gui.Button{
+				classes = {"sizeXxs"},
+				text = "+",
+				valign = "center",
+				press = function(element)
+					Step(1)
+				end,
+			},
+		},
+	}
+end
+
 local CreateFieldEditor = function(fieldInfo, options)
 
 	local displayInfo = fieldInfo.component:GetFieldDisplayInfo(fieldInfo.object, fieldInfo.id)
@@ -2446,7 +2685,7 @@ local CreateObjectEditor = function(nodes, options)
 					events = {
 						create = function(element)
 							local options = {}
-							local availableOptions = assets.objectComponentOptions
+							local availableOptions = WithAreaTemplateOption(assets.objectComponentOptions)
 							for i,optionInfo in ipairs(availableOptions) do
 								if optionInfo.submenu ~= nil then
 									local submenuOptions = {}
@@ -2483,7 +2722,12 @@ local CreateObjectEditor = function(nodes, options)
 								end
 
 								if hasComponent == false or multiComponents[element.optionChosen] then
-									node:AddComponent(componentName)
+									if componentName == AreaTemplateComponentName then
+										AddAreaTemplateComponent(node)
+									else
+										node:AddComponent(componentName)
+									end
+
 									if options.objectInstances then
 										node:Upload(groupid)
 									end
@@ -2700,6 +2944,25 @@ local CreateObjectEditor = function(nodes, options)
 						end
 						ungroupedChildren[#ungroupedChildren+1] = editor
 					end
+				end
+
+				--Area Template exposes no size field of its own, so its two
+				--rectangle controls are added above the engine's Appearance fields.
+				local areaTemplateComponents = {}
+				for _,entry in ipairs(componentInfo.componentsAndPreviews) do
+					local component = entry.component
+					if component ~= nil and component.componentType == AreaTemplateComponentType then
+						local x = GetAreaTemplateDelta(component)
+						if x ~= nil then
+							areaTemplateComponents[#areaTemplateComponents+1] = component
+						end
+					end
+				end
+
+				if #areaTemplateComponents > 0 and groupedPanelsChildren["Appearance"] ~= nil then
+					local appearanceChildren = groupedPanelsChildren["Appearance"]
+					table.insert(appearanceChildren, 1, CreateAreaTemplateSizeRow(areaTemplateComponents, "x", "Width"))
+					table.insert(appearanceChildren, 2, CreateAreaTemplateSizeRow(areaTemplateComponents, "y", "Height"))
 				end
 
 				--assign the children to the grouped panels.

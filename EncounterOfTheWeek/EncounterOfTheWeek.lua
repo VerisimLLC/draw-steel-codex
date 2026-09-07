@@ -1237,6 +1237,27 @@ local AWARD_HOLD_TICKS = 2
 local m_outcomeMetTime = nil
 local OUTCOME_LINGER_SECONDS = 5
 
+--Heroes in the initiative queue that are not dead. Dying heroes count as
+--living (see the defeat check below); a hero with no token on the map is
+--ignored, like CountLiveCombatants does.
+local function CountLivingHeroes(queue)
+    local count = 0
+    local seen = {}
+    for initiativeid, _ in pairs(queue.entries) do
+        local tokens = InitiativeQueue.GetTokensForInitiativeId(initiativeid)
+        for _, token in ipairs(tokens or {}) do
+            if token ~= nil and not seen[token.charid] then
+                seen[token.charid] = true
+                local props = token.properties
+                if props ~= nil and props:IsHero() and not props:IsDead() then
+                    count = count + 1
+                end
+            end
+        end
+    end
+    return count
+end
+
 --Host only, every tick while combat is live: award victory/defeat once the
 --encounter's conditions are met (the existing evaluators the Director's
 --objective strip uses) AND no client has an ability prompting -- the
@@ -1277,17 +1298,16 @@ local function CheckEncounterOutcome(queue)
 
     local defeat = false
     if not victory then
-        --defeat = a script-declared defeat condition, or every hero down
-        --(CountLiveCombatants counts hitpoints > 0, so dying heroes count as
-        --down -- an all-dying party is a defeat in a one-shot).
+        --defeat = a script-declared defeat condition, or every hero DEAD.
+        --Deliberately not CountLiveCombatants: that counts hitpoints > 0,
+        --so a DYING hero (0 or less, above the death threshold) reads as
+        --down there -- but a dying hero still takes turns in Draw Steel
+        --and can win the fight, so only actual deaths count here.
         pcall(function()
             if live:CheckDefeat() == true then
                 defeat = true
-            else
-                local heroes, _ = live:CountLiveCombatants()
-                if heroes <= 0 then
-                    defeat = true
-                end
+            elseif CountLivingHeroes(queue) <= 0 then
+                defeat = true
             end
         end)
     end
@@ -1341,29 +1361,43 @@ local function CheckEncounterOutcome(queue)
     end
 end
 
---EotW games strictly enforce all game rules: every "Strict..." Rules
---Enforcement option, plus the engine's "Strictly Enforce Movement Rules".
---All of these gate on (not dmhub.isDM) -- which, under player-host mode,
---reads false on the HOST too, so the rules bind every human in the game.
---The Monster AI is unaffected: its capability paths read IsDMOrPlayerHost.
+--Game-scoped settings every EotW game forces to a fixed value.
+--
+--Strict rules: every "Strict..." Rules Enforcement option, plus the
+--engine's "Strictly Enforce Movement Rules". All of these gate on
+--(not dmhub.isDM) -- which, under player-host mode, reads false on the
+--HOST too, so the rules bind every human in the game. The Monster AI is
+--unaffected: its capability paths read IsDMOrPlayerHost.
+--
+--Monster stamina: players always see every monster's stamina. The
+--"lifebar" status bar reaches a player through its showToEnemies rung
+--(TokenUI.lua ShouldShowElement), which enemystambardisplay turns off at
+--its "none" default; "val" shows the bar with the current/max value, and
+--the minion squad HUD (MCDMMinion.lua) reads the same setting. Bars are
+--shown outside combat too (hpbarsonlyincombat off) so the monsters'
+--stamina is visible from the moment the heroes arrive, not only once the
+--map script opens initiative.
+--
 --Game-scoped settings are only editable from the dmonly Game settings tab,
---so nobody in a player-host game can flip them off; the host tick
---re-asserts them regardless.
-local g_strictRuleSettings = {
-    "strictmovementrules", --Strictly Enforce Movement Rules (engine)
-    "strict:movement",     --Strictly Enforce Forced Movement Rules
-    "strict:targeting",    --Strictly Enforce Targeting Rules
-    "strict:resources",    --Strictly Enforce Action Economy and Resource Costs
-    "strict:inventory",    --Strict Inventory Management
-    "strict:rolls",        --Strictly Enforce Rolls
+--so nobody in a player-host game can flip them; the host tick re-asserts
+--them regardless.
+local g_forcedGameSettings = {
+    { id = "strictmovementrules", value = true },  --Strictly Enforce Movement Rules (engine)
+    { id = "strict:movement", value = true },      --Strictly Enforce Forced Movement Rules
+    { id = "strict:targeting", value = true },     --Strictly Enforce Targeting Rules
+    { id = "strict:resources", value = true },     --Strictly Enforce Action Economy and Resource Costs
+    { id = "strict:inventory", value = true },     --Strict Inventory Management
+    { id = "strict:rolls", value = true },         --Strictly Enforce Rolls
+    { id = "enemystambardisplay", value = "val" }, --enemy stamina bars: bar & stamina value
+    { id = "hpbarsonlyincombat", value = false },  --stamina bars shown outside combat too
 }
 
---Force every strict-rules setting on, writing only the ones not already
---true (these are game-scoped settings, so each write replicates).
+--Force every forced game setting to its value, writing only the ones not
+--already there (these are game-scoped settings, so each write replicates).
 local function EnforceStrictRules()
-    for _,id in ipairs(g_strictRuleSettings) do
-        if dmhub.GetSettingValue(id) ~= true then
-            dmhub.SetSettingValue(id, true)
+    for _,entry in ipairs(g_forcedGameSettings) do
+        if dmhub.GetSettingValue(entry.id) ~= entry.value then
+            dmhub.SetSettingValue(entry.id, entry.value)
         end
     end
 end
@@ -1382,8 +1416,9 @@ function EncounterOfTheWeekGame.MapScriptHostThink(ctx)
         return
     end
 
-    --keep the strict-rules settings forced on for the life of the game
-    --(no-op writes are skipped, so this is free when nothing changed).
+    --keep the forced game settings (strict rules, monster stamina
+    --visibility) asserted for the life of the game (no-op writes are
+    --skipped, so this is free when nothing changed).
     EnforceStrictRules()
 
     local queue = dmhub.initiativeQueue
@@ -1519,7 +1554,8 @@ function EncounterOfTheWeekGame.SetupOnArrival(args)
             --initiative (select turns, advance rounds) for their side.
             dmhub.SetSettingValue("permission:playersinitiative", true)
 
-            --EotW games always strictly enforce the game rules.
+            --EotW games always strictly enforce the game rules, and
+            --players always see the monsters' stamina.
             EnforceStrictRules()
 
             --the map script takes it from here: combat entry once everyone

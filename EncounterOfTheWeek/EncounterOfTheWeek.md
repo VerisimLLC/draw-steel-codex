@@ -2157,8 +2157,10 @@ defect. Raised for a decision; see Open Questions.
 
 User direction (2026-08-28): EotW games strictly enforce all game rules -- the
 settings screen's "Rules Enforcement" options that start with "Strict"/"Strictly"
-are force-enabled. The forced set (`g_strictRuleSettings` in
-`EncounterOfTheWeek/EncounterOfTheWeek.lua`):
+are force-enabled. The forced set (the `true` entries of
+`g_forcedGameSettings` in `EncounterOfTheWeek/EncounterOfTheWeek.lua`; the
+same table also carries the monster-stamina visibility settings, see
+"Players always see monster stamina" below):
 
 - `strict:movement` (Strictly Enforce Forced Movement Rules)
 - `strict:targeting` (Strictly Enforce Targeting Rules)
@@ -2175,11 +2177,47 @@ to Players") -- it shares the GameStrictRules section but is a Director
 visibility tool, not a strictness rule, and does not match the "Strict..."
 naming criterion.
 
-Mechanism: `EnforceStrictRules()` writes any of the six game-scoped settings
-that is not already `true`. Called from the host's `SetupOnArrival` block
-(next to the `permission:playersinitiative` write) and re-asserted at the top
-of every `MapScriptHostThink` tick (check-before-write, so steady-state ticks
-write nothing).
+Mechanism: `EnforceStrictRules()` walks `g_forcedGameSettings` (a list of
+`{ id, value }` entries) and writes any game-scoped setting whose current
+value differs from its forced value. Called from the host's `SetupOnArrival`
+block (next to the `permission:playersinitiative` write) and re-asserted at
+the top of every `MapScriptHostThink` tick (check-before-write, so
+steady-state ticks write nothing).
+
+#### Players always see monster stamina (DECIDED + BUILT 2026-09-07; UNTESTED)
+
+User direction (2026-09-07): in an EotW game the players can always see the
+monsters' stamina. This closes the decision left open under "Player host sees
+every monster's stamina bar; joiners see none" in Open Questions: with
+`canControl` now elevation-aware the host presents as a player, so the only
+thing standing between EVERY human and a monster's stamina was the
+Director-only game setting `enemystambardisplay`, whose `"none"` default turns
+off the `showToEnemies` rung of the `lifebar` status bar (`TokenUI.lua`
+`ShouldShowElement`; the Draw Steel bar is registered in
+`Draw Steel UI/DrawSteelTokenHud.lua` and the minion squad HUD in
+`MCDMMinion.lua` reads the same setting).
+
+Two more entries in `g_forcedGameSettings`, written by the host through the
+same `EnforceStrictRules()` path (setup on arrival, then re-asserted every
+host tick):
+
+- `enemystambardisplay = "val"` -- bar plus the current/max stamina value.
+  `"val"` rather than `"bar"`/`"pct"` because "see the monster's stamina"
+  means the number, not a proportion; the value is what a Director sees.
+- `hpbarsonlyincombat = false` -- the bars are shown outside combat too, so
+  stamina is visible from the moment the heroes arrive in the start zone
+  rather than only after the map script opens initiative. Interpretation of
+  "always"; flip this entry back to `true` if the pre-combat bars are
+  unwanted.
+
+Both are game-scoped, so each write replicates to every client, and neither
+is editable by anyone in a player-host game (dmonly Game settings tab).
+Nothing else changed: the bar's own `Calculate` already returns the raw
+value for `dmhub.isDM == false` clients once the setting is non-`"none"`.
+
+Verify live (two clients): every monster on the map shows a stamina bar with
+its value to both the host and a joiner, before combat starts and during it;
+a minion squad shows its shared squad stamina.
 
 #### "Strictly Enforce Rolls" (strict:rolls) -- NEW 2026-08-29
 
@@ -2276,11 +2314,14 @@ Codex titlescreen.
   `live:GetAwardedOutcome()` is nil, evaluate victory =
   `live:CheckVictory()` (the existing evaluator: all seven authored conditions
   plus encounter-script overrides, pending reinforcements included) and defeat
-  = `live:CheckDefeat()` (script-declared) OR all heroes down via
-  `live:CountLiveCombatants()` returning `heroes == 0`. Note
-  `CountLiveCombatants` counts `CurrentHitpoints() > 0`, so DYING heroes
-  (hp <= 0 but above the death threshold) count as down -- an all-dying party
-  is a defeat, which is the intended one-shot semantics. Award = set
+  = `live:CheckDefeat()` (script-declared) OR every hero DEAD, via the
+  EotW-local `CountLivingHeroes(queue)` (heroes in the queue with
+  `not props:IsDead()`). **Dying heroes count as living (DECIDED
+  2026-09-07)**: the original build used `live:CountLiveCombatants()`,
+  which counts `CurrentHitpoints() > 0`, so an all-dying party read as a
+  defeat -- wrong for Draw Steel, where a dying hero still takes turns and
+  can win. `CountLiveCombatants` itself is untouched (the core victory
+  conditions use it). Award = set
   `live.victoryAwarded`/`defeatAwarded` + `dmhub:UploadInitiativeQueue()` --
   exactly what the initiative bar's Award Victory button does. The existing
   `DSVictoryScreen` (mounted on every client, monitoring `/initiativeQueue`)
@@ -3169,9 +3210,13 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
   has been running under since 2026-08-29. Stub updated in
   `Definitions/CharacterToken.lua`; `TokenControlledByUser` in `Utils.lua`
   kept for the old-engine fallback and the inside-elevation distinction.
-  Remaining decision: what EotW PLAYERS should see of monster stamina
+  ~~Remaining decision: what EotW PLAYERS should see of monster stamina
   (`enemystambardisplay`, default `"none"`, Director-only game setting --
-  the host's setup would have to write it when it stamps the eotw marker).
+  the host's setup would have to write it when it stamps the eotw marker).~~
+  DECIDED + BUILT 2026-09-07 (UNTESTED): players always see the monsters'
+  stamina -- the host forces `enemystambardisplay = "val"` and
+  `hpbarsonlyincombat = false` via `g_forcedGameSettings`; see "Players
+  always see monster stamina" under "Strict rules enforcement".
   Verify after the build: `/testai` in an EotW game, an AI summon into an
   occupied space, and a monster attack animation seen from a second client.
 - **Kick UX**: engine `KickPlayer` does not notify/disconnect the kicked client. Acceptable for v1, or add a watched-document notification?
@@ -3331,6 +3376,30 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
     (likely the R2 migration); the upload endpoint returned 200 for both blobs.
   - UNTESTED: a game actually installing v7, and the Hero Death rule firing on a
     real hero kill.
+
+- 2026-09-07: **Defeat screen with heroes still standing, then an unrequested exit to the titlescreen. DIAGNOSED from the host log (game `VengefulMountainousDuskSniper`, 2 clients: host `4V4KWXdW7ScFIiEyuknO4bqmQSc2` + player `ZaRxAuEiu6gAkLygFuGMys8ZvAy1`, 3 heroes). Not a code fault; OPEN DESIGN QUESTION.**
+  - The exit (not changed): the log shows `the heroes are defeated; showing the defeat
+    screen`, then a `proceedRequested` patch RECEIVED from the server (no
+    local `DO>> PatchData` send precedes it, and the host never writes that
+    key -- the host's own Proceed runs the teardown directly), then `a
+    player pressed Proceed; ending the encounter` and the normal relay ->
+    auto-exit -> cleanup chain. So the OTHER client pressed Proceed, which
+    is exactly the documented player-Proceed relay: any player's Proceed
+    dismisses the screen and exits everyone. Working as designed; whether
+    one player should be able to end it for everyone is a design question
+    (options: require the host, require every present player, or a
+    countdown).
+  - The "defeat with heroes alive": the game's DO was already wiped by the
+    finished-game cleanup, so the final hero stamina could not be read. The
+    only defeat paths are a script-declared defeat (none is authored for
+    this encounter) and `CountLiveCombatants` returning `heroes == 0`,
+    which counts `CurrentHitpoints() > 0` -- so every hero at 0 or fewer
+    Stamina (DYING, not dead) read as down. User confirmed this was the
+    problem. FIXED same day: `EncounterOfTheWeek.lua` now uses its own
+    `CountLivingHeroes(queue)` (`not props:IsDead()`) for the all-heroes
+    defeat; design updated above. Syntax-checked, deployed; UNTESTED live.
+    The Proceed policy question (one player ends it for everyone) is still
+    open.
 
 - 2026-09-06: **Live game stuck after the last monster died -- no victory screen. DIAGNOSED + FIXED (self-healing on both layers); Core Rules half VERIFIED live, EotW half UNTESTED.**
   - Symptom: `live:CheckVictory()` read true, nothing awarded, every client

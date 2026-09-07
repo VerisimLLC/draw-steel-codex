@@ -183,33 +183,139 @@ function ActivatedAbilityRelocateCreatureBehavior:BehaviorMovementType(symbols)
     return self.movementType
 end
 
---Revalidate before moving, then let each native segment finish before starting
---the next. A stopped charge must not proceed to its attack behavior.
+--After a shortfall, only offer the ordinary charge selector when an affordable
+--charge attack can legally reach a creature from the actual landing square.
+function ActivatedAbilityRelocateCreatureBehavior:HasChargeAttackTarget(casterToken)
+    local attackSelector = dmhub.GetTable("standardAbilities")["923bf32c-4233-4fec-8895-7ce18da28744"]
+    if attackSelector == nil then
+        return false
+    end
+    local props = casterToken.properties
+    for _, attack in ipairs(attackSelector:SynthesizeAbilities(props) or {}) do
+        if attack:try_get("suppressExplanation") == nil
+            and attack:AbilityFilterFailureMessage(props) == nil and attack:GetCost(casterToken).canAfford then
+            local symbols = {caster = props}
+            local range = attack:GetRange(props, symbols) + dmhub.unitsPerSquare
+            for _, target in ipairs(dmhub.allTokens) do
+                local hiddenFromStrike = false
+                if target.valid and attack:HasKeyword("Strike") and target.properties:HasNamedCondition("Hidden") then
+                    local ignoreRange = props:CalculateNamedCustomAttribute("Ignore Hidden Within Range") or 0
+                    hiddenFromStrike = ignoreRange <= 0 or casterToken:Distance(target) > ignoreRange
+                end
+                if target.valid and attack:TargetPassesFilter(casterToken, target, symbols)
+                    and not hiddenFromStrike
+                    and casterToken:Distance(target) < range
+                    and math.abs(casterToken.altitude - target.altitude) * dmhub.unitsPerSquare < range
+                    and casterToken:GetLineOfSight(target, props:GetPierceWalls()) > 0 then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+--Keep the chosen takeoff and landing fixed when a charge needs a jump test.
+--Only the rolled jump segment can fall short; the rest of that route is discarded.
 function ActivatedAbilityRelocateCreatureBehavior:ExecuteGuaranteedCharge(casterToken, targetLoc, chargeOptions, options, ability)
-    local ok, plan = pcall(function() return casterToken:PlanCharge(targetLoc, chargeOptions) end)
-    if not ok or plan == nil or plan.validCharge ~= true then
+    local function abortCharge()
         options.abort = true
         options.stopProcessing = true
+    end
+    local ok, plan = pcall(function() return casterToken:PlanCharge(targetLoc, chargeOptions) end)
+    if not ok or plan == nil or plan.validCharge ~= true then
+        abortCharge()
         return
     end
 
     casterToken:ClearMovementArrow()
     local moved = 0
     for _, segment in ipairs(plan.chargeSegments) do
+        if not casterToken.valid or casterToken.properties:IsDead() then
+            abortCharge()
+            return
+        end
         --Movement reactions can change speed or knock the charger prone at
         --takeoff. Check the remaining allowance before starting each segment.
+        local current = chargeOptions
         if ability ~= nil then
-            local current = ability:GetChargeJumpOptions(casterToken, options.symbols)
+            current = ability:GetChargeJumpOptions(casterToken, options.symbols)
             local segmentDistance = casterToken.loc:DistanceInTiles(segment.expectedLoc)
             if current == nil or current.chargeDistance - moved < segmentDistance
-                or (segment.jump and (current.chargeJumpDistance < segmentDistance
+                or (segment.jump and not plan.requiresRoll and (current.chargeJumpDistance < segmentDistance
                     or current.chargeJumpHeight < segment.jumpHeight)) then
-                options.abort = true
-                options.stopProcessing = true
+                abortCharge()
                 return
             end
         end
-        local path = casterToken:Move(segment.loc, {
+
+        if segment.jump and plan.requiresRoll and current.jumpBehavior == nil then
+            abortCharge()
+            return
+        end
+
+        --Once the approach starts, canceling at takeoff cannot refund Charge.
+        --The Jump test below uses its own modifiers but never pays for Jump.
+        if ability ~= nil and not options.pay then
+            ability:CommitToPaying(casterToken, options)
+        end
+
+        local outcome = nil
+        if segment.jump and plan.requiresRoll then
+            local takeoffLoc = casterToken.loc
+            if current.jumpBehavior == nil or current.chargeJumpTierDistances == nil then
+                abortCharge()
+                return
+            end
+            local distances = current.jumpBehavior:GetTierDistances(current.jumpAbility, casterToken,
+                math.max(0, current.chargeDistance - moved))
+            local heights = current.jumpBehavior:GetTierHeights(current.jumpAbility, casterToken)
+            local tier = plan.requiredTier
+            if tier > current.chargeJumpGuaranteedTier then
+                tier = current.jumpBehavior:RollForTier(current.jumpAbility, casterToken, options,
+                    distances, heights, plan.requiredTier, segment.expectedLoc, {
+                        commitPayment = false,
+                        markPreview = function(previewTier)
+                            casterToken:MarkMovementArrow(segment.expectedLoc, {
+                                jump = true, chargeJumpOutcome = true,
+                                chargeJumpDistance = distances[previewTier], jumpHeight = heights[previewTier],
+                            })
+                        end,
+                    })
+                if tier == nil then
+                    abortCharge()
+                    return
+                end
+            end
+
+            --A reaction while the dice dialog was open can remove the ability
+            --to jump or change the remaining distance. Use the current limits.
+            if not casterToken.valid or casterToken.loc.str ~= takeoffLoc.str then
+                abortCharge()
+                return
+            end
+            current = ability:GetChargeJumpOptions(casterToken, options.symbols)
+            if current == nil or current.jumpBehavior == nil
+                or current.chargeDistance - moved <= 0 then
+                abortCharge()
+                return
+            end
+            distances = current.jumpBehavior:GetTierDistances(current.jumpAbility, casterToken,
+                math.max(0, current.chargeDistance - moved))
+            heights = current.jumpBehavior:GetTierHeights(current.jumpAbility, casterToken)
+            local outcomeOk
+            outcomeOk, outcome = pcall(function()
+                return casterToken:PlanChargeJumpOutcome(casterToken.loc, segment.expectedLoc,
+                    distances[tier], heights[tier])
+            end)
+            if not outcomeOk or outcome == nil then
+                abortCharge()
+                return
+            end
+            casterToken:ClearMovementArrow()
+        end
+
+        local moveOptions = {
             straightline = true,
             moveThroughFriends = false,
             ignorecreatures = segment.jump,
@@ -220,7 +326,14 @@ function ActivatedAbilityRelocateCreatureBehavior:ExecuteGuaranteedCharge(caster
             chargeDistance = chargeOptions.chargeDistance,
             chargeJumpLanding = segment.jump,
             freeMovement = true,
-        })
+        }
+        if outcome ~= nil then
+            moveOptions.chargeJumpLanding = false
+            moveOptions.chargeJumpOutcome = true
+            moveOptions.chargeJumpDistance = outcome.jumpDistance
+            moveOptions.jumpHeight = outcome.jumpHeight
+        end
+        local path = casterToken:Move(outcome and outcome.loc or segment.loc, moveOptions)
         if path ~= nil then
             moved = moved + path.numSteps
             options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps
@@ -228,10 +341,19 @@ function ActivatedAbilityRelocateCreatureBehavior:ExecuteGuaranteedCharge(caster
         while casterToken.valid and casterToken.isMoving do
             coroutine.yield(0.05)
         end
-        if path == nil or not casterToken.valid
-            or casterToken.loc.str ~= segment.expectedLoc.str then
-            options.abort = true
-            options.stopProcessing = true
+        local expectedLoc = outcome and outcome.expectedLoc or segment.expectedLoc
+        if path == nil or not casterToken.valid or casterToken.properties:IsDead()
+            or casterToken.loc.str ~= expectedLoc.str then
+            abortCharge()
+            return
+        end
+        if outcome ~= nil and not outcome.reachesJumpEnd then
+            --The normal charge attack selector now uses the actual landing.
+            --Prone can still strike with its normal bane; attack availability
+            --and target legality determine whether the selector is useful.
+            if casterToken.properties:IsDead() or not self:HasChargeAttackTarget(casterToken) then
+                abortCharge()
+            end
             return
         end
     end
@@ -952,7 +1074,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
         self:ExpendMovementIfNeeded(casterToken)
 
-        ability:CommitToPaying(casterToken, options)
+        if chargeOptions == nil or (not options.pay and not options.abort) then
+            ability:CommitToPaying(casterToken, options)
+        end
     end
 
     casterToken.properties._tmp_freeMovement = false

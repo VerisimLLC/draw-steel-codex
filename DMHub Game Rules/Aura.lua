@@ -37,6 +37,14 @@ Aura.TriggerConditions = {
         text = "When entering the aura",
     },
     {
+        id = "onfirstenterround",
+        text = "First entry each round (not turn start)",
+    },
+    {
+        id = "targetstartturnaura",
+        text = "Start of Affected Creature's Turn",
+    },
+    {
         id = "casterstartturnaura",
         text = "Start of Caster's Turn",
     },
@@ -2780,6 +2788,57 @@ function CreateAuraTooltip(auraInstance)
     }
 end
 
+
+--Tooltip for the in-world name label the engine draws on an aura's outline.
+--The engine polls this when the mouse hovers the label (see
+--AreaTemplateLabelRenderer.UpdateHoverTooltip); token is the emitting token
+--for token-attached auras and nil for object-emitted ones (e.g. a Swamp Gas
+--cloud). Mirrors the AurasEmitting chip tooltip in MCDMCharacterPanel.
+--- @param auraInstance AuraInstance
+--- @param token CharacterToken|nil
+--- @return string|nil
+dmhub.GetAuraLabelTooltip = function(auraInstance, token)
+    if auraInstance == nil then
+        return nil
+    end
+
+    local aura = rawget(auraInstance, "aura")
+    local name = auraInstance:try_get("name")
+    if (name == nil or name == "") and aura ~= nil then
+        name = aura:try_get("name")
+    end
+    if name == nil or name == "" then
+        name = "Aura"
+    end
+
+    local description = nil
+    if aura ~= nil and aura.GetDescription ~= nil then
+        local ok, result = pcall(function() return aura:GetDescription() end)
+        if ok and type(result) == "string" and result ~= "" then
+            description = result
+        end
+    end
+
+    --Who is emitting it: the emitting token when we have one, else the
+    --recorded caster.
+    local sourceToken = token
+    if sourceToken == nil then
+        local casterid = rawget(auraInstance, "casterid")
+        if casterid ~= nil then
+            sourceToken = dmhub.GetTokenById(casterid)
+        end
+    end
+
+    local lines = { string.format("<b>%s</b>", name) }
+    if sourceToken ~= nil then
+        lines[#lines+1] = string.format("Emitted by %s", creature.GetTokenDescription(sourceToken))
+    end
+    if description ~= nil then
+        lines[#lines+1] = description
+    end
+
+    return table.concat(lines, "\n")
+end
 
 dmhub.CreateAuraComponent = function()
     return AuraComponent.new{

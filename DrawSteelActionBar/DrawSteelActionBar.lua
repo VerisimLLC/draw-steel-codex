@@ -8987,37 +8987,6 @@ local g_tokenSelectionContainer
 local g_castModesPanel
 local g_forcedMovementTypePanel
 
---Show or hide the Confirm button for the ability being cast. On the hidden -> visible
---edge it stamps the ability name on the label, pops the button once so the eye is
---drawn to it, and arms the delayed nudge pulse (see the button's think).
-local function SetCastButtonVisible(visible)
-    if g_castButton == nil then return end
-    local wasVisible = not g_castButton:HasClass("collapsed")
-    g_castButton:SetClass("collapsed", not visible)
-
-    if not visible then
-        g_castButton.data.revealTime = nil
-        g_castButton:SetClass("pulse", false)
-        return
-    end
-
-    local abilityName = nil
-    if g_currentAbility ~= nil then
-        abilityName = g_currentAbility.name
-    end
-    if abilityName ~= nil and abilityName ~= "" then
-        g_castButton.text = string.format("Confirm %s", abilityName)
-    else
-        g_castButton.text = "Confirm"
-    end
-
-    if not wasVisible then
-        g_castButton.data.revealTime = dmhub.Time()
-        g_castButton.data.nudgeDismissed = false
-        g_castButton:PulseClass("reveal")
-    end
-end
-
 --- Panel that hosts all registered DrawSteelActionBar cast controls (e.g. Acolyte's Invoke toggle).
 --- @type nil|Panel
 local g_castControlsPanel = nil
@@ -9903,9 +9872,59 @@ CreateAbilityController = function()
             revealTime = nil,
             --Set once the player hovers the button, which silences the nudge pulse.
             nudgeDismissed = false,
+            --Seconds the button sits untouched before the nudge pulse starts, and the
+            --length of one full grow+shrink cycle once it does.
+            nudgeDelay = 1.5,
+            pulsePeriod = 1.4,
         },
 
-        styles = {
+        --Show or hide the button for the ability being cast. On the hidden -> visible
+        --edge it stamps the ability name on the label, pops the button once so the eye
+        --is drawn to it, and arms the delayed nudge pulse (see think below).
+        setVisible = function(element, visible)
+            local wasVisible = not element:HasClass("collapsed")
+            element:SetClass("collapsed", not visible)
+            --The fixed-size wrapper around the button hides with it so it does
+            --not leave an empty box in the cast panel.
+            if element.parent ~= nil then
+                element.parent:SetClass("collapsed", not visible)
+            end
+
+            if not visible then
+                element.data.revealTime = nil
+                element:SetClass("pulse", false)
+                return
+            end
+
+            local abilityName = nil
+            if g_currentAbility ~= nil then
+                abilityName = g_currentAbility.name
+            end
+            --This runs on every targeting refresh; only assign when the label changes
+            --so we do not force a text relayout mid-pulse.
+            local text = "Confirm"
+            if abilityName ~= nil and abilityName ~= "" then
+                text = string.format("Confirm %s", abilityName)
+            end
+            if element.text ~= text then
+                element.text = text
+            end
+
+            if not wasVisible then
+                element.data.revealTime = dmhub.Time()
+                element.data.nudgeDismissed = false
+                element:PulseClass("reveal")
+            end
+        end,
+
+        --Long ability names shrink via minFontSize rather than growing past the
+        --fixed-size wrapper this button sits in (see the cast panel layout).
+        maxWidth = 240,
+
+        --uiscale changes the button's LAYOUT size, not just its rendering, so any
+        --scale animation here must happen inside a fixed-size wrapper or the row
+        --re-centres every frame and the button appears to shake sideways.
+        styles = ThemeEngine.MergeTokens{
             {
                 --One-shot pop when the button appears, applied via PulseClass.
                 selectors = {"reveal"},
@@ -9914,26 +9933,49 @@ CreateAbilityController = function()
                 easing = "easeinOutSine",
             },
             {
-                --Slow breathing nudge for a player who has left the button sitting.
-                selectors = {"pulse"},
-                uiscale = 1.06,
-                transitionTime = 0.7,
+                --Slow breathing nudge for a player who has left the button sitting:
+                --a little larger and a shade brighter. transitionTime must equal
+                --half of data.pulsePeriod so each grow and shrink leg finishes
+                --exactly when the class flips.
+                --Repeats the primary selectors and out-prioritises the primary
+                --rule (priority 5), or its colours silently win over ours.
+                selectors = {"button", "primary", "pulse"},
+                priority = 10,
+                uiscale = 1.08,
+                bgcolor = "@accentHover",
+                borderColor = "@fgStrong",
+                --Lift across every colour scheme, since some schemes' accent
+                --and accentHover are only a shade apart.
+                brightness = 1.3,
+                transitionTime = 0.7, --data.pulsePeriod / 2
                 easing = "easeinOutSine",
             },
         },
 
         --think only runs while the button is visible (collapsed panels don't think).
-        --After a grace period with no interaction, toggle the pulse class every tick.
-        thinkTime = 0.7,
+        --The pulse is driven by wall-clock phase rather than by counting ticks: think
+        --timers jitter, and toggling on every tick cut the previous transition short
+        --and made the button jerk. Ticking often and deriving the class from
+        --dmhub.Time() keeps each leg the full length regardless of tick timing.
+        thinkTime = 0.1,
         think = function(element)
             local revealTime = element.data.revealTime
-            if revealTime == nil or element.data.nudgeDismissed or element:HasClass("hover")
-                or dmhub.Time() - revealTime < 4 then
-                element:SetClass("pulse", false)
-                return
+            local elapsed = nil
+            if revealTime ~= nil then
+                elapsed = dmhub.Time() - revealTime - element.data.nudgeDelay
             end
 
-            element:SetClass("pulse", not element:HasClass("pulse"))
+            local pulse = false
+            if elapsed ~= nil and elapsed >= 0 and not element.data.nudgeDismissed
+                and not element:HasClass("hover") then
+                --First half of each period grows, second half shrinks.
+                pulse = (elapsed % element.data.pulsePeriod) < element.data.pulsePeriod / 2
+            end
+
+            --Only touch the class on a change: re-setting it restarts the transition clock.
+            if element:HasClass("pulse") ~= pulse then
+                element:SetClass("pulse", pulse)
+            end
         end,
 
         hover = function(element)
@@ -10451,7 +10493,19 @@ CreateAbilityController = function()
             height = "auto",
             flow = "horizontal",
             halign = "center",
-            g_castButton,
+            gui.Panel {
+                --Fixed-size box so the Confirm button's scale animations do not
+                --resize this row (uiscale affects layout). Sized for the button
+                --at its largest: maxWidth 240 / height 35 at the 1.12 reveal pop.
+                --Collapsed alongside the button by its setVisible event.
+                classes = {"collapsed"},
+                width = 270,
+                height = 40,
+                flow = "none",
+                halign = "center",
+                valign = "center",
+                g_castButton,
+            },
             g_skipButton,
         },
 
@@ -10665,7 +10719,7 @@ CreateAbilityController = function()
 
             g_castMessageContainer:SetClass("collapsed", true)
             g_tokenSelectionContainer:SetClass("collapsed", true)
-            SetCastButtonVisible(false)
+            g_castButton:FireEvent("setVisible", false)
 
             --Reset cast-control state for this new cast and refresh the controls panel.
             --Each control's render() builds widgets and may mutate g_castControlState.
@@ -10971,7 +11025,7 @@ CreateAbilityController = function()
             g_castMessage.data.promptText = promptText
             g_castMessage:FireEvent("refresh")
             g_abilityController:SetClass("collapsed", false)
-            SetCastButtonVisible(false)
+            g_castButton:FireEvent("setVisible", false)
 
             --a bare token pick has no movement: never show the shift toggle,
             --which may have been left visible by a previous shift-move cast.
@@ -11252,6 +11306,7 @@ CreateAbilityController = function()
             local destroyFallDamageLabel = g_pointTargeting.fallDamageLabel ~= nil
             local destroyChargeJumpLabel = g_pointTargeting.chargeJumpLabel ~= nil
             g_pointTargeting.chargeJumpUnreachable = false
+            g_pointTargeting.chargeJumpRequiresRoll = false
             local pathfinding = false
             if point ~= nil and g_currentAbility.targetType ~= "areatemplate" then
                 local radius = g_currentAbility:GetRadius(g_token.properties, g_currentSymbols)
@@ -11558,19 +11613,48 @@ CreateAbilityController = function()
                             ClearMovementDiagram()
                             destroyChargeJumpLabel = false
                             local labelLoc = movementInfo.jumpLabelLoc
-                            if g_pointTargeting.chargeJumpLabelKey ~= labelLoc.str then
+                            g_pointTargeting.chargeJumpRequiresRoll = movementInfo.requiresRoll == true
+                            local labelText = tr("Jump")
+                            if g_pointTargeting.chargeJumpRequiresRoll then
+                                labelText = tr("Jump - Roll Needed")
+                            end
+                            local labelKey = labelLoc.str .. labelText
+                            if g_pointTargeting.chargeJumpLabelKey ~= labelKey then
                                 if g_pointTargeting.chargeJumpLabel ~= nil then
                                     g_pointTargeting.chargeJumpLabel:Destroy()
                                 end
-                                g_pointTargeting.chargeJumpLabel = dmhub.CreateCanvasOnMap{
-                                    point = g_token:PosAtLoc(labelLoc),
-                                    sheet = gui.Label{
-                                        interactable = false, halign = "center", valign = "center",
-                                        color = "white", width = "auto", height = "auto",
-                                        fontSize = 0.5, text = tr("Jump"),
-                                    },
-                                }
-                                g_pointTargeting.chargeJumpLabelKey = labelLoc.str
+                                g_pointTargeting.chargeJumpLabel = g_token:CreateMapTag(labelLoc,
+                                    labelText, cond(movementInfo.requiresRoll, "result", "buff"))
+                                g_pointTargeting.chargeJumpLabelKey = labelKey
+                            end
+
+                            --Keep lower-tier markers at the end of the airborne segment,
+                            --so a landing on a lower floor is still explained on this floor.
+                            if movementInfo.requiresRoll and movementInfo.tierOutcomes ~= nil then
+                                local outcomesByLoc = {}
+                                for tier = movementInfo.guaranteedTier or 1, (movementInfo.requiredTier or 3) - 1 do
+                                    local outcome = movementInfo.tierOutcomes[tier]
+                                    if outcome ~= nil and not outcome.reachesJumpEnd and outcome.previewLoc ~= nil then
+                                        local key = outcome.previewLoc.str .. ":" .. tostring(outcome.fallDistance or 0)
+                                        local entry = outcomesByLoc[key]
+                                        if entry == nil then
+                                            entry = {loc = outcome.previewLoc, tiers = {}, fallDistance = outcome.fallDistance or 0}
+                                            outcomesByLoc[key] = entry
+                                        end
+                                        entry.tiers[#entry.tiers + 1] = string.format(tr("Tier %d"), tier)
+                                    end
+                                end
+                                for _, outcome in pairs(outcomesByLoc) do
+                                    g_jumpShortfallMarkers[#g_jumpShortfallMarkers + 1] = dmhub.MarkLocs{
+                                        locs = {outcome.loc}, color = "#f4c54266",
+                                    }
+                                    local text = table.concat(outcome.tiers, " / ") .. ": " .. tr("Lands Short")
+                                    if outcome.fallDistance > 0 then
+                                        text = table.concat(outcome.tiers, " / ") .. ": " .. string.format(tr("Falls %d squares"), outcome.fallDistance)
+                                    end
+                                    g_jumpShortfallMarkers[#g_jumpShortfallMarkers + 1] =
+                                        g_token:CreateMapTag(outcome.loc, text, "result", -0.6)
+                                end
                             end
                         end
                     end
@@ -12320,6 +12404,8 @@ CreateAbilityController = function()
                     --no tier reaches it at all.
                     if (g_jumpHoverUnreachable or g_pointTargeting.chargeJumpUnreachable) and clickText ~= "" then
                         clickText = tr("Cannot Reach")
+                    elseif g_pointTargeting.chargeJumpRequiresRoll and clickText ~= "" then
+                        clickText = tr("Click to Charge (Roll Needed)")
                     elseif g_jumpHoverRequiredTier ~= nil and g_jumpHoverRequiredTier > 1 and not g_jumpShortfallMarkers.guaranteed and clickText ~= "" then
                         clickText = string.format(tr("Needs Tier %d - Click to Roll"), g_jumpHoverRequiredTier)
                     end
@@ -13312,7 +13398,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
             local synthesizedSpells = g_synthesizedSpellsPanel.data.synthesized
             local canConfirm = g_currentAbility:CanCastAsIs(g_token, targets, g_currentSymbols) and
                 not (synthesizedSpells ~= nil and #synthesizedSpells > 0)
-            SetCastButtonVisible(canConfirm)
+            g_castButton:FireEvent("setVisible", canConfirm)
 
 
             local promptText = g_currentAbility:PromptText(g_token, targets, g_currentSymbols, synthesizedSpells)

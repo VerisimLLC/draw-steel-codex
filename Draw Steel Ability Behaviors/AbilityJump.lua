@@ -164,8 +164,20 @@ function ActivatedAbility:GetChargeJumpOptions(casterToken, symbols, abilities)
             for _, behavior in ipairs(jumpAbility.behaviors) do
                 if behavior.typeName == "ActivatedAbilityJumpBehavior" then
                     local tier = behavior:GetGuaranteedTier(jumpAbility, casterToken)
-                    result.chargeJumpDistance = behavior:GetTierDistances(jumpAbility, casterToken, distance)[tier]
-                    result.chargeJumpHeight = behavior:GetTierHeights(jumpAbility, casterToken)[tier]
+                    local distances = behavior:GetTierDistances(jumpAbility, casterToken, distance)
+                    local heights = behavior:GetTierHeights(jumpAbility, casterToken)
+                    result.chargeJumpDistance = distances[tier]
+                    result.chargeJumpHeight = heights[tier]
+                    --Older engines retain guaranteed-only charging until their
+                    --fixed-takeoff outcome planner is available.
+                    local hasOutcomes, outcomePlanner = pcall(function() return casterToken.PlanChargeJumpOutcome end)
+                    if hasOutcomes and outcomePlanner ~= nil then
+                        result.chargeJumpTierDistances = distances
+                        result.chargeJumpTierHeights = heights
+                        result.chargeJumpGuaranteedTier = tier
+                        result.jumpAbility = jumpAbility
+                        result.jumpBehavior = behavior
+                    end
                     return result
                 end
             end
@@ -341,7 +353,7 @@ end
 --arrows automatically, so keeping the local arrow marked is all that is
 --needed. The arrow is cleared on cancel; on a completed roll it stays up
 --until ExecuteJump clears it as the jump begins.
-function ActivatedAbilityJumpBehavior:RollForTier(ability, casterToken, options, dists, heights, requiredTier, targetLoc)
+function ActivatedAbilityJumpBehavior:RollForTier(ability, casterToken, options, dists, heights, requiredTier, targetLoc, settings)
     local creature = casterToken.properties
 
     --The tier the preview arrow currently shows. Before any dice show faces,
@@ -351,6 +363,10 @@ function ActivatedAbilityJumpBehavior:RollForTier(ability, casterToken, options,
 
     local function MarkPreviewArrow()
         if targetLoc == nil or casterToken == nil or (not casterToken.valid) then
+            return
+        end
+        if settings ~= nil and settings.markPreview ~= nil then
+            settings.markPreview(m_previewTier)
             return
         end
         local landLoc = ActivatedAbilityJumpBehavior.ShortLandingLoc(casterToken.loc, targetLoc, dists[m_previewTier])
@@ -518,7 +534,10 @@ function ActivatedAbilityJumpBehavior:RollForTier(ability, casterToken, options,
         MarkPreviewArrow()
     end
 
-    ability:CommitToPaying(casterToken, options)
+    --An enclosing movement action can already have committed its own resource.
+    if settings == nil or settings.commitPayment ~= false then
+        ability:CommitToPaying(casterToken, options)
+    end
     return tier
 end
 

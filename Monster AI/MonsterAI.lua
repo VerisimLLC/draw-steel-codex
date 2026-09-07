@@ -23,6 +23,7 @@ MonsterAI.paths = false
 MonsterAI.log = {}
 MonsterAI.active = false
 MonsterAI.maliceAbilityMinimumScore = 0.65
+MonsterAI.maliceAbilityRepeatPenalty = 0.20
 MonsterAI.areaTelegraphBlinks = 3
 MonsterAI.areaTelegraphOnTime = 0.35
 MonsterAI.areaTelegraphOffTime = 0.15
@@ -33,6 +34,23 @@ local g_moveResultExecuted = "executed"
 local g_moveResultFailed = "failed"
 local g_moveResultUnsafe = "unsafe"
 local g_moveResultNone = "none"
+
+-- Shared across per-turn AI instances, but never saved or synchronized.
+local g_maliceEncounterId = nil
+local g_maliceAbilitiesUsed = {}
+
+local function MaliceAbilityHistory(queue)
+    local encounterId = queue ~= nil and not queue.hidden and queue.guid or nil
+    if encounterId ~= g_maliceEncounterId then
+        g_maliceEncounterId = encounterId
+        g_maliceAbilitiesUsed = {}
+    end
+    return g_maliceAbilitiesUsed
+end
+
+local function MaliceAbilityHistoryKey(ability)
+    return ability:try_get("guid") or ability.name
+end
 
 local g_aiLogFieldOrder = {
     "turn",
@@ -1717,6 +1735,7 @@ function MonsterAI.MaliceAbilityMatchesMonster(token, maliceAbility, includeDisa
 end
 
 function MonsterAI:HandleMaliceAbilityStartOfTurn(initiativeid, actingTokens, queue)
+    local usedAbilities = MaliceAbilityHistory(queue)
     if queue == nil or queue.hidden or initiativeid ~= queue:CurrentInitiativeId() then
         return false
     end
@@ -1823,27 +1842,35 @@ function MonsterAI:HandleMaliceAbilityStartOfTurn(initiativeid, actingTokens, qu
                     if type(scoringInfo) == "table" and type(scoringInfo.score) == "number" then
                         local score = math.max(0, math.min(1, scoringInfo.score))
                         local minimumScore = tonumber(registration.minimumScore) or self.maliceAbilityMinimumScore
+                        local repeatPenalty = usedAbilities[MaliceAbilityHistoryKey(ability)]
+                            and self.maliceAbilityRepeatPenalty or 0
+                        local selectionScore = score - repeatPenalty
                         self:LogMove(caster.properties.monster_type, registration.id,
-                            string.format("Score %.2f; threshold %.2f", score, minimumScore))
+                            string.format("Score %.2f; threshold %.2f; repeat penalty %.2f; selection %.2f",
+                                score, minimumScore, repeatPenalty, selectionScore))
                         self:LogDecision("MALICE CANDIDATE", {
                             category = self.MoveCategoryLogName(registration),
                             move = registration.id,
                             ability = ability.name,
                             action = self.AbilityActionLogName(ability),
                             score = score,
+                            repeatPenalty = repeatPenalty,
+                            selectionScore = selectionScore,
                             threshold = minimumScore,
                             plan = self.ScoringPlanLogName(scoringInfo),
                             result = score >= minimumScore and "eligible" or "below threshold",
                         })
 
-                        if score >= minimumScore and (bestCandidate == nil or score > bestCandidate.score
-                            or (score == bestCandidate.score and registration.id < bestCandidate.registration.id)) then
+                        -- Keep the quality threshold on the original score so repetition
+                        -- remains an option when there is no worthwhile alternative.
+                        if score >= minimumScore and (bestCandidate == nil or selectionScore > bestCandidate.score
+                            or (selectionScore == bestCandidate.score and registration.id < bestCandidate.registration.id)) then
                             bestCandidate = {
                                 ability = ability,
                                 caster = caster,
                                 context = context,
                                 registration = registration,
-                                score = score,
+                                score = selectionScore,
                                 scoringInfo = scoringInfo,
                             }
                         end
@@ -4176,8 +4203,19 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
 
     local finished = false
 
+    local maliceQueue = dmhub.initiativeQueue
+    local maliceHistory = nil
+    local maliceKey = nil
+    if ability.categorization == "Malice" and maliceQueue ~= nil and not maliceQueue.hidden then
+        maliceHistory = MaliceAbilityHistory(maliceQueue)
+        maliceKey = MaliceAbilityHistoryKey(ability)
+    end
+
 	local OnFinishCast = ability:try_get("OnFinishCast")
     ability.OnFinishCast = function (ability, options)
+        if maliceHistory ~= nil and not options.abort and not options.atexit then
+            maliceHistory[maliceKey] = true
+        end
         if OnFinishCast then
             OnFinishCast(ability, options)
         end

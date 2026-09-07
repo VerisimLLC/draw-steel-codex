@@ -79,14 +79,13 @@ function RollDialogCancelOffered(dialog)
 end
 
 -- True when the USER controls this token in their own right -- they own it,
--- it is in their party, or they are the Director. On a player host
--- (dmhub.playerHostMode) tok.canControl is host-WIDE: it reports true for
--- every token, including monsters the client only controls because it runs
--- the game and its Monster AI. Use THIS for UI asking "is this token mine to
--- drive?" (End Turn, claiming a turn), and keep tok.canControl for capability
--- questions. Identical to tok.canControl in every other game; falls back to it
--- on engine builds without the canControlAsUser API (unknown userdata members
--- read as nil).
+-- it is in their party, or they are the Director. Since 2026-09-06 the engine's
+-- tok.canControl is elevation-aware on a player host (dmhub.playerHostMode):
+-- outside the Monster AI's elevated coroutines it already answers as a player,
+-- so in un-elevated UI code this and tok.canControl agree. Keep using THIS for
+-- "is this token mine to drive?" -- it stays false even inside an elevated
+-- window, and it carries the old-engine fallback below (older builds report
+-- canControl host-WIDE, true for every monster the client merely hosts).
 function TokenControlledByUser(tok)
     if tok == nil then
         return false

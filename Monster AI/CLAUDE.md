@@ -115,6 +115,12 @@ executes only the highest-scoring candidate that meets its `minimumScore`. The
 default threshold is 0.65, the normal cast pipeline spends Malice, and at most
 one registered Malice ability is used per turn.
 
+Completed AI Malice casts are remembered in local memory for the current
+initiative queue GUID (cleared on a new encounter or Lua reload). Previously
+used abilities receive a 0.20 selection-score penalty. The minimum threshold
+still uses the original score, so the AI can repeat a good ability when no
+worthwhile alternative exists. Aborted or errored casts do not count as uses.
+
 Registrations can use `monsterGroups` with exact group names or IDs, or the
 usual `monsters` list. The scoring and execution callbacks receive
 `(self, ai, caster, ability, context)`, with execution also receiving the

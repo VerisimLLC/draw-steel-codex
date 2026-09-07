@@ -2265,7 +2265,7 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
 
     local rollType = "ability"
     if self:try_get("resistanceRoll", false) then
-        rollType = "resistance"
+        rollType = cond(self:try_get("isTest", false), "targettest", "resistance")
     elseif self:try_get("isTest", false) then
         rollType = "test"
     end
@@ -2274,11 +2274,12 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
             {id = "ability", text = "Ability"},
             {id = "test", text = "Test"},
             {id = "resistance", text = "Reactive Test"},
+            {id = "targettest", text = "Target Characteristic Test"},
         },
         idChosen = rollType,
         change = function(element)
-            self.isTest = (element.idChosen == "test")
-            self.resistanceRoll = (element.idChosen == "resistance")
+            self.isTest = (element.idChosen == "test" or element.idChosen == "targettest")
+            self.resistanceRoll = (element.idChosen == "resistance" or element.idChosen == "targettest")
             rollPanel:SetClass("collapsed", self:try_get("resistanceRoll", false))
             resistanceTypePanel:SetClass("collapsed", not self:try_get("resistanceRoll", false))
             testPanel:SetClass("collapsed", not self:try_get("isTest", false))
@@ -3528,17 +3529,21 @@ RollCheck.RegisterCustom{
     end,
 	GetModifiers = function(check, creature)
         local options = check.options or {}
+        local rollType = check:CustomInfo().rollType
         options.attribute = check.info.attrid
         -- Expose the rolling creature as 'target' so activationCondition formulas
         -- like 'target.Ongoing Effects has "Petrified"' resolve correctly.
         options.target = creature
-        local result = creature:GetModifiersForPowerRoll(check:GetRoll(creature), "resistance_power_roll", options)
+        if rollType == "test_power_roll" then
+            options.caster = creature
+        end
+        local result = creature:GetModifiersForPowerRoll(check:GetRoll(creature), rollType, options)
         local behaviorModifiers = options.behaviorModifiers or {}
         for _, mod in ipairs(behaviorModifiers) do
             local modEntry = {mod = mod}
-            local m = mod:DescribeModifyPowerRoll(modEntry, creature, "resistance_power_roll", options)
+            local m = mod:DescribeModifyPowerRoll(modEntry, creature, rollType, options)
             if m ~= nil then
-                m.hint = m.modifier:HintModifyPowerRolls(modEntry, creature, "resistance_power_roll", options)
+                m.hint = m.modifier:HintModifyPowerRolls(modEntry, creature, rollType, options)
                 if m.hint ~= nil then
                     result[#result+1] = m
                 end
@@ -3555,6 +3560,64 @@ RollCheck.RegisterCustom{
     end,
 }
 
+--Keep target tests on the existing per-target request path, but give modifiers
+--and reactions the creature making the test as their roller.
+RollCheck.RegisterCustom{
+    id = "target_test_power_roll",
+    rollType = "test_power_roll",
+    Describe = function(check)
+        local attrInfo = creature.attributesInfo[check.info.attrid]
+        return (attrInfo and attrInfo.description or check.info.attrid) .. " Test"
+    end,
+    GetRoll = RollCheck.customChecks.resistance_power_roll.GetRoll,
+    GetModifiers = RollCheck.customChecks.resistance_power_roll.GetModifiers,
+    ShowDialog = function(check, dialogOptions)
+        local roller = dmhub.LookupToken(dialogOptions.creature)
+        local testAbility = check.options.ability
+        dialogOptions.ability = testAbility
+        dialogOptions.rollProperties = RollPropertiesPowerTable.new{
+            tiers = DeepCopy(check.info.tiers),
+            fullyImplemented = true,
+        }
+        dialogOptions.PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(dialogOptions.rollProperties, dialogOptions.creature)
+        if roller ~= nil then
+            local target = {token = roller, boons = 0, banes = 0, modifiers = dialogOptions.modifiers, triggers = {}}
+            dialogOptions.targetCreature = roller.properties
+            dialogOptions.multitargets = {target}
+            dialogOptions.symbols = {caster = roller.properties, target = roller.properties, ability = testAbility}
+            for _,token in ipairs(dmhub.allTokens) do
+                for _,modifier in ipairs(token.properties:GetActiveModifiers()) do
+                    --These are reactions to a test, not to damage dealt by its roller.
+                    if modifier.mod:try_get("trigger") == "powerroll" then
+                        modifier.mod:TriggerModsPowerRoll(modifier, token, roller, roller, testAbility, dialogOptions.rollProperties, target.triggers, {symbols = dialogOptions.symbols})
+                    end
+                end
+            end
+            table.sort(target.triggers, function(a,b) return cond(a.hostile, 1, 0) < cond(b.hostile, 1, 0) end)
+            local completeRoll = dialogOptions.completeRoll
+            dialogOptions.completeRoll = function(rollInfo)
+                completeRoll(rollInfo)
+                local tier = rollInfo.properties:try_get("overrideTier") or DiceResultToTier(rollInfo)
+                local dice = {}
+                for _,die in ipairs(rollInfo.rolls or {}) do
+                    if not die.dropped and die.numFaces == 10 then
+                        dice[#dice+1] = die.result
+                    end
+                end
+                table.sort(dice, function(a,b) return a > b end)
+                roller.properties:DispatchEvent("rollpower", {
+                    surges = 0,
+                    tierone = tier == 1, tiertwo = tier == 2, tierthree = tier == 3,
+                    naturalroll = rollInfo.naturalRoll,
+                    highroll = dice[1], lowroll = dice[2],
+                    ability = testAbility,
+                })
+            end
+        end
+        return GameHud.instance.rollDialog.data.ShowDialog(dialogOptions)
+    end,
+}
+
 function ActivatedAbilityPowerRollBehavior:ResistanceAttr()
     return self:try_get("resistanceAttr", "inu")
 end
@@ -3563,6 +3626,12 @@ end
 function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, targets, options)
     options = options or {}
 	local tokenids = ActivatedAbility.GetTokenIds(targets)
+    local isTest = self:try_get("isTest", false)
+    local rollType = cond(isTest, "test_power_roll", "resistance_power_roll")
+    local testAbility = nil
+    if isTest then
+        testAbility = ActivatedAbility.Create{isTest = true, name = ability.name, abilityType = "none", attrid = self:ResistanceAttr()}
+    end
 
     -- Build ability-level modifiers so conditions like
     -- 'target.Ongoing Effects has "Petrified"' apply per-target on the resistance roll.
@@ -3570,7 +3639,7 @@ function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, 
     for _, modInfo in ipairs(self:try_get("modifiers", {})) do
         behaviorModifiers[#behaviorModifiers+1] = CharacterModifier.new{
             behavior = "power",
-            rollType = "resistance_power_roll",
+            rollType = rollType,
             activationCondition = modInfo.condition,
             keywords = {},
             modtype = modInfo.type,
@@ -3581,10 +3650,10 @@ function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, 
     end
 
     local dcaction = ability:RequireSavingThrowsCo(self, casterToken, tokenids, {
-        id = "resistance_power_roll",
-        rollType = "resistance_power_roll",
-        text = "Resistance",
-        explanation = "Roll Resistance vs " .. ability.name,
+        id = cond(isTest, "target_test_power_roll", "resistance_power_roll"),
+        rollType = rollType,
+        text = cond(isTest, "Test", "Resistance"),
+        explanation = cond(isTest, "Roll Test vs ", "Roll Resistance vs ") .. ability.name,
         targets = targets,
         info = {
             attrid = self:ResistanceAttr(),
@@ -3592,6 +3661,7 @@ function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, 
         },
         dc_options = {
             behaviorModifiers = behaviorModifiers,
+            ability = testAbility,
         },
     })
 
@@ -3607,6 +3677,9 @@ function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, 
 		    local dcinfo = dcaction.info.tokens[target.token.charid]
             if dcinfo ~= nil then
                 local tier = DiceResultToTier{ total = dcinfo.result, naturalRoll = dcinfo.naturalRoll, boons = dcinfo.boons, banes = dcinfo.banes }
+                if isTest and dcinfo.tier ~= nil then
+                    tier = dcinfo.tier
+                end
                 options.symbols.cast:SetTierResult(target.token, tier)
                 local command = self.tiers[tier]
                 self:ExecuteCommand(ability, casterToken, target.token, options, command)

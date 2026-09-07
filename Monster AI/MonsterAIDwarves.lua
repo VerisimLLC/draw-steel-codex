@@ -918,42 +918,63 @@ local function TacticsForToken(token)
     return result
 end
 
-local function FindGrantedFreeStrikePlan(ai, actor)
-    if not LiveCreature(actor) then
+local function FindGrantedFreeStrikePlan(ai, actor, paths)
+    if not LiveCreature(actor) or actor.playerControlled then
         return nil
     end
-    local paths = ai:CalculateRemainingMovementPaths(actor)
+    paths = paths or ai:CalculateRemainingMovementPaths(actor)
     local oldTactics = ai.activeTactics
     ai.activeTactics = TacticsForToken(actor)
-    local best = nil
-
-    for _,ability in ipairs(actor.properties:GetActivatedAbilities()) do
-        if ability.name == "Melee Free Strike" or ability.name == "Ranged Free Strike" then
-            local granted = DeepCopy(ability)
-            ClearAbilityCosts(granted)
-            granted.disableSquadCoordination = true
-            granted.name = "Rappelling Free Strike"
-            if granted.keywords ~= nil then
-                granted.keywords.Charge = nil
-            end
-            local plan = FindBestStrikePlan(ai, actor, granted, nil, paths)
-            if plan ~= nil and (best == nil or plan.utility > best.utility) then
-                plan.actor = actor
-                plan.ability = granted
-                best = plan
+    local ok, best = pcall(function()
+        local result = nil
+        for _,ability in ipairs(actor.properties:GetActivatedAbilities()) do
+            if ability.name == "Melee Free Strike" or ability.name == "Ranged Free Strike" then
+                -- These clones only score positions. Execution uses the granted
+                -- ability so the same one-use allowance is spent as in the UI.
+                local granted = DeepCopy(ability)
+                ClearAbilityCosts(granted)
+                granted.disableSquadCoordination = true
+                granted.name = "Rappelling Free Strike"
+                if granted.keywords ~= nil then
+                    granted.keywords.Charge = nil
+                end
+                local plan = FindBestStrikePlan(ai, actor, granted, nil, paths)
+                if plan ~= nil and (result == nil or plan.utility > result.utility) then
+                    result = plan
+                end
             end
         end
-    end
-
+        return result
+    end)
     ai.activeTactics = oldTactics
+    if not ok then
+        error(best)
+    end
     return best
+end
+
+local function RappellingTurnIsCurrent(context)
+    local queue = dmhub.initiativeQueue
+    return queue ~= nil and not queue.hidden and queue.round == context.round
+        and queue:CurrentInitiativeId() == context.initiativeId
+end
+
+local function AvailableRappellingStrike(actor)
+    if not LiveCreature(actor) or actor.playerControlled then
+        return nil
+    end
+    local ability = FindAbility(actor, "Rappelling Free Strike")
+    if ability ~= nil and ability:try_get("guid", "") == "91620000-17a3-4dc8-a7ca-b6488918fe0b"
+        and ability:CanAfford(actor) then
+        return ability
+    end
 end
 
 MonsterAI:RegisterMaliceAbility{
     id = "Dwarf Malice: Rappelling Barrage",
     monsterGroups = {"Dwarf"},
     abilities = {"Rappelling Barrage"},
-    description = "Grant the acting dwarves climb speed, movement, and a free strike when at least one useful strike is available.",
+    description = "Grant acting dwarves full-speed climbing and one free strike during their remaining movement.",
     score = function(self, ai, token, ability, context)
         local plans = {}
         for _,actor in ipairs(context.groupTokens) do
@@ -965,19 +986,11 @@ MonsterAI:RegisterMaliceAbility{
         if #plans > 0 then
             return {
                 score = math.min(0.9, 0.66 + (#plans - 1)*0.09),
-                plans = plans,
             }
         end
     end,
     execute = function(self, ai, token, scoringInfo, ability, context)
-        local climbBehavior = nil
-        for _,behavior in ipairs(ability.behaviors or {}) do
-            if behavior.typeName == "ActivatedAbilityApplyAbilityDurationEffect" then
-                climbBehavior = behavior
-                break
-            end
-        end
-        if climbBehavior == nil then
+        if not RappellingTurnIsCurrent(context) then
             return
         end
 
@@ -986,28 +999,40 @@ MonsterAI:RegisterMaliceAbility{
             Speak(ai, leader, rappellingBarrageSpeech)
         end
 
-        local targets = {}
-        for _,actor in ipairs(context.groupTokens) do
-            if LiveCreature(actor) then
-                targets[#targets+1] = {token = actor}
-            end
+        if not RappellingTurnIsCurrent(context) then
+            return
         end
-        local activation = DeepCopy(ability)
-        activation.targetType = "target"
-        activation.numTargets = math.max(1, #targets)
-        activation.behaviors = {DeepCopy(climbBehavior)}
-        ai:ExecuteAbility(token, activation, targets, {sleep = abilityPause})
+        ai:ExecuteAbility(token, ability, nil, {sleep = abilityPause})
 
-        for _,plan in ipairs(scoringInfo.plans or {}) do
-            if LiveCreature(plan.actor) then
-                local ok, err = ai:RunWithTokenControl(plan.actor, function()
-                    MoveCinematically(ai, plan.actor, plan.loc)
-                    for _,target in ipairs(plan.targets) do
-                        target.charge = nil
+        -- The content grants climbing and the optional strike for the whole
+        -- turn. Re-plan after it resolves, including actors absent in scoring.
+        for _,actor in ipairs(context.groupTokens) do
+            if not RappellingTurnIsCurrent(context) then
+                break
+            end
+            if AvailableRappellingStrike(actor) ~= nil then
+                local ok, err = ai:RunWithTokenControl(actor, function()
+                    local plan = FindGrantedFreeStrikePlan(ai, actor)
+                    if plan == nil then
+                        return
                     end
-                    ai:ExecuteAbility(plan.actor, plan.ability, plan.targets, {
-                        sleep = abilityPause,
-                    })
+                    if not ai:MovementTokenIsAtLoc(actor, plan.loc) then
+                        local mover = ai:GetMovementToken(actor)
+                        local remaining = math.max(0, mover.properties:CurrentMovementSpeed()
+                            - mover.properties:DistanceMovedThisTurn())
+                        ai:MoveToken(actor, plan.loc, {maxCost = remaining*10, ignoreFalling = false})
+                        ai.Sleep(movementPause)
+                    else
+                        ai.Sleep(stationaryPause)
+                    end
+
+                    -- Movement can trigger reactions that kill the actor,
+                    -- consume the grant, or remove every legal enemy target.
+                    local granted = AvailableRappellingStrike(actor)
+                    if granted ~= nil and RappellingTurnIsCurrent(context)
+                        and FindGrantedFreeStrikePlan(ai, actor, {{loc = actor.loc, cost = 0}}) ~= nil then
+                        ai:ExecuteAbility(actor, granted, {{token = actor}}, {sleep = abilityPause})
+                    end
                 end)
                 if not ok then
                     print(string.format("AI:: Dwarf rappelling strike failed: %s", tostring(err)))

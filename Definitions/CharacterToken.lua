@@ -266,11 +266,9 @@ function CharacterToken:TryFall() end
 
 --- Move
 --- @param loc Loc The location to move to.
---- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures: nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number, freeMovement: nil|boolean, chargeDistance: nil|number, chargeJumpLanding: nil|boolean}
+--- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures: nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, jumpHeight: nil|number, freeMovement: nil|boolean, chargeDistance: nil|number, chargeJumpLanding: nil|boolean, chargeJumpOutcome: nil|boolean, chargeJumpDistance: nil|number}
 --- jumpHeight (only meaningful with movementType='jump'): the jump distance in tiles; the mover clears height-limited walls up to this many tiles tall.
 --- freeMovement: this move is not the creature's move action, so it is exempt from the strict:movement remaining-budget clamp. Set it for ability-granted shifts and moves.
---- chargeDistance: charge allowance in tiles, allowing a planned charge segment beyond the usual straight-line step cap.
---- chargeJumpLanding: normalize a planned jump segment's landing to ground rather than retaining the altitude of terrain crossed.
 --- @return nil|LuaPath
 function CharacterToken:Move(loc, options) end
 
@@ -422,13 +420,19 @@ function CharacterToken:CalculateJumpReachable(distance, jumpHeight) end
 --- @return nil|{path: LuaPath, collideWith: CharacterToken[]}
 function CharacterToken:MarkMovementArrow(targetLoc, options) end
 
---- Plan a complete straight charge with at most one guaranteed jump, without moving.
---- Distances are in tiles. Nil means the complete destination is unreachable.
---- MarkMovementArrow accepts these same charge options to preview the plan.
+--- Plan a same-floor straight charge with at most one jump. Prefer guaranteed routes; optional tier capabilities permit a roll-dependent route with fixed takeoff/landing and per-tier outcomes. Does not move the token.
 --- @param targetLoc Loc
---- @param options {chargeDistance:number, chargeJumpDistance:number, chargeJumpHeight:number}
---- @return nil|{validCharge:boolean, path:LuaPath, chargeSegments:{loc:Loc, expectedLoc:Loc, jump:boolean, jumpHeight:number}[], jumpLabelLoc:nil|Loc, jumpStart:nil|Loc, jumpEnd:nil|Loc, jumpHeight:nil|number}
+--- @param options {chargeJumpDistance: number, chargeJumpHeight: number, chargeDistance: number, chargeJumpTierDistances: nil|number[], chargeJumpTierHeights: nil|number[], chargeJumpGuaranteedTier: nil|number}
+--- @return nil|table
 function CharacterToken:PlanCharge(targetLoc, options) end
+
+--- Preview one charge jump from a fixed takeoff toward its original landing with the rolled distance and height. Returns native target, projected landing and fall, preserving the original straight line even on a shortfall. Does not move the token or resolve reactions.
+--- @param sourceLoc Loc
+--- @param targetLoc Loc
+--- @param distance number
+--- @param jumpHeight number
+--- @return nil|table
+function CharacterToken:PlanChargeJumpOutcome(sourceLoc, targetLoc, distance, jumpHeight) end
 
 --- ClearMovementArrow
 function CharacterToken:ClearMovementArrow() end

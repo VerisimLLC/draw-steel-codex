@@ -502,8 +502,13 @@ local function AbilityActivityInFlight()
     end
 
     --an unanswered trigger / invocation prompt card on a creature this
-    --client controls. Hostile prompts never age out, so they must not block
-    --forever (same carve-out as the death gate).
+    --MACHINE is responsible for: the user's own heroes, and on the host the
+    --monsters its Monster AI answers for. tok.canControl is elevation-aware
+    --(false for monsters in the host's un-elevated tick), so ask under host
+    --permissions -- a state read, no UI. Hostile prompts never age out, so
+    --they must not block forever (same carve-out as the death gate).
+    local pending = false
+    ElevateToHostPermissions()
     for _,tok in ipairs(dmhub.allTokens) do
         if tok.valid and tok.canControl and tok.properties ~= nil then
             local triggers = nil
@@ -511,14 +516,19 @@ local function AbilityActivityInFlight()
             if triggers ~= nil then
                 for _,t in pairs(triggers) do
                     if not t.hostile then
-                        return true
+                        pending = true
+                        break
                     end
                 end
             end
         end
+        if pending then
+            break
+        end
     end
+    DropHostPermissions()
 
-    return false
+    return pending
 end
 
 local function WriteBusyStamp()
@@ -621,6 +631,7 @@ dmhub.Coroutine(function()
         pcall(UpdateStartZoneConfinement)
         pcall(UpdateBusyMirror)
         pcall(UpdateEncounterConclusion)
+        pcall(function() EncounterOfTheWeekGame.EnsureMapScriptRunning() end)
     end
 end)
 
@@ -1063,6 +1074,62 @@ local function AttachMapScript()
     records[#records+1] = ms.CreateRecordFromLibrary(MAP_SCRIPT_ID)
     ms.SetAttachedRecords(records)
     printf("EotW: attached the Encounter of the Week map script to the map")
+end
+
+--Self-healing, from every client's 1s driver. A mid-game Lua reload once
+--killed a live encounter: Core Rules reloaded AFTER this mod, MapScript's
+--fresh builtin registry no longer knew "builtin:eotw-encounter", the attached
+--record stopped resolving, the driver tore the instance down and the host
+--tick (combat entry, AI supervision, victory detection) silently stopped.
+--So, every tick: (1) any client re-registers the builtin if the registry
+--lost it; (2) the HOST of an EotW game makes sure the record is attached to
+--the current map and reports (once) if it still is not running. Cheap when
+--healthy: a table lookup and a walk of a one-entry list.
+local m_reportedScriptNotRunning = false
+function EncounterOfTheWeekGame.EnsureMapScriptRunning()
+    local ms = rawget(_G, "MapScript")
+    if ms == nil then
+        return
+    end
+    if ms.GetBuiltin(MAP_SCRIPT_ID) == nil then
+        printf("EotW: the map script builtin was missing; re-registering it")
+        RegisterMapScriptBuiltin()
+    end
+
+    if not EncounterOfTheWeekGame.IsEotwGame() or not IsDMOrPlayerHost() then
+        return
+    end
+    if game.currentMapId == nil or game.currentMapId == "" then
+        return
+    end
+
+    local record = nil
+    for _,rec in ipairs(ms.GetAttachedRecords()) do
+        if rec.scriptid == MAP_SCRIPT_ID then
+            record = rec
+            break
+        end
+    end
+    if record == nil then
+        printf("EotW: the map script was not attached to the map; attaching it")
+        AttachMapScript()
+        return
+    end
+
+    --the map-script driver reconciles attachments every 0.5s, so a record
+    --whose code resolves runs on its own; if it still does not, say so once
+    --rather than every second.
+    local running = true
+    if ms.IsRecordRunning ~= nil then
+        running = ms.IsRecordRunning(record.guid)
+    end
+    if running then
+        m_reportedScriptNotRunning = false
+    elseif not m_reportedScriptNotRunning then
+        m_reportedScriptNotRunning = true
+        local code = ms.GetRecordCode(record)
+        printf("EotW: the map script is attached but not running (code resolves: %s)", tostring(code ~= nil and code ~= ""))
+    end
 end
 
 --- combat entry ---------------------------------------------------------

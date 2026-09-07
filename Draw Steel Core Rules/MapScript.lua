@@ -189,8 +189,20 @@ end
 -- without seeding the object table). They appear in the Add Script picker;
 -- the compendium library holds game-authored scripts.
 
-MapScript.builtins = {}
-local g_builtinsById = {}
+--The registry lives in a global so it survives a reload of THIS file. Other
+--mods (Encounter of the Week) register their builtins when THEY load; if this
+--file is then reloaded after them (a dev hot-reload of Core Rules, or a full
+--reload in which their mod is not re-executed), a fresh table would forget
+--those registrations, every attached record pointing at them would stop
+--resolving, and the driver would tear their instances down. Reusing the
+--stored registry keeps every registered script resolvable across reloads.
+local g_registry = rawget(_G, "g_mapScriptBuiltinRegistry")
+if type(g_registry) ~= "table" then
+    g_registry = { list = {}, byId = {} }
+    _G.g_mapScriptBuiltinRegistry = g_registry
+end
+MapScript.builtins = g_registry.list
+local g_builtinsById = g_registry.byId
 
 --info: { id, name, description, code }. id convention: "builtin:<slug>".
 function MapScript.RegisterBuiltin(info)
@@ -203,6 +215,23 @@ function MapScript.RegisterBuiltin(info)
     end
     MapScript.builtins[#MapScript.builtins + 1] = info
     g_builtinsById[info.id] = info
+end
+
+--- True when a script instance is currently running on this client for the
+--- given attached record guid (on the current map). The driver reconciles
+--- attachments against running instances every tick, so a record whose code
+--- resolves is running within ~0.5s of being attached; this exists so a
+--- managing mod can verify that from its own health check.
+--- @param guid string
+--- @return boolean
+function MapScript.IsRecordRunning(guid)
+    local mapid = nil
+    pcall(function() mapid = game.currentMapId end)
+    if mapid == nil or mapid == "" or guid == nil then
+        return false
+    end
+    local instance = MapScript._runtimeInstances[mapid .. "|" .. guid]
+    return instance ~= nil and not instance.destroyed
 end
 
 function MapScript.GetBuiltin(id)
@@ -715,6 +744,8 @@ local g_runtime = {
     --eventGuids, errorReported }
     instances = {},
 }
+--exposed (read-only by convention) for MapScript.IsRecordRunning.
+MapScript._runtimeInstances = g_runtime.instances
 
 --The handler context. One per instance per client; isHost is re-pointed by
 --the driver on every election change so both roles share the same state.

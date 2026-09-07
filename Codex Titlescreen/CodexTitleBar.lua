@@ -403,7 +403,7 @@ end
 local function BarFitStepNatural(step)
     --No latched width means the bar has never had this element on screen for
     --reasons of its own -- the search box on the title screen, the status
-    --readouts with Show Status Bar off. Releasing the ladder would not bring
+    --readouts on the title screen. Releasing the ladder would not bring
     --it back, so it must not be credited with space it never occupied.
     if g_barFit.naturals[step.key] == nil then
         return 0
@@ -478,8 +478,8 @@ function BarFitApply()
     --(`enabled`), which rules out two different double-counts: an element the
     --LADDER collapsed is already credited in full by ladderSaved, and an
     --element the bar hides for its own reasons -- the search box on the title
-    --screen, the whole status bar with Show Status Bar off -- occupies no
-    --space to give back in the first place.
+    --screen, the status bar readouts outside a game -- occupies no space to
+    --give back in the first place.
     local withheld = 0
 
     --Stage 1: the search box narrows first. It is the widest thing on the bar
@@ -1105,15 +1105,6 @@ local function CreatePresentationBar()
     return resultPanel
 end
 
-local g_showStatusBarSetting = setting{
-    id = "showstatusbar",
-    description = "Show status bar",
-    editor = "check",
-    default = true,
-    storage = "preference",
-    section = "General",
-}
-
 ----------------------------------------------------------------------
 -- Connectivity status panel
 -- Replaces the old "Synced seq:N" label and its "DO Message History"
@@ -1481,17 +1472,13 @@ local function CreateConnectivityPanel()
             }
         end,
 
-        multimonitor = {"showstatusbar"},
-        monitor = function(element)
-            contentPanel:SetClass("collapsed", not g_showStatusBarSetting:Get())
-        end,
         thinkTime = 0.5,
         think = function(element)
             if (not dmhub.inGame) or dmhub.isLobbyGame then
                 contentPanel:SetClass("collapsed", true)
                 return
             end
-            contentPanel:SetClass("collapsed", not g_showStatusBarSetting:Get())
+            contentPanel:SetClass("collapsed", false)
 
             --nil = engine build without the bridge; treat as connected.
             local connected = dmhub.gameServerConnected ~= false
@@ -1549,13 +1536,6 @@ local function CreateInitiativeStatusHost()
         height = "100%",
         valign = "center",
         rmargin = 16,
-        multimonitor = {"showstatusbar"},
-        create = function(element)
-            element:SetClass("collapsed", not g_showStatusBarSetting:Get())
-        end,
-        monitor = function(element)
-            element:SetClass("collapsed", not g_showStatusBarSetting:Get())
-        end,
     }
     return g_initiativeStatusContainer
 end
@@ -2417,12 +2397,7 @@ function g_tileIndicator.CreatePanel()
 
         data = { key = nil, name = nil },
 
-        multimonitor = {"showstatusbar"},
-        monitor = function(element)
-            element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil)
-            Clear(element)
-        end,
-        thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil),
+        thinkTime = 0.1,
         think = function(element)
             if (not dmhub.inGame) or dmhub.isLobbyGame then
                 if element.data.key ~= nil then
@@ -2464,7 +2439,7 @@ local function CreateStatusBar()
     local m_mapCluster
 
     local function MapClusterAvailable()
-        return g_showStatusBarSetting:Get() and dmhub.inGame and (not dmhub.isLobbyGame)
+        return dmhub.inGame and (not dmhub.isLobbyGame)
     end
 
     local function RefreshMapClusterAffordance()
@@ -2499,14 +2474,7 @@ local function CreateStatusBar()
         interactable = false,
         text = "",
         data = { fullText = "" },
-        multimonitor = {"showstatusbar"},
-        monitor = function(element)
-            element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil)
-            element.data.fullText = ""
-            element.text = ""
-            RefreshMapClusterAffordance()
-        end,
-        thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil),
+        thinkTime = 0.1,
         think = function(element)
             RefreshMapClusterAffordance()
             if (not dmhub.inGame) or dmhub.isLobbyGame then
@@ -2570,23 +2538,6 @@ local function CreateStatusBar()
         width = "auto",
         halign = "right",
 
-        rightClick = function(element)
-            local menuItems = {
-                {
-                    text = "Show Status Bar",
-                    check = g_showStatusBarSetting:Get(),
-                    click = function()
-                        g_showStatusBarSetting:Set(not g_showStatusBarSetting:Get())
-                        element.popup = nil
-                    end,
-                },
-            }
-
-            element.popup = gui.ContextMenu{
-                entries = menuItems,
-            }
-        end,
-
         -- Dev-only note: when this game is loading its assets from a local
         -- directory (the "local assets" developer feature -- a custom data
         -- directory that replaces the game's cloud assets), flag it here so it
@@ -2619,13 +2570,7 @@ local function CreateStatusBar()
                     dmhub.ShowPlayerSettings{tab = "Editing"}
                 end
             end,
-            multimonitor = {"showstatusbar"},
-            monitor = function(element)
-                element.thinkTime = cond(g_showStatusBarSetting:Get(), 1, nil)
-                element.data.dir = nil
-                element.text = ""
-            end,
-            thinkTime = cond(g_showStatusBarSetting:Get(), 1, nil),
+            thinkTime = 1,
             think = function(element)
                 if (not dmhub.inGame) or dmhub.isLobbyGame or dmhub.LocalAssetsStatus == nil then
                     element.data.dir = nil
@@ -2646,10 +2591,7 @@ local function CreateStatusBar()
         BarFitRegister("connectivity", CreateConnectivityPanel()),
 
         -- Host for the initiative/game-mode panel; empty (and therefore
-        -- zero-width) until a game hud mounts one. Collapsing on the
-        -- showstatusbar preference is done here rather than in the mounted
-        -- panel so the initiative bar does not have to know about this
-        -- setting.
+        -- zero-width) until a game hud mounts one.
         m_initiativeHost,
 
         -- Hovered-tile terrain chip + map name/engine status, sharing one
@@ -7247,9 +7189,9 @@ local function CreateTopBar()
     local titleBarStyleExtras = {
         -- Narrow-bar fit: the collapse ladder's own way of taking an element
         -- out of the flow. Deliberately NOT the "collapsed" class -- several
-        -- of these elements drive that themselves (the initiative host tracks
-        -- the Show Status Bar setting, the menu items track dev mode and
-        -- in-game state), and two writers on one class fight. A separate
+        -- of these elements drive that themselves (the connectivity panel
+        -- tracks in-game state, the menu items track dev mode and in-game
+        -- state), and two writers on one class fight. A separate
         -- class means the ladder and the element's own visibility rules
         -- simply both get a veto.
         {

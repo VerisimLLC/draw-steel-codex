@@ -315,6 +315,18 @@ local function CreateDrawSteelBubble()
 				end
 			end
 
+			--An orphaned turn: the entry whose turn it is no longer resolves to
+			--any token on the map (e.g. a hero killed on their own turn and then
+			--removed from the battlefield by the Hero Death rule, a monster group
+			--wiped mid-turn). Nobody controls a token that isn't there, so
+			--without this nobody without Director UI could ever end the turn and
+			--the combat sat on "Hero Turn" forever. Anyone allowed to run
+			--initiative may close it out. Removal normally auto-ends the turn
+			--(ActivatedAbilityRemoveCreatureBehavior); this is the safety net.
+			if #tokens == 0 and CanControlInitiative() then
+				return true
+			end
+
 			--note that the dm always shows entries, and doesn't auto-remove entries since they might be for a different map.
 			--(DirectorUIVisible: a Director presenting as a player only sees End Turn for tokens they control.)
 			return foundControllable or GameHud.DirectorUIVisible()

@@ -3808,21 +3808,45 @@ local g_forcedMovementStandardAbilityNames = {
 
 --Malice abilities (the monster group's malice features, categorization
 --"Malice") announce themselves with a malice DramaticBanner over the caster
---as the cast begins. Only a top-level cast qualifies: an ability invoked from
---inside another cast already has options.symbols.cast set, and a dismissed
---triggered ability (options.dismiss) runs silently. The banner is not modal
---and the cast is not held for it; it simply shimmers over the map while the
---ability plays out.
-local function ShowMaliceBannerForCast(ability, casterToken, options)
+--as the cast begins. A dismissed triggered ability (options.dismiss) runs
+--silently. The banner is not modal and the cast is not held for it; it
+--simply shimmers over the map while the ability plays out.
+--
+--One banner per activation: the ActivatedAbilityCast object at
+--options.symbols.cast is shared by identity with every ability invoked from
+--inside this cast (Cast keeps an existing cast; invoke paths pass the same
+--object along), so it is stamped once. Note the action bar pre-builds that
+--cast object for ordinary top-level casts (EnsureSymbolsCast), so its mere
+--presence says nothing about nesting -- only the stamp does. When no cast
+--object exists yet (e.g. Monster AI casts) one is built here exactly as the
+--action bar does; Cast respects it.
+local function ShowMaliceBannerForCast(ability, casterToken, targets, options)
     if ability.categorization ~= "Malice" then
         return
     end
-    if options ~= nil and (options.dismiss or (options.symbols ~= nil and options.symbols.cast ~= nil)) then
+    if options ~= nil and options.dismiss then
         return
     end
     if casterToken == nil or not casterToken.valid then
         return
     end
+
+    options.symbols = options.symbols or {}
+    local cast = options.symbols.cast
+    if cast == nil then
+        cast = ActivatedAbilityCast.new{
+            ability = ability,
+            targets = targets or {},
+            mode = options.symbols.mode or 1,
+            _tmp_targetArea = options.targetArea,
+        }
+        options.symbols.cast = cast
+    end
+    --_tmp_ so the stamp is stripped from any serialized form of the cast.
+    if cast:try_get("_tmp_maliceBannerShown") then
+        return
+    end
+    cast._tmp_maliceBannerShown = true
 
     local subtitle = "Malice Ability"
     if ability.resourceCost == CharacterResource.maliceResourceId then
@@ -3842,7 +3866,8 @@ end
 
 local g_baseActivatedAbilityCast = ActivatedAbility.Cast
 function ActivatedAbility:Cast(casterToken, targets, options)
-    ShowMaliceBannerForCast(self, casterToken, options)
+    options = options or {}
+    ShowMaliceBannerForCast(self, casterToken, targets, options)
 
     local chosenType = options ~= nil and options.symbols ~= nil and options.symbols.forcedmovement or nil
     if chosenType ~= nil and self:try_get("guid") == g_forcedMovementFamilyGuid then

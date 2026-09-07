@@ -10737,7 +10737,7 @@ end
 --from adjacent into the aura proper still triggers, while re-entering at the
 --same (or a shallower) depth in one turn does not. Records written before
 --levels existed hold true, which reads as level 2.
-function creature:EnterAuraHaltsMovement(info, level)
+function creature:LegacyAuraEntryAvailable(info, level)
 	level = level or 2
 	local turnid = self:GetTurnId()
 	if turnid ~= nil and turnid == self:try_get("aurasEnteredTurnId") then
@@ -10751,6 +10751,39 @@ function creature:EnterAuraHaltsMovement(info, level)
 	end
 
 	return true
+end
+
+--These opt-in triggers keep movement entry independent from turn start.
+--Outside combat there is no round limit, so each actual entry remains eligible.
+function creature:AuraRoundEntryAvailable(info)
+    local q = dmhub.initiativeQueue
+    local roundId = q and q:GetRoundId()
+    if roundId == nil or self:try_get("auraEntriesRoundId") ~= roundId then
+        return true
+    end
+    return not self:try_get("auraEntriesThisRound", {})[info.auraInstance.guid]
+end
+
+local function AuraHasIndependentTriggers(aura)
+    local independent = false
+    local legacy = aura:try_get("powerRollEnabled", false)
+    for _, trigger in ipairs(aura.triggers) do
+        independent = independent or trigger.trigger == "onfirstenterround" or trigger.trigger == "targetstartturnaura"
+        legacy = legacy or trigger.trigger == "onenter"
+    end
+    return independent, legacy
+end
+
+function creature:EnterAuraHaltsMovement(info, level)
+    local independent, legacy = AuraHasIndependentTriggers(info.auraInstance.aura)
+    if independent and (level or 2) >= 2 then
+        for _, trigger in ipairs(info.auraInstance.aura.triggers) do
+            if trigger.trigger == "onfirstenterround" and self:AuraRoundEntryAvailable(info) then
+                return true
+            end
+        end
+    end
+    return (not independent or legacy) and self:LegacyAuraEntryAvailable(info, level)
 end
 
 --called by dmhub when a creature enters an aura (adjacentOnly = it is only on
@@ -10777,7 +10810,45 @@ function creature:EnterAura(info, adjacentOnly, fromBeginTurn, enteredViaShift)
 	end
 
 	local result = false
-	if self:EnterAuraHaltsMovement(info, level) == false then
+    local independent, legacy = AuraHasIndependentTriggers(info.auraInstance.aura)
+    if independent and not adjacentOnly then
+        local event = fromBeginTurn and "targetstartturnaura" or "onfirstenterround"
+        local eligible = fromBeginTurn or self:AuraRoundEntryAvailable(info)
+        if eligible then
+            local matching = {}
+            for _, trigger in ipairs(info.auraInstance.aura.triggers) do
+                if trigger.trigger == event then matching[#matching + 1] = trigger end
+            end
+            local targetToken = dmhub.LookupToken(self)
+            if #matching > 0 and targetToken ~= nil and targetToken.valid then
+                local q = dmhub.initiativeQueue
+                local roundId = q and q:GetRoundId()
+                if not fromBeginTurn and roundId ~= nil then
+                    --Reserve before casting: a triggered move can enter another aura.
+                    targetToken:ModifyProperties{
+                        description = "Enter Aura",
+                        execute = function()
+                            if self:try_get("auraEntriesRoundId") ~= roundId then
+                                self.auraEntriesRoundId = roundId
+                                self.auraEntriesThisRound = {}
+                            end
+                            self.auraEntriesThisRound[info.auraInstance.guid] = true
+                        end,
+                    }
+                end
+                local auraCasterToken = info.token
+                if auraCasterToken == nil or not auraCasterToken.valid or not auraCasterToken.uploadable then
+                    auraCasterToken = targetToken
+                end
+                for _, trigger in ipairs(matching) do
+                    result = true
+                    info.auraInstance:FireTriggeredAbility(trigger.ability, self, auraCasterToken)
+                    if trigger.destroyaura then info:Destroy() end
+                end
+            end
+        end
+    end
+	if (independent and not legacy) or self:LegacyAuraEntryAvailable(info, level) == false then
 		return result
 	end
 	local auraGuid = info.auraInstance.guid

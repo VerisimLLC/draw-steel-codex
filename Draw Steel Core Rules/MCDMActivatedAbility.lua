@@ -4,11 +4,134 @@ local mod = dmhub.GetModLoading()
 --kept as a default so old serialized data doesn't error on access.
 ActivatedAbility.effectImplemented = true
 
+--The targeting-mode slider on the ability card. Its positions, in slider order:
+--  "enemies" -- enemy creatures only; the caster's own side is never offered
+--  false     -- any creature, friend or foe
+--  true      -- objects only
+--  "all"     -- creatures and objects
+--
+--"enemies" is the default, and it is a convenience for the player doing the
+--clicking rather than a rule: while attacking, don't make them pick their way
+--around their own party. It therefore only applies to a strike aimed at a
+--chosen target. An area ability affects whoever is in its area per the rules,
+--and everything else (heals, buffs, grabs) has to be able to name an ally, so
+--both of those read "enemies" as plain false -- any creature -- and the slider
+--shows that position instead.
 local g_settingTargetObjects = setting {
     id = "targetobjects",
-    default = false,
+    default = "enemies",
     storage = "preference",
 }
+
+local g_targetModeText = {
+    ["enemies"] = "Enemies",
+    [false]     = "Creatures",
+    [true]      = "Objects",
+    ["all"]     = "All",
+}
+
+--- True for an ability the "Enemies" slider position applies to: a strike the
+--- player aims at chosen targets rather than one that fills an area.
+--- @return boolean
+function ActivatedAbility:IsNonAreaStrike()
+    return self:HasKeyword("Strike") and (not self:HasKeyword("Area"))
+end
+
+--- The positions to show on this ability's targeting slider, in order, or nil
+--- if the ability offers no meaningful choice and the slider should be hidden.
+--- @return nil|{id: any, text: string}[]
+function ActivatedAbility:TargetModeOptions()
+    --an object-only ability has no creatures to choose between.
+    if self.targetAllegiance == "none" then
+        return nil
+    end
+
+    local canTargetObjects = (self.objectTarget and true) or false
+    local canTargetFriends = self.targetAllegiance ~= "enemy"
+
+    local ids
+    if self:IsNonAreaStrike() then
+        --"Creatures" (friend or foe) is only a distinct choice if the ability
+        --is allowed to name a friend in the first place; an enemy-allegiance
+        --ability already excludes them, so that position is dropped.
+        ids = {"enemies"}
+        if canTargetFriends then ids[#ids+1] = false end
+        if canTargetObjects then
+            ids[#ids+1] = true
+            --"All" only says something once there are objects to add to the
+            --creatures; without them it is just "Creatures" under another name.
+            ids[#ids+1] = "all"
+        end
+
+        --with no friends to withhold and no objects to offer, "Enemies" and
+        --"All" would pick out the same targets. Show nothing rather than a
+        --slider that does nothing.
+        if (not canTargetFriends) and (not canTargetObjects) then
+            return nil
+        end
+    elseif canTargetObjects then
+        --unchanged for everything that is not a single-target strike.
+        ids = {false, true, "all"}
+    else
+        return nil
+    end
+
+    local result = {}
+    for _,id in ipairs(ids) do
+        result[#result+1] = { id = id, text = g_targetModeText[id] }
+    end
+
+    return result
+end
+
+--- The slider position this ability is currently using: the player's stored
+--- preference, clamped to a position this ability actually offers, so the bar
+--- and the target list can never disagree.
+--- @return false|true|'all'|'enemies'
+function ActivatedAbility:GetTargetMode()
+    local value = g_settingTargetObjects:Get()
+    local options = self:TargetModeOptions()
+
+    if options == nil then
+        --no slider: "enemies" has no meaning here, so it reads as any creature.
+        if value == "enemies" then
+            return false
+        end
+        return value
+    end
+
+    for _,option in ipairs(options) do
+        if option.id == value then
+            return value
+        end
+    end
+
+    --a stored "all" on an ability with no objects to target means the same
+    --thing as "Creatures", so land there rather than falling back to
+    --"Enemies", which would silently withhold the caster's own side.
+    if value == "all" then
+        for _,option in ipairs(options) do
+            if option.id == false then
+                return false
+            end
+        end
+    end
+
+    return options[1].id
+end
+
+--- Resolve this ability's slider position into the two things the target list
+--- actually needs.
+--- @return false|true|'all' objectMode Whether to offer creatures, objects or both.
+--- @return boolean enemiesOnly Whether the caster's own side is withheld.
+function ActivatedAbility:GetTargetingMode()
+    local mode = self:GetTargetMode()
+    if mode == "enemies" then
+        return false, true
+    end
+
+    return mode, false
+end
 
 -- Custom rules for the spellInfo / roll-dialog panel. Plain rule tables (NOT
 -- gui.Style objects) because they are routed through ThemeEngine.MergeStyles,
@@ -2601,29 +2724,37 @@ function ActivatedAbility:Render(options, params)
                 end,
             },
 
-            --attack creatures vs objects panel
+            --targeting mode: which creatures/objects the player is offered as
+            --targets. See TargetModeOptions for what the positions mean.
             gui.Panel {
-                width = "auto",
+                width = "100%",
                 height = "auto",
                 showAbilitySection = function(element, options)
-                    if self.objectTarget and self.targetAllegiance ~= "none" and options.ability.name == self.name and options.section == "target" then
-                        element.children = {
-                            gui.EnumeratedSliderControl {
-                                styles = ThemeEngine.GetStyles("default", "default"),
-                                options = {
-                                    { id = false, text = "Creatures" },
-                                    { id = true,  text = "Objects" },
-                                    { id = "all", text = "Creatures or Objects" },
-                                },
-                                value = g_settingTargetObjects:Get(),
-                                change = function(element)
-                                    g_settingTargetObjects:Set(element.value)
-                                end,
-                            },
-                        }
-                    else
-                        element.children = {}
+                    local modeOptions = nil
+                    if options.ability.name == self.name and options.section == "target" then
+                        modeOptions = self:TargetModeOptions()
                     end
+
+                    if modeOptions == nil then
+                        element.children = {}
+                        return
+                    end
+
+                    element.children = {
+                        gui.EnumeratedSliderControl {
+                            styles = ThemeEngine.GetStyles("default", "default"),
+                            --fixed footprint: the bar occupies the same space
+                            --whether it is showing two positions or four, so the
+                            --card does not reflow as the player cycles abilities.
+                            width = "100%",
+                            height = 24,
+                            options = modeOptions,
+                            value = self:GetTargetMode(),
+                            change = function(element)
+                                g_settingTargetObjects:Set(element.value)
+                            end,
+                        },
+                    }
                 end,
 
             },

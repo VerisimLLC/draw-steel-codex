@@ -635,6 +635,7 @@ local function CreateWindowControl(args)
         data = { maximized = nil },
         calculateVisibility = args.calculateVisibility,
         click = args.click,
+        hover = args.hover,
 
         gui.Panel{
             classes = {"windowControlIcon", cond(args.danger, "windowControlIconDanger")},
@@ -1941,6 +1942,169 @@ function g_tileIndicator.HoleTypeOnMap()
     return nil
 end
 
+--The Map object on the floor we are on. A layer's map may live on the
+--layer or on its parent floor, so the whole top-level floor family is
+--searched (GetLayersForFloor returns the floor itself plus its layers).
+--Mirrors FindMapObjectForFloor in the Floors panel.
+function g_tileIndicator.FindCurrentFloorMapObject()
+    local cf = game.currentFloor
+    if cf == nil then
+        return nil
+    end
+    local topId = cf.parentFloor or cf.floorid
+    local layers = game.currentMap:GetLayersForFloor(topId)
+    for _,layer in ipairs(layers or {}) do
+        for _,obj in pairs(layer.objects) do
+            if obj:GetComponent("Map") ~= nil then
+                return obj
+            end
+        end
+    end
+    return nil
+end
+
+--Director-only: the map appearance variations on the floor we are on,
+--as a compact version of the Floors panel gallery -- click a tile to
+--switch the map's image. No adding or renaming here; that stays in the
+--Floors panel. Returns nil when there is nothing to choose between
+--(not a Director, no Map object, or only the base image).
+function g_tileIndicator.CreateAppearanceSection()
+    if not dmhub.isDM then
+        return nil
+    end
+
+    local mapObj = g_tileIndicator.FindCurrentFloorMapObject()
+    if mapObj == nil then
+        return nil
+    end
+
+    local comp = mapObj:GetComponent("Appearance")
+    if comp == nil or not comp.valid then
+        return nil
+    end
+
+    local doc = mapObj:ComponentToJson(comp.componentid)
+    if doc == nil then
+        return nil
+    end
+
+    --Same index scheme as the Floors panel: 0 is the map's own base
+    --image, i >= 1 is swaps[i] shown with names[i].
+    local swaps = doc.imageSwaps or {}
+    if #swaps == 0 then
+        return nil
+    end
+    local names = doc.imageSwapNames or {}
+    local selected = doc.imageNumber or 0
+    local baseName = doc.imageDefaultName
+    if baseName == nil or baseName == "" then
+        baseName = "Default"
+    end
+
+    local tilesPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        wrap = true,
+        valign = "top",
+    }
+
+    local RefreshTiles
+
+    --One gallery tile: a thumbnail with the name beneath. Four fit across
+    --the popup's 256px interior (60 + 2px margin each side).
+    local function CreateTile(index)
+        local isBase = index == 0
+        local imageId = cond(isBase, mapObj.displayImageId, swaps[index])
+        local isSelected = selected == index
+        local name = cond(isBase, baseName, names[index] or string.format("Appearance %d", index))
+
+        --The selected tile is framed as a whole (thumbnail + name) with a
+        --solid accent border and tinted fill; a thicker border on the
+        --56px thumbnail alone was too subtle to tell apart from the rest.
+        return gui.Panel{
+            width = 60,
+            height = "auto",
+            flow = "vertical",
+            hmargin = 2,
+            vmargin = 2,
+            halign = "left",
+            valign = "top",
+            bgimage = "panels/square.png",
+            bgcolor = cond(isSelected, "#ffffff22", "clear"),
+            cornerRadius = 4,
+            borderWidth = cond(isSelected, 2, 0),
+            borderColor = cond(isSelected, "@accent", "clear"),
+            pad = 2,
+            borderBox = true,
+
+            gui.Panel{
+                classes = {"image", "hoverable"},
+                width = 52,
+                height = 39,
+                halign = "center",
+                valign = "top",
+                bgimage = imageId or "panels/square.png",
+                cornerRadius = 4,
+                borderWidth = 1,
+                borderColor = cond(isSelected, "@accent", "@border"),
+                hover = gui.Tooltip(name),
+                click = function()
+                    if selected == index then
+                        return
+                    end
+                    selected = index
+                    local live = mapObj:GetComponent("Appearance")
+                    if live ~= nil and live.valid then
+                        live:SetAndUploadProperties{ imageNumber = selected }
+                    end
+                    RefreshTiles()
+                end,
+            },
+
+            gui.Label{
+                classes = {cond(isSelected, "bold")},
+                text = name,
+                width = 60,
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                fontSize = 11,
+                textWrap = false,
+                textOverflow = "ellipsis",
+                tmargin = 2,
+            },
+        }
+    end
+
+    RefreshTiles = function()
+        local children = { CreateTile(0) }
+        for i = 1, #swaps do
+            children[#children+1] = CreateTile(i)
+        end
+        tilesPanel.children = children
+    end
+
+    RefreshTiles()
+
+    return gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        bmargin = 8,
+
+        gui.Label{
+            classes = {"bold"},
+            text = "Map Appearance",
+            width = "100%",
+            height = "auto",
+            bmargin = 4,
+        },
+
+        tilesPanel,
+    }
+end
+
 function g_tileIndicator.CreateOverlayMenu()
     local checkStyle = {
         width = "100%",
@@ -2072,6 +2236,13 @@ function g_tileIndicator.CreateOverlayMenu()
     local holeType = g_tileIndicator.HoleTypeOnMap()
 
     local children = {}
+
+    --Directors get the map appearance picker first: it is about the map
+    --the clicked label names, the overlay toggles come after.
+    local appearanceSection = g_tileIndicator.CreateAppearanceSection()
+    if appearanceSection ~= nil then
+        children[#children+1] = appearanceSection
+    end
 
     children[#children+1] = gui.Label{
         classes = {"bold"},
@@ -7033,6 +7204,15 @@ local function CreateTopBar()
                             if maximized ~= element.data.maximized then
                                 element.data.maximized = maximized
                                 element:FireEventTree("setIcon", cond(maximized, "window-chrome/chrome-restore.png", "window-chrome/chrome-maximize.png"))
+                            end
+                        end,
+                        --while fullscreen the control is grayed out and does
+                        --nothing, so tell the user why and how to leave the
+                        --mode. Windowed mode needs no tooltip -- the glyph
+                        --is the native maximize/restore control.
+                        hover = function(element)
+                            if dmhub.GetSettingValue("fullscreen") == true then
+                                gui.Tooltip("Fullscreen mode: Press F11 to enter Windowed mode")(element)
                             end
                         end,
                         click = function()

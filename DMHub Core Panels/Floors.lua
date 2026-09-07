@@ -1207,7 +1207,7 @@ local function ShowFloorSettings(floor, onHeightChanged)
 
 	local dialogPanel = gui.Panel{
 		classes = {"framedPanel"},
-		width = 480,
+		width = 660,
 		height = "auto",
 		styles = ThemeEngine.MergeStyles(appearanceTileStyles),
 

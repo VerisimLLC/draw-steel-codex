@@ -4470,6 +4470,22 @@ function gui.SearchInput(options)
 		return str
 	end
 
+	--the last string handed to "search". Both edit and change route
+	--through here, and change also fires on defocus with unchanged text;
+	--re-firing then would make list-rebuilding handlers destroy the
+	--tile the user just pressed on before mouse-up reaches it (the
+	--"first click only defocuses the search" bug), so only fire on a
+	--real change.
+	local lastSearch = nil
+	local FireSearch = function(element)
+		local str = ParseString(element.text)
+		if str == lastSearch then
+			return
+		end
+		lastSearch = str
+		element:FireEvent("search", str)
+	end
+
 	local args = {
 		classes = {"searchInput"},
 		placeholderText = "Search...",
@@ -4482,12 +4498,8 @@ function gui.SearchInput(options)
 		hpad = 24,
 		editlag = 0.25,
 
-		edit = function(element)
-			element:FireEvent("search",ParseString(element.text))
-		end,
-		change = function(element)
-			element:FireEvent("search", ParseString(element.text))
-		end,
+		edit = FireSearch,
+		change = FireSearch,
 
 		--the magnifier, inside the field's left edge. floating and the
 		--offset are structural, so they stay inline (the engine does not

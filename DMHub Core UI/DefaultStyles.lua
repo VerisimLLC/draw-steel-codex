@@ -598,6 +598,29 @@ ThemeEngine.RegisterTheme{
             borderColor = "@fg",
         },
 
+        -- Primary call-to-action button: the one control the flow is waiting on
+        -- (e.g. the action bar's Confirm). Accent fill + bold so it reads as
+        -- "press me" next to plain default buttons like Skip/Cancel. Use at
+        -- most one per view. The hover rule repeats the base selectors plus
+        -- the negations so it outranks the generic 5-selector hover inversion.
+        {
+            selectors = {"label", "button", "primary"},
+            bgcolor = "@accent",
+            color = "@fgInverse",
+            borderColor = "@accent",
+            fontWeight = "bold",
+            bold = true,
+            priority = 5,
+        },
+        {
+            selectors = {"label", "button", "primary", "~disabled", "~hasIcon", "hover"},
+            bgcolor = "@accentHover",
+            color = "@fgInverse",
+            borderColor = "@accentHover",
+            fontWeight = "bold",
+            priority = 5,
+        },
+
         --[[ Input ]]
         -- The ONE canonical text-field look (Control Zoo pass 2026-08-22),
         -- sharing the search bar's interaction language -- quiet at rest,

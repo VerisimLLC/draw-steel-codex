@@ -393,8 +393,9 @@ function gui.IconEditor(args)
 
 		local pagingPanel = gui.Panel{
 			id = "paging-panel",
-			width = "100%",
+			width = "auto",
 			height = 32,
+			halign = "center",
 			flow = "horizontal",
 
 			children = {

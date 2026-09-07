@@ -4131,3 +4131,69 @@ spine.register{
         end
     end,
 }
+-- Admin testing aid for Patreon-gated content (map pack tiers, modules
+-- included with a creator's membership). Session-only; see
+-- dmhub.SetPatreonOrgOverride. Non-admins are refused engine-side.
+Commands.RegisterMacro{
+    name = "patreon",
+    summary = "admin: pretend a Patreon pledge for this session",
+    doc = "Usage: /patreon <orgid> <cents>   pretend you pledge <cents>/month to that creator org (0 = not a patron)\n       /patreon <orgid> clear    forget the override for that org\n       /patreon clear            forget every override\n       /patreon                  list real entitlements and overrides\nAdmin accounts only. Nothing is written to the server; overrides vanish on restart.",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            local result = {{text = "clear", summary = "forget every override"}}
+            for _, e in ipairs(dmhub.patreonOrgEntitlements) do
+                result[#result+1] = {text = e.orgid, summary = string.format("%d cents", e.cents)}
+            end
+            return result
+        elseif argIndex == 2 then
+            return {
+                {text = "clear", summary = "forget the override"},
+                {text = "0", summary = "pretend not a patron"},
+            }
+        end
+        return {}
+    end,
+    command = function(str)
+        local args = {}
+        for word in string.gmatch(str or "", "%S+") do
+            args[#args+1] = word
+        end
+
+        if #args == 0 then
+            local overrides = dmhub.patreonOrgOverrides
+            local lines = {}
+            for _, e in ipairs(dmhub.patreonOrgEntitlements) do
+                local tag = overrides[e.orgid] ~= nil and " (OVERRIDE)" or ""
+                lines[#lines+1] = string.format("%s: %d cents, entitled=%s, active=%s%s", e.orgid, e.cents, tostring(e.entitled), tostring(e.active), tag)
+            end
+            if #lines == 0 then
+                lines[1] = "no Patreon entitlements"
+            end
+            dmhub.Log("Patreon entitlements:\n" .. table.concat(lines, "\n"))
+            return
+        end
+
+        local orgid = string.lower(args[1])
+        if orgid == "clear" and #args == 1 then
+            dmhub.ClearPatreonOrgOverride(nil)
+            dmhub.Log("Patreon overrides cleared")
+            return
+        end
+
+        local value = args[2] and string.lower(args[2]) or nil
+        if value == "clear" then
+            dmhub.ClearPatreonOrgOverride(orgid)
+            dmhub.Log(string.format("Patreon override for %s cleared", orgid))
+            return
+        end
+
+        local cents = tonumber(value)
+        if cents == nil or cents < 0 or math.floor(cents) ~= cents then
+            dmhub.Log("Usage: /patreon <orgid> <cents|clear>  |  /patreon clear  |  /patreon")
+            return
+        end
+
+        dmhub.SetPatreonOrgOverride(orgid, cents)
+        dmhub.Log(string.format("Patreon override: %s -> %d cents for this session", orgid, cents))
+    end,
+}

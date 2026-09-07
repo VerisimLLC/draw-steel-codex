@@ -134,6 +134,7 @@
 --- @field patreonPledgeTier number The raw Patreon tier recorded for this account (0-4), ignoring the MCDM white-label override that makes patronTier always report 3. DMHub campaign only: this is the DMHub Patreon's patron ladder and says nothing about whether the user is a patron of any creator organization in the app -- for that, use patreonOrgEntitlements / IsEntitledToOrg. A user can be tier 4 here with no MCDM membership at all, and vice versa. Use for reporting the user's actual DMHub pledge; use patronTier to gate features.
 --- @field subscriptionTier number The subscription tier level of the current user. 0 means no subscription.
 --- @field isAdminAccount boolean True if the current user has admin privileges on their account.
+--- @field patreonOrgOverrides table<string, integer> The session Patreon overrides in force, as a table of orgid -> cents (see SetPatreonOrgOverride). Empty when none.
 --- @field hasStoreAccess boolean (Read-only) controls whether there is a store in this version of the app.
 --- @field networkLogLevel number The log level we use for networking messages. 0 = all, 1 = information, 2 = warning, 3 = error, 4 = exception, 5 = none
 --- @field activeObjectsPath string The game path pattern pointing to active objects. Can be used with monitorGame on a panel to monitor for object changes.
@@ -1222,6 +1223,15 @@ function dmhub.InviteToGameViaSteam(gameid) end
 --- @param orgid string The id of the creator organization.
 --- @return boolean
 function dmhub:IsEntitledToOrg(orgid) end
+
+--- ADMIN ONLY testing aid: for the rest of this session, pretend this account's Patreon pledge to the given creator organization is `cents` per month. cents > 0 reads as an active, entitled patron at that pledge; cents = 0 reads as no entitlement at all, even if the real pledge exists. Every consumer honors it -- patreonOrgEntitlements, IsEntitledToOrg, map pack tier gating, Patreon-included modules -- but nothing is written to the server and it is forgotten on restart. Non-admin accounts get a DebugConsole error and no change. See also ClearPatreonOrgOverride and patreonOrgOverrides; the /patreon chat command wraps these.
+--- @param orgid string The id of the creator organization.
+--- @param cents integer The pretend monthly pledge in cents; 0 = pretend not entitled.
+function dmhub:SetPatreonOrgOverride(orgid, cents) end
+
+--- ADMIN ONLY testing aid: forget the session override set by SetPatreonOrgOverride for the given creator organization, or every override when orgid is nil, so the real /Patrons entitlements apply again.
+--- @param orgid? string The id of the creator organization; nil clears all overrides.
+function dmhub:ClearPatreonOrgOverride(orgid) end
 
 --- Elevates the user to GM status or removes their GM status. Only works on admin accounts.
 --- @param isDM? any

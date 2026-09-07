@@ -1292,6 +1292,29 @@ function creature:FillCalculatedStatusIcons(result)
 	end
 end
 
+--- Tallies, per language id, how many times the creature has been granted it minus
+--- how many times it has forgotten it. Innate languages and 'language' proficiency
+--- modifiers each add 1; 'forgetlanguage' modifiers subtract 1. A language is known
+--- while its tally is positive, so a hero who knows Caelian from two sources and
+--- forgets it once still knows it.
+--- @return table<string, number>
+function creature:LanguageCounts()
+    local counts = {}
+
+    for k,v in pairs(self:try_get("innateLanguages", {})) do
+        if v then
+            counts[k] = (counts[k] or 0) + 1
+        end
+    end
+
+    local mods = self:GetActiveModifiers()
+    for i,mod in ipairs(mods) do
+        mod.mod:AccumulateLanguages(mod, self, counts)
+    end
+
+    return counts
+end
+
 --returns a {string -> true} of languages the creature knows.
 --- Returns the set of language ids this creature knows.
 --- @return table<string, boolean>
@@ -1303,14 +1326,19 @@ function creature:LanguagesKnown()
     local result = self:try_get("_tmp_languagesKnownReuse")
     if result == nil then
         result = {}
+    else
+        --the reused table must be emptied first: a language that has since been
+        --forgotten or lost would otherwise linger in it for the rest of the session.
+        for k,_ in pairs(result) do
+            result[k] = nil
+        end
     end
 
-	local mods = self:GetActiveModifiers()
-	table.shallow_copy_into_dest(self:try_get("innateLanguages", {}), result)
-
-	for i,mod in ipairs(mods) do
-		mod.mod:AccumulateLanguages(mod, self, result)
-	end
+    for k,n in pairs(self:LanguageCounts()) do
+        if n > 0 then
+            result[k] = true
+        end
+    end
 
     self._tmp_languagesKnown = result
     self._tmp_languagesKnownReuse = result --stash a copy to re-use

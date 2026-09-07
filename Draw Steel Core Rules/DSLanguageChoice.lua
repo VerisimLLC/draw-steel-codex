@@ -208,3 +208,231 @@ CharacterChoice.RegisterChoice{
     text = "Choice of a Language",
     type = CharacterLanguageChoice,
 }
+
+-------------------------------------------------------------------------------
+-- CharacterForgetLanguageChoice: the player picks a language they currently
+-- know and forgets it (e.g. the Shipwrecked complication's drawback). Each pick
+-- becomes a 'proficiency' modifier with subtype 'forgetlanguage', which
+-- subtracts one from that language's tally in creature:LanguageCounts(); the
+-- language stays known if some other feature still grants it.
+-------------------------------------------------------------------------------
+
+--- @class CharacterForgetLanguageChoice:CharacterChoice
+--- @field name string Display name ("Forget a Language").
+--- @field description string Prompt shown to the player.
+--- @field numChoices number|string|table Number of languages the player must forget.
+CharacterForgetLanguageChoice = RegisterGameType("CharacterForgetLanguageChoice", "CharacterChoice")
+
+CharacterForgetLanguageChoice.name = "Forget a Language"
+CharacterForgetLanguageChoice.description = "Choose a language you know to forget"
+CharacterForgetLanguageChoice.numChoices = 1
+
+function CharacterForgetLanguageChoice.Create(options)
+	local result = CharacterForgetLanguageChoice.new{
+		guid = dmhub.GenerateGuid(),
+	}
+
+    for k,v in pairs(options or {}) do
+        result[k] = v
+    end
+
+    return result
+end
+
+--- The language ids this choice may offer: everything the creature currently knows,
+--- plus whatever is already picked here. A picked language has been subtracted from
+--- LanguagesKnown(), so without that union it would vanish from its own dropdown.
+--- @param existingChoices string[]|nil ids already chosen for this feature
+--- @param creature creature|nil
+--- @return table<string, boolean>
+function CharacterForgetLanguageChoice:_candidateLanguages(existingChoices, creature)
+    local ids = {}
+    if creature ~= nil then
+        for k,_ in pairs(creature:LanguagesKnown()) do
+            if k ~= "all" then
+                ids[k] = true
+            end
+        end
+    end
+
+    for _,id in ipairs(existingChoices or {}) do
+        ids[id] = true
+    end
+
+    return ids
+end
+
+--- @return {id: string, text: string, description: string, unique: boolean}[]
+function CharacterForgetLanguageChoice:Choices(numOption, existingChoices, creature)
+    local languagesTable = dmhub.GetTable(Language.tableName) or {}
+    local result = {}
+    for langid,_ in pairs(self:_candidateLanguages(existingChoices, creature)) do
+        local lang = languagesTable[langid]
+        if lang ~= nil then
+            result[#result+1] = {
+                id = langid,
+                text = lang.name,
+                description = lang.description,
+                --not unique: the builder's uniqueness sweep hides any option chosen
+                --elsewhere, which here would hide exactly the languages we want listed.
+                unique = false,
+            }
+        end
+    end
+
+    table.sort(result, function(a,b) return a.text < b.text end)
+    return result
+end
+
+--- @param choices table<string, string[]>|nil the creature's full levelChoices map
+--- @param creature creature|nil
+function CharacterForgetLanguageChoice:GetOptions(choices, creature)
+    local existing = nil
+    if choices ~= nil then
+        existing = choices[self.guid]
+    end
+
+    local languagesTable = dmhub.GetTable(Language.tableName) or {}
+    local result = {}
+    for langid,_ in pairs(self:_candidateLanguages(existing, creature)) do
+        local lang = languagesTable[langid]
+        if lang ~= nil then
+            result[#result+1] = {
+                guid = langid,
+                name = lang.name,
+                description = lang.description,
+                unique = false,
+            }
+        end
+    end
+
+    table.sort(result, function(a,b) return a.name < b.name end)
+    return result
+end
+
+function CharacterForgetLanguageChoice:GetDescription()
+	return self.description
+end
+
+function CharacterForgetLanguageChoice:NumChoices(creature)
+	return self.numChoices
+end
+
+function CharacterForgetLanguageChoice:CanRepeat()
+	return false
+end
+
+--- Builds (and caches) the synthetic feature that forgets one language: a copy of
+--- the standard "Language" feature with its modifier flipped to 'forgetlanguage'.
+--- @param langid string
+--- @return CharacterFeature|nil
+function CharacterForgetLanguageChoice:GetForgetFeature(langid)
+    local cache = self:try_get("_tmp_forgetFeatures")
+    if cache == nil or cache.version ~= g_languageVersion then
+        cache = { version = g_languageVersion, features = {} }
+        self._tmp_forgetFeatures = cache
+    end
+
+    if cache.features[langid] ~= nil then
+        return cache.features[langid]
+    end
+
+    local lang = (dmhub.GetTable(Language.tableName) or {})[langid]
+    local feature = DeepCopy(MCDMImporter.GetStandardFeature("Language"))
+    if lang == nil or feature == nil then
+        return nil
+    end
+
+    local name = string.format("Forgotten: %s", lang.name)
+    feature.id = langid
+    --distinct from the "know this language" feature's guid, which is the bare langid.
+    feature.guid = langid .. "-forget"
+    feature.name = name
+    feature.modifiers[1].name = name
+    feature.modifiers[1].subtype = "forgetlanguage"
+    feature.modifiers[1].skills = {[langid] = true}
+    feature.modifiers[1].sourceguid = self.guid
+
+    cache.features[langid] = feature
+    return feature
+end
+
+function CharacterForgetLanguageChoice:FillChoice(choices, result)
+	local choiceidList = choices[self.guid]
+	if choiceidList == nil then
+		return
+	end
+
+    for _,choiceid in ipairs(choiceidList) do
+        local f = self:GetForgetFeature(choiceid)
+        if f ~= nil then
+            f:FillChoice(choices, result)
+        end
+    end
+end
+
+function CharacterForgetLanguageChoice:FillFeaturesRecursive(choices, result)
+	result[#result+1] = self
+
+	local choiceidList = choices[self.guid]
+	if choiceidList == nil then
+		return
+	end
+
+    for _,choiceid in ipairs(choiceidList) do
+        local f = self:GetForgetFeature(choiceid)
+        if f ~= nil then
+            f:FillFeaturesRecursive(choices, result)
+        end
+    end
+end
+
+function CharacterForgetLanguageChoice:VisitRecursive(fn)
+	fn(self)
+end
+
+function CharacterForgetLanguageChoice:CreateEditor(classOrRace, params)
+	params = params or {}
+
+    local resultPanel
+
+    resultPanel = {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+
+        gui.Panel{
+            classes = {"formStackedRow"},
+            gui.Label{
+                classes = {"formStacked"},
+                text = "Languages to forget:",
+            },
+            gui.Input{
+                classes = {"formStacked"},
+                width = 180,
+                text = tonumber(self.numChoices),
+                characterLimit = 2,
+                numeric = true,
+                change = function(element)
+                    local n = math.max(1, round(tonumber(element.text) or self.numChoices))
+                    self.numChoices = n
+                    resultPanel:FireEvent("change")
+                end,
+            }
+        },
+    }
+
+    for k,v in pairs(params) do
+        resultPanel[k] = v
+    end
+
+    resultPanel = gui.Panel(resultPanel)
+
+    return resultPanel
+end
+
+CharacterChoice.RegisterChoice{
+    id = "forgetlanguage",
+    text = "Forget a Known Language",
+    type = CharacterForgetLanguageChoice,
+}

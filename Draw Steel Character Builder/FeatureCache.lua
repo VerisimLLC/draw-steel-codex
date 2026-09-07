@@ -30,6 +30,7 @@ local typeOrderTable = {
     CharacterFeatureChoice              = 160,
     CharacterSkillChoice                = 170,
     CharacterLanguageChoice             = 180,
+    CharacterForgetLanguageChoice       = 181,
     CharacterFeatChoice                 = 190,
     CharacterIncidentChoice             = 200,
 }
@@ -1222,6 +1223,7 @@ local CATEGORISER_CHOICE_BUCKET = {
     CharacterFeatChoice                = "perk",
     CharacterSkillChoice               = "skill",
     CharacterLanguageChoice            = "language",
+    CharacterForgetLanguageChoice      = "language",
     CharacterAncestryInheritanceChoice = "ancestry",
 }
 

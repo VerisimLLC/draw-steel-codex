@@ -1462,6 +1462,9 @@ mod.shared.ShowCreateMapDialog = function()
             classes = {"framedPanel"},
             width = DIALOG_WIDTH,
             height = DIALOG_HEIGHT,
+            --borderless: the modal reads as a sheet; the framedPanel class
+            --still supplies the surface and rounded corners.
+            borderWidth = 0,
             styles = ThemeEngine.MergeStyles(tileStyles),
             flow = "horizontal",
             sidebar,

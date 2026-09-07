@@ -1294,9 +1294,12 @@ Consequences worth knowing before using it:
   asset rewrites the file in your directory instead of patching the cloud --
   most plausibly the encounter DOCUMENT, since journal documents are rows of
   the `documents` table under `/assets` and the host banks spawn locations
-  into the encounter annotation. It shows up as a git diff rather than
-  silently, but point the list at content you are happy to have a playtest
-  write to (a scratch clone, if that matters).
+  into the encounter annotation. Both overlay directories are now git
+  repositories, so a write-back shows up as a diff rather than silently:
+  `C:\dev\eotw` was `git init`-ed on 2026-09-06 (it had been loose files
+  with no history until then -- see that day's status entry), and
+  `draw-steel-codex/data` is the `draw-steel-data` submodule. Still, point
+  the list only at content you are happy to have a playtest write to.
 - **Mod documents are unaffected.** The EotW shared state doc lives at
   `/modDocuments/{modguid}/documents/...`, outside the intercepted
   `/GameDetails/{gid}/assets` prefix, so all the runtime state the encounter
@@ -3074,7 +3077,20 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
 
 # Status
 
-- 2026-08-31 (latest): **Module version 8 PUBLISHED** -- the first version
+- 2026-09-06 (latest): **`C:\dev\eotw` is now a git repository.** The EotW
+  authoring directory -- the sole home of `room-1.yaml` (the week's encounter),
+  `start.yaml` (the Start keyword) and `hero-death.yaml` (the Hero Death rule),
+  plus their `_meta.yaml` descriptors -- had been loose files on disk with no
+  version control and no backup, while local-assets write-back can silently
+  rewrite any of them during a playtest. `git init -b master` + an initial
+  commit of all six files (`4f7cec2`), followed by a `.gitattributes` carrying
+  `* -text` (`f0fa701`) so git never converts the line endings of files the
+  engine writes itself. No remote; local history only. Nothing else changed --
+  the engine and the publisher both just read the directory. The "shows up as a
+  git diff" claim in [Playtesting against local asset directories](#playtesting-against-local-asset-directories-decided--built-2026-08-30-engine-needs-build-untested)
+  was false when written and is now true; it has been corrected either way.
+
+- 2026-08-31: **Module version 8 PUBLISHED** -- the first version
   carrying the re-authored encounter.
   - dataid `d8b02254-b767-4bbc-9484-400a4df1070c`, streamed 16,029B, snapshot
     139,379B, blobs `uIqrikBFqDAIX/LFuI1o1w==` (4,504B) and

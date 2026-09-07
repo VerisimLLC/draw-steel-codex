@@ -179,6 +179,53 @@ Commands.RegisterMacro{
     end,
 }
 
+--freeze: set the shared frozen state the space keybind (the core-asset
+--/togglefreeze command) toggles. dmhub.frozen is networked, so no broadcast
+--option; dmonly because players cannot change it.
+Commands.RegisterMacro{
+    name = "freeze",
+    summary = "freeze the game",
+    doc = "Usage: /freeze [on|off|toggle]\nFreezes the game (players cannot act), unfreezes it, or toggles the frozen state. Defaults to toggle.",
+    completions = function(args, index)
+        if index == 1 then
+            return {"on", "off", "toggle"}
+        end
+        return {}
+    end,
+
+    commandInfo = {
+        name = "Freeze Game",
+        description = "Freeze, unfreeze, or toggle whether players can act.",
+        dmonly = true,
+        params = {
+            {
+                name = "Action",
+                type = "choices",
+                default = "on",
+                options = {
+                    {id = "on", text = "Freeze Game"},
+                    {id = "off", text = "Unfreeze Game"},
+                    {id = "toggle", text = "Toggle Freeze"},
+                },
+            },
+        },
+    },
+
+    command = function(str)
+        if not dmhub.isDM then
+            return
+        end
+        local mode = string.lower(string.trim(str or ""))
+        if mode == "on" or mode == "freeze" then
+            dmhub.frozen = true
+        elseif mode == "off" or mode == "unfreeze" then
+            dmhub.frozen = false
+        else
+            dmhub.frozen = not dmhub.frozen
+        end
+    end,
+}
+
 Commands.RegisterMacro{
     name = "toggleparallax",
     summary = "Toggle Disable Parallax",

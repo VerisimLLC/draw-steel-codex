@@ -1812,6 +1812,20 @@ creature.RegisterSymbol {
 }
 
 creature.RegisterSymbol {
+    symbol = "squad",
+    lookup = function(c)
+        --Captains report their squad too; pair with Minion to exclude them.
+        return c:MinionSquad() or ""
+    end,
+    help = {
+        name = "Squad",
+        type = "text",
+        desc = "The minion squad this creature belongs to, or empty text if none.",
+        seealso = { "Minion", "Squad Captain", "Living Squad Members" },
+    }
+}
+
+creature.RegisterSymbol {
     symbol = "livingsquadmembers",
     lookup = function(c)
         --resolve the squad this creature belongs to. Minions report their squad

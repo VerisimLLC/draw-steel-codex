@@ -786,3 +786,515 @@ function ActivatedAbilityPortalTransitBehavior:EditorItems(parentPanel)
     }
     return result
 end
+
+----------------------------------------------------------------------------
+-- Pull Into Caster Space / Displace Creatures Overlapping Caster
+-- "Absorb an ally then grow" abilities (Synthesite's Incorporate Ally). Free
+-- straight-line moves that may end on an occupied square; not rules forced moves.
+----------------------------------------------------------------------------
+
+--Wait for the engine to process one game update (time-capped).
+local function WaitForNextGameUpdate()
+    local updateAt = dmhub.ngameupdate
+    local startTime = dmhub.Time()
+    while dmhub.ngameupdate <= updateAt and dmhub.Time() < startTime + 2 do
+        coroutine.yield(0.05)
+    end
+end
+
+--Free straight-line move that may stop on an occupied square; teleports if refused.
+local function FreeMoveOntoSquare(tok, loc)
+    tok.properties._tmp_freeMovement = true
+    local path = tok:Move(loc.withGroundAltitude, {
+        straightline = true,
+        ignorecreatures = true,
+        moveThroughFriends = true,
+        maxCost = 30000,
+        movementType = "move",
+        freeMovement = true,
+        forced = true,
+    })
+    tok.properties._tmp_freeMovement = false
+    if path == nil then
+        tok.properties._tmp_suppressTeleportEvent = true
+        tok:Teleport(loc.withGroundAltitude)
+        tok.properties._tmp_suppressTeleportEvent = nil
+    end
+end
+
+--True if tok could stand at loc without sharing any square with another token.
+local function LocIsFreeForToken(tok, loc)
+    local locs = tok:LocsOccupyingWhenAt(loc)
+    if locs == nil or #locs == 0 then
+        return false
+    end
+    for _, occLoc in ipairs(locs) do
+        if not occLoc.isOnMap then
+            return false
+        end
+        for _, other in ipairs(dmhub.GetTokensAtLoc(occLoc) or {}) do
+            if other.id ~= tok.id then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+--Squares the engine will path tok onto from where it stands, ignoring other
+--creatures: wall squares and the map edge are excluded. nil if unavailable.
+local function WalkableSquaresAround(tok, radius)
+    local ok, tiles = pcall(function()
+        return tok:CalculateMovementPerimeter((radius + 1) * 10, { moveFlags = { "IgnoreOtherCreatures" } })
+    end)
+    if not ok or tiles == nil then
+        return nil
+    end
+    local set = {}
+    for _, l in ipairs(tiles) do
+        set[string.format("%d,%d", l.x, l.y)] = true
+    end
+    return set
+end
+
+--The nearest free squares to fromLoc (all ties returned so the director can pick).
+local function NearestFreeLocs(tok, fromLoc, searchRadius)
+    local walkable = WalkableSquaresAround(tok, searchRadius)
+    local nearest = {}
+    local nearestDist = nil
+    for _, loc in ipairs(fromLoc:LocsInRadius(searchRadius) or {}) do
+        local dist = loc:DistanceInTiles(fromLoc)
+        local reachable = walkable == nil or walkable[string.format("%d,%d", loc.x, loc.y)] == true
+        if dist > 0 and reachable and (nearestDist == nil or dist <= nearestDist) and LocIsFreeForToken(tok, loc) then
+            if nearestDist == nil or dist < nearestDist then
+                nearest = { loc }
+                nearestDist = dist
+            else
+                nearest[#nearest+1] = loc
+            end
+        end
+    end
+    return nearest
+end
+
+--- Re-anchor a token whose footprint is about to grow (or just grew). The engine
+--- grows toward +x/+y, so a cornered creature grows into the wall instead of over
+--- the enemy beside it. Runs BEFORE the engine applies a pending size change: the
+--- footprint is predicted from the creature's calculated size, so the move and the
+--- growth land in the same frame as one change instead of grow-then-teleport.
+--- Score: fewest unwalkable squares, most enemies covered, fewest allies, smallest shift.
+--- Returns the anchor to move to, or nil when the current anchor is best or no growth is pending.
+--- @param tok CharacterToken
+--- @return Loc|nil
+local function FitGrownFootprint(tok)
+    local function Key(loc)
+        return string.format("%d,%d", loc.x, loc.y)
+    end
+
+    --Predicted width from the creature's modifiers (a size effect applied this
+    --frame is already in there); engine width is what is drawn right now.
+    tok.properties:Invalidate()
+    tok.properties:GetActiveModifiers() --rebuilds the calculated size from the effects
+    local predictedWidth = math.max(1, (tok.properties:GetCalculatedCreatureSizeAsNumber() or 1) - 3)
+    local engineWidth = tok.tileSize or 1
+    --Only a pending growth is re-anchored; a body the engine has already drawn
+    --stays put, so this never becomes a bare teleport.
+    if predictedWidth <= engineWidth then
+        return nil
+    end
+    local width = predictedWidth
+    local reach = width - engineWidth
+
+    local function Footprint(anchorLoc)
+        local locs = {}
+        for dx = 0, width - 1 do
+            for dy = 0, width - 1 do
+                locs[#locs+1] = anchorLoc:dir(dx, dy)
+            end
+        end
+        return locs
+    end
+
+    --Ground the engine will path onto; excludes wall squares and the map edge.
+    local walkable = nil
+    local okPerimeter, tiles = pcall(function()
+        return tok:CalculateMovementPerimeter((reach + 3) * 10, { moveFlags = { "IgnoreOtherCreatures" } })
+    end)
+    if okPerimeter and tiles ~= nil then
+        walkable = {}
+        for _, l in ipairs(tiles) do
+            walkable[Key(l)] = true
+        end
+    end
+
+    --Who stands where, by square, from every token's footprint.
+    local occupants = {}
+    for _, other in ipairs(dmhub.allTokensIncludingObjects or {}) do
+        if other.valid and other.id ~= tok.id and other.loc ~= nil and other.loc.floor == tok.loc.floor then
+            for _, l in ipairs(other:LocsOccupyingWhenAt(other.loc) or {}) do
+                local k = Key(l)
+                occupants[k] = occupants[k] or {}
+                occupants[k][#occupants[k]+1] = other
+            end
+        end
+    end
+
+    local function Score(anchorLoc)
+        local bad, enemies, allies = 0, 0, 0
+        local seen = {}
+        for _, l in ipairs(Footprint(anchorLoc)) do
+            local k = Key(l)
+            if (not l.isOnMap) or (walkable ~= nil and not walkable[k]) then
+                bad = bad + 1
+            end
+            for _, other in ipairs(occupants[k] or {}) do
+                if not seen[other.id] then
+                    seen[other.id] = true
+                    if tok:IsFriend(other) then
+                        allies = allies + 1
+                    else
+                        enemies = enemies + 1
+                    end
+                end
+            end
+        end
+        return bad, enemies, allies
+    end
+
+    local function Better(a, b)
+        if a.bad ~= b.bad then return a.bad < b.bad end
+        if a.enemies ~= b.enemies then return a.enemies > b.enemies end
+        if a.allies ~= b.allies then return a.allies < b.allies end
+        return a.shift < b.shift
+    end
+
+    local bad0, enemies0, allies0 = Score(tok.loc)
+    local best = { loc = tok.loc, bad = bad0, enemies = enemies0, allies = allies0, shift = 0 }
+    for dx = -reach, 0 do
+        for dy = -reach, 0 do
+            if dx ~= 0 or dy ~= 0 then
+                local candidate = tok.loc:dir(dx, dy)
+                local bad, enemies, allies = Score(candidate)
+                local entry = { loc = candidate, bad = bad, enemies = enemies, allies = allies, shift = math.abs(dx) + math.abs(dy) }
+                if Better(entry, best) then
+                    best = entry
+                end
+            end
+        end
+    end
+
+    if best.shift == 0 then
+        return nil
+    end
+    return best.loc
+end
+
+--- @field floatText string Label floated over each pulled creature ("" for none).
+RegisterGameType("ActivatedAbilityPullIntoCasterBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbility.RegisterType{
+    id = 'pull_into_caster',
+    text = 'Pull Into Caster Space',
+    createBehavior = function()
+        return ActivatedAbilityPullIntoCasterBehavior.new{}
+    end,
+}
+
+ActivatedAbilityPullIntoCasterBehavior.summary = 'Pull Into Caster Space'
+ActivatedAbilityPullIntoCasterBehavior.floatText = "Pulled in!"
+
+function ActivatedAbilityPullIntoCasterBehavior:SummarizeBehavior(ability, creatureLookup)
+    return "Pull targets into the caster's space"
+end
+
+function ActivatedAbilityPullIntoCasterBehavior:Cast(ability, casterToken, targets, options)
+    ability:CommitToPaying(casterToken, options)
+
+    local destLoc = casterToken.loc
+    local text = self:try_get("floatText", "")
+    local moved = 0
+    for _, target in ipairs(targets) do
+        local tok = target.token
+        if tok ~= nil and tok.valid and tok.properties ~= nil and tok.id ~= casterToken.id then
+            if moved > 0 then
+                WaitForNextGameUpdate()
+            end
+            FreeMoveOntoSquare(tok, destLoc)
+            if text ~= "" then
+                tok.properties:FloatLabel(text, "white")
+            end
+            moved = moved + 1
+        end
+    end
+
+    if moved > 0 then
+        --Let the move land before later behaviors act on the creature.
+        WaitForNextGameUpdate()
+    end
+end
+
+function ActivatedAbilityPullIntoCasterBehavior:EditorItems(parentPanel)
+    local result = {}
+    self:ApplyToEditor(parentPanel, result)
+    self:FilterEditor(parentPanel, result)
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Float Text:" },
+        gui.Input{
+            classes = { "formInput" },
+            text = self:try_get("floatText", ""),
+            change = function(element)
+                self.floatText = element.text
+            end,
+        },
+    }
+
+    return result
+end
+
+--- Grows the caster (optional size effect applied here, so the growth and the
+--- re-anchor land in the same frame), then moves every other creature in its
+--- footprint to the nearest free square and makes them the cast's targets.
+--- @field growEffect string Ongoing effect id applied to the caster before displacing ("" = none).
+--- @field growEffectAlt string Applied instead of growEffect when growAltCondition is true.
+--- @field growAltCondition string GoblinScript on the caster (cast symbols available).
+--- @field growDuration string Duration id for the effect (default "eoe").
+--- @field searchRadius number How far around the creature to look for a free square.
+--- @field addAsTarget boolean Replace the cast's targets with the displaced creatures.
+--- @field promptText string Prompt shown when several squares are equally near.
+--- @field floatText string Label floated over each displaced creature ("" for none).
+RegisterGameType("ActivatedAbilityDisplaceOverlappingBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbility.RegisterType{
+    id = 'displace_overlapping',
+    text = 'Displace Creatures Overlapping Caster',
+    createBehavior = function()
+        return ActivatedAbilityDisplaceOverlappingBehavior.new{
+            applyto = "caster",
+        }
+    end,
+}
+
+ActivatedAbilityDisplaceOverlappingBehavior.summary = 'Displace Creatures Overlapping Caster'
+ActivatedAbilityDisplaceOverlappingBehavior.searchRadius = 3
+ActivatedAbilityDisplaceOverlappingBehavior.addAsTarget = true
+ActivatedAbilityDisplaceOverlappingBehavior.promptText = "Choose where the displaced creature goes"
+ActivatedAbilityDisplaceOverlappingBehavior.floatText = "Displaced!"
+ActivatedAbilityDisplaceOverlappingBehavior.refitFootprint = true
+ActivatedAbilityDisplaceOverlappingBehavior.growEffect = ""
+ActivatedAbilityDisplaceOverlappingBehavior.growEffectAlt = ""
+ActivatedAbilityDisplaceOverlappingBehavior.growAltCondition = ""
+ActivatedAbilityDisplaceOverlappingBehavior.growDuration = "eoe"
+ActivatedAbilityDisplaceOverlappingBehavior.FitFootprint = FitGrownFootprint
+
+function ActivatedAbilityDisplaceOverlappingBehavior:SummarizeBehavior(ability, creatureLookup)
+    return "Push creatures overlapping the caster to the nearest free square"
+end
+
+function ActivatedAbilityDisplaceOverlappingBehavior:Cast(ability, casterToken, targets, options)
+    ability:CommitToPaying(casterToken, options)
+
+    --Apply the growth here and re-anchor before yielding: the engine then draws
+    --the bigger body already over the enemies beside it, never into a wall.
+    local growEffect = self:try_get("growEffect", "")
+    local altCondition = self:try_get("growAltCondition", "")
+    if altCondition ~= "" and self:try_get("growEffectAlt", "") ~= "" then
+        local alt = GoblinScriptTrue(ExecuteGoblinScript(altCondition, casterToken.properties:LookupSymbol(options.symbols or {}), 0, "Grow alt condition"))
+        if alt then
+            growEffect = self.growEffectAlt
+        end
+    end
+    if growEffect ~= "" then
+        local duration = self:try_get("growDuration", "eoe")
+        casterToken:ModifyProperties{
+            description = "Grow",
+            execute = function()
+                casterToken.properties:ApplyOngoingEffect(growEffect, duration, { tokenid = casterToken.charid })
+            end,
+        }
+    end
+    --Timing: the engine applies a teleport one game update after the call and a
+    --size change two updates after the property write. Deciding now and moving
+    --after one update makes the shift and the growth land in the same frame.
+    local newAnchor = nil
+    if self:try_get("refitFootprint", true) then
+        newAnchor = FitGrownFootprint(casterToken)
+    end
+    if newAnchor ~= nil then
+        WaitForNextGameUpdate()
+        casterToken.properties._tmp_suppressTeleportEvent = true
+        casterToken:Teleport(newAnchor.withGroundAltitude)
+        casterToken.properties._tmp_suppressTeleportEvent = nil
+    end
+    WaitForNextGameUpdate()
+
+    local footprint = casterToken:LocsOccupyingWhenAt(casterToken.loc) or {}
+    local seen = {}
+    local overlapping = {}
+    for _, loc in ipairs(footprint) do
+        for _, tok in ipairs(dmhub.GetTokensAtLoc(loc) or {}) do
+            if tok.valid and tok.properties ~= nil and tok.id ~= casterToken.id and not seen[tok.id] then
+                seen[tok.id] = true
+                overlapping[#overlapping+1] = tok
+            end
+        end
+    end
+
+    local symbols = options.symbols or {}
+    local text = self:try_get("floatText", "")
+    local displaced = {}
+    for _, tok in ipairs(overlapping) do
+        local origLoc = tok.loc
+        local candidates = NearestFreeLocs(tok, tok.loc, self:try_get("searchRadius", 3))
+        if #candidates == 0 then
+            print("DisplaceOverlapping:: no free square for", tok.name)
+        else
+            local dest = candidates[1]
+            if #candidates > 1 then
+                dest = ChooseTransitDestination(tok, candidates, symbols, casterToken, {
+                    name = "Displaced Creature Square",
+                    prompt = self:try_get("promptText", ""),
+                }) or candidates[1]
+            end
+            FreeMoveOntoSquare(tok, dest)
+            if text ~= "" then
+                tok.properties:FloatLabel(text, "white")
+            end
+            displaced[#displaced+1] = { token = tok, origLoc = origLoc }
+            WaitForNextGameUpdate()
+        end
+    end
+
+    if self:try_get("addAsTarget", true) and options.targets ~= nil then
+        for i = #options.targets, 1, -1 do
+            options.targets[i] = nil
+        end
+        for _, entry in ipairs(displaced) do
+            options.targets[#options.targets+1] = entry
+        end
+        if symbols.cast ~= nil then
+            symbols.cast.targets = options.targets
+        end
+    end
+end
+
+function ActivatedAbilityDisplaceOverlappingBehavior:EditorItems(parentPanel)
+    local result = {}
+    self:ApplyToEditor(parentPanel, result)
+    self:FilterEditor(parentPanel, result)
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Search Radius:" },
+        gui.Input{
+            classes = { "formInput" },
+            text = tostring(self:try_get("searchRadius", 3)),
+            change = function(element)
+                self.searchRadius = tonumber(element.text) or 3
+                element.text = tostring(self.searchRadius)
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Prompt Text:" },
+        gui.Input{
+            classes = { "formInput" },
+            text = self:try_get("promptText", ""),
+            change = function(element)
+                self.promptText = element.text
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Float Text:" },
+        gui.Input{
+            classes = { "formInput" },
+            text = self:try_get("floatText", ""),
+            change = function(element)
+                self.floatText = element.text
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Check{
+        text = "Displaced Creatures Become Targets",
+        value = self:try_get("addAsTarget", true),
+        change = function(element)
+            self.addAsTarget = element.value
+        end,
+    }
+
+    result[#result+1] = gui.Check{
+        text = "Re-anchor Away From Walls",
+        value = self:try_get("refitFootprint", true),
+        change = function(element)
+            self.refitFootprint = element.value
+        end,
+    }
+
+    --Ongoing effect pickers for the growth applied by this behavior.
+    local effectOptions = { { id = "", text = "(none)" } }
+    local effectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+    for id, effect in unhidden_pairs(effectsTable) do
+        effectOptions[#effectOptions+1] = { id = id, text = effect.name }
+    end
+    table.sort(effectOptions, function(a, b) return a.text < b.text end)
+
+    local function EffectPicker(labelText, field)
+        return gui.Panel{
+            classes = { "formPanel" },
+            gui.Label{ classes = { "formLabel" }, text = labelText },
+            gui.Dropdown{
+                classes = { "formDropdown" },
+                options = effectOptions,
+                idChosen = self:try_get(field, ""),
+                change = function(element)
+                    self[field] = element.idChosen
+                end,
+            },
+        }
+    end
+
+    result[#result+1] = EffectPicker("Grow Effect:", "growEffect")
+    result[#result+1] = EffectPicker("Alt Grow Effect:", "growEffectAlt")
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Use Alt When:" },
+        gui.GoblinScriptInput{
+            classes = { "formInput" },
+            value = self:try_get("growAltCondition", ""),
+            change = function(element)
+                self.growAltCondition = element.value
+            end,
+            documentation = {
+                help = "When true the alternate grow effect is applied instead of the main one.",
+                output = "boolean",
+                subject = creature.helpSymbols,
+                subjectDescription = "The caster",
+                examples = {
+                    { script = "Cast.TargetCount >= 2", text = "Two or more targets were incorporated." },
+                },
+            },
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Grow Duration:" },
+        gui.Input{
+            classes = { "formInput" },
+            text = self:try_get("growDuration", "eoe"),
+            change = function(element)
+                self.growDuration = element.text
+            end,
+        },
+    }
+
+    return result
+end

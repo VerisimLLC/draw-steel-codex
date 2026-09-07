@@ -200,7 +200,28 @@ end
 
 local function SetHeightmapArmed(on)
     g_heightmapArmed = on == true
+
+    --Arming is a CLAIM on the map: exactly one map tool is live at a time.
+    --Height editing pre-empts building strokes in the engine, so a latch left
+    --on behind another tab silently hijacked whatever the user armed next.
+    --See DMHub Core UI/MapToolArbiter.lua.
+    if g_heightmapArmed then
+        MapTools.Claim("elevation")
+    else
+        MapTools.Release("elevation")
+    end
 end
+
+--Somebody else armed: put this tool down, and give up focus with it so the
+--host's focus highlight goes out too - a tool that is no longer live has to
+--look like it.
+MapTools.Register("elevation", function()
+    SetHeightmapArmed(false)
+
+    if g_heightmapEditor ~= nil and g_heightmapEditor.valid and gui.ChildHasFocus(g_heightmapEditor) then
+        gui.SetFocus(nil)
+    end
+end)
 
 CreateHeightmapEditor = function()
     local resultPanel

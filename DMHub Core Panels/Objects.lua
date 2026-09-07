@@ -2199,6 +2199,12 @@ mod.shared.CreateObjectEditor = function(options)
 		end,
 
         childfocus = function(element)
+			--Focus IS object editing mode's armed state, so gaining it is
+			--arming: claim the map so any latched map tool (Map Markup, the
+			--Elevation Editor) puts itself down. See
+			--DMHub Core UI/MapToolArbiter.lua.
+			MapTools.Claim("objects")
+
 			local dockablePanel = element:FindParentWithClass("dockablePanel")
 			if dockablePanel ~= nil then
             	dockablePanel:SetClass("highlightPanel", true)
@@ -2206,6 +2212,8 @@ mod.shared.CreateObjectEditor = function(options)
         end,
 
         childdefocus = function(element, focusInfo)
+			MapTools.Release("objects")
+
 			local dockablePanel = element:FindParentWithClass("dockablePanel")
 			if dockablePanel ~= nil then
             	dockablePanel:SetClass("highlightPanel", false)
@@ -2308,6 +2316,18 @@ dmhub.ObjectEditingEnabled = function()
 
 	return focused
 end
+
+--Somebody else armed a map tool: object editing mode is focus-armed, so
+--putting it down means giving up focus. A safety net rather than the
+--mechanism - every arming path takes focus, so the claimant has normally
+--taken it already by the time we run. (Note childdefocus above refuses to
+--let focus go to nil while this panel is up, so this only bites when the
+--claimant has focus, which is exactly when it does not need to.)
+MapTools.Register("objects", function()
+	if m_objectEditor ~= nil and m_objectEditor.valid and m_objectEditor.parent ~= nil and gui.ChildHasFocus(m_objectEditor) then
+		gui.SetFocus(nil)
+	end
+end)
 
 --The object wiring overlay -- the trigger/action "plug" icons the engine draws
 --on map objects so you can wire an Action to a Trigger -- keys off the panel

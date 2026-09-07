@@ -692,6 +692,17 @@ local SettingsEditors = {
 		local selectedIndex = nil
 		local valueToIndex = {}
 
+		--Set while the POLLED monitor below re-presses a button to follow a
+		--value somebody ELSE wrote. The press is how this editor keeps its
+		--highlight in sync, but its gui.SetFocus is a user gesture and must
+		--not ride along: an external write yanked GUI focus into this editor
+		--a frame later. That is how arming a Map Markup wall tool -- which
+		--seeds `buildingtool` -- put focus on a button in the (collapsed,
+		--offscreen) Floors panel and left the Map Markup window's focus edge
+		--dark. Terrain.lua's floor/wall palettes already guard their own
+		--monitors against exactly this.
+		local suppressFocus = false
+
 		for i,item in ipairs(GetSettingEnum(var)) do
 			local enumItem = item
 			local currentIndex = i
@@ -710,11 +721,18 @@ local SettingsEditors = {
 				valign = "center",
 				hmargin = 2,
 				press = function(element)
+					--read-and-clear, so a monitor-driven press cannot leave
+					--the flag stuck set if anything below raises.
+					local takeFocus = not suppressFocus
+					suppressFocus = false
+
 					if selectedIndex ~= nil then
 						buttons[selectedIndex]:RemoveClass("selected")
 					end
 
-					gui.SetFocus(element)
+					if takeFocus then
+						gui.SetFocus(element)
+					end
 
 					selectedIndex = currentIndex
 					element:AddClass("selected")
@@ -737,7 +755,9 @@ local SettingsEditors = {
 				monitor = function(element)
 					local index = valueToIndex[element.monitorValue]
 					if index ~= nil and index ~= selectedIndex then
+						suppressFocus = true
 						buttons[index]:FireEvent("press")
+						suppressFocus = false
 					end
 				end,
 

@@ -1651,6 +1651,13 @@ mod.shared.ShowCreateMapDialog = function()
             for name, panel in pairs(mainModePanels) do
                 panel:SetClass("collapsed", name ~= mode)
             end
+            --leaving the library view unlights its rows, so only the
+            --active source reads as selected.
+            if mode ~= "library" then
+                for _, row in ipairs(libraryNav.children) do
+                    row:SetClass("selected", false)
+                end
+            end
         end
         --the initial state matches the initially selected Blank Map row.
         m_setMainMode("empty")

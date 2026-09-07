@@ -80,6 +80,7 @@ mod.shared.ShowCreateMapDialog = function()
     local SIDEBAR_WIDTH = 270
     local PREVIEW_WIDTH = 400
     local FOOTER_HEIGHT = 72
+    local HEADER_HEIGHT = 44
     --the preview image fits the pane width; height is capped so the text
     --below it stays in view.
     local DETAIL_IMAGE_W = PREVIEW_WIDTH - 24
@@ -1342,6 +1343,79 @@ mod.shared.ShowCreateMapDialog = function()
             libraryNav.children = rows
         end
 
+        --title-bar styles: the compact dock-panel header grammar (small
+        --uppercase title beside an icon, actions at the right).
+        tileStyles[#tileStyles + 1] = {
+            selectors = {"cmHeader"},
+            flow = "horizontal",
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            width = "100%",
+            height = HEADER_HEIGHT,
+            hpad = 12,
+            borderBox = true,
+            halign = "left",
+        }
+        tileStyles[#tileStyles + 1] = {
+            selectors = {"cmHeaderIcon"},
+            width = 18,
+            height = 18,
+            valign = "center",
+            rmargin = 8,
+            bgcolor = "@fg",
+        }
+        tileStyles[#tileStyles + 1] = {
+            selectors = {"cmHeaderTitle"},
+            fontSize = 13,
+            bold = true,
+            uppercase = true,
+            color = "@fgStrong",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+        }
+        tileStyles[#tileStyles + 1] = {
+            selectors = {"cmClose"},
+            width = 16,
+            height = 16,
+            valign = "center",
+            bgcolor = "@fgMuted",
+        }
+        tileStyles[#tileStyles + 1] = {
+            selectors = {"cmClose", "hover"},
+            bgcolor = "@fgStrong",
+        }
+
+        --the full-width title bar: title at the left, search beside it, the
+        --map count and close at the right.
+        local headerBar = gui.Panel{
+            classes = {"cmHeader"},
+            gui.Panel{ classes = {"cmHeaderIcon"}, bgimage = "phosphor/map-trifold.png" },
+            gui.Label{ classes = {"cmHeaderTitle"}, text = "Create Map", rmargin = 16 },
+            --the standard search field: magnifier, clear x, and the
+            --shared searchInput look. It fires "search" with the
+            --trimmed, lowercased text.
+            gui.SearchInput{
+                width = 400,
+                valign = "center",
+                placeholderText = "Search maps...",
+                search = function(element, str)
+                    m_search = str
+                    RefreshPackGrid()
+                end,
+            },
+            gui.Panel{ width = "100%-660", height = 1 },
+            packStatus,
+            gui.Panel{
+                classes = {"cmClose"},
+                bgimage = "phosphor/x-bold.png",
+                lmargin = 16,
+                press = function(element)
+                    gui.CloseModal()
+                end,
+            },
+        }
+
         local sidebar = gui.Panel{
             classes = {"cmSidebar"},
             width = SIDEBAR_WIDTH,
@@ -1352,14 +1426,7 @@ mod.shared.ShowCreateMapDialog = function()
                 height = "auto",
                 valign = "top",
                 flow = "vertical",
-                gui.Label{
-                    classes = {"modalTitle"},
-                    text = "Create Map",
-                    halign = "left",
-                    hmargin = 14,
-                    vmargin = 16,
-                },
-                gui.Panel{ classes = {"cmNavRule"}, bmargin = 8 },
+                tmargin = 8,
                 sourceNav,
                 gui.Panel{ classes = {"cmNavDivider"} },
                 gui.Panel{
@@ -1379,39 +1446,13 @@ mod.shared.ShowCreateMapDialog = function()
             height = "100%",
             flow = "vertical",
 
-            --search row
-            gui.Panel{
-                width = "100%-40",
-                height = 56,
-                halign = "center",
-                flow = "horizontal",
-                --the standard search field: magnifier, clear x, and the
-                --shared searchInput look. It fires "search" with the
-                --trimmed, lowercased text.
-                gui.SearchInput{
-                    width = 400,
-                    halign = "left",
-                    valign = "center",
-                    placeholderText = "Search maps...",
-                    search = function(element, str)
-                        m_search = str
-                        RefreshPackGrid()
-                    end,
-                },
-                gui.Panel{
-                    width = "auto",
-                    height = "100%",
-                    halign = "right",
-                    packStatus,
-                },
-            },
-
             --grid + preview
             gui.Panel{
                 width = "100%-40",
-                height = string.format("100%%-%d", 56 + FOOTER_HEIGHT + 12),
+                height = string.format("100%%-%d", FOOTER_HEIGHT + 24),
                 halign = "center",
                 valign = "top",
+                tmargin = 12,
                 flow = "horizontal",
                 gui.Panel{
                     width = string.format("100%%-%d", PREVIEW_WIDTH + 10),
@@ -1467,9 +1508,16 @@ mod.shared.ShowCreateMapDialog = function()
             --still supplies the surface and rounded corners.
             borderWidth = 0,
             styles = ThemeEngine.MergeStyles(tileStyles),
-            flow = "horizontal",
-            sidebar,
-            main,
+            flow = "vertical",
+            headerBar,
+            gui.Panel{ classes = {"cmNavRule"} },
+            gui.Panel{
+                width = "100%",
+                height = string.format("100%%-%d", HEADER_HEIGHT + 1),
+                flow = "horizontal",
+                sidebar,
+                main,
+            },
         }
     else
         --without the pack browser the dialog is just the two tiles, the

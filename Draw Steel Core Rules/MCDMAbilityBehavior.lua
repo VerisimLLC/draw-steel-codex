@@ -3805,8 +3805,44 @@ local g_forcedMovementStandardAbilityNames = {
     slide = "Forced Movement: Slide",
 }
 
+--Malice abilities (the monster group's malice features, categorization
+--"Malice") announce themselves with a malice DramaticBanner over the caster
+--as the cast begins. Only a top-level cast qualifies: an ability invoked from
+--inside another cast already has options.symbols.cast set, and a dismissed
+--triggered ability (options.dismiss) runs silently. The banner is not modal
+--and the cast is not held for it; it simply shimmers over the map while the
+--ability plays out.
+local function ShowMaliceBannerForCast(ability, casterToken, options)
+    if ability.categorization ~= "Malice" then
+        return
+    end
+    if options ~= nil and (options.dismiss or (options.symbols ~= nil and options.symbols.cast ~= nil)) then
+        return
+    end
+    if casterToken == nil or not casterToken.valid then
+        return
+    end
+
+    local subtitle = "Malice Ability"
+    if ability.resourceCost == CharacterResource.maliceResourceId then
+        local cost = tonumber(ability.resourceNumber) or 0
+        if cost > 0 then
+            subtitle = string.format("%d Malice", cost)
+        end
+    end
+
+    DramaticBanner.Show{
+        tokenid = casterToken.charid,
+        text = ability.name or "",
+        subtitle = subtitle,
+        bannerType = "malice",
+    }
+end
+
 local g_baseActivatedAbilityCast = ActivatedAbility.Cast
 function ActivatedAbility:Cast(casterToken, targets, options)
+    ShowMaliceBannerForCast(self, casterToken, options)
+
     local chosenType = options ~= nil and options.symbols ~= nil and options.symbols.forcedmovement or nil
     if chosenType ~= nil and self:try_get("guid") == g_forcedMovementFamilyGuid then
         --The slide standard ability deliberately never declares forcedMovement;

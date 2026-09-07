@@ -10,6 +10,9 @@ ActivatedAbilityDramaticBannerBehavior.summary = 'Dramatic Banner'
 
 ActivatedAbilityDramaticBannerBehavior.title = ""
 ActivatedAbilityDramaticBannerBehavior.subtitle = ""
+-- An id from DramaticBanner.types. Behaviors saved before types existed
+-- have no field and fall through to this default, the heroic banner.
+ActivatedAbilityDramaticBannerBehavior.bannerType = "heroic"
 
 ActivatedAbility.RegisterType
 {
@@ -39,6 +42,7 @@ function ActivatedAbilityDramaticBannerBehavior:Cast(ability, casterToken, targe
                 tokenid = tok.charid,
                 text = StringInterpolateGoblinScript(self.title, symbols),
                 subtitle = StringInterpolateGoblinScript(self.subtitle, symbols),
+                bannerType = self.bannerType,
             }
             shown = true
         end
@@ -59,6 +63,26 @@ function ActivatedAbilityDramaticBannerBehavior:EditorItems(parentPanel)
 
     -- Standard Apply To field: picks the token the banner is centred on.
     self:ApplyToEditor(parentPanel, result)
+
+    -- Banner type: heroic (the full sword banner) or malice.
+    local typeOptions = {}
+    for _,info in ipairs(DramaticBanner.types) do
+        typeOptions[#typeOptions+1] = { id = info.id, text = info.text }
+    end
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Type:",
+        },
+        gui.Dropdown{
+            idChosen = DramaticBanner.GetTypeInfo(self.bannerType).id,
+            options = typeOptions,
+            change = function(element)
+                self.bannerType = element.idChosen
+            end,
+        },
+    }
 
     result[#result+1] = gui.Panel{
         classes = {"formPanel"},

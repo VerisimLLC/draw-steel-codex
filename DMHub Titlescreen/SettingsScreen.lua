@@ -2385,18 +2385,22 @@ end
 --on disk instead of the last published module version. Unlike the per-game
 --section this one is also shown at the titlescreen -- that is where you
 --configure it, before launching into the encounter.
+--Gate for the section below. No editor entry, so it never appears in the
+--settings UI; toggle from chat with: /toggle dev:eotwdev
+local g_eotwDevSetting = setting{
+	id = "dev:eotwdev",
+	default = false,
+	storage = "preference",
+}
+
 local function CreateEotwLocalAssetsSection()
 	if not dmhub.GetSettingValue("dev") then
 		return {}
 	end
 
-	--The mode itself is dev-gated; without it there is no EotW game for
-	--these directories to apply to, so the block would only be clutter.
-	--pcall-guarded because the setting is declared by the titlescreen EotW
-	--file, which an older core codex may not have.
-	local eotwEnabled = false
-	pcall(function() eotwEnabled = dmhub.GetSettingValue("dev:encounteroftheweek") == true end)
-	if not eotwEnabled then
+	--Only developers working on Encounter of the Week content need this
+	--block; for everyone else it would only be clutter.
+	if g_eotwDevSetting:Get() ~= true then
 		return {}
 	end
 
@@ -3513,6 +3517,314 @@ local function CreateCreatorOrganizationsSection()
 		return panel
 	end
 
+	--Branding: the display name shown as the author of the organization's
+	--modules, a logo (downscaled to at most 512px on its longer edge before
+	--upload), and a website. Owner-only; all three save together.
+	local OrgLogoMaxDimension = 512
+
+	local function BrandingSection(org)
+		local m_localLogo = nil      --a newly chosen logo, held locally until Save uploads it
+		local m_logoCleared = false  --Remove Logo pressed; Save clears the stored logo
+
+		local logoImage = gui.Panel{
+			width = "auto",
+			height = "auto",
+			maxWidth = 96,
+			maxHeight = 96,
+			autosizeimage = true,
+			halign = "center",
+			valign = "center",
+			bgimage = org.logo,
+			bgcolor = "white",
+			interactable = false,
+		}
+
+		local logoPlaceholder = gui.Label{
+			width = "100%",
+			height = "auto",
+			halign = "center",
+			valign = "center",
+			textAlignment = "center",
+			fontSize = 12,
+			italics = true,
+			interactable = false,
+			text = "No logo. Click or drop an image here.",
+		}
+
+		local logoStatusLabel = gui.Label{
+			width = "100%",
+			height = "auto",
+			fontSize = 12,
+			color = "#ff9999",
+			text = "",
+		}
+
+		local function ShowLogo(image)
+			logoImage.bgimage = image
+			logoImage:SetClass("hidden", image == nil)
+			logoPlaceholder:SetClass("hidden", image ~= nil)
+		end
+
+		local removeLogoButton = nil
+
+		local function LoadLogoFile(path)
+			m_localLogo = assets:LoadImageFileLocallyResized(path, OrgLogoMaxDimension)
+			if m_localLogo == nil then
+				logoStatusLabel.text = "That file could not be loaded as an image. Use a png or jpeg."
+				return
+			end
+
+			if m_localLogo.error ~= nil then
+				logoStatusLabel.text = m_localLogo.error
+				m_localLogo = nil
+				return
+			end
+
+			logoStatusLabel.text = ""
+			m_logoCleared = false
+			ShowLogo(m_localLogo.image)
+			removeLogoButton:SetClass("collapsed", false)
+		end
+
+		local logoPanel = gui.Panel{
+			width = 96,
+			height = 96,
+			flow = "none",
+			bgimage = "panels/square.png",
+			bgcolor = "#00000099",
+			borderWidth = 1,
+			borderColor = "#ffffff44",
+			halign = "left",
+			valign = "top",
+
+			dragAndDropExtensions = {".png", ".jpg", ".jpeg"},
+
+			dropfiles = function(element, files)
+				if files[1] ~= nil then
+					LoadLogoFile(files[1])
+				end
+			end,
+
+			click = function(element)
+				dmhub.OpenFileDialog{
+					id = "OrgLogo",
+					extensions = {"png", "jpg", "jpeg"},
+					prompt = "Choose a logo image for the organization",
+					multiFiles = false,
+					open = function(path)
+						LoadLogoFile(path)
+					end,
+				}
+			end,
+
+			styles = {
+				{
+					selectors = {"hover"},
+					borderColor = "#ffffffaa",
+				},
+			},
+
+			logoImage,
+			logoPlaceholder,
+		}
+
+		ShowLogo(org.logo)
+
+		local pasteLogoButton = gui.Button{
+			width = 120,
+			height = 26,
+			fontSize = 14,
+			halign = "left",
+			vmargin = 2,
+			text = "Paste Logo",
+			classes = {cond(dmhub.HaveImageInClipboard(), nil, "collapsed")},
+			thinkTime = 0.5,
+			think = function(element)
+				element:SetClass("collapsed", not dmhub.HaveImageInClipboard())
+			end,
+			click = function(element)
+				if dmhub.HaveImageInClipboard() then
+					LoadLogoFile("CLIPBOARD")
+				end
+			end,
+		}
+
+		removeLogoButton = gui.Button{
+			width = 120,
+			height = 26,
+			fontSize = 14,
+			halign = "left",
+			vmargin = 2,
+			text = "Remove Logo",
+			classes = {cond(org.logo ~= nil, nil, "collapsed")},
+			click = function(element)
+				m_localLogo = nil
+				m_logoCleared = true
+				logoStatusLabel.text = ""
+				ShowLogo(nil)
+				element:SetClass("collapsed", true)
+			end,
+		}
+
+		local nameInput = gui.Input{
+			width = 300,
+			height = 26,
+			fontSize = 16,
+			valign = "center",
+			characterLimit = 40,
+			placeholderText = "Display name...",
+			text = org.displayName or "",
+		}
+
+		local urlInput = gui.Input{
+			width = 300,
+			height = 26,
+			fontSize = 16,
+			valign = "center",
+			characterLimit = 256,
+			placeholderText = "https://...",
+			text = org.url or "",
+		}
+
+		local function LabeledRow(labelText, input)
+			return gui.Panel{
+				flow = "horizontal",
+				width = "100%",
+				height = "auto",
+				vmargin = 2,
+				gui.Label{
+					width = 110,
+					height = "auto",
+					fontSize = 14,
+					valign = "center",
+					text = labelText,
+				},
+				input,
+			}
+		end
+
+		local saveStatusLabel = gui.Label{
+			width = "auto",
+			height = "auto",
+			fontSize = 14,
+			italics = true,
+			valign = "center",
+			hmargin = 8,
+			text = "",
+		}
+
+		local saveButton = gui.Button{
+			width = 140,
+			height = 30,
+			fontSize = 14,
+			valign = "center",
+			text = "Save Branding",
+			click = function(element)
+				local displayName = string.gsub(nameInput.text or "", "^%s*(.-)%s*$", "%1")
+				if displayName == "" then
+					ErrorModal("Organization Branding", "Enter a display name for the organization.")
+					return
+				end
+
+				--nil leaves the stored logo alone; "" clears it.
+				local logo = nil
+				if m_localLogo ~= nil then
+					if m_localLogo.error ~= nil then
+						ErrorModal("Organization Branding", m_localLogo.error)
+						return
+					end
+					m_localLogo:Upload()
+					logo = m_localLogo.image
+				elseif m_logoCleared then
+					logo = ""
+				end
+
+				saveStatusLabel.text = "Saving..."
+				module.UpdateOrganizationBranding{
+					orgid = org.id,
+					displayName = displayName,
+					logo = logo,
+					url = string.gsub(urlInput.text or "", "^%s*(.-)%s*$", "%1"),
+					success = function()
+						if element.valid then
+							saveStatusLabel.text = "Saved."
+						end
+						Refresh()
+					end,
+					failure = function(msg)
+						if element.valid then
+							saveStatusLabel.text = ""
+						end
+						ErrorModal("Organization Branding", msg)
+					end,
+				}
+			end,
+		}
+
+		return gui.Panel{
+			flow = "vertical",
+			width = "100%",
+			height = "auto",
+			vmargin = 4,
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 14,
+				bold = true,
+				vmargin = 2,
+				text = "Branding:",
+			},
+
+			gui.Label{
+				width = "100%",
+				height = "auto",
+				fontSize = 12,
+				italics = true,
+				vmargin = 2,
+				text = "The display name, logo, and website are shown to everyone browsing the organization's modules. Logos are resized to at most 512px on their longer edge.",
+			},
+
+			gui.Panel{
+				flow = "horizontal",
+				width = "100%",
+				height = "auto",
+				vmargin = 4,
+
+				logoPanel,
+
+				gui.Panel{
+					flow = "vertical",
+					width = "100%-108",
+					height = "auto",
+					hmargin = 12,
+					valign = "top",
+					LabeledRow("Display Name:", nameInput),
+					LabeledRow("Website:", urlInput),
+					gui.Panel{
+						flow = "horizontal",
+						width = "100%",
+						height = "auto",
+						vmargin = 2,
+						pasteLogoButton,
+						gui.Panel{ width = 8, height = 1 },
+						removeLogoButton,
+					},
+					logoStatusLabel,
+				},
+			},
+
+			gui.Panel{
+				flow = "horizontal",
+				width = "100%",
+				height = "auto",
+				vmargin = 4,
+				saveButton,
+				saveStatusLabel,
+			},
+		}
+	end
+
 	local function OrgCard(org)
 		local children = {}
 
@@ -3521,14 +3833,40 @@ local function CreateCreatorOrganizationsSection()
 			roleText = "you own this organization"
 		end
 
-		children[#children+1] = gui.Label{
-			width = "100%",
+		local hasLogo = org.logo ~= nil
+		local titleLabel = gui.Label{
+			width = cond(hasLogo, "100%-60", "100%"),
 			height = "auto",
 			fontSize = 20,
 			bold = true,
+			valign = "center",
 			vmargin = 2,
 			text = string.format("%s (%s)", org.displayName, roleText),
 		}
+
+		if hasLogo then
+			--the logo leads the card title when the owner has set one.
+			children[#children+1] = gui.Panel{
+				flow = "horizontal",
+				width = "100%",
+				height = "auto",
+				vmargin = 2,
+				gui.Panel{
+					width = "auto",
+					height = "auto",
+					maxWidth = 48,
+					maxHeight = 48,
+					autosizeimage = true,
+					bgimage = org.logo,
+					bgcolor = "white",
+					valign = "center",
+					hmargin = 4,
+				},
+				titleLabel,
+			}
+		else
+			children[#children+1] = titleLabel
+		end
 
 		children[#children+1] = gui.Label{
 			width = "100%",
@@ -3728,6 +4066,7 @@ local function CreateCreatorOrganizationsSection()
 
 			buttonsRow.children = buttons
 
+			children[#children+1] = BrandingSection(org)
 			children[#children+1] = PatreonOrgSection(org)
 			children[#children+1] = buttonsRow
 			children[#children+1] = transferPanel

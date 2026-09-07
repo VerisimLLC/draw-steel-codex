@@ -584,8 +584,10 @@ def tickets_password(cfg):
       2. $BUG_TICKETS_PASSWORD_FILE, or tickets-password.txt in the credentials
          directory (~/.dmhub by default) -- the documented way to set it up
       3. "ticketsPassword" in bug-report-config.json
-      4. TICKETS_PASSWORD read out of internal-dashboards/wrangler.jsonc, for
-         whoever has that private repo checked out
+      4. TICKETS_PASSWORD read out of internal-dashboards/wrangler.jsonc -- LEGACY,
+         and dead on a current checkout: the password became a Worker secret on
+         2026-09-07, so it is no longer a plain var in that file. Kept only so a
+         stale checkout keeps working; use option 2 to set this up.
     """
     pw = os.environ.get("BUG_TICKETS_PASSWORD")
     if pw and pw.strip():

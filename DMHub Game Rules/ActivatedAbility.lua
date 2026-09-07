@@ -3796,7 +3796,24 @@ function ActivatedAbilityBehavior:IsFiltered(ability, casterToken, options)
 	if options and options.symbols and options.symbols.cast and options.symbols.cast.tier ~= 0 and #self:try_get("tiersSelected", {}) > 0 then
         --see if the tier filter filters it out.
         if not table.contains(self.tiersSelected, options.symbols.cast.tier) then
-            return true
+            --cast.tier is a scalar written by SetTierResult on a last-writer-wins basis, so
+            --with a multi-target roll it only reflects one target. Consult the per-target map
+            --before dropping the behavior: if ANY target landed on a selected tier, let the
+            --behavior through and let ApplyToTargets do the per-target filtering it already does.
+            local anyTierMatches = false
+            local tokenToTier = options.symbols.cast:try_get("tokenToTier")
+            if type(tokenToTier) == "table" then
+                for _,tier in pairs(tokenToTier) do
+                    if table.contains(self.tiersSelected, tier) then
+                        anyTierMatches = true
+                        break
+                    end
+                end
+            end
+
+            if not anyTierMatches then
+                return true
+            end
         end
     end
 
@@ -4923,11 +4940,35 @@ function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, t
 		end
 	end
 
+	--MODE GATING ALSO MATTERS: a purge gated to a different mode than this apply
+	--can never run in the same cast (ActivatedAbilityBehavior:IsFiltered drops a
+	--behavior whose modesSelected does not contain options.symbols.mode), so it is
+	--not a pairing and must not install the FinishCast leak protection -- doing so
+	--deletes the effect the cast just applied. The Shieldscale Drangolin's
+	--"Size 2 or 3" applies its size effect on one mode and purges it on the other
+	--(report 64XYJBPE). Only treat the modes as exclusive when the engine actually
+	--honors them: multipleModes with a non-empty list on both sides.
+	local myModes = self:try_get("modesSelected", {})
+
 	local hasPurgePair = false
 	for i,b in ipairs(ability.behaviors) do
 		if (myIndex == nil or i > myIndex) and b.typeName == "ActivatedAbilityPurgeEffectsBehavior" and b.mode == "effect" and b.ongoingEffect == self.ongoingEffect then
-			hasPurgePair = true
-			break
+			local purgeModes = b:try_get("modesSelected", {})
+			local modeExclusive = false
+			if ability.multipleModes and #myModes > 0 and #purgeModes > 0 then
+				modeExclusive = true
+				for _,m in ipairs(myModes) do
+					if table.contains(purgeModes, m) then
+						modeExclusive = false
+						break
+					end
+				end
+			end
+
+			if not modeExclusive then
+				hasPurgePair = true
+				break
+			end
 		end
 	end
 	local pairedApplications = nil

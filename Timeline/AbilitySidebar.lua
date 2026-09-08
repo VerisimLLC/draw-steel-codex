@@ -2548,7 +2548,14 @@ function CharacterPanel.DisplayAbility(token, ability, symbols, options)
         if not AbilityOwnsDisplayedCard(ability) then
             g_displayedAbilityAliases[#g_displayedAbilityAliases+1] = ability
         end
-        return true
+        --Honour options.lock here too: the caller is about to embed a live roll
+        --dialog in the parent's card, and without it a stray hover preview displaces
+        --the card and destroys the roll. Coroutine-tied only, so it always expires.
+        local lockId = nil
+        if options.lock and options.lockCoroutine ~= nil then
+            lockId = CharacterPanel.LockDisplayAbility(options.lockCoroutine)
+        end
+        return true, lockId
     end
 
     local embeddedRoll = panel:FindChildRecursive(function(p)

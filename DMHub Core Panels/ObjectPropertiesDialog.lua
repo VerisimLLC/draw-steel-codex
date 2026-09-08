@@ -1606,12 +1606,22 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 end
 
 
---Area Template rectangles have no width or height: the object's own position
---is one corner and targetPoint is a signed delta to the other. The engine
---registers no editable field for it and SetProperty cannot convert a Lua
---value into a Vector2, so reads and writes both go through a json round-trip.
+--Area Templates keep no width or height. The object's own position is the
+--anchor, and targetPoint carries the geometry: for a Rectangle its x and y are
+--independent signed dimensions, while Circle, Square and Cone store a vector
+--whose LENGTH is the size and whose angle orients the shape. The engine
+--registers no editable field for any of it and SetProperty cannot convert a
+--Lua value into a Vector2, so reads and writes go through a json round-trip.
 local AreaTemplateComponentType = "LuaObjectComponentAreaTemplate"
 local AreaTemplateComponentName = "Area Template"
+
+--the rows each shape gets. A shape absent from this table gets no controls.
+local AreaTemplateShapeRows = {
+	Rectangle = {"Width", "Height"},
+	Circle = {"Radius"},
+	Square = {"Side", "Rotation"},
+	Cone = {"Length", "Angle"},
+}
 
 --resolve the owning object instance and the component's key on it.
 local AreaTemplateTarget = function(component)
@@ -1644,6 +1654,41 @@ StripEmptyTables = function(doc)
 	end
 end
 
+local ReadAreaTemplateDoc = function(component)
+	local inst, key = AreaTemplateTarget(component)
+	if inst == nil then
+		return nil
+	end
+
+	local doc = inst:ComponentToJson(key)
+	if doc == nil or doc.targetPoint == nil then
+		return nil
+	end
+
+	return doc, inst, key
+end
+
+local WriteAreaTemplateDoc = function(component, mutate)
+	local doc, inst, key = ReadAreaTemplateDoc(component)
+	if doc == nil then
+		return
+	end
+
+	StripEmptyTables(doc)
+	mutate(doc)
+	inst:AddComponentFromJson(key, doc)
+	inst:Upload()
+end
+
+local GetAreaTemplateShape = function(component)
+	local doc = ReadAreaTemplateDoc(component)
+	if doc == nil then
+		return nil
+	end
+
+	return doc.shape
+end
+
 --round to the nearest whole square, ties away from zero so negative deltas
 --don't drift toward zero.
 local RoundSquares = function(n)
@@ -1654,38 +1699,90 @@ local RoundSquares = function(n)
 	return math.floor(n + 0.5)
 end
 
-local GetAreaTemplateDelta = function(component)
-	local inst, key = AreaTemplateTarget(component)
-	if inst == nil then
-		return nil, nil
+--rescale targetPoint to the given length, keeping its angle so a size edit
+--never rotates the shape. A zero vector has no angle to keep, so it is aimed
+--along +x rather than left un-writable.
+local SetAreaTemplateLength = function(doc, length)
+	local x = doc.targetPoint.x
+	local y = doc.targetPoint.y
+	local current = math.sqrt(x*x + y*y)
+	if current <= 0 then
+		doc.targetPoint = {
+			x = length,
+			y = 0,
+		}
+		return
 	end
 
-	local doc = inst:ComponentToJson(key)
-	if doc == nil or doc.targetPoint == nil then
-		return nil, nil
-	end
-
-	return doc.targetPoint.x, doc.targetPoint.y
+	doc.targetPoint = {
+		x = x*length/current,
+		y = y*length/current,
+	}
 end
 
-local SetAreaTemplateDelta = function(component, x, y)
-	local inst, key = AreaTemplateTarget(component)
-	if inst == nil then
-		return
+local AreaTemplateLength = function(doc)
+	local x = doc.targetPoint.x
+	local y = doc.targetPoint.y
+	return math.sqrt(x*x + y*y)
+end
+
+--each row's value in the units shown to the user. Side is twice the stored
+--length because that length is the centre-to-edge distance.
+local AreaTemplateRowValue = function(doc, rowName)
+	if rowName == "Width" then
+		return doc.targetPoint.x
+	elseif rowName == "Height" then
+		return doc.targetPoint.y
+	elseif rowName == "Side" then
+		return AreaTemplateLength(doc)*2
+	elseif rowName == "Angle" then
+		return doc.coneAngle or 0
+	elseif rowName == "Rotation" then
+		return math.deg(math.atan(doc.targetPoint.y, doc.targetPoint.x)) % 360
 	end
 
-	local doc = inst:ComponentToJson(key)
-	if doc == nil or doc.targetPoint == nil then
-		return
+	return AreaTemplateLength(doc)
+end
+
+local AreaTemplateApplyRowValue = function(doc, rowName, value)
+	if rowName == "Width" then
+		doc.targetPoint = {
+			x = value,
+			y = doc.targetPoint.y,
+		}
+	elseif rowName == "Height" then
+		doc.targetPoint = {
+			x = doc.targetPoint.x,
+			y = value,
+		}
+	elseif rowName == "Side" then
+		SetAreaTemplateLength(doc, value*0.5)
+	elseif rowName == "Angle" then
+		doc.coneAngle = value
+	elseif rowName == "Rotation" then
+		local radians = math.rad(value)
+		local length = AreaTemplateLength(doc)
+		doc.targetPoint = {
+			x = length*math.cos(radians),
+			y = length*math.sin(radians),
+		}
+	else
+		SetAreaTemplateLength(doc, value)
+	end
+end
+
+--Width and Height are signed: the sign says which way the rectangle grows.
+--Every other row is a magnitude, so it clamps to a sensible floor.
+local AreaTemplateClampRowValue = function(rowName, value)
+	if rowName == "Width" or rowName == "Height" then
+		return value
+	elseif rowName == "Angle" then
+		return math.max(1, math.min(360, value))
+	elseif rowName == "Rotation" then
+		return value % 360
 	end
 
-	StripEmptyTables(doc)
-	doc.targetPoint = {
-		x = x,
-		y = y,
-	}
-	inst:AddComponentFromJson(key, doc)
-	inst:Upload()
+	return math.max(1, value)
 end
 
 --AddComponent has no factory entry for Area Template, so a new one is built
@@ -1746,31 +1843,26 @@ local WithAreaTemplateOption = function(availableOptions)
 	return result
 end
 
---one width or height row: -/+ buttons around an editable box. The value is
---rounded for display only; the other axis is left exactly as it was, so
---editing one never silently snaps the other.
-local CreateAreaTemplateSizeRow = function(components, axis, prettyName)
+--one size row: -/+ buttons around an editable box. The value is rounded for
+--display only, so opening the dialog never rewrites a hand-dragged template.
+local CreateAreaTemplateSizeRow = function(components, rowName)
 	local input
 
 	local GetValue = function()
-		local x, y = GetAreaTemplateDelta(components[1])
-		if x == nil then
+		local doc = ReadAreaTemplateDoc(components[1])
+		if doc == nil then
 			return 0
 		end
 
-		return RoundSquares(cond(axis == "x", x, y))
+		return RoundSquares(AreaTemplateRowValue(doc, rowName))
 	end
 
 	local SetValue = function(value)
+		local clamped = AreaTemplateClampRowValue(rowName, value)
 		for _,component in ipairs(components) do
-			local x, y = GetAreaTemplateDelta(component)
-			if x ~= nil then
-				if axis == "x" then
-					SetAreaTemplateDelta(component, value, y)
-				else
-					SetAreaTemplateDelta(component, x, value)
-				end
-			end
+			WriteAreaTemplateDoc(component, function(doc)
+				AreaTemplateApplyRowValue(doc, rowName, clamped)
+			end)
 		end
 	end
 
@@ -1809,7 +1901,7 @@ local CreateAreaTemplateSizeRow = function(components, axis, prettyName)
 		end,
 
 		gui.Label{
-			text = prettyName,
+			text = rowName,
 			classes = {"field-description-label"},
 			selfStyle = {
 				bmargin = 4,
@@ -2946,23 +3038,32 @@ local CreateObjectEditor = function(nodes, options)
 					end
 				end
 
-				--Area Template exposes no size field of its own, so its two
-				--rectangle controls are added above the engine's Appearance fields.
+				--Area Template exposes no size field of its own, so the rows for
+				--its shape are added above the engine's Appearance fields. Only
+				--components sharing one known shape get them: the rows mean
+				--different things per shape, and an unknown shape gets none.
 				local areaTemplateComponents = {}
+				local areaTemplateShape = nil
 				for _,entry in ipairs(componentInfo.componentsAndPreviews) do
 					local component = entry.component
 					if component ~= nil and component.componentType == AreaTemplateComponentType then
-						local x = GetAreaTemplateDelta(component)
-						if x ~= nil then
+						local shape = GetAreaTemplateShape(component)
+						if shape ~= nil and (areaTemplateShape == nil or areaTemplateShape == shape) then
+							areaTemplateShape = shape
 							areaTemplateComponents[#areaTemplateComponents+1] = component
+						else
+							areaTemplateComponents = {}
+							break
 						end
 					end
 				end
 
-				if #areaTemplateComponents > 0 and groupedPanelsChildren["Appearance"] ~= nil then
+				local areaTemplateRows = AreaTemplateShapeRows[areaTemplateShape or ""]
+				if #areaTemplateComponents > 0 and areaTemplateRows ~= nil and groupedPanelsChildren["Appearance"] ~= nil then
 					local appearanceChildren = groupedPanelsChildren["Appearance"]
-					table.insert(appearanceChildren, 1, CreateAreaTemplateSizeRow(areaTemplateComponents, "x", "Width"))
-					table.insert(appearanceChildren, 2, CreateAreaTemplateSizeRow(areaTemplateComponents, "y", "Height"))
+					for i,rowName in ipairs(areaTemplateRows) do
+						table.insert(appearanceChildren, i, CreateAreaTemplateSizeRow(areaTemplateComponents, rowName))
+					end
 				end
 
 				--assign the children to the grouped panels.

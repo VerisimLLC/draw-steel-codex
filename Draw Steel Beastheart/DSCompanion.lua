@@ -713,6 +713,7 @@ function AnimalCompanion:FillTemporalActiveModifiers(result)
     -- Collected rather than appended inline: the companion feature that gates
     -- the forwarding can appear after the kit modifiers in the summoner's list.
     local kitStatMods = {}
+    local perkMods = {}
     local hasCompanionFeature = false
 
     for _,summonerMod in ipairs(summonerCreature:GetActiveModifiers()) do
@@ -736,6 +737,22 @@ function AnimalCompanion:FillTemporalActiveModifiers(result)
             -- excludeKitModifications intent in GetActivatedAbilities.
             kitStatMods[#kitStatMods+1] = summonerMod.mod
         end
+
+        -- Shared Perks, Titles, and Complications: every benefit or drawback
+        -- the beastheart earns from one is shared with the companion. Perks,
+        -- titles and complications are the only tables that mark modifiers with
+        -- these two sources, so class/career/background features cannot leak
+        -- through. Tested independently of the behavior chain above because
+        -- these entries carry every behavior type, not just attributes.
+        local featSource = summonerMod.mod:try_get("source", "")
+        if (featSource == "Feat" or featSource == "Complications")
+            and summonerMod.mod:try_get("attribute", "armorClass") ~= "hitpoints"
+        then
+            -- hitpoints is skipped for the same reason as the kit block: the
+            -- companion's Stamina is delegated wholesale to the summoner, so
+            -- forwarding it is inert and only adds a phantom tooltip entry.
+            perkMods[#perkMods+1] = summonerMod.mod
+        end
     end
 
     -- Only a creature that has actually chosen a companion shares its kit with
@@ -752,6 +769,10 @@ function AnimalCompanion:FillTemporalActiveModifiers(result)
             -- propagates that flag and the action bar then renders the kit's
             -- speed as a temporary overflow segment. A kit bonus is permanent.
             result[#result+1] = { mod = kitMod }
+        end
+
+        for _,perkMod in ipairs(perkMods) do
+            result[#result+1] = { mod = perkMod }
         end
     end
 end

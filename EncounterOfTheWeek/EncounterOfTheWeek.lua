@@ -1369,14 +1369,19 @@ end
 --HOST too, so the rules bind every human in the game. The Monster AI is
 --unaffected: its capability paths read IsDMOrPlayerHost.
 --
---Monster stamina: players always see every monster's stamina. The
---"lifebar" status bar reaches a player through its showToEnemies rung
---(TokenUI.lua ShouldShowElement), which enemystambardisplay turns off at
---its "none" default; "val" shows the bar with the current/max value, and
---the minion squad HUD (MCDMMinion.lua) reads the same setting. Bars are
---shown outside combat too (hpbarsonlyincombat off) so the monsters'
---stamina is visible from the moment the heroes arrive, not only once the
---map script opens initiative.
+--Monster stamina: players always see every monster's stamina BAR, but
+--not the exact amount. The "lifebar" status bar reaches a player through
+--its showToEnemies rung (TokenUI.lua ShouldShowElement), which
+--enemystambardisplay turns off at its "none" default; "bar" shows the bar
+--with no value or percentage, and the minion squad HUD (MCDMMinion.lua)
+--reads the same setting. Bars are shown outside combat too
+--(hpbarsonlyincombat off) so the monsters' stamina is visible from the
+--moment the heroes arrive, not only once the map script opens initiative.
+--
+--Monster Info: the feature is always on in EotW (monsterinfo, declared in
+--Draw Steel Core Rules/MonsterKnowledge.lua) with automatic learning
+--(monsterinfoautolearn), so players learn the monsters' stat blocks by
+--fighting them -- the one sanctioned route to exact stamina (third kill).
 --
 --Game-scoped settings are only editable from the dmonly Game settings tab,
 --so nobody in a player-host game can flip them; the host tick re-asserts
@@ -1388,8 +1393,10 @@ local g_forcedGameSettings = {
     { id = "strict:resources", value = true },     --Strictly Enforce Action Economy and Resource Costs
     { id = "strict:inventory", value = true },     --Strict Inventory Management
     { id = "strict:rolls", value = true },         --Strictly Enforce Rolls
-    { id = "enemystambardisplay", value = "val" }, --enemy stamina bars: bar & stamina value
+    { id = "enemystambardisplay", value = "bar" }, --enemy stamina bars: bar only, no value
     { id = "hpbarsonlyincombat", value = false },  --stamina bars shown outside combat too
+    { id = "monsterinfo", value = true },          --Monster Info: players learn monster stat blocks
+    { id = "monsterinfoautolearn", value = true }, --...automatically, from combat events
 }
 
 --Force every forced game setting to its value, writing only the ones not

@@ -3,12 +3,12 @@
 --- The main interface to dmhub.
 --- @class AppVersionStatus
 --- @field version string This build's engine version.
---- @field status 'unknown'|'unsupported'|'behind'|'current'|'ahead' Where this build sits relative to the published channel versions. 'unknown' until the /AppVersions record has loaded.
+--- @field status 'unknown'|'unsupported'|'behind'|'current'|'ahead' Where this build sits relative to the published channel versions. 'unknown' until the /AppVersions record has loaded. 'unsupported' means older than the 'previous' channel (which includes 'deprecated' builds): the titlescreen shows an update-required dialog whose only option is Quit.
 --- @field loaded boolean True once a version record (cached or fresh) has been applied.
 --- @field fresh boolean True once a record has been fetched from the server this session, as opposed to the on-disk cache.
 --- @field outOfDate boolean True when an update is available for this build (status is 'behind' or 'unsupported').
 --- @field latestVersion nil|string The version users are expected to be on: the retail channel's version.
---- @field channel nil|string The channel this build belongs to: the highest channel whose version is at or below this build's version ('previous', 'retail', 'beta', 'dev').
+--- @field channel nil|string The channel this build belongs to: the highest channel whose version is at or below this build's version ('deprecated', 'previous', 'retail', 'beta', 'dev').
 --- @field channelVersion nil|string The version currently published on that channel.
 --- @field channels table<string, {version: string, branch: nil|string}> Every published channel keyed by name.
 --- @field updatedAt nil|number Server timestamp (ms) of the record, when present.

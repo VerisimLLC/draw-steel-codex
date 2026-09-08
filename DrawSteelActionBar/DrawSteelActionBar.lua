@@ -3492,6 +3492,11 @@ local function AbilityHeading(args)
     local m_cannotAfford = false
     local m_expended = false
     local m_suppressed = false
+    --true when this ability spends a turn-bound action (main action, maneuver,
+    --free maneuver, or a Move) and it is not the caster's turn. Under
+    --strict:resources a player's press is refused; the chip is shown in the
+    --expended style with "Not your turn" so they can still read the ability.
+    local m_offTurn = false
 
     --True when the filter suppressing this ability asks for enemy sight-line
     --arrows on hover (sightlines = true on the abilityFilters entry).
@@ -3514,6 +3519,34 @@ local function AbilityHeading(args)
             return caster
         end
         return g_token
+    end
+
+    --Does this ability spend an action the creature only has on its own
+    --turn? Triggers, free actions, malice, respite activities etc. are legal
+    --off-turn and are never turn-bound.
+    local function AbilityIsTurnBound(ability)
+        local rid = ability:try_get("actionResourceId")
+        if rid == CharacterResource.actionResourceId or rid == CharacterResource.maneuverResourceId or rid == CharacterResource.freeManeuverResourceId then
+            return true
+        end
+        return ability.categorization == "Move"
+    end
+
+    --Off-turn only means something while initiative is live and the
+    --caster is a participant whose turn it is not.
+    local function AbilityIsOffTurn(ability)
+        if not AbilityIsTurnBound(ability) then
+            return false
+        end
+        local q = dmhub.initiativeQueue
+        if q == nil or q.hidden then
+            return false
+        end
+        local caster = CasterToken()
+        if caster == nil or not caster.valid or caster.properties == nil then
+            return false
+        end
+        return not caster.properties:IsOurTurn()
     end
 
     local SetCannotAfford = function(cannotAffordResourceCost, expended)
@@ -3849,7 +3882,7 @@ local function AbilityHeading(args)
             -- click is silently ignored. Directors bypass this so they can
             -- still demo or override the rules.
             if (not dmhub.isDM) and dmhub.GetSettingValue("strict:resources") then
-                if m_cannotAfford or m_expended or m_suppressed then
+                if m_cannotAfford or m_expended or m_suppressed or m_offTurn then
                     return
                 end
             end
@@ -4106,6 +4139,17 @@ local function AbilityHeading(args)
                     end
 
                     SetCannotAfford(cannotAfford, not costInfo.canAfford)
+
+                    --offTurn is its own class (styled like expended in
+                    --AbilityStyles) so it clears cleanly when a pooled chip is
+                    --re-pointed at an on-turn ability.
+                    m_offTurn = AbilityIsOffTurn(ability)
+                    resultPanel:SetClassTree("offTurn", m_offTurn)
+                    if m_offTurn then
+                        element.text = "Not your turn"
+                        return
+                    end
+
                     for _, entry in ipairs(costInfo.details) do
                         if entry.description ~= nil and (not entry.canAfford) then
                             --this means there is an 'anonymous' cost, e.g. number of times they can use per round.

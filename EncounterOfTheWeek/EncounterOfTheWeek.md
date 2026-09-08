@@ -2159,8 +2159,9 @@ User direction (2026-08-28): EotW games strictly enforce all game rules -- the
 settings screen's "Rules Enforcement" options that start with "Strict"/"Strictly"
 are force-enabled. The forced set (the `true` entries of
 `g_forcedGameSettings` in `EncounterOfTheWeek/EncounterOfTheWeek.lua`; the
-same table also carries the monster-stamina visibility settings, see
-"Players always see monster stamina" below):
+same table also carries the monster-stamina visibility and Monster Info
+settings, see "Players always see monster stamina bars, not amounts" and
+"Monster Info is always on" below):
 
 - `strict:movement` (Strictly Enforce Forced Movement Rules)
 - `strict:targeting` (Strictly Enforce Targeting Rules)
@@ -2184,40 +2185,129 @@ block (next to the `permission:playersinitiative` write) and re-asserted at
 the top of every `MapScriptHostThink` tick (check-before-write, so
 steady-state ticks write nothing).
 
-#### Players always see monster stamina (DECIDED + BUILT 2026-09-07; UNTESTED)
+#### Off-turn ability use (FOUND + FIXED 2026-09-07; verified live, uncommitted)
 
-User direction (2026-09-07): in an EotW game the players can always see the
-monsters' stamina. This closes the decision left open under "Player host sees
+User report (2026-09-07): in a live EotW game the action bar let the reporter
+use their Polder Elementalist's abilities while another creature's turn was
+selected. Root cause (codex-wide, not EotW-specific): the per-drawer
+`refresh` in `DrawSteelActionBar.lua` only cleared the drawer's cosmetic
+`available` class off-turn (its one style rule is a bgcolor), the drawer's
+`press` opened the menu unconditionally, and the `strict:resources` click
+gate on ability chips (the `press` in `AbilityHeading`) refused only on
+`m_cannotAfford` / `m_expended` / `m_suppressed` -- none of which reflect
+"not your turn". `creature:IsOurTurn()` itself was correct. (The "drag out
+of turn blocked" note in the step-27 status is about MOVEMENT, engine-side.)
+
+User direction (2026-09-07): keep the drawers openable so players can read
+their abilities; make the CHIP press refuse off-turn under strict resource
+enforcement, as it already does for unaffordable abilities.
+
+Built (`DrawSteelActionBar/DrawSteelActionBar.lua`, `AbilityHeading`):
+- `AbilityIsTurnBound(ability)`: actionResourceId is the main action,
+  maneuver or free-maneuver resource, or categorization is "Move". Triggers,
+  free actions, malice, respite activities are never turn-bound.
+- `AbilityIsOffTurn(ability)`: turn-bound AND the initiative queue is live
+  AND the chip's caster (`CasterToken()`, so the overview's re-pointed chips
+  are handled) reports `IsOurTurn() == false`.
+- Computed into `m_offTurn` in the `abilityInfoLabel`'s `ability` handler
+  right after `SetCannotAfford`; the chip gets the class tree `offTurn` and
+  the info line reads "Not your turn". `offTurn` is its own class (styled
+  like `expended` in `DMHub Titlescreen/AbilityStyles.lua` on `abilityTitle`
+  and `abilityInfoLabel`) so a pooled chip re-pointed at an on-turn ability
+  clears cleanly.
+- The strict-resources `press` gate now also refuses on `m_offTurn`
+  (`(not dmhub.isDM) and strict:resources` -- Directors still bypass, as for
+  the other three flags). Programmatic invokes (`invokeAbility`, triggers,
+  prompts) are untouched.
+
+Verified live 2026-09-07 in the running EotW game (isDM false, strict on,
+Dwarf Fury selected between turns): every Main Action chip -- including the
+Melee/Ranged Free Strike entries, which off-turn are only legal via the
+trigger panel -- showed "Not your turn" in the expended colour; pressing
+Brutal Slam started no cast and logged no error. Applies to any game with
+`strict:resources` on, not just EotW (by design: it is action-economy
+enforcement). Not re-verified on-turn (would have needed to claim a turn in
+the user's live game); that path is the pre-existing one with `m_offTurn`
+false.
+
+Reload gotcha hit while testing: the file watcher logged the change and
+`reload_lua` reported success, yet the mod kept compiling the committed
+HEAD version (chip backtrace line numbers were 34 short). The remedy from
+memory worked: set `autoreloadlua` true, rewrite the file bytes unchanged,
+wait for `MOD:: READ CONTENTS FOR MOD DrawSteelActionBar`, reload, set
+`autoreloadlua` back to false.
+
+#### Players always see monster stamina bars, not amounts (DECIDED + BUILT 2026-09-07; UNTESTED)
+
+User direction (2026-09-07, refined later the same day): in an EotW game
+every player can always see the monsters' stamina BARS, but not the exact
+stamina amounts. This closes the decision left open under "Player host sees
 every monster's stamina bar; joiners see none" in Open Questions: with
 `canControl` now elevation-aware the host presents as a player, so the only
-thing standing between EVERY human and a monster's stamina was the
+thing standing between EVERY human and a monster's stamina bar was the
 Director-only game setting `enemystambardisplay`, whose `"none"` default turns
 off the `showToEnemies` rung of the `lifebar` status bar (`TokenUI.lua`
 `ShouldShowElement`; the Draw Steel bar is registered in
 `Draw Steel UI/DrawSteelTokenHud.lua` and the minion squad HUD in
 `MCDMMinion.lua` reads the same setting).
 
-Two more entries in `g_forcedGameSettings`, written by the host through the
-same `EnforceStrictRules()` path (setup on arrival, then re-asserted every
-host tick):
+Two entries in `g_forcedGameSettings`, written by the host through the same
+`EnforceStrictRules()` path (setup on arrival, then re-asserted every host
+tick):
 
-- `enemystambardisplay = "val"` -- bar plus the current/max stamina value.
-  `"val"` rather than `"bar"`/`"pct"` because "see the monster's stamina"
-  means the number, not a proportion; the value is what a Director sees.
+- `enemystambardisplay = "bar"` -- the bar with no number. The setting's
+  enum is `none` / `bar` / `pct` / `val`; the first build of this (earlier on
+  2026-09-07) forced `"val"`, which the user corrected to bar-only. `"pct"`
+  is also out: a percentage is an exact amount in disguise once the max is
+  known. The one sanctioned route to a monster's exact stamina is Monster
+  Info (below), which reveals it on the third kill of that monster type.
 - `hpbarsonlyincombat = false` -- the bars are shown outside combat too, so
-  stamina is visible from the moment the heroes arrive in the start zone
+  the bar is visible from the moment the heroes arrive in the start zone
   rather than only after the map script opens initiative. Interpretation of
   "always"; flip this entry back to `true` if the pre-combat bars are
   unwanted.
 
 Both are game-scoped, so each write replicates to every client, and neither
 is editable by anyone in a player-host game (dmonly Game settings tab).
-Nothing else changed: the bar's own `Calculate` already returns the raw
-value for `dmhub.isDM == false` clients once the setting is non-`"none"`.
+Nothing else changed: the bar's own `Calculate` already honours the
+`"bar"` mode for `dmhub.isDM == false` clients.
 
 Verify live (two clients): every monster on the map shows a stamina bar with
-its value to both the host and a joiner, before combat starts and during it;
-a minion squad shows its shared squad stamina.
+NO value or percentage to both the host and a joiner, before combat starts and
+during it; a minion squad shows its shared squad bar.
+
+#### Monster Info is always on (DECIDED + BUILT 2026-09-07; UNTESTED)
+
+User direction (2026-09-07): the Monster Info feature (players progressively
+learn monster stat blocks; see the top-level `MONSTER_INFO_PLAN.md`) is
+automatically on in EotW games. Two more entries in `g_forcedGameSettings`,
+forced by the same `EnforceStrictRules()` path:
+
+- `monsterinfo = true` -- the feature itself: the Monster Info radial button
+  replacing View Portrait on monsters, the fullscreen dialog, and the combat
+  hooks. Declared in `Draw Steel Core Rules/MonsterKnowledge.lua`
+  (game-scoped, dmonly), which loads in every Draw Steel game, so the id
+  resolves in an EotW game.
+- `monsterinfoautolearn = true` -- automatic learning from combat events
+  (kills reveal stamina, roughly then exactly; ability use reveals the
+  ability; and so on). Forced explicitly even though it is the setting's
+  default, so a game record that was ever flipped cannot stay off. There is
+  no Director in an EotW game to work the eye toggles, so without this the
+  feature would reveal nothing.
+
+Caveats: the Monster Info feature is itself NEEDS BUILD / UNTESTED (per
+`MONSTER_INFO_PLAN.md`), so this is forced-on ahead of the feature's own
+first live run. The Director-side reveal/hide eye toggles are `isDM` UI and
+are not reachable in EotW, which is the intent. The `monsterKnowledge`
+shared document lives in the game record, and EotW games are one-per-account
+and destroyed on replacement, so knowledge does not carry over between weeks
+(acceptable for now; revisit if cross-week persistence is wanted).
+
+Verify live (two clients, after the Monster Info engine build): a monster's
+radial menu shows Monster Info instead of View Portrait for both the host and
+a joiner; the dialog opens with an unknown stat block; killing a monster type
+reveals its rough stamina; the Settings > Game tab is unreachable to everyone
+(player-host game) so nobody can turn it off, and the host tick re-asserts it.
 
 #### "Strictly Enforce Rolls" (strict:rolls) -- NEW 2026-08-29
 
@@ -3214,9 +3304,11 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
   (`enemystambardisplay`, default `"none"`, Director-only game setting --
   the host's setup would have to write it when it stamps the eotw marker).~~
   DECIDED + BUILT 2026-09-07 (UNTESTED): players always see the monsters'
-  stamina -- the host forces `enemystambardisplay = "val"` and
-  `hpbarsonlyincombat = false` via `g_forcedGameSettings`; see "Players
-  always see monster stamina" under "Strict rules enforcement".
+  stamina BARS but not the amounts -- the host forces
+  `enemystambardisplay = "bar"` and `hpbarsonlyincombat = false` via
+  `g_forcedGameSettings`; see "Players always see monster stamina bars, not
+  amounts" under "Strict rules enforcement". Monster Info is forced on the
+  same way ("Monster Info is always on").
   Verify after the build: `/testai` in an EotW game, an AI summon into an
   occupied space, and a monster attack animation seen from a second client.
 - **Kick UX**: engine `KickPlayer` does not notify/disconnect the kicked client. Acceptable for v1, or add a watched-document notification?
@@ -4167,3 +4259,21 @@ Deliverable: end-to-end -- lobby to fought encounter with AI-run monsters.
   Files: `Monster AI/MonsterAI.lua`, `Monster AI/MonsterAIPanel.lua`,
   `EncounterOfTheWeek/EncounterOfTheWeek.lua`. Lua syntax and ASCII checks pass;
   runtime fault-injection verification remains to be done.
+
+- **2026-09-07 (later): Monster Info forced on; monster stamina bars forced
+  to bar-only.** User direction: Monster Info is automatically on in EotW,
+  and all players see monster stamina bars but not exact amounts. The
+  earlier same-day build had forced `enemystambardisplay = "val"` (bar plus
+  value); corrected to `"bar"`. Two new `g_forcedGameSettings` entries:
+  `monsterinfo = true`, `monsterinfoautolearn = true`. Only
+  `EncounterOfTheWeek/EncounterOfTheWeek.lua` changed (luac-clean, ASCII
+  clean, live via gitfolder). Confirmed in the running app that all four
+  ids (`enemystambardisplay`, `hpbarsonlyincombat`, `monsterinfo`,
+  `monsterinfoautolearn`) are declared and game-scoped, so the host's
+  `EnforceStrictRules()` writes resolve; the running game was not an EotW
+  game, so the enforcement itself is UNTESTED. Existing EotW games will
+  switch themselves on the host's next `MapScriptHostThink` tick. Design
+  text: "Players always see monster stamina bars, not amounts" and "Monster
+  Info is always on" under "Strict rules enforcement". Next: live two-client
+  verification per those sections (Monster Info needs its engine build
+  first).

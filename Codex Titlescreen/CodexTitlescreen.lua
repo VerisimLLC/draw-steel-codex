@@ -119,6 +119,110 @@ local function ShowTitlescreenMessageDialog(root, title, message)
     root:AddChild(modal)
 end
 
+local OUT_OF_DATE_TITLE = "Update Required"
+local OUT_OF_DATE_MESSAGE = "This version is out of date. You need to update to a new version."
+
+--Blocking, quit-only dialog for builds older than the 'previous' channel in
+--/AppVersions (dmhub.versionStatus.status == "unsupported"). There is no close
+--and no escape: the only way out is Quit. Builds that predate
+--dmhub.versionStatus see nil there and never reach this.
+local function ShowOutOfDateDialog(root)
+    if root == nil or not root.valid then
+        return
+    end
+
+    if root.data.outOfDateDialog ~= nil and root.data.outOfDateDialog.valid then
+        return
+    end
+
+    local detail = ""
+    local status = dmhub.versionStatus
+    if status ~= nil and status.latestVersion ~= nil then
+        detail = string.format("You are running version %s. The current version is %s.", status.version, status.latestVersion)
+    end
+
+    local modal = gui.Panel {
+        floating = true,
+        width = "100%",
+        height = "100%",
+        bgimage = "panels/square.png",
+        bgcolor = "#000000d0",
+
+        gui.Panel {
+            classes = { "framedPanel" },
+            styles = {
+                Styles.Default,
+                Styles.Panel,
+            },
+            bgimage = true,
+            halign = "center",
+            valign = "center",
+            width = 640,
+            height = "auto",
+            minHeight = 280,
+            flow = "vertical",
+            vpad = 24,
+
+            gui.Label {
+                text = OUT_OF_DATE_TITLE,
+                fontSize = 36,
+                bold = true,
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "top",
+                color = "white",
+                tmargin = 12,
+            },
+
+            gui.Label {
+                text = OUT_OF_DATE_MESSAGE,
+                fontSize = 20,
+                width = "80%",
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                color = "white",
+                vmargin = 16,
+            },
+
+            gui.Label {
+                classes = { cond(detail == "", "collapsed") },
+                text = detail,
+                fontSize = 16,
+                width = "80%",
+                height = "auto",
+                halign = "center",
+                textAlignment = "center",
+                color = "#cccccc",
+                bmargin = 16,
+            },
+
+            gui.Button {
+                text = "Quit",
+                halign = "center",
+                valign = "bottom",
+                bmargin = 12,
+                click = function(element)
+                    dmhub.QuitApplication()
+                end,
+            },
+        },
+    }
+
+    root.data.outOfDateDialog = modal
+    root:AddChild(modal)
+end
+
+--Called when the titlescreen is created and again whenever the engine's
+--/AppVersions read lands (the 'appVersionStatus' event).
+local function CheckAppVersion(root)
+    local status = dmhub.versionStatus
+    if status ~= nil and status.status == "unsupported" then
+        ShowOutOfDateDialog(root)
+    end
+end
+
 local OFFLINE_GAME_ELSEWHERE_TITLE = "Game Data Not On This Computer"
 local OFFLINE_GAME_ELSEWHERE_MESSAGE =
     "This offline game keeps its data on the computer where it was created, " ..
@@ -5542,6 +5646,18 @@ function CreateTitlescreen(dialog, options)
             --element:SetClassTree("starting-screen", false)
             --element:SetClass("selection-screen", false)
             --element:SetClass("games-screen", true)
+
+            --Builds older than the 'previous' channel may only quit. Check
+            --the cached status now and again when the live read lands.
+            local versionEvents = dmhub.versionStatusEvent
+            if versionEvents ~= nil then
+                versionEvents:Listen(element)
+            end
+            CheckAppVersion(element)
+        end,
+
+        appVersionStatus = function(element)
+            CheckAppVersion(element)
         end,
 
         destroy = function(element)

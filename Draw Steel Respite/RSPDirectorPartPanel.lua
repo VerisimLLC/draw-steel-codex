@@ -7,7 +7,7 @@ RSPDirectorPartPanel = RegisterGameType("RSPDirectorPartPanel")
 local INSTRUCTIONS = [[
 ### Participants
 
-Click a character to take them in or out of the Respite.
+Tick a checkbox to indicate a hero is participating in the Respite.
 
 Players are choosing for their own characters at the same time. Their choices and yours are the same setting, so the last one made is the one that stands.
 
@@ -18,7 +18,7 @@ The count below tracks how many players have committed. You should probably wait
 local function BuildWorkingArea()
     return RSPWidgets.CharacterList{
         roster = RSPSession.Roster(),
-        highlight = RSPSession.IsParticipating,
+        check = RSPSession.IsParticipating,
         lock = RSPSession.IsCommittedFor,
         click = function(charid)
             RSPSession.SetParticipating(charid, not RSPSession.IsParticipating(charid))

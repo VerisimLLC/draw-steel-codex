@@ -174,13 +174,37 @@ end
 --- indicator() are asked again on every respiteChanged.
 --- Set indent to sit the row under the one above it, which is how a follower
 --- reads as belonging to its hero.
---- @param args {charid: string, highlight: fun(charid: string): boolean, click: nil|fun(charid: string), indicator: nil|fun(charid: string): string, indent: nil|boolean}
+--- @param args {charid: string, highlight: fun(charid: string): boolean, click: nil|fun(charid: string), indicator: nil|fun(charid: string): string, check: nil|fun(charid: string): boolean, indent: nil|boolean}
 --- @return Panel|nil
 function RSPWidgets.CharacterRow(args)
     local token = dmhub.GetCharacterById(args.charid)
     if token == nil then
         return nil
     end
+
+    -- Opt-in as a checkbox ahead of the token image. gui.Check always builds a
+    -- label, and its themed class carries minWidth 200, so both are pinned shut
+    -- here: an empty text and an explicit width/minWidth inline, which a style
+    -- selector would lose to. Its press is swallowed so ticking the box does not
+    -- also count as pressing the row underneath.
+    local check = args.check ~= nil and gui.Check{
+        text = "",
+        value = args.check(args.charid),
+        width = RSPConstants.characterRowCheckWidth,
+        minWidth = RSPConstants.characterRowCheckWidth,
+        height = RSPConstants.characterRowCheckHeight,
+        halign = "left",
+        valign = "center",
+        hpad = 0,
+        hmargin = 0,
+        swallowPress = args.click ~= nil,
+        change = args.click ~= nil and function(element)
+            args.click(args.charid, args.owner)
+        end or nil,
+        respiteChanged = function(element)
+            element.value = args.check(args.charid)
+        end,
+    } or nil
 
     local indicator = args.indicator ~= nil and gui.Label{
         classes = {"sizeS", "noBold"},
@@ -330,6 +354,8 @@ function RSPWidgets.CharacterRow(args)
             args.click(args.charid, args.owner)
         end or nil,
 
+        check,
+
         -- The indent shifts the image rather than padding the row: padding
         -- would widen the row past 100% and push the last widget off the end.
         gui.CreateTokenImage(token, {
@@ -342,7 +368,7 @@ function RSPWidgets.CharacterRow(args)
 
         gui.Label{
             classes = {"sizeM", "noBold"},
-            width = RSPConstants.CharacterRowNameWidth(TrailingCount(indicator, attention, rolls, sheet, lock), args.indent),
+            width = RSPConstants.CharacterRowNameWidth(TrailingCount(indicator, attention, rolls, sheet, lock), args.indent, check ~= nil),
             height = "auto",
             halign = "left",
             valign = "center",
@@ -370,7 +396,7 @@ end
 --- list rebuilds them when the roster itself changes - a window built before
 --- the Director picked participants would otherwise keep the empty roster it
 --- started with for the rest of the Respite.
---- @param args {roster: string[]|function, highlight: fun(charid: string): boolean, click: nil|fun(charid: string), indicator: nil|fun(charid: string): string}
+--- @param args {roster: string[]|function, highlight: fun(charid: string): boolean, click: nil|fun(charid: string), indicator: nil|fun(charid: string): string, check: nil|fun(charid: string): boolean}
 --- @return Panel
 function RSPWidgets.CharacterList(args)
     --Forward-declared: the token watchers below are built as children, so they
@@ -443,6 +469,7 @@ function RSPWidgets.CharacterList(args)
             rows[#rows + 1] = RSPWidgets.CharacterRow{
                 charid = charid,
                 highlight = args.highlight,
+                check = args.check,
                 click = args.click,
                 indicator = args.indicator,
                 attention = args.attention,

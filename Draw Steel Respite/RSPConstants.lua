@@ -46,6 +46,8 @@ RSPConstants.characterRowRollsRightMargin = 0
 RSPConstants.characterRowLockSize = 20
 RSPConstants.characterRowAttentionSize = 20
 RSPConstants.characterRowSheetSize = 20
+RSPConstants.characterRowCheckHeight = 22   -- the themed checkbox is 30 tall; this fits the row
+RSPConstants.characterRowCheckWidth = 24    -- its square plus the label gap, and nothing more
 
 RSPConstants.iconUncommitted = "phosphor/lock-simple-open-duotone.png"
 RSPConstants.iconCommitted = "phosphor/lock-simple-fill.png"
@@ -54,11 +56,16 @@ RSPConstants.iconCommitted = "phosphor/lock-simple-fill.png"
 --- not shares, so a new widget cannot push the row wider than its list.
 --- @param trailing number how many widgets follow the name
 --- @param indent nil|boolean whether this row sits under the one above
+--- @param check nil|boolean whether an opt-in checkbox leads the row
 --- @return string
-function RSPConstants.CharacterRowNameWidth(trailing, indent)
+function RSPConstants.CharacterRowNameWidth(trailing, indent, check)
     local taken = RSPConstants.characterRowImageSize
         + RSPConstants.characterRowNameMargins
         + ((trailing or 0) * RSPConstants.characterRowTrailingSlot)
+
+    if check then
+        taken = taken + RSPConstants.characterRowCheckWidth
+    end
 
     if indent then
         taken = taken + RSPConstants.characterRowIndent

@@ -5289,6 +5289,12 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
             local attacker = symbols ~= nil and symbols.attacker or nil
             local attackerToken = (attacker ~= nil and attacker ~= self) and dmhub.LookupToken(attacker) or nil
 
+            -- Monster Info: an innate immunity or weakness that changed the damage
+            -- reveals that stat block entry to the players (self-guarding).
+            if bestEntry ~= nil then
+                MonsterKnowledge.RecordDamageModifier(self, bestEntry)
+            end
+
             -- The ability/attack that inflicted the damage (e.g. "Ranged Free Strike").
             -- Prefer the ability's name; fall back to the damage source description string.
             local abilityName = ""
@@ -6019,6 +6025,10 @@ function creature.TakeDamage(self, amount, note, info)
                     end
                 end
 
+                --Monster Info: each minion death counts as a kill of its type for
+                --what the players learn about it (self-guarding, never throws).
+                MonsterKnowledge.RecordKill(self, eventArg.attacker, minionsKilled)
+
                 --Victim-side: the squad records its own losses (round-bucketed, so
                 --the victory screen can tell a squad wiped in round 1). Recorded
                 --with or without an attacker so environmental deaths count; the
@@ -6325,6 +6335,10 @@ function creature.TakeDamage(self, amount, note, info)
                 --DispatchEvent does not currently have support for dispatching
                 --creature objects and other self-referential objects.
                 eventArg.attacker:TriggerEvent("kill", eventArg)
+
+                --Monster Info: players learn about a monster type as they kill it
+                --(self-guarding, never throws; ignores hero victims itself).
+                MonsterKnowledge.RecordKill(self, eventArg.attacker, 1)
 
                 --Per-encounter combat stat: credit the killer. A non-hero victim
                 --is a "kill" (for a hero killer this feeds the hero roles; for a

@@ -141,6 +141,17 @@ K.INVISIBLE_TILESHEET_ID = "-MGAVDxkFE-ZzzNYBV0D"
 --door (padlock badge; players see the icon but cannot use it). The open and
 --close sounds come from the wall asset (openSound/closeSound) and play as
 --networked game sound events.
+--
+--Secret doors (doorSecret, 2026-09-07): the Director can mark a door secret
+--- from the icon's right-click menu, or the Walls tab's Secret Door tool
+--(shown while a door type is selected) - which hides it from players in
+--EVERY state: no icon, leaf, badge, hover or click, so they perceive plain
+--wall, and an open secret door is just a gap they can pass and see through.
+--Revealing it (same menu / tool) makes it an ordinary door again. Its
+--open/close sounds still play for everyone - the intended tell. Lua:
+--floor:GetDoorOperations() enumerates door ops, floor:SetDoorState{} sets
+--open/locked/secret, and ExecutePolygonOperation takes doorOpen /
+--doorLocked / doorSecret to draw a door in a given state.
 --============================================================================
 
 --Draw Steel door open/close audio assets (data/audio/ds-opendoor-wav.yaml /

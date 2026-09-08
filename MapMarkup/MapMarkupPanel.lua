@@ -90,6 +90,31 @@ K.TOOL_RETYPE = {
     help = "Apply Type: click a markup wall to change that whole drawn wall to the selected wall type, or drag a rectangle starting on empty space to convert every wall edge it touches. Visible art walls are not affected.",
 }
 
+--Secret Door ("secret"): toggles the doorSecret flag on the markup DOOR
+--under the cursor. A secret door is invisible to players in EVERY state -
+--no icon, leaf or lock badge, open or closed - so they perceive plain wall
+--(an open one is simply a gap they can pass and see through); the Director
+--sees it violet-tinted with an eye-slash badge, and can also reveal it from
+--the door icon's right-click menu in play. Same inert-sentinel machinery as
+--Delete Wall: input arrives via map focus (maphover/mappress), the door is
+--found by nearest door EDGE against the door ops' own paths
+--(MM.FindDoorAtPoint - so open doors, which have no wall geometry, are
+--found too), and a click flips the flag through floor:SetDoorState. Only
+--offered while the selected wall type is openable (K.DOOR_TOOLS), like the
+--door chip preview: doors are what that selection is about.
+K.TOOL_SECRET = {
+    id = "secret",
+    text = "Secret",
+    icon = "phosphor/eye-slash-fill.png",
+    mapTool = "markupsecret",
+    mapToolClosed = false,
+    help = "Secret Door: hover a markup door to highlight it, then click to make it secret - players see only wall, open or closed, until you reveal it (click it again here, or right-click its icon in play). Its open/close sounds still play for everyone.",
+}
+
+--Hover tint for the Secret Door tool: the door that a click will MAKE
+--secret. Matches the engine's Director-side secret-door tint.
+K.SECRET_DOOR_COLOR = "#b88cff"
+
 --`shape` pairs a tool with its counterpart in the other draw mode, so switching
 --Thin <-> Solid keeps the shape the user picked instead of resetting the strip.
 --Both strips lead with the rectangle so the two modes read the same.
@@ -129,6 +154,17 @@ K.TOOLS = {
     K.TOOL_ERASE,
     K.TOOL_DELETE,
 }
+
+--Thin strip while an OPENABLE (door) wall type is selected: K.TOOLS plus
+--Secret Door, slotted with the non-destructive editing tools just before
+--Retype. Openable types are thin-only, so this never pairs with SOLID_TOOLS.
+K.DOOR_TOOLS = {}
+for _,toolInfo in ipairs(K.TOOLS) do
+    if toolInfo == K.TOOL_RETYPE then
+        K.DOOR_TOOLS[#K.DOOR_TOOLS+1] = K.TOOL_SECRET
+    end
+    K.DOOR_TOOLS[#K.DOOR_TOOLS+1] = toolInfo
+end
 
 --Tool strip in SOLID draw mode: a solid block is a filled region, not an open
 --polyline, so the drawing tools are closed shapes running as custom map tools
@@ -270,6 +306,9 @@ end
 --Looks a tool id up in either strip (the draw-mode switch needs the OUTGOING
 --tool's shape, which by then is no longer in the active strip).
 local function FindToolInfo(id)
+    if id == K.TOOL_SECRET.id then
+        return K.TOOL_SECRET
+    end
     for _,toolInfo in ipairs(K.TOOLS) do
         if toolInfo.id == id then
             return toolInfo
@@ -283,13 +322,17 @@ local function FindToolInfo(id)
     return nil
 end
 
---The active tool strip follows the DRAW MODE, not the selected wall type:
---thin mode drives the engine building tools, solid mode drives closed-shape
---custom map tools. Openable (door) types are thin-only - selecting one
---forces thin mode (SelectChip) - so no separate strip is needed.
+--The active tool strip follows the DRAW MODE: thin mode drives the engine
+--building tools, solid mode drives closed-shape custom map tools. Openable
+--(door) types are thin-only - selecting one forces thin mode (SelectChip) -
+--and get the thin strip plus the Secret Door tool (K.DOOR_TOOLS).
 local function ActiveToolInfos()
-    if m.solidMode and not MM.EntryIsOpenable(m.paletteEntries[m.selectedIndex or 0]) then
+    local openable = MM.EntryIsOpenable(m.paletteEntries[m.selectedIndex or 0])
+    if m.solidMode and not openable then
         return K.SOLID_TOOLS
+    end
+    if openable then
+        return K.DOOR_TOOLS
     end
     return K.TOOLS
 end
@@ -649,6 +692,56 @@ local function FindNearestDeleteSegment(point)
         if bestDist == nil or d < bestDist then
             bestDist = d
             best = { a = { x = ax, y = ay }, b = { x = bx, y = by }, points = pts }
+        end
+    end
+    return best
+end
+
+--Finds the markup DOOR nearest to a floor-space point: the door operation
+--(floor:GetDoorOperations - the ops' own drawn paths, so an OPEN door with
+--no wall geometry is found too) with the edge closest to the point, within
+--K.DOOR_PICK_DISTANCE tiles. Returns { door = <op record>, segments =
+--{ax,ay,bx,by, ...} (every edge of the door, for the whole-door highlight) }
+--or nil. Used by the Secret Door tool. The point is the parallax-adjusted
+--cursor point maphover/mappress deliver; editor.mouseEditSurfacePoint is
+--preferred when the cursor is over the map, for the same reason
+--FindNearestDeleteSegment prefers it (it uses the wall rendering's own
+--surface projection, so raised/lowered ground does not skew the pick).
+K.DOOR_PICK_DISTANCE = 0.7
+local function FindDoorAtPoint(point)
+    if point == nil then
+        return nil
+    end
+    local floor = game.currentFloor
+    if floor == nil then
+        return nil
+    end
+    local surfacePoint = editor.mouseEditSurfacePoint
+    if surfacePoint ~= nil then
+        point = surfacePoint
+    end
+
+    local best = nil
+    local bestDist = K.DOOR_PICK_DISTANCE
+    for _,door in ipairs(floor:GetDoorOperations()) do
+        local segments = {}
+        local doorDist = nil
+        for _,pts in ipairs(door.paths) do
+            for i = 1, #pts - 3, 2 do
+                local ax, ay, bx, by = pts[i], pts[i+1], pts[i+2], pts[i+3]
+                segments[#segments+1] = ax
+                segments[#segments+1] = ay
+                segments[#segments+1] = bx
+                segments[#segments+1] = by
+                local d = DistancePointToSegment(point.x, point.y, ax, ay, bx, by)
+                if doorDist == nil or d < doorDist then
+                    doorDist = d
+                end
+            end
+        end
+        if doorDist ~= nil and doorDist <= bestDist then
+            bestDist = doorDist
+            best = { door = door, segments = segments }
         end
     end
     return best
@@ -1190,6 +1283,7 @@ MM.ActiveToolInfos = ActiveToolInfos
 MM.ClearDeleteHighlight = ClearDeleteHighlight
 MM.DeleteSegmentGeometry = DeleteSegmentGeometry
 MM.DistancePointToSegment = DistancePointToSegment
+MM.FindDoorAtPoint = FindDoorAtPoint
 MM.FindNearestDeleteSegment = FindNearestDeleteSegment
 MM.FindToolInfo = FindToolInfo
 MM.FootstepToolById = FootstepToolById

@@ -11,6 +11,7 @@
 --- @field hasTokenOnThisMap boolean If this token is deployed on the current map.
 --- @field hasTokenOnAnyMap boolean If this token is deployed on a map somewhere.
 --- @field summonerid nil|string (Read-only) the tokenid of the token that summoned this token, if there is one.
+--- @field bestiaryId nil|string (Read-only) The id of this token's entry in the bestiary, if it was spawned from or added to the bestiary. nil for tokens with no bestiary entry. Used to key per-monster-type state such as what players have learned about the monster.
 --- @field mountObject nil|LuaObjectComponent The object that this token is mounted on. e.g. sitting on a chair.
 --- @field mountedOn nil|string The tokenid of the token this token is mounted on.
 --- @field saddleUnlocked boolean If mounted on a saddle, returns true if that saddle is in the 'unlocked' state.
@@ -232,6 +233,14 @@ function CharacterToken:DescribeRollAgainst(rollStr) end
 --- @param loc Loc
 --- @return Vector3
 function CharacterToken:PosAtLoc(loc) end
+
+--- Create a local map tag using the targeting modifier label renderer. Destroy the returned marker when the preview ends.
+--- @param location Loc
+--- @param text string
+--- @param category string
+--- @param offsetY number
+--- @return LuaTargetingMarkers
+function CharacterToken:CreateMapTag(location, text, category, offsetY) end
 
 --- Given a location and a function will execute the function with the token at that location.
 --- @param loc Loc The hypothetical location to execute the function from.

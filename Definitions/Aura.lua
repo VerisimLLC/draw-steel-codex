@@ -24,8 +24,9 @@ function Aura:TokenOnlyAdjacent(token) end
 --- ApplyTo
 --- @param target? CharacterToken
 --- @param ignoreHeight? boolean
+--- @param altitudeOverride? number?
 --- @return boolean
-function Aura:ApplyTo(target, ignoreHeight) end
+function Aura:ApplyTo(target, ignoreHeight, altitudeOverride) end
 
 --- Destroy the Aura.
 function Aura:Destroy() end

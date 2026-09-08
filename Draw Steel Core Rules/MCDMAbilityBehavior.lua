@@ -1924,6 +1924,11 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
         end
 
         local result = resistanceValue >= gate
+
+        --Monster Info: testing a monster's characteristic against a potency
+        --reveals that characteristic to the players (self-guarding).
+        MonsterKnowledge.RecordCharacteristicTest(targetToken, attrid)
+
         if result then
 
             if options.powerRollPass == "target" then

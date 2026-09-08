@@ -1307,6 +1307,10 @@ GameSystem.OnEndCastActivatedAbility = function(casterToken, ability, options)
 
     ability:FireUseAbility(casterToken, options)
 
+    --Monster Info: a monster using an ability reveals it to the players
+    --(self-guarding, no-op for heroes).
+    MonsterKnowledge.RecordAbilityUse(casterToken, ability)
+
 	if ability.categorization == "Signature Ability" and (ability:HasKeyword("Area") or ability:HasKeyword("Strike")) then
 		casterToken.properties:DispatchEvent("castsignature", {ability = ability, cast = options.symbols.cast})
 	end

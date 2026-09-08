@@ -2624,43 +2624,78 @@ function CreateTokenHud(token)
                     }
                 end
 
-                items[#items+1] = gui.Panel{
-					className = 'radial-menu-item',
-					translate = core.Vector2(0,70):Rotate(135),
-					styles = {
-						{
-							selectors = {"create"},
-							translate = core.Vector2(0,-70):Rotate(135),
-						},
-					},
-					events = {
-						click = function(element)
-                            if token.hasSpineAnimation then
-                                GameHud.instance:ViewJournalEntry{
-                                    image = token.inspectPortrait,
-                                    height = 1024,
-                                    width = 1024*0.75,
-                                    autosizeimage = false,
-                                }
-                            else
-                                GameHud.instance:ViewJournalEntry{
-                                    image = token.offTokenPortrait,
-                                }
-                            end
-						end,
-                        hover = function(element)
-                            gui.Tooltip("View Portrait")(element)
-                        end,
-					},
-					children = {
-						gui.Panel{
-							bgimage = 'ui-icons/eye.png',
-							className = 'radial-menu-icon',
-							width = 40,
-							height = 40,
-						}
-					},
-				}
+                --Monster Info (Draw Steel, when the "monsterinfo" game setting is on):
+                --a fullscreen portrait beside a stat block players learn over time.
+                --Looked up with rawget so this generic Token UI mod still works when
+                --the Draw Steel mods that define it are not loaded. Otherwise the
+                --slot is the plain View Portrait lightbox.
+                local monsterInfoDialog = rawget(_G, "MonsterInfoDialog")
+                if monsterInfoDialog ~= nil and monsterInfoDialog.AvailableForToken(token) then
+                    items[#items+1] = gui.Panel{
+                        className = 'radial-menu-item',
+                        translate = core.Vector2(0,70):Rotate(135),
+                        styles = {
+                            {
+                                selectors = {"create"},
+                                translate = core.Vector2(0,-70):Rotate(135),
+                            },
+                        },
+                        events = {
+                            click = function(element)
+                                monsterInfoDialog.Show(token)
+                            end,
+                            hover = function(element)
+                                gui.Tooltip("Monster Info")(element)
+                            end,
+                        },
+                        children = {
+                            gui.Panel{
+                                bgimage = 'ui-icons/ph-info-fill.png',
+                                className = 'radial-menu-icon',
+                                width = 40,
+                                height = 40,
+                            }
+                        },
+                    }
+                else
+                    items[#items+1] = gui.Panel{
+                        className = 'radial-menu-item',
+                        translate = core.Vector2(0,70):Rotate(135),
+                        styles = {
+                            {
+                                selectors = {"create"},
+                                translate = core.Vector2(0,-70):Rotate(135),
+                            },
+                        },
+                        events = {
+                            click = function(element)
+                                if token.hasSpineAnimation then
+                                    GameHud.instance:ViewJournalEntry{
+                                        image = token.inspectPortrait,
+                                        height = 1024,
+                                        width = 1024*0.75,
+                                        autosizeimage = false,
+                                    }
+                                else
+                                    GameHud.instance:ViewJournalEntry{
+                                        image = token.offTokenPortrait,
+                                    }
+                                end
+                            end,
+                            hover = function(element)
+                                gui.Tooltip("View Portrait")(element)
+                            end,
+                        },
+                        children = {
+                            gui.Panel{
+                                bgimage = 'ui-icons/eye.png',
+                                className = 'radial-menu-icon',
+                                width = 40,
+                                height = 40,
+                            }
+                        },
+                    }
+                end
 
 
                 --Rename option: shown for monsters when the DM has enabled the

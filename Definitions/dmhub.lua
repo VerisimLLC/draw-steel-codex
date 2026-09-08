@@ -1,8 +1,22 @@
 ---@meta
 
 --- The main interface to dmhub.
+--- @class AppVersionStatus
+--- @field version string This build's engine version.
+--- @field status 'unknown'|'unsupported'|'behind'|'current'|'ahead' Where this build sits relative to the published channel versions. 'unknown' until the /AppVersions record has loaded.
+--- @field loaded boolean True once a version record (cached or fresh) has been applied.
+--- @field fresh boolean True once a record has been fetched from the server this session, as opposed to the on-disk cache.
+--- @field outOfDate boolean True when an update is available for this build (status is 'behind' or 'unsupported').
+--- @field latestVersion nil|string The version users are expected to be on: the retail channel's version.
+--- @field channel nil|string The channel this build belongs to: the highest channel whose version is at or below this build's version ('previous', 'retail', 'beta', 'dev').
+--- @field channelVersion nil|string The version currently published on that channel.
+--- @field channels table<string, {version: string, branch: nil|string}> Every published channel keyed by name.
+--- @field updatedAt nil|number Server timestamp (ms) of the record, when present.
+
 --- @class dmhub
 --- @field version string The current version of the DMHub engine.
+--- @field versionStatus AppVersionStatus (Read-only) Where this build sits relative to the app versions published on each channel (/AppVersions). Available immediately from the on-disk cache when one exists; listen to versionStatusEvent to be told when it changes.
+--- @field versionStatusEvent nil|EventSourceLua (Read-only) Event source that fires 'appVersionStatus' on listening panels whenever versionStatus is recomputed, i.e. when the cached or fresh /AppVersions record is applied. nil before the monitor exists.
 --- @field commandLineArguments string[] The command line arguments passed to the app.
 --- @field tokenAnimations TokenAnimationsLuaInterface Registry of token animations. RegisterTeleport / RegisterDeath / RegisterTransformation register category-specific animation functions.
 --- @field systemHardwareRating number The power level of the system hardware. 1 or greater is a relatively high power system.
@@ -130,11 +144,11 @@
 --- @field patronTier number The Patreon tier level of the current user. 0 means not a patron.
 --- @field patreonUserId string The Patreon user id linked to this account, or nil if no Patreon account is linked. Mirrored live from /Patrons, so it is available immediately with no round trip. Use this -- NOT patronTier -- to tell whether a Patreon account is linked: patronTier is a hardcoded 3 on MCDM white-label builds.
 --- @field patreonOrgEntitlements {orgid: string, entitled: boolean, active: boolean, cents: number, campaignId: string}[] A list of the creator organizations this account has Patreon entitlements to, each {orgid, entitled, active, cents, campaignId}. Mirrored live from /Patrons, so it updates within seconds of the user pledging -- no refresh call needed. Gate on `entitled`, not `active`: a lapsed patron of an org whose creator chose to let entitlements persist keeps entitled = true. Empty if no Patreon is linked.
+--- @field patreonOrgOverrides table<string, integer> The session Patreon overrides in force, as a table of orgid -> cents (see SetPatreonOrgOverride). Empty when none.
 --- @field patreonLinkedAt number Unix timestamp in milliseconds of when this account's Patreon was linked, or 0 if it is not linked.
 --- @field patreonPledgeTier number The raw Patreon tier recorded for this account (0-4), ignoring the MCDM white-label override that makes patronTier always report 3. DMHub campaign only: this is the DMHub Patreon's patron ladder and says nothing about whether the user is a patron of any creator organization in the app -- for that, use patreonOrgEntitlements / IsEntitledToOrg. A user can be tier 4 here with no MCDM membership at all, and vice versa. Use for reporting the user's actual DMHub pledge; use patronTier to gate features.
 --- @field subscriptionTier number The subscription tier level of the current user. 0 means no subscription.
 --- @field isAdminAccount boolean True if the current user has admin privileges on their account.
---- @field patreonOrgOverrides table<string, integer> The session Patreon overrides in force, as a table of orgid -> cents (see SetPatreonOrgOverride). Empty when none.
 --- @field hasStoreAccess boolean (Read-only) controls whether there is a store in this version of the app.
 --- @field networkLogLevel number The log level we use for networking messages. 0 = all, 1 = information, 2 = warning, 3 = error, 4 = exception, 5 = none
 --- @field activeObjectsPath string The game path pattern pointing to active objects. Can be used with monitorGame on a panel to monitor for object changes.
@@ -1230,7 +1244,7 @@ function dmhub:IsEntitledToOrg(orgid) end
 function dmhub:SetPatreonOrgOverride(orgid, cents) end
 
 --- ADMIN ONLY testing aid: forget the session override set by SetPatreonOrgOverride for the given creator organization, or every override when orgid is nil, so the real /Patrons entitlements apply again.
---- @param orgid? string The id of the creator organization; nil clears all overrides.
+--- @param orgid string The id of the creator organization; nil clears all overrides.
 function dmhub:ClearPatreonOrgOverride(orgid) end
 
 --- Elevates the user to GM status or removes their GM status. Only works on admin accounts.

@@ -337,7 +337,7 @@ local function ShowMarkupWallDialog(wallid, owner)
 
             gui.Label{
                 classes = {"fgMuted", "sizeXs"},
-                text = "While closed, the door blocks exactly like this wall type (all the settings below apply). Opening it via its icon disables the drawn segment entirely; the sound plays for everyone. The Director always sees door icons and can right-click them to lock or unlock; players can use a door within 2 tiles and line of sight.",
+                text = "While closed, the door blocks exactly like this wall type (all the settings below apply). Opening it via its icon disables the drawn segment entirely; the sound plays for everyone. The Director always sees door icons and can right-click them to lock or unlock, or to make the door secret (hidden from players in every state until revealed); players can use a door within 2 tiles and line of sight.",
                 width = "96%",
                 height = "auto",
                 halign = "center",

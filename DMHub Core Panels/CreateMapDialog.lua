@@ -1289,6 +1289,7 @@ mod.shared.ShowCreateMapDialog = function()
         --once the nav panels exist).
         local libraryNav
         local GoToLibrary
+        local m_gridGeneration = 0
         local LibraryFilterItem = function(label, count, packid)
             local nameLabel = gui.Label{ classes = {"cmNavLabel"}, halign = "left", text = label }
             return gui.Panel{
@@ -1298,7 +1299,17 @@ mod.shared.ShowCreateMapDialog = function()
                 press = function(element)
                     m_packFilter = element.data.pack
                     GoToLibrary()
-                    RefreshPackGrid()
+                    --the row lights up and the view switches this frame;
+                    --building the tile grid is deferred so the click feels
+                    --instant and the maps fill in a moment later. A
+                    --generation stamp makes rapid clicks rebuild only once.
+                    m_gridGeneration = m_gridGeneration + 1
+                    local generation = m_gridGeneration
+                    dmhub.Schedule(0.01, function()
+                        if generation == m_gridGeneration then
+                            RefreshPackGrid()
+                        end
+                    end)
                 end,
                 gui.Panel{
                     classes = {"cmNavIcon"},

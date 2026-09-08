@@ -197,6 +197,17 @@ function MM.BuildWallsMode()
             return
         end
 
+        --The tool strip depends on the SELECTION, not just the draw mode:
+        --an openable (door) type gets K.DOOR_TOOLS (the thin strip plus
+        --Secret Door). RebuildPalette re-evaluates the strip for palette
+        --CONTENT changes, but a plain chip click only refreshes the chips,
+        --so the strip kept whatever set it was built with - Secret showed
+        --or vanished depending on which chip happened to be selected when
+        --the palette last rebuilt. Compare the strip before and after the
+        --selection change and rebuild when it differs (SetDrawMode below
+        --covers the solid -> thin case on its own).
+        local previousTools = MM.ActiveToolInfos()
+
         m.selectedIndex = index
 
         local preset = MM.PresetForEntry(entry)
@@ -208,10 +219,12 @@ function MM.BuildWallsMode()
         --Picking a wall type means "I want to draw this", so the destructive
         --tools don't stay armed on the new type: Eraser / Delete Wall fall
         --back to the active strip's default drawing tool (the rectangle).
-        --Deliberately only for those two - a drawing tool the user chose is
+        --Secret Door falls back too: it acts on existing doors rather than
+        --drawing, and is only offered while a door type is selected.
+        --Deliberately only for those - a drawing tool the user chose is
         --their choice and survives changing type.
         local rearmedTool = nil
-        if m.toolId == "erase" or m.toolId == "delete" then
+        if m.toolId == "erase" or m.toolId == "delete" or m.toolId == "secret" then
             local defaultTool = MM.ActiveToolInfos()[1]
             m.toolId = defaultTool.id
             rearmedTool = defaultTool
@@ -224,6 +237,12 @@ function MM.BuildWallsMode()
             if toolsPanel ~= nil and toolsPanel.valid then
                 toolsPanel:FireEvent("refreshtools")
             end
+        end
+
+        --after the destructive-tool fallback above, so the tool it picked is
+        --already valid in the new strip and rebuildtools keeps it.
+        if toolsPanel ~= nil and toolsPanel.valid and MM.ActiveToolInfos() ~= previousTools then
+            toolsPanel:FireEvent("rebuildtools")
         end
 
         if palettePanel ~= nil and palettePanel.valid then
@@ -1086,16 +1105,16 @@ function MM.BuildWallsMode()
             end,
 
             think = function(element)
-                --The Delete and Apply Type (retype) tools take map focus so
-                --they get maphover/mappress (hover-highlight + click-on-one-
-                --segment). Own map focus only while one of them is the active
-                --markup tool and this panel is focused; release it and drop
-                --any highlight otherwise. Gating on focus keeps us from
-                --stealing map focus from ability targeting etc. This runs
-                --before the m.mode guard so switching mode/tool tears the
-                --overlay down promptly.
+                --The Delete, Apply Type (retype) and Secret Door tools take
+                --map focus so they get maphover/mappress (hover-highlight +
+                --click-on-one-segment / one-door). Own map focus only while
+                --one of them is the active markup tool and this panel is
+                --focused; release it and drop any highlight otherwise. Gating
+                --on focus keeps us from stealing map focus from ability
+                --targeting etc. This runs before the m.mode guard so
+                --switching mode/tool tears the overlay down promptly.
                 local wantDelete = m.mode == "walls"
-                    and (m.toolId == "delete" or m.toolId == "retype")
+                    and (m.toolId == "delete" or m.toolId == "retype" or m.toolId == "secret")
                     and m.arm.Armed()
 
                 if wantDelete then
@@ -1153,10 +1172,10 @@ function MM.BuildWallsMode()
                     snapToGrid = toolInfo.id ~= "retype",
                     --Show the engine's editor cursor dot (where a stroke would
                     --start), like the Building editor's tools do. Not for the
-                    --Delete sentinel: it highlights the hovered wall segment
-                    --instead, and a dot would suggest drawing. Older engines
-                    --ignore the field.
-                    editorCursor = toolInfo.id ~= "delete",
+                    --Delete / Secret Door sentinels: they highlight the hovered
+                    --wall segment / door instead, and a dot would suggest
+                    --drawing. Older engines ignore the field.
+                    editorCursor = toolInfo.id ~= "delete" and toolInfo.id ~= "secret",
                     --Draw the stroke preview in the erase colour (red) rather
                     --than white. A custom map tool's stroke comes back to us
                     --as a 'tool' event instead of going through the engine's
@@ -1395,8 +1414,22 @@ function MM.BuildWallsMode()
             --  Apply Type drag   - the edges the current marquee rect would
             --                      convert, live as the rect grows.
             maphover = function(element, loc, point)
-                if m.mode ~= "walls" or (m.toolId ~= "delete" and m.toolId ~= "retype") then
+                if m.mode ~= "walls" or (m.toolId ~= "delete" and m.toolId ~= "retype" and m.toolId ~= "secret") then
                     MM.ClearDeleteHighlight()
+                    return
+                end
+
+                --Secret Door hover: the WHOLE door under the cursor - violet
+                --when a click will make it secret, plain when it will reveal
+                --it (the tint shows the state the click produces, the same
+                --honesty rule as the Delete / Apply Type previews).
+                if m.toolId == "secret" then
+                    local hit = MM.FindDoorAtPoint(point)
+                    if hit == nil then
+                        MM.ClearDeleteHighlight()
+                        return
+                    end
+                    m.mapScope.ShowSegmentsHighlight(hit.segments, cond(hit.door.secret, "#e0e0e0", K.SECRET_DOOR_COLOR))
                     return
                 end
 
@@ -1490,6 +1523,26 @@ function MM.BuildWallsMode()
                         m.mapScope.retypeAnchor = { x = point.x, y = point.y }
                     end
                     element:FireEvent("markupretypeclick", point)
+                    return
+                end
+                if m.toolId == "secret" then
+                    --Secret Door click: toggle doorSecret on the door under
+                    --the cursor. SetDoorState swaps the op in under a new id
+                    --(the door icon's own pattern), so undo and every
+                    --client's wall rebuild come for free.
+                    local floor = game.currentFloor
+                    local hit = MM.FindDoorAtPoint(point)
+                    if floor == nil or hit == nil then
+                        return
+                    end
+                    floor:SetDoorState{
+                        layer = hit.door.layer,
+                        opid = hit.door.opid,
+                        secret = not hit.door.secret,
+                    }
+                    --the op id just changed; drop the highlight so the next
+                    --hover recomputes against the new state.
+                    MM.ClearDeleteHighlight()
                     return
                 end
                 if m.toolId ~= "delete" then

@@ -473,6 +473,52 @@ end
 --- @param maxSquads number MaxMinionSquads attribute (0 means unlimited).
 --- @param useEncounterSquads boolean|nil Use all live same-type minion squads instead of the caster's Summoner roster.
 --- @return table|nil result { squadName, isNew, exceededMinions, exceededSquads } or nil if cancelled.
+--- Next free square adjacent to a token's whole footprint, nearest ring first.
+--- usedLocs tracks squares already handed out this cast. Occupancy comes from
+--- token footprints: GetLocsWithinRadius locs carry no floor, so GetTokensAtLoc misses them.
+--- @param aroundToken CharacterToken
+--- @param usedLocs table<string, boolean>
+--- @return Loc|nil
+function ActivatedAbilitySummonBehavior.NextAdjacentSpawnLoc(aroundToken, usedLocs)
+    local function Key(loc)
+        return string.format("%d,%d", loc.x, loc.y)
+    end
+
+    local floor = aroundToken.loc.floor
+    local occupied = {}
+    for _, tok in ipairs(dmhub.allTokensIncludingObjects or {}) do
+        if tok.valid and tok.loc ~= nil and tok.loc.floor == floor then
+            for _, l in ipairs(tok:LocsOccupyingWhenAt(tok.loc) or {}) do
+                occupied[Key(l)] = true
+            end
+        end
+    end
+
+    for radius = 1, 4 do
+        local best = nil
+        local bestDist = nil
+        for _, loc in ipairs(aroundToken:GetLocsWithinRadius(radius) or {}) do
+            local k = Key(loc)
+            if loc.isOnMap and (not occupied[k]) and (not usedLocs[k]) then
+                local dist = aroundToken:Distance(loc)
+                --line of sight rejects wall squares and squares behind a wall.
+                local ok, los = pcall(function() return aroundToken:GetLineOfSight(loc) end)
+                local reachable = (not ok) or type(los) ~= "number" or los > 0
+                if dist > 0 and reachable and (bestDist == nil or dist < bestDist) then
+                    best = loc
+                    bestDist = dist
+                end
+            end
+        end
+        if best ~= nil then
+            usedLocs[Key(best)] = true
+            return best
+        end
+    end
+
+    return nil
+end
+
 function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monsterType, numSummons, maxMinions, maxSquads, useEncounterSquads)
     local SQUAD_CAP = 8
 
@@ -566,11 +612,15 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
         end
     end
 
-    local function BuildOptionRow(labelText, noteText, isNew, squadName, warn)
+    local rowWidth = 560
+
+    --full: no room for these minions (SQUAD_CAP); greyed and not selectable.
+    local function BuildOptionRow(labelText, noteText, isNew, squadName, warn, full)
         local row
         row = gui.Panel{
-            classes = {"squadOption", cond(warn, "warn")},
+            classes = {"squadOption", cond(warn, "warn"), cond(full, "full")},
             flow = "horizontal",
+            width = rowWidth,
             gui.Label{
                 classes = {"sizeM"},
                 text = labelText,
@@ -588,6 +638,9 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
                 height = "auto",
             },
             press = function(element)
+                if full then
+                    return
+                end
                 for _,p in ipairs(optionPanels) do
                     p:SetClass("selected", p == element)
                 end
@@ -601,58 +654,136 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
 
     local exceedsMinionCap = (maxMinions > 0 and currentMinionCount + numSummons > maxMinions)
 
-    for _,name in ipairs(existingSquadNames) do
-        local info = squadsByType[name]
-        local newTotal = info.count + numSummons
-        local warn = newTotal > SQUAD_CAP or exceedsMinionCap
-        local note = string.format("(%d/%d minions)", info.count, SQUAD_CAP)
-        local row = BuildOptionRow(name, note, false, name, warn)
-        optionPanels[#optionPanels+1] = row
+    --Rows are only built when the modal path actually needs them.
+    local firstOpenSquadIndex = nil
+    local function BuildRows()
+        for _,row in ipairs(optionPanels) do
+            if row.valid and row.parent == nil then
+                row:DestroySelf()
+            end
+        end
+        optionPanels = {}
+        firstOpenSquadIndex = nil
+        for _,name in ipairs(existingSquadNames) do
+            local info = squadsByType[name]
+            local newTotal = info.count + numSummons
+            local full = newTotal > SQUAD_CAP
+            local warn = (not full) and exceedsMinionCap
+            local note = string.format("(%d/%d minions)", info.count, SQUAD_CAP)
+            if full then
+                note = string.format("(%d/%d minions - no room for %d)", info.count, SQUAD_CAP, numSummons)
+            elseif firstOpenSquadIndex == nil then
+                firstOpenSquadIndex = #optionPanels + 1
+            end
+            local row = BuildOptionRow(name, note, false, name, warn, full)
+            optionPanels[#optionPanels+1] = row
+        end
     end
 
     local newSquadName = monster.FindFreshSquadName(monsterType)
     local newWarn = exceedsMinionCap or (hasExistingSameTypeSquad and maxSquads > 0 and totalSquadCount + 1 > maxSquads)
-    local newRow = BuildOptionRow(string.format("New squad: %s", newSquadName), nil, true, newSquadName, newWarn)
-    optionPanels[#optionPanels+1] = newRow
 
-    -- Default selection: the first existing same-type squad (if any), otherwise the new-squad option.
-    -- Over-cap squads are still selectable; the warning colors communicate the state.
-    local defaultIndex
-    if #existingSquadNames > 0 then
-        defaultIndex = 1
-        chosenSquadName = existingSquadNames[1]
-        chosenIsNew = false
-    else
-        defaultIndex = #optionPanels
-        chosenSquadName = newSquadName
-        chosenIsNew = true
+    --Default: the first squad with room, else the new-squad option.
+    local function AppendNewRowAndSelectDefault()
+        local newRow = BuildOptionRow(string.format("New squad: %s", newSquadName), nil, true, newSquadName, newWarn, false)
+        optionPanels[#optionPanels+1] = newRow
+
+        local defaultIndex
+        if firstOpenSquadIndex ~= nil then
+            defaultIndex = firstOpenSquadIndex
+            chosenSquadName = existingSquadNames[firstOpenSquadIndex]
+            chosenIsNew = false
+        else
+            defaultIndex = #optionPanels
+            chosenSquadName = newSquadName
+            chosenIsNew = true
+        end
+        optionPanels[defaultIndex]:SetClass("selected", true)
     end
-    optionPanels[defaultIndex]:SetClass("selected", true)
 
     local initialMinionText, initialMinionExceeded = FormatMinionStatus()
     local initialSquadText, initialSquadExceeded = FormatSquadStatus(chosenIsNew)
 
-    minionStatusLabel = gui.Label{
-        classes = {"sizeS", "statusLabel", cond(initialMinionExceeded, "exceeded")},
-        text = initialMinionText,
-        textAlignment = "center",
-        halign = "center",
-        valign = "top",
-        width = 560,
-        height = "auto",
-        vmargin = 2,
-    }
+    local function BuildStatusLabels(width, align)
+        minionStatusLabel = gui.Label{
+            classes = {"sizeS", "statusLabel", cond(initialMinionExceeded, "exceeded")},
+            text = initialMinionText,
+            textAlignment = align,
+            halign = align,
+            valign = "top",
+            width = width,
+            height = "auto",
+            vmargin = 2,
+        }
 
-    squadStatusLabel = gui.Label{
-        classes = {"sizeS", "statusLabel", cond(initialSquadExceeded, "exceeded")},
-        text = initialSquadText,
-        textAlignment = "center",
-        halign = "center",
-        valign = "top",
-        width = 560,
-        height = "auto",
-        vmargin = 2,
-    }
+        squadStatusLabel = gui.Label{
+            classes = {"sizeS", "statusLabel", cond(initialSquadExceeded, "exceeded")},
+            text = initialSquadText,
+            textAlignment = align,
+            halign = align,
+            valign = "top",
+            width = width,
+            height = "auto",
+            vmargin = 2,
+        }
+    end
+
+    local headerText = string.format("Summoning %d %s%s - choose a squad:", numSummons, monsterType, cond(numSummons == 1, "", "s"))
+
+    --Preferred host: the action bar's bottom prompt (one button per squad, hover
+    --pulses the squad). Falls back to the modal when the action bar is unavailable.
+    local promptShown = false
+    if DrawSteelActionBar ~= nil and DrawSteelActionBar.ShowCastPrompt ~= nil then
+        local choices = {}
+        for _,name in ipairs(existingSquadNames) do
+            local info = squadsByType[name]
+            local full = info.count + numSummons > SQUAD_CAP
+            local label = string.format("%s (%d/%d)", name, info.count, SQUAD_CAP)
+            if full then
+                label = label .. " - no room"
+            end
+            choices[#choices+1] = {
+                text = label,
+                disabled = full,
+                warn = (not full) and exceedsMinionCap,
+                charids = info.charids,
+                click = function()
+                    chosenSquadName = name
+                    chosenIsNew = false
+                    finished = true
+                end,
+            }
+        end
+        choices[#choices+1] = {
+            text = string.format("New squad: %s", newSquadName),
+            warn = newWarn,
+            click = function()
+                chosenSquadName = newSquadName
+                chosenIsNew = true
+                finished = true
+            end,
+        }
+
+        promptShown = DrawSteelActionBar.ShowCastPrompt{
+            text = string.format("Summoning %d %s%s: choose the squad they join (hover a squad to see it on the map)", numSummons, monsterType, cond(numSummons == 1, "", "s")),
+            choices = choices,
+            cancel = function()
+                finished = true
+                canceled = true
+            end,
+        }
+    end
+
+    if promptShown then
+        while not finished do
+            coroutine.yield(0.1)
+        end
+        DrawSteelActionBar.ClearCastPrompt()
+    else
+
+    BuildRows()
+    AppendNewRowAndSelectDefault()
+    BuildStatusLabels(560, "center")
 
     gamehud:ModalDialog{
         title = "Assign to Squad",
@@ -691,6 +822,8 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
             { selectors = {"squadOption","warn","hover"},    bgcolor = "@danger", brightness = 1.3 },
             { selectors = {"squadOption","selected"},        bgcolor = "@accent" },
             { selectors = {"squadOption","warn","selected"}, bgcolor = "@danger", brightness = 1.5 },
+            { selectors = {"squadOption","full"},            brightness = 0.5 },
+            { selectors = {"squadOption","full","hover"},    bgcolor = "clear" },
 
             { selectors = {"statusLabel"},                   color = "@fgMuted" },
             { selectors = {"statusLabel","exceeded"},        color = "@danger" },
@@ -707,7 +840,7 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
         children = {
             gui.Label{
                 classes = {"sizeM"},
-                text = string.format("Summoning %d %s%s - choose a squad:", numSummons, monsterType, cond(numSummons == 1, "", "s")),
+                text = headerText,
                 textAlignment = "center",
                 halign = "center",
                 valign = "top",
@@ -732,6 +865,8 @@ function ActivatedAbilitySummonBehavior.ShowSquadChoiceDialog(casterToken, monst
     while not finished do
         coroutine.yield(0.1)
     end
+
+    end --inline / modal
 
     if canceled then
         return nil
@@ -1988,6 +2123,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
         end
 
         local summonedTokens = {}
+        local adjacentSpawnLocs = {}
         local summonerEntries = {}
         local summonedMonsterids = {}
 
@@ -2204,6 +2340,13 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                     loc = tweakStartLocs[((j - 1) % #tweakStartLocs) + 1]
                 else
                     loc = target.loc
+                    --Spread summons over the squares adjacent to the creature's footprint.
+                    if target.token ~= nil and target.token.valid and not self.replaceCaster then
+                        local ringLoc = ActivatedAbilitySummonBehavior.NextAdjacentSpawnLoc(target.token, adjacentSpawnLocs)
+                        if ringLoc ~= nil then
+                            loc = ringLoc
+                        end
+                    end
                 end
             end
 

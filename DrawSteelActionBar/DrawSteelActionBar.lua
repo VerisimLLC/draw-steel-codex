@@ -52,6 +52,123 @@ local CalculateSpellTargeting
 --- @type nil|Panel
 local g_abilityController = nil
 
+--Bottom-centre prompt a behavior can show while a cast waits on the player.
+--- @type nil|Panel
+local g_castHintPanel = nil
+
+--args: a string, or { text=, choices = { {text=, disabled=, warn=, charids={}, click=fn} }, cancel=fn }.
+--Hovering a choice pulses its charids on the map. Returns true when shown; nil hides it.
+function DrawSteelActionBar.ShowCastPrompt(args)
+    if g_castHintPanel == nil or not g_castHintPanel.valid then
+        return false
+    end
+
+    local data = g_castHintPanel.data
+    if args == nil then
+        data.choices.children = {}
+        g_castHintPanel:SetClass("collapsed", true)
+        return false
+    end
+    if type(args) == "string" then
+        args = { text = args }
+    end
+
+    --The engine flash is brief, so the think re-fires it while hovered.
+    local function SetLocate(charids, on)
+        for _, charid in ipairs(charids or {}) do
+            local tok = dmhub.GetTokenById(charid)
+            if tok ~= nil and tok.valid then
+                if on then
+                    dmhub.PulseHighlightToken(charid)
+                end
+                if tok.bottomsheet ~= nil and tok.bottomsheet.valid then
+                    tok.bottomsheet:SetClassTree("locate", on)
+                end
+            end
+        end
+    end
+
+    local buttons = {}
+    for _, choice in ipairs(args.choices or {}) do
+        buttons[#buttons+1] = gui.Button{
+            classes = { "sizeS", cond(choice.disabled, "disabled"), cond(choice.warn, "castPromptWarn") },
+            text = choice.text or "",
+            width = "auto",
+            height = "auto",
+            hpad = 12,
+            vpad = 4,
+            borderBox = true,
+            hmargin = 4,
+            vmargin = 2,
+            data = { pulsing = false },
+            thinkTime = 0.6,
+            think = function(element)
+                if element.data.pulsing then
+                    SetLocate(choice.charids, true)
+                end
+            end,
+            hover = function(element)
+                element.data.pulsing = true
+                SetLocate(choice.charids, true)
+            end,
+            dehover = function(element)
+                element.data.pulsing = false
+                SetLocate(choice.charids, false)
+            end,
+            destroy = function(element)
+                if element.data.pulsing then
+                    SetLocate(choice.charids, false)
+                end
+            end,
+            click = function(element)
+                if choice.disabled then
+                    return
+                end
+                element.data.pulsing = false
+                SetLocate(choice.charids, false)
+                if choice.click ~= nil then
+                    choice.click()
+                end
+            end,
+        }
+    end
+    if args.cancel ~= nil then
+        buttons[#buttons+1] = gui.Button{
+            classes = { "sizeS" },
+            text = "Cancel",
+            width = "auto",
+            height = "auto",
+            hpad = 12,
+            vpad = 4,
+            borderBox = true,
+            hmargin = 4,
+            vmargin = 2,
+            click = function()
+                args.cancel()
+            end,
+        }
+    end
+
+    data.label.text = args.text or ""
+    data.label:SetClass("collapsed", (args.text or "") == "")
+    data.choices.children = buttons
+    data.choices:SetClass("collapsed", #buttons == 0)
+    g_castHintPanel:SetClass("collapsed", false)
+    return true
+end
+
+function DrawSteelActionBar.ClearCastPrompt()
+    DrawSteelActionBar.ShowCastPrompt(nil)
+end
+
+function DrawSteelActionBar.ShowCastHint(text)
+    return DrawSteelActionBar.ShowCastPrompt(text)
+end
+
+function DrawSteelActionBar.ClearCastHint()
+    DrawSteelActionBar.ShowCastPrompt(nil)
+end
+
 --- @type nil|Panel
 local g_triggerPanel = nil
 
@@ -3208,6 +3325,53 @@ local function CreateActionBar()
         m_triggerPanel,
     }
 
+    local castHintLabel = gui.Label {
+        halign = "center",
+        width = "auto",
+        minWidth = 200,
+        maxWidth = 620,
+        textAlignment = "center",
+        height = "auto",
+        bold = true,
+        fontSize = 16,
+        textWrap = true,
+        text = "",
+    }
+
+    local castHintChoices = gui.Panel {
+        classes = { "collapsed" },
+        flow = "horizontal",
+        wrap = true,
+        width = "auto",
+        maxWidth = 720,
+        height = "auto",
+        halign = "center",
+        vmargin = 4,
+        styles = {
+            { selectors = { "button", "castPromptWarn" }, color = "@warning" },
+            { selectors = { "button", "disabled" }, brightness = 0.5 },
+        },
+    }
+
+    g_castHintPanel = gui.Panel {
+        classes = { "collapsed" },
+        data = { label = castHintLabel, choices = castHintChoices },
+        floating = true,
+        width = "auto",
+        height = "auto",
+        valign = "bottom",
+        halign = "center",
+        y = -70,
+        gui.TooltipFrame(gui.Panel {
+            flow = "vertical",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            castHintLabel,
+            castHintChoices,
+        }, {}),
+    }
+
     resultPanel = gui.Panel {
         classes = { "actionBar" },
         styles = { ThemeEngine.GetStyles(), ThemeEngine.MergeTokens(Styles.ActionBar), ThemeEngine.MergeTokens{ SEARCH_REVEAL_RULE }, ThemeEngine.MergeTokens(NOVEL_MARKER_RULES), ThemeEngine.MergeTokens(OVERVIEW_FOOTER_RULES) },
@@ -3420,6 +3584,8 @@ local function CreateActionBar()
         valign = "bottom",
         g_triggerReactionPanel,
         resultPanel,
+        --Outside resultPanel so it survives the bar hiding itself (no token selected).
+        g_castHintPanel,
     }
 
     return m_containerPanel

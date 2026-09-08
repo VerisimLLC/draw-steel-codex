@@ -653,7 +653,7 @@ function CharSheet.FramePreviewPanel()
 
                                     local fields = { "portraitFrame", "portrait", "portraitBackground", "portraitRibbon",
                                         "portraitFrameHueShift", "name", "ownerId", "portraitZoom", "portraitOffset",
-                                        "saddles", "saddleSize", "saddlePositions", "popoutScale" }
+                                        "saddles", "saddleSize", "saddlePositions", "popoutScale", "tokenScale" }
                                     for i, field in ipairs(fields) do
                                         if g_previewToken[field] ~= info.token[field] then
                                             g_previewToken[field] = info.token[field]

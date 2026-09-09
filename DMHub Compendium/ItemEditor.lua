@@ -2024,7 +2024,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 									},
 
 									gui.Panel{
-										bgimage = 'ui-icons/close.png',
+										bgimage = 'phosphor/x-bold.png',
 										styles = {
 											{
 												halign = 'center',

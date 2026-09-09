@@ -1,31 +1,25 @@
---- @class GameRules 
---- @field CreatureSizes any 
+---@meta
+
+--- @class GameRules
+--- @field CreatureSizes any
 GameRules = {}
 
 --- GetSizeInfo
---- @param index number
+--- @param index? number
 --- @return any
-function GameRules.GetSizeInfo(index)
-	-- dummy implementation for documentation purposes only
-end
+function GameRules.GetSizeInfo(index) end
 
 --- NormalizeSizeIndex
---- @param index number
+--- @param index? number
 --- @return number
-function GameRules.NormalizeSizeIndex(index)
-	-- dummy implementation for documentation purposes only
-end
+function GameRules.NormalizeSizeIndex(index) end
 
 --- StringToCreatureSizeIndex
---- @param name string
+--- @param name? string
 --- @return number
-function GameRules.StringToCreatureSizeIndex(name)
-	-- dummy implementation for documentation purposes only
-end
+function GameRules.StringToCreatureSizeIndex(name) end
 
 --- CreatureSizeIndexToString
---- @param index number
+--- @param index? number
 --- @return string
-function GameRules.CreatureSizeIndexToString(index)
-	-- dummy implementation for documentation purposes only
-end
+function GameRules.CreatureSizeIndexToString(index) end

@@ -1,2 +1,4 @@
---- @class LuaSheetNative:Panel 
+---@meta
+
+--- @class LuaSheetNative:Panel
 LuaSheetNative = {}

@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class Kit
+--- @class Kit: GameType
 --- @field name string Display name of the kit.
 --- @field tableName string Data table name ("kits").
 --- @field type string Kit type id (e.g. "martial", "caster", "stormwight").

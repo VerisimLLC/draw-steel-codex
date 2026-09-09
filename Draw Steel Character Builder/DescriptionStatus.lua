@@ -4,6 +4,7 @@
     Inherits from CBSelectionStatus but overrides status calculation
     to count filled description fields instead of using FeatureCache.
 ]]
+--- @class CBDescriptionStatus: CBSelectionStatus
 CBDescriptionStatus = RegisterGameType("CBDescriptionStatus", "CBSelectionStatus")
 
 --- Override CreateNew to return CBDescriptionStatus instance (not parent)

@@ -1,23 +1,28 @@
---- @class TileGameRules 
+---@meta
+
+--- @class TileGameRules
+--- @field hole boolean
+--- @field water boolean
+--- @field difficultTerrain boolean
+--- @field stairs boolean
+--- @field concealment boolean
+--- @field climbHeight number
+--- @field climbersOnly boolean
+--- @field surfaceType number
 TileGameRules = {}
 
 --- CloneInto
---- @param other any
---- @return any
-function TileGameRules:CloneInto(other)
-	-- dummy implementation for documentation purposes only
-end
+--- @param other? TileGameRules
+--- @return TileGameRules
+function TileGameRules:CloneInto(other) end
 
 --- Clone
---- @return any
-function TileGameRules:Clone()
-	-- dummy implementation for documentation purposes only
-end
+--- @return TileGameRules
+function TileGameRules:Clone() end
 
 --- AppendGameRulesFromAura
---- @param aura any
---- @param scratchRules any
---- @return any
-function TileGameRules:AppendGameRulesFromAura(aura, scratchRules)
-	-- dummy implementation for documentation purposes only
-end
+--- @param aura? Aura
+--- @param scratchRules? TileGameRules
+--- @param climbableGrantHeight? number
+--- @return TileGameRules
+function TileGameRules:AppendGameRulesFromAura(aura, scratchRules, climbableGrantHeight) end

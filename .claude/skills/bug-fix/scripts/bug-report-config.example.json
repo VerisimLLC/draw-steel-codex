@@ -1,0 +1,12 @@
+{
+  "_comment_location": "Copy this to bug-report-config.json in a credentials directory OUTSIDE the repo (default ~/.dmhub), NOT next to the scripts. See CREDENTIALS.md. The whole file is OPTIONAL: with the dashboard holding the Firebase and Discord credentials, a checkout of the dmhub repo needs no config at all.",
+  "_comment_discord": "The Discord webhooks and bot token used to live here. They are Worker secrets on the internal-dashboards deployment now (DISCORD_WEBHOOKS / DISCORD_BOT_TOKEN) -- the dashboard makes those calls itself. Do not put them back.",
+  "_comment_dmhubRepo": "Path to the dmhub checkout. Lets the scripts read TICKETS_PASSWORD out of internal-dashboards/wrangler.jsonc. Not needed when running from inside that repo.",
+  "dmhubRepo": "C:\\dev\\dmhub",
+  "_comment_ticketsPassword": "Only set this if wrangler.jsonc is unreachable. $BUG_TICKETS_PASSWORD overrides it.",
+  "ticketsPassword": "",
+  "_comment_dashboardUrl": "Override the dashboard base url. $BUG_DASHBOARD_URL overrides this in turn.",
+  "_comment_legacy": "keyPath/databaseURL are LEGACY: only the older dmhub-admin tooling that shares bugreport_lib.py uses the Firebase service-account path. The bug-fix skill never does.",
+  "keyPath": "mcdm-key.json",
+  "databaseURL": "https://mcdm-385cf-default-rtdb.firebaseio.com/"
+}

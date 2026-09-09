@@ -31,10 +31,10 @@ function ActivatedAbilityOpposedRollBehavior:CreateCheck(ability, casterToken, t
 	if isattacker then
 		explanation = string.format("Opposed Power Roll for your %s", ability.name)
 	else
-		explanation = string.format("Opposed Power Roll against's %s's %s.", casterToken.description, ability.name)
+		explanation = string.format("Opposed Power Roll against %s's %s.", casterToken.description, ability.name)
 	end
 
-    check = RollCheck.new{
+    local check = RollCheck.new{
         type = "opposed_power_roll",
         id = attrid,
         text = ActivatedAbilityOpposedRollBehavior.CheckNameFromId(attrid),
@@ -42,7 +42,10 @@ function ActivatedAbilityOpposedRollBehavior:CreateCheck(ability, casterToken, t
         silent = false,
         options = {
             casterid = casterToken.charid,
-			skills = options.skills
+			skills = options.skills,
+			--Carried along so the roller's own modifiers can be filtered on the
+			--ability, e.g. "only when I am searching for hidden creatures".
+			ability = ability,
         },
     }
 
@@ -106,6 +109,15 @@ function ActivatedAbilityOpposedRollBehavior:Cast(ability, casterToken, targets,
 		local check = self:CreateCheck(ability, casterToken, targets, characteristic, false, options)
 		checks[#checks+1] = check
 		defenderChecks[#defenderChecks+1] = #checks
+	end
+
+	--Some older content has attack/defense attributes saved in a shape this loop
+	--cannot read, which leaves us with nothing to ask anyone to roll. Stop here
+	--rather than sending out a request that prompts for a roll that does not exist.
+	if #attackerChecks == 0 or #defenderChecks == 0 then
+		printf("WARNING: opposed roll on '%s' has no %s check -- check the ability's characteristics. Skipping the roll.",
+			tostring(ability.name), cond(#attackerChecks == 0, "attacker", "defender"))
+		return
 	end
 
 	local tokenInfo = {}

@@ -376,8 +376,12 @@ the combat, records the stat under
   `Commands.rollinitiative` (Draw Steel UI/DSInitiativeRoll.lua) for combat start
   and for monsters added mid-fight, and from `LiveEncounter:DeployWave` for
   reinforcement waves. The snapshot (`onsetMonsterGroups`, a dense list of
-  `{ groupid, statKey, name, memberids }`) is upserted, never rewritten, and is
-  what keeps a group displayable even if its initiative entry is later removed.
+  `{ groupid, statKey, name, memberids, memberinfo }`) is upserted, never
+  rewritten, and is what keeps a group displayable even if its initiative entry is
+  later removed. `memberinfo` maps each member tokenid to a display snapshot
+  (`{ minion, portrait, monsterType, role }`) so `GetMonsterGroups` can still
+  count and draw members whose tokens were despawned or deleted (dead monsters
+  leave the map) -- they read back as dead members rather than vanishing.
 - Monster-only stats recorded at their choke points:
   - `deaths` -- victim-side, at the death transition in `creature.TakeDamage`
     (`MCDMCreature.lua`), and in the minion branch (the squad records

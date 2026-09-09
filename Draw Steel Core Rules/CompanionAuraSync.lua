@@ -99,7 +99,9 @@ local function BuildStatSnapshot(token)
         intuition = c:GetAttribute("inu"):Value(),
         presence = c:GetAttribute("prs"):Value(),
         heroicResource = { name = c:GetHeroicResourceName(), value = c:GetHeroicOrMaliceResources() or 0 },
-        surges = c:try_get("surges", 0),
+        --surges are an unbounded, combat-scoped resource rather than a
+        --creature field; try_get("surges") always returned the default 0.
+        surges = c:GetAvailableSurges(),
         victories = c:try_get("victories", 0),
     }
 end

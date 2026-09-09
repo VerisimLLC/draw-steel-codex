@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class DamageType
+--- @class DamageType: GameType
 --- @field name string Display name (lowercase, e.g. "fire", "slashing").
 --- @field tableName string Data table name ("damageTypes").
 --- @field category string Category id for grouping ("none" if uncategorized).
@@ -8,7 +8,7 @@ local mod = dmhub.GetModLoading()
 --- @field iscategory boolean If true, this entry is a category rather than a specific damage type.
 DamageType = RegisterGameType("DamageType")
 
---- @class DamageFlag
+--- @class DamageFlag: GameType
 DamageFlag = RegisterGameType("DamageFlag")
 
 --- @return DamageType
@@ -50,8 +50,10 @@ dmhub.RegisterEventHandler("refreshTables", function()
 		return
 	end
 
+	--wait for the table to actually have damage types in it. It can show up empty
+	--on the first refresh, which used to leave every damage type dropdown blank.
 	local damageTypesTable = dmhub.GetTable(DamageType.tableName)
-	if damageTypesTable == nil then
+	if damageTypesTable == nil or next(damageTypesTable) == nil then
 		return
 	end
 

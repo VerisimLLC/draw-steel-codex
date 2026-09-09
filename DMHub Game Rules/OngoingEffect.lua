@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class CharacterOngoingEffect
+--- @class CharacterOngoingEffect: CharacterFeature
 CharacterOngoingEffect = RegisterGameType("CharacterOngoingEffect", "CharacterFeature")
 CharacterOngoingEffect.tableName = "characterOngoingEffects"
 CharacterOngoingEffect.stackable = false
@@ -168,6 +168,26 @@ function CharacterOngoingEffect:GetDisplayDisplay()
 	return self.display
 end
 
+--Rules text for tooltips. A duration-only effect ("Frightened (save ends)") has no
+--description of its own, so fall back to the linked condition's rules.
+--Static, not a method: hot reload does not add methods to already-deserialized table
+--entries, so effect:GetDisplayDescription() would raise until the next restart.
+function CharacterOngoingEffect.GetDisplayDescription(effect)
+	local desc = effect:try_get("description", "")
+	if desc ~= "" then
+		return desc
+	end
+
+	if effect.condition ~= "none" then
+		local cond = effect:GetCondition()
+		if cond ~= nil then
+			return cond:try_get("description", "")
+		end
+	end
+
+	return ""
+end
+
 function CharacterOngoingEffect:GetEndAbility()
 	if self.canEndWithAction then
 		local resourceid = self.endActionType
@@ -208,7 +228,7 @@ function CharacterOngoingEffect:GetEndAbility()
 end
 
 --a point in time in the game.
---- @class TimePoint
+--- @class TimePoint: GameType
 TimePoint = RegisterGameType("TimePoint")
 
 function TimePoint.Create()
@@ -302,7 +322,7 @@ function TimePoint:RoundsSince()
 	return roundsPassed
 end
 
---- @class CharacterOngoingEffectInstance
+--- @class CharacterOngoingEffectInstance: GameType
 --- @field ongoingEffectid string
 --- @field duration nil|number time in rounds
 --- @field time TimePoint time when effect was added.

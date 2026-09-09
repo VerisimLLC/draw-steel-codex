@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class TimerChatMessage
+--- @class TimerChatMessage: GameType
 TimerChatMessage = RegisterGameType("TimerChatMessage")
 
 function TimerChatMessage.Render(self, message)

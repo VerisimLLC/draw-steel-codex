@@ -68,6 +68,25 @@ function CharacterResource.SetMalice(amount, message)
     CharacterResource.SetGlobalResource(CharacterResource.maliceResourceId, amount, message)
 end
 
+function CharacterResource.CanSpendMalice(cost)
+    cost = tonumber(cost) or 0
+    return cost <= 0 or CharacterResource.GetMalice() >= cost
+end
+
+function CharacterResource.SpendMalice(cost, message)
+    cost = tonumber(cost) or 0
+    if cost <= 0 then
+        return true
+    end
+
+    if not CharacterResource.CanSpendMalice(cost) then
+        return false
+    end
+
+    CharacterResource.SetMalice(CharacterResource.GetMalice() - cost, message)
+    return true
+end
+
 function CharacterResource.GetVillainActions()
     return CharacterResource.GetGlobalResource(CharacterResource.villainActionId)
 end

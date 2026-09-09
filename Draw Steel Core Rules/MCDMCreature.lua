@@ -475,6 +475,33 @@ function character:GetHeroicOrMaliceResources()
     return g_baseCharacterGetHeroicOrMaliceResources(self)
 end
 
+--A summon that shares its summoner's heroic resource surfaces the summoner's
+--heroic/epic quantities in GetResources, so ability costs paid in those
+--resources pass affordability checks (see ActivatedAbility:GetCost). Spends
+--against these keys already route to the summoner in Resource.lua.
+local g_baseMonsterGetResources = monster.GetResources
+function monster:GetResources()
+    local summonerToken = self:GetHeroicResourceSharingSummonerToken()
+    if summonerToken == nil then
+        return g_baseMonsterGetResources(self)
+    end
+
+    local cached = self:try_get("_tmp_sharedresources")
+    if cached ~= nil and self:try_get("_tmp_sharedresourcesUpdate") == dmhub.ngameupdate then
+        return cached
+    end
+
+    local result = table.shallow_copy(g_baseMonsterGetResources(self))
+    local summonerResources = summonerToken.properties:GetResources()
+    result[CharacterResource.heroicResourceId] = summonerResources[CharacterResource.heroicResourceId]
+    result[CharacterResource.epicResourceId] = summonerResources[CharacterResource.epicResourceId]
+
+    self._tmp_sharedresources = result
+    self._tmp_sharedresourcesUpdate = dmhub.ngameupdate
+
+    return result
+end
+
 --- Returns true if this creature is a summon owned by a hero. Hero-summoned monsters
 --- should not surface villain/malice-cost abilities (malice is a GM resource).
 function creature:IsHeroSummon()
@@ -632,9 +659,137 @@ function creature:HeroicResourceHighWaterMarkForTurn()
     return quantity
 end
 
+local g_conditionHiddenId = "31daf7f6-f77c-4f73-8eab-43e2d0f123c0"
+
+--While a director-controlled creature has the Hidden condition, its token can
+--optionally be made invisible to players. Heroes never auto-vanish: their
+--enemies are director-run and the director must always see everything, so for
+--heroes the Hidden benefit is enforced at targeting time instead.
+--(forward-declared: SyncHiddenInvisibility reads it, the setting's onchange
+--calls SyncHiddenInvisibility)
+local g_settingHiddenInvisible
+
+--charids with a deferred invisibility sync pending, so a burst of refreshes
+--only schedules one write.
+local g_hiddenInvisPending = {}
+
+--Keeps token.invisibleToPlayers in step with the Hidden condition for
+--director-controlled creatures. We only act on TRANSITIONS, recorded in the
+--serialized hiddenInvisibilityApplied field: invisibility we did not apply
+--(e.g. encounter groups staged invisible by the director) is never touched,
+--and a director who manually reveals a still-hidden monster is not fought.
+--The write is deferred out of the refresh path to avoid re-entrant uploads.
+local function SyncHiddenInvisibility(token)
+    --Only the hosting client manages this (a player host included: it is
+    --the single writer for director-run creatures).
+    if not IsDMOrPlayerHost() then
+        return
+    end
+
+    local c = token.properties
+    if c == nil then
+        return
+    end
+
+    local shouldHide = g_settingHiddenInvisible:Get() and (not token.playerControlled)
+        and (c:HasCondition(g_conditionHiddenId) ~= false)
+    local applied = c:try_get("hiddenInvisibilityApplied", false)
+    if shouldHide == applied then
+        return
+    end
+
+    local charid = token.charid
+    if g_hiddenInvisPending[charid] then
+        return
+    end
+    g_hiddenInvisPending[charid] = true
+
+    --Vanishing is delayed so the "Hidden" float text and status animation get
+    --time to play over the still-visible token before it disappears; players
+    --need a beat to register what happened. Revealing is near-instant so
+    --players are never late seeing a monster that is no longer hidden.
+    local delay = 0.05
+    if shouldHide then
+        delay = 2.0
+    end
+
+    dmhub.Schedule(delay, function()
+        g_hiddenInvisPending[charid] = nil
+        if mod.unloaded then
+            return
+        end
+
+        local tok = dmhub.GetTokenById(charid)
+        if tok == nil or (not tok.valid) or tok.properties == nil then
+            return
+        end
+
+        local cr = tok.properties
+        local hideNow = g_settingHiddenInvisible:Get() and (not tok.playerControlled)
+            and (cr:HasCondition(g_conditionHiddenId) ~= false)
+        local appliedNow = cr:try_get("hiddenInvisibilityApplied", false)
+        if hideNow == appliedNow then
+            return
+        end
+
+        tok.invisibleToPlayers = hideNow
+        tok:ModifyProperties{
+            description = "Hidden condition visibility",
+            undoable = false,
+            execute = function()
+                cr.hiddenInvisibilityApplied = hideNow
+
+                if not hideNow then
+                    --On reveal, clients that couldn't see the token missed the
+                    --sheet's own local "crossed out Hidden" status float (it
+                    --fires from icon diffing at condition-removal time, while
+                    --the token was still invisible to them). Re-fire the same
+                    --visual through the networked animation channel now that
+                    --the token is visible again.
+                    local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
+                    local conditionInfo = conditionsTable[g_conditionHiddenId]
+                    if conditionInfo ~= nil then
+                        cr:AddAnimation{
+                            animType = "statusDestroy",
+                            info = {
+                                icon = conditionInfo.iconid,
+                                statusText = (string.gsub(conditionInfo.name, "%s+$", "")),
+                                --floatstatus mutates info.style, so pass a copy.
+                                style = DeepCopy(conditionInfo:try_get("display", {})),
+                            },
+                        }
+                    end
+                end
+            end,
+        }
+    end)
+end
+
+g_settingHiddenInvisible = setting{
+    id = "strict:hiddeninvisible",
+    description = "Hidden Monsters Invisible to Players",
+    help = "While a creature the director controls has the Hidden condition, its token is invisible to players. Heroes always remain visible.",
+    storage = "game",
+    editor = "check",
+    default = false,
+    section = "GameStrictRules",
+    onchange = function()
+        --RefreshToken only runs on game-state changes, so re-evaluate every
+        --token directly when the setting flips (in particular, revealing
+        --monsters when it is toggled off).
+        for _, tok in ipairs(dmhub.allTokens) do
+            SyncHiddenInvisibility(tok)
+        end
+    end,
+}
+
 function creature:RefreshToken(token)
     if (not mod.unloaded) and self.minion then
         self:RefreshSquadInfo(token)
+    end
+
+    if not mod.unloaded then
+        SyncHiddenInvisibility(token)
     end
 
     if (not mod.unloaded) then
@@ -848,10 +1003,25 @@ function monster.OnCreateFromBestiary(self, token, groupid)
 end
 
 function monster.FindFreshSquadName(monster_type)
+    --The g_minionSquadTables registry is client-local and wiped by a Lua
+    --reload, so also consult the squads live tokens actually occupy (including
+    --the implicit "<type> Squad 1" default for squadless minions) or a freshly
+    --reloaded client can hand out a name an existing squad is already using.
+    local usedNames = {}
+    for _,tok in ipairs(dmhub.GetTokens{haveProperties = true}) do
+        if tok.valid and tok.properties.minion then
+            local squadName = nil
+            pcall(function() squadName = tok.properties:MinionSquad() end)
+            if squadName ~= nil then
+                usedNames[squadName] = true
+            end
+        end
+    end
+
     for i = 1, 1000 do
         local squadid = string.format("%s Squad %d", monster_type, i)
         local minionSquad = g_minionSquadTables[squadid]
-        if minionSquad == nil then
+        if minionSquad == nil and usedNames[squadid] == nil then
             g_minionSquadTables[squadid] = {
                 name = squadid,
             }
@@ -1328,8 +1498,20 @@ creature.RegisterSymbol {
     },
 }
 
+--Winded isn't a condition, so register it separately to make "Winded" usable as a
+--criteria string in Count Nearby Creatures and friends.
+creature.RegisterMatchString{
+    name = "winded",
+    match = function(c)
+        return c:IsWinded()
+    end,
+}
+
 creature.RegisterSymbol{
     symbol = "herotokens",
+    --the pool is party-global; global = true lets rail buttons and other
+    --consumers evaluate this with no character selected.
+    global = true,
     lookup = function(c)
         return c:GetHeroTokens()
     end,
@@ -1343,6 +1525,8 @@ creature.RegisterSymbol{
 
 creature.RegisterSymbol{
     symbol = "malice",
+    --game-wide pool; the lookup ignores the creature entirely.
+    global = true,
     lookup = function(c)
         return CharacterResource.GetMalice()
     end,
@@ -1541,11 +1725,11 @@ function creature:CalculatePotencyValueSelf(potency)
     if potency ~= nil then
         local potencyType = string.lower(potency)
         if potencyType == "weak" then
-            return potencyValue - 2 + potencyBonus
+            return potencyValue - 2 + potencyBonus + self:CalculateNamedCustomAttribute("Weak Potency Bonus")
         elseif potencyType == "average" then
-            return potencyValue - 1 + potencyBonus
+            return potencyValue - 1 + potencyBonus + self:CalculateNamedCustomAttribute("Average Potency Bonus")
         elseif potencyType == "strong" then
-            return potencyValue + potencyBonus
+            return potencyValue + potencyBonus + self:CalculateNamedCustomAttribute("Strong Potency Bonus")
         end
     end
     return potencyValue + potencyBonus
@@ -1624,6 +1808,20 @@ creature.RegisterSymbol {
         type = "creature",
         desc = "If we have a captain, this will return the captain of the squad this creature is a member of.",
         seealso = {},
+    }
+}
+
+creature.RegisterSymbol {
+    symbol = "squad",
+    lookup = function(c)
+        --Captains report their squad too; pair with Minion to exclude them.
+        return c:MinionSquad() or ""
+    end,
+    help = {
+        name = "Squad",
+        type = "text",
+        desc = "The minion squad this creature belongs to, or empty text if none.",
+        seealso = { "Minion", "Squad Captain", "Living Squad Members" },
     }
 }
 
@@ -2131,12 +2329,31 @@ function creature:GetFlankingTokens(tokensOverride)
         end
     end
 
+    local granterIds = {}
+    local numGranters = 0
+    for _, enemy in ipairs(adjacentEnemies) do
+        if enemy.properties:GrantFlankingToAllies() then
+            granterIds[enemy.charid] = true
+            numGranters = numGranters + 1
+        end
+    end
+
+    --a creature that grants flanking to its allies can't grant it to itself, so it is marked
+    --as a grantor (and then excluded by FlankedBy) only when it is the *only* grantor here.
+    --If a second creature also grants flanking then that creature is an ally granting flanking
+    --to this one, so neither of them is marked and both count as flankers.
+    --NOTE: this deliberately writes to the live creature properties. FlankedBy and the token
+    --hud read _tmp_grantsFlanking back off tokens they look up separately, so the write must
+    --not be made against a copy.
     local grantedFlanking = {}
-    for i, enemy in ipairs(adjacentEnemies) do
-        local grantFlanking = enemy.properties:GrantFlankingToAllies()
-        if grantFlanking then
-            grantedFlanking = DeepCopy(adjacentEnemies)
-            grantedFlanking[i].properties._tmp_grantsFlanking = token.charid
+    if numGranters > 0 then
+        grantedFlanking = adjacentEnemies
+        for _, enemy in ipairs(adjacentEnemies) do
+            if numGranters == 1 and granterIds[enemy.charid] then
+                enemy.properties._tmp_grantsFlanking = token.charid
+            else
+                enemy.properties._tmp_grantsFlanking = nil
+            end
         end
     end
 
@@ -2324,6 +2541,15 @@ end
 
 --- @return boolean
 function monster:IsDead()
+    --Death-gated squad minions (e.g. Group Appetite trolls): the shared pool
+    --reaching 0 does not kill them, so a minion only reads as dead once its
+    --death is actually confirmed (director skull click or a trait trigger
+    --removing it). Without this, a negative pool paints every member with the
+    --dead-token overlay and gets the squad skipped in initiative, so the
+    --end-of-turn death trigger could never fire.
+    if self.minion and (self:CalculateNamedCustomAttribute("Gated Minion Deaths") or 0) > 0 then
+        return self.minionDead
+    end
     return self:CurrentHitpoints() <= self:KillThresholdStamina()
 end
 
@@ -2375,7 +2601,21 @@ creature.creatureSize = "1M"
 
 CustomAttribute.RegisterAttribute { id = "creaturesizewhenforcemoved", text = "Size When Force Moved", attributeType = "number", category = "Forced Movement" }
 
-function creature:CreatureSizeWhenBeingForceMoved()
+--- The effective size of this creature when it is being force moved.
+--- If isKnockback is true, the data-defined "Knockback Target Size" attribute
+--- is used instead; its base value formula (SizeWhenForceMoved) chains back
+--- through this function, so knockback-specific size features layer on top of
+--- general force-move size features.
+--- @param isKnockback boolean|nil
+--- @return number
+function creature:CreatureSizeWhenBeingForceMoved(isKnockback)
+    if isKnockback then
+        local customAttr = CustomAttribute.attributeInfoByLookupSymbol["knockbacktargetsize"]
+        if customAttr ~= nil then
+            return self:GetCustomAttribute(customAttr)
+        end
+    end
+
     local token = dmhub.LookupToken(self)
     local size = 3
     if token ~= nil and token.valid then
@@ -2385,6 +2625,36 @@ function creature:CreatureSizeWhenBeingForceMoved()
     end
 
     return self:CalculateAttribute("creaturesizewhenforcemoved", size)
+end
+
+--- The effective size of this creature when it force moves another creature:
+--- the pusher's side of the "Big Versus Little" rule. Uses the data-defined
+--- "SizeWhenForceMoving" attribute (base value: Size) so features that
+--- artificially increase size when force moving are recognized. If isKnockback
+--- is true, uses "Knockback Caster Size" (base value: SizeWhenForceMoving)
+--- so knockback-specific size features layer on top.
+--- @param isKnockback boolean|nil
+--- @return number
+function creature:CreatureSizeWhenForceMoving(isKnockback)
+    local attrNames = {"sizewhenforcemoving"}
+    if isKnockback then
+        attrNames = {"knockbackcastersize", "sizewhenforcemoving"}
+    end
+
+    for _, attrName in ipairs(attrNames) do
+        local customAttr = CustomAttribute.attributeInfoByLookupSymbol[attrName]
+        if customAttr ~= nil then
+            return self:GetCustomAttribute(customAttr)
+        end
+    end
+
+    --fallback if the compendium does not define the size attributes: raw size.
+    local token = dmhub.LookupToken(self)
+    if token ~= nil and token.valid then
+        return token.creatureSizeNumber
+    end
+
+    return self:GetBaseCreatureSizeNumber() or 3
 end
 
 creature.RegisterSymbol {
@@ -2468,6 +2738,54 @@ creature.RegisterSymbol {
         type = "function",
         desc = "Given the name of an aura will return the creature that's controlling it.",
         seealso = {},
+    }
+}
+
+creature.RegisterSymbol {
+    symbol = "environment",
+    lookup = function(c)
+        local result = {}
+        local token = dmhub.LookupToken(c)
+        if token == nil then
+            return StringSet.new{
+                strings = result,
+            }
+        end
+
+        --Map-markup zone auras carry the id of the Environmental Keyword they
+        --were built from (see MapMarkup BuildZoneAuraInstance); resolve each
+        --id to the keyword's live name. A deleted or unresolvable keyword
+        --contributes nothing; multiple zones of the same keyword contribute
+        --its name once.
+        local keywordsTable = dmhub.GetTable("environmentalKeywords") or {}
+        local seenIds = {}
+        local seenNames = {}
+        local aurasTouching = token.properties:GetAurasAffecting(token) or {}
+        for _,info in ipairs(aurasTouching) do
+            local keywordid = info.auraInstance.aura:try_get("environmentalKeywordId")
+            if keywordid ~= nil and seenIds[keywordid] == nil then
+                seenIds[keywordid] = true
+                local keyword = keywordsTable[keywordid]
+                if keyword ~= nil and (not keyword:try_get("hidden", false)) then
+                    local name = keyword.name
+                    if name ~= nil and seenNames[string.lower(name)] == nil then
+                        seenNames[string.lower(name)] = true
+                        result[#result + 1] = name
+                    end
+                end
+            end
+        end
+
+        return StringSet.new{
+            strings = result,
+        }
+    end,
+    help = {
+        name = "Environment",
+        type = "set",
+        desc = "The names of the Environmental Keywords of the map zones the creature is currently inside. Zone display names do not matter; the underlying keyword's name is what appears in the set.",
+        seealso = {"Auras Affecting"},
+        examples = {"Environment has \"Darkness\"", "target.Environment has \"Darkness\""},
     }
 }
 
@@ -2750,6 +3068,10 @@ function creature:GetHeroicResourceName()
 end
 
 function monster:GetHeroicResourceName()
+    local summonerToken = self:GetHeroicResourceSharingSummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties:GetHeroicResourceName()
+    end
     return "Malice"
 end
 
@@ -2784,6 +3106,11 @@ function character:GetHeroicOrMaliceId()
 end
 
 function monster:GetHeroicOrMaliceId()
+    --A summon sharing its summoner's heroic resource pays costs in that
+    --resource, not Malice (same treatment as AnimalCompanion).
+    if self:GetHeroicResourceSharingSummonerToken() ~= nil then
+        return CharacterResource.heroicResourceId
+    end
     return CharacterResource.maliceResourceId
 end
 
@@ -2820,6 +3147,11 @@ function creature:PostProcessInvokedAbility(ability)
     return ability
 end
 
+--Once-per-session flag so a persistent bad trigger doesn't flood the cloud
+--error log: the action bar re-runs GetActivatedAbilities on every refresh.
+local g_reportedManualTriggerError = false
+local g_reportedBadConsumableError = false
+
 function creature:GetActivatedAbilities(options)
     options = options or {}
 
@@ -2849,12 +3181,18 @@ function creature:GetActivatedAbilities(options)
         end
     end
 
+    --Retainers can't use abilities or effects that require Malice, so their
+    --malice-cost innate abilities are suppressed here rather than deleted
+    --from the creature (converting back restores them).
+    local suppressMalice = self:IsRetainer()
     for i, a in ipairs(self.innateActivatedAbilities) do
-        local ability = a:MakeTemporaryClone()
-        if options.bindCaster and (not options.characterSheet) then
-            ability._tmp_boundCaster = self
+        if not (suppressMalice and a.resourceCost == CharacterResource.maliceResourceId) then
+            local ability = a:MakeTemporaryClone()
+            if options.bindCaster and (not options.characterSheet) then
+                ability._tmp_boundCaster = self
+            end
+            result[#result + 1] = ability
         end
-        result[#result + 1] = ability
     end
 
     local modifiers = self:GetActiveModifiers()
@@ -2882,14 +3220,25 @@ function creature:GetActivatedAbilities(options)
     if options.manualTriggers then
         local triggeredAbilities = self:GetTriggeredAbilities()
         for i, trigger in ipairs(triggeredAbilities) do
-            local ability
-            if trigger.ability.typeName == "ActivatedAbility" then
-                ability = DeepCopy(trigger.ability)
-                ability._tmp_temporaryClone = true
-            elseif trigger.ability:try_get("hasManualVersion", false) and not trigger.ability:IsLocalOnly() then
-                ability = trigger.ability:GenerateManualVersion()
+            --Per-entry isolation: GenerateManualVersion executes authored
+            --trigger data, so one malformed trigger must drop only itself,
+            --not abort the whole ability list (which kills the action bar).
+            local ok, ability = pcall(function()
+                if trigger.ability.typeName == "ActivatedAbility" then
+                    local a = DeepCopy(trigger.ability)
+                    a._tmp_temporaryClone = true
+                    return a
+                elseif trigger.ability:try_get("hasManualVersion", false) and not trigger.ability:IsLocalOnly() then
+                    return trigger.ability:GenerateManualVersion()
+                end
+                return nil
+            end)
+            if ok then
+                result[#result + 1] = ability
+            elseif not g_reportedManualTriggerError then
+                g_reportedManualTriggerError = true
+                dmhub.CloudError(string.format("GetActivatedAbilities: dropping manual trigger that failed to generate: %s", tostring(ability)))
             end
-            result[#result + 1] = ability
         end
     end
 
@@ -2907,8 +3256,22 @@ function creature:GetActivatedAbilities(options)
     local gearTable = dmhub.GetTable('tbl_Gear')
     for k, info in pairs(self:try_get('inventory', {})) do
         local itemInfo = gearTable[k]
-        if itemInfo ~= nil and itemInfo:has_key("consumable") then
-            ability = itemInfo.consumable:MakeTemporaryClone()
+        -- The type check guards against bad import data leaving `consumable` as
+        -- a boolean flag instead of an embedded ActivatedAbility; one malformed
+        -- item must not error out GetActivatedAbilities for the whole creature.
+        local consumableAbility = nil
+        if itemInfo ~= nil then
+            consumableAbility = itemInfo:try_get("consumable")
+            if consumableAbility ~= nil and type(consumableAbility) ~= "table" then
+                if not g_reportedBadConsumableError then
+                    g_reportedBadConsumableError = true
+                    dmhub.CloudError(string.format("GetActivatedAbilities: gear item %s has a %s in its consumable field instead of an ActivatedAbility; skipping it.", tostring(k), type(consumableAbility)))
+                end
+                consumableAbility = nil
+            end
+        end
+        if consumableAbility ~= nil then
+            ability = consumableAbility:MakeTemporaryClone()
             ability._tmp_boundCaster = self
             result[#result + 1] = ability
         end
@@ -3261,6 +3624,205 @@ creature.RegisterSymbol {
     }
 }
 
+--The living enemy tokens relevant to this creature: every token on the map
+--that is not friendly to this creature's token and is not dead. Friendliness
+--uses token:IsFriend, which consults the initiative queue when an encounter
+--is running and otherwise falls back to party allegiance. When an
+--initiative encounter is active (an unhidden initiative queue exists), only
+--enemies participating in the initiative queue count; out of combat, all
+--enemy tokens on the current map count. Neutral (non-friendly) tokens count
+--as enemies, matching the Monster AI's combatant enumeration.
+function creature:GetRelevantEnemyTokens()
+    local token = dmhub.LookupToken(self)
+    --floorid is nil when the wrapper has no token on the loaded map. A
+    --compendium/bestiary stat block still yields a "valid" token wrapper, but
+    --it has no map presence, so no enemy on the map is relevant to it.
+    if token == nil or not token.valid or token.floorid == nil then
+        return {}
+    end
+
+    local q = dmhub.initiativeQueue
+    local combatActive = q ~= nil and (not q.hidden)
+
+    local result = {}
+    for _,tok in ipairs(dmhub.allTokens) do
+        if tok.valid and tok.properties ~= nil and tok.charid ~= token.charid
+                and (not tok.properties:IsDead())
+                and (not token:IsFriend(tok)) then
+            local include = true
+            if combatActive then
+                local initiativeid = InitiativeQueue.GetInitiativeId(tok)
+                include = initiativeid ~= nil and q.entries[initiativeid] ~= nil
+            end
+            if include then
+                result[#result+1] = tok
+            end
+        end
+    end
+
+    return result
+end
+
+--How long (seconds) a computed cover-from-enemies result stays fresh. These
+--symbols are evaluated by action-bar and tooltip refreshes, so the O(enemies)
+--cover raycasts are cached per-creature in a transient _tmp_ field rather
+--than recomputed every UI frame.
+local g_coverFromEnemiesCacheSeconds = 0.5
+
+--Computes whether this creature has cover from all/any relevant enemies.
+--Returns a table {all = boolean, any = boolean}. "all" is vacuously true and
+--"any" false when there are no relevant enemies. An enemy grants cover when
+--dmhub.GetCoverInfo(enemyToken, selfToken, pierce) is non-nil (nil means no
+--cover); the observing enemy is the attacker, and pierce follows the
+--RuleUtils.HasLineOfEffect idiom of using the attacker's PierceWalls.
+function creature:CalculateCoverFromEnemies()
+    local now = dmhub.Time()
+    local cached = self:try_get("_tmp_coverFromEnemies")
+    if cached ~= nil and (now - cached.time) < g_coverFromEnemiesCacheSeconds then
+        return cached
+    end
+
+    local result = { time = now, all = true, any = false }
+
+    --The "Has Cover" custom attribute (granted by traits like Iron Barricade)
+    --means the creature counts as having cover from everyone. It is folded in
+    --here rather than referenced in formulas because "has" is a reserved
+    --GoblinScript operator, making the attribute's name unparseable in a
+    --formula with its natural spacing.
+    if (self:CalculateNamedCustomAttribute("Has Cover") or 0) > 0 then
+        result.any = true
+        self._tmp_coverFromEnemies = result
+        return result
+    end
+
+    local token = dmhub.LookupToken(self)
+    --Requires a token on the loaded map: dmhub.GetCoverInfo raycasts between
+    --two scene tokens and hard-crashes on one that has none. A compendium
+    --stat block (e.g. rendering an ability tooltip on its sheet) reports
+    --valid = true but has no map token; floorid is nil in exactly that case.
+    if token ~= nil and token.valid and token.floorid ~= nil then
+        for _,enemyTok in ipairs(self:GetRelevantEnemyTokens()) do
+            local pierce = 0
+            if enemyTok.properties ~= nil then
+                pierce = enemyTok.properties:GetPierceWalls()
+            end
+            --favorTarget = true: hider-favoring bias -- any sampled sightline the enemy
+            --has that clips an obstruction counts as the hider being behind cover.
+            local coverInfo = dmhub.GetCoverInfo(enemyTok, token, pierce, true)
+            if coverInfo ~= nil then
+                result.any = true
+            else
+                result.all = false
+            end
+        end
+    end
+
+    self._tmp_coverFromEnemies = result
+    return result
+end
+
+--NOTE: these symbol names deliberately avoid the word "has" -- "has" is a
+--reserved (case-insensitive) GoblinScript operator, so a symbol name starting
+--with it can never be referenced with natural spacing in a formula.
+creature.RegisterSymbol {
+    symbol = "coverfromallenemies",
+    lookup = function(c)
+        return c:CalculateCoverFromEnemies().all
+    end,
+    help = {
+        name = "Cover From All Enemies",
+        type = "boolean",
+        desc = "True if every living enemy has cover to this creature (in combat, only enemies in the initiative queue count; out of combat, all enemy tokens on the map count), or if the creature has the Has Cover custom attribute. Vacuously true when there are no relevant enemies.",
+        seealso = {"Cover From Any Enemy", "Concealed"},
+        examples = {"Concealed or Cover From All Enemies"},
+    }
+}
+
+creature.RegisterSymbol {
+    symbol = "coverfromanyenemy",
+    lookup = function(c)
+        return c:CalculateCoverFromEnemies().any
+    end,
+    help = {
+        name = "Cover From Any Enemy",
+        type = "boolean",
+        desc = "True if at least one living enemy has cover to this creature (in combat, only enemies in the initiative queue count; out of combat, all enemy tokens on the map count), or if the creature has the Has Cover custom attribute. False when there are no relevant enemies and the attribute is absent.",
+        seealso = {"Cover From All Enemies", "Concealed"},
+        examples = {"Concealed or Cover From Any Enemy"},
+    }
+}
+
+--True if the creature has concealment from a source other than darkness:
+--invisibility, a concealment aura or zone whose Environmental Keyword is not
+--Darkness, or terrain tiles flagged as concealing. Used by the Concealment
+--global rule mod so "ignores concealment created by darkness" features (e.g.
+--shadow elf Of the Umbra) still take the bane when the target is also
+--concealed by something else.
+function creature:HasConcealmentIgnoringDarkness()
+    --Invisibility marks concealment via a game-update stamp rather than the
+    --map; use the same freshness rule as the _tmp_concealed refresh.
+    if self:try_get("_tmp_concealedInvisibleUpdate", -10) >= dmhub.ngameupdate - 1 then
+        return true
+    end
+
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return false
+    end
+
+    --Concealment auras/zones affecting the creature. A concealment aura whose
+    --keyword does not resolve to "Darkness" counts, as does one with no
+    --keyword at all: only auras stamped with the Darkness keyword are
+    --"created by darkness". Keyword resolution mirrors the Environment
+    --symbol, including hidden keywords contributing no name.
+    local aurasTouching = self:GetAurasAffecting(token)
+    if aurasTouching ~= nil then
+        local keywordsTable = nil
+        for _,info in ipairs(aurasTouching) do
+            local instance = info.auraInstance
+            local ok, concealing = pcall(function() return instance:GetConcealment() end)
+            if ok and concealing then
+                local isDarkness = false
+                local keywordid = instance.aura:try_get("environmentalKeywordId")
+                if keywordid ~= nil then
+                    keywordsTable = keywordsTable or dmhub.GetTable("environmentalKeywords") or {}
+                    local keyword = keywordsTable[keywordid]
+                    if keyword ~= nil and (not keyword:try_get("hidden", false)) and string.lower(keyword.name or "") == "darkness" then
+                        isDarkness = true
+                    end
+                end
+                if not isDarkness then
+                    return true
+                end
+            end
+        end
+    end
+
+    --Terrain tiles flagged as concealing. hasTerrainConcealment excludes
+    --aura/zone contributions, unlike the merged tile rules which fold
+    --apply-to-all zone auras in. pcall guards engine builds that predate the
+    --property; they degrade to treating the overlap as darkness-only.
+    local ok, terrain = pcall(function() return token.hasTerrainConcealment end)
+    if ok and terrain == true then
+        return true
+    end
+
+    return false
+end
+
+creature.RegisterSymbol {
+    symbol = "concealedignoringdarkness",
+    lookup = function(c)
+        return c:HasConcealmentIgnoringDarkness()
+    end,
+    help = {
+        name = "Concealed Ignoring Darkness",
+        type = "boolean",
+        desc = "True if the creature has concealment from a source other than darkness: invisibility, a concealment zone or aura whose keyword is not Darkness, or concealing terrain.",
+        seealso = {"Concealed", "Environment"},
+    }
+}
+
 creature.RegisterSymbol {
     symbol = "indifficultterrain",
     lookup = function(c)
@@ -3495,17 +4057,22 @@ function creature:InflictCondition(conditionid, args)
                 --context-appropriate instead of "I can't be Hidden!". Otherwise
                 --fall back to the per-condition variations table, then a generic
                 --line.
-                local text = self:GetConditionImmunityMessage(conditionid)
-                    or g_conditionImmunitySpeech[string.lower(conditionInfo.name)]
-                    or string.format("I can't be %s!", conditionInfo.name)
                 local language = self:CurrentlySpokenLanguage()
                 if language ~= nil then
+                    --the creature can speak: use its custom immunity line, a
+                    --flavorful per-condition variation, or a generic first-person
+                    --fallback, rendered as an in-character speech bubble.
+                    local text = self:GetConditionImmunityMessage(conditionid)
+                        or g_conditionImmunitySpeech[string.lower(conditionInfo.name)]
+                        or string.format("I can't be %s!", conditionInfo.name)
                     self:CharacterSpeech{
                         text = text,
                         langid = language,
                     }
                 else
-                    self:FloatLabel(text, "white")
+                    --no spoken language: a first-person speech line reads oddly as
+                    --floating text, so show a plain descriptive label instead.
+                    self:FloatLabel(string.format("Cannot be %s", conditionInfo.name), "white")
                 end
             end
         end
@@ -4341,7 +4908,11 @@ function creature:ShowCharacteristicRollDialog(attrid)
                 },
             }
 
-            CharacterPanel.UnlockDisplayAbility()
+            --Force: we waited above for every roll surface to clear, so any lock
+            --left is stale. The new lock is id-only (no coroutine): this
+            --coroutine returns as soon as the dialog is scheduled, while the roll
+            --stays up until the next AcquireAbilityRollDialog displaces it.
+            CharacterPanel.ForceUnlockDisplayAbility()
             displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true, renderAsAbility = true})
         end
 
@@ -4371,6 +4942,14 @@ end
 
 local g_creatureSetCurrentHitpoints = creature.SetCurrentHitpoints
 function creature.SetCurrentHitpoints(self, amount, note)
+    if type(amount) == 'string' then
+        amount = tonumber(amount)
+    end
+
+    if type(amount) ~= 'number' then
+        return
+    end
+
     if (not mod.unloaded) and self.minion and self:has_key("_tmp_minionSquad") then
         local token = dmhub.LookupToken(self)
         if token ~= nil then
@@ -4464,6 +5043,7 @@ end
 -- "Fire Immunity 5" for innate resistances) and hovering it shows the source's
 -- description. Purpose is to communicate to all players WHY the damage was reduced or
 -- increased and where to look for it.
+--- @class DamageModifierChatMessage: GameType
 DamageModifierChatMessage = RegisterGameType("DamageModifierChatMessage")
 DamageModifierChatMessage.victimid = ""
 DamageModifierChatMessage.attackerid = ""
@@ -4725,6 +5305,12 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
             local attacker = symbols ~= nil and symbols.attacker or nil
             local attackerToken = (attacker ~= nil and attacker ~= self) and dmhub.LookupToken(attacker) or nil
 
+            -- Monster Info: an innate immunity or weakness that changed the damage
+            -- reveals that stat block entry to the players (self-guarding).
+            if bestEntry ~= nil then
+                MonsterKnowledge.RecordDamageModifier(self, bestEntry)
+            end
+
             -- The ability/attack that inflicted the damage (e.g. "Ranged Free Strike").
             -- Prefer the ability's name; fall back to the damage source description string.
             local abilityName = ""
@@ -4964,6 +5550,260 @@ creature.minionDamageTime = 0
 --applied to that squad's pool this cast.
 local g_summonerSquadCastDamage = setmetatable({}, {__mode = "k"})
 
+--Batching and confirmation gating for the "squadminiondeaths" trigger.
+--
+--A single cast that hits several minions of a squad applies damage in
+--SEPARATE TakeDamage calls (one per target), each of which can empty one
+--stamina band. A naive per-call dispatch would fire the trigger once per
+--call with 1 kill each, so a condition like "Minions Killed >= 2" could
+--never pass on the canonical area-wipe case. Each application's kills
+--therefore accumulate into a batch keyed by (squad, cast identity).
+--
+--A batch does NOT flush on a timer: squad minion deaths are not real until
+--the director confirms them by clicking the red skulls, which fires the
+--creaturedeath trigger and then calls creature:MinionDeath() on the
+--confirmed minion (see DrawSteelTokenHud.lua). Flushing earlier races that
+--flow: the placement UI of a triggered summon goes up underneath the
+--confirmation clicks and the Monster Death removals tear it down. Instead
+--the batch flushes exactly when the number of CONFIRMED deaths reaches the
+--batch's kill count. Confirmations are observed two ways:
+--  * synchronously, via the creature:MinionDeath() wrapper below, on the
+--    client where the skulls are clicked; and
+--  * by polling, for batches held on a different client than the one
+--    confirming (damage accumulates on the damaging client, confirmation
+--    happens on the director's): a recorded squad member whose token has
+--    been removed or marked minionDead counts as confirmed.
+--If the director never confirms, the batch simply stays pending: deaths
+--that were never confirmed never happened. A batch is dropped if the
+--squad's shared pool is healed back above the killed bands (deaths undone).
+--
+--The flush dispatches the trigger event ONCE per damage type group (2 fire
+--kills + 1 untyped kill in one cast = one dispatch with 2 kills of fire and
+--one dispatch with 1 kill of none), on a single creature so a squad-wide
+--trait fires once, not once per member: a live surviving squad member when
+--one exists (reliable now that confirmations are complete), or on a full
+--squad wipe the last-confirmed minion at its confirmation moment, while its
+--token is still valid (the Monster Death removal lands behind a Delay
+--behavior). Damage with no cast (falling, terrain) gets its own batch per
+--application but is confirmation-gated all the same.
+local g_squadMinionDeathBatches = {}
+local g_squadMinionDeathBatchSeq = 0
+
+--Flushes the batch if enough deaths are confirmed. lastConfirmed is the
+--creature whose confirmation completed the batch (nil on the polling path);
+--it is the dispatch target on a full squad wipe, while its token is still
+--valid.
+local function CheckFlushSquadMinionDeathBatch(key, lastConfirmed)
+    local batch = g_squadMinionDeathBatches[key]
+    if batch == nil then
+        return
+    end
+
+    if batch.confirmedCount < batch.totalKills then
+        return
+    end
+
+    g_squadMinionDeathBatches[key] = nil
+
+    --Prefer dispatching on a squad member that survived: still on the map,
+    --not confirmed, not director-marked dead, shared pool alive. Every
+    --member of the squad carries the same traits, so any live member is an
+    --equivalent dispatch target, and the batch still dispatches exactly
+    --once.
+    local victim = nil
+    for _,tok in ipairs(dmhub.GetTokens()) do
+        if tok.valid and tok.properties ~= nil and tok.properties.minion
+            and (not tok.properties.minionDead)
+            and (not batch.confirmed[tok.charid])
+            and tok.properties:MinionSquad() == batch.squadName
+            and (not tok.properties:IsDead()) then
+            victim = tok.properties
+            break
+        end
+    end
+
+    --Full squad wipe: dispatch from the last-confirmed minion before its
+    --removal lands, falling back to the most recently damaged one. The
+    --summon pipeline tolerates a caster that goes defunct mid-cast (see
+    --ApplySummonLook and the auto-place fallback in AbilitySummon.lua).
+    if victim == nil then
+        victim = lastConfirmed
+    end
+    if victim == nil or dmhub.LookupToken(victim) == nil then
+        victim = batch.victim
+    end
+    if victim == nil or dmhub.LookupToken(victim) == nil then
+        return
+    end
+
+    for damagetype,group in pairs(batch.groups) do
+        victim:DispatchEvent("squadminiondeaths", {
+            minionskilled = group.kills,
+            damage = group.damage,
+            damagetype = damagetype,
+            attacker = group.attacker,
+            hasattacker = group.attacker ~= nil,
+            cast = batch.cast,
+            hascast = batch.cast ~= nil,
+        })
+    end
+end
+
+--Synchronous confirmation hook: called from the creature:MinionDeath()
+--wrapper below at the moment a minion death is confirmed on this client.
+local function NoteSquadMinionDeathConfirmed(minion)
+    if not minion.minion then
+        return
+    end
+    local squadName = minion:MinionSquad()
+    if squadName == nil then
+        return
+    end
+    local token = dmhub.LookupToken(minion)
+    if token == nil then
+        return
+    end
+    local charid = token.charid
+
+    for key,batch in pairs(g_squadMinionDeathBatches) do
+        if batch.squadName == squadName and batch.members[charid] and (not batch.confirmed[charid]) then
+            batch.confirmed[charid] = true
+            batch.confirmedCount = batch.confirmedCount + 1
+            CheckFlushSquadMinionDeathBatch(key, minion)
+        end
+    end
+end
+
+--Polling observer for a pending batch: picks up confirmations that happened
+--on another client (a recorded member's token removed or marked minionDead)
+--and drops the batch if the squad's pool has been healed back above the
+--killed bands. Never fires the trigger on time alone.
+local function PollSquadMinionDeathBatch(key)
+    local batch = g_squadMinionDeathBatches[key]
+    if batch == nil then
+        return
+    end
+
+    for charid,_ in pairs(batch.members) do
+        if not batch.confirmed[charid] then
+            local tok = dmhub.GetTokenById(charid)
+            if tok == nil or (not tok.valid) or tok.properties == nil or tok.properties.minionDead then
+                batch.confirmed[charid] = true
+                batch.confirmedCount = batch.confirmedCount + 1
+            end
+        end
+    end
+
+    --deaths undone: a live member's pool shows more full stamina bands than
+    --the last damage application left behind. Drop the batch.
+    if batch.singleHealth ~= nil and batch.singleHealth > 0 then
+        for _,tok in ipairs(dmhub.GetTokens()) do
+            if tok.valid and tok.properties ~= nil and tok.properties.minion
+                and (not tok.properties.minionDead)
+                and tok.properties:MinionSquad() == batch.squadName then
+                local bands = math.max(0, math.ceil(tok.properties:CurrentHitpoints() / batch.singleHealth))
+                if bands > batch.expectedBands then
+                    g_squadMinionDeathBatches[key] = nil
+                    return
+                end
+                break
+            end
+        end
+    end
+
+    CheckFlushSquadMinionDeathBatch(key, nil)
+
+    if g_squadMinionDeathBatches[key] ~= nil then
+        dmhub.Schedule(0.3, function()
+            if mod.unloaded then
+                return
+            end
+            PollSquadMinionDeathBatch(key)
+        end)
+    end
+end
+
+--Records one damage application's minion kills into the per-cast batch.
+--Counts kills even when there is no attacker. minionsAfter/healthSingle
+--describe the pool state this application left behind; the poll uses them
+--for the healed-back staleness check.
+local function AccumulateSquadMinionDeaths(victim, eventArg, minionsKilled, minionsAfter, healthSingle)
+    local squadName = victim:MinionSquad() or "squad"
+
+    local castKey
+    if eventArg.cast ~= nil then
+        castKey = tostring(eventArg.cast)
+    else
+        --no cast to batch against: each damage application is its own batch.
+        g_squadMinionDeathBatchSeq = g_squadMinionDeathBatchSeq + 1
+        castKey = string.format("nocast-%d", g_squadMinionDeathBatchSeq)
+    end
+
+    local key = string.format("%s|%s", squadName, castKey)
+    local batch = g_squadMinionDeathBatches[key]
+    if batch == nil then
+        --record the squad's live membership now, before any confirmation:
+        --confirmations are counted strictly against this set.
+        local members = {}
+        for _,tok in ipairs(dmhub.GetTokens()) do
+            if tok.valid and tok.properties ~= nil and tok.properties.minion
+                and (not tok.properties.minionDead)
+                and tok.properties:MinionSquad() == squadName then
+                members[tok.charid] = true
+            end
+        end
+
+        batch = {
+            victim = victim,
+            squadName = squadName,
+            cast = eventArg.cast,
+            groups = {},
+            totalKills = 0,
+            members = members,
+            confirmed = {},
+            confirmedCount = 0,
+            expectedBands = 0,
+            singleHealth = healthSingle,
+        }
+        g_squadMinionDeathBatches[key] = batch
+
+        dmhub.Schedule(0.3, function()
+            if mod.unloaded then
+                return
+            end
+            PollSquadMinionDeathBatch(key)
+        end)
+    end
+
+    batch.victim = victim
+    batch.totalKills = batch.totalKills + minionsKilled
+    batch.expectedBands = minionsAfter
+    batch.singleHealth = healthSingle
+
+    local damagetype = eventArg.damagetype or "none"
+    local group = batch.groups[damagetype]
+    if group == nil then
+        group = { kills = 0, damage = 0, attacker = nil }
+        batch.groups[damagetype] = group
+    end
+    group.kills = group.kills + minionsKilled
+    group.damage = group.damage + (eventArg.damage or 0)
+    if group.attacker == nil then
+        group.attacker = eventArg.attacker
+    end
+end
+
+--Confirmation wrapper: DrawSteelTokenHud's skull click calls MinionDeath()
+--on the confirmed minion right after firing its creaturedeath trigger.
+--Count the confirmation (possibly flushing a completed batch) BEFORE the
+--base implementation runs, while the squad bookkeeping is still intact and
+--the minion's token is still valid.
+local g_baseMinionDeath = creature.MinionDeath
+function creature:MinionDeath()
+    NoteSquadMinionDeathConfirmed(self)
+    g_baseMinionDeath(self)
+end
+
 function creature.TakeDamage(self, amount, note, info)
     info = info or {}
     if type(amount) == 'string' then
@@ -5122,6 +5962,7 @@ function creature.TakeDamage(self, amount, note, info)
         eventArg.rawdamage = info.rawdamage
         eventArg.damageimmunity = info.damageImmunity and info.damageImmunity.dr ~= nil
         eventArg.damagetype = eventArg.damagetype or "none"
+        eventArg.damagedice = eventArg.damagedice or StringSet.new{}
         eventArg.hasattacker = eventArg.attacker ~= nil
         eventArg.surges = info.surges or 0
         eventArg.edges = 0
@@ -5163,6 +6004,7 @@ function creature.TakeDamage(self, amount, note, info)
                 ability = eventArg.ability,
                 usedability = eventArg.ability,
                 hasrolleddamage = eventArg.hasrolleddamage,
+                damagedice = eventArg.damagedice,
                 --The ActivatedAbilityCast associated with this damage, if any.
                 --hascast lets trigger formulas guard before reading Cast.Tier etc.
                 cast = eventArg.cast,
@@ -5175,16 +6017,18 @@ function creature.TakeDamage(self, amount, note, info)
             attacker:DispatchEvent("dealdamage", args)
         end
 
-        --Per-encounter hero stat: minion kills. Count how many full single-minion
-        --stamina bands this hit emptied in the squad's shared pool (hpBefore ->
-        --hpBefore - amount) and credit the attacker that many. This naturally
-        --handles "multiple minions hit with one blow": area hits reduce the pool
-        --once per minion (summed across calls), and the Strikes-with-Multiple-
-        --Targets clamp leaves amount == 0 on the redundant calls (killed == 0).
-        --Overkill is bounded by minionsBefore, so the pool dropping below zero
-        --never over-counts. TrackHeroStats self-guards to heroes in the live
-        --encounter, so non-hero attackers are dropped. Minions return here and
-        --never reach the regular-monster "kills" path below.
+        --Count how many full single-minion stamina bands this hit emptied in
+        --the squad's shared pool (hpBefore -> hpBefore - amount). This
+        --naturally handles "multiple minions hit with one blow": area hits
+        --reduce the pool once per minion (summed across calls), and the
+        --Strikes-with-Multiple-Targets clamp leaves amount == 0 on the
+        --redundant calls (killed == 0). Overkill is bounded by minionsBefore,
+        --so the pool dropping below zero never over-counts. The count feeds
+        --two consumers: the per-encounter hero kill stat (attacker only;
+        --TrackHeroStats self-guards to heroes in the live encounter) and the
+        --squadminiondeaths trigger batch (counted even with no attacker).
+        --Minions return here and never reach the regular-monster "kills"
+        --path below.
         if minionKillHealthSingle ~= nil and minionKillHealthSingle > 0 and amount > 0 then
             local minionsBefore = math.max(0, math.ceil(minionKillHpBefore / minionKillHealthSingle))
             local minionsAfter = math.max(0, math.ceil((minionKillHpBefore - amount) / minionKillHealthSingle))
@@ -5196,6 +6040,11 @@ function creature.TakeDamage(self, amount, note, info)
                         LiveEncounter.TrackHeroStats(killerToken.charid, "minionKills", minionsKilled)
                     end
                 end
+
+                --Monster Info: each minion death counts as a kill of its type for
+                --what the players learn about it (self-guarding, never throws).
+                MonsterKnowledge.RecordKill(self, eventArg.attacker, minionsKilled)
+
                 --Victim-side: the squad records its own losses (round-bucketed, so
                 --the victory screen can tell a squad wiped in round 1). Recorded
                 --with or without an attacker so environmental deaths count; the
@@ -5203,6 +6052,13 @@ function creature.TakeDamage(self, amount, note, info)
                 local victimToken = dmhub.LookupToken(self)
                 if victimToken ~= nil then
                     LiveEncounter.TrackHeroStats(victimToken.charid, "deaths", minionsKilled)
+                end
+
+                --batch for the squadminiondeaths trigger; see the batching
+                --machinery above TakeDamage. The batch flushes only once the
+                --director confirms the deaths.
+                if not info.doesNotTrigger then
+                    AccumulateSquadMinionDeaths(self, eventArg, minionsKilled, minionsAfter, minionKillHealthSingle)
                 end
             end
         end
@@ -5282,6 +6138,7 @@ function creature.TakeDamage(self, amount, note, info)
     eventArg.rawdamage = info.rawdamage
     eventArg.damageimmunity = info.damageImmunity and info.damageImmunity.dr ~= nil
     eventArg.damagetype = eventArg.damagetype or "untyped"
+    eventArg.damagedice = eventArg.damagedice or StringSet.new{}
     eventArg.hasattacker = eventArg.attacker ~= nil
     eventArg.surges = info.surges or 0
     eventArg.edges = 0
@@ -5447,6 +6304,7 @@ function creature.TakeDamage(self, amount, note, info)
             ability = eventArg.ability,
             usedability = eventArg.ability,
             hasrolleddamage = eventArg.hasrolleddamage,
+            damagedice = eventArg.damagedice,
             --The ActivatedAbilityCast associated with this damage, if any.
             --hascast lets trigger formulas guard before reading Cast.Tier etc.
             cast = eventArg.cast,
@@ -5493,6 +6351,10 @@ function creature.TakeDamage(self, amount, note, info)
                 --DispatchEvent does not currently have support for dispatching
                 --creature objects and other self-referential objects.
                 eventArg.attacker:TriggerEvent("kill", eventArg)
+
+                --Monster Info: players learn about a monster type as they kill it
+                --(self-guarding, never throws; ignores hero victims itself).
+                MonsterKnowledge.RecordKill(self, eventArg.attacker, 1)
 
                 --Per-encounter combat stat: credit the killer. A non-hero victim
                 --is a "kill" (for a hero killer this feeds the hero roles; for a
@@ -5619,7 +6481,7 @@ function creature.Heal(self, amount, note)
     }
 
 
-    self:DispatchEvent("regainhitpoints", {})
+    self:DispatchEvent("regainhitpoints", {healed = amount})
 end
 
 function creature.SetStaminaDirect(self, amount, note)
@@ -5872,26 +6734,41 @@ function creature:PersistentAbilities()
 
             local targets = nil
 
+            --Set when a recast_target persistence has nobody left to recast on
+            --(every original target is dead, removed from the map, or -- with the
+            --"Target Must Be In Range" option -- out of range). The trigger is
+            --not offered at all in that case: previously it still prompted and
+            --opened a targeting flow whose filter matched no token, leaving the
+            --player with nothing to do but Skip.
+            local noValidTargets = false
+
             local filterstr = ""
             if persistenceMode == "recast_target" then
                 targeting = "inherit"
                 targets = {}
-                for i, targetid in ipairs(a.targets or {}) do
-                    if i == #a.targets then
-                        filterstr = string.format("%s %s", filterstr,
-                            string.format("self.id = %s", Utils.HashGuidToNumber(targetid)))
-                    else
-                        filterstr = string.format("%s or %s", filterstr,
-                            string.format("self.id = %s", Utils.HashGuidToNumber(targetid)))
-                    end
-                end
+                local selfToken = dmhub.LookupToken(self)
+                local filterParts = {}
                 for _, targetid in ipairs(a.targets or {}) do
                     local targetToken = dmhub.GetTokenById(targetid)
-                    if targetToken ~= nil then
+                    local usable = targetToken ~= nil and targetToken.valid and targetToken.properties ~= nil
+                        and (not targetToken.properties:IsDead())
+                    if usable and persistence.inrange == true and selfToken ~= nil then
+                        local range = ability:GetRange(self)
+                        if type(range) == "number" and selfToken:Distance(targetToken) > range then
+                            usable = false
+                        end
+                    end
+                    if usable then
                         targets[#targets + 1] = {
                             token = targetToken,
                         }
+                        filterParts[#filterParts + 1] = string.format("self.id = %s", Utils.HashGuidToNumber(targetid))
                     end
+                end
+                if #filterParts == 0 then
+                    noValidTargets = true
+                else
+                    filterstr = table.concat(filterParts, " or ")
                 end
                 ability.targetFilter = filterstr
             elseif persistenceMode == "recast_with_one_target" then
@@ -5919,9 +6796,24 @@ function creature:PersistentAbilities()
                 end
             end
 
+            --Prompt shown at the bottom of the screen while the recast is being
+            --targeted. An ability can supply its own wording through
+            --persistence.promptText (authored in the ability data); it is
+            --appended after the ability name so the player sees what the recast
+            --lets them do. Conditions the engine has already checked before
+            --offering the trigger (start of turn, target alive) should not be
+            --restated there.
+            local promptText
+            local customPrompt = persistence.promptText
+            if type(customPrompt) == "string" and trim(customPrompt) ~= "" then
+                promptText = string.format("%s: %s; %s", tr("Persistence"), ability.name, customPrompt)
+            else
+                promptText = string.format(tr("Persistence: Recast %s"), ability.name)
+            end
+
             local invoke = ActivatedAbilityInvokeAbilityBehavior.new {
                 customAbility = ability,
-                promptText = string.format(tr("Persistence: Recast %s"), ability.name),
+                promptText = promptText,
                 targeting = "prompt",
                 --targetingFormula = filterstr,
                 --targets = targets,
@@ -5946,7 +6838,9 @@ function creature:PersistentAbilities()
                 domains = {},
             }
 
-            result[#result + 1] = mod
+            if not noValidTargets then
+                result[#result + 1] = mod
+            end
         end
     end
 
@@ -6044,6 +6938,100 @@ function creature:EndPersistentAbilityById(guid)
     }
 
     return false
+end
+
+--- True when this persistent entry exists only to recast on specific targets
+--- (mode recast_target) and EVERY one of those targets is dead or gone from
+--- the map, so there is nothing left to maintain it for. Conservative on
+--- purpose:
+---  * one surviving target out of several keeps the entry alive;
+---  * an out-of-range target is not "gone" (it can come back into range);
+---  * an entry that is also keeping something else alive -- a linked aura or
+---    object, or a behavior with a "persistence" duration (e.g. the area of
+---    Web of All That's Come Before) -- is never reported, since ending it
+---    would drop that effect too;
+---  * an entry with no recorded targets is never reported.
+--- @param entry Persistence
+--- @return boolean
+function creature:PersistentAbilityTargetsAllDead(entry)
+    if type(entry) ~= "table" then
+        return false
+    end
+
+    --Entries are normally Persistence instances, but tolerate a plain table
+    --(older/partial data) rather than raising on a missing field.
+    local function field(key)
+        if entry.try_get ~= nil then
+            return entry:try_get(key)
+        end
+        return rawget(entry, key)
+    end
+
+    local ability = field("ability")
+    if ability == nil or type(ability) ~= "table" or getmetatable(ability) == nil then
+        return false
+    end
+
+    local persistence = ability:Persistence()
+    if persistence == nil or persistence.mode ~= "recast_target" then
+        return false
+    end
+
+    local targets = field("targets") or {}
+    if #targets == 0 then
+        return false
+    end
+
+    if #(field("objects") or {}) > 0 then
+        return false
+    end
+
+    for _, aura in ipairs(self:try_get("auras", {})) do
+        if aura:try_get("persistenceId") == entry.guid then
+            return false
+        end
+    end
+
+    for _, behavior in ipairs(ability:try_get("behaviors") or {}) do
+        if type(behavior) == "table" and behavior:try_get("duration") == "persistence" then
+            return false
+        end
+    end
+
+    for _, targetid in ipairs(targets) do
+        local targetToken = dmhub.GetTokenById(targetid)
+        if targetToken ~= nil and targetToken.valid and targetToken.properties ~= nil
+            and (not targetToken.properties:IsDead()) then
+            return false
+        end
+    end
+
+    return true
+end
+
+--- Ends every persistent ability whose recast targets are all dead or gone
+--- (see PersistentAbilityTargetsAllDead), so the caster is no longer charged
+--- for maintaining it. Returns the names of the abilities that were ended.
+--- Intended to run at the start of the caster's turn, before the persistence
+--- cost is settled.
+--- @return string[]
+function creature:AutoEndPersistentAbilitiesWithDeadTargets()
+    local ended = {}
+    local persistentAbilities = self:try_get("persistentAbilities", {})
+    for i = #persistentAbilities, 1, -1 do
+        local entry = persistentAbilities[i]
+        if self:PersistentAbilityTargetsAllDead(entry) then
+            local name = nil
+            if entry.try_get ~= nil then
+                name = entry:try_get("abilityName")
+            else
+                name = rawget(entry, "abilityName")
+            end
+            ended[#ended + 1] = name or "Persistent Ability"
+            self:EndPersistentAbilityById(entry.guid)
+        end
+    end
+    return ended
 end
 
 creature.RegisterSymbol {
@@ -6292,6 +7280,48 @@ creature.RegisterSymbol {
 }
 
 creature.RegisterSymbol {
+    symbol = "distancetoboundcreature",
+    lookup = function(c)
+        return function(effectName)
+            effectName = string.lower(effectName)
+            local selfToken = dmhub.LookupToken(c)
+            if selfToken == nil or (not selfToken.valid) then
+                return 9999
+            end
+
+            local result = 9999
+            local ongoingEffects = c:try_get("ongoingEffects", {})
+            local t = dmhub.GetTable("characterOngoingEffects")
+            for _, ongoingEffect in ipairs(ongoingEffects) do
+                local effectInfo = t[ongoingEffect.ongoingEffectid]
+                if effectInfo ~= nil and string.lower(effectInfo.name) == effectName and ongoingEffect.bondid then
+                    local tokens = creature.GetTokensWithBoundOngoingEffect(ongoingEffect.bondid)
+                    for _, token in ipairs(tokens) do
+                        if token.charid ~= selfToken.charid then
+                            local dist = selfToken:Distance(token)
+                            if dist ~= nil and dist < result then
+                                result = dist
+                            end
+                        end
+                    end
+                end
+            end
+
+            return result
+        end
+    end,
+    help = {
+        name = "DistanceToBoundCreature",
+        type = "function",
+        desc = "The distance in squares to the nearest other creature bound to this creature by the given ongoing effect. 9999 if there is no such creature.",
+        seealso = {},
+        examples = {
+            'DistanceToBoundCreature("Repelling Psihander") <= 1',
+        },
+    }
+}
+
+creature.RegisterSymbol {
     symbol = "complications",
     lookup = function(c)
         local results = {}
@@ -6438,6 +7468,15 @@ function creature:EndCombat()
             description = "Remove Temporary Hit Points",
             execute = function()
                 self.temporary_hitpoints = nil
+            end,
+        }
+    end
+
+    if self:try_get("routinesSelected") ~= nil then
+        token:ModifyProperties {
+            description = "End Routines",
+            execute = function()
+                self.routinesSelected = nil
             end,
         }
     end
@@ -6802,3 +7841,334 @@ end
 dmhub.RegisterEventHandler("ClearTemporaryState", function()
     print("CLEARSTATE:: CLEARING STATE", #dmhub.allTokens)
 end)
+
+
+----------------------------------------------------------------------
+-- Battlefield adjacency symbols
+----------------------------------------------------------------------
+
+local function GetDeployedCreatureToken(c)
+    local token = dmhub.LookupToken(c)
+    if token == nil or not token.valid or not token.hasTokenOnThisMap then
+        return nil
+    end
+
+    return token
+end
+
+local function GetTokenActualFloor(token)
+    if game.currentMap == nil or token.loc == nil then
+        return nil
+    end
+
+    local floor = game.currentMap:GetFloorFromLoc(token.loc)
+    if floor == nil or not floor.valid then
+        return nil
+    end
+
+    return floor.actualFloor
+end
+
+GameSystem.RegisterGoblinScriptField{
+    target = creature,
+    name = "AdjacentToWall",
+    type = "boolean",
+    desc = "True if this creature is adjacent to wall collision on its current floor and at its current altitude.",
+    seealso = {"AdjacentToTargetableObject"},
+    examples = {"Target.AdjacentToWall"},
+    calculate = function(c)
+        local token = GetDeployedCreatureToken(c)
+        if token == nil then
+            return false
+        end
+
+        local ok, result = pcall(function()
+            return token:IsAdjacentToWall()
+        end)
+        return ok and result == true
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField{
+    target = creature,
+    name = "AdjacentToTargetableObject",
+    type = "boolean",
+    desc = "True if this creature is within 1 square of a live, attackable map object with a Targetable component on the same actual floor. Uses the engine's footprint distance; it does not add a separate elevation check.",
+    seealso = {"AdjacentToWall"},
+    examples = {"Target.AdjacentToTargetableObject"},
+    calculate = function(c)
+        local token = GetDeployedCreatureToken(c)
+        if token == nil then
+            return false
+        end
+
+        local actualFloor = GetTokenActualFloor(token)
+        if actualFloor == nil then
+            return false
+        end
+
+        for _,other in ipairs(dmhub.allTokensIncludingObjects or {}) do
+            if other ~= token and other.valid and other.hasTokenOnThisMap and
+                other.charid ~= token.charid and other.isObject and
+                GetTokenActualFloor(other) == actualFloor then
+                local component = other.objectComponent
+                local props = other.properties
+                if component ~= nil and component.componentType == "LuaTargetableObject" and
+                    other.isAttackableObject and props ~= nil then
+                    local alive = false
+                    pcall(function()
+                        alive = props:CurrentHitpoints() > 0
+                    end)
+                    if alive and token:Distance(other) <= 1 then
+                        return true
+                    end
+                end
+            end
+        end
+
+        return false
+    end,
+}
+
+
+----------------------------------------------------------------------
+-- Monster Modes
+----------------------------------------------------------------------
+-- A monster can have multiple "monster modes" (e.g. a devil before/after its
+-- True Name is spoken). Modes are declared by a "monstermodes" CharacterModifier
+-- on the monster which lists the mode names. The current mode is stored on the
+-- creature as monsterMode (1-based; 1 is the default). Other modifiers gate
+-- themselves on the mode with a filterCondition like "Monster Mode = 2".
+--
+-- The symbol is deliberately named "Monster Mode", NOT "Mode": "Mode" already
+-- exists in ability contexts (an ability's multi-mode selection) and the two
+-- must not be conflated.
+--
+-- The Director switches modes from the MONSTER MODE section of the character
+-- panel (TacPanel.MonsterMode in MCDMCharacterPanel.lua), which only shows for
+-- creatures that have a monstermodes modifier.
+--
+-- Squad rule (designer-specified): changing the mode on a minion in a minion
+-- squad changes the mode of every minion in that squad -- a squad acts as a
+-- single unit. Only that squad is affected (not other squads of the same
+-- monster type), and never the captain, who changes modes independently. See
+-- creature.GetMonsterModeChangeTokens.
+--
+-- Limitation (by design): one mode dimension per monster. A monster cannot have
+-- e.g. tactical stances AND true-name modes at the same time; the first active
+-- monstermodes modifier wins.
+
+creature.monsterMode = 1
+
+--- The list of modes declared by this creature's monstermodes modifier, each
+--- a {name, description} table, or nil if the creature has no modes (the
+--- normal case). The description is optional and shows as a tooltip on the
+--- mode's chip in the character panel.
+--- Second return: the player-facing section title -- the modifier's name (by
+--- convention the granting trait's name, e.g. "True Name"), so the panel
+--- header echoes the statblock language. Falls back to "Modes" when the
+--- modifier is unnamed or still has the default type name.
+--- @return {name: string, description: nil|string}[]|nil, string|nil
+function creature:GetMonsterModes()
+    local mods = self:GetActiveModifiers()
+    for _,mod in ipairs(mods) do
+        if mod.mod.behavior == "monstermodes" then
+            local modes = mod.mod:try_get("modes")
+            if modes ~= nil and #modes >= 2 then
+                local title = mod.mod:try_get("name")
+                if title == nil or title == "" or title == "Monster Modes" then
+                    title = "Modes"
+                end
+                return modes, title
+            end
+        end
+    end
+
+    return nil
+end
+
+--- The creature's current monster mode (1-based). Always at least 1; clamped to
+--- the declared mode count when the creature has modes.
+--- @return number
+function creature:GetMonsterMode()
+    local mode = self.monsterMode
+    if type(mode) ~= "number" or mode < 1 then
+        return 1
+    end
+
+    return math.floor(mode)
+end
+
+--- Set the current monster mode. Callers outside the character sheet must wrap
+--- this in token:ModifyProperties{}.
+--- @param mode number
+function creature:SetMonsterMode(mode)
+    self.monsterMode = mode
+end
+
+--- The tokens whose monster mode changes together when tok's mode is set.
+--- Mode changes on a minion in a squad are squad-wide by design (a squad acts
+--- as a single unit), so for a squad minion this is the minion plus every
+--- other minion in its squad. The captain is a non-minion and is never
+--- included; a captain's own mode changes independently. Squadmates that do
+--- not declare a mode at the target index are skipped. For a non-minion, or a
+--- minion with no squad, this is just tok.
+--- @param tok CharacterToken
+--- @param mode number The target mode (1-based).
+--- @return CharacterToken[]
+function creature.GetMonsterModeChangeTokens(tok, mode)
+    local result = {tok}
+
+    local props = tok.properties
+    if props == nil or (not props.minion) then
+        return result
+    end
+
+    local squad = props:MinionSquad()
+    if squad == nil then
+        return result
+    end
+
+    for _,other in ipairs(dmhub.allTokens) do
+        if other.charid ~= tok.charid and other.properties ~= nil and other.properties.minion and other.properties:MinionSquad() == squad then
+            local modes = other.properties:GetMonsterModes()
+            if modes ~= nil and mode <= #modes then
+                result[#result+1] = other
+            end
+        end
+    end
+
+    return result
+end
+
+GameSystem.RegisterGoblinScriptField{
+    target = creature,
+    name = "Monster Mode",
+    type = "number",
+    desc = "The monster's current mode (1-based) as chosen in the MONSTER MODE panel. 1 is the default mode. Only meaningful for monsters with a Monster Modes modifier; always 1 otherwise. Distinct from an ability's Mode.",
+    seealso = {},
+    examples = {"Monster Mode = 1", "Monster Mode = 2"},
+    calculate = function(c)
+        return c:GetMonsterMode()
+    end,
+}
+
+CharacterModifier.RegisterType("monstermodes", "Monster Modes")
+
+--a "monstermodes" modifier has the following properties:
+--  - modes: a list of {name, description} tables (at least 2 to be meaningful).
+--    The description is optional; it shows as a tooltip on the mode's chip in
+--    the MONSTER MODE panel.
+--The modifier declares that its bearer has multiple monster modes; it has no
+--direct mechanical effect itself. Do not put a filterCondition on this modifier
+--that references Monster Mode (the mode picker must exist in every mode).
+CharacterModifier.TypeInfo.monstermodes = {
+    init = function(modifier)
+        modifier.modes = {
+            { name = "Mode 1" },
+            { name = "Mode 2" },
+        }
+    end,
+
+    autoDescribe = function(modifier)
+        local modes = modifier:try_get("modes", {})
+        if #modes == 0 then
+            return nil
+        end
+
+        local names = {}
+        for _,mode in ipairs(modes) do
+            names[#names+1] = mode.name or "?"
+        end
+
+        return string.format("Monster Modes: %s", pretty_join_list(names))
+    end,
+
+    createEditor = function(modifier, element)
+        local Refresh
+        local firstRefresh = true
+        Refresh = function()
+            if firstRefresh then
+                firstRefresh = false
+            else
+                element:FireEvent("refreshModifier")
+            end
+
+            local children = {}
+
+            local modes = modifier:try_get("modes", {})
+
+            for i,mode in ipairs(modes) do
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel"},
+                    gui.Label{
+                        classes = {"formLabel"},
+                        text = string.format("Mode %d:", i),
+                    },
+                    gui.Input{
+                        classes = {"formInput"},
+                        characterLimit = 40,
+                        text = mode.name or "",
+                        change = function(element)
+                            mode.name = element.text
+                            Refresh()
+                        end,
+                    },
+                    gui.DeleteItemButton{
+                        width = 16,
+                        height = 16,
+                        halign = "right",
+                        valign = "center",
+                        click = function()
+                            table.remove(modifier.modes, i)
+                            Refresh()
+                        end,
+                    },
+                }
+
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel"},
+                    gui.Label{
+                        classes = {"formLabel"},
+                        text = "Description:",
+                    },
+                    gui.Input{
+                        classes = {"formInput"},
+                        multiline = true,
+                        characterLimit = 256,
+                        width = 320,
+                        height = "auto",
+                        minHeight = 40,
+                        maxHeight = 100,
+                        textAlignment = "topleft",
+                        text = mode.description or "",
+                        change = function(element)
+                            if element.text == "" then
+                                mode.description = nil
+                            else
+                                mode.description = element.text
+                            end
+                        end,
+                    },
+                }
+            end
+
+            children[#children+1] = gui.PrettyButton{
+                text = "Add Mode",
+                width = 140,
+                height = 30,
+                fontSize = 16,
+                halign = "left",
+                click = function()
+                    modifier.modes = modifier:try_get("modes", {})
+                    modifier.modes[#modifier.modes+1] = { name = string.format("Mode %d", #modifier.modes+1) }
+                    Refresh()
+                end,
+            }
+
+            element.children = children
+        end
+
+        Refresh()
+    end,
+}

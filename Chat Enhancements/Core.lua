@@ -107,7 +107,7 @@ local function normalizeRecipients(recipients)
 end
 
 
---- @class ExtChatMessage
+--- @class ExtChatMessage: GameType
 --- ExtChatMessage game type registration for simple text output to chat.
 -- Used to display messages in the chat pane.
 ExtChatMessage = RegisterGameType("ExtChatMessage")

@@ -361,6 +361,7 @@ local function ImportPDFDialog(path)
                     end,
                     error = function(msg)
                         gui.ModalMessage {
+                            owner = element,
                             title = "Error importing PDF",
                             message = msg,
                         }
@@ -393,14 +394,31 @@ end
 --non-drag path for the shortcut feature). Returns a list to APPEND to
 --the document row's normal context menu -- never a menu of its own,
 --which would shadow the standard verbs (Share to Chat, Rename, ...).
---Empty when the rail trial mode is off (it is dev-gated).
+--Empty when rail mode is off (per-user setting in Settings > General,
+--"New Experimental UI", on by default).
 local function RailAvailable()
-    return dmhub.GetSettingValue("iconrail") and devmode()
+    return dmhub.GetSettingValue("iconrail") == true
+end
+
+--Only a CustomDocument-backed row can actually go on a rail: the layout
+--key is "doc:<id>" and IconRailDocAdd resolves it against the
+--CustomDocument table. PDF fragments, PDFs and journal images live in
+--their own tables (see the journal's foldersToMembers build), so the add
+--silently no-ops for them -- don't offer a menu item that cannot work.
+local function RailCanTakeDocument(doc)
+    if doc == nil or doc.id == nil then
+        return false
+    end
+    local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+    return docs[doc.id] ~= nil
 end
 
 local function RailAddMenuEntries(element, doc)
     local result = {}
     if doc == nil or rawget(_G, "IconRailDocAdd") == nil or not RailAvailable() then
+        return result
+    end
+    if not RailCanTakeDocument(doc) then
         return result
     end
     result[#result + 1] = {
@@ -762,6 +780,56 @@ local function CreateCharactersSection(journalPanel)
     return resultPanel
 end
 
+--MatchesSearch is CustomDocument-only, so it is nodeType-gated and pcall-guarded.
+local function JournalMemberMatches(member, searchText)
+    if searchText == "" then
+        return true
+    end
+
+    local title = string.lower(member.description or "")
+    if string.find(title, searchText, 1, true) ~= nil then
+        return true
+    end
+
+    if member.nodeType == "custom" or member.nodeType == "negotiation" then
+        local matched = false
+        pcall(function() matched = member:MatchesSearch(searchText) end)
+        return matched == true
+    end
+
+    return false
+end
+
+--Returns the folders holding a matching document, plus their ancestors.
+local function JournalFoldersWithMatches(journalPanel, searchText)
+    local result = {}
+    if searchText == "" then
+        return result
+    end
+
+    local folders = journalPanel.data.documentFoldersTable or {}
+    for folderid, members in pairs(journalPanel.data.foldersToMembers or {}) do
+        for _, member in pairs(members) do
+            local isFolder = member.nodeType == "folder" or member.nodeType == "builtinFolder"
+            if (not isFolder) and JournalMemberMatches(member, searchText) then
+                local walk = folderid
+                --capped so a corrupt parentFolder cycle cannot hang the render.
+                for _ = 1, 64 do
+                    if walk == nil or walk == "" or result[walk] then
+                        break
+                    end
+                    result[walk] = true
+                    local folder = folders[walk]
+                    walk = folder ~= nil and folder.parentFolder or nil
+                end
+                break
+            end
+        end
+    end
+
+    return result
+end
+
 local function CreateFolderPanel(journalPanel, folderid)
     local builtinFolder = folderid == "private" or folderid == "public" or folderid == "templates" or
         folderid == game.currentMapId or folderid == dmhub.loginUserid
@@ -884,6 +952,7 @@ local function CreateFolderPanel(journalPanel, folderid)
                                 folder:Upload()
                             else
                                 gui.ModalMessage {
+                                    owner = element,
                                     title = "Folder Not Empty",
                                     message = "You cannot delete a folder that contains documents. Please move or delete the documents first.",
                                 }
@@ -926,13 +995,16 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
     end
 
     contentPanel = gui.Panel {
-        --explicit halign: a flow child with no alignment centers itself
-        --in the icon-rail window host (the dock resolves it left). With
-        --the old width overhang ("100%+12") centering both cancelled the
-        --lmargin indent and shifted each level LEFT, collapsing the
-        --ladder so nested rows drew left of root headers. Left-aligned
-        --with a contained width, both hosts lay out identically.
+        --explicit halign AND valign: a flow child with no alignment
+        --centers itself in the icon-rail window host (the dock resolves
+        --it left/top). With the old width overhang ("100%+12") centering
+        --both cancelled the lmargin indent and shifted each level LEFT,
+        --collapsing the ladder so nested rows drew left of root headers.
+        --Vertically the same default floated the tree to the middle of
+        --the scroll viewport when shorter than it. Anchored left/top,
+        --both hosts lay out identically.
         halign = "left",
+        valign = "top",
         width = "100%-" .. indent,
         height = "auto",
         flow = "vertical",
@@ -979,6 +1051,22 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
             local newDocumentPanels = {}
             local foldersToMembers = journalPanel.data.foldersToMembers
             local members = foldersToMembers[folderid] or {}
+
+            --Folders always survive the filter so they stay visible drop targets.
+            local searchText = journalPanel.data.searchText or ""
+            if searchText ~= "" then
+                local filtered = {}
+                for k, member in pairs(members) do
+                    local isFolder = member.nodeType == "folder" or member.nodeType == "builtinFolder"
+                    if isFolder or JournalMemberMatches(member, searchText) then
+                        filtered[k] = member
+                    end
+                end
+                members = filtered
+            end
+
+            local foldersToExpand = {}
+
             for k, member in pairs(members) do
                 local p
 
@@ -1043,6 +1131,16 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                     end
 
                                     element.popup = nil
+                                end,
+                            },
+                            {
+                                text = "Move to Shared Documents",
+                                --"public" is the built-in folder displayed as "Shared Documents".
+                                hidden = member.parentFolder == "public" or not member:HaveEditPermissions(),
+                                click = function()
+                                    element.popup = nil
+                                    member.parentFolder = "public"
+                                    member:Upload()
                                 end,
                             },
                             {
@@ -1219,9 +1317,13 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                             end
                             --the icon rail accepts documents as shortcut
                             --buttons, alongside the existing folder
-                            --reparent/reorder targets.
+                            --reparent/reorder targets -- but only the rows
+                            --it can actually resolve (see
+                            --RailCanTakeDocument); refusing the target here
+                            --is what keeps a PDF fragment from showing a
+                            --drop preview it would then ignore.
                             if target:HasClass("iconRail") or target:HasClass("iconRailButton") then
-                                return true
+                                return RailCanTakeDocument(element.data.doc or member)
                             end
                             --accept the folder as its TreeNode root
                             --(documentFolder) OR its header ("folder" --
@@ -1233,9 +1335,15 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                 target:FindParentWithClass("documentFolder") ~= nil
                         end,
                         dragging = function(element, target)
-                            --live slot preview while hovering a rail.
+                            --live slot preview while hovering a rail. A row
+                            --the rail cannot take previews nothing: pass nil
+                            --so any ghost still standing is hidden.
                             if rawget(_G, "IconRailDocDragging") ~= nil then
-                                IconRailDocDragging(target)
+                                if RailCanTakeDocument(element.data.doc or member) then
+                                    IconRailDocDragging(target)
+                                else
+                                    IconRailDocDragging(nil)
+                                end
                             end
                         end,
                         drag = function(element, target)
@@ -1300,10 +1408,14 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                             --When this panel is framed by another surface
                             --(the journal viewer's tree rail), picking a
                             --document navigates that host instead of
-                            --opening a second window.
+                            --opening a second window. Only real documents can
+                            --be navigated to -- a PDF/image id is an asset id,
+                            --not a row in the documents table, so the host
+                            --would find nothing and silently do nothing.
+                            local isDocument = member.nodeType == "custom" or member.nodeType == "negotiation"
                             local root = element:FindParentWithClass("journalPanelRoot")
                             local onPick = nil
-                            if root ~= nil and root.data ~= nil then
+                            if isDocument and root ~= nil and root.data ~= nil then
                                 onPick = root.data.onPick
                             end
                             if onPick ~= nil then
@@ -1654,6 +1766,9 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                     p = m_documentPanels[k] or CreateFolderPanel(journalPanel, k)
                     p.data.ord = member.ord
                     p.data.ordDesc = string.lower("a" .. member.description)
+                    if searchText ~= "" and (journalPanel.data.folderHasMatch or {})[k] then
+                        foldersToExpand[#foldersToExpand + 1] = p
+                    end
                 end
 
 
@@ -1684,6 +1799,13 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
 
             m_documentPanels = newDocumentPanels
             element.children = children
+
+            --After parenting: toggling builds the child's contents, which needs a parent.
+            for _, folderPanel in ipairs(foldersToExpand) do
+                if folderPanel.data.isCollapsed() then
+                    folderPanel.data.toggleCollapsed()
+                end
+            end
 
             if m_charactersSection ~= nil then
                 m_charactersSection:FireEvent("refreshDocuments")
@@ -1906,6 +2028,32 @@ CreateJournalPanel = function(options)
     end
 
     local journalPanel
+
+    local m_searchInput = gui.SearchInput {
+        --SearchInput pads hpad=24 for its magnifier icon; without borderBox
+        --that padding lands on top of the percent width and the input hangs
+        --past the dock's edges.
+        borderBox = true,
+        width = "100%-16",
+        height = 24,
+        halign = "center",
+        tmargin = 4,
+        bmargin = 4,
+        fontSize = 13,
+        placeholderText = "Search journal...",
+        placeholderAlpha = 0.35,
+
+        --SearchInput lowercases and trims for us, and reports one-character
+        --terms as "" so we never search on a single keystroke's worth.
+        search = function(element, text)
+            text = text or ""
+            if text == (journalPanel.data.searchText or "") then
+                return
+            end
+            journalPanel:FireEventTree("journalSearch", text)
+        end,
+    }
+
     journalPanel = gui.Panel {
         id = "journalPanel",
         --classed so descendants can find the root regardless of how deeply
@@ -1921,6 +2069,9 @@ CreateJournalPanel = function(options)
             --A copy of assets.documentFoldersTable with added built-in tables.
             documentFoldersTable = {},
 
+            searchText = "",
+            folderHasMatch = {},
+
             --Set when this panel is FRAMED somewhere other than its dock
             --(the journal viewer's tree rail). onPick replaces "open the
             --document in a dialog" with the host's own navigation.
@@ -1930,6 +2081,8 @@ CreateJournalPanel = function(options)
 
         --built above; nil (and so absent) when embedded.
         recentDocumentsPanel,
+
+        m_searchInput,
 
         gui.Panel {
             vscroll = true,
@@ -2153,6 +2306,13 @@ CreateJournalPanel = function(options)
             }),
 
 
+            --The tree filters in place rather than being swapped out.
+            journalSearch = function(element, text)
+                journalPanel.data.searchText = text
+                journalPanel.data.folderHasMatch = JournalFoldersWithMatches(journalPanel, text)
+                element:FireEventTree("refreshDocuments")
+            end,
+
             create = function(element)
                 element.children = {
                     CreateFolderContentsPanel(journalPanel, ""),
@@ -2238,7 +2398,7 @@ CreateJournalPanel = function(options)
                 end
 
                 for k, doc in unhidden_pairs(customDocs) do
-                    local parentFolder = doc.parentFolder
+                    local parentFolder = doc.parentFolder or "private"
                     local members = foldersToMembers[parentFolder] or {}
                     members[k] = doc
                     foldersToMembers[parentFolder] = members
@@ -2252,6 +2412,9 @@ CreateJournalPanel = function(options)
                 end
 
                 journalPanel.data.foldersToMembers = foldersToMembers
+
+                journalPanel.data.folderHasMatch =
+                    JournalFoldersWithMatches(journalPanel, journalPanel.data.searchText or "")
 
                 element:FireEventTree("refreshDocuments")
             end,
@@ -2302,18 +2465,34 @@ CreateJournalPanel = function(options)
 
                     local entries = {}
 
-                    for k, v in pairs(CustomDocument.documentTypes) do
+                    --Only plain markdown creation is offered here for now. The other
+                    --registered document types (montage, negotiation, heroic test, and
+                    --the rest of the docType palette) are deliberately not exposed yet;
+                    --they stay registered so existing documents of those types still
+                    --load and render, we just do not hand out a way to make new ones.
+                    local markdownType = CustomDocument.documentTypes["markdown"]
+                    if markdownType ~= nil then
                         entries[#entries + 1] = {
-                            text = v.text,
+                            text = "New Document",
                             click = function()
                                 element.popup = nil
-                                local doc = v.create()
+                                local doc = markdownType.create()
                                 doc.id = dmhub.GenerateGuid()
                                 if not dmhub.isDM then
                                     doc.ownerid = dmhub.loginUserid
                                 end
                                 doc.parentFolder = newDocumentParentFolder
-                                doc:ShowCreateDialog()
+                                --Straight to the new document, for EVERY type.
+                                --This used to call doc:ShowCreateDialog(), which
+                                --is only a direct create for the functional
+                                --subtypes (montage/negotiation/heroic test) --
+                                --MarkdownDocument overrides it with a template
+                                --picker, so the six plain types (Note, Narration,
+                                --Exploration, Combat, Location, NPC) detoured
+                                --through a second dialog. Same path the tab bar's
+                                --+ takes (DocumentSystem.lua, onNewDocument).
+                                doc:Upload()
+                                doc:ShowDocument{edit = true}
                             end,
                         }
                     end
@@ -2354,6 +2533,7 @@ CreateJournalPanel = function(options)
                                             end,
                                             error = function(msg)
                                                 gui.ModalMessage {
+                                                    owner = element,
                                                     title = "Error importing image",
                                                     message = msg,
                                                 }

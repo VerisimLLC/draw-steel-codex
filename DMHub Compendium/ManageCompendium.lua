@@ -11,7 +11,30 @@ local function DescribeModuleName(moduleid)
 	end
 end
 
-local function CreateMonsterTableView()
+--collect the row's action buttons into a dense array. Either may be nil, and a
+--nil in the middle of a positional child list holes the array and silently
+--drops everything after it, so build the list explicitly.
+local function ActionButtons(...)
+	local result = {}
+	for i=1,select("#", ...) do
+		local button = select(i, ...)
+		if button ~= nil then
+			result[#result+1] = button
+		end
+	end
+	return result
+end
+
+--Builds the Monsters / Bestiary Folders sections. Both live in the
+--bestiary and share one row shape (name, module history, deleted status,
+--Revert / Undelete), differing only in which asset table they list and
+--which history bridge describes it.
+--  options.title       heading text
+--  options.entries     function() -> table of id -> AssetLua-like entry
+--                      (needs .hidden, :Upload(), :ObliterateGameChanges())
+--  options.history     function(id) -> module history list
+--  options.name        function(entry) -> display name
+local function CreateBestiaryTableView(options)
 	local guids = {}
 
 	local expanded = false
@@ -24,7 +47,7 @@ local function CreateMonsterTableView()
 		text = "0",
 
 		guids = function(element, guids)
-			local t = assets.monsters
+			local t = options.entries()
 			local num = 0
 			local selected = 0
 			for k,entry in pairs(t) do
@@ -66,7 +89,7 @@ local function CreateMonsterTableView()
 
 		gui.Label{
 			classes = {"headingText"},
-			text = "Monsters",
+			text = options.title,
 		},
 
 		headingCountText,
@@ -88,13 +111,13 @@ local function CreateMonsterTableView()
 
 		expose = function(element)
 			local children = {}
-			local t = assets.monsters
+			local t = options.entries()
 			local newChildPanels = {}
 			for k,entry in pairs(t) do
 				
 				local panel = childPanels[k]
 				if panel == nil and guids[k] then
-					local history = module.GetMonsterEntryChanges(k)
+					local history = options.history(k)
 
 					local GenerateHistoryDesc = function()
 						local historyDesc = ""
@@ -142,9 +165,9 @@ local function CreateMonsterTableView()
 									height = 20,
 									fontSize = 14,
 									click = function(element)
-                                        local monster = assets.monsters[k]
-                                        if monster ~= nil then
-                                            monster:ObliterateGameChanges()
+                                        local target = options.entries()[k]
+                                        if target ~= nil then
+                                            target:ObliterateGameChanges()
                                         end
 										table.remove(history, index)
 										--panel:FireEventTree("regenhistory")
@@ -174,10 +197,11 @@ local function CreateMonsterTableView()
 						}
 					end
 
+					local name = options.name(entry)
 					panel = gui.Panel{
 						classes = {"entryPanel"},
 						data = {
-							ord = string.lower(entry.name or "")
+							ord = string.lower(name or "")
 						},
 						--gui.Label{
 						--	classes = {"entryLabel", "id"},
@@ -185,7 +209,7 @@ local function CreateMonsterTableView()
 						--},
 						gui.Label{
 							classes = {"entryLabel", "name"},
-							text = entry.name or "Unknown",
+							text = name or "Unknown",
 						},
 						gui.Label{
 							classes = {"entryLabel", "history"},
@@ -203,8 +227,10 @@ local function CreateMonsterTableView()
 								element.text = cond(entry.hidden, "deleted", "")
 							end,
 						},
-						revertButton,
-						undeleteButton,
+						gui.Panel{
+							classes = {"entryActions"},
+							children = ActionButtons(revertButton, undeleteButton),
+						},
 					}
 				end
 
@@ -231,6 +257,28 @@ local function CreateMonsterTableView()
 	}
 
 	return resultPanel
+end
+
+local function CreateMonsterTableView()
+	return CreateBestiaryTableView{
+		title = "Monsters",
+		entries = function() return assets.monsters end,
+		history = module.GetMonsterEntryChanges,
+		name = function(entry) return entry.name end,
+	}
+end
+
+--Deleting a bestiary folder only marks the folder hidden; the monsters
+--inside are untouched and simply stop being reachable from the tree. This
+--section is the only place a hidden folder shows up, so it is where the
+--user gets it (and its contents) back.
+local function CreateMonsterFolderTableView()
+	return CreateBestiaryTableView{
+		title = "Bestiary Folders",
+		entries = function() return assets.monsterFolders end,
+		history = module.GetMonsterFolderChanges,
+		name = function(entry) return entry.description end,
+	}
 end
 
 local function CreateObjectTableView(tableName)
@@ -423,8 +471,10 @@ local function CreateObjectTableView(tableName)
 								element.text = cond(rawget(entry, "hidden"), "deleted", "")
 							end,
 						},
-						revertButton,
-						undeleteButton,
+						gui.Panel{
+							classes = {"entryActions"},
+							children = ActionButtons(revertButton, undeleteButton),
+						},
 					}
 				end
 
@@ -647,8 +697,8 @@ end
 local CreateSourcesPanel = function(options)
 
 	local args = {
-		width = 400,
-		height = 800,
+		width = 320,
+		height = "100%-16",
 		vmargin = 8,
 		vscroll = true,
 		hmargin = 16,
@@ -697,7 +747,7 @@ local CreateSourcesPanel = function(options)
 			end
 			dataSourceRows[#dataSourceRows+1] = gui.Label{
 				classes = {"row"},
-				width = 300,
+				width = "100%-16",
 				fontSize = 14,
 				height = 18,
 				bgimage = "panels/square.png",
@@ -744,19 +794,23 @@ local CreateSourcesPanel = function(options)
 				end,
 
 				hover = function(element)
-					if source.deprecated then
-						gui.Tooltip(source.deprecationMessage)(element)
+					if not source.deprecated then
+						return
 					end
+
+					--deprecation only sets the default: say so, and say which
+					--side of it this game is currently on.
+					local m = module.GetModule(source.moduleid)
+					local suffix = "\n\nIt is disabled in your games. Right click to enable it again anyway."
+					if source.ismodule and m ~= nil and m.deprecationOverridden then
+						suffix = "\n\nYou have chosen to enable it in this game anyway. Right click to disable it."
+					end
+
+					gui.Tooltip(string.format("DEPRECATED: %s%s", source.deprecationMessage, suffix))(element)
 				end,
 
 				rightClick = function(element)
 					if not source.ismodule then
-						return
-					end
-
-					--a deprecated module is force-disabled everywhere and cannot
-					--be turned back on.
-					if source.deprecated then
 						return
 					end
 
@@ -803,6 +857,7 @@ local CreateModManager = function()
 	end
 
     nodes[#nodes+1] = CreateMonsterTableView()
+    nodes[#nodes+1] = CreateMonsterFolderTableView()
 
 	local assetNames = {}
 	local assetNamesSorted = {}
@@ -821,8 +876,8 @@ local CreateModManager = function()
 
 	objectsTree = gui.Panel{
 		vscroll = true,
-		width = 1200,
-		height = 800,
+		width = "100%-352",
+		height = "100%",
 		valign = "top",
 		halign = "left",
 		vscroll = true,
@@ -831,8 +886,8 @@ local CreateModManager = function()
 	}
 
 	resultPanel = gui.Panel{
-		width = 1600,
-		height = 1024,
+		width = "100%-32",
+		height = "100%-32",
 		valign = "top",
 		halign = "left",
 		vmargin = 16,
@@ -866,9 +921,25 @@ local CreateModManager = function()
 				fontSize = 14,
 				minFontSize = 8,
 				height = 18,
-				width = 300,
+				width = 180,
 				halign = "left",
 				textAlignment = "left",
+			},
+			{
+				selectors = {"entryLabel", "history"},
+				width = "100%-436",
+			},
+			{
+				selectors = {"entryLabel", "status"},
+				width = 64,
+			},
+			{
+				selectors = {"entryActions"},
+				flow = "horizontal",
+				width = 176,
+				height = 20,
+				halign = "left",
+				valign = "center",
 			},
 			{
 				selectors = {"triangle"},

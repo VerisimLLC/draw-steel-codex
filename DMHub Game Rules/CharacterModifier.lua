@@ -3,7 +3,7 @@ local mod = dmhub.GetModLoading()
 --This file implements character modifiers. A character modifier is placed on a creature, most often
 --by a Character Feature or an Ongoing Effect and modifies the character's rules in some way.
 
---- @class CharacterModifier
+--- @class CharacterModifier: GameType
 --- @field name string Display name of the modifier.
 --- @field description string Human-readable description of what this modifier does.
 --- @field guid string Unique identifier for this modifier instance.
@@ -3138,6 +3138,17 @@ function CharacterModifier:PopupEditor()
 								events = {
 									change = function(element)
 										self.behavior = element.idChosen
+
+										--A leftover triggeredAbility from a previous "trigger"
+										--behavior would linger on the modifier forever (and has
+										--historically lingered half-initialized, breaking
+										--consumers that expect a game-typed ability). Delete it
+										--when the behavior is no longer "trigger"; switching back
+										--to "trigger" re-creates a fresh one via init below.
+										if self.behavior ~= "trigger" and self:has_key("triggeredAbility") then
+											self.triggeredAbility = nil
+										end
+
 										local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
 										if typeInfo.init then
 											--initialize our new behavior type.
@@ -3199,6 +3210,22 @@ end
 --- @return string
 function CharacterModifier:GetSummaryText()
 	return string.format("<b>%s</b>--%s", self.name, self.description)
+end
+
+--- Appends the "Inflicted by X's <b>Y</b> ability" attribution to a modifier tooltip, if
+--- modContext (an entry from creature:GetActiveModifiers()) carries a sourceDescription.
+--- Call AFTER GoblinScript interpolation, so a token name is never parsed as a formula.
+--- Static, not a method: hot reload cannot add methods to already-deserialized modifiers.
+--- @param text string
+--- @param modContext nil|table
+--- @return string
+function CharacterModifier.AppendSourceText(text, modContext)
+	local sourceDescription = modContext ~= nil and modContext.sourceDescription or nil
+	if sourceDescription == nil or sourceDescription == "" then
+		return text
+	end
+
+	return string.format("%s\n%s", text, sourceDescription)
 end
 
 --Below here we have functions that can be called on any modifier to see
@@ -3296,7 +3323,10 @@ function CharacterModifier:Modify(modContext, creature, attribute, currentValue)
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior]
 	if typeInfo == nil then
 		print("No modify function for behavior: " .. self.behavior .. " in behavior " .. json(self))
-            return
+		--an unregistered behavior must leave the value alone. Returning nil here poisons
+		--the whole attribute calculation: creature:CalculateAttribute latches the nil, so
+		--e.g. MaxHitpoints() returns nil and every arithmetic/comparison on it errors.
+		return currentValue
 	end
 	local modify = typeInfo.modify
 	if modify then
@@ -3812,6 +3842,13 @@ end
 --- @param targetsOther boolean|nil
 --- @param localFilter nil|string nil = all triggers, "localOnly" = only local-only triggers, "skipLocal" = skip local-only triggers
 function CharacterModifier:HasTriggeredEvent(creature, eventName, targetsOther, localFilter)
+	--Only the "trigger" behavior owns triggeredAbility. A modifier whose
+	--behavior was switched away from "trigger" can retain a stale copy of the
+	--sub-object, which must not register as a live trigger.
+	if self.behavior ~= "trigger" then
+		return false
+	end
+
 	if self:has_key('triggeredAbility') and self.triggeredAbility.trigger == eventName then
 
         -- Filter by local-only status if requested.
@@ -3855,6 +3892,12 @@ end
 --modContext is a 'mod context' as returned by creature.GetActiveModifiers(). We use it to affect the ongoing effect or other context.
 --localFilter: nil = all triggers, "localOnly" = only local-only triggers, "skipLocal" = skip local-only triggers
 function CharacterModifier:TriggerEvent(creature, eventName, info, modContext, debugLog, localFilter)
+	--See HasTriggeredEvent: a stale triggeredAbility left behind by a
+	--behavior switch must never auto-fire.
+	if self.behavior ~= "trigger" then
+		return false
+	end
+
 	if self:has_key('triggeredAbility') and self.triggeredAbility.trigger == eventName then
         -- Filter by local-only status if requested.
         if localFilter == "localOnly" and not self.triggeredAbility:IsLocalOnly() then
@@ -3931,12 +3974,33 @@ function CharacterModifier:TriggerEvent(creature, eventName, info, modContext, d
 end
 
 function CharacterModifier:FillTriggeredAbilities(modContext, creature, result)
+	--Only the "trigger" behavior owns triggeredAbility. A modifier whose
+	--behavior was switched away from "trigger" can retain a stale copy of the
+	--sub-object, which must not register as a live trigger.
+	if self.behavior ~= "trigger" then
+		return
+	end
+
 	if self:has_key("triggeredAbility") then
+		--A modifier whose behavior was switched away from "trigger" can retain a
+		--stale, half-initialized triggeredAbility that deserializes as a plain Lua
+		--table with no game type, so it has no try_get/IsLocalOnly. Handing it to
+		--callers breaks GetActivatedAbilities{manualTriggers=true}, which aborts the
+		--action bar refresh and leaves the player unable to act. Skip such entries.
+		--pcall: reading a missing field on a game-typed instance raises, so a plain
+		--nil-check is not safe here (same pattern as creature:ApplyAbilityModifiers).
+		local ability = self.triggeredAbility
+		local tryGet = nil
+		pcall(function() tryGet = ability.try_get end)
+		if tryGet == nil then
+			return
+		end
+
 		result[#result+1] = {
 			modifier = self,
 			available = self:HasResourcesAvailable(creature),
 			resources = self:DescribeResourceAvailability(creature),
-			ability = self.triggeredAbility,
+			ability = ability,
 		}
 	end
 end

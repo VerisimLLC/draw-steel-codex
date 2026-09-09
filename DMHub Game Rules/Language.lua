@@ -3,7 +3,7 @@ local mod = dmhub.GetModLoading()
 --This file implements the rules for in-game Languages (like Orcish, Elvish, etc. See Translation for the file which
 --allows translating DMHub into other real-world languages).
 
---- @class Language
+--- @class Language: GameType
 --- @field name string Display name (e.g. "Elvish", "Common").
 --- @field type string Language type (e.g. "Standard", "Exotic", "Secret").
 --- @field speakers string Description of who speaks this language.

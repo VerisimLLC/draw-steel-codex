@@ -1,5 +1,5 @@
 local mod = dmhub.GetModLoading()
---- @class CharacterDescription
+--- @class CharacterDescription: GameType
 --- @field weight string
 --- @field height string
 --- @field hair string

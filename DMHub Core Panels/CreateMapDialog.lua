@@ -1,5 +1,20 @@
 local mod = dmhub.GetModLoading()
 
+--Dev gate for the map-pack browser ("...or Use an Existing Map") in the
+--create-map dialog. No editor field, so it never appears in the settings UI;
+--turn it on with: /set dev:patreonmaps true
+setting{
+    id = "dev:patreonmaps",
+    description = "Show the map pack browser in the create map dialog.",
+    default = false,
+    storage = "preference",
+}
+
+--True if the map pack browser should be offered to this user.
+local function PatreonMapsEnabled()
+    return dmhub.GetSettingValue("dev:patreonmaps") == true
+end
+
 local function ComponentTypeMatches(value, componentType)
     if value == nil then
         return false
@@ -48,241 +63,1842 @@ end
 
 mod.shared.ShowCreateMapDialog = function()
 
+    --map packs are dev-gated; with them off the dialog is just the
+    --empty/import choice and the name field.
+    local packsEnabled = PatreonMapsEnabled()
+
     local selectedMap = nil
+    --packs layout only: switches the main area between the blank / import /
+    --library views when the sidebar selection changes.
+    local m_setMainMode = nil
+    local m_packEntry = nil
+    local m_packEntries = {}
+    local m_search = ""
+    local m_dialog = nil
+
+    --fixed dialog geometry: a sources sidebar on the left, the library grid
+    --in the middle and a docked preview pane on the right.
+    local DIALOG_WIDTH = 1560
+    local DIALOG_HEIGHT = 900
+    local SIDEBAR_WIDTH = 270
+    local PREVIEW_WIDTH = 400
+    local FOOTER_HEIGHT = 72
+    local HEADER_HEIGHT = 44
+    --the preview image fits the pane width; height is capped so the text
+    --below it stays in view.
+    local DETAIL_IMAGE_W = PREVIEW_WIDTH - 24
+    local DETAIL_IMAGE_H = 280
+    --the grid shows this many fixed-size tile columns and scrolls.
+    local GRID_COLUMNS = 5
+
+    --community markup (Map Markup panel share icon): the shared markup sets
+    --listed for the selected pack map, and the one chosen to add it with.
+    local m_markupId = nil
+    local m_markupMapKey = nil
+    local markupHeading
+    local markupList
+    local markupStatus
 
     local m_mapName = "New Map"
+    --the name the dialog last filled in by itself (a pack map's name), so a
+    --user edit is kept when they switch tiles but an untouched name follows
+    --the selection.
+    local m_autoName = m_mapName
+
+    --tile type is always squares for now.
+    local tileType = "squares"
+
+    local createButton
+    local nameInput
+    local packGrid
+    local packStatus
+    --builds the sidebar's library filter rows once the index has synced;
+    --assigned in the packs-enabled branch below.
+    local BuildLibraryNav = function() end
+
+    --Patreon gating (see mod.shared.MapPackPatreonState): the creator record
+    --of the selected pack map (name, website, campaign page), what the
+    --create button currently does, and a fingerprint of the account's
+    --Patreon state so a link or pledge landing while the dialog is open
+    --refreshes the badges and the button by itself.
+    local m_creator = nil
+    local m_buttonMode = "create"
+    local m_patreonSignature = nil
+
+    --details pane (right of the grid) --------------------------------------
+    local detailImage = gui.Panel{
+        width = DETAIL_IMAGE_W,
+        height = DETAIL_IMAGE_H,
+        halign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "white",
+        cornerRadius = 6,
+    }
+    local detailTitle = gui.Label{ classes = {"mapPackDetailTitle"}, text = "" }
+    local detailCreator = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
+    --the Patreon line under the creator: the glyph plus what the selected
+    --appearance needs, or that the account's membership covers it.
+    local detailAccessIcon = gui.Panel{
+        classes = {"mapPackPatreonIcon"},
+        width = 16,
+        height = 16,
+        valign = "top",
+        vmargin = 2,
+    }
+    local detailAccessText = gui.Label{
+        classes = {"mapPackDetailText"},
+        width = "100%-24",
+        vmargin = 0,
+        text = "",
+    }
+    local detailAccess = gui.Panel{
+        classes = {"hidden"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        vmargin = 4,
+        detailAccessIcon,
+        detailAccessText,
+    }
+    local detailInfo = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
+    local detailKeywords = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
+    local appearancesHeading = gui.Label{
+        classes = {"mapPackDetailText", "hidden"},
+        bold = true,
+        text = "Appearances",
+    }
+    local variantsPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        wrap = true,
+        halign = "left",
+    }
+
+    --"Codex Enhancements" with the Codex logo beside it.
+    markupHeading = gui.Panel{
+        classes = {"hidden"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        halign = "left",
+        vmargin = 8,
+        gui.Panel{
+            width = 18,
+            height = 18,
+            halign = "left",
+            valign = "center",
+            rmargin = 6,
+            bgimage = "ui-icons/codex-logo.png",
+            bgcolor = "white",
+        },
+        gui.Label{
+            classes = {"mapPackDetailText"},
+            width = "auto",
+            vmargin = 0,
+            halign = "left",
+            valign = "center",
+            bold = true,
+            text = "Codex Enhancements",
+        },
+    }
+    markupStatus = gui.Label{
+        classes = {"mapPackDetailText", "hidden"},
+        fontSize = 12,
+        text = "",
+    }
+    markupList = gui.Panel{
+        width = "100%",
+        height = "auto",
+        maxHeight = 220,
+        vscroll = true,
+        flow = "vertical",
+        halign = "left",
+    }
+
+    --the preview pane docks right of the grid and is always present; a
+    --placeholder fills it until a pack map is selected.
+    local previewPlaceholder = gui.Panel{
+        width = "100%",
+        height = "auto",
+        valign = "center",
+        flow = "vertical",
+        gui.Panel{
+            classes = {"cmPreviewGlyph"},
+            bgimage = "phosphor/book-open.png",
+        },
+        gui.Label{
+            classes = {"mapPackDetailText"},
+            width = "80%",
+            halign = "center",
+            textAlignment = "center",
+            vmargin = 10,
+            text = "Select a map to preview it here.",
+        },
+    }
+    local detailContent = gui.Panel{
+        classes = {"hidden"},
+        width = "100%-24",
+        height = "100%-16",
+        halign = "center",
+        valign = "top",
+        vmargin = 8,
+        vscroll = true,
+        flow = "vertical",
+        detailImage,
+        detailTitle,
+        detailCreator,
+        detailAccess,
+        detailInfo,
+        appearancesHeading,
+        variantsPanel,
+        detailKeywords,
+        markupHeading,
+        markupStatus,
+        markupList,
+    }
+    local detailPanel = gui.Panel{
+        classes = {"cmPreview"},
+        width = PREVIEW_WIDTH,
+        height = "100%",
+        valign = "top",
+        previewPlaceholder,
+        detailContent,
+    }
+
+    local SelectPackEntry
+
+    local SameMap = function(a, b)
+        return a ~= nil and b ~= nil and a.pack == b.pack and a.id == b.id
+    end
+
+    local SameEntry = function(a, b)
+        return SameMap(a, b) and a.variantIndex == b.variantIndex
+    end
+
+    --"12 walls, 3 zones, 2 footstep regions, 1 prop" for a shared markup set.
+    local MarkupPartsText = function(info)
+        local parts = {}
+        local function add(n, singular, plural)
+            if n > 0 then
+                parts[#parts + 1] = string.format("%d %s", n, cond(n == 1, singular, plural))
+            end
+        end
+        add(info.walls, "wall", "walls")
+        add(info.zones, "zone", "zones")
+        add(info.footsteps, "footstep region", "footstep regions")
+        if info.footstepDefault and info.footsteps == 0 then
+            parts[#parts + 1] = "footstep default"
+        end
+        add(info.props, "prop", "props")
+        add(info.elevation, "elevation area", "elevation areas")
+        if #parts == 0 then
+            return "settings only"
+        end
+        return table.concat(parts, ", ")
+    end
+
+    local RefreshMarkupStatus = function()
+        if m_markupId == nil then
+            markupStatus.text = "Choose a set to add the map with that markup, or none for the plain map."
+        else
+            for _, row in ipairs(markupList.children) do
+                if row.data.info.id == m_markupId then
+                    markupStatus.text = string.format("The map will be added with %s's markup.", row.data.info.author)
+                    return
+                end
+            end
+            m_markupId = nil
+            markupStatus.text = "Choose a set to add the map with that markup, or none for the plain map."
+        end
+    end
+
+    local RefreshMarkupList
+    local MarkupRow = function(info)
+        --checkmark slot: always takes its space so the text does not shift
+        --when a row is selected; only visible on the selected row.
+        local checkPanel = gui.Panel{
+            classes = {"mapPackMarkupCheck", cond(info.id == m_markupId, "checked")},
+            bgimage = "phosphor/check-bold.png",
+        }
+        local row
+        row = gui.Panel{
+            classes = {"mapPackMarkupRow", cond(info.id == m_markupId, "selected")},
+            data = { info = info, check = checkPanel },
+            flow = "vertical",
+            press = function(element)
+                if m_markupId == info.id then
+                    m_markupId = nil
+                else
+                    m_markupId = info.id
+                end
+                for _, other in ipairs(markupList.children) do
+                    local selected = other.data.info.id == m_markupId
+                    other:SetClass("selected", selected)
+                    other.data.check:SetClass("checked", selected)
+                end
+                RefreshMarkupStatus()
+            end,
+
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                checkPanel,
+                gui.Label{
+                    classes = {"mapPackMarkupAuthor"},
+                    text = cond(info.author ~= "", info.author, "Anonymous"),
+                },
+                gui.Label{
+                    classes = {"mapPackMarkupParts"},
+                    text = MarkupPartsText(info),
+                },
+                --the uploader can take their own set down again.
+                gui.Panel{
+                    classes = {"iconButton", cond(info.mine, nil, "hidden")},
+                    bgimage = "phosphor/trash-fill.png",
+                    width = 16,
+                    height = 16,
+                    halign = "right",
+                    valign = "center",
+                    --the row's press selects the set; deleting must not.
+                    swallowPress = true,
+                    hover = gui.Tooltip("Delete your shared markup"),
+                    press = function(element)
+                        gui.ModalMessage{
+                            title = "Delete Shared Markup",
+                            message = "Remove this markup set for everyone? This cannot be undone.",
+                            options = {
+                                {
+                                    text = "Delete",
+                                    execute = function()
+                                        mappacks.DeleteMarkup{
+                                            pack = info.pack,
+                                            mapid = info.mapid,
+                                            id = info.id,
+                                            success = function()
+                                                if m_markupId == info.id then
+                                                    m_markupId = nil
+                                                end
+                                                m_markupMapKey = nil
+                                                RefreshMarkupList()
+                                            end,
+                                            error = function(msg)
+                                                gui.ModalMessage{ title = "Could not delete", message = msg }
+                                            end,
+                                        }
+                                    end,
+                                },
+                                {
+                                    text = "Cancel",
+                                },
+                            },
+                        }
+                    end,
+                },
+            },
+            gui.Label{
+                classes = {"mapPackMarkupDescription", cond(info.description ~= "", nil, "collapsed")},
+                text = info.description,
+            },
+        }
+        return row
+    end
+
+    --lists the markup sets shared for the selected map; fetched once per map
+    --(variants of one map share its list) and cleared when nothing is
+    --selected.
+    RefreshMarkupList = function()
+        local entry = m_packEntry
+        local key = nil
+        if entry ~= nil then
+            key = entry.pack .. "/" .. entry.id
+        end
+        if key == m_markupMapKey then
+            return
+        end
+        m_markupMapKey = key
+        m_markupId = nil
+        markupList.children = {}
+        markupHeading:SetClass("hidden", true)
+        markupStatus:SetClass("hidden", true)
+        if entry == nil then
+            return
+        end
+
+        mappacks.ListMarkup{
+            pack = entry.pack,
+            mapid = entry.id,
+            success = function(list)
+                if m_markupMapKey ~= key or not markupList.valid then
+                    return
+                end
+                if #list == 0 then
+                    return
+                end
+                local rows = {}
+                for _, info in ipairs(list) do
+                    rows[#rows + 1] = MarkupRow(info)
+                end
+                markupList.children = rows
+                markupHeading:SetClass("hidden", false)
+                markupStatus:SetClass("hidden", false)
+                RefreshMarkupStatus()
+            end,
+            error = function(msg)
+                if m_markupMapKey ~= key or not markupList.valid then
+                    return
+                end
+                markupHeading:SetClass("hidden", false)
+                markupStatus:SetClass("hidden", false)
+                markupStatus.text = "Could not load shared markup: " .. tostring(msg)
+            end,
+        }
+    end
+
+    --the index's current record for an entry (each search evaluates the
+    --owned flag live against the account's pledges), or the entry itself if
+    --it is no longer listed.
+    local FreshEntry = function(entry)
+        for _, other in ipairs(mappacks.Search{ text = "", pack = entry.pack, maxResults = 100000 }) do
+            if SameEntry(other, entry) then
+                return other
+            end
+        end
+        return entry
+    end
+
+    --a fingerprint of everything the Patreon gating depends on, so a change
+    --(account linked, pledge landing or lapsing) can be noticed by polling.
+    local PatreonSignature = function()
+        local parts = {}
+        for _, e in ipairs(dmhub.patreonOrgEntitlements or {}) do
+            parts[#parts + 1] = string.format("%s:%s:%d", tostring(e.orgid), tostring(e.entitled), tonumber(e.cents) or 0)
+        end
+        table.sort(parts)
+        table.insert(parts, 1, tostring(dmhub.patreonUserId))
+        return table.concat(parts, "|")
+    end
+
+    --every index entry for the same map as entry, in variant order. Taken
+    --from the whole index rather than the grid, which only shows one
+    --variant per map unless a search asked for more.
+    local SiblingVariants = function(entry)
+        local result = {}
+        for _, other in ipairs(mappacks.Search{ text = "", pack = entry.pack, maxResults = 100000 }) do
+            if SameMap(other, entry) then
+                result[#result + 1] = other
+            end
+        end
+        table.sort(result, function(a, b) return a.variantIndex < b.variantIndex end)
+        return result
+    end
+
+    --the entries the grid shows for a search result. Without a search each
+    --map appears once, as its lowest-numbered variant. With a search every
+    --matching variant is kept but ordered so a not-yet-seen map always comes
+    --before another variant of a map already listed. Within a map the
+    --variants are ranked by how well they matched (matchScore from the
+    --engine: whole-word keyword hits outrank prefix hits like "cave" on
+    --"cavern"), so a search shows the variant that earned the match rather
+    --than the map's base appearance; maps in turn are ranked by their best
+    --variant. Variant index breaks ties, so an empty search (every score 0)
+    --keeps index order.
+    local BetterMatch = function(a, b)
+        local sa = a.matchScore or 0
+        local sb = b.matchScore or 0
+        if sa ~= sb then
+            return sa > sb
+        end
+        return a.variantIndex < b.variantIndex
+    end
+
+    local DiversifyEntries = function(entries, searching)
+        local byMap = {}
+        local order = {}
+        for _, entry in ipairs(entries) do
+            local key = entry.pack .. "/" .. entry.id
+            local group = byMap[key]
+            if group == nil then
+                group = {}
+                byMap[key] = group
+                order[#order + 1] = group
+            end
+            group[#group + 1] = entry
+        end
+
+        for _, group in ipairs(order) do
+            table.sort(group, BetterMatch)
+        end
+
+        --stable: groups whose best variants tie keep their index order.
+        for i, group in ipairs(order) do
+            group.ord = i
+        end
+        table.sort(order, function(a, b)
+            local sa = a[1].matchScore or 0
+            local sb = b[1].matchScore or 0
+            if sa ~= sb then
+                return sa > sb
+            end
+            return a.ord < b.ord
+        end)
+
+        local result = {}
+        local round = 1
+        local added = true
+        while added do
+            added = false
+            for _, group in ipairs(order) do
+                if group[round] ~= nil then
+                    result[#result + 1] = group[round]
+                    added = true
+                end
+            end
+            round = round + 1
+            if not searching then
+                break
+            end
+        end
+        return result
+    end
+
+    local UpdateCreateButton
+
+    --the Patreon line for the selected appearance; hidden for a free one.
+    local RefreshAccessLine = function()
+        local entry = m_packEntry
+        local state = nil
+        if entry ~= nil then
+            state = mod.shared.MapPackPatreonState(entry)
+        end
+        detailAccess:SetClass("hidden", state == nil)
+        if state == nil then
+            return
+        end
+
+        local creatorName = nil
+        if m_creator ~= nil then
+            creatorName = m_creator.displayName
+        end
+        local text = mod.shared.MapPackPatreonText(entry, creatorName)
+        if state == "locked" then
+            local access = mappacks.GetPackAccess(entry.pack)
+            if not access.linked then
+                text = text .. ". Link your Patreon account to unlock it."
+            elseif (access.cents or 0) > 0 then
+                text = text .. string.format(". Your current pledge is %s.", mod.shared.MapPackTierText(access.cents))
+            else
+                text = text .. "."
+            end
+        else
+            text = text .. "."
+        end
+        detailAccessIcon.bgimage = mod.shared.MapPackPatreonIcon(entry)
+        detailAccessText.text = text
+    end
+
+    local RefreshDetails = function()
+        local entry = m_packEntry
+        detailContent:SetClass("hidden", entry == nil)
+        previewPlaceholder:SetClass("hidden", entry ~= nil)
+        RefreshMarkupList()
+        if entry == nil then
+            return
+        end
+
+        detailImage.bgimage = mod.shared.MapPackThumbImage(entry)
+        --fit the preview inside the pane keeping the map's aspect ratio.
+        local w = tonumber(entry.tilesW) or 1
+        local h = tonumber(entry.tilesH) or 1
+        if w < 1 then w = 1 end
+        if h < 1 then h = 1 end
+        local scale = math.min(DETAIL_IMAGE_W / w, DETAIL_IMAGE_H / h)
+        detailImage.width = math.floor(w * scale)
+        detailImage.height = math.floor(h * scale)
+        detailTitle.text = entry.name
+        detailCreator.text = ""
+        m_creator = nil
+        RefreshAccessLine()
+        mod.shared.GetMapPackCreator(entry, function(info)
+            --the lookup may land after the user moved on to another map.
+            --(SameEntry rather than identity: a live refresh swaps the
+            --selected entry for the index's fresh record of it.)
+            if not SameEntry(m_packEntry, entry) or not detailCreator.valid then
+                return
+            end
+            m_creator = info
+            if info.displayName ~= nil and info.displayName ~= "" then
+                detailCreator.text = "By " .. info.displayName
+            end
+            RefreshAccessLine()
+            UpdateCreateButton()
+        end)
+        local summary = entry.description
+        if summary == nil or summary == "" then
+            summary = entry.sceneName
+        end
+        detailInfo.text = string.format("%s\n%d x %d tiles", summary, entry.tilesW, entry.tilesH)
+        --entry.keywords is the handful of representative tags; the long
+        --searchTerms list only feeds the search box and is not shown.
+        local tags = {}
+        for _, tag in ipairs(entry.keywords) do
+            tags[#tags + 1] = tag:sub(1, 1):upper() .. tag:sub(2)
+        end
+        detailKeywords.text = cond(#tags > 0, "Tags: " .. table.concat(tags, ", "), "")
+
+        local chips = {}
+        local creatorName = nil
+        if m_creator ~= nil then
+            creatorName = m_creator.displayName
+        end
+        for _, sibling in ipairs(SiblingVariants(entry)) do
+            chips[#chips + 1] = mod.shared.CreateMapPackChip{
+                entry = sibling,
+                text = cond(sibling.variant ~= "", sibling.variant, "Default"),
+                selected = SameEntry(sibling, entry),
+                creatorName = creatorName,
+                press = function(element)
+                    SelectPackEntry(element.data.entry)
+                end,
+            }
+        end
+        variantsPanel.children = chips
+        appearancesHeading:SetClass("hidden", #chips <= 1)
+    end
+
+    local ClearPackSelection = function()
+        m_packEntry = nil
+        --no grid when the pack browser is gated off.
+        if packGrid ~= nil then
+            for _, tile in ipairs(packGrid.children) do
+                tile:SetClass("selected", false)
+            end
+        end
+        RefreshDetails()
+    end
+
+    --the button follows the selection: Create Map for a new map, Add Map for
+    --a pack appearance the account may add, and for a gated one it lacks
+    --access to, Link Patreon (no Patreon account attached: opens the Account
+    --settings, which host the link flow) or Join Patreon (attached, but the
+    --pledge does not cover it: opens the creator's Patreon page).
+    UpdateCreateButton = function()
+        local mode = "create"
+        if m_packEntry ~= nil then
+            mode = "add"
+            if mod.shared.MapPackPatreonState(m_packEntry) == "locked" then
+                local access = mappacks.GetPackAccess(m_packEntry.pack)
+                mode = cond(access.linked, "join", "link")
+            end
+        end
+        m_buttonMode = mode
+        local labels = { create = "Create Map", add = "Add Map", link = "Link Patreon", join = "Join Patreon" }
+        createButton.text = labels[mode]
+    end
+
+    --fill the name field from the selection unless the user typed their own.
+    local SetAutoName = function(name)
+        if m_mapName == m_autoName then
+            m_mapName = name
+            nameInput.text = name
+        end
+        m_autoName = name
+    end
 
     local MapItemPress = function(element)
         selectedMap = element
         for _,el in ipairs(element.parent.children) do
             el:SetClass("selected", el == element)
         end
+        ClearPackSelection()
+        SetAutoName("New Map")
+        UpdateCreateButton()
+        if m_setMainMode ~= nil then
+            m_setMainMode(element.data.type)
+        end
     end
 
-    local tileType = "squares"
+    SelectPackEntry = function(entry)
+        m_packEntry = entry
+        if selectedMap ~= nil and selectedMap.valid then
+            for _, el in ipairs(selectedMap.parent.children) do
+                el:SetClass("selected", false)
+            end
+        end
+        --a variant chosen from the chips may not have its own tile; then
+        --light the first tile the grid shows for that map instead.
+        local litTile = nil
+        for _, tile in ipairs(packGrid.children) do
+            if SameEntry(tile.data.entry, entry) then
+                litTile = tile
+                break
+            elseif litTile == nil and SameMap(tile.data.entry, entry) then
+                litTile = tile
+            end
+        end
+        for _, tile in ipairs(packGrid.children) do
+            tile:SetClass("selected", tile == litTile)
+        end
+        SetAutoName(entry.sceneName ~= "" and entry.sceneName or entry.name)
+        RefreshDetails()
+        UpdateCreateButton()
+    end
 
-	local dialogPanel = gui.Panel{
-		classes = {"framedPanel"},
-		width = 1400,
-		height = 940,
-		styles = ThemeEngine.GetStyles(),
+    --the grid scrolls but stays cheap: the search keeps only lightweight
+    --index entries, and tiles (and their thumbnails) are built a chunk at a
+    --time -- a Show More card at the end of the grid appends the next chunk.
+    local cellW, cellH = mod.shared.MapPackTileCellSize()
+    local GRID_CHUNK = GRID_COLUMNS * 6
+    local m_shown = GRID_CHUNK
 
-        gui.Panel{
-            width = "100%-24",
-            height = "100%-48",
+    --which pack the library sidebar has filtered to; nil is all packs.
+    local m_packFilter = nil
+
+    --only built with the pack browser itself; with the dev gate off nothing
+    --would parent these.
+    if packsEnabled then
+        packGrid = gui.Panel{
+            --a little slack so rounding never wraps the last column.
+            width = GRID_COLUMNS * cellW + 4,
+            --auto + maxHeight is what makes vscroll engage (same pattern as
+            --markupList above); the cap is the content row's height.
+            height = "auto",
+            maxHeight = DIALOG_HEIGHT - 56 - FOOTER_HEIGHT - 12,
+            flow = "horizontal",
+            wrap = true,
+            valign = "top",
+            halign = "left",
+            vscroll = true,
+        }
+
+        packStatus = gui.Label{
+            classes = {"mapPackStatus"},
+            text = "Syncing map packs...",
+        }
+    end
+
+    --builds tiles for the entries shown so far, plus the Show More card
+    --when more remain.
+    local RenderTiles
+    RenderTiles = function()
+        local count = math.min(#m_packEntries, m_shown)
+        local tiles = {}
+        for i = 1, count do
+            local entry = m_packEntries[i]
+            local tile = mod.shared.CreateMapPackTile(entry, SelectPackEntry)
+            tile:SetClass("selected", SameEntry(entry, m_packEntry))
+            tiles[#tiles + 1] = tile
+        end
+        if #m_packEntries > count then
+            --a tile-sized card so the grid rhythm holds; data = {} keeps
+            --SelectPackEntry's tile.data.entry reads nil-safe.
+            tiles[#tiles + 1] = gui.Panel{
+                classes = {"cmShowMore"},
+                data = {},
+                flow = "vertical",
+                press = function(element)
+                    m_shown = m_shown + GRID_CHUNK
+                    RenderTiles()
+                end,
+                gui.Label{
+                    classes = {"cmShowMoreLabel"},
+                    text = string.format("Show More\n%d of %d", count, #m_packEntries),
+                },
+            }
+        end
+        packGrid.children = tiles
+    end
+
+    local RefreshPackGrid = function()
+        if m_dialog == nil or not m_dialog.valid or not mappacks.synced then
+            return
+        end
+
+        --the full match list; entries are small tables and only the shown
+        --chunk becomes widgets.
+        local searching = m_search:match("%S") ~= nil
+        m_packEntries = DiversifyEntries(mappacks.Search{
+            text = m_search,
+            pack = m_packFilter,
+            maxResults = 100000,
+        }, searching)
+
+        --keep the selected variant if its map is still listed, even when
+        --the grid shows a different variant of it.
+        local stillSelected = nil
+        local selectedIndex = nil
+        for i, entry in ipairs(m_packEntries) do
+            if SameEntry(entry, m_packEntry) then
+                stillSelected = entry
+                selectedIndex = i
+                break
+            elseif stillSelected == nil and SameMap(entry, m_packEntry) then
+                stillSelected = FreshEntry(m_packEntry)
+                selectedIndex = i
+            end
+        end
+
+        if mappacks.count == 0 then
+            packStatus.text = "No map packs are available yet."
+        elseif #m_packEntries == 0 then
+            packStatus.text = "No maps match your search."
+        else
+            --the grid shows one entry per map without a search, so count
+            --maps rather than the index's variant entries.
+            local mapCount = #DiversifyEntries(mappacks.Search{ text = "", pack = m_packFilter, maxResults = 100000 }, false)
+            if searching then
+                local matchedMaps = #DiversifyEntries(m_packEntries, false)
+                packStatus.text = string.format("%d of %d maps, %d appearances", matchedMaps, mapCount, #m_packEntries)
+            else
+                packStatus.text = string.format("%d maps", mapCount)
+            end
+        end
+
+        --a fresh list starts back at one chunk, grown as needed so a kept
+        --selection is always among the built tiles.
+        m_shown = GRID_CHUNK
+        if selectedIndex ~= nil and selectedIndex > m_shown then
+            m_shown = math.ceil(selectedIndex / GRID_CHUNK) * GRID_CHUNK
+        end
+
+        if stillSelected ~= nil then
+            m_packEntry = stillSelected
+            RenderTiles()
+            SelectPackEntry(stillSelected)
+        else
+            if m_packEntry ~= nil then
+                m_packEntry = nil
+                RefreshDetails()
+                UpdateCreateButton()
+            end
+            RenderTiles()
+        end
+    end
+
+    local AddPackMap = function(entry, name, markupId)
+        mappacks.AddMapToGame{
+            pack = entry.pack,
+            mapid = entry.id,
+            variantIndex = entry.variantIndex,
+            name = name,
+            markupId = markupId,
+            success = function(mapid)
+                dmhub.Coroutine(function()
+                    for i = 1, 200 do
+                        if game.GetMap(mapid) ~= nil then
+                            break
+                        end
+                        coroutine.yield(0.05)
+                    end
+                    local map = game.GetMap(mapid)
+                    if map ~= nil then
+                        map:Travel()
+                    end
+                end)
+            end,
+            error = function(msg)
+                gui.ModalMessage{
+                    title = "Could not add map",
+                    message = msg,
+                }
+            end,
+        }
+    end
+
+    nameInput = gui.Input{
+        classes = {"form"},
+        text = m_mapName,
+        change = function(element)
+            m_mapName = element.text
+        end,
+    }
+
+    m_patreonSignature = PatreonSignature()
+
+    createButton = gui.Button{
+        classes = {"sizeL"},
+        halign = "left",
+        text = "Create Map",
+
+        --the engine mirrors /Patrons live, so a Patreon link or a pledge
+        --made while this dialog is open shows up here within seconds: the
+        --grid is re-searched (fresh owned flags on every entry) and the
+        --details and button follow.
+        thinkTime = 0.5,
+        think = function(element)
+            local signature = PatreonSignature()
+            if signature ~= m_patreonSignature then
+                m_patreonSignature = signature
+                RefreshPackGrid()
+            end
+        end,
+
+        click = function(element)
+            if m_buttonMode == "link" then
+                --the Account tab of the settings hosts the Patreon link
+                --flow. The settings sheet lives in the hud's dialog layer,
+                --BELOW modals, so this dialog has to close first or the
+                --settings open behind it (verified live 2026-09-05).
+                gui.CloseModal()
+                dmhub.ShowPlayerSettings{ tab = "Account" }
+                return
+            end
+            if m_buttonMode == "join" then
+                local url = nil
+                if m_creator ~= nil then
+                    url = m_creator.campaignUrl
+                    if url == nil or url == "" then
+                        url = m_creator.url
+                    end
+                end
+                if url ~= nil and url ~= "" then
+                    dmhub.OpenURL(url)
+                else
+                    gui.ModalMessage{
+                        title = "Patreon",
+                        message = "This creator has not listed a Patreon page yet.",
+                    }
+                end
+                return
+            end
+
+            if m_packEntry ~= nil then
+                local entry = m_packEntry
+                local name = m_mapName
+                local markupId = m_markupId
+                gui.CloseModal()
+                AddPackMap(entry, name, markupId)
+                return
+            end
+
+            local mapType = selectedMap.data.type
+            gui.CloseModal()
+
+            if mapType == "import" then
+                mod.shared.ImportMap{
+                    tileType = tileType,
+                    nofade = true,
+                    finish = function(info)
+                        mod.shared.FinishMapImport(m_mapName, info)
+                    end,
+                }
+            else
+                local guid = game.CreateMap{
+                    description = m_mapName
+                }
+
+                dmhub.Coroutine(function()
+                    while game.GetMap(guid) == nil do
+                        coroutine.yield(0.05)
+                    end
+
+                    local map = game.GetMap(guid)
+                    map:Travel()
+
+                    while game.currentMapId ~= guid do
+                        coroutine.yield(0.05)
+                    end
+
+                    dmhub.SetSettingValue("maplayout:tiletype", tileType)
+                end)
+            end
+        end,
+    }
+
+	--the grid lays out each wrapped row by the tiles' own alignment; without
+	--this a short row spreads its tiles across the full width.
+	local tileStyles = mod.shared.MapPackTileStyles()
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackTile"},
+		halign = "left",
+	}
+
+	--shared-markup rows under the details pane.
+	--deselected rows read as grey and dim; the selected one gets the
+	--accent border, full brightness and a checkmark in the left slot.
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupRow"},
+		bgimage = "panels/square.png",
+		bgcolor = "@bg",
+		cornerRadius = 6,
+		width = "100%",
+		height = "auto",
+		pad = 6,
+		vmargin = 2,
+		borderWidth = 1,
+		borderColor = "@fgMuted",
+		borderBox = true,
+		opacity = 0.55,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupRow", "hover"},
+		borderColor = "@fg",
+		opacity = 0.8,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupRow", "selected"},
+		borderWidth = 2,
+		borderColor = "@accent",
+		opacity = 1,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupCheck"},
+		width = 16,
+		height = 16,
+		valign = "center",
+		rmargin = 8,
+		bgcolor = "@accent",
+		opacity = 0,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupCheck", "checked"},
+		opacity = 1,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupAuthor"},
+		fontSize = 14,
+		bold = true,
+		width = "auto",
+		height = "auto",
+		valign = "center",
+		rmargin = 8,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupParts"},
+		fontSize = 12,
+		width = "auto",
+		height = "auto",
+		valign = "center",
+		opacity = 0.8,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackMarkupDescription"},
+		fontSize = 13,
+		width = "100%",
+		height = "auto",
+		textWrap = true,
+		vmargin = 2,
+	}
+
+    --sidebar, preview pane, footer and Show More styles for the picker
+    --layout. All local to this dialog; nothing lands in DefaultStyles.
+    --One quiet ground: the framedPanel surface runs under the whole dialog,
+    --regions are separated by hairlines, and only hover/selected rows fill.
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmSidebar"},
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        border = {x1 = 0, x2 = 1, y1 = 0, y2 = 0},
+        borderColor = "@border",
+    }
+    --the sidebar rows copy the Maps panel's list grammar exactly
+    --(BuildMapListStyles in MapsPanel.lua): 34px quiet rows with hpad 12,
+    --14px names, 13px bold section headers over a 0.35 hairline, 11px
+    --muted counts, 0.2 seams.
+    --width stops 1px short so a selected row's fill never paints over the
+    --sidebar's right hairline.
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavItem"},
+        flow = "horizontal",
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        width = "100%-1",
+        height = 34,
+        halign = "left",
+        hpad = 12,
+        borderBox = true,
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavItem", "hover"},
+        bgcolor = "@bgAlt",
+        transitionTime = 0.1,
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavItem", "selected"},
+        bgcolor = "@bgAlt",
+        border = {x1 = 3, x2 = 0, y1 = 0, y2 = 0},
+        borderColor = "@accent",
+        priority = 5,
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavIcon"},
+        width = 18,
+        height = 18,
+        valign = "center",
+        rmargin = 8,
+        bgcolor = "@fg",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavLabel"},
+        fontSize = 14,
+        color = "@fg",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavLabel", "parent:selected"},
+        bold = true,
+        color = "@fgStrong",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavCount"},
+        fontSize = 11,
+        color = "@fgMuted",
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        halign = "right",
+    }
+    --section header: the folder-header grammar (13px bold over a hairline).
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavSection"},
+        fontSize = 13,
+        bold = true,
+        color = "@fg",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavSectionHeader"},
+        flow = "horizontal",
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        width = "100%",
+        height = 30,
+        tmargin = 8,
+        hpad = 12,
+        borderBox = true,
+        halign = "left",
+    }
+    --the header's underline, a step brighter than row seams.
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavRule"},
+        bgimage = "panels/square.png",
+        bgcolor = "@border",
+        opacity = 0.35,
+        width = "100%",
+        height = 1,
+    }
+    --seam between the source rows and the library section.
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmNavDivider"},
+        bgimage = "panels/square.png",
+        bgcolor = "@border",
+        opacity = 0.2,
+        width = "100%",
+        height = 1,
+        vmargin = 8,
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmPreview"},
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        cornerRadius = 8,
+        borderWidth = 1,
+        borderColor = "@border",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmPreviewGlyph"},
+        width = 44,
+        height = 44,
+        halign = "center",
+        bgcolor = "@fgMuted",
+    }
+    --a hairline above the footer separates it from the grid row.
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmFooterDivider"},
+        bgimage = "panels/square.png",
+        bgcolor = "@border",
+        opacity = 0.35,
+        width = "100%",
+        height = 1,
+        valign = "bottom",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmFooter"},
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+    }
+    --the Show More card sits in the grid at tile size so the rhythm holds.
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmShowMore"},
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        cornerRadius = 6,
+        width = cellW - 12,
+        height = cellH - 12,
+        margin = 6,
+        halign = "left",
+        borderWidth = 1,
+        borderColor = "@border",
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmShowMore", "hover"},
+        bgcolor = "@bgAlt",
+        borderColor = "@accentHover",
+        transitionTime = 0.1,
+    }
+    tileStyles[#tileStyles + 1] = {
+        selectors = {"cmShowMoreLabel"},
+        fontSize = 14,
+        color = "@fg",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+    }
+
+    if packsEnabled then
+        --sidebar: the two creation sources (the same selection group the
+        --old tiles formed: MapItemPress lights one and clears the other).
+        local sourceNav = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            valign = "top",
+            gui.Panel{
+                classes = {"cmNavItem", "selected"},
+                flow = "horizontal",
+                press = MapItemPress,
+                create = function(element)
+                    selectedMap = element
+                end,
+                data = { type = "empty" },
+                gui.Panel{ classes = {"cmNavIcon"}, halign = "left", bgimage = "phosphor/squares-four.png" },
+                gui.Label{ classes = {"cmNavLabel"}, halign = "left", text = "Blank Map" },
+            },
+            gui.Panel{
+                classes = {"cmNavItem"},
+                flow = "horizontal",
+                press = MapItemPress,
+                data = { type = "import" },
+                gui.Panel{ classes = {"cmNavIcon"}, halign = "left", bgimage = "phosphor/upload-simple-bold.png" },
+                gui.Label{ classes = {"cmNavLabel"}, halign = "left", text = "Import Image or UVTT" },
+            },
+        }
+
+        --library filters: All Maps plus one row per pack, labeled with the
+        --creator's display name once the async lookup lands. Pressing one
+        --brings the library view up in the main area (GoToLibrary, assigned
+        --once the nav panels exist).
+        local libraryNav
+        local GoToLibrary
+        local m_gridGeneration = 0
+        local LibraryFilterItem = function(label, count, packid)
+            local nameLabel = gui.Label{ classes = {"cmNavLabel"}, halign = "left", text = label }
+            return gui.Panel{
+                classes = {"cmNavItem"},
+                flow = "horizontal",
+                data = { pack = packid, label = nameLabel },
+                press = function(element)
+                    m_packFilter = element.data.pack
+                    GoToLibrary()
+                    --the row lights up and the view switches this frame;
+                    --building the tile grid is deferred so the click feels
+                    --instant and the maps fill in a moment later. A
+                    --generation stamp makes rapid clicks rebuild only once.
+                    m_gridGeneration = m_gridGeneration + 1
+                    local generation = m_gridGeneration
+                    dmhub.Schedule(0.01, function()
+                        if generation == m_gridGeneration then
+                            RefreshPackGrid()
+                        end
+                    end)
+                end,
+                gui.Panel{
+                    classes = {"cmNavIcon"},
+                    halign = "left",
+                    bgimage = cond(packid == nil, "phosphor/book-open.png", "phosphor/user.png"),
+                },
+                nameLabel,
+                gui.Label{ classes = {"cmNavCount"}, text = tostring(count) },
+            }
+        end
+
+        libraryNav = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            valign = "top",
+        }
+
+        --shows the library in the main area: the sources unselect, the row
+        --for the active filter lights, and the main view switches.
+        GoToLibrary = function()
+            for _, el in ipairs(sourceNav.children) do
+                el:SetClass("selected", false)
+            end
+            for _, row in ipairs(libraryNav.children) do
+                row:SetClass("selected", row.data.pack == m_packFilter)
+            end
+            if m_setMainMode ~= nil then
+                m_setMainMode("library")
+            end
+        end
+
+        local m_builtLibraryNav = false
+        BuildLibraryNav = function()
+            if m_builtLibraryNav or not mappacks.synced or not libraryNav.valid then
+                return
+            end
+            m_builtLibraryNav = true
+            local all = DiversifyEntries(mappacks.Search{ text = "", maxResults = 100000 }, false)
+            local packOrder = {}
+            local packInfo = {}
+            for _, e in ipairs(all) do
+                local info = packInfo[e.pack]
+                if info == nil then
+                    info = { count = 0, entry = e }
+                    packInfo[e.pack] = info
+                    packOrder[#packOrder + 1] = e.pack
+                end
+                info.count = info.count + 1
+            end
+            local rows = { LibraryFilterItem("All Maps", #all, nil) }
+            --only worth filtering when there is more than one pack.
+            if #packOrder > 1 then
+                for _, packid in ipairs(packOrder) do
+                    local info = packInfo[packid]
+                    local row = LibraryFilterItem("Map Pack", info.count, packid)
+                    rows[#rows + 1] = row
+                    mod.shared.GetMapPackCreator(info.entry, function(creator)
+                        if row.valid and creator ~= nil and (creator.displayName or "") ~= "" then
+                            row.data.label.text = creator.displayName
+                        end
+                    end)
+                end
+            end
+            libraryNav.children = rows
+        end
+
+        --title-bar styles: the compact dock-panel header grammar (small
+        --uppercase title beside an icon, actions at the right).
+        tileStyles[#tileStyles + 1] = {
+            selectors = {"cmHeader"},
+            flow = "horizontal",
+            bgimage = "panels/square.png",
+            bgcolor = "clear",
+            width = "100%",
+            height = HEADER_HEIGHT,
+            hpad = 12,
+            borderBox = true,
+            halign = "left",
+        }
+        tileStyles[#tileStyles + 1] = {
+            selectors = {"cmHeaderIcon"},
+            width = 18,
+            height = 18,
+            valign = "center",
+            rmargin = 8,
+            bgcolor = "@fg",
+        }
+        tileStyles[#tileStyles + 1] = {
+            selectors = {"cmHeaderTitle"},
+            fontSize = 13,
+            bold = true,
+            uppercase = true,
+            color = "@fgStrong",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+        }
+        tileStyles[#tileStyles + 1] = {
+            selectors = {"cmClose"},
+            width = 16,
+            height = 16,
+            valign = "center",
+            bgcolor = "@fgMuted",
+        }
+        tileStyles[#tileStyles + 1] = {
+            selectors = {"cmClose", "hover"},
+            bgcolor = "@fgStrong",
+        }
+
+        --the full-width title bar: title at the left, search beside it, the
+        --map count and close at the right.
+        local headerBar = gui.Panel{
+            classes = {"cmHeader"},
+            --grouped so the bar's leftover width cannot spread the items
+            --apart; the bar holds exactly a left group and a right group.
+            gui.Panel{
+                width = "auto",
+                height = "100%",
+                halign = "left",
+                flow = "horizontal",
+                gui.Panel{ classes = {"cmHeaderIcon"}, bgimage = "phosphor/map-trifold.png" },
+                gui.Label{ classes = {"cmHeaderTitle"}, text = "Create Map" },
+            },
+            --anchored to the bar's right edge as a group, so the widths of
+            --the title and search field can never push the close button out.
+            gui.Panel{
+                width = "auto",
+                height = "100%",
+                halign = "right",
+                flow = "horizontal",
+                --the standard search field: magnifier, clear x, and the
+                --shared searchInput look. It fires "search" with the
+                --trimmed, lowercased text.
+                gui.SearchInput{
+                    width = 400,
+                    valign = "center",
+                    rmargin = 16,
+                    placeholderText = "Search maps...",
+                    search = function(element, str)
+                        m_search = str
+                        --typing a search means looking at the library.
+                        if str ~= "" then
+                            GoToLibrary()
+                        end
+                        RefreshPackGrid()
+                    end,
+                },
+                packStatus,
+                gui.Panel{
+                    classes = {"cmClose"},
+                    bgimage = "phosphor/x-bold.png",
+                    lmargin = 16,
+                    press = function(element)
+                        gui.CloseModal()
+                    end,
+                },
+            },
+        }
+
+        local sidebar = gui.Panel{
+            classes = {"cmSidebar"},
+            width = SIDEBAR_WIDTH,
+            height = "100%",
+            flow = "vertical",
+            gui.Panel{
+                width = "100%",
+                height = "auto",
+                valign = "top",
+                flow = "vertical",
+                tmargin = 8,
+                sourceNav,
+                gui.Panel{ classes = {"cmNavDivider"} },
+                gui.Panel{
+                    classes = {"cmNavSectionHeader"},
+                    gui.Label{ classes = {"cmNavSection"}, text = "Map Library" },
+                },
+                gui.Panel{ classes = {"cmNavRule"} },
+                libraryNav,
+            },
+        }
+
+        createButton.valign = "center"
+        nameInput.valign = "center"
+
+        --main-area views, toggled by the sidebar selection ------------------
+
+        tileStyles[#tileStyles + 1] = {
+            selectors = {"cmDropArea"},
+            bgimage = "panels/square.png",
+            bgcolor = "@bgAlt",
+            width = "70%",
+            height = "60%",
             halign = "center",
             valign = "center",
-
+            cornerRadius = 12,
+            borderWidth = 2,
+            borderColor = "@border",
             flow = "vertical",
+        }
+        tileStyles[#tileStyles + 1] = {
+            selectors = {"cmDropArea", "hover"},
+            bgcolor = "@bgRaised",
+            borderColor = "@accentHover",
+            transitionTime = 0.1,
+        }
+        tileStyles[#tileStyles + 1] = {
+            selectors = {"cmHint"},
+            fontSize = 15,
+            color = "@fgMuted",
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            textAlignment = "center",
+        }
 
-            gui.Label{
-                classes = {"modalTitle"},
-                text = "Create Map",
-            },
+        --hands dropped or picked files to the existing import wizard, which
+        --skips its own drop screen when paths are supplied.
+        local StartImportWithPaths = function(paths)
+            if paths == nil or #paths == 0 then
+                return
+            end
+            local name = m_mapName
+            gui.CloseModal()
+            mod.shared.ImportMap{
+                tileType = tileType,
+                nofade = true,
+                paths = paths,
+                finish = function(info)
+                    mod.shared.FinishMapImport(name, info)
+                end,
+            }
+        end
 
+        local contentGeometry = {
+            width = "100%-40",
+            height = string.format("100%%-%d", FOOTER_HEIGHT + 24),
+            halign = "center",
+            valign = "top",
+            tmargin = 12,
+        }
+
+        --the library: grid + preview (visible when a library row is picked).
+        local libraryContent = gui.Panel{
+            classes = {"collapsed"},
+            width = contentGeometry.width,
+            height = contentGeometry.height,
+            halign = contentGeometry.halign,
+            valign = contentGeometry.valign,
+            tmargin = contentGeometry.tmargin,
+            flow = "horizontal",
             gui.Panel{
-                flow = "horizontal",
-                halign = "center",
+                width = string.format("100%%-%d", PREVIEW_WIDTH + 10),
+                height = "100%",
+                halign = "left",
                 valign = "top",
+                packGrid,
+            },
+            detailPanel,
+        }
+
+        --blank map: just says what pressing Create Map will do.
+        local blankContent = gui.Panel{
+            width = contentGeometry.width,
+            height = contentGeometry.height,
+            halign = contentGeometry.halign,
+            valign = contentGeometry.valign,
+            tmargin = contentGeometry.tmargin,
+            flow = "vertical",
+            gui.Panel{
                 width = "auto",
                 height = "auto",
-                vmargin = 16,
-
-                styles = ThemeEngine.MergeTokens({
-                    {
-                        selectors = {"mapItem"},
-                        bgimage = true,
-                        bgcolor = "@bg",
-                        cornerRadius = 12,
-                        width = 1920*0.1,
-                        height = 1080*0.1,
-                        halign = "center",
-                        hmargin = 8,
-                    },
-                    {
-                        selectors = {"mapItem", "hover"},
-                        borderWidth = 2,
-                        borderColor = "@accent",
-                    },
-                    {
-                        selectors = {"mapItem", "selected"},
-                        borderWidth = 2,
-                        borderColor = "@fg",
-                    },
-                    {
-                        selectors = {"mapText"},
-                        fontSize = 14,
-                        width = "auto",
-                        height = "auto",
-                        textAlignment = "center",
-                    },
-                }),
-
-                gui.Panel{
-                    classes = {"mapItem", "selected"},
-                    press = MapItemPress,
-                    create = function(element)
-                        selectedMap = element
-                    end,
-                    data = {
-                        type = "empty",
-                    },
-                    gui.Label{
-                        classes = {"mapText"},
-                        text = "Empty Map",
-                        interactable = false,
-                    },
+                halign = "center",
+                valign = "center",
+                flow = "vertical",
+                gui.Panel{ classes = {"cmPreviewGlyph"}, bgimage = "phosphor/squares-four.png" },
+                gui.Label{
+                    classes = {"cmHint"},
+                    vmargin = 12,
+                    text = "An empty grid map.\nName it below and press Create Map.",
                 },
+            },
+        }
 
+        --import: the drop-or-browse screen, shown as soon as the source is
+        --selected. Files go straight into the import pipeline.
+        local importContent = gui.Panel{
+            classes = {"collapsed"},
+            width = contentGeometry.width,
+            height = contentGeometry.height,
+            halign = contentGeometry.halign,
+            valign = contentGeometry.valign,
+            tmargin = contentGeometry.tmargin,
+            flow = "vertical",
+            gui.Panel{
+                classes = {"cmDropArea"},
+                dragAndDropExtensions = {".png", ".jpg", ".jpeg", ".mp4", ".webm", ".webp", ".dd2vtt", ".uvtt", ".json"},
+                dropfiles = function(element, paths)
+                    StartImportWithPaths(paths)
+                end,
                 gui.Panel{
-                    classes = {"mapItem"},
-                    press = MapItemPress,
-                    data = {
-                        type = "import",
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "center",
+                    flow = "vertical",
+                    interactable = false,
+                    gui.Panel{
+                        classes = {"cmPreviewGlyph"},
+                        interactable = false,
+                        bgimage = "phosphor/upload-simple-bold.png",
                     },
                     gui.Label{
-                        classes = {"mapText"},
-                        text = "Import an Image\nor UVTT file",
+                        classes = {"cmHint"},
                         interactable = false,
+                        vmargin = 12,
+                        text = "Drop image, video, or vtt files here.\nMultiple files create a multi-floor map.",
                     },
                 },
             },
+            gui.Label{
+                classes = {"cmHint"},
+                vmargin = 10,
+                text = "- or -",
+            },
+            gui.Button{
+                classes = {"sizeL"},
+                halign = "center",
+                text = "Choose Files",
+                click = function(element)
+                    dmhub.OpenFileDialog{
+                        id = "ObjectImagePath",
+                        extensions = {"jpeg", "jpg", "png", "mp4", "webm", "webp", "dd2vtt", "uvtt", "json"},
+                        multiFiles = true,
+                        prompt = "Choose image, video, or vtt file to use as map.",
+                        openFiles = function(paths)
+                            StartImportWithPaths(paths)
+                        end,
+                    }
+                end,
+            },
+        }
 
+        local mainModePanels = {
+            empty = blankContent,
+            import = importContent,
+            library = libraryContent,
+        }
+        m_setMainMode = function(mode)
+            for name, panel in pairs(mainModePanels) do
+                panel:SetClass("collapsed", name ~= mode)
+            end
+            --leaving the library view unlights its rows, so only the
+            --active source reads as selected.
+            if mode ~= "library" then
+                for _, row in ipairs(libraryNav.children) do
+                    row:SetClass("selected", false)
+                end
+            end
+        end
+        --the initial state matches the initially selected Blank Map row.
+        m_setMainMode("empty")
+
+        local main = gui.Panel{
+            width = string.format("100%%-%d", SIDEBAR_WIDTH),
+            height = "100%",
+            flow = "vertical",
+
+            blankContent,
+            importContent,
+            libraryContent,
+
+            --footer action bar: the name travels with the commit buttons.
             gui.Panel{
-                width = 600,
-                height = "auto",
-                flow = "vertical",
-                valign = "top",
-                vmargin = 16,
-
+                classes = {"cmFooter"},
+                width = "100%",
+                height = FOOTER_HEIGHT,
+                valign = "bottom",
+                flow = "horizontal",
                 gui.Panel{
-                    classes = {"formRow"},
-                    gui.Label{
-                        classes = {"form"},
-                        text = "Map Name:",
-                    },
-                    gui.Input{
-                        classes = {"form"},
-                        text = m_mapName,
-                        change = function(element)
-                            m_mapName = element.text
+                    classes = {"cmFooterDivider"},
+                    floating = true,
+                    valign = "top",
+                },
+                gui.Label{
+                    classes = {"form"},
+                    width = "auto",
+                    valign = "center",
+                    hmargin = 20,
+                    text = "Map Name:",
+                },
+                nameInput,
+                --right-anchored group: immune to the name field's width and
+                --the create button's changing labels (Add Map, Link Patreon).
+                gui.Panel{
+                    width = "auto",
+                    height = "100%",
+                    halign = "right",
+                    flow = "horizontal",
+                    gui.Button{
+                        classes = {"sizeL"},
+                        valign = "center",
+                        hmargin = 12,
+                        text = "Cancel",
+                        escapeActivates = true,
+                        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+                        click = function(element)
+                            gui.CloseModal()
                         end,
                     },
+                    createButton,
+                },
+            },
+        }
+
+        m_dialog = gui.Panel{
+            classes = {"framedPanel"},
+            width = DIALOG_WIDTH,
+            height = DIALOG_HEIGHT,
+            --borderless: the modal reads as a sheet; the framedPanel class
+            --still supplies the surface and rounded corners.
+            borderWidth = 0,
+            styles = ThemeEngine.MergeStyles(tileStyles),
+            flow = "vertical",
+            headerBar,
+            gui.Panel{ classes = {"cmNavRule"} },
+            gui.Panel{
+                width = "100%",
+                height = string.format("100%%-%d", HEADER_HEIGHT + 1),
+                flow = "horizontal",
+                sidebar,
+                main,
+            },
+        }
+    else
+        --without the pack browser the dialog is just the two tiles, the
+        --name field and the buttons, so it shrinks to fit them.
+        m_dialog = gui.Panel{
+            classes = {"framedPanel"},
+            width = 700,
+            height = 320,
+            styles = ThemeEngine.MergeStyles(tileStyles),
+
+            gui.Panel{
+                width = "100%-24",
+                height = "100%-32",
+                halign = "center",
+                valign = "center",
+
+                flow = "vertical",
+
+                gui.Label{
+                    classes = {"modalTitle"},
+                    text = "Create Map",
+                    vmargin = 0,
                 },
 
-
                 gui.Panel{
-                    classes = {"formRow"},
-                    gui.Label{
-                        classes = {"form"},
-                        text = "Tile Type:",
+                    flow = "horizontal",
+                    halign = "center",
+                    valign = "top",
+                    width = "auto",
+                    height = "auto",
+                    vmargin = 8,
+
+                    styles = ThemeEngine.MergeTokens({
+                        {
+                            selectors = {"mapItem"},
+                            bgimage = true,
+                            bgcolor = "@bg",
+                            cornerRadius = 12,
+                            width = 1920*0.1,
+                            height = 1080*0.1,
+                            halign = "center",
+                            hmargin = 8,
+                        },
+                        {
+                            selectors = {"mapItem", "hover"},
+                            borderWidth = 2,
+                            borderColor = "@accent",
+                        },
+                        {
+                            selectors = {"mapItem", "selected"},
+                            borderWidth = 2,
+                            borderColor = "@fg",
+                        },
+                        {
+                            selectors = {"mapText"},
+                            fontSize = 14,
+                            width = "auto",
+                            height = "auto",
+                            textAlignment = "center",
+                        },
+                    }),
+
+                    gui.Panel{
+                        classes = {"mapItem", "selected"},
+                        press = MapItemPress,
+                        create = function(element)
+                            selectedMap = element
+                        end,
+                        data = {
+                            type = "empty",
+                        },
+                        gui.Label{
+                            classes = {"mapText"},
+                            text = "Empty Map",
+                            interactable = false,
+                        },
                     },
 
                     gui.Panel{
-                        classes = {"form"},
-                        width = "auto",
-                        height = "auto",
-                        flow = "horizontal",
-                        halign = "left",
-
-                        select = function(element, target)
-                            tileType = target.data.id
-                            for _,child in ipairs(element.children) do
-                                child:SetClass("selected", target == child)
-                            end
-                        end,
-
-                        -- THEME_EXAMPLE: Bordered, selectable icon buttons
-                        gui.Button{
-                            classes = {"sizeXl", "bordered", "selected"},
-                            data = {id = "squares"},
-                            hmargin = 8,
-                            icon = "ui-icons/tile-square.png",
-                            click = function(element) element.parent:FireEvent("select", element) end,
+                        classes = {"mapItem"},
+                        press = MapItemPress,
+                        data = {
+                            type = "import",
                         },
-                        gui.Button{
-                            classes = {"sizeXl", "bordered"},
-                            data = {id = "flattop"},
-                            hmargin = 8,
-                            icon = "ui-icons/tile-flathex.png",
-                            click = function(element) element.parent:FireEvent("select", element) end,
+                        gui.Label{
+                            classes = {"mapText"},
+                            text = "Import an Image\nor UVTT file",
+                            interactable = false,
                         },
-                        gui.Button{
-                            classes = {"sizeXl", "bordered"},
-                            data = {id = "pointtop"},
-                            hmargin = 8,
-                            icon = "ui-icons/tile-pointyhex.png",
-                            click = function(element) element.parent:FireEvent("select", element) end,
-                        },
-                    }
-                }
-            },
-
-            gui.Panel{
-                width = 600,
-                height = 48,
-                halign = "center",
-                valign = "bottom",
-
-                gui.Button{
-                    classes = {"sizeL"},
-                    halign = "left",
-                    text = "Create Map",
-                    click = function(element)
-                        local mapType = selectedMap.data.type
-
-                        gui.CloseModal()
-
-                        if mapType == "import" then
-                            mod.shared.ImportMap{
-                                tileType = tileType,
-                                nofade = true,
-                                finish = function(info)
-                                    mod.shared.FinishMapImport(m_mapName, info)
-                                end,
-                            }
-                        else
-
-                            local guid = game.CreateMap{
-                                description = m_mapName
-                            }
-                            dmhub.Coroutine(function()
-                                while game.GetMap(guid) == nil do
-                                    coroutine.yield(0.05)
-                                end
-
-
-                                local map = game.GetMap(guid)
-
-                                map:Travel()
-
-                                while game.currentMapId ~= guid do
-                                    coroutine.yield(0.05)
-                                end
-
-                                dmhub.SetSettingValue("maplayout:tiletype", tileType)
-                            end)
-
-                        end
-                    end,
+                    },
                 },
 
-                gui.Button{
-                    classes = {"sizeL"},
-                    halign = "right",
-                    text = "Cancel",
-                    escapeActivates = true,
-                    escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
-                    click = function(element)
-                        gui.CloseModal()
-                    end,
+                gui.Panel{
+                    width = 600,
+                    height = "auto",
+                    flow = "vertical",
+                    valign = "top",
+                    halign = "center",
+                    vmargin = 4,
+                    gui.Panel{
+                        classes = {"formRow"},
+                        gui.Label{
+                            classes = {"form"},
+                            text = "Map Name:",
+                        },
+                        nameInput,
+                    },
+                },
+
+                gui.Panel{
+                    width = 600,
+                    height = 48,
+                    halign = "center",
+                    valign = "bottom",
+                    createButton,
+                    gui.Button{
+                        classes = {"sizeL"},
+                        halign = "right",
+                        text = "Cancel",
+                        escapeActivates = true,
+                        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+                        click = function(element)
+                            gui.CloseModal()
+                        end,
+                    },
                 },
             }
         }
+    end
+
+    gui.ShowModal(m_dialog)
+
+    if packsEnabled == false then
+        return
+    end
+
+    if mappacks.synced then
+        BuildLibraryNav()
+        RefreshPackGrid()
+    end
+
+    --re-sync on every open so newly published packs appear; only changed
+    --pack index blobs are downloaded.
+    mappacks.Sync{
+        success = function()
+            BuildLibraryNav()
+            RefreshPackGrid()
+        end,
+        error = function(msg)
+            BuildLibraryNav()
+            RefreshPackGrid()
+            if m_dialog ~= nil and m_dialog.valid then
+                packStatus.text = msg
+            end
+        end,
     }
-
-    gui.ShowModal(dialogPanel)
-
 end
 
 local function isClockwise(polygon)
@@ -1130,8 +2746,10 @@ mod.shared.ImportMapToFloorCo = function(info)
                             local foundryDoorState = portal.foundryDoorState or (flags and flags.foundry_door_state)
                             -- TODO: Apply Foundry open/locked door state when DMHub exposes a door-state API.
                             local delta = core.Vector2(x2 - x1, y1 - y2)
-                            portalObj.x = area.x1 + ((x1 + x2) / 2)
-                            portalObj.y = area.y2 - ((y1 + y2) / 2)
+                            -- A portal object's position is its hinge, not its center,
+                            -- so anchor it at the first endpoint of the portal segment.
+                            portalObj.x = area.x1 + x1
+                            portalObj.y = area.y2 - y1
                             portalObj.rotation = delta.angle + (tonumber(dmhub.GetSettingValue("mapimport:portal_rotation_offset")) or 90)
                             portalObj.scale = portalObjectScale(nodeId, delta.length)
                             portalObj:Upload()
@@ -1977,7 +3595,7 @@ mod.shared.ShowFloorAlignmentDialog = function(info)
                 movingImagePanel.y = ny
                 movingImagePanel.selfStyle.width = nw
                 movingImagePanel.selfStyle.height = nh
-                movingImagePanel.opacity = newFloorOpacity
+                movingImagePanel.selfStyle.opacity = newFloorOpacity
                 children[#children+1] = movingImagePanel
             end
 
@@ -2841,6 +4459,31 @@ mod.shared.FinishFloorImport = function(info, offsetX, offsetY)
 
         -- Wait a few frames so the spawned objects render and ObjectComponentMap.Calculate() runs.
         for i = 1, 60 do coroutine.yield(0.01) end
+
+        -- Correct placement now that the renderer has computed the real calibration.
+        -- The pre-spawn center estimate assumes a (0.5, 0.5) pivot and treats offset
+        -- as a world coordinate, but the real _mapPivot can be off-center by up to a
+        -- tile and world tile boundaries sit at half-integers (tile centers are at
+        -- integers). Both errors made same-size imports land a full tile off.
+        -- Recompute so the image's top-left corner lands exactly on tile (offsetX, offsetY).
+        if not applyMatch then
+            for _, obj in ipairs(newlySpawnedObjs) do
+                local d = obj.mapAlignmentDiagnostic
+                if d ~= nil and (d.imageWorldWidth or 0) > 0 and (d.imageWorldHeight or 0) > 0 then
+                    local targetX = (offsetX - 0.5) + d.imageWorldWidth * (d.mapPivotX or 0.5)
+                    local targetY = (offsetY - 0.5) + d.imageWorldHeight * (d.mapPivotY or 0.5)
+                    if math.abs(obj.x - targetX) > 0.0001 or math.abs(obj.y - targetY) > 0.0001 then
+                        printf("FLOOR_IMPORT:: Correcting placement from (%.4f, %.4f) to (%.4f, %.4f) using pivot=(%.6f, %.6f)",
+                            obj.x, obj.y, targetX, targetY, d.mapPivotX or 0.5, d.mapPivotY or 0.5)
+                        obj.x = targetX
+                        obj.y = targetY
+                        obj:Upload()
+                    end
+                else
+                    printf("FLOOR_IMPORT:: No calibration available for %s; leaving at center estimate", obj.id)
+                end
+            end
+        end
 
         -- Diagnostic: dump calibration for every Map LevelObject on the map (existing + new).
         printf("FLOOR_ALIGN_DIAG:: ===== Post-spawn calibration dump =====")

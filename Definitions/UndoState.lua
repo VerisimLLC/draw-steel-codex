@@ -1,11 +1,16 @@
---- @class UndoState 
---- @field undoStack any 
---- @field redoStack any 
+---@meta
+
+--- @class UndoState
+--- @field undoStack any
+--- @field redoStack any
+--- @field changes boolean
+--- @field undoPending boolean
+--- @field redoPending boolean
+--- @field undoDescription string
+--- @field redoDescription string
 UndoState = {}
 
 --- Equals
---- @param other any
+--- @param other? UndoState
 --- @return boolean
-function UndoState:Equals(other)
-	-- dummy implementation for documentation purposes only
-end
+function UndoState:Equals(other) end

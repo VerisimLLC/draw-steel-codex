@@ -1,4 +1,7 @@
---- @class ShopItemLua Lua interface for a shop item, providing read/write access to its name, price, images, and other metadata.
+---@meta
+
+--- Lua interface for a shop item, providing read/write access to its name, price, images, and other metadata.
+--- @class ShopItemLua
 --- @field name string The display name of this shop item.
 --- @field details string The detailed description text of this shop item.
 --- @field keywords string Comma-separated keywords for searching.
@@ -20,10 +23,8 @@
 --- @field hidden boolean True if this item is soft-hidden from the admin shop list. An item that is on the store (onsale or preview) is never hidden.
 --- @field featured boolean True if this item is featured in the shop. Only items that are live on the store (onsale) can be featured.
 --- @field ctime number The creation timestamp of this shop item.
+--- @field id string The unique identifier of this shop item.
 ShopItemLua = {}
 
---- Upload: Uploads changes to this shop item to the cloud.
---- @return nil
-function ShopItemLua:Upload()
-	-- dummy implementation for documentation purposes only
-end
+--- Uploads changes to this shop item to the cloud.
+function ShopItemLua:Upload() end

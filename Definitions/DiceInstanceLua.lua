@@ -1,4 +1,7 @@
---- @class DiceInstanceLua A live handle to a single die instance, passed to a dice set's custom script as `die`. Use it to inspect the die's state (phase, motion, current face) and to apply sticky appearance overrides (hue, color, alpha, or any shader property). Physics is read-only. The handle is valid only while die.alive is true; once the die is destroyed or its script is replaced, alive becomes false and the script's loop should exit.
+---@meta
+
+--- A live handle to a single die instance, passed to a dice set's custom script as `die`. Use it to inspect the die's state (phase, motion, current face) and to apply sticky appearance overrides (hue, color, alpha, or any shader property). Physics is read-only. The handle is valid only while die.alive is true; once the die is destroyed or its script is replaced, alive becomes false and the script's loop should exit.
+--- @class DiceInstanceLua
 --- @field guid string The per-die unique id, or an empty string before the roll is finalized.
 --- @field numFaces number The number of faces on this die (e.g. 6, 20).
 --- @field maxFace number The highest face value on this die.
@@ -16,8 +19,8 @@
 --- @field speed number The die's linear speed (magnitude of its velocity), low-pass smoothed so it does not spike down on every impact -- use this to drive effects. Works while rolling on the rolling client and during replay on other clients. See rawSpeed for the unsmoothed value.
 --- @field rawSpeed number The die's instantaneous (unsmoothed) linear speed. Spikes sharply on impacts; use 'speed' for a stable value to drive effects, or this if you specifically want to detect impacts.
 --- @field spin number The die's angular speed in radians/second.
---- @field velocity LuaVector3 The die's velocity vector.
---- @field position LuaVector3 The die's position in the dice playfield.
+--- @field velocity Vector3 The die's velocity vector.
+--- @field position Vector3 The die's position in the dice playfield.
 --- @field height number The die's height above the playfield floor (its y coordinate).
 --- @field hue number Hue shift applied to the die's surface tint, 0..1 (wraps). Sticky: it stays until changed. On dice with a surface-override material that exposes a hue knob (e.g. MatCap's _MatcapHueShift) the shift is applied there too, since the override -- not the base tint -- is what is visible.
 --- @field saturation number Saturation multiplier on the die's surface tint (1 = unchanged). Sticky.
@@ -36,19 +39,14 @@
 --- @field billboardFalloff number Falloff exponent of this die's billboard glow gradient (higher = tighter core). Gradient mode only. Sticky.
 --- @field billboardIntensity number HDR brightness multiplier of this die's billboard glow (higher = glows brighter). Sticky.
 --- @field billboardRotation number Rotation of this die's billboard glow in degrees about the view axis (useful to spin an image as the die rolls). Sticky.
---- @field material any Handle for reading/setting any shader property on the die's base material. Sticky writes.
---- @field surface any Handle for reading/setting any shader property on the die's surface-override material (the MatCap/PBR overlay). Has no visible effect when the set has no surface override.
+--- @field material DiceMaterialHandleLua Handle for reading/setting any shader property on the die's base material. Sticky writes.
+--- @field surface DiceMaterialHandleLua Handle for reading/setting any shader property on the die's surface-override material (the MatCap/PBR overlay). Has no visible effect when the set has no surface override.
 DiceInstanceLua = {}
 
---- ClearOverrides: Removes all sticky overrides set by the script, reverting the die to its authored appearance.
---- @return nil
-function DiceInstanceLua:ClearOverrides()
-	-- dummy implementation for documentation purposes only
-end
+--- Removes all sticky overrides set by the script, reverting the die to its authored appearance.
+function DiceInstanceLua:ClearOverrides() end
 
---- PlayEffect: Spawns a named library effect on this die and returns a handle for tweaking it (DiceEffectHandleLua), or nil if the effect name does not resolve. The effect names are the same ones shown in the Dice Studio particle picker. args fields: id (string, required -- the effect name; 'name' is also accepted), scale (number, default 1), speed (number, default 1, particle simulation-speed multiplier), hue (number 0..1, default 0), brightness (number, default 1), tint (Color, default white), rotate (number degrees about X, default 0), attach (boolean, default true -- the effect follows the die; false leaves it at the die's current spot), layer (string, default 'above' -- 'below' renders the effect beneath the dice instead), trail (boolean, default false -- leave the emitted particles behind in the playfield as the die moves, instead of having them travel with it). Call it once (e.g. guarded on a state change), NOT every frame, or you will spawn an effect per frame.
+--- Spawns a named library effect on this die and returns a handle for tweaking it (DiceEffectHandleLua), or nil if the effect name does not resolve. The effect names are the same ones shown in the Dice Studio particle picker. args fields: id (string, required -- the effect name; 'name' is also accepted), scale (number, default 1), speed (number, default 1, particle simulation-speed multiplier), hue (number 0..1, default 0), brightness (number, default 1), tint (Color, default white), rotate (number degrees about X, default 0), attach (boolean, default true -- the effect follows the die; false leaves it at the die's current spot), layer (string, default 'above' -- 'below' renders the effect beneath the dice instead), trail (boolean, default false -- leave the emitted particles behind in the playfield as the die moves, instead of having them travel with it). Call it once (e.g. guarded on a state change), NOT every frame, or you will spawn an effect per frame.
 --- @param args table
 --- @return DiceEffectHandleLua|nil
-function DiceInstanceLua:PlayEffect(args)
-	-- dummy implementation for documentation purposes only
-end
+function DiceInstanceLua:PlayEffect(args) end

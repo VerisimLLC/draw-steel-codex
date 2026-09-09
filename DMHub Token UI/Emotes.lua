@@ -531,20 +531,20 @@ function GameHud:CreateEmojiEditorPanel(token)
 		},
 
 
-		gui.Input{
+		--the canonical search field (gui.SearchInput + DefaultStyles'
+		--searchInput rules); no local re-styling. borderBox keeps the
+		--component's hpad 24 inside the declared width; height 20 is the
+		--minimum for the pill's cornerRadius 9 end caps.
+		gui.SearchInput{
 			placeholderText = "Search for Emotes...",
 			halign = "center",
 			valign = "center",
-			hpad = 10,
+			borderBox = true,
 			width = 180,
-			height = 16,
-			fontSize = 12,
+			height = 20,
 			text = "",
 			margin = 6,
 			hasFocus = true,
-			borderColor = "black",
-			borderWidth = 7,
-			borderFade = true,
 			edit = function(element)
 				search = element.text
 				CalculateVisibleEmoji()

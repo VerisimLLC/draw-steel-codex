@@ -1,4 +1,7 @@
---- @class DiceStudioLua Provides the Lua interface for the Dice Studio, allowing creation and customization of dice sets. Admin-only.
+---@meta
+
+--- Provides the Lua interface for the Dice Studio, allowing creation and customization of dice sets. Admin-only.
+--- @class DiceStudioLua
 --- @field canSave boolean True if the current dice set has a file and can be saved.
 --- @field uploaded boolean True if the current dice set has been uploaded to the cloud.
 --- @field currentVersion number The version number of the version currently open in the studio.
@@ -30,6 +33,9 @@
 --- @field rayBurstContrast number Sharpness of the landing ray burst's beams: low = soft washes of light, high = thin crisp spokes.
 --- @field rayBurstSpeed number How fast the landing ray burst's two beam layers counter-rotate and shimmer. 0 == frozen.
 --- @field rayBurstInnerRadius number How far out the landing ray burst's rays start, as a fraction of its radius, so the die's face stays readable.
+--- @field rayBurstStreaks number Streaky filament texture streaming outward through the landing burst's beams: 0 = clean wedges, 1 = fully smeared fine rays.
+--- @field rayBurstCoreFlash number A soft white-hot flash at the burst's centre during its attack, fading by mid-burst.
+--- @field rayBurstRing number A thin pastel ring that expands with the landing burst's wavefront.
 --- @field mapWarpEnabled boolean Whether each landing die warps the map underneath it, pulling the world image toward the die like a black hole (the die itself stays undistorted on top). See mapWarpStrength/mapWarpRadius/mapWarpSwirl/mapWarpDuration for its feel.
 --- @field mapWarpStrength number How hard the landing warp pulls the map toward the die at its peak (0 = no pull; ~0.35 = a strong visible yank).
 --- @field mapWarpRadius number The landing warp's reach, in multiples of the die's on-screen diameter.
@@ -40,10 +46,10 @@
 --- @field infallHaloReach number The infall halo's reach: quad size in multiples of the die's diameter.
 --- @field infallHaloBrightness number Brightness multiplier of the infall halo, applied on top of the surface material's Infall Streaks brightness.
 --- @field infallHaloOpacity number Opacity (coverage) multiplier of the infall halo: how solid the filaments read over the map. Brightness only raises their emitted color; this thickens them.
---- @field trailSpritesEnabled boolean Whether the dice drop procedural trail sprites (petals/stars/sparks/embers/bubbles plus soft haze puffs) along their path while moving. Entirely slider-driven.
---- @field trailShape "petal"|"star4"|"star5"|"spark"|"ember"|"bubble" The trail sprite shape.
+--- @field trailSpritesEnabled boolean Whether the dice drop procedural trail sprites (petals/stars/sparks/embers/bubbles plus soft haze puffs) along their path while moving. Entirely slider-driven -- see trailShape/trailColorA/trailColorB/trailRate/trailSize/trailSizeVariation/trailLifetime/trailFlutter/trailSpin/trailTwinkle/trailIntensity/trailHaze/trailHazeColor/trailHazeSize.
+--- @field trailShape string The trail sprite shape: 'petal', 'star4', 'star5', 'spark', 'ember', or 'bubble'.
 --- @field trailColorA Color First trail sprite color. Each sprite is born a random blend of trailColorA and trailColorB.
---- @field trailColorB Color Second trail sprite color.
+--- @field trailColorB Color Second trail sprite color. Each sprite is born a random blend of trailColorA and trailColorB.
 --- @field trailRate number Trail sprites emitted per second while the die moves.
 --- @field trailSize number Trail sprite size, as a fraction of the die's diameter.
 --- @field trailSizeVariation number Random variation in trail sprite size: 0 = uniform, 1 = wildly varied.
@@ -51,7 +57,7 @@
 --- @field trailFlutter number Side-to-side petal-fall sway of the trail sprites.
 --- @field trailSpin number How fast trail sprites rotate.
 --- @field trailTwinkle number Per-sprite brightness flicker of the trail.
---- @field trailGlow number Soft luminous halo around each trail sprite, plus a white-hot HDR core spike on sparks and stars (the sharp camera-flare sparkle look). 0 = crisp flat shapes.
+--- @field trailGlow number Soft luminous halo around each trail sprite, plus a white-hot HDR core spike on sparks and stars -- the sharp camera-flare sparkle look. 0 = crisp flat shapes.
 --- @field trailIntensity number HDR brightness multiplier of the trail sprites (values above 1 glow/bloom).
 --- @field trailHaze number Opacity of the soft fading haze puffs laid under the trail sprites (0 = no haze).
 --- @field trailHazeColor Color Tint of the trail's soft haze puffs.
@@ -59,8 +65,8 @@
 --- @field trailHueVariation number Per-sprite random hue shift around the born trail color: 0 = exact colors, 1 = full rainbow.
 --- @field trailFall number Downward drift speed of the trail sprites (0 = they hang in the air where dropped).
 --- @field trailSpread number Trail emission radius around the die, in fractions of its diameter.
---- @field trail2Enabled boolean Whether a second, independent trail sprite layer is emitted alongside the first (e.g. petals over sparks). Own shape/colors/rate/size; shares the motion/glow/lifetime sliders.
---- @field trail2Shape "petal"|"star4"|"star5"|"spark"|"ember"|"bubble" The second trail layer's sprite shape.
+--- @field trail2Enabled boolean Whether a second, independent trail sprite layer is emitted alongside the first (e.g. petals over sparks). It has its own shape/colors/rate/size and shares the motion/glow/lifetime sliders.
+--- @field trail2Shape string The second trail layer's sprite shape: 'petal', 'star4', 'star5', 'spark', 'ember', or 'bubble'.
 --- @field trail2ColorA Color The second trail layer's first color.
 --- @field trail2ColorB Color The second trail layer's second color.
 --- @field trail2Rate number The second trail layer's sprites emitted per second while the die moves.
@@ -71,7 +77,10 @@
 --- @field trailHazeWisp number Haze wispiness: 0 = smooth round puffs, 1 = fully ragged swirling smoke tendrils.
 --- @field trailHazeLifetime number Haze puff lifetime, as a multiple of the trail lifetime.
 --- @field trailHazeDrift number How fast the haze drifts away from where it was laid down.
---- @field constellationEnabled boolean Whether this set's dice form a CONSTELLATION: once every one of them has settled (2+ dice on the table), glowing lines trace between them link by link (a star-chart spanning tree), shimmer while the dice linger, and fade out with the dice.
+--- @field trailIdle number Trail emission multiplier while the die is at rest: 0 = trails only while moving; higher lets a 'gas' set seep vapor while it sits on the table.
+--- @field trailBurstCount number Number of haze puffs that billow outward in a ring the moment the die settles (0 = no landing burst).
+--- @field trailBurstSpeed number Outward speed of the landing-burst puffs (they bloom fast, then damping makes the cloud hang and dissipate).
+--- @field constellationEnabled boolean Whether this set's dice form a CONSTELLATION: once every one of them has settled (2+ dice on the table), glowing lines trace between them link by link -- a star-chart spanning tree -- shimmer while the dice linger, and fade out with the dice. See constellationColor/constellationWidth/constellationBrightness/constellationDrawTime/constellationPulse.
 --- @field constellationColor Color The constellation lines' color (alpha scales their opacity).
 --- @field constellationWidth number Constellation line thickness, in fractions of the die's diameter.
 --- @field constellationBrightness number HDR brightness multiplier of the constellation lines (values above 1 glow/bloom).
@@ -118,294 +127,193 @@
 --- @field previewScale number Gets or sets the scale of the dice shown in the dice studio preview.
 DiceStudioLua = {}
 
---- Activate: Activates the Dice Studio view.
---- @return nil
-function DiceStudioLua:Activate()
-	-- dummy implementation for documentation purposes only
-end
+--- Activates the Dice Studio view.
+function DiceStudioLua:Activate() end
 
---- Deactivate: Deactivates the Dice Studio view.
---- @return nil
-function DiceStudioLua:Deactivate()
-	-- dummy implementation for documentation purposes only
-end
+--- Deactivates the Dice Studio view.
+function DiceStudioLua:Deactivate() end
 
---- UpdateMaterial: Signals that the dice material has been modified and needs to be re-rendered.
---- @return nil
-function DiceStudioLua:UpdateMaterial()
-	-- dummy implementation for documentation purposes only
-end
+--- Signals that the dice material has been modified and needs to be re-rendered.
+function DiceStudioLua:UpdateMaterial() end
 
---- Save: Saves the current dice set to its existing file. With versioning this writes the current version's snapshot (versions/v{n}/data.json); when the current version is the live one it also refreshes the set root's data.json (the live copy users of the local file see).
---- @return nil
-function DiceStudioLua:Save()
-	-- dummy implementation for documentation purposes only
-end
+--- Saves the current dice set to its existing file. With versioning this writes the current version's snapshot (versions/v{n}/data.json); when the current version is the live one it also refreshes the set root's data.json (the live copy users of the local file see).
+function DiceStudioLua:Save() end
 
---- SaveAs: Saves the current dice set to a new file with the given name. The new set starts over at Version 1, which is its live version.
---- @param name string
---- @return nil
-function DiceStudioLua:SaveAs(name)
-	-- dummy implementation for documentation purposes only
-end
+--- Saves the current dice set to a new file with the given name. The new set starts over at Version 1, which is its live version.
+--- @param name? string
+function DiceStudioLua:SaveAs(name) end
 
---- New: Creates a brand-new dice set from the Dice Studio defaults and saves it to a new local file with the given name. Unlike SaveAs -- which copies the currently-loaded dice -- New discards the current edits and starts from a clean slate.
---- @param name string
---- @return nil
-function DiceStudioLua:New(name)
-	-- dummy implementation for documentation purposes only
-end
+--- Creates a brand-new dice set from the Dice Studio defaults and saves it to a new local file with the given name. Unlike SaveAs -- which copies the currently-loaded dice -- New discards the current edits and starts from a clean slate.
+--- @param name? string
+function DiceStudioLua:New(name) end
 
---- Load: Loads a dice set from a local file by name. Opens the set's LIVE version; use LoadVersion to open a different version of the loaded set.
---- @param name string
---- @return nil
-function DiceStudioLua:Load(name)
-	-- dummy implementation for documentation purposes only
-end
+--- Loads a dice set from a local file by name. Opens the set's LIVE version; use LoadVersion to open a different version of the loaded set.
+--- @param name? string
+function DiceStudioLua:Load(name) end
 
---- Upload: Uploads the current VERSION of the dice set to the cloud (to /DiceVersions/{id}/v{n}). When the current version is the live one it also updates the players' live doc at /CoreAssetsCurrent/dice/{id}. The set must have been saved first. Throws if the current account is not signed in as an admin.
---- @return nil
-function DiceStudioLua:Upload()
-	-- dummy implementation for documentation purposes only
-end
+--- Uploads the current VERSION of the dice set to the cloud (to /DiceVersions/{id}/v{n}). When the current version is the live one it also updates the players' live doc at /CoreAssetsCurrent/dice/{id}. The set must have been saved first. Throws if the current account is not signed in as an admin.
+function DiceStudioLua:Upload() end
 
---- GetLocalFiles: Gets a list of locally saved dice set files, each as a table with id and text fields.
+--- Gets a list of locally saved dice set files, each as a table with id and text fields.
 --- @return table
-function DiceStudioLua:GetLocalFiles()
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:GetLocalFiles() end
 
---- DownloadCloudDice: Downloads an already-uploaded (cloud) dice set by its cloud id and saves it as a local Dice Studio file, so it appears in the local dice list (GetLocalFiles). The local copy keeps the cloud name and id, so editing it and then calling Save/Upload updates the same cloud document. If a local set with the same name already exists it is overwritten. Returns the local name on success, or nil if no uploaded dice has that id.
+--- Downloads an already-uploaded (cloud) dice set by its cloud id and saves it as a local Dice Studio file, so it appears in the local dice list (GetLocalFiles). The local copy keeps the cloud name and id, so editing it and then calling Save/Upload updates the same cloud document. If a local set with the same name already exists it is overwritten. Returns the local name on success, or nil if no uploaded dice has that id.
 --- @param id string  The cloud dice id (guid), e.g. an entry's `id` from dice.GetAllDice().
 --- @return string|nil
-function DiceStudioLua:DownloadCloudDice(id)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:DownloadCloudDice(id) end
 
---- GetVersions: Lists the loaded set's saved versions, sorted ascending, each as a table with version (number), notes (string), and live (boolean) fields. Empty if no set is loaded.
+--- Lists the loaded set's saved versions, sorted ascending, each as a table with version (number), notes (string), and live (boolean) fields. Empty if no set is loaded.
 --- @return {version: number, notes: string, live: boolean}[]
-function DiceStudioLua:GetVersions()
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:GetVersions() end
 
---- NewVersion: Creates a new version of the loaded set -- a clone of the studio's current state (including any unsaved edits; the version you were on keeps its last save) -- saves it, and switches the studio to it. The live version is unchanged. Returns the new version number, or 0 if no set is loaded.
+--- Creates a new version of the loaded set -- a clone of the studio's current state (including any unsaved edits; the version you were on keeps its last save) -- saves it, and switches the studio to it. The live version is unchanged. Returns the new version number, or 0 if no set is loaded.
 --- @return number
-function DiceStudioLua:NewVersion()
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:NewVersion() end
 
---- LoadVersion: Loads the given version of the currently-loaded dice set into the studio, discarding any unsaved edits (callers should check hasUnsavedChanges first). No-op with an error log if that version has no saved file.
+--- Loads the given version of the currently-loaded dice set into the studio, discarding any unsaved edits (callers should check hasUnsavedChanges first). No-op with an error log if that version has no saved file.
 --- @param version number
-function DiceStudioLua:LoadVersion(version)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:LoadVersion(version) end
 
---- SetLive: Makes the version currently open in the studio the set's LIVE version. Saves the version first, updates the local live copy, and -- when the set has been uploaded -- immediately pushes this version to the players' live doc at /CoreAssetsCurrent/dice/{id} (users pick it up on the live-asset push / next app start).
---- @return nil
-function DiceStudioLua:SetLive()
-	-- dummy implementation for documentation purposes only
-end
+--- Makes the version currently open in the studio the set's LIVE version. Saves the version first, updates the local live copy, and -- when the set has been uploaded -- immediately pushes this version to the players' live doc at /CoreAssetsCurrent/dice/{id} (users pick it up on the live-asset push / next app start).
+function DiceStudioLua:SetLive() end
 
---- ValidateScript: Compiles the given dice-script source in the sandbox without running it, returning an empty string if it compiles cleanly or the error message otherwise. Used by the Script editor to show inline status. Does not change the current script.
---- @param src string
+--- Compiles the given dice-script source in the sandbox without running it, returning an empty string if it compiles cleanly or the error message otherwise. Used by the Script editor to show inline status. Does not change the current script.
+--- @param src? string
 --- @return string
-function DiceStudioLua:ValidateScript(src)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:ValidateScript(src) end
 
---- GetEventEffect: Gets the prefab name currently bound to the given dice lifecycle event. Returns an empty string if nothing is bound.
+--- Gets the prefab name currently bound to the given dice lifecycle event. Returns an empty string if nothing is bound.
 --- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail, portal.
 --- @return string
-function DiceStudioLua:GetEventEffect(eventName)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:GetEventEffect(eventName) end
 
---- SetEventEffect: Binds (or clears) a prefab to a dice lifecycle event. Pass nil or an empty string to clear.
+--- Binds (or clears) a prefab to a dice lifecycle event. Pass nil or an empty string to clear.
 --- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail, portal.
 --- @param effectName string|nil
-function DiceStudioLua:SetEventEffect(eventName, effectName)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:SetEventEffect(eventName, effectName) end
 
---- GetEventEffectOptions: Gets the list of effect prefab names registered as available for the given dice lifecycle event.
+--- Gets the list of effect prefab names registered as available for the given dice lifecycle event.
 --- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail, portal.
 --- @return string[]
-function DiceStudioLua:GetEventEffectOptions(eventName)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:GetEventEffectOptions(eventName) end
 
---- GetEventEffectList: Gets the list of effects bound to the given event, in authored order. An event can have several effects, each with its own tunables; each is returned as a DiceEventEffectBindingLua wrapper. Returns an empty list if nothing is bound.
+--- Gets the list of effects bound to the given event, in authored order. An event can have several effects, each with its own tunables; each is returned as a DiceEventEffectBindingLua wrapper. Returns an empty list if nothing is bound.
 --- @param eventName string
 --- @return DiceEventEffectBindingLua[]
-function DiceStudioLua:GetEventEffectList(eventName)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:GetEventEffectList(eventName) end
 
---- AddEventEffect: Adds another effect to the given event and returns its DiceEventEffectBindingLua wrapper (so its tunables can be set). Pass the effect prefab name, or nil/empty to add an unbound slot. Returns nil if the event name is invalid.
+--- Adds another effect to the given event and returns its DiceEventEffectBindingLua wrapper (so its tunables can be set). Pass the effect prefab name, or nil/empty to add an unbound slot. Returns nil if the event name is invalid.
 --- @param eventName string
 --- @param effectName string|nil
 --- @return DiceEventEffectBindingLua|nil
-function DiceStudioLua:AddEventEffect(eventName, effectName)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:AddEventEffect(eventName, effectName) end
 
---- RemoveEventEffect: Removes a single effect (previously obtained from GetEventEffectList/AddEventEffect) from its event. No-op if the binding is not part of the current dice set.
+--- Removes a single effect (previously obtained from GetEventEffectList/AddEventEffect) from its event. No-op if the binding is not part of the current dice set.
 --- @param binding DiceEventEffectBindingLua
-function DiceStudioLua:RemoveEventEffect(binding)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:RemoveEventEffect(binding) end
 
---- ClearEventEffects: Removes ALL effects bound to the given event.
+--- Removes ALL effects bound to the given event.
 --- @param eventName string
-function DiceStudioLua:ClearEventEffects(eventName)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:ClearEventEffects(eventName) end
 
---- PlayRawBinding: Plays a single bound effect's prefab raw (at world origin, no parenting/layer/transform changes) for debugging its appearance. Takes a DiceEventEffectBindingLua from GetEventEffectList/AddEventEffect.
+--- Plays a single bound effect's prefab raw (at world origin, no parenting/layer/transform changes) for debugging its appearance. Takes a DiceEventEffectBindingLua from GetEventEffectList/AddEventEffect.
 --- @param binding DiceEventEffectBindingLua
-function DiceStudioLua:PlayRawBinding(binding)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:PlayRawBinding(binding) end
 
---- FirePreviewEffect: Test-fires a dice lifecycle event on all currently spawned studio preview dice. For pulses, instantiates the bound one-shot prefab. For state effects (RollWaiting, TravelTail), re-spawns the attached instance so the restart is visible.
+--- Test-fires a dice lifecycle event on all currently spawned studio preview dice. For pulses, instantiates the bound one-shot prefab. For state effects (RollWaiting, TravelTail), re-spawns the attached instance so the restart is visible.
 --- @param eventName string  One of: appearance, bouncehit, disappear, reappear, exit, rollwaiting, traveltail, portal.
-function DiceStudioLua:FirePreviewEffect(eventName)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:FirePreviewEffect(eventName) end
 
---- PlayRawEffect: Plays the prefab bound to the named lifecycle event at world origin with no parenting, layer, or transform changes. For debugging the prefab's raw visual appearance.
+--- Plays the prefab bound to the named lifecycle event at world origin with no parenting, layer, or transform changes. For debugging the prefab's raw visual appearance.
 --- @param eventName string
-function DiceStudioLua:PlayRawEffect(eventName)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:PlayRawEffect(eventName) end
 
---- GetSoundEventOptions: Gets the sorted list of all registered sound event names, for the Sounds section dropdowns.
+--- Gets the sorted list of all registered sound event names, for the Sounds section dropdowns.
 --- @return string[]
-function DiceStudioLua:GetSoundEventOptions()
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:GetSoundEventOptions() end
 
---- GetEventSound: Gets the sound event name bound to the given dice lifecycle event, or an empty string if nothing is bound.
+--- Gets the sound event name bound to the given dice lifecycle event, or an empty string if nothing is bound.
 --- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, teleport, reappear, exit.
 --- @return string
-function DiceStudioLua:GetEventSound(eventName)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:GetEventSound(eventName) end
 
---- SetEventSound: Binds (or clears) a sound event to a dice lifecycle event. Pass nil or an empty string to clear.
+--- Binds (or clears) a sound event to a dice lifecycle event. Pass nil or an empty string to clear.
 --- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, teleport, reappear, exit, numberglow.
 --- @param soundEventName string|nil
-function DiceStudioLua:SetEventSound(eventName, soundEventName)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:SetEventSound(eventName, soundEventName) end
 
---- GetEventSoundVolume: Gets the volume multiplier (1 = authored volume) for the event's bound sound, or 1 if nothing is bound.
+--- Gets the volume multiplier (1 = authored volume) for the event's bound sound, or 1 if nothing is bound.
 --- @param eventName string
 --- @return number
-function DiceStudioLua:GetEventSoundVolume(eventName)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:GetEventSoundVolume(eventName) end
 
---- SetEventSoundVolume: Sets the volume multiplier for the event's bound sound. No-op if nothing is bound to the event.
+--- Sets the volume multiplier for the event's bound sound. No-op if nothing is bound to the event.
 --- @param eventName string
 --- @param volume number
-function DiceStudioLua:SetEventSoundVolume(eventName, volume)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:SetEventSoundVolume(eventName, volume) end
 
---- FirePreviewSound: Test-plays the sound bound to the given dice lifecycle event (at the bound volume). No-op if nothing is bound.
+--- Test-plays the sound bound to the given dice lifecycle event (at the bound volume). No-op if nothing is bound.
 --- @param eventName string  One of: throwstart, appearance, bouncehit, disappear, teleport, reappear, exit, numberglow.
-function DiceStudioLua:FirePreviewSound(eventName)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:FirePreviewSound(eventName) end
 
---- GetImpactFamily: Gets the dice impact-sound family id bound to the set, or an empty string for the default (copper) family.
+--- Gets the dice impact-sound family id bound to the set, or an empty string for the default (copper) family.
 --- @return string
-function DiceStudioLua:GetImpactFamily()
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:GetImpactFamily() end
 
---- SetImpactFamily: Sets the dice impact-sound family id. Pass an empty string for the default (copper) family. Clears any legacy generic Impact (BounceHit) sound binding, which the family choice supersedes.
+--- Sets the dice impact-sound family id. Pass an empty string for the default (copper) family. Clears any legacy generic Impact (BounceHit) sound binding, which the family choice supersedes.
 --- @param id string
-function DiceStudioLua:SetImpactFamily(id)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:SetImpactFamily(id) end
 
---- GetImpactFamilyVolume: Gets the impact family volume multiplier (1 = the family's authored volume).
+--- Gets the impact family volume multiplier (1 = the family's authored volume).
 --- @return number
-function DiceStudioLua:GetImpactFamilyVolume()
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:GetImpactFamilyVolume() end
 
---- SetImpactFamilyVolume: Sets the impact family volume multiplier (0..2; 1 = the family's authored volume).
+--- Sets the impact family volume multiplier (0..2; 1 = the family's authored volume).
 --- @param volume number
-function DiceStudioLua:SetImpactFamilyVolume(volume)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:SetImpactFamilyVolume(volume) end
 
---- FirePreviewImpact: Test-plays the set's chosen impact family at a hard-hit speed (through the Dice.Impact dispatcher).
---- @return nil
-function DiceStudioLua:FirePreviewImpact()
-	-- dummy implementation for documentation purposes only
-end
+--- Test-plays the set's chosen impact family at a hard-hit speed (through the Dice.Impact dispatcher).
+function DiceStudioLua:FirePreviewImpact() end
 
---- GetMaterialProperties: Gets the material properties for the given category: 'material', 'text', or 'builtin'.
+--- Gets the material properties for the given category: 'material', 'text', or 'builtin'.
 --- @param id string The material category.
 --- @return nil|DiceMaterialStudioProperties
-function DiceStudioLua:GetMaterialProperties(id)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:GetMaterialProperties(id) end
 
---- AddCurve: Adds a new curve modifier to the dice set and returns it.
+--- Adds a new curve modifier to the dice set and returns it.
 --- @return DiceCurveLua
-function DiceStudioLua:AddCurve()
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:AddCurve() end
 
---- GetMaterial: Gets a dice material wrapper by category: 'material' for surface or 'builtin' for built-in.
+--- Gets a dice material wrapper by category: 'material' for surface or 'builtin' for built-in.
 --- @param id string The material category.
 --- @return DiceMaterialLua
-function DiceStudioLua:GetMaterial(id)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:GetMaterial(id) end
 
---- GetMaterialForType: Gets the per-die-type surface material override for the die with the given face count, or nil if that die type has no override (it falls back to the default 'material'). Note that d100 shares the d10 slot.
+--- Gets the per-die-type surface material override for the die with the given face count, or nil if that die type has no override (it falls back to the default 'material'). Note that d100 shares the d10 slot.
 --- @param numFaces number  The die's face count (e.g. 4, 6, 8, 10, 12, 20).
 --- @return nil|DiceMaterialLua
-function DiceStudioLua:GetMaterialForType(numFaces)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:GetMaterialForType(numFaces) end
 
---- SetMaterialForType: Sets the per-die-type surface material override for the die with the given face count. Pass nil to clear the override so that die type falls back to the default 'material'. Note that d100 shares the d10 slot.
+--- Sets the per-die-type surface material override for the die with the given face count. Pass nil to clear the override so that die type falls back to the default 'material'. Note that d100 shares the d10 slot.
 --- @param numFaces number  The die's face count (e.g. 4, 6, 8, 10, 12, 20).
 --- @param material nil|DiceMaterialLua
-function DiceStudioLua:SetMaterialForType(numFaces, value)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:SetMaterialForType(numFaces, material) end
 
---- HasMaterialForType: True if the die with the given face count has a per-die-type surface material override (as opposed to falling back to the default 'material').
+--- True if the die with the given face count has a per-die-type surface material override (as opposed to falling back to the default 'material').
 --- @param numFaces number  The die's face count (e.g. 4, 6, 8, 10, 12, 20).
 --- @return boolean
-function DiceStudioLua:HasMaterialForType(numFaces)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:HasMaterialForType(numFaces) end
 
---- GetMaterialPropertiesForType: Gets the tuned surface-material properties for the die with the given face count: the per-type override's properties when that die type has an override, otherwise the default surface material properties.
+--- Gets the tuned surface-material properties for the die with the given face count: the per-type override's properties when that die type has an override, otherwise the default surface material properties.
 --- @param numFaces number  The die's face count (e.g. 4, 6, 8, 10, 12, 20).
 --- @return DiceMaterialStudioProperties
-function DiceStudioLua:GetMaterialPropertiesForType(numFaces)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:GetMaterialPropertiesForType(numFaces) end
 
---- SpawnPreview: Spawns a preview die in the dice harness with the specified number of faces.
---- @param nfaces number
---- @return nil
-function DiceStudioLua:SpawnPreview(nfaces)
-	-- dummy implementation for documentation purposes only
-end
+--- Spawns a preview die in the dice harness with the specified number of faces.
+--- @param nfaces? number
+function DiceStudioLua:SpawnPreview(nfaces) end
 
---- RecordPreviewVideo: Records a preview video of the current dice set and calls the callback when complete.
+--- Records a preview video of the current dice set and calls the callback when complete.
 --- @param callback function Called when recording is complete.
-function DiceStudioLua:RecordPreviewVideo(callback)
-	-- dummy implementation for documentation purposes only
-end
+function DiceStudioLua:RecordPreviewVideo(callback) end

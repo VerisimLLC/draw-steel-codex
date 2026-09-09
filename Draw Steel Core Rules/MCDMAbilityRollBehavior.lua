@@ -20,6 +20,18 @@ setting{
     storage = "transient",
 }
 
+-- Forces every ability power roll resolved on this client to the given tier
+-- (1-3; 0 = off), as if that tier row had been clicked after the roll. Set and
+-- cleared by "/testai <ability> tier2" -- see the testai macro in MonsterAI.lua.
+-- Storage is transient so a crashed/aborted run cannot leave it set across a
+-- restart.
+setting{
+    id = "test:aiforcetier",
+    description = "Test: Force Power Roll Tier",
+    default = 0,
+    storage = "transient",
+}
+
 --register the ability to modify power roll damage during spell casting.
 ActivatedAbilityModifyCastBehavior.RegisterParam{
     id = "ability_damage",
@@ -47,7 +59,7 @@ ActivatedAbilityModifyCastBehavior.RegisterParam{
 }
 
 
---- @class ActivatedAbilityModifyPowerRollBehavior : ActivatedAbilityBehavior
+--- @class ActivatedAbilityPowerRollBehavior : ActivatedAbilityBehavior
 ActivatedAbilityPowerRollBehavior = RegisterGameType("ActivatedAbilityPowerRollBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilityPowerRollBehavior.summary = 'Roll on Power Table'
@@ -111,6 +123,136 @@ local function FormatTierText(text, skipValidation)
     return text
 end
 
+--Render tier text that may contain "or" choice groups (see ParseOrGroups
+--in MCDMAbilityBehavior.lua). Alternatives are wrapped in
+--<link=or:tier:group:alt> regions: the chosen alternative is underlined,
+--unchosen ones are dimmed. A label showing this text with links = true
+--can read element.linkHovered in its press handler to react to clicks.
+--Text without choice groups renders exactly as FormatTierText would.
+local function FormatTierTextWithOrChoices(rawText, caster, skipValidation, tierIndex, rollProperties)
+    local groups = ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(rawText)
+    if groups == nil then
+        local tierText = rawText
+        if caster ~= nil then
+            tierText = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, tierText, nil, skipValidation)
+        end
+        return FormatTierText(tierText, skipValidation)
+    end
+
+    local choices = nil
+    if rollProperties ~= nil then
+        choices = rollProperties:try_get("orChoices")
+    end
+
+    --Run the display pipeline piece by piece so byte spans from the raw
+    --text stay aligned with what we emit. Alternatives skip the
+    --unparseable-text dimming (they validated as rules to form a group);
+    --the surrounding text keeps it.
+    local Transform = function(piece, skipPieceValidation)
+        if piece == "" then
+            return piece
+        end
+        if caster ~= nil then
+            piece = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, piece, nil, skipPieceValidation)
+        elseif not skipPieceValidation then
+            piece = ActivatedAbilityDrawSteelCommandBehavior.FormatRuleValidation(piece)
+        end
+        return piece
+    end
+
+    local out = {}
+    local pos = 1
+    for gi,g in ipairs(groups) do
+        local key = string.format("%d:%d", tierIndex, gi)
+        local chosen = 1
+        if choices ~= nil and type(choices[key]) == "number" and choices[key] >= 1 and choices[key] <= #g.alts then
+            chosen = choices[key]
+        end
+
+        out[#out+1] = Transform(string.sub(rawText, pos, g.alts[1].s - 1), skipValidation)
+
+        for ai,alt in ipairs(g.alts) do
+            if ai > 1 then
+                --separator text between alternatives (" or ", ",")
+                out[#out+1] = string.sub(rawText, g.alts[ai-1].e + 1, alt.s - 1)
+            end
+            local altText = Transform(string.sub(rawText, alt.s, alt.e), true)
+            local linkid = string.format("or:%d:%d:%d", tierIndex, gi, ai)
+            if ai == chosen then
+                out[#out+1] = string.format("<link=%s><u>%s</u></link>", linkid, altText)
+            else
+                --#AA (~67%) rather than a heavier fade: unchosen options must
+                --stay comfortably readable on the accent-filled result row.
+                out[#out+1] = string.format("<link=%s><alpha=#AA>%s<alpha=#FF></link>", linkid, altText)
+            end
+        end
+
+        --the distributed duration suffix (and any gap) after the last
+        --alternative still displays at full strength.
+        if g.suffixE > g.alts[#g.alts].e then
+            out[#out+1] = Transform(string.sub(rawText, g.alts[#g.alts].e + 1, g.suffixE), true)
+        end
+
+        pos = math.max(g.suffixE, g.alts[#g.alts].e) + 1
+    end
+    out[#out+1] = Transform(string.sub(rawText, pos), skipValidation)
+
+    local text = table.concat(out)
+
+    --the tail of FormatTierText: bold leading damage, then the rich text
+    --pass. Validation dimming already happened per piece above.
+    local damageGroups = regex.MatchGroups(text, "^(?<damage>[0-9]+).*?damage")
+    if damageGroups ~= nil then
+        text = string.format("<b>%s</b>%s", damageGroups.damage, string.sub(text, string.len(damageGroups.damage)+1))
+    end
+    text = MarkdownDocument.FormatRichText(text, {player = not dmhub.isDM})
+    return text
+end
+
+--Record an "or" choice on rollProperties. The same choice usually appears
+--on every tier row with only its duration differing ("slowed or weakened
+--(save ends)" vs "(EoT)"), and the user cannot know which tier will land
+--before rolling, so a click also selects the matching alternative in the
+--other tiers' groups (matched on duration-stripped alternative text).
+local function SetOrChoice(rollProperties, tierIndex, groupIndex, altIndex)
+    local orChoices = rollProperties:get_or_add("orChoices", {})
+    orChoices[string.format("%d:%d", tierIndex, groupIndex)] = altIndex
+
+    local sourceText = rollProperties.tiers[tierIndex]
+    if type(sourceText) ~= "string" then
+        return
+    end
+    local sourceGroups = ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(sourceText)
+    local sourceGroup = sourceGroups ~= nil and sourceGroups[groupIndex] or nil
+    if sourceGroup == nil then
+        return
+    end
+
+    local sourceKeys = {}
+    for ai,alt in ipairs(sourceGroup.alts) do
+        sourceKeys[ai] = ActivatedAbilityDrawSteelCommandBehavior.OrAltComparisonKey(string.sub(sourceText, alt.s, alt.e))
+    end
+
+    for ti,tierText in ipairs(rollProperties.tiers) do
+        if ti ~= tierIndex and type(tierText) == "string" then
+            for gi,g in ipairs(ActivatedAbilityDrawSteelCommandBehavior.ParseOrGroups(tierText) or {}) do
+                if #g.alts == #sourceKeys then
+                    local same = true
+                    for ai,alt in ipairs(g.alts) do
+                        if ActivatedAbilityDrawSteelCommandBehavior.OrAltComparisonKey(string.sub(tierText, alt.s, alt.e)) ~= sourceKeys[ai] then
+                            same = false
+                            break
+                        end
+                    end
+                    if same then
+                        orChoices[string.format("%d:%d", ti, gi)] = altIndex
+                    end
+                end
+            end
+        end
+    end
+end
+
 local function BoonsAndBanesToMod(boons, banes)
     if boons >= 2 and banes == 0 then
         return 0
@@ -134,8 +276,56 @@ end
 -- Utility namespace for power roll helpers shared across files.
 RollUtils = {}
 
---result has {total = number, boons = nil|number, banes = nil|number, autosuccess = bool?, autofailure = bool?, nottierone = bool?, nottierthree = bool?, tiers = nil|number}
+--- The dice that counted, highest first. Dropped dice are excluded.
+--- @param rollInfo table A completed roll
+--- @return number[] faces The die results, descending
+function RollUtils.SortedDice(rollInfo)
+    local faces = {}
+
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.dropped ~= true then
+            faces[#faces + 1] = roll.result
+        end
+    end
+
+    table.sort(faces, function(a, b) return a > b end)
+
+    return faces
+end
+
+--- Whether a roll is a critical: the two highest dice reading max and max-1 or
+--- better. On the usual two d10s that is exactly a natural 19 or 20; expressed
+--- per-die it stays correct when an effect adds a third die.
+--- @param rollInfo table A completed roll
+--- @return boolean isCrit True when the roll is a critical
+function RollUtils.IsCrit(rollInfo)
+    local faces = RollUtils.SortedDice(rollInfo)
+    if #faces < 2 then
+        return false
+    end
+
+    local maxFace = 10
+    for _, roll in ipairs(rollInfo.rolls or {}) do
+        if roll.numFaces ~= nil then
+            maxFace = roll.numFaces
+            break
+        end
+    end
+
+    return faces[1] == maxFace and faces[2] >= maxFace - 1
+end
+
+--result has {total = number, naturalRoll = nil|number, boons = nil|number, banes = nil|number, autosuccess = bool?, autofailure = bool?, nottierone = bool?, nottierthree = bool?, tiers = nil|number}
 function RollUtils.DiceResultToTier(result)
+    -- A game system may define absolute natural-roll outcomes without
+    -- replacing this shared helper (important because several files cache the
+    -- function itself during load). Returning nil keeps the standard rules.
+    local naturalTierFn = GameSystem:try_get("PowerRollNaturalTierOverride")
+    if naturalTierFn ~= nil and type(naturalTierFn) == "function" then
+        local naturalTier = naturalTierFn(result)
+        if naturalTier ~= nil then return naturalTier end
+    end
+
     if result.autosuccess then
         return 3
     end
@@ -164,6 +354,12 @@ function RollUtils.DiceResultToTier(result)
         tier = 1
     end
 
+    --A natural 19 or 20 is always a tier 3 result, whatever the modifiers say.
+    --Without this a double bane could drag a crit down to tier 2.
+    if tier < 3 and (result.naturalRoll or 0) >= 19 then
+        tier = 3
+    end
+
     if tier == 3 and result.nottierthree then
         tier = 2
     end
@@ -177,6 +373,27 @@ end
 
 -- Local alias so existing call sites in this file keep working.
 local DiceResultToTier = RollUtils.DiceResultToTier
+
+--Resolve the "or" choice groups in a tier command to the alternatives the
+--user picked in the roll dialog. Choices live in rollProperties.orChoices
+--(keys "tier:group", values 1-based alternative indexes; written by the
+--power table's tier labels, synced across clients via UploadProperties).
+--Multitarget rollProperties clones never saw the dialog, so fall back to
+--the primary rollProperties' choices. Unrecorded groups resolve to their
+--first alternative.
+local function ResolveTierOrChoices(rollProperties, fallbackProperties, tier, command)
+    if type(command) ~= "string" then
+        return command
+    end
+    local choices = nil
+    if rollProperties ~= nil then
+        choices = rollProperties:try_get("orChoices")
+    end
+    if choices == nil and fallbackProperties ~= nil then
+        choices = fallbackProperties:try_get("orChoices")
+    end
+    return ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroupsForTier(command, choices, tier)
+end
 
 local g_TierNames = {"!", "@", "#"}
 
@@ -248,6 +465,7 @@ local function CalculateMultitargetsFromRollProperties(rollMessage, rollResult)
         if target.tokenid then
             local rollInfo = {
                 total = rollResult.total,
+                naturalRoll = rollResult.naturalRoll,
                 boons = rollResult.boons,
                 banes = rollResult.banes,
                 autosuccess = rollResult.autosuccess,
@@ -324,15 +542,21 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     bgcolor = "@accent",
                 },
                 {
+                    --Full black rather than @fgInverse: the accent-gold result
+                    --row wants maximum text contrast, especially next to the
+                    --alpha-dimmed unchosen "or" alternatives.
                     selectors = {"label", "highlight"},
-                    color = "@fgInverse",
+                    color = "#000000",
                 },
                 {
                     --Hovered rows fill with the light @accentHover gold, so the
                     --tier text must flip to the dark inverse color to stay legible
                     --(mirrors the {label, highlight} rule above for the accent fill).
-                    selectors = {"label", "hover"},
-                    color = "@fgInverse",
+                    --Gated on "selectable" to match the row fill rule below: before the
+                    --roll finishes the row isn't pressable and gets no gold fill, so
+                    --recoloring the text there would just look like a broken hover.
+                    selectors = {"label", "selectable", "hover"},
+                    color = "#000000",
                 },
                 {
                     selectors = {"row", "flash"},
@@ -509,6 +733,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                 if count == m_numDice then
                     local tier = DiceResultToTier{
                         total = total,
+                        naturalRoll = total - m_mod,
                         boons = m_rollInfo.surges,
                         banes = m_rollInfo.shields,
                         autofailure = m_rollInfo.autofailure,
@@ -527,12 +752,6 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
         --math.max so power tables with an optional 4th "Critical" tier render a 4th row;
         --3-tier ability rolls still produce exactly #g_TierNames rows.
         for i=1, math.max(#g_TierNames, #rollProperties.tiers) do
-            local tierText = rollProperties.tiers[i]
-
-            if caster ~= nil then
-                tierText = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, tierText, nil, m_fullyImplemented)
-            end
-
             --Tier 4 = "Critical": DrawSteelGlyphs has no crit glyph, so use a plain text label.
             local tierIcon
             if i == 4 then
@@ -546,6 +765,15 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                 width = "100%",
                 height = "auto",
                 press = function(element)
+                    element:FireEvent("pressTierRow")
+                end,
+                --Named so the tier label can forward non-link clicks here; see
+                --the label's press handler below.
+                pressTierRow = function(element)
+                    --DIAG: log every tier-row press attempt for the prompt-hang
+                    --investigation, including rejected ones. Safe to keep.
+                    print(string.format("ROLLDIAG:: tier row %d pressed selectable=%s highlight=%s T=%.2f",
+                        i, tostring(element:HasClass("selectable")), tostring(element:HasClass("highlight")), dmhub.Time()))
                     if (not element:HasClass("selectable")) or element:HasClass("highlight") then
                         return
                     end
@@ -574,7 +802,20 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     end
 
                     if finish then
-                        element:SetClass("selectable", true)
+                        --SetClassTree so the descendant labels can gate their hover
+                        --recolor on "selectable" too (see the {label, selectable, hover}
+                        --rule); the press guard above still reads it off the row itself.
+                        --Not while the Monster AI is driving the dialog: it completes
+                        --the roll itself, so the rows must offer no click-to-override
+                        --affordance. "aiDriven" is put on this subtree by the embedded
+                        --roll dialog's ShowDialog before the dice land.
+                        --Nor under "Strictly Enforce Rolls": overriding the tier the
+                        --dice produced is exactly what that setting withdraws. Only
+                        --the row's tier override goes -- clicking an "or" alternative
+                        --in the tier text is a legitimate choice and runs on its own
+                        --path (the label's `or:` link handler), untouched.
+                        element:SetClassTree("selectable",
+                            (not element:HasClass("aiDriven")) and (not StrictRollsEnforced()))
                     end
                 end,
                 tierIcon,
@@ -586,17 +827,49 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     valign = "center",
                     hpad = 0,
                     gui.Label{
-                        text = FormatTierText(tierText, m_fullyImplemented),
+                        text = FormatTierTextWithOrChoices(rollProperties.tiers[i] or "", caster, m_fullyImplemented, i, rollProperties),
                         fontSize = 15,
                         width = 280,
                         height = "auto",
                         vpad = 0,
-                        refreshMods = function(element)
-                            local tierText = rollProperties.tiers[i]
-                            if caster ~= nil then
-                                tierText = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, tierText, nil, m_fullyImplemented)
+                        links = true,
+                        --a label's text glyphs are not a raycast surface; the
+                        --press handler below never fires without a (near
+                        --invisible) bgimage backing.
+                        bgimage = "panels/square.png",
+                        bgcolor = "#00000001",
+                        --Clicking an "or" alternative selects it; any other click
+                        --on the label behaves like a click on the row (tier
+                        --override), which the label's own press would otherwise
+                        --swallow.
+                        press = function(element)
+                            local link = element.linkHovered
+                            if link ~= nil then
+                                local t, g, a = string.match(link, "^or:(%d+):(%d+):(%d+)$")
+                                if t ~= nil then
+                                    SetOrChoice(rollProperties, tonumber(t), tonumber(g), tonumber(a))
+                                    parentPanel:FireEventTree("refreshMods")
+                                    if m_rollInfo ~= nil then
+                                        m_rollInfo:UploadProperties(rollProperties)
+                                    end
+                                    if options ~= nil and options.onOrChoiceChanged ~= nil then
+                                        options.onOrChoiceChanged()
+                                    end
+                                    return
+                                end
                             end
-                            element.text = FormatTierText(tierText, m_fullyImplemented)
+                            element:FireEventOnParents("pressTierRow")
+                        end,
+                        hoverLink = function(element, link)
+                            if string.starts_with(link, "or:") then
+                                gui.Tooltip("Click to choose this option")(element)
+                            end
+                        end,
+                        dehoverLink = function(element, link)
+                            element.tooltip = nil
+                        end,
+                        refreshMods = function(element)
+                            element.text = FormatTierTextWithOrChoices(rollProperties.tiers[i] or "", caster, m_fullyImplemented, i, rollProperties)
                         end,
                         finishRoll = function(element, tierNumber)
                             if i >= tierNumber then
@@ -722,15 +995,17 @@ function creature:HasBanesOnGenericFreeStrike(targetToken)
         local m = mod.mod:DescribeModifyPowerRoll(mod, targetCreature, "enemy_ability_power_roll", {ability = ability, caster = self, target = targetCreature})
 
         if m ~= nil then
-            m.hint = m.modifier:HintModifyPowerRolls(mod, self, "enemy_ability_power_roll", {
+            m.hint = m.modifier:HintModifyPowerRolls(mod, targetCreature, "enemy_ability_power_roll", {
                 ability = ability,
+                caster = self,
                 target = targetCreature,
                 --attribute = self:try_get("attrid"),
                 --skills = {self:try_get("skillid")}
             })
             if m.hint ~= nil and m.hint.result then
-                roll = m.modifier:ModifyPowerRolls(mod, self, "enemy_ability_power_roll", roll, {
+                roll = m.modifier:ModifyPowerRolls(mod, targetCreature, "enemy_ability_power_roll", roll, {
                     ability = ability,
+                    caster = self,
                     target = targetCreature,
                 })
             end
@@ -768,20 +1043,13 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
     local modifiersOnCaster = self:GetActiveModifiers()
     for _,mod in ipairs(modifiersOnCaster) do
         local m = mod.mod:DescribeModifyPowerRoll(mod, self, "ability_power_roll", {ability = ability, caster = self, target = targetCreature, attribute = self:try_get("attrid"), skills = {self:try_get("skillid")}})
-        if m == nil then
-            print("TARGETING_LABEL_DEBUG: modifier '" .. mod.mod.name .. "' did not return a description for ability_power_roll")
-        end
-
         if m ~= nil then
             m.hint = m.modifier:HintModifyPowerRolls(mod, self, "ability_power_roll", {
                 ability = ability,
                 target = targetCreature,
             })
             if m.hint ~= nil and m.hint.result then
-                print("TARGETING_LABEL_DEBUG: caster modifier '" .. m.modifier.name .. "' hint accepted: hint=" .. tostring(m.hint) .. " result=" .. tostring(m.hint.result) .. " justification=" .. (m.hint.justification and table.concat(m.hint.justification, "; ") or "nil"))
                 result[#result+1] = m
-            else
-                printf("TARGETING_LABEL_DEBUG: caster modifier '%s' hint rejected: hint=%s result=%s justification=%s", m.modifier.name, tostring(m.hint), m.hint and tostring(m.hint.result) or "nil", m.hint and table.concat(m.hint.justification or {}, "; ") or "nil")
             end
         end
     end
@@ -790,10 +1058,6 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
     local modifiersOnTarget = targetCreature:GetActiveModifiers()
     for _,mod in ipairs(modifiersOnTarget) do
         local m = mod.mod:DescribeModifyPowerRoll(mod, targetCreature, "enemy_ability_power_roll", {ability = ability, caster = self, target = targetCreature})
-        if m == nil then
-            print("TARGETING_LABEL_DEBUG: modifier '" .. mod.mod.name .. "' did not return a description for enemy_ability_power_roll")
-        end
-
         if m ~= nil then
             m.hint = m.modifier:HintModifyPowerRolls(mod, targetCreature, "enemy_ability_power_roll", {
                 ability = ability,
@@ -801,10 +1065,7 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
                 target = targetCreature,
             })
             if m.hint ~= nil and m.hint.result then
-                print("TARGETING_LABEL_DEBUG: target modifier '" .. m.modifier.name .. "' hint accepted: hint=" .. tostring(m.hint) .. " result=" .. tostring(m.hint.result) .. " justification=" .. (m.hint.justification and table.concat(m.hint.justification, "; ") or "nil"))
                 result[#result+1] = m
-            else
-                printf("TARGETING_LABEL_DEBUG: target modifier '%s' hint rejected: hint=%s result=%s justification=%s", m.modifier.name, tostring(m.hint), m.hint and tostring(m.hint.result) or "nil", m.hint and table.concat(m.hint.justification or {}, "; ") or "nil")
             end
         end
     end
@@ -847,7 +1108,17 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 	local modifiersApplied = nil
     local appliedTargetCreature = nil
 
+    --Environment rolls (hazard auras / environmental keywords): the "caster"
+    --is only executing the roll on the environment's behalf, and the roll
+    --counts as a roll made AGAINST them. Their own modifiers must not help
+    --or hinder it, and their defensive "rolls against you" modifiers must
+    --apply even though they are also the target (see CalculateMultitargets).
+    local environmentRoll = ability:try_get("environmentRoll", false)
+
     local modifiersOnCaster = caster:GetActiveModifiers()
+    if environmentRoll then
+        modifiersOnCaster = {}
+    end
 
     if rollType == "ability_power_roll" then
         local paramModifications = options.symbols.cast:GetParamModifications("ability_damage")
@@ -1014,9 +1285,11 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             end
 
             local modifiersOnTarget = {}
-            
-            if target.token.charid ~= casterToken.charid then
+
+            if target.token.charid ~= casterToken.charid or environmentRoll then
                 --if this is not the caster, we need to check for modifiers on the target.
+                --Environment rolls target the roller themselves, but still count as a
+                --roll made against them, so their defensive modifiers apply.
                 modifiersOnTarget = targetCreature:GetActiveModifiers()
             end
 
@@ -1096,9 +1369,11 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                         m.modifier:InstallSymbolsFromContext(options.symbols)
                     end
 
-                    --this is told from the caster's perspective.
-                    m.hint = m.modifier:HintModifyPowerRolls(mod, caster, "enemy_ability_power_roll", {
+                    --Evaluate target-owned modifiers from the defender's
+                    --perspective while exposing the attacker as Caster.
+                    m.hint = m.modifier:HintModifyPowerRolls(mod, targetCreature, "enemy_ability_power_roll", {
                         ability = ability,
+                        caster = caster,
                         target = targetCreature,
                     })
 
@@ -1273,7 +1548,13 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     local m_canceled = false
 
     local tiers = DeepCopy(self.tiers)
-    if ability.description ~= "" and ability:try_get("implementation", 3) ~= 3 and ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(ability.description) == true then
+    --Below Silver, a rule-parseable description (the ability's "Effect:" line) is
+    --auto-appended to every tier so it executes as part of the roll -- the
+    --auto-parse IS the implementation at that level. At Silver and above the
+    --effect is expected to be implemented with explicit behaviors, so appending
+    --would execute it twice (confirmed live with the Devil Scrivener's "shift 1"
+    --at Gold-eligible settings). Gate is < Silver, not ~= Silver.
+    if ability.description ~= "" and ability:try_get("implementation", 3) < gui.ImplementationStatus.Silver and ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(ability.description) == true then
         --append the rule to the tiers if it is a valid rule that could
         --appear on a power roll.
         for i=1,#tiers do
@@ -1313,12 +1594,27 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         table.sort(target.triggers, function(a,b) return cond(a.hostile, 1, 0) < cond(b.hostile, 1, 0) end)
     end
 
+    --Test hook: "/testai <ability> tier2" forces the result. Stamped on
+    --rollProperties BEFORE the roll rather than after it, which is what makes it
+    --show: rollProperties rides along on dmhub.Roll, so the power table's own
+    --finish path (`tier = m_rollInfo.properties:try_get("overrideTier") or tier`)
+    --lands the highlight + flash on the forced row, the per-target tiers come out
+    --of CalculateMultitargetsFromRollProperties already overridden, and remote
+    --clients see it without an extra upload. The dice still animate to their
+    --natural tier and then snap -- exactly like a click on that row.
+    --overrideMessage is what the chat card prints as the reason.
+    local forcedTier = dmhub.GetSettingValue("test:aiforcetier")
+    if type(forcedTier) == "number" and forcedTier >= 1 and forcedTier <= #rollProperties.tiers then
+        rollProperties.overrideTier = forcedTier
+        rollProperties.overrideMessage = string.format("%s forced tier %d (/testai)", dmhub.userDisplayName, forcedTier)
+    end
+
     local m_rollInfo = nil
 
     --Acquire the embedded roll dialog, queuing behind any other ability roll
     --in progress. The helper installs the cast-aware HideAbility OnFinishCast
     --handler itself. See CharacterPanel.AcquireAbilityRollDialog.
-    local dialog, displaying = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
+    local dialog, displaying, displayLockId = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
     print("Timeline:: Displaying:", displaying)
 
     local rollKey
@@ -1356,6 +1652,13 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                     dialog.data.UpdateArrowLabels()
                 end
             end,
+            --an "or" choice click changes what the targeting-arrow effect
+            --preview should show, same as a tier override does.
+            onOrChoiceChanged = function()
+                if dialog.valid and dialog.data and dialog.data.UpdateArrowLabels then
+                    dialog.data.UpdateArrowLabels()
+                end
+            end,
         }),
 
         rollActive = function(activeRoll)
@@ -1389,6 +1692,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             m_rollInfo = rollInfo
             m_result = {
                 total = rollInfo.total,
+                naturalRoll = rollInfo.naturalRoll,
                 boons = rollInfo.boons,
                 banes = rollInfo.banes,
                 tiers = rollInfo.tiers,
@@ -1461,6 +1765,14 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     while m_canceled == false and m_result.total == nil do
         coroutine.yield(0.1)
 
+        --If the dialog is gone or now showing a different roll, our callbacks
+        --will never fire and this loop would spin forever, leaving the red
+        --targeting arrows stuck on the map. Bail out as a cancel so the cast
+        --finishes and cleans them up.
+        if (not dialog.valid) or rollKey == nil or dialog.data.rollid ~= rollKey then
+            m_canceled = true
+        end
+
         if g_activeRollPanel ~= nil and g_activeRollPanel.valid and g_activeRoll.guid == rollKey and dmhub.HoldAmendableRollOpen ~= nil and dmhub.HoldAmendableRollOpen() and (holdOpenRefreshAt == nil or holdOpenRefreshAt < dmhub.Time()-2) then
             holdOpenRefreshAt = dmhub.Time()
             refreshAtPanel = g_activeRollPanel
@@ -1480,7 +1792,8 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         coroutine.yield(0.02)
     end
 
-    CharacterPanel.UnlockDisplayAbility()
+    --Our own lock only: a no-op if a later cast has since taken the card.
+    CharacterPanel.UnlockDisplayAbility(displayLockId)
 
     if refreshAtPanel ~= nil and refreshAtPanel.valid then
         refreshAtPanel:FireEvent("clearInteracting")
@@ -1601,6 +1914,13 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
             while targets == nil do
                 coroutine.yield(0.1)
+                --If the caster died while we waited, the prompt is gone and
+                --no answer will ever come. Treat it as cancelled so the
+                --ability can finish instead of hanging.
+                if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+                    targets = {}
+                    targetChoices = {}
+                end
             end
         end
 
@@ -1636,7 +1956,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                     end
                 end
 
-                local command = targetRollProperties.tiers[tier]
+                local command = ResolveTierOrChoices(targetRollProperties, rollProperties, tier, targetRollProperties.tiers[tier])
 
                 local surges = 0
                 local potencyApplied = 0
@@ -1645,7 +1965,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
                     --Check modifiers actually applied to roll for this target
                     for _, mod in ipairs(m_rollInfo.properties.multitargets[numTarget].modifiersUsed or {}) do
-                        potencyApplied = potencyApplied + mod:try_get("potencymod", 0)
+                        potencyApplied = potencyApplied + (tonumber(mod:try_get("potencymod", 0)) or 0)
                     end
 
                     options.symbols.cast:SetPotencyApplied(targetToken, potencyApplied)
@@ -1817,6 +2137,28 @@ function ActivatedAbilityPowerRollBehavior:GetPowerRollDisplay()
     return string.gsub(roll, "2d10", "<b>Power Roll</b>")
 end
 
+--An invoked custom ability carries its own power roll (e.g. the Reaver's
+--Phalanx Breaker shifts, then invokes a three-target power roll). The card's
+--render pass already unwraps those nested tiers to display them, so this
+--lookup has to find the same roll -- it gates the whole power-roll section,
+--which stays collapsed while it returns "".
+function ActivatedAbilityInvokeAbilityBehavior:GetPowerRollDisplay()
+    if self.abilityType ~= "custom" then
+        return nil
+    end
+
+    --Take the last matching subbehavior, which is what the render pass shows.
+    local customAbility = self:try_get("customAbility")
+    local result = nil
+    for _, subbehavior in ipairs(customAbility ~= nil and customAbility.behaviors or {}) do
+        if subbehavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            result = subbehavior:GetPowerRollDisplay()
+        end
+    end
+
+    return result
+end
+
 --Resolves the value of the characteristic this power roll uses for `caster`,
 --e.g. 5 for a hero whose roll is "2d10 + Reason" with Reason +5, or the higher
 --of the two for "2d10 + Might or Agility". Returns nil when the roll formula
@@ -1923,7 +2265,7 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
 
     local rollType = "ability"
     if self:try_get("resistanceRoll", false) then
-        rollType = "resistance"
+        rollType = cond(self:try_get("isTest", false), "targettest", "resistance")
     elseif self:try_get("isTest", false) then
         rollType = "test"
     end
@@ -1932,11 +2274,12 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
             {id = "ability", text = "Ability"},
             {id = "test", text = "Test"},
             {id = "resistance", text = "Reactive Test"},
+            {id = "targettest", text = "Target Characteristic Test"},
         },
         idChosen = rollType,
         change = function(element)
-            self.isTest = (element.idChosen == "test")
-            self.resistanceRoll = (element.idChosen == "resistance")
+            self.isTest = (element.idChosen == "test" or element.idChosen == "targettest")
+            self.resistanceRoll = (element.idChosen == "resistance" or element.idChosen == "targettest")
             rollPanel:SetClass("collapsed", self:try_get("resistanceRoll", false))
             resistanceTypePanel:SetClass("collapsed", not self:try_get("resistanceRoll", false))
             testPanel:SetClass("collapsed", not self:try_get("isTest", false))
@@ -2285,7 +2628,7 @@ end
 --- Draw Steel variant of RollProperties that resolves outcomes against a power roll table.
 RollPropertiesPowerTable = RegisterGameType("RollPropertiesPowerTable", "RollProperties")
 
---- @class TierSymbols
+--- @class TierSymbols: GameType
 --- @field tier string The tier result text (e.g. "Tier 1", "Tier 2", "Tier 3") exposed to GoblinScript.
 --- GoblinScript symbol object representing the outcome tier of a power roll.
 TierSymbols = RegisterGameType("TierSymbols")
@@ -2325,7 +2668,9 @@ function RollPropertiesPowerTable:GetSymbols(rollInfo, targetCreature)
 
     for i,entry in ipairs(multitargets) do
         if entry.token.charid == token.charid then
-            local tier = self.tiers[entry.tier]
+            --resolve "or" choice groups so trigger symbols (push/pull/slide
+            --amounts etc.) read the alternative that was actually chosen.
+            local tier = ActivatedAbilityDrawSteelCommandBehavior.ResolveOrGroupsForTier(self.tiers[entry.tier], self:try_get("orChoices"), entry.tier)
             return GenerateSymbols(TierSymbols.new{tier = tier})
         end
     end
@@ -2524,6 +2869,17 @@ function RollPropertiesPowerTable:ApplyCreatureTierDamage(caster, ability)
         end
     end
 
+    --Signature-only damage bonuses (retainer level advancement grants these:
+    --a retainer's signature ability grows with level while their other
+    --abilities do not).
+    if ability ~= nil and ability:try_get("categorization") == "Signature Ability" then
+        local sig1 = caster:CalculateNamedCustomAttribute("Tier 1 Damage") or 0
+        local sig23 = caster:CalculateNamedCustomAttribute("Tier 2 and 3 Damage") or 0
+        perTier[1] = perTier[1] + sig1
+        perTier[2] = perTier[2] + sig23
+        perTier[3] = perTier[3] + sig23
+    end
+
     for i=1,math.min(#self.tiers, 3) do
         if perTier[i] ~= 0 then
             self.tiers[i] = AddDamageToTierText(self.tiers[i], perTier[i])
@@ -2546,6 +2902,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
     local m_rows = nil
 
     local m_lastKnownTotal = nil
+    local m_naturalRoll = nil
 
     local m_listening = {}
     local m_mod = 0
@@ -2615,7 +2972,11 @@ function RollPropertiesPowerTable:CustomPanel(message)
                 fontSize = 14,
 
                 press = function(element)
+                    --Same amend affordance as the roll dialog's edge/bane bar,
+                    --reachable from the chat card after the fact; "Strictly
+                    --Enforce Rolls" closes both or it closes neither.
                     local isActive = g_activeRoll ~= nil and g_activeRoll.amendable and g_activeRoll.guid == messageGuid
+                        and (not StrictRollsEnforced())
                     if isActive  then
                         local oldMod = BoonsAndBanesToMod(m_boons, m_banes)
                         local currentValue = m_boons - m_banes
@@ -2661,7 +3022,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
 
                                 local total = m_lastKnownTotal + newMod - oldMod
 
-                                local index = self:try_get("overrideTier") or DiceResultToTier{ total = total, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
+                                local index = self:try_get("overrideTier") or DiceResultToTier{ total = total, naturalRoll = m_naturalRoll, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
                                 if m_rows ~= nil then
                                     for i,row in ipairs(m_rows) do
                                         if row ~=nil and row.valid then
@@ -2721,7 +3082,13 @@ function RollPropertiesPowerTable:CustomPanel(message)
                 return
             end
 
+            --StrictRollsEnforced: the chat card's power table offers the very
+            --same click-a-tier override as the roll dialog's, so locking only
+            --the dialog would leave the result editable one panel over. Drives
+            --the "amendable" class (below), which both the tier rows and the
+            --edge/bane labels read.
             local isActive = g_activeRoll ~= nil and g_activeRoll.amendable and g_activeRoll.guid == messageGuid
+                and (not StrictRollsEnforced())
 
             m_tiers = info.tiers or 0
             m_boons = info.boons or 0
@@ -2763,6 +3130,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
                 m_rows = {}
 
                 m_lastKnownTotal = info.total
+                m_naturalRoll = info.naturalRoll
                 local index = self:try_get("overrideTier") or DiceResultToTier(rollInfo)
 
                 for i, tier in ipairs(self.tiers) do
@@ -2771,11 +3139,14 @@ function RollPropertiesPowerTable:CustomPanel(message)
                             height = "auto",
                             gui.Label{ text = g_TierNames[i], fontSize = 30, fontFace = "DrawSteelGlyphs", valign = "center", width = 60, height = 20, },
                             gui.Label{
-                                text = FormatTierText(tier),
+                                --or-aware but display-only in chat: the chosen
+                                --alternative shows underlined, unchosen dimmed.
+                                --Choices are made in the roll dialog.
+                                text = FormatTierTextWithOrChoices(tier, nil, false, i, self),
                                 width = "100%-60",
                                 height = "auto",
                                 refreshTiers = function(element)
-                                    element.text = FormatTierText(self.tiers[i])
+                                    element.text = FormatTierTextWithOrChoices(self.tiers[i], nil, false, i, self)
                                 end,
                                 revealTier = function(element)
                                     local text = self.tiers[i]
@@ -2786,6 +3157,10 @@ function RollPropertiesPowerTable:CustomPanel(message)
                             },
                             width = "100%",
                             press = function(element)
+                                --DIAG: log chat tier-row presses for the prompt-hang
+                                --investigation. Safe to keep.
+                                print(string.format("ROLLDIAG:: chat tier row %d pressed amendable=%s T=%.2f",
+                                    i, tostring(element:HasClass("amendable")), dmhub.Time()))
                                 if element:HasClass("amendable") then
                                     self.overrideTier = i
                                     self.overrideMessage = string.format("%s overrode the result", dmhub.userDisplayName)
@@ -2836,6 +3211,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
             if complete or m_diceFinished then
                 m_complete = complete
                 m_lastKnownTotal = info.total
+                m_naturalRoll = info.naturalRoll
                 local index = self:try_get("overrideTier") or DiceResultToTier(rollInfo)
                 if self:has_key("overrideTier") == false then
                     local multitargets = CalculateMultitargetsFromRollProperties(rollInfo)
@@ -2877,7 +3253,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
 
                 if #info.rolls == 0 then
                     local total = m_mod
-                    local index = DiceResultToTier{ total = total, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
+                    local index = DiceResultToTier{ total = total, naturalRoll = total - m_mod, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
                     for i,row in ipairs(m_rows) do
                         if row ~=nil and row.valid then
                             row:SetClassImmediate("highlighted", i == index)
@@ -2945,7 +3321,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
                 return
             end
 
-            local index = DiceResultToTier{ total = total, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
+            local index = DiceResultToTier{ total = total, naturalRoll = total - m_mod, boons = m_boons, banes = m_banes, tiers = m_tiers, autofailure = m_autofailure, autosuccess = m_autosuccess, nottierone = m_nottierone, nottierthree = m_nottierthree }
             for i,row in ipairs(m_rows) do
                 if row ~=nil and row.valid then
                     row:SetClassImmediate("highlighted", i == index)
@@ -3153,17 +3529,21 @@ RollCheck.RegisterCustom{
     end,
 	GetModifiers = function(check, creature)
         local options = check.options or {}
+        local rollType = check:CustomInfo().rollType
         options.attribute = check.info.attrid
         -- Expose the rolling creature as 'target' so activationCondition formulas
         -- like 'target.Ongoing Effects has "Petrified"' resolve correctly.
         options.target = creature
-        local result = creature:GetModifiersForPowerRoll(check:GetRoll(creature), "resistance_power_roll", options)
+        if rollType == "test_power_roll" then
+            options.caster = creature
+        end
+        local result = creature:GetModifiersForPowerRoll(check:GetRoll(creature), rollType, options)
         local behaviorModifiers = options.behaviorModifiers or {}
         for _, mod in ipairs(behaviorModifiers) do
             local modEntry = {mod = mod}
-            local m = mod:DescribeModifyPowerRoll(modEntry, creature, "resistance_power_roll", options)
+            local m = mod:DescribeModifyPowerRoll(modEntry, creature, rollType, options)
             if m ~= nil then
-                m.hint = m.modifier:HintModifyPowerRolls(modEntry, creature, "resistance_power_roll", options)
+                m.hint = m.modifier:HintModifyPowerRolls(modEntry, creature, rollType, options)
                 if m.hint ~= nil then
                     result[#result+1] = m
                 end
@@ -3180,6 +3560,64 @@ RollCheck.RegisterCustom{
     end,
 }
 
+--Keep target tests on the existing per-target request path, but give modifiers
+--and reactions the creature making the test as their roller.
+RollCheck.RegisterCustom{
+    id = "target_test_power_roll",
+    rollType = "test_power_roll",
+    Describe = function(check)
+        local attrInfo = creature.attributesInfo[check.info.attrid]
+        return (attrInfo and attrInfo.description or check.info.attrid) .. " Test"
+    end,
+    GetRoll = RollCheck.customChecks.resistance_power_roll.GetRoll,
+    GetModifiers = RollCheck.customChecks.resistance_power_roll.GetModifiers,
+    ShowDialog = function(check, dialogOptions)
+        local roller = dmhub.LookupToken(dialogOptions.creature)
+        local testAbility = check.options.ability
+        dialogOptions.ability = testAbility
+        dialogOptions.rollProperties = RollPropertiesPowerTable.new{
+            tiers = DeepCopy(check.info.tiers),
+            fullyImplemented = true,
+        }
+        dialogOptions.PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(dialogOptions.rollProperties, dialogOptions.creature)
+        if roller ~= nil then
+            local target = {token = roller, boons = 0, banes = 0, modifiers = dialogOptions.modifiers, triggers = {}}
+            dialogOptions.targetCreature = roller.properties
+            dialogOptions.multitargets = {target}
+            dialogOptions.symbols = {caster = roller.properties, target = roller.properties, ability = testAbility}
+            for _,token in ipairs(dmhub.allTokens) do
+                for _,modifier in ipairs(token.properties:GetActiveModifiers()) do
+                    --These are reactions to a test, not to damage dealt by its roller.
+                    if modifier.mod:try_get("trigger") == "powerroll" then
+                        modifier.mod:TriggerModsPowerRoll(modifier, token, roller, roller, testAbility, dialogOptions.rollProperties, target.triggers, {symbols = dialogOptions.symbols})
+                    end
+                end
+            end
+            table.sort(target.triggers, function(a,b) return cond(a.hostile, 1, 0) < cond(b.hostile, 1, 0) end)
+            local completeRoll = dialogOptions.completeRoll
+            dialogOptions.completeRoll = function(rollInfo)
+                completeRoll(rollInfo)
+                local tier = rollInfo.properties:try_get("overrideTier") or DiceResultToTier(rollInfo)
+                local dice = {}
+                for _,die in ipairs(rollInfo.rolls or {}) do
+                    if not die.dropped and die.numFaces == 10 then
+                        dice[#dice+1] = die.result
+                    end
+                end
+                table.sort(dice, function(a,b) return a > b end)
+                roller.properties:DispatchEvent("rollpower", {
+                    surges = 0,
+                    tierone = tier == 1, tiertwo = tier == 2, tierthree = tier == 3,
+                    naturalroll = rollInfo.naturalRoll,
+                    highroll = dice[1], lowroll = dice[2],
+                    ability = testAbility,
+                })
+            end
+        end
+        return GameHud.instance.rollDialog.data.ShowDialog(dialogOptions)
+    end,
+}
+
 function ActivatedAbilityPowerRollBehavior:ResistanceAttr()
     return self:try_get("resistanceAttr", "inu")
 end
@@ -3188,6 +3626,12 @@ end
 function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, targets, options)
     options = options or {}
 	local tokenids = ActivatedAbility.GetTokenIds(targets)
+    local isTest = self:try_get("isTest", false)
+    local rollType = cond(isTest, "test_power_roll", "resistance_power_roll")
+    local testAbility = nil
+    if isTest then
+        testAbility = ActivatedAbility.Create{isTest = true, name = ability.name, abilityType = "none", attrid = self:ResistanceAttr()}
+    end
 
     -- Build ability-level modifiers so conditions like
     -- 'target.Ongoing Effects has "Petrified"' apply per-target on the resistance roll.
@@ -3195,7 +3639,7 @@ function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, 
     for _, modInfo in ipairs(self:try_get("modifiers", {})) do
         behaviorModifiers[#behaviorModifiers+1] = CharacterModifier.new{
             behavior = "power",
-            rollType = "resistance_power_roll",
+            rollType = rollType,
             activationCondition = modInfo.condition,
             keywords = {},
             modtype = modInfo.type,
@@ -3206,10 +3650,10 @@ function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, 
     end
 
     local dcaction = ability:RequireSavingThrowsCo(self, casterToken, tokenids, {
-        id = "resistance_power_roll",
-        rollType = "resistance_power_roll",
-        text = "Resistance",
-        explanation = "Roll Resistance vs " .. ability.name,
+        id = cond(isTest, "target_test_power_roll", "resistance_power_roll"),
+        rollType = rollType,
+        text = cond(isTest, "Test", "Resistance"),
+        explanation = cond(isTest, "Roll Test vs ", "Roll Resistance vs ") .. ability.name,
         targets = targets,
         info = {
             attrid = self:ResistanceAttr(),
@@ -3217,6 +3661,7 @@ function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, 
         },
         dc_options = {
             behaviorModifiers = behaviorModifiers,
+            ability = testAbility,
         },
     })
 
@@ -3231,7 +3676,10 @@ function ActivatedAbilityPowerRollBehavior:CastResistance(ability, casterToken, 
         if target.token ~= nil then
 		    local dcinfo = dcaction.info.tokens[target.token.charid]
             if dcinfo ~= nil then
-                local tier = DiceResultToTier{ total = dcinfo.result, boons = dcinfo.boons, banes = dcinfo.banes }
+                local tier = DiceResultToTier{ total = dcinfo.result, naturalRoll = dcinfo.naturalRoll, boons = dcinfo.boons, banes = dcinfo.banes }
+                if isTest and dcinfo.tier ~= nil then
+                    tier = dcinfo.tier
+                end
                 options.symbols.cast:SetTierResult(target.token, tier)
                 local command = self.tiers[tier]
                 self:ExecuteCommand(ability, casterToken, target.token, options, command)
@@ -3288,7 +3736,7 @@ function ActivatedAbilityPowerRollBehavior:CastCustom(ability, casterToken, targ
         if target.token ~= nil then
 		    local dcinfo = dcaction.info.tokens[target.token.charid]
             if dcinfo ~= nil then
-                local tier = DiceResultToTier{ total = dcinfo.result, boons = dcinfo.boons, banes = dcinfo.banes }
+                local tier = DiceResultToTier{ total = dcinfo.result, naturalRoll = dcinfo.naturalRoll, boons = dcinfo.boons, banes = dcinfo.banes }
                 if self:has_key("callback") then
                     self.callback(target.token, tier)
                 end

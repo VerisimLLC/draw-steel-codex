@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
----@class RichCheckbox
+---@class RichCheckbox: RichTag
 RichCheckbox = RegisterGameType("RichCheckbox", "RichTag")
 RichCheckbox.tag = "checkbox"
 RichCheckbox.pattern = "^\\[(?<value>[xX ])\\](?<space> *)(?<name>[a-zA-Z0-9 ]*)$"

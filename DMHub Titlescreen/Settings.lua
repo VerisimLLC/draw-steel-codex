@@ -23,6 +23,18 @@ setting{
     default = 0,
 }
 
+--Gates the Patreon feature: the Patreon tab in the module browser and the
+--Patreon/email sections of the account settings. On by default now that the
+--feature ships; no editor field, so it never appears in the settings menus.
+--Turn it off for a session with /set patreonsub false. Remove this setting
+--once the gating is no longer needed at all.
+setting{
+    id = "patreonsub",
+    description = "Show the Patreon features.",
+    storage = "preference",
+    default = true,
+}
+
 setting{
     id = "disableparallax",
     description = "Disable Parallax",
@@ -33,14 +45,142 @@ setting{
 }
 
 setting{
+    id = "popoutgpu",
+    description = "Use GPU Rendering for Popout Windows",
+    help = "Shares popout frames with the companion app through DirectX. Disable this to use the slower CPU shared-memory path for troubleshooting or comparison.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = true,
+}
+
+setting{
+    id = "popoutfpsfocused",
+    description = "Popout Frame Rate (Focused)",
+    help = "Maximum frame rate for a popout window while it has focus. The actual rate cannot exceed DMHub's current frame rate.",
+    storage = "preference",
+    section = "General",
+    editor = "slider",
+    min = 1,
+    max = 60,
+    round = true,
+    labelFormat = "%d",
+    default = 60,
+}
+
+setting{
+    id = "popoutattached",
+    description = "Attach Popout Windows to Main Window",
+    help = "Popped-out panels behave as part of the main app window: no separate taskbar button, they stay in front of it, and they minimize and restore together with it. Turn this off to make each popout a fully independent OS window.",
+    storage = "preference",
+    section = "General",
+    editor = "check",
+    default = true,
+}
+
+setting{
+    id = "popoutfpsunfocused",
+    description = "Popout Frame Rate (Unfocused)",
+    help = "Maximum frame rate for a popout window while it does not have focus. Lower values reduce background rendering cost.",
+    storage = "preference",
+    section = "General",
+    editor = "slider",
+    min = 1,
+    max = 60,
+    round = true,
+    labelFormat = "%d",
+    default = 2,
+}
+
+--The old single "Show Map Overlay" preference, superseded by the split
+--mapoverlay:* settings below. Kept registered (no editor/section, so it never
+--appears in the settings menus) so the one-time migration can still read the
+--stored value; safe to remove once the migration has been out for a while.
+setting{
     id = "tileheight:overlay",
-    description = "Show Tile Height Overlay",
-    help = "Draws contour lines and integer labels showing the game-rules height of each tile on the current floor.",
+    description = "Show Map Overlay (legacy)",
+    storage = "preference",
+    default = false,
+}
+
+--The map overlay, split into layers. Each is also reachable from the map
+--overlay menu on the title bar's terrain chip (see CodexTitleBar), which
+--additionally lists a per-zone-type toggle for every zone type present on the
+--current map. Players only see overlay information on tiles currently inside
+--their vision.
+setting{
+    id = "mapoverlay:walls",
+    description = "Show Walls",
+    help = "Draws the map's walls as lines colored by the cover they grant: black for full cover, greys for partial cover.",
     storage = "preference",
     section = "Map",
     editor = "check",
     default = false,
 }
+
+setting{
+    id = "mapoverlay:elevation",
+    description = "Show Elevation",
+    help = "Draws contour lines wherever tile elevation changes, and an integer height label inside each region.",
+    storage = "preference",
+    section = "Map",
+    editor = "check",
+    default = false,
+}
+
+--The old opt-OUT zone-type preference from when zone types defaulted to
+--visible, superseded by mapoverlay:shownzones below when they flipped to
+--hidden-by-default. Kept registered (no editor, nothing reads it) so stored
+--values stay harmless; safe to remove once the flip has been out a while.
+setting{
+    id = "mapoverlay:hiddenzones",
+    description = "Hidden Map Overlay Zone Types (legacy)",
+    storage = "preference",
+    default = "",
+}
+
+--';'-joined environmental keyword ids whose painted zones are shown on the
+--map overlay for this user. Zone types default to HIDDEN - like the built-in
+--terrain stripes, this records opt-INs. No editor: managed from the title
+--bar's map overlay menu. (The Map Markup panel's Zones tab shows every zone
+--regardless, so painting is unaffected.)
+setting{
+    id = "mapoverlay:shownzones",
+    description = "Shown Map Overlay Zone Types",
+    storage = "preference",
+    default = "",
+}
+
+--';'-joined built-in terrain rule types (water/difficult/concealment/
+--climbable) whose tile-art stripes are shown. Unlike zones these default
+--HIDDEN: a DM paints zones deliberately, but tile-art rules would stripe
+--every pond on every map by default. No editor: managed from the title
+--bar's map overlay menu, which lists only the types actually present on
+--the map's terrain tiles (dmhub.GetBuiltinTerrainTypesOnMap).
+setting{
+    id = "mapoverlay:shownbuiltins",
+    description = "Shown Built-in Terrain Types",
+    storage = "preference",
+    default = "",
+}
+
+--One-time migration: a user who had the old combined preference on gets the
+--equivalent full overlay from the split settings.
+setting{
+    id = "mapoverlay:migrated",
+    description = "Map overlay settings migrated",
+    storage = "preference",
+    default = false,
+}
+
+if not dmhub.GetSettingValue("mapoverlay:migrated") then
+    dmhub.SetSettingValue("mapoverlay:migrated", true)
+    if dmhub.GetSettingValue("tileheight:overlay") then
+        dmhub.SetSettingValue("mapoverlay:walls", true)
+        dmhub.SetSettingValue("mapoverlay:elevation", true)
+        dmhub.SetSettingValue("mapoverlay:shownbuiltins", "climbable;concealment;difficult;water")
+    end
+end
 
 setting{
     id = "canopy:defaultradius",
@@ -781,6 +921,10 @@ setting{
             value = "dither",
             text = "Dim",
         },
+        {
+            value = "roof",
+            text = "Roof",
+        },
     }
 }
 
@@ -843,11 +987,54 @@ setting{
 --dev-only: when set for a game, the game's cloud assets are replaced by a
 --local directory tree of YAML files (see the /localassets macro). Takes
 --effect on the next game load. Edited via the custom Local Assets section
---in the Editing settings tab (no generic editor).
+--in the Editing settings tab (no generic editor). Superseded by
+--localassets:dirs when that is non-empty; kept as a fallback so games
+--configured before the multi-directory feature keep working.
 setting{
 	id = "localassets:dir",
 	description = "Local Assets Directory (dev)",
 	storage = "pergamepreference",
+	default = "",
+}
+
+--dev-only: ordered list of local asset directories, stored as a single
+--newline-delimited string. The FIRST entry is the "top" directory: highest
+--precedence (an item present in several directories loads from the top-most
+--one holding it) and the home for newly created entries. Edited via the
+--custom Local Assets section in the Editing settings tab (no generic
+--editor); the engine reads it in LocalAssetDirectory.MaybeActivate.
+setting{
+	id = "localassets:dirs",
+	description = "Local Assets Directories (dev)",
+	storage = "pergamepreference",
+	default = "",
+}
+
+--dev-only, GLOBAL (not per-game): ordered list of local asset directories
+--(same newline-delimited format as localassets:dirs) used when the game
+--being loaded is this account's Encounter of the Week game. EotW games are
+--created fresh for each encounter, so a per-game preference can never be set
+--for one in advance; this list follows whichever game currently occupies the
+--account's EotW slot. It loads BELOW any per-game list for that game. Edited
+--via the Encounter of the Week block of the Local Assets settings section
+--(no generic editor); the engine reads it in LocalAssetDirectory.ReadEotwDirs.
+setting{
+	id = "localassets:eotwdirs",
+	description = "Encounter of the Week Asset Directories (dev)",
+	storage = "preference",
+	default = "",
+}
+
+--dev-only, GLOBAL (not per-game): explicit path to the git executable used
+--by the local-assets read-only git integration (status badges in the file
+--browser). When empty, the engine auto-detects git from PATH and common
+--install locations; set this only when auto-detection fails. Edited via the
+--git row in the Local Assets settings section; the engine reads it in
+--GitStatusService.ResolveGitPath.
+setting{
+	id = "localassets:gitpath",
+	description = "Git Executable for Local Assets (dev)",
+	storage = "preference",
 	default = "",
 }
 
@@ -2689,6 +2876,18 @@ setting{
 	default = false,
 }
 
+--Read by the engine (NativeWindowManager.CanUseGpuBridge): when false,
+--popout windows use the CPU shared-memory transport instead of the DXGI
+--shared-texture bridge. Debug/test switch; takes effect per-frame, even
+--for windows that are already open.
+setting{
+	id = "popoutgpu",
+	description = "Popout windows use GPU rendering",
+	storage = "preference",
+	editor = "check",
+	default = true,
+}
+
 setting{
 	id = "autoreloadlua",
 	description = "Auto Reload Lua Changes",
@@ -2729,6 +2928,14 @@ setting{
 	storage = "preference",
 	editor = "dropdown",
 		enum = {
+		{
+			value = 60,
+			text = "60%",
+		},
+		{
+			value = 70,
+			text = "70%",
+		},
 		{
 			value = 80,
 			text = "80%",
@@ -2808,6 +3015,29 @@ setting{
     default = false,
     section = "GameStrictRules",
 }
+
+setting{
+    id = "strict:rolls",
+    description = "Strictly Enforce Rolls",
+    help = "When enabled, a roll's result stands: players (and a GM viewing as a player) cannot re-roll, edit the dice expression, click a tier row to override the outcome, or change which modifiers and edges/banes were applied -- and only the modifiers that actually apply are listed. Backing out of an ability with the card's close button is also refused once its cost has been paid. The Director is never restricted.",
+    storage = "game",
+    editor = "check",
+    default = false,
+    section = "GameStrictRules",
+}
+
+--The engine registers "Strictly Enforce Movement Rules" (core settings.txt)
+--in the plain "Game" section, where it renders among the unrelated toggles
+--above the headings. It is a rules-enforcement setting like the four above,
+--so move it into that section here rather than duplicating the definition --
+--setting{} stores the info table by id and the settings screen reads .section
+--off it, so this one write re-homes the existing row without touching the
+--engine's description, help, default or ordinal.
+local g_engineMovementSetting = rawget(_G, "Settings")
+g_engineMovementSetting = g_engineMovementSetting ~= nil and g_engineMovementSetting["strictmovementrules"] or nil
+if g_engineMovementSetting ~= nil then
+    g_engineMovementSetting.section = "GameStrictRules"
+end
 
 setting{
     id = "dmhub:do_websocket_impl",

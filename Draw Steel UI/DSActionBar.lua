@@ -4284,7 +4284,10 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
     --TODO: show actions somewhere in DS.
 	--actionResourcesBar = CreateResourcesBar({"Actions"}, { halign = "left", resourceSize = cond(ActionBar.resourcesWithBars, 16, 40), iconSize = cond(ActionBar.resourcesWithBars, 16, 40), flow = cond(ActionBar.resourcesWithBars, "vertical", "horizontal") })
 
-	local searchInput = gui.Input{
+	--the canonical search field; look comes from DefaultStyles'
+	--searchInput rules, borderBox keeps its hpad 24 inside the width.
+	local searchInput = gui.SearchInput{
+		borderBox = true,
 		width = 120,
 		height = 22,
 		placeholderText = "Search...",
@@ -4783,6 +4786,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                         }
                                         local filterFormula = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetFilter")
                                         local targets = {}
+                                        local retargetReasons = {}
                                         for _,potential in ipairs(dmhub.allTokens) do
                                             symbols.target = potential.properties:LookupSymbol{}
                                             if trim(filterFormula) == "" or GoblinScriptTrue(ExecuteGoblinScript(filterFormula, potential.properties:LookupSymbol(symbols), 1)) then
@@ -4799,12 +4803,19 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                         elseif rangeType == "distance" then
                                             range = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetDistance", 10)
                                         end
+                                        --the new target must be one the striking creature could actually
+                                        --hit: inside the strike's distance and in its line of effect.
+                                        if rangeType == "ability" then
+                                            RuleUtils.AddRetargetRangeReasons(targets, retargetReasons, sourceToken, range)
+                                        end
 
                                         print("ChooseTarget:: A")
                                         gamehud.actionBarPanel:FireEventTree("chooseTarget", {
                                             sourceToken = sourceToken,
                                             radius = range,
                                             targets = targets,
+                                            reasons = retargetReasons,
+                                            prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType),
                                             choose = function(newTargetToken)
                                                 if token == nil then
                                                     return
@@ -4836,6 +4847,11 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                         dismiss = true
                                     end
 
+                                    --set when we start a trigger-before action below: the accept then
+                                    --flags the record as resolving, holding the caster's roll until
+                                    --the complete callback clears it.
+                                    local waitingOnTriggerBefore = false
+
                                     if (not trigger.triggered) and trigger.powerRollModifier and trigger.powerRollModifier.powerRollModifier:try_get("hasTriggerBefore") then
                                         --if we trigger some action before the trigger.
                                         local triggerBefore = trigger.powerRollModifier.powerRollModifier:try_get("triggerBefore")
@@ -4843,6 +4859,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
                                         --we commit to it if we use the trigger so we disappear the trigger.
                                         dismiss = true
+                                        waitingOnTriggerBefore = true
 
                                         triggerBefore:Trigger(trigger.powerRollModifier.powerRollModifier, token.properties, trigger.powerRollModifier.powerRollModifier:AppendSymbols{}, nil, { mod = trigger.powerRollModifier }, {
                                             complete = function()
@@ -4886,6 +4903,26 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                                         end
                                                     end
                                                 end
+
+                                                --The caster's roll dialog holds its roll while the record's
+                                                --resolving flag is set, so the trigger-before action (e.g.
+                                                --Parry's shift) lands before damage and forced movement.
+                                                --Clear it now that the action has fully resolved -- even if
+                                                --the panel has since closed.
+                                                if triggerToken.valid then
+                                                    local live = triggerToken.properties:GetAvailableTriggers() or {}
+                                                    local liveTrigger = live[key]
+                                                    if liveTrigger ~= nil and liveTrigger.resolving then
+                                                        triggerToken:ModifyProperties{
+                                                            undoable = false,
+                                                            description = "Trigger",
+                                                            execute = function()
+                                                                liveTrigger.resolving = false
+                                                                triggerToken.properties:DispatchAvailableTrigger(liveTrigger)
+                                                            end,
+                                                        }
+                                                    end
+                                                end
                                             end,
                                         })
                                     end
@@ -4902,6 +4939,13 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                                 trigger.retargetid = nil
                                             else
                                                 trigger.triggered = true
+                                            end
+
+                                            --the trigger-before action (e.g. Parry's shift) is still
+                                            --running: mark the record so the caster's roll dialog holds
+                                            --the roll until the complete callback clears this.
+                                            if waitingOnTriggerBefore then
+                                                trigger.resolving = true
                                             end
 											token.properties:DispatchAvailableTrigger(trigger)
 										end,
@@ -4938,6 +4982,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                             }
                                             local filterFormula = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetFilter")
                                             local targets = {}
+                                            local retargetReasons = {}
                                             for _,potential in ipairs(dmhub.allTokens) do
                                                 symbols.target = potential.properties:LookupSymbol{}
                                                 if trim(filterFormula) == "" or GoblinScriptTrue(ExecuteGoblinScript(filterFormula, potential.properties:LookupSymbol(symbols), 1)) then
@@ -4954,12 +4999,19 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                             elseif rangeType == "distance" then
                                                 range = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetDistance", 10)
                                             end
+                                            --the new target must be one the striking creature could actually
+                                            --hit: inside the strike's distance and in its line of effect.
+                                            if rangeType == "ability" then
+                                                RuleUtils.AddRetargetRangeReasons(targets, retargetReasons, sourceToken, range)
+                                            end
 
                                         print("ChooseTarget:: B")
                                             gamehud.actionBarPanel:FireEventTree("chooseTarget", {
                                                 sourceToken = sourceToken,
                                                 radius = range,
                                                 targets = targets,
+                                                reasons = retargetReasons,
+                                                prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType),
                                                 choose = function(newTargetToken)
                                                     if token == nil then
                                                         return
@@ -5836,19 +5888,45 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                 element.parent:SetClass("customActionBar", g_customActionBarFunction ~= nil)
                 element:SetClass("collapsed", g_customActionBarFunction == nil)
             end,
-            create = function(element)
+
+            --The bar's scale: the aspect-ratio fit it always had, times the
+            --Font Size setting as a flat zoom in icon-rail mode, the rails'
+            --way (PanelDocument.WindowUIScale -- the engine holds font
+            --magnification at 1 there, so scaling the root is how the bar
+            --follows the setting at all). Clamped so the scaled bar can
+            --never grow wider than the dock-free screen width.
+            setBarScale = function(element)
                 local dockareaAsPercentOfHeight = (380*2)/1080
                 local defaultRatio = (1920 - 1080*dockareaAsPercentOfHeight)/1080
                 local dim = dmhub.screenDimensionsBelowTitlebar
                 local screenRatio = (dim.x - dim.y*dockareaAsPercentOfHeight)/dim.y
 
+                --the scale at which the bar exactly fills the dock-free width.
+                local maxScale = screenRatio / defaultRatio
+
                 local uiscaleRatio = 0.9
 
-                if screenRatio < defaultRatio then
-                    element.selfStyle.uiscale = uiscaleRatio*screenRatio / defaultRatio
-                else
-                    element.selfStyle.uiscale = uiscaleRatio*1
+                local scale = uiscaleRatio
+                if maxScale < 1 then
+                    scale = uiscaleRatio * maxScale
                 end
+
+                scale = scale * PanelDocument.WindowUIScale()
+                if scale > maxScale then
+                    scale = maxScale
+                end
+
+                element.selfStyle.uiscale = scale
+            end,
+
+            --a live Font Size (or rail mode) change re-applies the zoom.
+            multimonitor = {"fontsize", "iconrail"},
+            monitor = function(element)
+                element:FireEvent("setBarScale")
+            end,
+
+            create = function(element)
+                element:FireEvent("setBarScale")
 
                 g_customActionBar = element
                 element:FireEvent("customActionBar")

@@ -1,4 +1,7 @@
---- @class Loc Represents a discrete tile location on the map, including x, y coordinates, floor index, and altitude.
+---@meta
+
+--- Represents a discrete tile location on the map, including x, y coordinates, floor index, and altitude.
+--- @class Loc
 --- @field west Loc The location one tile to the west.
 --- @field east Loc The location one tile to the east.
 --- @field north Loc The location one tile to the north.
@@ -20,71 +23,50 @@
 Loc = {}
 
 --- Deserialize
---- @param dict any
---- @return nil
-function Loc:Deserialize(dict)
-	-- dummy implementation for documentation purposes only
-end
+--- @param dict? any
+function Loc:Deserialize(dict) end
 
 --- Equals
---- @param other any
+--- @param other? any
 --- @return boolean
-function Loc:Equals(other)
-	-- dummy implementation for documentation purposes only
-end
+function Loc:Equals(other) end
 
---- DistanceInTiles: Returns the distance in tiles between this location and another Loc.
+--- Returns the distance in tiles between this location and another Loc.
 --- @param other Loc
 --- @return integer
-function Loc:DistanceInTiles(other)
-	-- dummy implementation for documentation purposes only
-end
+function Loc:DistanceInTiles(other) end
 
---- DistanceInFeet: Returns the distance in feet between this location and another Loc (tiles * 5).
+--- Returns the distance in feet between this location and another Loc (tiles * 5).
 --- @param other Loc
 --- @return integer
-function Loc:DistanceInFeet(other)
-	-- dummy implementation for documentation purposes only
-end
+function Loc:DistanceInFeet(other) end
 
---- dir: Returns a new Loc offset by the given x and y tile deltas.
+--- Returns a new Loc offset by the given x and y tile deltas.
 --- @param x integer
 --- @param y integer
 --- @return Loc
-function Loc:dir(x, y)
-	-- dummy implementation for documentation purposes only
-end
+function Loc:dir(x, y) end
 
---- WithAltitude: Returns a new Loc with the specified altitude.
+--- Returns a new Loc with the specified altitude.
 --- @param alt integer
 --- @return Loc
-function Loc:WithAltitude(alt)
-	-- dummy implementation for documentation purposes only
-end
+function Loc:WithAltitude(alt) end
 
---- WithDifferentFloor: Returns a new Loc on the specified floor index.
+--- Returns a new Loc on the specified floor index.
 --- @param differentFloor integer
 --- @return Loc
-function Loc:WithDifferentFloor(differentFloor)
-	-- dummy implementation for documentation purposes only
-end
+function Loc:WithDifferentFloor(differentFloor) end
 
---- FloorDifference: Returns the floor index difference between this Loc and another, accounting for parent floor relationships.
+--- Returns the floor index difference between this Loc and another, accounting for parent floor relationships.
 --- @param loc Loc
 --- @return integer
-function Loc:FloorDifference(loc)
-	-- dummy implementation for documentation purposes only
-end
+function Loc:FloorDifference(loc) end
 
---- WithGroundLevelAltitude: Returns a new Loc with altitude set to the ground level at this location.
+--- Returns a new Loc with altitude set to the ground level at this location.
 --- @return Loc
-function Loc:WithGroundLevelAltitude()
-	-- dummy implementation for documentation purposes only
-end
+function Loc:WithGroundLevelAltitude() end
 
---- LocsInRadius: Returns all Locs within the given radius (in tiles) of this location.
+--- Returns all Locs within the given radius (in tiles) of this location.
 --- @param radius integer -- Radius in tiles.
 --- @return Loc[]
-function Loc:LocsInRadius(radius)
-	-- dummy implementation for documentation purposes only
-end
+function Loc:LocsInRadius(radius) end

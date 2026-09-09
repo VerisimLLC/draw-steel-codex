@@ -1,3 +1,5 @@
---- @class TestUserDataClassDerived:TestUserDataClass 
---- @field x number 
+---@meta
+
+--- @class TestUserDataClassDerived:TestUserDataClass
+--- @field x number
 TestUserDataClassDerived = {}

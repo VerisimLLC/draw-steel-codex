@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class Skill
+--- @class Skill: GameType
 --- @field tableName string Data table name ("Skills").
 --- @field name string Display name.
 --- @field attribute string Governing ability score id (e.g. "str", "dex").
@@ -9,7 +9,7 @@ local mod = dmhub.GetModLoading()
 --- @field hidden boolean If true, this skill is hidden from UI menus.
 Skill = RegisterGameType("Skill")
 
---- @class SkillSpecialization
+--- @class SkillSpecialization: GameType
 --- @field id string Unique identifier.
 --- @field name string Display name for this specialization.
 SkillSpecialization = RegisterGameType("SkillSpecialization")

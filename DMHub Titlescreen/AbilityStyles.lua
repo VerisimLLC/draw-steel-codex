@@ -239,6 +239,12 @@ Styles.ActionMenu = {
         selectors = { "abilityTitle", "expended" },
         color = g_expendedColor,
     },
+    --off-turn turn-bound ability (see AbilityHeading in DrawSteelActionBar):
+    --reads as expended, since the action is not available right now.
+    gui.Style {
+        selectors = { "abilityTitle", "offTurn" },
+        color = g_expendedColor,
+    },
     gui.Style {
         selectors = { "abilityTitle", "suppressed" },
         color = g_forbiddenColor,
@@ -258,6 +264,10 @@ Styles.ActionMenu = {
     },
     gui.Style {
         selectors = { "abilityInfoLabel", "expended" },
+        color = g_expendedColor,
+    },
+    gui.Style {
+        selectors = { "abilityInfoLabel", "offTurn" },
         color = g_expendedColor,
     },
     gui.Style {

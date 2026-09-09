@@ -50,11 +50,24 @@ local function PerformEndCombat()
 		dailyLimit = 10,
 	})
 
+	--Permanent battle log entry + the encounter_complete analytics event, for a
+	--combat that ended without the director awarding victory or defeat (the
+	--outcome screen's Proceed covers those; see DSVictoryScreen.ProceedEndCombat).
+	--Must run before the queue is hidden -- it reads the live round and entries.
+	--Director-only, single-fire, and it no-ops for a queue that was never a fight,
+	--so respite/downtime queues ending through here record nothing.
+	LiveEncounter.CompleteEncounter("ended")
+
 	q.hidden = true
 	q.gameMode = "exploration"
 	dmhub:UploadInitiativeQueue()
 
 	CharacterResource.SetMalice(0, "End of Combat")
+
+	--summons don't outlive the encounter.
+	ActivatedAbilitySummonBehavior.RemoveSummonsAtEndOfCombat()
+
+	Aura.RemoveExpiredMapAnchoredAurasAtEndOfCombat()
 
 	for initiativeid,_ in pairs(q.entries) do
 		local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
@@ -86,7 +99,9 @@ local function ShowVictoryScreen()
 end
 
 --Prompt the DM before ending combat: present the Victory Screen, end with no
---victory, or cancel. Shared by both initiative-bar "End Combat" menu items.
+--victory, or cancel. Shared by both initiative-bar "End Combat" menu items and
+--the game menu's "End Combat" command (via the g_drawSteelPromptEndCombat
+--export below).
 local function PromptEndCombat()
 	GameHud.instance:ModalMessage{
 		title = "End Combat",
@@ -112,6 +127,10 @@ local function PromptEndCombat()
 		},
 	}
 end
+
+--Exported for MCDMCommands.lua's game-menu "End Combat" command, which loads
+--before this file and resolves the export at click time.
+g_drawSteelPromptEndCombat = PromptEndCombat
 
 local g_triggeredResourceId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
 
@@ -283,17 +302,34 @@ local function CreateDrawSteelBubble()
 		else
 			--Find the list of tokens for the first entry in the initiative queue. If we have control of any of them show
 			--the button, otherwise don't.
+			--TokenControlledByUser, not tok.canControl: on a player host
+			--(a directorless game, e.g. Encounter of the Week) canControl is
+			--host-wide, so the monsters the Monster AI is running would let
+			--the host end their turn out from under the AI.
 			local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, currentInitiativeId)
 			local foundControllable = false
 			for i,tok in ipairs(tokens) do
-				if tok.canControl then
+				if TokenControlledByUser(tok) then
 					foundControllable = true
 					break
 				end
 			end
 
+			--An orphaned turn: the entry whose turn it is no longer resolves to
+			--any token on the map (e.g. a hero killed on their own turn and then
+			--removed from the battlefield by the Hero Death rule, a monster group
+			--wiped mid-turn). Nobody controls a token that isn't there, so
+			--without this nobody without Director UI could ever end the turn and
+			--the combat sat on "Hero Turn" forever. Anyone allowed to run
+			--initiative may close it out. Removal normally auto-ends the turn
+			--(ActivatedAbilityRemoveCreatureBehavior); this is the safety net.
+			if #tokens == 0 and CanControlInitiative() then
+				return true
+			end
+
 			--note that the dm always shows entries, and doesn't auto-remove entries since they might be for a different map.
-			return foundControllable or dmhub.isDM
+			--(DirectorUIVisible: a Director presenting as a player only sees End Turn for tokens they control.)
+			return foundControllable or GameHud.DirectorUIVisible()
 		end
     end
 
@@ -456,7 +492,7 @@ local function CreateDrawSteelBubble()
 
             local canSelectToken = false
             local token = dmhub.selectedOrPrimaryTokens[1]
-            if token ~= nil and token.canControl then
+            if TokenControlledByUser(token) then
                 local initiativeid = InitiativeQueue.GetInitiativeId(token)
                 if initiativeid ~= nil and dmhub.initiativeQueue:IsEntryPlayer(initiativeid) and token.topsheet ~= nil then
                     canSelectToken = true
@@ -518,7 +554,7 @@ local function CreateDrawSteelBubble()
             end
 
             local token = dmhub.selectedOrPrimaryTokens[1]
-            if token ~= nil and token.canControl then
+            if TokenControlledByUser(token) then
                 local initiativeid = InitiativeQueue.GetInitiativeId(token)
                 if initiativeid ~= nil and (dmhub.initiativeQueue:IsEntryPlayer(initiativeid) == dmhub.initiativeQueue:IsPlayersTurn()) and token.topsheet ~= nil then
                     local nameplate = token.topsheet:GetChildrenWithClassRecursive("nameplate")[1]
@@ -752,7 +788,7 @@ local function CreateDrawSteelBubble()
                 end
 
                 local token = dmhub.selectedOrPrimaryTokens[1]
-                if token ~= nil and token.canControl then
+                if TokenControlledByUser(token) then
                     local initiativeid = InitiativeQueue.GetInitiativeId(token)
                     if initiativeid ~= nil and (dmhub.initiativeQueue:IsEntryPlayer(initiativeid) == dmhub.initiativeQueue:IsPlayersTurn()) then
                         element.parent:FireEventTree("claiming", true)
@@ -1190,9 +1226,25 @@ end
 -- =====================================================================
 
 -- Return { ["Villain Action 1"] = ability, ... } for a token, or nil.
+local g_reportedVillainActionScanError = false
 local function GetVillainActionAbilities(token)
     if token == nil or token.properties == nil then return nil end
-    local abilities = token.properties:GetActivatedAbilities()
+    --Containment: GetActivatedAbilities runs a huge pass over authored data
+    --(modifiers, items, triggers, module content). A throw here used to
+    --propagate out of the refreshGame dispatch and abort the refresh of every
+    --remaining HUD panel, including the action bar. Drop just this token from
+    --the villain-action scan instead (mirrors DrawSteelActionBar.lua's
+    --containment for report Q3Y6HTZ4).
+    local ok, abilities = pcall(function()
+        return token.properties:GetActivatedAbilities()
+    end)
+    if not ok then
+        if not g_reportedVillainActionScanError then
+            g_reportedVillainActionScanError = true
+            dmhub.CloudError(string.format("Villain action scan failed for token; skipping it: %s", tostring(abilities)))
+        end
+        return nil
+    end
     if abilities == nil then return nil end
     local result
     for _, ab in ipairs(abilities) do
@@ -1757,7 +1809,7 @@ local function CreateVillainActionStrip(self, info)
         },
 
         refresh = function(element)
-            if not dmhub.isDM then
+            if not GameHud.DirectorUIVisible() then
                 element:SetClass("collapsed", true)
                 return
             end
@@ -1853,7 +1905,7 @@ local function CreateVillainActionStrip(self, info)
         -- Players never have the strip, so bail immediately for them.
         thinkTime = 0.7,
         think = function(element)
-            if not dmhub.isDM then return end
+            if not GameHud.DirectorUIVisible() then return end
 
             local q = dmhub.initiativeQueue
             local currentTurn = q and q.currentTurn
@@ -1993,7 +2045,7 @@ local function CreateReinforcementsStrip(self, info)
         },
 
         refresh = function(element)
-            if not dmhub.isDM then
+            if not GameHud.DirectorUIVisible() then
                 element:SetClass("collapsed", true)
                 return
             end
@@ -2042,7 +2094,7 @@ local function CreateReinforcementsStrip(self, info)
 
         thinkTime = 0.7,
         think = function(element)
-            if not dmhub.isDM then return end
+            if not GameHud.DirectorUIVisible() then return end
             element:FireEvent("refresh")
         end,
 
@@ -2333,7 +2385,7 @@ local function CreateCuesStrip(self, info)
         },
 
         refresh = function(element)
-            if not dmhub.isDM then
+            if not GameHud.DirectorUIVisible() then
                 element:SetClass("collapsed", true)
                 return
             end
@@ -2380,7 +2432,7 @@ local function CreateCuesStrip(self, info)
 
         thinkTime = 0.7,
         think = function(element)
-            if not dmhub.isDM then return end
+            if not GameHud.DirectorUIVisible() then return end
             element:FireEvent("refresh")
         end,
 
@@ -2517,7 +2569,7 @@ local function CreateEncounterActionButton(info, button)
             --unaffordable malice buttons, but malice can change between
             --refreshes).
             local cost = tonumber(current.malice) or 0
-            if cost > 0 and CharacterResource.GetMalice() < cost then
+            if cost > 0 and not CharacterResource.CanSpendMalice(cost) then
                 return
             end
 
@@ -2527,7 +2579,7 @@ local function CreateEncounterActionButton(info, button)
             end
 
             if cost > 0 then
-                CharacterResource.SetMalice(CharacterResource.GetMalice() - cost, current.name or "Encounter action")
+                CharacterResource.SpendMalice(cost, current.name or "Encounter action")
             end
 
             if current.command ~= nil and current.command ~= "" then
@@ -2589,7 +2641,7 @@ local function CreateEncounterActionsStrip(self, info)
         },
 
         refresh = function(element)
-            if not dmhub.isDM then
+            if not GameHud.DirectorUIVisible() then
                 element:SetClass("collapsed", true)
                 return
             end
@@ -2614,7 +2666,7 @@ local function CreateEncounterActionsStrip(self, info)
             local buttons = {}
             for _, button in ipairs(liveEncounter:GetCustomButtons()) do
                 local cost = tonumber(button.malice) or 0
-                if cost <= 0 or CharacterResource.GetMalice() >= cost then
+                if cost <= 0 or CharacterResource.CanSpendMalice(cost) then
                     buttons[#buttons + 1] = button
                 end
             end
@@ -2646,7 +2698,7 @@ local function CreateEncounterActionsStrip(self, info)
 
         thinkTime = 0.7,
         think = function(element)
-            if not dmhub.isDM then return end
+            if not GameHud.DirectorUIVisible() then return end
             element:FireEvent("refresh")
         end,
 
@@ -3005,7 +3057,7 @@ local function CreateAwardVictoryStrip(self, info)
                 return
             end
 
-            local isDM = dmhub.isDM
+            local isDM = GameHud.DirectorUIVisible()
             local visible = liveEncounter:try_get("objectiveVisible", false)
             local won = liveEncounter:CheckVictory()
             local lost = (not won) and liveEncounter:CheckDefeat()
@@ -3183,7 +3235,7 @@ local function CreateBossBarStrip(self, info)
                 return
             end
 
-            local isDM = dmhub.isDM
+            local isDM = GameHud.DirectorUIVisible()
             local visible = liveEncounter:try_get("bossBarVisible", false)
 
             --players only see the bar once it has been revealed.
@@ -3252,19 +3304,19 @@ function GameHud.CreateInitiativeBar(self, info)
 
     local resetTurnButton = nil
 
-    if dmhub.isDM then
+    if GameHud.DirectorUIVisible() then
         --Combat settings button: visible whenever the initiative bar is up. Click
         --opens a dropdown that includes "Revert Turn" (when a checkpoint exists),
         --plus the menu items that used to live behind the bubble's right-click.
+        --It rides along with the game-mode readout in the title bar's status
+        --area, as an ordinary child in that row -- it used to float off the
+        --right edge of the label back when the readout sat over the map.
         resetTurnButton = gui.Panel {
             bgimage = "panels/hud/gear.png",
             bgcolor = "#ffffffaa",
-            halign = "right",
             valign = "center",
             width = 24,
             height = 24,
-            x = 40,
-            floating = true,
             classes = {"unavailable"},
 
             data = {
@@ -3446,6 +3498,211 @@ function GameHud.CreateInitiativeBar(self, info)
 	local addCharacters
 	local addMonsters
 
+	--True exactly when ShowGameModeMenu will do something: you can control
+	--initiative, and combat is not currently running. The readout uses this to
+	--decide whether to present itself as a clickable menu item.
+	local function GameModeMenuAvailable()
+		return CanControlInitiative() and (info.initiativeQueue == nil or info.initiativeQueue.hidden)
+	end
+
+	--Opens the game-mode menu (Exploration / Combat / Downtime / Respite ...).
+	--Shared by the bar itself and by the game-mode label, which now lives in
+	--the title bar's status area rather than over the map -- the label is the
+	--only thing in the bar that was ever hit-testable, so without this the
+	--menu would have moved out of reach along with it.
+	--
+	--anchorPanel = true drops the menu under the element and flush with its
+	--left edge, the way the title bar's own File/Edit/View menus drop -- this
+	--is CreateCodexMenuItem's recipe verbatim (it needs the element to carry
+	--popupPositioning = 'panel'). The map-overlay initiative bubble is not a
+	--menu strip item, so it keeps the plain cursor-anchored popup.
+	local function ShowGameModeMenu(element, anchorPanel)
+		if not GameModeMenuAvailable() then
+			return
+		end
+		local entries = {}
+		for i=1,#InitiativeQueue.GameModes do
+			local mod = InitiativeQueue.GameModes[i]
+			entries[#entries+1] = {
+				text = mod.text,
+				click = function()
+					element.popup = nil
+
+					--The Respite is being rebuilt as a wizard of its own, so
+					--this entry raises that window instead of putting the game
+					--into respite mode. Setting the mode is deliberately left
+					--undone here for now: GameHud:BeginRespiteMode() below is
+					--what did it and is untouched, so the wizard can drive it
+					--once it owns the whole flow.
+					if mod.id == "respite" then
+						local respite = rawget(_G, "RSPConstants")
+						if respite ~= nil then
+							LaunchablePanel.LaunchPanelByName(respite.panelName)
+						end
+						return
+					end
+
+					--Combat runs the Game menu's "Draw Steel!" path verbatim: rollinitiative only
+					--opens the setup dialog while the queue is hidden, so we must not clear it first.
+					if mod.hasinitiative then
+						Commands.rollinitiative()
+						return
+					end
+
+					UploadDayNightInfo()
+					if info.initiativeQueue == nil then
+						info.initiativeQueue = InitiativeQueue.Create()
+					end
+					--Combat returned above, so every mode reaching here is one without
+					--initiative and wants its queue kept out of sight.
+					info.initiativeQueue.gameMode = mod.id
+					info.initiativeQueue.hidden = not mod.hasinitiative
+					info.UploadInitiative()
+
+					if info.initiativeQueue.gameMode == "downtime" then
+						for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do
+							token.properties:DispatchEvent("startdowntime", {})
+						end
+					end
+
+				end,
+			}
+		end
+
+		if anchorPanel then
+			element.popup = gui.Panel{
+				width = "auto",
+				height = "auto",
+				halign = "right",
+				valign = "bottom",
+				gui.ContextMenu{
+					width = 300,
+					x = -element.renderedWidth,
+					entries = entries,
+					click = function()
+						element.popup = nil
+					end,
+				},
+			}
+			return
+		end
+
+		element.popup = gui.ContextMenu{
+			entries = entries,
+		}
+	end
+
+	--The game-mode / round readout. Built here because its click menu and the
+	--combat-settings gear anchored to it need this file's helpers, but mounted
+	--into the title bar's status area (left of the map name) further down --
+	--it used to float over the top of the map behind a dark blurred plate.
+	local gameModePanel = gui.Panel{
+		halign = "left",
+		valign = "center",
+		width = "auto",
+		height = "100%",
+		flow = "horizontal",
+
+		--The readout is a title-bar menu item like File/Edit/View beside it:
+		--the "menuItem" class supplies the invisible-at-rest plate plus the
+		--inverted (@fg) hover fill, and the inner "menuLabel" flips its text to
+		--@bg on parent:hover. Structure has to match that pattern -- the fill
+		--and the click live on the wrapper, the label is interactable = false
+		--so the hover lands on the wrapper rather than on the text.
+		gui.Panel{
+			classes = {"menuItem"},
+			popupPositioning = 'panel',
+			width = "auto",
+			height = "100%",
+			valign = "center",
+			flow = "horizontal",
+			--Inline (not left to the menuItem style) so the readout does not
+			--shift sideways on the frames where the class is dropped below.
+			hpad = 8,
+
+			click = function(element)
+				ShowGameModeMenu(element, true)
+			end,
+
+			gui.Label{
+				classes = {"menuLabel"},
+				minFontSize = 10,
+				--menuLabel is 16 for the main menu strip; the status cluster
+				--this sits in runs at the default 14, so match the neighbours.
+				fontSize = 14,
+				width = "auto",
+				maxWidth = 260,
+				height = "100%",
+				valign = "center",
+				textAlignment = "left",
+				textWrap = false,
+				textOverflow = "ellipsis",
+				interactable = false,
+				text = "",
+
+				--The title bar is outside the hud's refresh cascade, so this cannot
+				--ride on `refresh` the way it did over the map. The queue document
+				--monitor does the real work; the slow think is just a backstop for
+				--state the monitor does not cover (map switches carry their own
+				--queue), and it only touches .text when the string actually changed.
+				monitorGame = "/initiativeQueue",
+				create = function(element)
+					element:FireEvent("refreshGame")
+				end,
+				thinkTime = 0.5,
+				think = function(element)
+					element:FireEvent("refreshGame")
+				end,
+				refreshGame = function(element)
+					local text
+					local queue = dmhub.initiativeQueue
+					if queue == nil then
+						text = "Exploration"
+					elseif queue.hidden then
+						text = queue:GameModeInfo().text
+					else
+						text = string.format('Round %d', queue.round)
+						local liveEncounter = queue:try_get("liveEncounter")
+						if type(liveEncounter) == "table" then
+							local name = liveEncounter:GetName()
+							if name ~= nil and name ~= "" then
+								text = string.format('%s - %s', name, text)
+							end
+						end
+					end
+
+					if element.text ~= text then
+						element.text = text
+					end
+
+					--Only advertise the hover affordance when the menu would
+					--actually open: ShowGameModeMenu bails out for players who
+					--cannot control initiative, and during a visible combat.
+					--Dropping "menuItem" also drops the wrapper's bgimage, so
+					--it stops being a raycast target at the same time.
+					if element.parent ~= nil then
+						element.parent:SetClass("menuItem", GameModeMenuAvailable())
+					end
+				end,
+			},
+		},
+
+		--The combat-settings gear travels with the readout. In its old home it
+		--floated off the label's right edge; here it is just the next thing in
+		--the row. Out of combat it goes to opacity 0 rather than collapsing --
+		--its own think handler is what clears the "unavailable" class, and a
+		--collapsed panel stops thinking, so collapsing would be a one-way trip.
+		--The reserved 24px also stops the bar from reflowing when combat starts.
+		resetTurnButton,
+	}
+
+	--Guarded: the title bar module owns the mount point, and rawget keeps this
+	--from erroring if the codex is ever loaded without it.
+	local titleBar = rawget(_G, "CodexTitleBar")
+	if titleBar ~= nil and titleBar.MountInitiativeStatusPanel ~= nil then
+		titleBar.MountInitiativeStatusPanel(gameModePanel)
+	end
+
 	--The parent / top-level initiative bar.
 	return gui.Panel({
 		floating = true,
@@ -3570,56 +3827,7 @@ function GameHud.CreateInitiativeBar(self, info)
 			end,
 
 			click = function(element)
-                if not CanControlInitiative() or (info.initiativeQueue ~= nil and (not info.initiativeQueue.hidden)) then
-                    return
-                end
-                local entries = {}
-                for i=1,#InitiativeQueue.GameModes do
-                    local mod = InitiativeQueue.GameModes[i]
-                    entries[#entries+1] = {
-                        text = mod.text,
-                        click = function()
-                            element.popup = nil
-
-                            if mod.id == "respite" then
-                                GameHud.instance:BeginRespiteMode()
-                                return
-                            end
-
-					        UploadDayNightInfo()
-                            if info.initiativeQueue == nil then
-                                info.initiativeQueue = InitiativeQueue.Create()
-                            end
-                            info.initiativeQueue.gameMode = mod.id
-                            info.UploadInitiative()
-
-                            if mod.hasinitiative then
-                                Commands.rollinitiative()
-                                return
-                            end
-
-							if info.initiativeQueue.gameMode == "downtime" then
-								local settings = DTSettings.CreateNew()
-								if settings then
-									settings:SetPauseRolls(false)
-								end
-								for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do
-									token.properties:DispatchEvent("startdowntime", {})
-								end
-							else
-								local settings = DTSettings.CreateNew()
-								if settings then
-									settings:SetPauseRolls(true)
-								end
-							end
-
-                        end,
-                    }
-                end
-
-                element.popup = gui.ContextMenu{
-                    entries = entries,
-                }
+				ShowGameModeMenu(element)
 			end,
 		},
 
@@ -3635,107 +3843,6 @@ function GameHud.CreateInitiativeBar(self, info)
 				halign = "center",
 			},]]
 
-			--text at the top saying initiative.
-			gui.Panel{
-				halign = "center",
-				valign = "top",
-				width = "auto",
-				height = "auto",
-				flow = "vertical",
-
-				--[[gui.Label({
-					text = 'Draw Steel',
-
-					vmargin = 8,
-					fontFace = "SupernaturalKnight",
-					fontSize = 30,
-					color = Styles.textColor,
-					valign = 'top',
-					halign = 'center',
-					textAlignment = 'center',
-					width = 'auto',
-					height = 'auto',
-				}),]]
-
-				gui.Label{ 
-					text = '',
-					fontFace = "Book",
-					fontSize = 18,
-					color = Styles.textColor,
-					valign = 'top',
-					halign = 'center',
-					textAlignment = 'center',
-                    width = "auto",
-                    minWidth = 180,
-                    maxWidth = 500,
-					height = 30,
-					tmargin = 0,
-                    vpad = 8,
-                    hpad = 8,
-                    bgimage = "panels/square.png",
-                    bgcolor = "#000000bb",
-                    borderWidth = 10,
-                    borderColor = "#000000bb",
-                    borderFade = true,
-
-					refresh = function(element)
-						if info.initiativeQueue == nil or info.initiativeQueue.hidden then
-                            if info.initiativeQueue == nil then
-                                element.text = "Exploration"
-                            else
-                                element.text = info.initiativeQueue:GameModeInfo().text
-                            end
-						else
-							local roundText = string.format('Round %d', info.initiativeQueue.round)
-							local liveEncounter = info.initiativeQueue:try_get("liveEncounter")
-							if type(liveEncounter) == "table" then
-								local name = liveEncounter:GetName()
-								if name ~= nil and name ~= "" then
-									roundText = string.format('%s - %s', name, roundText)
-								end
-							end
-							element.text = roundText
-						end
-					end,
-
-					--[[gui.Panel{
-						classes = {"clickableIcon"},
-						bgimage = "panels/hud/clockwise-rotation.png",
-						bgcolor = Styles.textColor,
-						floating = true,
-						halign = "right",
-						valign = "center",
-						width = 16,
-						height = 16,
-
-						hover = gui.Tooltip("Skip to next round"),
-
-						refresh = function(element)
-							if (not dmhub.isDM) or info.initiativeQueue == nil or info.initiativeQueue.hidden or (not info.initiativeQueue:ChoosingTurn()) then
-
-								--If there is no initiative then hide the button.
-								element:AddClass('hidden')
-							else
-								element:RemoveClass('hidden')
-							end
-						end,
-
-						click = function(element)
-							if info.initiativeQueue ~= nil then
-								info.initiativeQueue:NextRound()
-								self:NewRound()
-								info.UploadInitiative()
-							end
-						end,
-					},]]
-
-                    resetTurnButton,
-
-				},
-
-				addCharacters,
-				addMonsters,
-			},
 
 
 			mainInitiativeBar,
@@ -3925,7 +4032,54 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			width = "auto",
 			height = "auto",
 			textAlignment = "center",
-			text = cond(playerside, "Ready Heroes", "Ready Monsters"),
+			--Director overview P2-b: for the Director the monster-side label
+			--is an action ("Select All" - field test: "Ready Monsters" did
+			--not read as clickable); players and the hero side keep the
+			--plain status wording.
+			text = cond(playerside, "Ready Heroes", cond(dmhub.isDM, "Select All", "Ready Monsters")),
+
+			--Director overview P2-b (DIRECTOR_ENCOUNTER_OVERVIEW_DESIGN.md,
+			--Decision 39): on the monster side, the Director can click this
+			--label to select every ready monster on the map at once - the
+			--multi-selection the "Unique Abilities" overview reads. Selection
+			--only; it never claims a turn or opens the folder.
+			hover = function(element)
+				if playerside or not dmhub.isDM then
+					return
+				end
+				gui.Tooltip("Click to select every ready monster on the map")(element)
+			end,
+			press = function(element)
+				if playerside or not dmhub.isDM then
+					return
+				end
+				local selectAll = rawget(_G, "DrawSteelActionBar")
+				if selectAll == nil or selectAll.SelectReadyMonsters == nil then
+					return
+				end
+				--Snapshot the selection so a SECOND click (selection already
+				--the ready set) opens the Unique Abilities menu instead -
+				--saves the trip to the bottom of the screen.
+				local before = {}
+				local beforeCount = 0
+				for _, tok in ipairs(dmhub.selectedTokens or {}) do
+					before[tok.charid] = true
+					beforeCount = beforeCount + 1
+				end
+				selectAll.SelectReadyMonsters()
+				local same = true
+				local afterCount = 0
+				for _, tok in ipairs(dmhub.selectedTokens or {}) do
+					afterCount = afterCount + 1
+					if not before[tok.charid] then
+						same = false
+					end
+				end
+				if same and afterCount == beforeCount and afterCount > 0
+					and selectAll.OpenUniqueMenu ~= nil then
+					selectAll.OpenUniqueMenu()
+				end
+			end,
 		}
 		local m_hadTurnSegment = gui.Panel{
 			classes = {"initiativeBarSegment", "hadTurn"},
@@ -3959,7 +4113,57 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				or {m_unmovedSegment, m_segmentSpacer, m_hadTurnSegment}),
 		}
 
-		return gui.Panel{
+		--Notebook button in the monster container's upper-left corner: opens
+		--the Encounter Wrangler window (Director only, and only when the
+		--"dev:encounterwrangler" flag is on; see EncounterWrangler.lua).
+		--A construction-time floating child: the refresh handler must re-include
+		--it (via data.wranglerButton) whenever it reassigns .children, the same
+		--contract m_bar and the label panel rely on.
+		local m_wranglerButton = nil
+		if not playerside then
+			m_wranglerButton = gui.Panel{
+				classes = {"initiativeWranglerButton", "hidden"},
+				styles = {
+					{
+						selectors = {"initiativeWranglerButton"},
+						bgcolor = "#ffffffcc",
+					},
+					{
+						selectors = {"initiativeWranglerButton", "hover"},
+						bgcolor = "white",
+						transitionTime = 0.1,
+					},
+					{
+						selectors = {"initiativeWranglerButton", "press"},
+						bgcolor = "#ffffff88",
+					},
+				},
+				floating = true,
+				halign = "left",
+				valign = "top",
+				--negative x floats it just OUTSIDE the container's left edge,
+				--in the gap beside the leftmost card, so it never overlaps
+				--card art (floating children are not clipped by the parent).
+				x = -28,
+				y = 4,
+				width = 24,
+				height = 24,
+				bgimage = "phosphor/notebook.png",
+				hoverCursor = "pressbutton",
+				swallowPress = true,
+				linger = function(element)
+					gui.Tooltip("Encounter Wrangler")(element)
+				end,
+				press = function(element)
+					local wrangler = rawget(_G, "EncounterWrangler")
+					if wrangler ~= nil then
+						wrangler.Open()
+					end
+				end,
+			}
+		end
+
+		local containerPanel = gui.Panel{
 			styles = {
 				{
 					selectors = {"initiativeEntryContainer"},
@@ -3994,6 +4198,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				segmentSpacer = m_segmentSpacer,
 				hadTurnLabel = m_hadTurnLabel,
 				unmovedLabel = m_unmovedLabel,
+				wranglerButton = m_wranglerButton,
 			},
 
 			gui.Panel{
@@ -4016,6 +4221,15 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 			--attachment to keep the bar alive without re-attach churn.
 			m_bar,
 		}
+
+		--Attached after construction rather than positionally: it is nil on
+		--the player side, and a nil in a positional constructor truncates
+		--the child list after it.
+		if m_wranglerButton ~= nil then
+			containerPanel:AddChild(m_wranglerButton)
+		end
+
+		return containerPanel
 	end
 
     
@@ -4511,37 +4725,12 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				else
 					newEntries[k] = self:CreateInitiativeEntry(info, k, {
 						selectinitiative = function(element)
-
-							--Use the live queue (dmhub.initiativeQueue), not the closure-
-							--captured initiativeQueue from when refresh ran -- the latter
-							--can be stale after a turn transition, which made SelectTurn a
-							--silent no-op for drag-to-claim after ending the previous turn.
-							local q = dmhub.initiativeQueue
-							if q == nil or q.hidden then return end
-
-							if CanControlInitiative() == false and ((not q:ChoosingTurn()) or (not q:IsPlayersTurn()) or (not q:EntriesUnmoved()[k]) or (not q:IsEntryPlayer(k))) then
-								return
-							end
-							q:SelectTurn(k)
-							dmhub:UploadInitiativeQueue()
-
-							--Use the loop key (the initiative id) rather than v.initiativeid;
-							--group entries don't populate v.initiativeid, which left BeginTurn
-							--unfired and the drag-to-claim a no-op for monster groups.
-							local tokens = self:GetTokensForInitiativeId(info, k)
-							local tokenIds = {}
-							for i,tok in ipairs(tokens) do
-								if tok.properties ~= nil then
-									tok.properties:BeginTurn()
-									tokenIds[#tokenIds+1] = tok.charid
-								end
-							end
-
-							if #tokenIds > 0 then
-								chat.SendCustom(StartOfTurnChatMessage.new{
-									tokenids = tokenIds,
-								})
-							end
+							--The whole claim sequence (gate, SelectTurn, upload, BeginTurn
+							--per token, start-of-turn chat card) lives in
+							--InitiativeQueue.ClaimTurn so other surfaces can reuse it. It
+							--reads the LIVE queue and uses the loop key k as the initiative
+							--id (group entries do not populate v.initiativeid).
+							InitiativeQueue.ClaimTurn(k, {canControlInitiative = CanControlInitiative()})
 						end,
 					})
 					newEntries[k]:SetClass("player", isplayer)
@@ -4605,6 +4794,20 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 
 			for _,e in ipairs(playerList) do processEntry(e.k, e.v, true) end
 			for _,e in ipairs(monsterList) do processEntry(e.k, e.v, false) end
+
+			--The Encounter Wrangler button is a construction-time floating child;
+			--re-include it in every reassignment or it gets disposed. Appended
+			--AFTER the cards so it renders above them (children render in list
+			--order; seeding it before the cards buried it under the leftmost
+			--card). Director only.
+			--Gated behind the per-user "dev:encounterwrangler" flag (declared in
+			--EncounterWrangler.lua, deliberately absent from the settings UI;
+			--toggle with "/toggle dev:encounterwrangler" in chat).
+			if monsterContainer.data.wranglerButton ~= nil then
+				monsterChildren[#monsterChildren+1] = monsterContainer.data.wranglerButton
+				local wranglerEnabled = dmhub.isDM and dmhub.GetSettingValue("dev:encounterwrangler") == true
+				monsterContainer.data.wranglerButton:SetClass("hidden", not wranglerEnabled)
+			end
 
 			--The anthem speaker icon goes last so it renders above the centered card.
 			--It must be included in every reassignment or it gets disposed.
@@ -4761,12 +4964,26 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 					--Shorten the label text when the segment is only one card wide so it
 					--still fits beneath the bar.
 					container.data.hadTurnLabel.text = (hadTurnCount == 1) and "Moved" or "Already Moved"
-					container.data.unmovedLabel.text = (unmovedCount == 1) and "Ready"
-						or (container.data.player and "Ready Heroes" or "Ready Monsters")
+					--Director overview P2-b: the Director's monster-side label
+					--is the "Select All" action (see the label's press); keep
+					--the plain status wording for players and the hero side.
+					if container.data.player then
+						container.data.unmovedLabel.text = (unmovedCount == 1) and "Ready" or "Ready Heroes"
+					elseif dmhub.isDM then
+						container.data.unmovedLabel.text = "Select All"
+					else
+						container.data.unmovedLabel.text = (unmovedCount == 1) and "Ready" or "Ready Monsters"
+					end
 					--Labels only show when this side is currently choosing the next turn,
 					--and the bucket has at least one card to label.
+					--Director overview P2-b: the Director's monster-side "Select All"
+					--is an ACTION, not a status, so it stays available whenever unmoved
+					--monsters exist - including during the heroes' turn, which is
+					--exactly when the Director preps the next activation (browsing the
+					--overview off-turn never claims; field test 16).
+					local showUnmoved = unmovedCount > 0 and (active or (dmhub.isDM and not container.data.player))
 					container.data.hadTurnLabel.selfStyle.hidden = (active and hadTurnCount > 0) and 0 or 1
-					container.data.unmovedLabel.selfStyle.hidden = (active and unmovedCount > 0) and 0 or 1
+					container.data.unmovedLabel.selfStyle.hidden = showUnmoved and 0 or 1
 				end)
 			end
 			SizeBar(playerContainer, playerCards, choosingPlayer)
@@ -4919,13 +5136,12 @@ function GameHud:BeginRespiteMode()
 	if info.initiativeQueue == nil then
 		info.initiativeQueue = InitiativeQueue.Create()
 	end
+	--A fresh queue is born visible, and visible is what the app reads as combat.
+	--Only a map with no queue yet reaches the Create above, so this bites the
+	--first respite on a map that has never had a fight.
 	info.initiativeQueue.gameMode = "respite"
+	info.initiativeQueue.hidden = true
 	info.UploadInitiative()
-
-	local settings = DTSettings.CreateNew()
-	if settings then
-		settings:SetPauseRolls(true)
-	end
 
 	--"Until Respite" ongoing effects end when the respite begins, not when it ends.
 	local groupid = dmhub.GenerateGuid()
@@ -4956,10 +5172,12 @@ function GameHud.CreateRespiteBar(self, info)
 		valign = "top",
 
 		refresh = function(element)
-			local isRespite = info.initiativeQueue ~= nil
-				and info.initiativeQueue.hidden
-				and info.initiativeQueue.gameMode == "respite"
-			element:SetClass("hidden", not isRespite)
+			--The Respite wizard owns starting and ending a Respite now, and it
+			--is the only thing that may: this bar's End Respite rested every
+			--player-controlled token on the map for a flat 24 hours, ignoring
+			--who actually took the Respite. It stays built but never shows --
+			--the body below is the reference for what the wizard reproduces.
+			element:SetClass("hidden", true)
 		end,
 
 		gui.Panel{
@@ -5067,7 +5285,11 @@ function GameHud.CreateRespiteBar(self, info)
 	                            combine = true,
 	                            groupid = groupid,
 	                            execute = function()
-							        token.properties:Rest("long")
+									--Keep ongoing effects: BeginRespiteMode already ended the
+									--"until rest" ones when the respite started. Clearing them
+									--again here would wipe anything gained during this respite,
+									--like a respite activity's bonus.
+							        token.properties:Rest("long", true)
 	                            end,
 	                        }
 							local newXp = token.properties:try_get("xp", 0)
@@ -5082,14 +5304,53 @@ function GameHud.CreateRespiteBar(self, info)
 	}
 end
 
+local g_betweenTurnHandlers = {}
+local g_betweenTurnTransitionInProgress = false
+
+-- Register work that must happen after EndTurn events but before the initiative
+-- queue marks the finished entry as moved. Handlers are keyed so hot reloads
+-- replace an existing registration instead of adding a duplicate.
+function GameHud.RegisterBetweenTurnHandler(args)
+	if args == nil or type(args.id) ~= "string" or type(args.run) ~= "function" then
+		return
+	end
+	g_betweenTurnHandlers[args.id] = args
+end
+
+function GameHud.BetweenTurnTransitionInProgress()
+	return g_betweenTurnTransitionInProgress
+end
+
+local function RunBetweenTurnHandler(handler, context)
+	-- Isolate each handler in its own coroutine. This lets handlers yield while
+	-- abilities resolve without allowing an error to strand initiative forever.
+	local handlerThread = coroutine.create(function()
+		handler.run(context)
+	end)
+
+	while coroutine.status(handlerThread) ~= "dead" do
+		local ok, delay = coroutine.resume(handlerThread)
+		if not ok then
+			print(string.format("BetweenTurnHandler[%s] error: %s", handler.id, tostring(delay)))
+			return
+		end
+
+		if coroutine.status(handlerThread) ~= "dead" then
+			coroutine.yield(type(delay) == "number" and delay or 0.1)
+		end
+	end
+end
+
 function GameHud:NextInitiative(oncomplete)
 	local info = self.initiativeInterface
 	local mainInitiativeBar = self.choiceInitiativeBar
 
 	--End the turn in initiative queue data and upload the changes.
-	if self:has_key('currentInitiativeId') then
+	if self:has_key('currentInitiativeId') and not g_betweenTurnTransitionInProgress then
 		local currentInitiativeId = self.currentInitiativeId
 		local tokens = self:GetTokensForInitiativeId(info, currentInitiativeId)
+		local initiativeQueue = info.initiativeQueue
+		g_betweenTurnTransitionInProgress = true
         
 
         --we have to dispatch end turn BEFORE we change to the next turn,
@@ -5106,22 +5367,48 @@ function GameHud:NextInitiative(oncomplete)
 			end
 		end
 
-        --wait a small delay until next round to give a chance for events to proc.
-        --TODO: maybe a mechanism for counting in process abilities/coroutines and
-        --waiting for them to finish before we start the next turn?
-        dmhub.Schedule(0.1, function()
-            local newRound = info.initiativeQueue:NextTurn(currentInitiativeId)
+		-- Give end-turn events a frame to start, then run ordered asynchronous
+		-- handlers while the old round and current-turn state are still intact.
+		dmhub.Coroutine(function()
+			local delayUntil = dmhub.Time() + 0.1
+			while dmhub.Time() < delayUntil do
+				coroutine.yield(0.05)
+			end
 
-            if newRound then
-                self:NewRound()
-            end
+			local handlers = {}
+			for _,handler in pairs(g_betweenTurnHandlers) do
+				handlers[#handlers+1] = handler
+			end
+			table.sort(handlers, function(a, b)
+				return (a.priority or 0) < (b.priority or 0)
+			end)
 
-            --recalculate self.currentInitiativeId
-            mainInitiativeBar:FireEvent("refresh")
-            if oncomplete ~= nil then
-                oncomplete()
-            end
-        end)
+			local context = {
+				initiativeQueue = initiativeQueue,
+				round = initiativeQueue.round,
+				endedInitiativeId = currentInitiativeId,
+				endedTokens = tokens,
+			}
+			for _,handler in ipairs(handlers) do
+				RunBetweenTurnHandler(handler, context)
+			end
+
+			local newRound = false
+			if info.initiativeQueue == initiativeQueue and initiativeQueue.entries[currentInitiativeId] ~= nil then
+				newRound = initiativeQueue:NextTurn(currentInitiativeId)
+			end
+
+			g_betweenTurnTransitionInProgress = false
+			if newRound then
+				self:NewRound()
+			end
+
+			--recalculate self.currentInitiativeId
+			mainInitiativeBar:FireEvent("refresh")
+			if oncomplete ~= nil then
+				oncomplete()
+			end
+		end)
 
 	end
 end
@@ -5147,7 +5434,7 @@ local g_beginRoundStyles = {
     }
 }
 
---- @class BeginRoundChatMessage
+--- @class BeginRoundChatMessage: GameType
 BeginRoundChatMessage = RegisterGameType("BeginRoundChatMessage")
 BeginRoundChatMessage.round = 0
 function BeginRoundChatMessage.Render(self, message)
@@ -5216,7 +5503,7 @@ function BeginRoundChatMessage.Render(self, message)
     return resultPanel
 end
 
---- @class StartOfTurnChatMessage
+--- @class StartOfTurnChatMessage: GameType
 StartOfTurnChatMessage = RegisterGameType("StartOfTurnChatMessage")
 StartOfTurnChatMessage.tokenids = {}
 

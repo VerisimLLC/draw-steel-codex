@@ -4,6 +4,12 @@ RegisterGameType("CommandDocument", "CustomDocument")
 CommandDocument.command = ""
 
 function CommandDocument:ShowDocument()
+	--panels the journal can link to live in either registry: most are now
+	--ordinary dockable panels (Maps, the Compendium, the Measuring Tool),
+	--the rest are still launchable dialogs.
+	if DockablePanel.ShowPanelByName(self.command) then
+		return
+	end
 	LaunchablePanel.GetOrLaunchPanel(self.command)
 end
 
@@ -204,7 +210,11 @@ function BubbleDocument:PreviewDescription()
     return string.format("Click to view %s", desc ~= "" and desc or "this bubble")
 end
 
-function CustomDocument.PreviewLink(element, link)
+--options (all optional): halign -- which side of the element the preview
+--tooltip opens on ("right" default; the title-bar search passes "left"
+--because its popup hugs the right screen edge).
+function CustomDocument.PreviewLink(element, link, options)
+    options = options or {}
     if string.starts_with(link, "http://") or string.starts_with(link, "https://") then
         gui.Tooltip("Click to open this link in your web browser")(element)
         return
@@ -240,7 +250,7 @@ function CustomDocument.PreviewLink(element, link)
         if panel ~= nil then
             element.tooltip = gui.TooltipFrame(panel, {
                 interactable = false,
-                halign = "right",
+                halign = options.halign or "right",
                 width = 600,
             })
         end
@@ -657,12 +667,15 @@ function CustomDocument.ResolveLink(link)
         return nil
     end
 
-    local launchableWindows = LaunchablePanel.GetMenuItems()
-    for _,item in ipairs(launchableWindows) do
-        if item.name ~= nil and link == string.lower(item.name) then
-            return CommandDocument.new{
-                command = item.name,
-            }
+    --"windows" a link can name: dockable panels first (most of them live
+    --there now), then the launchable dialogs that remain.
+    for _,items in ipairs({DockablePanel.GetMenuItems(true, true), LaunchablePanel.GetMenuItems()}) do
+        for _,item in ipairs(items) do
+            if item.name ~= nil and link == string.lower(item.name) then
+                return CommandDocument.new{
+                    command = item.name,
+                }
+            end
         end
     end
 

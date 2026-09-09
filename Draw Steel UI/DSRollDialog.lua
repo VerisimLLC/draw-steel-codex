@@ -124,6 +124,32 @@ function GameHud.CreateRollDialog(self)
     local resultPanel
     local CalculateRollText
 
+    --How see-through the frame sits when nobody has asked otherwise. Kept here
+    --so the resting value and the solid override read as one decision.
+    local DIALOG_OPACITY = 0.95
+
+    --The framed panel the dialog is drawn on, found rather than held: it is
+    --built inline inside resultPanel, and hoisting it out would move a few
+    --hundred lines to gain nothing.
+    local m_framePanel = nil
+    local function FramePanel()
+        if m_framePanel ~= nil and m_framePanel.valid then
+            return m_framePanel
+        end
+
+        m_framePanel = nil
+        if resultPanel ~= nil and resultPanel.valid then
+            for _, child in ipairs(resultPanel.children or {}) do
+                if child.valid and child:HasClass("framedPanel") then
+                    m_framePanel = child
+                    break
+                end
+            end
+        end
+
+        return m_framePanel
+    end
+
     local rollAllPrompts = nil
     local rollActive = nil
     local beginRoll = nil
@@ -783,7 +809,7 @@ function GameHud.CreateRollDialog(self)
                                 creature:LookupSymbol {}, 0)
                             local available, resourceName
                             if costType == "cost" then
-                                available = tok.properties:GetHeroicOrMaliceResources()
+                                available = tok.properties:GetHeroicOrMaliceResourcesAvailableToSpend()
                                 resourceName = tok.properties:GetHeroicResourceName()
                             elseif costType == "epic" then
                                 available = tok.properties:GetEpicResources()
@@ -1186,9 +1212,12 @@ function GameHud.CreateRollDialog(self)
                 if token ~= nil then
                     local tokenTriggers = token.properties:GetAvailableTriggers() or {}
                     local tokenTrigger = tokenTriggers[trigger.id]
-                    if tokenTrigger ~= nil and tokenTrigger.triggered ~= trigger.triggered then
+                    if tokenTrigger ~= nil and (tokenTrigger.triggered ~= trigger.triggered or tokenTrigger.resolving ~= trigger.resolving) then
                         trigger.triggered = tokenTrigger.triggered
                         trigger.retargetid = tokenTrigger.retargetid
+                        --carry resolving into our copy so the periodic re-dispatch
+                        --of this record can't clobber the owner's in-progress flag.
+                        trigger.resolving = tokenTrigger.resolving
                         trigger.dismissed = tokenTrigger.dismissed
                         needUpdate = true
 
@@ -1523,6 +1552,7 @@ function GameHud.CreateRollDialog(self)
     }
 
     alternateRollsBar = gui.Panel {
+        styles = Styles.AdvantageBar,
         classes = { "hideWhenMinimized", "advantage-bar" },
         prepare = function(element, options)
             if options.alternateOptions == nil or #options.alternateOptions <= 1 then
@@ -1874,6 +1904,7 @@ function GameHud.CreateRollDialog(self)
                         if creature ~= nil then
                             tooltip = StringInterpolateGoblinScript(tooltip, creature)
                         end
+                        tooltip = CharacterModifier.AppendSourceText(tooltip, mod.context)
                         for i, justification in ipairs(mod.hint.justification) do
                             tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
                                 justification)
@@ -2495,7 +2526,7 @@ function GameHud.CreateRollDialog(self)
         gui.Panel {
             classes = { "framedPanel" },
             cornerRadius = 0,
-            opacity = 0.95,
+            opacity = DIALOG_OPACITY,
             blurBackground = true,
             gui.Panel {
                 halign = "right",
@@ -2533,6 +2564,18 @@ function GameHud.CreateRollDialog(self)
             ShowDialog = function(options)
                 if not resultPanel.valid then
                     return
+                end
+
+                --The frame is see-through by default, which is unreadable over
+                --a busy map. A caller that needs to be read rather than
+                --admired asks for a solid one; everyone else is untouched.
+                --The blur is what actually shows the map through, so turning
+                --the opacity up on its own would not be enough.
+                local frame = FramePanel()
+                if frame ~= nil then
+                    local solid = options.solidDialog == true
+                    frame.blurBackground = not solid
+                    frame.selfStyle.opacity = cond(solid, 1, DIALOG_OPACITY)
                 end
 
                 print("RollDialog:: SHOW", options)
@@ -2874,6 +2917,11 @@ function GameHud.CreateRollDialog(self)
                     if creature ~= nil and creature._tmp_aicontrol > 0 then
                         local TryToProceed
                         local m_timerState = nil
+                        --wait state for an accepted trigger whose before-action
+                        --(e.g. Vanguard's Parry shift) is still resolving on the
+                        --owner's client. Separate from m_timerState so the decision
+                        --window and the resolution wait each get their own clock.
+                        local m_resolveState = nil
 
 
                         TryToProceed = function()
@@ -2881,17 +2929,25 @@ function GameHud.CreateRollDialog(self)
                             if resultPanel.valid and showingDialog then
                                 local tokens = dmhub.allTokens
                                 local haveTriggers = false
+                                local resolvingTrigger = nil
+                                local resolvingToken = nil
 
                                 local q = dmhub.initiativeQueue
                                 if q ~= nil then
                                     for _,tok in ipairs(tokens) do
                                         local initiativeid = InitiativeQueue.GetInitiativeId(tok)
                                         if q:IsEntryPlayer(initiativeid) or tok.playerControlled then
-                                            local triggers = tok.properties:GetAvailableTriggers(true)
+                                            --include dismissed records: an accepted trigger-before
+                                            --trigger is dismissed from the panel but still resolving.
+                                            local triggers = tok.properties:GetAvailableTriggers()
                                             for _,trigger in pairs(triggers or {}) do
                                                 if trigger.powerRollModifier then
-                                                    haveTriggers = true
-                                                    break
+                                                    if trigger.resolving then
+                                                        resolvingTrigger = trigger
+                                                        resolvingToken = tok
+                                                    elseif not trigger.dismissed then
+                                                        haveTriggers = true
+                                                    end
                                                 end
                                             end
                                         end
@@ -2899,7 +2955,7 @@ function GameHud.CreateRollDialog(self)
                                 end
 
                                 --check to make sure we don't need to reroll.
-                                if not haveTriggers then
+                                if (not haveTriggers) and resolvingTrigger == nil then
                                     triggersContainer:FireEvent("charactersUpdated")
                                     CalculateRollText()
                                     local rerolling = RecalculateMultiTargets()
@@ -2913,6 +2969,63 @@ function GameHud.CreateRollDialog(self)
                                 end
 
                                 --print("AI:: Dialog haveTriggers =", haveTriggers, m_timerState)
+
+                                if resolvingTrigger ~= nil and (m_resolveState == nil or (dmhub.Time() < m_resolveState.expire) or m_resolveState.paused) then
+                                    --hold the roll while the accepted trigger's before-action
+                                    --plays out, so it lands before damage and forced movement.
+                                    --A 30s clock backstops a player who never finishes it; the
+                                    --Director can click the dice to pause or push through.
+                                    local t = dmhub.Time()
+                                    if m_resolveState == nil then
+                                        local ownerName = resolvingToken.name
+                                        if ownerName == nil or ownerName == "" then
+                                            ownerName = "a player"
+                                        end
+                                        local triggerName = nil
+                                        if resolvingTrigger.powerRollModifier then
+                                            triggerName = resolvingTrigger.powerRollModifier:try_get("name")
+                                        end
+                                        local waitText
+                                        if triggerName ~= nil and triggerName ~= "" then
+                                            waitText = string.format("Waiting for %s's %s trigger...", ownerName, triggerName)
+                                        else
+                                            waitText = string.format("Waiting for %s's trigger...", ownerName)
+                                        end
+                                        m_resolveState = {
+                                            start = t,
+                                            current = t,
+                                            expire = t + 30,
+                                            text = waitText .. " Click to pause.",
+                                            callback = function()
+                                                if m_resolveState ~= nil then
+                                                    if m_resolveState.paused then
+                                                        UpdateTriggerReactionPanel(nil)
+                                                        if proceedAfterRollButton.valid then
+                                                            proceedAfterRollButton:FireEventTree("press")
+                                                        end
+                                                        return
+                                                    else
+                                                        m_resolveState.text = waitText .. " Click to proceed."
+                                                        m_resolveState.paused = true
+                                                        UpdateTriggerReactionPanel(m_resolveState)
+                                                    end
+                                                end
+                                            end,
+                                        }
+                                    end
+
+                                    m_resolveState.current = t
+                                    UpdateTriggerReactionPanel(m_resolveState)
+                                    dmhub.Schedule(0.2, function()
+                                        TryToProceed()
+                                    end)
+                                    return
+                                elseif m_resolveState ~= nil and resolvingTrigger == nil then
+                                    --the before-action finished (or was cancelled): drop the
+                                    --wait state so a later one starts a fresh clock, and fall
+                                    --through to the normal decision below.
+                                    m_resolveState = nil
+                                end
 
                                 if haveTriggers and (m_timerState == nil or (dmhub.Time() < m_timerState.expire) or m_timerState.paused) then
                                     local t = dmhub.Time()
@@ -3202,6 +3315,22 @@ function GameHud.CreateRollDialog(self)
                             end
                             creatureToken:Upload('Used resource')
                         end
+                    end
+
+                    --Publish which modifiers the roller actually kept. The dialog
+                    --has always known; it just died with the dialog, leaving a
+                    --caller unable to tell a +2 from Skilled apart from +2 of
+                    --characteristic. Snapshotted here rather than at submission
+                    --because after-roll choices are not settled until now.
+                    if rollInfo ~= nil and rollInfo.properties ~= nil then
+                        local names = {}
+                        for _, modifier in ipairs(DeepCopy(m_activeModifiers)) do
+                            local name = modifier ~= nil and modifier.name or nil
+                            if name ~= nil and name ~= "" then
+                                names[#names + 1] = name
+                            end
+                        end
+                        rollInfo.properties.modifiersUsed = names
                     end
 
                     if completeRollFn ~= nil then

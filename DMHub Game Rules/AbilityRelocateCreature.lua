@@ -140,6 +140,36 @@ ActivatedAbilityRelocateCreatureBehavior.vicinity = 0
 ActivatedAbilityRelocateCreatureBehavior.vicinityFilter = ""
 ActivatedAbilityRelocateCreatureBehavior.targetPassedSquares = false
 ActivatedAbilityRelocateCreatureBehavior.movementType = "teleport"
+ActivatedAbilityRelocateCreatureBehavior.expendFullMovement = false
+
+--A relocate never charges movement (see the _tmp_freeMovement flag in Cast), so
+--when "Expend Full Movement" is set we bill the creature's entire remaining
+--movement for the turn no matter how far it actually travelled. Only meaningful
+--on the creature's own turn -- a creature shoved around on someone else's turn
+--has no movement pool to spend.
+function ActivatedAbilityRelocateCreatureBehavior:ExpendMovementIfNeeded(casterToken)
+    if not self.expendFullMovement then
+        return
+    end
+
+    if dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden then
+        return
+    end
+
+    if not casterToken.properties:IsOurTurn() then
+        return
+    end
+
+    casterToken:ModifyProperties{
+        description = "Expend Movement",
+        undoable = false,
+        execute = function()
+            local speed = casterToken.properties:CurrentMovementSpeed()
+            casterToken.properties.moveDistance = math.max(casterToken.properties:DistanceMovedThisTurn(), speed)
+            casterToken.properties.moveDistanceRoundId = dmhub.initiativeQueue:GetTurnId()
+        end,
+    }
+end
 
 --Movement type used by targeting previews (ActivatedAbility:GetMovementType).
 --A shift the user has overridden to be a regular move reports "move".
@@ -151,6 +181,182 @@ function ActivatedAbilityRelocateCreatureBehavior:BehaviorMovementType(symbols)
     end
 
     return self.movementType
+end
+
+--After a shortfall, only offer the ordinary charge selector when an affordable
+--charge attack can legally reach a creature from the actual landing square.
+function ActivatedAbilityRelocateCreatureBehavior:HasChargeAttackTarget(casterToken)
+    local attackSelector = dmhub.GetTable("standardAbilities")["923bf32c-4233-4fec-8895-7ce18da28744"]
+    if attackSelector == nil then
+        return false
+    end
+    local props = casterToken.properties
+    for _, attack in ipairs(attackSelector:SynthesizeAbilities(props) or {}) do
+        if attack:try_get("suppressExplanation") == nil
+            and attack:AbilityFilterFailureMessage(props) == nil and attack:GetCost(casterToken).canAfford then
+            local symbols = {caster = props}
+            local range = attack:GetRange(props, symbols) + dmhub.unitsPerSquare
+            for _, target in ipairs(dmhub.allTokens) do
+                local hiddenFromStrike = false
+                if target.valid and attack:HasKeyword("Strike") and target.properties:HasNamedCondition("Hidden") then
+                    local ignoreRange = props:CalculateNamedCustomAttribute("Ignore Hidden Within Range") or 0
+                    hiddenFromStrike = ignoreRange <= 0 or casterToken:Distance(target) > ignoreRange
+                end
+                if target.valid and attack:TargetPassesFilter(casterToken, target, symbols)
+                    and not hiddenFromStrike
+                    and casterToken:Distance(target) < range
+                    and math.abs(casterToken.altitude - target.altitude) * dmhub.unitsPerSquare < range
+                    and casterToken:GetLineOfSight(target, props:GetPierceWalls()) > 0 then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+--Keep the chosen takeoff and landing fixed when a charge needs a jump test.
+--Only the rolled jump segment can fall short; the rest of that route is discarded.
+function ActivatedAbilityRelocateCreatureBehavior:ExecuteGuaranteedCharge(casterToken, targetLoc, chargeOptions, options, ability)
+    local function abortCharge()
+        options.abort = true
+        options.stopProcessing = true
+    end
+    local ok, plan = pcall(function() return casterToken:PlanCharge(targetLoc, chargeOptions) end)
+    if not ok or plan == nil or plan.validCharge ~= true then
+        abortCharge()
+        return
+    end
+
+    casterToken:ClearMovementArrow()
+    local moved = 0
+    for _, segment in ipairs(plan.chargeSegments) do
+        if not casterToken.valid or casterToken.properties:IsDead() then
+            abortCharge()
+            return
+        end
+        --Movement reactions can change speed or knock the charger prone at
+        --takeoff. Check the remaining allowance before starting each segment.
+        local current = chargeOptions
+        if ability ~= nil then
+            current = ability:GetChargeJumpOptions(casterToken, options.symbols)
+            local segmentDistance = casterToken.loc:DistanceInTiles(segment.expectedLoc)
+            if current == nil or current.chargeDistance - moved < segmentDistance
+                or (segment.jump and not plan.requiresRoll and (current.chargeJumpDistance < segmentDistance
+                    or current.chargeJumpHeight < segment.jumpHeight)) then
+                abortCharge()
+                return
+            end
+        end
+
+        if segment.jump and plan.requiresRoll and current.jumpBehavior == nil then
+            abortCharge()
+            return
+        end
+
+        --Once the approach starts, canceling at takeoff cannot refund Charge.
+        --The Jump test below uses its own modifiers but never pays for Jump.
+        if ability ~= nil and not options.pay then
+            ability:CommitToPaying(casterToken, options)
+        end
+
+        local outcome = nil
+        if segment.jump and plan.requiresRoll then
+            local takeoffLoc = casterToken.loc
+            if current.jumpBehavior == nil or current.chargeJumpTierDistances == nil then
+                abortCharge()
+                return
+            end
+            local distances = current.jumpBehavior:GetTierDistances(current.jumpAbility, casterToken,
+                math.max(0, current.chargeDistance - moved))
+            local heights = current.jumpBehavior:GetTierHeights(current.jumpAbility, casterToken)
+            local tier = plan.requiredTier
+            if tier > current.chargeJumpGuaranteedTier then
+                tier = current.jumpBehavior:RollForTier(current.jumpAbility, casterToken, options,
+                    distances, heights, plan.requiredTier, segment.expectedLoc, {
+                        commitPayment = false,
+                        markPreview = function(previewTier)
+                            casterToken:MarkMovementArrow(segment.expectedLoc, {
+                                jump = true, chargeJumpOutcome = true,
+                                chargeJumpDistance = distances[previewTier], jumpHeight = heights[previewTier],
+                            })
+                        end,
+                    })
+                if tier == nil then
+                    abortCharge()
+                    return
+                end
+            end
+
+            --A reaction while the dice dialog was open can remove the ability
+            --to jump or change the remaining distance. Use the current limits.
+            if not casterToken.valid or casterToken.loc.str ~= takeoffLoc.str then
+                abortCharge()
+                return
+            end
+            current = ability:GetChargeJumpOptions(casterToken, options.symbols)
+            if current == nil or current.jumpBehavior == nil
+                or current.chargeDistance - moved <= 0 then
+                abortCharge()
+                return
+            end
+            distances = current.jumpBehavior:GetTierDistances(current.jumpAbility, casterToken,
+                math.max(0, current.chargeDistance - moved))
+            heights = current.jumpBehavior:GetTierHeights(current.jumpAbility, casterToken)
+            local outcomeOk
+            outcomeOk, outcome = pcall(function()
+                return casterToken:PlanChargeJumpOutcome(casterToken.loc, segment.expectedLoc,
+                    distances[tier], heights[tier])
+            end)
+            if not outcomeOk or outcome == nil then
+                abortCharge()
+                return
+            end
+            casterToken:ClearMovementArrow()
+        end
+
+        local moveOptions = {
+            straightline = true,
+            moveThroughFriends = false,
+            ignorecreatures = segment.jump,
+            ignoreFalling = segment.jump,
+            maxCost = math.floor(chargeOptions.chargeDistance * 1000 + 100),
+            movementType = cond(segment.jump, "jump", "walk"),
+            jumpHeight = segment.jumpHeight,
+            chargeDistance = chargeOptions.chargeDistance,
+            chargeJumpLanding = segment.jump,
+            freeMovement = true,
+        }
+        if outcome ~= nil then
+            moveOptions.chargeJumpLanding = false
+            moveOptions.chargeJumpOutcome = true
+            moveOptions.chargeJumpDistance = outcome.jumpDistance
+            moveOptions.jumpHeight = outcome.jumpHeight
+        end
+        local path = casterToken:Move(outcome and outcome.loc or segment.loc, moveOptions)
+        if path ~= nil then
+            moved = moved + path.numSteps
+            options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps
+        end
+        while casterToken.valid and casterToken.isMoving do
+            coroutine.yield(0.05)
+        end
+        local expectedLoc = outcome and outcome.expectedLoc or segment.expectedLoc
+        if path == nil or not casterToken.valid or casterToken.properties:IsDead()
+            or casterToken.loc.str ~= expectedLoc.str then
+            abortCharge()
+            return
+        end
+        if outcome ~= nil and not outcome.reachesJumpEnd then
+            --The normal charge attack selector now uses the actual landing.
+            --Prone can still strike with its normal bane; attack availability
+            --and target legality determine whether the selector is useful.
+            if casterToken.properties:IsDead() or not self:HasChargeAttackTarget(casterToken) then
+                abortCharge()
+            end
+            return
+        end
+    end
 end
 
 function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
@@ -211,13 +417,33 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			end
 		end
 
-		if swapTokens ~= nil then
+        local chargeOptions = nil
+        if movementType == "move" then
+            chargeOptions = ability:GetChargeJumpOptions(casterToken, options.symbols)
+        end
+
+        if chargeOptions ~= nil then
+            self:ExecuteGuaranteedCharge(casterToken, targets[#targets].loc, chargeOptions, options, ability)
+            if options.abort then
+                --Stopping before the attack also skips Charge's final cleanup.
+                --Run its purge now so the temporary Charging effect cannot linger.
+                for _, behavior in ipairs(ability.behaviors) do
+                    if behavior.typeName == "ActivatedAbilityPurgeEffectsBehavior" then
+                        behavior:Cast(ability, casterToken,
+                            behavior:ApplyToTargets(ability, casterToken, targets, options), options)
+                    end
+                end
+            end
+        elseif swapTokens ~= nil then
 			--Mirror the teleport branch: track distance moved on the cast so
 			--downstream behaviors (e.g. activationCondition gates like
 			--`Cast.Spaces Moved > 0`) can detect that the swap actually happened.
 			local swapDistance = casterToken:Distance(targets[1].loc)
 			if swapDistance > 0 then
 				options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + swapDistance
+				--teleport-style distance: counted in spacesMoved (above) but excluded
+				--from Cast.SpacesMovedThisInvocation.
+				options.symbols.cast:CountTeleportDistance(swapDistance)
 			end
 			casterToken:SwapPositions(swapTokens[1])
 		elseif movementType == "teleport" or movementType == "relocate" then
@@ -236,6 +462,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             local distance = casterToken:Distance(destLoc)
             if distance > 0 then
 			    options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + distance
+                --teleport-style distance: counted in spacesMoved (above) but excluded
+                --from Cast.SpacesMovedThisInvocation.
+                options.symbols.cast:CountTeleportDistance(distance)
             end
 
             if movementType == "relocate" then
@@ -486,7 +715,23 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
 
 			local isVerticalSlideCast = (options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide")) == "vertical_slide"
-			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast })
+
+			--freeMovement mirrors the _tmp_freeMovement flag set at the top of Cast: an
+			--ability-granted shift/move is not the creature's move action, so the engine must
+			--not clamp it to the creature's remaining strict:movement budget. Without it, a
+			--caster that already used its movement this turn has a negative budget and the
+			--engine rejects the move outright (report 7BE97X9P).
+			--forced tells the engine the creature is being pushed, pulled or slid. The engine
+			--already spots a straight-line shove on its own; this covers a forced move aimed
+			--around a corner, which walks its path like any other move.
+			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces, slide = isVerticalSlideCast, freeMovement = true, forced = (options.symbols.forcedmovement ~= nil or ability:try_get("forcedMovement") ~= nil) })
+
+            --A nil path means the engine refused the move outright (no route, or a budget/legality
+            --clamp). There is nothing to fall back on here, but the cast used to continue in total
+            --silence and look like the relocate had happened, so make the failure traceable.
+            if path == nil then
+                print("Relocate:: MOVE REFUSED -- caster did not move. movementType =", movementType, "dest =", targets[#targets].loc.str, "ability =", ability.name)
+            end
 
             --fire wallbreak events for any walls broken during the move
             --(wall erasure and rubble spawning are handled by the engine in TryStraightLineMove)
@@ -528,6 +773,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 							hitCreatures[tok.id] = true
 							--see the note on suppressCollisionDamage below.
 							local suppressPassthroughDamage = TargetableObject.TokenSuppressesCollisionDamage(tok)
+							--each side of the collision gets a handle on the other:
+							--the creature passed through sees the mover, the mover
+							--sees the creature it passed through.
 							tok.properties._tmp_forcedMovementCast = options.symbols.cast
 							tok.properties:TriggerEvent("collide", {
 								speed = 1,
@@ -537,6 +785,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 								pusher = options.symbols.invoker,
 								haspusher = options.symbols.invoker ~= nil,
 								movementtype = forcedMovementType,
+								target = casterToken.properties,
+								hastarget = true,
+								collidedwith = {casterToken.properties},
 							})
 							casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
 							casterToken.properties:TriggerEvent("collide", {
@@ -547,6 +798,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 								pusher = options.symbols.invoker,
 								haspusher = options.symbols.invoker ~= nil,
 								movementtype = forcedMovementType,
+								target = tok.properties,
+								hastarget = true,
+								collidedwith = {tok.properties},
 							})
 						end
 					end
@@ -568,6 +822,10 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 		end
 
 		if collisionInfo ~= nil then
+                -- Keep the terminal post-passthrough creature collision on the
+                -- cast so later behaviors can identify every participant.
+                options.symbols.cast:RecordForcedMovementCreatureCollision(casterToken, collisionInfo.collideWith)
+
                 local forcedMovementType = ability:try_get("forcedMovement", "slide")
                 local withobject = #(collisionInfo.collideWith or {}) == 0
 
@@ -594,6 +852,15 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                     end
                 end
 
+                --Expose what was actually hit. The mover sees everything it ran
+                --into; each thing it ran into sees the mover. A wall collision
+                --has an empty collideWith, so hastarget is false there and
+                --Target is left nil rather than pointing at something wrong.
+                local collidedWithProps = {}
+                for _,tok in ipairs(collisionInfo.collideWith or {}) do
+                    collidedWithProps[#collidedWithProps+1] = tok.properties
+                end
+
                 print("TRIGGERCOLLIDE:: objects =", #objectsCollidedWith, collisionInfo.speed, withobject, collisionInfo.collideWith)
                 if casterToken.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
                     casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
@@ -605,6 +872,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         pusher = options.symbols.invoker,
                         haspusher = options.symbols.invoker ~= nil,
                         movementtype = forcedMovementType,
+                        target = collidedWithProps[1],
+                        hastarget = #collidedWithProps > 0,
+                        collidedwith = collidedWithProps,
                     })
                 end
 
@@ -623,12 +893,15 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                     tok.properties._tmp_forcedMovementCast = options.symbols.cast
 					tok.properties:TriggerEvent("collide", {
 						speed = collisionInfo.speed,
-                        withobject = withobject,
-                        withcreature = not withobject,
+                        withobject = casterToken.isObject,
+                        withcreature = not casterToken.isObject,
                         nocollisiondamage = suppressCollisionDamage,
                         pusher = options.symbols.invoker,
                         haspusher = options.symbols.invoker ~= nil,
                         movementtype = forcedMovementType,
+                        target = casterToken.properties,
+                        hastarget = true,
+                        collidedwith = {casterToken.properties},
 					})
 				end
 
@@ -669,6 +942,12 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 						end
 					end
 
+					--see the note on collidedWithProps above.
+					local bounceCollidedWithProps = {}
+					for _,tok in ipairs(collideWith) do
+						bounceCollidedWithProps[#bounceCollidedWithProps+1] = tok.properties
+					end
+
 					casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
 					casterToken.properties:TriggerEvent("collide", {
 						speed = collision.speed,
@@ -678,6 +957,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 						pusher = options.symbols.invoker,
 						haspusher = options.symbols.invoker ~= nil,
 						movementtype = forcedMovementType,
+						target = bounceCollidedWithProps[1],
+						hastarget = #bounceCollidedWithProps > 0,
+						collidedwith = bounceCollidedWithProps,
 					})
 
 					for _,tok in ipairs(collideWith) do
@@ -690,6 +972,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 							pusher = options.symbols.invoker,
 							haspusher = options.symbols.invoker ~= nil,
 							movementtype = forcedMovementType,
+							target = casterToken.properties,
+							hastarget = true,
+							collidedwith = {casterToken.properties},
 						})
 					end
 				end
@@ -787,7 +1072,11 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
         local opportunityAttacks = casterToken.properties._tmp_triggeredOpportunityAttacks - startingOpportunityAttacks
         options.symbols.cast.opportunityAttacksTriggered = options.symbols.cast.opportunityAttacksTriggered + opportunityAttacks
 
-        ability:CommitToPaying(casterToken, options)
+        self:ExpendMovementIfNeeded(casterToken)
+
+        if chargeOptions == nil or (not options.pay and not options.abort) then
+            ability:CommitToPaying(casterToken, options)
+        end
     end
 
     casterToken.properties._tmp_freeMovement = false
@@ -819,6 +1108,15 @@ function ActivatedAbilityRelocateCreatureBehavior:EditorItems(parentPanel)
 				self.movementType = element.idChosen
 			end,
 		},
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Expend Full Movement",
+		tooltip = "If set, the creature uses up all of its movement for the turn, no matter how many squares it actually moved.",
+		value = self.expendFullMovement,
+		change = function(element)
+			self.expendFullMovement = element.value
+		end,
 	}
 
 	result[#result+1] = gui.Check{

@@ -279,8 +279,8 @@ Appear in: `rollpower` (Roll Power).
 ## Event-payload symbols -- Movement-themed
 
 ### `Path` (path)
-- **Exposed by:** move, finishmove
-- **Engine description:** The path taken by the moving creature.
+- **Exposed by:** move, finishmove, movethrough, teleport
+- **Engine description:** The path taken by the moving creature, or the direct origin-to-destination displacement for a teleport.
 - **Proposed prose fragment:** the movement path
 - **Example formulas and rendered:**
   - `Path.length > 3` -> "the movement path's length is more than 3"
@@ -490,7 +490,6 @@ These triggers evaluate `conditionFormula` against the ambient context only (Sub
 - saveagainstdamage (Made Reactive Roll Against Damage)
 - startdowntime (Start Downtime)
 - startrespite (Start Respite)
-- teleport (Teleport)
 
 (`fumble` was in this list in earlier revisions but is DS-hidden; removed 2026-04-23.)
 

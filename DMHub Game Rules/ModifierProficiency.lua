@@ -18,7 +18,7 @@ local g_recursion = 0
 CharacterModifier.RegisterType('proficiency', "Grant Skill or Language")
 
 --a 'proficiency' modifier has the following properties:
---  - subtype (string): Type of thing to offer proficiency in -- 'skill' means character skill (athletics, acrobatics, etc), 'save' for saving throw, 'equipment' for specific equipment or an equipment category., 'language' for languages.
+--  - subtype (string): Type of thing to offer proficiency in -- 'skill' means character skill (athletics, acrobatics, etc), 'save' for saving throw, 'equipment' for specific equipment or an equipment category., 'language' for languages, 'forgetlanguage' to take a known language away (see creature:LanguageCounts).
 --  - skills (table of string -> bool): the skill to offer proficiency in.
 --  - proficiency (string): the level of proficiency which keys creature.proficiencyKeyToValue.
 
@@ -60,7 +60,7 @@ CharacterModifier.TypeInfo.proficiency = {
 			local skillDesc = pretty_join_list(skills)
 			return string.format(creature.proficiencyKeyToValue[modifier.proficiency].verboseDescription, skillDesc)
 
-		elseif modifier.subtype == "language" then
+		elseif modifier.subtype == "language" or modifier.subtype == "forgetlanguage" then
 			local langs = {}
 			if modifier.skills.all then
 				langs = {"all languages"}
@@ -78,6 +78,10 @@ CharacterModifier.TypeInfo.proficiency = {
 			end
 
 			local langDesc = pretty_join_list(langs)
+
+			if modifier.subtype == "forgetlanguage" then
+				return string.format("You have forgotten how to speak and read %s.", langDesc)
+			end
 
 			return string.format("You know how to speak and read %s.", langDesc)
 		end
@@ -150,13 +154,23 @@ CharacterModifier.TypeInfo.proficiency = {
 		end
 	end,
 
-	languageProficiency = function(modifier, creature, proficiencyTable)
+	--languageCounts is the per-language tally built by creature:LanguageCounts():
+	--a 'language' modifier adds one to each of its languages, a 'forgetlanguage'
+	--modifier subtracts one. The creature knows a language while its tally is > 0.
+	languageProficiency = function(modifier, creature, languageCounts)
+		local delta
 		if modifier.subtype == 'language' then
-			local dataTable = dmhub.GetTable("languages") or {}
-			for k,_ in pairs(modifier.skills) do
-				if k == "all" or dataTable[k] ~= nil then
-					proficiencyTable[k] = true
-				end
+			delta = 1
+		elseif modifier.subtype == 'forgetlanguage' then
+			delta = -1
+		else
+			return
+		end
+
+		local dataTable = dmhub.GetTable("languages") or {}
+		for k,_ in pairs(modifier.skills) do
+			if k == "all" or dataTable[k] ~= nil then
+				languageCounts[k] = (languageCounts[k] or 0) + delta
 			end
 		end
 	end,
@@ -231,6 +245,10 @@ CharacterModifier.TypeInfo.proficiency = {
 								id = "language",
 								text = "Language",
 							},
+							{
+								id = "forgetlanguage",
+								text = "Forget Language",
+							},
 						},
 						idChosen = modifier.subtype,
 
@@ -271,7 +289,7 @@ CharacterModifier.TypeInfo.proficiency = {
 			elseif modifier.subtype == 'equipment' then
 				skillOptions = EquipmentCategory.GetEquipmentProficiencyDropdownOptions()
 
-			elseif modifier.subtype == 'language' then
+			elseif modifier.subtype == 'language' or modifier.subtype == 'forgetlanguage' then
 				skillOptions = {}
 				local langs = dmhub.GetTable("languages") or {}
 				for k,lang in unhidden_pairs(langs) do
@@ -339,7 +357,7 @@ CharacterModifier.TypeInfo.proficiency = {
 			table.insert(skillOptions, 1, { id = 'none', text = 'Choose...' })
 
 			local skillText = 'Skill:'
-			if modifier.subtype == 'language' then
+			if modifier.subtype == 'language' or modifier.subtype == 'forgetlanguage' then
 				skillText = 'Language:'
 			end
 
@@ -375,7 +393,7 @@ CharacterModifier.TypeInfo.proficiency = {
 			}
 						
 
-			if modifier.subtype ~= 'language' then
+			if modifier.subtype ~= 'language' and modifier.subtype ~= 'forgetlanguage' then
 				local proficiencyOptions
 				printf("PROFICIENCY:: LEVELED %s -> %s FROM %s", json(modifier.subtype), json(GameSystem.IsProficiencyTypeLeveled(modifier.subtype)), json(GameSystem.leveledProficiencyTypes))
 

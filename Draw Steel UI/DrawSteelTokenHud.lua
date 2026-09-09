@@ -16,6 +16,36 @@ local function MinionDeathPending(creatureProps)
     return confirmedAt ~= nil and dmhub.Time() - confirmedAt < g_minionDeathPendingTimeout
 end
 
+--True while some targeting prompt is offering this token as a pick: the action
+--bar (chooseTarget, ability targeting) stamps token.sheet.data.targetInfo on
+--every candidate and TokenUI's tokenClick executes it. While that is set, a
+--click on the token means "pick this token" -- never "claim its turn". The
+--claim-turn swords and the nameplate sit above the token and would otherwise
+--swallow the click and SelectTurn the creature (e.g. the Goblin Monarch's
+--villain action asks the Director to click each ally; every unmoved ally is
+--ActiveAndReady, so each pick claimed that ally's turn and they showed as
+--already moved).
+local function TokenIsTargetCandidate(token)
+    if token == nil or not token.valid then
+        return false
+    end
+    local sheet = token.sheet
+    if sheet == nil or not sheet.valid or sheet.data == nil then
+        return false
+    end
+    return sheet.data.targetInfo ~= nil
+end
+
+--Route a press to the same path a direct token click takes (TokenUI tokenClick
+--executes the pending targetInfo). Returns true if it was routed.
+local function RoutePressToTargetPick(token)
+    if not TokenIsTargetCandidate(token) then
+        return false
+    end
+    token.sheet:FireEvent("tokenClick", false)
+    return true
+end
+
 local g_deadMinionPulseSpeed = 0.5
 local g_deadMinionIconStyles = {
     gui.Style{
@@ -194,14 +224,19 @@ TokenHud.RegisterPanel{
 
                 if triggers ~= nil then
                     local allfree = true
+                    local anyHostile = false
                     for key,value in pairs(triggers) do
-                        if not value:IsFreeTriggeredAbility() then
+                        if value.hostile then
+                            anyHostile = true
+                        elseif not value:IsFreeTriggeredAbility() then
                             allfree = false
-                            break
                         end
                     end
 
-                    element:SetClass("free", allfree)
+                    --Any pending hostile prompt turns the icon red; otherwise
+                    --blue when the (non-hostile) triggers are all free.
+                    element:SetClass("hostile", anyHostile)
+                    element:SetClass("free", (not anyHostile) and allfree)
                 end
 
                 if m_haveTrigger == false and notrigger == false and token.canControl and token.activeControllerId == nil then
@@ -319,6 +354,15 @@ TokenHud.RegisterPanel{
                 if token.properties.minion and token.properties:has_key("_tmp_minionSquad") then
                     local squad = token.properties._tmp_minionSquad
                     local death = (not squad.damage_time_pending) and squad.damage_taken >= squad.health_single
+
+                    --Traits like Group Appetite: minions never die to ordinary band
+                    --damage, and their real deaths (acid/fire pool-zeroing, ending
+                    --their turn at 0) are fully automated by triggers - never offer
+                    --the manual death-confirmation skull, it reads to players as a
+                    --death being owed.
+                    if death and (token.properties:CalculateNamedCustomAttribute("Gated Minion Deaths") or 0) > 0 then
+                        death = false
+                    end
                     local death_overflows = squad.damage_taken >= (squad.num_recently_damaged+1) * squad.health_single
                     local is_direct_target = token.properties.minionDamageTime == squad.damage_time
                     local has_direct_targets = squad.num_recently_damaged > 0
@@ -419,11 +463,25 @@ TokenHud.RegisterPanel{
                 },
 
                 gui.Panel{
-                    --hit area.
-                    width = 16,
-                    height = 16,
+                    --[[
+                        IMPORTANT: This is the hit area for clicking a token to
+                        claim the turn. It is purposefully small so that the
+                        player can click the token's edge without claiming the
+                        turn.
+                        That is an expected and desired use case - players like
+                        to see what a token can do before deciding whether to
+                        claim the turn.
+                        If we make it bigger or if we enable the health bar as
+                        claim turn again, then we will make the user experience
+                        worse as a result.
+                        TL;DR: Please do not expand this hit box or make the
+                        health bar claim the turn.
+                    ]]
+                    width = 28,
+                    height = 28,
                     bgimage = true,
                     bgcolor = "clear",
+                    cornerRadius = 14,
                     halign = "center",
                     valign = "center",
                     interactable = true,
@@ -431,6 +489,9 @@ TokenHud.RegisterPanel{
                         element.interactable = token.canControl
                     end,
                     press = function(element)
+                        if RoutePressToTargetPick(token) then
+                            return
+                        end
                         element.parent.parent:GetChildrenWithClassRecursive("nameplate")[1]:FireEvent("press")
                     end,
                     hover = function(element)
@@ -492,6 +553,18 @@ TokenHud.RegisterPanel{
                     if dmhub.Time() < (element.data.clickTime or 0) + 1 then
                         show = false
                     end
+
+                    --Step aside while the token is a target candidate: the pick
+                    --click must reach the token, and showing a claim affordance
+                    --over a "click this ally" prompt invites the wrong action.
+                    --This belongs here and not in think(): the hidden class has
+                    --exactly one owner, and the parent panel refires
+                    --updateInitiative every 0.2s, so a think() that fought it
+                    --flashed the swords back on five times a second.
+                    if TokenIsTargetCandidate(token) then
+                        show = false
+                    end
+
                     element:SetClass("hidden", not show)
                     element.thinkTime = cond(show, 0.01)
 
@@ -499,9 +572,17 @@ TokenHud.RegisterPanel{
                 end,
             },
 
+            --The name bar. It is NOT a button, and must not become one again.
+            --It still owns the claim in its press handler, because the swords'
+            --hit area fires that event at it - but it is not interactable, so
+            --the only way in is that 24x24 box on the swords themselves.
+            --Making this clickable puts a 100x26 catchment 40px below the
+            --token, so the claim fires from a band the player reads as a
+            --health bar, nowhere near the thing that looks like the button.
+            --Leave interactable false.
             gui.Panel{
                 classes = {"actionBarDrawer", "hidden", "nameplate"},
-                interactable = true,
+                interactable = false,
                 halign = "center",
                 valign = "center",
                 width = 100,
@@ -521,9 +602,10 @@ TokenHud.RegisterPanel{
                     Styles.ActionBar,
                 },
 
-				refresh = function(element)
-                    element.interactable = token.canControl
-                end,
+                --No refresh setting interactable from token.canControl here.
+                --It used to, and that is what quietly undid every attempt to
+                --stop this bar taking clicks. The claim is gated on canControl
+                --in the press handler below, which is where it belongs.
 
                 think = function(element)
                     local r = math.sin(dmhub.Time()*2*math.pi)
@@ -552,15 +634,16 @@ TokenHud.RegisterPanel{
                     element.data.prevStatus = status
                 end,
 
-                hover = function(element)
-                    element.parent:GetChildrenWithClassRecursive("swords")[1]:SetClass("highlight", true)
-                end,
-
-                dehover = function(element)
-                    element.parent:GetChildrenWithClassRecursive("swords")[1]:SetClass("highlight", false)
-                end,
+                --The hover/dehover that lit the swords from this bar are gone
+                --with the interactivity. They were the tell: hovering the name
+                --bar made the swords glow, so the swords looked like a button
+                --whose real catchment was somewhere else entirely. The swords
+                --now light from their own hit area, via childHover.
 
                 press = function(element)
+                    if RoutePressToTargetPick(token) then
+                        return
+                    end
                     if token.canControl then
                         element.data.clickTime = dmhub.Time()
                         audio.FireSoundEvent("Mouse.Click")
@@ -942,6 +1025,13 @@ TokenHud.RegisterPanel{
                     return
                 end
 
+                if m_calculationCache.CanMakeOpportunityAttacks == nil then
+                    m_calculationCache.CanMakeOpportunityAttacks = token.properties:CanMakeOpportunityAttacks()
+                end
+                if not m_calculationCache.CanMakeOpportunityAttacks then
+                    return
+                end
+
                 if token.properties._tmp_grabbedby == movingToken.charid then
                     --grabbed tokens will be brought with the grabber.
                     return
@@ -1158,6 +1248,653 @@ TokenHud.RegisterPanel{
             end,
         }
     end
+}
+
+--Hovering a token you control shows a small character-panel icon in the
+--token's bottom-left corner; clicking it opens that character's ad-hoc
+--panel window (ShowCharacterPanelDocument -- the same per-character
+--window the journal's Characters section opens). The Party Member
+--Controls game setting can extend the icon to party members a player
+--doesn't control (CharacterPanel.CanViewToken); the panel itself then
+--opens read-only when the setting only grants View access.
+local g_characterPanelLauncherStyles = {
+    gui.Style{
+        selectors = {"characterPanelLauncher"},
+        bgcolor = "#000000cc",
+        borderWidth = 1,
+        borderColor = "#ffffff77",
+        hidden = 1,
+        opacity = 0,
+        scale = 0.7,
+    },
+    gui.Style{
+        selectors = {"characterPanelLauncher", "shown"},
+        hidden = 0,
+        opacity = 0.9,
+        scale = 1,
+        transitionTime = 0.15,
+    },
+    gui.Style{
+        selectors = {"characterPanelLauncher", "shown", "hover"},
+        opacity = 1,
+        scale = 1.15,
+        transitionTime = 0.1,
+    },
+    gui.Style{
+        selectors = {"characterPanelLauncher", "shown", "press"},
+        scale = 1.05,
+        brightness = 0.7,
+    },
+}
+
+TokenHud.RegisterPanel{
+    id = "characterPanelLauncher",
+    ord = 100, --late in sibling order so it draws over other hud chrome.
+    create = function(token, sharedInfo)
+        if token.isObject then
+            return nil
+        end
+
+        local HideLauncher = function(element)
+            element:SetClass("shown", false)
+            element.interactable = false
+        end
+
+        return gui.Panel{
+            classes = {"characterPanelLauncher"},
+            floating = true,
+            interactable = false, --interactable only while shown.
+            halign = "right",
+            valign = "bottom",
+            hmargin = 4,
+            vmargin = 4,
+            width = 30,
+            height = 30,
+            bgimage = "panels/square.png",
+            cornerRadius = 15,
+
+            styles = g_characterPanelLauncherStyles,
+
+            gui.Panel{
+                --the glyph; hit-testing stays on the backing panel.
+                interactable = false,
+                bgimage = "icons/standard/Icon_App_Character.png",
+                bgcolor = "white",
+                width = "72%",
+                height = "72%",
+                halign = "center",
+                valign = "center",
+            },
+
+            tokenHoverTree = function(element, targeting)
+                --while the token is a targeting candidate the corner click
+                --belongs to targeting, not to us.
+                if targeting or (not CharacterPanel.CanViewToken(token)) then
+                    return
+                end
+                element:SetClass("shown", true)
+                element.interactable = true
+            end,
+
+            tokenDehoverTree = function(element)
+                element:ScheduleEvent("checkHide", 0.2)
+            end,
+
+            --the icon sits over the token so the world raycast usually keeps
+            --the token hovered while mousing to it, but its corner can poke
+            --past the collider: keep it alive while the icon itself is
+            --hovered, and re-check shortly rather than hiding instantly.
+            checkHide = function(element)
+                if element:HasClass("hover") then
+                    element:ScheduleEvent("checkHide", 0.2)
+                    return
+                end
+                if dmhub.tokenHovered == token then
+                    return
+                end
+                HideLauncher(element)
+            end,
+
+            refresh = function(element)
+                --hide if access to the token has been taken away.
+                if element:HasClass("shown") and ((not token.valid) or (not CharacterPanel.CanViewToken(token))) then
+                    HideLauncher(element)
+                end
+            end,
+
+            press = function(element)
+                if not CharacterPanel.CanViewToken(token) then
+                    return
+                end
+                --toggles: a second click while the window is open closes it.
+                local toggle = rawget(_G, "ToggleCharacterPanelDocument")
+                if toggle == nil then
+                    return
+                end
+                audio.FireSoundEvent("Mouse.Click")
+                --the token anchors the window beside itself on screen.
+                toggle(token.charid, token)
+            end,
+        }
+    end,
+}
+
+--=== Command creation mode: token command bolt ===
+--
+--While the CommandBuilder macro recorder is active (the journal-button
+--"Create Command" flow), every creature token shows a lightning bolt beside
+--the character-panel launcher's corner spot. Its menu records token commands
+--into the command being built: focus the camera on the token, walk to a
+--clicked map location (via CommandBuilder.SelectLocation), hide/show the
+--token from players, play an emote, or say a line of speech.
+--
+--The recorded steps use the charid-addressed macros below rather than the
+--older name-addressed ones (/move, /hidetoken, /emote): a charid uniquely
+--identifies the token even when names collide or change.
+
+--Resolve a recorded charid back to a token, logging when it is gone. Uses
+--GetCharacterById so tokens on other maps still resolve where the action
+--allows it (visibility, emotes, speech).
+local function TokenForCommand(commandName, charid)
+    local token = dmhub.GetCharacterById(charid)
+    if token == nil or not token.valid then
+        dmhub.Log(string.format("%s: token not found: %s", commandName, tostring(charid)))
+        return nil
+    end
+    return token
+end
+
+Commands.RegisterMacro{
+    name = "focustoken",
+    summary = "focus the camera on a token",
+    doc = "Usage: /focustoken <tokenid>. Smoothly centers the camera on the given token. The command builder's token lightning menu records this for you.",
+    command = function(str)
+        local charid = string.match(str or "", "^%s*(%S+)%s*$")
+        if charid == nil then
+            dmhub.Log("focustoken: usage: /focustoken <tokenid>")
+            return
+        end
+        dmhub.CenterOnToken(charid, { smooth = true })
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "walktoken",
+    summary = "walk a token to a location",
+    doc = "Usage: /walktoken <tokenid> <x> <y> <floor>. Makes the token walk to the given tile. The command builder's token lightning menu records this for you.",
+    command = function(str)
+        local charid, x, y, floor = string.match(str or "", "^%s*(%S+)%s+(-?%d+)%s+(-?%d+)%s+(-?%d+)%s*$")
+        if charid == nil then
+            dmhub.Log("walktoken: usage: /walktoken <tokenid> <x> <y> <floor>")
+            return
+        end
+
+        --GetTokenById: walking needs the token spawned on the current map.
+        local token = dmhub.GetTokenById(charid)
+        if token == nil or not token.valid then
+            dmhub.Log(string.format("walktoken: token not on this map: %s", charid))
+            return
+        end
+
+        local loc = core.Loc{ x = tonumber(x), y = tonumber(y), floorIndex = tonumber(floor) }:WithGroundLevelAltitude()
+        token:Move(loc, { maxCost = 10000, findVacantSpace = true })
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "tokenvisibility",
+    summary = "show or hide a token from players",
+    doc = "Usage: /tokenvisibility <tokenid> <show|hide>. Makes the token visible to or invisible from players. The command builder's token lightning menu records this for you.",
+    command = function(str)
+        local charid, vismode = string.match(str or "", "^%s*(%S+)%s+(%S+)%s*$")
+        if charid == nil or (vismode ~= "show" and vismode ~= "hide") then
+            dmhub.Log("tokenvisibility: usage: /tokenvisibility <tokenid> <show|hide>")
+            return
+        end
+
+        local token = TokenForCommand("tokenvisibility", charid)
+        if token == nil then
+            return
+        end
+        token.invisibleToPlayers = (vismode == "hide")
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "tokenemote",
+    summary = "play an emote on a token",
+    doc = "Usage: /tokenemote <tokenid> <emoteid>. Plays the given emote on the token. The command builder's token lightning menu records this for you.",
+    command = function(str)
+        local charid, emoteid = string.match(str or "", "^%s*(%S+)%s+(%S+)%s*$")
+        if charid == nil or emoteid == nil then
+            dmhub.Log("tokenemote: usage: /tokenemote <tokenid> <emoteid>")
+            return
+        end
+
+        local token = TokenForCommand("tokenemote", charid)
+        if token == nil or token.properties == nil then
+            return
+        end
+        token.properties:Emote(emoteid, { deleteOthers = true })
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "tokensay",
+    summary = "make a token speak",
+    doc = "Usage: /tokensay <tokenid> <text>. The token says the text in a speech bubble, in its currently spoken language (creatures with no language say '...'). The command builder's token lightning menu records this for you.",
+    command = function(str)
+        local charid, text = string.match(str or "", "^%s*(%S+)%s+(.-)%s*$")
+        if charid == nil or text == nil or text == "" then
+            dmhub.Log("tokensay: usage: /tokensay <tokenid> <text>")
+            return
+        end
+
+        local token = TokenForCommand("tokensay", charid)
+        if token == nil or token.properties == nil then
+            return
+        end
+
+        --mirror ActivatedAbilityCharacterSpeechBehavior:Cast: the speech is
+        --tagged with the creature's currently spoken language so listeners
+        --who do not share it see it garbled; a creature with no language at
+        --all just gets "...".
+        local language = nil
+        pcall(function()
+            language = token.properties:CurrentlySpokenLanguage()
+        end)
+        if language == nil then
+            text = "..."
+        end
+
+        token:ModifyProperties{
+            description = "Speech",
+            undoable = false,
+            execute = function()
+                token.properties:CharacterSpeech{
+                    text = text,
+                    langid = language,
+                }
+            end,
+        }
+    end,
+}
+
+--Free text going into a recorded step must not contain ';' (the engine's
+--command pipe separator) or '{'/'}' (the step annotation braces); matches
+--CommandBuilder's own text sanitization.
+local function SanitizeStepText(text)
+    return (string.gsub(text or "", "[;{}]", ""))
+end
+
+local function TokenCommandDisplayName(token)
+    local name = token.name
+    if name == nil or name == "" then
+        return "Token"
+    end
+    return SanitizeStepText(name)
+end
+
+--Styles for the token bolt's picker popups. The token hud is NOT downstream
+--of a themed cascade root (unlike the settings dialog or title bar hosts),
+--so these popups must carry the full theme themselves: MergeStyles, not
+--MergeTokens -- the same reason gui.ContextMenu bundles MergeStyles. Cached
+--because the rules are identical for every popup; the cost is only paid on
+--the first bolt click.
+local g_tokenCommandPopupStyles = nil
+local function TokenCommandPopupStyles()
+    if g_tokenCommandPopupStyles == nil then
+        g_tokenCommandPopupStyles = ThemeEngine.MergeStyles{
+            {
+                selectors = {"tokenCommandRow"},
+                bgimage = true,
+                bgcolor = "clear",
+            },
+            {
+                selectors = {"tokenCommandRow", "hover"},
+                bgcolor = "@bgAlt",
+            },
+            {
+                selectors = {"tokenCommandLabel"},
+                color = "@fg",
+            },
+        }
+    end
+    return g_tokenCommandPopupStyles
+end
+
+ThemeEngine.OnThemeChanged(mod, function()
+    g_tokenCommandPopupStyles = nil
+end)
+
+--Popup opened by the bolt menu's "Emote...": a filterable list of every
+--emote; picking one records a /tokenemote step and closes the popup.
+local function CreateTokenEmotePopup(iconElement, token)
+    local displayName = TokenCommandDisplayName(token)
+
+    local emotes = {}
+    local dataTable = assets.emojiTable
+    for k,emoji in pairs(dataTable) do
+        if emoji.emojiType == "Emoji" then
+            emotes[#emotes+1] = { id = k, text = emoji.description }
+        end
+    end
+    table.sort(emotes, function(a, b) return a.text < b.text end)
+
+    local resultPanel
+
+    local rows = {}
+    for _,entry in ipairs(emotes) do
+        local captured = entry
+        rows[#rows+1] = gui.Panel{
+            classes = {"tokenCommandRow"},
+            flow = "horizontal",
+            width = "100%",
+            height = 26,
+            pad = 2,
+            borderBox = true,
+
+            refreshCommandFilter = function(element, filterText)
+                local filter = string.lower(filterText or "")
+                local visible = #filter == 0 or string.find(string.lower(captured.text), filter, 1, true) ~= nil
+                element:SetClass("collapsed", not visible)
+            end,
+
+            press = function(element)
+                CommandBuilder.RecordStep{
+                    command = string.format("tokenemote %s %s", token.charid, captured.id),
+                    text = string.format("%s: %s", displayName, SanitizeStepText(captured.text)),
+                }
+                iconElement.popup = nil
+            end,
+
+            gui.Panel{
+                bgimage = captured.id,
+                bgcolor = "white",
+                width = 20,
+                height = 20,
+                valign = "center",
+                interactable = false,
+            },
+            gui.Label{
+                classes = {"tokenCommandLabel"},
+                text = captured.text,
+                fontSize = 12,
+                width = "auto",
+                height = "auto",
+                maxWidth = 190,
+                valign = "center",
+                lmargin = 6,
+                textWrap = false,
+                textOverflow = "ellipsis",
+                interactable = false,
+            },
+        }
+    end
+
+    resultPanel = gui.Panel{
+        classes = {"bordered", "bg"},
+        styles = TokenCommandPopupStyles(),
+        flow = "vertical",
+        width = 260,
+        height = "auto",
+        pad = 8,
+        borderBox = true,
+
+        gui.Label{
+            classes = {"tokenCommandLabel"},
+            text = "Record an Emote",
+            bold = true,
+            fontSize = 13,
+            width = "auto",
+            height = "auto",
+            bmargin = 4,
+        },
+
+        gui.Input{
+            placeholderText = "Filter emotes...",
+            fontSize = 12,
+            width = "100%",
+            height = 22,
+            borderBox = true,
+            bmargin = 4,
+            editlag = 0.25,
+            edit = function(element)
+                if resultPanel ~= nil and resultPanel.valid then
+                    resultPanel:FireEventTree("refreshCommandFilter", element.text)
+                end
+            end,
+        },
+
+        gui.Panel{
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            maxHeight = 240,
+            vscroll = true,
+            children = rows,
+        },
+    }
+
+    return resultPanel
+end
+
+--Popup opened by the bolt menu's "Speak...": a text input; Add Step records
+--a /tokensay step with the entered line.
+local function CreateTokenSpeechPopup(iconElement, token)
+    local displayName = TokenCommandDisplayName(token)
+
+    local m_text = ""
+    local m_addButton
+
+    local function CleanText()
+        return string.trim(SanitizeStepText(m_text))
+    end
+
+    local function RefreshAddButton()
+        if m_addButton ~= nil and m_addButton.valid then
+            m_addButton:SetClass("disabled", CleanText() == "")
+        end
+    end
+
+    m_addButton = gui.Button{
+        text = "Add Step",
+        classes = {"disabled"},
+        fontSize = 12,
+        width = "auto",
+        height = 24,
+        hpad = 10,
+        borderBox = true,
+        halign = "right",
+        tmargin = 6,
+        click = function(element)
+            local text = CleanText()
+            if element:HasClass("disabled") or text == "" then
+                return
+            end
+            CommandBuilder.RecordStep{
+                command = string.format("tokensay %s %s", token.charid, text),
+                text = string.format("%s: %s", displayName, text),
+            }
+            iconElement.popup = nil
+        end,
+    }
+
+    return gui.Panel{
+        classes = {"bordered", "bg"},
+        styles = TokenCommandPopupStyles(),
+        flow = "vertical",
+        width = 300,
+        height = "auto",
+        pad = 8,
+        borderBox = true,
+
+        gui.Label{
+            classes = {"tokenCommandLabel"},
+            text = string.format("What should %s say?", displayName),
+            bold = true,
+            fontSize = 13,
+            width = "100%",
+            height = "auto",
+            bmargin = 4,
+        },
+
+        gui.Input{
+            placeholderText = "Enter speech...",
+            fontSize = 12,
+            width = "100%",
+            height = 22,
+            borderBox = true,
+            hasFocus = true,
+            editlag = 0.25,
+            edit = function(element)
+                m_text = element.text
+                RefreshAddButton()
+            end,
+            change = function(element)
+                m_text = element.text
+                RefreshAddButton()
+            end,
+        },
+
+        m_addButton,
+    }
+end
+
+--Open a follow-up popup for a bolt menu entry. The entry's click runs inside
+--the context menu item's press event, and assigning the replacement popup
+--right there -- while the menu popup that hosts the pressed panel is being
+--torn down mid-event -- makes the new popup die immediately (it flashes for
+--a frame and vanishes). No other popup in the codebase is opened by that
+--swap-in-place pattern; menu entries that lead to a picker close the menu
+--and open the picker on a clean frame instead, which is what this does.
+local function OpenTokenCommandPopup(iconElement, createPopup)
+    iconElement.popup = nil
+    dmhub.Schedule(0.1, function()
+        if mod.unloaded or iconElement == nil or (not iconElement.valid) then
+            return
+        end
+        if not CommandBuilder.IsActive() then
+            return
+        end
+        iconElement.popup = createPopup()
+    end)
+end
+
+--The bolt menu's entries for one token.
+local function TokenCommandEntries(token)
+    local displayName = TokenCommandDisplayName(token)
+    local charid = token.charid
+
+    local entries = {
+        {
+            text = "Focus Token",
+            command = string.format("focustoken %s", charid),
+            stepText = string.format("Focus %s", displayName),
+        },
+        {
+            text = "Move To...",
+            click = function(iconElement)
+                iconElement.popup = nil
+                CommandBuilder.SelectLocation{
+                    prompt = string.format("Click where %s should move to.", displayName),
+                    complete = function(loc)
+                        CommandBuilder.RecordStep{
+                            command = string.format("walktoken %s %d %d %d", charid, loc.x, loc.y, loc.floor),
+                            text = string.format("Move %s", displayName),
+                        }
+                    end,
+                }
+            end,
+        },
+    }
+
+    --visibility is a director-side concept; players never toggle it.
+    if dmhub.isDM then
+        entries[#entries+1] = {
+            text = "Make Invisible to Players",
+            command = string.format("tokenvisibility %s hide", charid),
+            stepText = string.format("Hide %s", displayName),
+        }
+        entries[#entries+1] = {
+            text = "Make Visible to Players",
+            command = string.format("tokenvisibility %s show", charid),
+            stepText = string.format("Show %s", displayName),
+        }
+    end
+
+    entries[#entries+1] = {
+        text = "Emote...",
+        click = function(iconElement)
+            OpenTokenCommandPopup(iconElement, function()
+                return CreateTokenEmotePopup(iconElement, token)
+            end)
+        end,
+    }
+    entries[#entries+1] = {
+        text = "Speak...",
+        click = function(iconElement)
+            OpenTokenCommandPopup(iconElement, function()
+                return CreateTokenSpeechPopup(iconElement, token)
+            end)
+        end,
+    }
+
+    return entries
+end
+
+TokenHud.RegisterPanel{
+    id = "commandBuilderBolt",
+    ord = 101, --just after the character panel launcher it sits beside.
+    create = function(token, sharedInfo)
+        if token.isObject then
+            return nil
+        end
+
+        --the bolt itself is built lazily on the first activation of command
+        --creation mode (CommandBuilder.EnsureLightningIcon); until then this
+        --host is a single collapsed panel per token.
+        local iconOptions = {
+            width = 22,
+            height = 22,
+            halign = "center",
+            valign = "center",
+            entries = function(iconElement)
+                return TokenCommandEntries(token)
+            end,
+        }
+
+        local function Sync(element)
+            element:SetClass("collapsed", not CommandBuilder.IsActive())
+            CommandBuilder.EnsureLightningIcon(element, iconOptions)
+        end
+
+        return gui.Panel{
+            floating = true,
+            halign = "right",
+            valign = "bottom",
+            --beside the character-panel launcher's corner spot (launcher is
+            --hmargin 4 + 30 wide).
+            hmargin = 38,
+            vmargin = 4,
+            width = 30,
+            height = 30,
+            bgimage = "panels/square.png",
+            cornerRadius = 15,
+            bgcolor = "#000000cc",
+            borderWidth = 1,
+            borderColor = "#ffffff77",
+            classes = {cond(CommandBuilder.IsActive(), nil, "collapsed")},
+
+            multimonitor = {"commandcreationmode"},
+            monitor = function(element)
+                Sync(element)
+            end,
+            create = function(element)
+                Sync(element)
+            end,
+        }
+    end,
 }
 
 --Draw Steel version of lifebars.

@@ -241,9 +241,10 @@ function creature:GetBuilderChoiceFeatures()
     end
 
     -- creatureTemplates: templates inherit from CharacterFeat and expose
-    -- the same FillFeatureDetails entry point.
+    -- the same FillFeatureDetails entry point. Pass ourselves so features
+    -- with unmet prerequisites (e.g. a minimum level) aren't offered.
     for _,template in ipairs(self:GetActiveTemplates()) do
-        template:FillFeatureDetails(levelChoices, result)
+        template:FillFeatureDetails(levelChoices, result, self)
     end
 
     self:FillExtraBuilderChoiceFeatures(result, levelChoices)

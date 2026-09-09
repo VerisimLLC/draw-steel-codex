@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class EquipmentCategory
+--- @class EquipmentCategory: GameType
 --- @field tableName string Data table name ("equipmentCategories").
 --- @field name string Display name.
 --- @field editorType string Editor category shown in the compendium ("Gear", "Weapon", "Armor", etc.).
@@ -225,9 +225,16 @@ dmhub.RegisterEventHandler("refreshTables", function()
 		return
 	end
 
+	local cats = dmhub.GetTable("equipmentCategories")
+	--refreshTables can fire before the tables have downloaded. Building the
+	--category caches from an empty table would leave them empty forever,
+	--so wait for a refresh that actually has categories in it.
+	if cats == nil or next(cats) == nil then
+		return
+	end
+
 	firstTime = false
 
-	local cats = dmhub.GetTable("equipmentCategories") or {}
 	for k,cat in pairs(cats) do
 		if cat.isUnarmored then
 			g_unarmoredCategory = k

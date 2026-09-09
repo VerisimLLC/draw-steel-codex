@@ -1,6 +1,6 @@
 --- General utility functions and styling configuration for downtime system
 --- Provides data formatting, array operations, and centralized UI styles
---- @class DTHelpers
+--- @class DTHelpers: GameType
 DTHelpers = RegisterGameType("DTHelpers")
 
 -- Turn on the background to see lines around the downtime tab panels
@@ -123,6 +123,40 @@ function DTHelpers.ListToDropdownOptions(sourceList)
         end
     end
     return destList
+end
+
+--- Builds dropdown options for the adventure tables holding downtime events.
+--- Only tables named with DTConstants.EVENTS_TABLE_PREFIX are offered. Callers
+--- that need an empty choice prepend it themselves.
+--- @return table options List of { id, text } pairs, sorted by name
+function DTHelpers.GetEventTableOptions()
+    local options = {}
+
+    local eventTables = dmhub.GetTableVisible(DTConstants.EVENTS_TABLE) or {}
+    for key, eventTable in unhidden_pairs(eventTables) do
+        local name = eventTable.name or ""
+        if string.starts_with(name, DTConstants.EVENTS_TABLE_PREFIX) then
+            options[#options + 1] = {
+                id = key,
+                text = name,
+            }
+        end
+    end
+
+    table.sort(options, function(a, b) return a.text < b.text end)
+
+    return options
+end
+
+--- Reports whether an id appears in a list of dropdown options
+--- @param options table List of { id, text } pairs
+--- @param id string The id to look for
+--- @return boolean found Whether the id is one of the options
+function DTHelpers.OptionsContain(options, id)
+    for _, option in ipairs(options or {}) do
+        if option.id == id then return true end
+    end
+    return false
 end
 
 --- Transform the target to the source, returning true if we changed anything in the process

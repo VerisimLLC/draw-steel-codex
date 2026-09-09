@@ -103,6 +103,11 @@ function CreateInfoBubble(info)
 					return
 				end
 
+				--players may be able to see bubbles (map setting) but never move them.
+				if not dmhub.isDM then
+					return
+				end
+
 				printf("LOCKED: %s", json(info.locked))
 				if not info.locked then
 					info:BeginDragging()
@@ -124,16 +129,32 @@ function CreateInfoBubble(info)
 				if not element:HasClass("currentFloor") then
 					return
 				end
+
+				--only the DM can delete bubbles.
+				if not dmhub.isDM then
+					return
+				end
 				dmhub.Debug('right click')
+				--"Allow Dragging" is session-transient: info.locked lives on the
+				--bubble's hud object, not in the saved map data, so it resets to
+				--locked whenever the bubble is recreated.
 				element.popup = gui.ContextMenu{
 					entries = {
+						{
+							text = "Allow Dragging",
+							check = not info.locked,
+							click = function()
+								element.popup = nil
+								info.locked = not info.locked
+							end,
+						},
 						{
 							text = "Delete",
 							click = function()
 								element.popup = nil
 								info:Delete()
 							end,
-						}
+						},
 					},
 				}
 			end,

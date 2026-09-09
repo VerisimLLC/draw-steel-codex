@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
----@class RichDice
+---@class RichDice: RichTag
 RichDice = RegisterGameType("RichDice", "RichTag")
 RichDice.tag = "dice"
 

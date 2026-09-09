@@ -20,9 +20,9 @@ ActivatedAbilityCustomTriggerBehavior.waitForResolution = false
 local g_triggerAppearTimeout = 3
 
 --Upper bound on holding the cast while the player decides. ActiveTrigger
---entries age out of GetAvailableTriggers after 60s, so this only has to
+--entries age out of GetAvailableTriggers after 600s, so this only has to
 --outlast that.
-local g_triggerResolveTimeout = 90
+local g_triggerResolveTimeout = 630
 
 ActivatedAbility.RegisterType
 {

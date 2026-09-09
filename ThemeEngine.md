@@ -60,6 +60,48 @@ Use `MergeStyles(myCustomStyles)` or `MergeTokens(myCustomStyles)` in place of `
 
 The handler is auto-deregistered when your mod unloads; `OnThemeChanged` also returns an entry with a `Deregister()` method if you need to unsubscribe earlier.
 
+### Accessibility preferences
+
+`ThemeEngine.GetAccessibility()` returns the user's accessibility preferences
+as a plain table:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `scale` | number | Text/UI scale from the engine's Font Size setting. `1.0` = 100%. |
+| `reduceMotion` | boolean | Skip transitions and non-essential animation. |
+| `statusIcons` | boolean | Pair a glyph with every status color. |
+| `colorScheme` | string | Active scheme id (same as `GetActiveColorScheme()`). |
+| `highContrast` | boolean | The active scheme registered itself high-contrast. |
+
+Read it fresh whenever you need it -- nothing is cached, so there is no stale
+copy to invalidate. Changing either preference fires the **same** event as a
+scheme change, so a panel already following the `OnThemeChanged` pattern picks
+them up with no extra wiring:
+
+```lua
+ThemeEngine.OnThemeChanged(mod, function()
+    if panel ~= nil and panel.valid then
+        panel.styles = ThemeEngine.GetStyles()
+        local a11y = ThemeEngine.GetAccessibility()
+        panel:SetClass("noMotion", a11y.reduceMotion)
+    end
+end)
+```
+
+Two rules of thumb:
+
+- **`reduceMotion` is not "no feedback".** Replace the animation with an
+  instant state change, don't remove the state change.
+- **`statusIcons` is the shape channel.** A status shown only as a color is
+  unreadable to roughly one man in twelve. When it is on, pair every
+  `@success` / `@warning` / `@danger` with a distinct glyph -- not the same
+  dot in four colors.
+
+`scale` is informational: the engine already applies Font Size to every label
+on its own. Read it when you are sizing something the cascade cannot reach --
+a fixed-pixel gutter, an icon box, a row height. Better still, size those in
+`em` or `sp` (see `Definitions/Style.lua`) and let the engine do it.
+
 ### requireConfirm for delete buttons
 
 Callers using `gui.Button{ classes = {"deleteButton"} }` can opt into a confirmation modal:
@@ -170,7 +212,9 @@ Themes are relatively broad in scope. They consist of fonts and styles. They hav
 
 Please review the `default` theme in `DMHub Core UI / DefaultStyles.lua` to see the available fonts and class selectors. The file is sectioned for navigation: `1. BASICS` (panel/label/button/input/dropdown), `2. FORMS`, `3. CARDS`, `4. DIALOGS`, `5. UTILITIES`.
 
-A second built-in theme `default-rounded` (display name "Default Rounded") inherits everything from `default` and only overrides `cornerRadius` on bordered surfaces (10px on panel-class surfaces, 5px on interactive controls). Selectable via the devmode Theme Test panel; it's a useful demonstration of "themes only override what they need."
+`default` is the only built-in theme, and the theme is **not a user choice** -- there is no theme picker and no persisted active-theme preference. It carries the corner radii for the whole app (10px on panel-class surfaces, 5px on interactive controls, asymmetric values on `featureCardHeader` / `featureCardBody`, the enum-slider ends and `tab` so only the outer corners round). `ThemeEngine.GetActiveTheme()` therefore always returns `"default"`, and there is no `SetActiveTheme`.
+
+The theme axis still exists in the engine for two reasons: a subtree can pin itself to known-good styling with `GetStyles("default", "default")` (the theme-recovery pattern used by the color-scheme picker's own controls), and a mod can `RegisterTheme` its own. Only the **color scheme** is user-selectable.
 
 When creating custom schemes, remember that, like Color Schemes, the Theme Engine will use the default entries if your theme excludes them.
 

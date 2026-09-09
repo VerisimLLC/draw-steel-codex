@@ -309,7 +309,7 @@ local function validateOptions(options)
     return opts
 end
 
---- @class CharacterSkillDialog
+--- @class CharacterSkillDialog: GameType
 --- A dialog for editing skills in the context of a character sheet
 CharacterSkillDialog = RegisterGameType("CharacterSkillDialog")
 

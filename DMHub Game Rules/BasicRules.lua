@@ -48,14 +48,14 @@ rules = {
 rules.damageTypesWithAll = DeepCopy(rules.damageTypes)
 rules.damageTypesWithAll[#rules.damageTypesWithAll+1] = "all"
 
---- @class DamageInstance
+--- @class DamageInstance: GameType
 --- @field damage string Damage roll formula (e.g. "1d6+3").
 --- @field damageType string Damage type string (e.g. "fire", "slashing").
 --- @field damageMagical nil|boolean If true, this is magical damage.
 --- @field flags nil|table<string, boolean> Additional flags for this damage instance.
 DamageInstance = RegisterGameType("DamageInstance")
 
---- @class AttackDefinition
+--- @class AttackDefinition: GameType
 --- @field name string Display name of the attack definition.
 --- @field iconid string Asset id for the attack icon.
 --- @field range nil|number|string Range value.
@@ -128,7 +128,7 @@ function AttackDefinition.GenerateAttackInstance(self, char)
 
 end
 
---- @class ResistanceEntry
+--- @class ResistanceEntry: GameType
 --- @field source string Source label (e.g. "Innate").
 --- @field damageType string Damage type this resistance applies to (from rules.damageTypes or "all").
 --- @field apply string Resistance type: "Resistant", "Vulnerable", "Immune", "Damage Reduction", or "Percent Reduction".
@@ -153,7 +153,7 @@ ResistanceEntry.stacks = false
                 
 
 
---- @class Loc
+--- @class Loc: GameType
 --- @field _tmp_loc table Internal engine loc object (not serialized).
 --- Wrapper around the engine's Loc type that exposes position info to GoblinScript.
 --wrapper for Locs from the engine.

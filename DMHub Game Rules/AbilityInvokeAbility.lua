@@ -1,9 +1,9 @@
 local mod = dmhub.GetModLoading()
 
---- @class ActivatedAbilityInvokeAbilityBehavior
+--- @class ActivatedAbilityInvokeAbilityBehavior: ActivatedAbilityBehavior
 ActivatedAbilityInvokeAbilityBehavior = RegisterGameType("ActivatedAbilityInvokeAbilityBehavior", "ActivatedAbilityBehavior")
 
---- @class AbilityInvocation
+--- @class AbilityInvocation: GameType
 AbilityInvocation = RegisterGameType("AbilityInvocation")
 
 AbilityUtils = {
@@ -131,19 +131,447 @@ ActivatedAbility.RegisterType
 ActivatedAbilityInvokeAbilityBehavior.summary = 'Invoke Ability'
 ActivatedAbilityInvokeAbilityBehavior.promptText = ''
 
+--Set on invokes whose prompt asks the player to decide a hide that depends on
+--cover or concealment: the invoked ability shows the Hide maneuver's red enemy
+--sight-line arrows while its prompt is up. It lives here rather than on the
+--invoked ability because the "may hide" helper abilities are shared by content
+--whose rules differ -- some grant the hide with no cover needed at all.
+ActivatedAbilityInvokeAbilityBehavior.hideSightlines = false
+
 --if true we will invoke on the caster token.
 ActivatedAbilityInvokeAbilityBehavior.invokeOnCaster = false
 ActivatedAbilityInvokeAbilityBehavior.runOnController = false
+ActivatedAbilityInvokeAbilityBehavior.rangeOrigin = ""
 
 --If false (the default), the invoked ability will not use squad coordination even if
 --it would normally (signature abilities, free strikes, other Strike-keyworded
 --abilities, and squad maneuvers). Set true to opt in.
 ActivatedAbilityInvokeAbilityBehavior.useSquadCoordination = false
 
+local function GetParentPrimaryTargetTokenId(options)
+    local cast = options ~= nil and options.symbols ~= nil and options.symbols.cast or nil
+    for _,target in ipairs(cast ~= nil and cast.targets or {}) do
+        local targetToken = target.token
+        if targetToken ~= nil and targetToken.valid and targetToken.id ~= nil then
+            return targetToken.id
+        end
+    end
+
+    return nil
+end
+
+--Squad caster-side invokes receive the main attacker as their current target.
+--Reverse its targetPairs entry to recover the parent target that attacker chose.
+local function GetParentCurrentTargetTokenId(options, currentToken)
+    local symbols = options ~= nil and options.symbols or nil
+    if symbols ~= nil and currentToken ~= nil then
+        for _,pair in ipairs(symbols.targetPairs or {}) do
+            if pair.a == currentToken.charid or pair.a == currentToken.id then
+                local targetToken = dmhub.GetTokenById(pair.b)
+                if targetToken ~= nil and targetToken.valid and targetToken.id ~= nil then
+                    return targetToken.id
+                end
+            end
+        end
+    end
+
+    return GetParentPrimaryTargetTokenId(options)
+end
+
+local function GetParentCurrentTargetToken(options, currentToken)
+    local tokenId = GetParentCurrentTargetTokenId(options, currentToken)
+    if tokenId == nil then
+        return nil
+    end
+
+    local token = dmhub.GetTokenById(tokenId)
+    if token == nil or not token.valid or token.properties == nil then
+        return nil
+    end
+
+    return token
+end
+
+local g_movementConstraintOptions = {
+    { id = "none", text = "None" },
+    { id = "toward", text = "Move Toward" },
+    { id = "away", text = "Move Away" },
+    { id = "not_closer", text = "Cannot End Closer" },
+}
+
+local g_movementConstraintAnchorOptions = {
+    { id = "caster", text = "Invoking Ability's Caster" },
+    { id = "attacker", text = "Triggering Attacker" },
+    { id = "parent_target", text = "Parent Target" },
+    { id = "nearest_creature", text = "Nearest Creature" },
+    { id = "nearest_enemy", text = "Nearest Enemy" },
+    { id = "all_matching", text = "All Matching Creatures" },
+}
+
+local function ResolveMovementConstraintToken(value)
+    if type(value) == "function" then
+        value = value("self")
+    end
+
+    if value == nil then
+        return nil
+    end
+
+    local token = dmhub.LookupToken(value)
+    if token == nil or not token.valid or token.properties == nil then
+        return nil
+    end
+
+    return token
+end
+
+local function MovementConstraintCandidateIsLiving(candidate, movedToken)
+    return candidate ~= nil
+        and candidate.valid
+        and candidate.properties ~= nil
+        and candidate.charid ~= movedToken.charid
+        and candidate.hasTokenOnThisMap
+        and not candidate.properties:IsDead()
+end
+
+local function MovementConstraintCandidatePassesFilter(behavior, candidate, casterToken, movedToken, parentTargetToken, options)
+    local filter = behavior:try_get("movementConstraintFilter", "")
+    if trim(filter) == "" then
+        return true
+    end
+
+    local formulaSymbols = table.shallow_copy(options.symbols or {})
+    formulaSymbols.target = GenerateSymbols(candidate.properties)
+    formulaSymbols.caster = GenerateSymbols(casterToken.properties)
+    formulaSymbols.invoker = GenerateSymbols(casterToken.properties)
+    formulaSymbols.mover = GenerateSymbols(movedToken.properties)
+    if parentTargetToken ~= nil then
+        formulaSymbols.parenttarget = GenerateSymbols(parentTargetToken.properties)
+    end
+
+    return GoblinScriptTrue(ExecuteGoblinScript(filter,
+        casterToken.properties:LookupSymbol(formulaSymbols), 0, "Movement Constraint Anchor Filter"))
+end
+
+local function CollectMovementConstraintCandidates(behavior, anchorType, casterToken, movedToken, parentTargetToken, options)
+    local candidates = {}
+    local maxDistance = tonumber(behavior:try_get("movementConstraintAnchorDistance"))
+
+    for _,candidate in ipairs(dmhub.allTokens) do
+        local include = MovementConstraintCandidateIsLiving(candidate, movedToken)
+        if include and anchorType == "nearest_enemy" then
+            include = not IsFriendForTargeting(casterToken, candidate)
+        end
+        if include and maxDistance ~= nil and movedToken:Distance(candidate) > maxDistance then
+            include = false
+        end
+        if include and not MovementConstraintCandidatePassesFilter(behavior, candidate, casterToken,
+                movedToken, parentTargetToken, options) then
+            include = false
+        end
+        if include then
+            candidates[#candidates+1] = candidate
+        end
+    end
+
+    return candidates
+end
+
+local function ChooseNearestMovementConstraintAnchor(behavior, casterToken, movedToken, candidates)
+    local nearestDistance = nil
+    local nearest = {}
+    for _,candidate in ipairs(candidates) do
+        local distance = movedToken:Distance(candidate)
+        if nearestDistance == nil or distance < nearestDistance then
+            nearestDistance = distance
+            nearest = { candidate }
+        elseif distance == nearestDistance then
+            nearest[#nearest+1] = candidate
+        end
+    end
+
+    if #nearest <= 1 then
+        return nearest[1]
+    end
+
+    local chosen = nil
+    local waiting = true
+    GameHud.instance.actionBarPanel:FireEventTree("chooseTargetToken", {
+        sourceToken = casterToken,
+        targets = nearest,
+        prompt = behavior:try_get("movementConstraintPrompt", "Choose the movement target"),
+        choose = function(targetToken)
+            chosen = targetToken
+            waiting = false
+        end,
+        cancel = function()
+            waiting = false
+        end,
+    })
+
+    while waiting do
+        coroutine.yield(0.1)
+        if casterToken == nil or not casterToken.valid or movedToken == nil or not movedToken.valid then
+            waiting = false
+        end
+    end
+
+    return chosen
+end
+
+-- Resolves the rule-facing anchor description once, before the invoked movement
+-- is handed to the action bar. The child cast receives only token ids, so the
+-- constraint is safe to serialize and cannot leak into later movement.
+local function ResolveMovementConstraint(behavior, casterToken, movedToken, parentTargetToken, options)
+    local mode = behavior:try_get("movementConstraint", "none")
+    if mode == "none" or mode == "" then
+        return nil, nil
+    end
+
+    local anchorType = behavior:try_get("movementConstraintAnchor", "caster")
+    local anchors = {}
+
+    if anchorType == "caster" then
+        anchors[1] = casterToken
+    elseif anchorType == "attacker" then
+        anchors[1] = ResolveMovementConstraintToken(options.symbols.attacker)
+    elseif anchorType == "parent_target" then
+        anchors[1] = parentTargetToken
+    elseif anchorType == "nearest_creature" or anchorType == "nearest_enemy" then
+        local candidates = CollectMovementConstraintCandidates(behavior, anchorType, casterToken,
+            movedToken, parentTargetToken, options)
+        anchors[1] = ChooseNearestMovementConstraintAnchor(behavior, casterToken, movedToken, candidates)
+    elseif anchorType == "all_matching" then
+        anchors = CollectMovementConstraintCandidates(behavior, anchorType, casterToken,
+            movedToken, parentTargetToken, options)
+    end
+
+    local anchorids = {}
+    local primaryAnchor = nil
+    for _,anchor in ipairs(anchors) do
+        if anchor ~= nil and anchor.valid then
+            primaryAnchor = primaryAnchor or anchor
+            anchorids[#anchorids+1] = anchor.id
+        end
+    end
+
+    if #anchorids == 0 then
+        return false, nil
+    end
+
+    return {
+        mode = mode,
+        anchorids = anchorids,
+    }, primaryAnchor
+end
+
+--Pulls every ActivatedAbility granted by a feature's "activated" modifiers into result,
+--stamping each clone with the class metadata that the chooseClassAbility filter reads.
+--- @param feature CharacterFeature
+--- @param info {classLevel: number, levelsAbove: number, className: string, prerequisitesMet: boolean, known: table<string,boolean>}
+--- @param result ActivatedAbility[]
+local function CollectFeatureAbilities(feature, info, result)
+    for _,modifier in ipairs(feature:try_get("modifiers", {})) do
+        if modifier:try_get("behavior") == "activated" then
+            local grantedAbility = modifier:try_get("activatedAbility")
+            if grantedAbility ~= nil then
+                local candidate = grantedAbility:MakeTemporaryClone()
+
+                --_tmp_ fields are skipped by the serializer, so this metadata never
+                --reaches the database even though the clone gets cast for real.
+                candidate._tmp_classLevel = info.classLevel
+                candidate._tmp_levelsAbove = info.levelsAbove
+                candidate._tmp_className = info.className
+                candidate._tmp_prerequisitesMet = info.prerequisitesMet
+                candidate._tmp_abilityKnown = info.known[string.lower(candidate.name)] == true
+
+                result[#result+1] = candidate
+            end
+        end
+    end
+end
+
+--Harvests every activated ability offered by the level lists of the caster's classes,
+--subclasses and domains. Nothing is filtered here beyond structure -- the GoblinScript
+--abilityFilter decides what the player actually sees, reading the stamped metadata via
+--Ability.Class Level / Levels Above / Class / Known / Prerequisites Met.
+--- @param casterToken nil|CharacterToken
+--- @return ActivatedAbility[]
+local function GatherClassAbilities(casterToken)
+    local result = {}
+
+    local creature = casterToken ~= nil and casterToken.properties or nil
+    if creature == nil then
+        return result
+    end
+
+    --Monsters and other non-character creatures have no class list -- the base
+    --creature implementation returns an empty table, so this is safe to call.
+    local classEntries = creature:GetClassesAndSubClasses()
+    if classEntries == nil or #classEntries == 0 then
+        return result
+    end
+
+    --Abilities the character already has, keyed by lowercased name. Matching by name
+    --rather than guid because a class option and the character's granted copy of it
+    --are distinct objects with distinct guids.
+    local known = {}
+    for _,a in ipairs(creature:GetActivatedAbilities{ characterSheet = true }) do
+        if a.name ~= nil then
+            known[string.lower(a.name)] = true
+        end
+    end
+
+    local levelChoices = creature:GetLevelChoices() or {}
+
+    for _,entry in ipairs(classEntries) do
+        local classInfo = entry.class
+        local currentLevel = entry.level or 0
+
+        --Read the levels table directly rather than via Class:GetLevel, which creates
+        --a fresh ClassLevel for any key it doesn't find -- we must not mutate the
+        --shared, cached class objects just to look at them.
+        for key,levelEntry in pairs(classInfo:try_get("levels", {})) do
+            --Level-1 content is NOT under "level-1" -- per Class:FillLevelsUpTo, a
+            --character's progression is "primary", then "tutoriallevel-1".."tutoriallevel-4",
+            --then "level-1".."level-N". The tutoriallevel-* entries are always included
+            --regardless of level; they are how level 1 is split into builder stages, and
+            --for most classes they hold ALL the level-1 features (including the 3- and
+            --5-cost heroic ability choices, while "level-1" itself is empty). Treat them
+            --as level 1. "multiclass" is the secondary-class variant of "primary" and is
+            --deliberately skipped.
+            local levelNum = tonumber(string.match(key, "^level%-(%d+)$"))
+            if levelNum == nil and (key == "primary" or string.match(key, "^tutoriallevel%-%d+$") ~= nil) then
+                levelNum = 1
+            end
+
+            if levelNum ~= nil and levelEntry ~= nil then
+                local info = {
+                    classLevel = levelNum,
+                    levelsAbove = levelNum - currentLevel,
+                    className = classInfo.name or "",
+                    prerequisitesMet = true,
+                    known = known,
+                }
+
+                for _,feature in ipairs(levelEntry:try_get("features", {})) do
+                    if feature.typeName == "CharacterFeatureChoice" then
+                        for _,option in ipairs(feature:GetOptions(levelChoices)) do
+                            --A feature is only offered if every prerequisite on it is
+                            --met. Exposed as a symbol rather than filtered out here so
+                            --content can choose to ignore it.
+                            local prerequisitesMet = true
+                            for _,prerequisite in ipairs(rawget(option, "prerequisites") or {}) do
+                                if not prerequisite:Met(creature) then
+                                    prerequisitesMet = false
+                                end
+                            end
+
+                            info.prerequisitesMet = prerequisitesMet
+                            CollectFeatureAbilities(option, info, result)
+                        end
+                    else
+                        info.prerequisitesMet = true
+                        CollectFeatureAbilities(feature, info, result)
+                    end
+                end
+            end
+        end
+    end
+
+    return result
+end
+
+--Runs the abilityFilter over the harvested candidates and prompts the player to pick
+--one. Returns nil if there was nothing to offer or the player canceled -- in both
+--cases the caller must abort without charging the ability's cost.
+--- @param behavior ActivatedAbilityInvokeAbilityBehavior
+--- @param casterToken nil|CharacterToken
+--- @param options nil|table
+--- @return nil|ActivatedAbility
+local function ChooseClassAbility(behavior, casterToken, options)
+    local candidates = GatherClassAbilities(casterToken)
+
+    local filter = behavior:try_get("abilityFilter", "")
+    if filter ~= "" and casterToken ~= nil and casterToken.properties ~= nil then
+        local creature = casterToken.properties
+        local filtered = {}
+        for _,candidate in ipairs(candidates) do
+            local symbols = {
+                ability = candidate,
+                caster = creature,
+            }
+
+            if GoblinScriptTrue(ExecuteGoblinScript(filter, creature:LookupSymbol(symbols), 0, "Choose Class Ability Filter")) then
+                filtered[#filtered+1] = candidate
+            end
+        end
+        candidates = filtered
+    end
+
+    --Two candidates can be the same ability reached by two routes (e.g. a subclass
+    --that re-lists a class option). Collapse by name so the list reads cleanly.
+    local seen = {}
+    local unique = {}
+    for _,candidate in ipairs(candidates) do
+        local key = string.lower(candidate.name or "")
+        if not seen[key] then
+            seen[key] = true
+            unique[#unique+1] = candidate
+        end
+    end
+
+    table.sort(unique, function(a,b)
+        return string.lower(a.name or "") < string.lower(b.name or "")
+    end)
+
+    return ActivatedAbility.ShowAbilityChoiceDialog(unique, {
+        title = behavior:try_get("chooseAbilityTitle", "Choose an Ability"),
+        buttonText = "Use",
+        emptyText = behavior:try_get("chooseAbilityEmptyText", "You have no abilities available to choose from right now."),
+
+        --Right-hand column: where the ability came from and what it costs, so the
+        --player can choose without opening every tooltip.
+        detailText = function(ability)
+            local parts = {}
+
+            local className = ability:try_get("_tmp_className", "")
+            local classLevel = ability:try_get("_tmp_classLevel", 0)
+            if className ~= "" then
+                parts[#parts+1] = string.format("%s %d", className, classLevel)
+            end
+
+            local resourceid = ability:try_get("resourceCost", "none")
+            if resourceid ~= "none" then
+                local resourceInfo = (dmhub.GetTable("characterResources") or {})[resourceid]
+                local quantity = tonumber(ability:try_get("resourceNumber", ""))
+                if resourceInfo ~= nil and quantity ~= nil and quantity > 0 then
+                    parts[#parts+1] = string.format("%d %s", quantity, resourceInfo.name)
+                end
+            end
+
+            return table.concat(parts, "  -  ")
+        end,
+    }, casterToken)
+end
+
 
 function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, targets, options)
 
+    --Resolve a "choose an ability off your class list" pick up front, before any
+    --targeting and before CommitToPaying: backing out of the picker must not spend
+    --the invoking ability's cost or burn its usage-limit charge. Hoisted out of the
+    --per-target loop below so the dialog is shown once, not once per target.
+    local chosenClassAbility = nil
+    if self.abilityType == "chooseClassAbility" then
+        chosenClassAbility = ChooseClassAbility(self, casterToken, options)
+        if chosenClassAbility == nil then
+            return
+        end
+    end
+
     local promptWhenResolving = self:try_get("promptWhenResolving", false)
+    local rangeOrigin = self:try_get("rangeOrigin", "")
 
     local targetChoices = {}
     if promptWhenResolving then
@@ -155,14 +583,43 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
     repeat
 
+        --Each pass of this loop resolves the invoke for ONE chosen target when
+        --Choose Invocation Order is on. Mark the start of a fresh movement
+        --scope on the shared cast so Cast.SpacesMovedThisInvocation reports
+        --only this target's movement (e.g. Pack Formation: each wolf's second
+        --shift is limited to the remainder of THAT wolf's speed, not starved
+        --by the wolves that moved before it). Gated on promptWhenResolving:
+        --nested invoke behaviors (the legs of a multi-behavior chain) run this
+        --same Cast function and must NOT reset the scope, or a later leg's
+        --parameter formulas would always see 0.
+        if promptWhenResolving and options.symbols ~= nil and options.symbols.cast ~= nil then
+            options.symbols.cast:BeginInvocationMovementScope()
+        end
+
         if promptWhenResolving and #targetChoices > 0 then
 
             print("INVOKE:: ChooseTarget:: prompting...")
             targets = nil
+
+            --The chooser's caption. An explicit Prompt When Resolving text wins;
+            --otherwise borrow the invoke's own prompt text (what the chosen
+            --target will be offered, e.g. "Move Speed or Make Free Strike") so
+            --the Director sees what they are picking a target FOR rather than a
+            --bare "Choose Target".
+            local chooserPrompt = self:try_get("promptWhenResolvingText", "")
+            if chooserPrompt == "" then
+                local promptText = self:try_get("promptText", "")
+                if promptText ~= "" then
+                    chooserPrompt = "Choose the next target: " .. StringInterpolateGoblinScript(promptText, casterToken.properties:LookupSymbol{})
+                else
+                    chooserPrompt = "Choose Target"
+                end
+            end
+
             GameHud.instance.actionBarPanel:FireEventTree("chooseTargetToken", {
                 sourceToken = casterToken,
                 targets = table.shallow_copy(targetChoices),
-                prompt = self:try_get("promptWhenResolvingText", "Choose Target"),
+                prompt = chooserPrompt,
                 choose = function(targetToken)
                     print("ChooseTarget:: chosen")
                     targets = {
@@ -186,6 +643,13 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
             while targets == nil do
                 coroutine.yield(0.1)
+                --If the caster died while we waited, the prompt is gone and
+                --no answer will ever come. Treat it as cancelled so the
+                --ability can finish instead of hanging.
+                if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+                    targets = {}
+                    targetChoices = {}
+                end
             end
         end
 
@@ -197,6 +661,31 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
         for i,target in ipairs(targets) do
             if target.token ~= nil then
                 print("INVOKE:: CASTING ON TARGET", i, "/", #targets)
+
+                local rangeOriginTokenId = nil
+                if rangeOrigin == "parent_primary_target" then
+                    rangeOriginTokenId = GetParentPrimaryTargetTokenId(options)
+                elseif rangeOrigin == "parent_current_target" then
+                    rangeOriginTokenId = GetParentCurrentTargetTokenId(options, target.token)
+                end
+
+                --ParentTarget follows this invocation's squad pairing without changing
+                --where the child measures its range. Non-squad invokes use the parent's
+                --primary target through GetParentCurrentTargetToken's fallback.
+                local parentTargetToken = GetParentCurrentTargetToken(options, target.token)
+
+                if self:try_get("rememberMovementConstraintTarget", false) then
+                    options.symbols.movementconstrainttargetid = nil
+                    options.symbols.movementtargetvalid = false
+                end
+                local movementConstraint, movementConstraintTarget = ResolveMovementConstraint(self,
+                    casterToken, target.token, parentTargetToken, options)
+                local skipInvoke = movementConstraint == false
+
+                if movementConstraintTarget ~= nil and self:try_get("rememberMovementConstraintTarget", false) then
+                    options.symbols.movementconstrainttargetid = movementConstraintTarget.id
+                    options.symbols.movementtargetvalid = true
+                end
 
                 --In a squad coordinated strike, the invoked effect (e.g. a forced-
                 --movement push/pull, or an inflicted condition) should be SOURCED
@@ -211,7 +700,32 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 end
 
                 --be careful not to put anything in here we don't want to transmit to the database.
-                local symbols = { spellname = options.symbols.spellname or ability.name, charges = options.symbols.charges, cast = options.symbols.cast, forcedMovementOrigin = options.symbols.forcedMovementOrigin }
+                local symbols = { spellname = options.symbols.spellname or ability.name, charges = options.symbols.charges, cast = options.symbols.cast, forcedMovementOrigin = options.symbols.forcedMovementOrigin, forcedMovementOriginTokenId = options.symbols.forcedMovementOriginTokenId, movementtargetvalid = options.symbols.movementtargetvalid }
+                if parentTargetToken ~= nil then
+                    symbols.parenttarget = GenerateSymbols(parentTargetToken.properties)
+                end
+
+                if movementConstraint ~= nil and movementConstraint ~= false then
+                    symbols.movementconstraint = movementConstraint
+                end
+
+                local rememberedMovementTargetId = options.symbols.movementconstrainttargetid
+                local rememberedMovementTarget = nil
+                if movementConstraintTarget ~= nil then
+                    rememberedMovementTarget = movementConstraintTarget
+                elseif rememberedMovementTargetId ~= nil then
+                    rememberedMovementTarget = dmhub.GetTokenById(rememberedMovementTargetId)
+                end
+                if rememberedMovementTarget ~= nil and rememberedMovementTarget.valid
+                        and rememberedMovementTarget.properties ~= nil then
+                    symbols.movementtarget = GenerateSymbols(rememberedMovementTarget.properties)
+                end
+
+                if movementConstraintTarget ~= nil
+                        and self:try_get("movementConstraintAsForcedMovementOrigin", false) then
+                    symbols.forcedMovementOrigin = nil
+                    symbols.forcedMovementOriginTokenId = movementConstraintTarget.id
+                end
 
                 --Opt-in only: 'attacker' (and other trigger-only symbols) do not
                 --normally cross the invoke boundary, since most invokes have no
@@ -227,7 +741,12 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     symbols.compeltoward = options.symbols.attacker
                 end
 
-                if self.runOnController and target.token.activeControllerId ~= nil and self.abilityType ~= "custom" then
+                --chooseClassAbility is excluded alongside custom: both resolve to an
+                --ability object that only exists on this client, so there is nothing
+                --the remote controller could look up from a serialized invocation.
+                if skipInvoke then
+                    print("INVOKE:: No valid movement constraint anchor; skipping", ability.name)
+                elseif self.runOnController and target.token.activeControllerId ~= nil and self.abilityType ~= "custom" and self.abilityType ~= "chooseClassAbility" then
 
                     --Clean out the ability so we don't copy too much, and make the
                     --cast serialization-safe: it holds live objects (targets[].token
@@ -240,6 +759,13 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     local cast = SerializeEventValue(options.symbols.cast)
                     cast.ability = nil
                     symbols.cast = cast
+                    if parentTargetToken ~= nil then
+                        symbols.parenttarget = SerializeEventValue(parentTargetToken.properties)
+                    end
+                    if rememberedMovementTarget ~= nil and rememberedMovementTarget.valid
+                            and rememberedMovementTarget.properties ~= nil then
+                        symbols.movementtarget = SerializeEventValue(rememberedMovementTarget.properties)
+                    end
 
                     local subjectid
                     if options.symbols.subject ~= nil then
@@ -269,8 +795,16 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         abilityAttr = {
                             promptOverride = cond(self.promptText ~= "", StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{})),
                             disableSquadCoordination = cond(not self:try_get("useSquadCoordination", false), true),
+                            hideSightlines = cond(self:try_get("hideSightlines", false), true),
                         }
                     }
+
+                    if rangeOriginTokenId ~= nil then
+                        invocation.abilityAttr.rangeOriginTokenId = rangeOriginTokenId
+                    end
+                    if self:try_get("movementConstraintStraightLine", false) then
+                        invocation.abilityAttr.targeting = "straightpath"
+                    end
 
                     --Held back until the casts currently resolving on this
                     --client complete. This invoke may come from a triggered
@@ -298,6 +832,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
                 else
 
+                    if options.symbols.subject ~= nil then
+                        symbols.subject = options.symbols.subject
+                    end
+
                     local abilityTemplate = nil
                     if self.abilityType == "named" then
                         local abilities = target.token.properties:GetActivatedAbilities{allLoadouts = true, bindCaster = true}
@@ -312,23 +850,54 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                     elseif self.abilityType == "standard" then
                         local t = dmhub.GetTable("standardAbilities") or {}
                         abilityTemplate = t[self.standardAbility]
+                    elseif self.abilityType == "chooseClassAbility" then
+                        --Already chosen at the top of Cast; a nil here means the player
+                        --canceled, which returned before we got this far.
+                        --
+                        --Copied per target: the choice is already a temporary clone, and
+                        --MakeTemporaryClone below hands back the same object for one of
+                        --those, so without this a second target would re-run the modifier
+                        --pipeline over the first target's mutations.
+                        abilityTemplate = DeepCopy(chosenClassAbility)
                     end
 
                     if abilityTemplate ~= nil then
                         local abilityClone = abilityTemplate:MakeTemporaryClone()
+
+                        --The invoked ability is cast through the normal path, which pays
+                        --its own action cost as well as the invoking ability's. When the
+                        --invoker already charges the action for the whole package, that
+                        --double-charge makes the invoked ability unaffordable, so clear it.
+                        --Safe to do on the clone: for custom/standard MakeTemporaryClone
+                        --returned a fresh copy, and chooseClassAbility DeepCopies per target.
+                        if self:try_get("suppressInvokedActionCost", false) then
+                            abilityClone.actionResourceId = "none"
+                        end
+
+                        --A borrowed class ability must pay its own Heroic Resource -- that
+                        --is the whole point of "provided you can spend any required Heroic
+                        --Resource". ExecuteInvoke's direct-cast path never sets options.pay,
+                        --and heroic abilities mostly report RequiresPromptWhenCast() == false
+                        --so they take exactly that path, which would silently skip payment.
+                        --Implicit for this mode rather than a flag, so existing invoke
+                        --content (overwhelmingly free custom abilities) is untouched.
+                        if self.abilityType == "chooseClassAbility" then
+                            abilityClone._tmp_payInvokedCost = true
+                        end
 
                         if self.abilityType == "standard" or self.abilityType == "custom" then
 
                             local allParameters = {}
                             AbilityUtils.ExtractAbilityParameters(abilityClone, allParameters)
 
-                            local symbols = table.union(options.symbols, {
+                            local parameterSymbols = table.union(options.symbols, {
                                 target = GenerateSymbols(target.token.properties),
                                 invoker = GenerateSymbols(casterToken.properties),
+                                parenttarget = symbols.parenttarget,
                             })
                             for k,v in pairs(self:try_get("standardAbilityParams", {})) do
                                 allParameters[k] = nil
-                                local str = AbilityUtils.SubstituteAbilityParameters(v, casterToken.properties:LookupSymbol(symbols))
+                                local str = AbilityUtils.SubstituteAbilityParameters(v, casterToken.properties:LookupSymbol(parameterSymbols))
                                 AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", str)
                             end
                             for k,_ in pairs(allParameters) do
@@ -348,6 +917,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             abilityClone.rangeUsesInvoker = true
                         end
 
+                        if self:try_get("movementConstraintStraightLine", false) then
+                            abilityClone.targeting = "straightpath"
+                        end
+
                         if self:try_get("inheritKeywords", false) then
                             abilityClone.keywords = ability.keywords
                         end
@@ -360,7 +933,13 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                         --then run the invoker's modifier pipeline, then call PostProcessInvoked-
                         --Ability for any per-creature-type adjustments that live outside the
                         --modifier system (e.g. AnimalCompanion's melee damage bonus).
-                        if self.abilityType == "custom" and target.token ~= nil and target.token.properties ~= nil then
+                        --chooseClassAbility candidates are harvested raw out of the class
+                        --level lists rather than through GetActivatedAbilities, so unlike
+                        --"named" they have not been through the modifier pipeline yet. Run
+                        --them through it here so a borrowed class ability picks up the
+                        --character's kit, feats and other bonuses exactly as it would if
+                        --they had actually learned it.
+                        if (self.abilityType == "custom" or self.abilityType == "chooseClassAbility") and target.token ~= nil and target.token.properties ~= nil then
                             local invokerCreature = target.token.properties
                             abilityClone = abilityClone:BifurcateIntoMeleeAndRanged(invokerCreature)
                             for _, mod in ipairs(invokerCreature:GetActiveModifiers()) do
@@ -397,6 +976,10 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             abilityClone.promptOverride = StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{})
                         end
 
+                        if self:try_get("hideSightlines", false) then
+                            abilityClone.hideSightlines = true
+                        end
+
                         -- Apply forced movement bonuses if this is a forced movement ability
                         local forcedMovementType = abilityClone:try_get("forcedMovement")
                         if forcedMovementType ~= nil then
@@ -407,8 +990,9 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             local sizeDifferenceBonus = 0
                             local parentKeywords = ability.keywords or {}
                             if parentKeywords["Weapon"] and parentKeywords["Melee"] then
-                                local casterSize = casterToken.creatureSizeNumber
-                                local targetSize = target.token.properties:CreatureSizeWhenBeingForceMoved()
+                                local isKnockback = ability:IsKnockbackManeuver()
+                                local casterSize = casterToken.properties:CreatureSizeWhenForceMoving(isKnockback)
+                                local targetSize = target.token.properties:CreatureSizeWhenBeingForceMoved(isKnockback)
                                 if casterSize > targetSize then
                                     sizeDifferenceBonus = 1
                                     adjustments[#adjustments+1] = "Big Versus Little: +1"
@@ -462,8 +1046,39 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             options.targetingFormula = self:try_get("targetingFormula", "")
                         end
 
+                        if rangeOriginTokenId ~= nil then
+                            abilityClone.rangeOriginTokenId = rangeOriginTokenId
+                        end
+
                         print("Invoke:: Execute...")
-                        local invokerToken = cond(self.invokeOnCaster, casterToken, target.token)
+                        --invokeOnCaster: in a squad coordinated strike the "caster" for THIS
+                        --target's invoke is the main minion for that creature (invokeSource,
+                        --computed above via MainAttackerForTarget), not the cast's lead minion.
+                        --Without squad pairing invokeSource IS casterToken, so this is a no-op.
+                        --
+                        --When the behavior's applyto is "caster" or "caster_including_squad",
+                        --ApplyToTargets has already resolved each entry in `targets` to the
+                        --caster-side token that should act (the per-unique-target main
+                        --attackers, or each squad member). That token IS the intended caster
+                        --of the invoke: re-deriving it via MainAttackerForTarget would look
+                        --the minion up on the target side of targetPairs, find nothing, and
+                        --fall back to the cast lead -- making the lead cast every copy. For
+                        --a non-squad caster both values equal casterToken, so this is a
+                        --no-op there. Deliberately NOT applied to the other caster_* mappings
+                        --(caster_summoner, caster_companion, caster_riders, caster_minions,
+                        --caster_and_targets): for those the mapped token is a DIFFERENT
+                        --creature than the caster, and invokeOnCaster keeps its meaning of
+                        --"the caster casts it, once per mapped creature".
+                        local invokerToken
+                        if self.invokeOnCaster then
+                            if self.applyto == "caster" or self.applyto == "caster_including_squad" then
+                                invokerToken = target.token
+                            else
+                                invokerToken = invokeSource
+                            end
+                        else
+                            invokerToken = target.token
+                        end
                         self.ExecuteInvoke(invokeSource, abilityClone, invokerToken, self.targeting, symbols, options)
                     end
                 end
@@ -471,6 +1086,16 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
             end
         end
     until promptWhenResolving == false or #targetChoices == 0
+end
+
+--A string that changes every time the turn changes. Used to spot a leftover flag from
+--an invoke that never finished.
+function ActivatedAbilityInvokeAbilityBehavior.SquadSuppressionTurnKey()
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then
+        return "none"
+    end
+    return string.format("%s:%s:%s", tostring(q.round), tostring(q.turn), tostring(q.currentTurn))
 end
 
 function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abilityClone, casterToken, targeting, symbols, options)
@@ -481,12 +1106,34 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
 
     --When the invoke opted out of squad coordination, mirror the abilityClone flag
     --onto the cast caster's properties as a transient depth counter so any cloned/
-    --bifurcated/synthesized variant produced downstream is also covered. Cleared
-    --in finishHandler below. UsesSquadCoordination checks both signals.
+    --bifurcated/synthesized variant produced downstream is also covered.
+    --UsesSquadCoordination checks both signals.
     local suppressSquad = abilityClone:try_get("disableSquadCoordination", false) == true
     if suppressSquad and casterToken ~= nil and casterToken.properties ~= nil then
         local depth = casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0)
         casterToken.properties._tmp_disableSquadCoordinationDepth = depth + 1
+        casterToken.properties._tmp_disableSquadCoordinationTurn = ActivatedAbilityInvokeAbilityBehavior.SquadSuppressionTurnKey()
+    end
+
+    --Always lower the counter again on the way out, not just when a cast finishes. If
+    --the player declines the prompt it used to stay up, and that minion's squad could
+    --never attack with more than one member again (report 3ERZG7SW).
+    local squadSuppressionReleased = false
+    local ReleaseSquadSuppression = function()
+        if squadSuppressionReleased or not suppressSquad then
+            return
+        end
+        squadSuppressionReleased = true
+        if casterToken == nil or casterToken.properties == nil then
+            return
+        end
+        local depth = casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0)
+        if depth <= 1 then
+            casterToken.properties._tmp_disableSquadCoordinationDepth = nil
+            casterToken.properties._tmp_disableSquadCoordinationTurn = nil
+        else
+            casterToken.properties._tmp_disableSquadCoordinationDepth = depth - 1
+        end
     end
 
     print("INVOKE:: STARTING:", abilityClone.name)
@@ -512,6 +1159,18 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
 
 	local casting = false
 
+    --Backstop for a cast that begins and never finishes. The action bar can drop
+    --a begun cast without ever firing a finish handler -- e.g. the invoke prompt
+    --is displaced by the caster activating another ability directly from the
+    --ability menu -- which leaves `casting` stuck true and parks this coroutine
+    --forever. That zombie used to starve every deferred trigger on the client;
+    --FlushCastCompleteActions now evicts a blocker like this after
+    --DEFERRED_CAST_ABANDON_SECONDS, so the visible starvation is already
+    --contained and this cap only has to stop the coroutine leaking for the rest
+    --of the session. Deliberately far longer than any real prompt interaction:
+    --it must never cut off a player who is just taking their time deciding.
+    local INVOKE_WAIT_TIMEOUT_SECONDS = 300
+
 	symbols.invoker = symbols.invoker or GenerateSymbols(invokerToken.properties)
     local invoker = symbols.invoker
     if type(invoker) == "function" then
@@ -536,14 +1195,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         end
         casting = false
         finishedCasting = true
-        if suppressSquad and casterToken ~= nil and casterToken.properties ~= nil then
-            local depth = casterToken.properties:try_get("_tmp_disableSquadCoordinationDepth", 0)
-            if depth <= 1 then
-                casterToken.properties._tmp_disableSquadCoordinationDepth = nil
-            else
-                casterToken.properties._tmp_disableSquadCoordinationDepth = depth - 1
-            end
-        end
+        ReleaseSquadSuppression()
         if finishOptions.pay then
             --if the ability we invoked had to be paid for, we have to pay for the invoke.
             ability:CommitToPaying(casterToken, finishOptions)
@@ -557,19 +1209,33 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         castOptions.OnFinishCastHandlers[#castOptions.OnFinishCastHandlers + 1] = finishHandler
     end
 
-	abilityClone.OnBeginCast = function(_ability, castOptions)
-		if OnBeginCast then
-			OnBeginCast()
-		end
-		casting = true
-        installFinishHandler(castOptions)
-	end
+    --Prompt handlers can replace a wrapper ability with a concrete synthesized
+    --ability (for example, choosing Melee Free Strike from the generic Free
+    --Strike prompt). Every replacement still needs the invoke lifecycle hooks.
+    local installCastCallbacks = function(castAbility)
+        local priorBeginCast = castAbility:try_get("OnBeginCast")
+        local priorFinishCast = castAbility:try_get("OnFinishCast")
 
-    --Defense-in-depth: keep OnFinishCast as a fallback in case this path somehow runs
-    --through a Cast that skips OnBeginCast. The finishHandler is idempotent via finishedCasting.
-	abilityClone.OnFinishCast = function(ability, finishOptions)
-        finishHandler(ability, casterToken, finishOptions)
-	end
+        castAbility.OnBeginCast = function(beginAbility, castOptions)
+            if priorBeginCast then
+                priorBeginCast(beginAbility, castOptions)
+            end
+            casting = true
+            installFinishHandler(castOptions)
+        end
+
+        --Defense-in-depth: keep OnFinishCast as a fallback in case this path
+        --somehow runs through a Cast that skips OnBeginCast. finishHandler is
+        --idempotent via finishedCasting.
+        castAbility.OnFinishCast = function(finishedAbility, finishOptions)
+            if priorFinishCast then
+                priorFinishCast(finishedAbility, finishOptions)
+            end
+            finishHandler(finishedAbility, casterToken, finishOptions)
+        end
+    end
+
+    installCastCallbacks(abilityClone)
 
     local canceled = false
 
@@ -605,6 +1271,17 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             aiResolvedTargeting = (targeting ~= "prompt" and targeting ~= "prompt_inherit")
         end
 
+        --A prompt handler may resolve a synthesized-ability chooser as well as
+        --its targets. Consume the override immediately so it cannot leak into a
+        --later invoke that shares the parent cast's options table.
+        local abilityOverride = options.abilityOverride
+        if abilityOverride ~= nil then
+            options.abilityOverride = nil
+            abilityClone = abilityOverride
+            abilityClone.invoker = invokerToken.properties
+            installCastCallbacks(abilityClone)
+        end
+
         if targeting == "prompt" or targeting == "prompt_inherit" then
             print("INVOKE:: PROMPT CAST FOR", abilityClone.name, coroutine.running())
             abilityClone.countsAsCast = true
@@ -626,6 +1303,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
                             local filterSymbols = {
                                 target = GenerateSymbols(target.token.properties),
                                 caster = GenerateSymbols(casterToken.properties),
+                                parenttarget = symbols.parenttarget,
                             }
                             passesFilter = GoblinScriptTrue(ExecuteGoblinScript(subsetFilter, invokerToken.properties:LookupSymbol(filterSymbols), 0, "Invoke Subset Filter"))
                         end
@@ -660,51 +1338,59 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             elseif targeting == "formula" then
                 targets = {}
                 local allTokens = dmhub.allTokens
-                local symbols = table.shallow_copy(options.symbols)
-                symbols.invoker = invokerToken.properties
-                symbols.caster = casterToken.properties
+                local formulaSymbols = table.shallow_copy(options.symbols)
+                formulaSymbols.invoker = invokerToken.properties
+                formulaSymbols.caster = casterToken.properties
+                formulaSymbols.parenttarget = symbols.parenttarget
 
                 for _,token in ipairs(allTokens) do
-                    symbols.target = token.properties
-                    if GoblinScriptTrue(ExecuteGoblinScript(options.targetingFormula, invokerToken.properties:LookupSymbol(symbols), 0)) then
+                    formulaSymbols.target = token.properties
+                    if GoblinScriptTrue(ExecuteGoblinScript(options.targetingFormula, invokerToken.properties:LookupSymbol(formulaSymbols), 0)) then
                         targets[#targets+1] = { token = token }
                     end
                 end
             end
 
-            if abilityClone:RequiresPromptWhenCast() then
+            if abilityClone:RequiresPromptWhenCast(options) then
                 local synth = abilityClone:SynthesizeAbilities(casterToken.properties)
                 if synth ~= nil and #synth == 1 then
                     --if exactly one synthesized ability then just auto-cast it?
+                    local preSynthDisableSquad = abilityClone:try_get("disableSquadCoordination")
                     abilityClone = synth[1]
-                    --The synth is a brand-new ability; re-install our wrappers so we still get
-                    --notified when it begins/finishes. Preserve any wrappers the synth came with.
-                    local synthOnBegin = abilityClone:try_get("OnBeginCast")
-                    local synthOnFinish = abilityClone:try_get("OnFinishCast")
-                    abilityClone.OnBeginCast = function(_ability, castOptions)
-                        if synthOnBegin then synthOnBegin() end
-                        casting = true
-                        installFinishHandler(castOptions)
+                    --Synthesizing builds a fresh ability, so copy the opt-out across.
+                    --Without it a minion gets asked for one target per squad member.
+                    if preSynthDisableSquad ~= nil then
+                        abilityClone.disableSquadCoordination = preSynthDisableSquad
                     end
-                    abilityClone.OnFinishCast = function(ability, finishOptions)
-                        if synthOnFinish then synthOnFinish(ability, finishOptions) end
-                        finishHandler(ability, casterToken, finishOptions)
-                    end
+                    --The synth is a brand-new ability; re-install our wrappers
+                    --while preserving any callbacks the synth came with.
+                    installCastCallbacks(abilityClone)
                 end
             end
 
-            if (not aiResolvedTargeting) and (abilityClone:RequiresPromptWhenCast() or abilityClone:try_get("promptOverride") ~= nil) then
+            if (not aiResolvedTargeting) and (abilityClone:RequiresPromptWhenCast(options) or abilityClone:try_get("promptOverride") ~= nil) then
                 abilityClone.skippable = true
                 gamehud.actionBarPanel:FireEventTree("invokeAbility", casterToken, abilityClone, symbols, invokerCallback, {instantCast = true, targets = targets})
             else
                 --Immediate cast: we control the options table so just pre-install the finish handler.
-                abilityClone:Cast(casterToken, targets, {
+                --pay defaults to false (the historical behavior for invoked abilities, which are
+                --almost always free custom abilities); callers that invoke a REAL costed ability
+                --stamp _tmp_payInvokedCost so its own resource cost is actually charged.
+                --The selected area is cast state and must survive this invoke boundary.
+                local castOptions = {
                     symbols = symbols,
+                    targetArea = options.targetArea,
+                    targetAreaList = options.targetAreaList,
+                    pay = abilityClone:try_get("_tmp_payInvokedCost", false),
                     OnFinishCastHandlers = { finishHandler },
-                })
+                }
+                abilityClone:Cast(casterToken, targets, castOptions)
             end
         end
 
+        local lastWaitDiag = 0
+        local waitStarted = dmhub.Time()
+        local timedOut = false
         coroutine.safe_sleep_while(function()
 
             local isCasting = casting
@@ -713,14 +1399,42 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             end
             local isPreparing = gamehud.actionBarPanel.data.IsCastingSpell()
 
+            --DIAG: heartbeat while an invoke waits on its prompt/cast so a
+            --"hung" session's log shows what it is waiting on. Safe to keep.
+            local now = dmhub.Time()
+            if now - lastWaitDiag > 5 then
+                lastWaitDiag = now
+                print(string.format("INVOKEDIAG:: waiting for %s casting=%s preparing=%s T=%.2f",
+                    tostring(abilityClone.name), tostring(isCasting),
+                    tostring(isPreparing ~= false and isPreparing ~= nil), now))
+            end
+
+            if (isCasting or isPreparing) and now - waitStarted > INVOKE_WAIT_TIMEOUT_SECONDS then
+                printf("INVOKEDIAG:: giving up on %s after %ds (casting=%s preparing=%s) -- treating the invoke as cancelled",
+                    tostring(abilityClone.name), math.floor(now - waitStarted),
+                    tostring(isCasting), tostring(isPreparing ~= false and isPreparing ~= nil))
+                timedOut = true
+                casting = false
+                return false
+            end
+
             return isCasting or isPreparing
         end)
+
+        if timedOut then
+            --Unwind the same way a cancel does rather than re-prompting.
+            canceled = true
+            break
+        end
 
         if castCount <= 1 then
             --this looks like a direct cancel out of casting so we just break out.
             break
         end
     end
+
+    --Catches the cases where no cast ever finished, such as the player declining.
+    ReleaseSquadSuppression()
 
     print("INVOKE:: FINISHED FOR", abilityClone.name, coroutine.running(), "CANCELED:", canceled)
 
@@ -730,6 +1444,17 @@ end
 ActivatedAbilityInvokeAbilityBehavior.abilityType = "custom"
 ActivatedAbilityInvokeAbilityBehavior.namedAbility = ""
 ActivatedAbilityInvokeAbilityBehavior.standardAbility = ""
+
+--Used only when abilityType is "chooseClassAbility". GoblinScript run over every
+--ability offered by the caster's class/subclass level lists; those it returns true for
+--are offered to the player.
+ActivatedAbilityInvokeAbilityBehavior.abilityFilter = ""
+ActivatedAbilityInvokeAbilityBehavior.chooseAbilityTitle = "Choose an Ability"
+ActivatedAbilityInvokeAbilityBehavior.chooseAbilityEmptyText = "You have no abilities available to choose from right now."
+
+--Set when the invoking ability already charges the action cost for the whole package,
+--so the invoked ability should not charge its own on top.
+ActivatedAbilityInvokeAbilityBehavior.suppressInvokedActionCost = false
 ActivatedAbilityInvokeAbilityBehavior.targeting = "prompt"
 ActivatedAbilityInvokeAbilityBehavior.inheritRange = false
 
@@ -809,6 +1534,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 				options = {
 					{ text = "Custom Ability", id = "custom" },
 					{ text = "Named Ability", id = "named" },
+					{ text = "Choose Class Ability", id = "chooseClassAbility" },
 					cond(dmhub.GetTable("standardAbilities") ~= nil, { text = "Standard Ability", id = "standard" } ),
 				},
 				idChosen = self.abilityType,
@@ -834,6 +1560,98 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 				end,
 			},
 		},
+	}
+
+	result[#result+1] = gui.Panel{
+		classes = {"formPanel", cond(self.abilityType ~= "chooseClassAbility", "collapsed")},
+		refreshInvoke = function(element)
+			element:SetClass("collapsed", self.abilityType ~= "chooseClassAbility")
+		end,
+		gui.Label{
+			classes = {"formLabel"},
+			text = "Ability Filter:",
+		},
+		gui.GoblinScriptInput{
+			value = self:try_get("abilityFilter", ""),
+			change = function(element)
+				self.abilityFilter = element.value
+			end,
+
+			documentation = {
+				help = "This GoblinScript is run over every ability offered by the level lists of the caster's classes, subclasses and domains. Abilities it returns true for are offered to the player to choose from; the chosen one is then cast immediately, paying its own costs. Leave empty to offer every class ability.",
+				output = "boolean",
+				subject = creature.helpSymbols,
+				subjectDescription = "The creature choosing an ability",
+				symbols = {
+					ability = {
+						name = "Ability",
+						type = "ability",
+						desc = "The class ability being considered. Ability.Class Level, Ability.Levels Above, Ability.Class, Ability.Known and Ability.Prerequisites Met describe where it came from.",
+						examples = {
+							'Ability.Levels Above = 1 and Ability.Categorization = "Heroic Ability"',
+							'Ability.Class is "Tactician"',
+							"not Ability.Known",
+						},
+					},
+					caster = {
+						name = "Caster",
+						type = "creature",
+						desc = "The creature choosing an ability.",
+						examples = {
+							"Caster.Level > 5",
+						},
+					},
+				}
+			}
+		}
+	}
+
+	result[#result+1] = gui.Panel{
+		classes = {"formPanel", cond(self.abilityType ~= "chooseClassAbility", "collapsed")},
+		refreshInvoke = function(element)
+			element:SetClass("collapsed", self.abilityType ~= "chooseClassAbility")
+		end,
+		gui.Label{
+			classes = {"formLabel"},
+			text = "Chooser Title:",
+		},
+		gui.Input{
+			classes = {"formInput"},
+			text = self:try_get("chooseAbilityTitle", "Choose an Ability"),
+			placeholderText = "Choose an Ability",
+			characterLimit = 120,
+			change = function(element)
+				self.chooseAbilityTitle = element.text
+			end,
+		},
+	}
+
+	result[#result+1] = gui.Panel{
+		classes = {"formPanel", cond(self.abilityType ~= "chooseClassAbility", "collapsed")},
+		refreshInvoke = function(element)
+			element:SetClass("collapsed", self.abilityType ~= "chooseClassAbility")
+		end,
+		gui.Label{
+			classes = {"formLabel"},
+			text = "No Options Text:",
+		},
+		gui.Input{
+			classes = {"formInput"},
+			text = self:try_get("chooseAbilityEmptyText", ""),
+			placeholderText = "You have no abilities available to choose from right now.",
+			characterLimit = 240,
+			change = function(element)
+				self.chooseAbilityEmptyText = element.text
+			end,
+		},
+	}
+
+	result[#result+1] = gui.Check{
+		text = "Invoked Ability Costs No Action",
+		value = self:try_get("suppressInvokedActionCost", false),
+		change = function(element)
+			self.suppressInvokedActionCost = element.value
+		end,
 	}
 
 	result[#result+1] = gui.Check{
@@ -879,7 +1697,17 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 
 	local standardAbilities = {}
 	for k,v in unhidden_pairs(dmhub.GetTable("standardAbilities") or {}) do
-		standardAbilities[#standardAbilities+1] = { text = v.name, id = k }
+		--Abilities marked Hidden are internal helpers and are kept out of this list,
+		--except when one is already the current selection.
+		if (not v:try_get("hiddenFromInvoke", false)) or k == self.standardAbility then
+			--A nameless standardAbilities row would put a nil into the dropdown's
+			--sort comparator and stop the menu from opening at all.
+			local abilityName = v.name
+			if type(abilityName) ~= "string" or abilityName == "" then
+				abilityName = "(Unnamed)"
+			end
+			standardAbilities[#standardAbilities+1] = { text = abilityName, id = k }
+		end
 	end
 
 	result[#result+1] = gui.Panel{
@@ -1016,7 +1844,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
                 self.targetingFormula = element.value
             end,
             documentation = {
-                help = "For 'Creatures Matching Formula' targeting, selects which creatures are targeted. For 'Prompt Player (Inherit)' targeting, an optional filter narrowing the inherited target subset -- leave blank for no filter. Sees Target and Caster; e.g. Target.PassesPotency(\"M\", Caster.Average).",
+                help = "For 'Creatures Matching Formula' targeting, selects which creatures are targeted. For 'Prompt Player (Inherit)' targeting, an optional filter narrowing the inherited target subset -- leave blank for no filter. Sees Target, Caster, and Parent Target; e.g. Target != ParentTarget.",
                 output = "boolean",
                 subject = creature.helpSymbols,
 				subjectDescription = "The creature invoking the ability",
@@ -1025,6 +1853,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
                     target = {name = "Target", type = "creature", desc = "The candidate target of the ability"},
                     caster = {name = "Caster", type = "creature", desc = "The creature casting the invoked ability."},
                     invoker = {name = "Invoker", type = "creature", desc = "The creature invoking the ability. The same as Self."},
+                    parenttarget = {name = "Parent Target", type = "creature", desc = "The target from the parent ability paired with this invocation."},
                 }
             }
         },
@@ -1064,6 +1893,117 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 		end,
 	}
 
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Movement Constraint:",
+        },
+        gui.Dropdown{
+            classes = {"formDropdown"},
+            options = g_movementConstraintOptions,
+            idChosen = self:try_get("movementConstraint", "none"),
+            change = function(element)
+                self.movementConstraint = element.idChosen
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Movement Anchor:",
+        },
+        gui.Dropdown{
+            classes = {"formDropdown"},
+            options = g_movementConstraintAnchorOptions,
+            idChosen = self:try_get("movementConstraintAnchor", "caster"),
+            change = function(element)
+                self.movementConstraintAnchor = element.idChosen
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Anchor Filter:",
+        },
+        gui.GoblinScriptInput{
+            classes = {"formInput"},
+            value = self:try_get("movementConstraintFilter", ""),
+            change = function(element)
+                self.movementConstraintFilter = element.value
+            end,
+            documentation = {
+                help = "Optional filter for nearest or all-matching movement anchors. Target is the candidate anchor and Mover is the creature being moved.",
+                output = "boolean",
+                subject = creature.helpSymbols,
+                subjectDescription = "The caster of the invoking ability",
+                symbols = {
+                    target = { name = "Target", type = "creature", desc = "The candidate movement anchor." },
+                    mover = { name = "Mover", type = "creature", desc = "The creature being moved." },
+                    caster = { name = "Caster", type = "creature", desc = "The caster of the invoking ability." },
+                    parenttarget = { name = "Parent Target", type = "creature", desc = "The target of the parent ability." },
+                },
+            },
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Maximum Anchor Distance:",
+        },
+        gui.Input{
+            classes = {"formInput"},
+            text = tostring(self:try_get("movementConstraintAnchorDistance", "")),
+            change = function(element)
+                local value = tonumber(element.text)
+                if value == nil then
+                    self.movementConstraintAnchorDistance = nil
+                else
+                    self.movementConstraintAnchorDistance = math.max(0, value)
+                end
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Check{
+        text = "Movement Must Be in a Straight Line",
+        value = self:try_get("movementConstraintStraightLine", false),
+        change = function(element)
+            self.movementConstraintStraightLine = element.value
+        end,
+    }
+
+    result[#result+1] = gui.Check{
+        text = "Use Anchor as Forced Movement Origin",
+        value = self:try_get("movementConstraintAsForcedMovementOrigin", false),
+        change = function(element)
+            self.movementConstraintAsForcedMovementOrigin = element.value
+        end,
+    }
+
+    result[#result+1] = gui.Check{
+        text = "Remember Anchor as MovementTarget",
+        value = self:try_get("rememberMovementConstraintTarget", false),
+        change = function(element)
+            self.rememberMovementConstraintTarget = element.value
+        end,
+    }
+
+	result[#result+1] = gui.Check{
+		text = "Show Hide Sight-Lines",
+		value = self:try_get("hideSightlines", false),
+		change = function(element)
+			self.hideSightlines = element.value
+		end,
+	}
+
 	result[#result+1] = gui.Check{
 		text = "Compel Destination Toward Attacker",
 		value = self:try_get("compelTowardAttacker", false),
@@ -1092,6 +2032,15 @@ function AbilityInvocation:Invoke()
 	if invokerToken == nil or casterToken == nil then
 		return false
 	end
+
+    --Remote invokes deserialize creature refs as properties tables. Wrap ParentTarget
+    --the same way as the local path before substitutions or targeting formulas use it.
+    if self.symbols.parenttarget ~= nil and type(self.symbols.parenttarget) ~= "function" then
+        self.symbols.parenttarget = GenerateSymbols(self.symbols.parenttarget)
+    end
+    if self.symbols.movementtarget ~= nil and type(self.symbols.movementtarget) ~= "function" then
+        self.symbols.movementtarget = GenerateSymbols(self.symbols.movementtarget)
+    end
 
     if self:has_key("subjectid") then
         local subjectToken = dmhub.GetTokenById(self.subjectid)
@@ -1203,4 +2152,189 @@ function AbilityInvocation:Invoke()
     }
 	ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abilityClone, casterToken, self.targeting, self.symbols, options)
 	return true
+end
+
+--Post a prompt card on a creature's trigger panel offering to cast a standard
+--ability. The card is stored in the creature's properties (availableTriggers),
+--so it syncs to and renders on whichever client controls the creature --
+--local or remote -- styled like any other trigger prompt, with Activate and
+--Dismiss buttons. Dismissing clears the card and nothing happens. Accepting
+--casts the standard ability with the creature as caster ON THE ACCEPTING
+--CLIENT, through the same pipeline as the Invoke Ability behavior: <<param>>
+--markers in the ability are substituted from args.params (each value is
+--interpolated/evaluated as GoblinScript against the invoker, with args.symbols
+--available, AT ACCEPT TIME -- pre-evaluate values yourself if you need
+--dispatch-time snapshots), and parameters not in args.params fall back to
+--their <<param=default>> defaults.
+--
+--Must be called from a client with authority to modify the token. Two users
+--accepting the same card near-simultaneously on different clients is resolved
+--by the clear-then-execute in ActivateInvocationPrompt once the clear
+--replicates; the deferral in DispatchAvailableTrigger keeps that window small.
+--
+--args:
+--  token            CharacterToken (required). The creature that will cast.
+--  standardAbility  string (required). Standard ability id or name.
+--  invoker          CharacterToken (optional). Creature credited as invoking
+--                   the ability: the subject for parameter substitution, the
+--                   invoked ability's invoker, and the portrait shown on the
+--                   card. Defaults to token. If the invoker is deleted while
+--                   the card is pending, the card is cleared (Invoke cannot
+--                   run without a live invoker anyway).
+--  params           table<string,string> (optional). <<param>> substitutions.
+--  symbols          table (optional). Extra symbols visible to parameter
+--                   substitution and the cast. Tokens/creatures (including
+--                   GenerateSymbols wrappers) are converted to string refs and
+--                   resolved back to live objects on the accepting client.
+--  prompt           string (optional). Title of the card. Defaults to the
+--                   ability's name.
+--  rules            string (optional). Rules/body text shown on the card.
+--  activateText     string (optional). Label of the accept button. Defaults
+--                   to "Activate".
+--  castPrompt       string (optional). promptOverride shown while resolving
+--                   the accepted cast.
+--  targeting        string (optional). "prompt" (default): the accepting
+--                   player targets the ability normally. "self": cast on the
+--                   creature itself. "formula": target creatures matching
+--                   args.targetingFormula.
+--  targetingFormula string (optional). GoblinScript for targeting "formula".
+--  hostile          boolean (optional). Styles the card as a hostile prompt
+--                   and makes it persist until resolved instead of aging out
+--                   after ~600 seconds.
+--  free             boolean (optional, default true). false uses the non-free
+--                   (gold) trigger styling instead of the free (blue) one.
+--
+--Returns the prompt's trigger id (its key in availableTriggers, usable to
+--watch for resolution), or nil if the ability doesn't exist or the token is
+--invalid.
+function AbilityInvocation.PromptStandardAbility(args)
+    local token = args.token
+    if token == nil or (not token.valid) or token.properties == nil then
+        printf("PromptStandardAbility: invalid token")
+        return nil
+    end
+
+    local invokerToken = args.invoker or token
+
+    local abilityTemplate = MCDMUtils.GetStandardAbility(args.standardAbility)
+    if abilityTemplate == nil then
+        printf("PromptStandardAbility: unknown standard ability: %s", tostring(args.standardAbility))
+        return nil
+    end
+
+    --Make the symbols serialization-safe, unwrapping GenerateSymbols function
+    --wrappers to their underlying creatures the same way trigger prompts do
+    --(see SerializeTriggerContext in TriggeredAbility.lua). The card lives in
+    --the creature's properties, so live objects must not leak into it.
+    local serializedSymbols = {}
+    local visited = {}
+    for k,v in pairs(args.symbols or {}) do
+        if type(v) == "function" then
+            local unwrapped = nil
+            pcall(function() unwrapped = v("self") end)
+            v = unwrapped
+        end
+        serializedSymbols[k] = SerializeEventValue(v, visited)
+    end
+
+    local abilityAttr = {
+        disableSquadCoordination = true,
+    }
+    if args.castPrompt ~= nil and args.castPrompt ~= "" then
+        abilityAttr.promptOverride = args.castPrompt
+    end
+
+    local invocation = AbilityInvocation.new{
+        timestamp = ServerTimestamp(),
+        abilityType = "standard",
+        standardAbility = args.standardAbility,
+        standardAbilityParams = args.params,
+        targeting = args.targeting or "prompt",
+        targetingFormula = args.targetingFormula or "",
+        invokerid = invokerToken.id,
+        casterid = token.id,
+        targetid = token.id,
+        symbols = serializedSymbols,
+        abilityAttr = abilityAttr,
+    }
+
+    --Show who is prompting on the card when the invoker is a different
+    --creature. Listing the invoker in targets also means the card clears if
+    --the invoker is deleted (see creature:OnTokenDelete).
+    local cardTargets = {}
+    if invokerToken.charid ~= token.charid then
+        cardTargets[#cardTargets+1] = invokerToken.charid
+    end
+
+    local trigger = ActiveTrigger.new{
+        id = dmhub.GenerateGuid(),
+        text = args.prompt or abilityTemplate.name,
+        rules = args.rules or "",
+        activateText = args.activateText or "Activate",
+        targets = cardTargets,
+        clearOnDismiss = true,
+        noDeduplicate = true,
+        free = args.free ~= false,
+        hostile = args.hostile == true,
+        invocation = invocation,
+    }
+
+    local triggerid = trigger.id
+
+    token:ModifyProperties{
+        description = "Ability Prompt",
+        undoable = false,
+        execute = function()
+            token.properties:DispatchAvailableTrigger(trigger)
+        end,
+    }
+
+    return triggerid
+end
+
+--Consume an accepted invocation prompt. Scheduled (deferred ~0.25s) from
+--creature:DispatchAvailableTrigger on the client that recorded the
+--acceptance -- normally the player controlling the creature, or the Director
+--accepting on their behalf. Re-reads the live record (the acceptance can be
+--toggled off before the deferral fires), clears the card FIRST -- mirroring
+--ActivateOrphanedTrigger's clear-then-execute order, so a record that fails
+--to run goes away rather than staying clickable -- then deserializes and runs
+--the invocation through the same pipeline PumpRemoteInvokes uses for
+--remoteInvokes records.
+function AbilityInvocation.ActivateInvocationPrompt(casterToken, triggerid)
+    if casterToken == nil or (not casterToken.valid) or casterToken.properties == nil then
+        return
+    end
+
+    local availableTriggers = casterToken.properties:try_get("availableTriggers")
+    local record = availableTriggers ~= nil and availableTriggers[triggerid] or nil
+    if record == nil then
+        --already consumed.
+        return
+    end
+
+    if record.triggered == false or record.dismissed then
+        return
+    end
+
+    local invocation = record.invocation
+    if invocation == false or invocation == nil then
+        return
+    end
+
+    casterToken:ModifyProperties{
+        description = "Clear Ability Prompt",
+        undoable = false,
+        execute = function()
+            casterToken.properties:ClearAvailableTrigger({id = triggerid})
+        end,
+    }
+
+    --Resolve "charid:"/"tokenid:" refs in the stored record back to live
+    --objects, the same way PumpRemoteInvokes does for remote invocations.
+    local invoke = DeserializeEventValue(DeepCopy(invocation))
+
+    dmhub.Coroutine(function()
+        invoke:Invoke()
+    end)
 end

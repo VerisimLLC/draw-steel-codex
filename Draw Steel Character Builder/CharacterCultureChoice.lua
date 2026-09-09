@@ -9,7 +9,9 @@
     Make a Culture Aggreate choice behave like a feature choice
     for purposes of the character builder.
 ]]
+--- @class CharacterAspectChoice: CharacterChoice
 CharacterAspectChoice = RegisterGameType("CharacterAspectChoice", "CharacterChoice")
+--- @class CharacterCultureAggregateChoice: CharacterChoice
 CharacterCultureAggregateChoice = RegisterGameType("CharacterCultureAggregateChoice", "CharacterChoice")
 
 CharacterAspectChoice.description = "Culture Aspect Choice"

@@ -1,4 +1,4 @@
----@class RichFollower
+---@class RichFollower: RichTag
 RichFollower = RegisterGameType("RichFollower", "RichTag")
 RichFollower.tag = "follower"
 

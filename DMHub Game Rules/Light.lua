@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class Light
+--- @class Light: GameType
 --- @field color table Color value for the emitted light.
 --- @field radius number Outer radius in world units (dim light boundary).
 --- @field innerRadius number Inner radius in world units (bright light boundary).

@@ -1,5 +1,111 @@
 local mod = dmhub.GetModLoading()
 
+-- True when this client has real DM/hosting status, INCLUDING a "player host"
+-- (dmhub.playerHostMode, e.g. the Encounter of the Week host): a machine that
+-- hosts the game -- runs setup and the Monster AI -- while its user is
+-- presented and treated as a player (dmhub.isDM reads false). Use this
+-- instead of dmhub.isDM at sites that need hosting CAPABILITY; keep dmhub.isDM
+-- for sites about the Director-vs-player EXPERIENCE (UI, vision, rules
+-- enforcement exemptions). Falls back to dmhub.isDM on engine builds without
+-- the isDMOrPlayerHost API (unknown userdata members read as nil).
+function IsDMOrPlayerHost()
+    local result = dmhub.isDMOrPlayerHost
+    if result == nil then
+        return dmhub.isDM
+    end
+    return result
+end
+
+--- Elevate the RUNNING COROUTINE to host permissions: while elevated,
+--- dmhub.isDM reports this client's real hosting status even on a player host,
+--- so player rules enforcement (strict:movement and friends) does not bind
+--- work the machine is doing as host -- above all the Monster AI moving
+--- monsters. The elevation follows the coroutine: the engine parks it while
+--- the coroutine is yielded and restores it on resume, so nothing else --
+--- rendering, vision, UI -- ever sees it, and it dies with the coroutine even
+--- if DropHostPermissions() is never reached. No-op on engine builds without
+--- the API (unknown userdata members read as nil), which is exactly the
+--- pre-existing behavior.
+--- Do NOT wrap UI or presentation code in this: it restores Director
+--- CAPABILITY, and Director chrome or Director vision on a player host is a bug.
+function ElevateToHostPermissions()
+    if dmhub.PushHostPermissions ~= nil then
+        dmhub.PushHostPermissions()
+    end
+end
+
+--- Drops one level of ElevateToHostPermissions().
+function DropHostPermissions()
+    if dmhub.PopHostPermissions ~= nil then
+        dmhub.PopHostPermissions()
+    end
+end
+
+--- True when the "Strictly Enforce Rolls" game setting binds THIS client. It
+--- withdraws the roll dialog's result-editing affordances: the Re-roll button,
+--- the editable dice expression, click-a-tier-row overrides, the modifier chips
+--- and the edge/bane bar (both become read-outs, and only the modifiers that
+--- actually apply are listed), and the ability card's close button once the
+--- cast has committed to paying.
+--- Gated on dmhub.isDM, NOT IsDMOrPlayerHost(): isDM is the Director-EXPERIENCE
+--- flag, so a player host is bound by rules enforcement exactly like any other
+--- player, and only a Director is exempt. This matches strict:resources,
+--- strict:targeting and strict:inventory -- see PERMISSIONS_MODEL_REFERENCE.md.
+function StrictRollsEnforced()
+    return (not dmhub.isDM) and dmhub.GetSettingValue("strict:rolls") == true
+end
+
+--- True when the user may still back out of the embedded roll `dialog` -- the
+--- ability card's close (X) button and ESC. "Strictly Enforce Rolls" withdraws
+--- that the moment the cast behind the roll has committed to paying its cost:
+--- ActivatedAbility:CommitToPaying sets options.pay, and the cast stashes its
+--- options on the dialog as data.castOptions
+--- (CharacterPanel.AcquireAbilityRollDialog). The resources are spent by then,
+--- so a cancel would be a free undo. A roll with no cast behind it (standalone
+--- and table rolls carry no castOptions) stays cancellable, as does every roll
+--- for a Director.
+--- Deliberately NOT applied to dialog.data.Cancel() itself: system teardown
+--- paths -- restoreFromBackup, the request-rolls and roll-table cleanups --
+--- call that directly and must always work.
+function RollDialogCancelOffered(dialog)
+    if dialog == nil or not dialog.valid or dialog.data == nil then
+        return false
+    end
+    if not StrictRollsEnforced() then
+        return true
+    end
+    local castOptions = dialog.data.castOptions
+    return castOptions == nil or not castOptions.pay
+end
+
+-- True when the USER controls this token in their own right -- they own it,
+-- it is in their party, or they are the Director. Since 2026-09-06 the engine's
+-- tok.canControl is elevation-aware on a player host (dmhub.playerHostMode):
+-- outside the Monster AI's elevated coroutines it already answers as a player,
+-- so in un-elevated UI code this and tok.canControl agree. Keep using THIS for
+-- "is this token mine to drive?" -- it stays false even inside an elevated
+-- window, and it carries the old-engine fallback below (older builds report
+-- canControl host-WIDE, true for every monster the client merely hosts).
+function TokenControlledByUser(tok)
+    if tok == nil then
+        return false
+    end
+    local result = tok.canControlAsUser
+    if result ~= nil then
+        return result
+    end
+
+    --Engine build without the canControlAsUser API: fall back to the same
+    --ownership discriminator the prompt predicates use (RequireDCDialog,
+    --DSRequestRollsDialog). It misses party-owned tokens, which the engine
+    --property handles; every other game reads tok.canControl as before.
+    if dmhub.playerHostMode == true then
+        return tok.ownerId ~= nil and tok.ownerId == dmhub.loginUserid
+    end
+
+    return tok.canControl
+end
+
 -- Macro registration infrastructure. Defined here in Utils so it is available
 -- to every module (Utils loads first in main.lua).
 Commands._macros = Commands._macros or {}
@@ -26,6 +132,56 @@ function Commands.RegisterMacro(args)
         doc = doc,
         summary = summary,
         completions = args.completions,
+
+        -- Optional: surface this macro in the no-code command builder's
+        -- browsable command list (CommandBuilder.lua). Shape:
+        --   commandInfo = {
+        --     name = "Screen Shake",       -- display name shown to the user
+        --     description = "...",         -- one-line description for the list
+        --     params = {                   -- optional; ordered arguments
+        --       { name = "Duration", min = 0.1, max = 3, default = 0.3,
+        --         round = 0.05, labelFormat = "%.2f" },
+        --       ...
+        --     },
+        --     dmonly = true,               -- optional; hide from non-directors
+        --     broadcast = "always",        -- optional; see below
+        --   }
+        --
+        -- Params are baked into the recorded command as arguments in params
+        -- order. Three kinds, by the param's `type`:
+        --   (none)    a number on a slider. min/max/default/round/labelFormat.
+        --   "choices" a dropdown. `options` ({{id=,text=}, ...}) if given,
+        --             otherwise the macro's OWN `completions` function is
+        --             reused -- the same list the chat input offers. Values
+        --             must be single-token ids; nothing is quoted.
+        --   "audio"   the app's sound picker (gui.AudioEditor). Bakes the
+        --             audio asset id. Prefer this over a "choices" list of
+        --             sounds: it names and previews them, and can upload a
+        --             new sound in place.
+        --   "text"    a free-text input. `placeholder` for the empty hint.
+        --             Text params must come last: everything after the
+        --             positional args belongs to them. A blank one is
+        --             dropped. A `joiner` (e.g. "|") is emitted just before
+        --             the value, which is how a macro that takes one
+        --             free-form line with an internal separator is split
+        --             into several labelled fields.
+        -- `required = true` on any param keeps Add Step / Apply disabled
+        -- until it has a value.
+        --
+        -- dmonly: set when the command's own body bails out on
+        -- `not dmhub.isDM`. The browser omits the row entirely for players so
+        -- they cannot record a step that would silently do nothing for them.
+        --
+        -- broadcast: set when the command only affects the client that runs
+        -- it. A journal command button executes on the presser's machine
+        -- alone (RichMacro.press -> dmhub.Execute), so a purely local effect
+        -- -- a screen shake, a sound, a banner -- never reaches the table
+        -- unless the step is wrapped in /broadcast. Values:
+        --   "always" -- always recorded as "broadcast <command>"; no choice.
+        --   "on"     -- offer a "Send to all players" check, checked.
+        --   "off"    -- offer it unchecked.
+        --   nil      -- no option; the command already networks its effect.
+        commandInfo = args.commandInfo,
     }
 end
 
@@ -67,14 +223,23 @@ function Commands.GetCurrentArg(text)
     return macroName, args, partial, argIndex
 end
 
--- Register documentation for a built-in (C#) command without overriding its
--- execution. Only populates _macros so the ChatPanel UI shows summary, doc,
--- and argument completions.
+-- Register documentation for a command the codex does not implement, without
+-- overriding its execution. Two kinds qualify: C# commands (CommandController's
+-- [GameCommand] methods, e.g. /delay) and the engine's core-asset Lua commands
+-- (Assets/CoreAssets/Lua/commands.txt, which populates the Commands table
+-- before the codex loads, e.g. /roll). Only populates _macros, so the ChatPanel
+-- UI shows summary, doc and argument completions and the command builder can
+-- surface it -- assigning Commands[name] here instead would SHADOW the
+-- core-asset implementation.
 function Commands.RegisterBuiltinDoc(args)
     Commands._macros[string.lower(args.name)] = {
         doc = args.doc,
         summary = args.summary,
         completions = args.completions,
+
+        --optional no-code command builder surfacing; same shape as in
+        --Commands.RegisterMacro above.
+        commandInfo = args.commandInfo,
     }
 end
 
@@ -642,7 +807,17 @@ function Search.CollectProviderResults(needle)
     end
 
     for _,spec in pairs(g_searchProviders) do
-        if spec.enumerate ~= nil then
+        --a mod-enforced custom interface can hide whole result buckets
+        --(e.g. no compendium results in Encounter of the Week games).
+        --pcall + rawget: Utils loads before the GameHud hook exists.
+        local bucketSuppressed = false
+        pcall(function()
+            local ghud = rawget(_G, "GameHud")
+            bucketSuppressed = ghud ~= nil and ghud.CustomInterfaceSuppressesSearchBucket(spec.bucket) == true
+        end)
+        if bucketSuppressed then
+            --skip this provider entirely
+        elseif spec.enumerate ~= nil then
             local ok, list = pcall(spec.enumerate, needle)
             if ok and type(list) == "table" then
                 for _,r in ipairs(list) do

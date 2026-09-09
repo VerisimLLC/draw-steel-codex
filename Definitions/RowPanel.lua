@@ -1,2 +1,4 @@
---- @class RowPanel:Panel 
+---@meta
+
+--- @class RowPanel:Panel
 RowPanel = {}

@@ -16,7 +16,7 @@ local mod = dmhub.GetModLoading()
 ```
 This gives access to the current module interface. The `mod` object is used to track module lifecycle (e.g., `mod.unloaded`).
 
-**IMPORTANT: Do not create new Lua files.** Lua files are registered through the DMHub module system and will not auto-load just by being placed on disk. Adding a `require` in `main.lua` for a file that hasn't been registered will cause a load failure. If new code is needed, add it to an existing file in the appropriate module. If a new file is truly necessary, ask the user to create and register it through the DMHub module system.
+**IMPORTANT: New top-level Lua files must be registered through the DMHub MCP CodeMod workflow.** A file placed on disk is not part of its CodeMod, and manually adding a `require` to `main.lua` is not a substitute for registration. While DMHub is running, call `mcp__dmhub__register_lua_file` with a path of the form `<mod directory>/<file>.lua` (and optional `before` or `after` ordering), then confirm that Firebase persistence succeeded. Prefer registering the safe baseline before substantive edits; the tool preserves an existing local file if work has already begun. Do not hand-edit `main.lua` to register a new file. If the MCP bridge is unavailable, stop and ask the user rather than falling back to a manual `require`.
 
 ## Repository Structure
 
@@ -140,7 +140,7 @@ UI is built with `gui.Panel(args)`, `gui.Label(args)`, `gui.Input(args)`, etc. P
 
 **Important:** When using padding (`hpad`, `vpad`, `pad`), always set `borderBox = true` so that padding is included in the declared width/height rather than added on top. This prevents overflow and matches CSS border-box behavior. See the Spacing section in UI_BEST_PRACTICES.md for details.
 
-See **[UI_BEST_PRACTICES.md](UI_BEST_PRACTICES.md)** and **[ThemeEngine.md](ThemeEngine.md)** for detailed guidelines on building UI (rendering, performance, events, styling, layout, etc.). For the canonical color tokens, gradient tokens, and class vocabulary registered by `DefaultStyles.lua` — and prescriptive guidance on which token/class to reach for — see **[DefaultStyles.md](DefaultStyles.md)**.
+See **[UI_BEST_PRACTICES.md](UI_BEST_PRACTICES.md)** and **[ThemeEngine.md](ThemeEngine.md)** for detailed guidelines on building UI (rendering, performance, events, styling, layout, etc.). For the canonical color tokens, gradient tokens, and class vocabulary registered by `DefaultStyles.lua` — and prescriptive guidance on which token/class to reach for — see **[DefaultStyles.md](DefaultStyles.md)**. For the panel-level design language — row grammar, section headers, separators, hover/selected states, iconography, and the checklist for bringing an old panel onto it — see **[STYLE_GUIDE.md](STYLE_GUIDE.md)**.
 
 ### GoblinScript
 GoblinScript is an expression language (evaluates formula strings) used for ability costs, damage formulas, prerequisites, etc. Compile with `GoblinScript.Compile(formula, symbolTable)` and evaluate with `GoblinScript.Execute(compiled, context)`. See **[GoblinScript_Guide.md](GoblinScript_Guide.md)** for the full language reference including semantics, operator precedence, evaluation model, all available symbols, and real examples.
@@ -166,7 +166,42 @@ local mySetting = setting{
 }
 ```
 
+### Panel Background Processes
+A dockable panel can keep work running after the panel itself is closed by registering a **background process** -- a coroutine tracked by the panel framework. While any process for a panel is running, the panel's icon-rail button shows a small spinning gear (accent-colored) in its bottom-left corner, whether the panel is open or not. The first client is the Monster AI: Start AI registers a process, and closing the panel does not stop the AI.
+
+```lua
+local process = DockablePanel.StartProcess{
+    panel = "Monster AI",          -- the DockablePanel.Register name
+    id = "monster-ai",             -- unique per panel; restarting an id replaces it
+    coroutine = function(process)  -- runs as a dmhub.Coroutine
+        while true do
+            coroutine.yield(0.1)
+            if mod.unloaded or process.stopRequested then
+                return
+            end
+            -- do work
+        end
+    end,
+}
+```
+
+Stopping is **cooperative**: `DockablePanel.StopProcess(panelName, id)` (or `process:Stop()`) only sets `process.stopRequested`; the coroutine must poll it -- and its own `mod.unloaded` -- and return. `DockablePanel.HasActiveProcess(panelName)` reports liveness (it is what the rail gear reads), and `DockablePanel.GetProcess(panelName, id)` returns the handle. Full details in the "Panel background processes" section of `DMHub Core UI/DockablePanel.lua`.
+
 ## Lua File Constraints
+
+**Syntax-check before you deploy.** The repo ships a Lua 5.4.7 interpreter built from the
+same source as the engine's `lua54.dll` — do not go looking for one elsewhere:
+
+```bash
+../dependencies/lua/bin/luac.exe -p SomeFile.lua
+```
+
+`-p` parses without executing, so it works on files full of engine globals. Actually
+*running* a codex file with `lua.exe` will fail on the first `import`/`dmhub`/`gui`
+reference; that is expected. One false positive to know about: a raw `luac -p` reports
+`unexpected symbol near '@'` on the two files using the engine's `@if`/`@else`/`@end`
+preprocessor directives — that is not a real error. See "Checking Lua Yourself" in the
+root [`CLAUDE.md`](../CLAUDE.md) for the preprocessor-aware sweep command.
 
 **ASCII only.** The DMHub Lua runtime does not handle non-ASCII characters in source files. All Lua files — including comments and EmmyLua annotations — must contain only ASCII characters (bytes 0-127). Never use em dashes, curly quotes, ellipses, or any other Unicode punctuation. Use plain ASCII equivalents instead: `-` or `:` instead of em dashes, `"` instead of curly quotes, `...` instead of ellipses.
 
@@ -198,13 +233,17 @@ local s = "This creature"
 if token.canLocalPlayerSeeName and token.name ~= nil then s = "The " .. token.name end
 ```
 
+## Comment Style
+
+Write comments (and notes on multiline changes) for a junior dev unfamiliar with this system: concise, plain language, 1-3 lines max. Never simply restate what the code does -- explain what is happening, how to use it, or why it exists. A comment documenting a new function and its variables may run longer than 3 lines.
+
 ## Monster Reference Documentation
 
 **[monster-reference.md](monster-reference.md)** contains the complete stat blocks for every monster in Draw Steel Book Two: Monsters. Use this as the authoritative source when implementing or auditing monster YAML files in `compendium/bestiary/`. It includes all abilities, traits, villain actions, malice features, power roll tiers, and stat tables for every creature.
 
 ## `Definitions/` Files
 
-These are **LuaLS stub files** (LSP type annotations) for the closed-source DMHub engine API. They define the types and signatures of engine globals but contain only dummy `-- dummy implementation` bodies. Do not add real logic here. When the engine API has a function you want to call, its signature will be in one of these files.
+These are **LuaLS stub files** (LuaCATS annotations, every file `---@meta`) for the closed-source DMHub engine API, generated from the C# bridge attributes by the engine's `LuaDocumentor` -- never hand-edit them, a regen overwrites the folder. When the engine API has a function you want to call, its signature will be in one of these files. How the stubs, the `GameType` class convention and the checker fit together is in [`../LUA_TYPING_REFERENCE.md`](../LUA_TYPING_REFERENCE.md).
 
 Key stubs:
 - `dmhub.lua` — the main `dmhub` global (game state, tokens, scheduling, file I/O, events)

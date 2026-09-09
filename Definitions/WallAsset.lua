@@ -1,6 +1,47 @@
---- @class WallAsset:ImageAsset An image asset stored in the cloud, with support for keywords, color adjustments, and sprite generation.
---- @field wallFlags any 
---- @field parallax boolean 
---- @field wallParallax number 
---- @field previewSpriteRect any 
+---@meta
+
+--- An image asset stored in the cloud, with support for keywords, color adjustments, and sprite generation.
+--- @class WallAsset:ImageAsset
+--- @field wallFlags any
+--- @field parallax boolean
+--- @field wallParallax number
+--- @field previewSpriteRect Vector4
+--- @field layer any
+--- @field scale number
+--- @field invisible boolean
+--- @field visionOneWay boolean
+--- @field movementOneWay boolean
+--- @field occludesLight boolean
+--- @field occludesVision boolean
+--- @field blocksMovement boolean
+--- @field blocksForcedMovement boolean
+--- @field blocksFlying boolean
+--- @field cover any
+--- @field soundOcclusion number
+--- @field wallHeight number
+--- @field shadowDistortion number
+--- @field taper number
+--- @field thickness number
+--- @field visionWidth number
+--- @field solidity any
+--- @field breakStamina number
+--- @field rubbleKeyword string
+--- @field rubbleTerrainId string
+--- @field breakSound string
+--- @field replacementWallId string
+--- @field openable boolean
+--- @field openSound string
+--- @field closeSound string
+--- @field markupColor string
+--- @field markupMapId string
+--- @field climbable any
+--- @field cornerSize number
+--- @field shadowGlowThickness number
+--- @field shadowMask string
+--- @field renderParallax boolean
 WallAsset = {}
+
+--- TryGetMarkupColor
+--- @param color? any
+--- @return boolean
+function WallAsset:TryGetMarkupColor(color) end

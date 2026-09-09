@@ -1,6 +1,7 @@
 --[[
     Description detail
 ]]
+--- @class CBDescriptionDetail: GameType
 CBDescriptionDetail = RegisterGameType("CBDescriptionDetail")
 
 local mod = dmhub.GetModLoading()

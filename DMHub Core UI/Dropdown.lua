@@ -198,7 +198,14 @@ function gui.Dropdown(args)
 						end
 					end
 
-					return ResolveFunction(a.text) < ResolveFunction(b.text)
+					--Guard against a malformed option with a nil/non-string text.
+					--One such option used to make this comparator throw, which
+					--aborts table.sort and leaves the popup unbuilt.
+					local atext = ResolveFunction(a.text)
+					local btext = ResolveFunction(b.text)
+					if type(atext) ~= "string" then atext = "" end
+					if type(btext) ~= "string" then btext = "" end
+					return atext < btext
 				end)
 			end
 
@@ -380,7 +387,21 @@ function gui.Dropdown(args)
  
 			local menu = gui.Panel{
 				classes = {"dropdownMenu"},
-				width = menuWidth or element.renderedWidth,
+				-- Fit INSIDE the dropdownBorder's 2px border, don't restate its
+				-- outer width. The border panel below is sized to the control's
+				-- outer width and draws its border inside that, so the usable
+				-- area is 4px narrower. Passing the outer width made the menu
+				-- overhang by 4px; dropdownOption's "100%-4" + halign center then
+				-- landed the option rows' bgimage exactly on top of the right
+				-- border, erasing it (the left border survived because the rows
+				-- start 2px in), and put the vscroll bar outside the frame.
+				--
+				-- Note "100%" does NOT work here: percent resolves against the
+				-- parent's width less its PADDING only -- the border is not
+				-- deducted, even though the child's origin IS offset by it -- so
+				-- "100%" gave back the full 203px and changed nothing. The -4
+				-- tracks {dropdownBorder}'s border = 2 in DefaultStyles.lua.
+				width = "100%-4",
 				height = "auto",
 				valign = "center",
 				maxHeight = cond(not hasSubmenus, menuHeight),

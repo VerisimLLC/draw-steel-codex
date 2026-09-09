@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class EncounterRuleSet
+--- @class EncounterRuleSet: GameType
 --- @field name string Display name of the encounter (e.g. "Volcano").
 --- @field tableName string Data table of encounter rule sets ("encounterRuleSets").
 --- @field rulesTableName string Data table holding the rules themselves ("encounterRuleMods").

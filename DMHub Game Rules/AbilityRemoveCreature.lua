@@ -220,6 +220,7 @@ end
 
 function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targets, options)
     local charids = {}
+    local removedInitiativeIds = {}
     for i,target in ipairs(targets) do
 
         --A target can be destroyed/despawned before we get here (e.g. by an earlier
@@ -301,7 +302,16 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
                 if not target.token.valid or target.token.properties == nil then
                     break
                 end
-                local hasPrompt = target.token.properties:GetAvailableTriggers() ~= nil
+                --Hostile prompts (e.g. pending Bleeding damage) never age out,
+                --so they must not hold the removal open; only ordinary prompts
+                --(which resolve within the trigger window) are waited on.
+                local hasPrompt = false
+                for _,pendingTrigger in pairs(target.token.properties:GetAvailableTriggers() or {}) do
+                    if not pendingTrigger.hostile then
+                        hasPrompt = true
+                        break
+                    end
+                end
                 local hasCast = ActivatedAbility.TokenHasOtherActiveCasts(target.token)
                 if (not hasPrompt) and (not hasCast) then
                     idleSince = idleSince or dmhub.Time()
@@ -321,6 +331,13 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
         end
 
         if targetPasses then
+            --Remember whose turn this creature was on before it leaves the map,
+            --so an entry emptied by this removal can be closed out below.
+            local initiativeid = InitiativeQueue.GetInitiativeId(target.token)
+            if initiativeid ~= nil then
+                removedInitiativeIds[initiativeid] = true
+            end
+
             local corpse = nil
             if self.leavesCorpse then
                 corpse = self:LeaveCorpse(target.token, corpse)
@@ -337,7 +354,22 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
             if target.token.properties:IsMonster() then
                 target.token.despawned = true
             else
-                charids[#charids+1] = target.token.charid
+                --Never hard-delete a player's hero: game.DeleteCharacters
+                --bypasses the engine's despawn-instead-of-delete guard for
+                --owned characters (GameLua passes deletePlayerChars=true), so
+                --a hero fed through it loses its character record entirely. A
+                --hero can end up targeted here via cast target-list bugs
+                --(report H5EEEYHX: cancelling Explosive Parade's summon step
+                --left the self-targeted caster in the list). Owned,
+                --non-summoned heroes despawn instead, mirroring the engine
+                --guard; summons (summonerid set) still delete as before.
+                local ownerId = target.token.ownerId or ""
+                local summonerid = target.token.summonerid or ""
+                if ownerId ~= "" and summonerid == "" then
+                    target.token.despawned = true
+                else
+                    charids[#charids+1] = target.token.charid
+                end
             end
         end
 
@@ -347,6 +379,52 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
         game.DeleteCharacters(charids)
     end
     ability:CommitToPaying(casterToken, options)
+
+    ActivatedAbilityRemoveCreatureBehavior.EndTurnIfEntryEmptied(removedInitiativeIds)
+end
+
+--If a removal just emptied the initiative entry whose turn it is, end that
+--turn. A creature that is no longer on the map can't act, and nobody controls
+--it, so without this the End Turn button vanishes for everyone but a Director
+--and the combat sits on "Hero Turn" with no way to proceed -- seen when a hero
+--died on their own turn and the Hero Death rule removed them. Runs on the one
+--client that executed the removal (the rule is mandatory:local), so exactly
+--one client advances. Deferred a beat so the engine's token list has dropped
+--the despawned/deleted tokens before the entry is re-resolved, and re-checked
+--against the live queue in case the turn already moved on (e.g. the Monster
+--AI advancing after its own monster fell).
+function ActivatedAbilityRemoveCreatureBehavior.EndTurnIfEntryEmptied(removedInitiativeIds)
+    if next(removedInitiativeIds) == nil then
+        return
+    end
+
+    dmhub.Schedule(0.2, function()
+        local q = dmhub.initiativeQueue
+        if q == nil or q.hidden or q:ChoosingTurn() then
+            return
+        end
+
+        local currentid = q:CurrentInitiativeId()
+        if currentid == nil or not removedInitiativeIds[currentid] then
+            return
+        end
+
+        local remaining = InitiativeQueue.GetTokensForInitiativeId(currentid)
+        for _, tok in ipairs(remaining) do
+            if tok.valid and not tok.despawned then
+                return
+            end
+        end
+
+        if GameHud.instance == nil then
+            return
+        end
+
+        print("RemoveCreature: initiative entry", currentid, "emptied on its own turn; ending the turn")
+        GameHud.instance:NextInitiative(function()
+            dmhub:UploadInitiativeQueue()
+        end)
+    end)
 end
 
 
@@ -391,7 +469,7 @@ function ActivatedAbilityRemoveCreatureBehavior:EditorItems(parentPanel)
 	return result
 end
 
---- @class CorpseComponent
+--- @class CorpseComponent: GameType
 CorpseComponent = RegisterGameType("CorpseComponent")
 
 CorpseComponent.charid = "none"

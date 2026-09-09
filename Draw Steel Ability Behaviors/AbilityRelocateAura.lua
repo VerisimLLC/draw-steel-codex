@@ -83,6 +83,8 @@ function ActivatedAbilityRelocateAuraBehavior:Cast(ability, casterToken, targets
     -- Destination coordinates come from the ability's targeted area.
     local destx = options.targetArea.xpos
     local desty = options.targetArea.ypos
+    local dx = destx - obj.x
+    local dy = desty - obj.y
 
     -- Record the movement delta on the Aura component so the engine plays the slide animation
     -- from the old position to the new one.
@@ -90,8 +92,8 @@ function ActivatedAbilityRelocateAuraBehavior:Cast(ability, casterToken, targets
     if objAura ~= nil then
         objAura:SetAndUploadProperties{
             moveTimestamp = dmhub.serverTime,
-            movex = destx - obj.x,
-            movey = desty - obj.y,
+            movex = dx,
+            movey = dy,
         }
     end
 
@@ -99,6 +101,14 @@ function ActivatedAbilityRelocateAuraBehavior:Cast(ability, casterToken, targets
     obj:SetAndUploadPos(destx, desty)
 
     dmhub.EndTransaction()
+
+    -- Moving the object only moves the VISUAL: the mechanical area lives in
+    -- serialized AuraInstance copies on the object's Aura component (the one
+    -- the engine registers) and in the caster's auras list. The shared helper
+    -- in DMHub Game Rules/Aura.lua updates both, converting the area to an
+    -- explicit-locations shape so the engine's recipe recompute cannot clamp
+    -- it back toward the original cast position.
+    ActivatedAbilityMoveAuraBehavior.SetCasterAuraArea(obj, options.targetArea)
 end
 
 --- Builds the editor UI for this behavior: a single text input for the aura's name.
@@ -146,8 +156,12 @@ ActivatedAbility.RegisterType{
 ActivatedAbilityPortalTransitBehavior.summary = "Portal Transit"
 ActivatedAbilityPortalTransitBehavior.auraName = ""
 
---- Every placed portal of the given aura name on the given floor, read straight off the
+--- Every placed portal of the given aura name anywhere on the map, read straight off the
 --- map objects.
+---
+--- The network is floor-agnostic: portals connect to each other, not to a floor, and a pair
+--- opened on two different floors has to link. Each record carries its OWN floor, because
+--- every consumer below keys squares on xyfloorOnly.str.
 ---
 --- The map is deliberately the source of truth here rather than the trigger's "aura"
 --- symbol or the owner's aura list. An aura trigger can be handed to the controlling
@@ -157,9 +171,8 @@ ActivatedAbilityPortalTransitBehavior.auraName = ""
 --- receiving machine -- which is precisely the case where somebody else moved the token.
 --- Map objects are present and identical on every client.
 --- @param auraName string Aura name to match (case-insensitive).
---- @param floorIndex number Only portals on this floor are collected.
 --- @return table[] A list of { loc = Loc, casterid = string }.
-local function CollectPortals(auraName, floorIndex)
+local function CollectPortals(auraName)
     local result = {}
     if auraName == "" then
         return result
@@ -168,7 +181,7 @@ local function CollectPortals(auraName, floorIndex)
     local wanted = string.lower(auraName)
     for _, floor in ipairs(game.currentMap.floors) do
         for _, obj in pairs(floor.objects) do
-            if obj.valid and obj.floorIndex == floorIndex then
+            if obj.valid then
                 local component = obj:GetComponent("Aura")
                 local props = nil
                 if component ~= nil then
@@ -181,10 +194,12 @@ local function CollectPortals(auraName, floorIndex)
                 end
 
                 if auraInstance ~= nil and string.lower(auraInstance:try_get("name", "")) == wanted then
+                    -- core.Loc carries no floor of its own, so WithDifferentFloor is the only
+                    -- thing that sets one, and it must be the OBJECT's floor.
                     local portalLoc = core.Loc{
                         x = math.floor(obj.x + 0.5),
                         y = math.floor(obj.y + 0.5),
-                    }:WithDifferentFloor(floorIndex)
+                    }:WithDifferentFloor(obj.floorIndex)
 
                     -- A placed object stores no elevation of its own: LuaObjectInstance exposes
                     -- only x/y/floorIndex, and the aura's shape altitude is not bound to Lua. A
@@ -321,13 +336,19 @@ end
 --- recoverable -- it drops the creature and deals falling damage nobody chose -- whereas
 --- emerging low is harmless and is then clamped up to the destination's own ground anyway.
 --- This matches the direction the pit clamp in PerformTransit already resolves ties.
+---
+--- The floor is compared explicitly because DistanceInTiles measures the lateral (x/y)
+--- dimensions ONLY (see the teleport-cost note in Draw Steel UI/DSHud.lua). The network
+--- spans floors, so without it a portal directly overhead reads as adjacent and donates its
+--- altitude to an emergence on another floor. FloorDifference rather than a floor equality
+--- test: a portal on a layer of the destination's floor is still on that floor.
 --- @param portals table[] All placed portals as { loc, altitude, casterid }.
 --- @param loc Loc The chosen destination square.
 --- @return nil|number
 local function EmergeAltitudeFor(portals, loc)
     local result = nil
     for _, portal in ipairs(portals) do
-        if portal.altitude ~= nil and portal.loc:DistanceInTiles(loc) <= 1 then
+        if portal.altitude ~= nil and portal.loc:FloorDifference(loc) == 0 and portal.loc:DistanceInTiles(loc) <= 1 then
             if result == nil or portal.altitude < result then
                 result = portal.altitude
             end
@@ -388,9 +409,53 @@ end
 --- @param chooserToken nil|CharacterToken Who makes the choice; defaults to the traveller. Only
 --- the invoker slot varies -- the cast must stay centred on the traveller, because the candidate
 --- squares cluster around the far portal and the reticle's range is measured from the caster.
+--- @param labels nil|{name: string, prompt: string} Optional pick-ability name and prompt text,
+--- so a non-portal caller (e.g. the hurl behavior below) does not talk about emerging from a portal.
 --- @return nil|Loc
-local function ChooseTransitDestination(travelToken, candidates, symbols, chooserToken)
+local function ChooseTransitDestination(travelToken, candidates, symbols, chooserToken, labels)
+    labels = labels or {}
     local capturedLoc = nil
+
+    --- Resolve a picked square back onto the candidate it represents, so the FLOOR comes from
+    --- the candidate rather than from the click.
+    ---
+    --- The map hands back a loc on whichever floor the click resolved against, and for a player
+    --- that is their own token's floor: "look up" is a view overlay, not a change of the
+    --- interactive floor, so clicking a highlighted square one floor UP returns those x/y
+    --- coordinates stamped with the traveller's floor. Teleporting there leaves them where they
+    --- started. Clicking DOWN happens to work because lower floors are part of the same
+    --- rendered stack and resolve to their own floor.
+    ---
+    --- An exact match wins outright. Otherwise a unique x/y match identifies the square
+    --- unambiguously and its floor is trusted over the click's. Anything else (no match, or the
+    --- same x/y offered on two floors at once) is left exactly as picked rather than guessed at.
+    --- @param picked nil|Loc
+    --- @param candidateLocs Loc[]
+    --- @return nil|Loc
+    local function SnapToCandidate(picked, candidateLocs)
+        if picked == nil then
+            return nil
+        end
+
+        local match = nil
+        local matchCount = 0
+        for _, candidate in ipairs(candidateLocs) do
+            if candidate.x == picked.x and candidate.y == picked.y then
+                if candidate.floor == picked.floor then
+                    return candidate
+                end
+
+                match = candidate
+                matchCount = matchCount + 1
+            end
+        end
+
+        if matchCount == 1 then
+            return match
+        end
+
+        return picked
+    end
 
     local captureBehavior = ActivatedAbilityBehavior.new{
         instant = true,
@@ -410,13 +475,13 @@ local function ChooseTransitDestination(travelToken, candidates, symbols, choose
     end
 
     local pickAbility = ActivatedAbility.Create()
-    pickAbility.name = "Portal Transit"
+    pickAbility.name = labels.name or "Portal Transit"
     pickAbility.targetType = "emptyspace"
     pickAbility.range = tostring((maxDist + 1) * dmhub.unitsPerSquare)
     pickAbility.numTargets = "1"
     pickAbility.countsAsCast = false
     pickAbility.skippable = true
-    pickAbility.promptOverride = "Choose where you emerge"
+    pickAbility.promptOverride = labels.prompt or "Choose where you emerge"
     pickAbility.behaviors = { captureBehavior }
     pickAbility._tmp_restrictLocs = candidates
 
@@ -426,7 +491,7 @@ local function ChooseTransitDestination(travelToken, candidates, symbols, choose
     -- client is running this code, so callers must already be executing there.
     ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(chooserToken or travelToken, pickAbility, travelToken, "prompt", symbols or {}, {})
 
-    return capturedLoc
+    return SnapToCandidate(capturedLoc, candidates)
 end
 
 --- Forget that this creature has entered these portals this turn.
@@ -512,10 +577,28 @@ local function PerformTransit(travelToken, portals, candidates, symbols, chooser
     -- Mark the hop as free movement so the teleport is not billed against whatever movement the
     -- creature has left. Saved and restored rather than cleared outright so this never stomps a
     -- value an enclosing flow is relying on.
+    local originLoc = travelToken.loc
+
     local previousFreeMovement = travelToken.properties:try_get("_tmp_freeMovement", false)
     travelToken.properties._tmp_freeMovement = true
     travelToken:Teleport(teleportLoc)
     travelToken.properties._tmp_freeMovement = previousFreeMovement
+
+    -- Arriving on a floor ABOVE the one departed leaves the "look up" view (FloorNavigation.
+    -- LookRelative, DMHub Core Panels/Floors.lua) pointing one or more floors past where the
+    -- creature now stands: the offset is measured from whatever floor the token is on, and it
+    -- was raised to see the destination in the first place. Drop back to Forward so the view
+    -- lands on the floor just arrived at.
+    --
+    -- "lookup" is a client-local VIEW setting, not token state, so this is applied only on the
+    -- client whose own token travelled. The forced path runs on the PUSHER's client, where
+    -- resetting the view because somebody else moved would be wrong.
+    if originLoc:FloorDifference(teleportLoc) > 0 then
+        local localToken = dmhub.currentToken
+        if localToken ~= nil and localToken.id == travelToken.id and dmhub.GetSettingValue("lookup") ~= 0 then
+            dmhub.SetSettingValue("lookup", 0)
+        end
+    end
 
     -- Emerging above the ground means falling; the engine does not resolve that on its own.
     -- Structured exactly like the teleport branch of DMHub Game Rules/AbilityRelocateCreature.lua:
@@ -579,7 +662,7 @@ function ActivatedAbilityPortalTransitBehavior:Cast(ability, casterToken, target
         wasShovedHere = forcedDest == travelToken.loc.xyfloorOnly.str
     end
 
-    local portals = CollectPortals(self:try_get("auraName", ""), travelToken.loc.floor)
+    local portals = CollectPortals(self:try_get("auraName", ""))
 
     -- Lift the engine's once-per-turn-per-aura lock off the portals, so a creature can keep using
     -- them. Done before the shove check as well: an ally who was shoved onto a portal still
@@ -652,7 +735,7 @@ function DrawSteelPortalTransit.TryForcedTransit(movedToken, pusherToken, origin
         return
     end
 
-    local portals = CollectPortals(PORTAL_AURA_NAME, movedToken.loc.floor)
+    local portals = CollectPortals(PORTAL_AURA_NAME)
     if #portals < 2 then
         -- A lone portal is a dead end: there is nowhere to emerge.
         return
@@ -704,5 +787,892 @@ function ActivatedAbilityPortalTransitBehavior:EditorItems(parentPanel)
             end,
         },
     }
+    return result
+end
+
+----------------------------------------------------------------------------
+-- Pull Into Caster Space / Displace Creatures Overlapping Caster
+-- "Absorb an ally then grow" abilities (Synthesite's Incorporate Ally). Free
+-- straight-line moves that may end on an occupied square; not rules forced moves.
+----------------------------------------------------------------------------
+
+--Wait for the engine to process one game update (time-capped).
+local function WaitForNextGameUpdate()
+    local updateAt = dmhub.ngameupdate
+    local startTime = dmhub.Time()
+    while dmhub.ngameupdate <= updateAt and dmhub.Time() < startTime + 2 do
+        coroutine.yield(0.05)
+    end
+end
+
+--Free straight-line move that may stop on an occupied square; teleports if refused.
+local function FreeMoveOntoSquare(tok, loc)
+    tok.properties._tmp_freeMovement = true
+    local path = tok:Move(loc.withGroundAltitude, {
+        straightline = true,
+        ignorecreatures = true,
+        moveThroughFriends = true,
+        maxCost = 30000,
+        movementType = "move",
+        freeMovement = true,
+        forced = true,
+    })
+    tok.properties._tmp_freeMovement = false
+    if path == nil then
+        tok.properties._tmp_suppressTeleportEvent = true
+        tok:Teleport(loc.withGroundAltitude)
+        tok.properties._tmp_suppressTeleportEvent = nil
+    end
+end
+
+--True if tok could stand at loc without sharing any square with another token.
+local function LocIsFreeForToken(tok, loc)
+    local locs = tok:LocsOccupyingWhenAt(loc)
+    if locs == nil or #locs == 0 then
+        return false
+    end
+    for _, occLoc in ipairs(locs) do
+        if not occLoc.isOnMap then
+            return false
+        end
+        for _, other in ipairs(dmhub.GetTokensAtLoc(occLoc) or {}) do
+            if other.id ~= tok.id then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+--Squares the engine will path tok onto from where it stands, ignoring other
+--creatures: wall squares and the map edge are excluded. nil if unavailable.
+local function WalkableSquaresAround(tok, radius)
+    local ok, tiles = pcall(function()
+        return tok:CalculateMovementPerimeter((radius + 1) * 10, { moveFlags = { "IgnoreOtherCreatures" } })
+    end)
+    if not ok or tiles == nil then
+        return nil
+    end
+    local set = {}
+    for _, l in ipairs(tiles) do
+        set[string.format("%d,%d", l.x, l.y)] = true
+    end
+    return set
+end
+
+--The nearest free squares to fromLoc (all ties returned so the director can pick).
+local function NearestFreeLocs(tok, fromLoc, searchRadius)
+    local walkable = WalkableSquaresAround(tok, searchRadius)
+    local nearest = {}
+    local nearestDist = nil
+    for _, loc in ipairs(fromLoc:LocsInRadius(searchRadius) or {}) do
+        local dist = loc:DistanceInTiles(fromLoc)
+        local reachable = walkable == nil or walkable[string.format("%d,%d", loc.x, loc.y)] == true
+        if dist > 0 and reachable and (nearestDist == nil or dist <= nearestDist) and LocIsFreeForToken(tok, loc) then
+            if nearestDist == nil or dist < nearestDist then
+                nearest = { loc }
+                nearestDist = dist
+            else
+                nearest[#nearest+1] = loc
+            end
+        end
+    end
+    return nearest
+end
+
+--- Re-anchor a token whose footprint is about to grow (or just grew). The engine
+--- grows toward +x/+y, so a cornered creature grows into the wall instead of over
+--- the enemy beside it. Runs BEFORE the engine applies a pending size change: the
+--- footprint is predicted from the creature's calculated size, so the move and the
+--- growth land in the same frame as one change instead of grow-then-teleport.
+--- Score: fewest unwalkable squares, most enemies covered, fewest allies, smallest shift.
+--- Returns the anchor to move to, or nil when the current anchor is best or no growth is pending.
+--- @param tok CharacterToken
+--- @return Loc|nil
+local function FitGrownFootprint(tok)
+    local function Key(loc)
+        return string.format("%d,%d", loc.x, loc.y)
+    end
+
+    --Predicted width from the creature's modifiers (a size effect applied this
+    --frame is already in there); engine width is what is drawn right now.
+    tok.properties:Invalidate()
+    tok.properties:GetActiveModifiers() --rebuilds the calculated size from the effects
+    local predictedWidth = math.max(1, (tok.properties:GetCalculatedCreatureSizeAsNumber() or 1) - 3)
+    local engineWidth = tok.tileSize or 1
+    --Only a pending growth is re-anchored; a body the engine has already drawn
+    --stays put, so this never becomes a bare teleport.
+    if predictedWidth <= engineWidth then
+        return nil
+    end
+    local width = predictedWidth
+    local reach = width - engineWidth
+
+    local function Footprint(anchorLoc)
+        local locs = {}
+        for dx = 0, width - 1 do
+            for dy = 0, width - 1 do
+                locs[#locs+1] = anchorLoc:dir(dx, dy)
+            end
+        end
+        return locs
+    end
+
+    --Ground the engine will path onto; excludes wall squares and the map edge.
+    local walkable = nil
+    local okPerimeter, tiles = pcall(function()
+        return tok:CalculateMovementPerimeter((reach + 3) * 10, { moveFlags = { "IgnoreOtherCreatures" } })
+    end)
+    if okPerimeter and tiles ~= nil then
+        walkable = {}
+        for _, l in ipairs(tiles) do
+            walkable[Key(l)] = true
+        end
+    end
+
+    --Who stands where, by square, from every token's footprint.
+    local occupants = {}
+    for _, other in ipairs(dmhub.allTokensIncludingObjects or {}) do
+        if other.valid and other.id ~= tok.id and other.loc ~= nil and other.loc.floor == tok.loc.floor then
+            for _, l in ipairs(other:LocsOccupyingWhenAt(other.loc) or {}) do
+                local k = Key(l)
+                occupants[k] = occupants[k] or {}
+                occupants[k][#occupants[k]+1] = other
+            end
+        end
+    end
+
+    local function Score(anchorLoc)
+        local bad, enemies, allies = 0, 0, 0
+        local seen = {}
+        for _, l in ipairs(Footprint(anchorLoc)) do
+            local k = Key(l)
+            if (not l.isOnMap) or (walkable ~= nil and not walkable[k]) then
+                bad = bad + 1
+            end
+            for _, other in ipairs(occupants[k] or {}) do
+                if not seen[other.id] then
+                    seen[other.id] = true
+                    if tok:IsFriend(other) then
+                        allies = allies + 1
+                    else
+                        enemies = enemies + 1
+                    end
+                end
+            end
+        end
+        return bad, enemies, allies
+    end
+
+    local function Better(a, b)
+        if a.bad ~= b.bad then return a.bad < b.bad end
+        if a.enemies ~= b.enemies then return a.enemies > b.enemies end
+        if a.allies ~= b.allies then return a.allies < b.allies end
+        return a.shift < b.shift
+    end
+
+    local bad0, enemies0, allies0 = Score(tok.loc)
+    local best = { loc = tok.loc, bad = bad0, enemies = enemies0, allies = allies0, shift = 0 }
+    for dx = -reach, 0 do
+        for dy = -reach, 0 do
+            if dx ~= 0 or dy ~= 0 then
+                local candidate = tok.loc:dir(dx, dy)
+                local bad, enemies, allies = Score(candidate)
+                local entry = { loc = candidate, bad = bad, enemies = enemies, allies = allies, shift = math.abs(dx) + math.abs(dy) }
+                if Better(entry, best) then
+                    best = entry
+                end
+            end
+        end
+    end
+
+    if best.shift == 0 then
+        return nil
+    end
+    return best.loc
+end
+
+--- @field floatText string Label floated over each pulled creature ("" for none).
+RegisterGameType("ActivatedAbilityPullIntoCasterBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbility.RegisterType{
+    id = 'pull_into_caster',
+    text = 'Pull Into Caster Space',
+    createBehavior = function()
+        return ActivatedAbilityPullIntoCasterBehavior.new{}
+    end,
+}
+
+ActivatedAbilityPullIntoCasterBehavior.summary = 'Pull Into Caster Space'
+ActivatedAbilityPullIntoCasterBehavior.floatText = "Pulled in!"
+
+function ActivatedAbilityPullIntoCasterBehavior:SummarizeBehavior(ability, creatureLookup)
+    return "Pull targets into the caster's space"
+end
+
+function ActivatedAbilityPullIntoCasterBehavior:Cast(ability, casterToken, targets, options)
+    ability:CommitToPaying(casterToken, options)
+
+    local destLoc = casterToken.loc
+    local text = self:try_get("floatText", "")
+    local moved = 0
+    for _, target in ipairs(targets) do
+        local tok = target.token
+        if tok ~= nil and tok.valid and tok.properties ~= nil and tok.id ~= casterToken.id then
+            if moved > 0 then
+                WaitForNextGameUpdate()
+            end
+            FreeMoveOntoSquare(tok, destLoc)
+            if text ~= "" then
+                tok.properties:FloatLabel(text, "white")
+            end
+            moved = moved + 1
+        end
+    end
+
+    if moved > 0 then
+        --Let the move land before later behaviors act on the creature.
+        WaitForNextGameUpdate()
+    end
+end
+
+function ActivatedAbilityPullIntoCasterBehavior:EditorItems(parentPanel)
+    local result = {}
+    self:ApplyToEditor(parentPanel, result)
+    self:FilterEditor(parentPanel, result)
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Float Text:" },
+        gui.Input{
+            classes = { "formInput" },
+            text = self:try_get("floatText", ""),
+            change = function(element)
+                self.floatText = element.text
+            end,
+        },
+    }
+
+    return result
+end
+
+--- Grows the caster (optional size effect applied here, so the growth and the
+--- re-anchor land in the same frame), then moves every other creature in its
+--- footprint to the nearest free square and makes them the cast's targets.
+--- @field growEffect string Ongoing effect id applied to the caster before displacing ("" = none).
+--- @field growEffectAlt string Applied instead of growEffect when growAltCondition is true.
+--- @field growAltCondition string GoblinScript on the caster (cast symbols available).
+--- @field growDuration string Duration id for the effect (default "eoe").
+--- @field searchRadius number How far around the creature to look for a free square.
+--- @field addAsTarget boolean Replace the cast's targets with the displaced creatures.
+--- @field promptText string Prompt shown when several squares are equally near.
+--- @field floatText string Label floated over each displaced creature ("" for none).
+RegisterGameType("ActivatedAbilityDisplaceOverlappingBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbility.RegisterType{
+    id = 'displace_overlapping',
+    text = 'Displace Creatures Overlapping Caster',
+    createBehavior = function()
+        return ActivatedAbilityDisplaceOverlappingBehavior.new{
+            applyto = "caster",
+        }
+    end,
+}
+
+ActivatedAbilityDisplaceOverlappingBehavior.summary = 'Displace Creatures Overlapping Caster'
+ActivatedAbilityDisplaceOverlappingBehavior.searchRadius = 3
+ActivatedAbilityDisplaceOverlappingBehavior.addAsTarget = true
+ActivatedAbilityDisplaceOverlappingBehavior.promptText = "Choose where the displaced creature goes"
+ActivatedAbilityDisplaceOverlappingBehavior.floatText = "Displaced!"
+ActivatedAbilityDisplaceOverlappingBehavior.refitFootprint = true
+ActivatedAbilityDisplaceOverlappingBehavior.growEffect = ""
+ActivatedAbilityDisplaceOverlappingBehavior.growEffectAlt = ""
+ActivatedAbilityDisplaceOverlappingBehavior.growAltCondition = ""
+ActivatedAbilityDisplaceOverlappingBehavior.growDuration = "eoe"
+ActivatedAbilityDisplaceOverlappingBehavior.FitFootprint = FitGrownFootprint
+
+function ActivatedAbilityDisplaceOverlappingBehavior:SummarizeBehavior(ability, creatureLookup)
+    return "Push creatures overlapping the caster to the nearest free square"
+end
+
+function ActivatedAbilityDisplaceOverlappingBehavior:Cast(ability, casterToken, targets, options)
+    ability:CommitToPaying(casterToken, options)
+
+    --Apply the growth here and re-anchor before yielding: the engine then draws
+    --the bigger body already over the enemies beside it, never into a wall.
+    local growEffect = self:try_get("growEffect", "")
+    local altCondition = self:try_get("growAltCondition", "")
+    if altCondition ~= "" and self:try_get("growEffectAlt", "") ~= "" then
+        local alt = GoblinScriptTrue(ExecuteGoblinScript(altCondition, casterToken.properties:LookupSymbol(options.symbols or {}), 0, "Grow alt condition"))
+        if alt then
+            growEffect = self.growEffectAlt
+        end
+    end
+    if growEffect ~= "" then
+        local duration = self:try_get("growDuration", "eoe")
+        casterToken:ModifyProperties{
+            description = "Grow",
+            execute = function()
+                casterToken.properties:ApplyOngoingEffect(growEffect, duration, { tokenid = casterToken.charid })
+            end,
+        }
+    end
+    --Timing: the engine applies a teleport one game update after the call and a
+    --size change two updates after the property write. Deciding now and moving
+    --after one update makes the shift and the growth land in the same frame.
+    local newAnchor = nil
+    if self:try_get("refitFootprint", true) then
+        newAnchor = FitGrownFootprint(casterToken)
+    end
+    if newAnchor ~= nil then
+        WaitForNextGameUpdate()
+        casterToken.properties._tmp_suppressTeleportEvent = true
+        casterToken:Teleport(newAnchor.withGroundAltitude)
+        casterToken.properties._tmp_suppressTeleportEvent = nil
+    end
+    WaitForNextGameUpdate()
+
+    local footprint = casterToken:LocsOccupyingWhenAt(casterToken.loc) or {}
+    local seen = {}
+    local overlapping = {}
+    for _, loc in ipairs(footprint) do
+        for _, tok in ipairs(dmhub.GetTokensAtLoc(loc) or {}) do
+            if tok.valid and tok.properties ~= nil and tok.id ~= casterToken.id and not seen[tok.id] then
+                seen[tok.id] = true
+                overlapping[#overlapping+1] = tok
+            end
+        end
+    end
+
+    local symbols = options.symbols or {}
+    local text = self:try_get("floatText", "")
+    local displaced = {}
+    for _, tok in ipairs(overlapping) do
+        local origLoc = tok.loc
+        local candidates = NearestFreeLocs(tok, tok.loc, self:try_get("searchRadius", 3))
+        if #candidates == 0 then
+            print("DisplaceOverlapping:: no free square for", tok.name)
+        else
+            local dest = candidates[1]
+            if #candidates > 1 then
+                dest = ChooseTransitDestination(tok, candidates, symbols, casterToken, {
+                    name = "Displaced Creature Square",
+                    prompt = self:try_get("promptText", ""),
+                }) or candidates[1]
+            end
+            FreeMoveOntoSquare(tok, dest)
+            if text ~= "" then
+                tok.properties:FloatLabel(text, "white")
+            end
+            displaced[#displaced+1] = { token = tok, origLoc = origLoc }
+            WaitForNextGameUpdate()
+        end
+    end
+
+    if self:try_get("addAsTarget", true) and options.targets ~= nil then
+        for i = #options.targets, 1, -1 do
+            options.targets[i] = nil
+        end
+        for _, entry in ipairs(displaced) do
+            options.targets[#options.targets+1] = entry
+        end
+        if symbols.cast ~= nil then
+            symbols.cast.targets = options.targets
+        end
+    end
+end
+
+function ActivatedAbilityDisplaceOverlappingBehavior:EditorItems(parentPanel)
+    local result = {}
+    self:ApplyToEditor(parentPanel, result)
+    self:FilterEditor(parentPanel, result)
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Search Radius:" },
+        gui.Input{
+            classes = { "formInput" },
+            text = tostring(self:try_get("searchRadius", 3)),
+            change = function(element)
+                self.searchRadius = tonumber(element.text) or 3
+                element.text = tostring(self.searchRadius)
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Prompt Text:" },
+        gui.Input{
+            classes = { "formInput" },
+            text = self:try_get("promptText", ""),
+            change = function(element)
+                self.promptText = element.text
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Float Text:" },
+        gui.Input{
+            classes = { "formInput" },
+            text = self:try_get("floatText", ""),
+            change = function(element)
+                self.floatText = element.text
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Check{
+        text = "Displaced Creatures Become Targets",
+        value = self:try_get("addAsTarget", true),
+        change = function(element)
+            self.addAsTarget = element.value
+        end,
+    }
+
+    result[#result+1] = gui.Check{
+        text = "Re-anchor Away From Walls",
+        value = self:try_get("refitFootprint", true),
+        change = function(element)
+            self.refitFootprint = element.value
+        end,
+    }
+
+    --Ongoing effect pickers for the growth applied by this behavior.
+    local effectOptions = { { id = "", text = "(none)" } }
+    local effectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+    for id, effect in unhidden_pairs(effectsTable) do
+        effectOptions[#effectOptions+1] = { id = id, text = effect.name }
+    end
+    table.sort(effectOptions, function(a, b) return a.text < b.text end)
+
+    local function EffectPicker(labelText, field)
+        return gui.Panel{
+            classes = { "formPanel" },
+            gui.Label{ classes = { "formLabel" }, text = labelText },
+            gui.Dropdown{
+                classes = { "formDropdown" },
+                options = effectOptions,
+                idChosen = self:try_get(field, ""),
+                change = function(element)
+                    self[field] = element.idChosen
+                end,
+            },
+        }
+    end
+
+    result[#result+1] = EffectPicker("Grow Effect:", "growEffect")
+    result[#result+1] = EffectPicker("Alt Grow Effect:", "growEffectAlt")
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Use Alt When:" },
+        gui.GoblinScriptInput{
+            classes = { "formInput" },
+            value = self:try_get("growAltCondition", ""),
+            change = function(element)
+                self.growAltCondition = element.value
+            end,
+            documentation = {
+                help = "When true the alternate grow effect is applied instead of the main one.",
+                output = "boolean",
+                subject = creature.helpSymbols,
+                subjectDescription = "The caster",
+                examples = {
+                    { script = "Cast.TargetCount >= 2", text = "Two or more targets were incorporated." },
+                },
+            },
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Grow Duration:" },
+        gui.Input{
+            classes = { "formInput" },
+            text = self:try_get("growDuration", "eoe"),
+            change = function(element)
+                self.growDuration = element.text
+            end,
+        },
+    }
+
+    return result
+end
+
+--- @class ActivatedAbilityHurlGrabbedBehavior:ActivatedAbilityBehavior
+--- Throws a creature the caster is grabbing down a line ability (Ogre Goon "People Bowling").
+--- Runs with applyto = caster on a line-targeted ability, BEFORE its power roll:
+---   1. picks the grabbed creature (prompting only if several pass hurlFilter),
+---   2. ends the grab and teleports it to the last square of the line, or to the nearest
+---      unoccupied square around that end (a prompt when there is more than one nearest square),
+---   3. appends it to the cast's target list so the power roll that follows rolls against it too.
+--- Lives in this file to reuse ChooseTransitDestination (the restrict-to-squares pick), which is
+--- file-local. It is NOT forced movement: no stability, no collision, no distance reduction.
+--- @field hurlFilter string GoblinScript on the grabbed creature; only creatures passing it can be hurled.
+--- @field searchRadius number How far (squares) around the line's end to look for a free landing square.
+--- @field addAsTarget boolean Append the hurled creature to the cast's targets for later behaviors.
+--- @field promptText string Prompt shown when the director must choose between equally near squares.
+RegisterGameType("ActivatedAbilityHurlGrabbedBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbility.RegisterType{
+    id = 'hurl_grabbed',
+    text = 'Hurl Grabbed Creature',
+    createBehavior = function()
+        return ActivatedAbilityHurlGrabbedBehavior.new{
+            applyto = "caster",
+        }
+    end,
+}
+
+ActivatedAbilityHurlGrabbedBehavior.summary = 'Hurl Grabbed Creature'
+ActivatedAbilityHurlGrabbedBehavior.hurlFilter = "Size < 5"
+ActivatedAbilityHurlGrabbedBehavior.searchRadius = 3
+ActivatedAbilityHurlGrabbedBehavior.addAsTarget = true
+ActivatedAbilityHurlGrabbedBehavior.promptText = "Choose where the hurled creature lands"
+
+--The Grabbed condition id (same constant as Creature.lua / AbilityRelocateCreature.lua).
+local g_hurlGrabbedConditionId = "70504ebe-3899-41d3-9f60-74b52ce35e39"
+
+--- @param ability ActivatedAbility
+--- @param creatureLookup table
+--- @return string
+function ActivatedAbilityHurlGrabbedBehavior:SummarizeBehavior(ability, creatureLookup)
+    return "Hurl a grabbed creature to the end of the line"
+end
+
+--- The creatures the caster is grabbing that pass hurlFilter.
+--- @param casterToken CharacterToken
+--- @return CharacterToken[]
+function ActivatedAbilityHurlGrabbedBehavior:FindGrabbedCandidates(casterToken)
+    local result = {}
+    local filter = self:try_get("hurlFilter", "")
+    casterToken.properties:VisitConditionCasterSource(function(conditionid, grabbedTok)
+        if conditionid ~= g_hurlGrabbedConditionId or grabbedTok == nil or (not grabbedTok.valid) then
+            return
+        end
+        local passes = true
+        if filter ~= "" then
+            local value = ExecuteGoblinScript(filter, grabbedTok.properties:LookupSymbol({}), 1, "Hurl grabbed filter")
+            passes = GoblinScriptTrue(value)
+        end
+        if passes then
+            result[#result+1] = grabbedTok
+        end
+    end)
+    return result
+end
+
+--- Ask the caster's controller which grabbed creature to throw when more than one qualifies.
+--- Returns nil if the prompt was cancelled.
+--- @param casterToken CharacterToken
+--- @param candidates CharacterToken[]
+--- @param symbols table
+--- @return nil|CharacterToken
+local function ChooseHurledCreature(casterToken, candidates, symbols)
+    local allowed = {}
+    for _, tok in ipairs(candidates) do
+        allowed[tok.charid] = true
+    end
+
+    local chosen = nil
+    local captureBehavior = ActivatedAbilityBehavior.new{ instant = true }
+    captureBehavior.Cast = function(behaviorSelf, captureAbility, captureCasterToken, captureTargets, captureOptions)
+        for _, t in ipairs(captureTargets or {}) do
+            if t.token ~= nil and allowed[t.token.charid] then
+                chosen = t.token
+            end
+        end
+    end
+
+    local pickAbility = ActivatedAbility.Create()
+    pickAbility.name = "Hurl Grabbed Creature"
+    pickAbility.targetType = "target"
+    pickAbility.range = "2"
+    pickAbility.numTargets = "1"
+    pickAbility.countsAsCast = false
+    pickAbility.skippable = true
+    pickAbility.objectTarget = true
+    pickAbility.targetFilter = 'ConditionCaster("Grabbed") = Caster'
+    pickAbility.promptOverride = "Choose the grabbed creature to hurl"
+    pickAbility.behaviors = { captureBehavior }
+    --Transient list the Monster AI prompt handler (MonsterAIPrompts.lua) picks from.
+    pickAbility._tmp_hurlCandidates = candidates
+
+    ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, pickAbility, casterToken, "prompt", symbols, {})
+    return chosen
+end
+
+--- The last square of the line: the one furthest from the caster (matches how
+--- ActivatedAbilityRelocateCreatureBehavior finds the end of a line).
+--- @param casterToken CharacterToken
+--- @param targetArea table|nil options.targetArea of the cast.
+--- @return nil|Loc
+local function FindLineEnd(casterToken, targetArea)
+    local locs = targetArea and targetArea.locations
+    if locs == nil or #locs == 0 then
+        return nil
+    end
+    local best = locs[1]
+    for i = 2, #locs do
+        if locs[i]:DistanceInTiles(casterToken.loc) > best:DistanceInTiles(casterToken.loc) then
+            best = locs[i]
+        end
+    end
+    return best
+end
+
+--- Landing candidates: the line's end square if free, otherwise every free square nearest to it
+--- (ties are all returned so the caster can choose). The caster must be able to see a fallback
+--- square, so the throw is never resolved through a wall.
+--- @param casterToken CharacterToken
+--- @param hurledToken CharacterToken
+--- @param endLoc Loc
+--- @param searchRadius number
+--- @return Loc[]
+local function FindLandingCandidates(casterToken, hurledToken, endLoc, searchRadius)
+    if LocIsFreeForToken(hurledToken, endLoc) then
+        return { endLoc }
+    end
+
+    local nearest = {}
+    local nearestDist = nil
+    for _, loc in ipairs(endLoc:LocsInRadius(searchRadius) or {}) do
+        local dist = loc:DistanceInTiles(endLoc)
+        if dist > 0 and (nearestDist == nil or dist <= nearestDist) and LocIsFreeForToken(hurledToken, loc) then
+            --GetLineOfSight accepts a Loc; guard it anyway so an engine change never blocks the throw.
+            local visible = true
+            local ok, los = pcall(function() return casterToken:GetLineOfSight(loc) end)
+            if ok and type(los) == "number" then
+                visible = los > 0
+            end
+            if visible then
+                if nearestDist == nil or dist < nearestDist then
+                    nearest = { loc }
+                    nearestDist = dist
+                else
+                    nearest[#nearest+1] = loc
+                end
+            end
+        end
+    end
+    return nearest
+end
+
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken
+--- @param targets table
+--- @param options table
+function ActivatedAbilityHurlGrabbedBehavior:Cast(ability, casterToken, targets, options)
+    local symbols = options.symbols or {}
+
+    local candidates = self:FindGrabbedCandidates(casterToken)
+    if #candidates == 0 then
+        casterToken.properties:FloatLabel("Nothing to hurl", "red")
+        return
+    end
+
+    local hurled = candidates[1]
+    if #candidates > 1 then
+        hurled = ChooseHurledCreature(casterToken, candidates, symbols)
+        if hurled == nil then
+            return
+        end
+    end
+
+    local endLoc = FindLineEnd(casterToken, options.targetArea)
+    if endLoc == nil then
+        casterToken.properties:FloatLabel("Hurl needs a line target", "red")
+        return
+    end
+
+    local landing = FindLandingCandidates(casterToken, hurled, endLoc, self:try_get("searchRadius", 3))
+    if #landing == 0 then
+        casterToken.properties:FloatLabel("No room to land", "red")
+        return
+    end
+
+    local dest = landing[1]
+    if #landing > 1 then
+        dest = ChooseTransitDestination(hurled, landing, symbols, casterToken, {
+            name = "Hurl Landing Square",
+            prompt = self:try_get("promptText", ""),
+        })
+        if dest == nil then
+            return
+        end
+    end
+
+    local origLoc = hurled.loc
+
+    --The throw ends the grab. Purge only this caster's grab so another grabber keeps theirs.
+    hurled:ModifyProperties{
+        description = "Hurled",
+        execute = function()
+            hurled.properties:InflictCondition(g_hurlGrabbedConditionId, {
+                purge = true,
+                casterInfo = { tokenid = casterToken.charid },
+            })
+        end,
+    }
+
+    --Fly the creature down the line like a push: straight-line forced moves that
+    --pass over creatures, are not its own move action, and do not provoke. The
+    --grab was ended above, so the Grabbed condition's forcemove trigger (drag
+    --the grabber along) never fires. Not a rules forced move: no
+    --forcedMovementDistance, so a blocked path just stops with no collision
+    --damage. When the landing square is off the line's end, the throw still
+    --runs the whole line to its end square and then hops (jump animation)
+    --into the square the director chose.
+    local function WaitForGameUpdate()
+        local updateAt = dmhub.ngameupdate
+        local startTime = dmhub.Time()
+        while dmhub.ngameupdate <= updateAt and dmhub.Time() < startTime + 2 do
+            coroutine.yield(0.05)
+        end
+    end
+
+    local function ThrowMove(toLoc, movementType)
+        hurled.properties._tmp_freeMovement = true
+        local path = hurled:Move(toLoc.withGroundAltitude, {
+            straightline = true,
+            ignorecreatures = true,
+            moveThroughFriends = true,
+            maxCost = 30000,
+            movementType = movementType,
+            jumpHeight = 2,
+            ignoreFalling = (movementType == "jump"),
+            freeMovement = true,
+            forced = true,
+        })
+        hurled.properties._tmp_freeMovement = false
+        return path ~= nil
+    end
+
+    --The push always runs the full line, even onto a square another creature
+    --or object already holds (creatures are ignored, so the engine lets the
+    --thrown creature pass over and stop there); only then does it hop into
+    --the square the director chose. Skip the push if it already stands there.
+    local legs = {}
+    if hurled.loc.xyfloorOnly.str ~= endLoc.xyfloorOnly.str then
+        legs[#legs+1] = { loc = endLoc, movementType = "move" }
+    end
+    if dest.xyfloorOnly.str ~= endLoc.xyfloorOnly.str then
+        legs[#legs+1] = { loc = dest, movementType = "jump" }
+    end
+
+    local moved = true
+    for i, leg in ipairs(legs) do
+        if i > 1 then
+            WaitForGameUpdate()
+        end
+        moved = ThrowMove(leg.loc, leg.movementType)
+        if not moved then
+            break
+        end
+    end
+
+    --Fall back to a silent teleport if the engine refused a leg: the creature
+    --must still land somewhere.
+    if not moved then
+        print("HurlGrabbed:: MOVE REFUSED, teleporting instead. dest =", dest.str)
+        hurled.properties._tmp_suppressTeleportEvent = true
+        hurled:Teleport(dest.withGroundAltitude)
+        hurled.properties._tmp_suppressTeleportEvent = nil
+    end
+    hurled.properties:FloatLabel("Hurled!", "white")
+
+    --Let the move land before anything rolls against the creature.
+    WaitForGameUpdate()
+    if hurled.valid then
+        hurled:TryFall()
+    end
+
+    --Commit to the cost once the throw has actually happened, so a cancelled
+    --pick above never charges the maneuver. (Ending a grab mid-cast logs one
+    --engine "already in a transaction" line; the engine's own Grabbed teleport
+    --trigger does the same, and state stays correct.)
+    ability:CommitToPaying(casterToken, options)
+
+    if self:try_get("addAsTarget", true) and options.targets ~= nil and hurled.valid then
+        local present = false
+        for _, existing in ipairs(options.targets) do
+            if existing.token ~= nil and existing.token.charid == hurled.charid then
+                present = true
+                break
+            end
+        end
+        if not present then
+            options.targets[#options.targets+1] = { token = hurled, origLoc = origLoc }
+        end
+        if symbols.cast ~= nil then
+            symbols.cast.targets = options.targets
+        end
+    end
+end
+
+--- @param parentPanel Panel
+--- @return Panel[]
+function ActivatedAbilityHurlGrabbedBehavior:EditorItems(parentPanel)
+    local result = {}
+    self:ApplyToEditor(parentPanel, result)
+    self:FilterEditor(parentPanel, result)
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Hurl Filter:" },
+        gui.GoblinScriptInput{
+            classes = { "formInput" },
+            value = self:try_get("hurlFilter", ""),
+            change = function(element)
+                self.hurlFilter = element.value
+            end,
+            documentation = {
+                help = "Which grabbed creatures may be hurled. Evaluated on each creature the caster is grabbing.",
+                output = "boolean",
+                subject = creature.helpSymbols,
+                subjectDescription = "A creature the caster is grabbing",
+                examples = {
+                    { script = "Size < 5", text = "Only Size 1 creatures can be hurled." },
+                },
+            },
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Landing Search Radius:" },
+        gui.Input{
+            classes = { "formInput" },
+            text = tostring(self:try_get("searchRadius", 3)),
+            change = function(element)
+                self.searchRadius = tonumber(element.text) or 3
+                element.text = tostring(self.searchRadius)
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Prompt Text:" },
+        gui.Input{
+            classes = { "formInput" },
+            text = self:try_get("promptText", ""),
+            change = function(element)
+                self.promptText = element.text
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Check{
+        text = "Add Hurled Creature To Targets",
+        value = self:try_get("addAsTarget", true),
+        change = function(element)
+            self.addAsTarget = element.value
+        end,
+    }
+
     return result
 end

@@ -1,49 +1,39 @@
---- @class BrushAssetLua 
---- @field hidden boolean 
---- @field tipAsset string 
---- @field blend string 
---- @field tipRotation string 
---- @field textureAsset string 
---- @field textureScale number 
---- @field opacity number 
---- @field radius number 
---- @field fadeRadius number 
---- @field description string 
---- @field ord any 
+---@meta
+
+--- @class BrushAssetLua
+--- @field hidden boolean
+--- @field tipAsset string
+--- @field blend string
+--- @field tipRotation string
+--- @field textureAsset string
+--- @field textureScale number
+--- @field opacity number
+--- @field radius number
+--- @field fadeRadius number
+--- @field description string
+--- @field ord any
+--- @field guid string
 BrushAssetLua = {}
 
 --- GetParameter
---- @param fieldName string
+--- @param fieldName? string
 --- @return any
-function BrushAssetLua:GetParameter(fieldName)
-	-- dummy implementation for documentation purposes only
-end
+function BrushAssetLua:GetParameter(fieldName) end
 
 --- SetParameter
---- @param fieldName string
---- @param info any
---- @return nil
-function BrushAssetLua:SetParameter(fieldName, info)
-	-- dummy implementation for documentation purposes only
-end
+--- @param fieldName? string
+--- @param info? any
+function BrushAssetLua:SetParameter(fieldName, info) end
 
 --- GetDisplayField
---- @param fieldName string
+--- @param fieldName? string
 --- @return boolean
-function BrushAssetLua:GetDisplayField(fieldName)
-	-- dummy implementation for documentation purposes only
-end
+function BrushAssetLua:GetDisplayField(fieldName) end
 
 --- SetDisplayField
---- @param fieldName string
---- @param value boolean
---- @return nil
-function BrushAssetLua:SetDisplayField(fieldName, value)
-	-- dummy implementation for documentation purposes only
-end
+--- @param fieldName? string
+--- @param value? boolean
+function BrushAssetLua:SetDisplayField(fieldName, value) end
 
 --- Upload
---- @return nil
-function BrushAssetLua:Upload()
-	-- dummy implementation for documentation purposes only
-end
+function BrushAssetLua:Upload() end

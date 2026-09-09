@@ -18,7 +18,14 @@ local g_validFeatureTypes = {
 }
 
 local IsCharacterFeatureType = function(item)
-	return item ~= nil and g_validFeatureTypes[item.typeName] == true
+	-- The internal clipboard is a single app-wide value which can legitimately hold a
+	-- scalar (e.g. GoblinScriptEditor's "Copy" copies a numeric result value), so we
+	-- can only index it after checking it is indexable.
+	local t = type(item)
+	if t ~= "table" and t ~= "userdata" then
+		return false
+	end
+	return g_validFeatureTypes[item.typeName] == true
 end
 
 -- Class/ancestry editor search filter. The shared Search.MatchesObject caps its
@@ -157,7 +164,7 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 
 			rightClick = function(element)
 				local clipboardItem = dmhub.GetInternalClipboard()
-				if clipboardItem ~= nil then
+				if type(clipboardItem) == "table" then
 					clipboardItem.guid = dmhub.GenerateGuid()
 				end
 
@@ -386,7 +393,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 		rightClick = function(element)
 
 			local clipboardItem = dmhub.GetInternalClipboard()
-			if clipboardItem ~= nil then
+			if type(clipboardItem) == "table" then
 				clipboardItem.guid = dmhub.GenerateGuid()
 			end
 
@@ -814,6 +821,20 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 	return resultPanel
 end
 
+--A feature added from a prefab or pasted from the clipboard is a clone, so it
+--misses the canHavePrerequisites flag that the plain "Feature" option sets,
+--and its editor then hides the prerequisite dropdown. Creature templates gate
+--features by level (retainer advancement), so the flag is restored there.
+--Everywhere else keeps the previous behavior: only the plain "Feature" option
+--offers prerequisites.
+local function AllowPrerequisites(feature, container)
+	if feature ~= nil and feature.typeName == "CharacterFeature"
+		and container ~= nil and container.typeName == "CharacterTemplate" then
+		feature.canHavePrerequisites = true
+	end
+	return feature
+end
+
 function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 	local classid = nil
 	local raceid = nil
@@ -1056,7 +1077,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 						local clone = DeepCopy(clipboardItem)
 						clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 						clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-						self.features[#self.features+1] = clone
+						self.features[#self.features+1] = AllowPrerequisites(clone, classOrRace)
 						resultPanel:FireEvent("change", self)
 					else
 						local prefab = CharacterFeaturePrefabs.FindPrefab(element.idChosen)
@@ -1065,7 +1086,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 							clone.prefab = element.idChosen
 							clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 							clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-							self.features[#self.features+1] = clone
+							self.features[#self.features+1] = AllowPrerequisites(clone, classOrRace)
 							resultPanel:FireEvent("change", self)
 						end
 					end
@@ -1635,6 +1656,44 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 				},
 			}
 
+			--prerequisites gating this whole choice. Until they are met the
+			--choice is hidden from the builder and grants nothing.
+			children[#children+1] = gui.Dropdown{
+				height = 30,
+				width = 220,
+				fontSize = 14,
+				halign = "left",
+				vmargin = 4,
+
+				idChosen = "none",
+				options = CharacterPrerequisite.options,
+				change = function(element)
+					if element.idChosen ~= 'none' then
+						self:get_or_add("prerequisites", {})
+						self.prerequisites[#self.prerequisites+1] = CharacterPrerequisite.Create{
+							type = element.idChosen,
+						}
+						element.idChosen = 'none'
+						resultPanel:FireEvent('create')
+						resultPanel:FireEvent('change')
+					end
+				end,
+			}
+
+			for i,pre in ipairs(self:try_get("prerequisites", {})) do
+				local index = i
+				children[#children+1] = pre:Editor{
+					change = function(element)
+						resultPanel:FireEvent('change')
+					end,
+					delete = function(element)
+						table.remove(self.prerequisites, index)
+						resultPanel:FireEvent('create')
+						resultPanel:FireEvent('change')
+					end,
+				}
+			end
+
 			for i,feature in ipairs(self.options) do
 				local index = i
 				if feature.typeName == 'CharacterFeature' then
@@ -1737,7 +1796,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 						local clone = DeepCopy(clipboardItem)
 						clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 						clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-						self.options[#self.options+1] = clone
+						self.options[#self.options+1] = AllowPrerequisites(clone, classOrRace)
 						resultPanel:FireEvent("change", self)
 					else
 						local prefab = CharacterFeaturePrefabs.FindPrefab(element.idChosen)
@@ -1746,7 +1805,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 							clone.prefab = element.idChosen
 							clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 							clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-							self.options[#self.options+1] = clone
+							self.options[#self.options+1] = AllowPrerequisites(clone, classOrRace)
 							resultPanel:FireEvent("change", self)
 						end
 					end

@@ -1,8 +1,9 @@
---- @class Gradient 
+---@meta
+
+--- @class Gradient
 Gradient = {}
 
---- Sample
---- @return number
-function Gradient.Sample()
-	-- dummy implementation for documentation purposes only
-end
+--- Samples the gradient at t.
+--- @param t number Position along the gradient, 0..1.
+--- @return Color
+function Gradient:Sample(t) end

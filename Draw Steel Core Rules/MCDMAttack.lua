@@ -299,6 +299,8 @@ function creature.MCDMRollAttack(self, attack, targets, options)
 		end
 		self:ClearMomentaryOngoingEffects()
 
+		--Returned so Cast below can tell if the dialog stops showing this roll.
+		return rollid
 	end
 end
 
@@ -346,9 +348,8 @@ function ActivatedAbilityAttackBehavior:Cast(ability, casterToken, targets, opti
 							targetToken = target.token,
 							missileid = k,
 						}
-						if options.markLineOfSight ~= nil then
-							options.markLineOfSight:DestroyLineOfSight()
-						end
+						--Shared helper handles both a single marker and a table of them.
+						ActivatedAbility.DestroyLineOfSight(options)
 					end
 				end
 			end
@@ -422,7 +423,7 @@ function ActivatedAbilityAttackBehavior:Cast(ability, casterToken, targets, opti
 	local completed = false
 	local attackHit = false
 
-	casterToken.properties:MCDMRollAttack(attack, targetTokens, {
+	local rollid = casterToken.properties:MCDMRollAttack(attack, targetTokens, {
 		ability = ability,
 		damageCheckboxes = damageCheckboxes,
 		symbols = options.symbols,
@@ -461,10 +462,9 @@ function ActivatedAbilityAttackBehavior:Cast(ability, casterToken, targets, opti
 			end
 
 			options.symbols.cast.attackroll = rollInfo.total
-			if options.markLineOfSight ~= nil then
-				options.markLineOfSight:Destroy()
-				options.markLineOfSight = nil
-			end
+			--Use the shared helper: markLineOfSight can be a table, and the
+			--old :Destroy() call here crashed on tables.
+			ActivatedAbility.DestroyLineOfSight(options)
 		end,
 
 		completeAttack = function(hit, completeAttackOptions)
@@ -487,6 +487,15 @@ function ActivatedAbilityAttackBehavior:Cast(ability, casterToken, targets, opti
 
 	while canceled == false and completed == false do
 		coroutine.yield(0.1)
+
+		--If the dialog is gone or now showing a different roll, our callbacks
+		--will never fire and this loop would spin forever, leaving the red
+		--targeting arrows stuck on the map. Bail out as a cancel so the cast
+		--finishes and cleans them up.
+		local dialog = GameHud.instance ~= nil and GameHud.instance.rollDialog or nil
+		if dialog == nil or (not dialog.valid) or rollid == nil or dialog.data.rollid ~= rollid then
+			canceled = true
+		end
 	end
 
 	if canceled then

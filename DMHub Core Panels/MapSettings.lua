@@ -58,6 +58,19 @@ setting{
 }
 
 setting{
+	id = "map:playerinfobubbles",
+	description = "Players See Map Info Bubbles",
+	help = "If enabled, players can see the info bubbles on this map and click them to read their documents. Only applies to Player Viewable maps.",
+	storage = "map",
+	editor = "check",
+	default = false,
+	monitorVisible = {"map:playerviewable"},
+	visible = function()
+		return dmhub.GetSettingValue("map:playerviewable")
+	end,
+}
+
+setting{
 	id = "map:parallaxscale",
 	description = "Parallax Scale",
 	help = "Multiplies the parallax effect on this map relative to the game-wide Parallax setting. 1 leaves it unchanged, 0 disables parallax on this map, higher values make it more pronounced.",
@@ -87,7 +100,7 @@ local CreateEditorSettings
 
 DockablePanel.Register{
 	name = "Map Settings",
-	icon = "icons/standard/Icon_App_MapSettings.png",
+	icon = "phosphor/map-pin-simple-area-bold.png",
 	vscroll = true,
     dmonly = true,
 	minHeight = 100,
@@ -124,6 +137,39 @@ CreateMapSettings = function()
 
 	local stackedOpts = {stacked = true}
 
+	local children = {
+		CreateSettingsEditor("map:playerviewable", stackedOpts),
+		CreateSettingsEditor("map:playerinfobubbles", stackedOpts),
+		CreateSettingsEditor("map:parallaxscale", stackedOpts),
+		CreateSettingsEditor('gridcolor', stackedOpts),
+		CreateSettingsEditorsForSection('vision', stackedOpts),
+
+		CreateSettingsEditor("maplayout:tiletype", stackedOpts),
+		CreateSettingsEditor("maplayout:stagger", stackedOpts),
+		CreateSettingsEditor("maplayout:tilewidth", stackedOpts),
+		CreateSettingsEditor("maplayout:tileheight", stackedOpts),
+		CreateSettingsEditor("maplayout:hexslant", stackedOpts),
+
+		CreateSettingsEditor("editor:showpathfinding", stackedOpts),
+		CreateSettingsEditor("canlookup", stackedOpts),
+		CreateSettingsEditor("maxlookup", stackedOpts),
+	}
+
+	--Map Scripts live in the Draw Steel module set; rawget so this core panel
+	--still works when that module is not loaded.
+	local mapScript = rawget(_G, "MapScript")
+	if mapScript ~= nil then
+		children[#children+1] = gui.Label{
+			classes = {"bold"},
+			width = "100%",
+			height = "auto",
+			fontSize = 16,
+			tmargin = 8,
+			text = "Map Scripts",
+		}
+		children[#children+1] = mapScript.CreateSettingsPanel()
+	end
+
 	local contentPanel = gui.Panel{
 		id = "mapSettingsPanel",
 		flow = "vertical",
@@ -132,22 +178,7 @@ CreateMapSettings = function()
 			width = '100%',
 			height = 'auto',
 		},
-		children = {
-			CreateSettingsEditor("map:playerviewable", stackedOpts),
-			CreateSettingsEditor("map:parallaxscale", stackedOpts),
-			CreateSettingsEditor('gridcolor', stackedOpts),
-			CreateSettingsEditorsForSection('vision', stackedOpts),
-
-			CreateSettingsEditor("maplayout:tiletype", stackedOpts),
-			CreateSettingsEditor("maplayout:stagger", stackedOpts),
-			CreateSettingsEditor("maplayout:tilewidth", stackedOpts),
-			CreateSettingsEditor("maplayout:tileheight", stackedOpts),
-			CreateSettingsEditor("maplayout:hexslant", stackedOpts),
-
-			CreateSettingsEditor("editor:showpathfinding", stackedOpts),
-			CreateSettingsEditor("canlookup", stackedOpts),
-			CreateSettingsEditor("maxlookup", stackedOpts),
-		},
+		children = children,
 	}
 
 	return contentPanel

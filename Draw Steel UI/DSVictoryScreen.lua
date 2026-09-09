@@ -37,6 +37,37 @@ local mod = dmhub.GetModLoading()
 
 RegisterGameType("DSVictoryScreen")
 
+-- Proceed override hook: a mod (e.g. Encounter of the Week's Director-less
+-- games) can open the Proceed button to non-Directors and/or take over the
+-- click. Register with an override table:
+--   canProceed = function() return bool end  -- true: the local user may see
+--                and press Proceed even without Director status.
+--   proceed    = function(defaultProceed) return handled end -- runs on click
+--                BEFORE the normal teardown; return true to swallow the click
+--                (defaultProceed is passed in so the override can invoke the
+--                normal teardown itself). Return false/nil to fall through.
+-- Both callbacks run under pcall; a broken override degrades to the normal
+-- Director-only behavior. Registering replaces any previous override.
+local g_proceedOverride = nil
+function DSVictoryScreen.RegisterProceedOverride(override)
+    g_proceedOverride = override
+end
+
+-- True when the local user may press Proceed: the Director always may; the
+-- registered override can extend it to everyone else.
+local function CanLocalUserProceed()
+    if dmhub.isDM then
+        return true
+    end
+    if g_proceedOverride ~= nil and g_proceedOverride.canProceed ~= nil then
+        local ok, res = pcall(g_proceedOverride.canProceed)
+        if ok and res == true then
+            return true
+        end
+    end
+    return false
+end
+
 -- Seconds between each hero fading in.
 local g_heroStagger = 0.28
 
@@ -61,13 +92,30 @@ local DEFEAT_BACKGROUND_HEIGHT_PERCENT = 100 * 2635 / 4096
 --
 -- Fun titles awarded from the live encounter's per-round hero stats (see
 -- Draw Steel Core Rules/STATS_TRACKING.md for the stats and their layout).
--- Candidate roles are evaluated in priority order, most interesting first.
--- A role is only ever awarded to its WINNER -- the single top-ranked hero for
--- that role's criteria -- and each hero shows just one role, so a hero who
--- both dealt the most damage and opened with the round-1 Initiator strike
--- shows only Damage Dealer, and Initiator goes unawarded rather than sliding
--- down to the runner-up. A hero who wins nothing shows no role at all, so a
--- role on a card always means "nobody beat you at this".
+-- Candidate roles are evaluated in priority order, most interesting first, and
+-- assignment runs in three passes. EVERY hero finishes with a role; the passes
+-- decide how good it is.
+--
+--  1. WINNERS. Each role goes to its single top-ranked hero, and each hero
+--     shows just one role, so a hero who both dealt the most damage and opened
+--     with the round-1 Initiator strike shows only Damage Dealer. Initiator is
+--     left on the table -- it does NOT slide down to the runner-up here. A role
+--     awarded in this pass always means "nobody beat you at this".
+--  2. CASCADE. The roles pass 1 left on the table are then offered to their
+--     RUNNER-UP, but only onto a hero who was best at nothing -- a hero who
+--     already won something never picks up a second-place title, and a role
+--     that pass 1 did award is never handed out twice. This is what fills the
+--     card of a hero who was second-best at everything.
+--  3. FLOOR. Whatever is still blank gets a floor role, which may repeat across
+--     several cards: Pacifist / Tourist for a hero who dealt no damage at all,
+--     and Backbone, the catch-all, for everyone else. Between them these cover
+--     every hero unconditionally, so a blank role slot is now a bug -- see the
+--     `fallback` field below.
+--
+-- Each awarded role carries `fallback`: nil for a pass-1 win, "cascade" for a
+-- pass-2 runner-up title, "floor" for a pass-3 one. Anything non-nil means the
+-- role set had nothing this hero was actually best at, which is what the
+-- hero_role_fallback analytics event measures (MCDMEncounter.lua).
 --
 -- Stats consumed: damageDealt, damageTaken, damagePrevention, overkill, kills,
 -- minionKills, criticals (recorded by the shipped Critical Hit content),
@@ -849,6 +897,29 @@ local function ComputeHeroRolesInternal(live)
         AddRole("Tourist", entries, true)
     end
 
+    --Backbone: the catch-all. Dealt damage, was not the best at anything, and no
+    --unawarded role cascaded down to them either. Pacifist and Tourist between
+    --them already cover every hero who dealt NO damage, so gating this on
+    --damage > 0 makes the three disjoint and complete: every hero qualifies for
+    --exactly one floor role, and nobody can finish a fight with a blank card.
+    --Says what they actually did rather than commiserating, because unlike the
+    --other two floor roles this one lands on a hero who was pulling their weight.
+    do
+        local entries = {}
+        for _, d in ipairs(data) do
+            local damage = Total(d, "damageDealt")
+            if damage > 0 then
+                local taken = Total(d, "damageTaken")
+                local text = string.format("You dealt %d damage", damage)
+                if taken > 0 then
+                    text = string.format("You dealt %d damage and took %d", damage, taken)
+                end
+                entries[#entries+1] = { d = d, text = text, tooltip = "No headlines. Just the work." }
+            end
+        end
+        AddRole("Backbone", entries, true)
+    end
+
     --How many times a hero has previously been awarded a given role, read from
     --the persistent per-hero history written by RecordHeroRoles at end of
     --combat. Used to bias selection toward roles a hero has earned less often.
@@ -916,7 +987,7 @@ local function ComputeHeroRolesInternal(live)
 
     --Highest score first, then priority, then charid, so every client resolves
     --ties identically.
-    table.sort(edges, function(a, b)
+    local function CompareEdges(a, b)
         if a.score ~= b.score then
             return a.score > b.score
         end
@@ -924,10 +995,14 @@ local function ComputeHeroRolesInternal(live)
             return a.priorityIdx < b.priorityIdx
         end
         return a.charid < b.charid
-    end)
+    end
 
-    --One edge per role (built above), so each hero simply takes the first role
-    --they win and no role can be handed out twice.
+    table.sort(edges, CompareEdges)
+
+    --PASS 1 -- winners. One edge per role (built above), so each hero simply
+    --takes the first role they win and no role can be handed out twice. The
+    --roles nobody is left holding are what pass 2 gets to offer around.
+    local awardedRoleNames = {}
     for _, edge in ipairs(edges) do
         local charid = edge.charid
         if roles[charid] == nil then
@@ -936,11 +1011,64 @@ local function ComputeHeroRolesInternal(live)
                 text = edge.entry.text,
                 tooltip = edge.entry.tooltip,
             }
+            awardedRoleNames[edge.candidate.role] = true
         end
     end
 
-    --Floor roles last, in priority order, landing on every still-roleless
-    --qualifying hero (they allow duplicates and are never biased).
+    --PASS 2 -- cascade. A role that pass 1 left UNAWARDED (its winner is showing
+    --something better) is offered to its runner-up, and only to a runner-up who
+    --was best at nothing. Both halves of that matter:
+    --
+    --  * unawarded only, so no title ever appears twice on the same screen and
+    --    the hero who actually topped a stat is never shown up by a card
+    --    carrying the same role with a smaller number;
+    --  * roleless heroes only, so winning something never costs a hero their win
+    --    -- a second-place title can only ever land on a blank card.
+    --
+    --The runner-up's entry was built for their own numbers (that is why the
+    --ranked list is kept in full), so the card reads honestly: rank 2 in Damage
+    --Dealer shows their real damage, and the tooltip names the hero who beat
+    --them. Same scoring as pass 1, so a hero eligible for several cascades takes
+    --the most interesting one they have earned least often.
+    local cascadeEdges = {}
+    for priorityIdx, candidate in ipairs(interestingCandidates) do
+        local entry = candidate.entries[2]
+        if entry ~= nil and not awardedRoleNames[candidate.role] then
+            local charid = entry.d.token.charid
+            if roles[charid] == nil then
+                cascadeEdges[#cascadeEdges+1] = {
+                    candidate = candidate,
+                    entry = entry,
+                    charid = charid,
+                    priorityIdx = priorityIdx,
+                    score = -(priorityIdx - 1) * INTEREST_WEIGHT
+                            - RoleCount(entry.d, candidate.role) * FATIGUE_WEIGHT,
+                }
+            end
+        end
+    end
+
+    table.sort(cascadeEdges, CompareEdges)
+
+    --Again one edge per role, so the roleless check is the only guard needed:
+    --the first cascade a hero is offered is the best one available to them.
+    for _, edge in ipairs(cascadeEdges) do
+        local charid = edge.charid
+        if roles[charid] == nil then
+            roles[charid] = {
+                role = edge.candidate.role,
+                text = edge.entry.text,
+                tooltip = edge.entry.tooltip,
+                fallback = "cascade",
+            }
+            awardedRoleNames[edge.candidate.role] = true
+        end
+    end
+
+    --PASS 3 -- floor roles, in priority order, landing on every still-roleless
+    --qualifying hero (they allow duplicates and are never biased). Pacifist,
+    --Tourist and Backbone are disjoint and cover every hero, so this pass always
+    --empties the blank cards: after it, roles[charid] is non-nil for everyone.
     for _, candidate in ipairs(floorCandidates) do
         for _, entry in ipairs(candidate.entries) do
             local charid = entry.d.token.charid
@@ -949,6 +1077,7 @@ local function ComputeHeroRolesInternal(live)
                     role = candidate.role,
                     text = entry.text,
                     tooltip = entry.tooltip,
+                    fallback = "floor",
                 }
             end
         end
@@ -962,9 +1091,13 @@ end
 
 --Compute the fun role each party member played this encounter.
 --Returns { [charid] = { role = "Damage Dealer", text = "Dealt 47 damage",
---tooltip = "Mirala dealt 31 damage" } }; heroes who earned no role are simply
---absent. Never throws -- any failure (stats missing, old encounter data)
---returns an empty table so the victory screen renders without roles.
+--tooltip = "Mirala dealt 31 damage", fallback = nil | "cascade" | "floor" } }.
+--Every hero in the fight gets an entry -- the three assignment passes above end
+--in floor roles that cover everyone -- so a missing charid means the hero was
+--not in the fight, not that they earned nothing. `fallback` says how hard the
+--awarder had to work: nil is a role they won outright. Never throws -- any
+--failure (stats missing, old encounter data) returns an empty table so the
+--victory screen renders without roles.
 function DSVictoryScreen.ComputeHeroRoles(live)
     if live == nil then
         return {}
@@ -1012,8 +1145,10 @@ function DSVictoryScreen.ComputeHeroRoleDebugInfo(live)
         --Candidates are already in priority order (most interesting first, floor
         --roles last), so collecting the entries this hero appears in preserves
         --that order; rank is the hero's standing among that role's qualifiers.
-        --Only rank 1 can ever be awarded a (non-floor) role, so a rank above 1
-        --here means "qualified, but someone else won it".
+        --Rank 1 is a role they can win outright; rank 2 is one they can only be
+        --given if its winner takes something else AND they win nothing at all
+        --themselves (the cascade pass); rank 3 and below is never awardable and
+        --reads purely as "you qualified, here is where you placed".
         local eligible = {}
         for _, candidate in ipairs(candidates) do
             for rank, entry in ipairs(candidate.entries) do
@@ -1619,8 +1754,15 @@ end
 -- the role assignment is deterministic, so recomputing it here yields the same
 -- roles every client saw on the victory screen. Floor roles (Tourist/Pacifist)
 -- are recorded too but never bias selection, so counting them is harmless.
-local function RecordHeroRoles(live)
-    if type(live) ~= "table" or not dmhub.isDM then
+--
+-- roles is the already-computed role map. It MUST be passed in rather than
+-- recomputed here: this function bumps the history that biases role selection, so
+-- anything that computes roles after it runs can get a different answer than the
+-- screen displayed.
+local function RecordHeroRoles(live, roles)
+    --real hosting check: the EotW player host runs the teardown and must
+    --still record the role history.
+    if type(live) ~= "table" or not IsDMOrPlayerHost() then
         return
     end
     -- Guard against a double-proceed re-recording the same encounter (transient:
@@ -1631,7 +1773,9 @@ local function RecordHeroRoles(live)
     end
     live._tmp_dsRolesRecorded = true
 
-    local roles = DSVictoryScreen.ComputeHeroRoles(live)
+    if type(roles) ~= "table" then
+        roles = DSVictoryScreen.ComputeHeroRoles(live)
+    end
     for _, token in ipairs(live:GetBattleHeroTokens()) do
         local info = token ~= nil and roles[token.charid] or nil
         if info ~= nil and token.properties ~= nil then
@@ -1667,9 +1811,22 @@ local function ProceedEndCombat()
 
     local live = q:try_get("liveEncounter")
     if type(live) == "table" then
-        -- Record awarded roles while the queue is still live (GetBattleHeroTokens
-        -- reads it) and before the outcome flags are cleared.
-        RecordHeroRoles(live)
+        -- Everything below runs while the queue is still live (GetBattleHeroTokens
+        -- and the stat readers need it) and before the outcome flags are cleared.
+        --
+        -- Roles are computed ONCE here and shared: RecordHeroRoles bumps the
+        -- per-hero role history that biases role selection, so the battle record
+        -- has to be built from the same table, or it could name different roles
+        -- than the screen just showed.
+        local outcome = live:GetAwardedOutcome() or "ended"
+        local roles = DSVictoryScreen.ComputeHeroRoles(live)
+
+        -- Permanent battle log entry + the encounter_complete analytics event.
+        -- Director-only and single-fire; no-ops safely for anything that was not
+        -- really a fight. See the battle log section of MCDMEncounter.lua.
+        LiveEncounter.CompleteEncounter(outcome, roles)
+
+        RecordHeroRoles(live, roles)
         live.victoryAwarded = false
         live.defeatAwarded = false
     end
@@ -1679,6 +1836,11 @@ local function ProceedEndCombat()
     dmhub:UploadInitiativeQueue()
 
     CharacterResource.SetMalice(0, "End of Combat")
+
+    --summons don't outlive the encounter.
+    ActivatedAbilitySummonBehavior.RemoveSummonsAtEndOfCombat()
+
+    Aura.RemoveExpiredMapAnchoredAurasAtEndOfCombat()
 
     local hud = GameHud.instance
     if hud ~= nil then
@@ -1693,6 +1855,11 @@ local function ProceedEndCombat()
         end
     end
 end
+
+-- Exported for automation (e.g. Encounter of the Week's host runs the teardown
+-- on behalf of a player who pressed Proceed). Full-permission teardown: run it
+-- on a Director client.
+DSVictoryScreen.ProceedEndCombat = ProceedEndCombat
 
 -- Build a single hero's card: portrait, name, Stamina bar, Recoveries change, the fun
 -- role they earned (if any -- see ComputeHeroRoles; roleInfo may be nil and the role
@@ -2110,10 +2277,43 @@ local function BuildMonsterCard(live, group, roleInfo)
         else
             portraitPanel.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight * 0.01, portrait)
         end
+    elseif group.fallbackInfo ~= nil and group.fallbackInfo.portrait ~= nil then
+        --every member token was deleted outright; draw the portrait snapshotted
+        --into the live encounter at combat onset (no crop rect is available).
+        portraitPanel.bgimage = group.fallbackInfo.portrait
     end
 
+    -- Name line(s). A squad reads as its captain(s) on the main line with the
+    -- minions on a second, smaller line ("Dwarf Driver x1" / "Dwarf Axethrower
+    -- x4") instead of a single "Dwarf Driver x5". Counts are shown on every
+    -- line when the group has minions so the two lines add up; a plain group
+    -- with no minions keeps the old "Name xN" (count only when more than one).
     local nameText = name
-    if group.memberCount > 1 then
+    local minionText = nil
+    local composition = group.composition
+    if composition ~= nil and (#composition.captains > 0 or #composition.minions > 0) then
+        local function FormatLines(entries, alwaysCount)
+            local lines = {}
+            for _, e in ipairs(entries) do
+                if alwaysCount or e.count > 1 then
+                    lines[#lines+1] = string.format("%s x%d", e.name, e.count)
+                else
+                    lines[#lines+1] = e.name
+                end
+            end
+            return table.concat(lines, "\n")
+        end
+        local hasMinions = #composition.minions > 0
+        if #composition.captains > 0 then
+            nameText = FormatLines(composition.captains, hasMinions)
+            if hasMinions then
+                minionText = FormatLines(composition.minions, true)
+            end
+        else
+            --minion-only group: the minions are the headline.
+            nameText = FormatLines(composition.minions, false)
+        end
+    elseif group.memberCount > 1 then
         nameText = string.format("%s x%d", name, group.memberCount)
     end
 
@@ -2131,6 +2331,24 @@ local function BuildMonsterCard(live, group, roleInfo)
         fontSize = 20,
         fontWeight = "bold",
     }
+
+    local minionLabel = nil
+    if minionText ~= nil then
+        minionLabel = gui.Label{
+            classes = {"victoryFade", "fg"},
+            interactable = false,
+            text = minionText,
+            width = "100%",
+            height = "auto",
+            halign = "center",
+            tmargin = 2,
+            textAlignment = "center",
+            textWrap = true,
+            fontFace = "Book",
+            fontSize = 14,
+            fontWeight = "bold",
+        }
+    end
 
     -- Survivors bar: same chrome as the hero Stamina bar, filled by the fraction
     -- of the group still standing.
@@ -2244,7 +2462,7 @@ local function BuildMonsterCard(live, group, roleInfo)
             { selectors = {"scalein", "~shown"}, transitionTime = 0.6, scale = 1.3,},
         },
 
-        children = { portraitPanel, nameLabel, survivorsBar, roleTitleLabel, roleTextLabel },
+        children = { portraitPanel, nameLabel, minionLabel, survivorsBar, roleTitleLabel, roleTextLabel },
 
         fadeOut = function(card)
             card:SetClassTree("shown", false)
@@ -2307,9 +2525,10 @@ function DSVictoryScreen.Create()
         height = string.format("%f%% width", DEFEAT_BACKGROUND_HEIGHT_PERCENT),
         halign = "center",
         valign = "center",
+        blurBackground = true,
         styles = {
             { selectors = {"defeatBackdrop"}, opacity = 0, transitionTime = 1.4 },
-            { selectors = {"defeatBackdrop", "shown"}, opacity = 0.5, transitionTime = 1.4 },
+            { selectors = {"defeatBackdrop", "shown"}, opacity = 0.9, transitionTime = 1.4 },
         },
         imageLoaded = function(element)
             --first download (or cache hit) completed; fade in if a defeat
@@ -2551,6 +2770,15 @@ function DSVictoryScreen.Create()
         end,
 
         click = function(element)
+            --a registered override (see RegisterProceedOverride) gets first
+            --crack at the click; it returns true to swallow it (e.g. a player
+            --relaying the proceed to the Director's client).
+            if g_proceedOverride ~= nil and g_proceedOverride.proceed ~= nil then
+                local ok, handled = pcall(g_proceedOverride.proceed, ProceedEndCombat)
+                if ok and handled == true then
+                    return
+                end
+            end
             ProceedEndCombat()
         end,
     }
@@ -2722,7 +2950,7 @@ function DSVictoryScreen.Create()
             rightSword:SetClass("rsw-open", false)
             rightSword:SetClass("rsw-closed", true)
             proceedButton:SetClass("shown", false)
-            proceedButton:SetClass("collapsed", not dmhub.isDM)
+            proceedButton:SetClass("collapsed", not CanLocalUserProceed())
 
             --reset the Director victories controls for this showing.
             element.data.awardPlayed = false
@@ -2875,10 +3103,12 @@ function DSVictoryScreen.Create()
             proceedButton:SetClass("shown", true)
             --reveal the Director victories controls alongside Proceed (unless already
             --awarded, this is a player, or the outcome is a defeat -- no Victories
-            --are granted for losing).
+            --are granted for losing). DirectorUIVisible rather than raw isDM: in
+            --Director-less modes (Encounter of the Week) the host presents as a
+            --player and should not see the award controls either.
             local live, outcome = GetActiveOutcome()
             local awarded = live ~= nil and live:try_get("victoriesAwarded", false)
-            victoriesSection:SetClass("collapsed", (not dmhub.isDM) or awarded or outcome ~= "victory")
+            victoriesSection:SetClass("collapsed", (not GameHud.DirectorUIVisible()) or awarded or outcome ~= "victory")
         end,
 
         hideVictory = function(element)

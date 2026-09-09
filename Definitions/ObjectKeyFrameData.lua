@@ -1,26 +1,25 @@
---- @class ObjectKeyFrameData 
+---@meta
+
+--- @class ObjectKeyFrameData
+--- @field guid string
+--- @field name string
+--- @field animDuration number
+--- @field objectInactive boolean
+--- @field components table<string, any>
 ObjectKeyFrameData = {}
 
 --- ApproximateEqual
---- @param a any
---- @param b any
+--- @param a? any
+--- @param b? any
 --- @return boolean
-function ObjectKeyFrameData.ApproximateEqual(a, b)
-	-- dummy implementation for documentation purposes only
-end
+function ObjectKeyFrameData.ApproximateEqual(a, b) end
 
 --- InitFromObject
---- @param obj any
---- @return nil
-function ObjectKeyFrameData:InitFromObject(obj)
-	-- dummy implementation for documentation purposes only
-end
+--- @param obj? any
+function ObjectKeyFrameData:InitFromObject(obj) end
 
 --- Restore
---- @param obj any
---- @param patch any
---- @param unpatch any
---- @return nil
-function ObjectKeyFrameData:Restore(obj, patch, unpatch)
-	-- dummy implementation for documentation purposes only
-end
+--- @param obj? any
+--- @param patch? table<string, any>
+--- @param unpatch? table<string, any>
+function ObjectKeyFrameData:Restore(obj, patch, unpatch) end

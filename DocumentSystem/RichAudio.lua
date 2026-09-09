@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
----@class RichAudio
+---@class RichAudio: RichTag
 RichAudio = RegisterGameType("RichAudio", "RichTag")
 RichAudio.tag = "sound"
 RichAudio.sound = false

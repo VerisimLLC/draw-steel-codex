@@ -1,2 +1,4 @@
---- @class LuaMarkdownStyle 
+---@meta
+
+--- @class LuaMarkdownStyle
 LuaMarkdownStyle = {}

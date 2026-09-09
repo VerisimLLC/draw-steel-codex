@@ -159,17 +159,23 @@ CreateDicePanel = function()
 			-- (gui is engine userdata, so index via pcall rather than rawget.)
 			local diceCageCtor = gui.Panel
 			pcall(function() diceCageCtor = gui.DicePreview or gui.Panel end)
+			-- The cage stays FULL-TILE but is inert to the mouse: its rect is the
+			-- resting-dice image area (DiceEmbeddedImage shows the cage's screen
+			-- region of the dice RT, so shrinking it would clip the resting dice)
+			-- and the dice anchor. The HIT box is the separate hitPanel sibling
+			-- below -- the Power Roll tile's 2.65x-scaled full-tile rect reached
+			-- over the titlebar of the panel window hosting this content and
+			-- stole its clicks.
 			local cage = diceCageCtor{
 				width = "100%",
 				height = "100%",
 				halign = "center",
 				valign = "center",
 				floating = true,
+				interactable = false,
 				bgimage = true,
 				bgcolor = "white",
 				styles = { gui.Style{ opacity = 0 } },
-				draggable = true,
-				dragMove = false,
 				-- rolling: true from the moment a click/drag launches a roll until the next
 				-- seedDie, so the dehover handler knows not to restore the labels mid-roll.
 				data = { reseedPending = false, rolling = false },
@@ -255,34 +261,62 @@ CreateDicePanel = function()
 					element.data.reseedPending = true
 					element:ScheduleEvent("seedDie", 0.6)
 				end,
+			}
 
-				-- Hover wobble + click/drag-to-roll, scoped to THIS cage's dice. Hovering
-				-- fades the die's real numbers in (engine-side, keyed off the same
-				-- mouseover state), so the text label hides while the mouse is on the
-				-- tile and returns on dehover -- unless a roll is in flight, in which
-				-- case the label stays hidden until the reseed shows it again.
+			-- The mouse-facing side of the cage: hover wobble + click/drag-to-roll,
+			-- scoped to the cage's dice. The engine preview calls are made ON the
+			-- cage (they are mouse/scope-based, so which panel received the input
+			-- does not matter). Hovering fades the die's real numbers in
+			-- (engine-side, keyed off the same mouseover state), so the text label
+			-- hides while the mouse is on the tile and returns on dehover --
+			-- unless a roll is in flight, in which case the label stays hidden
+			-- until the reseed shows it again.
+			--
+			-- The Power Roll tile's hit box is bottom-anchored with the top pulled
+			-- in: at uiscale 2.65 (x1.2 more on hover) a full-tile hit box reaches
+			-- past the top of the dice row, over the hosting window's titlebar.
+			-- The DICE may visually overhang the titlebar (hover growth); the hit
+			-- box must not. 75% keeps the hovered rect below the titlebar while
+			-- leaving the bottom edge of the old hit area unchanged.
+			local hitHeight = "100%"
+			local hitValign = "center"
+			if selectedGeo == "power" then
+				hitHeight = "75%"
+				hitValign = "bottom"
+			end
+			local hitPanel = gui.Panel{
+				width = "100%",
+				height = hitHeight,
+				halign = "center",
+				valign = hitValign,
+				floating = true,
+				bgimage = true,
+				bgcolor = "clear",
+				draggable = true,
+				dragMove = false,
+
 				hover = function(element)
 					setLabelsHidden(true)
-					pcall(function() element:DicePreviewMouseEnter() end)
+					pcall(function() cage:DicePreviewMouseEnter() end)
 				end,
 				dehover = function(element)
-					if not element.data.rolling then
+					if not cage.data.rolling then
 						setLabelsHidden(false)
 					end
-					pcall(function() element:DicePreviewMouseLeave() end)
+					pcall(function() cage:DicePreviewMouseLeave() end)
 				end,
 				dragging = function(element)
-					pcall(function() element:DicePreviewDragThink() end)
+					pcall(function() cage:DicePreviewDragThink() end)
 				end,
 				drag = function(element)
-					element.data.rolling = true
+					cage.data.rolling = true
 					setLabelsHidden(true)
-					pcall(function() element:DicePreviewDragEnd() end)
+					pcall(function() cage:DicePreviewDragEnd() end)
 				end,
 				click = function(element)
-					element.data.rolling = true
+					cage.data.rolling = true
 					setLabelsHidden(true)
-					pcall(function() element:DicePreviewClick() end)
+					pcall(function() cage:DicePreviewClick() end)
 				end,
 			}
 
@@ -328,6 +362,7 @@ CreateDicePanel = function()
 				saturation = 1,
 				brightness = 1,
 				cage,
+				hitPanel,
 				shadowLabel,
 				faceLabel,
 			}

@@ -1,37 +1,29 @@
---- @class LuaUnicodeString 
---- @field Length number 
+---@meta
+
+--- @class LuaUnicodeString
+--- @field Length number
+--- @field str string
 LuaUnicodeString = {}
 
 --- Substring
---- @param beginIndex number
---- @param endIndex number
+--- @param beginIndex? number
+--- @param endIndex? number
 --- @return any
-function LuaUnicodeString:Substring(beginIndex, endIndex)
-	-- dummy implementation for documentation purposes only
-end
+function LuaUnicodeString:Substring(beginIndex, endIndex) end
 
 --- DeepCopy
 --- @return any
-function LuaUnicodeString:DeepCopy()
-	-- dummy implementation for documentation purposes only
-end
+function LuaUnicodeString:DeepCopy() end
 
 --- Serialize
 --- @return any
-function LuaUnicodeString:Serialize()
-	-- dummy implementation for documentation purposes only
-end
+function LuaUnicodeString:Serialize() end
 
 --- Deserialize
---- @param dict any
---- @return nil
-function LuaUnicodeString:Deserialize(dict)
-	-- dummy implementation for documentation purposes only
-end
+--- @param dict? any
+function LuaUnicodeString:Deserialize(dict) end
 
 --- Equals
---- @param other any
+--- @param other? any
 --- @return boolean
-function LuaUnicodeString:Equals(other)
-	-- dummy implementation for documentation purposes only
-end
+function LuaUnicodeString:Equals(other) end

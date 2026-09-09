@@ -378,7 +378,12 @@ function GameHud:RequireRollListenerPanel()
 						if info.status == nil then
 							local tok = dmhub.GetTokenById(tokid)
 							local rollid = k .. tokid
-							if tok ~= nil and tok.properties and ((info.forceuserid == nil and tok.canControl and (dmhub.isDM == false or tok.playerControlled == false or not havePlayersOnline)) or info.forceuserid == dmhub.loginUserid) and not currentRolls[rollid] then
+							--who does this client prompt for: a plain player, anything they control;
+							--a DM/host, non-player tokens (or anything with no players online); a
+							--player host additionally their OWN tokens -- canControl is host-wide
+							--for them, so ownership is the discriminator. (playerHostMode reads
+							--nil on engine builds without it, keeping the old behavior exactly.)
+							if tok ~= nil and tok.properties and ((info.forceuserid == nil and tok.canControl and (IsDMOrPlayerHost() == false or tok.playerControlled == false or not havePlayersOnline or (dmhub.playerHostMode == true and tok.ownerId == dmhub.loginUserid))) or info.forceuserid == dmhub.loginUserid) and not currentRolls[rollid] then
 								numPrompts = numPrompts+1
 							end
 						end
@@ -391,7 +396,12 @@ function GameHud:RequireRollListenerPanel()
 						if info.status == nil then
 							local tok = dmhub.GetTokenById(tokid)
 							local rollid = k .. tokid
-							if tok ~= nil and tok.properties and ((info.forceuserid == nil and tok.canControl and (dmhub.isDM == false or tok.playerControlled == false or not havePlayersOnline)) or info.forceuserid == dmhub.loginUserid) and not currentRolls[rollid] then
+							--who does this client prompt for: a plain player, anything they control;
+							--a DM/host, non-player tokens (or anything with no players online); a
+							--player host additionally their OWN tokens -- canControl is host-wide
+							--for them, so ownership is the discriminator. (playerHostMode reads
+							--nil on engine builds without it, keeping the old behavior exactly.)
+							if tok ~= nil and tok.properties and ((info.forceuserid == nil and tok.canControl and (IsDMOrPlayerHost() == false or tok.playerControlled == false or not havePlayersOnline or (dmhub.playerHostMode == true and tok.ownerId == dmhub.loginUserid))) or info.forceuserid == dmhub.loginUserid) and not currentRolls[rollid] then
 
 								local checks = {}
 
@@ -445,7 +455,9 @@ function GameHud:RequireRollListenerPanel()
 										if autoCancelId == k then
 											autoroll = "cancel"
 										end
-									elseif dmhub.isDM and tok.playerControlled == false then
+									--real hosting check: monster saves must keep auto-resolving on a
+									--player host or the Monster AI stalls on a prompt mid-cast.
+									elseif IsDMOrPlayerHost() and tok.playerControlled == false then
 										if check.type == "save" then
 											autoroll = {
 												id = "monsterSaves",
@@ -481,6 +493,11 @@ function GameHud:RequireRollListenerPanel()
 										subtype = check.type,
 										nofadein = nofadein,
 
+										--Optional, and off unless the caller asks: the dialog
+										--is see-through by default, which is unreadable over a
+										--busy map. Absent means exactly what it meant before.
+										solidDialog = request.info:try_get("solidDialog", false),
+
 										alternateOptions = alternateOptions,
 										alternateChosen = checkIndex,
 										chooseAlternate = function(alternateIndex)
@@ -508,8 +525,13 @@ function GameHud:RequireRollListenerPanel()
 												req:BeginChanges()
 												req.info.tokens[tokid].status = 'complete'
 												req.info.tokens[tokid].result = rollInfo.total
+												req.info.tokens[tokid].naturalRoll = rollInfo.naturalRoll
 												req.info.tokens[tokid].boons = rollInfo.boons
 												req.info.tokens[tokid].banes = rollInfo.banes
+												req.info.tokens[tokid].dice = RollUtils.SortedDice(rollInfo)
+												req.info.tokens[tokid].isCrit = RollUtils.IsCrit(rollInfo)
+												req.info.tokens[tokid].rollid = rollInfo.key
+												req.info.tokens[tokid].modifiersUsed = rollInfo.properties ~= nil and rollInfo.properties:try_get("modifiersUsed", {}) or {}
 
 												if rollInfo.forcedResult then
 													req.info.tokens[tokid].forcedResult = rollInfo.autosuccess

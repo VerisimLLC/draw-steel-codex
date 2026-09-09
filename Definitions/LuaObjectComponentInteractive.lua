@@ -1,2 +1,4 @@
---- @class LuaObjectComponentInteractive:LuaObjectComponent 
+---@meta
+
+--- @class LuaObjectComponentInteractive:LuaObjectComponent
 LuaObjectComponentInteractive = {}

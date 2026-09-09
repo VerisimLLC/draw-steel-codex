@@ -1,13 +1,17 @@
---- @class LuaCharacterAppearance 
---- @field portraitId string 
---- @field portraitFrameId string 
---- @field portraitRibbon string 
---- @field anthem string 
---- @field portraitRect any 
---- @field tokenZoom number 
---- @field tokenOffset any 
---- @field frameHueShift number 
---- @field frameSaturation number 
---- @field frameBrightness number 
---- @field characterName any 
+---@meta
+
+--- @class LuaCharacterAppearance
+--- @field portraitId string
+--- @field portraitFrameId string
+--- @field portraitRibbon string
+--- @field anthem string
+--- @field portraitRect any
+--- @field tokenZoom number
+--- @field tokenOffset any
+--- @field frameHueShift number
+--- @field frameSaturation number
+--- @field frameBrightness number
+--- @field characterName any
+--- @field appearance CharacterAppearance
+--- @field imageAssets table<string, GenericImageAsset>
 LuaCharacterAppearance = {}

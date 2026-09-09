@@ -1,8 +1,8 @@
---- @class LuaMultiObjectReference 
+---@meta
+
+--- @class LuaMultiObjectReference
+--- @field destroyEvent any
 LuaMultiObjectReference = {}
 
 --- Destroy
---- @return nil
-function LuaMultiObjectReference:Destroy()
-	-- dummy implementation for documentation purposes only
-end
+function LuaMultiObjectReference:Destroy() end

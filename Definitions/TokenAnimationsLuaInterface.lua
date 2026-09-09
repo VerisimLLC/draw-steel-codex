@@ -1,27 +1,25 @@
---- @class TokenAnimationsLuaInterface Registry of token animations. Mods register category-specific entries via RegisterTeleport / RegisterDeath / RegisterTransformation. Each category has an `xxxAnimations` table iterable from Lua (`for id, entry in pairs(dmhub.tokenAnimations.teleportAnimations) do ... end`).
+---@meta
+
+--- Registry of token animations. Mods register category-specific entries via RegisterTeleport / RegisterDeath / RegisterTransformation. Each category has an `xxxAnimations` table iterable from Lua (`for id, entry in pairs(dmhub.tokenAnimations.teleportAnimations) do ... end`).
+--- @class TokenAnimationsLuaInterface
+--- @field teleportAnimations any Map of registered teleport-animation id -> entry table. Iterable from Lua.
+--- @field deathAnimations any Map of registered death-animation id -> entry table. Iterable from Lua. (Not yet consumed by the engine -- placeholder for future use.)
+--- @field transformationAnimations any Map of registered transformation-animation id -> entry table. Iterable from Lua. (Not yet consumed by the engine -- placeholder for future use.)
 TokenAnimationsLuaInterface = {}
 
---- RegisterTeleport: Register a teleport animation. The `animation` function is called locally on each client when a token with appearance.teleportAnimation == this id teleports, or when whatever moved the token named this id as the style for that teleport (e.g. a teleporter object). Signature: function(token: CharacterToken, targetLoc: Loc, opts: table). The opts table has fields crossMap (boolean), fromLoc (Loc), fromMap (string). Set `hidden = true` on the entry to keep it out of the character sheet's per-token Teleportation picker -- for styles imposed by something other than the token itself.
+--- Register a teleport animation. The `animation` function is called locally on each client when a token with appearance.teleportAnimation == this id teleports, or when whatever moved the token named this id as the style for that teleport (e.g. a teleporter object). Signature: function(token: CharacterToken, targetLoc: Loc, opts: table). The opts table has fields crossMap (boolean), fromLoc (Loc), fromMap (string). Set `hidden = true` on the entry to keep it out of the character sheet's per-token Teleportation picker -- for styles imposed by something other than the token itself.
 --- @param entry table { id: string, name: string|nil, hidden: boolean|nil, animation: fun(token, targetLoc, opts) }
-function TokenAnimationsLuaInterface:RegisterTeleport(entry)
-	-- dummy implementation for documentation purposes only
-end
+function TokenAnimationsLuaInterface:RegisterTeleport(entry) end
 
---- RegisterDeath: Register a death animation. Reserved for future use.
+--- Register a death animation. Reserved for future use.
 --- @param entry table { id: string, name: string|nil, animation: fun(token, opts) }
-function TokenAnimationsLuaInterface:RegisterDeath(entry)
-	-- dummy implementation for documentation purposes only
-end
+function TokenAnimationsLuaInterface:RegisterDeath(entry) end
 
---- RegisterTransformation: Register a transformation (shape-change) animation. Reserved for future use.
+--- Register a transformation (shape-change) animation. Reserved for future use.
 --- @param entry table { id: string, name: string|nil, animation: fun(token, opts) }
-function TokenAnimationsLuaInterface:RegisterTransformation(entry)
-	-- dummy implementation for documentation purposes only
-end
+function TokenAnimationsLuaInterface:RegisterTransformation(entry) end
 
 --- GetTeleportAnimationFn
---- @param id string
+--- @param id? string
 --- @return any
-function TokenAnimationsLuaInterface:GetTeleportAnimationFn(id)
-	-- dummy implementation for documentation purposes only
-end
+function TokenAnimationsLuaInterface:GetTeleportAnimationFn(id) end

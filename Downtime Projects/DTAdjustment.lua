@@ -1,6 +1,6 @@
 --- Progress adjustment record for tracking manual adjustments to downtime project progress
 --- Records manual progress changes made by directors or players with reasoning
---- @class DTAdjustment
+--- @class DTAdjustment: DTProgressItem
 --- @field reason string Required. The reason for the adjustment
 DTAdjustment = RegisterGameType("DTAdjustment", "DTProgressItem")
 DTAdjustment.reason = ""

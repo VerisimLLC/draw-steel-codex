@@ -1,4 +1,6 @@
---- @class LuaSheetIcon:Panel 
---- @field editable any 
---- @field iconid any 
+---@meta
+
+--- @class LuaSheetIcon:Panel
+--- @field editable any
+--- @field iconid any
 LuaSheetIcon = {}

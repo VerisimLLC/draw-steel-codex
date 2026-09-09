@@ -233,6 +233,7 @@ Priority-sorted for display. These are the most-used triggers per the design doc
 - **Engine description:** Fires when the subject moves through another creature's square.
 - **Template:** `when {subject} move{s} through another creature`
 - **Example (subject=self):** *"When you move through another creature."*
+- **Example (subject=self, cond=`First`):** *"When you move through another creature, if it is the first creature moved through this move."*
 - **Status:** `OK`
 
 ### `pressureplate` ("Stepped on a Pressure Plate")

@@ -7,8 +7,8 @@ local mod = dmhub.GetModLoading()
 --GetTargetingTierRadii and DrawSteelActionBar). Once a tile is chosen this
 --behavior computes the tier actually needed to get there -- distance AND
 --height, since a tall height-limited wall inside baseline distance still
---forces a test ("longer or higher"). If tier 1 suffices the jump executes
---immediately with no roll; otherwise a test power roll dialog is shown and
+--requires a higher tier ("longer or higher"). If the required tier is guaranteed,
+--the jump executes with no roll; otherwise a test power roll dialog is shown and
 --the rolled tier decides where the jump really lands: on the chosen tile, or
 --short along the straight line (possibly falling, e.g. into a chasm the
 --player needed tier 3 to clear).
@@ -26,6 +26,7 @@ local mod = dmhub.GetModLoading()
 --modifier gated on the jump skill, e.g. the Fury's Mighty Leaps) previews
 --only two rings, with the tier 2 ring shown as the guaranteed one.
 
+--- @class ActivatedAbilityJumpBehavior: ActivatedAbilityBehavior
 ActivatedAbilityJumpBehavior = RegisterGameType("ActivatedAbilityJumpBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilityJumpBehavior.summary = 'Jump (Roll to Target)'
@@ -82,7 +83,7 @@ end
 --clamped to the caster's remaining movement this turn (rules: you can't jump
 --farther than the movement allowance of the effect that lets you move).
 --Clamp semantics match the "jump N" rule command in MCDMAbilityBehavior.
-function ActivatedAbilityJumpBehavior:GetTierDistances(ability, casterToken)
+function ActivatedAbilityJumpBehavior:GetTierDistances(ability, casterToken, movementAllowance)
     local creature = casterToken.properties
     local lookup = creature:LookupSymbol()
 
@@ -91,7 +92,10 @@ function ActivatedAbilityJumpBehavior:GetTierDistances(ability, casterToken)
         movedThisTurn = creature:DistanceMovedThisTurn()
     end
 
-    local movementAllowed = math.max(0, creature:CurrentMovementSpeed() - movedThisTurn)
+    local movementAllowed = movementAllowance
+    if movementAllowed == nil then
+        movementAllowed = math.max(0, creature:CurrentMovementSpeed() - movedThisTurn)
+    end
 
     local result = {}
     for i = 1, 3 do
@@ -128,6 +132,60 @@ function ActivatedAbilityJumpBehavior:RollCannotBeTierOne(ability, casterToken)
     return false
 end
 
+--Use the same guaranteed tier for targeting labels and skipping unnecessary rolls.
+function ActivatedAbilityJumpBehavior:GetGuaranteedTier(ability, casterToken)
+    if self:RollCannotBeTierOne(ability, casterToken) then
+        return 2
+    end
+    return 1
+end
+
+--Use the creature's actual Jump action so skill and attribute modifiers match
+--ordinary jumps. Charge grants its own movement even after the move action.
+function ActivatedAbility:GetChargeJumpOptions(casterToken, symbols, abilities)
+    if self.name ~= "Charge"
+        or casterToken.properties:CalculateNamedCustomAttribute("Charge Allows Jump") <= 0
+        or casterToken.properties:CalculateNamedCustomAttribute("Charge Uses Jump") > 0 then
+        return nil
+    end
+
+    local hasPlanner, planner = pcall(function() return casterToken.PlanCharge end)
+    if not hasPlanner or planner == nil then
+        return nil
+    end
+
+    local distance = self:GetRange(casterToken.properties, symbols) / dmhub.unitsPerSquare
+    local result = {chargeDistance = distance, chargeJumpDistance = 0, chargeJumpHeight = 0}
+    if casterToken.properties:try_get("_tmp_prone", false) then
+        return result
+    end
+    for _, jumpAbility in ipairs(abilities or casterToken.properties:GetActivatedAbilities()) do
+        if jumpAbility.name == "Jump" then
+            for _, behavior in ipairs(jumpAbility.behaviors) do
+                if behavior.typeName == "ActivatedAbilityJumpBehavior" then
+                    local tier = behavior:GetGuaranteedTier(jumpAbility, casterToken)
+                    local distances = behavior:GetTierDistances(jumpAbility, casterToken, distance)
+                    local heights = behavior:GetTierHeights(jumpAbility, casterToken)
+                    result.chargeJumpDistance = distances[tier]
+                    result.chargeJumpHeight = heights[tier]
+                    --Older engines retain guaranteed-only charging until their
+                    --fixed-takeoff outcome planner is available.
+                    local hasOutcomes, outcomePlanner = pcall(function() return casterToken.PlanChargeJumpOutcome end)
+                    if hasOutcomes and outcomePlanner ~= nil then
+                        result.chargeJumpTierDistances = distances
+                        result.chargeJumpTierHeights = heights
+                        result.chargeJumpGuaranteedTier = tier
+                        result.jumpAbility = jumpAbility
+                        result.jumpBehavior = behavior
+                    end
+                    return result
+                end
+            end
+        end
+    end
+    return result
+end
+
 --Consulted by the action bar (via ActivatedAbility:GetTargetingTierRadii) to
 --draw one ring per tier during targeting.
 --
@@ -149,14 +207,11 @@ function ActivatedAbilityJumpBehavior:GetTargetingTierRadii(ability, casterToken
 
     local heights = self:GetTierHeights(ability, casterToken)
 
-    --A caster who cannot roll below tier 2 (e.g. the Fury's Mighty Leaps) is
-    --guaranteed the tier 2 jump, so only two rings are DRAWN, restyled so the
-    --tier 2 ring reads as the safe one. The tier 1 ring stays in the list
-    --marked invisible: the action bar still needs it to tell the baseline
-    --auto-jump zone (no roll at all) apart from the guaranteed tier 2 zone
-    --(a roll happens, success assured), but it draws no outline and produces
-    --no shortfall marker (a tier 1 landing cannot be rolled).
-    local hideTierOne = self:RollCannotBeTierOne(ability, casterToken)
+    --Keep the baseline ring for selecting the lowest sufficient jump height.
+    --When tier 2 is guaranteed, hide tier 1's outline and shortfall marker:
+    --both tiers execute without rolling, and a rolled jump cannot land at tier 1.
+    local guaranteedTier = self:GetGuaranteedTier(ability, casterToken)
+    local hideTierOne = guaranteedTier > 1
 
     local result = {}
     for i = 1, 3 do
@@ -167,6 +222,7 @@ function ActivatedAbilityJumpBehavior:GetTargetingTierRadii(ability, casterToken
             end
             local ring = {
                 tier = i,
+                guaranteed = i <= guaranteedTier,
                 tiles = dists[i],
                 height = heights[i],
                 radius = dists[i] * dmhub.unitsPerSquare,
@@ -297,7 +353,7 @@ end
 --arrows automatically, so keeping the local arrow marked is all that is
 --needed. The arrow is cleared on cancel; on a completed roll it stays up
 --until ExecuteJump clears it as the jump begins.
-function ActivatedAbilityJumpBehavior:RollForTier(ability, casterToken, options, dists, heights, requiredTier, targetLoc)
+function ActivatedAbilityJumpBehavior:RollForTier(ability, casterToken, options, dists, heights, requiredTier, targetLoc, settings)
     local creature = casterToken.properties
 
     --The tier the preview arrow currently shows. Before any dice show faces,
@@ -307,6 +363,10 @@ function ActivatedAbilityJumpBehavior:RollForTier(ability, casterToken, options,
 
     local function MarkPreviewArrow()
         if targetLoc == nil or casterToken == nil or (not casterToken.valid) then
+            return
+        end
+        if settings ~= nil and settings.markPreview ~= nil then
+            settings.markPreview(m_previewTier)
             return
         end
         local landLoc = ActivatedAbilityJumpBehavior.ShortLandingLoc(casterToken.loc, targetLoc, dists[m_previewTier])
@@ -360,7 +420,7 @@ function ActivatedAbilityJumpBehavior:RollForTier(ability, casterToken, options,
     local m_result = nil
     local m_canceled = false
 
-    local dialog = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
+    local dialog, _, displayLockId = CharacterPanel.AcquireAbilityRollDialog(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true}, options)
     if dialog == nil or not dialog.valid then
         dialog = GameHud.instance.rollDialog
     end
@@ -416,6 +476,7 @@ function ActivatedAbilityJumpBehavior:RollForTier(ability, casterToken, options,
             end
             m_result = {
                 total = rollInfo.total,
+                naturalRoll = rollInfo.naturalRoll,
                 boons = rollInfo.boons,
                 banes = rollInfo.banes,
                 tiers = rollInfo.tiers,
@@ -449,7 +510,8 @@ function ActivatedAbilityJumpBehavior:RollForTier(ability, casterToken, options,
         coroutine.yield(0.02)
     end
 
-    CharacterPanel.UnlockDisplayAbility()
+    --Our own lock only: a no-op if a later cast has since taken the card.
+    CharacterPanel.UnlockDisplayAbility(displayLockId)
 
     if m_canceled then
         casterToken:ClearMovementArrow()
@@ -472,7 +534,10 @@ function ActivatedAbilityJumpBehavior:RollForTier(ability, casterToken, options,
         MarkPreviewArrow()
     end
 
-    ability:CommitToPaying(casterToken, options)
+    --An enclosing movement action can already have committed its own resource.
+    if settings == nil or settings.commitPayment ~= false then
+        ability:CommitToPaying(casterToken, options)
+    end
     return tier
 end
 
@@ -487,6 +552,9 @@ function ActivatedAbilityJumpBehavior:ExecuteJump(ability, casterToken, targetLo
 
     local landLoc = ActivatedAbilityJumpBehavior.ShortLandingLoc(casterToken.loc, targetLoc, dists[tier])
 
+    --Saved and restored rather than cleared outright so this never stomps a value an
+    --enclosing flow (e.g. a relocate cast) is relying on.
+    local previousFreeMovement = casterToken.properties:try_get("_tmp_freeMovement", false)
     casterToken.properties._tmp_freeMovement = true
 
     local path = casterToken:Move(landLoc, {
@@ -498,6 +566,8 @@ function ActivatedAbilityJumpBehavior:ExecuteJump(ability, casterToken, targetLo
         movementType = "jump",
         jumpHeight = heights[tier],
     })
+
+    casterToken.properties._tmp_freeMovement = previousFreeMovement
 
     if path ~= nil and path.numSteps ~= 0 then
         options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps
@@ -540,10 +610,10 @@ function ActivatedAbilityJumpBehavior:Cast(ability, casterToken, targets, option
     casterToken:ClearMovementArrow()
 
     local tier
-    if requiredTier == 1 then
-        --Baseline jump: automatic, no test (rules: a long jump up to your
-        --jump distance at baseline height is always successful).
-        tier = 1
+    if requiredTier ~= nil and requiredTier <= self:GetGuaranteedTier(ability, casterToken) then
+        --A roll cannot improve whether this target is reached, so use the
+        --lowest sufficient tier for its jump height and movement cost.
+        tier = requiredTier
         ability:CommitToPaying(casterToken, options)
     else
         tier = self:RollForTier(ability, casterToken, options, dists, heights, requiredTier, targetLoc)
@@ -560,5 +630,140 @@ function ActivatedAbilityJumpBehavior:EditorItems(parentPanel)
     local result = {}
     self:ApplyToEditor(parentPanel, result)
     self:FilterEditor(parentPanel, result)
+    return result
+end
+
+---------------------------------------------------------------------------
+-- Hop In Place
+--
+-- Plays the ogre-style jump without moving the creature: the token springs up
+-- the screen and drops back onto its own square, with an optional landing
+-- screen shake. Used by abilities like the Ogre malice feature Shockwave
+-- ("jumps and lands on their rear") where nothing relocates and the player
+-- should not be asked to pick a destination.
+--
+-- How it works: token.animation tweens only run inside the engine's scripted
+-- token-animation context, and the only Lua entry point into that context is a
+-- registered teleport style. So the behavior sets the token's teleport style to
+-- the hop, teleports the token to its own square (which the engine happily
+-- animates on every client), then restores the previous style. The shake runs
+-- inside the animation, so each client feels it locally without a broadcast.
+---------------------------------------------------------------------------
+
+local HOP_STYLE = "hopinplace"
+local HOP_STYLE_SHAKE = "hopinplaceshake"
+local HOP_HEIGHT_TILES = 2
+local HOP_UP_SECONDS = 0.35
+local HOP_DOWN_SECONDS = 0.25
+
+local function HopAnimation(shake)
+    return function(token, targetLoc, opts)
+        local anim = token.animation
+        anim:Tween{ translate = targetLoc:dir(0, HOP_HEIGHT_TILES), duration = HOP_UP_SECONDS, easing = "easeOut" }
+        sleep(HOP_UP_SECONDS)
+        anim:Tween{ translate = targetLoc, duration = HOP_DOWN_SECONDS, easing = "easeIn" }
+        sleep(HOP_DOWN_SECONDS)
+        if shake then
+            dmhub.ScreenShake(0.4, 0.5, 12, 90)
+        end
+        sleep(0.1)
+    end
+end
+
+dmhub.tokenAnimations:RegisterTeleport{
+    id = HOP_STYLE,
+    name = "Hop In Place",
+    hidden = true,
+    animation = HopAnimation(false),
+}
+
+dmhub.tokenAnimations:RegisterTeleport{
+    id = HOP_STYLE_SHAKE,
+    name = "Hop In Place (Shake)",
+    hidden = true,
+    animation = HopAnimation(true),
+}
+
+RegisterGameType("ActivatedAbilityHopBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbilityHopBehavior.summary = 'Hop In Place'
+ActivatedAbilityHopBehavior.shake = true
+
+ActivatedAbility.RegisterType
+{
+    id = 'hop_in_place',
+    text = 'Hop In Place',
+    createBehavior = function()
+        return ActivatedAbilityHopBehavior.new{
+            applyto = "caster",
+        }
+    end
+}
+
+--Run the hop on one token. The teleport style change is uploaded first so other
+--clients know which animation to play when the same-square teleport reaches them;
+--the previous style is put back once the hop has had time to finish everywhere.
+local function HopToken(tok, shake)
+    local style = HOP_STYLE
+    if shake then
+        style = HOP_STYLE_SHAKE
+    end
+
+    local previous = tok.teleportAnimation or ""
+    tok.teleportAnimation = style
+    tok:UploadAppearance()
+
+    --A same-square teleport must not read as a real teleport to the rules
+    --(it would end a Grabbed condition, for one).
+    tok.properties._tmp_suppressTeleportEvent = true
+    tok:Teleport(tok.loc)
+    tok.properties._tmp_suppressTeleportEvent = nil
+
+    dmhub.Schedule(HOP_UP_SECONDS + HOP_DOWN_SECONDS + 1, function()
+        if mod.unloaded or not tok.valid then
+            return
+        end
+        if tok.teleportAnimation == style then
+            tok.teleportAnimation = previous
+            tok:UploadAppearance()
+        end
+    end)
+end
+
+function ActivatedAbilityHopBehavior:Cast(ability, casterToken, targets, options)
+    local hopped = false
+    for _, target in ipairs(targets or {}) do
+        local tok = target.token
+        if tok ~= nil and tok.valid then
+            HopToken(tok, self.shake)
+            hopped = true
+        end
+    end
+
+    ability:CommitToPaying(casterToken, options)
+
+    --Hold the cast until the hop lands so whatever follows (a roll dialog, the
+    --burst) appears after the landing rather than mid-air.
+    if hopped and coroutine.isyieldable() then
+        local landAt = dmhub.Time() + HOP_UP_SECONDS + HOP_DOWN_SECONDS
+        while dmhub.Time() < landAt do
+            coroutine.yield(0.05)
+        end
+    end
+end
+
+function ActivatedAbilityHopBehavior:EditorItems(parentPanel)
+    local result = {}
+    self:ApplyToEditor(parentPanel, result)
+    self:FilterEditor(parentPanel, result)
+
+    result[#result + 1] = gui.Check{
+        text = "Shake screen on landing",
+        value = self.shake,
+        change = function(element)
+            self.shake = element.value
+        end,
+    }
+
     return result
 end

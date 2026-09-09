@@ -136,10 +136,18 @@ end
 -- The sword-reveal animation and its sound are modelled on the
 -- "Draw Steel" initiative banner (Draw Steel UI/DSInitiativeRoll.lua).
 --
+-- That is the "heroic" banner type. The "malice" type is a lighter
+-- cousin for when the Director spends malice: a much shorter,
+-- translucent band that shimmers over the map, with no swords -- the
+-- malice icon sits beside the title instead -- and the content fading
+-- in rather than being wiped open. Types are listed in
+-- DramaticBanner.types.
+--
 -- It is NOT a modal: the overlay never captures input, so play
 -- continues underneath it. Trigger one from anywhere with:
 --
 --     DramaticBanner.Show{ tokenid = tok.id, text = "Lord Syriax", subtitle = "The Pale Tyrant" }
+--     DramaticBanner.Show{ tokenid = tok.id, text = "Malice: Dark Bargain", bannerType = "malice" }
 --
 -- State is held in a synced document, so every client in the game sees
 -- the banner at the same moment. The panel is created once and mounted
@@ -151,7 +159,7 @@ RegisterGameType("DramaticBanner")
 DramaticBanner.docid = "dramatic_banner"
 
 -- Seconds the banner holds fully on screen between its entrance and exit.
-DramaticBanner.holdTime = 4
+DramaticBanner.holdTime = 3.2
 
 -- Sound played as the banner enters (matches the Draw Steel initiative
 -- banner). Used whenever DramaticBanner.Show is not given its own sound.
@@ -161,14 +169,59 @@ DramaticBanner.defaultSound = "UI.DrawSteel"
 -- (monsters and unowned tokens report a near-white playerColor).
 DramaticBanner.fallbackAccent = "#e8c264"
 
--- Subtle vertical sheen for the opaque banner band (opaque throughout).
-local g_dramaticBandGradient = gui.Gradient{
+-- The malice red used by the ability cost diamond (see
+-- ActivatedAbility.actionColorKey), so malice banners match the icon.
+DramaticBanner.maliceAccent = "#DE1E47"
+
+-- The kinds of banner. Every banner shown before types existed is a
+-- "heroic" banner: the full-height opaque band with the crossed swords.
+-- A "malice" banner is a short, translucent band that shimmers over the
+-- map, with the malice icon beside the title in place of the swords.
+-- Ordered for the editor dropdown; the first entry is the default.
+DramaticBanner.defaultType = "heroic"
+DramaticBanner.types = {
+    { id = "heroic", text = "Heroic", sound = DramaticBanner.defaultSound },
+    { id = "malice", text = "Malice", sound = "MaliceUsed" },
+}
+
+--- The entry in DramaticBanner.types for a type id, falling back to the
+--- default type for nil or unknown ids (banners from older documents).
+--- @param id nil|string
+--- @return {id: string, text: string, sound: string}
+function DramaticBanner.GetTypeInfo(id)
+    for _,info in ipairs(DramaticBanner.types) do
+        if info.id == id then
+            return info
+        end
+    end
+    return DramaticBanner.types[1]
+end
+
+-- Subtle vertical sheen for the opaque heroic banner band (opaque
+-- throughout). Kept as a plain style table so playBanner can swap it in
+-- and out of the band's selfStyle per banner type.
+local g_dramaticBandGradientStyle = {
     point_a = {x = 0.5, y = 0},
     point_b = {x = 0.5, y = 1},
     stops = {
         {position = 0,   color = "#07070bff"},
         {position = 0.5, color = "#181820ff"},
         {position = 1,   color = "#07070bff"},
+    },
+}
+
+-- The malice band: a dark, red-tinged wash that is translucent across
+-- its body and fades out entirely at its top and bottom edges, so it
+-- reads as a shimmer over the map rather than a solid strip.
+local g_maliceBandGradientStyle = {
+    point_a = {x = 0.5, y = 0},
+    point_b = {x = 0.5, y = 1},
+    stops = {
+        {position = 0,    color = "#16050a00"},
+        {position = 0.18, color = "#16050aad"},
+        {position = 0.5,  color = "#24080fc1"},
+        {position = 0.82, color = "#16050aad"},
+        {position = 1,    color = "#16050a00"},
     },
 }
 
@@ -201,8 +254,11 @@ function DramaticBanner.GetDocumentSnapshot()
 end
 
 --- Show a dramatic banner, centred on a token, to every client in the game.
---- @param args {tokenid: nil|string, text: string, subtitle: nil|string, sound: nil|string}
+--- bannerType is an id from DramaticBanner.types ("heroic" when omitted);
+--- the sound defaults to that type's sound.
+--- @param args {tokenid: nil|string, text: string, subtitle: nil|string, sound: nil|string, bannerType: nil|string}
 function DramaticBanner.Show(args)
+    local typeInfo = DramaticBanner.GetTypeInfo(args.bannerType)
     local doc = mod:GetDocumentSnapshot(DramaticBanner.docid)
     doc:BeginChange()
     -- A fresh triggerId is what makes each call replay the animation,
@@ -211,7 +267,8 @@ function DramaticBanner.Show(args)
     doc.data.tokenid = args.tokenid
     doc.data.text = args.text or ""
     doc.data.subtitle = args.subtitle
-    doc.data.sound = args.sound or DramaticBanner.defaultSound
+    doc.data.bannerType = typeInfo.id
+    doc.data.sound = args.sound or typeInfo.sound
     doc:CompleteChange("Show dramatic banner", {undoable = false})
 
     -- Record when this banner will have fully cleared the screen: the
@@ -268,11 +325,18 @@ function DramaticBanner.Create()
         bgcolor = "black",
         styles = {
             { classes = {"dim-out"}, opacity = 0, transitionTime = 0.25 },
-            { classes = {"dim-in"},  opacity = 0.62, transitionTime = 0.4 },
+            -- Per-type "in" classes (one is set per banner): the heroic
+            -- banner dims the whole screen hard; the malice banner only
+            -- darkens it a touch so the map stays readable through the
+            -- translucent band.
+            { classes = {"dim-in-heroic"}, opacity = 0.62, transitionTime = 0.4 },
+            { classes = {"dim-in-malice"}, opacity = 0.22, transitionTime = 0.4 },
         },
     }
 
-    -- Opaque band that irises open vertically from the centre line.
+    -- Band that irises open vertically from the centre line. Opaque and
+    -- tall for the heroic banner; short and translucent for malice (the
+    -- gradient is swapped per banner in playBanner).
     local bandPanel = gui.Panel{
         classes = {"band-out"},
         interactable = false,
@@ -281,12 +345,35 @@ function DramaticBanner.Create()
         valign = "center",
         bgimage = "panels/square.png",
         bgcolor = "white",
-        gradient = g_dramaticBandGradient,
+        gradient = g_dramaticBandGradientStyle,
         styles = {
-            { classes = {"band-out"}, height = 0,   transitionTime = 0.1 },
-            { classes = {"band-in"},  height = 450, transitionTime = 0.1 },
+            { classes = {"band-out"},       height = 0,   transitionTime = 0.1 },
+            { classes = {"band-in-heroic"}, height = 450, transitionTime = 0.1 },
+            -- Tall enough for a readable portrait (which fills the band
+            -- height), while still well short of the heroic band.
+            { classes = {"band-in-malice"}, height = 290, transitionTime = 0.1 },
         },
     }
+
+    -- The content elements below carry exactly one of these classes. The
+    -- heroic banner snaps them visible (the covers do the revealing); the
+    -- malice banner has no covers, so it fades them in and out instead.
+    -- Opacity does not cascade, hence one set per element rather than on
+    -- their shared parent.
+    --
+    -- The "-now" variants snap with no transition. playBanner must use
+    -- them to set the starting state: a timed fade started there would
+    -- still be mid-flight when the reveal layer un-hides 0.12s later,
+    -- which showed as a one-frame flicker on the first banner of a
+    -- session (the elements start life visible, so the first malice
+    -- banner's fade-out was caught partway).
+    local contentFadeStyles = {
+        { classes = {"content-out"},     opacity = 0, transitionTime = 0.4 },
+        { classes = {"content-in"},      opacity = 1, transitionTime = 0.4 },
+        { classes = {"content-out-now"}, opacity = 0, transitionTime = 0 },
+        { classes = {"content-in-now"},  opacity = 1, transitionTime = 0 },
+    }
+    local contentFadeClasses = {"content-out", "content-in", "content-out-now", "content-in-now"}
 
     ------------------------------------------------------------------
     -- Content revealed between the swords: the token portrait and the
@@ -298,6 +385,7 @@ function DramaticBanner.Create()
     -- recipe the character panel's portrait-body uses -- so it is never
     -- stretched. Its edges fade out so it blends softly into the band.
     local portraitPanel = gui.Panel{
+        classes = {"content-out-now"},
         interactable = false,
         height = "100%-16",
         width = string.format("%f%% height", Styles.portraitWidthPercentOfHeight),
@@ -305,9 +393,25 @@ function DramaticBanner.Create()
         valign = "center",
         bgcolor = "white",
         edgeFade = 0.1,
+        styles = contentFadeStyles,
+    }
+
+    -- The malice icon, shown beside the title in place of the swords on
+    -- malice banners only. The png is a white mask, tinted malice red.
+    local maliceIcon = gui.Panel{
+        classes = {"content-out-now", "collapsed"},
+        interactable = false,
+        width = 96,
+        height = 96,
+        valign = "center",
+        lmargin = 30,
+        bgimage = "panels/malice.png",
+        bgcolor = DramaticBanner.maliceAccent,
+        styles = contentFadeStyles,
     }
 
     local titleLabel = gui.Label{
+        classes = {"content-out-now"},
         interactable = false,
         text = "",
         width = "100%",
@@ -318,9 +422,11 @@ function DramaticBanner.Create()
         fontSize = 36,
         fontWeight = "black",
         color = "white",
+        styles = contentFadeStyles,
     }
 
     local accentRule = gui.Panel{
+        classes = {"content-out-now"},
         interactable = false,
         width = "100%",
         height = 4,
@@ -328,9 +434,11 @@ function DramaticBanner.Create()
         vmargin = 10,
         bgimage = "panels/square.png",
         bgcolor = "white",
+        styles = contentFadeStyles,
     }
 
     local subtitleLabel = gui.Label{
+        classes = {"content-out-now"},
         interactable = false,
         text = "",
         width = "100%",
@@ -341,7 +449,20 @@ function DramaticBanner.Create()
         fontSize = 21,
         uppercase = true,
         color = "white",
+        styles = contentFadeStyles,
     }
+
+    -- Every element the malice banner fades rather than wipes. `instant`
+    -- snaps to the state instead of transitioning to it.
+    local fadingContent = { portraitPanel, maliceIcon, titleLabel, accentRule, subtitleLabel }
+    local function SetContentVisible(visible, instant)
+        local target = cond(visible, "content-in", "content-out") .. cond(instant, "-now", "")
+        for _,el in ipairs(fadingContent) do
+            for _,cls in ipairs(contentFadeClasses) do
+                el:SetClass(cls, cls == target)
+            end
+        end
+    end
 
     local textColumn = gui.Panel{
         interactable = false,
@@ -363,7 +484,7 @@ function DramaticBanner.Create()
         halign = "center",
         valign = "center",
         flow = "horizontal",
-        children = { portraitPanel, textColumn },
+        children = { portraitPanel, maliceIcon, textColumn },
     }
 
     ------------------------------------------------------------------
@@ -433,15 +554,23 @@ function DramaticBanner.Create()
     -- child -- so it all stays invisible between banners. Child order is
     -- the draw order: content at the back, covers over it, swords on top.
     local revealLayer = gui.Panel{
-        classes = {"hidden"},
+        classes = {"hidden", "reveal-heroic"},
         flow = "none",
         interactable = false,
         width = "100%",
-        height = 460,
         halign = "center",
         valign = "center",
         children = { contentGroup, leftCover, rightCover, leftSword, rightSword },
+        styles = {
+            -- Slightly taller than the band of each type, so the content
+            -- (whose height resolves against this layer) can overhang it.
+            { classes = {"reveal-heroic"}, height = 460 },
+            { classes = {"reveal-malice"}, height = 300 },
+        },
     }
+
+    -- Elements only the heroic banner uses: the swords and the covers.
+    local heroicOnly = { leftSword, rightSword, leftCover, rightCover }
 
     ------------------------------------------------------------------
     -- Root overlay + animation control.
@@ -491,18 +620,46 @@ function DramaticBanner.Create()
             end
             local hasPortrait = token ~= nil
 
-            local accent, accentClear = ResolveBannerAccent(token)
+            -- Which kind of banner this is. Documents written before
+            -- banner types existed have no bannerType and are heroic.
+            local isMalice = DramaticBanner.GetTypeInfo(d.data.bannerType).id == "malice"
+            element.data.isMalice = isMalice
 
-            -- Title / subtitle content. When there is no portrait the
-            -- text is centred on the band instead of sitting beside it.
+            -- Malice banners are always in malice red; heroic banners
+            -- take the token's colour.
+            local accent, accentClear
+            if isMalice then
+                accent, accentClear = DramaticBanner.maliceAccent .. "ff", DramaticBanner.maliceAccent .. "00"
+            else
+                accent, accentClear = ResolveBannerAccent(token)
+            end
+
+            -- Title / subtitle content. Text sits beside the portrait or
+            -- the malice icon when there is one, otherwise it is centred
+            -- on the band. The short malice band gets smaller type.
+            local hasLead = hasPortrait or isMalice
             titleLabel.text = d.data.text or ""
-            titleLabel.textAlignment = cond(hasPortrait, "left", "center")
-            textColumn.lmargin = cond(hasPortrait, 50, 0)
+            titleLabel.textAlignment = cond(hasLead, "left", "center")
+            titleLabel.selfStyle.fontSize = cond(isMalice, 30, 36)
+            textColumn.lmargin = cond(hasLead, cond(isMalice, 30, 50), 0)
             local subtitle = d.data.subtitle
             subtitleLabel.text = subtitle or ""
-            subtitleLabel.textAlignment = cond(hasPortrait, "left", "center")
+            subtitleLabel.textAlignment = cond(hasLead, "left", "center")
+            subtitleLabel.selfStyle.fontSize = cond(isMalice, 17, 21)
             subtitleLabel.color = accent
             subtitleLabel:SetClass("collapsed", subtitle == nil or subtitle == "")
+            accentRule.vmargin = cond(isMalice, 6, 10)
+
+            -- The malice icon stands in for the swords beside the title.
+            maliceIcon:SetClass("collapsed", not isMalice)
+            for _,el in ipairs(heroicOnly) do
+                el:SetClass("collapsed", isMalice)
+            end
+
+            -- Band: tall and opaque, or short and translucent.
+            bandPanel.selfStyle.gradient = cond(isMalice, g_maliceBandGradientStyle, g_dramaticBandGradientStyle)
+            revealLayer:SetClass("reveal-heroic", not isMalice)
+            revealLayer:SetClass("reveal-malice", isMalice)
 
             -- Accent rule in the token colour, faded at both ends.
             accentRule.selfStyle = {
@@ -529,10 +686,39 @@ function DramaticBanner.Create()
                 -- they are shown un-cropped.
                 local portrait = token.inspectPortrait
                 portraitPanel.bgimage = portrait
-                if token.hasSpineAnimation then
-                    portraitPanel.selfStyle.imageRect = nil
+                local rect = nil
+                if not token.hasSpineAnimation then
+                    rect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight*0.01, portrait)
+                end
+                portraitPanel.selfStyle.imageRect = rect
+
+                -- The malice portrait sits on a translucent band, so it is
+                -- vignetted into it with a radial gradient. The shader
+                -- samples gradients (and edgeFade) in image-rect space, not
+                -- panel space, so the gradient is anchored to the crop rect:
+                -- centred on it, with the fade reaching 100% at its top and
+                -- bottom edges. The sides (3:4, so nearer the centre) fade
+                -- partway and the corners vanish completely.
+                if isMalice then
+                    local x1, y1, x2, y2 = 0, 0, 1, 1
+                    if rect ~= nil then
+                        x1, y1, x2, y2 = rect.x1, rect.y1, rect.x2, rect.y2
+                    end
+                    local cx, cy = (x1 + x2) * 0.5, (y1 + y2) * 0.5
+                    portraitPanel.selfStyle.edgeFade = 0
+                    portraitPanel.selfStyle.gradient = {
+                        type = "radial",
+                        point_a = {x = cx, y = cy},
+                        point_b = {x = cx, y = y2},
+                        stops = {
+                            {position = 0,    color = "#ffffffff"},
+                            {position = 0.45, color = "#ffffffff"},
+                            {position = 1,    color = "#ffffff00"},
+                        },
+                    }
                 else
-                    portraitPanel.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight*0.01, portrait)
+                    portraitPanel.selfStyle.edgeFade = 0.1
+                    portraitPanel.selfStyle.gradient = nil
                 end
             end
 
@@ -546,9 +732,15 @@ function DramaticBanner.Create()
             -- The band irises open fast; the swords and content are
             -- held back (revealLayer stays hidden) until it has arrived.
             dimPanel:SetClass("dim-out", false)
-            dimPanel:SetClass("dim-in", true)
+            dimPanel:SetClass("dim-in-heroic", not isMalice)
+            dimPanel:SetClass("dim-in-malice", isMalice)
             bandPanel:SetClass("band-out", false)
-            bandPanel:SetClass("band-in", true)
+            bandPanel:SetClass("band-in-heroic", not isMalice)
+            bandPanel:SetClass("band-in-malice", isMalice)
+            -- Heroic content starts visible behind its covers; malice
+            -- content starts faded out and fades in with the "curtains".
+            -- Snap, never fade, here: see contentFadeStyles.
+            SetContentVisible(not isMalice, true)
             leftSword:SetClass("lsw-open", false)
             leftSword:SetClass("lsw-closed", true)
             rightSword:SetClass("rsw-open", false)
@@ -574,10 +766,14 @@ function DramaticBanner.Create()
         end,
 
         -- Swords and covers sweep apart, wiping away to reveal the
-        -- portrait and text.
+        -- portrait and text. (Malice: the content simply fades in; its
+        -- swords and covers are collapsed, so their classes are moot.)
         openCurtains = function(element, g)
             if g ~= element.data.generation then
                 return
+            end
+            if element.data.isMalice then
+                SetContentVisible(true)
             end
             leftSword:SetClass("lsw-closed", false)
             leftSword:SetClass("lsw-open", true)
@@ -594,6 +790,9 @@ function DramaticBanner.Create()
         dismissBanner = function(element, g)
             if g ~= element.data.generation then
                 return
+            end
+            if element.data.isMalice then
+                SetContentVisible(false)
             end
             leftSword:SetClass("lsw-open", false)
             leftSword:SetClass("lsw-closed", true)
@@ -613,9 +812,11 @@ function DramaticBanner.Create()
                 return
             end
             revealLayer:SetClass("hidden", true)
-            bandPanel:SetClass("band-in", false)
+            bandPanel:SetClass("band-in-heroic", false)
+            bandPanel:SetClass("band-in-malice", false)
             bandPanel:SetClass("band-out", true)
-            dimPanel:SetClass("dim-in", false)
+            dimPanel:SetClass("dim-in-heroic", false)
+            dimPanel:SetClass("dim-in-malice", false)
             dimPanel:SetClass("dim-out", true)
         end,
     }

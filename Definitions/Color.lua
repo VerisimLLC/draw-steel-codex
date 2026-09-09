@@ -1,4 +1,7 @@
---- @class Color Represents a color stored internally in HSVA (hue, saturation, value, alpha) format. Supports both RGB and HSV access.
+---@meta
+
+--- Represents a color stored internally in HSVA (hue, saturation, value, alpha) format. Supports both RGB and HSV access.
+--- @class Color
 --- @field tostring string Gets or sets the color as an HTML string (e.g. '#FF0000FF').
 --- @field h number Shorthand for hue (0-1).
 --- @field s number Shorthand for saturation (0-1).
@@ -17,22 +20,15 @@
 Color = {}
 
 --- Deserialize
---- @param dict any
---- @return nil
-function Color:Deserialize(dict)
-	-- dummy implementation for documentation purposes only
-end
+--- @param dict? any
+function Color:Deserialize(dict) end
 
 --- Equals
---- @param other any
+--- @param other? any
 --- @return boolean
-function Color:Equals(other)
-	-- dummy implementation for documentation purposes only
-end
+function Color:Equals(other) end
 
---- Modify: Returns a new Color with properties overridden by the given table values.
---- @param table table -- A table of Color property overrides.
+--- Returns a new Color with properties overridden by the given table values.
+--- @param table table -- A table of ColorArg property overrides.
 --- @return Color
-function Color:Modify(table)
-	-- dummy implementation for documentation purposes only
-end
+function Color:Modify(table) end

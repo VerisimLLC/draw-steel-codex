@@ -10,7 +10,7 @@ local mod = dmhub.GetModLoading()
 -- Specific resources can opt into a custom frame (see CustomFrameFor): malice
 -- renders as the same red "cost diamond" used on the action bar.
 
----@class RichResource
+---@class RichResource: RichTag
 RichResource = RegisterGameType("RichResource", "RichTag")
 RichResource.tag = "resource"
 -- Pattern-based (carries no stored annotation): the resource is identified by

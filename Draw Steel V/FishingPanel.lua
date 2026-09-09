@@ -189,7 +189,7 @@ CreateFishingPanel = function(options)
     return fishingPanel
 end
 
----@class RichFishing
+---@class RichFishing: RichTag
 RichFishing = RegisterGameType("RichFishing", "RichTag")
 RichFishing.tag = "fishing"
 

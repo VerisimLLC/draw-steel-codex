@@ -1,50 +1,28 @@
---- @class LuaStringMap 
---- @field wrapper any 
+---@meta
+
+--- @class LuaStringMap
+--- @field wrapper any
 LuaStringMap = {}
 
 --- Create
---- @return any
-function LuaStringMap.Create()
-	-- dummy implementation for documentation purposes only
-end
-
---- Create
---- @param t any
---- @return any
-function LuaStringMap.Create(t)
-	-- dummy implementation for documentation purposes only
-end
+--- @overload fun(t?: any): LuaStringMap
+--- @return LuaStringMap
+function LuaStringMap.Create() end
 
 --- Init
---- @param t any
---- @return nil
-function LuaStringMap:Init(t)
-	-- dummy implementation for documentation purposes only
-end
-
---- Init
---- @return nil
-function LuaStringMap:Init()
-	-- dummy implementation for documentation purposes only
-end
+--- @overload fun()
+--- @param t? any
+function LuaStringMap:Init(t) end
 
 --- Set
---- @param key string
---- @param value any
---- @return nil
-function LuaStringMap:Set(key, value)
-	-- dummy implementation for documentation purposes only
-end
+--- @param key? string
+--- @param value? any
+function LuaStringMap:Set(key, value) end
 
 --- Get
---- @param key string
+--- @param key? string
 --- @return any
-function LuaStringMap:Get(key)
-	-- dummy implementation for documentation purposes only
-end
+function LuaStringMap:Get(key) end
 
 --- Clear
---- @return nil
-function LuaStringMap:Clear()
-	-- dummy implementation for documentation purposes only
-end
+function LuaStringMap:Clear() end

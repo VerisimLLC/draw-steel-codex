@@ -4,6 +4,15 @@ CharacterModifier.DeregisterType("d20")
 
 CharacterModifier.displayCondition = ""
 
+-- Optional coordination metadata for modifiers chosen after the dice land.
+-- An empty group preserves the ordinary independent-checkbox behavior. Mods
+-- that share a non-empty group behave as a single choice. consumeOncePerRoll
+-- prevents a modifier copied across several targets from billing once per
+-- target; it is deliberately opt-in so existing Draw Steel modifiers retain
+-- their current semantics.
+CharacterModifier.afterRollExclusiveGroup = ""
+CharacterModifier.consumeOncePerRoll = false
+
 local g_powerRollTypes = {
     {
         id = "all",
@@ -28,6 +37,10 @@ local g_powerRollTypes = {
     {
         id = "project_roll",
         text = "Project Roll",
+    },
+    {
+        id = "fishing_roll",
+        text = "Fishing Roll",
     },
     {
         id = "enemy_ability_power_roll",
@@ -286,6 +299,9 @@ CharacterModifier.TypeInfo.power = {
                 if token == nil or not token.valid then
                     return
                 end
+                --The contextual target types (abilitycaster / abilitytarget /
+                --triggerer) resolve inside Trigger's targeting from the
+                --symbols appended here; no subject resolution is needed.
                 modifier.customTrigger:Trigger(modifier, creature, modifier:AppendSymbols{}, nil, modContext)
             end)
 		end
@@ -297,11 +313,49 @@ CharacterModifier.TypeInfo.power = {
 		--can then read the flag the marker grants and deliver on this same
 		--strike. (The customTrigger above is deferred until after the cast, so
 		--it is too late to gate same-strike delivery.)
+		--
+		--armEffectApplyTo = "target" marks the ability's TARGET instead of the
+		--modifier's owner. Required whenever the creature a later trigger has to
+		--identify is not the owner -- e.g. Shadow Elf Knightfell's Trick of the
+		--Eye halves ONE ally's damage, so the marker has to name that ally.
+		--Marking the owner there yields a global on/off flag that every damaged
+		--ally in range matches, firing the redirect once per target instead of
+		--once for the protected one.
 		local armEffect = modifier:try_get("armEffect")
 		if armEffect ~= nil then
-			local armToken = dmhub.LookupToken(creature)
+			local armSubject = creature
+			if modifier:try_get("armEffectApplyTo", "self") == "target" then
+				--symbol contexts are installed as GenerateSymbols lookup
+				--functions (see CharacterModifier:InstallSymbolsFromContext);
+				--calling with "self" unwraps back to the creature. Same idiom
+				--as the "subject" applyto in ActivatedAbility:GetTargets.
+				local abilityTarget = modifier:try_get("_tmp_symbols", {}).abilitytarget
+				if type(abilityTarget) == "function" then
+					abilityTarget = abilityTarget("self")
+				end
+
+				if abilityTarget ~= nil then
+					armSubject = abilityTarget
+				end
+			end
+
+			local armToken = dmhub.LookupToken(armSubject)
 			if armToken ~= nil and armToken.valid then
-				armToken.properties:ApplyOngoingEffect(armEffect, 0, nil, {})
+				if armSubject == creature then
+					--the owner's properties are already inside the caller's
+					--ModifyProperties block (see ConsumeResource in DSRollDialog).
+					armToken.properties:ApplyOngoingEffect(armEffect, 0, nil, {})
+				else
+					--a different token: needs its own ModifyProperties or the
+					--mutation never uploads.
+					armToken:ModifyProperties{
+						description = "Arm Triggered Effect",
+						undoable = false,
+						execute = function()
+							armToken.properties:ApplyOngoingEffect(armEffect, 0, nil, {})
+						end,
+					}
+				end
 			end
 		end
 
@@ -313,6 +367,11 @@ CharacterModifier.TypeInfo.power = {
 
     hintPowerRoll = function(self, creature, rollType, options)
         options = options or {}
+
+        --Imported/YAML-authored modifiers may lack activationCondition
+        --entirely (only the editor's init path sets it); treat missing
+        --as false, matching the init default.
+        local activationCondition = self:try_get("activationCondition", false)
 
         if type(self:try_get("activationAfterRoll", false)) == "string" then
             return {
@@ -329,7 +388,7 @@ CharacterModifier.TypeInfo.power = {
         end
 
 
-        if (self.activationCondition == false) or (not RollTypeMatches(self, rollType, options)) then
+        if (activationCondition == false) or (not RollTypeMatches(self, rollType, options)) then
             return {
                 result = false,
                 justification = {}
@@ -373,7 +432,7 @@ CharacterModifier.TypeInfo.power = {
             }
         end
 
-        if self.activationCondition == true then
+        if activationCondition == true then
             return {
                 result = true,
                 justification = {}
@@ -405,7 +464,7 @@ CharacterModifier.TypeInfo.power = {
         print("POWER ROLL:: OPTIONS:", options)
 
         return {
-            result = GoblinScriptTrue(ExecuteGoblinScript(self.activationCondition, lookupFunction, 0, "Power Roll Activation Condition")),
+            result = GoblinScriptTrue(ExecuteGoblinScript(activationCondition, lookupFunction, 0, "Power Roll Activation Condition")),
             justification = {},
         }
     end,
@@ -426,7 +485,9 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
-        if #self:try_get("skills", {}) > 0 and rollType == "test_power_roll" and options.skills ~= nil then
+        --The roll tells us which skill is being used, so just check against that.
+        --An opposed test is rolled with a skill exactly like an ordinary test is.
+        if #self:try_get("skills", {}) > 0 and (rollType == "test_power_roll" or rollType == "opposed_power_roll") and options.skills ~= nil then
             local hasSkill = false
             for _,skillid in ipairs(self.skills) do
                 for _,skillid2 in ipairs(options.skills) do
@@ -442,17 +503,18 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
-        if #self:try_get("skills", {}) > 0 and rollType == "opposed_power_roll" then
+        --No skill came with the roll: this is a defender's modifier being offered
+        --against someone else's opposed ability, so read the skill off that
+        --ability's attack side instead.
+        if #self:try_get("skills", {}) > 0 and rollType == "opposed_power_roll" and options.skills == nil then
             if options.ability and options.ability.behaviors then
                 local behaviors = options.ability.behaviors or {}
                 for _, behavior in ipairs(behaviors) do
                     if behavior.typeName == "ActivatedAbilityOpposedRollBehavior" then
                         local hasSkill = false
-                        local skillInfo
-                        for _,skillid in pairs(behavior.attackAttributes) do
+                        for _,attr in ipairs(behavior.attackAttributes) do
                             for _, modSkillId in pairs(self.skills) do
-                                if skillid == modSkillId then
-                                    skillInfo = skillid
+                                if type(attr) == "table" and attr.skill == modSkillId then
                                     hasSkill = true
                                     break
                                 end
@@ -557,25 +619,27 @@ CharacterModifier.TypeInfo.power = {
             roll = CharacterModifier.TypeInfo.power.modifyPowerRoll(self.baseModifier, creature, rollType, roll, options)
         end
 
-        if self.modtype == "none" or self.modtype == "suppresseffects" then
+        local modtype = self:try_get("modtype", "none")
+
+        if modtype == "none" or modtype == "suppresseffects" then
             return roll
         end
 
-        print("MODIFY:: MOD ROLL", self.modtype)
+        print("MODIFY:: MOD ROLL", modtype)
 
-        if self.modtype == "appendroll" or self.modtype == "replaceroll" then 
+        if modtype == "appendroll" or modtype == "replaceroll" then 
             local newRoll = dmhub.EvalGoblinScript(self:try_get("replaceText"), creature:LookupSymbol(), "Power Roll Replacement")
             
             --we only consider the "2d10 + xxx" part as the 'roll' to replace. Anything after that should be kept.
             local m = regex.MatchGroups(roll, "^(?<roll>2d10(?:\\s*[+-]\\s*\\d+)?)(?<suffix>.*)$")
             if m ~= nil then
-                if self.modtype == "appendroll" then
+                if modtype == "appendroll" then
                     roll = m.roll .. " + " .. newRoll .. m.suffix
                 else
                     roll = newRoll .. m.suffix
                 end
             else
-                if self.modtype == "appendroll" then
+                if modtype == "appendroll" then
                     roll = tostring(roll) .. " + " .. newRoll
                 else
                     roll = newRoll
@@ -584,7 +648,7 @@ CharacterModifier.TypeInfo.power = {
             return roll
         end
 
-        local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self.modtype]
+        local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[modtype]
         if modType == nil then
             return roll
         end
@@ -620,7 +684,7 @@ CharacterModifier.TypeInfo.power = {
     end,
 
     buffOrDebuff = function(self, context)
-        local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self.modtype]
+        local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self:try_get("modtype", "none")]
         local buffOrDebuff = modType.value
         if tonumber(buffOrDebuff) then
             if buffOrDebuff > 0 then
@@ -635,7 +699,7 @@ CharacterModifier.TypeInfo.power = {
         if not targetPanel.data.init then
 
             local description = ""
-            local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self.modtype]
+            local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self:try_get("modtype", "none")]
             if modType ~= nil and not modType.hideText then
                 description = modType.text
             end
@@ -980,6 +1044,28 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
+        --Upgrade every end-of-turn condition clause in the power table to save ends,
+        --e.g. "M<2 slowed (eot)" becomes "M<2 slowed (save ends)". Shadow Elf's
+        --Manifold Piercer. Like replaceForcedMovement above, this rewrites the tier
+        --TEXT rather than signalling the infliction site: the text is the contract the
+        --power table parser reads, so the condition then lands with duration "save"
+        --with no further plumbing, and the token shows the same condition icon it
+        --always would.
+        if self:try_get("convertEotToSaveEnds", false) then
+            local pattern = "^(?<prefix>.*?)\\((?:eot|EoT)\\)(?<postfix>.*)$"
+            for j,tier in ipairs(rollProperties.tiers) do
+                local output = ""
+                local rest = tier
+                local match = regex.MatchGroups(rest, pattern)
+                while match ~= nil do
+                    output = output .. match.prefix .. "(save ends)"
+                    rest = match.postfix
+                    match = regex.MatchGroups(rest, pattern)
+                end
+                rollProperties.tiers[j] = output .. rest
+            end
+        end
+
         local surges = self:try_get("surges", "")
         if surges ~= "" then
             local addSurges = ExecuteGoblinScript(surges, lookupFunction, 0, "Power Roll Surges")
@@ -1021,7 +1107,7 @@ CharacterModifier.TypeInfo.power = {
             end
         end
 
-        if self.modtype == "suppresseffects" then
+        if self:try_get("modtype", "none") == "suppresseffects" then
             local damageMultiplier = self:try_get("damageMultiplier", "full")
             for i,tier in ipairs(rollProperties.tiers) do
                 local m = regex.MatchGroups(tier, "^(?<prefix>.*?)(?<damage>\\d+\\s+[^0-9]*damage)(?<suffix>.*)$")
@@ -1062,7 +1148,18 @@ CharacterModifier.TypeInfo.power = {
     modifyPowerRollCasting = function(self, creature, ability, options)
         if self:try_get("overrideCost", false) then
             local tempCopy = DeepCopy(ability)
-            tempCopy.resourceNumber = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(options.symbols), 0, "Override Resource Cost")
+
+            --The cost formula must see the modifier's own context symbols
+            --(Stacks, OngoingEffect, Aura) on top of the cast symbols, the same
+            --way the cost shown in the roll dialog is calculated. Copy the cast
+            --symbols first so AppendSymbols does not write into the live table.
+            local costSymbols = {}
+            for k,v in pairs(options.symbols or {}) do
+                costSymbols[k] = v
+            end
+            self:AppendSymbols(costSymbols)
+
+            tempCopy.resourceNumber = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(costSymbols), 0, "Override Resource Cost")
             local tok = dmhub.LookupToken(creature)
             local costInfo = tempCopy:GetCost(tok)
             
@@ -1073,7 +1170,7 @@ CharacterModifier.TypeInfo.power = {
     end,
 
     applyToRollLateness = function(self)
-        local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self.modtype]
+        local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self:try_get("modtype", "none")]
         if modType ~= nil then
             return modType.lateness or 0
         end
@@ -1638,6 +1735,8 @@ CharacterModifier.TypeInfo.power = {
             end
 
 
+            local modtype = modifier:try_get("modtype", "none")
+
             children[#children+1] = gui.Panel{
                 classes = {"formPanel"},
                 gui.Label{
@@ -1649,7 +1748,7 @@ CharacterModifier.TypeInfo.power = {
                     styles = ThemeEngine.GetStyles(),
                     options = ActivatedAbilityPowerRollBehavior.s_modificationTypes,
                     valign = "center",
-                    idChosen = modifier.modtype,
+                    idChosen = modtype,
                     change = function(element)
                         modifier.modtype = element.idChosen
                         Refresh()
@@ -1658,10 +1757,10 @@ CharacterModifier.TypeInfo.power = {
             }
 
             children[#children+1] = gui.Panel{
-                classes = {"formPanel", cond(modifier.modtype ~= "replaceroll" and modifier.modtype ~= "appendroll", 'collapsed-anim')},
+                classes = {"formPanel", cond(modtype ~= "replaceroll" and modtype ~= "appendroll", 'collapsed-anim')},
                 gui.Label{
                     classes = {"formLabel"},
-                    text = cond(modifier.modtype == "replaceroll", "Replace roll with:", "Append to roll:"),
+                    text = cond(modtype == "replaceroll", "Replace roll with:", "Append to roll:"),
                 },
                 gui.Input{
                     classes = {"formInput"},
@@ -2680,8 +2779,10 @@ CharacterModifier.TypeInfo.power = {
                     change = function(element)
                         modifier.hasTriggerBefore = element.value
                         if element.value and modifier:has_key("triggerBefore") == false then
+                            --The event id is never consulted for a modifier-fired
+                            --trigger; "custom" just labels it honestly.
                             modifier.triggerBefore = TriggeredAbility.Create{
-                                trigger = "d20roll",
+                                trigger = "custom",
                             }
                         end
                         Refresh()
@@ -2699,10 +2800,12 @@ CharacterModifier.TypeInfo.power = {
                                 if modifier:has_key("triggerBefore") then
                                     element.root:AddChild(modifier.triggerBefore:ShowEditActivatedAbilityDialog{
                                         title = "Edit Trigger",
-                                        hide = {"appearance", "abilityInfo"},
+                                        customTriggerContext = {
+                                            note = "Fires when this trigger is activated, before the triggering ability resolves.",
+                                        },
                                         destroy = savefn,
                                     })
-                                end    
+                                end
                             end
             
                             element.root:FireEventTree("editCompendiumFeature", modifier, fn)
@@ -2754,8 +2857,14 @@ CharacterModifier.TypeInfo.power = {
 				change = function(element)
 					modifier.hasCustomTrigger = element.value
 					if element.value and modifier:has_key("customTrigger") == false then
+						--The event id is never consulted for a modifier-fired
+						--trigger; "custom" just labels it honestly.
+						--modifierCustomTrigger makes the Target dropdown offer
+						--the contextual creatures (Ability Caster/Target,
+						--Triggerer) the roll dialog installs at fire time.
 						modifier.customTrigger = TriggeredAbility.Create{
-							trigger = "d20roll",
+							trigger = "custom",
+							modifierCustomTrigger = true,
 						}
 					end
 					Refresh()
@@ -2773,10 +2882,38 @@ CharacterModifier.TypeInfo.power = {
                             if modifier:has_key("customTrigger") then
                                 element.root:AddChild(modifier.customTrigger:ShowEditActivatedAbilityDialog{
                                     title = "Edit Trigger",
-                                    hide = {"appearance", "abilityInfo"},
+                                    customTriggerContext = {
+                                        note = "Fires automatically after a roll this modifier applies to resolves.",
+                                        subjectOptions = true,
+                                        --Help entries for the symbols installed on the
+                                        --modifier at roll time (see the
+                                        --InstallSymbolsFromContext call in DSRollDialog).
+                                        symbols = {
+                                            abilitycaster = {
+                                                name = "Ability Caster",
+                                                type = "creature",
+                                                desc = "The creature that used the ability whose roll this modifier applied to.",
+                                            },
+                                            abilitytarget = {
+                                                name = "Ability Target",
+                                                type = "creature",
+                                                desc = "The creature targeted by the roll this modifier applied to.",
+                                            },
+                                            triggerer = {
+                                                name = "Triggerer",
+                                                type = "creature",
+                                                desc = "The creature whose modifier fired this trigger (usually the modifier's owner).",
+                                            },
+                                            tier = {
+                                                name = "Tier",
+                                                type = "number",
+                                                desc = "The tier result of the power roll this modifier applied to.",
+                                            },
+                                        },
+                                    },
                                     destroy = savefn,
                                 })
-                            end    
+                            end
                         end
         
                         element.root:FireEventTree("editCompendiumFeature", modifier, fn)

@@ -249,7 +249,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         end
 
         if selfClone.powerRollModifier:try_get("resourceCostType") == "cost" then
-            if token.properties:GetHeroicOrMaliceResources() < ExecuteGoblinScript(selfClone.powerRollModifier:try_get("resourceCostAmount", "1"), token.properties:LookupSymbol(symbols), 1) then
+            if token.properties:GetHeroicOrMaliceResourcesAvailableToSpend() < ExecuteGoblinScript(selfClone.powerRollModifier:try_get("resourceCostAmount", "1"), token.properties:LookupSymbol(symbols), 1) then
                 return false
             end
         elseif selfClone.powerRollModifier:try_get("resourceCostType") == "epic" then
@@ -311,7 +311,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
         end
 
         if self.powerRollModifier:try_get("resourceCostType") == "cost" then
-            if (tonumber(token.properties:GetHeroicOrMaliceResources()) or 0) < (tonumber(self.powerRollModifier:try_get("resourceCostAmount", 1)) or 0) then
+            if (tonumber(token.properties:GetHeroicOrMaliceResourcesAvailableToSpend()) or 0) < (tonumber(self.powerRollModifier:try_get("resourceCostAmount", 1)) or 0) then
                 return false
             end
         elseif self.powerRollModifier:try_get("resourceCostType") == "epic" then

@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
----@class RichSetting
+---@class RichSetting: RichTag
 RichSetting = RegisterGameType("RichSetting", "RichTag")
 RichSetting.tag = "setting"
 RichSetting.pattern = "setting:(?<settingid>[a-zA-Z0-9_ -]+)"

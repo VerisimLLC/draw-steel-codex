@@ -1,6 +1,7 @@
 --[[
     Culture Detail
 ]]
+--- @class CBCultureDetail: GameType
 CBCultureDetail = RegisterGameType("CBCultureDetail")
 
 local SEL = CharacterBuilder.SELECTOR

@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class Background
+--- @class Background: GameType
 --- @field tableName string Data table name ("backgrounds").
 --- @field name string Display name.
 --- @field description string Lore/description text.

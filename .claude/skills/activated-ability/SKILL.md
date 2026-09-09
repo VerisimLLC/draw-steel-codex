@@ -191,7 +191,8 @@ Creates an aura zone on the map.
     difficult_terrain: false
     display: { bgcolor: "#ffffffff", saturation: 1, brightness: 1, hueshift: 0 }
     modifiers: []                   # CharacterModifier objects applied to affected creatures
-    triggers: []                    # TriggeredAbility objects (e.g., onenter triggers)
+    triggers: []                    # {trigger, ability, destroyaura} entries. Aura trigger ids:
+                                    # onenter, casterstartturnaura, casterendturnaura
   applyto: caster                   # who the aura is placed on
   duration: nextturn                # nextturn, none, etc.
   aliveafterdeath: false

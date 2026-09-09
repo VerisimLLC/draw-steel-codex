@@ -1,60 +1,42 @@
---- @class Shapes 
---- @field pencolor any 
---- @field thickness any 
+---@meta
+
+--- @class Shapes
+--- @field pencolor any
+--- @field thickness any
 Shapes = {}
 
 --- AddLine
---- @param node any
+--- @param node? any
 --- @return any
-function Shapes:AddLine(node)
-	-- dummy implementation for documentation purposes only
-end
+function Shapes:AddLine(node) end
 
 --- AddPath
---- @param node any
+--- @param node? any
 --- @return any
-function Shapes:AddPath(node)
-	-- dummy implementation for documentation purposes only
-end
+function Shapes:AddPath(node) end
 
 --- AddDisc
---- @param node any
+--- @param node? any
 --- @return any
-function Shapes:AddDisc(node)
-	-- dummy implementation for documentation purposes only
-end
+function Shapes:AddDisc(node) end
 
 --- GetCurvePoints
---- @param controlPoints any
---- @param numResults any
+--- @param controlPoints? any
+--- @param numResults? any
 --- @return any
-function Shapes:GetCurvePoints(controlPoints, numResults)
-	-- dummy implementation for documentation purposes only
-end
+function Shapes:GetCurvePoints(controlPoints, numResults) end
 
 --- SetColor
---- @param shapeid any
---- @param color any
---- @return nil
-function Shapes:SetColor(shapeid, color)
-	-- dummy implementation for documentation purposes only
-end
+--- @param shapeid? any
+--- @param color? any
+function Shapes:SetColor(shapeid, color) end
 
 --- Remove
---- @param id any
---- @return nil
-function Shapes:Remove(id)
-	-- dummy implementation for documentation purposes only
-end
+--- @param id? any
+function Shapes:Remove(id) end
 
 --- PushStyle
---- @return nil
-function Shapes:PushStyle()
-	-- dummy implementation for documentation purposes only
-end
+function Shapes:PushStyle() end
 
 --- PopStyle
---- @return nil
-function Shapes:PopStyle()
-	-- dummy implementation for documentation purposes only
-end
+function Shapes:PopStyle() end

@@ -2355,6 +2355,31 @@ _buildModesBlock = function(ability, fireChange)
                     }
                 )
 
+                -- Mode Condition Reason. Blank (the default) keeps the original
+                -- behaviour: a mode whose condition fails is not offered at all.
+                -- Fill it in and the mode is offered anyway, greyed out and
+                -- annotated with this text, so the player can see what they are
+                -- missing and the table can still allow it.
+                modeChildren[#modeChildren + 1] = gui.Panel{
+                    classes = {"nae-field-row"},
+                    children = {
+                        gui.Label{
+                            classes = {"nae-field-label"},
+                            text = "Condition Reason",
+                        },
+                        gui.Input{
+                            classes = {"nae-field-input"},
+                            characterLimit = 200,
+                            placeholderText = "Blank: hide the mode when unavailable",
+                            text = entry.conditionReason or "",
+                            change = function(el)
+                                entry.conditionReason = el.text
+                                fireChange()
+                            end,
+                        },
+                    },
+                }
+
                 -- "Has Ability" checkbox + Edit button (variations only)
                 modeChildren[#modeChildren + 1] = gui.Panel{
                     classes = {"nae-field-row",
@@ -3499,8 +3524,12 @@ local function _buildTargetingSection(ability, fireChange)
     --------------------------------------------------------------------------
     -- 9. Affects (AOE types only)
     --------------------------------------------------------------------------
+    --"dead" is checked first. objectTarget is false for it, so without this the
+    --dropdown reads back as "Creatures" and the next change to it would silently
+    --clear targetAllegiance and break the ability's targeting.
     local function affectsIdChosen()
-        if ability.objectTarget then return "all_and_objects"
+        if ability.targetAllegiance == "dead" then return "dead"
+        elseif ability.objectTarget then return "all_and_objects"
         elseif ability.targetAllegiance == "ally" then return "ally"
         elseif ability.targetAllegiance == "enemy" then return "enemy"
         else return "all" end
@@ -3522,6 +3551,11 @@ local function _buildTargetingSection(ability, fireChange)
                 { id = "all_and_objects", text = "Creatures and Objects" },
                 { id = "ally",           text = "Allied Creatures" },
                 { id = "enemy",          text = "Enemy Creatures" },
+                --An area already picks up corpse objects (TokensInShape always
+                --walks object tokens), and TargetPassesFilter swaps each corpse
+                --for the creature that died there, so the target filter sees the
+                --dead creature.
+                { id = "dead",           text = "Dead Creatures" },
             },
             idChosen = affectsIdChosen(),
             change = function(element)
@@ -3537,6 +3571,9 @@ local function _buildTargetingSection(ability, fireChange)
                 elseif element.idChosen == "enemy" then
                     ability.objectTarget = false
                     ability.targetAllegiance = "enemy"
+                elseif element.idChosen == "dead" then
+                    ability.objectTarget = false
+                    ability.targetAllegiance = "dead"
                 else
                     ability.objectTarget = false
                     ability.targetAllegiance = nil
@@ -5209,6 +5246,30 @@ function AbilityEditor.GenerateEditor(ability, opts)
         _schedulePreviewRefresh()
     end
 
+    -- Some behaviors (Augmented Ability, Cast Spell, Recast) are flagged
+    -- "mono": they have to be the ability's only behavior. When one is present
+    -- the whole Add/Paste bar goes away so a second behavior cannot be added.
+    local function _abilityHasMonoBehavior()
+        for _, behavior in ipairs(ability.behaviors or {}) do
+            if behavior.mono then
+                return true
+            end
+        end
+        return false
+    end
+
+    -- Show or hide the Effects bottom bar and give its 42px back to the scroll
+    -- area when it is hidden. Call this any time the section or the behavior
+    -- list changes.
+    local function _syncEffectsBottomBar()
+        if effectsBottomBar == nil then return end
+        local hide = effectsBottomBar:HasClass("nae-not-effects") or _abilityHasMonoBehavior()
+        effectsBottomBar:SetClass("collapsed", hide)
+        if detailScroll ~= nil then
+            detailScroll.height = cond(hide, "100%", "100%-42")
+        end
+    end
+
     local function selectSection(sectionId)
         if rootPanel == nil then return end
         rootPanel.data.selectedSectionId = sectionId
@@ -5228,19 +5289,10 @@ function AbilityEditor.GenerateEditor(ability, opts)
         -- The Effects section gets a fixed bottom bar (Add/Paste buttons);
         -- other sections hide it and reclaim the space. The preview column
         -- stays visible in every section.
-        if sectionId == "effects" then
-            if effectsBottomBar ~= nil then
-                effectsBottomBar:SetClass("nae-not-effects", false)
-                effectsBottomBar:SetClass("collapsed", false)
-                detailScroll.height = "100%-42"
-            end
-        else
-            if effectsBottomBar ~= nil then
-                effectsBottomBar:SetClass("nae-not-effects", true)
-                effectsBottomBar:SetClass("collapsed", true)
-                detailScroll.height = "100%"
-            end
+        if effectsBottomBar ~= nil then
+            effectsBottomBar:SetClass("nae-not-effects", sectionId ~= "effects")
         end
+        _syncEffectsBottomBar()
     end
 
     for _, sectionDef in ipairs(sections) do
@@ -5356,10 +5408,7 @@ function AbilityEditor.GenerateEditor(ability, opts)
         },
 
         refreshAbility = function(element)
-            local hideMono = #(ability.behaviors or {}) == 1
-                and ability.behaviors[1] ~= nil
-                and ability.behaviors[1].mono == true
-            element:SetClass("collapsed", element:HasClass("nae-not-effects") or hideMono)
+            _syncEffectsBottomBar()
         end,
     }
 

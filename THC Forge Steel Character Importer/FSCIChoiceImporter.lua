@@ -1,6 +1,6 @@
 --- FSCIChoiceImporter handles importing choices made in a Forge Steel character
 --- into the complex Codex choices
---- @class FSCIChoiceImporter
+--- @class FSCIChoiceImporter: GameType
 --- @field availableFeatures table The features available in the Codex
 --- @field levelChoices table The calculated list of selected features formatted for the character
 --- @field featureData table The full feature objects keyed by GUID
@@ -316,7 +316,7 @@ function FSCIChoiceImporter:_processTableLookupChoice(tableName, choiceType, ite
         local shouldAdd = false
 
         -- Check 1: Is this item explicitly allowed via individualSkills?
-        local inIndividualList = individualSkills and self:_itemInFlagList(itemId, individualSkills)
+        local inIndividualList = individualSkills and next(individualSkills) ~= nil and self:_itemInFlagList(itemId, individualSkills)
         if inIndividualList then
             shouldAdd = true
             debugReason = "individual"

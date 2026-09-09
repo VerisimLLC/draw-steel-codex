@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class ActivatedAbilityCast
+--- @class ActivatedAbilityCast: GameType
 --- @field damagedealt number
 --- @field damageraw number
 --- @field tier number
@@ -24,6 +24,7 @@ local mod = dmhub.GetModLoading()
 --- @field forcedMovementDamageDealt number
 --- @field forcedMovementPaths table
 --- @field forcedMovementCreatureIds table
+--- @field forcedMovementCreatureCollisionIds table
 --- @field ability ActivatedAbility
 --- @field auraObject false|table
 ActivatedAbilityCast = RegisterGameType("ActivatedAbilityCast")
@@ -202,6 +203,12 @@ ActivatedAbilityCast.helpSymbols = {
 		type = "number",
 		desc = "The number of spaces moved while using this ability.",
 	},
+	spacesmovedthisinvocation = {
+		name = "SpacesMovedThisInvocation",
+		type = "number",
+		desc = "The number of spaces moved during the current per-target invocation pass of an Invoke Ability behavior using Choose Invocation Order. Unlike Spaces Moved, this resets each time the invoke moves on to its next chosen target, and it does not count distance covered by teleports, relocates or swaps. Outside a Choose Invocation Order loop it counts all non-teleport movement of the cast.",
+		examples = {"Max(0, Movement Speed - Cast.SpacesMovedThisInvocation)"},
+	},
     hasprimarytarget = {
         name = "Has Primary Target",
         type = "creature",
@@ -250,6 +257,25 @@ ActivatedAbilityCast.helpSymbols = {
         desc = "True if any forced movement caused by this ability collided with a creature or object.",
     },
 
+    forcedmovementcreaturecollision = {
+        name = "Forced Movement Creature Collision",
+        type = "boolean",
+        desc = "True if a creature force moved by this ability collided with one or more other creatures.",
+    },
+
+    forcedmovementcreaturecollisioncount = {
+        name = "Forced Movement Creature Collision Count",
+        type = "number",
+        desc = "The number of unique creatures involved in forced movement creature collisions, including the moved creatures.",
+    },
+
+    wasinforcedmovementcreaturecollision = {
+        name = "Was In Forced Movement Creature Collision",
+        type = "function",
+        desc = "Returns true if the given creature was moved or struck in a forced movement creature collision caused by this ability.",
+        examples = {"Was In Forced Movement Creature Collision(Target)"},
+    },
+
     forcedmovementcreaturecount = {
         name = "Forced Movement Creature Count",
         type = "number",
@@ -278,6 +304,13 @@ ActivatedAbilityCast.helpSymbols = {
             "Any Target Has(\"Mark\")",
             "Any Target Has(\"Mark\", Triggerer)",
         },
+    },
+
+    targetsadjacent = {
+        name = "Targets Adjacent",
+        type = "boolean",
+        desc = "True if this cast currently has two or more targets and every pair of targets is adjacent to each other (within 1 square, accounting for the full space occupied by larger tokens). False if the cast has fewer than two targets.",
+        examples = {"Cast.TargetCount = 2 and Cast.TargetsAdjacent"},
     },
 }
 
@@ -526,8 +559,63 @@ ActivatedAbilityCast.lookupSymbols = {
 		return result
 	end,
 
+    -- True if this cast has 2 or more targets and every pair of targets is
+    -- adjacent (within 1 square, using token:Distance which accounts for the
+    -- full space occupied by multi-square tokens). Works for creature and
+    -- object targets alike; a target whose token has despawned falls back to
+    -- its recorded loc, and a target with neither a live token nor a loc is
+    -- skipped. Returns false when fewer than 2 measurable targets remain.
+    targetsadjacent = function(c)
+        local points = {}
+        for _, target in ipairs(c:try_get("targets", {})) do
+            if target.token ~= nil and target.token.valid then
+                points[#points+1] = { token = target.token }
+            elseif target.loc ~= nil then
+                points[#points+1] = { loc = target.loc }
+            end
+        end
+
+        if #points < 2 then
+            return false
+        end
+
+        for i = 1, #points-1 do
+            for j = i+1, #points do
+                local a = points[i]
+                local b = points[j]
+                local dist
+                if a.token ~= nil and b.token ~= nil then
+                    dist = a.token:Distance(b.token)
+                elseif a.token ~= nil then
+                    dist = a.token:Distance(b.loc)
+                elseif b.token ~= nil then
+                    dist = b.token:Distance(a.loc)
+                else
+                    dist = a.loc:DistanceInTiles(b.loc)
+                end
+
+                if dist == nil or dist > 1 then
+                    return false
+                end
+            end
+        end
+
+        return true
+    end,
+
 	spacesmoved = function(c)
 		return c.spacesMoved
+	end,
+
+	--Movement accumulated since the most recent BeginInvocationMovementScope
+	--call (one pass of an invoke behavior's Choose Invocation Order loop),
+	--excluding teleport-style distance (see CountTeleportDistance). If no scope
+	--was ever begun the bases are 0, so this degrades to "all non-teleport
+	--movement of the cast".
+	spacesmovedthisinvocation = function(c)
+		local moved = c.spacesMoved - c:try_get("_tmp_spacesMovedInvocationBase", 0)
+		local teleported = c:try_get("_tmp_teleportSpacesMoved", 0) - c:try_get("_tmp_teleportSpacesMovedInvocationBase", 0)
+		return math.max(0, moved - teleported)
 	end,
 
 	tier = function(c)
@@ -593,6 +681,37 @@ ActivatedAbilityCast.lookupSymbols = {
         return c.forcedMovementCollision
     end,
 
+    forcedmovementcreaturecollision = function(c)
+        return next(c:try_get("forcedMovementCreatureCollisionIds", {})) ~= nil
+    end,
+
+    forcedmovementcreaturecollisioncount = function(c)
+        local ids = c:try_get("forcedMovementCreatureCollisionIds", {})
+        local count = 0
+        for _ in pairs(ids) do
+            count = count + 1
+        end
+        return count
+    end,
+
+    wasinforcedmovementcreaturecollision = function(c)
+        return function(target)
+            if type(target) == "function" then
+                target = target("self")
+            end
+
+            if type(target) == "table" then
+                local tok = dmhub.LookupToken(target)
+                if tok ~= nil then
+                    local ids = c:try_get("forcedMovementCreatureCollisionIds", {})
+                    return ids[tok.charid] == true
+                end
+            end
+
+            return false
+        end
+    end,
+
     forcedmovementcreaturecount = function(c)
         local ids = c:try_get("forcedMovementCreatureIds", {})
         local count = 0
@@ -610,6 +729,33 @@ ActivatedAbilityCast.lookupSymbols = {
         return c.forcedMovementDamageDealtTarget
     end,
 }
+
+--- Records the creatures in a terminal forced-movement collision. The moved
+--- token only qualifies when at least one non-object creature was struck.
+--- @param movedToken CharacterToken
+--- @param collidedTokens CharacterToken[]
+function ActivatedAbilityCast:RecordForcedMovementCreatureCollision(movedToken, collidedTokens)
+    if movedToken == nil or movedToken.isObject or movedToken.charid == nil then
+        return
+    end
+
+    local collidedCreatureIds = {}
+    for _, tok in ipairs(collidedTokens or {}) do
+        if tok ~= nil and not tok.isObject and tok.charid ~= nil then
+            collidedCreatureIds[#collidedCreatureIds+1] = tok.charid
+        end
+    end
+
+    if #collidedCreatureIds == 0 then
+        return
+    end
+
+    local ids = self:get_or_add("forcedMovementCreatureCollisionIds", {})
+    ids[movedToken.charid] = true
+    for _, charid in ipairs(collidedCreatureIds) do
+        ids[charid] = true
+    end
+end
 
 --- @param tokenid string
 --- @param retargetid string
@@ -763,6 +909,29 @@ function ActivatedAbilityCast:CountDamage(targetToken, damageDealt, damageRaw, i
 	self.damageTable[targetToken.charid] = self.damageTable[targetToken.charid] or { dealt = 0, raw = 0 }
 	self.damageTable[targetToken.charid].dealt = self.damageTable[targetToken.charid].dealt + damageDealt
 	self.damageTable[targetToken.charid].raw = self.damageTable[targetToken.charid].raw + damageRaw
+end
+
+--Marks the start of a new per-target invocation scope. Called by
+--ActivatedAbilityInvokeAbilityBehavior at the top of each pass of its
+--Choose Invocation Order (promptWhenResolving) loop, so the
+--SpacesMovedThisInvocation GoblinScript symbol reports only the movement
+--that happened while resolving the CURRENT chosen target. Deliberately NOT
+--called by every invoke behavior: nested invokes (e.g. a shift invoked as
+--one leg of a multi-behavior chain) would otherwise reset the scope right
+--before their own parameter formulas are evaluated, zeroing the symbol.
+--The bases are _tmp_ (transient) fields: they are per-client scratch state
+--and must not be serialized with the cast.
+function ActivatedAbilityCast:BeginInvocationMovementScope()
+    self._tmp_spacesMovedInvocationBase = self.spacesMoved
+    self._tmp_teleportSpacesMovedInvocationBase = self:try_get("_tmp_teleportSpacesMoved", 0)
+end
+
+--Records distance covered by teleport-style repositioning (teleport, relocate,
+--creature swap). These DO count toward spacesMoved (existing content depends on
+--that), but SpacesMovedThisInvocation subtracts them so a teleport does not
+--consume a "remainder of your speed" budget computed from it.
+function ActivatedAbilityCast:CountTeleportDistance(distance)
+    self._tmp_teleportSpacesMoved = self:try_get("_tmp_teleportSpacesMoved", 0) + distance
 end
 
 function ActivatedAbilityCast:CountForcedMovementDamage(damageDealt, creature)

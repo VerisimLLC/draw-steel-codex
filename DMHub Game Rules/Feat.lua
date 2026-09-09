@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class CharacterFeat
+--- @class CharacterFeat: GameType
 --- @field name string Display name of the feat.
 --- @field description string Rules text.
 --- @field tableName string Data table name ("feats").
@@ -93,14 +93,37 @@ function CharacterFeat:FeatureSourceName()
 	return "Feat"
 end
 
-function CharacterFeat:FillClassFeatures(choices, result)
+--true if the creature meets all of the feature's prerequisites. A nil
+--creature means no filtering is wanted, so everything passes.
+local function PrerequisitesMet(feature, creature)
+	if creature == nil then
+		return true
+	end
+
+	for _,prerequisite in ipairs(feature:try_get("prerequisites") or {}) do
+		if not prerequisite:Met(creature) then
+			return false
+		end
+	end
+
+	return true
+end
+
+--creature is optional: when given, features (including choices) whose
+--prerequisites the creature doesn't meet are skipped entirely.
+function CharacterFeat:FillClassFeatures(choices, result, creature)
 	for i,feature in ipairs(self:GetClassLevel().features) do
 
-		if feature.typeName == 'CharacterFeature' then
+		if not PrerequisitesMet(feature, creature) then
+			--skip this feature entirely; a choice grants nothing even if
+			--a stale selection for it exists in choices.
+		elseif feature.typeName == 'CharacterFeature' then
 			result[#result+1] = feature
 		elseif feature.typeName == 'CharacterFeatureList' then
 			for _,child in ipairs(feature.features) do
-				if child.typeName == 'CharacterFeature' then
+				if not PrerequisitesMet(child, creature) then
+					--skip.
+				elseif child.typeName == 'CharacterFeature' then
 					result[#result+1] = child
 				else
 					child:FillChoice(choices, result)
@@ -115,16 +138,22 @@ function CharacterFeat:FillClassFeatures(choices, result)
 end
 
 --result is filled with a list of { feat = CharacterFeat object, feature = CharacterFeature or CharacterChoice }
-function CharacterFeat:FillFeatureDetails(choices, result)
+--creature is optional: when given, features whose prerequisites the creature
+--doesn't meet are omitted (so e.g. a level-gated choice isn't offered).
+function CharacterFeat:FillFeatureDetails(choices, result, creature)
 	for i,feature in ipairs(self:GetClassLevel().features) do
-		local resultFeatures = {}
-		feature:FillFeaturesRecursive(choices, resultFeatures)
+		if PrerequisitesMet(feature, creature) then
+			local resultFeatures = {}
+			feature:FillFeaturesRecursive(choices, resultFeatures)
 
-		for i,resultFeature in ipairs(resultFeatures) do
-			result[#result+1] = {
-				feat = self,
-				feature = resultFeature,
-			}
+			for i,resultFeature in ipairs(resultFeatures) do
+				if PrerequisitesMet(resultFeature, creature) then
+					result[#result+1] = {
+						feat = self,
+						feature = resultFeature,
+					}
+				end
+			end
 		end
 	end
 end
@@ -364,22 +393,79 @@ function CharacterFeatChoice:_cache()
 	g_optCache[self.tag] = optCache
 end
 
+--A feat is only offered to a creature that can use it. If every feature the feat grants
+--is gated behind prerequisites this creature fails, it is not a legal pick, so keep it
+--out of the picker entirely rather than letting it be chosen and then do nothing.
+local function CreatureCanTakeFeat(featid, creature)
+	if creature == nil or featid == nil then
+		return true
+	end
+
+	local featsTable = dmhub.GetTable(CharacterFeat.tableName) or {}
+	local feat = featsTable[featid]
+	if feat == nil then
+		return true
+	end
+
+	local modifierInfo = feat:try_get("modifierInfo")
+	if modifierInfo == nil then
+		return true
+	end
+
+	local features = modifierInfo:try_get("features", {})
+	if #features == 0 then
+		return true
+	end
+
+	for _,feature in ipairs(features) do
+		local prerequisites = feature:try_get("prerequisites", {})
+		if #prerequisites == 0 then
+			return true
+		end
+
+		for _,prerequisite in ipairs(prerequisites) do
+			if prerequisite:Met(creature) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+--The option caches are keyed by tag and shared by every character, so a per-creature
+--view has to be a new list; never mutate the cached tables.
+local function FilterFeatsForCreature(options, creature)
+	if creature == nil then
+		return options
+	end
+
+	local result = {}
+	for _,entry in ipairs(options) do
+		if CreatureCanTakeFeat(entry.id or entry.guid, creature) then
+			result[#result+1] = entry
+		end
+	end
+
+	return result
+end
+
 function CharacterFeatChoice:Choices(numOption, existingChoices, creature)
 	if self.tag == nil or #self.tag == 0 or self.tag == "feat" then
 		if #g_allCache == 0 then self:_cache() end
-		return g_allCache
+		return FilterFeatsForCreature(g_allCache, creature)
 	end
 	if g_tagCache[self.tag] == nil then self:_cache() end
-	return g_tagCache[self.tag]
+	return FilterFeatsForCreature(g_tagCache[self.tag], creature)
 end
 
-function CharacterFeatChoice:GetOptions(choices)
+function CharacterFeatChoice:GetOptions(choices, creature)
 	if self.tag == nil or #self.tag == 0 or self.tag == "feat" then
 		if #g_allCache == 0 then self:_cache() end
-		return g_allCache
+		return FilterFeatsForCreature(g_allCache, creature)
 	end
 	if g_optCache[self.tag] == nil then self:_cache() end
-	return g_optCache[self.tag]
+	return FilterFeatsForCreature(g_optCache[self.tag], creature)
 end
 
 function CharacterFeatChoice:GetDescription()
@@ -466,7 +552,7 @@ function CharacterTemplate:FeatureSourceName()
 	return "Creature Template"
 end
 
---- @class CharacterSingleFeat
+--- @class CharacterSingleFeat: GameType
 --- @field featid string Id of the specific feat granted (or "none").
 --- @field name string Display name ("Single Feat").
 --- A CharacterFeature-like wrapper that grants exactly one specific feat.

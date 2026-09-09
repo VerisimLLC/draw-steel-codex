@@ -1,5 +1,5 @@
 --- Manages state for the character builder
---- @class CharacterBuilderState
+--- @class CharacterBuilderState: GameType
 --- @field data table The root data table containing all state
 local CharacterBuilderState = RegisterGameType("CharacterBuilderState")
 

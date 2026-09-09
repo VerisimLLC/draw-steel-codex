@@ -2,7 +2,7 @@ local mod = dmhub.GetModLoading()
 
 --This file implements the core rules for classes.
 
---- @class Class
+--- @class Class: GameType
 --- @field name string Display name of the class.
 --- @field details string Long-form description/lore text.
 --- @field portraitid string Asset id for the class portrait image.
@@ -21,11 +21,11 @@ local mod = dmhub.GetModLoading()
 --- @field spellbookSizeFormula string GoblinScript formula for spellbook size.
 Class = RegisterGameType("Class")
 
---- @class ClassLevel
+--- @class ClassLevel: GameType
 --- @field features (CharacterFeature|CharacterChoice)[] Features and choices granted at this level.
 ClassLevel = RegisterGameType("ClassLevel") --type which represents the benefits a character gets at a specific level.
 
---- @class CharacterChoice
+--- @class CharacterChoice: GameType
 CharacterChoice = RegisterGameType("CharacterChoice")
 
 --- @class CharacterFeatureChoice:CharacterChoice
@@ -34,7 +34,7 @@ CharacterFeatureChoice = RegisterGameType("CharacterFeatureChoice", "CharacterCh
 --- @class CharacterSubclassChoice:CharacterChoice
 CharacterSubclassChoice = RegisterGameType("CharacterSubclassChoice", "CharacterChoice")
 
---- @class CharacterFeatureList
+--- @class CharacterFeatureList: GameType
 CharacterFeatureList = RegisterGameType("CharacterFeatureList")
 
 --- @param options nil|table

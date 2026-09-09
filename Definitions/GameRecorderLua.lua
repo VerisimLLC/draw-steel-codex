@@ -1,23 +1,16 @@
---- @class GameRecorderLua 
---- @field recording any 
+---@meta
+
+--- @class GameRecorderLua
+--- @field recording any
 GameRecorderLua = {}
 
 --- BeginRecording
---- @param options any
---- @return nil
-function GameRecorderLua:BeginRecording(options)
-	-- dummy implementation for documentation purposes only
-end
+--- @param options? any
+function GameRecorderLua:BeginRecording(options) end
 
 --- EndRecording
---- @param options any
---- @return nil
-function GameRecorderLua:EndRecording(options)
-	-- dummy implementation for documentation purposes only
-end
+--- @param options? any
+function GameRecorderLua:EndRecording(options) end
 
 --- CancelRecording
---- @return nil
-function GameRecorderLua:CancelRecording()
-	-- dummy implementation for documentation purposes only
-end
+function GameRecorderLua:CancelRecording() end

@@ -1,178 +1,130 @@
---- @class LuaObjectInstance 
---- @field id string 
---- @field imageid string 
+---@meta
+
+--- @class LuaObjectInstance
+--- @field id string
+--- @field imageid string
 --- @field displayImageId string The object's current base image id in a form usable as a bgimage. Unlike imageid (which returns the source blueprint/asset id for blueprinted objects), this always reflects the object's actual current image, so a preview using it updates after a live-edit upload or a Replace Image.
---- @field assetid string 
---- @field parentid string 
---- @field childids any 
---- @field artist string 
---- @field floorIndex number 
---- @field inactive boolean 
---- @field editingInfo any 
---- @field x number 
---- @field y number 
---- @field rotation number 
---- @field scale number 
---- @field description any 
---- @field name any 
---- @field keywords any 
---- @field zorder number 
---- @field editorFocus boolean 
---- @field editorSelection boolean 
---- @field childEditorSelection boolean 
---- @field childEditorFocus boolean 
---- @field locked any 
---- @field attachedRulesObjects any 
---- @field area any 
---- @field mapAlignmentDiagnostic any 
---- @field valid boolean 
---- @field components any 
---- @field path string 
+--- @field assetid string
+--- @field parentid string
+--- @field childids any
+--- @field artist string
+--- @field floorIndex number
+--- @field inactive boolean
+--- @field editingInfo any
+--- @field x number
+--- @field y number
+--- @field rotation number
+--- @field scale number
+--- @field description any
+--- @field name any
+--- @field keywords any
+--- @field zorder number
+--- @field editorFocus boolean
+--- @field editorSelection boolean
+--- @field childEditorSelection boolean
+--- @field childEditorFocus boolean
+--- @field locked any
+--- @field attachedRulesObjects any
+--- @field area any
+--- @field mapAlignmentDiagnostic any
+--- @field valid boolean
+--- @field components any
+--- @field path string
+--- @field floorid string
+--- @field objid string
 LuaObjectInstance = {}
 
 --- SetBaseImageFromAsset
---- @param imageAssetId string
+--- @param imageAssetId? string
 --- @return boolean
-function LuaObjectInstance:SetBaseImageFromAsset(imageAssetId)
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectInstance:SetBaseImageFromAsset(imageAssetId) end
 
---- CenterCamera: Centre the camera on this map object. Pass {smooth=true} to pan instead of jump.
---- @param args any
---- @return nil
-function LuaObjectInstance:CenterCamera(args)
-	-- dummy implementation for documentation purposes only
-end
+--- Centre the camera on this map object. Pass {smooth=true} to pan instead of jump.
+--- @param args? any
+function LuaObjectInstance:CenterCamera(args) end
 
---- ShowRadiusMarker: Show a falloff radius ring centred on this map object (single shared marker; replaces any existing). Optional args {color="#rrggbb"}.
---- @param radius number
---- @param args any
---- @return nil
-function LuaObjectInstance:ShowRadiusMarker(radius, args)
-	-- dummy implementation for documentation purposes only
-end
+--- Show a falloff radius ring centred on this map object (single shared marker; replaces any existing). Optional args {color="#rrggbb"}.
+--- @param radius? number
+--- @param args? any
+function LuaObjectInstance:ShowRadiusMarker(radius, args) end
 
---- ClearRadiusMarker: Clear the shared falloff radius ring shown by ShowRadiusMarker.
---- @return nil
-function LuaObjectInstance:ClearRadiusMarker()
-	-- dummy implementation for documentation purposes only
-end
+--- Clear the shared falloff radius ring shown by ShowRadiusMarker.
+function LuaObjectInstance:ClearRadiusMarker() end
+
+--- Play a brief, purely visual squash-and-stretch wobble on this map object -- click feedback for squishy things. Optional args {intensity=0.06, duration=0.4}. Local-only: never serialized or networked, so callers that want other clients to see it must broadcast it themselves.
+--- @param args? any
+function LuaObjectInstance:PlaySquishAnimation(args) end
 
 --- AddComponentFromJson
---- @param id any
---- @param json any
---- @return nil
-function LuaObjectInstance:AddComponentFromJson(id, json)
-	-- dummy implementation for documentation purposes only
-end
+--- @param id? any
+--- @param json? any
+function LuaObjectInstance:AddComponentFromJson(id, json) end
 
 --- ApplyMapCalibration
---- @param calibration any
---- @return nil
-function LuaObjectInstance:ApplyMapCalibration(calibration)
-	-- dummy implementation for documentation purposes only
-end
+--- @param calibration? any
+function LuaObjectInstance:ApplyMapCalibration(calibration) end
 
 --- GetComponent
---- @param description string
+--- @param description? string
 --- @return any
-function LuaObjectInstance:GetComponent(description)
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectInstance:GetComponent(description) end
 
 --- AddComponent
---- @param componentName string
+--- @param componentName? string
 --- @return any
-function LuaObjectInstance:AddComponent(componentName)
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectInstance:AddComponent(componentName) end
 
 --- BuildObjectComponentByName
---- @param componentName string
+--- @param componentName? string
 --- @return any
-function LuaObjectInstance.BuildObjectComponentByName(componentName)
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectInstance.BuildObjectComponentByName(componentName) end
 
 --- IsValidComponentJson
---- @param doc any
+--- @param doc? any
 --- @return any
-function LuaObjectInstance:IsValidComponentJson(doc)
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectInstance:IsValidComponentJson(doc) end
 
 --- ConstructComponent
---- @param doc any
+--- @param doc? any
 --- @return any
-function LuaObjectInstance:ConstructComponent(doc)
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectInstance:ConstructComponent(doc) end
 
 --- ComponentToJson
---- @param key string
+--- @param key? string
 --- @return any
-function LuaObjectInstance:ComponentToJson(key)
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectInstance:ComponentToJson(key) end
 
 --- RemoveComponent
---- @param key string
---- @return nil
-function LuaObjectInstance:RemoveComponent(key)
-	-- dummy implementation for documentation purposes only
-end
+--- @param key? string
+function LuaObjectInstance:RemoveComponent(key) end
 
 --- MarkUndo
---- @return nil
-function LuaObjectInstance:MarkUndo()
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectInstance:MarkUndo() end
 
 --- Upload
---- @param cmdgroupid string?
---- @return nil
-function LuaObjectInstance:Upload(cmdgroupid)
-	-- dummy implementation for documentation purposes only
-end
+--- @param cmdgroupid? string
+function LuaObjectInstance:Upload(cmdgroupid) end
 
---- LiveEdit: Starts a live-edit session for this object's image, opening it in the configured external image editor; the live-edit dialog then tracks the session. No-op if the object is not on a currently loaded floor.
---- @return nil
-function LuaObjectInstance:LiveEdit()
-	-- dummy implementation for documentation purposes only
-end
+--- Starts a live-edit session for this object's image, opening it in the configured external image editor; the live-edit dialog then tracks the session. No-op if the object is not on a currently loaded floor.
+function LuaObjectInstance:LiveEdit() end
 
---- ReplaceImageFromFile: Replaces this object's image with the image file at the given path, uploading it to the cloud and pointing the object at the new image. If provided, onError is called with a message string if the file cannot be read or the upload fails.
---- @param filePath string
---- @param onError any?
---- @return nil
-function LuaObjectInstance:ReplaceImageFromFile(filePath, onError)
-	-- dummy implementation for documentation purposes only
-end
+--- Replaces this object's image with the image file at the given path, uploading it to the cloud and pointing the object at the new image. If provided, onError is called with a message string if the file cannot be read or the upload fails.
+--- @param filePath? string
+--- @param onError? any
+function LuaObjectInstance:ReplaceImageFromFile(filePath, onError) end
 
 --- SetAndUploadZOrder
---- @param zorder number
---- @return nil
-function LuaObjectInstance:SetAndUploadZOrder(zorder)
-	-- dummy implementation for documentation purposes only
-end
+--- @param zorder? number
+function LuaObjectInstance:SetAndUploadZOrder(zorder) end
 
 --- SetAndUploadPos
---- @param x number
---- @param y number
---- @return nil
-function LuaObjectInstance:SetAndUploadPos(x, y)
-	-- dummy implementation for documentation purposes only
-end
+--- @param x? number
+--- @param y? number
+function LuaObjectInstance:SetAndUploadPos(x, y) end
 
 --- Destroy
---- @return nil
-function LuaObjectInstance:Destroy()
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectInstance:Destroy() end
 
 --- DestroyWithBehavior
---- @param behavior any
---- @return nil
-function LuaObjectInstance:DestroyWithBehavior(behavior)
-	-- dummy implementation for documentation purposes only
-end
+--- @param behavior? any
+function LuaObjectInstance:DestroyWithBehavior(behavior) end

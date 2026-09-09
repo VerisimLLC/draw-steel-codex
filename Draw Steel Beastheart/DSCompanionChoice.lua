@@ -45,10 +45,40 @@ function CharacterCompanionChoice:VisitRecursive(fn)
     fn(self)
 end
 
+--Scan results are memoized for a short window: the character builder rebuilds
+--its feature cache on every refresh and calls both GetOptions and Choices each
+--time, so without the memo the full bestiary walk below runs many times a
+--second (report 8QTBJMGC). The short TTL means a companion added or renamed
+--mid-session still shows up within a second, with no invalidation plumbing.
+local g_scanCache = nil
+local SCAN_CACHE_SECONDS = 1
+
+--Render closures keyed by companion id. The closure looks up the monster at
+--call time, so it never holds stale data -- caching it just keeps the function
+--identity stable, which lets the builder's customPanel handler see "same
+--panel" across refreshes instead of destroying and rebuilding the stat block
+--on every one.
+local g_renderCache = {}
+
+local function CompanionRenderFn(companionId)
+    local fn = g_renderCache[companionId]
+    if fn == nil then
+        fn = function()
+            return CharacterCompanionChoice._RenderCompanionPanel(companionId)
+        end
+        g_renderCache[companionId] = fn
+    end
+    return fn
+end
+
 --- Scan the bestiary for AnimalCompanion stat blocks. Mirrors the filter used
 --- by the companion CharacterModifier dropdown in DSModifierCompanion.lua.
 --- @return {id: string, name: string, description: string}[]
 local function ScanCompanionMonsters()
+    local now = dmhub.Time()
+    if g_scanCache ~= nil and now - g_scanCache.time < SCAN_CACHE_SECONDS then
+        return g_scanCache.result
+    end
     local result = {}
     for k,monster in pairs(assets.monsters) do
         local node = assets:GetMonsterNode(k)
@@ -61,6 +91,7 @@ local function ScanCompanionMonsters()
         end
     end
     table.sort(result, function(a,b) return a.name < b.name end)
+    g_scanCache = { time = now, result = result }
     return result
 end
 
@@ -99,9 +130,7 @@ function CharacterCompanionChoice:Choices(numOption, existingChoices, creature)
             id = companionId,
             text = entry.name,
             description = entry.description,
-            render = function()
-                return CharacterCompanionChoice._RenderCompanionPanel(companionId)
-            end,
+            render = CompanionRenderFn(companionId),
         }
     end
     return result
@@ -116,9 +145,7 @@ function CharacterCompanionChoice:GetOptions(choices, creature)
             name = entry.name,
             description = entry.description,
             unique = true,
-            render = function()
-                return CharacterCompanionChoice._RenderCompanionPanel(companionId)
-            end,
+            render = CompanionRenderFn(companionId),
         }
     end
     return options

@@ -29,6 +29,7 @@ local mod = dmhub.GetModLoading()
 -- Storage type: a MarkdownDocument subtype stored in its own table.
 ----------------------------------------------------------------------
 
+--- @class CampaignNote: MarkdownDocument
 CampaignNote = RegisterGameType("CampaignNote", "MarkdownDocument")
 
 --Upload() routes to self.tableName, so rows land in our own table.
@@ -523,10 +524,16 @@ function CampaignTracker.RegisterSection(args)
         error("CampaignTracker.RegisterSection: requires { id = string, create = function }")
     end
 
+    --remember which mod registered this so the section can be dropped once
+    --that mod unloads (the Lua state outlives a game, so a module's section
+    --would otherwise linger into the next campaign). nil when not loading a mod.
+    local ownerMod = dmhub.GetModLoading()
+
     CampaignTracker._sections[args.id] = {
         id = args.id,
         ord = args.ord or 100,
         create = args.create,
+        mod = ownerMod,
     }
 
     dmhub.FireGlobalEvent(SECTIONS_CHANGED_EVENT)
@@ -543,8 +550,16 @@ end
 
 local function GetSortedSections()
     local result = {}
-    for _, section in pairs(CampaignTracker._sections) do
-        result[#result + 1] = section
+    for id, section in pairs(CampaignTracker._sections) do
+        if section.mod ~= nil and section.mod.unloaded == true then
+            --the owning mod is gone, so drop the section outright rather than
+            --just skipping it -- otherwise _sections accumulates one dead entry
+            --per module visited for the life of the app session. (Clearing an
+            --existing key during a pairs() traversal is well-defined in Lua.)
+            CampaignTracker._sections[id] = nil
+        else
+            result[#result + 1] = section
+        end
     end
     table.sort(result, function(a, b)
         if a.ord ~= b.ord then
@@ -561,6 +576,7 @@ end
 
 local function CreateCampaignTrackerPanel()
     local listPanel
+    local editModeButton
 
     listPanel = gui.Panel {
         classes = { "noteList" },
@@ -634,6 +650,18 @@ local function CreateCampaignTrackerPanel()
             element.data.rows = newRows
             element.children = children
 
+            --the pen only has anything to act on when there are entries, so
+            --collapse it when the list is empty (and drop out of edit mode so
+            --it does not come back still toggled on).
+            if #children == 0 and element.data.editMode then
+                element.data.editMode = false
+            end
+
+            if editModeButton ~= nil and editModeButton.valid then
+                editModeButton:SetClass("collapsed", #children == 0)
+                editModeButton:SetClass("selected", element.data.editMode)
+            end
+
             --refresh each row individually (FireEvent, not tree, so rebuildRead
             --does not race with a tree traversal).
             for _, p in ipairs(children) do
@@ -676,8 +704,8 @@ local function CreateCampaignTrackerPanel()
 
     --pen toggle: flips edit mode on/off, which reveals the per-entry
     --edit/share/delete icons. The "selected" class marks the active state.
-    local editModeButton = gui.Button {
-        classes = { "editModeButton", "sizeS" },
+    editModeButton = gui.Button {
+        classes = { "editModeButton", "sizeS", "collapsed" },
         icon = EDIT_ICON,
         valign = "center",
         hmargin = 4,
@@ -694,6 +722,10 @@ local function CreateCampaignTrackerPanel()
             end
         end,
     }
+
+    --listPanel's create-time refreshNotes may have already run, before this
+    --local existed, so apply the initial collapsed state here as well.
+    editModeButton:SetClass("collapsed", next(listPanel.data.rows) == nil)
 
     local footer = gui.Panel {
         flow = "horizontal",
@@ -1400,7 +1432,7 @@ local function CreateAddPopup(element)
             bodyPanel:SetClass("collapsed", not arrow:HasClass("expanded"))
         end
         arrow = gui.ExpandoArrow {
-            press = Toggle,
+            interactable = false,
         }
 
         local headerRow = gui.Panel {
@@ -2879,7 +2911,7 @@ end
 --  nextLabel: string|false   display name for the next scene
 ----------------------------------------------------------------------
 
----@class RichExit
+---@class RichExit: RichTag
 RichExit = RegisterGameType("RichExit", "RichTag")
 RichExit.tag = "exit"
 RichExit.hasEdit = false

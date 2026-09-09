@@ -2,6 +2,7 @@
     Ancestry detail / selectors
 ]]
 
+--- @class CBAncestryDetail: GameType
 CBAncestryDetail = RegisterGameType("CBAncestryDetail")
 
 local mod = dmhub.GetModLoading()

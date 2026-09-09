@@ -33,21 +33,93 @@ local g_heroesExtras = {
     },
 }
 
-DockablePanel.Register {
-    name = "Heroes",
-    icon = "icons/standard/Icon_App_Heroes.png",
-    notitle = true,
-    vscroll = false,
-    dmonly = false,
-    minHeight = 68,
-    content = function()
-        track("panel_open", {
-            panel = "Heroes",
-            dailyLimit = 30,
-        })
-        return CreateHeroesPanel()
-    end,
-}
+--The Heroes panel is NOT a dockable panel any more (2026-08-08): its
+--registration is gone, so it has no rail button, no dock presence and
+--no menu entries anywhere. The title bar's connectivity panel hosts it
+--as a temporary popout instead; this global is that popout's content
+--factory.
+CreateHeroesPanelPopoutContent = function()
+    track("panel_open", {
+        panel = "Heroes",
+        dailyLimit = 30,
+    })
+    return CreateHeroesPanel()
+end
+
+-- Detect whether the current game is a local (offline) game.
+-- Local games have storage == 3 (StorageBackend.Local in C#).
+local IsLocalGame = function()
+    for _, g in ipairs(lobby.games or {}) do
+        if g.gameid == dmhub.gameid then
+            return g.storage == 3
+        end
+    end
+    return false
+end
+
+--The invite code, inline at the bottom of the Heroes popout with the
+--click-to-copy icon (2026-08-08): online games get no dialog at all --
+--the old "Invite Players" modal rendered BELOW the popup layer anyway.
+--Local games keep the button flow (CreateAddButtonPanel): they have no
+--code to show until promoted, and the promote flow needs its modal.
+local CreateInviteCodeRow = function()
+    local displayGameid = dmhub.gameid
+    return gui.Panel {
+        classes = {"row"},
+        width = "100%",
+        height = 36,
+        flow = "horizontal",
+        halign = "center",
+        valign = "top",
+
+        gui.Label {
+            classes = {"sizeS"},
+            text = "Invite Code:",
+            width = "auto",
+            height = "auto",
+            halign = "left",
+            valign = "center",
+            lmargin = 8,
+        },
+
+        gui.Panel {
+            width = "auto",
+            height = "auto",
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
+            lmargin = 8,
+
+            click = function(el)
+                gui.Tooltip { text = "Copied to Clipboard", valign = "top", borderWidth = 0 } (el)
+                dmhub.CopyToClipboard(displayGameid)
+            end,
+
+            gui.Label {
+                classes = {"sizeS"},
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                text = displayGameid,
+            },
+
+            gui.Panel {
+                classes = {"image"},
+                bgimage = "icons/icon_app/icon_app_108.png",
+                styles = {
+                    {
+                        selectors = {"parent:hover"},
+                        brightness = 1.8,
+                    }
+                },
+                width = "100% height",
+                height = 20,
+                valign = "center",
+                hmargin = 4,
+            },
+        },
+    }
+end
 
 local CreateAddButtonPanel = function()
     local resultPanel = gui.Panel {
@@ -78,15 +150,7 @@ local CreateAddButtonPanel = function()
             halign = "center",
             valign = "center",
             click = function(element)
-                -- Detect whether the current game is a local (offline) game.
-                -- Local games have storage == 3 (StorageBackend.Local in C#).
-                local isLocalGame = false
-                for _, g in ipairs(lobby.games or {}) do
-                    if g.gameid == dmhub.gameid then
-                        isLocalGame = (g.storage == 3)
-                        break
-                    end
-                end
+                local isLocalGame = IsLocalGame()
 
                 local inviteDialog
                 local contentPanel
@@ -223,38 +287,6 @@ local CreateAddButtonPanel = function()
                     }
                 end
 
-                local BuildSuccessView = function(newGameid)
-                    return gui.Panel {
-                        halign = "center",
-                        valign = "center",
-                        width = "90%",
-                        height = "auto",
-                        flow = "vertical",
-
-                        gui.Label {
-                            classes = {"sizeL", "bold"},
-                            text = "Game is Online!",
-                            width = "auto",
-                            height = "auto",
-                            halign = "center",
-                            vmargin = 4,
-                        },
-
-                        BuildInviteCodeView(newGameid),
-
-                        gui.Button {
-                            classes = {"sizeL"},
-                            text = "Play Online",
-                            halign = "center",
-                            vmargin = 4,
-                            click = function()
-                                gui.CloseModal()
-                                lobby:EnterGame(newGameid)
-                            end,
-                        },
-                    }
-                end
-
                 local BuildErrorView = function(msg)
                     return gui.Panel {
                         halign = "center",
@@ -304,12 +336,16 @@ local CreateAddButtonPanel = function()
                             end
                         end,
                         complete = function(success, newGameid, err)
-                            if inviteDialog == nil or not inviteDialog.valid then return end
                             if success then
-                                SetContent(BuildSuccessView(newGameid))
-                            else
-                                SetContent(BuildErrorView(err or "Unknown error"))
+                                -- Archiving the local copy closes its WebSocket. Leave
+                                -- before it reconnects to a newly-created empty database.
+                                gui.CloseModal()
+                                lobby:EnterGame(newGameid)
+                                return
                             end
+
+                            if inviteDialog == nil or not inviteDialog.valid then return end
+                            SetContent(BuildErrorView(err or "Unknown error"))
                         end,
                     }
                 end
@@ -358,6 +394,14 @@ local CreateAddButtonPanel = function()
                 }
 
                 gui.ShowModal(inviteDialog)
+
+                --popups render above the modal layer, so the popout
+                --hosting us would sit on top of the dialog we just
+                --opened -- close it.
+                local popout = element:FindParentWithClass("heroesPopout")
+                if popout ~= nil then
+                    popout:FireEvent("closePopout")
+                end
             end,
 
             tooltip = "Invite players",
@@ -593,8 +637,17 @@ local CreateDirectorPanel = function(userid)
                             local perf = sessionInfo.perf
                             local loggedInText = "Logged In"
                             if sessionInfo.loggedOut or sessionInfo.timeSinceLastContact > 60 then
-                                loggedInText = string.format("Last seen %s",
-                                    DescribeSecondsAgo(sessionInfo.timeSinceLastContact))
+                                --the server only persists a coarse last-contact time, and
+                                --records written before it did so have none at all -- in which
+                                --case timeSinceLastContact is measured from the epoch and would
+                                --render as "20664 days ago". lastContactKnown reads nil on
+                                --engine builds that predate it; treat that as known.
+                                if sessionInfo.lastContactKnown == false then
+                                    loggedInText = "Last seen: unknown"
+                                else
+                                    loggedInText = string.format("Last seen %s",
+                                        DescribeSecondsAgo(sessionInfo.timeSinceLastContact))
+                                end
                             else
                                 if sessionInfo.ping == nil then
                                     loggedInText = loggedInText .. "\nPing: unknown"
@@ -995,8 +1048,17 @@ local CreatePlayerPanel = function(userid)
                             local perf = sessionInfo.perf
                             local loggedInText = "Logged In"
                             if sessionInfo.loggedOut or sessionInfo.timeSinceLastContact > 60 then
-                                loggedInText = string.format("Last seen %s",
-                                    DescribeSecondsAgo(sessionInfo.timeSinceLastContact))
+                                --the server only persists a coarse last-contact time, and
+                                --records written before it did so have none at all -- in which
+                                --case timeSinceLastContact is measured from the epoch and would
+                                --render as "20664 days ago". lastContactKnown reads nil on
+                                --engine builds that predate it; treat that as known.
+                                if sessionInfo.lastContactKnown == false then
+                                    loggedInText = "Last seen: unknown"
+                                else
+                                    loggedInText = string.format("Last seen %s",
+                                        DescribeSecondsAgo(sessionInfo.timeSinceLastContact))
+                                end
                             else
                                 if sessionInfo.ping == nil then
                                     loggedInText = loggedInText .. "\nPing: unknown"
@@ -1217,7 +1279,15 @@ CreateHeroesPanel = function()
     local m_currentRichStatus = nil
     local m_richStatusId = nil
 
-    local addButtonPanel = CreateAddButtonPanel()
+    --online games show the invite code inline at the bottom; local
+    --(offline) games keep the button that runs the promote-to-online
+    --dialog. NOT cond(): both branches would construct panels.
+    local addButtonPanel
+    if IsLocalGame() then
+        addButtonPanel = CreateAddButtonPanel()
+    else
+        addButtonPanel = CreateInviteCodeRow()
+    end
 
     --king panel
     local heroesPanel = gui.Panel {
@@ -1341,6 +1411,7 @@ CreateHeroesPanel = function()
             width = "100%",
             height = "auto",
             flow = "vertical",
+            valign = "top",
 
 
             monitorGame = '/usersToSessions',
@@ -1421,7 +1492,7 @@ CreateHeroesPanel = function()
 end
 
 --------------------------------------------------------------------------------
--- SAFETY TOOLS PANEL
+-- SAFETY PANEL
 --
 -- Table safety tools for the whole group: the X-Card, Lines & Veils, the MCDM
 -- Tabletop Safety Checklist, and Stars & Wishes session feedback.
@@ -1897,7 +1968,7 @@ function SafetyTools.SyncWishesToJournal()
         journal.description = SafetyTools.journalTitle
         journal.parentFolder = "private"
         journal.hiddenFromPlayers = true
-        existingText = "Session feedback collected by the Safety Tools panel.\n"
+        existingText = "Session feedback collected by the Safety panel.\n"
     end
 
     journal:SetTextContent(existingText .. "\n" .. newEntries)
@@ -1933,7 +2004,7 @@ end
 -- CONTENT WARNING
 --
 -- The Director writes a freeform content warning for the campaign (stored as
--- a game setting so it syncs to every client; edited from the Safety Tools
+-- a game setting so it syncs to every client; edited from the Safety
 -- panel's Tools in Play card). When a user enters the game they see a
 -- blocking dialog with the warning. "Don't show again" remembers the exact
 -- acknowledged text per user per campaign, so a changed warning shows again.
@@ -2096,7 +2167,7 @@ function SafetyTools.ShowContentWarningDialog()
                     height = "auto",
                     tmargin = 12,
                     textAlignment = "center",
-                    text = "You can review this warning anytime in the Safety Tools panel.",
+                    text = "You can review this warning anytime in the Safety panel.",
                 },
             },
         },
@@ -2984,7 +3055,7 @@ local function CreateSafetyToolsPanel()
 end
 
 DockablePanel.Register{
-    name = "Safety Tools",
+    name = "Safety",
     icon = "icons/standard/Icon_App_Check.png",
     minHeight = 200,
     vscroll = true,

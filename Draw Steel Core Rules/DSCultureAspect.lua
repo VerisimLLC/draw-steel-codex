@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class CultureAspect
+--- @class CultureAspect: GameType
 --- @field name string Display name of the aspect.
 --- @field description string Descriptive text.
 --- @field tableName string Data table name ("cultureAspects").

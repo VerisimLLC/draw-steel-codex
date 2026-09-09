@@ -1,25 +1,23 @@
---- @class AudioAssetLua 
---- @field parentFolder any 
---- @field description any 
---- @field hidden any 
---- @field loop any 
---- @field volume any 
---- @field duration any 
---- @field color any 
---- @field category any 
---- @field loudnessLufs any 
---- @field loudnessMeasured any 
---- @field normalizeGainTrimDb any 
+---@meta
+
+--- @class AudioAssetLua
+--- @field parentFolder any
+--- @field description any
+--- @field hidden any
+--- @field loop any
+--- @field volume any
+--- @field duration any
+--- @field color any
+--- @field category any
+--- @field loudnessLufs any
+--- @field loudnessMeasured any
+--- @field normalizeGainTrimDb any
+--- @field id string
 AudioAssetLua = {}
 
 --- Play
 --- @return any
-function AudioAssetLua:Play()
-	-- dummy implementation for documentation purposes only
-end
+function AudioAssetLua:Play() end
 
 --- Upload
---- @return nil
-function AudioAssetLua:Upload()
-	-- dummy implementation for documentation purposes only
-end
+function AudioAssetLua:Upload() end

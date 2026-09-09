@@ -1,8 +1,7 @@
---- @class LuaTargetableObject:LuaObjectComponent 
+---@meta
+
+--- @class LuaTargetableObject:LuaObjectComponent
 LuaTargetableObject = {}
 
 --- OnDeath
---- @return nil
-function LuaTargetableObject:OnDeath()
-	-- dummy implementation for documentation purposes only
-end
+function LuaTargetableObject:OnDeath() end

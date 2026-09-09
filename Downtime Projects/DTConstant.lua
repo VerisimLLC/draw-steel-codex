@@ -1,6 +1,6 @@
 --- DTConstant class for representing typed constant values with metadata
 --- Provides a clean object-oriented approach to enum-like constants with sorting and display information
---- @class DTConstant
+--- @class DTConstant: GameType
 --- @field key string The internal key value used for storage and comparison
 --- @field sortOrder number Display order for dropdown lists and UI sorting
 --- @field displayText string User-friendly display text for UI presentation

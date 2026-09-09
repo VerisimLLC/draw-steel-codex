@@ -3,7 +3,7 @@ local mod = dmhub.GetModLoading()
 --This file implements parties, including both their core rules and the UI for editing them.
 
 
---- @class Party
+--- @class Party: GameType
 --- @field name string Display name.
 --- @field details string Description / lore text.
 --- @field tableName string Data table name ("parties").

@@ -88,30 +88,43 @@ function ActivatedAbilityApplyAbilityDurationEffect:Cast(ability, casterToken, t
 
         print("ApplyTo:: Applying effect to", #targets)
     local tokenids = {}
+    local targetCreatures = {}
 	for i,target in ipairs(targets) do
 		local targetCreature = target.token.properties
         tokenids[target.token.charid] = true
+        targetCreatures[#targetCreatures+1] = targetCreature
 		self.momentaryEffect.iconid = ability.iconid
 		self.momentaryEffect.display = ability.display
-		local result = targetCreature:ApplyTemporaryEffect(self.momentaryEffect)
-
-        --when the ability ends we remove the temporary effect.
-        options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
-        options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function()
-            if self.lingerTime > 0 then
-                dmhub.Schedule(math.min(self.lingerTime,10), function()
-                    print("ApplyTo:: Cancel")
-                    result.cancel()
-                    game.Refresh{
-                        tokens = tokenids,
-                    }
-                end)
-                return
-            end
-                    print("ApplyTo:: Cancel")
-            result.cancel()
-        end
+		targetCreature:ApplyTemporaryEffect(self.momentaryEffect)
 	end
+
+    --When the ability ends we purge EVERY copy of the effect from these targets,
+    --rather than cancelling just the one slot this call added. A triggered
+    --ability whose behaviors mix instant and non-instant runs this Cast twice per
+    --fire, and the first run's options table -- which holds that run's cancel --
+    --is thrown away, so a single-slot cancel leaves a copy applied permanently.
+    --Purging by effect cleans up after both runs from whichever handler survives.
+    local effect = self.momentaryEffect
+    local lingerTime = self.lingerTime
+    options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
+    options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function()
+        local function purge()
+            print("ApplyTo:: Cancel")
+            for _,targetCreature in ipairs(targetCreatures) do
+                targetCreature:PurgeTemporaryEffect(effect)
+            end
+            game.Refresh{
+                tokens = tokenids,
+            }
+        end
+
+        if lingerTime > 0 then
+            dmhub.Schedule(math.min(lingerTime,10), purge)
+            return
+        end
+
+        purge()
+    end
 
     game.Refresh{
         tokens = tokenids,

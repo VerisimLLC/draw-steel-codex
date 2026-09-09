@@ -6,6 +6,7 @@
     feature choice but could maybe be dropped in like one.
     This supports CBKitDetail.
 ]]
+--- @class CharacterKitChoice: CharacterChoice
 CharacterKitChoice = RegisterGameType("CharacterKitChoice", "CharacterChoice")
 
 --- Construct from a hero

@@ -7,7 +7,7 @@ local mod = dmhub.GetModLoading()
 --- An ActivatedAbility variant that represents a castable spell, with spell level and slot tracking.
 Spell = RegisterGameType("Spell", "ActivatedAbility")
 
---- @class SpellList
+--- @class SpellList: GameType
 --- @field hidden boolean If true, this list is not shown in UI menus.
 --- @field tableName string Data table name ("SpellLists").
 --- @field name string Display name.

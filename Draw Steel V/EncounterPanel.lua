@@ -18,8 +18,8 @@ local mod = dmhub.GetModLoading()
 --            },
 --        },
 --        {
---            --legacy whole-group gate; the builder migrates this to
---            --monsterMinHeroes when the encounter is edited.
+--            --whole-group gate: below it the group contributes no EV and
+--            --places nothing, whatever monsterMinHeroes says.
 --            minHeroes = 3,
 --            monsters = {
 --                ["b7122d63-1ac3-4c4d-b7d5-82c5f1ea93d3"] = 1,
@@ -62,6 +62,13 @@ if encounterBuilderSetting:Get() then
     --bug report meant.
     DockablePanel.Register {
         name = "Encounters",
+        --Authored encounters are Director-only content: this lists the
+        --encounters the director has authored, monster counts and all,
+        --long before they are spawned. Players were seeing the whole
+        --roster (reports JA9XNYG3, 8B4CZRUA, BUZ6SY69) because this flag
+        --was missing while every other director panel had it. Same reason
+        --the encounters search provider below returns nothing to players.
+        dmonly = true,
         icon = "icons/standard/Icon_App_EncounterCreator.png",
         minHeight = 200,
         vscroll = true,
@@ -80,8 +87,10 @@ end
 
 --Encounter is defined in Draw Steel Core Rules/MCDMEncounter.lua (data + rules).
 --We re-fetch the registered type here so the UI methods below can attach to it.
+--- @class Encounter: GameType
 Encounter = RegisterGameType('Encounter')
 
+--- @class EncounterFolder: GameType
 EncounterFolder = RegisterGameType('EncounterFolder')
 
 EncounterFolder.tableName = 'encounterfolders'
@@ -218,11 +227,11 @@ end
 
 --Names for the implementation levels used by gui.ImplementationStatusIcon.
 local g_implementationNames = {
-    [0] = "Not implemented",
-    [1] = "Not implemented",
-    [2] = "Bronze",
-    [3] = "Silver",
-    [4] = "Gold",
+    [0] = "Narrative",
+    [1] = "Not Automated",
+    [2] = "Partly Automated",
+    [3] = "Mostly Automated",
+    [4] = "Fully Automated",
 }
 
 --Implementation level -> status modifier class (tinted via the scheme's
@@ -260,6 +269,41 @@ local function ImplementationTooltip(info)
     return table.concat(lines, "\n")
 end
 
+--Fly out a monster's full stat block from the hovered element, mirroring the
+--bestiary panel's hover preview (CharacterPanel.lua). Call from a `linger`
+--handler. `halign` picks the side of the anchor the flyout opens on -- the
+--bestiary list sits on the left edge of the builder so its rows open "right",
+--while the roster entries sit in the right-hand pane and open "left".
+local function ShowMonsterStatBlockFlyout(element, monsterAsset, halign)
+    if monsterAsset == nil then
+        return
+    end
+
+    local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
+    --Reserved gutter: once the stat block overflows, the scroll viewport
+    --shrinks by the scrollbar's width while children are still laid out at
+    --the full 800, clipping the right-aligned header text. Mirrors the
+    --Bestiary tooltip in CharacterPanel.
+    local panel = monsterAsset:Render {
+        width = 800,
+        maxHeight = lockedHeight,
+        vscroll = true,
+        rpad = 12,
+        borderBox = true,
+    }
+
+    if panel ~= nil then
+        element.tooltip = gui.TooltipFrame(
+            panel,
+            {
+                halign = halign,
+                valign = "center",
+                interactable = true,
+            }
+        )
+    end
+end
+
 --The EV a single roster entry contributes, using the same minion math as
 --Encounter.CountEDS (minions contribute a quarter of their EV each).
 local function EntryEV(monsterAsset, quantity)
@@ -289,7 +333,9 @@ local function AdjustedGroupEV(group, numHeroes)
 end
 
 --The number of creatures a group actually places for a given hero count.
-local function AdjustedGroupCount(group, numHeroes)
+--Global on Encounter so headless spawners (Encounter of the Week) can apply
+--the same group gating the builder does; aliased locally below.
+function Encounter.AdjustedGroupCount(group, numHeroes)
     if group.minHeroes ~= nil and group.minHeroes > numHeroes then
         return 0
     end
@@ -300,6 +346,8 @@ local function AdjustedGroupCount(group, numHeroes)
     end
     return total
 end
+
+local AdjustedGroupCount = Encounter.AdjustedGroupCount
 
 --Display name for the group at the given index in the encounter ("Group A").
 local function GroupDisplayName(index)
@@ -372,6 +420,70 @@ local function PlacedTokensForGroup(group)
     return result
 end
 
+--The group's monsters in a stable order.
+--
+--pairs() over group.monsters has no defined order, and INSERTING a key can
+--rehash the whole table -- so a spawn loop driven by pairs() reshuffles every
+--monster the moment the roster is edited. Adding a captain to a group whose
+--positions were already banked handed the captain a minion's saved tile
+--(report BFUBGW59). Sorting by monsterid makes slot assignment reproducible
+--across roster edits, app restarts, and the staging/real-placement pair.
+local function SortedMonsterIds(group)
+    local ids = {}
+    for monsterid, _ in pairs(group.monsters or {}) do
+        ids[#ids + 1] = monsterid
+    end
+    table.sort(ids)
+    return ids
+end
+
+--Regroup the flat banked slots into one queue of saved positions PER MONSTER
+--TYPE, so an edit to the roster cannot hand one monster's tile to another.
+--Each entry carries the appearance and player-visibility banked with it, since
+--those are slot-keyed too and must travel with the position.
+--
+--Positions banked before spawnmonsters existed carry no monsterid stamp; they
+--go into a shared legacy queue any monster may draw from in slot order, which
+--reproduces the old flat behaviour for encounters saved by older builds.
+local function BankedPositionQueues(group)
+    local queues = {}
+    local legacy = {}
+    local locs = group.spawnlocs or {}
+    for slot = 1, #locs do
+        local entry = {
+            loc = locs[slot],
+            appearance = (group.appearances or {})[slot],
+            invisible = (group.invisibleToPlayers or {})[slot],
+        }
+        local monsterid = (group.spawnmonsters or {})[slot]
+        if monsterid == nil or monsterid == false then
+            legacy[#legacy + 1] = entry
+        else
+            local queue = queues[monsterid]
+            if queue == nil then
+                queue = {}
+                queues[monsterid] = queue
+            end
+            queue[#queue + 1] = entry
+        end
+    end
+    return queues, legacy
+end
+
+--Draw the next saved position for this monster type, or nil once the group has
+--outgrown what was banked (a monster added since, or a quantity raised). nil
+--means the caller must fall back -- never that the monster is skipped.
+local function TakeBankedPosition(queues, legacy, monsterid)
+    local queue = queues[monsterid]
+    if queue ~= nil and #queue > 0 then
+        return table.remove(queue, 1)
+    end
+    if #legacy > 0 then
+        return table.remove(legacy, 1)
+    end
+    return nil
+end
+
 --Bank one group's staged tokens into the group: positions (spawnlocs),
 --player-visibility, and (when the encounter opts in) appearances, all in
 --spawn-slot order. Also stamps the map the positions belong to -- spawnlocs
@@ -385,10 +497,16 @@ local function BankGroupPositions(group, saveAppearances)
     group.spawnlocs = {}
     group.appearances = {}
     group.invisibleToPlayers = {}
+    group.spawnmonsters = {}
     group.stagemapid = game.currentMapId
     for slot, token in ipairs(tokens) do
         group.spawnlocs[slot] = token.loc
         group.invisibleToPlayers[slot] = token.invisibleToPlayers or false
+        --which monster type held this tile, so a later restage can hand it back
+        --to the same one even if the roster changed in between. false (never
+        --nil) for tokens spawned before the stamp existed: the list has to stay
+        --dense or serialization compacts it and shifts every later entry.
+        group.spawnmonsters[slot] = token.properties:try_get("encounterSpawnMonster") or false
         if saveAppearances and token.appearanceChangedFromBestiary then
             group.appearances[slot] = token:SerializeAppearanceToString()
         else
@@ -396,6 +514,41 @@ local function BankGroupPositions(group, saveAppearances)
         end
     end
     return tokens
+end
+
+--Bank which staged monsters are sitting in which others' saddles, across every
+--group of the plan. Separate from BankGroupPositions because a mount is saved as
+--the (group, slot) pair it occupies, so it can only be resolved once every
+--group's slots are known -- a rider in one group can be riding a monster in
+--another. Call it while the tokens are still on the map, and in the same slot
+--order BankGroupPositions uses.
+local function BankStagedMounts(encounter)
+    local entries = {}
+    for groupIndex, group in ipairs(encounter.groups) do
+        for slot, token in ipairs(PlacedTokensForGroup(group)) do
+            entries[#entries + 1] = { group = groupIndex, slot = slot, token = token }
+        end
+    end
+    encounter:RecordMounts(entries)
+end
+
+--Seat the monsters of a group that has just been put on the map back onto their
+--saved mounts. Tokens already staged from the OTHER groups come along as mounts
+--to sit on (mountOnly), so a rider whose mount belongs to a group placed earlier
+--still finds it -- without re-seating creatures the Director has since moved.
+local function RestoreMountsForPlacedGroup(encounter, groupIndex, entries)
+    local all = {}
+    for _, entry in ipairs(entries) do
+        all[#all + 1] = entry
+    end
+    for otherIndex, other in ipairs(encounter.groups) do
+        if otherIndex ~= groupIndex then
+            for slot, token in ipairs(PlacedTokensForGroup(other)) do
+                all[#all + 1] = { group = otherIndex, slot = slot, token = token, mountOnly = true }
+            end
+        end
+    end
+    encounter:RestoreMounts(all)
 end
 
 --True when the group's saved positions were banked on a different map than
@@ -407,41 +560,70 @@ end
 
 --Spawn a group's monsters at its saved staging positions (group.spawnlocs),
 --restoring saved appearances and player-visibility, and tag them with the
---group's placement id so the builder recognises them as staged. Slots that
---have no saved position are skipped. Returns the spawned tokens.
-local function StageGroupAtSavedLocations(group, numHeroes, placementid)
+--group's placement id so the builder recognises them as staged. A monster with
+--no banked position of its own -- one added to the group since it was staged --
+--goes to a fallback grid rather than being skipped. Monsters saved riding
+--another monster are put back in the saddle. Returns the spawned tokens.
+local function StageGroupAtSavedLocations(encounter, groupIndex, group, numHeroes, placementid)
     local tokens = {}
+    --the spawned tokens tagged with the slot each went into, for re-seating riders.
+    local mountEntries = {}
+    local queues, legacy = BankedPositionQueues(group)
+
+    --Where monsters with nothing banked land: beside the group's own saved
+    --arrangement, so a captain added after staging appears next to their
+    --minions rather than wherever the camera happens to point.
+    local fallbackAnchor = (group.spawnlocs or {})[1] or dmhub.cameraPosition
+    local baseX = round(fallbackAnchor.x)
+    local baseY = round(fallbackAnchor.y)
+    local floorIndex = game.currentFloorIndex
+    local fallbackIndex = 0
+
     local slot = 1
-    for monsterid, quantity in pairs(group.monsters) do
-        quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, quantity, numHeroes)
+    for _, monsterid in ipairs(SortedMonsterIds(group)) do
+        local quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, group.monsters[monsterid], numHeroes)
         for i = 1, quantity do
-            local loc = (group.spawnlocs or {})[slot]
+            local entry = TakeBankedPosition(queues, legacy, monsterid)
+            local loc = entry ~= nil and entry.loc or nil
             if loc ~= nil then
                 if not loc.isValidFloor then
                     loc = loc.withCurrentFloor
                 end
-                local token = game.SpawnTokenFromBestiaryLocally(monsterid, loc, { fitLocation = true })
-                if token ~= nil then
-                    token.properties.encounterPlacementId = placementid
-                    token.properties.encounterSpawnSlot = slot
-                    token.properties.encounterStaged = true
-                    token.properties.encounterStagedBy = dmhub.userid
-                    local appearance = (group.appearances or {})[slot]
-                    if type(appearance) == "string" then
-                        token:SerializeAppearanceFromString(appearance)
-                    end
-                    if (group.invisibleToPlayers or {})[slot] then
-                        token.invisibleToPlayers = true
-                    end
-                    token:UploadToken()
-                    tokens[#tokens + 1] = token
+            else
+                --Same 5-wide grid SpawnGroupForReal uses for unbanked monsters.
+                --Skipping instead (as this did) silently lost the monster: the
+                --user got a captain and seven of their eight minions, with no
+                --indication one had never spawned.
+                local col = fallbackIndex % 5
+                local row = math.floor(fallbackIndex / 5)
+                loc = core.Loc { x = baseX + col, y = baseY + row, floorIndex = floorIndex }
+                fallbackIndex = fallbackIndex + 1
+            end
+
+            local token = game.SpawnTokenFromBestiaryLocally(monsterid, loc, { fitLocation = true })
+            if token ~= nil then
+                token.properties.encounterPlacementId = placementid
+                token.properties.encounterSpawnSlot = slot
+                token.properties.encounterSpawnMonster = monsterid
+                token.properties.encounterStaged = true
+                token.properties.encounterStagedBy = dmhub.userid
+                local appearance = entry ~= nil and entry.appearance or nil
+                if type(appearance) == "string" then
+                    token:SerializeAppearanceFromString(appearance)
                 end
+                if entry ~= nil and entry.invisible then
+                    token.invisibleToPlayers = true
+                end
+                token:UploadToken()
+                tokens[#tokens + 1] = token
+                mountEntries[#mountEntries + 1] = { group = groupIndex, slot = slot, token = token }
             end
             slot = slot + 1
         end
     end
     if #tokens > 0 then
         game.UpdateCharacterTokens()
+        RestoreMountsForPlacedGroup(encounter, groupIndex, mountEntries)
     end
     return tokens
 end
@@ -741,7 +923,13 @@ end
 --group.balancing when the popup closes, then refresh() re-runs the budget.
 local function ShowBalancingPopup(element, group, refresh)
     local balancing = DeepCopy(group.balancing or {})
-    for _, i in ipairs({ 3, 4, 5, 6, 7 }) do
+    --Seed every index from 1, not just the 3-7 the UI edits. balancing is keyed
+    --by hero count, so a table holding only keys 3-7 is sparse; serialization
+    --compacts it to a dense array and the entries come back shifted onto the
+    --wrong hero counts (3 heroes reading what was entered for 5, and 6-7
+    --reading nothing at all). Keeping it dense from 1 makes index == hero count
+    --survive the round trip.
+    for i = 1, 7 do
         balancing[i] = balancing[i] or {}
         balancing[i].monsters = balancing[i].monsters or {}
     end
@@ -1849,23 +2037,7 @@ local function CreateBestiaryPane(party, addMonster)
                     return
                 end
 
-                local lockedHeight = math.floor(dmhub.screenDimensionsBelowTitlebar.y * 0.6)
-                local panel = rowInfo.asset:Render {
-                    width = 800,
-                    maxHeight = lockedHeight,
-                    vscroll = true,
-                }
-
-                if panel ~= nil then
-                    element.tooltip = gui.TooltipFrame(
-                        panel,
-                        {
-                            halign = "right",
-                            valign = "center",
-                            interactable = true,
-                        }
-                    )
-                end
+                ShowMonsterStatBlockFlyout(element, rowInfo.asset, "right")
             end,
 
             imagePanel,
@@ -2123,6 +2295,22 @@ local function CreateGroupCard(args)
     local refresh = args.refresh
     local rebuild = args.rebuild
 
+    --Removing the last monster removes the group itself: an empty group has
+    --nothing to place, and the engine's click-to-place preview cannot handle
+    --one (it wedges DMSheetHud in a per-frame error). Mirrors the group
+    --delete button below, including the saved-mounts index repair.
+    local function RemoveMonsterFromGroup(monsterid)
+        group.monsters[monsterid] = nil
+        if next(group.monsters) == nil then
+            table.remove(encounter.groups, groupIndex)
+            encounter:RepairMountsAfterGroupRemoved(groupIndex)
+            if state.activeGroup == group then
+                state.activeGroup = encounter.groups[1]
+            end
+        end
+        rebuild()
+    end
+
     --sorted roster entries for stable display.
     local entries = {}
     for monsterid, quantity in pairs(group.monsters) do
@@ -2299,26 +2487,44 @@ local function CreateGroupCard(args)
                 height = "auto",
                 flow = "horizontal",
 
-                entryImagePanel,
-
+                --the token image and the name/meta text together make one
+                --hover target that flies out the monster's stat block, the
+                --same preview the bestiary rows give. Opens to the LEFT: this
+                --pane sits on the right-hand side of the builder.
                 gui.Panel {
-                    flow = "vertical",
-                    width = "100%-350",
+                    classes = { "hoverable" },
+                    flow = "horizontal",
+                    width = "100%-314",
                     height = "auto",
                     valign = "center",
+                    bgimage = true,
+                    bgcolor = "clear",
 
-                    gui.Label {
-                        classes = { "sizeS" },
-                        width = "100%",
-                        height = "auto",
-                        text = info.name,
-                    },
+                    linger = function(element)
+                        ShowMonsterStatBlockFlyout(element, monsterAsset, "left")
+                    end,
 
-                    gui.Label {
-                        classes = { "fgMuted", "sizeXxs" },
-                        width = "100%",
+                    entryImagePanel,
+
+                    gui.Panel {
+                        flow = "vertical",
+                        width = "100%-36",
                         height = "auto",
-                        text = info.meta,
+                        valign = "center",
+
+                        gui.Label {
+                            classes = { "sizeS" },
+                            width = "100%",
+                            height = "auto",
+                            text = info.name,
+                        },
+
+                        gui.Label {
+                            classes = { "fgMuted", "sizeXxs" },
+                            width = "100%",
+                            height = "auto",
+                            text = info.meta,
+                        },
                     },
                 },
 
@@ -2336,8 +2542,7 @@ local function CreateGroupCard(args)
                     end,
                     change = function(v)
                         if v <= 0 then
-                            group.monsters[monsterid] = nil
-                            rebuild()
+                            RemoveMonsterFromGroup(monsterid)
                         else
                             group.monsters[monsterid] = v
                             refresh()
@@ -2353,8 +2558,7 @@ local function CreateGroupCard(args)
                     classes = { "deleteButton", "sizeXs" },
                     valign = "center",
                     press = function(element)
-                        group.monsters[monsterid] = nil
-                        rebuild()
+                        RemoveMonsterFromGroup(monsterid)
                     end,
                 },
             },
@@ -2384,9 +2588,46 @@ local function CreateGroupCard(args)
         }
     end
 
-    --group-scoped controls, shown once in the card footer: per-party-size
-    --balancing and per-group placement. (The "appears at N+ heroes" gate is
-    --per MONSTER and lives on each roster row.)
+    --group-scoped controls, shown once in the card footer: the whole-group
+    --"appears at N+ heroes" gate, per-party-size balancing, and per-group
+    --placement. The group gate is an OUTER gate -- below it the group
+    --contributes no EV and places nothing, regardless of the per-monster
+    --gates on the roster rows, which still apply within a surviving group.
+    local groupAppearsLink = gui.Label {
+        classes = { "link", "sizeXs" },
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        rmargin = 16,
+        text = "Appears: Always",
+        hover = gui.Tooltip("The minimum party size at which this whole group appears. Below it the group contributes no EV and places no monsters."),
+        refreshBuilder = function(element)
+            if group.minHeroes == nil then
+                element.text = "Appears: Always"
+            else
+                element.text = string.format("Appears: %d+", group.minHeroes)
+            end
+        end,
+        press = function(element)
+            local menuEntries = {}
+            for _, i in ipairs({ 0, 3, 4, 5, 6, 7 }) do
+                menuEntries[#menuEntries + 1] = {
+                    text = cond(i == 0, "Always", string.format("%d+ Heroes", i)),
+                    selected = (group.minHeroes or 0) == i,
+                    click = function()
+                        group.minHeroes = cond(i == 0, nil, i)
+                        element.popup = nil
+                        refresh()
+                    end,
+                }
+            end
+
+            element.popup = gui.ContextMenu {
+                entries = menuEntries,
+            }
+        end,
+    }
+
     local groupBalancingLink = gui.Label {
         classes = { "link", "sizeXs" },
         width = "auto",
@@ -2423,6 +2664,8 @@ local function CreateGroupCard(args)
             local placed = PlacedTokensForGroup(group)
             if #placed > 0 then
                 BankGroupPositions(group, encounter.saveAppearances)
+                --while the tokens are still on the map: who was riding whom.
+                BankStagedMounts(encounter)
                 local charids = {}
                 for _, token in ipairs(placed) do
                     charids[#charids + 1] = token.charid
@@ -2440,6 +2683,7 @@ local function CreateGroupCard(args)
 
             if AdjustedGroupCount(group, party.numHeroes) == 0 then
                 gui.ModalMessage {
+                    owner = element,
                     title = "Nothing to Stage",
                     message = "This group has no monsters at the current party size.",
                 }
@@ -2471,7 +2715,7 @@ local function CreateGroupCard(args)
             --Positions banked on another map are coordinates that mean nothing
             --here, so fall through to click-to-stage instead.
             if group.spawnlocs ~= nil and #group.spawnlocs > 0 and not GroupStagedOnOtherMap(group) then
-                local tokens = StageGroupAtSavedLocations(group, party.numHeroes, placementid)
+                local tokens = StageGroupAtSavedLocations(encounter, groupIndex, group, party.numHeroes, placementid)
                 if #tokens > 0 then
                     editorPanel:SetClass("hidden", true)
 
@@ -2626,6 +2870,8 @@ local function CreateGroupCard(args)
                         copy.spawnlocs = nil
                         copy.appearances = nil
                         copy.invisibleToPlayers = nil
+                        copy.spawnmonsters = nil
+                        copy.mounts = nil
                         encounter.groups[#encounter.groups + 1] = copy
                         rebuild()
                     end,
@@ -2661,6 +2907,8 @@ local function CreateGroupCard(args)
                         group.spawnlocs = nil
                         group.appearances = nil
                         group.invisibleToPlayers = nil
+                        group.spawnmonsters = nil
+                        group.mounts = nil
                         group.stagemapid = nil
                         refresh()
                     end,
@@ -2674,6 +2922,10 @@ local function CreateGroupCard(args)
 
         refreshBuilder = function(element)
             element:SetClass("activeGroup", state.activeGroup == group)
+            --dim the whole card when the group's own gate excludes it at the
+            --party size being previewed: it contributes no EV and places
+            --nothing, so it should not read as live content.
+            element:SetClass("gatedOff", group.minHeroes ~= nil and party.numHeroes < group.minHeroes)
         end,
 
         gui.Panel {
@@ -2740,6 +2992,9 @@ local function CreateGroupCard(args)
                 swallowPress = true,
                 press = function(element)
                     table.remove(encounter.groups, groupIndex)
+                    --saved mounts name their group by index, so the survivors'
+                    --references have to shift down with the removal.
+                    encounter:RepairMountsAfterGroupRemoved(groupIndex)
                     if state.activeGroup == group then
                         state.activeGroup = encounter.groups[1]
                     end
@@ -2779,6 +3034,7 @@ local function CreateGroupCard(args)
                     halign = "left",
                     valign = "center",
 
+                    groupAppearsLink,
                     groupBalancingLink,
                     placeLink,
                 },
@@ -3257,7 +3513,10 @@ ShowPlacementBanner = function(encounter, opts)
     local banner
 
     banner = gui.Panel {
-        classes = { "framedPanel" },
+        --marker class: this banner holds GUI focus on purpose (that is how it
+        --receives the map click), so Encounter.DisarmClickToPlace must leave
+        --it alone while it is up.
+        classes = { "framedPanel", "encounterPlacementBanner" },
         styles = ThemeEngine.GetStyles(),
         width = 640,
         --auto height with a bounded label: long messages wrap to a second
@@ -3442,11 +3701,17 @@ end
 --saved position spawn there; slots without one spread in a 5-wide grid
 --around fallbackAnchor. Tokens are tagged with the group's placement id
 --(encounterStaged = false, so the builder never mistakes them for staging).
---Returns the initiative groupid and the spawned charids.
-local function SpawnGroupForReal(group, numHeroes, fallbackAnchor)
+--Returns the initiative groupid, the spawned charids, and each spawned token
+--tagged with its slot ({ slot = , token = }) -- the caller pairs those with the
+--group's index to restore saved mounts (Encounter.RestoreMounts), which it can
+--only do once every group it is placing is down.
+--Global on Encounter so headless spawners (Encounter of the Week) reuse this
+--walk instead of growing a fourth divergent copy; aliased locally below.
+function Encounter.SpawnGroupForReal(group, numHeroes, fallbackAnchor)
     local minionName = nil
     local nsquads = 1
-    for monsterid, quantity in pairs(group.monsters) do
+    for _, monsterid in ipairs(SortedMonsterIds(group)) do
+        local quantity = group.monsters[monsterid]
         local monsterAsset = assets.monsters[monsterid]
         if monsterAsset ~= nil and monsterAsset.properties:IsMonster() and monsterAsset.properties.minion then
             minionName = monsterAsset.properties.monster_type
@@ -3471,14 +3736,19 @@ local function SpawnGroupForReal(group, numHeroes, fallbackAnchor)
 
     local groupid = dmhub.GenerateGuid()
     local charids = {}
+    --each spawned token tagged with its slot, for restoring saved mounts.
+    local mountEntries = {}
     local slot = 1
     local fallbackIndex = 0
     local nsquad = 1
 
-    for monsterid, quantity in pairs(group.monsters) do
-        quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, quantity, numHeroes)
+    local queues, legacy = BankedPositionQueues(group)
+
+    for _, monsterid in ipairs(SortedMonsterIds(group)) do
+        local quantity = Encounter.AdjustedMonsterQuantity(group, monsterid, group.monsters[monsterid], numHeroes)
         for i = 1, quantity do
-            local loc = (group.spawnlocs or {})[slot]
+            local entry = TakeBankedPosition(queues, legacy, monsterid)
+            local loc = entry ~= nil and entry.loc or nil
             if loc ~= nil then
                 if not loc.isValidFloor then
                     loc = loc.withCurrentFloor
@@ -3499,14 +3769,15 @@ local function SpawnGroupForReal(group, numHeroes, fallbackAnchor)
                 if group.placementid ~= nil then
                     token.properties.encounterPlacementId = group.placementid
                     token.properties.encounterSpawnSlot = slot
+                    token.properties.encounterSpawnMonster = monsterid
                     token.properties.encounterStaged = false
                 end
 
-                local appearanceInfo = (group.appearances or {})[slot]
+                local appearanceInfo = entry ~= nil and entry.appearance or nil
                 if type(appearanceInfo) == "string" then
                     token:SerializeAppearanceFromString(appearanceInfo)
                 end
-                if (group.invisibleToPlayers or {})[slot] then
+                if entry ~= nil and entry.invisible then
                     token.invisibleToPlayers = true
                 end
 
@@ -3527,15 +3798,25 @@ local function SpawnGroupForReal(group, numHeroes, fallbackAnchor)
                 end
 
                 token:UploadToken()
+                --refresh the token registry so the NEXT monster's generated
+                --name can see this one: OnCreateFromBestiary numbers against
+                --dmhub.GetTokens{pending=true}, which only sees fresh spawns
+                --after an update. Without this every monster in the batch is
+                --named "<type> 1" (the journal island's spawn already updates
+                --per token for the same reason).
+                game.UpdateCharacterTokens()
                 charids[#charids + 1] = token.charid
+                mountEntries[#mountEntries + 1] = { slot = slot, token = token }
             end
 
             slot = slot + 1
         end
     end
 
-    return groupid, charids
+    return groupid, charids, mountEntries
 end
+
+local SpawnGroupForReal = Encounter.SpawnGroupForReal
 
 --Place the encounter on the map for play. Staged tokens are collected first
 --(positions banked, tokens removed) so the freshest arrangement wins and
@@ -3558,6 +3839,9 @@ local function PlaceEncounterForReal(encounter, party, opts)
     local function Proceed()
         --collect any staged tokens: bank the live arrangement, then clear
         --the props off the map so the real spawn cannot double them.
+        --Mounts first: a mount reference resolves against the OTHER groups'
+        --staged tokens, and the loop below deletes them group by group.
+        BankStagedMounts(encounter)
         local mutated = false
         for _, group in ipairs(encounter.groups) do
             local staged = PlacedTokensForGroup(group)
@@ -3633,10 +3917,11 @@ local function PlaceEncounterForReal(encounter, party, opts)
         --directly; everything else goes through click-to-place.
         local directGroups = {}
         local clickGroups = {}
-        for _, group in ipairs(encounter.groups) do
+        for groupIndex, group in ipairs(encounter.groups) do
             if group.wave == nil and AdjustedGroupCount(group, numHeroes) > 0 then
                 if group.spawnlocs ~= nil and #group.spawnlocs > 0 and not GroupStagedOnOtherMap(group) then
-                    directGroups[#directGroups + 1] = group
+                    --carry the group's index: saved mounts name (group, slot) pairs.
+                    directGroups[#directGroups + 1] = { group = group, index = groupIndex }
                 else
                     clickGroups[#clickGroups + 1] = group
                 end
@@ -3645,15 +3930,25 @@ local function PlaceEncounterForReal(encounter, party, opts)
 
         local spawnedCharids = {}
         local spawnedGroupids = {}
+        --every directly-spawned token tagged with its (group, slot), so riders can
+        --be seated once all of the groups are down.
+        local mountEntries = {}
 
-        for _, group in ipairs(directGroups) do
+        for _, direct in ipairs(directGroups) do
+            local group = direct.group
             local anchor = group.spawnlocs[1] or dmhub.cameraPosition
-            local groupid, charids = SpawnGroupForReal(group, numHeroes, anchor)
+            local groupid, charids, entries = SpawnGroupForReal(group, numHeroes, anchor)
             spawnedGroupids[#spawnedGroupids + 1] = groupid
             for _, cid in ipairs(charids) do
                 spawnedCharids[#spawnedCharids + 1] = cid
             end
+            for _, entry in ipairs(entries) do
+                mountEntries[#mountEntries + 1] = { group = direct.index, slot = entry.slot, token = entry.token }
+            end
         end
+
+        --monsters saved riding another monster go back in the saddle.
+        encounter:RestoreMounts(mountEntries)
 
         local function Finish()
             --engine-placed tokens are not always queryable the instant the
@@ -3678,6 +3973,13 @@ local function PlaceEncounterForReal(encounter, party, opts)
 
                 game.UpdateCharacterTokens()
                 Encounter.SetReadiedEncounter(encounter)
+
+                --we have just placed this encounter ourselves, so the engine's
+                --click-to-place must not stay armed behind us: the encounter
+                --card still holds GUI focus from being selected, which leaves a
+                --ghost of the whole roster following the cursor and one stray
+                --map click away from spawning the encounter a second time.
+                Encounter.DisarmClickToPlace()
 
                 if queueActive then
                     --mid-combat: the new arrivals join the running fight,
@@ -3785,23 +4087,6 @@ function Encounter.Editor(self, options)
     --re-pointed after any structural change (the rebuild path does this).
     if #self.groups == 0 then
         self:AddGroup()
-    end
-
-    --Legacy migration: the appears gate used to live on the whole group
-    --(group.minHeroes); it is now scoped per monster. Convert a group-level
-    --gate into the equivalent per-monster gates when the encounter is edited.
-    --Spawn behavior is identical: every converted monster contributes 0
-    --below the gate via Encounter.AdjustedMonsterQuantity.
-    for _, group in ipairs(self.groups) do
-        if group.minHeroes ~= nil then
-            group.monsterMinHeroes = group.monsterMinHeroes or {}
-            for monsterid, _ in pairs(group.monsters) do
-                if group.monsterMinHeroes[monsterid] == nil then
-                    group.monsterMinHeroes[monsterid] = group.minHeroes
-                end
-            end
-            group.minHeroes = nil
-        end
     end
 
     --Refresh each attached encounter script's cached name/victory text so
@@ -3949,6 +4234,8 @@ function Encounter.Editor(self, options)
                 end
             end
         end
+        --who was riding whom, banked while every group's tokens are still up.
+        BankStagedMounts(self)
         if #toDelete > 0 then
             game.DeleteCharacters(toDelete)
         end
@@ -4162,6 +4449,7 @@ function Encounter.Editor(self, options)
                         end
                         if count == 0 then
                             gui.ModalMessage {
+                                owner = button,
                                 title = "Nothing to Place",
                                 message = "Add monsters to the encounter before placing it on the map.",
                             }
@@ -4195,6 +4483,7 @@ function Encounter.Editor(self, options)
                     text = "Clear All",
                     press = function(button)
                         gui.ModalMessage {
+                            owner = button,
                             title = "Clear Encounter",
                             message = "Remove every group, wave, and monster from this encounter?",
                             options = {
@@ -4263,6 +4552,7 @@ function Encounter.Editor(self, options)
                         end
                         if count == 0 then
                             gui.ModalMessage {
+                                owner = button,
                                 title = "Nothing to Start",
                                 message = "Add monsters to the encounter before starting it.",
                             }
@@ -4364,6 +4654,7 @@ function Encounter.CreateEditorDialog(encounter, options)
                     end
 
                     gui.ModalMessage {
+                        owner = editorPanel,
                         title = "Staged Tokens on the Map",
                         message = subject .. " Save those positions before closing?",
                         options = {
@@ -4501,13 +4792,15 @@ CreateEncounterPanel = function()
                     for key, quantity in pairs(monstertable) do
                         local currentmonster = assets.monsters[key]
 
-                        if headmonster == nil then
-                            headmonster = currentmonster
-                        end
+                        if currentmonster ~= nil then
+                            if headmonster == nil then
+                                headmonster = currentmonster
+                            end
 
-                        if currentmonster.properties:EV() > highestev then
-                            highestev = currentmonster.properties:EV()
-                            headmonster = currentmonster
+                            if currentmonster.properties:EV() > highestev then
+                                highestev = currentmonster.properties:EV()
+                                headmonster = currentmonster
+                            end
                         end
                     end
 

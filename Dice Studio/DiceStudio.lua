@@ -4522,8 +4522,7 @@ end
 							seed = g_scriptTemplate
 						end
 
-						local filename = "dicescript-" .. tostring(diceDropdown.idChosen or "set") .. ".lua"
-						g_scriptWatcher = dmhub.OpenTextFileInConnectedEditor(filename, seed, function(contents)
+						g_scriptWatcher = dmhub.OpenTextFileInConnectedEditor(seed, function(contents)
 							dicestudio.script = contents
 							RefreshScriptUI()
 							RefreshDice()
@@ -5169,6 +5168,16 @@ end
 					RaySlider("Inner Radius:", 0, 0.9, 0.22,
 						function() return dicestudio.rayBurstInnerRadius end,
 						function(v) dicestudio.rayBurstInnerRadius = v end),
+					-- Streaky filaments streaming outward through the beams (0 = clean wedges).
+					RaySlider("Streaks:", 0, 1, 0,
+						function() return dicestudio.rayBurstStreaks end,
+						function(v) dicestudio.rayBurstStreaks = v end),
+					RaySlider("Core Flash:", 0, 2, 0,
+						function() return dicestudio.rayBurstCoreFlash end,
+						function(v) dicestudio.rayBurstCoreFlash = v end),
+					RaySlider("Expanding Ring:", 0, 2, 0,
+						function() return dicestudio.rayBurstRing end,
+						function(v) dicestudio.rayBurstRing = v end),
 				},
 			},
 		}
@@ -5562,7 +5571,7 @@ end
 					TrailColor("Color B:",
 						function() return dicestudio.trailColorB end,
 						function(v) dicestudio.trailColorB = v end),
-					TrailSlider("Rate:", 1, 60, 14,
+					TrailSlider("Rate:", 0, 60, 14,
 						function() return dicestudio.trailRate end,
 						function(v) dicestudio.trailRate = v end),
 					TrailSlider("Size:", 0.03, 0.6, 0.16,
@@ -5666,7 +5675,7 @@ end
 						TrailColor("L2 Color B:",
 							function() return dicestudio.trail2ColorB end,
 							function(v) dicestudio.trail2ColorB = v end),
-						TrailSlider("L2 Rate:", 1, 60, 10,
+						TrailSlider("L2 Rate:", 0, 60, 10,
 							function() return dicestudio.trail2Rate end,
 							function(v) dicestudio.trail2Rate = v end),
 						TrailSlider("L2 Size:", 0.03, 0.6, 0.09,
@@ -5686,7 +5695,7 @@ end
 					TrailSlider("Haze Size:", 1, 6, 2.5,
 						function() return dicestudio.trailHazeSize end,
 						function(v) dicestudio.trailHazeSize = v end),
-					TrailSlider("Haze Rate:", 1, 40, 10,
+					TrailSlider("Haze Rate:", 0, 40, 10,
 						function() return dicestudio.trailHazeRate end,
 						function(v) dicestudio.trailHazeRate = v end),
 					TrailSlider("Haze Growth:", 0, 3, 0.8,
@@ -5701,6 +5710,17 @@ end
 					TrailSlider("Haze Drift:", 0, 1, 0.25,
 						function() return dicestudio.trailHazeDrift end,
 						function(v) dicestudio.trailHazeDrift = v end),
+					-- Emission while the die is at rest (0 = movement-only; gas sets seep).
+					TrailSlider("Idle Seep:", 0, 1, 0,
+						function() return dicestudio.trailIdle end,
+						function(v) dicestudio.trailIdle = v end),
+					-- One-shot outward ring of haze puffs the moment the die settles.
+					TrailSlider("Landing Burst:", 0, 40, 0,
+						function() return dicestudio.trailBurstCount end,
+						function(v) dicestudio.trailBurstCount = v end),
+					TrailSlider("Burst Speed:", 0.05, 3, 1,
+						function() return dicestudio.trailBurstSpeed end,
+						function(v) dicestudio.trailBurstSpeed = v end),
 				},
 			},
 		}

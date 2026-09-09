@@ -1,35 +1,26 @@
---- @class CompanionChannelLua The Codex <-> Companion channel. Accessed via dmhub.companionChannel.
+---@meta
+
+--- The Codex <-> Companion channel. Accessed via dmhub.companionChannel.
+--- @class CompanionChannelLua
 CompanionChannelLua = {}
 
---- IsAvailable: True if a Companion is currently connected to the channel.
+--- True if a Companion is currently connected to the channel.
 --- @return boolean
-function CompanionChannelLua:IsAvailable()
-	-- dummy implementation for documentation purposes only
-end
+function CompanionChannelLua:IsAvailable() end
 
---- GetSessions: Returns an array of the active companion sessions, one per opened character.
+--- Returns an array of the active companion sessions, one per opened character.
 --- @return any
-function CompanionChannelLua:GetSessions()
-	-- dummy implementation for documentation purposes only
-end
+function CompanionChannelLua:GetSessions() end
 
---- GetSession: Returns the companion session for a character id, or nil if none is open.
---- @param characterId any
+--- Returns the companion session for a character id, or nil if none is open.
+--- @param characterId? any
 --- @return any
-function CompanionChannelLua:GetSession(characterId)
-	-- dummy implementation for documentation purposes only
-end
+function CompanionChannelLua:GetSession(characterId) end
 
---- OnCompanionConnected: Register fn(session), called when a companion session connects.
---- @param fn any
---- @return nil
-function CompanionChannelLua:OnCompanionConnected(fn)
-	-- dummy implementation for documentation purposes only
-end
+--- Register fn(session), called when a companion session connects.
+--- @param fn? any
+function CompanionChannelLua:OnCompanionConnected(fn) end
 
---- OnCompanionDisconnected: Register fn(session), called when a companion session disconnects.
---- @param fn any
---- @return nil
-function CompanionChannelLua:OnCompanionDisconnected(fn)
-	-- dummy implementation for documentation purposes only
-end
+--- Register fn(session), called when a companion session disconnects.
+--- @param fn? any
+function CompanionChannelLua:OnCompanionDisconnected(fn) end

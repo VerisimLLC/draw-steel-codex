@@ -505,6 +505,7 @@ end)
 --   * resolved -- result set: one big word, "PATRON'S SPITE" or "appeased".
 -- The verbose explanation lives in the card's hover tooltip.
 
+--- @class PatronsGazeChatMessage: GameType
 PatronsGazeChatMessage = RegisterGameType("PatronsGazeChatMessage")
 
 --Spite severity tier from the amount of Gaze at stake. Mirrors the 3 / 4-9 /

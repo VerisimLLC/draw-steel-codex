@@ -8,7 +8,12 @@ MCDMUtils = {
         end
         local name = string.lower(nameorid)
         for key,ability in unhidden_pairs(abilityTable) do
-            if string.lower(ability.name) == name then
+            --Skip rows with no name. A corrupt/nameless entry used to make
+            --string.lower throw here, which aborts every caller -- including
+            --monster free strike construction, blanking out the ability list
+            --of every monster in the game.
+            local abilityName = ability.name
+            if type(abilityName) == "string" and string.lower(abilityName) == name then
                 return ability
             end
         end

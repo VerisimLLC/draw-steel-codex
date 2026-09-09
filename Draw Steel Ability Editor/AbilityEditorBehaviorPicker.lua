@@ -533,11 +533,17 @@ function AbilityEditor.OpenBehaviorPicker(ability, onAdd)
     -- own Types with the extra "momentary" entry; see TriggeredAbility.lua:90)
     -- reaches the picker. ActivatedAbility callers still resolve to the base
     -- list via inheritance.
+    -- "mono" behaviors (Augmented Ability, Cast Spell, Recast) have to be the
+    -- ability's only behavior, so once the ability has any behavior they drop
+    -- out of the picker. allowedTypeIds lets the Recently Used band below
+    -- apply the same rule instead of pulling straight from the full type list.
     local types = {}
+    local allowedTypeIds = {}
     local excludeMono = #(ability.behaviors or {}) > 0
     for _, t in ipairs(ability.Types) do
         if not excludeMono or not t.mono then
             types[#types + 1] = DeepCopy(t)
+            allowedTypeIds[t.id] = true
         end
     end
 
@@ -590,8 +596,22 @@ function AbilityEditor.OpenBehaviorPicker(ability, onAdd)
 
             local children = {}
 
-            -- Recently-used band (when search is empty)
-            if query == nil and #AbilityEditor._recentBehaviors > 0 then
+            -- Recently-used band (when search is empty). Built into its own
+            -- list first so the heading and divider are skipped entirely when
+            -- every recent entry is filtered out.
+            local recentCards = {}
+            if query == nil then
+                for _, recentId in ipairs(AbilityEditor._recentBehaviors) do
+                    local typeEntry = ability.TypesById[recentId]
+                    if typeEntry and not typeEntry.hidden and allowedTypeIds[recentId] then
+                        local meta = BEHAVIOR_METADATA[recentId]
+                            or {description = typeEntry.text, tags = {}, group = "scripting"}
+                        recentCards[#recentCards + 1] = _makeResultCard(typeEntry, meta, onSelect)
+                    end
+                end
+            end
+
+            if #recentCards > 0 then
                 children[#children + 1] = gui.Label{
                     classes = {"sizeM", "bold"},
                     width = "100%",
@@ -600,13 +620,8 @@ function AbilityEditor.OpenBehaviorPicker(ability, onAdd)
                     bmargin = 4,
                     text = "Recently Used",
                 }
-                for _, recentId in ipairs(AbilityEditor._recentBehaviors) do
-                    local typeEntry = ability.TypesById[recentId]
-                    if typeEntry and not typeEntry.hidden then
-                        local meta = BEHAVIOR_METADATA[recentId]
-                            or {description = typeEntry.text, tags = {}, group = "scripting"}
-                        children[#children + 1] = _makeResultCard(typeEntry, meta, onSelect)
-                    end
+                for _, card in ipairs(recentCards) do
+                    children[#children + 1] = card
                 end
                 -- Divider after recently-used
                 children[#children + 1] = gui.Panel{

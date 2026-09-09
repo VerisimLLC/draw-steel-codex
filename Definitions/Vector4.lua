@@ -1,4 +1,7 @@
---- @class Vector4 Represents a 4D vector with x, y, z, w components. Also used as a rectangle with x1, y1, x2, y2 accessors.
+---@meta
+
+--- Represents a 4D vector with x, y, z, w components. Also used as a rectangle with x1, y1, x2, y2 accessors.
+--- @class Vector4
 --- @field tostring string String representation of this vector.
 --- @field Item number Access vector components by index (0=x, 1=y, 2=z, 3=w).
 --- @field x number The x component (index 0).
@@ -15,20 +18,13 @@ Vector4 = {}
 
 --- DeepCopy
 --- @return any
-function Vector4:DeepCopy()
-	-- dummy implementation for documentation purposes only
-end
+function Vector4:DeepCopy() end
 
 --- Deserialize
---- @param dict any
---- @return nil
-function Vector4:Deserialize(dict)
-	-- dummy implementation for documentation purposes only
-end
+--- @param dict? any
+function Vector4:Deserialize(dict) end
 
 --- Equals
---- @param other any
+--- @param other? any
 --- @return boolean
-function Vector4:Equals(other)
-	-- dummy implementation for documentation purposes only
-end
+function Vector4:Equals(other) end

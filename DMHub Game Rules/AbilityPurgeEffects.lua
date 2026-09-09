@@ -17,7 +17,7 @@ ActivatedAbility.RegisterType
 }
 
 
---- @class ActivatedAbilityPurgeEffectsChatMessage
+--- @class ActivatedAbilityPurgeEffectsChatMessage: GameType
 --- @field ability ActivatedAbility
 ActivatedAbilityPurgeEffectsChatMessage = RegisterGameType("ActivatedAbilityPurgeEffectsChatMessage")
 ActivatedAbilityPurgeEffectsChatMessage.conditions = {}
@@ -132,6 +132,7 @@ ActivatedAbilityPurgeEffectsBehavior.chatMessage = ""
 ActivatedAbilityPurgeEffectsBehavior.reminderText = ""
 ActivatedAbilityPurgeEffectsBehavior.value = ""
 ActivatedAbilityPurgeEffectsBehavior.conferTo = ""
+ActivatedAbilityPurgeEffectsBehavior.conferCasterIsInflicter = false
 
 ActivatedAbilityPurgeEffectsBehavior.modeOptions = {
     {
@@ -195,14 +196,39 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
         return
     end
 
-    -- Resolve optional caster limit from GoblinScript (unchanged).
+    -- Works out which creature a field like "Confer To" is naming.
+    -- Writing "Target" in one of those fields used to come back empty, because by now
+    -- the ability's target is no longer something the field can see. We hand it back
+    -- in here so it works.
+    local function EvalCreatureField(script, description)
+        local symbols = table.shallow_copy(options.symbols or {})
+        if symbols.target == nil then
+            local abilityTargets = options.targets
+            if abilityTargets == nil or #abilityTargets == 0 then
+                abilityTargets = targets
+            end
+            local firstTarget = abilityTargets[1]
+            if firstTarget ~= nil and firstTarget.token ~= nil and firstTarget.token.valid and firstTarget.token.properties ~= nil then
+                symbols.target = firstTarget.token.properties
+            end
+        end
+
+        local obj = dmhub.EvalGoblinScriptToObject(script, casterToken.properties:LookupSymbol(symbols), description)
+        if obj ~= nil and type(obj) == "table" and (obj.typeName == "creature" or obj.typeName == "character" or obj.typeName == "monster" or obj.typeName == "follower") then
+            return obj
+        end
+
+        return nil
+    end
+
+    -- Resolve optional caster limit from GoblinScript.
     local limitToCasterid
     if self:try_get("fromCaster", "") ~= "" then
         if options.symbols == nil then
             options.symbols = {}
         end
-        local effectCaster = dmhub.EvalGoblinScriptToObject(self.fromCaster, casterToken.properties:LookupSymbol(options.symbols), "Determine source of purge")
-        if effectCaster ~= nil and type(effectCaster) == "table" and (effectCaster.typeName == "creature" or effectCaster.typeName == "character" or effectCaster.typeName == "monster" or effectCaster.typeName == "follower") then
+        local effectCaster = EvalCreatureField(self.fromCaster, "Determine source of purge")
+        if effectCaster ~= nil then
             limitToCasterid = dmhub.LookupTokenId(effectCaster)
         end
     end
@@ -216,8 +242,8 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
         if options.symbols == nil then
             options.symbols = {}
         end
-        local conferObj = dmhub.EvalGoblinScriptToObject(self.conferTo, casterToken.properties:LookupSymbol(options.symbols), "Determine confer recipient")
-        if conferObj ~= nil and type(conferObj) == "table" and (conferObj.typeName == "creature" or conferObj.typeName == "character" or conferObj.typeName == "monster" or conferObj.typeName == "follower") then
+        local conferObj = EvalCreatureField(self.conferTo, "Determine confer recipient")
+        if conferObj ~= nil then
             conferToken = dmhub.GetCharacterById(dmhub.LookupTokenId(conferObj))
         end
     end
@@ -483,13 +509,19 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
         -- AFTER the per-target purge loop.  Only the chosen/one path is wired for confer
         -- (the "all" and "replace" paths above are intentionally left unchanged).
         if conferToken ~= nil and conferToken.valid and #conferItems > 0 then
+            --A moved effect normally still counts as coming from whoever caused it
+            --first. This option credits whoever cast this ability instead, which is
+            --what you want when moving something like a taunt onto a new creature.
+            local casterIsInflicter = self:try_get("conferCasterIsInflicter", false)
+
             conferToken:ModifyProperties{
                 description = "Confer Effect",
                 execute = function()
                     for _, item in ipairs(conferItems) do
-                        -- casterInfo preserves the original inflicter when known; omitted otherwise.
                         local casterInfo = nil
-                        if item.casterTokenId ~= nil then
+                        if casterIsInflicter then
+                            casterInfo = {tokenid = casterToken.charid}
+                        elseif item.casterTokenId ~= nil then
                             casterInfo = {tokenid = item.casterTokenId}
                         end
 
@@ -638,42 +670,40 @@ function ActivatedAbilityPurgeEffectsBehavior:CastOnTarget(casterToken, targetTo
             end
         end
 
-        if #conditions == 0 then
-            return result
-        end
+        if #conditions > 0 then
+            local conditionsToPurge = {}
 
-        local conditionsToPurge = {}
+            if self.purgeType == "all" then
+                conditionsToPurge = conditions
+            else
+                table.insert(conditions, 1, "none")
+                conditionsToPurge = self:ShowConditionsSelection(casterToken, targetToken, ability, conditions, options)
+            end
 
-        if self.purgeType == "all" then
-            conditionsToPurge = conditions
-        else
-            table.insert(conditions, 1, "none")
-            conditionsToPurge = self:ShowConditionsSelection(casterToken, targetToken, ability, conditions, options)
-        end
+            print("Purge:: Purging =", conditionsToPurge)
 
-        print("Purge:: Purging =", conditionsToPurge)
+            if #conditionsToPurge > 0 then
+                options.symbols.cast.purgedConditions = #conditionsToPurge
 
-        if #conditionsToPurge > 0 then
-            options.symbols.cast.purgedConditions = #conditionsToPurge
+                targetToken:ModifyProperties{
+                    description = "Purge Conditions",
+                    execute = function()
+                        local purgeArgs = {purge = true}
+                        if limitToCasterid ~= nil then
+                            purgeArgs.casterInfo = {tokenid = limitToCasterid}
+                        end
+                        for _,condid in ipairs(conditionsToPurge) do
+                            targetCreature:InflictCondition(condid, purgeArgs)
+                            result[#result+1] = condid
+                        end
 
-            targetToken:ModifyProperties{
-                description = "Purge Conditions",
-                execute = function()
-                    local purgeArgs = {purge = true}
-                    if limitToCasterid ~= nil then
-                        purgeArgs.casterInfo = {tokenid = limitToCasterid}
-                    end
-                    for _,condid in ipairs(conditionsToPurge) do
-                        targetCreature:InflictCondition(condid, purgeArgs)
-                        result[#result+1] = condid
-                    end
-
-                    local damage = tonumber(self:EvalDamageToSelf(targetCreature))
-                    if damage ~= nil and damage > 0 then
-                        targetCreature:TakeDamage(damage, "Purged condition")
-                    end
-                end,
-            }
+                        local damage = tonumber(self:EvalDamageToSelf(targetCreature))
+                        if damage ~= nil and damage > 0 then
+                            targetCreature:TakeDamage(damage, "Purged condition")
+                        end
+                    end,
+                }
+            end
         end
     end
 
@@ -1204,6 +1234,23 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
         selections[data.token.id] = {}
     end
 
+    -- Submit stays disabled until at least one effect is chosen.  Forward-declared
+    -- because the chip press handlers below close over it.
+    local submitButton
+    local function RefreshSubmitEnabled()
+        if submitButton == nil then
+            return
+        end
+        local anySelected = false
+        for _, list in pairs(selections) do
+            if #list > 0 then
+                anySelected = true
+                break
+            end
+        end
+        submitButton:SetClass("disabled", not anySelected)
+    end
+
     -- Build one row per target token.
     local tokenRows = {}
     for _, data in ipairs(targetDataList) do
@@ -1256,6 +1303,8 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
                         element:SetClass("purge-chip-selected", true)
                         selections[tokenId] = {capturedItem}
                     end
+
+                    RefreshSubmitEnabled()
                 end,
 
                 children = chipChildren,
@@ -1342,19 +1391,25 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
 
     mainChildren[#mainChildren+1] = gui.Panel{ classes = {"purge-divider"} }
 
+    -- Starts disabled: nothing is pre-selected, so there is nothing to submit yet.
+    submitButton = gui.Panel{
+        classes = {"purge-submit", "disabled"},
+        press = function(element)
+            if element:HasClass("disabled") then
+                return
+            end
+            finished = true
+            gui.CloseModal()
+        end,
+        gui.Label{
+            classes = {"purge-button-label"},
+            text = "Submit",
+        },
+    }
+
     mainChildren[#mainChildren+1] = gui.Panel{
         classes = {"purge-button-row"},
-        gui.Panel{
-            classes = {"purge-submit"},
-            press = function(element)
-                finished = true
-                gui.CloseModal()
-            end,
-            gui.Label{
-                classes = {"purge-button-label"},
-                text = "Submit",
-            },
-        },
+        submitButton,
         gui.Panel{
             classes = {"purge-cancel"},
             escapeActivates = true,
@@ -1366,7 +1421,7 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
             end,
             gui.Label{
                 classes = {"purge-button-label"},
-                text = "Cancel",
+                text = "Pass",
             },
         },
     }
@@ -1537,9 +1592,13 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
                 cornerRadius = 4,
             },
             {
-                selectors = {"panel", "purge-submit", "hover"},
+                selectors = {"panel", "purge-submit", "hover", "~disabled"},
                 brightness = 1.25,
                 transitionTime = 0.1,
+            },
+            {
+                selectors = {"panel", "purge-submit", "disabled"},
+                borderColor = "#4A3A28",
             },
             {
                 selectors = {"panel", "purge-cancel"},
@@ -1566,6 +1625,10 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
                 height = "auto",
                 halign = "center",
                 valign = "center",
+            },
+            {
+                selectors = {"label", "purge-button-label", "parent:disabled"},
+                color = "#6E6A62",
             },
         },
 
@@ -2561,6 +2624,8 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
             events = {
                 change = function(element)
                     self.conferTo = element.value
+                    --the checkbox below only makes sense once this is filled in.
+                    parentPanel:FireEventTree("refreshPurge")
                 end,
             },
 
@@ -2598,6 +2663,20 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
                 })
 			},
         }
+    }
+
+    --Lets the author say who the moved effect should count as coming from.
+    --Hidden until "Confer To" is filled in, since it does nothing before that.
+    result[#result+1] = gui.Check{
+        classes = {cond(self:try_get("conferTo", "") == "", "collapsed")},
+        text = "Caster Inflicts Conferred Effect",
+        value = self:try_get("conferCasterIsInflicter", false),
+        change = function(element)
+            self.conferCasterIsInflicter = element.value
+        end,
+        refreshPurge = function(element)
+            element:SetClass("collapsed", self:try_get("conferTo", "") == "")
+        end,
     }
 
     result[#result+1] = gui.Panel{

@@ -135,9 +135,30 @@ local function CasterPassesCondition(casterCreature, bearerCreature, modifier, m
 	return result ~= 0
 end
 
+--Relay lookup walks every token on the map and runs a GoblinScript condition
+--per casting-origin modifier, and the targeting UI asks for it repeatedly while
+--a target is hovered. One frame is short enough that nothing can move in
+--between, and long enough to collapse those repeats into a single walk.
+local g_relayCacheFrame = -1
+local g_relayCache = {}
+
 function ActivatedAbility:GetCastingOriginTokens(casterToken)
 	if mod.unloaded then
 		return {}
+	end
+
+	local frame = dmhub.FrameCount()
+	if frame ~= g_relayCacheFrame then
+		g_relayCacheFrame = frame
+		g_relayCache = {}
+	end
+
+	local byCaster = g_relayCache[self]
+	if byCaster == nil then
+		byCaster = {}
+		g_relayCache[self] = byCaster
+	elseif byCaster[casterToken.charid] ~= nil then
+		return byCaster[casterToken.charid]
 	end
 
 	local result = {}
@@ -156,6 +177,7 @@ function ActivatedAbility:GetCastingOriginTokens(casterToken)
 		end
 	end
 
+	byCaster[casterToken.charid] = result
 	return result
 end
 

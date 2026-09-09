@@ -446,12 +446,29 @@ ActivatedAbility.ForcedMovementTypes = {
 }
 
 --This gets a full list of options to display in the dropdown
+--Contextual target choices for a modifier-fired custom trigger (an ability
+--with modifierCustomTrigger set). Real target types: TriggeredAbility's
+--targeting resolves each id from the symbols the modifier installs at fire
+--time. Subject-hood stays with the owner; these only pick who the effect
+--lands on.
+local g_customTriggerTargetOptions = {
+    {id = "abilitycaster", text = "Ability Caster"},
+    {id = "abilitytarget", text = "Ability Target"},
+    {id = "triggerer",     text = "Triggerer"},
+}
+
 function ActivatedAbility:GetDisplayedTargetTypeOptions()
     local targetTypes = self:GetTargetTypes()
 
+    --A modifier-fired custom trigger swaps the generic "The Trigger Subject"
+    --entry for explicit contextual creatures, appended after the loop.
+    local customTrigger = self:try_get("modifierCustomTrigger", false)
+
     local result = {}
     for _,option in ipairs(targetTypes) do
-        result[#result+1] = option
+        if not (customTrigger and option.id == "subject") then
+            result[#result+1] = option
+        end
 
         --just "target" means "target" with objectTarget = false.
         if option.id == "target" then
@@ -484,6 +501,21 @@ function ActivatedAbility:GetDisplayedTargetTypeOptions()
                 text = "Dead Creature",
             }
         end
+    end
+
+    if customTrigger then
+        for _,option in ipairs(g_customTriggerTargetOptions) do
+            result[#result+1] = option
+        end
+    end
+
+    --The departadjacent trigger carries the enemy that was left as a symbol, so
+    --an ability on that trigger can aim straight at it instead of prompting.
+    if self:try_get("trigger", "") == "departadjacent" then
+        result[#result+1] = {
+            id = "departedcreature",
+            text = "The Departed Creature",
+        }
     end
 
     return result
@@ -1065,10 +1097,22 @@ function ActivatedAbility:TargetTypeEditor()
                         id = "enemy",
                         text = "Enemy Creatures",
                     },
+                    --targetAllegiance = "dead". An area already picks up corpse
+                    --objects (TokensInShape always walks object tokens), and
+                    --TargetPassesFilter swaps each corpse for the creature that
+                    --died there, so the target filter sees the dead creature.
+                    {
+                        id = "dead",
+                        text = "Dead Creatures",
+                    },
                 },
-				idChosen = cond(self.objectTarget, "all_and_objects",
+				--"dead" is checked first. objectTarget is false for it, so without this
+				--the dropdown reads back as "Creatures" and the next change to it would
+				--silently clear targetAllegiance and break the ability's targeting.
+				idChosen = cond(self.targetAllegiance == "dead", "dead",
+                           cond(self.objectTarget, "all_and_objects",
                            cond(self.targetAllegiance == "ally", "ally",
-                           cond(self.targetAllegiance == "enemy", "enemy", "all"))),
+                           cond(self.targetAllegiance == "enemy", "enemy", "all")))),
 				change = function(element)
                     if element.idChosen == "all" then
                         self.objectTarget = false
@@ -1082,6 +1126,9 @@ function ActivatedAbility:TargetTypeEditor()
                     elseif element.idChosen == "enemy" then
                         self.objectTarget = false
                         self.targetAllegiance = "enemy"
+                    elseif element.idChosen == "dead" then
+                        self.objectTarget = false
+                        self.targetAllegiance = "dead"
                     else
                         self.objectTarget = false
                         self.targetAllegiance = nil
@@ -1866,6 +1913,10 @@ function ActivatedAbilityBehavior:ApplyToEditor(parentPanel, list)
 			text = "Caster's Riders",
 		},
 		{
+			id = "caster_mount",
+			text = "Caster's Mount",
+		},
+		{
 			id = "caster_summoner",
 			text = "Caster's Summoner",
 		},
@@ -1916,7 +1967,10 @@ function ActivatedAbilityBehavior:ApplyToEditor(parentPanel, list)
 	}
 
 	for _,applyto in ipairs(GameSystem.ApplyToTargetsList) do
-		if ((not firstBehavior) and (not applyto.deprecated)) or self.applyto == applyto.id then
+		--roll-group options depend on an earlier roll, so they are hidden on the
+		--first behavior. Options with their own resolve function do not, so they
+		--are always shown.
+		if (((not firstBehavior) or applyto.resolve ~= nil) and (not applyto.deprecated)) or self.applyto == applyto.id then
 			dropdownOptions[#dropdownOptions+1] = {
 				id = applyto.id,
 				text = applyto.text,
@@ -2785,6 +2839,10 @@ function ActivatedAbilityBehavior:AuraEditor(parentPanel, list)
                     id = "none",
                     text = "Indefinite",
                 },
+                {
+                    id = "endcast",
+                    text = "Until Ability Ends",
+                },
 				{
 					id = "endturn",
 					text = "Until End of Turn",
@@ -2844,6 +2902,15 @@ function ActivatedAbilityBehavior:AuraEditor(parentPanel, list)
         value = not self:try_get("aliveafterdeath", false),
         change = function(element)
             self.aliveafterdeath = not element.value
+			parentPanel:FireEvent('refreshBehavior')
+        end,
+    }
+
+    list[#list+1] = gui.Check{
+        text = "Replace Previous Cast",
+        value = self:try_get("replacePrevious", false),
+        change = function(element)
+            self.replacePrevious = element.value
 			parentPanel:FireEvent('refreshBehavior')
         end,
     }
@@ -3828,6 +3895,14 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 	local hideEffectsSection = options.hideEffectsSection
 	options.hideEffectsSection = nil
 
+	--Custom-trigger context: set when editing a trigger fired directly by a
+	--modifier (e.g. a power roll modifier's custom trigger) rather than by a
+	--trigger event. The sectioned triggered-ability editor collapses the
+	--event-dispatch fields when this is present. Consumed here so the
+	--args-copy loop below doesn't leak it onto the dialog panel.
+	local customTriggerContext = options.customTriggerContext
+	options.customTriggerContext = nil
+
 
 	if options.hide ~= nil then
 		for _,item in ipairs(options.hide) do
@@ -4007,7 +4082,7 @@ function ActivatedAbility:ShowEditActivatedAbilityDialog(options)
 				-- re-navigates the user to the original entry point.
 				-- Other GenerateEditor variants ignore the field.
 				mainFormPanel.children = {
-					editItem:GenerateEditor({reopen = options.reopen, hideEffectsSection = hideEffectsSection}),
+					editItem:GenerateEditor({reopen = options.reopen, hideEffectsSection = hideEffectsSection, customTriggerContext = customTriggerContext}),
 				}
 
 			end,

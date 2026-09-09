@@ -4,6 +4,7 @@
     Optionally uses FeatureCache when available; designed for future
     expansion to support other status types.
 ]]
+--- @class CBSelectionStatus: GameType
 CBSelectionStatus = RegisterGameType("CBSelectionStatus")
 
 local _formatOrder = CharacterBuilder._formatOrder

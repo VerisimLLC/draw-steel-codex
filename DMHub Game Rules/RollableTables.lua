@@ -1,7 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 --either a direct rolltable, or a reference to one.
----@class RollTableReference
+---@class RollTableReference: GameType
 ---@field tableName string the name of the table this references, or "none" if it's an anonymous table.
 ---@field key string the key in the table this references, or "none" if it's an anonymous table.
 ---@field docid string
@@ -70,7 +70,7 @@ function RollTableReference:GetTable()
 	return nil
 end
 
---- @class RollTable
+--- @class RollTable: GameType
 --- @field name string Display name.
 --- @field details string Optional rules text for this table.
 --- @field rollType string How to determine the roll: "auto", "autoUnusual", or "custom".
@@ -80,7 +80,7 @@ end
 --- @field rows RollTableRow[] Ordered list of rows in this table.
 RollTable = RegisterGameType("RollTable")
 
---- @class RollTableRow
+--- @class RollTableRow: GameType
 --- @field weight number Relative weight for weighted random selection.
 --- @field revealed boolean If true, this row's result has been revealed to players.
 --- @field value VariantCollection The reward/outcome for this row.

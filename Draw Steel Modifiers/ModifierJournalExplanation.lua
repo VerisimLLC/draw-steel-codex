@@ -109,6 +109,7 @@ CharacterModifier.TypeInfo.journalexplanation = {
 -- Displays a virtual (non-saved) journal entry assembled from a template document
 -- plus explanation text gathered from journalexplanation modifiers on the caster.
 
+--- @class ActivatedAbilityShowJournalBehavior: ActivatedAbilityBehavior
 ActivatedAbilityShowJournalBehavior = RegisterGameType("ActivatedAbilityShowJournalBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilityShowJournalBehavior.summary = "Show Journal"

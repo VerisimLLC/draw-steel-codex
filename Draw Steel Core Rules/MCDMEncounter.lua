@@ -43,6 +43,7 @@ local g_numHeroesSetting = setting {
     }
 }
 
+--- @class Encounter: GameType
 Encounter = RegisterGameType('Encounter')
 
 Encounter.name = 'New Encounter'
@@ -281,7 +282,7 @@ function Encounter.MainMonster(encounter)
     for i, group in ipairs(encounter.groups) do
         for monsterid, value in pairs(group.monsters) do
             local monster = assets.monsters[monsterid]
-            if mainmonster == nil or monster.properties:EV() > mainmonster.properties:EV() then
+            if monster ~= nil and (mainmonster == nil or monster.properties:EV() > mainmonster.properties:EV()) then
                 mainmonster = monster
             end
         end
@@ -364,10 +365,13 @@ function Encounter.CountEDS(self)
         for monsterid, quantity in pairs(group.monsters) do
             local monster = assets.monsters[monsterid]
 
-            if monster.properties.minion then
-                EDSTotal = EDSTotal + round((assets.monsters[monsterid].properties:EV() * quantity) / 4)
-            else
-                EDSTotal = EDSTotal + (assets.monsters[monsterid].properties:EV() * quantity)
+            if monster ~= nil then
+                local entryEV = monster.properties:EV() * quantity
+                if monster.properties.minion then
+                    entryEV = round(entryEV / 4)
+                end
+
+                EDSTotal = EDSTotal + entryEV
             end
         end
     end
@@ -422,52 +426,88 @@ function Encounter.PartyStrength(args)
     }
 end
 
---Compute a party's encounter strength from a list of hero/ally tokens (each
---contributing 4 + 2 x their level; victories are averaged across the tokens).
+--Compute a party's encounter strength from a list of hero/ally tokens.
+--
+--Hero-side tokens that are NOT monsters (heroes and hero-like allies, e.g. NPCs
+--built on a character sheet) each contribute 4 + 2 x their level, and Victories
+--are averaged across just those tokens.
+--
+--Hero-side MONSTER tokens (allied creatures, companions, retainers) are NOT
+--heroes and are not worth 4 + 2 x cr; they are counted exactly the way the
+--monster side is counted -- by EV, with minions worth 1/minionsPerSquad of a
+--squad's EV. This is the same rule as the monster-selection EV chip in
+--MCDMCharacterPanel.lua, so an allied monster reads the same whichever side of
+--the fight it is on.
+--
 --Returns nil when the list is empty; otherwise a strength table as in
 --PartyStrength, plus:
---  numTokens        : how many tokens contributed (heroes + allies)
+--  numTokens        : how many tokens contributed (heroes + allies of all kinds)
+--  numHeroTokens    : how many non-monster tokens fed the hero-strength maths
 --  averageVictories : the averaged Victories used for the bonus
---  minLevel/maxLevel: the level range across the tokens
+--  minLevel/maxLevel: the level range across the non-monster tokens (nil if none)
+--  allyEV           : the EV total of the allied monster tokens
+--  numAllyMonsters  : how many allied monster tokens contributed that EV
 function Encounter.PartyStrengthFromTokens(tokens)
     local base = 0
-    local numTokens = 0
+    local numHeroTokens = 0
     local totalVictories = 0
     local numHeroes = 0
     local minLevel = nil
     local maxLevel = nil
+    local allyEV = 0
+    local numAllyMonsters = 0
     for _, tok in ipairs(tokens or {}) do
-        local level = tok.properties:CharacterLevel()
-        if minLevel == nil or level < minLevel then
-            minLevel = level
+        if tok.properties:IsMonster() then
+            if tok.properties.minion then
+                allyEV = allyEV + tok.properties:EV()/GameSystem.minionsPerSquad
+            else
+                allyEV = allyEV + tok.properties:EV()
+            end
+            numAllyMonsters = numAllyMonsters + 1
+        else
+            local level = tok.properties:CharacterLevel()
+            if minLevel == nil or level < minLevel then
+                minLevel = level
+            end
+            if maxLevel == nil or level > maxLevel then
+                maxLevel = level
+            end
+            base = base + Encounter.HeroStrength(level)
+            totalVictories = totalVictories + tok.properties:GetVictories()
+            if tok.properties:IsHero() then
+                numHeroes = numHeroes + 1
+            end
+            numHeroTokens = numHeroTokens + 1
         end
-        if maxLevel == nil or level > maxLevel then
-            maxLevel = level
-        end
-        base = base + Encounter.HeroStrength(level)
-        totalVictories = totalVictories + tok.properties:GetVictories()
-        if tok.properties:IsHero() then
-            numHeroes = numHeroes + 1
-        end
-        numTokens = numTokens + 1
     end
 
-    if numTokens == 0 then
+    if numHeroTokens == 0 and numAllyMonsters == 0 then
         return nil
     end
 
-    local averageVictories = math.floor(totalVictories / numTokens)
-    local singleHero = math.floor(base / numTokens)
+    allyEV = round(allyEV)
+
+    --A pool of nothing but allied monsters has no hero to average, so the
+    --victories bonus is simply zero rather than a divide by zero.
+    local averageVictories = 0
+    local singleHero = 0
+    if numHeroTokens > 0 then
+        averageVictories = math.floor(totalVictories / numHeroTokens)
+        singleHero = math.floor(base / numHeroTokens)
+    end
     local victoryHeroes = math.floor(averageVictories / 2)
     local victoryBonus = math.floor(victoryHeroes * singleHero)
     return {
-        total = base + victoryBonus,
+        total = base + victoryBonus + allyEV,
         base = base,
         singleHero = singleHero,
         victoryBonus = victoryBonus,
         victoryHeroes = victoryHeroes,
         numHeroes = numHeroes,
-        numTokens = numTokens,
+        numTokens = numHeroTokens + numAllyMonsters,
+        numHeroTokens = numHeroTokens,
+        allyEV = allyEV,
+        numAllyMonsters = numAllyMonsters,
         averageVictories = averageVictories,
         minLevel = minLevel,
         maxLevel = maxLevel,
@@ -624,11 +664,209 @@ function Encounter.TagWaveTokensFromSpawn(self, charids)
     end
 end
 
+-- ===========================================================================
+-- Saved mount relationships
+--
+-- A monster sitting in another monster's saddle -- a goblin riding a wolf, or
+-- anything that has climbed a bigger creature -- is part of an encounter's
+-- setup just as much as where it stands, so it is banked and restored
+-- alongside group.spawnlocs.
+--
+-- The tokens are deleted and respawned as brand new characters every cycle, so
+-- a saved mount cannot name a charid. It names a SLOT: the (group index, spawn
+-- slot) pair positions are already keyed by. group.mounts is a dense LIST of
+-- records -- never a slot-keyed sparse array, which serialization compacts,
+-- shifting every later entry:
+--
+--   { slot       = the rider's own spawn slot,
+--     mountGroup = group index of the creature it is riding,
+--     mountSlot  = that creature's spawn slot,
+--     saddle     = the saddle index it sat in }
+--
+-- Only mounts that are part of the same encounter are recorded: a monster
+-- riding a hero's horse is left alone, since nothing here respawns that horse.
+-- ===========================================================================
+
+-- The mount recorded for one spawn slot, or nil if that slot rides nothing.
+function Encounter.GetMountForSlot(self, groupIndex, slot)
+    local group = self.groups[groupIndex]
+    if group == nil then
+        return nil
+    end
+
+    for _,entry in ipairs(group.mounts or {}) do
+        if entry.slot == slot then
+            return entry
+        end
+    end
+
+    return nil
+end
+
+-- Keep saved mounts pointing at the right groups after a group is deleted from
+-- the plan: a mount names its group by INDEX, so references to the group that
+-- went away are dropped and references past it shift down. Call it immediately
+-- after table.remove on encounter.groups.
+function Encounter.RepairMountsAfterGroupRemoved(self, removedIndex)
+    for _,group in ipairs(self.groups) do
+        if group.mounts ~= nil then
+            local kept = {}
+            for _,entry in ipairs(group.mounts) do
+                if entry.mountGroup ~= removedIndex then
+                    if entry.mountGroup > removedIndex then
+                        entry.mountGroup = entry.mountGroup - 1
+                    end
+                    kept[#kept+1] = entry
+                end
+            end
+            group.mounts = kept
+        end
+    end
+end
+
+-- Bank the mount relationships among a set of placed tokens, ready for the
+-- tokens to be deleted. entries is a list of
+--   { group = <group index>, slot = <spawn slot>, token = <CharacterToken> }
+-- in the same slot numbering the caller banks positions with. Every group named
+-- in entries has its saved mounts REPLACED, so a monster taken off its mount
+-- before saving stops being recorded.
+function Encounter.RecordMounts(self, entries)
+    local entryOfCharid = {}
+    local cleared = {}
+    for _,entry in ipairs(entries) do
+        if not cleared[entry.group] then
+            cleared[entry.group] = true
+            local group = self.groups[entry.group]
+            if group ~= nil then
+                group.mounts = {}
+            end
+        end
+
+        if entry.token ~= nil then
+            entryOfCharid[entry.token.charid] = entry
+        end
+    end
+
+    for _,entry in ipairs(entries) do
+        local token = entry.token
+        --saddleMount is the creature directly underneath; mount would walk the
+        --whole chain to the bottom of a stack of riders.
+        local mountToken = token ~= nil and token.saddleMount or nil
+        local mountEntry = mountToken ~= nil and entryOfCharid[mountToken.charid] or nil
+        local group = self.groups[entry.group]
+        if mountEntry ~= nil and group ~= nil then
+            group.mounts[#group.mounts+1] = {
+                slot = entry.slot,
+                mountGroup = mountEntry.group,
+                mountSlot = mountEntry.slot,
+                --which seat: a mount with several authored saddles (a howdah, a
+                --wagon) puts its riders back where the Director sat them.
+                saddle = token.mountedSaddle or 0,
+            }
+        end
+    end
+end
+
+-- Seat riders back onto their mounts from the encounter's saved mounts. entries
+-- is the same shape RecordMounts takes, holding the tokens just spawned. A mount
+-- reference naming a slot that is not in entries is skipped -- the creature it
+-- rides is not being placed in this pass (a reinforcement riding a monster that
+-- was placed up front, say), so there is nothing to seat it on.
+--
+-- An entry marked mountOnly is a token that is ALREADY on the map: it is offered
+-- as something to seat riders on, but is not itself re-seated. That is how a
+-- group placed on its own finds a mount belonging to a group placed earlier
+-- without disturbing creatures the Director has since moved or dismounted.
+function Encounter.RestoreMounts(self, entries)
+    --CHARIDS, not the token objects the caller was handed. A token straight out of
+    --game.SpawnTokenFromBestiaryLocally is not yet backed by a live map token, and
+    --ClimbOntoCreature on one silently returns false (it bails on a null token).
+    --Looking the same charid up again with dmhub.GetTokenById gives a wrapper that
+    --works right away -- this is what made saved mounts appear to be ignored.
+    local charidAtSlot = {}
+    for _,entry in ipairs(entries) do
+        if entry.token ~= nil then
+            charidAtSlot[string.format("%d:%d", entry.group, entry.slot)] = entry.token.charid
+        end
+    end
+
+    local riders = {}
+    for _,entry in ipairs(entries) do
+        local mountRef = nil
+        if not entry.mountOnly then
+            mountRef = self:GetMountForSlot(entry.group, entry.slot)
+        end
+
+        local mountCharid = nil
+        if mountRef ~= nil then
+            mountCharid = charidAtSlot[string.format("%d:%d", mountRef.mountGroup, mountRef.mountSlot)]
+        end
+
+        if mountCharid ~= nil and entry.token ~= nil then
+            --how deep in a stack of riders this one sits, so a stack is rebuilt
+            --from the bottom up rather than in whatever order the groups spawned.
+            --The walk is bounded in case saved data ever describes a loop.
+            local depth = 0
+            local walk = mountRef
+            while walk ~= nil and depth < 20 do
+                depth = depth + 1
+                walk = self:GetMountForSlot(walk.mountGroup, walk.mountSlot)
+            end
+
+            riders[#riders+1] = {
+                charid = entry.token.charid,
+                mountCharid = mountCharid,
+                saddle = mountRef.saddle or 0,
+                depth = depth,
+            }
+        end
+    end
+
+    if #riders == 0 then
+        return
+    end
+
+    table.sort(riders, function(a,b) return a.depth < b.depth end)
+
+    --A token that has not resolved yet (the engine's own placement path hands the
+    --charids over before they are queryable) is retried for a couple of seconds
+    --rather than dropped.
+    local attempts = 20
+    local function Seat()
+        if mod.unloaded then
+            return
+        end
+
+        local remaining = {}
+        for _,rider in ipairs(riders) do
+            local riderToken = dmhub.GetTokenById(rider.charid)
+            local mountToken = dmhub.GetTokenById(rider.mountCharid)
+            local seated = false
+            if riderToken ~= nil and mountToken ~= nil then
+                seated = riderToken:ClimbOntoCreature(mountToken, rider.saddle)
+            end
+
+            if not seated then
+                remaining[#remaining+1] = rider
+            end
+        end
+
+        riders = remaining
+        if #riders > 0 and attempts > 0 then
+            attempts = attempts - 1
+            dmhub.Schedule(0.1, Seat)
+        end
+    end
+
+    Seat()
+end
+
 -- LiveEncounter represents the state of an encounter that is currently running
 -- (i.e. that has been pushed live into an initiative queue). It derives from
 -- Encounter and begins life as a deep copy of an authored Encounter, re-typed as a
 -- LiveEncounter so it is its own distinct type -- it inherits all of Encounter's
 -- fields and methods but can carry live-only state and extensions.
+--- @class LiveEncounter: Encounter
 LiveEncounter = RegisterGameType("LiveEncounter", "Encounter")
 
 -- Its own table name so it is distinguished from authored encounters.
@@ -678,12 +916,48 @@ LiveEncounter.onsetHeroes = nil
 
 -- A snapshot of the monster-side initiative groupings, used by the victory screen's
 -- Monsters tab and by monster stat attribution. A dense list of
--- { groupid, statKey, name, memberids }, where groupid is the group's initiative id
--- (see InitiativeQueue.GetInitiativeId), statKey is its path-safe form used to key
--- monsterStats, and memberids are the member tokenids seen when the group entered
--- combat. Populated by RecordOnsetMonsterGroups at combat start and topped up when
+-- { groupid, statKey, name, memberids, memberinfo }, where groupid is the group's
+-- initiative id (see InitiativeQueue.GetInitiativeId), statKey is its path-safe form
+-- used to key monsterStats, memberids are the member tokenids seen when the group
+-- entered combat, and memberinfo maps each member tokenid to a small display snapshot
+-- ({ minion, portrait, monsterType, role }) so the victory screen can still show the
+-- group after its tokens are despawned or deleted (dead monsters leave the map).
+-- Populated by RecordOnsetMonsterGroups at combat start and topped up when
 -- reinforcements join (Commands.rollinitiative additions, DeployWave).
 LiveEncounter.onsetMonsterGroups = nil
+
+-- Server time in milliseconds when combat began. Stamped by the first
+-- RecordOnsetHeroes / RecordOnsetMonsterGroups call and never overwritten, so
+-- reinforcements topping up the snapshot do not restart the clock. Read by
+-- BuildBattleRecord to give each battle log entry a real duration. 0 means
+-- unknown (a combat that started before this field existed, or one whose onset
+-- was never snapshotted); duration is omitted from the record in that case.
+-- dmhub.serverTimeMilliseconds is used rather than ServerTimestamp() because it
+-- is a plain number, consistent across clients, and readable immediately without
+-- waiting for a server-side placeholder to resolve.
+LiveEncounter.onsetTimestamp = 0
+
+-- How many users were connected when combat began (see CountLoggedInUsers).
+-- Stamped alongside onsetTimestamp. The battle record keeps this as well as the
+-- count at the end of combat, because either one alone undercounts a real
+-- session: someone can drop before the director gets round to pressing Proceed,
+-- and someone else can join mid-fight. The seriousness check uses the larger of
+-- the two. 0 means unknown.
+LiveEncounter.onsetUsercount = 0
+
+-- Stamp the combat start time and connected-user count, if not already stamped.
+-- Callers network the change afterwards, like every other live-encounter
+-- mutation. Never overwrites, so reinforcements topping up the onset snapshot do
+-- not restart the clock.
+function LiveEncounter:StampOnsetTimestamp()
+    if self:try_get("onsetTimestamp", 0) > 0 then
+        return
+    end
+    self.onsetTimestamp = dmhub.serverTimeMilliseconds
+    local users = 0
+    pcall(function() users = CountLoggedInUsers() end)
+    self.onsetUsercount = users
+end
 
 -- Construct a LiveEncounter from an authored Encounter. The result is a deep copy
 -- of the encounter's data, re-typed as a LiveEncounter: its typeName, metatable,
@@ -760,6 +1034,7 @@ function LiveEncounter:RecordOnsetHeroes(heroCharids)
         end
     end
     self.onsetHeroes = heroes
+    self:StampOnsetTimestamp()
 end
 
 -- The onset hero snapshot (see RecordOnsetHeroes); always a list.
@@ -823,11 +1098,38 @@ function LiveEncounter:RecordOnsetMonsterGroups(tokenids)
                     if not present then
                         g.memberids[#g.memberids+1] = tokenid
                     end
+
+                    --Display snapshot for this member, so the victory screen can
+                    --still show the group after its token despawns or is deleted
+                    --(dead monsters leave the map). portrait is omitted for
+                    --spine-animated tokens: their inspect portrait is a live
+                    --spine render that cannot outlive the token.
+                    if g.memberinfo == nil then
+                        g.memberinfo = {}
+                    end
+                    if g.memberinfo[tokenid] == nil then
+                        local info = {
+                            minion = token.properties:try_get("minion", false) == true,
+                        }
+                        if not token.hasSpineAnimation then
+                            info.portrait = token.inspectPortrait
+                        end
+                        local mtype = token.properties:try_get("monster_type")
+                        if mtype ~= nil and mtype ~= "" then
+                            info.monsterType = mtype
+                        end
+                        local mrole = token.properties:try_get("role")
+                        if mrole ~= nil and mrole ~= "" then
+                            info.role = mrole
+                        end
+                        g.memberinfo[tokenid] = info
+                    end
                 end
             end
         end
 
         self.onsetMonsterGroups = groups
+        self:StampOnsetTimestamp()
     end)
 
     if not ok then
@@ -848,18 +1150,25 @@ end
 --     groupid,      -- the initiative id
 --     statKey,      -- key into monsterStats (sanitized groupid)
 --     name,         -- display name for the group
---     tokens,       -- member tokens (live members union onset members), heroes excluded
---     memberCount,  -- #tokens
+--     tokens,       -- member tokens still resolvable on the map, heroes excluded
+--     memberCount,  -- #tokens plus onset members whose tokens are gone
 --     aliveCount, deadCount, allDead,
---     primaryToken, -- the token to show as the group's portrait (captain preferred)
+--     primaryToken, -- the token to show as the group's portrait (captain preferred);
+--                   -- may be an off-map token for a dead member, or nil when every
+--                   -- member's token has been deleted outright
+--     fallbackInfo, -- onset display snapshot ({ minion, portrait, monsterType, role })
+--                   -- to draw the card from when primaryToken is nil; may be nil
 --   }
--- Groups with no resolvable members are skipped. Returns a freshly-built list.
+-- Onset members whose tokens no longer resolve on the map (dead monsters are
+-- despawned or deleted) still count as dead members, so the victory screen shows
+-- the full roster rather than just the survivors. Groups with no resolvable
+-- members and no onset members are skipped. Returns a freshly-built list.
 function LiveEncounter:GetMonsterGroups()
     local q = dmhub.initiativeQueue
     local result = {}
     local seenGroups = {}
 
-    local function AddGroup(groupid, name, memberids)
+    local function AddGroup(groupid, name, memberids, memberinfo)
         if seenGroups[groupid] then
             return
         end
@@ -875,17 +1184,34 @@ function LiveEncounter:GetMonsterGroups()
                 tokens[#tokens+1] = tok
             end
         end
+
+        --Onset members with no token on the map any more: the monster died and
+        --was despawned/deleted, or was otherwise removed mid-fight. They still
+        --count as (dead) members. Each entry is { tokenid, token, info }: token
+        --is the off-map token when it still exists anywhere in the game
+        --(portraits still render from it), info the onset display snapshot.
+        local missing = {}
         for _, mid in ipairs(memberids or {}) do
             if not seenTokens[mid] then
+                seenTokens[mid] = true
                 local tok = dmhub.GetTokenById(mid)
                 if tok ~= nil and tok.valid and tok.properties ~= nil and not tok.properties:IsHero() then
-                    seenTokens[mid] = true
                     tokens[#tokens+1] = tok
+                else
+                    local offmap = dmhub.GetCharacterById(mid)
+                    if offmap ~= nil and (not offmap.valid or offmap.properties == nil or offmap.properties:IsHero()) then
+                        offmap = nil
+                    end
+                    missing[#missing+1] = {
+                        tokenid = mid,
+                        token = offmap,
+                        info = memberinfo ~= nil and memberinfo[mid] or nil,
+                    }
                 end
             end
         end
 
-        if #tokens == 0 then
+        if #tokens == 0 and #missing == 0 then
             return
         end
 
@@ -900,8 +1226,88 @@ function LiveEncounter:GetMonsterGroups()
                 primaryToken = tok
             end
         end
+        --no live captain: fall back to a dead member's off-map token (a wiped
+        --squad still shows its captain's face), then any live member, then any
+        --dead member whose token survives.
+        if primaryToken == nil then
+            for _, m in ipairs(missing) do
+                if m.token ~= nil and not m.token.properties:try_get("minion", false) then
+                    primaryToken = m.token
+                    break
+                end
+            end
+        end
         if primaryToken == nil then
             primaryToken = tokens[1]
+        end
+        if primaryToken == nil then
+            for _, m in ipairs(missing) do
+                if m.token ~= nil then
+                    primaryToken = m.token
+                    break
+                end
+            end
+        end
+
+        --when every member's token is deleted outright, the onset snapshot is
+        --all that is left to draw the card from; prefer a non-minion member's.
+        local fallbackInfo = nil
+        for _, m in ipairs(missing) do
+            if m.info ~= nil then
+                if fallbackInfo == nil or (fallbackInfo.minion and not m.info.minion) then
+                    fallbackInfo = m.info
+                end
+            end
+        end
+
+        local memberCount = #tokens + #missing
+
+        --Composition: the group's members bucketed into captains (non-minions)
+        --and minions, each grouped by monster type in order of first appearance,
+        --so the victory card can read "Dwarf Driver" over "Dwarf Axethrower x4"
+        --rather than "Dwarf Driver x5". nil when any member's kind is unknown
+        --(a pre-snapshot queue), in which case the card falls back to "name xN".
+        local captains, minions = {}, {}
+        local byKey = {}
+        local complete = true
+        local function AddMember(isMinion, typeName)
+            if typeName == nil or typeName == "" then
+                complete = false
+                return
+            end
+            local key = (isMinion and "m:" or "c:") .. typeName
+            local entry = byKey[key]
+            if entry == nil then
+                entry = { name = typeName, count = 0, minion = isMinion }
+                byKey[key] = entry
+                local list = cond(isMinion, minions, captains)
+                list[#list+1] = entry
+            end
+            entry.count = entry.count + 1
+        end
+        for _, tok in ipairs(tokens) do
+            local mtype = tok.properties:try_get("monster_type")
+            if mtype == nil or mtype == "" then
+                mtype = tok.description
+            end
+            AddMember(tok.properties:try_get("minion", false) == true, mtype)
+        end
+        for _, m in ipairs(missing) do
+            if m.token ~= nil then
+                local mtype = m.token.properties:try_get("monster_type")
+                if mtype == nil or mtype == "" then
+                    mtype = m.token.description
+                end
+                AddMember(m.token.properties:try_get("minion", false) == true, mtype)
+            elseif m.info ~= nil then
+                AddMember(m.info.minion == true, m.info.monsterType)
+            else
+                complete = false
+            end
+        end
+        local composition = nil
+        if complete then
+            composition = { captains = captains, minions = minions }
         end
 
         local displayName = name
@@ -912,7 +1318,7 @@ function LiveEncounter:GetMonsterGroups()
             end
         end
         if displayName == nil or displayName == "" then
-            displayName = primaryToken.description or "Monsters"
+            displayName = (primaryToken ~= nil and primaryToken.description) or "Monsters"
         end
 
         result[#result+1] = {
@@ -920,16 +1326,18 @@ function LiveEncounter:GetMonsterGroups()
             statKey = SanitizeStatKey(groupid),
             name = displayName,
             tokens = tokens,
-            memberCount = #tokens,
+            memberCount = memberCount,
             aliveCount = aliveCount,
-            deadCount = #tokens - aliveCount,
+            deadCount = memberCount - aliveCount,
             allDead = aliveCount == 0,
             primaryToken = primaryToken,
+            fallbackInfo = fallbackInfo,
+            composition = composition,
         }
     end
 
     for _, g in ipairs(self:GetOnsetMonsterGroups()) do
-        AddGroup(g.groupid, g.name, g.memberids)
+        AddGroup(g.groupid, g.name, g.memberids, g.memberinfo)
     end
 
     if q ~= nil then
@@ -943,10 +1351,16 @@ function LiveEncounter:GetMonsterGroups()
     return result
 end
 
--- The hero tokens currently in the battle (every IsHero entry in the initiative queue,
--- deduped, including the dead -- fallen heroes stay in initiative). This is what the
--- victory screen displays, so heroes appear as long as combat is live, independent of
--- whether the onset snapshot was captured. Returns a list of tokens.
+-- The hero tokens in the battle: every IsHero entry in the initiative queue
+-- (deduped), plus any onset hero whose token the queue no longer resolves -- a
+-- dead hero can be removed from the battlefield entirely (e.g. the Encounter of
+-- the Week hero-death rule despawns them), and the victory screen and battle
+-- log must still show everyone who STARTED the fight, not just the survivors.
+-- Off-queue heroes resolve via GetCharacterById, which finds despawned tokens
+-- anywhere in the game; their stats and role history key off charid as normal.
+-- Heroes appear as long as combat is live even when the onset snapshot was
+-- never captured (the snapshot only adds the removed ones back). Returns a
+-- list of tokens.
 function LiveEncounter:GetBattleHeroTokens()
     local q = dmhub.initiativeQueue
     local result = {}
@@ -963,6 +1377,18 @@ function LiveEncounter:GetBattleHeroTokens()
                     seen[token.charid] = true
                     result[#result + 1] = token
                 end
+            end
+        end
+    end
+
+    --onset heroes the queue no longer resolves (their token was despawned or
+    --deleted mid-fight); they still count as participants.
+    for _, h in ipairs(self:GetOnsetHeroes()) do
+        if not seen[h.charid] then
+            seen[h.charid] = true
+            local token = dmhub.GetCharacterById(h.charid)
+            if token ~= nil and token.valid and token.properties ~= nil and token.properties:IsHero() then
+                result[#result + 1] = token
             end
         end
     end
@@ -1342,6 +1768,944 @@ function LiveEncounter:GetAwardedOutcome()
     return nil
 end
 
+----------------------------------------------------------------------
+-- Battle log + the encounter_complete analytics event
+--
+-- When an encounter ends, the director's client does two things exactly once:
+--
+--  1. Appends a permanent record of the battle to the game's BATTLE LOG (a
+--     shared document, so every client can read it and it outlives the
+--     initiative queue being torn down). This is the reviewable campaign
+--     history: what was fought, how it ended, and who did what.
+--  2. Emits the encounter_complete ANALYTICS EVENT -- the same header plus the
+--     full per-hero stat dump and a "seriousness" assessment, so offline
+--     reporting can tell a real play session apart from a test or a preview.
+--
+-- The two deliberately carry different detail. The log lives inside gameDetails,
+-- which every client downloads in full on load, so it keeps only the headline
+-- numbers per hero and is capped at BattleLog.maxRecords. The analytics event is
+-- a one-shot push that is never stored in the game, so it carries everything.
+--
+-- Both are driven by LiveEncounter.CompleteEncounter(outcome), called from the
+-- two places combat can end: the outcome screen's Proceed button
+-- (Draw Steel UI/DSVictoryScreen.lua) and the initiative bar's End Combat
+-- (MCDMInitiativeBar.lua). Never throws -- ending combat must not be able to
+-- fail because of bookkeeping.
+----------------------------------------------------------------------
+
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
+BattleLog = {}
+
+-- The shared document holding the battle log, keyed by battle id.
+BattleLog.docId = "dsBattleLog"
+
+-- How many battles to keep. The log rides inside gameDetails, which every client
+-- downloads in full on load, so it is bounded: recording battle N+1 prunes the
+-- oldest.
+--
+-- SIZE: measured, not estimated. A real record built against a live 5-hero fight
+-- is ~2KB of JSON (guids and key names dominate; zero stats are already omitted
+-- and the analytics-only payload is already excluded). So this cap is what the log
+-- adds to every client's game load:
+--
+--     100 -> ~195KB       150 -> ~295KB       200 -> ~390KB
+--
+-- 200 is roughly a year and a half for a weekly group running two fights a
+-- session. Lower it here if the load cost matters more than the history depth.
+BattleLog.maxRecords = 200
+
+mod:RegisterDocumentForCheckpointBackups(BattleLog.docId)
+
+-- The document path, for panels that want to monitorGame the log.
+function BattleLog.GetDocPath()
+    return mod:GetDocumentPath(BattleLog.docId)
+end
+
+-- Every recorded battle, newest first. Each entry is the record built by
+-- LiveEncounter:BuildBattleRecord (see there for the field list). Always a list;
+-- empty when nothing has been recorded in this game yet.
+function BattleLog.GetBattles()
+    local result = {}
+    local doc = mod:GetDocumentSnapshot(BattleLog.docId)
+    local battles = doc.data.battles
+    if type(battles) ~= "table" then
+        return result
+    end
+
+    --Read-only: these tables belong to the live document, so nothing here
+    --mutates them (an unannounced write would show up as a spurious diff the
+    --next time anything calls BeginChange on this document).
+    for _, record in pairs(battles) do
+        if type(record) == "table" then
+            result[#result + 1] = record
+        end
+    end
+
+    table.sort(result, function(a, b)
+        local at = a.t or 0
+        local bt = b.t or 0
+        if at ~= bt then
+            return at > bt
+        end
+        return tostring(a.id) < tostring(b.id)
+    end)
+
+    return result
+end
+
+-- One battle by id, or nil.
+function BattleLog.GetBattle(battleid)
+    if battleid == nil then
+        return nil
+    end
+    local doc = mod:GetDocumentSnapshot(BattleLog.docId)
+    local battles = doc.data.battles
+    if type(battles) ~= "table" then
+        return nil
+    end
+    local record = battles[battleid]
+    if type(record) ~= "table" then
+        return nil
+    end
+    return record
+end
+
+-- Append a battle record and prune the oldest beyond BattleLog.maxRecords.
+-- Keyed by record.id (the combat's guid), so a double-record of the same combat
+-- overwrites rather than duplicating. Director-only in practice -- the callers
+-- gate on it -- so there is no concurrent-writer problem. Returns true if the
+-- record was written.
+function BattleLog.RecordBattle(record)
+    if type(record) ~= "table" or record.id == nil then
+        return false
+    end
+
+    local doc = mod:GetDocumentSnapshot(BattleLog.docId)
+    doc:BeginChange()
+    if type(doc.data.battles) ~= "table" then
+        doc.data.battles = {}
+    end
+    doc.data.battles[record.id] = record
+
+    --prune the oldest records beyond the cap. Collect (id, t) pairs, sort
+    --oldest-first, and drop the excess.
+    local ordered = {}
+    for id, entry in pairs(doc.data.battles) do
+        if type(entry) == "table" then
+            ordered[#ordered + 1] = { id = id, t = entry.t or 0 }
+        else
+            --junk value; drop it.
+            doc.data.battles[id] = nil
+        end
+    end
+    if #ordered > BattleLog.maxRecords then
+        table.sort(ordered, function(a, b)
+            if a.t ~= b.t then
+                return a.t < b.t
+            end
+            return tostring(a.id) < tostring(b.id)
+        end)
+        local excess = #ordered - BattleLog.maxRecords
+        for i = 1, excess do
+            doc.data.battles[ordered[i].id] = nil
+        end
+    end
+
+    doc:CompleteChange("Record battle", { undoable = false })
+    return true
+end
+
+-- Delete every recorded battle. For the director, and for testing.
+function BattleLog.Clear()
+    local doc = mod:GetDocumentSnapshot(BattleLog.docId)
+    if type(doc.data.battles) ~= "table" then
+        return
+    end
+    doc:BeginChange()
+    doc.data.battles = {}
+    doc:CompleteChange("Clear battle log", { undoable = false })
+end
+
+-- Seriousness thresholds. An encounter must clear ALL of these to be recorded as
+-- a real play session; the raw inputs are stored on the record either way, so
+-- offline reporting can re-derive the verdict with its own thresholds without a
+-- client change.
+local BATTLE_MIN_USERS = 3        -- connected users (director + players)
+local BATTLE_MIN_ROUNDS = 2       -- a one-round combat is almost always a test
+local BATTLE_MIN_HEROES = 2       -- a party, not a single token being poked at
+local BATTLE_MIN_SECONDS = 180    -- only checked when the onset time is known
+
+-- The users actually present for this combat: their userids, how many are
+-- players (not directors), and the total. "Present" is CountLoggedInUsers'
+-- definition -- not logged out and seen within the last 2 minutes -- because
+-- dmhub.users keeps stale entries for people who left the session long ago.
+-- Returns playerIds (a list of non-director userids), playerCount, total.
+local function BattlePresentUsers()
+    local playerIds = {}
+    local total = 0
+    pcall(function()
+        for _, userid in ipairs(dmhub.users or {}) do
+            local info = dmhub.GetSessionInfo(userid)
+            if info ~= nil and (not info.loggedOut) and info.timeSinceLastContact < 120 then
+                total = total + 1
+                if not info.dm then
+                    playerIds[#playerIds + 1] = userid
+                end
+            end
+        end
+    end)
+    return playerIds, #playerIds, total
+end
+
+-- nil for zero, the value otherwise. Used all through the battle record: a stat
+-- that is absent reads back as 0 anyway (BattleStatTotal and the UI both default
+-- it), and most heroes score nothing on most stats, so dropping the zeros roughly
+-- halves what the log costs inside gameDetails. Never apply this to a value where
+-- "absent" and "zero" must be distinguishable.
+local function BattleNonZero(v)
+    if type(v) ~= "number" or v == 0 then
+        return nil
+    end
+    return v
+end
+
+-- A hero's display name. token.name is frequently nil (it is the optional
+-- override); token.description is the name actually shown in game.
+local function BattleTokenName(token)
+    if token == nil then
+        return nil
+    end
+    if type(token.name) == "string" and token.name ~= "" then
+        return token.name
+    end
+    if type(token.description) == "string" and token.description ~= "" then
+        return token.description
+    end
+    return nil
+end
+
+-- Sum one numeric stat across a hero's whole encounter, tolerating a missing or
+-- nested value. totals comes from GetStatsForToken (already round-summed).
+local function BattleStatTotal(totals, statid)
+    local v = totals ~= nil and totals[statid] or nil
+    if type(v) == "number" then
+        return v
+    end
+    return 0
+end
+
+-- Sum every numeric leaf of a nested stat sub-table (tierRolls,
+-- conditionsInflicted, ...). Returns 0 when the stat was never recorded.
+local function BattleStatNestedTotal(totals, statid)
+    local t = totals ~= nil and totals[statid] or nil
+    if type(t) ~= "table" then
+        return 0
+    end
+    local sum = 0
+    for _, v in pairs(t) do
+        if type(v) == "number" then
+            sum = sum + v
+        end
+    end
+    return sum
+end
+
+-- Build the permanent record of this encounter.
+--
+-- outcome is "victory", "defeat", or "ended" (combat closed without the director
+-- awarding either). roles is the hero-role map from
+-- DSVictoryScreen.ComputeHeroRoles; pass the same table the outcome screen
+-- displayed, because role selection is biased by each hero's role history and
+-- recomputing it after that history has been bumped can yield different roles.
+--
+-- Returns nil when there is nothing worth recording (no heroes, no rounds, or a
+-- combat in which no blow was struck -- respite/downtime queues end through the
+-- same code path). Otherwise the record is:
+--
+--   id, t, durationSeconds,
+--   name (encounter name; nil for a Custom combat), outcome, rounds, eds,
+--   mapid, mapName, serious, notSerious,
+--   heroes  = { { charid, name, ownerId, class, subclass, ancestry, level,
+--                 role, roleText, survived, damage, taken, prevented,
+--                 kills, minionKills, criticals,
+--                 recoveriesStart, recoveriesEnd }, ... },
+--   monsters = { { name, monster, role, count, dead,
+--                  damage, taken, deaths, turns, battleRole }, ... },
+--   party = { damage, taken, prevented, kills, minionKills, downed, deaths },
+--   analytics = { ... }   -- lifted off and dropped by CompleteEncounter
+--
+-- Zero-valued stats are omitted throughout (see BattleNonZero) -- read them back
+-- with a `or 0` default. The per-hero set is deliberately the headline numbers
+-- only: the full stat dump and every seriousness input ride in `analytics`, which
+-- goes to the event and never into the game document.
+function LiveEncounter:BuildBattleRecord(outcome, roles)
+    local q = dmhub.initiativeQueue
+    local heroTokens = self:GetBattleHeroTokens()
+    local groups = self:GetMonsterGroups()
+    local rounds = (q ~= nil and q.round) or 0
+
+    if #heroTokens == 0 or rounds < 1 then
+        return nil
+    end
+
+    if type(roles) ~= "table" then
+        roles = {}
+        local victoryScreen = rawget(_G, "DSVictoryScreen")
+        if victoryScreen ~= nil then
+            pcall(function() roles = victoryScreen.ComputeHeroRoles(self) or {} end)
+        end
+    end
+
+    local monsterRoles = {}
+    do
+        local victoryScreen = rawget(_G, "DSVictoryScreen")
+        if victoryScreen ~= nil then
+            pcall(function() monsterRoles = victoryScreen.ComputeMonsterRoles(self) or {} end)
+        end
+    end
+
+    local party = {
+        damage = 0,
+        taken = 0,
+        prevented = 0,
+        kills = 0,
+        minionKills = 0,
+        downed = 0,
+        deaths = 0,
+    }
+
+    local owners = {}
+    local ownerCount = 0
+    local heroes = {}
+    local fullStats = {}
+
+    for _, token in ipairs(heroTokens) do
+        local props = token.properties
+        local totals = self:GetStatsForToken(token.charid) or {}
+
+        local className = nil
+        local classInfo = nil
+        pcall(function() classInfo = props:GetClass() end)
+        if classInfo ~= nil then
+            className = classInfo.name
+        end
+
+        local subclassName = nil
+        pcall(function()
+            for _, entry in ipairs(props:GetSubclasses() or {}) do
+                if subclassName == nil then
+                    subclassName = entry.name
+                else
+                    subclassName = subclassName .. "/" .. entry.name
+                end
+            end
+        end)
+
+        local ancestry = nil
+        pcall(function() ancestry = props:RaceOrMonsterType() end)
+
+        local level = nil
+        pcall(function() level = props:Level() end)
+
+        local dead = false
+        pcall(function() dead = props:IsDead() end)
+        local dying = false
+        pcall(function() dying = props:IsDying() end)
+
+        local onsetRecoveries, currentRecoveries = self:GetHeroRecoveries(token)
+
+        --ownerId is the userid of the player who owns this hero, or the string
+        --"PARTY" for a party-owned token, or nil for a director-controlled one.
+        --Party ownership is common and a party has no user membership to resolve
+        --against, so ownerCount is 0 for such a group -- see the note on
+        --record.players below.
+        local ownerId = token.ownerId
+        if type(ownerId) == "string" and ownerId ~= "" and ownerId ~= "PARTY" and not owners[ownerId] then
+            owners[ownerId] = true
+            ownerCount = ownerCount + 1
+        end
+
+        local roleInfo = roles[token.charid]
+
+        local tierRolls = totals.tierRolls
+        if type(tierRolls) ~= "table" then
+            tierRolls = {}
+        end
+
+        local damage = BattleStatTotal(totals, "damageDealt")
+        local taken = BattleStatTotal(totals, "damageTaken")
+        local prevented = BattleStatTotal(totals, "damagePrevention")
+        local kills = BattleStatTotal(totals, "kills")
+        local minionKills = BattleStatTotal(totals, "minionKills")
+        local criticals = BattleStatTotal(totals, "criticals")
+
+        party.damage = party.damage + damage
+        party.taken = party.taken + taken
+        party.prevented = party.prevented + prevented
+        party.kills = party.kills + kills
+        party.minionKills = party.minionKills + minionKills
+        if dead then
+            party.deaths = party.deaths + 1
+        elseif dying then
+            party.downed = party.downed + 1
+        end
+
+        heroes[#heroes + 1] = {
+            charid = token.charid,
+            name = BattleTokenName(token),
+            ownerId = ownerId,
+            class = className,
+            subclass = subclassName,
+            ancestry = ancestry,
+            level = level,
+            role = roleInfo ~= nil and roleInfo.role or nil,
+            roleText = roleInfo ~= nil and roleInfo.text or nil,
+            survived = not dead,
+            damage = BattleNonZero(damage),
+            taken = BattleNonZero(taken),
+            prevented = BattleNonZero(prevented),
+            kills = BattleNonZero(kills),
+            minionKills = BattleNonZero(minionKills),
+            criticals = BattleNonZero(criticals),
+            recoveriesStart = onsetRecoveries,
+            recoveriesEnd = currentRecoveries,
+        }
+
+        --the analytics-only expansion: everything else the encounter tracked.
+        fullStats[#fullStats + 1] = {
+            charid = token.charid,
+            ownerId = ownerId,
+            class = className,
+            subclass = subclassName,
+            ancestry = ancestry,
+            level = level,
+            role = roleInfo ~= nil and roleInfo.role or nil,
+            --nil when they won the role outright; "cascade" / "floor" when the
+            --awarder had to fall back. See TrackHeroRoleFallbacks below.
+            roleFallback = roleInfo ~= nil and roleInfo.fallback or nil,
+            survived = not dead,
+            damage = damage,
+            taken = taken,
+            prevented = prevented,
+            kills = kills,
+            minionKills = minionKills,
+            criticals = criticals,
+            overkill = BattleStatTotal(totals, "overkill"),
+            spacesMoved = BattleStatTotal(totals, "spacesMoved"),
+            allyDamageDealt = BattleStatTotal(totals, "allyDamageDealt"),
+            enemyTurnDamage = BattleStatTotal(totals, "enemyTurnDamage"),
+            forcedMovementDealt = BattleStatTotal(totals, "forcedMovementDealt"),
+            forcedMovementTaken = BattleStatTotal(totals, "forcedMovementTaken"),
+            standsFirm = BattleStatTotal(totals, "standsFirm"),
+            resourcesGained = BattleStatTotal(totals, "heroicResourcesGained"),
+            resourcesSpent = BattleStatTotal(totals, "heroicResourcesSpent"),
+            edges = BattleStatTotal(totals, "edges"),
+            banes = BattleStatTotal(totals, "banes"),
+            tier1 = BattleStatTotal(tierRolls, "tier1"),
+            tier2 = BattleStatTotal(tierRolls, "tier2"),
+            tier3 = BattleStatTotal(tierRolls, "tier3"),
+            conditionsInflicted = BattleStatNestedTotal(totals, "conditionsInflicted"),
+            conditionsReceived = BattleStatNestedTotal(totals, "conditionsReceived"),
+            recoveriesSpent = (onsetRecoveries ~= nil and currentRecoveries ~= nil)
+                and math.max(0, onsetRecoveries - currentRecoveries) or nil,
+        }
+    end
+
+    local monsters = {}
+    local monsterCount = 0
+    for _, group in ipairs(groups) do
+        local totals = self:GetStatsForMonsterGroup(group.statKey) or {}
+        monsterCount = monsterCount + group.memberCount
+
+        local monsterType = nil
+        local monsterRole = nil
+        local primary = group.primaryToken
+        if primary ~= nil and primary.properties ~= nil then
+            monsterType = primary.properties:try_get("monster_type")
+            local r = primary.properties:try_get("role")
+            if r ~= nil and r ~= "" then
+                monsterRole = r
+            end
+        elseif group.fallbackInfo ~= nil then
+            --every member token was deleted; the onset snapshot still knows what
+            --this group was.
+            monsterType = group.fallbackInfo.monsterType
+            monsterRole = group.fallbackInfo.role
+        end
+
+        local groupRoleInfo = monsterRoles[group.groupid]
+
+        --No groupid and no allDead: the initiative id is only useful for keying
+        --the live stats table, which is gone by the time anything reads this back,
+        --and allDead is just count == dead.
+        monsters[#monsters + 1] = {
+            name = group.name,
+            monster = monsterType,
+            role = monsterRole,
+            count = group.memberCount,
+            dead = BattleNonZero(group.deadCount),
+            damage = BattleNonZero(BattleStatTotal(totals, "damageDealt")),
+            taken = BattleNonZero(BattleStatTotal(totals, "damageTaken")),
+            deaths = BattleNonZero(BattleStatTotal(totals, "deaths")),
+            turns = BattleNonZero(BattleStatTotal(totals, "turnsTaken")),
+            battleRole = groupRoleInfo ~= nil and groupRoleInfo.role or nil,
+        }
+    end
+
+    --Nothing actually happened: no blow was struck in either direction. This is a
+    --combat that was opened and closed again, or a respite / downtime queue (they
+    --end through the same End Combat path). Not a battle -- do not put it in the
+    --player-visible log at all. Every real fight lands damage one way or the
+    --other, and kills imply damage dealt while deaths imply damage taken, so this
+    --single test covers them too. Note this is a stricter bar than `serious`:
+    --a short scrappy fight is logged but may well not be serious.
+    if party.damage <= 0 and party.taken <= 0 then
+        return nil
+    end
+
+    --Connected users at the end of combat, and at the start. Seriousness uses the
+    --larger: a player dropping before the director presses Proceed must not make a
+    --four-person session look like a solo test, and someone joining mid-fight
+    --should still count.
+    local playerIds, playerCount, usercount = BattlePresentUsers()
+    local onsetUsercount = self:try_get("onsetUsercount", 0)
+    if type(onsetUsercount) ~= "number" then
+        onsetUsercount = 0
+    end
+    local peakUsercount = math.max(usercount, onsetUsercount)
+
+    local startedAt = self:try_get("onsetTimestamp")
+    if type(startedAt) ~= "number" or startedAt <= 0 then
+        startedAt = nil
+    end
+    local now = dmhub.serverTimeMilliseconds
+    local durationSeconds = nil
+    if startedAt ~= nil then
+        durationSeconds = math.max(0, math.floor((now - startedAt) / 1000))
+    end
+
+    local eds = nil
+    pcall(function() eds = self:CountEDS() end)
+    if type(eds) ~= "number" or eds <= 0 then
+        eds = nil
+    end
+
+    local name = self:GetName()
+    if name == "" then
+        name = nil
+    end
+
+    --Seriousness: was this an actual play session working through an actual
+    --encounter, rather than a test, a preview, or someone poking at a token?
+    local failed = {}
+    if dmhub.isLobbyGame then
+        failed[#failed + 1] = "lobby"
+    end
+    if dmhub.harnessMode ~= nil then
+        failed[#failed + 1] = "harness"
+    end
+    if peakUsercount < BATTLE_MIN_USERS then
+        failed[#failed + 1] = "users"
+    end
+    if rounds < BATTLE_MIN_ROUNDS then
+        failed[#failed + 1] = "rounds"
+    end
+    if #heroTokens < BATTLE_MIN_HEROES then
+        failed[#failed + 1] = "heroes"
+    end
+    if #monsters == 0 then
+        failed[#failed + 1] = "monsters"
+    end
+    if party.damage <= 0 then
+        failed[#failed + 1] = "damage"
+    end
+    if durationSeconds ~= nil and durationSeconds < BATTLE_MIN_SECONDS then
+        failed[#failed + 1] = "duration"
+    end
+    if outcome ~= "victory" and outcome ~= "defeat" then
+        failed[#failed + 1] = "outcome"
+    end
+
+    --The STORED record. Only what a player reviewing their campaign's battles
+    --needs: everything here is paid for by every client on every game load, so
+    --anything that exists purely for offline reporting goes in `analytics` below
+    --instead. startedAt is omitted as derivable (t - durationSeconds * 1000).
+    local record = {
+        --the combat's guid, so re-recording the same combat overwrites.
+        id = (q ~= nil and q:try_get("guid")) or dmhub.GenerateGuid(),
+        t = now,
+        durationSeconds = durationSeconds,
+        name = name,
+        outcome = outcome,
+        rounds = rounds,
+        eds = eds,
+        mapid = game.currentMapId,
+        mapName = (game.currentMap ~= nil and game.currentMap.description) or nil,
+        --kept because a review UI wants to separate real battles from the
+        --leftovers of a test; the inputs behind it are analytics-only.
+        serious = #failed == 0,
+        heroes = heroes,
+        monsters = monsters,
+        party = party,
+    }
+    if #failed > 0 then
+        record.notSerious = table.concat(failed, ",")
+    end
+
+    --Carried out to the caller for the encounter_complete event ONLY.
+    --CompleteEncounter strips this before the record is written, so none of it
+    --reaches the game document. (The record is a plain table, so the _tmp_
+    --game-type convention does not apply -- the stripping is what keeps it out.)
+    record.analytics = {
+        heroStats = fullStats,
+        monsterCount = monsterCount,
+        usercount = usercount,
+        onsetUsercount = onsetUsercount,
+        playerCount = playerCount,
+        ownerCount = ownerCount,
+        --The connected non-director userids: the reliable answer to "who was in
+        --this session", and the only one when the party's heroes are PARTY-owned
+        --(ownerCount is 0 then -- a party has no user membership to resolve
+        --against). Per-hero attribution needs individually-owned tokens, or a
+        --player-side emit.
+        players = playerIds,
+    }
+
+    return record
+end
+
+----------------------------------------------------------------------
+-- hero_role_fallback: heroes the role set had nothing to say about
+--
+-- Every hero now finishes every fight with a title, but not every title is
+-- earned. The three assignment passes in Draw Steel UI/DSVictoryScreen.lua go:
+-- win it outright (`fallback` nil), inherit an unawarded role as its runner-up
+-- ("cascade"), or take a floor role that asks nothing of you at all ("floor" --
+-- Pacifist, Tourist, Backbone). A non-nil `fallback` is the interesting signal:
+-- the role set had nothing this hero was actually BEST at, and the awarder had
+-- to reach for a consolation. That is what this event measures -- how often it
+-- happens in a real fight, to which kind of hero, and what they were doing while
+-- everyone else was winning something -- so new roles can be designed to cover
+-- the gap and the fallbacks can wither away.
+--
+-- One event per encounter with at least one fallback. It is deliberately
+-- SELF-CONTAINED -- the whole party's stat lines ride along, not just the
+-- fallback heroes' -- because "why was there no title for this hero" is only
+-- answerable next to what the rest of the party did. It also carries the winning
+-- line of every role that was in contention, which is the bar they failed to
+-- clear. Joins to encounter_complete on battleid.
+--
+-- Kept OUT of encounter_complete on purpose: that fires for every fight, and
+-- this is several KB of diagnostic detail that only matters for the fights that
+-- have the problem.
+--
+-- Gating is deliberately looser than `serious`: lobby and harness combats are
+-- dropped (they are never real play), but everything else is sent with the full
+-- seriousness verdict attached, so offline reporting filters on `serious` /
+-- `notSerious` rather than being starved of cases by the client's thresholds.
+local function TrackHeroRoleFallbacks(live, record, extra)
+    --never real play; the lobby is a solo character-creation game and the
+    --harness is a fixture surface.
+    if dmhub.isLobbyGame or dmhub.harnessMode ~= nil then
+        return
+    end
+
+    local heroStats = extra.heroStats
+    if type(heroStats) ~= "table" or #heroStats == 0 then
+        return
+    end
+
+    --The full eligibility picture, computed the way the outcome screen computed
+    --it. Safe to compute here: CompleteEncounter runs BEFORE RecordHeroRoles
+    --bumps the per-hero role history that biases selection, so this still
+    --reproduces exactly what the players were just looking at.
+    local victoryScreen = rawget(_G, "DSVictoryScreen")
+    if victoryScreen == nil then
+        return
+    end
+    local debugInfo = nil
+    pcall(function() debugInfo = victoryScreen.ComputeHeroRoleDebugInfo(live) end)
+    if type(debugInfo) ~= "table" or #debugInfo == 0 then
+        return
+    end
+
+    --Who was awarded what. This comes from the role map the outcome screen
+    --actually displayed (passed into BuildBattleRecord), so it -- not the
+    --recomputed debug info -- is what decides who fell back.
+    local statsByChar = {}
+    local roleHolder = {}
+    local awardedList = {}
+    for _, h in ipairs(heroStats) do
+        statsByChar[h.charid] = h
+        if h.role ~= nil then
+            roleHolder[h.role] = h.charid
+            awardedList[#awardedList + 1] = h.role
+        end
+    end
+
+    local roleWinners = {}
+    local fallbacks = {}
+    local cascadeCount = 0
+    local floorCount = 0
+    local noRoleCount = 0
+    for _, info in ipairs(debugInfo) do
+        local stats = statsByChar[info.charid]
+        local eligible = info.eligible or {}
+
+        --rank 1 in a hero's eligibility list IS that role's winner, so scanning
+        --every hero reconstructs the whole contest. `awarded` marks the roles
+        --that were handed out at all; `cascaded` marks the ones whose rank-1
+        --hero showed something better and whose runner-up inherited it. A role
+        --with neither is one the fight had no room for.
+        for _, e in ipairs(eligible) do
+            if e.rank == 1 then
+                local holder = roleHolder[e.role]
+                roleWinners[#roleWinners + 1] = {
+                    role = e.role,
+                    charid = info.charid,
+                    class = stats ~= nil and stats.class or nil,
+                    text = e.text,
+                    awarded = holder ~= nil,
+                    cascaded = (holder ~= nil and holder ~= info.charid) or nil,
+                    floor = e.isFloor or nil,
+                }
+            end
+        end
+
+        local fallback = stats ~= nil and stats.roleFallback or nil
+        if stats ~= nil and stats.role == nil then
+            --Should be unreachable: the floor roles cover every hero between
+            --them. Counted as a canary -- if this is ever above zero in the
+            --data, that coverage broke.
+            noRoleCount = noRoleCount + 1
+            fallback = "none"
+        end
+
+        if fallback ~= nil then
+            if fallback == "cascade" then
+                cascadeCount = cascadeCount + 1
+            elseif fallback == "floor" then
+                floorCount = floorCount + 1
+            end
+
+            --The actionable half. A hero who placed 2nd in four roles is a
+            --tie-break problem; a hero who qualified for nothing at all needs a
+            --new role built for whatever they were doing instead. `text` is the
+            --role's own phrasing of their number ("Dealt 40 damage"), so a case
+            --reads without cross-referencing the stat ids.
+            local placings = {}
+            for _, e in ipairs(eligible) do
+                placings[#placings + 1] = { role = e.role, rank = e.rank, text = e.text }
+            end
+
+            fallbacks[#fallbacks + 1] = {
+                charid = info.charid,
+                fallback = fallback,
+                role = stats.role,
+                class = stats.class,
+                subclass = stats.subclass,
+                ancestry = stats.ancestry,
+                level = stats.level,
+                survived = stats.survived,
+                damage = stats.damage,
+                taken = stats.taken,
+                prevented = stats.prevented,
+                kills = stats.kills,
+                minionKills = stats.minionKills,
+                criticals = stats.criticals,
+                conditionsInflicted = stats.conditionsInflicted,
+                eligibleCount = #placings,
+                eligible = placings,
+            }
+        end
+    end
+
+    if #fallbacks == 0 then
+        return
+    end
+
+    local fallbackClasses = {}
+    local fallbackRoles = {}
+    for _, h in ipairs(fallbacks) do
+        fallbackClasses[#fallbackClasses + 1] = h.class or "?"
+        fallbackRoles[#fallbackRoles + 1] = h.role or "?"
+    end
+
+    track("hero_role_fallback", {
+        --the join key back to encounter_complete and the battle log.
+        battleid = record.id,
+        encounter = record.name,
+        outcome = record.outcome,
+        rounds = record.rounds,
+        durationSeconds = record.durationSeconds,
+        eds = record.eds,
+        mapName = record.mapName,
+
+        --seriousness, carried in full so this table can be filtered exactly like
+        --encounter_complete without a join.
+        serious = record.serious,
+        notSerious = record.notSerious,
+        usercount = extra.usercount,
+        onsetUsercount = extra.onsetUsercount,
+        playerCount = extra.playerCount,
+
+        heroCount = #record.heroes,
+        monsterGroupCount = #record.monsters,
+        monsterCount = extra.monsterCount,
+        partyDamage = record.party.damage,
+        partyTaken = record.party.taken,
+
+        --the headline: how many heroes had to be given a title rather than
+        --winning one, how far the awarder had to reach, which classes they were,
+        --and which roles the fight handed out in total. floorCount is the number
+        --that even the cascade could not cover -- the metric to drive to zero by
+        --adding roles. noRoleCount should always be 0 (see the canary above).
+        fallbackCount = #fallbacks,
+        cascadeCount = cascadeCount,
+        floorCount = floorCount,
+        noRoleCount = noRoleCount,
+        fallbackClasses = table.concat(fallbackClasses, ","),
+        fallbackRoles = table.concat(fallbackRoles, ","),
+        rolesAwarded = table.concat(awardedList, ","),
+        rolesAwardedCount = #awardedList,
+
+        --the detail: each fallback hero with the roles they placed in but did
+        --not win, every role's winning line (awarded, cascaded, or neither), and
+        --the whole party's full stat dump for context.
+        fallbacks = fallbacks,
+        roleWinners = roleWinners,
+        heroes = heroStats,
+
+        dailyLimit = 20,
+    })
+end
+
+-- Called once, on the director's client, when an encounter ends: writes the
+-- battle log entry and emits the encounter_complete analytics event.
+--
+-- outcome is "victory" / "defeat" / "ended". roles is optional -- pass the role
+-- map the outcome screen displayed so the recorded roles match what players saw
+-- (see BuildBattleRecord). Safe to call unconditionally: it no-ops for players,
+-- for a second call on the same combat, and for anything that was not a fight,
+-- and it never throws.
+function LiveEncounter.CompleteEncounter(outcome, roles)
+    local ok, err = pcall(function()
+        --hosting capability: the EotW player host is the client that must
+        --record the battle log and analytics.
+        if not IsDMOrPlayerHost() then
+            return
+        end
+
+        local q = dmhub.initiativeQueue
+        if q == nil then
+            return
+        end
+
+        local live = q:try_get("liveEncounter")
+        if type(live) ~= "table" then
+            return
+        end
+
+        --single-fire per combat. Transient, which is all that is needed: only
+        --this client can re-enter the end-combat paths before the queue is torn
+        --down, and the record is keyed by the combat guid anyway.
+        if live:try_get("_tmp_dsBattleRecorded", false) then
+            return
+        end
+        live._tmp_dsBattleRecorded = true
+
+        local record = live:BuildBattleRecord(outcome, roles)
+        if record == nil then
+            return
+        end
+
+        --Lift the analytics-only payload off the record BEFORE storing it, so
+        --none of it lands in the game document.
+        local extra = record.analytics or {}
+        record.analytics = nil
+
+        BattleLog.RecordBattle(record)
+
+        --malice is the director's side of the economy; a missing/zeroed resource
+        --must not cost us the whole event.
+        local maliceRemaining = nil
+        pcall(function() maliceRemaining = CharacterResource.GetMalice() end)
+
+        local monsterNames = {}
+        local monsterRoleNames = {}
+        for _, m in ipairs(record.monsters) do
+            if m.monster ~= nil then
+                monsterNames[#monsterNames + 1] = m.monster
+            end
+            if m.role ~= nil then
+                monsterRoleNames[#monsterRoleNames + 1] = m.role
+            end
+        end
+
+        track("encounter_complete", {
+            battleid = record.id,
+            encounter = record.name,
+            outcome = record.outcome,
+            rounds = record.rounds,
+            eds = record.eds,
+            mapid = record.mapid,
+            mapName = record.mapName,
+            durationSeconds = record.durationSeconds,
+
+            --seriousness: the verdict plus every input behind it, so offline
+            --reporting can re-derive it with different thresholds.
+            serious = record.serious,
+            notSerious = record.notSerious,
+            usercount = extra.usercount,
+            onsetUsercount = extra.onsetUsercount,
+            playerCount = extra.playerCount,
+            ownerCount = extra.ownerCount,
+            players = table.concat(extra.players or {}, ","),
+            heroCount = #record.heroes,
+            monsterGroupCount = #record.monsters,
+            monsterCount = extra.monsterCount,
+            lobby = dmhub.isLobbyGame,
+
+            monsterTypes = table.concat(monsterNames, ","),
+            monsterRoles = table.concat(monsterRoleNames, ","),
+
+            partyDamage = record.party.damage,
+            partyTaken = record.party.taken,
+            partyPrevented = record.party.prevented,
+            partyKills = record.party.kills,
+            partyMinionKills = record.party.minionKills,
+            heroesDowned = record.party.downed,
+            heroesDead = record.party.deaths,
+            maliceRemaining = maliceRemaining,
+
+            heroes = extra.heroStats,
+            monsters = record.monsters,
+
+            dailyLimit = 20,
+        })
+
+        --And, only when somebody had to be handed a role rather than winning
+        --one, the diagnostic feed for closing that gap. Its own pcall: a failure
+        --computing role eligibility must not lose the encounter_complete event
+        --above, which has already been sent, nor stop combat from ending.
+        pcall(TrackHeroRoleFallbacks, live, record, extra)
+    end)
+
+    if not ok then
+        dmhub.Debug(string.format("BattleLog: CompleteEncounter failed: %s", tostring(err)))
+    end
+end
+
 -- The "readied" encounter: an Encounter the DM has staged via an encounter's
 -- "Place on Map" button (see DocumentSystem/RichEncounter.lua). It is transient
 -- (in-memory only, not serialized): it is consulted to pre-select that encounter in
@@ -1358,6 +2722,43 @@ end
 
 function Encounter.ClearReadiedEncounter()
     g_readiedEncounter = nil
+end
+
+-- The engine's own click-to-place is armed through GUI focus, not through a
+-- mode flag: dmhub.GetSelectedEncounter reads gui.GetFocus().data.encounter,
+-- so while a panel carrying an encounter holds focus the map draws a ghost of
+-- the whole roster under the cursor and the next map click spawns it. Nothing
+-- disarms that on its own. Once the encounter has been placed some other way
+-- -- or combat has begun -- the arming is stale: the Director is left dragging
+-- a phantom copy of the encounter around, one click from spawning a second
+-- one on top of the fight they just started.
+--
+-- Only a panel that is actually arming an encounter is cleared, never the
+-- placement banner, which holds focus on purpose so it can receive the map
+-- click. The clear is repeated a beat later because the click that placed the
+-- encounter can still be bubbling: the encounter card's own click handler
+-- re-focuses the card AFTER this runs.
+function Encounter.DisarmClickToPlace()
+    local function Clear()
+        local focus = gui.GetFocus()
+        if focus == nil or not focus.valid then
+            return
+        end
+        if focus:HasClass("encounterPlacementBanner") then
+            return
+        end
+        if focus.data.encounter ~= nil then
+            gui.SetFocus(nil)
+        end
+    end
+
+    Clear()
+    dmhub.Schedule(0.1, function()
+        if mod.unloaded then
+            return
+        end
+        Clear()
+    end)
 end
 
 -- Set of wave ids that have already been deployed (or dismissed) during this live
@@ -1612,6 +3013,10 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
     local fallbackIndex = 0
     --spawned reinforcement tokenids, for the monster-group onset snapshot below.
     local spawnedTokenIds = {}
+    --the same tokens tagged with the slot they arrived in, so saved mounts among
+    --the reinforcements are re-seated once the whole wave is down. A rider whose
+    --mount was placed up front (not part of this wave) is left standing.
+    local mountEntries = {}
 
     for groupIndex, group in ipairs(self.groups) do
         if group.wave == waveid then
@@ -1711,6 +3116,11 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
                         spawnedCount = spawnedCount + 1
                         spawnedInGroup = true
                         spawnedTokenIds[#spawnedTokenIds+1] = token.charid
+                        mountEntries[#mountEntries+1] = {
+                            group = groupIndex,
+                            slot = slot,
+                            token = token,
+                        }
                     end
                 end
             end
@@ -1722,6 +3132,9 @@ function LiveEncounter:DeployWave(waveid, initiativeQueue)
             end
         end
     end
+
+    --put reinforcements that were saved riding each other back in the saddle.
+    self:RestoreMounts(mountEntries)
 
     --extend the monster-group onset snapshot with the freshly arrived groups, so
     --reinforcements get their own card (and stat attribution) on the victory
@@ -2258,7 +3671,12 @@ end
 --   bubbleid      : string|nil     id of the info bubble it was found on, or
 --                                  nil for game-wide journal entries
 --   docid         : string|nil     id of the markdown document it was found in
-function Encounter.GetEncountersOnCurrentMap()
+--`hostAccess` (optional): search the journal with HOSTING-level access rather
+--than the viewer's. A directorless game's host has dmhub.isDM false, so the
+--map's own journal folder -- where the encounter lives -- is not in their
+--accessible roots; setup code that must find the encounter to run it passes
+--this. Director-facing UI does not.
+function Encounter.GetEncountersOnCurrentMap(hostAccess)
     local result = {}
     local seenDocs = {}
 
@@ -2310,7 +3728,7 @@ function Encounter.GetEncountersOnCurrentMap()
     --journal, sorted by name for a stable dropdown order.
     local docsTable = dmhub.GetTable(CustomDocument.tableName)
     if docsTable ~= nil then
-        local accessibleRoots = CustomDocument.GetAccessibleRoots()
+        local accessibleRoots = CustomDocument.GetAccessibleRoots(hostAccess)
         local docs = {}
         for docid, doc in unhidden_pairs(docsTable) do
             if doc.typeName == "MarkdownDocument" and not seenDocs[docid] and CustomDocument.IsDocInAccessibleRoot(doc, accessibleRoots) then
@@ -2407,7 +3825,7 @@ end
 -- cached victory text is what player-facing surfaces display, so player
 -- clients never execute encounter-script code.
 
---- @class EncounterScript
+--- @class EncounterScript: GameType
 --- @field name string Display name of the library script.
 --- @field description string What the script does, shown in pickers and the compendium.
 --- @field code string The Lua source; must return a definition table.
@@ -2738,7 +4156,7 @@ end
 -- EncounterScriptInstance: a script attached to an encounter
 -- ---------------------------------------------------------------------------
 
---- @class EncounterScriptInstance
+--- @class EncounterScriptInstance: GameType
 --- @field scriptid string Id into the encounterScripts table or a "builtin:" id; "" = inline custom code.
 --- @field code string Inline Lua source (custom scripts only).
 --- @field name string Cached display name, refreshed from the definition at edit time.
@@ -3172,7 +4590,8 @@ end
 --unreadable or nobody looks present - a stalled encounter script is worse
 --than a rare duplicate.
 local function IsElectedHost()
-    if not dmhub.isDM then
+    --hosting capability: the EotW player host must be electable.
+    if not IsDMOrPlayerHost() then
         return false
     end
     local best = nil
@@ -3453,11 +4872,15 @@ ScheduleDriver()
 --options:
 --  width        : block width (default 700)
 --  height       : code area height (default 340)
---  filenameHint : used for the external editor's temp filename
 --  getText      : function() -> current code
 --  setText      : function(newCode) called whenever the code changes
+--  compile      : function(code) -> def, err (default CompileDefinition; lets
+--                 other script kinds, e.g. Map Scripts, reuse this widget)
+--  describe     : function(def) -> status string (default DescribeDefinition)
 function EncounterScript.CreateCodePanel(options)
     options = options or {}
+    local compile = options.compile or EncounterScript.CompileDefinition
+    local describe = options.describe or EncounterScript.DescribeDefinition
 
     local watcher = nil
     local function DestroyWatcher()
@@ -3477,11 +4900,11 @@ function EncounterScript.CreateCodePanel(options)
         text = "",
         refreshCode = function(element)
             local code = options.getText()
-            local def, err = EncounterScript.CompileDefinition(code)
+            local def, err = compile(code)
             if def == nil then
                 element.text = tostring(err)
             else
-                element.text = EncounterScript.DescribeDefinition(def)
+                element.text = describe(def)
             end
         end,
     }
@@ -3544,17 +4967,7 @@ function EncounterScript.CreateCodePanel(options)
             vmargin = 4,
             click = function(element)
                 DestroyWatcher()
-                --OpenTextFileInConnectedEditor caps filenames at 48 chars and
-                --returns nil past it. filenameHint is a 36-char data-table GUID,
-                --so the full "encounterscript-<guid>.lua" (56 chars) always
-                --overflowed. Keep the prefix short and truncate the hint so the
-                --result stays well under the limit.
-                local hint = tostring(options.filenameHint or "script")
-                if #hint > 24 then
-                    hint = hint:sub(1, 24)
-                end
-                local filename = string.format("encounter-%s.lua", hint)
-                watcher = dmhub.OpenTextFileInConnectedEditor(filename, options.getText() or "", function(contents)
+                watcher = dmhub.OpenTextFileInConnectedEditor(options.getText() or "", function(contents)
                     if mod.unloaded or not resultPanel.valid then
                         return
                     end
@@ -3577,19 +4990,23 @@ end
 --The modal editor for an attachment's custom Lua. options:
 --  title            : dialog title (default "Encounter Script")
 --  code             : initial code
---  filenameHint     : external-editor temp filename hint
 --  onSave           : function(newCode) - called when Save is pressed
 --  canSaveToLibrary : offer the "Save to Library..." button
 --  onSavedToLibrary : function(scriptid) - called after the library item is
 --                     created (the dialog closes afterwards)
+--  compile/describe : as CreateCodePanel - reuse by other script kinds
+--  saveToLibrary    : function(def, code) -> scriptid; overrides the default
+--                     create-an-EncounterScript library save
 function EncounterScript.ShowCodeEditorDialog(options)
     options = options or {}
     local currentCode = options.code or ""
+    local compile = options.compile or EncounterScript.CompileDefinition
 
     local codePanel = EncounterScript.CreateCodePanel{
         width = "100%",
         height = 380,
-        filenameHint = options.filenameHint,
+        compile = options.compile,
+        describe = options.describe,
         getText = function() return currentCode end,
         setText = function(text) currentCode = text end,
     }
@@ -3615,7 +5032,7 @@ function EncounterScript.ShowCodeEditorDialog(options)
             fontSize = 16,
             hmargin = 6,
             click = function(element)
-                local def, err = EncounterScript.CompileDefinition(currentCode)
+                local def, err = compile(currentCode)
                 if def == nil then
                     gui.ModalMessage{
                         title = "Cannot save to library",
@@ -3623,13 +5040,18 @@ function EncounterScript.ShowCodeEditorDialog(options)
                     }
                     return
                 end
-                local item = EncounterScript.new{
-                    guid = dmhub.GenerateGuid(),
-                    name = def.name or "New Encounter Script",
-                    description = def.description or "",
-                    code = currentCode,
-                }
-                local scriptid = dmhub.SetAndUploadTableItem(EncounterScript.tableName, item)
+                local scriptid
+                if options.saveToLibrary ~= nil then
+                    scriptid = options.saveToLibrary(def, currentCode)
+                else
+                    local item = EncounterScript.new{
+                        guid = dmhub.GenerateGuid(),
+                        name = def.name or "New Encounter Script",
+                        description = def.description or "",
+                        code = currentCode,
+                    }
+                    scriptid = dmhub.SetAndUploadTableItem(EncounterScript.tableName, item)
+                end
                 if options.onSavedToLibrary ~= nil then
                     options.onSavedToLibrary(scriptid)
                 end
@@ -3773,7 +5195,6 @@ local ScriptCompendiumSetData = function(tableName, scriptPanel, keyid)
     children[#children + 1] = EncounterScript.CreateCodePanel{
         width = 800,
         height = 420,
-        filenameHint = keyid,
         getText = function()
             return script:try_get("code", "")
         end,

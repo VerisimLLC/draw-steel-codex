@@ -3,7 +3,7 @@ name: implement-content
 description: Implement compendium content for DMHub -- monsters, items, ongoing effects, abilities, and other game data. Use when asked to "implement a monster", "create a creature", "build an item", "add a compendium entry", or generate any Draw Steel game content as YAML data.
 metadata:
   author: draw-steel-codex
-  version: "1.0.0"
+  version: "1.1.0"
   argument-hint: <content-description>
 ---
 
@@ -88,13 +88,16 @@ Floating text that says "Artifact Appears" is not automation -- it's a sticky no
 - **Float text is NOT automation.** If a behavior's only runtime effect is displaying
   a message, that mechanic is unautomated. The tier should reflect what actually happens
   in the game engine, not what text appears on screen.
-- **"Implementation: 0" or "implementation: 2" markers** in the YAML indicate the original
+- **"Implementation: 1" or "implementation: 2" markers** in the YAML indicate the original
   author already flagged this as unimplemented or partially implemented. Respect those flags.
 - **`effectImplemented` is DEPRECATED and must be completely ignored.** Do NOT read it, set
-  it, or reference it in any YAML output. Use the `implementation` field exclusively
-  (0 = unimplemented, 1 = narrative, 2 = partial, 3 = full). If you encounter
-  `effectImplemented` in existing YAML, ignore it -- the `implementation` field is
-  authoritative.
+  it, or reference it in any YAML output. Use the `implementation` field exclusively.
+  Its scale comes from `gui.ImplementationStatus` in `DMHub Core UI/Gui.lua` and maps
+  directly onto the tier names above: 0 = won't implement/narrative, 1 = unimplemented
+  (the default), 2 = Bronze, 3 = Silver, **4 = Gold**. Fully automated content must be
+  marked `implementation: 4` -- marking it 3 displays as Silver in the app. If you
+  encounter `effectImplemented` in existing YAML, ignore it -- the `implementation`
+  field is authoritative.
 - **Assess benefit AND drawback separately.** A complication with a fully automated drawback
   but a text-only benefit (or vice versa) is at best SILVER, not GOLD.
 - **Conditional modifiers count as automated** only if the condition can actually be evaluated
@@ -359,7 +362,10 @@ All reference docs live in the `data/` submodule under `data/docs/`.
 
 **CRITICAL:** When writing ANY GoblinScript formula, ALWAYS:
 1. Check GOBLINSCRIPT-CONTEXTS.md to know what symbols are available in that specific field
-2. Check GOBLINSCRIPT-SYMBOLS.md for the exact symbol name (with spaces!)
+2. Check GOBLINSCRIPT-SYMBOLS.md for the exact symbol name -- then write it WITHOUT
+   spaces in the formula (`MaximumStamina`, not `Maximum Stamina`). Lookup strips spaces
+   and case, and spaced spellings silently mis-parse when a word collides with a reserved
+   operator (`has`, `is`, `not`, `and`, `or`, `when`, `where`, `else`)
 3. Understand what "Self" means in that context (the creature being evaluated, NOT always the caster)
 4. NEVER guess symbol names -- always verify against the reference
 
@@ -367,6 +373,7 @@ All reference docs live in the `data/` submodule under `data/docs/`.
 | File | What it contains |
 |---|---|
 | `data/docs/RULES_REFERENCE.md` | Draw Steel game rules (combat, conditions, power rolls, monster/encounter building) |
+| `data/docs/reference/IMPLEMENTATION-PATTERNS.md` | Recurring YAML shapes: potency gates, movement, triggers |
 | `data/monsters/<uuid>.yaml` | Example monster files -- study for exact YAML patterns |
 | `data/objectTables/<tablefolder>/` | Example compendium entries by type |
 
@@ -387,6 +394,11 @@ The most common errors:
 6. **`display` table is REQUIRED** on CharacterOngoingEffect
 7. **`reasonedFilters` replaces `targetFilter`** -- don't use both for the same restriction
 8. **`ongoingEffectCustom`** is editor-only state; has NO runtime effect
+9. **Feature `tags:` are required metadata** on every CharacterFeature you author -- see
+   "Feature Tags" below. An untagged feature renders as a normal visible feature row, which
+   is wrong for ability-grant wrappers and plumbing carriers.
+10. **Potency gates need `filterTarget`** -- `not Cast.PassesPotency(Target, "M", "Average")`.
+    There is no `potencyAttr` field, and the `not` matters
 
 ### Modifier Name Must Match Parent Feature
 
@@ -465,9 +477,64 @@ envelope has many required fields, and copying guarantees you get them all. Key 
 - `info.properties.characterFeatures` -- traits (passive features using CharacterModifier)
 - `info.properties.attributes` -- characteristic scores
 - `info.properties.keywords` -- creature keywords
+- `info.properties.innateLanguages` -- the languages the creature speaks (see
+  "Languages Are Not Optional" below -- do NOT leave this out)
 - `parentFolder` -- UUID of the containing folder under `data/monsterFolders/` (carry over
   the template's value, or set to an existing monster folder's id)
 - `id` -- unique UUID for this monster (also used as the filename when UUID-named)
+
+### Languages Are Not Optional
+
+**Every creature you implement must end up with `innateLanguages` set.** This has been the
+single most consistently forgotten field -- most hand-authored monster groups in `data/`
+have no languages at all, because only the JSON importer ever filled it in. Do not add to
+that pile.
+
+**Where the rules text puts languages.** Draw Steel monster *stat blocks* do NOT carry a
+Languages line. Languages are stated **once per monster group**, in the group's opening
+section, immediately **before the group's Malice features**. That's the sentence to go
+find. Named/unique creatures (villains, solos) additionally get their own languages in
+their write-up, which takes precedence over the group line for that creature.
+
+**Read the group sentence carefully -- it usually encodes two tiers.** A typical line
+reads: *"Most shadow elves speak Illyvric, though platoon leaders might speak some Caelian
+or Hyrallic."* That means:
+
+- **All** members of the group get the baseline language (Illyvric).
+- Only the **Leader / Solo / boss**-role members additionally get the hedged ones
+  (Caelian, Hyrallic). Minions, platoon rank-and-file, and retainers do not.
+
+Check `info.properties.role` to decide which tier a given creature falls into. "might
+speak some X" is permission for the leaders, not a fact about the whole group.
+
+**How to get the value:**
+
+1. **Try the rules text first.** Look for the group's opening section in
+   `monster-reference.md` (repo root) or the relevant `data/pdfDocuments/*.yaml`. If the
+   sentence is there, use it.
+2. **Cross-check the languages table.** `data/objectTables/languages/*.yaml` entries carry
+   a `speakers:` field (e.g. `illyvric.yaml` -> `speakers: Shadow elves`). This is a good
+   confirmation, and a usable fallback for an ancestry whose group text you can't locate.
+3. **If it isn't easily findable, ASK THE USER.** Say which group you're implementing and
+   that you need the "Most X speak ..." line from the book. Do NOT guess a language, do
+   NOT invent one, and do NOT quietly ship the monster with the field missing.
+
+**Format** -- a map of language UUID to `true`, under `info.properties`, conventionally
+placed right after `creatureSize`:
+
+```yaml
+    creatureSize: 1M
+    innateLanguages:
+      10b7a97c-65d7-4778-a007-9a1664119201: true # Illyvric
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true # Caelian
+```
+
+**Looking up the UUID -- watch for dead duplicates.** Several languages have two entries in
+`data/objectTables/languages/` (a live one and a legacy one). The **live** entry is the one
+WITHOUT `hidden: true`; it also has `group:` and `speakers:` fields. The legacy entry has
+`hidden: true` and little else. Always grep the folder and pick the non-hidden id -- e.g.
+Hyrallic is `f3951673-4de6-42ad-be86-d3158c40365c` (live), not
+`8137aba8-bec9-468d-b10c-df3c26dc897b` (hidden).
 
 ### Table Entry YAML Format
 Table entries (ongoing effects, conditions, items, etc.) must include a `_table:` metadata field.
@@ -580,6 +647,20 @@ For complex conditions, use a separate `ActivatedAbilityApplyOngoingEffectBehavi
   ongoingEffect: <effect-uuid>
   duration: save_ends
 ```
+
+### Gating a Behavior Behind a Potency Check
+
+A behavior with `tiersSelected` applies to **every** target of those tiers. If the rules
+text gates the effect on a potency check ("I<{Average}, cursed"), add the gate yourself:
+
+```yaml
+  filterTarget: not Cast.PassesPotency(Target, "I", "Average")
+```
+
+`Cast.PassesPotency` returns true when the target RESISTS, so the gate is nearly always
+negated. There is no `potencyAttr` field. Standard conditions need none of this -- the
+parser resolves `M<{Weak}, prone` from tier text natively. Details in
+`data/docs/reference/MONSTERS.md`, "Potency with ongoing effects".
 
 ## Damage Formulas
 
@@ -734,6 +815,78 @@ characterFeatures:
               roll: "5"
               damageType: force
 ```
+
+## Feature Tags (Required Metadata)
+
+Every `CharacterFeature` carries a `tags:` map that declares how it renders on the
+character sheet, tac panel, and the companion monster builder. Set it deliberately on
+every feature you author -- untagged means "normal visible feature row".
+
+```yaml
+- __typeName: CharacterFeature
+  name: "Prickly Situation"
+  tags:
+    Trigger: true
+```
+
+**Vocabulary** (exact strings, case-sensitive):
+
+- **Display-kind tags** -- at most ONE per feature; precedence `Hidden` > `Trigger` > `Ability`:
+  - `Hidden` -- not shown; for pure plumbing/stat carriers with no book text of their own.
+  - `Trigger` -- renders as a triggered-action card.
+  - `Ability` -- renders as an ability card.
+  - *(untagged)* -- normal visible feature (traits, book prose).
+- **Pillar tags** -- `Combat`, `Exploration`, `Montage`, `Negotiation`, `Respite`.
+  Filter chips on HERO content only; multiple allowed. Never on monster features.
+- **`Core Feature`** -- NEVER apply without explicit user sign-off. Policy is one per
+  qualifying class and the list is deliberately held at exactly 3 (Tactician Mark,
+  Censor Judgment, Talent Clarity). Propose it if a new class's base mechanic seems to
+  qualify; do not set it yourself.
+
+Note: feature `tags:` are unrelated to the ability `categorization:` field
+(`Hidden`/`Trait`/etc. on ActivatedAbility) -- set both where applicable.
+
+**Monster features** (display-kind only, no pillars):
+
+| Feature shape | Tag |
+|---|---|
+| Trigger display card, `type: trigger` or `free` | `Trigger` |
+| Trigger display card, `type: passive` (or no `type`, book trait) | untagged |
+| Wraps an activated ability -- by the wrapped `actionResourceId`: Triggered / Free Triggered action | `Trigger` |
+| Wraps an activated ability: Main / Maneuver / Villain / Free Maneuver | `Ability` |
+| Bare trigger modifier with a manual-version card | `Trigger` |
+| Bare trigger modifier, no card | untagged |
+| Pure stat/plumbing carrier (modifiers only, no book text) | `Hidden` |
+| Real content NOT printed on the statblock (e.g. a dragon's Domain) | untagged (visible) |
+| Any feature on a `treatAsObject` monster | no tags at all |
+
+**Hero content** (classes, subclasses, ancestries, kits, perks, titles, complications):
+
+- **Book-statblock gate**: tag `Ability`/`Trigger` ONLY when the book prints the granted
+  ability as an actual stat block (its own keywords/action-type block). Trigger vs
+  Ability follows the IMPLEMENTATION's action resource, not the book's grant wording.
+- Book **prose** that happens to be implemented as a trigger or ability stays untagged
+  (visible) with pillar tags -- the book's presentation wins the display.
+- **Exception**: out-of-combat-utility ability wrappers (e.g. utility perks) stay
+  visible with pillar tags even when the book prints a stat block.
+- `Hidden`: one-time grants (Renown, Wealth, trinkets, recovery-count or characteristic
+  increases), skill/language grants, per-option choice instances, plumbing carriers.
+- **Pillar tags go on visible rows only** -- a row suppressed by `Hidden`/`Trigger`/`Ability`
+  gets NO pillar tags. Tag `Combat` whenever the effect operates in combat (multi-tag is
+  normal, e.g. Respite + Combat). `Negotiation` only when the formal negotiation system
+  engages (patience/interest/motivation effects); intimidation is the threat lane, not
+  Negotiation; informal social interaction is `Exploration`.
+
+**When a call is genuinely ambiguous**, do NOT guess a suppressing tag:
+
+- **No statblock/book reference was given** (homebrew spec'd in chat, unextracted
+  supplement): STOP AND ASK before writing the YAML -- request the printed statblock, or
+  a display-kind ruling, stating the implementation shape you plan ("implementing this as
+  a trigger with a display card; is it printed as a stat block or prose?").
+- **Reference in hand but prose-vs-statblock is unclear**: leave the feature untagged
+  (visible is the safe default) and flag it as an open tag call in your completion
+  summary, quoting the source text and describing the implementation shape so the user
+  can rule.
 
 ## Flat Damage Bonuses
 

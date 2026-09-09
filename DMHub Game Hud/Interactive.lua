@@ -29,6 +29,23 @@ function InteractiveContainer.GetTypes()
     return result
 end
 
+--Which of the Interactable component's optional panel fields (sound,
+--soundVolume, squishIntensity) the given type uses. The engine's
+--GetFieldDisplayInfo calls this to hide the rest, so each type only shows
+--the controls it reads. rawget: reading an undeclared field on a game-type
+--class table raises.
+function InteractiveContainer.FieldEnabled(id, fieldName)
+    local info = g_registry[id]
+    if info == nil then
+        return false
+    end
+    local fields = rawget(info, "panelFields")
+    if fields == nil then
+        return false
+    end
+    return fields[fieldName] == true
+end
+
 function InteractiveContainer:Construct(id)
     local info = g_registry[id]
     if info == nil then

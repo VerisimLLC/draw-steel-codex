@@ -1,23 +1,16 @@
---- @class LuaObjectComponentKeyFrame:LuaObjectComponent 
---- @field keyFrames any 
+---@meta
+
+--- @class LuaObjectComponentKeyFrame:LuaObjectComponent
+--- @field keyFrames any
 LuaObjectComponentKeyFrame = {}
 
 --- RecreateResetState
---- @return nil
-function LuaObjectComponentKeyFrame:RecreateResetState()
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectComponentKeyFrame:RecreateResetState() end
 
 --- RestoreKeyFrame
---- @param index number
---- @return nil
-function LuaObjectComponentKeyFrame:RestoreKeyFrame(index)
-	-- dummy implementation for documentation purposes only
-end
+--- @param index? number
+function LuaObjectComponentKeyFrame:RestoreKeyFrame(index) end
 
 --- DeleteKeyFrame
---- @param index number
---- @return nil
-function LuaObjectComponentKeyFrame:DeleteKeyFrame(index)
-	-- dummy implementation for documentation purposes only
-end
+--- @param index? number
+function LuaObjectComponentKeyFrame:DeleteKeyFrame(index) end

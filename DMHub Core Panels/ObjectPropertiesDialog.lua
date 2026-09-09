@@ -2,6 +2,218 @@ local mod = dmhub.GetModLoading()
 
 mod.shared.objectDragAcceptors = {}
 
+--Execute a component command (e.g. "Open Door") on a specific map object,
+--addressed by floor id + object id. This is the executable form recorded by
+--the command builder's lightning icons on the property dialog's command
+--buttons, so journal macro buttons can drive specific objects.
+--
+--Codex Macros/Macros.lua already registers an 'objectcommand' with the older
+--keyword form, /objectcommand <keyword[.component]> <command>, and this file
+--loads after it, so registering the same name here replaces it. Capture the
+--previous implementation and fall back to it for the two-argument keyword
+--form, so journal buttons written against the old syntax keep working.
+local legacyObjectCommand = Commands.objectcommand
+
+Commands.RegisterMacro{
+    name = "objectcommand",
+    summary = "execute a command on a map object",
+    doc = "Usage: /objectcommand <floorid> <objectid> <command>. Executes the named component command (e.g. Open Door) on the given object. The command builder's lightning icons on object command buttons record this for you.",
+    command = function(str)
+        local floorid, objid, cmdName = string.match(str or "", "^%s*(%S+)%s+(%S+)%s+(.-)%s*$")
+        if floorid == nil or cmdName == nil or cmdName == "" then
+            --not the three-field form; hand it to the older keyword form.
+            if legacyObjectCommand ~= nil then
+                return legacyObjectCommand(str)
+            end
+
+            dmhub.Log("objectcommand: usage: /objectcommand <floorid> <objectid> <command>")
+            return
+        end
+
+        local obj = game.LookupObject(floorid, objid)
+        if obj == nil or not obj.valid then
+            dmhub.Log(string.format("objectcommand: object not found: %s on floor %s", objid, floorid))
+            return
+        end
+
+        --components is keyed by component id; find every component offering
+        --this command and execute it on each, matching what pressing the
+        --dialog's button does.
+        local executed = false
+        for _,component in pairs(obj.components) do
+            for _,cmd in ipairs(component.commands) do
+                if cmd == cmdName then
+                    component:Execute(cmd)
+                    executed = true
+                    break
+                end
+            end
+        end
+
+        if not executed then
+            dmhub.Log(string.format("objectcommand: object %s has no command named '%s'", objid, cmdName))
+        end
+    end,
+}
+
+--Activate/deactivate/toggle a specific map object, addressed by floor id +
+--object id. Same semantics as /activateobjects (Codex Macros), but targeting
+--one object by identity rather than by keyword -- the form the command
+--builder records from the bolt next to the object's name.
+Commands.RegisterMacro{
+    name = "objectactivate",
+    summary = "activate or deactivate a map object",
+    doc = "Usage: /objectactivate <floorid> <objectid> <on|off|toggle>. Activates (on), deactivates (off), or toggles the given object.",
+    command = function(str)
+        local floorid, objid, mode = string.match(str or "", "^%s*(%S+)%s+(%S+)%s+(%S+)%s*$")
+        if mode ~= "on" and mode ~= "off" and mode ~= "toggle" then
+            dmhub.Log("objectactivate: usage: /objectactivate <floorid> <objectid> <on|off|toggle>")
+            return
+        end
+
+        local obj = game.LookupObject(floorid, objid)
+        if obj == nil or not obj.valid then
+            dmhub.Log(string.format("objectactivate: object not found: %s on floor %s", objid, floorid))
+            return
+        end
+
+        local newInactive
+        if mode == "on" then
+            newInactive = false
+        elseif mode == "off" then
+            newInactive = true
+        else
+            newInactive = not obj.inactive
+        end
+
+        if newInactive ~= obj.inactive then
+            obj.inactive = newInactive
+            obj:Upload()
+        end
+    end,
+}
+
+--Enable/disable/toggle a property (component) on a specific map object,
+--matched by the property's display name (e.g. Solid). Recorded by the bolt
+--on the property-header entries in the object properties dialog. Setting
+--component.disabled persists by itself (same as the dialog's right-click
+--Enable/Disable Property menu and /activateobjects).
+Commands.RegisterMacro{
+    name = "objectproperty",
+    summary = "enable or disable a property on a map object",
+    doc = "Usage: /objectproperty <floorid> <objectid> <on|off|toggle> <property name>. Enables (on), disables (off), or toggles the named property on the given object, e.g. /objectproperty <floorid> <objectid> off Solid.",
+    command = function(str)
+        local floorid, objid, mode, propName = string.match(str or "", "^%s*(%S+)%s+(%S+)%s+(%S+)%s+(.-)%s*$")
+        if propName == nil or propName == "" or (mode ~= "on" and mode ~= "off" and mode ~= "toggle") then
+            dmhub.Log("objectproperty: usage: /objectproperty <floorid> <objectid> <on|off|toggle> <property name>")
+            return
+        end
+
+        local obj = game.LookupObject(floorid, objid)
+        if obj == nil or not obj.valid then
+            dmhub.Log(string.format("objectproperty: object not found: %s on floor %s", objid, floorid))
+            return
+        end
+
+        local found = false
+        for _,component in pairs(obj.components) do
+            if component.name == propName then
+                found = true
+                local newDisabled
+                if mode == "on" then
+                    newDisabled = false
+                elseif mode == "off" then
+                    newDisabled = true
+                else
+                    newDisabled = not component.disabled
+                end
+                component.disabled = newDisabled
+            end
+        end
+
+        if not found then
+            dmhub.Log(string.format("objectproperty: object %s has no property named '%s'", objid, propName))
+        end
+    end,
+}
+
+--Set a field of a property on a specific map object. The property name,
+--field id, and value are '::'-delimited since the property name and value
+--may contain spaces. Boolean fields accept on/off/toggle; numeric fields a
+--number; everything else takes the raw string (e.g. an enum id).
+Commands.RegisterMacro{
+    name = "objectfield",
+    summary = "set a property field on a map object",
+    doc = "Usage: /objectfield <floorid> <objectid> <property name>::<field id>::<value>. Sets the field on the named property of the given object. Boolean fields accept on, off, or toggle.",
+    command = function(str)
+        local floorid, objid, rest = string.match(str or "", "^%s*(%S+)%s+(%S+)%s+(.-)%s*$")
+        local propName, fieldid, value
+        if rest ~= nil then
+            propName, fieldid, value = string.match(rest, "^(.-)::(.-)::(.*)$")
+        end
+        if propName == nil or propName == "" or fieldid == nil or fieldid == "" then
+            dmhub.Log("objectfield: usage: /objectfield <floorid> <objectid> <property name>::<field id>::<value>")
+            return
+        end
+
+        local obj = game.LookupObject(floorid, objid)
+        if obj == nil or not obj.valid then
+            dmhub.Log(string.format("objectfield: object not found: %s on floor %s", objid, floorid))
+            return
+        end
+
+        local applied = false
+        local groupid = dmhub.GenerateGuid()
+        for _,component in pairs(obj.components) do
+            if component.name == propName then
+                for _,field in ipairs(component.fields) do
+                    if field.id == fieldid then
+                        local v = nil
+                        if field.fieldType == "bool" then
+                            if value == "toggle" then
+                                v = not field:GetValue(1)
+                            else
+                                v = (value == "on" or value == "true")
+                            end
+                        elseif field.fieldType == "int" then
+                            v = tonumber(value)
+                            if v ~= nil then
+                                v = math.floor(v)
+                            end
+                        elseif field.fieldType == "float" then
+                            v = tonumber(value)
+                        else
+                            v = value
+                        end
+
+                        if v ~= nil then
+                            field:SetValue(v, 1)
+                            field:Upload(groupid)
+                            applied = true
+                        end
+                    end
+                end
+            end
+        end
+
+        if not applied then
+            dmhub.Log(string.format("objectfield: could not set field '%s' on property '%s' of object %s", fieldid, propName, objid))
+        end
+    end,
+}
+
+--Executes a "macro" field's recorded command. The engine fires this global
+--event on the pressing client when a Button property with a non-empty Command
+--field is pressed (ObjectComponentButton in LevelObject.cs). The stored
+--command keeps its {name} step annotations; strip them before execution, the
+--same way journal and rail command buttons run theirs.
+dmhub.RegisterEventHandler("objectButtonCommand", function(command)
+    if type(command) ~= "string" or command == "" then
+        return
+    end
+    dmhub.Execute(CommandBuilder.StripAnnotations(command))
+end)
+
 -- External-text-editor watchers tied to object lifetime (not panel lifetime).
 -- Keyed by "objid/componentid/fieldName". Each entry holds the watcher plus
 -- the floorid/objid needed to detect deletion. Survives property-sheet close;
@@ -50,12 +262,9 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 
     print("EDITOR::", fieldInfo.type)
     if fieldInfo.type == "externaltexteditor" then
-        local extension = fieldInfo.fieldList[1].arguments[1] or ".txt"
         local objid = tostring(fieldInfo.component.objid or "obj")
         local componentid = tostring(fieldInfo.component.componentid or "comp")
         local floorid = fieldInfo.component.floorid
-        local objidShort = string.sub(objid, 1, 8)
-        local filename = string.format("%s_%s%s", fieldInfo.id, objidShort, extension)
         local watcherKey = string.format("%s/%s/%s", objid, componentid, fieldInfo.id)
 
         local labelIdle = "Edit Externally"
@@ -80,7 +289,7 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 
                 local currentValue = tostring(fieldInfo.fieldList[1]:GetValue(valueIndex) or "")
 
-                local watcher = dmhub.OpenTextFileInConnectedEditor(filename, currentValue,
+                local watcher = dmhub.OpenTextFileInConnectedEditor(currentValue,
                     function(contents)
                         -- If the object went away (deleted) and the poll
                         -- hasn't caught it yet, drop the watcher and bail
@@ -122,6 +331,94 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
                     element.text = labelActive
                 end
             end,
+        }
+    elseif fieldInfo.type == "macro" then
+        --a recorded command macro (C# ObjectFieldMacro): a ';'-separated
+        --command pipe built with the command builder, stored with {name} step
+        --annotations. Mirrors the Record Command flow script buttons use
+        --(DocumentSystem.lua): the button starts a recording session out in
+        --the app and the completed pipe is written back into the field.
+        local statusLabel = gui.Label{
+            classes = {"sizeS"},
+            width = "100%",
+            height = "auto",
+            halign = "left",
+            tmargin = 4,
+            text = "",
+        }
+
+        local function RefreshMacroStatus()
+            if not statusLabel.valid then
+                return
+            end
+            local command = tostring(fieldInfo.fieldList[1]:GetValue(valueIndex) or "")
+            if command == "" then
+                statusLabel.text = "No command recorded."
+            else
+                local parts = {}
+                for part in string.gmatch(command, "[^;]+") do
+                    local cmd, stepName = CommandBuilder.ParseStep(part)
+                    if cmd ~= "" then
+                        parts[#parts+1] = "- " .. (stepName or ("/" .. cmd))
+                    end
+                end
+                statusLabel.text = string.format("%d step(s):\n%s", #parts, table.concat(parts, "\n"))
+            end
+        end
+
+        editorPanel = gui.Panel{
+            flow = "vertical",
+            width = 220,
+            height = "auto",
+            halign = "left",
+            valign = "center",
+
+            create = function(element)
+                RefreshMacroStatus()
+            end,
+            refreshObjects = function(element)
+                RefreshMacroStatus()
+            end,
+
+            gui.Button{
+                text = "Record Command...",
+                width = 160,
+                height = 24,
+                fontSize = 14,
+                halign = "left",
+                click = function(element)
+                    local floorid = fieldInfo.component.floorid
+                    local objid = fieldInfo.component.objid
+                    CommandBuilder.Begin{
+                        seedCommand = tostring(fieldInfo.fieldList[1]:GetValue(valueIndex) or ""),
+                        complete = function(cmd)
+                            --recording happens out in the app; the object may
+                            --have been deleted in the meantime.
+                            if floorid ~= nil and floorid ~= "" then
+                                local liveFloor = game.GetFloor(floorid)
+                                if liveFloor == nil or liveFloor:HasObject(objid) == false then
+                                    return
+                                end
+                            end
+
+                            local groupid = dmhub.GenerateGuid()
+                            for i,fieldInstance in ipairs(fieldInfo.fieldList) do
+                                fieldInstance:SetValue(cmd, valueIndex)
+                                if options.objectInstances then
+                                    fieldInstance:Upload(groupid)
+                                end
+                            end
+
+                            RefreshMacroStatus()
+
+                            if options.onchange ~= nil then
+                                options.onchange()
+                            end
+                        end,
+                    }
+                end,
+            },
+            statusLabel,
         }
     elseif fieldInfo.type == "document" then
         editorPanel = gui.Button{
@@ -1309,6 +1606,337 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 end
 
 
+--Area Templates keep no width or height. The object's own position is the
+--anchor, and targetPoint carries the geometry: for a Rectangle its x and y are
+--independent signed dimensions, while Circle, Square and Cone store a vector
+--whose LENGTH is the size and whose angle orients the shape. The engine
+--registers no editable field for any of it and SetProperty cannot convert a
+--Lua value into a Vector2, so reads and writes go through a json round-trip.
+local AreaTemplateComponentType = "LuaObjectComponentAreaTemplate"
+local AreaTemplateComponentName = "Area Template"
+
+--the rows each shape gets. A shape absent from this table gets no controls.
+local AreaTemplateShapeRows = {
+	Rectangle = {"Width", "Height"},
+	Circle = {"Radius"},
+	Square = {"Side", "Rotation"},
+	Cone = {"Length", "Angle"},
+}
+
+--resolve the owning object instance and the component's key on it.
+local AreaTemplateTarget = function(component)
+	local inst = component.objectInstance
+	if inst == nil then
+		return nil, nil
+	end
+
+	for key,c in pairs(inst.components) do
+		if c.componentType == AreaTemplateComponentType then
+			return inst, key
+		end
+	end
+
+	return nil, nil
+end
+
+--the round-trip cannot tell an empty list from an empty dict and drops the
+--key with a console warning, so clear empties before writing the doc back.
+local StripEmptyTables
+StripEmptyTables = function(doc)
+	for k,v in pairs(doc) do
+		if type(v) == "table" then
+			if next(v) == nil then
+				doc[k] = nil
+			else
+				StripEmptyTables(v)
+			end
+		end
+	end
+end
+
+local ReadAreaTemplateDoc = function(component)
+	local inst, key = AreaTemplateTarget(component)
+	if inst == nil then
+		return nil
+	end
+
+	local doc = inst:ComponentToJson(key)
+	if doc == nil or doc.targetPoint == nil then
+		return nil
+	end
+
+	return doc, inst, key
+end
+
+local WriteAreaTemplateDoc = function(component, mutate)
+	local doc, inst, key = ReadAreaTemplateDoc(component)
+	if doc == nil then
+		return
+	end
+
+	StripEmptyTables(doc)
+	mutate(doc)
+	inst:AddComponentFromJson(key, doc)
+	inst:Upload()
+end
+
+local GetAreaTemplateShape = function(component)
+	local doc = ReadAreaTemplateDoc(component)
+	if doc == nil then
+		return nil
+	end
+
+	return doc.shape
+end
+
+--round to the nearest whole square, ties away from zero so negative deltas
+--don't drift toward zero.
+local RoundSquares = function(n)
+	if n < 0 then
+		return -math.floor(-n + 0.5)
+	end
+
+	return math.floor(n + 0.5)
+end
+
+--rescale targetPoint to the given length, keeping its angle so a size edit
+--never rotates the shape. A zero vector has no angle to keep, so it is aimed
+--along +x rather than left un-writable.
+local SetAreaTemplateLength = function(doc, length)
+	local x = doc.targetPoint.x
+	local y = doc.targetPoint.y
+	local current = math.sqrt(x*x + y*y)
+	if current <= 0 then
+		doc.targetPoint = {
+			x = length,
+			y = 0,
+		}
+		return
+	end
+
+	doc.targetPoint = {
+		x = x*length/current,
+		y = y*length/current,
+	}
+end
+
+local AreaTemplateLength = function(doc)
+	local x = doc.targetPoint.x
+	local y = doc.targetPoint.y
+	return math.sqrt(x*x + y*y)
+end
+
+--each row's value in the units shown to the user. Side is twice the stored
+--length because that length is the centre-to-edge distance.
+local AreaTemplateRowValue = function(doc, rowName)
+	if rowName == "Width" then
+		return doc.targetPoint.x
+	elseif rowName == "Height" then
+		return doc.targetPoint.y
+	elseif rowName == "Side" then
+		return AreaTemplateLength(doc)*2
+	elseif rowName == "Angle" then
+		return doc.coneAngle or 0
+	elseif rowName == "Rotation" then
+		return math.deg(math.atan(doc.targetPoint.y, doc.targetPoint.x)) % 360
+	end
+
+	return AreaTemplateLength(doc)
+end
+
+local AreaTemplateApplyRowValue = function(doc, rowName, value)
+	if rowName == "Width" then
+		doc.targetPoint = {
+			x = value,
+			y = doc.targetPoint.y,
+		}
+	elseif rowName == "Height" then
+		doc.targetPoint = {
+			x = doc.targetPoint.x,
+			y = value,
+		}
+	elseif rowName == "Side" then
+		SetAreaTemplateLength(doc, value*0.5)
+	elseif rowName == "Angle" then
+		doc.coneAngle = value
+	elseif rowName == "Rotation" then
+		local radians = math.rad(value)
+		local length = AreaTemplateLength(doc)
+		doc.targetPoint = {
+			x = length*math.cos(radians),
+			y = length*math.sin(radians),
+		}
+	else
+		SetAreaTemplateLength(doc, value)
+	end
+end
+
+--Width and Height are signed: the sign says which way the rectangle grows.
+--Every other row is a magnitude, so it clamps to a sensible floor.
+local AreaTemplateClampRowValue = function(rowName, value)
+	if rowName == "Width" or rowName == "Height" then
+		return value
+	elseif rowName == "Angle" then
+		return math.max(1, math.min(360, value))
+	elseif rowName == "Rotation" then
+		return value % 360
+	end
+
+	return math.max(1, value)
+end
+
+--AddComponent has no factory entry for Area Template, so a new one is built
+--from json instead, seeded with a visible default rectangle.
+local AddAreaTemplateComponent = function(node)
+	node:AddComponentFromJson("template", {
+		["@class"] = "ObjectComponentAreaTemplate",
+		shape = "Rectangle",
+		targetPoint = {
+			x = 4,
+			y = -4,
+		},
+		color = {
+			r = 1,
+			g = 0.6509804,
+			b = 0,
+			a = 1,
+		},
+		coneAngle = 0,
+		lineWidth = 0,
+		label = "",
+		labelPosition = 1,
+		hidden = false,
+		disabled = false,
+		_floorIndex = node.floorIndex or 0,
+	})
+end
+
+--Area Template is absent from assets.objectComponentOptions, so it is spliced
+--into the Display group here, leaving the caller's availability filter to run.
+local WithAreaTemplateOption = function(availableOptions)
+	local result = {}
+	for i,optionInfo in ipairs(availableOptions) do
+		if optionInfo.submenu ~= nil and optionInfo.text == "Display" then
+			local submenu = {}
+			for j,subOptionInfo in ipairs(optionInfo.submenu) do
+				submenu[#submenu+1] = subOptionInfo
+			end
+
+			submenu[#submenu+1] = {
+				id = AreaTemplateComponentName,
+				text = AreaTemplateComponentName,
+			}
+
+			table.sort(submenu, function(a,b)
+				return a.text < b.text
+			end)
+
+			result[#result+1] = {
+				text = optionInfo.text,
+				submenu = submenu,
+			}
+		else
+			result[#result+1] = optionInfo
+		end
+	end
+
+	return result
+end
+
+--one size row: -/+ buttons around an editable box. The value is rounded for
+--display only, so opening the dialog never rewrites a hand-dragged template.
+local CreateAreaTemplateSizeRow = function(components, rowName)
+	local input
+
+	local GetValue = function()
+		local doc = ReadAreaTemplateDoc(components[1])
+		if doc == nil then
+			return 0
+		end
+
+		return RoundSquares(AreaTemplateRowValue(doc, rowName))
+	end
+
+	local SetValue = function(value)
+		local clamped = AreaTemplateClampRowValue(rowName, value)
+		for _,component in ipairs(components) do
+			WriteAreaTemplateDoc(component, function(doc)
+				AreaTemplateApplyRowValue(doc, rowName, clamped)
+			end)
+		end
+	end
+
+	local Step = function(delta)
+		SetValue(GetValue() + delta)
+		input.text = tostring(GetValue())
+	end
+
+	input = gui.Input{
+		text = tostring(GetValue()),
+		halign = "left",
+		valign = "center",
+		hmargin = 4,
+		height = 20,
+		width = 60,
+		fontSize = 14,
+		events = {
+			change = function(element)
+				local num = tonumber(element.text)
+				if num ~= nil then
+					SetValue(RoundSquares(num))
+				end
+
+				element.text = tostring(GetValue())
+			end,
+		},
+	}
+
+	return gui.Panel{
+		bgimage = true,
+		classes = {"field-editor-panel"},
+		flow = "vertical",
+		height = "auto",
+		refreshObjects = function(element)
+			input.text = tostring(GetValue())
+		end,
+
+		gui.Label{
+			text = rowName,
+			classes = {"field-description-label"},
+			selfStyle = {
+				bmargin = 4,
+			},
+		},
+
+		gui.Panel{
+			flow = "horizontal",
+			width = "auto",
+			height = "auto",
+			halign = "left",
+
+			gui.Button{
+				classes = {"sizeXxs"},
+				text = "-",
+				valign = "center",
+				press = function(element)
+					Step(-1)
+				end,
+			},
+
+			input,
+
+			gui.Button{
+				classes = {"sizeXxs"},
+				text = "+",
+				valign = "center",
+				press = function(element)
+					Step(1)
+				end,
+			},
+		},
+	}
+end
+
 local CreateFieldEditor = function(fieldInfo, options)
 
 	local displayInfo = fieldInfo.component:GetFieldDisplayInfo(fieldInfo.object, fieldInfo.id)
@@ -1409,11 +2037,205 @@ local CreateFieldEditor = function(fieldInfo, options)
 		editorPanel = CreateEditorPanel(fieldInfo, displayInfo, options, 1, resultOptions)
 	end
 
+	--command-builder affordance: bolts on field rows recording
+	--"/objectfield <floorid> <objid> <property>::<field id>::<value>" steps,
+	--mirroring the settings editors: bool -> on/off/toggle menu, enum ->
+	--set-to-each-option menu, float -> slider popup, int -> input popup.
+	--Arrays and rich field types (images, curves, paths, ...) have no
+	--command form and get no bolt.
+	local fieldLightning = nil
+	if not fieldInfo.array then
+		local comp = fieldInfo.component
+		local recordable = comp.floorid ~= nil and comp.floorid ~= ""
+			and comp.objid ~= nil and comp.objid ~= ""
+		if recordable then
+			local prettyName = fieldInfo.prettyName
+			local MakeCommand = function(value)
+				return string.format("objectfield %s %s %s::%s::%s", comp.floorid, comp.objid, comp.name, fieldInfo.id, tostring(value))
+			end
+
+			if fieldInfo.type == "bool" then
+				fieldLightning = {
+					entries = function()
+						return {
+							{
+								text = string.format("Turn %s on", prettyName),
+								command = MakeCommand("on"),
+								stepText = string.format("%s on", prettyName),
+							},
+							{
+								text = string.format("Turn %s off", prettyName),
+								command = MakeCommand("off"),
+								stepText = string.format("%s off", prettyName),
+							},
+							{
+								text = string.format("Toggle %s", prettyName),
+								command = MakeCommand("toggle"),
+								stepText = string.format("Toggle %s", prettyName),
+							},
+						}
+					end,
+				}
+			elseif fieldInfo.type == "enum" then
+				fieldLightning = {
+					entries = function()
+						local entries = {}
+						local enumOptions = (displayInfo ~= nil and displayInfo.enum) or {}
+						for _,opt in ipairs(enumOptions) do
+							local id, text
+							if type(opt) == "table" then
+								id = opt.id
+								text = tostring(opt.text or opt.id)
+							else
+								id = opt
+								text = tostring(opt)
+							end
+							entries[#entries+1] = {
+								text = string.format("Set %s to %s", prettyName, text),
+								command = MakeCommand(id),
+								stepText = string.format("%s = %s", prettyName, text),
+							}
+						end
+						return entries
+					end,
+				}
+			elseif fieldInfo.type == "float" then
+				fieldLightning = {
+					createPopup = function(iconElement)
+						local minValue = fieldInfo.fieldList[1].arguments[1] or 0
+						local maxValue = fieldInfo.fieldList[1].arguments[2] or 1
+						local labelFormat = cond(maxValue >= 100, "%d", "%.2f")
+						local m_value = fieldInfo.fieldList[1]:GetValue(1)
+						local slider = gui.Slider{
+							minValue = minValue,
+							maxValue = maxValue,
+							value = m_value,
+							labelFormat = labelFormat,
+							sliderWidth = 140,
+							labelWidth = 48,
+							events = {
+								change = function(element)
+									m_value = element.data.getValue()
+								end,
+								confirm = function(element)
+									m_value = element.data.getValue()
+								end,
+							},
+							style = {
+								width = 220,
+								height = 28,
+								fontSize = 12,
+							},
+						}
+						return gui.Panel{
+							classes = {"bordered", "bg"},
+							width = "auto",
+							height = "auto",
+							flow = "vertical",
+							pad = 8,
+							gui.Label{
+								text = string.format("Set %s to:", prettyName),
+								fontSize = 12,
+								width = "auto",
+								height = "auto",
+							},
+							slider,
+							gui.Button{
+								text = "Add Step",
+								fontSize = 12,
+								width = "auto",
+								height = 24,
+								hpad = 10,
+								borderBox = true,
+								halign = "right",
+								vmargin = 4,
+								click = function(element)
+									CommandBuilder.RecordStep{
+										command = MakeCommand(string.format("%g", m_value)),
+										text = string.format("%s = " .. labelFormat, prettyName, m_value),
+									}
+									iconElement.popup = nil
+								end,
+							},
+						}
+					end,
+				}
+			elseif fieldInfo.type == "int" then
+				fieldLightning = {
+					createPopup = function(iconElement)
+						local input = gui.Input{
+							text = tostring(fieldInfo.fieldList[1]:GetValue(1)),
+							width = 80,
+							height = 22,
+							fontSize = 12,
+							halign = "left",
+						}
+						return gui.Panel{
+							classes = {"bordered", "bg"},
+							width = "auto",
+							height = "auto",
+							flow = "vertical",
+							pad = 8,
+							gui.Label{
+								text = string.format("Set %s to:", prettyName),
+								fontSize = 12,
+								width = "auto",
+								height = "auto",
+							},
+							input,
+							gui.Button{
+								text = "Add Step",
+								fontSize = 12,
+								width = "auto",
+								height = 24,
+								hpad = 10,
+								borderBox = true,
+								halign = "right",
+								vmargin = 4,
+								click = function(element)
+									local num = tonumber(input.text)
+									if num == nil then
+										return
+									end
+									num = math.floor(num)
+									CommandBuilder.RecordStep{
+										command = MakeCommand(num),
+										text = string.format("%s = %d", prettyName, num),
+									}
+									iconElement.popup = nil
+								end,
+							},
+						}
+					end,
+				}
+			end
+
+			if fieldLightning ~= nil then
+				fieldLightning.floating = true
+				fieldLightning.halign = "right"
+				fieldLightning.valign = "top"
+				fieldLightning.rmargin = 2
+				fieldLightning.width = 16
+				fieldLightning.height = 16
+			end
+		end
+	end
+
+	local attachFieldLightning = nil
+	if fieldLightning ~= nil then
+		attachFieldLightning = function(element)
+			CommandBuilder.EnsureLightningIcon(element, fieldLightning)
+		end
+	end
+
 	local resultPanel = gui.Panel{
 		bgimage = true,
 		classes = {'field-editor-panel', cond(displayInfo ~= nil and displayInfo.hidden, 'collapsed')},
         flow = "vertical",
         height = "auto",
+		multimonitor = fieldLightning ~= nil and {"commandcreationmode"} or nil,
+		create = attachFieldLightning,
+		monitor = attachFieldLightning,
 		refreshObjects = function(element)
 			displayInfo = fieldInfo.component:GetFieldDisplayInfo(fieldInfo.object, fieldInfo.id)
 			element:SetClass('collapsed', displayInfo ~= nil and displayInfo.hidden)
@@ -1724,6 +2546,7 @@ local CreateObjectEditor = function(nodes, options)
 		["Animation Curve"] = true,
 		["Mount"] = true,
 		["Light"] = true,
+		["Darkness"] = true,
 	}
 
 	local addPropertiesOptions = assets.objectComponentOptions
@@ -1750,14 +2573,85 @@ local CreateObjectEditor = function(nodes, options)
 				for k,componentInfo in pairs(components) do
 					local componentName = k
 					local completeClass = cond(#componentInfo.componentsList == #nodes, 'complete', 'incomplete')
+
+					--command-builder affordance: a bolt on the property header
+					--recording enable/disable/toggle of this property on the
+					--specific object(s). Gated the same way as the right-click
+					--Enable/Disable Property menu (deletable; CORE cannot be
+					--disabled) plus a real placed-object identity.
+					local headerComponent = componentInfo.componentsList[1].component
+					local headerRecordable = headerComponent.deletable
+						and headerComponent.floorid ~= nil and headerComponent.floorid ~= ""
+						and headerComponent.objid ~= nil and headerComponent.objid ~= ""
+					local propertyName = componentInfo.name
+
+					local attachHeaderLightning = nil
+					if headerRecordable then
+						attachHeaderLightning = function(element)
+							CommandBuilder.EnsureLightningIcon(element, {
+								floating = true,
+								halign = "right",
+								valign = "center",
+								rmargin = 2,
+								width = 14,
+								height = 14,
+								entries = function()
+									local entries = {}
+									local info = components[componentName]
+									if info == nil then
+										return entries
+									end
+									local seen = {}
+									for _,entry in ipairs(info.componentsList) do
+										local comp = entry.component
+										if comp.floorid ~= nil and comp.floorid ~= ""
+												and comp.objid ~= nil and comp.objid ~= ""
+												and not seen[comp.objid] then
+											seen[comp.objid] = true
+											local objName = nil
+											pcall(function()
+												local inst = comp.objectInstance
+												if inst ~= nil and inst.name ~= nil and inst.name ~= "" then
+													objName = tostring(inst.name)
+												end
+											end)
+											local objLabel = objName or "this object"
+											local chipPrefix = objName or "Object"
+											local target = string.format("%s %s", comp.floorid, comp.objid)
+											entries[#entries+1] = {
+												text = string.format("Turn %s on for %s", propertyName, objLabel),
+												command = string.format("objectproperty %s on %s", target, propertyName),
+												stepText = string.format("%s: %s on", chipPrefix, propertyName),
+											}
+											entries[#entries+1] = {
+												text = string.format("Turn %s off for %s", propertyName, objLabel),
+												command = string.format("objectproperty %s off %s", target, propertyName),
+												stepText = string.format("%s: %s off", chipPrefix, propertyName),
+											}
+											entries[#entries+1] = {
+												text = string.format("Toggle %s for %s", propertyName, objLabel),
+												command = string.format("objectproperty %s toggle %s", target, propertyName),
+												stepText = string.format("%s: Toggle %s", chipPrefix, propertyName),
+											}
+										end
+									end
+									return entries
+								end,
+							})
+						end
+					end
+
 					componentInfo.panel = componentInfo.panel or gui.Label{
 						bgimage = true,
 						text = componentInfo.name,
 						classes = {"component-header", "bordered", cond(componentInfo.componentsList[1].component.disabled, "disabled"), completeClass},
+						multimonitor = headerRecordable and {"commandcreationmode"} or nil,
 						data = {
 							ord = componentInfo.componentsList[1].component.displayPriority,
 						},
 						events = {
+							create = attachHeaderLightning,
+							monitor = attachHeaderLightning,
 							hover = gui.Tooltip(componentInfo.componentsList[1].component.tooltip),
 							click = function(element)
 								if components[selectedComponentName] ~= nil and components[selectedComponentName].panel ~= nil then
@@ -1883,7 +2777,7 @@ local CreateObjectEditor = function(nodes, options)
 					events = {
 						create = function(element)
 							local options = {}
-							local availableOptions = assets.objectComponentOptions
+							local availableOptions = WithAreaTemplateOption(assets.objectComponentOptions)
 							for i,optionInfo in ipairs(availableOptions) do
 								if optionInfo.submenu ~= nil then
 									local submenuOptions = {}
@@ -1920,7 +2814,12 @@ local CreateObjectEditor = function(nodes, options)
 								end
 
 								if hasComponent == false or multiComponents[element.optionChosen] then
-									node:AddComponent(componentName)
+									if componentName == AreaTemplateComponentName then
+										AddAreaTemplateComponent(node)
+									else
+										node:AddComponent(componentName)
+									end
+
 									if options.objectInstances then
 										node:Upload(groupid)
 									end
@@ -2139,6 +3038,34 @@ local CreateObjectEditor = function(nodes, options)
 					end
 				end
 
+				--Area Template exposes no size field of its own, so the rows for
+				--its shape are added above the engine's Appearance fields. Only
+				--components sharing one known shape get them: the rows mean
+				--different things per shape, and an unknown shape gets none.
+				local areaTemplateComponents = {}
+				local areaTemplateShape = nil
+				for _,entry in ipairs(componentInfo.componentsAndPreviews) do
+					local component = entry.component
+					if component ~= nil and component.componentType == AreaTemplateComponentType then
+						local shape = GetAreaTemplateShape(component)
+						if shape ~= nil and (areaTemplateShape == nil or areaTemplateShape == shape) then
+							areaTemplateShape = shape
+							areaTemplateComponents[#areaTemplateComponents+1] = component
+						else
+							areaTemplateComponents = {}
+							break
+						end
+					end
+				end
+
+				local areaTemplateRows = AreaTemplateShapeRows[areaTemplateShape or ""]
+				if #areaTemplateComponents > 0 and areaTemplateRows ~= nil and groupedPanelsChildren["Appearance"] ~= nil then
+					local appearanceChildren = groupedPanelsChildren["Appearance"]
+					for i,rowName in ipairs(areaTemplateRows) do
+						table.insert(appearanceChildren, i, CreateAreaTemplateSizeRow(areaTemplateComponents, rowName))
+					end
+				end
+
 				--assign the children to the grouped panels.
 				for k,v in pairs(groupedPanels) do
 					local panelChildren = groupedPanelsChildren[k]
@@ -2184,12 +3111,82 @@ local CreateObjectEditor = function(nodes, options)
 
 				--add command buttons.
 				local commandsAdded = {}
+				--command-builder targets per command name: {floorid, objid,
+				--name} for each real placed object offering the command, so
+				--the lightning menu can record "/objectcommand <floorid>
+				--<objid> <cmd>" steps addressing these specific objects.
+				local commandTargets = {}
 				local cmdButtonClass = cond(options.objectInstances, "sizeS", "sizeM")
 				for i,componentInfo in ipairs(componentInfo.componentsAndPreviews) do
 					for j,cmd in ipairs(componentInfo.component.commands) do
+						local component = componentInfo.component
+						local capturedCmd = cmd
+
+						--only real placed objects are recordable; blueprint
+						--previews have no floor/object identity to address.
+						local recordable = component.floorid ~= nil and component.floorid ~= ""
+							and component.objid ~= nil and component.objid ~= ""
+						if recordable then
+							local objName = nil
+							pcall(function()
+								local inst = component.objectInstance
+								if inst ~= nil and inst.name ~= nil and inst.name ~= "" then
+									objName = tostring(inst.name)
+								end
+							end)
+							commandTargets[capturedCmd] = commandTargets[capturedCmd] or {}
+							local targets = commandTargets[capturedCmd]
+							local seen = false
+							for _,t in ipairs(targets) do
+								if t.objid == component.objid then
+									seen = true
+									break
+								end
+							end
+							if not seen then
+								targets[#targets+1] = {
+									floorid = component.floorid,
+									objid = component.objid,
+									name = objName,
+								}
+							end
+						end
+
+						local attachLightning = nil
+						if recordable then
+							attachLightning = function(element)
+								CommandBuilder.EnsureLightningIcon(element, {
+									floating = true,
+									halign = "right",
+									valign = "center",
+									--just outside the button's right edge;
+									--the buttons are centered at 70% width,
+									--so this lands inside the dialog.
+									rmargin = -22,
+									width = 16,
+									height = 16,
+									entries = function(element)
+										local entries = {}
+										for _,target in ipairs(commandTargets[capturedCmd] or {}) do
+											local objLabel = target.name or "this object"
+											entries[#entries+1] = {
+												text = string.format("%s on %s", capturedCmd, objLabel),
+												command = string.format("objectcommand %s %s %s", target.floorid, target.objid, capturedCmd),
+												stepText = string.format("%s: %s", target.name or "Object", capturedCmd),
+											}
+										end
+										return entries
+									end,
+								})
+							end
+						end
+
 						children[#children+1] = gui.Button{
 							classes = {cmdButtonClass, "cmdButton"},
 							text = cmd,
+							multimonitor = recordable and {"commandcreationmode"} or nil,
+							create = attachLightning,
+							monitor = attachLightning,
 							click = function(element)
 								local commands = commandsAdded[cmd]
 								for _,fn in ipairs(commands) do
@@ -2470,6 +3467,56 @@ local CreateObjectEditor = function(nodes, options)
 
 
 
+	--command-builder affordance: a bolt beside the object's name recording
+	--enable/disable/toggle of the object(s) themselves (/objectactivate).
+	--Only for placed instances -- blueprints have no object identity.
+	local attachObjectLightning = nil
+	if options.objectInstances then
+		attachObjectLightning = function(element)
+			CommandBuilder.EnsureLightningIcon(element, {
+				halign = "right",
+				valign = "center",
+				--to the left of the lock icon at the panel's right edge.
+				rmargin = 32,
+				width = 16,
+				height = 16,
+				entries = function()
+					local entries = {}
+					for _,node in ipairs(nodes) do
+						if node.valid and node.floorid ~= nil and node.floorid ~= ""
+								and node.objid ~= nil and node.objid ~= "" then
+							local objName = nil
+							pcall(function()
+								if node.name ~= nil and node.name ~= "" then
+									objName = tostring(node.name)
+								end
+							end)
+							local objLabel = objName or "this object"
+							local chipPrefix = objName or "Object"
+							local target = string.format("%s %s", node.floorid, node.objid)
+							entries[#entries+1] = {
+								text = string.format("Enable %s", objLabel),
+								command = string.format("objectactivate %s on", target),
+								stepText = string.format("Enable %s", chipPrefix),
+							}
+							entries[#entries+1] = {
+								text = string.format("Disable %s", objLabel),
+								command = string.format("objectactivate %s off", target),
+								stepText = string.format("Disable %s", chipPrefix),
+							}
+							entries[#entries+1] = {
+								text = string.format("Toggle %s", objLabel),
+								command = string.format("objectactivate %s toggle", target),
+								stepText = string.format("Toggle %s", chipPrefix),
+							}
+						end
+					end
+					return entries
+				end,
+			})
+		end
+	end
+
 	local namePanel = gui.Panel{
 		classes = {"sectionPanel", "bordered", cond(options.blueprint, "big")},
 		bgimage = true,
@@ -2481,6 +3528,12 @@ local CreateObjectEditor = function(nodes, options)
 				flow = "none",
 				valign = "top",
 			}
+		},
+
+		multimonitor = attachObjectLightning ~= nil and {"commandcreationmode"} or nil,
+		events = {
+			create = attachObjectLightning,
+			monitor = attachObjectLightning,
 		},
 
 		children = {
@@ -3056,7 +4109,7 @@ local function CreateObjectEditorPanel()
 			selectors = {"button", "cmdButton"},
 			priority = 10,
 			width = "70%",
-			halign = "right",
+			halign = "center",
 		},
 		{
 			selectors = {"left-panel"},

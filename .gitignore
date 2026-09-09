@@ -44,6 +44,9 @@ status.json
 
 Definitions/version.txt
 
+# Claude Code local overrides
+.claude.local.md
+site/
 .mcp.json 
 
 # Compendium content 
@@ -63,3 +66,18 @@ docs/superpowers/
 # Tooling caches
 .superpowers/
 .understand-anything/
+
+# Agent scratch and local working files
+.agents/
+.claude/acolyte-source.txt
+biglua.txt
+emmylua_patch.py
+*_tactician_raw.txt
+
+# Source rulebook PDFs -- large and not ours to redistribute
+*.pdf
+
+# Local scratch: throwaway tooling and working files
+tmp/
+__pycache__/
+Draw Steel Importers/New File.lua

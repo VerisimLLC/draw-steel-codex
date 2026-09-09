@@ -1,3 +1,5 @@
+---@meta
+
 math.randomseed(os.time())
 
 nbsp = '<color=#00000000>.</color>'
@@ -227,9 +229,13 @@ IsDerivedFrom = function(a,b)
 	return IsDerivedFrom(info ~= nil and info.base, b)
 end
 
----@param typeName string
----@param baseTypeName string|nil
----@return table
+---Registers (or extends) a game type and installs it as the global named typeName.
+---The returned table is the type itself: annotate the assignment with
+---`--- @class <typeName>: GameType` (or `: <baseTypeName>`) so the checker knows it.
+---@generic T
+---@param typeName `T`
+---@param baseTypeName? string
+---@return T
 function RegisterGameType(typeName, baseTypeName)
 
 	if baseTypeName ~= nil and baseTypeName ~= typeName and g_registerGameTypes[baseTypeName] == nil then
@@ -678,6 +684,7 @@ end
 
 setmetatable(_G, {
 	__index = function(_, n)
+		---@diagnostic disable-next-line: undefined-field
 		if dmhub.protectedCode then
 			error("Attempt to read uninitialized variable "..n, 2)
 		end
@@ -714,6 +721,7 @@ function ModifyTokenProperties(token, options)
 	end
 
 	if dmhub.inCoroutine then
+		---@diagnostic disable-next-line: deprecated
 		dmhub.PushNativeCCallCoroutineContext()
 	end
 
@@ -722,6 +730,7 @@ function ModifyTokenProperties(token, options)
 	--now executed any synchronous coroutines that were called while we
 	--were modifying the token properties.
 	if dmhub.inCoroutine then
+		---@diagnostic disable-next-line: deprecated
 		local context = dmhub.PopNativeCCallCoroutineContext()
 		if context ~= nil then
 			while #context > 0 do

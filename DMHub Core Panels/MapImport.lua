@@ -2112,9 +2112,11 @@ local function BuildSearchableThumbnailPicker(opts)
         valign = "center",
     }
 
-    local searchInput = gui.Input{
-        classes = {"form"},
+    --the canonical search field; look comes from DefaultStyles'
+    --searchInput rules, borderBox keeps its hpad 24 inside the width.
+    local searchInput = gui.SearchInput{
         text = query,
+        borderBox = true,
         width = PICKER_UI.searchWidth,
         height = PICKER_UI.inputHeight,
         placeholderText = "Search...",

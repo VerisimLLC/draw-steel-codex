@@ -132,7 +132,7 @@ local function builtInImagesPanel()
     --lazily by the engine from a zip archive. Far too many to instantiate panes for eagerly, so we
     --show only the first MAX_PHOSPHOR_ICONS name matches for the current filter and re-query the
     --engine's name index (assets:GetPhosphorIcons -- no textures loaded) as the filter changes.
-    local MAX_PHOSPHOR_ICONS = 100
+    local MAX_PHOSPHOR_ICONS = 256
 
     local m_phosphorLabel
     local m_phosphorPanel

@@ -1,3 +1,5 @@
---- @class LuaSheetMapPreview:Panel 
---- @field floorid any 
+---@meta
+
+--- @class LuaSheetMapPreview:Panel
+--- @field floorid any
 LuaSheetMapPreview = {}

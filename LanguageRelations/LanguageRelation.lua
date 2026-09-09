@@ -1,5 +1,6 @@
 local mod = dmhub.GetModLoading()
 
+--- @class LanguageRelation: GameType
 LanguageRelation = RegisterGameType("LanguageRelation")
 LanguageRelation.__index = LanguageRelation
 

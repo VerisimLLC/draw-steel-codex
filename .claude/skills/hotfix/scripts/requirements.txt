@@ -1,0 +1,4 @@
+# Dependencies for the hotfix skill script.
+#   pip install -r requirements.txt
+firebase-admin>=6.0      # writes /Code, /CodeMod and /CodeModHotfix in the MCDM RTDB
+requests>=2.28           # code blob fetch/upload against the GCS code bucket

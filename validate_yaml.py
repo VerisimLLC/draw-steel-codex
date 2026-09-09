@@ -101,6 +101,7 @@ VALID_TABLE_NAMES = {
     "characterTypes",
     "cultureAspects",
     "nameGenerators",
+    "environmentalKeywords",
 }
 
 VALID_TABLE_NAMES_LOWER = {n.lower(): n for n in VALID_TABLE_NAMES}
@@ -503,6 +504,11 @@ def check_uuid_format(data, result: ValidationResult):
         for field in ("id", "guid"):
             val = node.get(field)
             if val is None or val is False or val == "":
+                continue
+            # Creature animation queues use dmhub.gameupdateid as a change stamp.
+            # Its engine-defined format is "<instance UUID>-<update counter>",
+            # rather than a standalone UUID.
+            if field == "guid" and path.endswith(".animations"):
                 continue
             if isinstance(val, str):
                 # Only warn if it looks like it's trying to be a UUID (has dashes)

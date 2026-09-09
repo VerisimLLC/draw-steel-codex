@@ -1,19 +1,17 @@
---- @class LuaPartyInfo 
---- @field id any 
---- @field valid any 
---- @field type any 
---- @field properties any 
+---@meta
+
+--- @class LuaPartyInfo
+--- @field id any
+--- @field valid any
+--- @field type any
+--- @field properties any
+--- @field partyid string
+--- @field partyDetails any
 LuaPartyInfo = {}
 
 --- BeginChanges
---- @return nil
-function LuaPartyInfo:BeginChanges()
-	-- dummy implementation for documentation purposes only
-end
+function LuaPartyInfo:BeginChanges() end
 
 --- CompleteChanges
---- @param description string
---- @return nil
-function LuaPartyInfo:CompleteChanges(description)
-	-- dummy implementation for documentation purposes only
-end
+--- @param description? string
+function LuaPartyInfo:CompleteChanges(description) end

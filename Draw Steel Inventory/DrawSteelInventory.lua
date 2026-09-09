@@ -1537,49 +1537,12 @@ function GameHud.CreateInventoryDialog(self, options)
 
 	local addItemSlot = nil
 	local partyItemsSlot = nil
-	local generateShopSlot = nil
 	local refreshShopSlot = nil
 	local addItemsPanel = nil
 
 
 	if hasAddItem then
 		if dmhub.isDM then
-			generateShopSlot = gui.Button{
-				icon = "ui-icons/d20.png",
-				classes = {"iconButton", "sizeXl"},
-				tooltip = "Generate Inventory from Table",
-				hmargin = 4,
-				click = function(element)
-					if token == nil then
-						return
-					end
-					local clearInventoryCheck
-					clearInventoryCheck = {
-						text = "Clear existing inventory",
-						value = dmhub.GetSettingValue("inventory:generationclears"),
-						change = function(val)
-							dmhub.SetSettingValue("inventory:generationclears", val)
-						end,
-					}
-					ShowRollableTableSelectionDialog{
-						root = resultPanel.root,
-						tableName = "lootTables",
-						checkboxes = {
-							clearInventoryCheck,
-						},
-						click = function(element, items)
-							token:BeginChanges()
-							token.properties:RollLoot{
-								lootTable = items[1],
-								clear = dmhub.GetSettingValue("inventory:generationclears"),
-								newItems = newItems,
-							}
-							token:CompleteChanges('Generate loot')
-							resultPanel:FireEventTree('refreshInventory')
-						end,
-					}
-				end,
-			}
 			refreshShopSlot = gui.Button{
 				icon = "panels/hud/clockwise-rotation.png",
 				classes = {"iconButton", "sizeXl"},
@@ -1651,7 +1614,6 @@ function GameHud.CreateInventoryDialog(self, options)
 				uiscale = 0.7,
 				flow = "horizontal",
 				refreshShopSlot,
-				generateShopSlot,
 				partyItemsSlot,
 				addItemSlot,
 			}
@@ -1971,7 +1933,14 @@ function GameHud.CreateInventoryDialog(self, options)
 
 		searchInput = gui.Panel{
 			style = {
-				width = '80%',
+				--NOT a percentage: the enclosing 'inventory-main' column is a
+				--fixed 500 wide, deliberately wider than the dialog frame so
+				--the category paging arrows hang outside it. A percentage
+				--width here inherits that overhang and pushes the search field
+				--out through the frame. Match the slot grid instead -- the
+				--widest thing that is actually inside the frame -- so the field
+				--lines up with the slots below it.
+				width = NumCols*SlotDim,
 				fontSize = '30%',
 				height = 20,
 				halign = 'center',
@@ -1979,28 +1948,38 @@ function GameHud.CreateInventoryDialog(self, options)
 				vmargin = 0,
 			},
 			children = {
-				gui.Input{
+				--the canonical search field; look comes from DefaultStyles'
+				--searchInput rules, borderBox keeps its hpad 24 inside the
+				--width. Height 20 is the minimum for the pill's cornerRadius 9.
+				--
+				--edit/change go in as TOP-LEVEL args, not in an events = {}
+				--table: gui.SearchInput installs its own top-level edit and
+				--change defaults, and when both forms are present the winner is
+				--whichever key the arg table happens to iterate last -- so the
+				--events form loses search-as-you-type at random, leaving only
+				--the change on Enter. Top level overwrites the default inside
+				--gui.SearchInput's merge loop, which is deterministic.
+				gui.SearchInput{
 					id = 'search-input',
-					classes = {"input"},
 					placeholderText = 'Search...',
-					selfStyle = {
-						height = 14,
-					},
+					borderBox = true,
+					width = '100%',
+					height = 20,
 					editlag = 0.25,
-					events = {
-						edit = function(element)
+					edit = function(element)
+						if search ~= element.text then
 							npage = 1
 							search = element.text
 							resultPanel:FireEventTree('refreshInventory')
-						end,
-						change = function(element)
-							if search ~= element.text then
-								npage = 1
-								search = element.text
-								resultPanel:FireEventTree('refreshInventory')
-							end
-						end,
-					},
+						end
+					end,
+					change = function(element)
+						if search ~= element.text then
+							npage = 1
+							search = element.text
+							resultPanel:FireEventTree('refreshInventory')
+						end
+					end,
 				},
 
 			}

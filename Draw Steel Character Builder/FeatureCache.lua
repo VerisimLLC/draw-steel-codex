@@ -2,8 +2,11 @@
     A cache and wrappers for our features
     to support the builder
 ]]
+--- @class CBFeatureCache: GameType
 CBFeatureCache = RegisterGameType("CBFeatureCache")
+--- @class CBFeatureWrapper: GameType
 CBFeatureWrapper = RegisterGameType("CBFeatureWrapper")
+--- @class CBOptionWrapper: GameType
 CBOptionWrapper = RegisterGameType("CBOptionWrapper")
 
 local _formatOrder = CharacterBuilder._formatOrder
@@ -27,6 +30,7 @@ local typeOrderTable = {
     CharacterFeatureChoice              = 160,
     CharacterSkillChoice                = 170,
     CharacterLanguageChoice             = 180,
+    CharacterForgetLanguageChoice       = 181,
     CharacterFeatChoice                 = 190,
     CharacterIncidentChoice             = 200,
 }
@@ -194,9 +198,54 @@ function CBFeatureCache._processFeatures(opts, hero, features)
         return true
     end
 
+    -- Features from templates and feats don't come tagged with the level they
+    -- are gained at, so fall back to their minimum-level prerequisite. Without
+    -- this they all sort as level 0 and end up in alphabetical order.
+    local function levelFromPrereq(feature)
+        local prereq = feature:try_get("prerequisites")
+        if prereq == nil then return nil end
+        local result = nil
+        for _,pre in ipairs(prereq) do
+            local preType = pre:try_get("type")
+            if preType == "levelRequirement" or preType == "levelGained" then
+                local requirement = tonumber(pre:try_get("skill"))
+                if requirement ~= nil and (result == nil or requirement > result) then
+                    result = requirement
+                end
+            end
+        end
+        return result
+    end
+
+    -- levelChoices can hold orphaned entries under a guid that no longer
+    -- resolves (e.g. homebrew content whose guid changed). Track which guids
+    -- are actually live so the uniqueness sweep below can ignore stale ones.
+    local liveFeatureGuids = {}
+    local function collectLiveGuid(feature)
+        if feature.IsDerivedFrom("CharacterChoice") and passesPrereq(feature) then
+            liveFeatureGuids[feature.guid] = true
+        end
+    end
+    for _,item in ipairs(features) do
+        local itemFeatures = _safeGet(item, "features")
+        local itemFeature = _safeGet(item, "feature")
+        if itemFeatures ~= nil then
+            for _,feature in ipairs(itemFeatures) do
+                collectLiveGuid(feature)
+            end
+        elseif itemFeature ~= nil then
+            collectLiveGuid(item.feature)
+        else
+            collectLiveGuid(item)
+        end
+    end
+
     local function addFeature(feature, level)
         if not passesPrereq(feature) then return end
-        local cacheFeature = CBFeatureWrapper.CreateNew(hero, feature, level)
+        if level == nil or level == 0 then
+            level = levelFromPrereq(feature) or level
+        end
+        local cacheFeature = CBFeatureWrapper.CreateNew(hero, feature, level, liveFeatureGuids)
         if cacheFeature then
             local guid = cacheFeature:GetGuid()
             keyed[guid] = cacheFeature
@@ -240,8 +289,9 @@ end
 --- @param hero character
 --- @param feature CharacterChoice
 --- @param level integer
+--- @param liveFeatureGuids table|nil set of feature guids live in this build, used to scope uniqueness checks against stale levelChoices entries
 --- @return CBFeatureWrapper|nil
-function CBFeatureWrapper.CreateNew(hero, feature, level)
+function CBFeatureWrapper.CreateNew(hero, feature, level, liveFeatureGuids)
     if not feature.IsDerivedFrom("CharacterChoice") then return nil end
 
     local category = CBFeatureWrapper._deriveCategory(feature)
@@ -254,6 +304,7 @@ function CBFeatureWrapper.CreateNew(hero, feature, level)
         categoryOrder = categoryOrder,
         currentOptionId = nil,
         level = level,
+        liveFeatureGuids = liveFeatureGuids,
     }
 
     newObj:Update(hero)
@@ -713,17 +764,30 @@ function CBFeatureWrapper:_excludeChoice(hero, choice)
             if skillItem then return hero:ProficientInSkill(skillItem) end
             return false
         end,
+        -- Titles are stored on hero.titles rather than in levelChoices (see
+        -- CharacterTitleChoice:SaveSelection), so the generic levelChoices
+        -- sweep below cannot see them and would let the same title be taken
+        -- more than once.
+        CharacterTitleChoice = function(hero, choice)
+            local titles = hero:try_get("titles", {})
+            return titles[choice:GetGuid()] == true
+        end,
     }
 
     local fn = validators[self.feature.typeName]
     if fn then return fn(hero, choice) end
 
-    -- Look for it in any level choice
+    -- Look for it in any level choice that's still backed by a live feature.
+    -- A dead key (see liveFeatureGuids above) can hold a leftover guid that
+    -- happens to match a different, current unique choice and wrongly hide it.
     local choiceId = choice:GetGuid()
     local levelChoices = hero:GetLevelChoices() or {}
-    for _,featureChoices in pairs(levelChoices) do
-        for _,id in ipairs(featureChoices) do
-            if id == choiceId then return true end
+    local liveFeatureGuids = self:try_get("liveFeatureGuids")
+    for featureId,featureChoices in pairs(levelChoices) do
+        if liveFeatureGuids == nil or liveFeatureGuids[featureId] then
+            for _,id in ipairs(featureChoices) do
+                if id == choiceId then return true end
+            end
         end
     end
     -- local featureChoices = levelChoices[self:GetGuid()] or {}
@@ -1189,6 +1253,7 @@ local CATEGORISER_CHOICE_BUCKET = {
     CharacterFeatChoice                = "perk",
     CharacterSkillChoice               = "skill",
     CharacterLanguageChoice            = "language",
+    CharacterForgetLanguageChoice      = "language",
     CharacterAncestryInheritanceChoice = "ancestry",
 }
 
@@ -1330,14 +1395,18 @@ function FeatureCategoriser.ClassifyEntry(entry)
 end
 
 --- Build a normalised entry table from already-extracted parts. Centralised so
---- every source emits the same shape.
+--- every source emits the same shape. `subName` is an optional secondary label
+--- (a Title's granted benefit, which is NOT the entry's identity); `origin` is
+--- the origin object the entry came from (the Title / Class / Ancestry ...).
 --- @return table
 local function categoriserNormalise(args)
     return {
         guid       = args.guid,
         name       = args.name,
+        subName    = args.subName,
         bucket     = args.bucket,
         source     = args.source,
+        origin     = args.origin,
         originName = args.originName,
         levels     = args.levels,
         level      = args.level,
@@ -1429,13 +1498,25 @@ local function categoriserAddBuildFeatures(creature, addEntry)
                 bucket = grantBucketBySlot[guid] or bucket
             end
             local _, originObj = categoriserEntryOrigin(entry)
+            local originName = categoriserOriginName(originObj)
             local levels = entry.levels
+            --A Title arrives as the BENEFIT feature it granted, never as itself,
+            --so naming the entry after the feature loses the title entirely
+            --(report GETSJ9FB). The Title is the identity the player knows: it
+            --leads, and the benefit becomes the secondary label.
+            local name = _safeFeatureName(feature)
+            local subName = nil
+            if bucket == "title" and originName ~= nil and originName ~= name then
+                name, subName = originName, name
+            end
             addEntry(categoriserNormalise{
                 guid       = guid,
-                name       = _safeFeatureName(feature),
+                name       = name,
+                subName    = subName,
                 bucket     = bucket,
                 source     = _safeGet(feature, "source"),
-                originName = categoriserOriginName(originObj),
+                origin     = originObj,
+                originName = originName,
                 levels     = levels,
                 level      = (levels ~= nil and levels[1]) or nil,
                 kind       = "build",
@@ -1699,6 +1780,14 @@ function FeatureCategoriser.BuildIndex(creature)
             if seenGuid[guid] then return end
             seenGuid[guid] = true
         end
+        --Display-kind from tags (Hidden/Trigger/Ability). Choice slots and
+        --non-CharacterFeature entries have no DisplayKind; pcall-guarded
+        --because reading a missing method on a game-typed instance raises.
+        local kind = "normal"
+        pcall(function()
+            kind = norm.feature:DisplayKind()
+        end)
+        norm.displayKind = kind
         features[#features+1] = norm
     end
 
@@ -1832,7 +1921,25 @@ local function categoriserHasUnmadeChoice(creature, feature)
         local num = feature:NumChoices(creature)
         if num == nil or num <= 0 then return end
         local made = creature:GetLevelChoices()[feature.guid] or {}
-        if #made < num then unmade = true end
+        if feature:try_get("costsPoints") then
+            --A point-buy slot's NumChoices is the POINTS BUDGET, not a pick
+            --count -- two picks costing 3 points complete a 3-point slot --
+            --so completeness is judged by points spent, as the character
+            --sheet's FeatureUnspentChoices does.
+            local options = feature:GetOptions(creature:GetLevelChoices()) or {}
+            local spent = 0
+            for _,choiceid in ipairs(made) do
+                for _,opt in ipairs(options) do
+                    if opt.guid == choiceid then
+                        spent = spent + (rawget(opt, "pointsCost") or 1)
+                        break
+                    end
+                end
+            end
+            if spent < num then unmade = true end
+        elseif #made < num then
+            unmade = true
+        end
     end)
     return unmade
 end
@@ -1851,8 +1958,12 @@ local function categoriserFeatureGrantsSkillOrLanguage(feature)
         for _,m in ipairs(feature:try_get("modifiers", {})) do
             local subtype = m:try_get("subtype")
             local skills = m:try_get("skills")
+            --A "power" modifier's skills list SCOPES an edge or bane to those
+            --skill tests, it does not grant the skills, so it is not a grant.
+            local grantsSkillList = m:try_get("behavior") ~= "power"
+                and type(skills) == "table" and #skills > 0
             if subtype == "skill" or subtype == "language"
-                or (type(skills) == "table" and #skills > 0) then
+                or grantsSkillList then
                 found = true
                 return
             end
@@ -1924,9 +2035,18 @@ end
 --- This runs per CAPABILITY -- so a perk chosen via a career slot is dropped
 --- even though its parent slot sits in the Career bucket.
 --- @param feature any
+--- @param bucketId string|nil optional; the index bucket the leaf's entry belongs to
 --- @return boolean
-function FeatureCategoriser.IsPassiveFeature(feature)
+function FeatureCategoriser.IsPassiveFeature(feature, bucketId)
     if feature == nil then return true end
+    --Display-kind tags override the structural heuristics below: a feature
+    --tagged Hidden / Ability / Trigger is authored as suppressed (its
+    --content shows via the ability surfaces, or not at all). Untagged
+    --content continues through the heuristics until the content sweep
+    --tags it.
+    local kind = nil
+    pcall(function() kind = feature:DisplayKind() end)
+    if kind ~= nil and kind ~= "normal" then return false end
     --A skill / language / perk CHOICE container belongs to its own section
     --(a skill-group pick is captured under Skills). The recursion can surface
     --these nested inside a class feature, so catch them by choice type.
@@ -1938,7 +2058,13 @@ function FeatureCategoriser.IsPassiveFeature(feature)
             return false
         end
     end
-    if not categoriserIsDerived(feature, "Title")
+    --The Title / Complication exemption is decided by the BUCKET the leaf came
+    --from: a title's benefit resolves to a plain CharacterFeature carrying
+    --`source = "Feat"`, which never reports the Title type, so the derived-type
+    --tests below can only ever match an unresolved origin object. They stay as a
+    --fallback for callers that pass no bucket.
+    if bucketId ~= "title" and bucketId ~= "complication"
+        and not categoriserIsDerived(feature, "Title")
         and not categoriserIsDerived(feature, "CharacterComplication") then
         --A perk: either CharacterFeat-derived, or a resolved feature whose
         --source is the feats table ("Feat"). The latter catches a career- or
@@ -2031,7 +2157,7 @@ function FeatureCategoriser.BuildTacIndex(creature)
     --at the wrapper, and only emit the surviving passive LEAVES (with their own
     --name + description) -- never the "list of features" wrapper.
     local lc = (creature ~= nil and creature:GetLevelChoices()) or {}
-    local function collectLeaves(feature, out, depth)
+    local function collectLeaves(feature, out, depth, bucketId)
         if feature == nil or depth > 6 then return end
         local tn = nil
         pcall(function() tn = feature.typeName end)
@@ -2042,7 +2168,7 @@ function FeatureCategoriser.BuildTacIndex(creature)
             local kids = nil
             pcall(function() kids = feature:try_get("features", {}) end)
             if type(kids) == "table" then
-                for _,sub in ipairs(kids) do collectLeaves(sub, out, depth + 1) end
+                for _,sub in ipairs(kids) do collectLeaves(sub, out, depth + 1, bucketId) end
             end
         elseif tn == "CharacterFeatureChoice" then
             local guid = nil
@@ -2058,19 +2184,19 @@ function FeatureCategoriser.BuildTacIndex(creature)
                 if g ~= nil then byGuid[g] = o end
             end
             for _,id in ipairs(made) do
-                if byGuid[id] ~= nil then collectLeaves(byGuid[id], out, depth + 1) end
+                if byGuid[id] ~= nil then collectLeaves(byGuid[id], out, depth + 1, bucketId) end
             end
         else
             --A leaf feature: keep it if it is a passive capability. Domain
             --scaffolding is dropped at emit (it applies to plain entries too).
-            if FeatureCategoriser.IsPassiveFeature(feature) then
+            if FeatureCategoriser.IsPassiveFeature(feature, bucketId) then
                 out[#out+1] = feature
             end
         end
     end
 
     local features = {}
-    --Dedupe by bucket + name: several level slots can resolve to the same-named
+    --Dedupe by bucket + name + subName: several level slots can resolve to the same-named
     --capability (e.g. a Conduit picking "Storm Domain" at four levels yields
     --four distinct CharacterFeatureLists all named "Storm Domain"); one chip is
     --enough on a play surface (per-level detail lives on the sheet).
@@ -2078,7 +2204,15 @@ function FeatureCategoriser.BuildTacIndex(creature)
     local function emit(name, feature, src)
         if isDomainScaffolding(name) then return end
         if heroicResourceName ~= nil and heroicResourceName ~= "" and name == heroicResourceName then return end
-        local key = string.format("%s|%s", tostring(src.bucket), name or "")
+        --A Title's leaves are its granted benefits, and a chip named after the
+        --benefit never names the title the player earned (report GETSJ9FB). The
+        --title leads; the benefit is the secondary label. The dedupe key keeps
+        --the benefit so a title granting two of them still gets two chips.
+        local subName = nil
+        if src.bucket == "title" and src.originName ~= nil and src.originName ~= name then
+            name, subName = src.originName, name
+        end
+        local key = string.format("%s|%s|%s", tostring(src.bucket), name or "", subName or "")
         if seenKey[key] then return end
         seenKey[key] = true
         --Tier-1+2 haystack for this leaf (its own name + description + the
@@ -2086,11 +2220,15 @@ function FeatureCategoriser.BuildTacIndex(creature)
         --the local filter and the glow match structured payload, not just prose.
         features[#features+1] = {
             name       = name,
+            subName    = subName,
             feature    = feature,
             bucket     = src.bucket,
+            origin     = src.origin,
             originName = src.originName,
             levels     = src.levels,
             level      = src.level,
+            --`feature` is the benefit, so its own name/description keep the
+            --benefit searchable even though the chip now reads as the title.
             searchText = categoriserEntrySearchText{ name = name, feature = feature },
         }
     end
@@ -2098,9 +2236,9 @@ function FeatureCategoriser.BuildTacIndex(creature)
         if FeatureCategoriser.IsTacPanelEntry(creature, entry) then
             local leaves = {}
             if entry.chosen ~= nil and #entry.chosen > 0 then
-                for _,opt in ipairs(entry.chosen) do collectLeaves(opt, leaves, 0) end
+                for _,opt in ipairs(entry.chosen) do collectLeaves(opt, leaves, 0, entry.bucket) end
             else
-                collectLeaves(entry.feature, leaves, 0)
+                collectLeaves(entry.feature, leaves, 0, entry.bucket)
             end
             for _,leaf in ipairs(leaves) do
                 emit(_safeFeatureName(leaf), leaf, entry)

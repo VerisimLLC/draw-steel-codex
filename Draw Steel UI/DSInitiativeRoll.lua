@@ -1,5 +1,45 @@
 local mod = dmhub.GetModLoading()
 
+-- Optional modules can contribute controls and attach data to the LiveEncounter
+-- without this module knowing which extensions are installed.
+DrawSteelCombatSetup = {}
+DrawSteelCombatSetup.extensions = {}
+
+function DrawSteelCombatSetup.RegisterExtension(extension)
+    if extension == nil or extension.id == nil then
+        return
+    end
+
+    DrawSteelCombatSetup.extensions[extension.id] = extension
+end
+
+local function CreateCombatSetupExtensionsPanel()
+    local children = {}
+    for _,extension in pairs(DrawSteelCombatSetup.extensions) do
+        if extension.createPanel ~= nil then
+            local panel = extension.createPanel()
+            if panel ~= nil then
+                children[#children + 1] = panel
+            end
+        end
+    end
+
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "horizontal",
+        children = children,
+    }
+end
+
+local function ConfigureCombatSetupExtensions(liveEncounter)
+    for _,extension in pairs(DrawSteelCombatSetup.extensions) do
+        if extension.configureLiveEncounter ~= nil then
+            extension.configureLiveEncounter(liveEncounter)
+        end
+    end
+end
+
 local g_selectedTokensOpenInitiative = nil
 local g_playerTokensOpenInitiative = nil
 local g_monsterTokensOpenInitiative = nil
@@ -235,13 +275,18 @@ local function createDrawSteelBanner(options)
                             live.onsetMonsterCount = onsetMonsters
                             info.initiativeQueue.liveEncounter = live
                         end
+                        ConfigureCombatSetupExtensions(info.initiativeQueue.liveEncounter)
                         --Snapshot the heroes' Recoveries at the onset of combat so the
                         --victory screen can show how they changed over the fight.
                         info.initiativeQueue.liveEncounter:RecordOnsetHeroes(g_playerTokensOpenInitiative)
                         g_selectedEncounterOpenInitiative = nil
 
                         --Combat has started: the readied encounter is consumed.
+                        --Whatever route the monsters took onto the map, an armed
+                        --click-to-place is now stale -- it would drop a second
+                        --copy of the encounter into the fight -- so drop that too.
                         Encounter.ClearReadiedEncounter()
+                        Encounter.DisarmClickToPlace()
 
                         Commands.rollinitiative()
 
@@ -874,7 +919,63 @@ function Encounter.DrawSteelWithEncounter(encounter, spawnedCharids)
     Encounter.ShowCombatSetupDialog(nil, encounter, spawnedCharids)
 end
 
---- @class RollInitiativeChatMessage
+--Programmatic combat start: skips the Prepare Combat dialog entirely and goes
+--straight to the Draw Steel banner with the given sides and the normal
+--who-goes-first roll. Call it on ONE client (a Director -- it creates the
+--initiative queue for everyone when the banner resolves). Used by automated
+--game modes such as Encounter of the Week, where no Director is present to
+--drive the dialog.
+--args:
+--  playerTokens:  list of CharacterTokens fighting on the heroes' side.
+--  monsterTokens: list of CharacterTokens fighting on the monsters' side.
+--  encounter:     optional authored Encounter for the live encounter (victory
+--                 conditions, rewards); nil behaves like the dialog's
+--                 "Custom" choice.
+--Returns true, or false + a reason string when combat cannot start.
+function Encounter.StartCombatWithTokens(args)
+    args = args or {}
+
+    local q = dmhub.initiativeQueue
+    if q ~= nil and not q.hidden then
+        return false, "combat is already running"
+    end
+
+    if GameHud.instance == nil or GameHud.instance.parentPanel == nil then
+        return false, "no game hud to host the Draw Steel banner"
+    end
+
+    g_playerTokensOpenInitiative = {}
+    g_monsterTokensOpenInitiative = {}
+
+    local tokens = {}
+    for _,token in ipairs(args.playerTokens or {}) do
+        if token.valid then
+            tokens[#tokens+1] = token
+            g_playerTokensOpenInitiative[token.charid] = true
+        end
+    end
+    for _,token in ipairs(args.monsterTokens or {}) do
+        if token.valid then
+            tokens[#tokens+1] = token
+            g_monsterTokensOpenInitiative[token.charid] = true
+        end
+    end
+
+    if #tokens == 0 then
+        return false, "no valid tokens to enter combat"
+    end
+
+    g_selectedEncounterOpenInitiative = args.encounter
+    g_selectedTokensOpenInitiative = tokens
+
+    --nil = no immediate result: the banner runs the normal claim-the-die
+    --"Draw Steel" roll, and queue creation (plus readied-encounter cleanup)
+    --happens when it resolves, exactly like the dialog path.
+    showDrawSteelBanner(nil)
+    return true
+end
+
+--- @class RollInitiativeChatMessage: GameType
 --- @field winner "players"|"monsters"
 --- @field playerTokenIds string[]
 --- @field monsterTokenIds string[]
@@ -951,35 +1052,72 @@ function RollInitiativeChatMessage.Render(selfInput, message)
         }
     end
 
+    --shown when every monster is hidden from this viewer, so the column reads as
+    --"unknown enemies" rather than an empty space next to the "vs".
+    local function CreateUnknownPortraitPanel()
+        return gui.Panel{
+            width = portraitWidth,
+            height = portraitHeight,
+            bgimage = "panels/square.png",
+            bgcolor = "#1a1a1a",
+            cornerRadius = 4,
+            hmargin = 1,
+            vmargin = 1,
+            borderWidth = 1,
+            borderColor = "#555555",
+
+            gui.Label{
+                text = "?",
+                fontSize = 20,
+                bold = true,
+                color = "#777777",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "center",
+            },
+        }
+    end
+
     -- Group monsters by portrait + monster_type to collapse duplicates
     local monsterGroups = {} -- key -> {tok, count}
     local monsterGroupOrder = {}
 
     local q = dmhub.initiativeQueue
 
+    --the message is authored once on the Director's client with the full monster list and
+    --then rendered locally by everyone, so the per-viewer filter has to happen here.
+    --canSee is false both for tokens outside this viewer's vision and for tokens the
+    --Director marked invisibleToPlayers -- the same gate MCDMInitiativeBar applies.
+    local isDirector = IsDMOrPlayerHost()
+    local hiddenMonsterCount = 0
+
     for _,tok in ipairs(allTokens) do
-        print("INIT:: TOKEN:", tok.charid)
         if table.contains(selfInput.playerTokenIds, tok.charid) then
-            print("INIT:: IS CHAR")
             playerTokenPanels[#playerTokenPanels+1] = CreatePortraitPanel(tok)
         elseif table.contains(selfInput.monsterTokenIds, tok.charid) then
-            print("INIT:: IS MONSTER")
-            local monsterType = tok.properties:try_get("monster_type", "")
-            local groupKey = tostring(tok.portrait) .. "|" .. monsterType
-            if monsterGroups[groupKey] == nil then
-                monsterGroups[groupKey] = {tok = tok, count = 1}
-                monsterGroupOrder[#monsterGroupOrder+1] = groupKey
+            if not isDirector and not tok.canSee then
+                hiddenMonsterCount = hiddenMonsterCount + 1
             else
-                monsterGroups[groupKey].count = monsterGroups[groupKey].count + 1
+                local monsterType = tok.properties:try_get("monster_type", "")
+                local groupKey = tostring(tok.portrait) .. "|" .. monsterType
+                if monsterGroups[groupKey] == nil then
+                    monsterGroups[groupKey] = {tok = tok, count = 1}
+                    monsterGroupOrder[#monsterGroupOrder+1] = groupKey
+                else
+                    monsterGroups[groupKey].count = monsterGroups[groupKey].count + 1
+                end
             end
-        else
-            print("INIT:: IS NEUTRAL")
         end
     end
 
     for _,groupKey in ipairs(monsterGroupOrder) do
         local group = monsterGroups[groupKey]
         monsterTokenPanels[#monsterTokenPanels+1] = CreatePortraitPanel(group.tok, group.count)
+    end
+
+    if #monsterTokenPanels == 0 and hiddenMonsterCount > 0 then
+        monsterTokenPanels[1] = CreateUnknownPortraitPanel()
     end
 
     -- Balance items into rows so each row has roughly equal count
@@ -1374,10 +1512,14 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                         tooltip = string.format("%s, %d %s", tooltip, numAllies, cond(numAllies == 1, "Ally", "Allies"))
                     end
 
-                    if strength.minLevel == strength.maxLevel then
-                        tooltip = string.format("%s, Level %d", tooltip, strength.minLevel)
-                    else
-                        tooltip = string.format("%s, Levels %d-%d", tooltip, strength.minLevel, strength.maxLevel)
+                    --minLevel/maxLevel are nil when the pool is nothing but allied
+                    --monsters, which have no hero level to report.
+                    if strength.minLevel ~= nil then
+                        if strength.minLevel == strength.maxLevel then
+                            tooltip = string.format("%s, Level %d", tooltip, strength.minLevel)
+                        else
+                            tooltip = string.format("%s, Levels %d-%d", tooltip, strength.minLevel, strength.maxLevel)
+                        end
                     end
 
                     tooltip = string.format("%s\nBase Encounter Strength: %d", tooltip, strength.base)
@@ -1385,6 +1527,9 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                     tooltip = string.format("%s\nAverage Victories: %d", tooltip, strength.averageVictories)
                     tooltip = string.format("%s\nExtra Heroes from Victories: %d", tooltip, strength.victoryHeroes)
                     tooltip = string.format("%s\nEncounter Strength of a Single Hero: %d", tooltip, strength.singleHero)
+                    if strength.numAllyMonsters > 0 then
+                        tooltip = string.format("%s\nEV of %d Allied %s: %d", tooltip, strength.numAllyMonsters, cond(strength.numAllyMonsters == 1, "Creature", "Creatures"), strength.allyEV)
+                    end
                     tooltip = string.format("%s\nTotal Encounter Strength: %d", tooltip, strength.total)
 
                     element.data.tooltip = tooltip
@@ -1421,13 +1566,16 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                     for i,child in ipairs(children) do
                         local group = child.data.group
                         for _,tok in ipairs(group.tokens) do
-                            local monsterEV = tok.valid and tok.properties:try_get("ev")
-                            if monsterEV == nil then
+                            local authoredEV = tok.valid and tok.properties:try_get("ev")
+                            if authoredEV == nil then
                                 evvalid = false
-                            elseif tok.properties.minion then
-                                ev = ev + monsterEV/GameSystem.minionsPerSquad
                             else
-                                ev = ev + monsterEV
+                                local monsterEV = tok.properties:EV()
+                                if tok.properties.minion then
+                                    ev = ev + monsterEV/GameSystem.minionsPerSquad
+                                else
+                                    ev = ev + monsterEV
+                                end
                             end
                         end
                     end
@@ -2231,6 +2379,7 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                         element.root:FireEventTree("refreshSurprise")
                     end,
                 },
+                CreateCombatSetupExtensionsPanel(),
             },
 
             gui.Panel{
@@ -2396,6 +2545,17 @@ Commands.RegisterMacro{
     name = "rollinitiative",
     summary = "start combat",
     doc = "Usage: /rollinitiative [x1 y1 x2 y2]\nStarts combat with selected tokens, or tokens in a rectangular area if coordinates are given.",
+
+    --Only the no-argument (use the current selection) form is surfaced; the
+    --rectangle form wants map coordinates, which the builder has no way to
+    --pick. dmonly matches the engine command registration above, which is
+    --already declared dmonly.
+    commandInfo = {
+        name = "Start Combat",
+        description = "Open combat setup for the tokens you have selected.",
+        dmonly = true,
+    },
+
     command = function(str)
     local args = string.split(str or "", " ")
 

@@ -1,56 +1,41 @@
---- @class SheetHud 
---- @field selectedTokenOverride any 
---- @field selectedToken any 
---- @field selectedOrPrimaryTokens any 
---- @field tokens any 
---- @field initiativeQueue any 
+---@meta
+
+--- @class SheetHud
+--- @field selectedTokenOverride CharacterToken
+--- @field selectedToken any
+--- @field selectedOrPrimaryTokens any
+--- @field tokens any
+--- @field initiativeQueue any
 SheetHud = {}
 
 --- PushSelectedTokenOverride
---- @param token any
---- @return nil
-function SheetHud:PushSelectedTokenOverride(token)
-	-- dummy implementation for documentation purposes only
-end
+--- @param token? any
+function SheetHud:PushSelectedTokenOverride(token) end
 
 --- PopSelectedTokenOverride
---- @return nil
-function SheetHud:PopSelectedTokenOverride()
-	-- dummy implementation for documentation purposes only
-end
+function SheetHud:PopSelectedTokenOverride() end
 
 --- GetTokenAbsoluteAltitude
---- @param token any
+--- @param token? CharacterToken
 --- @return number
-function SheetHud.GetTokenAbsoluteAltitude(token)
-	-- dummy implementation for documentation purposes only
-end
+function SheetHud.GetTokenAbsoluteAltitude(token) end
 
 --- HasVerticalLineOfSight
---- @param originLoc any
---- @param originFloorIndex number
---- @param targetFloorIndex number
+--- @param originLoc? Loc
+--- @param originFloorIndex? number
+--- @param targetFloorIndex? number
 --- @return boolean
-function SheetHud.HasVerticalLineOfSight(originLoc, originFloorIndex, targetFloorIndex)
-	-- dummy implementation for documentation purposes only
-end
+function SheetHud.HasVerticalLineOfSight(originLoc, originFloorIndex, targetFloorIndex) end
 
 --- TokensInShape
---- @param area any
+--- @param area? any
 --- @return any
-function SheetHud.TokensInShape(area)
-	-- dummy implementation for documentation purposes only
-end
+function SheetHud.TokensInShape(area) end
 
 --- GetToken
---- @param tokenid any
+--- @param tokenid? any
 --- @return any
-function SheetHud.GetToken(tokenid)
-	-- dummy implementation for documentation purposes only
-end
+function SheetHud.GetToken(tokenid) end
 
 --- UploadInitiative
---- @return nil
-function SheetHud.UploadInitiative()
-	-- dummy implementation for documentation purposes only
-end
+function SheetHud.UploadInitiative() end

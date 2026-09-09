@@ -22,16 +22,36 @@ CharacterModifier.TypeInfo.aura = {
             return
         end
         
+		--Fold in the effects of any Environmental Keyword the aura names, so a
+		--keyword carried around by a creature means the same thing it does as a
+		--painted map zone or an ability aura. Only copies when a keyword is
+		--actually named: this runs on every aura regeneration, and the shared
+		--modifier.aura reference must not be mutated in place.
+		local auraDef = modifier.aura
+		local environmentalKeywordType = rawget(_G, "EnvironmentalKeyword")
+		if environmentalKeywordType ~= nil and environmentalKeywordType.AuraNamesKeyword(auraDef) then
+			auraDef = environmentalKeywordType.ApplyToAuraTree(DeepCopy(auraDef))
+		end
+
+		local radius = ExecuteGoblinScript(modifier.radius, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), 0, "Aura radius")
+
 		local auraInstance = AuraInstance.new{
 			guid = modifier:try_get("seq", "--"),
 			casterid = token.id,
 			name = modifier.aura.name,
 			tokenAttached = true, --tell DMHub this is attached to its caster token.
+
+			--Default vertical extent: the aura reaches as far above and below its
+			--caster as it does laterally. The engine computes the band live from the
+			--caster token (see AuraInstance:GetVerticalRadius); the aura payload's
+			--unlimitedHeight flag opts back out to an infinite column.
+			verticalRadius = math.max(0, math.floor(tonumber(radius) or 0)),
+
 			symbols = {
 				caster = GenerateSymbols(creature),
 			},
 
-			aura = modifier.aura,
+			aura = auraDef,
 
 			area = dmhub.CalculateShape{
 				shape = 'radiusfromcreature',
@@ -39,7 +59,7 @@ CharacterModifier.TypeInfo.aura = {
 				--let it calculate this from the token.
 				--targetPoint = core.Vector3(token.loc.x, token.loc.y, 0),
 				range = 100,
-				radius = ExecuteGoblinScript(modifier.radius, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), 0, "Aura radius"),
+				radius = radius,
 			},
 		}
 

@@ -1,113 +1,80 @@
---- @class DiceMaterialStudioProperties 
+---@meta
+
+--- @class DiceMaterialStudioProperties
 DiceMaterialStudioProperties = {}
 
 --- Clone
---- @return any
-function DiceMaterialStudioProperties:Clone()
-	-- dummy implementation for documentation purposes only
-end
+--- @return DiceMaterialStudioProperties
+function DiceMaterialStudioProperties:Clone() end
 
 --- ToDebugString
 --- @return string
-function DiceMaterialStudioProperties:ToDebugString()
-	-- dummy implementation for documentation purposes only
-end
+function DiceMaterialStudioProperties:ToDebugString() end
 
 --- TryGetFloat
---- @param s string
---- @param f any
+--- @param s? string
+--- @param f? any
 --- @return boolean
-function DiceMaterialStudioProperties:TryGetFloat(s, f)
-	-- dummy implementation for documentation purposes only
-end
+function DiceMaterialStudioProperties:TryGetFloat(s, f) end
 
 --- TryGetColor
---- @param s string
---- @param col any
+--- @param s? string
+--- @param col? any
 --- @return boolean
-function DiceMaterialStudioProperties:TryGetColor(s, col)
-	-- dummy implementation for documentation purposes only
-end
+function DiceMaterialStudioProperties:TryGetColor(s, col) end
 
 --- GetFloat
---- @param s string
---- @param defaultValue any
+--- @param s? string
+--- @param defaultValue? any
 --- @return number
-function DiceMaterialStudioProperties:GetFloat(s, defaultValue)
-	-- dummy implementation for documentation purposes only
-end
+function DiceMaterialStudioProperties:GetFloat(s, defaultValue) end
 
 --- GetColor
---- @param s string
+--- @param s? string
 --- @return any
-function DiceMaterialStudioProperties:GetColor(s)
-	-- dummy implementation for documentation purposes only
-end
+function DiceMaterialStudioProperties:GetColor(s) end
 
 --- GetTexture
---- @param s string
---- @param index any
+--- @param s? string
+--- @param index? any
 --- @return any
-function DiceMaterialStudioProperties:GetTexture(s, index)
-	-- dummy implementation for documentation purposes only
-end
+function DiceMaterialStudioProperties:GetTexture(s, index) end
 
 --- HasTextureArray
---- @param s string
+--- @param s? string
 --- @return boolean
-function DiceMaterialStudioProperties:HasTextureArray(s)
-	-- dummy implementation for documentation purposes only
-end
+function DiceMaterialStudioProperties:HasTextureArray(s) end
 
 --- CreateTextureArray
---- @param s string
---- @return nil
-function DiceMaterialStudioProperties:CreateTextureArray(s)
-	-- dummy implementation for documentation purposes only
-end
+--- @param s? string
+function DiceMaterialStudioProperties:CreateTextureArray(s) end
 
 --- DestroyTextureArray
---- @param s string
---- @return nil
-function DiceMaterialStudioProperties:DestroyTextureArray(s)
-	-- dummy implementation for documentation purposes only
-end
+--- @param s? string
+function DiceMaterialStudioProperties:DestroyTextureArray(s) end
 
 --- SetFloat
---- @param s string
---- @param f number
---- @return nil
-function DiceMaterialStudioProperties:SetFloat(s, f)
-	-- dummy implementation for documentation purposes only
-end
+--- @param s? string
+--- @param f? number
+function DiceMaterialStudioProperties:SetFloat(s, f) end
 
 --- SetColor
---- @param s string
---- @param c any
---- @return nil
-function DiceMaterialStudioProperties:SetColor(s, c)
-	-- dummy implementation for documentation purposes only
-end
+--- @param s? string
+--- @param c? any
+function DiceMaterialStudioProperties:SetColor(s, c) end
 
 --- SetTexture
---- @param s string
---- @param t string
---- @param index any
---- @return nil
-function DiceMaterialStudioProperties:SetTexture(s, t, index)
-	-- dummy implementation for documentation purposes only
-end
+--- @param s? string
+--- @param t? string
+--- @param index? any
+function DiceMaterialStudioProperties:SetTexture(s, t, index) end
 
 --- DiceFacesToIndex
---- @param numFaces number
+--- @param numFaces? number
 --- @return number
-function DiceMaterialStudioProperties.DiceFacesToIndex(numFaces)
-	-- dummy implementation for documentation purposes only
-end
+function DiceMaterialStudioProperties.DiceFacesToIndex(numFaces) end
 
 --- DiceFacesToSurfaceMaterialIndex
---- @param numFaces number
+--- @param numFaces? number
 --- @return number
-function DiceMaterialStudioProperties.DiceFacesToSurfaceMaterialIndex(numFaces)
-	-- dummy implementation for documentation purposes only
-end
+function DiceMaterialStudioProperties.DiceFacesToSurfaceMaterialIndex(numFaces) end

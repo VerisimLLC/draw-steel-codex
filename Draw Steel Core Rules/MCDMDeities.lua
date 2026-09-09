@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class Deity
+--- @class Deity: GameType
 --- @field name string Display name.
 --- @field description string Lore/description text.
 --- @field tableName string Data table name ("Deities").
@@ -8,7 +8,7 @@ local mod = dmhub.GetModLoading()
 --- @field domainList table[] List of domain references {id, text} associated with this deity.
 Deity = RegisterGameType("Deity")
 
---- @class DeityDomain
+--- @class DeityDomain: GameType
 --- @field name string Display name.
 --- @field tableName string Data table name ("DeityDomains").
 DeityDomain = RegisterGameType("DeityDomain")
@@ -614,7 +614,24 @@ function CharacterDomainChoice:GetDomainFeatures()
                 featureCopy.id = domain.id
                 featureCopy.guid = domain.id
                 featureCopy.name = domain.name
-                featureCopy.description = deity.description or ""
+                --The domain's OWN text, not the deity's. Copying the deity's
+                --description here meant every surface that lists class features
+                --printed it twice -- once for the deity, once per domain under
+                --a different name. DeityDomain has no description field yet, so
+                --this is normally empty and the domain simply carries no body.
+                --
+                --Behind dev:testcharpanel with the rest of the panel rework,
+                --since it changes what the sheet and the builder show too.
+                --Guarded because this file loads after MCDMCharacterPanel but
+                --the check is cheap enough to repeat per domain.
+                local ownText = TacPanel ~= nil
+                    and TacPanel.UseTestPanel ~= nil
+                    and TacPanel.UseTestPanel()
+                if ownText then
+                    featureCopy.description = domain:try_get("description", "")
+                else
+                    featureCopy.description = deity.description or ""
+                end
                 self._tmp_domainFeatures[#self._tmp_domainFeatures+1] = featureCopy
             end
         end

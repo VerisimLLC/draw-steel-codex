@@ -5,6 +5,7 @@
     covered by the per-source tabs (Ancestry, Class, Career, etc.). Currently
     used by the monster builder path; can be extended to heroes later.
 ]]
+--- @class CBChoicesDetail: GameType
 CBChoicesDetail = RegisterGameType("CBChoicesDetail")
 
 local SEL = CharacterBuilder.SELECTOR

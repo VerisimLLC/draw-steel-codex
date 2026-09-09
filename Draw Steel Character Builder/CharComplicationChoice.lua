@@ -4,6 +4,7 @@
     Make a Complication choice behave like a feature choice
     for purposes of the character builder.
 ]]
+--- @class CharacterComplicationChoice: CharacterChoice
 CharacterComplicationChoice = RegisterGameType("CharacterComplicationChoice", "CharacterChoice")
 
 CharacterComplicationChoice.description = "Complication Choice"

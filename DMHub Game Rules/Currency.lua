@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class Currency
+--- @class Currency: GameType
 --- @field name string Display name of this currency denomination.
 --- @field details string Description/lore text.
 --- @field tableName string Name of the data table ("currency").

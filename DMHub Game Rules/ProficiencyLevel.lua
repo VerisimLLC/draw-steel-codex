@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class ProficiencyLevel
+--- @class ProficiencyLevel: GameType
 --- @field tableName string Data table name ("proficiencyLevel").
 --- @field name string Display label (e.g. "Trained", "Expert", "Not Proficient").
 --- @field value number Numeric proficiency bonus multiplier (0 = not proficient, 1 = trained, 2 = expert, etc.).

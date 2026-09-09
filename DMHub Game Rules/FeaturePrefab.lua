@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
---- @class CharacterFeaturePrefabs
+--- @class CharacterFeaturePrefabs: GameType
 --- @field name string Display name for this prefab collection.
 --- @field details string Description text.
 --- @field tableName string Data table name ("featurePrefabs").

@@ -393,8 +393,9 @@ function gui.IconEditor(args)
 
 		local pagingPanel = gui.Panel{
 			id = "paging-panel",
-			width = "100%",
+			width = "auto",
 			height = 32,
+			halign = "center",
 			flow = "horizontal",
 
 			children = {
@@ -616,6 +617,15 @@ function gui.IconEditor(args)
 				id = "coverart",
 				search = "",
 				library = "coverart",
+			},
+			--map-dressing art: zone appearance fill/edge textures and per-tile
+			--sprites (the Environmental Keyword Edit Appearance dialog uploads
+			--and browses here).
+			{
+				text = "Zone Art",
+				id = "zoneart",
+				search = "",
+				library = "zoneart",
 			},
 		}
 

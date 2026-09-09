@@ -1,56 +1,42 @@
---- @class LuaObjectComponentField 
---- @field currentValue any 
---- @field count number 
---- @field fieldType string 
---- @field id string 
---- @field prettyName string 
---- @field arguments any 
---- @field canUpload boolean 
+---@meta
+
+--- @class LuaObjectComponentField
+--- @field currentValue any
+--- @field count number
+--- @field fieldType string
+--- @field id string
+--- @field prettyName string
+--- @field arguments any
+--- @field canUpload boolean
+--- @field array boolean
+--- @field options any
+--- @field tooltip string
 LuaObjectComponentField = {}
 
 --- GetEditingInfo
 --- @return any
-function LuaObjectComponentField:GetEditingInfo()
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectComponentField:GetEditingInfo() end
 
 --- GetValue
---- @param index number
+--- @param index? number
 --- @return any
-function LuaObjectComponentField:GetValue(index)
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectComponentField:GetValue(index) end
 
 --- SetValue
---- @param val any
---- @param index number
---- @return nil
-function LuaObjectComponentField:SetValue(val, index)
-	-- dummy implementation for documentation purposes only
-end
+--- @param val? any
+--- @param index? number
+function LuaObjectComponentField:SetValue(val, index) end
 
 --- Append
---- @return nil
-function LuaObjectComponentField:Append()
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectComponentField:Append() end
 
 --- Remove
---- @param index number
---- @return nil
-function LuaObjectComponentField:Remove(index)
-	-- dummy implementation for documentation purposes only
-end
+--- @param index? number
+function LuaObjectComponentField:Remove(index) end
 
 --- MarkUndoPoint
---- @return nil
-function LuaObjectComponentField:MarkUndoPoint()
-	-- dummy implementation for documentation purposes only
-end
+function LuaObjectComponentField:MarkUndoPoint() end
 
 --- Upload
---- @param cmdgroupid string?
---- @return nil
-function LuaObjectComponentField:Upload(cmdgroupid)
-	-- dummy implementation for documentation purposes only
-end
+--- @param cmdgroupid? string
+function LuaObjectComponentField:Upload(cmdgroupid) end

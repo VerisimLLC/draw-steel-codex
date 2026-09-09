@@ -1,6 +1,7 @@
 --[[
     Selectors - managing the options on the left side of the builder
 ]]
+--- @class CBSelectors: GameType
 CBSelectors = RegisterGameType("CBSelectors")
 
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
@@ -80,7 +81,11 @@ function CBSelectors._makeItemsPanel(config)
                 local hero = _getHero()
                 if hero then
                     local tokenSelected = config.getSelected(hero)
-                    element:SetClass("collapsed", tokenSelected and tokenSelected ~= nil) --element.data.id)
+                    -- Once a choice is committed the whole option list is hidden.
+                    -- The rail is for making the choice; after it is made the
+                    -- alternatives are just noise, and switching happens through
+                    -- the Change button on the detail panel.
+                    element:SetClass("collapsed", tokenSelected ~= nil)
                     element:FireEvent("setAvailable", not tokenSelected or tokenSelected == element.data.id)
                     if tokenSelected and tokenSelected == element.data.id and tokenSelected ~= state:Get(config.selectorName .. ".selectedId") then
                         element:FireEvent("press")

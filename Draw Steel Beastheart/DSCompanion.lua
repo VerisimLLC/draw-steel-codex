@@ -40,6 +40,137 @@ function creature:SetCompanionName(companionType, name)
     self:get_or_add("companionNames", {})[companionType] = name
 end
 
+--- The token fields that make up a companion's saved look. Read by both the
+--- capture pass in RefreshToken and the reapply on spawn, so a field added
+--- here starts persisting on both sides at once.
+local COMPANION_APPEARANCE_FIELDS = {
+    "portrait",
+    "portraitFrame",
+    "portraitFrameHueShift",
+    "portraitFrameSaturation",
+    "portraitFrameBrightness",
+    "portraitBackground",
+    "portraitRibbon",
+    "portraitOffset",
+    "portraitZoom",
+    "offTokenPortrait",
+    "popoutScale",
+    "tokenScale",
+    "hideShadow",
+}
+
+--- The look fields as they currently stand on a live companion token.
+--- @param token CharacterToken
+--- @return table look
+local function ReadCompanionLook(token)
+    local look = {}
+    for _, field in ipairs(COMPANION_APPEARANCE_FIELDS) do
+        look[field] = token[field]
+    end
+    return look
+end
+
+--- A comparable string for a look, so the per-update compare never rests on
+--- table identity or on an engine value type implementing equality.
+--- @param look table|nil
+--- @return string
+local function CompanionLookSignature(look)
+    if look == nil then
+        return ""
+    end
+
+    local parts = {}
+    for _, field in ipairs(COMPANION_APPEARANCE_FIELDS) do
+        parts[#parts + 1] = tostring(look[field])
+    end
+    return table.concat(parts, "|")
+end
+
+--- Return the beastheart's sticky appearance override for a given companion
+--- type, or nil if none is set. Keyed by bestiary GUID alongside the name, so
+--- switching companion species swaps the look without losing the other one's.
+--- @param companionType string bestiary id of an AnimalCompanion
+--- @return table|nil
+function creature:GetCompanionAppearance(companionType)
+    if companionType == nil or companionType == "" then
+        return nil
+    end
+    local stored = self:try_get("companionAppearances", {})[companionType]
+    if stored == nil or next(stored) == nil then
+        return nil
+    end
+    return stored
+end
+
+--- Write the beastheart's sticky appearance override for a given companion
+--- type. An empty/nil look clears the override (next spawn keeps whatever the
+--- bestiary stat block looks like). Caller is responsible for wrapping this in
+--- ModifyProperties when invoked on a live token.
+--- @param companionType string bestiary id of an AnimalCompanion
+--- @param look table|nil
+function creature:SetCompanionAppearance(companionType, look)
+    if companionType == nil or companionType == "" then
+        return
+    end
+    if look ~= nil and next(look) == nil then
+        look = nil
+    end
+    self:get_or_add("companionAppearances", {})[companionType] = look
+end
+
+--- Reapply the beastheart's saved look onto a freshly spawned companion token.
+--- Does not upload: the caller's UploadToken carries the appearance, which
+--- ModifyProperties would not.
+--- @param companionType string bestiary id of an AnimalCompanion
+--- @param token CharacterToken the spawned companion
+function creature:ApplyCompanionAppearance(companionType, token)
+    if token == nil then
+        return
+    end
+
+    local look = self:GetCompanionAppearance(companionType)
+    if look == nil then
+        return
+    end
+
+    for _, field in ipairs(COMPANION_APPEARANCE_FIELDS) do
+        if look[field] ~= nil then
+            token[field] = look[field]
+        end
+    end
+end
+
+--- Find this beastheart's companion by the token-side back-link instead of the
+--- forward one. Reports EXY2RYBS and its duplicate both had a companionid
+--- naming a character that no longer exists in the game while summonerid still
+--- pointed home, which killed every hero-to-companion effect silently. Two
+--- deliberate limits: a second match is refused rather than guessed at (an
+--- unrelated summon sharing an AnimalCompanion stat block must not be
+--- adopted), and nothing is written back - repairing companionid from a read
+--- called by GoblinScript symbols would mean cloud writes from inside refresh.
+--- @param selfToken CharacterToken the beastheart
+--- @return CharacterToken|nil
+local function FindCompanionBySummoner(selfToken)
+    local found = nil
+
+    for _, tok in ipairs(dmhub.GetTokens{haveProperties = true}) do
+        if tok.valid and tok.summonerid == selfToken.charid
+            and tok.properties:IsCompanion() then
+            if found ~= nil then
+                --Ambiguous: which one is "the" companion is unknowable here.
+                return nil
+            end
+            found = tok
+        end
+    end
+
+    return found
+end
+
+--- The companion token, or nil. Reached by the forward companionid link first;
+--- a link that names nothing falls back to the back-link scan above, which is
+--- the only case whose behaviour changes (it returned nil before).
+--- @return CharacterToken|nil
 function creature:GetCompanionToken()
     local companionid = self.companionid
     if not companionid then
@@ -51,7 +182,23 @@ function creature:GetCompanionToken()
         return token
     end
 
-    return nil
+    --Only a set-but-dangling link scans, so a hero with no companion at all
+    --never pays for this on the GoblinScript refresh path.
+    local selfToken = dmhub.LookupToken(self)
+    if selfToken == nil or not selfToken.valid then
+        return nil
+    end
+
+    local recovered = FindCompanionBySummoner(selfToken)
+    if recovered ~= nil then
+        --Logged rather than repaired: nobody has been able to explain how these
+        --links go stale, and the stale-vs-found pair is the evidence for that.
+        dmhub.Debug(string.format(
+            "COMPANION:: recovered by summonerid; %s had stale companionid %s, using %s",
+            tostring(selfToken.charid), tostring(companionid), tostring(recovered.charid)))
+    end
+
+    return recovered
 end
 
 --GoblinScript symbol so formulas can write `Caster.Companion.X` (or
@@ -379,7 +526,11 @@ function AnimalCompanion:FillFreeStrikes(options, result)
     end
 
     local freeStrikeDamage = tostring(self:OpportunityAttack())
-    ability.behaviors[1].roll = freeStrikeDamage .. "*Charges"
+    --No *Charges factor: free strike damage is a flat number and never scales
+    --with charges. Multiplying by it zeroed the roll whenever the strike was
+    --invoked from a channeled ability, whose Charges defaults to 0 and is
+    --forwarded across the invoke boundary. See MCDMMonster:FillFreeStrikes.
+    ability.behaviors[1].roll = freeStrikeDamage
     ability.behaviors[1].damageType = damageType
 
     if damageType == "untyped" then
@@ -444,6 +595,80 @@ function character.SkillProficiencyLevel(self, skillInfo)
     return PickHigherProficiency(own, shared)
 end
 
+-- Language sharing, granted by a perk that sets the attribute below on the
+-- beastheart (Voice of the Wild). Hooked on LanguageCounts rather than
+-- LanguagesKnown because every other consumer -- the chat language picker, the
+-- sheet, the Languages GoblinScript symbol -- derives from this tally, and
+-- because a tally dedupes for free: a language both of them know just counts
+-- twice and is still known once.
+--creature:CalculateNamedCustomAttribute memoizes per creature until the compendium
+--tables change, so a value read before an ongoing effect was applied stays stale for
+--the rest of the session. Both hooks below are asked mid-session, after an effect may
+--have been applied, so they read through the uncached GetCustomAttribute path instead.
+local function CustomAttributeValue(c, lookupSymbol)
+    local attrInfo = CustomAttribute.attributeInfoByLookupSymbol[lookupSymbol]
+    if attrInfo == nil then
+        return 0
+    end
+
+    return c:GetCustomAttribute(attrInfo)
+end
+
+local g_languageShareSymbol = "shareslanguageswithcompanion"
+local g_languageShareRecursion = 0
+
+local g_companionLanguageCountsBase = creature.LanguageCounts
+function AnimalCompanion:LanguageCounts()
+    local counts = g_companionLanguageCountsBase(self)
+    if g_languageShareRecursion > 0 then
+        return counts
+    end
+
+    local summoner = self:SummonerToken()
+    if summoner == nil or summoner.properties == nil then
+        return counts
+    end
+
+    if CustomAttributeValue(summoner.properties, g_languageShareSymbol) <= 0 then
+        return counts
+    end
+
+    --guards the pathological case of a beastheart being another beastheart's companion.
+    g_languageShareRecursion = g_languageShareRecursion + 1
+    local shared = summoner.properties:LanguagesKnown()
+    g_languageShareRecursion = g_languageShareRecursion - 1
+
+    for langid,known in pairs(shared or {}) do
+        if known then
+            counts[langid] = (counts[langid] or 0) + 1
+        end
+    end
+
+    return counts
+end
+
+-- Companion-keyword abilities normally belong to the companion: every creature
+-- drops them via g_defaultExcludeKeywords in creature:GetActivatedAbilities, and
+-- AnimalCompanion mirrors that by excluding "Beastheart" instead. Content that
+-- lets a beastheart use them (the Werewolf Tooth Pendant's hybrid form) sets the
+-- attribute below, which clears the exclusion for that character only. The
+-- abilities are already on the beastheart -- this only stops them being filtered.
+--
+-- Only fills in a default: a caller that names its own excludeKeywords keeps it,
+-- so the companion's own "Beastheart" exclusion is never affected.
+local g_useCompanionAbilitiesSymbol = "usecompanionabilities"
+
+local g_baseCharacterGetActivatedAbilities = character.GetActivatedAbilities
+function character:GetActivatedAbilities(options)
+    if (options == nil or options.excludeKeywords == nil)
+       and CustomAttributeValue(self, g_useCompanionAbilitiesSymbol) > 0 then
+        options = table.shallow_copy(options or {})
+        options.excludeKeywords = {}
+    end
+
+    return g_baseCharacterGetActivatedAbilities(self, options)
+end
+
 -- Per Beastheart "Modify Companion" support: any modifier on the summoner
 -- whose behavior implements modifyCompanion gets a chance to contribute extra
 -- modifiers to this companion's effective modifier list. Captures
@@ -488,6 +713,7 @@ function AnimalCompanion:FillTemporalActiveModifiers(result)
     -- Collected rather than appended inline: the companion feature that gates
     -- the forwarding can appear after the kit modifiers in the summoner's list.
     local kitStatMods = {}
+    local perkMods = {}
     local hasCompanionFeature = false
 
     for _,summonerMod in ipairs(summonerCreature:GetActiveModifiers()) do
@@ -511,6 +737,22 @@ function AnimalCompanion:FillTemporalActiveModifiers(result)
             -- excludeKitModifications intent in GetActivatedAbilities.
             kitStatMods[#kitStatMods+1] = summonerMod.mod
         end
+
+        -- Shared Perks, Titles, and Complications: every benefit or drawback
+        -- the beastheart earns from one is shared with the companion. Perks,
+        -- titles and complications are the only tables that mark modifiers with
+        -- these two sources, so class/career/background features cannot leak
+        -- through. Tested independently of the behavior chain above because
+        -- these entries carry every behavior type, not just attributes.
+        local featSource = summonerMod.mod:try_get("source", "")
+        if (featSource == "Feat" or featSource == "Complications")
+            and summonerMod.mod:try_get("attribute", "armorClass") ~= "hitpoints"
+        then
+            -- hitpoints is skipped for the same reason as the kit block: the
+            -- companion's Stamina is delegated wholesale to the summoner, so
+            -- forwarding it is inert and only adds a phantom tooltip entry.
+            perkMods[#perkMods+1] = summonerMod.mod
+        end
     end
 
     -- Only a creature that has actually chosen a companion shares its kit with
@@ -527,6 +769,10 @@ function AnimalCompanion:FillTemporalActiveModifiers(result)
             -- propagates that flag and the action bar then renders the kit's
             -- speed as a temporary overflow segment. A kit bonus is permanent.
             result[#result+1] = { mod = kitMod }
+        end
+
+        for _,perkMod in ipairs(perkMods) do
+            result[#result+1] = { mod = perkMod }
         end
     end
 end
@@ -595,6 +841,34 @@ function AnimalCompanion:RefreshToken(token)
                     end)
                 end
                 self._tmp_lastSyncedName = currentName
+            end
+
+            --The appearance tab's fields get the same sticky treatment: an
+            --in-session restyle is written back to the beastheart so the next
+            --Call restores it. Compared by signature because a look holds
+            --engine value types that need not compare equal by identity.
+            if bestiaryId ~= nil then
+                local currentLook = ReadCompanionLook(token)
+                local currentSignature = CompanionLookSignature(currentLook)
+                if self:try_get("_tmp_lastSyncedLook") ~= currentSignature then
+                    local storedLook = summonerToken.properties:GetCompanionAppearance(bestiaryId)
+                    if CompanionLookSignature(storedLook) ~= currentSignature then
+                        local capturedSummoner = summonerToken
+                        local capturedBestiaryId = bestiaryId
+                        local capturedLook = currentLook
+                        dmhub.Schedule(0, function()
+                            if mod.unloaded then return end
+                            if not capturedSummoner.valid then return end
+                            capturedSummoner:ModifyProperties{
+                                description = "Sync companion appearance",
+                                execute = function()
+                                    capturedSummoner.properties:SetCompanionAppearance(capturedBestiaryId, capturedLook)
+                                end,
+                            }
+                        end)
+                    end
+                    self._tmp_lastSyncedLook = currentSignature
+                end
             end
         end
     else
@@ -1155,5 +1429,6 @@ if TacPanel ~= nil and TacPanel.RegisterHeroicResourceDisplay ~= nil then
         id = "rampage",
         create = CreateRampageBox,
         ord = 2,
+        classic = true,
     }
 end

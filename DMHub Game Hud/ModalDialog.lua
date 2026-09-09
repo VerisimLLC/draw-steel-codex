@@ -3,6 +3,7 @@ local mod = dmhub.GetModLoading()
 --- @class ModalDialogArgs:PanelArgs
 --- @param title string
 --- @param buttons {text: string, click: nil|function, escapeActivates: boolean}[]
+--- @param buttonsHalign nil|string Alignment of the button row ("right" default, or "center"/"left").
 --- @param classes: nil|string[]
 
 --- Create a modal dialog
@@ -32,6 +33,9 @@ function GameHud:ModalDialog(options)
 	local buttons = options.buttons or { { text = "Close" } }
 	options.buttons = nil
 
+	local buttonsHalign = options.buttonsHalign or "right"
+	options.buttonsHalign = nil
+
 	for _,button in ipairs(buttons) do
 		buttonElements[#buttonElements+1] =
 			gui.Button{
@@ -39,7 +43,7 @@ function GameHud:ModalDialog(options)
 				text = button.text,
 				escapeActivates = button.escapeActivates,
 				escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
-				halign = "right",
+				halign = buttonsHalign,
 				hmargin = 8,
 				events = {
 					click = function(element)

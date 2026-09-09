@@ -908,6 +908,23 @@ audio.SoundEvent{
     ignoreDuplicates = 0.01,
 }
 
+
+
+
+--Wode version of numglow
+audio.SoundEvent{
+    name = "Dice.Numglow_Wode",
+    mixgroup = "dice",
+    sounds = {"dice/cust/wode/Dice_NumGlow_Wode_01.wav","dice/cust/wode/Dice_NumGlow_Wode_02.wav","dice/cust/wode/Dice_NumGlow_Wode_03.wav","dice/cust/wode/Dice_NumGlow_Wode_04.wav","dice/cust/wode/Dice_NumGlow_Wode_05.wav"},
+    volume = 0.08,
+    pitchRand = 0.01,
+    ignoreDuplicates = 0.01,
+    delay = 0.0,
+}
+
+
+
+
 --Spectral version of numglow
 audio.SoundEvent{
     name = "Dice.Numglow_Spectral",
@@ -976,6 +993,32 @@ audio.SoundEvent{
     ignoreDuplicates = 0.01,
 }
 
+--Noxa Numglow
+
+audio.SoundEvent{
+    name = "Dice.Numglow_Noxa",
+    mixgroup = "dice",
+    sounds = {"dice/cust/noxa/Dice_NumGlow_noxa_01.wav","dice/cust/noxa/Dice_NumGlow_noxa_02.wav","dice/cust/noxa/Dice_NumGlow_noxa_03.wav","dice/cust/noxa/Dice_NumGlow_noxa_04.wav","dice/cust/noxa/Dice_NumGlow_noxa_05.wav"},
+    volume = 0.05,
+    pitchRand = 0.1,
+    ignoreDuplicates = 0.01,
+     play = function(instance)
+        audio.FireSoundEvent("Dice.Numglow_Generic")
+    end,
+
+}
+
+
+--Lightbending Numglow
+audio.SoundEvent{
+    name = "Dice.Numglow_Lightbending",
+    mixgroup = "dice",
+    sounds = {"dice/cust/lightbending/Dice_NumGlow_lightbending_01.wav","dice/cust/lightbending/Dice_NumGlow_lightbending_02.wav","dice/cust/lightbending/Dice_NumGlow_lightbending_03.wav","dice/cust/lightbending/Dice_NumGlow_lightbending_04.wav","dice/cust/lightbending/Dice_NumGlow_lightbending_05.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+    ignoreDuplicates = 0.1,
+
+}
 
 
 
@@ -1012,6 +1055,9 @@ DiceImpactFamilies.families = {
     { id = "GlassSparkle",text = "Glass Sparkle",   suffix = "GlassSparkle"},
     { id = "MetalShield", text = "Metal Shield",    suffix = "MetalShield" },
     { id = "Spectral",   text = "Spectral",         suffix = "Spectral" },
+    { id = "GlassGas",   text = "Glass Gas",        suffix = "GlassGas" },
+    { id = "GlassLight",  text = "Glass Light",     suffix = "GlassLight" },
+    { id = "Leafy",      text = "Leafy",            suffix = "Leafy" },
 }
 
 -- Look up a family by id. Returns the default (copper) family for a nil/unknown id so a stale
@@ -1140,6 +1186,32 @@ audio.SoundEvent{
 
 
 
+--Leafy Dice Impacts
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_Leafy",
+    mixgroup = "dice",
+    sounds = {"dice/leafy/DiceImp_leafy_Hard_01.wav","dice/leafy/DiceImp_leafy_Hard_02.wav","dice/leafy/DiceImp_leafy_Hard_03.wav","dice/leafy/DiceImp_leafy_Hard_04.wav","dice/leafy/DiceImp_leafy_Hard_05.wav","dice/leafy/DiceImp_leafy_Hard_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_Leafy",
+    mixgroup = "dice",
+    sounds = {"dice/leafy/DiceImp_leafy_Mild_01.wav","dice/leafy/DiceImp_leafy_Mild_02.wav","dice/leafy/DiceImp_leafy_Mild_03.wav","dice/leafy/DiceImp_leafy_Mild_04.wav","dice/leafy/DiceImp_leafy_Mild_05.wav","dice/leafy/DiceImp_leafy_Mild_06.wav"},
+    volume = 0.15,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_Leafy",
+    mixgroup = "dice",
+    sounds = {"dice/leafy/DiceImp_leafy_Soft_01.wav","dice/leafy/DiceImp_leafy_Soft_02.wav","dice/leafy/DiceImp_leafy_Soft_03.wav","dice/leafy/DiceImp_leafy_Soft_04.wav","dice/leafy/DiceImp_leafy_Soft_05.wav","dice/leafy/DiceImp_leafy_Soft_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.01,
+}
+
 
 --Glass Dice Impacts
 
@@ -1192,6 +1264,63 @@ audio.SoundEvent{
     volume = 0.05,
     pitchRand = 0.01,
 }
+
+
+--GlassGas (Noxa)
+
+audio.SoundEvent{
+    name = "DiceImp.Hard_GlassGas",
+    mixgroup = "dice",
+    sounds = {"dice/glassgas/DiceImp_glassgas_Hard_01.wav","dice/glassgas/DiceImp_glassgas_Hard_02.wav","dice/glassgas/DiceImp_glassgas_Hard_03.wav","dice/glassgas/DiceImp_glassgas_Hard_04.wav","dice/glassgas/DiceImp_glassgas_Hard_05.wav","dice/glassgas/DiceImp_glassgas_Hard_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_GlassGas",
+    mixgroup = "dice",
+    sounds = {"dice/glassgas/DiceImp_glassgas_Mild_01.wav","dice/glassgas/DiceImp_glassgas_Mild_02.wav","dice/glassgas/DiceImp_glassgas_Mild_03.wav","dice/glassgas/DiceImp_glassgas_Mild_04.wav","dice/glassgas/DiceImp_glassgas_Mild_05.wav","dice/glassgas/DiceImp_glassgas_Mild_06.wav"},
+    volume = 0.08,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_GlassGas",
+    mixgroup = "dice",
+    sounds = {"dice/glassgas/DiceImp_glassgas_Soft_01.wav","dice/glassgas/DiceImp_glassgas_Soft_02.wav","dice/glassgas/DiceImp_glassgas_Soft_03.wav","dice/glassgas/DiceImp_glassgas_Soft_04.wav","dice/glassgas/DiceImp_glassgas_Soft_05.wav","dice/glassgas/DiceImp_glassgas_Soft_06.wav"},
+    volume = 0.04,
+    pitchRand = 0.01,
+}
+
+
+
+--Glass Light (lightbending)
+audio.SoundEvent{
+    name = "DiceImp.Hard_GlassLight",
+    mixgroup = "dice",
+    sounds = {"dice/glasslight/DiceImp_glasslight_Hard_01.wav","dice/glasslight/DiceImp_glasslight_Hard_02.wav","dice/glasslight/DiceImp_glasslight_Hard_03.wav","dice/glasslight/DiceImp_glasslight_Hard_04.wav","dice/glasslight/DiceImp_glasslight_Hard_05.wav","dice/glasslight/DiceImp_glasslight_Hard_06.wav"},
+    volume = 0.05,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Mild_GlassLight",
+    mixgroup = "dice",
+    sounds = {"dice/glasslight/DiceImp_glasslight_Mild_01.wav","dice/glasslight/DiceImp_glasslight_Mild_02.wav","dice/glasslight/DiceImp_glasslight_Mild_03.wav","dice/glasslight/DiceImp_glasslight_Mild_04.wav","dice/glasslight/DiceImp_glasslight_Mild_05.wav","dice/glasslight/DiceImp_glasslight_Mild_06.wav"},
+    volume = 0.08,
+    pitchRand = 0.0,
+}
+
+audio.SoundEvent{
+    name = "DiceImp.Soft_GlassLight",
+    mixgroup = "dice",
+    sounds = {"dice/glasslight/DiceImp_glasslight_Soft_01.wav","dice/glasslight/DiceImp_glasslight_Soft_02.wav","dice/glasslight/DiceImp_glasslight_Soft_03.wav","dice/glasslight/DiceImp_glasslight_Soft_04.wav","dice/glasslight/DiceImp_glasslight_Soft_05.wav","dice/glasslight/DiceImp_glasslight_Soft_06.wav"},
+    volume = 0.04,
+    pitchRand = 0.01,
+}
+
+
+
 
 
 --spectral Dice Impacts
@@ -1714,16 +1843,28 @@ dmhub.TokenMovingOnPath = function(args)
     --like). The Settings-registry check keeps this quiet (no engine error
     --log per step) when the MapMarkup module, which registers the setting,
     --isn't loaded.
+    --A map with several appearances (map variations) may give the selected
+    --one its own default, which then stands in for the map-wide default -
+    --including 0, "use tile surfaces", which is why a non-nil variation
+    --answer never falls through to the map-wide setting.
     local painted = nil
+    local variationDefault = nil
     pcall(function()
         local markup = rawget(_G, "MapMarkupFootsteps")
         if markup ~= nil and args.position ~= nil then
             painted = markup.GetPaintedSurfaceAt(args.token.floorid,
                 math.floor(args.position.x + 0.5), math.floor(args.position.y + 0.5))
         end
+        if markup ~= nil and markup.GetVariationDefaultSurface ~= nil then
+            variationDefault = markup.GetVariationDefaultSurface(args.token.floorid)
+        end
     end)
     if painted ~= nil and AudioSurfaceTypes.surfaces[painted] ~= nil then
         surfaceInfo = AudioSurfaceTypes.surfaces[painted]
+    elseif variationDefault ~= nil then
+        if AudioSurfaceTypes.surfaces[variationDefault] ~= nil then
+            surfaceInfo = AudioSurfaceTypes.surfaces[variationDefault]
+        end
     else
         local settingsTable = rawget(_G, "Settings")
         if settingsTable ~= nil and settingsTable["markup:footstepdefault"] ~= nil then

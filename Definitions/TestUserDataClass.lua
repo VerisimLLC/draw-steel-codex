@@ -1,50 +1,41 @@
---- @class TestUserDataClass 
---- @field propertyTest number 
+---@meta
+
+--- @class TestUserDataClass
+--- @field propertyTest number
+--- @field n number
 TestUserDataClass = {}
 
 --- MyFunction
---- @param x number?
+--- @param x? number
 --- @return any
-function TestUserDataClass:MyFunction(x)
-	-- dummy implementation for documentation purposes only
-end
+function TestUserDataClass:MyFunction(x) end
 
 --- Create
---- @param x number
---- @return any
-function TestUserDataClass.Create(x)
-	-- dummy implementation for documentation purposes only
-end
+--- @param x? number
+--- @return TestUserDataClass
+function TestUserDataClass.Create(x) end
 
 --- AddStrings
---- @param a any
---- @param b string
+--- @param a? any
+--- @param b? string
 --- @return string
-function TestUserDataClass:AddStrings(a, b)
-	-- dummy implementation for documentation purposes only
-end
+function TestUserDataClass:AddStrings(a, b) end
 
 --- VarArgsFunction
---- @param a number
---- @vararg b any
+--- @param a? number
+--- @param ... any
 --- @return number
-function TestUserDataClass:VarArgsFunction(a, b)
-	-- dummy implementation for documentation purposes only
-end
+function TestUserDataClass:VarArgsFunction(a, ...) end
 
 --- VarArgsParamsFunction
---- @param a number
---- @vararg b any
+--- @param a? number
+--- @param ... any
 --- @return number
-function TestUserDataClass:VarArgsParamsFunction(a, b)
-	-- dummy implementation for documentation purposes only
-end
+function TestUserDataClass:VarArgsParamsFunction(a, ...) end
 
 --- StaticFunction
---- @param a any
---- @param b number?
---- @param c number?
+--- @param a? any
+--- @param b? number
+--- @param c? number
 --- @return number
-function TestUserDataClass.StaticFunction(a, b, c)
-	-- dummy implementation for documentation purposes only
-end
+function TestUserDataClass.StaticFunction(a, b, c) end

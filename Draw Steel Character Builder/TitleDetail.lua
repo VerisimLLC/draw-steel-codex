@@ -3,6 +3,7 @@ local mod = dmhub.GetModLoading()
 --[[
     Title Detail
 ]]
+--- @class CBTitleDetail: GameType
 CBTitleDetail = RegisterGameType("CBTitleDetail")
 
 local SEL = CharacterBuilder.SELECTOR

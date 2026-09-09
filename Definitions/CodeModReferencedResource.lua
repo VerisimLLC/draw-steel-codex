@@ -1,8 +1,11 @@
---- @class CodeModReferencedResource 
+---@meta
+
+--- @class CodeModReferencedResource
+--- @field guid string
+--- @field assetGuid string
+--- @field imageid string
+--- @field name string
 CodeModReferencedResource = {}
 
 --- AssetUpdated
---- @return nil
-function CodeModReferencedResource:AssetUpdated()
-	-- dummy implementation for documentation purposes only
-end
+function CodeModReferencedResource:AssetUpdated() end

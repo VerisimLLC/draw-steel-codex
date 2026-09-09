@@ -73,6 +73,31 @@ GameSystem.ApplyBoons = function(roll, boons)
     return dmhub.RollToString(rollInfo)
 end
 
+--- Returns a StringSet of the die sizes (e.g. "d3", "d6") actually rolled to
+--- produce a damage roll, so triggers can key off a specific die rather than
+--- just "any dice were rolled". rollStr should already be fully resolved (no
+--- outstanding GoblinScript symbols), matching the roll text handed to the
+--- roll dialog. Empty for flat/fixed damage.
+function GameSystem.GetDamageDiceInRoll(rollStr)
+    local result = StringSet.new{}
+    if rollStr == nil or rollStr == "" then
+        return result
+    end
+
+    local ok, rollInfo = pcall(dmhub.ParseRoll, rollStr)
+    if ok and rollInfo ~= nil and rollInfo.categories ~= nil then
+        for _,category in pairs(rollInfo.categories) do
+            for _,group in ipairs(category.groups or {}) do
+                if group.numFaces ~= nil then
+                    result:Add(string.format("d%d", group.numFaces))
+                end
+            end
+        end
+    end
+
+    return result
+end
+
 GameSystem.CalculateDeathSavingThrowRoll = function(creature)
     return "1d20"
 end
@@ -276,6 +301,34 @@ end
 GameSystem.RegisterApplyToTargets{
 	id = "all_creatures",
 	text = "All Creatures in Combat",
+}
+
+--apply the behavior to the caster's mentor (for retainer abilities).
+--Resolves to an empty target list if the caster has no mentor on the map.
+GameSystem.RegisterApplyToTargets{
+	id = "caster_mentor",
+	text = "Caster's Mentor",
+	resolve = function(ability, casterToken, targets, options)
+		local result = {}
+		if casterToken == nil or (not casterToken.valid) or casterToken.properties == nil then
+			return result
+		end
+
+		--GetMentor returns the mentor's creature properties. Guard with pcall
+		--since not every creature type is guaranteed to have the method.
+		local mentor = nil
+		pcall(function() mentor = casterToken.properties:GetMentor() end)
+		if mentor == nil then
+			return result
+		end
+
+		local mentorToken = dmhub.LookupToken(mentor)
+		if mentorToken ~= nil and mentorToken.valid then
+			result[#result+1] = { token = mentorToken }
+		end
+
+		return result
+	end,
 }
 
 --when casting a spell, this is our set of 'target lists' who have different outcomes to what has happened in the spell so far.
@@ -871,6 +924,24 @@ GameSystem.RegisterAbilityKeyword("Charge")
 GameSystem.RegisterAbilityKeyword("Telekinesis")
 GameSystem.RegisterAbilityKeyword("Chronopathy")
 
+--Feature tags; order here is display order. Hidden features are excluded
+--from sheet/panel feature lists unless the user filters to the Hidden tag.
+--Ability and Trigger are display-kind tags (not filter chips): they tell
+--consumers (sheet, panel, monster builder) how the feature renders --
+--no tag = trait, Ability = ability card, Trigger = triggered action,
+--Hidden = not shown. A feature with both renders as a Trigger. Core
+--Feature drives the pinned core-mechanic display and is filterable like
+--any other tag. The remaining tags are the game modes.
+GameSystem.RegisterFeatureTag{ name = "Hidden", defaultExcluded = true }
+GameSystem.RegisterFeatureTag{ name = "Ability", filterable = false }
+GameSystem.RegisterFeatureTag{ name = "Trigger", filterable = false }
+GameSystem.RegisterFeatureTag{ name = "Core Feature" }
+GameSystem.RegisterFeatureMode("Combat")
+GameSystem.RegisterFeatureMode("Exploration")
+GameSystem.RegisterFeatureMode("Montage")
+GameSystem.RegisterFeatureMode("Negotiation")
+GameSystem.RegisterFeatureMode("Respite")
+
 GameSystem.RegisterItemKeyword("Potion")
 GameSystem.RegisterItemKeyword("Neck")
 
@@ -916,6 +987,7 @@ GameSystem.ActionBarGroupings = {
     ["Abilities"] = 4,
     ["Common Abilities"] = 5,
     ["Triggers"] = 6,
+    ["Respite Activities"] = 7,
 }
 
 function GameSystem.GetAbilityCategoryInfo(category)
@@ -1058,10 +1130,20 @@ TriggeredAbility.RegisterTrigger{
     id = "movethrough",
     text = "Move Through Creature",
     symbols = {
+        path = {
+            name = "Path",
+            type = "path",
+            desc = "The path taken by the creature during movement.",
+        },
         target = {
             name = "Target",
             type = "creature",
             desc = "The creature being moved through.",
+        },
+        first = {
+            name = "First",
+            type = "boolean",
+            desc = "True if this is the first creature moved through during this move action.",
         },
     }
 }
@@ -1069,7 +1151,13 @@ TriggeredAbility.RegisterTrigger{
 TriggeredAbility.RegisterTrigger{
     id = "teleport",
     text = "Teleport",
-    symbols = {}
+    symbols = {
+        path = {
+            name = "Path",
+            type = "path",
+            desc = "The path from the creature's origin to its teleport destination.",
+        },
+    }
 }
 
 TriggeredAbility.RegisterTrigger{
@@ -1096,6 +1184,25 @@ TriggeredAbility.RegisterTrigger{
             name = "Moving Creature",
             type = "creature",
             desc = "The creature moving or shifting away.",
+        },
+    },
+}
+
+--The mirror of leaveadjacent: fires on the creature DOING the moving, once per
+--adjacent enemy it willingly leaves. Use this for traits worded "when you
+--willingly move away from an adjacent enemy..." (goblin Cunning). Shifting and
+--forced movement are not willing and do not trigger it. Unlike leaveadjacent,
+--the mover's own "Immunity from Opportunity Attack" does NOT suppress this, so
+--a trait can grant that immunity and a parting attack at the same time.
+TriggeredAbility.RegisterTrigger{
+    id = "departadjacent",
+    text = "Moved Away From a Creature",
+    symbols = {
+        departedcreature = {
+            name = "Departed Creature",
+            type = "creature",
+            desc = "The adjacent enemy that was moved away from.",
+            prose = "the departed creature",
         },
     },
 }
@@ -1200,23 +1307,42 @@ GameSystem.OnEndCastActivatedAbility = function(casterToken, ability, options)
 
     ability:FireUseAbility(casterToken, options)
 
+    --Monster Info: a monster using an ability reveals it to the players
+    --(self-guarding, no-op for heroes).
+    MonsterKnowledge.RecordAbilityUse(casterToken, ability)
+
 	if ability.categorization == "Signature Ability" and (ability:HasKeyword("Area") or ability:HasKeyword("Strike")) then
 		casterToken.properties:DispatchEvent("castsignature", {ability = ability, cast = options.symbols.cast})
 	end
 end
 
-local friendlyFire = setting{
-    id = "friendlyfire",
-    description = "Friendly Fire",
-    storage = "game",
-	section = "game",
-	editor = "check",
-    dmonly = true,
-    default = false,
-}
+local g_hiddenConditionId = "31daf7f6-f77c-4f73-8eab-43e2d0f123c0"
 
 function GameSystem.AllowTargeting(casterToken, targetToken, ability)
-	if friendlyFire:Get() == false and ability:HasKeyword("Strike") and ability:HasKeyword("Area") and casterToken:IsFriend(targetToken) then
+	-- Hidden: "While you are hidden from another creature, the creature can't
+	-- target you with abilities that don't have the Area keyword." A creature
+	-- with the Hidden condition is treated as hidden from all its enemies:
+	-- enemies lose non-Area targeting (including free strikes), while allies
+	-- can still target them normally. Area abilities are unaffected, so a
+	-- hidden creature standing in a swept area is still hit.
+	-- Map-wide effects (targetType "map", e.g. goblin malice "Swamp Stink") are
+	-- area effects that carry no keywords in their stat block, so the Area
+	-- keyword alone does not recognise them. They affect everyone on the map
+	-- and target no one in particular, so Hidden must not exempt a creature.
+	local isAreaAbility = ability:HasKeyword("Area") or ability.targetType == "map"
+	if (not targetToken.isObject) and (not isAreaAbility)
+		and (not casterToken:IsFriend(targetToken))
+		and targetToken.properties:HasCondition(g_hiddenConditionId) ~= false then
+		return false
+	end
+
+	-- Untargetable By Strikes (Shadow Veil and similar): a creature with a non-zero
+	-- "Untargetable By Strikes" custom attribute can't be targeted by abilities that
+	-- have the Strike keyword. This gate runs for every prospective target, so area
+	-- strikes are blocked for the flagged creature too, not just direct targeting.
+	-- Non-Strike abilities are unaffected.
+	if ability:HasKeyword("Strike")
+		and targetToken.properties:CalculateNamedCustomAttribute("Untargetable By Strikes") > 0 then
 		return false
 	end
 
@@ -1341,7 +1467,12 @@ TriggeredAbility.RegisterTrigger{
     id = "targetwithability",
     text = "Target With Ability",
     symbols = {
-        ability = {
+        --NOTE: the key must match the payload key dispatched in
+        --ActivatedAbility:FireUseAbility, since the payload IS the symbol
+        --table (the keys here only drive editor help). This was
+        --registered as "ability" while the payload sends "usedability", so
+        --Ability.X silently resolved to nothing in author formulas.
+        usedability = {
             name = "Used Ability",
             type = "ability",
             desc = "The ability used.",
@@ -1350,7 +1481,17 @@ TriggeredAbility.RegisterTrigger{
             name = "Target",
             type = "creature",
             desc = "The target creature.",
-        }
+        },
+        attacker = {
+            name = "Attacker",
+            type = "creature",
+            desc = "The creature that used the ability. Only valid if Has Attacker is true.",
+        },
+        hasattacker = {
+            name = "Has Attacker",
+            type = "boolean",
+            desc = "True if the creature that used the ability is known.",
+        },
     },
 }
 
@@ -1436,12 +1577,21 @@ TriggeredAbility.RegisterTrigger{
             type = "boolean",
             desc = "True if the damage came from a dice roll rather than flat damage.",
         },
+        damagedice = {
+            name = "Damage Dice",
+            type = "set",
+            desc = "The die sizes rolled to produce this damage, e.g. 'd3' or 'd6'. Empty if the damage wasn't randomly rolled.",
+        },
     },
 
     examples = {
         {
             script = "damage > 8 and (damage type is slashing or damage type is piercing)",
             text = "The triggered ability only activates if more than 8 damage was done and the damage was slashing or piercing damage."
+        },
+        {
+            script = 'Damage Dice has "d3" or Damage Dice has "d6"',
+            text = "The triggered ability only activates if the damage came from rolling a 1d3 or a 1d6."
         }
     },
 }
@@ -1511,6 +1661,11 @@ TriggeredAbility.RegisterTrigger{
             name = "hasrolleddamage",
             type = "boolean",
             desc = "True if the damage came from a dice roll rather than flat damage.",
+        },
+        {
+            name = "Damage Dice",
+            type = "set",
+            desc = "The die sizes rolled to produce this damage, e.g. 'd3' or 'd6'. Empty if the damage wasn't randomly rolled.",
         },
         {
             name = "HasCast",
@@ -1592,6 +1747,51 @@ TriggeredAbility.RegisterTrigger{
             desc = "The creature that fell on this creature.",
         },
     }
+}
+
+--Fires on a squad minion when damage kills one or more minions of its squad.
+--Kills from a single cast are batched (see AccumulateSquadMinionDeaths in
+--MCDMCreature.lua): an area ability that empties several stamina bands across
+--separate damage applications fires this ONCE per damage type group with the
+--total number killed, dispatched on one member of the squad (the most
+--recently damaged one), not on every member.
+TriggeredAbility.RegisterTrigger{
+    id = "squadminiondeaths",
+    text = "Squad Minions Killed",
+    symbols = {
+        minionskilled = {
+            name = "Minions Killed",
+            type = "number",
+            desc = "The number of minions of this creature's squad that were killed at the same time.",
+        },
+        damage = {
+            name = "Damage",
+            type = "number",
+            desc = "The total damage of this type the squad's stamina pool took in this batch.",
+        },
+        damagetype = {
+            name = "Damage Type",
+            type = "text",
+            desc = "The type of the damage that killed the minions. Untyped damage reads as 'none'.",
+            valueOptionsSource = "damageTypes",
+        },
+        attacker = {
+            name = "Attacker",
+            type = "creature",
+            desc = "The attacking creature. Only valid if Has Attacker is true.",
+        },
+        hasattacker = {
+            name = "Has Attacker",
+            type = "boolean",
+            desc = "True if the damage has an attacker.",
+        },
+    },
+    examples = {
+        {
+            script = "Minions Killed >= 2 and damage type is not fire",
+            text = "The triggered ability only activates when two or more minions are killed at once by damage that is not fire.",
+        },
+    },
 }
 
 --redefine hitpoints as stamina.

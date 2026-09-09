@@ -330,36 +330,42 @@ local CalculateStatusIcons = function(token)
                         statusText = condInfo.name
                     end
 
+                    --Effects with no linked condition still know their caster
+                    --(casterInfo is recorded on the instance either way); carry
+                    --the id so the hover highlight-line and threat detection
+                    --(e.g. the Director overview's red rings) work for them too.
+                    if casterInfo ~= nil and casterInfo.tokenid ~= nil and dmhub.GetTokenById(casterInfo.tokenid) ~= nil then
+                        casterid = casterInfo.tokenid
+                    end
+
+					--Rules text first, caster appended -- the caster used to replace the rules.
+					local title = ongoingEffectInfo.name
+					if condInfo ~= nil then
+						title = condInfo.name
+					end
+
+					local stacksText = ""
+					if ongoingEffectInfo.stackable and cond.stacks > 1 then
+						stacksText = string.format(" (%d)", cond.stacks)
+					end
+
+					local descText = CharacterOngoingEffect.GetDisplayDescription(ongoingEffectInfo)
+					if descText ~= "" then
+						hoverText = string.format("%s%s: %s", title, stacksText, descText)
+					else
+						hoverText = string.format("%s%s", title, stacksText)
+					end
+
 					if condInfo ~= nil and casterInfo ~= nil and casterInfo.tokenid ~= nil then
 						local casterToken = dmhub.GetTokenById(casterInfo.tokenid)
 						if casterToken ~= nil then
-							hoverText = string.format("%s: %s", condInfo.name, casterToken.description)
-							casterid = casterInfo.tokenid
-						else
-							hoverText = "no caster"
+							hoverText = string.format("%s\n\nInflicted by %s", hoverText, casterToken.description)
 						end
-					elseif condInfo ~= nil then
-						if condInfo.description ~= "" then
-							hoverText = string.format("%s: %s", condInfo.name, condInfo.description)
-						else
-							hoverText = condInfo.name
-						end
-					else
-
-						local stacksText = ""
-						if ongoingEffectInfo.stackable and cond.stacks > 1 then
-							stacksText = string.format(" (%d)", cond.stacks)
-						end
-						if ongoingEffectInfo.description ~= "" then
-							hoverText = string.format("%s%s: %s", ongoingEffectInfo.name, stacksText, ongoingEffectInfo.description)
-						else
-							hoverText = ongoingEffectInfo.name
-						end
-
-                        if rawget(cond, "sourceDescription") ~= nil and cond.sourceDescription ~= "" then
-                            hoverText = hoverText .. "\n\n" .. cond.sourceDescription
-                        end
 					end
+
+                    if rawget(cond, "sourceDescription") ~= nil and cond.sourceDescription ~= "" then
+                        hoverText = hoverText .. "\n\n" .. cond.sourceDescription
+                    end
 
 					result[#result+1] = {
 						id = cond.ongoingEffectid,
@@ -382,6 +388,12 @@ local CalculateStatusIcons = function(token)
 
 	return result
 end
+
+--Exposed so other surfaces can show EXACTLY the status icons the token HUD
+--shows (conditions, ongoing effects, registered status icons), with the same
+--icon / style / hoverText / statusText / casterid per entry - e.g. the
+--Director's multi-monster overview footer. Read-only; returns a fresh list.
+TokenUI.CalculateStatusIcons = CalculateStatusIcons
 
 
 local g_animationStyles = {
@@ -2364,6 +2376,11 @@ function CreateTokenHud(token)
                 if element.data.targetReason ~= nil then
                     gui.Tooltip(element.data.targetReason)(element)
                 end
+                --tokenHover/tokenDehover only fire on the sheet root; rebroadcast
+                --into the tree so registered hud panels can react to hover. The
+                --flag tells listeners the token is currently a targeting candidate,
+                --so hover chrome that would steal clicks can stay hidden.
+                element:FireEventTree("tokenHoverTree", targetEffect ~= nil)
 				if targetEffect ~= nil and targetEffect.interactive ~= false then
                     audio.FireSoundEvent("Mouse.Hover")
 					for i,effect in ipairs(targetEffect) do
@@ -2378,6 +2395,7 @@ function CreateTokenHud(token)
 
 			tokenDehover = function(element)
                 element.tooltip = nil
+                element:FireEventTree("tokenDehoverTree")
 				if targetEffect ~= nil and targetEffect.interactive ~= false then
 					for i,effect in ipairs(targetEffect) do
 						effect:SetClass('target-active', false)
@@ -2519,6 +2537,7 @@ function CreateTokenHud(token)
 
 				token:ConsumeClick()
 
+				local parentElement = element
                 local items = {}
 
                 if token.canControl then
@@ -2534,6 +2553,7 @@ function CreateTokenHud(token)
 							},
 							events = {
 								click = function(element)
+									parentElement.popup = nil
 									token:ShowSheet()
 								end,
                                 hover = function(element)
@@ -2561,6 +2581,7 @@ function CreateTokenHud(token)
 							},
 							events = {
 								click = function(element)
+									parentElement.popup = nil
 									gamehud:ShowInventory(token)
 								end,
                                 hover = function(element)
@@ -2606,43 +2627,79 @@ function CreateTokenHud(token)
                     }
                 end
 
-                items[#items+1] = gui.Panel{
-					className = 'radial-menu-item',
-					translate = core.Vector2(0,70):Rotate(135),
-					styles = {
-						{
-							selectors = {"create"},
-							translate = core.Vector2(0,-70):Rotate(135),
-						},
-					},
-					events = {
-						click = function(element)
-                            if token.hasSpineAnimation then
-                                GameHud.instance:ViewJournalEntry{
-                                    image = token.inspectPortrait,
-                                    height = 1024,
-                                    width = 1024*0.75,
-                                    autosizeimage = false,
-                                }
-                            else
-                                GameHud.instance:ViewJournalEntry{
-                                    image = token.offTokenPortrait,
-                                }
-                            end
-						end,
-                        hover = function(element)
-                            gui.Tooltip("View Portrait")(element)
-                        end,
-					},
-					children = {
-						gui.Panel{
-							bgimage = 'ui-icons/eye.png',
-							className = 'radial-menu-icon',
-							width = 40,
-							height = 40,
-						}
-					},
-				}
+                --Monster Info (Draw Steel, when the "monsterinfo" game setting is on):
+                --a fullscreen portrait beside a stat block players learn over time.
+                --Looked up with rawget so this generic Token UI mod still works when
+                --the Draw Steel mods that define it are not loaded. Otherwise the
+                --slot is the plain View Portrait lightbox.
+                local monsterInfoDialog = rawget(_G, "MonsterInfoDialog")
+                if monsterInfoDialog ~= nil and monsterInfoDialog.AvailableForToken(token) then
+                    items[#items+1] = gui.Panel{
+                        className = 'radial-menu-item',
+                        translate = core.Vector2(0,70):Rotate(135),
+                        styles = {
+                            {
+                                selectors = {"create"},
+                                translate = core.Vector2(0,-70):Rotate(135),
+                            },
+                        },
+                        events = {
+                            click = function(element)
+                                monsterInfoDialog.Show(token)
+                            end,
+                            hover = function(element)
+                                gui.Tooltip("Monster Info")(element)
+                            end,
+                        },
+                        children = {
+                            gui.Panel{
+                                bgimage = 'ui-icons/ph-info-fill.png',
+                                className = 'radial-menu-icon',
+                                width = 40,
+                                height = 40,
+                            }
+                        },
+                    }
+                else
+                    items[#items+1] = gui.Panel{
+                        className = 'radial-menu-item',
+                        translate = core.Vector2(0,70):Rotate(135),
+                        styles = {
+                            {
+                                selectors = {"create"},
+                                translate = core.Vector2(0,-70):Rotate(135),
+                            },
+                        },
+                        events = {
+                            click = function(element)
+                                parentElement.popup = nil
+                                if token.hasSpineAnimation then
+                                    GameHud.instance:ViewJournalEntry{
+                                        image = token.inspectPortrait,
+                                        height = 1024,
+                                        width = 1024*0.75,
+                                        autosizeimage = false,
+                                    }
+                                else
+                                    GameHud.instance:ViewJournalEntry{
+                                        image = token.offTokenPortrait,
+                                    }
+                                end
+                            end,
+                            hover = function(element)
+                                gui.Tooltip("View Portrait")(element)
+                            end,
+                        },
+                        children = {
+                            gui.Panel{
+                                bgimage = 'ui-icons/eye.png',
+                                className = 'radial-menu-icon',
+                                width = 40,
+                                height = 40,
+                            }
+                        },
+                    }
+                end
 
 
                 --Rename option: shown for monsters when the DM has enabled the
@@ -2679,7 +2736,6 @@ function CreateTokenHud(token)
                     }
                 end
 
-				local parentElement = element
 
 				local radialMenu
 				radialMenu = gui.Panel{
@@ -2944,6 +3000,22 @@ function CreateTokenHud(token)
                     selectors = {"highlighted"},
                     borderWidth = 4,
                     borderColor = '#ffffff99',
+                },
+
+                --"Locate this token" ring: a sustained, coloured ring that a UI
+                --surface toggles (SetClassTree("locate", true/false)) to point
+                --at a token without selecting it. Deliberately NOT white and
+                --thicker than the select/focus rings, so it still reads on a
+                --token that is already selected (the engine's
+                --PulseHighlightToken flash is white and brief, and vanishes
+                --against the selection ring / under a camera pan). priority 5
+                --so it wins over 'select' and 'focus' while held.
+                {
+                    selectors = {"locate"},
+                    priority = 5,
+                    borderWidth = 8,
+                    borderColor = '#f2b632',
+                    transitionTime = 0.15,
                 },
 
                 {

@@ -1,4 +1,7 @@
---- @class assets Provides access to the cloud asset library, including monsters, tilesheets, images, audio, objects, and other game assets.
+---@meta
+
+--- Provides access to the cloud asset library, including monsters, tilesheets, images, audio, objects, and other game assets.
+--- @class assets
 --- @field coreAssetsDownloaded boolean True if core assets have been downloaded.
 --- @field artists table<string, ArtistLua> Gets a table of all artists, keyed by artist ID.
 --- @field devOnlyBuiltinImagesList table Gets a list of built-in UI icon images. Dev-only diagnostic property.
@@ -30,225 +33,192 @@
 --- @field allAssets table<string, GameAssetLua> Gets a table of all assets across all types, keyed by asset GUID.
 assets = {}
 
---- GetMonsterNode: Gets a monster node by its ID, or nil if not found.
+--- Gets a monster node by its ID, or nil if not found.
 --- @param id string
 --- @return MonsterNodeLua
-function assets:GetMonsterNode(id)
-	-- dummy implementation for documentation purposes only
-end
+function assets:GetMonsterNode(id) end
 
---- AddAndUploadArtist: Creates and uploads a new artist entry with the given ID.
+--- Creates and uploads a new artist entry with the given ID.
 --- @param id string The artist ID.
-function assets:AddAndUploadArtist(id)
-	-- dummy implementation for documentation purposes only
-end
+function assets:AddAndUploadArtist(id) end
 
---- GetPhosphorIcons: Searches the built-in phosphor icon set by filename substring (case-insensitive), returning up to maxResults icon ids of the form "phosphor/<name>.png" in sorted order. Only the name index is consulted -- no icon textures are loaded. Pass an empty filter to page from the start of the set.
+--- Searches the built-in phosphor icon set by filename substring (case-insensitive), returning up to maxResults icon ids of the form "phosphor/<name>.png" in sorted order. Only the name index is consulted -- no icon textures are loaded. Pass an empty filter to page from the start of the set.
 --- @param filter string Substring to match against icon filenames; empty matches all.
 --- @param maxResults number Maximum number of ids to return.
 --- @return string[]
-function assets:GetPhosphorIcons(filter, maxResults)
-	-- dummy implementation for documentation purposes only
-end
+function assets:GetPhosphorIcons(filter, maxResults) end
 
---- UploadNewMonsterFolder: Creates and uploads a new monster folder from the given table arguments.
+--- Creates and uploads a new monster folder from the given table arguments.
 --- @param tableArgs table The folder properties.
-function assets:UploadNewMonsterFolder(tableArgs)
-	-- dummy implementation for documentation purposes only
-end
+function assets:UploadNewMonsterFolder(tableArgs) end
 
---- UploadNewClipboardFolder: Creates and uploads a new clipboard folder from the given table arguments.
+--- Creates and uploads a new clipboard folder from the given table arguments.
 --- @param tableArgs table The folder properties.
-function assets:UploadNewClipboardFolder(tableArgs)
-	-- dummy implementation for documentation purposes only
-end
+function assets:UploadNewClipboardFolder(tableArgs) end
 
---- UploadNewAudioFolder: Creates and uploads a new audio folder from the given table arguments.
+--- Creates and uploads a new audio folder from the given table arguments.
 --- @param tableArgs table The folder properties.
-function assets:UploadNewAudioFolder(tableArgs)
-	-- dummy implementation for documentation purposes only
-end
+function assets:UploadNewAudioFolder(tableArgs) end
 
---- GetObjectNode: Gets an object node by its ID, or nil if not found.
+--- Gets an object node by its ID, or nil if not found.
 --- @param id string The object ID.
 --- @return nil|ObjectNodeLua
-function assets:GetObjectNode(id)
-	-- dummy implementation for documentation purposes only
-end
+function assets:GetObjectNode(id) end
 
---- GetObjectsWithKeyword: Gets a list of object nodes matching the given keyword.
+--- Gets a list of object nodes matching the given keyword.
 --- @param keyword string The keyword to search for.
 --- @return ObjectNodeLua[]
-function assets:GetObjectsWithKeyword(keyword)
-	-- dummy implementation for documentation purposes only
-end
+function assets:GetObjectsWithKeyword(keyword) end
 
---- UploadNewObjectFolder: Creates and uploads a new object folder from the given table arguments.
+--- Creates and uploads a new object folder from the given table arguments.
 --- @param tableArgs table The folder properties.
-function assets:UploadNewObjectFolder(tableArgs)
-	-- dummy implementation for documentation purposes only
-end
+function assets:UploadNewObjectFolder(tableArgs) end
 
---- UploadNewObject: Creates and uploads a new object from a Lua table and returns its GUID.
+--- Creates and uploads a new object from a Lua table and returns its GUID.
 --- @param args table The object properties.
 --- @return string
-function assets:UploadNewObject(args)
-	-- dummy implementation for documentation purposes only
-end
+function assets:UploadNewObject(args) end
 
---- CreateBrush: Creates a new brush asset with default settings and returns it.
+--- Creates a new brush asset with default settings and returns it.
 --- @return BrushAssetLua
-function assets:CreateBrush()
-	-- dummy implementation for documentation purposes only
-end
+function assets:CreateBrush() end
 
---- CreateLocalShopItem: Creates a local shop item. The item is not valid until uploaded.
+--- Creates a local shop item. The item is not valid until uploaded.
 --- @return ShopItemLua
-function assets.CreateLocalShopItem()
-	-- dummy implementation for documentation purposes only
-end
+function assets.CreateLocalShopItem() end
 
---- CreateNewImageLibrary: Creates and uploads a new image library, returning its GUID.
+--- Creates and uploads a new image library, returning its GUID.
 --- @param options nil|table Optional settings including name, docsourceid, and images.
-function assets:CreateNewImageLibrary(options)
-	-- dummy implementation for documentation purposes only
-end
+--- @return string
+function assets:CreateNewImageLibrary(options) end
 
---- FindEmojiByIdOrName: Finds an emoji asset by its ID or name, optionally filtering by emoji type. Returns nil if not found.
+--- Finds an emoji asset by its ID or name, optionally filtering by emoji type. Returns nil if not found.
 --- @param name string The emoji ID or display name.
 --- @param emojiType string The emoji type filter, or nil for any type.
 --- @return nil|EmojiAssetLua
-function assets:FindEmojiByIdOrName(name, emojiType)
-	-- dummy implementation for documentation purposes only
-end
+function assets:FindEmojiByIdOrName(name, emojiType) end
 
---- UploadEmojiAsset: Uploads a new emoji asset from a file path. Options include path, emojiType, error callback, and upload callback.
+--- Uploads a new emoji asset from a file path. Options include path, emojiType, error callback, and upload callback.
 --- @param options table Upload options with path, emojiType, error, and upload fields.
 --- @return nil|string The GUID of the uploaded emoji, or nil on failure.
-function assets:UploadEmojiAsset(options)
-	-- dummy implementation for documentation purposes only
-end
+function assets:UploadEmojiAsset(options) end
 
---- UploadImageAtlasAsset: Uploads a new image atlas asset from a file path. Options include path, error callback, and upload callback.
+--- Uploads a new image atlas asset from a file path. Options include path, error callback, and upload callback.
 --- @param options table Upload options with path, error, and upload fields.
 --- @return nil|string The GUID of the uploaded atlas, or nil on failure.
-function assets:UploadImageAtlasAsset(options)
-	-- dummy implementation for documentation purposes only
-end
+function assets:UploadImageAtlasAsset(options) end
 
---- UploadPDFDocumentAsset: Uploads a PDF document from a file path. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.
+--- Uploads a PDF document from a file path. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.
 --- @param options table Upload options.
 --- @return string The GUID of the uploaded document.
-function assets.UploadPDFDocumentAsset(options)
-	-- dummy implementation for documentation purposes only
-end
+function assets.UploadPDFDocumentAsset(options) end
 
---- UploadNewDocumentFolder: Creates and uploads a new document folder from the given table arguments.
+--- Creates and uploads a new document folder from the given table arguments.
 --- @param tableArgs table The folder properties.
-function assets:UploadNewDocumentFolder(tableArgs)
-	-- dummy implementation for documentation purposes only
-end
+function assets:UploadNewDocumentFolder(tableArgs) end
 
---- UploadAudioAsset: Uploads an audio file. Automatically converts FLAC files to MP3. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.
+--- Uploads an audio file. Automatically converts FLAC and M4A (AAC/MPEG-4) files to MP3. Options include path, guid, parentFolder, description, error, progress, and upload callbacks.
 --- @param options table Upload options.
 --- @return nil|string The GUID of the uploaded audio asset, or nil on failure.
-function assets:UploadAudioAsset(options)
-	-- dummy implementation for documentation purposes only
-end
+function assets:UploadAudioAsset(options) end
 
---- UploadClipboardAsset: Uploads a clipboard image asset. Options include item (ClipboardItem), path, error, and upload callbacks.
+--- Uploads a clipboard image asset. Options include item (ClipboardItem), path, error, and upload callbacks.
 --- @param options table Upload options.
 --- @return nil|string The GUID of the uploaded clipboard asset, or nil on failure.
-function assets:UploadClipboardAsset(options)
-	-- dummy implementation for documentation purposes only
-end
+function assets:UploadClipboardAsset(options) end
 
---- UploadImageAsset: Uploads a generic image asset. Options include path, description, parentFolder, imageType, ord, error, and upload callbacks. Pass core=true to force the upload into the global Core asset store regardless of the current game; ignored for non-admin users.
+--- Uploads a generic image asset. Options include path, description, parentFolder, imageType, ord, error, and upload callbacks. Pass core=true to force the upload into the global Core asset store regardless of the current game; ignored for non-admin users.
 --- @param options table Upload options.
 --- @return nil|string The GUID of the uploaded image, or nil on failure.
-function assets:UploadImageAsset(options)
-	-- dummy implementation for documentation purposes only
-end
+function assets:UploadImageAsset(options) end
 
---- PathSizeInBytes: Returns the file size in bytes for the given file path.
---- @param path string
+--- Uploads a supported image, video, or audio file as a uniquely-addressed disposable chat attachment.
+--- @param options? any
+--- @return any
+function assets:UploadChatAttachment(options) end
+
+--- Plays a disposable chat audio attachment locally and returns its playback instance.
+--- @param blobid? string
+--- @param extension? string
+--- @return any
+function assets:PlayChatAudio(blobid, extension) end
+
+--- Uploads a PNG, JPEG, or WebP as a uniquely-addressed disposable chat attachment. Options include path (or 'CLIPBOARD'), error, progress, and upload callbacks. The upload callback receives blob id, width, and height.
+--- @param options table {path: string, error: nil|fun(message: string), progress: nil|fun(progress: number), upload: fun(blobid: string, width: number, height: number)}
+--- @return nil|string The disposable blob id, or nil if the upload could not start.
+function assets:UploadChatImage(options) end
+
+--- Returns the file size in bytes for the given file path.
+--- @param path? string
 --- @return number
-function assets.PathSizeInBytes(path)
-	-- dummy implementation for documentation purposes only
-end
+function assets.PathSizeInBytes(path) end
 
---- CreateWallAssetFromFile: Creates a wall asset from an image file. Wall textures must be multiples of 64px high and 128px wide.
+--- Creates a wall asset from an image file. Wall textures must be multiples of 64px high and 128px wide.
 --- @param options table Upload options with path, error, and upload fields.
 --- @return nil|string The GUID of the created wall, or nil on failure.
-function assets:CreateWallAssetFromFile(options)
-	-- dummy implementation for documentation purposes only
-end
+function assets:CreateWallAssetFromFile(options) end
 
---- CreateTilesheetFromFile: Creates a tilesheet asset from an image file. Options include floor, effects, path, args, error, and upload callback.
+--- Creates a tilesheet asset from an already-uploaded image asset and returns its GUID synchronously. Options: imageid (image asset guid, required), floor (bool), description (string), error (function called with a message on failure). Dimension rules match CreateTilesheetFromFile (floor textures: multiples of 128px; terrain: square multiples of 128px), enforced when the image's dimensions are known.
+--- @param options table {imageid: string, floor: nil|boolean, description: nil|string, error: nil|fun(message: string)}
+--- @return nil|string The GUID of the created tilesheet, or nil on failure.
+function assets:CreateTilesheetFromImage(options) end
+
+--- Creates a wall asset from an already-uploaded image asset and returns its GUID synchronously. Options: imageid (image asset guid, required), description (string), error (function called with a message on failure). Any image is accepted (no wall-strip dimension rules) and the wall renders at the default 1-unit thickness: this exists for decorative edge brushes, not authored wall strips.
+--- @param options table {imageid: string, description: nil|string, error: nil|fun(message: string)}
+--- @return nil|string The GUID of the created wall asset, or nil on failure.
+function assets:CreateWallFromImage(options) end
+
+--- Creates a tilesheet asset from an image file. Options include floor, effects, path, args, error, and upload callback.
 --- @param options table Upload options.
 --- @return nil|string The GUID of the created tilesheet, or nil on failure.
-function assets:CreateTilesheetFromFile(options)
-	-- dummy implementation for documentation purposes only
-end
+function assets:CreateTilesheetFromFile(options) end
 
---- CreateWeatherEffectFromFile: Creates a weather effect asset from an image or video file.
+--- Creates a weather effect asset from an image or video file.
 --- @param options table Upload options with path, error, and upload fields.
 --- @return nil|string The GUID of the created weather effect, or nil on failure.
-function assets:CreateWeatherEffectFromFile(options)
-	-- dummy implementation for documentation purposes only
-end
+function assets:CreateWeatherEffectFromFile(options) end
 
---- DuplicateTilesheet: Duplicates a tilesheet asset and returns the new GUID. Returns nil if the source is not found.
+--- Duplicates a tilesheet asset and returns the new GUID. Returns nil if the source is not found.
 --- @param tileid string|number The tilesheet ID to duplicate.
 --- @return nil|string
-function assets:DuplicateTilesheet(tileid)
-	-- dummy implementation for documentation purposes only
-end
+function assets:DuplicateTilesheet(tileid) end
 
---- DuplicateWall: Duplicates a wall asset and returns the new GUID. Returns nil if the source is not found.
+--- Duplicates a wall asset and returns the new GUID. Returns nil if the source is not found.
 --- @param wallid string|number The wall ID to duplicate.
 --- @return nil|string
-function assets:DuplicateWall(wallid)
-	-- dummy implementation for documentation purposes only
-end
+function assets:DuplicateWall(wallid) end
 
---- ImportUniversalVTT: Imports one or more Universal VTT map files, uploading their images and creating map objects.
+--- Imports one or more Universal VTT map files, uploading their images and creating map objects.
 --- @param pathsList string[] List of file paths to UVTT files.
 --- @param callback function Called on success with info table containing objids, width, height, and uvttData.
 --- @param error function Called on error with an error message string.
-function assets:ImportUniversalVTT(pathsList, callback, error)
-	-- dummy implementation for documentation purposes only
-end
+function assets:ImportUniversalVTT(pathsList, callback, error) end
 
---- CreateBestiaryEntry: Creates a new bestiary entry locally and returns its GUID.
+--- Creates a new bestiary entry locally and returns its GUID.
 --- @return string
-function assets:CreateBestiaryEntry()
-	-- dummy implementation for documentation purposes only
-end
+function assets:CreateBestiaryEntry() end
 
---- CreateBestiaryFolder: Creates a new bestiary folder locally and returns its GUID.
+--- Creates a new bestiary folder locally and returns its GUID.
 --- @param name string|number The folder name.
 --- @return string
-function assets:CreateBestiaryFolder(name)
-	-- dummy implementation for documentation purposes only
-end
+function assets:CreateBestiaryFolder(name) end
 
---- CreateAudioFolder: Creates a new audio folder locally and returns its GUID.
+--- Creates a new audio folder locally and returns its GUID.
 --- @param name string|number The folder name.
 --- @return string
-function assets:CreateAudioFolder(name)
-	-- dummy implementation for documentation purposes only
-end
+function assets:CreateAudioFolder(name) end
 
---- RefreshAssets: Forces a refresh of asset data. Optionally pass a category string to refresh only that category.
+--- Forces a refresh of asset data. Optionally pass a category string to refresh only that category.
 --- @param cat nil|string Optional asset category to refresh.
-function assets:RefreshAssets(cat)
-	-- dummy implementation for documentation purposes only
-end
+function assets:RefreshAssets(cat) end
 
---- LoadImageOrVideoFileLocally: Loads an image or video file into a local cache without uploading. Pass 'CLIPBOARD' to load from system clipboard.
+--- Loads an image or video file into a local cache without uploading. Pass 'CLIPBOARD' to load from system clipboard.
 --- @param path string The file path or 'CLIPBOARD'.
 --- @return nil|LocalImageOrVideoFileLua
-function assets:LoadImageOrVideoFileLocally(path)
-	-- dummy implementation for documentation purposes only
-end
+function assets:LoadImageOrVideoFileLocally(path) end
+
+--- Loads an image file (png or jpeg) into the local cache without uploading, downscaling it if needed so its longer edge is at most maxDimension pixels. Pass 'CLIPBOARD' to load from the system clipboard. Returns nil if the file could not be read as an image. Intended for small branding images such as creator organization logos; call Upload on the result to commit it.
+--- @param path string The file path or 'CLIPBOARD'.
+--- @param maxDimension number The maximum size in pixels of the image's longer edge.
+--- @return nil|LocalImageOrVideoFileLua
+function assets:LoadImageFileLocallyResized(path, maxDimension) end

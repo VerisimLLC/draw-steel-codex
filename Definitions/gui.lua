@@ -1,144 +1,143 @@
---- @class gui Factory class for creating GUI elements such as panels, labels, inputs, and tables in the sheet system.
+---@meta
+
+--- Factory class for creating GUI elements such as panels, labels, inputs, and tables in the sheet system.
+--- @class gui
 --- @field availableFonts string[] List of available font ids configured on GameConfig for the current white-label build. Each entry is a string id usable with gui.Style/gui.Label etc.
 gui = {}
 
---- Style: Create a Style
+--- Create a Style
 --- @param args StyleArgs
 --- @return Style
-function gui.Style(args)
-	-- dummy implementation for documentation purposes only
-end
+function gui.Style(args) end
 
---- Panel: Create a Panel
+--- Create a Panel
 --- @param args PanelArgs
 --- @return Panel
-function gui.Panel(args)
-	-- dummy implementation for documentation purposes only
-end
+function gui.Panel(args) end
 
---- Carousel: Create a Carousel panel
---- @param args CarouselArgs
---- @return Carousel
-function gui.Carousel(table)
-	-- dummy implementation for documentation purposes only
-end
+--- Canvas
+--- @deprecated
+--- @param table? any
+--- @return any
+function gui.Canvas(table) end
 
---- MapImport: Create a MapImport panel for importing map files.
+--- Create a Carousel panel
+--- @param args PanelArgs
+--- @return LuaSheetCarousel
+function gui.Carousel(args) end
+
+--- Create a MapImport panel for importing map files.
 --- @param table table The map import configuration.
 --- @return Panel
-function gui.MapImport(table)
-	-- dummy implementation for documentation purposes only
-end
+function gui.MapImport(table) end
 
---- Table: Create a Table panel
---- @param args TablePanelArgs
+--- Create a Table panel
+--- @param args PanelArgs
 --- @return TablePanel
-function gui.Table(table)
-	-- dummy implementation for documentation purposes only
-end
+function gui.Table(args) end
 
---- TableRow: Create a Row panel
---- @param args RowPanelArgs
+--- Create a Row panel
+--- @param args PanelArgs
 --- @return RowPanel
-function gui.TableRow(table)
-	-- dummy implementation for documentation purposes only
-end
+function gui.TableRow(args) end
 
---- Label: Create a Label panel
+--- Create a Label panel
 --- @param args LabelArgs
 --- @return Label
-function gui.Label(table)
-	-- dummy implementation for documentation purposes only
-end
+function gui.Label(args) end
 
---- Input: Create a Input panel
+--- Checkbox
+--- @deprecated
+--- @param table? any
+--- @return any
+function gui.Checkbox(table) end
+
+--- Dropdown
+--- @deprecated
+--- @param table? any
+--- @return any
+function gui.Dropdown(table) end
+
+--- Create a Input panel
 --- @param args InputArgs
 --- @return Input
-function gui.Input(table)
-	-- dummy implementation for documentation purposes only
-end
+function gui.Input(args) end
 
---- TextEditor: Create a TextEditor panel: a multiline rich text editor (used by the journal). Backed by a fork of TMP_InputField with a working scrollbar, undo/redo, and find & replace.
+--- Create a TextEditor panel: a multiline rich text editor (used by the journal). Backed by a fork of TMP_InputField with a working scrollbar, undo/redo, and find & replace.
 --- @param args TextEditorArgs
 --- @return TextEditor
-function gui.TextEditor(table)
-	-- dummy implementation for documentation purposes only
-end
+function gui.TextEditor(args) end
 
---- DicePreview: Create a DicePreview panel: a cage that resting preview dice anchor to. Register it with SetAsDicePreviewPanel(true), seed dice with dmhub.Roll{preview = true, previewPanel = <panel>}, and route input through its DicePreview* methods.
+--- Icon
+--- @deprecated
+--- @param table? any
+--- @return any
+function gui.Icon(table) end
+
+--- Button
+--- @deprecated
+--- @param table? any
+--- @return any
+function gui.Button(table) end
+
+--- MapPreview
+--- @deprecated
+--- @param table? any
+--- @return any
+function gui.MapPreview(table) end
+
+--- Create a DicePreview panel: a cage that resting preview dice anchor to. Register it with SetAsDicePreviewPanel(true), seed dice with dmhub.Roll{preview = true, previewPanel = <panel>}, and route input through its DicePreview* methods.
 --- @param args PanelArgs
 --- @return DicePreview
-function gui.DicePreview(table)
-	-- dummy implementation for documentation purposes only
-end
+function gui.DicePreview(args) end
 
---- RegisterTheme: Registers style overrides for a theme section.
+--- Registers style overrides for a theme section.
 --- @param themeid string The theme ID.
 --- @param sectionid string The section within the theme.
 --- @param styles table The style overrides to register.
-function gui.RegisterTheme(themeid, sectionid, styles)
-	-- dummy implementation for documentation purposes only
-end
+function gui.RegisterTheme(themeid, sectionid, styles) end
 
---- CreateTheme: Creates a new sheet theme with the given type and a generated GUID.
+--- Creates a new sheet theme with the given type and a generated GUID.
 --- @param themeType string The theme type identifier.
 --- @return LuaSheetTheme
-function gui.CreateTheme(themeType)
-	-- dummy implementation for documentation purposes only
-end
+function gui.CreateTheme(themeType) end
 
---- Gradient: Creates a style gradient from the given configuration table.
+--- Creates a style gradient from the given configuration table.
 --- @param value table The gradient configuration.
---- @return StyleGradientLua
-function gui.Gradient(value)
-	-- dummy implementation for documentation purposes only
-end
+--- @return Gradient
+function gui.Gradient(value) end
 
---- MarkdownStyle: Creates a markdown style configuration from the given table.
+--- Creates a markdown style configuration from the given table.
 --- @param value table The markdown style settings.
---- @return MarkdownStyle
-function gui.MarkdownStyle(value)
-	-- dummy implementation for documentation purposes only
-end
+--- @return LuaMarkdownStyle
+function gui.MarkdownStyle(value) end
 
---- TryGetImageDimensions: Tries to get the dimensions of an image by ID. Returns a table with width, height, and ppu fields, or nil if not available.
+--- Tries to get the dimensions of an image by ID. Returns a table with width, height, and ppu fields, or nil if not available.
 --- @param imageid string The image asset ID.
 --- @return nil|table
-function gui.TryGetImageDimensions(imageid)
-	-- dummy implementation for documentation purposes only
-end
+function gui.TryGetImageDimensions(imageid) end
 
---- GetImageDimensionsCallback: Asynchronously gets image dimensions and calls the callback with a table containing width, height, and ppu.
+--- Asynchronously gets image dimensions and calls the callback with a table containing width, height, and ppu.
 --- @param imageid string The image asset ID.
 --- @param f function Callback receiving a table with width, height, and ppu.
-function gui.GetImageDimensionsCallback(imageid, f)
-	-- dummy implementation for documentation purposes only
-end
+function gui.GetImageDimensionsCallback(imageid, f) end
 
---- GetSheetById: Finds a sheet panel by its ID across all top-level sheets. Returns nil if not found.
+--- Finds a sheet panel by its ID across all top-level sheets. Returns nil if not found.
 --- @param id string The panel ID.
 --- @return nil|Panel
-function gui.GetSheetById(id)
-	-- dummy implementation for documentation purposes only
-end
+function gui.GetSheetById(id) end
 
---- DebugDumpPanel: Diagnostic: returns a state-snapshot table for the panel with the given id, or nil if not found. Walks all top-level sheets. Useful for chasing UI regressions from the MCP bridge.
+--- Diagnostic: returns a state-snapshot table for the panel with the given id, or nil if not found. Walks all top-level sheets. Useful for chasing UI regressions from the MCP bridge.
 --- @param id string The panel id to look up.
 --- @return nil|table
-function gui.DebugDumpPanel(idValue)
-	-- dummy implementation for documentation purposes only
-end
+function gui.DebugDumpPanel(id) end
 
---- DebugSetLogging: Diagnostic: enable/disable debugLogging on a panel by id. Per-panel diagnostics (DoUpdateMaterial sprite assignments, bgimage square fallback, etc.) only log when this flag is on for the panel. Returns true if found.
+--- Diagnostic: enable/disable debugLogging on a panel by id. Per-panel diagnostics (DoUpdateMaterial sprite assignments, bgimage square fallback, etc.) only log when this flag is on for the panel. Returns true if found.
 --- @param id string
---- @param on bool
---- @return bool
-function gui.DebugSetLogging(idValue, onValue)
-	-- dummy implementation for documentation purposes only
-end
+--- @param on boolean
+--- @return boolean
+function gui.DebugSetLogging(id, on) end
 
---- DebugListPanels: Diagnostic: returns a flat array of every panel id reachable from any top-level sheet. Useful for finding ids to pass to DebugDumpPanel.
+--- Diagnostic: returns a flat array of every panel id reachable from any top-level sheet. Useful for finding ids to pass to DebugDumpPanel.
 --- @return string[]
-function gui.DebugListPanels()
-	-- dummy implementation for documentation purposes only
-end
+function gui.DebugListPanels() end

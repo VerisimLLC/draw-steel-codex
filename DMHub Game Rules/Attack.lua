@@ -5,7 +5,7 @@ local mod = dmhub.GetModLoading()
 --attacks are fairly constrained in what they do, just implementing core rules for attacking. Most flexibility
 --is performed inside of the activated ability which will modify what exactly happens when the attack is used.
 
---- @class Attack
+--- @class Attack: GameType
 --- @field name string Display name of the attack.
 --- @field iconid string Asset id for the attack icon.
 --- @field range nil|string Range string (e.g. "5", "20/60", "touch").

@@ -137,7 +137,7 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
         end
 
         for id, details in pairs(targetCurrentConditions) do
-            if details.duration == "save" or details.duration == "eot" or conditionsTable[id].indefiniteDuration then
+            if details.duration == "save" or details.duration == "eot" or string.lower(conditionsTable[id].name) == "prone" then
                 local capturedId = id
                 local condName = conditionsTable[id].name
 

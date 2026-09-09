@@ -94,14 +94,24 @@ mod.shared.MapPackTileStyles = function()
 			selectors = {"mapPackTileFrame", "parent:selected"},
 			borderColor = "@fg",
 		},
+		--the dark backing lives on a full-width band, not the label itself:
+		--a percent-width label loses its hpad from the resolved width, so a
+		--label-borne background stops 4px short of the tile's edges. The
+		--band's bottom corners follow the tile frame's rounding.
+		{
+			selectors = {"mapPackTileLabelBand"},
+			width = "100%",
+			height = "auto",
+			bgimage = "panels/square.png",
+			bgcolor = "#000000aa",
+			cornerRadius = {x1 = 0, y1 = 0, x2 = 6, y2 = 6},
+		},
 		{
 			selectors = {"mapPackTileLabel"},
 			width = "100%",
 			height = "auto",
 			halign = "center",
 			valign = "bottom",
-			bgimage = "panels/square.png",
-			bgcolor = "#000000aa",
 			color = "white",
 			fontSize = 12,
 			textAlignment = "center",
@@ -574,10 +584,14 @@ mod.shared.CreateMapPackTile = function(entry, onPress)
 			flow = "vertical",
 			interactable = false,
 			enhancementsBadge,
-			gui.Label{
-				classes = {"mapPackTileLabel"},
-				text = entry.name,
+			gui.Panel{
+				classes = {"mapPackTileLabelBand"},
 				interactable = false,
+				gui.Label{
+					classes = {"mapPackTileLabel"},
+					text = entry.name,
+					interactable = false,
+				},
 			},
 		},
 		logoPanel,

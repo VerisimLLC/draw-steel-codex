@@ -96,6 +96,11 @@ local function RunTriggerRetargetChoice(element, triggerToken, trigger)
     elseif rangeType == "distance" then
         range = powerMod:try_get("changeTargetDistance", 10)
     end
+    --the new target must be one the striking creature could actually
+    --hit: inside the strike's distance and in its line of effect.
+    if rangeType == "ability" then
+        RuleUtils.AddRetargetRangeReasons(targets, retargetReasons, sourceToken, range)
+    end
 
     local controller = element:Get("abilityController")
     if controller == nil then
@@ -108,6 +113,7 @@ local function RunTriggerRetargetChoice(element, triggerToken, trigger)
         radius = range,
         targets = targets,
         reasons = retargetReasons,
+        prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType),
         choose = function(newTargetToken)
             if triggerToken == nil or not triggerToken.valid then
                 return
@@ -683,12 +689,18 @@ mod.shared.CreateTriggerPanel = function()
                                         elseif rangeType == "distance" then
                                             range = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetDistance", 10)
                                         end
+                                        --the new target must be one the striking creature could actually
+                                        --hit: inside the strike's distance and in its line of effect.
+                                        if rangeType == "ability" then
+                                            RuleUtils.AddRetargetRangeReasons(targets, retargetReasons, sourceToken, range)
+                                        end
 
                                         element:Get("abilityController"):FireEventTree("chooseTarget", {
                                             sourceToken = sourceToken,
                                             radius = range,
                                             targets = targets,
                                             reasons = retargetReasons,
+                                            prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType),
                                             choose = function(newTargetToken)
                                                 if g_token == nil then
                                                     return
@@ -905,12 +917,18 @@ mod.shared.CreateTriggerPanel = function()
                                             elseif rangeType == "distance" then
                                                 range = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetDistance", 10)
                                             end
+                                            --the new target must be one the striking creature could actually
+                                            --hit: inside the strike's distance and in its line of effect.
+                                            if rangeType == "ability" then
+                                                RuleUtils.AddRetargetRangeReasons(targets, retargetReasons, sourceToken, range)
+                                            end
 
                                             element:Get("abilityController"):FireEventTree("chooseTarget", {
                                                 sourceToken = sourceToken,
                                                 radius = range,
                                                 targets = targets,
                                                 reasons = retargetReasons,
+                                                prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType),
                                                 choose = function(newTargetToken)
                                                     if g_token == nil then
                                                         return
@@ -1125,12 +1143,18 @@ mod.shared.CreateTriggerPanel = function()
                                         elseif rangeType == "distance" then
                                             range = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetDistance", 10)
                                         end
+                                        --the new target must be one the striking creature could actually
+                                        --hit: inside the strike's distance and in its line of effect.
+                                        if rangeType == "ability" then
+                                            RuleUtils.AddRetargetRangeReasons(targets, retargetReasons, sourceToken, range)
+                                        end
 
                                         element:Get("abilityController"):FireEventTree("chooseTarget", {
                                             sourceToken = sourceToken,
                                             radius = range,
                                             targets = targets,
                                             reasons = retargetReasons,
+                                            prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType),
                                             choose = function(newTargetToken)
                                                 if g_token == nil then
                                                     return
@@ -1630,12 +1654,18 @@ mod.shared.CreateTriggerPanel = function()
                                             elseif rangeType == "distance" then
                                                 range = trigger.powerRollModifier.powerRollModifier:try_get("changeTargetDistance", 10)
                                             end
+                                            --the new target must be one the striking creature could actually
+                                            --hit: inside the strike's distance and in its line of effect.
+                                            if rangeType == "ability" then
+                                                RuleUtils.AddRetargetRangeReasons(targets, retargetReasons, sourceToken, range)
+                                            end
 
                                             element:Get("abilityController"):FireEventTree("chooseTarget", {
                                                 sourceToken = sourceToken,
                                                 radius = range,
                                                 targets = targets,
                                                 reasons = retargetReasons,
+                                                prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType),
                                                 choose = function(newTargetToken)
                                                     if g_token == nil then
                                                         return

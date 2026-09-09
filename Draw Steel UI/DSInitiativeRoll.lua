@@ -1052,35 +1052,72 @@ function RollInitiativeChatMessage.Render(selfInput, message)
         }
     end
 
+    --shown when every monster is hidden from this viewer, so the column reads as
+    --"unknown enemies" rather than an empty space next to the "vs".
+    local function CreateUnknownPortraitPanel()
+        return gui.Panel{
+            width = portraitWidth,
+            height = portraitHeight,
+            bgimage = "panels/square.png",
+            bgcolor = "#1a1a1a",
+            cornerRadius = 4,
+            hmargin = 1,
+            vmargin = 1,
+            borderWidth = 1,
+            borderColor = "#555555",
+
+            gui.Label{
+                text = "?",
+                fontSize = 20,
+                bold = true,
+                color = "#777777",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "center",
+            },
+        }
+    end
+
     -- Group monsters by portrait + monster_type to collapse duplicates
     local monsterGroups = {} -- key -> {tok, count}
     local monsterGroupOrder = {}
 
     local q = dmhub.initiativeQueue
 
+    --the message is authored once on the Director's client with the full monster list and
+    --then rendered locally by everyone, so the per-viewer filter has to happen here.
+    --canSee is false both for tokens outside this viewer's vision and for tokens the
+    --Director marked invisibleToPlayers -- the same gate MCDMInitiativeBar applies.
+    local isDirector = IsDMOrPlayerHost()
+    local hiddenMonsterCount = 0
+
     for _,tok in ipairs(allTokens) do
-        print("INIT:: TOKEN:", tok.charid)
         if table.contains(selfInput.playerTokenIds, tok.charid) then
-            print("INIT:: IS CHAR")
             playerTokenPanels[#playerTokenPanels+1] = CreatePortraitPanel(tok)
         elseif table.contains(selfInput.monsterTokenIds, tok.charid) then
-            print("INIT:: IS MONSTER")
-            local monsterType = tok.properties:try_get("monster_type", "")
-            local groupKey = tostring(tok.portrait) .. "|" .. monsterType
-            if monsterGroups[groupKey] == nil then
-                monsterGroups[groupKey] = {tok = tok, count = 1}
-                monsterGroupOrder[#monsterGroupOrder+1] = groupKey
+            if not isDirector and not tok.canSee then
+                hiddenMonsterCount = hiddenMonsterCount + 1
             else
-                monsterGroups[groupKey].count = monsterGroups[groupKey].count + 1
+                local monsterType = tok.properties:try_get("monster_type", "")
+                local groupKey = tostring(tok.portrait) .. "|" .. monsterType
+                if monsterGroups[groupKey] == nil then
+                    monsterGroups[groupKey] = {tok = tok, count = 1}
+                    monsterGroupOrder[#monsterGroupOrder+1] = groupKey
+                else
+                    monsterGroups[groupKey].count = monsterGroups[groupKey].count + 1
+                end
             end
-        else
-            print("INIT:: IS NEUTRAL")
         end
     end
 
     for _,groupKey in ipairs(monsterGroupOrder) do
         local group = monsterGroups[groupKey]
         monsterTokenPanels[#monsterTokenPanels+1] = CreatePortraitPanel(group.tok, group.count)
+    end
+
+    if #monsterTokenPanels == 0 and hiddenMonsterCount > 0 then
+        monsterTokenPanels[1] = CreateUnknownPortraitPanel()
     end
 
     -- Balance items into rows so each row has roughly equal count

@@ -515,7 +515,7 @@ local g_rulePatterns = {
     },
 
     {
-        pattern = "^(?<vertical>vertical )?(?<movement>pull|push|slide) +(?<straightup>straight up +)?(?<distance>[0-9]+)(?<ignorestabilityifcompanion>[,;]? ignoring stability if (your )?companion is adjacent( to the target)?)?(?<ignorestabilityifally>[,;]? (allies ignore stability|ignoring stability if the target is (an|your) ally|ignoring (the )?stability of allies))?(?<ignorestability>[,;]? (ignoring stability|this (push|pull|slide) ignores the target.s stability))?",
+        pattern = "^(?<vertical>vertical )?(?<movement>pull|push|slide) +(?<straightup>straight up +)?(?<distance>[0-9]+)(?<ignorestabilityifcompanion>[,;]? ignoring stability if (your )?companion is adjacent( to the target)?)?(?<ignorestabilityifally>[,;]? (allies ignore stability|ignoring stability if the target is (an|your) ally|ignoring (the )?stability of allies))?(?<ignorestability>[,;]? (ignoring stability|this (push|pull|slide) ignores the target.s stability))?(?<nodamage>[,;]? without damage)?(?<intospace>[,;]? into (your|their|the creature.s) space)?",
         execute = function(behavior, ability, casterToken, targetToken, options, match)
 
             print("INVOKE:: EXECUTE FORCE MOVE", match.movement, match.distance)
@@ -538,21 +538,34 @@ local g_rulePatterns = {
                 end
             end
 
-            local targetImmune = targetToken.properties:CalculateNamedCustomAttribute("Cannot Be Force Moved")
-            if targetImmune > 0 then
-                print("Target is immune to forced movement, not executing")
-                ShowFailMessage("Immune to Forced Movement")
+            --A creature force-moving a target IT has grabbed overrides forced
+            --movement immunity: the grab itself (and conditions riding on it, e.g.
+            --the Shambling Mound engulfing a grabbed victim) grants "Cannot Be
+            --Force Moved", which would otherwise block the grabber from dragging
+            --their own captive.
+            local grabbedByCaster = false
+            local targetGrabbed = nil
+            local grabbedCondition = CharacterCondition.conditionsByName["grabbed"]
+            if grabbedCondition ~= nil then
+                targetGrabbed = targetToken.properties:HasCondition(grabbedCondition.id)
+                grabbedByCaster = (targetGrabbed == casterToken.charid)
+            end
+
+            --Check the grabbed-by-another case FIRST: a grabbed target usually also
+            --has "Cannot Be Force Moved" granted by the grab itself, so testing the
+            --generic immunity first would mask the more specific (and actionable)
+            --reason -- the director should see that the grab is what blocks the move.
+            if targetGrabbed and targetGrabbed ~= casterToken.charid then
+                print("Target is grabbed, and cannot be force moved.")
+                ShowFailMessage("Grabbed: Cannot be Force Moved")
                 return
             end
 
-            local grabbedCondition = CharacterCondition.conditionsByName["grabbed"]
-            if grabbedCondition ~= nil then
-                local targetGrabbed = targetToken.properties:HasCondition(grabbedCondition.id)
-                if targetGrabbed and targetGrabbed ~= casterToken.charid then
-                    print("Target is grabbed, and cannot be force moved.")
-                    ShowFailMessage("Grabbed: Cannot be Force Moved")
-                    return
-                end
+            local targetImmune = targetToken.properties:CalculateNamedCustomAttribute("Cannot Be Force Moved")
+            if targetImmune > 0 and (not grabbedByCaster) then
+                print("Target is immune to forced movement, not executing")
+                ShowFailMessage("Immune to Forced Movement")
+                return
             end
 
 
@@ -649,7 +662,9 @@ local g_rulePatterns = {
             -- forced movement resolved vertically. Reuse the existing vertical
             -- pathway by selecting the "Vertical" standard-ability variant.
             local convertToVertical = false
-            if not match.vertical then
+            --"into your space" pulls have a fixed horizontal destination inside the
+            --caster's footprint, so never convert them to vertical movement.
+            if (not match.vertical) and (not match.intospace) then
                 if targetToken.properties:IsFlying() then
                     convertToVertical = true
                 else
@@ -697,11 +712,34 @@ local g_rulePatterns = {
                 disableSquadCoordination = true,
             }
 
+            --"pull 6, without damage" variant: the movement plays normally but no
+            --collision damage or collide triggers fire for anyone involved (e.g.
+            --the Shambling Mound dragging an engulfed creature into its sack).
+            if match.nodamage then
+                abilityAttr.noCollisionDamage = true
+            end
+
+            --"pull 6 ... into your space" variant (e.g. Engulf): the destination is
+            --computed -- the nearest square of the caster's own footprint -- rather
+            --than chosen by the director, so the pull resolves as a single confirm.
+            --Dragging a creature inside the caster's space requires moving through
+            --the caster's occupied squares and can never deal collision damage.
+            if match.intospace then
+                abilityAttr.forcedMovementThroughCreatures = true
+                abilityAttr.noCollisionDamage = true
+                --The relocate clamps any chosen destination to the puller's own
+                --footprint (see ActivatedAbilityRelocateCreatureBehavior:Cast).
+                abilityAttr.pullIntoSpaceOfCharid = casterToken.charid
+                local casterName = creature.GetTokenDescription(casterToken)
+                local targetName = creature.GetTokenDescription(targetToken)
+                abilityAttr.promptOverride = string.format("Pull %s into %s's space", targetName, casterName)
+            end
+
             if stability > 0 then
                 adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
             end
 
-            if #adjustments > 0 then
+            if #adjustments > 0 and (not match.intospace) then
                 abilityAttr.promptOverride = abilityAttr.promptOverride .. " (" .. table.concat(adjustments, ", ") .. ")"
             end
 
@@ -721,8 +759,13 @@ local g_rulePatterns = {
                             loc = targetToken.loc:WithAltitude(targetToken.loc.altitude + range),
                         }
                     }
+                elseif match.intospace then
+                    local chosen = MCDMUtils.NearestFootprintLoc(casterToken, targetToken)
+                    if chosen ~= nil then
+                        options.targetArgs = { { loc = chosen } }
+                    end
                 end
-                
+
                 InvokeAbility(ability, abilityClone, targetToken, casterToken, options)
                 options.targetArgs = nil
             end
@@ -3710,6 +3753,28 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
     --The engine's own definition of forced movement: straightline/line targeting plus a "move".
     --Deliberately NOT `ability.forcedMovement`, which "Forced Movement: Slide" never declares.
     local isForcedMove = movementType == "move" and (ability.targeting == "straightline" or ability.targetType == "line")
+
+    --"into your space" pulls (e.g. the Shambling Mound's Engulf): the pull
+    --always ends in the puller's own footprint -- clicking beyond the puller
+    --must not drag the target past it, the same way a wall would stop the
+    --movement. A click on a specific square INSIDE the footprint is honored
+    --as-is so the director controls where in the space the captive ends up.
+    local intoCharid = ability:try_get("pullIntoSpaceOfCharid")
+    if intoCharid ~= nil and casterToken ~= nil and casterToken.valid then
+        local ownerTok = dmhub.GetTokenById(intoCharid)
+        if ownerTok ~= nil and ownerTok.valid then
+            local chosenLoc = nil
+            if targets ~= nil and targets[1] ~= nil then
+                chosenLoc = targets[1].loc
+            end
+            if not MCDMUtils.IsLocInsideFootprint(ownerTok, chosenLoc) then
+                local dest = MCDMUtils.NearestFootprintLoc(ownerTok, casterToken)
+                if dest ~= nil then
+                    targets = { { loc = dest } }
+                end
+            end
+        end
+    end
 
     g_baseRelocateCreatureCast(self, ability, casterToken, targets, options)
 

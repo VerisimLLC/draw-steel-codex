@@ -63,7 +63,7 @@ function monster:FillMonsterActivatedAbilities(options, result)
 
     self:FillFreeStrikes(options, result)
 
-    if self:try_get("retainer", false) then
+    if self:try_get("retainer", false) or self:IsFollower() then
         return
     end
 

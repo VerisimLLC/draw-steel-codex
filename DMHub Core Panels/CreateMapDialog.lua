@@ -272,7 +272,7 @@ mod.shared.ShowCreateMapDialog = function()
     --against the right border; the inner column restores the content inset.
     local detailContent = gui.Panel{
         classes = {"hidden"},
-        width = "100%-4",
+        width = "100%-2",
         height = "100%-16",
         halign = "center",
         valign = "top",
@@ -280,7 +280,7 @@ mod.shared.ShowCreateMapDialog = function()
         vscroll = true,
         flow = "vertical",
         gui.Panel{
-            width = "100%-20",
+            width = "100%-22",
             height = "auto",
             halign = "center",
             flow = "vertical",

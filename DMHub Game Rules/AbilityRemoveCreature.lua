@@ -565,3 +565,97 @@ function CorpseComponent:DeadCreatureToken()
     print("Dead::", self.charid, result)
     return result
 end
+
+--- @class ActivatedAbilityHarvestCorpseBehavior:ActivatedAbilityBehavior
+--- Spawns a lootable corpse object at the caster's position whose loot is
+--- gated behind a characteristic test ("harvest"). The corpse's LOOT component
+--- carries a harvestTest record; when a player tries to loot it, the loot flow
+--- (GameHud.LootContainer) prompts them with the test and stocks the container
+--- according to the tier rolled. Built for traits like the Shambling Mound's
+--- Alchemical Ingredients: "After a shambling mound dies, a creature can make
+--- a Reason test to extract toxins from the remains."
+ActivatedAbilityHarvestCorpseBehavior = RegisterGameType("ActivatedAbilityHarvestCorpseBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbilityHarvestCorpseBehavior.summary = 'Harvest Corpse'
+ActivatedAbilityHarvestCorpseBehavior.title = "Harvest"
+ActivatedAbilityHarvestCorpseBehavior.attrid = "rea"
+--display text for the three tiers of the test, shown in the roll prompt.
+ActivatedAbilityHarvestCorpseBehavior.tiers = {"", "", ""}
+--items granted per tier: list of { itemid = string, quantities = {tier1, tier2, tier3} }
+ActivatedAbilityHarvestCorpseBehavior.items = {}
+
+ActivatedAbility.RegisterType
+{
+	id = 'harvest_corpse',
+	text = 'Harvest Corpse',
+	createBehavior = function()
+		return ActivatedAbilityHarvestCorpseBehavior.new{
+		}
+	end
+}
+
+function ActivatedAbilityHarvestCorpseBehavior:SummarizeBehavior(ability, creatureLookup)
+	return string.format("Leave a corpse harvestable with a %s test", string.upper(self.attrid))
+end
+
+function ActivatedAbilityHarvestCorpseBehavior:Cast(ability, casterToken, targets, options)
+	if casterToken == nil or not casterToken.valid or casterToken.properties == nil then
+		return
+	end
+
+	--only ever leave one harvest corpse per creature.
+	if casterToken.properties:try_get("harvestCorpseSpawned") then
+		return
+	end
+
+	local objects = assets:GetObjectsWithKeyword("corpse")
+	if #objects == 0 then
+		return
+	end
+
+	local floor = game.GetFloor(casterToken.floorid)
+	if floor == nil then
+		return
+	end
+
+	local newObj = floor:CreateLocalObjectFromBlueprint{
+		assetid = objects[1].id,
+	}
+	if newObj == nil then
+		return
+	end
+
+	newObj.scale = newObj.scale * casterToken.radiusInTiles * 2
+	newObj.x = casterToken.pos.x
+	newObj.y = casterToken.pos.y
+
+	newObj:AddComponentFromJson("LOOT", {
+		["@class"] = "ObjectComponentLoot",
+		destroyOnEmpty = false,
+		instantLoot = false,
+		locked = false,
+		properties = {
+			__typeName = "loot",
+			inventory = {},
+			harvestTest = {
+				title = self.title,
+				attrid = self.attrid,
+				tiers = DeepCopy(self.tiers),
+				items = DeepCopy(self.items),
+			},
+		},
+	})
+
+	newObj:AddComponentFromJson("MESSAGE", {
+		["@class"] = "ObjectComponentHoverText",
+		text = string.format("%s: the remains of %s can be harvested", self.title, creature.GetTokenDescription(casterToken)),
+	})
+
+	casterToken:ModifyProperties{
+		description = "Harvest corpse spawned",
+		undoable = false,
+		execute = function()
+			casterToken.properties.harvestCorpseSpawned = true
+		end,
+	}
+end

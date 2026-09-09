@@ -670,42 +670,40 @@ function ActivatedAbilityPurgeEffectsBehavior:CastOnTarget(casterToken, targetTo
             end
         end
 
-        if #conditions == 0 then
-            return result
-        end
+        if #conditions > 0 then
+            local conditionsToPurge = {}
 
-        local conditionsToPurge = {}
+            if self.purgeType == "all" then
+                conditionsToPurge = conditions
+            else
+                table.insert(conditions, 1, "none")
+                conditionsToPurge = self:ShowConditionsSelection(casterToken, targetToken, ability, conditions, options)
+            end
 
-        if self.purgeType == "all" then
-            conditionsToPurge = conditions
-        else
-            table.insert(conditions, 1, "none")
-            conditionsToPurge = self:ShowConditionsSelection(casterToken, targetToken, ability, conditions, options)
-        end
+            print("Purge:: Purging =", conditionsToPurge)
 
-        print("Purge:: Purging =", conditionsToPurge)
+            if #conditionsToPurge > 0 then
+                options.symbols.cast.purgedConditions = #conditionsToPurge
 
-        if #conditionsToPurge > 0 then
-            options.symbols.cast.purgedConditions = #conditionsToPurge
+                targetToken:ModifyProperties{
+                    description = "Purge Conditions",
+                    execute = function()
+                        local purgeArgs = {purge = true}
+                        if limitToCasterid ~= nil then
+                            purgeArgs.casterInfo = {tokenid = limitToCasterid}
+                        end
+                        for _,condid in ipairs(conditionsToPurge) do
+                            targetCreature:InflictCondition(condid, purgeArgs)
+                            result[#result+1] = condid
+                        end
 
-            targetToken:ModifyProperties{
-                description = "Purge Conditions",
-                execute = function()
-                    local purgeArgs = {purge = true}
-                    if limitToCasterid ~= nil then
-                        purgeArgs.casterInfo = {tokenid = limitToCasterid}
-                    end
-                    for _,condid in ipairs(conditionsToPurge) do
-                        targetCreature:InflictCondition(condid, purgeArgs)
-                        result[#result+1] = condid
-                    end
-
-                    local damage = tonumber(self:EvalDamageToSelf(targetCreature))
-                    if damage ~= nil and damage > 0 then
-                        targetCreature:TakeDamage(damage, "Purged condition")
-                    end
-                end,
-            }
+                        local damage = tonumber(self:EvalDamageToSelf(targetCreature))
+                        if damage ~= nil and damage > 0 then
+                            targetCreature:TakeDamage(damage, "Purged condition")
+                        end
+                    end,
+                }
+            end
         end
     end
 

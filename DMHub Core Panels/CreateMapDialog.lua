@@ -705,6 +705,27 @@ mod.shared.ShowCreateMapDialog = function()
         }
     end
 
+    --opens the selected map's creator Patreon campaign page, falling back
+    --to their website; shared by the Join Patreon button and the hero
+    --price pill.
+    local OpenCreatorPatreon = function()
+        local url = nil
+        if m_creator ~= nil then
+            url = m_creator.campaignUrl
+            if url == nil or url == "" then
+                url = m_creator.url
+            end
+        end
+        if url ~= nil and url ~= "" then
+            dmhub.OpenURL(url)
+        else
+            gui.ModalMessage{
+                title = "Patreon",
+                message = "This creator has not listed a Patreon page yet.",
+            }
+        end
+    end
+
     local BuildHero = function(entry)
         local w = tonumber(entry.tilesW) or 1
         local h = tonumber(entry.tilesH) or 1
@@ -713,15 +734,26 @@ mod.shared.ShowCreateMapDialog = function()
         local thumb = mod.shared.MapPackThumbImage(entry)
 
         --price pill on the map's corner while the appearance is gated
-        --behind a pledge the account lacks.
+        --behind a pledge the account lacks; clicking it opens the creator's
+        --Patreon page where that pledge can be made.
         local pill = nil
         if mod.shared.MapPackPatreonState(entry) == "locked" then
             local price = mod.shared.MapPackTierText(entry.tier):gsub("/month", "/mo")
             pill = gui.Panel{
                 classes = {"mapPackHeroPill"},
                 floating = true,
-                gui.Panel{ classes = {"mapPackHeroPillIcon"} },
-                gui.Label{ classes = {"mapPackHeroPillText"}, text = price },
+                press = function(element)
+                    OpenCreatorPatreon()
+                end,
+                hover = function(element)
+                    local who = "the creator"
+                    if m_creator ~= nil and (m_creator.displayName or "") ~= "" then
+                        who = m_creator.displayName
+                    end
+                    gui.Tooltip(string.format("Open %s's Patreon page", who))(element)
+                end,
+                gui.Panel{ classes = {"mapPackHeroPillIcon"}, interactable = false },
+                gui.Label{ classes = {"mapPackHeroPillText"}, text = price, interactable = false },
             }
         end
 
@@ -1205,21 +1237,7 @@ mod.shared.ShowCreateMapDialog = function()
                 return
             end
             if m_buttonMode == "join" then
-                local url = nil
-                if m_creator ~= nil then
-                    url = m_creator.campaignUrl
-                    if url == nil or url == "" then
-                        url = m_creator.url
-                    end
-                end
-                if url ~= nil and url ~= "" then
-                    dmhub.OpenURL(url)
-                else
-                    gui.ModalMessage{
-                        title = "Patreon",
-                        message = "This creator has not listed a Patreon page yet.",
-                    }
-                end
+                OpenCreatorPatreon()
                 return
             end
 
@@ -1308,6 +1326,10 @@ mod.shared.ShowCreateMapDialog = function()
 		margin = 8,
 		hpad = 8,
 		vpad = 4,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackHeroPill", "hover"},
+		bgcolor = "#000000ee",
 	}
 	tileStyles[#tileStyles + 1] = {
 		selectors = {"mapPackHeroPillIcon"},

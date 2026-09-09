@@ -1315,7 +1315,7 @@ mod.shared.ShowCreateMapDialog = function()
 		height = 12,
 		valign = "center",
 		rmargin = 5,
-		bgimage = "phosphor/patreon-logo-duotone.png",
+		bgimage = "phosphor/patreon-logo-fill.png",
 		bgcolor = "white",
 	}
 	tileStyles[#tileStyles + 1] = {

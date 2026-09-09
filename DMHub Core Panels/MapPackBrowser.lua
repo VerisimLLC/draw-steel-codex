@@ -213,7 +213,7 @@ mod.shared.MapPackTileStyles = function()
 			height = 14,
 			valign = "center",
 			rmargin = 4,
-			bgcolor = "@fg",
+			bgcolor = "white",
 		},
 	})
 end
@@ -234,16 +234,15 @@ mod.shared.MapPackPatreonState = function(entry)
 	return "locked"
 end
 
---the glyph for that state: the filled Patreon logo when the account has
---access, the duotone one when it does not, nil when nothing applies.
+--the glyph for a gated appearance, nil when nothing applies. Always the
+--solid filled logo: the duotone variant's translucent layer reads as a
+--washed-out smudge at badge size, and locked vs unlocked is already told
+--by the accompanying text and tooltips.
 mod.shared.MapPackPatreonIcon = function(entry)
-	local state = mod.shared.MapPackPatreonState(entry)
-	if state == "unlocked" then
-		return "phosphor/patreon-logo-fill.png"
-	elseif state == "locked" then
-		return "phosphor/patreon-logo-duotone.png"
+	if mod.shared.MapPackPatreonState(entry) == nil then
+		return nil
 	end
-	return nil
+	return "phosphor/patreon-logo-fill.png"
 end
 
 --"$5/month" for a tier in cents.

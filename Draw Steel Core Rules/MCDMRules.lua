@@ -1214,6 +1214,12 @@ TriggeredAbility.RegisterTrigger{
 }
 
 TriggeredAbility.RegisterTrigger{
+    id = "tempstaminadepleted",
+    text = "Temporary Stamina Depleted",
+    symbols = {},
+}
+
+TriggeredAbility.RegisterTrigger{
     id = "castsignature",
     text = "Use Signature Attack or Area",
     symbols = g_abilitySymbols,

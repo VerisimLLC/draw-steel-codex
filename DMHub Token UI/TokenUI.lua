@@ -326,6 +326,12 @@ local CalculateStatusIcons = function(token)
 				if ongoingEffectInfo ~= nil and ongoingEffectInfo.statusEffect and (not ongoingEffectInfo.hiddenOnToken) and ((not ongoingEffectInfo.hiddenFromEnemies) or token.isFriendOfPlayer or token.canControl or (dmhub.isDM and dmhub.tokenVision == nil and dmhub.tokensLoggedInAs == nil)) then
 					local casterInfo = cond:try_get("casterInfo")
 					local condInfo = conditionsTable[ongoingEffectInfo.condition]
+					if ongoingEffectInfo.displayOwnIdentity then
+						--effects flagged displayOwnIdentity present as themselves on the
+						--token (name/icon/hover) even though the underlying condition's
+						--mechanics still apply (e.g. "Engulfed" rather than "Restrained").
+						condInfo = nil
+					end
                     if condInfo ~= nil then
                         statusText = condInfo.name
                     end

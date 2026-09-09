@@ -3542,23 +3542,22 @@ function GameHud.CreateInitiativeBar(self, info)
 						return
 					end
 
-					UploadDayNightInfo()
-					if info.initiativeQueue == nil then
-						info.initiativeQueue = InitiativeQueue.Create()
-					end
-					--Conditional, not a flat true: this block runs for EVERY
-					--mode, combat included, and rollinitiative below sends a
-					--hidden queue to the combat setup dialog instead of
-					--starting the fight. Only the modes without initiative
-					--want the queue kept out of sight.
-					info.initiativeQueue.gameMode = mod.id
-					info.initiativeQueue.hidden = not mod.hasinitiative
-					info.UploadInitiative()
-
+					--Combat runs the Game menu's "Draw Steel!" path verbatim: rollinitiative only
+					--opens the setup dialog while the queue is hidden, so we must not clear it first.
 					if mod.hasinitiative then
 						Commands.rollinitiative()
 						return
 					end
+
+					UploadDayNightInfo()
+					if info.initiativeQueue == nil then
+						info.initiativeQueue = InitiativeQueue.Create()
+					end
+					--Combat returned above, so every mode reaching here is one without
+					--initiative and wants its queue kept out of sight.
+					info.initiativeQueue.gameMode = mod.id
+					info.initiativeQueue.hidden = not mod.hasinitiative
+					info.UploadInitiative()
 
 					if info.initiativeQueue.gameMode == "downtime" then
 						for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do

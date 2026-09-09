@@ -21,6 +21,14 @@ local PAN_SPEED = 20
 local PAN_MIN_PERIOD = 6
 local PAN_RETURN_RATE = 2
 
+--exported so the Create Map details pane's zoom windows share the same pan
+--feel as the grid tiles.
+mod.shared.MapPackPanTuning = {
+	speed = PAN_SPEED,
+	minPeriod = PAN_MIN_PERIOD,
+	returnRate = PAN_RETURN_RATE,
+}
+
 --the grid cell's footprint including margins, for laying out pages.
 mod.shared.MapPackTileCellSize = function()
 	return TILE_WIDTH + TILE_MARGIN * 2, TILE_HEIGHT + TILE_MARGIN * 2
@@ -520,13 +528,6 @@ mod.shared.CreateMapPackTile = function(entry, onPress)
 
 	local enhancementsBadge = mod.shared.CodexEnhancementsBadge{ classes = {"mapPackTileEnhancements", "hidden"} }
 
-	local tooltipText = entry.name
-	local patreonText = mod.shared.MapPackPatreonText(entry)
-	if patreonText ~= nil then
-		tooltipText = tooltipText .. "\n" .. patreonText
-	end
-	local showTooltip = gui.Tooltip(tooltipText)
-
 	local tile = gui.Panel{
 		classes = {"mapPackTile"},
 		data = { entry = entry },
@@ -534,7 +535,6 @@ mod.shared.CreateMapPackTile = function(entry, onPress)
 			onPress(element.data.entry)
 		end,
 		hover = function(element)
-			showTooltip(element)
 			if panRange <= 0 then
 				return
 			end
@@ -603,10 +603,6 @@ mod.shared.CreateMapPackTile = function(entry, onPress)
 			logoImage.bgimage = info.logo
 			logoImage:SetClass("hidden", false)
 			logoPanel:SetClass("hidden", false)
-		end
-		--the tooltip can now name the creator.
-		if patreonText ~= nil then
-			showTooltip = gui.Tooltip(entry.name .. "\n" .. mod.shared.MapPackPatreonText(entry, info.displayName))
 		end
 	end)
 

@@ -71,6 +71,9 @@ mod.shared.ShowCreateMapDialog = function()
     --packs layout only: switches the main area between the blank / import /
     --library views when the sidebar selection changes.
     local m_setMainMode = nil
+    --which main view is showing; BuildLibraryNav reads it to light the
+    --active filter row when the rows arrive after the async pack sync.
+    local m_mainMode = "empty"
     local m_packEntry = nil
     local m_packEntries = {}
     local m_search = ""
@@ -84,8 +87,8 @@ mod.shared.ShowCreateMapDialog = function()
     local PREVIEW_WIDTH = 400
     local FOOTER_HEIGHT = 72
     local HEADER_HEIGHT = 44
-    --the preview image fits the pane width; height is capped so the text
-    --below it stays in view.
+    --the hero composition (full map plus zoom windows) fits the pane width;
+    --height is capped so the text below it stays in view.
     local DETAIL_IMAGE_W = PREVIEW_WIDTH - 24
     local DETAIL_IMAGE_H = 280
     --the grid shows this many fixed-size tile columns and scrolls.
@@ -125,19 +128,21 @@ mod.shared.ShowCreateMapDialog = function()
     local m_buttonMode = "create"
     local m_patreonSignature = nil
 
-    --details pane (right of the grid) --------------------------------------
-    local detailImage = gui.Panel{
-        width = DETAIL_IMAGE_W,
-        height = DETAIL_IMAGE_H,
-        halign = "center",
-        bgimage = "panels/square.png",
-        bgcolor = "white",
-        cornerRadius = 6,
-    }
+    --details pane (right of the grid): a title block, then a hero
+    --composition (the full map fitted along one side, balanced by zoomed-in
+    --windows into the same artwork), a meta line, tag chips, the Patreon
+    --strip, and the appearance buttons.
     local detailTitle = gui.Label{ classes = {"mapPackDetailTitle"}, text = "" }
-    local detailCreator = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
-    --the Patreon line under the creator: the glyph plus what the selected
-    --appearance needs, or that the account's membership covers it.
+    local detailCreator = gui.Label{ classes = {"mapPackDetailByline"}, text = "" }
+    --rebuilt on every selection: the hero's geometry follows the map's aspect.
+    local detailHero = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        tmargin = 10,
+    }
+    --the Patreon strip: the glyph plus what the selected appearance needs,
+    --or that the account's membership covers it, on a raised accent-edged bar.
     local detailAccessIcon = gui.Panel{
         classes = {"mapPackPatreonIcon"},
         width = 16,
@@ -152,20 +157,34 @@ mod.shared.ShowCreateMapDialog = function()
         text = "",
     }
     local detailAccess = gui.Panel{
+        classes = {"mapPackAccessStrip", "hidden"},
+        --the accent edge is the strip's own background: the inner panel
+        --covers all but a 3px sliver at the left, whatever the text height.
+        gui.Panel{
+            classes = {"mapPackAccessInner"},
+            detailAccessIcon,
+            detailAccessText,
+        },
+    }
+    local detailInfo = gui.Label{ classes = {"mapPackDetailMeta"}, text = "" }
+    local detailTags = gui.Panel{
         classes = {"hidden"},
         width = "100%",
         height = "auto",
         flow = "horizontal",
-        vmargin = 4,
-        detailAccessIcon,
-        detailAccessText,
+        wrap = true,
+        halign = "left",
+        tmargin = 6,
     }
-    local detailInfo = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
-    local detailKeywords = gui.Label{ classes = {"mapPackDetailText"}, text = "" }
-    local appearancesHeading = gui.Label{
-        classes = {"mapPackDetailText", "hidden"},
-        bold = true,
-        text = "Appearances",
+    local appearancesHeading = gui.Panel{
+        classes = {"hidden"},
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        tmargin = 14,
+        bmargin = 2,
+        gui.Label{ classes = {"mapPackSectionLabel"}, text = "Appearances" },
+        gui.Panel{ classes = {"mapPackSectionRule"} },
     }
     local variantsPanel = gui.Panel{
         width = "100%",
@@ -173,6 +192,18 @@ mod.shared.ShowCreateMapDialog = function()
         flow = "horizontal",
         wrap = true,
         halign = "left",
+        tmargin = 4,
+    }
+    --thumbnail prefetch: binding a sibling variant's thumb to an invisible
+    --1x1 panel makes the engine download and cache it while the user is
+    --still looking at the current appearance, so switching appearances
+    --shows the new image immediately instead of waiting on the download.
+    local detailPrefetch = gui.Panel{
+        floating = true,
+        width = 1,
+        height = 1,
+        opacity = 0,
+        interactable = false,
     }
 
     --"Codex Enhancements" with the Codex logo beside it.
@@ -205,13 +236,14 @@ mod.shared.ShowCreateMapDialog = function()
     markupStatus = gui.Label{
         classes = {"mapPackDetailText", "hidden"},
         fontSize = 12,
-        text = "",
+        text = "Choose a set to add the map with that markup, or none for the plain map.",
     }
+    --a plain list: the details pane already scrolls, and a nested vscroll
+    --container resolves its rows' "100%" against a wider basis than its
+    --siblings, spilling them past the pane's right border.
     markupList = gui.Panel{
         width = "100%",
         height = "auto",
-        maxHeight = 220,
-        vscroll = true,
         flow = "vertical",
         halign = "left",
     }
@@ -245,14 +277,15 @@ mod.shared.ShowCreateMapDialog = function()
         vmargin = 8,
         vscroll = true,
         flow = "vertical",
-        detailImage,
         detailTitle,
         detailCreator,
-        detailAccess,
+        detailHero,
         detailInfo,
+        detailTags,
+        detailAccess,
         appearancesHeading,
         variantsPanel,
-        detailKeywords,
+        detailPrefetch,
         markupHeading,
         markupStatus,
         markupList,
@@ -298,25 +331,25 @@ mod.shared.ShowCreateMapDialog = function()
         return table.concat(parts, ", ")
     end
 
+    --the status line is static (a changing line reflows the pane); the
+    --checked row itself shows what will be added. This only drops a
+    --selection whose row no longer exists.
     local RefreshMarkupStatus = function()
         if m_markupId == nil then
-            markupStatus.text = "Choose a set to add the map with that markup, or none for the plain map."
-        else
-            for _, row in ipairs(markupList.children) do
-                if row.data.info.id == m_markupId then
-                    markupStatus.text = string.format("The map will be added with %s's markup.", row.data.info.author)
-                    return
-                end
-            end
-            m_markupId = nil
-            markupStatus.text = "Choose a set to add the map with that markup, or none for the plain map."
+            return
         end
+        for _, row in ipairs(markupList.children) do
+            if row.data.info.id == m_markupId then
+                return
+            end
+        end
+        m_markupId = nil
     end
 
     local RefreshMarkupList
     local MarkupRow = function(info)
-        --checkmark slot: always takes its space so the text does not shift
-        --when a row is selected; only visible on the selected row.
+        --checkmark at the row's right edge; the slot always takes its space
+        --so nothing shifts on selection, and only the selected row shows it.
         local checkPanel = gui.Panel{
             classes = {"mapPackMarkupCheck", cond(info.id == m_markupId, "checked")},
             bgimage = "phosphor/check-bold.png",
@@ -344,7 +377,6 @@ mod.shared.ShowCreateMapDialog = function()
                 width = "100%",
                 height = "auto",
                 flow = "horizontal",
-                checkPanel,
                 gui.Label{
                     classes = {"mapPackMarkupAuthor"},
                     text = cond(info.author ~= "", info.author, "Anonymous"),
@@ -396,6 +428,7 @@ mod.shared.ShowCreateMapDialog = function()
                         }
                     end,
                 },
+                checkPanel,
             },
             gui.Label{
                 classes = {"mapPackMarkupDescription", cond(info.description ~= "", nil, "collapsed")},
@@ -565,6 +598,215 @@ mod.shared.ShowCreateMapDialog = function()
 
     local UpdateCreateButton
 
+    --the hero composition for the selected map: the full map fitted along
+    --its long axis inside DETAIL_IMAGE_W x DETAIL_IMAGE_H, balanced by
+    --three zoomed-in windows into the same thumbnail. A tall map gets the
+    --zooms stacked beside it; a wide or squarish one gets them in a row
+    --underneath.
+    local HERO_GAP = 8
+
+    --a zoom window: a tileW x tileH panel showing an fw x fh fraction of the
+    --map image, aspect-matched to the tile ((fw * w) / (fh * h) ==
+    --tileW / tileH) so nothing stretches. The three windows split the map's
+    --long axis (the given one) into thirds: window seg (0..2) rests at the
+    --start of its third and, while hovered, glides through it with the same
+    --eased cosine swing the grid tiles use, easing home on mouse-out.
+    local HeroZoom = function(thumb, tileW, tileH, fw, fh, axis, seg, alignArg)
+        --an extreme aspect can push a fraction past 1; shrink both so the
+        --window stays aspect-true.
+        if fw > 1 then
+            fh = fh / fw
+            fw = 1
+        end
+        if fh > 1 then
+            fw = fw / fh
+            fh = 1
+        end
+
+        --the patrol along the long axis: from the third's start to its end,
+        --less the window's own extent. A window bigger than its third does
+        --not pan; it just pins near the spread position.
+        local f = cond(axis == "y", fh, fw)
+        local segLen = 1 / 3
+        local range = segLen - f
+        local restCenter
+        if range > 0 then
+            restCenter = seg * segLen + f / 2
+        else
+            range = 0
+            restCenter = math.max(f / 2, math.min(1 - f / 2, (seg + 0.5) * segLen))
+        end
+
+        local RectFor = function(offset)
+            local c = restCenter + offset
+            if axis == "y" then
+                return { x1 = 0.5 - fw / 2, y1 = c - fh / 2, x2 = 0.5 + fw / 2, y2 = c + fh / 2 }
+            end
+            return { x1 = c - fw / 2, y1 = 0.5 - fh / 2, x2 = c + fw / 2, y2 = 0.5 + fh / 2 }
+        end
+
+        --the swing period matches the grid tiles' feel: the fraction range
+        --scaled by the zoomed image's on-screen extent gives pixels.
+        local tilePx = cond(axis == "y", tileH, tileW)
+        local tuning = mod.shared.MapPackPanTuning
+        local panPeriod = math.max(tuning.minPeriod, 2 * (range * tilePx / f) / tuning.speed)
+        --the eased return stops thinking under half an on-screen pixel.
+        local panEpsilon = 0.5 * f / tilePx
+        local panOffset = 0
+        local panStart = nil   --time the current swing began (nil = not hovered)
+        local lastThink = nil
+
+        return gui.Panel{
+            classes = {"mapPackHeroZoom"},
+            width = tileW,
+            height = tileH,
+            halign = alignArg,
+            bgimage = thumb,
+            imageRect = RectFor(0),
+            hover = function(element)
+                if range <= 0 then
+                    return
+                end
+                --resume the swing from wherever the glide-back left us so
+                --the image never jumps: invert offset = range*(1-cos)/2.
+                local phase = math.acos(1 - 2 * math.min(1, panOffset / range))
+                panStart = dmhub.Time() - phase * panPeriod / (2 * math.pi)
+                lastThink = dmhub.Time()
+                element.thinkTime = 0.01
+            end,
+            dehover = function(element)
+                panStart = nil
+            end,
+            think = function(element)
+                local now = dmhub.Time()
+                if panStart ~= nil then
+                    local phase = (now - panStart) * 2 * math.pi / panPeriod
+                    panOffset = range * (1 - math.cos(phase)) / 2
+                else
+                    --ease back to the third's start, then stop thinking.
+                    local dt = now - (lastThink or now)
+                    panOffset = panOffset * math.exp(-dt * tuning.returnRate)
+                    if panOffset < panEpsilon then
+                        panOffset = 0
+                        element.thinkTime = nil
+                    end
+                end
+                lastThink = now
+                element.imageRect = RectFor(panOffset)
+            end,
+        }
+    end
+
+    local BuildHero = function(entry)
+        local w = tonumber(entry.tilesW) or 1
+        local h = tonumber(entry.tilesH) or 1
+        if w < 1 then w = 1 end
+        if h < 1 then h = 1 end
+        local thumb = mod.shared.MapPackThumbImage(entry)
+
+        --price pill on the map's corner while the appearance is gated
+        --behind a pledge the account lacks.
+        local pill = nil
+        if mod.shared.MapPackPatreonState(entry) == "locked" then
+            local price = mod.shared.MapPackTierText(entry.tier):gsub("/month", "/mo")
+            pill = gui.Panel{
+                classes = {"mapPackHeroPill"},
+                floating = true,
+                gui.Panel{ classes = {"mapPackHeroPillIcon"} },
+                gui.Label{ classes = {"mapPackHeroPillText"}, text = price },
+            }
+        end
+
+        local fitW = DETAIL_IMAGE_H * w / h
+        if fitW <= DETAIL_IMAGE_W - 128 then
+            --tall map: full map at the left, zooms in a right-hand column.
+            local imgW = math.floor(fitW)
+            local zoomW = DETAIL_IMAGE_W - imgW - HERO_GAP
+            local zoomH = math.floor((DETAIL_IMAGE_H - 2 * HERO_GAP) / 3)
+            local fh = 0.16
+            local fw = fh * (zoomW / zoomH) * (h / w)
+            return gui.Panel{
+                width = "100%",
+                height = DETAIL_IMAGE_H,
+                flow = "horizontal",
+                gui.Panel{
+                    classes = {"mapPackHeroImage"},
+                    width = imgW,
+                    height = DETAIL_IMAGE_H,
+                    halign = "left",
+                    bgimage = thumb,
+                    pill,
+                },
+                gui.Panel{
+                    width = zoomW,
+                    height = "100%",
+                    halign = "right",
+                    flow = "vertical",
+                    HeroZoom(thumb, zoomW, zoomH, fw, fh, "y", 0, "right"),
+                    gui.Panel{ width = 1, height = HERO_GAP },
+                    HeroZoom(thumb, zoomW, zoomH, fw, fh, "y", 1, "right"),
+                    gui.Panel{ width = 1, height = HERO_GAP },
+                    HeroZoom(thumb, zoomW, zoomH, fw, fh, "y", 2, "right"),
+                },
+            }
+        end
+
+        --wide or squarish map: full map on top, zooms in a row underneath.
+        local zoomH = 88
+        local imgH = math.floor(DETAIL_IMAGE_W * h / w)
+        local imgW = DETAIL_IMAGE_W
+        if imgH > DETAIL_IMAGE_H - zoomH - HERO_GAP then
+            imgH = DETAIL_IMAGE_H - zoomH - HERO_GAP
+            imgW = math.floor(imgH * w / h)
+        end
+        local zoomW = math.floor((DETAIL_IMAGE_W - 2 * HERO_GAP) / 3)
+        local fw = 0.16
+        local fh = fw * (zoomH / zoomW) * (w / h)
+        return gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            gui.Panel{
+                classes = {"mapPackHeroImage"},
+                width = imgW,
+                height = imgH,
+                halign = "center",
+                bgimage = thumb,
+                pill,
+            },
+            gui.Panel{
+                width = "100%",
+                height = zoomH,
+                flow = "horizontal",
+                halign = "left",
+                tmargin = HERO_GAP,
+                HeroZoom(thumb, zoomW, zoomH, fw, fh, "x", 0, "left"),
+                gui.Panel{ width = HERO_GAP, height = 1 },
+                HeroZoom(thumb, zoomW, zoomH, fw, fh, "x", 1, "left"),
+                gui.Panel{ width = HERO_GAP, height = 1 },
+                HeroZoom(thumb, zoomW, zoomH, fw, fh, "x", 2, "left"),
+            },
+        }
+    end
+
+    --an appearance button: the variant's name on a raised two-column row.
+    --No lock glyph here: the Patreon strip above already says whether the
+    --selection is gated.
+    local CreateVariantButton = function(sibling, selected)
+        return gui.Panel{
+            classes = {"mapPackVariantButton", cond(selected, "selected")},
+            data = { entry = sibling },
+            press = function(element)
+                SelectPackEntry(element.data.entry)
+            end,
+            gui.Label{
+                classes = {"mapPackVariantLabel"},
+                interactable = false,
+                text = cond(sibling.variant ~= "", sibling.variant, "Default"),
+            },
+        }
+    end
+
     --the Patreon line for the selected appearance; hidden for a free one.
     local RefreshAccessLine = function()
         local entry = m_packEntry
@@ -607,16 +849,17 @@ mod.shared.ShowCreateMapDialog = function()
             return
         end
 
-        detailImage.bgimage = mod.shared.MapPackThumbImage(entry)
-        --fit the preview inside the pane keeping the map's aspect ratio.
-        local w = tonumber(entry.tilesW) or 1
-        local h = tonumber(entry.tilesH) or 1
-        if w < 1 then w = 1 end
-        if h < 1 then h = 1 end
-        local scale = math.min(DETAIL_IMAGE_W / w, DETAIL_IMAGE_H / h)
-        detailImage.width = math.floor(w * scale)
-        detailImage.height = math.floor(h * scale)
-        detailTitle.text = entry.name
+        detailHero.children = { BuildHero(entry) }
+        --the appearance buttons below say which variant is chosen, so the
+        --title drops the " - Variant" suffix from the entry name.
+        local title = entry.name
+        if entry.variant ~= "" then
+            local suffix = " - " .. entry.variant
+            if title:sub(-#suffix) == suffix then
+                title = title:sub(1, #title - #suffix)
+            end
+        end
+        detailTitle.text = title
         detailCreator.text = ""
         m_creator = nil
         RefreshAccessLine()
@@ -629,7 +872,7 @@ mod.shared.ShowCreateMapDialog = function()
             end
             m_creator = info
             if info.displayName ~= nil and info.displayName ~= "" then
-                detailCreator.text = "By " .. info.displayName
+                detailCreator.text = "by " .. info.displayName
             end
             RefreshAccessLine()
             UpdateCreateButton()
@@ -638,33 +881,42 @@ mod.shared.ShowCreateMapDialog = function()
         if summary == nil or summary == "" then
             summary = entry.sceneName
         end
-        detailInfo.text = string.format("%s\n%d x %d tiles", summary, entry.tilesW, entry.tilesH)
+        detailInfo.text = string.format("%s  -  %d x %d tiles", summary, entry.tilesW, entry.tilesH)
         --entry.keywords is the handful of representative tags; the long
         --searchTerms list only feeds the search box and is not shown.
-        local tags = {}
+        local tagPanels = {}
         for _, tag in ipairs(entry.keywords) do
-            tags[#tags + 1] = tag:sub(1, 1):upper() .. tag:sub(2)
-        end
-        detailKeywords.text = cond(#tags > 0, "Tags: " .. table.concat(tags, ", "), "")
-
-        local chips = {}
-        local creatorName = nil
-        if m_creator ~= nil then
-            creatorName = m_creator.displayName
-        end
-        for _, sibling in ipairs(SiblingVariants(entry)) do
-            chips[#chips + 1] = mod.shared.CreateMapPackChip{
-                entry = sibling,
-                text = cond(sibling.variant ~= "", sibling.variant, "Default"),
-                selected = SameEntry(sibling, entry),
-                creatorName = creatorName,
-                press = function(element)
-                    SelectPackEntry(element.data.entry)
-                end,
+            tagPanels[#tagPanels + 1] = gui.Panel{
+                classes = {"mapPackTagChip"},
+                gui.Label{
+                    classes = {"mapPackTagText"},
+                    text = tag:sub(1, 1):upper() .. tag:sub(2),
+                },
             }
         end
-        variantsPanel.children = chips
-        appearancesHeading:SetClass("hidden", #chips <= 1)
+        detailTags.children = tagPanels
+        detailTags:SetClass("hidden", #tagPanels == 0)
+
+        --a lone "Default" appearance button is noise; the section only
+        --shows when there is a real choice.
+        local buttons = {}
+        local prefetch = {}
+        for _, sibling in ipairs(SiblingVariants(entry)) do
+            buttons[#buttons + 1] = CreateVariantButton(sibling, SameEntry(sibling, entry))
+            if not SameEntry(sibling, entry) then
+                prefetch[#prefetch + 1] = gui.Panel{
+                    width = 1,
+                    height = 1,
+                    opacity = 0,
+                    interactable = false,
+                    bgimage = mod.shared.MapPackThumbImage(sibling),
+                }
+            end
+        end
+        variantsPanel.children = buttons
+        detailPrefetch.children = prefetch
+        appearancesHeading:SetClass("hidden", #buttons <= 1)
+        variantsPanel:SetClass("hidden", #buttons <= 1)
     end
 
     local ClearPackSelection = function()
@@ -849,7 +1101,7 @@ mod.shared.ShowCreateMapDialog = function()
             local mapCount = #DiversifyEntries(mappacks.Search{ text = "", pack = m_packFilter, maxResults = 100000 }, false)
             if searching then
                 local matchedMaps = #DiversifyEntries(m_packEntries, false)
-                packStatus.text = string.format("%d of %d maps, %d appearances", matchedMaps, mapCount, #m_packEntries)
+                packStatus.text = string.format("%d of %d maps", matchedMaps, mapCount)
             else
                 packStatus.text = string.format("%d maps", mapCount)
             end
@@ -1014,6 +1266,164 @@ mod.shared.ShowCreateMapDialog = function()
 		halign = "left",
 	}
 
+	--details-pane pieces: byline, hero image/zooms with the price pill, the
+	--muted meta line, tag chips, the accent-edged Patreon strip, section
+	--headers, and the two-column appearance buttons.
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackDetailByline"},
+		fontSize = 12,
+		color = "@fgMuted",
+		width = "100%",
+		height = "auto",
+		tmargin = 2,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackHeroImage"},
+		bgcolor = "white",
+		cornerRadius = 6,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackHeroZoom"},
+		bgcolor = "white",
+		cornerRadius = 6,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackHeroPill"},
+		bgimage = "panels/square.png",
+		bgcolor = "#000000cc",
+		cornerRadius = 10,
+		width = "auto",
+		height = "auto",
+		flow = "horizontal",
+		halign = "left",
+		valign = "top",
+		margin = 8,
+		hpad = 8,
+		vpad = 4,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackHeroPillIcon"},
+		width = 12,
+		height = 12,
+		valign = "center",
+		rmargin = 5,
+		bgimage = "phosphor/patreon-logo-duotone.png",
+		bgcolor = "white",
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackHeroPillText"},
+		fontSize = 12,
+		bold = true,
+		color = "white",
+		width = "auto",
+		height = "auto",
+		valign = "center",
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackDetailMeta"},
+		fontSize = 13,
+		color = "@fgMuted",
+		width = "100%",
+		height = "auto",
+		textWrap = true,
+		tmargin = 10,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackTagChip"},
+		bgimage = "panels/square.png",
+		bgcolor = "@bgRaised",
+		cornerRadius = 8,
+		width = "auto",
+		height = "auto",
+		halign = "left",
+		hpad = 7,
+		vpad = 2,
+		rmargin = 4,
+		vmargin = 2,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackTagText"},
+		fontSize = 11,
+		color = "@fgMuted",
+		width = "auto",
+		height = "auto",
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackAccessStrip"},
+		bgimage = "panels/square.png",
+		bgcolor = "@accent",
+		cornerRadius = 4,
+		width = "100%",
+		height = "auto",
+		flow = "horizontal",
+		tmargin = 12,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackAccessInner"},
+		bgimage = "panels/square.png",
+		bgcolor = "@bgRaised",
+		cornerRadius = 4,
+		width = "100%-3",
+		height = "auto",
+		halign = "right",
+		flow = "horizontal",
+		pad = 10,
+		borderBox = true,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackSectionLabel"},
+		fontSize = 11,
+		bold = true,
+		uppercase = true,
+		color = "@fgMuted",
+		width = "auto",
+		height = "auto",
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackSectionRule"},
+		bgimage = "panels/square.png",
+		bgcolor = "@border",
+		opacity = 0.5,
+		width = "100%",
+		height = 1,
+		tmargin = 4,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackVariantButton"},
+		bgimage = "panels/square.png",
+		bgcolor = "@bgRaised",
+		cornerRadius = 6,
+		width = "48%",
+		height = 28,
+		flow = "horizontal",
+		halign = "left",
+		margin = 3,
+		hpad = 8,
+		borderBox = true,
+		borderWidth = 2,
+		borderColor = "clear",
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackVariantButton", "hover"},
+		borderColor = "@fgMuted",
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackVariantButton", "selected"},
+		borderColor = "@accent",
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackVariantLabel"},
+		fontSize = 12,
+		width = "auto",
+		height = "auto",
+		valign = "center",
+		halign = "left",
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackVariantLabel", "parent:selected"},
+		bold = true,
+	}
+
 	--shared-markup rows under the details pane.
 	--deselected rows read as grey and dim; the selected one gets the
 	--accent border, full brightness and a checkmark in the left slot.
@@ -1047,7 +1457,8 @@ mod.shared.ShowCreateMapDialog = function()
 		width = 16,
 		height = 16,
 		valign = "center",
-		rmargin = 8,
+		halign = "right",
+		lmargin = 8,
 		bgcolor = "@accent",
 		opacity = 0,
 	}
@@ -1062,6 +1473,7 @@ mod.shared.ShowCreateMapDialog = function()
 		width = "auto",
 		height = "auto",
 		valign = "center",
+		halign = "left",
 		rmargin = 8,
 	}
 	tileStyles[#tileStyles + 1] = {
@@ -1070,6 +1482,7 @@ mod.shared.ShowCreateMapDialog = function()
 		width = "auto",
 		height = "auto",
 		valign = "center",
+		halign = "left",
 		opacity = 0.8,
 	}
 	tileStyles[#tileStyles + 1] = {
@@ -1263,9 +1676,11 @@ mod.shared.ShowCreateMapDialog = function()
             flow = "vertical",
             valign = "top",
             gui.Panel{
-                classes = {"cmNavItem", "selected"},
+                classes = {"cmNavItem"},
                 flow = "horizontal",
                 press = MapItemPress,
+                --stays the fallback creation type (a blank map) even while
+                --the library view is the one showing.
                 create = function(element)
                     selectedMap = element
                 end,
@@ -1375,6 +1790,13 @@ mod.shared.ShowCreateMapDialog = function()
                 end
             end
             libraryNav.children = rows
+            --the rows arrive after the dialog opened; when the library view
+            --is already showing, light the row for the active filter.
+            if m_mainMode == "library" then
+                for _, row in ipairs(rows) do
+                    row:SetClass("selected", row.data.pack == m_packFilter)
+                end
+            end
         end
 
         --title-bar styles: the compact dock-panel header grammar (small
@@ -1441,6 +1863,11 @@ mod.shared.ShowCreateMapDialog = function()
                 height = "100%",
                 halign = "right",
                 flow = "horizontal",
+                --the status text sits LEFT of the search field on purpose:
+                --this group hugs the right edge, so the rightmost items stay
+                --pinned and the label's changing width grows into the empty
+                --middle instead of shoving the search field around.
+                packStatus,
                 --the standard search field: magnifier, clear x, and the
                 --shared searchInput look. It fires "search" with the
                 --trimmed, lowercased text.
@@ -1458,7 +1885,6 @@ mod.shared.ShowCreateMapDialog = function()
                         RefreshPackGrid()
                     end,
                 },
-                packStatus,
                 gui.Panel{
                     classes = {"cmClose"},
                     bgimage = "phosphor/x-bold.png",
@@ -1659,6 +2085,7 @@ mod.shared.ShowCreateMapDialog = function()
             library = libraryContent,
         }
         m_setMainMode = function(mode)
+            m_mainMode = mode
             for name, panel in pairs(mainModePanels) do
                 panel:SetClass("collapsed", name ~= mode)
             end
@@ -1670,8 +2097,9 @@ mod.shared.ShowCreateMapDialog = function()
                 end
             end
         end
-        --the initial state matches the initially selected Blank Map row.
-        m_setMainMode("empty")
+        --open on the library with All Maps active (m_packFilter starts nil);
+        --the filter rows light themselves in BuildLibraryNav once synced.
+        GoToLibrary()
 
         local main = gui.Panel{
             width = string.format("100%%-%d", SIDEBAR_WIDTH),

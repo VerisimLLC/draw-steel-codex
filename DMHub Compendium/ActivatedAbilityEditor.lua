@@ -2839,6 +2839,10 @@ function ActivatedAbilityBehavior:AuraEditor(parentPanel, list)
                     id = "none",
                     text = "Indefinite",
                 },
+                {
+                    id = "endcast",
+                    text = "Until Ability Ends",
+                },
 				{
 					id = "endturn",
 					text = "Until End of Turn",

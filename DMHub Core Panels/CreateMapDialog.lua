@@ -125,7 +125,6 @@ mod.shared.ShowCreateMapDialog = function()
     --Patreon state so a link or pledge landing while the dialog is open
     --refreshes the badges and the button by itself.
     local m_creator = nil
-    local m_buttonMode = "create"
     local m_patreonSignature = nil
 
     --details pane (right of the grid): a title block, then a hero
@@ -152,9 +151,41 @@ mod.shared.ShowCreateMapDialog = function()
     }
     local detailAccessText = gui.Label{
         classes = {"mapPackDetailText"},
-        width = "100%-24",
+        width = "100%",
         vmargin = 0,
         text = "",
+    }
+    --assigned before use, further down; the strip button's click closure
+    --needs the name in scope now.
+    local OpenCreatorPatreon
+    --the unlock action, in context under the explanation: Link Patreon
+    --when no account is attached, Join for $X/mo when the pledge falls
+    --short. Hidden when the strip reports access is covered.
+    local detailAccessButton = gui.Button{
+        classes = {"sizeS", "hidden"},
+        --sizeS fixes width at 57, which clips these labels; size to the
+        --text instead.
+        width = "auto",
+        hpad = 10,
+        halign = "left",
+        tmargin = 8,
+        text = "",
+        click = function(element)
+            if m_packEntry == nil then
+                return
+            end
+            local access = mappacks.GetPackAccess(m_packEntry.pack)
+            if not access.linked then
+                --the Account tab of the settings hosts the Patreon link
+                --flow. The settings sheet lives in the hud's dialog layer,
+                --BELOW modals, so this dialog has to close first or the
+                --settings open behind it.
+                gui.CloseModal()
+                dmhub.ShowPlayerSettings{ tab = "Account" }
+            else
+                OpenCreatorPatreon()
+            end
+        end,
     }
     local detailAccess = gui.Panel{
         classes = {"mapPackAccessStrip", "hidden"},
@@ -163,7 +194,14 @@ mod.shared.ShowCreateMapDialog = function()
         gui.Panel{
             classes = {"mapPackAccessInner"},
             detailAccessIcon,
-            detailAccessText,
+            gui.Panel{
+                width = "100%-24",
+                height = "auto",
+                flow = "vertical",
+                halign = "left",
+                detailAccessText,
+                detailAccessButton,
+            },
         },
     }
     local detailInfo = gui.Label{ classes = {"mapPackDetailMeta"}, text = "" }
@@ -705,6 +743,27 @@ mod.shared.ShowCreateMapDialog = function()
         }
     end
 
+    --opens the selected map's creator Patreon campaign page, falling back
+    --to their website; shared by the access strip's Join button and the
+    --hero price pill. Declared local up by the strip.
+    OpenCreatorPatreon = function()
+        local url = nil
+        if m_creator ~= nil then
+            url = m_creator.campaignUrl
+            if url == nil or url == "" then
+                url = m_creator.url
+            end
+        end
+        if url ~= nil and url ~= "" then
+            dmhub.OpenURL(url)
+        else
+            gui.ModalMessage{
+                title = "Patreon",
+                message = "This creator has not listed a Patreon page yet.",
+            }
+        end
+    end
+
     local BuildHero = function(entry)
         local w = tonumber(entry.tilesW) or 1
         local h = tonumber(entry.tilesH) or 1
@@ -713,15 +772,26 @@ mod.shared.ShowCreateMapDialog = function()
         local thumb = mod.shared.MapPackThumbImage(entry)
 
         --price pill on the map's corner while the appearance is gated
-        --behind a pledge the account lacks.
+        --behind a pledge the account lacks; clicking it opens the creator's
+        --Patreon page where that pledge can be made.
         local pill = nil
         if mod.shared.MapPackPatreonState(entry) == "locked" then
             local price = mod.shared.MapPackTierText(entry.tier):gsub("/month", "/mo")
             pill = gui.Panel{
                 classes = {"mapPackHeroPill"},
                 floating = true,
-                gui.Panel{ classes = {"mapPackHeroPillIcon"} },
-                gui.Label{ classes = {"mapPackHeroPillText"}, text = price },
+                press = function(element)
+                    OpenCreatorPatreon()
+                end,
+                hover = function(element)
+                    local who = "the creator"
+                    if m_creator ~= nil and (m_creator.displayName or "") ~= "" then
+                        who = m_creator.displayName
+                    end
+                    gui.Tooltip(string.format("Open %s's Patreon page", who))(element)
+                end,
+                gui.Panel{ classes = {"mapPackHeroPillIcon"}, interactable = false },
+                gui.Label{ classes = {"mapPackHeroPillText"}, text = price, interactable = false },
             }
         end
 
@@ -836,14 +906,18 @@ mod.shared.ShowCreateMapDialog = function()
             local access = mappacks.GetPackAccess(entry.pack)
             if not access.linked then
                 text = text .. ". Link your Patreon account to unlock it."
+                detailAccessButton.text = "Link Patreon..."
             elseif (access.cents or 0) > 0 then
                 text = text .. string.format(". Your current pledge is %s.", mod.shared.MapPackTierText(access.cents))
+                detailAccessButton.text = string.format("Join for %s", mod.shared.MapPackTierText(entry.tier):gsub("/month", "/mo"))
             else
                 text = text .. "."
+                detailAccessButton.text = string.format("Join for %s", mod.shared.MapPackTierText(entry.tier):gsub("/month", "/mo"))
             end
         else
             text = text .. "."
         end
+        detailAccessButton:SetClass("hidden", state ~= "locked")
         detailAccessIcon.bgimage = mod.shared.MapPackPatreonIcon(entry)
         detailAccessText.text = text
     end
@@ -938,23 +1012,19 @@ mod.shared.ShowCreateMapDialog = function()
         RefreshDetails()
     end
 
-    --the button follows the selection: Create Map for a new map, Add Map for
-    --a pack appearance the account may add, and for a gated one it lacks
-    --access to, Link Patreon (no Patreon account attached: opens the Account
-    --settings, which host the link flow) or Join Patreon (attached, but the
-    --pledge does not cover it: opens the creator's Patreon page).
+    --the button follows the selection: Create Map for a new map, Add Map
+    --for a pack appearance. It stays the commit action even for a gated
+    --appearance the account lacks - then it shows disabled, and the access
+    --strip's own button carries the Link/Join Patreon action in context.
     UpdateCreateButton = function()
         local mode = "create"
+        local locked = false
         if m_packEntry ~= nil then
             mode = "add"
-            if mod.shared.MapPackPatreonState(m_packEntry) == "locked" then
-                local access = mappacks.GetPackAccess(m_packEntry.pack)
-                mode = cond(access.linked, "join", "link")
-            end
+            locked = mod.shared.MapPackPatreonState(m_packEntry) == "locked"
         end
-        m_buttonMode = mode
-        local labels = { create = "Create Map", add = "Add Map", link = "Link Patreon", join = "Join Patreon" }
-        createButton.text = labels[mode]
+        createButton.text = cond(mode == "create", "Create Map", "Add Map")
+        createButton:SetClass("disabled", locked)
     end
 
     --fill the name field from the selection unless the user typed their own.
@@ -1195,31 +1265,9 @@ mod.shared.ShowCreateMapDialog = function()
         end,
 
         click = function(element)
-            if m_buttonMode == "link" then
-                --the Account tab of the settings hosts the Patreon link
-                --flow. The settings sheet lives in the hud's dialog layer,
-                --BELOW modals, so this dialog has to close first or the
-                --settings open behind it (verified live 2026-09-05).
-                gui.CloseModal()
-                dmhub.ShowPlayerSettings{ tab = "Account" }
-                return
-            end
-            if m_buttonMode == "join" then
-                local url = nil
-                if m_creator ~= nil then
-                    url = m_creator.campaignUrl
-                    if url == nil or url == "" then
-                        url = m_creator.url
-                    end
-                end
-                if url ~= nil and url ~= "" then
-                    dmhub.OpenURL(url)
-                else
-                    gui.ModalMessage{
-                        title = "Patreon",
-                        message = "This creator has not listed a Patreon page yet.",
-                    }
-                end
+            --disabled = the selected appearance is Patreon-gated; the
+            --access strip's button carries the unlock action.
+            if element:HasClass("disabled") then
                 return
             end
 
@@ -1308,6 +1356,10 @@ mod.shared.ShowCreateMapDialog = function()
 		margin = 8,
 		hpad = 8,
 		vpad = 4,
+	}
+	tileStyles[#tileStyles + 1] = {
+		selectors = {"mapPackHeroPill", "hover"},
+		bgcolor = "#000000ee",
 	}
 	tileStyles[#tileStyles + 1] = {
 		selectors = {"mapPackHeroPillIcon"},

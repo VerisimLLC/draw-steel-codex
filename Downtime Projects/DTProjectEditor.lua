@@ -2433,6 +2433,21 @@ function DTProjectEditor.PerformProjectRoll(args)
         rollingToken = dmhub.GetCharacterById(followerId) or heroToken
     end
 
+    --The roll request only reaches a client that can see the token, so a
+    --follower who is not on this map is placed beside their mentor first, the
+    --same way a newly created follower is. despawned must be cleared before
+    --ChangeLocation or the placement never uploads - see CorpseComponent:Respawn.
+    local placingFollower = rollingToken ~= heroToken
+        and (not rollingToken.hasTokenOnThisMap or rollingToken.despawned)
+    if placingFollower then
+        local locs = heroToken.properties:AdjacentLocations()
+        local loc = locs[1] or heroToken.locsOccupying[1]
+        if loc ~= nil then
+            rollingToken.despawned = false
+            rollingToken:ChangeLocation(core.Loc{x = loc.x, y = loc.y})
+        end
+    end
+
     local projectTitle = project:GetTitle()
 
     --Built once and reused for every breakthrough, so the chain is rolled on
@@ -2470,6 +2485,12 @@ function DTProjectEditor.PerformProjectRoll(args)
     dmhub.Coroutine(function()
         local rolls = {}
         local isFirstRoll = true
+
+        --Give a just-placed follower a moment to land before the request is
+        --addressed to them.
+        if placingFollower then
+            coroutine.yield(0.1)
+        end
 
         while true do
             local info = rollingToken.properties:RequestProjectRoll(rollingToken, options)

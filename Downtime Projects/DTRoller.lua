@@ -105,10 +105,12 @@ function DTRoller:GetTokenID()
 end
 
 --- Returns the follower id of the rolling follower, if it is one
+--- LookupToken is map-only, so an unplaced follower reported no id and the
+--- caller quietly fell back to the hero. GetTokenFromCreature finds them either way.
 --- @return string|nil The follower Id
 function DTRoller:GetFollowerID()
     if self.object and DTRoller._isFollowerType(self.object) then
-        local token = dmhub.LookupToken(self.object)
+        local token = DTHelpers.GetTokenFromCreature(self.object)
         if token then return token.id end
     end
     return nil

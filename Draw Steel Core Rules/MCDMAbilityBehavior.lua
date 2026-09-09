@@ -3897,3 +3897,151 @@ function ActivatedAbility:Cast(casterToken, targets, options)
 
     return g_baseActivatedAbilityCast(self, casterToken, targets, options)
 end
+
+--- @class ActivatedAbilityRepositionIntoEngulferBehavior:ActivatedAbilityBehavior
+--- Snaps the casting creature back inside the footprint of the creature whose
+--- ongoing effect (e.g. the Shambling Mound's Engulfed) it carries. Designed to
+--- ride a mandatory, silent "move" trigger on the effect itself: the engine's
+--- grab-follow drags a captive along when its grabber moves but places it
+--- ADJACENT to the grabber; this behavior then teleports the captive to the
+--- nearest free square of the grabber's own space, keeping "the engulfed
+--- creature occupies the mound's space" true. No-op when the captive is
+--- already inside, when the engulfer is dead or gone, or when the effect is
+--- not present.
+ActivatedAbilityRepositionIntoEngulferBehavior = RegisterGameType("ActivatedAbilityRepositionIntoEngulferBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbilityRepositionIntoEngulferBehavior.summary = 'Reposition Into Engulfer Space'
+ActivatedAbilityRepositionIntoEngulferBehavior.ongoingEffectid = "none"
+
+ActivatedAbility.RegisterType
+{
+    id = 'reposition_into_engulfer',
+    text = 'Reposition Into Engulfer Space',
+    createBehavior = function()
+        return ActivatedAbilityRepositionIntoEngulferBehavior.new{}
+    end
+}
+
+function ActivatedAbilityRepositionIntoEngulferBehavior:SummarizeBehavior(ability, creatureLookup)
+    return "Reposition into the engulfing creature's space"
+end
+
+--Find the token of the creature that applied the given ongoing effect to us.
+function ActivatedAbilityRepositionIntoEngulferBehavior:FindEngulferToken(creatureProps)
+    for _, entry in ipairs(creatureProps:ActiveOngoingEffects()) do
+        if entry.ongoingEffectid == self.ongoingEffectid then
+            local casterInfo = nil
+            pcall(function() casterInfo = entry.casterInfo end)
+            if casterInfo ~= nil and casterInfo.tokenid ~= nil then
+                local tok = dmhub.GetTokenById(casterInfo.tokenid)
+                if tok ~= nil and tok.valid and tok.properties ~= nil then
+                    return tok
+                end
+            end
+        end
+    end
+    return nil
+end
+
+function ActivatedAbilityRepositionIntoEngulferBehavior:Cast(ability, casterToken, targets, options)
+    if self.ongoingEffectid == "none" then
+        return
+    end
+
+    --The move trigger dispatches from INSIDE the engine's Move call (OnMove
+    --fires mid-move), so an immediate Teleport here would be overwritten when
+    --the move finalizes its destination. Yield until the mover's location has
+    --been stable for a few ticks before deciding whether a snap is needed.
+    local lastLoc = casterToken.loc
+    local stable = 0
+    for i = 1, 40 do
+        coroutine.yield(0.1)
+        if not casterToken.valid then
+            return
+        end
+        local cur = casterToken.loc
+        if cur.x == lastLoc.x and cur.y == lastLoc.y then
+            stable = stable + 1
+            if stable >= 3 then
+                break
+            end
+        else
+            stable = 0
+            lastLoc = cur
+        end
+    end
+
+    local engulferTok = self:FindEngulferToken(casterToken.properties)
+    if engulferTok ~= nil then
+        --Captive side: the caster carries the effect; snap them into their
+        --engulfer's footprint.
+        self.SnapIntoFootprint(engulferTok, casterToken)
+        return
+    end
+
+    --Engulfer side: the caster is the creature whose movement dragged its
+    --captives along (or left them behind); snap every creature carrying this
+    --effect FROM the caster into the caster's footprint.
+    for _, tok in ipairs(dmhub.allTokens) do
+        if tok.charid ~= casterToken.charid and tok.valid and tok.properties ~= nil then
+            for _, entry in ipairs(tok.properties:ActiveOngoingEffects()) do
+                if entry.ongoingEffectid == self.ongoingEffectid then
+                    local casterInfo = nil
+                    pcall(function() casterInfo = entry.casterInfo end)
+                    if casterInfo ~= nil and casterInfo.tokenid == casterToken.id then
+                        self.SnapIntoFootprint(casterToken, tok)
+                    end
+                end
+            end
+        end
+    end
+end
+
+--Teleport captiveToken to the nearest free square of engulferToken's
+--footprint, unless it is already inside or the engulfer is dead.
+function ActivatedAbilityRepositionIntoEngulferBehavior.SnapIntoFootprint(engulferTok, captiveToken)
+    local engulferDead = false
+    pcall(function() engulferDead = engulferTok.properties:IsDead() end)
+    if engulferDead then
+        return
+    end
+
+    if MCDMUtils.IsInsideFootprint(engulferTok, captiveToken) then
+        return
+    end
+
+    local dest = MCDMUtils.NearestFootprintLoc(engulferTok, captiveToken)
+    if dest ~= nil then
+        captiveToken:Teleport(dest)
+    end
+end
+
+function ActivatedAbilityRepositionIntoEngulferBehavior:EditorItems(parentPanel)
+    local result = {}
+
+    local effectOptions = {
+        { id = "none", text = "Choose Effect..." },
+    }
+    for k, eff in unhidden_pairs(dmhub.GetTable("characterOngoingEffects") or {}) do
+        effectOptions[#effectOptions+1] = { id = k, text = eff.name }
+    end
+
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Effect:",
+        },
+        gui.Dropdown{
+            sort = true,
+            hasSearch = true,
+            idChosen = self.ongoingEffectid,
+            options = effectOptions,
+            change = function(element)
+                self.ongoingEffectid = element.idChosen
+            end,
+        },
+    }
+
+    return result
+end

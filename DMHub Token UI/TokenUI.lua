@@ -2537,6 +2537,7 @@ function CreateTokenHud(token)
 
 				token:ConsumeClick()
 
+				local parentElement = element
                 local items = {}
 
                 if token.canControl then
@@ -2552,6 +2553,7 @@ function CreateTokenHud(token)
 							},
 							events = {
 								click = function(element)
+									parentElement.popup = nil
 									token:ShowSheet()
 								end,
                                 hover = function(element)
@@ -2579,6 +2581,7 @@ function CreateTokenHud(token)
 							},
 							events = {
 								click = function(element)
+									parentElement.popup = nil
 									gamehud:ShowInventory(token)
 								end,
                                 hover = function(element)
@@ -2669,6 +2672,7 @@ function CreateTokenHud(token)
                         },
                         events = {
                             click = function(element)
+                                parentElement.popup = nil
                                 if token.hasSpineAnimation then
                                     GameHud.instance:ViewJournalEntry{
                                         image = token.inspectPortrait,
@@ -2732,7 +2736,6 @@ function CreateTokenHud(token)
                     }
                 end
 
-				local parentElement = element
 
 				local radialMenu
 				radialMenu = gui.Panel{

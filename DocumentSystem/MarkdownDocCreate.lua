@@ -107,7 +107,7 @@ function MarkdownDocument:ShowCreateDialog()
                     textOverflow = "ellipsis",
                     textWrap = false,
                     width = "100%",
-                    height = 20,
+                    height = 30,
                 },
                 {
                     selectors = {"label", "hover"},

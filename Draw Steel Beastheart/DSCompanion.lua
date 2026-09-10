@@ -1141,6 +1141,185 @@ function AnimalCompanion:GetCompanionMeleeBonus()
     return {0, 0, 4}
 end
 
+--The kitmodifyability modifier belonging to the summoner's kit, or nil if the
+--summoner has no kit. Read off the summoner's modifier list (cached per game
+--update) rather than calling summonerCreature:Kit(), which reruns
+--Kit.CombineKits -- deep copies plus a clone of every signature ability -- on
+--every call, and this sits on a per-frame path.
+--@return CharacterModifier|nil
+local function findSummonerKitModifier(companion)
+    local summoner = companion:SummonerToken()
+    if summoner == nil or summoner.properties == nil then return nil end
+
+    for _, entry in ipairs(summoner.properties:GetActiveModifiers()) do
+        if entry.mod.behavior == "kitmodifyability" then
+            return entry.mod
+        end
+    end
+    return nil
+end
+
+--Distance half of the kit's ability modifications: melee reach, ranged range
+--and burst area. The companion shares its summoner's kit, but the kit's
+--ability modifications are excluded wholesale from the derived ability list
+--(options.excludeKitModifications below) because the damage half is replaced by
+--the kit-or-default picker in GetCompanionMeleeBonus. So the distance half is
+--reapplied here, mirroring the range block of ApplyBonusesFromKit in
+--MCDMKit.lua. Callers must pre-filter with willModifyAbility.
+--@param kit Kit the summoner's kit
+--@param ability ActivatedAbility modified in place
+local function applyCompanionKitRange(kit, ability)
+    --Idempotence stamp, for the same reason applyCompanionMeleeBonus carries
+    --one: an ability nested under an InvokeAbility behavior is reached once
+    --here and again when the invoke clones it and PostProcessInvokedAbility
+    --runs. _tmp_ fields survive DeepCopy/MakeTemporaryClone/bifurcation and are
+    --never serialized.
+    if ability:try_get("_tmp_companionKitRangeApplied") then
+        return
+    end
+
+    --Only abilities carrying a power roll take a kit distance bonus, and each
+    --one in the nested InvokeAbility chain takes it separately -- same rule
+    --ApplyBonusesFromKit applies.
+    local rollAbilities = {}
+    local function collect(currentAbility)
+        currentAbility._tmp_companionKitRangeApplied = true
+        local hasRoll = false
+        for _, behavior in ipairs(currentAbility.behaviors or {}) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                hasRoll = true
+            elseif behavior.typeName == "ActivatedAbilityInvokeAbilityBehavior" and behavior:try_get("customAbility") ~= nil then
+                collect(behavior.customAbility)
+            end
+        end
+        if hasRoll then
+            rollAbilities[#rollAbilities+1] = currentAbility
+        end
+    end
+    collect(ability)
+
+    --Where the hero-side pass gives up. Every companion signature strike --
+    --Clamping Jaws, Backhand, Terrible Claws, Web Shot -- states its damage as
+    --Draw Steel command text instead of a power roll, so requiring one would
+    --skip all of them. With no power roll anywhere in the tree the ability's
+    --own range IS the strike distance, so the bonus lands there.
+    if #rollAbilities == 0 then
+        rollAbilities[1] = ability
+    end
+
+    local keywords = ability.keywords or {}
+    local range = 0
+    local rangeDescription = ""
+    local rangeTextLabel = nil
+
+    if keywords["Melee"] and (ability.targetType == "cube" or not keywords["Area"]) then
+        range = kit.reach
+        rangeDescription = "reach"
+        rangeTextLabel = "Melee"
+    elseif keywords["Ranged"] then
+        range = kit.range
+        rangeDescription = "range"
+        rangeTextLabel = "Ranged"
+    elseif keywords["Area"] and ability.targetType == "all" then
+        --A burst, which has a size but no range to a target.
+        range = kit.area
+        rangeDescription = "area"
+    end
+
+    if range <= 0 then
+        return
+    end
+
+    --An ability that spells its distance out in text ("Melee 1", or
+    --"Melee 1 or Ranged 5" on a strike that works both ways) needs that text
+    --rewritten too, or the card contradicts the range it actually has. Only the
+    --half this branch is bumping gets rewritten.
+    local rangeTextOverride = ability:try_get("rangeTextOverride")
+    if rangeTextOverride ~= nil then
+        if tonumber(rangeTextOverride) ~= nil then
+            ability.rangeTextOverride = string.format("%d", tonumber(rangeTextOverride) + range)
+        elseif rangeTextLabel ~= nil then
+            ability.rangeTextOverride = (rangeTextOverride:gsub("(" .. rangeTextLabel .. "%s+)(%d+)", function(prefix, numStr)
+                return string.format("%s%d", prefix, tonumber(numStr) + range)
+            end))
+        end
+    end
+
+    for _, rollAbility in ipairs(rollAbilities) do
+        if type(rollAbility.range) == "number" then
+            rollAbility.range = rollAbility.range + range
+        elseif type(rollAbility.range) == "string" then
+            if tonumber(rollAbility.range) ~= nil then
+                rollAbility.range = tonumber(rollAbility.range) + range
+            else
+                --A GoblinScript range such as "Grab Range"; append the bonus
+                --rather than trying to evaluate it here.
+                rollAbility.range = rollAbility.range .. string.format(" + %d", range)
+            end
+        end
+    end
+
+    local log = ability:get_or_add("modificationLog", {})
+    log[#log+1] = string.format("Includes +%d %s from %s kit", range, rangeDescription, kit.name)
+end
+
+--Applies the kit's distance bonus to an ability and its melee/ranged
+--variations. Returns the ability, which may have been swapped for a temporary
+--clone. Which abilities a kit touches is decided by kitmodifyability's own
+--willModifyAbility, exactly as it is for the hero -- a martial kit reaches
+--Weapon-keyworded abilities only, so a companion's Magic breath or its stock
+--monster free strike (keyworded Melee and Strike, but not Weapon) is left
+--alone, while every companion signature strike does carry Weapon and gains the
+--kit's reach.
+--@param companion AnimalCompanion
+--@param kitMod CharacterModifier the summoner's kitmodifyability modifier
+--@return ActivatedAbility
+local function applyCompanionKitRangeToAbility(companion, kitMod, ability)
+    if ability == nil or ability.keywords == nil then
+        return ability
+    end
+    --Abilities that come from a kit are never modified by one.
+    if ability:try_get("_tmp_fromKit") then
+        return ability
+    end
+    if not CharacterModifier.TypeInfo.kitmodifyability.willModifyAbility(kitMod, companion, ability) then
+        return ability
+    end
+    --A self-targeted ability's range is not a distance to a target -- it is a
+    --burst size, or nothing at all (Heart of the Beast reads "Self") -- so a
+    --kit must not stretch it.
+    if ability.targetType == "self" then
+        return ability
+    end
+
+    if not ability:try_get("_tmp_temporaryClone") then
+        ability = ability:MakeTemporaryClone()
+    end
+
+    --A strike with both Melee and Ranged keywords is split into variations that
+    --each carry their own distance, and each takes the matching bonus: reach on
+    --the melee side, range on the ranged one. The container they hang off keeps
+    --both keywords and the ranged distance, so bumping it would put reach on a
+    --ranged range -- only the variations are touched.
+    local variations = ability:GetVariations()
+    if variations ~= nil and ability:try_get("meleeAndRanged") then
+        for i = 1, #variations do
+            applyCompanionKitRange(kitMod.kit, variations[i])
+        end
+        return ability
+    end
+
+    applyCompanionKitRange(kitMod.kit, ability)
+
+    if variations ~= nil then
+        for i = 1, #variations do
+            applyCompanionKitRange(kitMod.kit, variations[i])
+        end
+    end
+
+    return ability
+end
+
 function AnimalCompanion:GetActivatedAbilities(options)
 	options = table.shallow_copy(options or {})
     options.excludeKeywords = {"Beastheart"}
@@ -1149,9 +1328,10 @@ function AnimalCompanion:GetActivatedAbilities(options)
     --summoner. (Kit features that appear via Companion-keyword channels are
     --intentional and remain.)
     options.excludeKitAbilities = true
-    --Same reasoning for the kit's blanket ability modifications (range,
-    --reach, area, damage bonuses across all roll types). The companion only
-    --gets one specific melee damage bonus -- applied below, after merging.
+    --The kit's blanket ability modifications are excluded here because their
+    --damage half is replaced by the kit-or-default picker in
+    --GetCompanionMeleeBonus. The distance half (reach/range/area) IS shared, so
+    --it is reapplied below, after merging, by applyCompanionKitRangeToAbility.
     options.excludeKitModifications = true
 
     local result = {}
@@ -1181,6 +1361,16 @@ function AnimalCompanion:GetActivatedAbilities(options)
         end
     end
 
+    --Share the kit's reach/range/area with every ability the kit would modify,
+    --derived and innate alike. Runs before the melee damage pass because both
+    --may clone the ability, and this keeps the clone swap in one place.
+    local kitMod = findSummonerKitModifier(self)
+    if kitMod ~= nil then
+        for i, ability in ipairs(result) do
+            result[i] = applyCompanionKitRangeToAbility(self, kitMod, ability)
+        end
+    end
+
     --Apply the chosen companion melee bonus to every melee+weapon ability
     --(both ones derived from the summoner and the companion's innate ones).
     --Keywords-driven, so it correctly skips ranged/supernatural abilities.
@@ -1201,13 +1391,21 @@ function AnimalCompanion:GetActivatedAbilities(options)
     return result
 end
 
---Mirror the melee-bonus pass for invoked custom abilities (which bypass
---GetActivatedAbilities entirely). The InvokeAbility behavior bifurcates the
---clone first, so for dual-keyword strikes only the melee variant qualifies
---(the ranged variant has had its Melee keyword stripped).
+--Mirror the kit-range and melee-bonus passes for invoked custom abilities
+--(which bypass GetActivatedAbilities entirely). The InvokeAbility behavior
+--bifurcates the clone first, so for dual-keyword strikes only the melee variant
+--qualifies (the ranged variant has had its Melee keyword stripped).
 function AnimalCompanion:PostProcessInvokedAbility(ability)
     if ability == nil or ability.keywords == nil then
         return ability
+    end
+
+    --Usually a no-op: an ability nested under an InvokeAbility behavior was
+    --already reached, and stamped, when its parent went through
+    --GetActivatedAbilities. This covers the ones that never did.
+    local kitMod = findSummonerKitModifier(self)
+    if kitMod ~= nil then
+        ability = applyCompanionKitRangeToAbility(self, kitMod, ability)
     end
 
     local meleeBonus = self:GetCompanionMeleeBonus()

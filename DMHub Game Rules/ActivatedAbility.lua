@@ -1544,11 +1544,13 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
             return false
         end
 
-        if self.targetAllegiance == 'enemy' and IsFriendForTargeting(casterToken, targetToken) and (not isAnyObject) then
+        --IsFriendForTargeting is tri-state (true friend / false enemy / nil neither):
+        --a neutralized ally passes neither allegiance gate, so both compare strictly.
+        if self.targetAllegiance == 'enemy' and IsFriendForTargeting(casterToken, targetToken) ~= false and (not isAnyObject) then
             return false
         end
 
-        if self.targetAllegiance == 'ally' and (not IsFriendForTargeting(casterToken, targetToken)) and (not isAnyObject) then
+        if self.targetAllegiance == 'ally' and IsFriendForTargeting(casterToken, targetToken) ~= true and (not isAnyObject) then
             return false
         end
     end
@@ -1573,7 +1575,9 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     symbols = table.shallow_copy(symbols or {})
     symbols.invoker = symbols.invoker or caster
     symbols.caster = caster
-    symbols.enemy = not IsFriendForTargeting(casterToken, targetToken)
+    --strict == false: tri-state IsFriendForTargeting returns nil for a neutralized
+    --ally, which is not an enemy.
+    symbols.enemy = IsFriendForTargeting(casterToken, targetToken) == false
 	symbols.target = GenerateSymbols(targetToken.properties)
 
 	local result = filter == "" or GoblinScriptTrue(ExecuteGoblinScript(filter, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target filter for %s", self.name)))
@@ -1614,7 +1618,8 @@ function ActivatedAbility:TargetPassesAuthoredFilters(casterToken, targetToken, 
 	symbols = table.shallow_copy(symbols or {})
 	symbols.invoker = symbols.invoker or caster
 	symbols.caster = caster
-	symbols.enemy = not IsFriendForTargeting(casterToken, targetToken)
+	--strict == false: tri-state IsFriendForTargeting, nil (neutral) is not an enemy.
+	symbols.enemy = IsFriendForTargeting(casterToken, targetToken) == false
 	symbols.target = GenerateSymbols(targetToken.properties)
 
 	for _,customFilter in ipairs(customFilters) do

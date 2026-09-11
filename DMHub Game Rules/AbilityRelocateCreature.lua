@@ -391,6 +391,27 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             movementType = "move"
         end
 
+        --Object tokens are synthetic wrappers around map LevelObjects and are not
+        --in the engine's token movement dictionary: Move()/Teleport() cannot
+        --relocate them (Teleport throws, Move returns no path). Move the
+        --underlying object directly instead, preserving its intra-tile offset.
+        --This is what lets forced movement of Targetable objects (e.g. the
+        --Ghost's Paranormal Activity vertical slide) actually move the object.
+        if casterToken.isObject then
+            local inst = casterToken.objectInstance
+            local destLoc = targets[#targets].loc or targets[1].loc
+            if inst ~= nil and destLoc ~= nil then
+                local curLoc = casterToken.loc
+                local dist = casterToken:Distance(destLoc)
+                inst:SetAndUploadPos(inst.x + (destLoc.x - curLoc.x), inst.y + (destLoc.y - curLoc.y))
+                if dist > 0 then
+                    options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + dist
+                end
+            end
+            casterToken.properties._tmp_freeMovement = false
+            return
+        end
+
         -- Charge-jump override (e.g., Panther's Mighty Spring): a creature with
         -- the "Charge Uses Jump" custom attribute leaps instead of running when
         -- the Charge action's relocate runs. We identify Charge by ability name
@@ -762,8 +783,14 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 				options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps
 			end
 
+			--noCollisionDamage: set on forced-movement clones built from a
+			--"without damage" rule (e.g. Engulf dragging a creature into the
+			--Shambling Mound's sack). The movement itself plays normally but no
+			--collide events fire for the moved creature, bystanders, or objects.
+			local noCollisionDamage = ability:try_get("noCollisionDamage", false)
+
 			--when moving through creatures, trigger collision on each creature in the path.
-			if throughCreatures and path ~= nil and path.steps ~= nil then
+			if throughCreatures and path ~= nil and path.steps ~= nil and (not noCollisionDamage) then
 				local forcedMovementType = ability:try_get("forcedMovement", "slide")
 				local hitCreatures = {}
 				for _,step in ipairs(path.steps) do
@@ -825,7 +852,11 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 -- Keep the terminal post-passthrough creature collision on the
                 -- cast so later behaviors can identify every participant.
                 options.symbols.cast:RecordForcedMovementCreatureCollision(casterToken, collisionInfo.collideWith)
+        end
 
+        --noCollisionDamage: no collide events or collision damage for anyone
+        --involved (a "without damage" forced-movement rule, e.g. Engulf).
+		if collisionInfo ~= nil and (not noCollisionDamage) then
                 local forcedMovementType = ability:try_get("forcedMovement", "slide")
                 local withobject = #(collisionInfo.collideWith or {}) == 0
 
@@ -918,7 +949,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			end
 
 			--handle collisions from rebound bounces.
-			if path ~= nil and path.bounceCollisions ~= nil then
+			if path ~= nil and path.bounceCollisions ~= nil and (not noCollisionDamage) then
 				local forcedMovementType = ability:try_get("forcedMovement", "slide")
 				for _,collision in ipairs(path.bounceCollisions) do
 					local collideWith = collision.collideWith or {}

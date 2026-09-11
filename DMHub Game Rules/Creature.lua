@@ -1916,6 +1916,11 @@ function creature.SetTemporaryHitpoints(self, amount, note, options)
 	end
 
 	if amount <= 0 and self:has_key("temporary_hitpoints_effect") and self:try_get("tempHitpointsEndEffect", true) then
+		--Announce the depletion BEFORE removing the tied effect so trigger
+		--modifiers riding that effect can still react (e.g. the Shambling
+		--Mound's Engulfed effect prompting the freed creature to relocate
+		--out of the mound's space when the sack is destroyed).
+		self:DispatchEvent("tempstaminadepleted", { ongoingeffectid = self.temporary_hitpoints_effect })
 		self:RemoveOngoingEffect(self.temporary_hitpoints_effect)
 		options.temporary_hitpoints_effect = nil
 	end

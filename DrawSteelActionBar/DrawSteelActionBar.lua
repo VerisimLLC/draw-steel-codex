@@ -11989,6 +11989,13 @@ CreateAbilityController = function()
                                 end
                             end
 
+                            --forced movement built from a "without damage" rule (e.g. the
+                            --Shambling Mound's Engulf pull) deals no collision damage at
+                            --all, so never promise any in the preview.
+                            if g_currentAbility:try_get("noCollisionDamage", false) then
+                                suppressDamage = true
+                            end
+
                             if not suppressDamage then
                                 diagramCollisionDamage = collideDamage
                             end
@@ -12133,8 +12140,11 @@ CreateAbilityController = function()
                             end
                         end
 
-                        --show damage indicators on creatures passed through.
-                        if throughCreatures and path.steps ~= nil then
+                        --show damage indicators on creatures passed through. Forced
+                        --movement built from a "without damage" rule (e.g. Engulf's
+                        --pull into the mound's own space) deals no pass-through
+                        --damage, so promise none.
+                        if throughCreatures and path.steps ~= nil and (not g_currentAbility:try_get("noCollisionDamage", false)) then
                             local throughTextLabels = {}
                             local throughShapes = {}
                             local hitIds = {}

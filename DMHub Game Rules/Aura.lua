@@ -172,6 +172,7 @@ end
 --- @class AuraInstance: GameType
 --- @field aura Aura The Aura definition this instance belongs to.
 --- @field casterid string Token id of the creature that cast/owns this aura.
+--- @field casterInitiativeId string|nil Initiative id the caster acted on, so a turn-scoped aura can still be expired once the caster is dead.
 --- @field guid string Unique identifier.
 --- @field name string Display name (copied from the Aura definition).
 --- @field iconid string Icon asset path.
@@ -2147,6 +2148,10 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
             --caster token/record is gone. Empty string means no party, which the engine
             --Party.IsFriendly treats as the "MONSTER" side. See Aura.cs ApplyTo fallback.
             casterPartyId = casterToken.partyId or "",
+            --snapshot the initiative the caster acts on, so a turn-scoped aura still has a
+            --turn boundary to expire on once the caster is dead. For a summon that is the
+            --summoner's initiative (AbilitySummon sets initiativeGrouping).
+            casterInitiativeId = InitiativeQueue.GetInitiativeId(casterToken),
             iconid = ability.iconid,
             name = ability.name,
             display = ability.display,
@@ -2548,6 +2553,107 @@ function Aura.RemoveExpiredMapAnchoredAurasAtEndOfCombat()
         local duration = instance:try_get("duration")
         if duration ~= "none" and duration ~= "persistence" and instance:HasExpired() then
             Aura.RemoveMapAnchoredAura(entry)
+        end
+    end
+end
+
+--Durations that only the caster's own turn boundary ever expires, through
+--creature:CheckAuraExpiration. A caster that is dead or off the map never reaches one,
+--so the two sweeps below stand in for it.
+local g_turnScopedAuraDurations = {
+    nextturn = true,
+    endturn = true,
+}
+
+--- True if the aura's caster can still reach a turn boundary of their own.
+--- @param auraInstance AuraInstance
+--- @return boolean
+local function AuraCasterCanTakeTurn(auraInstance)
+    local casterid = auraInstance:try_get("casterid")
+    if casterid == nil or casterid == "" then
+        return false
+    end
+
+    local casterToken = dmhub.GetTokenById(casterid)
+    if casterToken == nil or casterToken.valid == false or casterToken.properties == nil then
+        return false
+    end
+
+    return casterToken.properties:IsDead() == false
+end
+
+--- Map-anchored auras with a turn-scoped duration whose caster can no longer take a turn.
+--- @return table[] Entries from Aura.GetMapAnchoredAuras.
+local function OrphanedTurnScopedAuraEntries()
+    --Deliberately reuses the memoized list instead of invalidating it: this runs at every
+    --token's turn boundary, and rebuilding walks every token and object on every floor.
+    --A stale entry is harmless -- removing an aura that is already gone is a no-op.
+    local result = {}
+    for _, entry in ipairs(Aura.GetMapAnchoredAuras()) do
+        local instance = entry.instance
+        if g_turnScopedAuraDurations[instance:try_get("duration")] and instance:try_get("persistenceId") == nil and AuraCasterCanTakeTurn(instance) == false then
+            result[#result + 1] = entry
+        end
+    end
+
+    return result
+end
+
+--- Expires orphaned turn-scoped auras cast by a creature that acted on this initiative.
+--- This is what keeps a summon's aura honest: AbilitySummon puts the summon on its
+--- summoner's initiative, so a dead summon's "until the start of its next turn" aura
+--- still ends exactly when the summoner's next turn begins (report H22D42R7).
+--- @param initiativeid string|nil The initiative id whose turn is starting or ending.
+--- @param eventname string "nextturn" at the start of the turn, "endturn" at the end.
+function Aura.ExpireOrphanedTurnScopedAurasOnTurn(initiativeid, eventname)
+    local q = dmhub.initiativeQueue
+    if initiativeid == nil or q == nil or q.hidden then
+        return
+    end
+
+    for _, entry in ipairs(OrphanedTurnScopedAuraEntries()) do
+        local instance = entry.instance
+        if instance:try_get("casterInitiativeId") == initiativeid and instance:try_get("duration") == eventname then
+            --durationRound, stamped for "endnextturn", gives the aura a later round to
+            --live through; skip it until that round has come round. Matches the same
+            --guard in creature:CheckAuraExpiration.
+            local durationRound = instance:try_get("durationRound")
+            if durationRound == nil or q.round >= durationRound then
+                Aura.RemoveMapAnchoredAura(entry)
+            end
+        end
+    end
+end
+
+--- Removes orphaned turn-scoped auras that no turn boundary will ever reach.
+--- The fallback for the auras ExpireOrphanedTurnScopedAurasOnTurn cannot claim: the
+--- caster's initiative has left the queue entirely, or the aura predates the
+--- casterInitiativeId stamp. Call at the start of a round, once the round has advanced.
+function Aura.RemoveOrphanedTurnScopedAuras()
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then
+        return
+    end
+
+    --The end-of-round sweep that runs just before this one destroys objects without
+    --advancing the game update, so rebuild the list before reading it.
+    Aura.InvalidateMapAnchoredAuras()
+
+    --The helper hands back its own table, so removals below cannot disturb the walk.
+    local entries = OrphanedTurnScopedAuraEntries()
+
+    for _, entry in ipairs(entries) do
+        local instance = entry.instance
+        local casterInitiativeId = instance:try_get("casterInitiativeId")
+        if casterInitiativeId == nil or q.entries[casterInitiativeId] == nil then
+            --The caster's next turn would have come in the round after the aura was
+            --created, so the start of that round is the closest we can still honour the
+            --duration. durationRound, stamped for "endnextturn", names a later round.
+            local time = instance:try_get("time")
+            local finalRound = instance:try_get("durationRound", time ~= nil and time:try_get("round") or nil)
+            if finalRound ~= nil and q.round > finalRound then
+                Aura.RemoveMapAnchoredAura(entry)
+            end
         end
     end
 end

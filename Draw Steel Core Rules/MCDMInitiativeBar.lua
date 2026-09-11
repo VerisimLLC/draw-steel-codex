@@ -5557,6 +5557,10 @@ function GameHud:NewRound()
 
     Aura.CheckObjectAuraExpirationEndOfRound()
 
+    --A dead or despawned caster never begins another turn, so its turn-scoped auras
+    --have to be expired here instead of from the caster's own turn boundary.
+    Aura.RemoveOrphanedTurnScopedAuras()
+
     local message = BeginRoundChatMessage.new{
         round = info.initiativeQueue.round,
     }

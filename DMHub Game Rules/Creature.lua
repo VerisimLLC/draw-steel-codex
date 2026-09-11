@@ -9344,6 +9344,10 @@ function creature:BeginTurn()
         --Now that the prestartturn trigger has completed, expire start-of-turn auras.
         self:CheckAuraExpiration("nextturn")
 
+        --Auras left behind by a creature that died still belong to this initiative -- a
+        --summon acts on its summoner's turn -- so expire them on the same boundary.
+        Aura.ExpireOrphanedTurnScopedAurasOnTurn(initiativeid, "nextturn")
+
         if self:has_key("auras") then
             local expires = false
             for i,aura in ipairs(self.auras) do
@@ -9670,6 +9674,10 @@ function creature:EndTurn(token)
 		}
 	end
 	self:CheckAuraExpiration("endturn")
+
+	--Same as the start of the turn: a dead caster's auras expire on the initiative it
+	--acted on, which for a summon is its summoner's.
+	Aura.ExpireOrphanedTurnScopedAurasOnTurn(InitiativeQueue.GetInitiativeId(token), "endturn")
 
 end
 

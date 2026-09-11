@@ -551,21 +551,28 @@ local g_rulePatterns = {
                 grabbedByCaster = (targetGrabbed == casterToken.charid)
             end
 
-            --Check the grabbed-by-another case FIRST: a grabbed target usually also
-            --has "Cannot Be Force Moved" granted by the grab itself, so testing the
-            --generic immunity first would mask the more specific (and actionable)
-            --reason -- the director should see that the grab is what blocks the move.
-            if targetGrabbed and targetGrabbed ~= casterToken.charid then
-                print("Target is grabbed, and cannot be force moved.")
-                ShowFailMessage("Grabbed: Cannot be Force Moved")
-                return
-            end
+            --An "into your space" pull (e.g. Engulf) is the caster asserting control
+            --over the target -- pulling it into its own body -- so like a grab it
+            --overrides the target's forced-movement immunity. Without this, engulfing
+            --a creature that is already Restrained/Engulfed/grabbed (which all grant
+            --"Cannot Be Force Moved") silently refused the pull.
+            if not match.intospace then
+                --Check the grabbed-by-another case FIRST: a grabbed target usually
+                --also has "Cannot Be Force Moved" granted by the grab itself, so
+                --testing the generic immunity first would mask the more specific
+                --(and actionable) reason -- the director should see the grab.
+                if targetGrabbed and targetGrabbed ~= casterToken.charid then
+                    print("Target is grabbed, and cannot be force moved.")
+                    ShowFailMessage("Grabbed: Cannot be Force Moved")
+                    return
+                end
 
-            local targetImmune = targetToken.properties:CalculateNamedCustomAttribute("Cannot Be Force Moved")
-            if targetImmune > 0 and (not grabbedByCaster) then
-                print("Target is immune to forced movement, not executing")
-                ShowFailMessage("Immune to Forced Movement")
-                return
+                local targetImmune = targetToken.properties:CalculateNamedCustomAttribute("Cannot Be Force Moved")
+                if targetImmune > 0 and (not grabbedByCaster) then
+                    print("Target is immune to forced movement, not executing")
+                    ShowFailMessage("Immune to Forced Movement")
+                    return
+                end
             end
 
 
@@ -3754,24 +3761,19 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
     --Deliberately NOT `ability.forcedMovement`, which "Forced Movement: Slide" never declares.
     local isForcedMove = movementType == "move" and (ability.targeting == "straightline" or ability.targetType == "line")
 
-    --"into your space" pulls (e.g. the Shambling Mound's Engulf): the pull
-    --always ends in the puller's own footprint -- clicking beyond the puller
-    --must not drag the target past it, the same way a wall would stop the
-    --movement. A click on a specific square INSIDE the footprint is honored
-    --as-is so the director controls where in the space the captive ends up.
+    --"into your space" pulls (e.g. the Shambling Mound's Engulf): always land the
+    --target on the square of the puller's footprint nearest to it -- the entry
+    --point. That square is straight-line reachable from the victim, so the forced
+    --Move never refuses (a specific interior click could be off-line and get
+    --refused). Which interior tile they end on does not matter: the mound occupies
+    --the whole footprint, so the captive shares space with it either way.
     local intoCharid = ability:try_get("pullIntoSpaceOfCharid")
     if intoCharid ~= nil and casterToken ~= nil and casterToken.valid then
         local ownerTok = dmhub.GetTokenById(intoCharid)
         if ownerTok ~= nil and ownerTok.valid then
-            local chosenLoc = nil
-            if targets ~= nil and targets[1] ~= nil then
-                chosenLoc = targets[1].loc
-            end
-            if not MCDMUtils.IsLocInsideFootprint(ownerTok, chosenLoc) then
-                local dest = MCDMUtils.NearestFootprintLoc(ownerTok, casterToken)
-                if dest ~= nil then
-                    targets = { { loc = dest } }
-                end
+            local dest = MCDMUtils.NearestFootprintLoc(ownerTok, casterToken)
+            if dest ~= nil then
+                targets = { { loc = dest } }
             end
         end
     end
@@ -4062,8 +4064,11 @@ function ActivatedAbilityRepositionIntoEngulferBehavior:Cast(ability, casterToke
     end
 end
 
---Teleport captiveToken to the nearest free square of engulferToken's
---footprint, unless it is already inside or the engulfer is dead.
+--Move captiveToken into the nearest square of engulferToken's footprint, unless
+--it is already inside or the engulfer is dead. Uses an animated forced Move with
+--ignorecreatures (so it can end on the mound's own occupied square, and captives
+--can share squares) rather than a Teleport, so the drag reads as movement. Falls
+--back to a Teleport only if the engine refuses the move (nil path).
 function ActivatedAbilityRepositionIntoEngulferBehavior.SnapIntoFootprint(engulferTok, captiveToken)
     local engulferDead = false
     pcall(function() engulferDead = engulferTok.properties:IsDead() end)
@@ -4076,8 +4081,24 @@ function ActivatedAbilityRepositionIntoEngulferBehavior.SnapIntoFootprint(engulf
     end
 
     local dest = MCDMUtils.NearestFootprintLoc(engulferTok, captiveToken)
-    if dest ~= nil then
-        captiveToken:Teleport(dest)
+    if dest == nil then
+        return
+    end
+
+    captiveToken.properties._tmp_freeMovement = true
+    local path = captiveToken:Move(dest.withGroundAltitude, {
+        straightline = false,
+        ignorecreatures = true,
+        moveThroughFriends = true,
+        maxCost = 30000,
+        movementType = "move",
+        freeMovement = true,
+        forced = true,
+    })
+    captiveToken.properties._tmp_freeMovement = false
+
+    if path == nil then
+        captiveToken:Teleport(dest.withGroundAltitude)
     end
 end
 

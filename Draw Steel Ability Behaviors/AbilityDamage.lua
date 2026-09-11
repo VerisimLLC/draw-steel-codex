@@ -673,6 +673,9 @@ function ActivatedAbilityLeechTempStaminaBehavior:Cast(ability, casterToken, tar
 	local bypassTempStamina = self:try_get("bypassTempStamina", true)
 
 	local numDamaged = 0
+	--charids of the creatures actually damaged, for the action-log card below.
+	local damagedTokenIds = {}
+	local lastAmount = 0
 
 	for _,target in ipairs(targets) do
 		if target.token ~= nil and target.token.valid and target.token.properties ~= nil then
@@ -680,6 +683,7 @@ function ActivatedAbilityLeechTempStaminaBehavior:Cast(ability, casterToken, tar
 			local amount = dmhub.EvalGoblinScript(self.roll, casterToken.properties:LookupSymbol(options.symbols or {}), string.format("Leech damage for %s", ability.name))
 			amount = tonumber(amount) or 0
 			if amount > 0 then
+				lastAmount = amount
 				ability.RecordTokenMessage(target.token, options, string.format("%d %s damage", amount, damageType))
 				target.token:ModifyProperties{
 					description = sourceDescription,
@@ -696,16 +700,19 @@ function ActivatedAbilityLeechTempStaminaBehavior:Cast(ability, casterToken, tar
 						end
 					end,
 				}
+				damagedTokenIds[#damagedTokenIds+1] = target.token.charid
 			end
 		end
 	end
 
+	local grantedTemp = 0
 	if numDamaged > 0 then
 		local perTarget = tonumber(dmhub.EvalGoblinScript(self.tempPerTarget, casterToken.properties:LookupSymbol(options.symbols or {}), string.format("Temp stamina for %s", ability.name))) or 0
 		--Draw Steel temporary Stamina does not stack: the higher of the current
 		--and new values wins. SetTemporaryHitpoints overwrites, so clamp here.
 		local grant = perTarget * numDamaged
 		if grant > 0 and grant > casterToken.properties:TemporaryHitpoints() then
+			grantedTemp = grant
 			casterToken:ModifyProperties{
 				description = string.format("%s: Gain Temporary Stamina", ability.name),
 				execute = function()
@@ -715,6 +722,24 @@ function ActivatedAbilityLeechTempStaminaBehavior:Cast(ability, casterToken, tar
 			}
 			casterToken.properties:FloatLabel(string.format("+%d Temp Stamina", grant), "#66ff66")
 		end
+	end
+
+	--Action-log card: the base RecordTokenMessage notes are easy to miss, so post
+	--an explicit damage card (reusing the standard damage card) showing the poison
+	--dealt to each target, with the Stamina the caster leeched folded into the
+	--caption. Only when something actually happened.
+	if #damagedTokenIds > 0 then
+		local caption = ability.name
+		if grantedTemp > 0 then
+			caption = string.format("%s (+%d temporary Stamina)", ability.name, grantedTemp)
+		end
+		chat.SendCustom(ActivatedAbilityDamageChatMessage.new{
+			amount = lastAmount,
+			damageType = damageType,
+			chatMessage = caption,
+			casterid = casterToken.charid,
+			targetids = damagedTokenIds,
+		})
 	end
 end
 

@@ -3959,6 +3959,10 @@ end
 
 local g_numTargetsFunction = ActivatedAbility.GetNumTargets
 
+--GetNumTargets re-runs on every targeting recompute, so throttle its diagnostic
+--below to one line per caster/squad/game update instead of flooding the log.
+local g_lastNoSquadAttackerDiag = nil
+
 function ActivatedAbility:GetNumTargets(casterToken, symbols)
     local result = g_numTargetsFunction(self, casterToken, symbols) or 0
 
@@ -3970,15 +3974,39 @@ function ActivatedAbility:GetNumTargets(casterToken, symbols)
         local squad = casterToken.properties._tmp_minionSquad
         if casterToken.properties:HasManeuverOrActionRule() and squad ~= nil and squad.tokens ~= nil then
             local count = 0
+            local rejectInvalid, rejectDead, rejectSkipped, rejectInactive = 0, 0, 0, 0
             for _, tok in ipairs(squad.tokens) do
-                if tok ~= nil and tok.valid
-                    and (not tok.properties:IsDead())
-                    and (not tok.properties:IsTurnSkipped(tok))
-                    and tok.properties:IsActiveInSquad() then
+                if tok == nil or not tok.valid or tok.properties == nil then
+                    rejectInvalid = rejectInvalid + 1
+                elseif tok.properties:IsDead() then
+                    rejectDead = rejectDead + 1
+                elseif tok.properties:IsTurnSkipped(tok) then
+                    rejectSkipped = rejectSkipped + 1
+                elseif not tok.properties:IsActiveInSquad() then
+                    rejectInactive = rejectInactive + 1
+                else
                     count = count + 1
                 end
             end
-            if count < 1 then count = 1 end
+
+            if count < 1 then
+                --An empty squad here strikes as one minion while ConsumeResources still
+                --charges all of them, which on screen looks like a normal solo strike.
+                --Fall back to 1 so the cast works, but log what emptied the squad.
+                local diagKey = string.format("%s/%s/%s", tostring(casterToken.charid),
+                    tostring(squad.name), tostring(dmhub.gameupdateid))
+                if g_lastNoSquadAttackerDiag ~= diagKey then
+                    g_lastNoSquadAttackerDiag = diagKey
+                    print(string.format(
+                        "SQUADDIAG:: no squad attackers for %s ability=%s squad=%s tokens=%d invalid=%d dead=%d turnskipped=%d inactive=%d; falling back to 1 attacker",
+                        tostring(casterToken.name or casterToken.charid),
+                        tostring(self.name),
+                        tostring(squad.name),
+                        #squad.tokens, rejectInvalid, rejectDead, rejectSkipped, rejectInactive))
+                end
+                count = 1
+            end
+
             return count * result
         end
 

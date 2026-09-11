@@ -1229,6 +1229,10 @@ function creature:RefreshSquadInfo(token)
                         --rerun this entire function. This is a super rare event so okay to do this.
                         self._tmp_minionSquad.damage_taken_seq = nil
                         self._tmp_minionSquad.damage_taken_charid = nil
+                        --Clear the stamp first, or the rerun sees this update as already
+                        --done, returns straight away, and leaves squad.tokens half-built.
+                        --Every squad-wide count reads that table, so the squad collapses.
+                        self._tmp_minionSquad.updateid = nil
                         self:RefreshSquadInfo(token)
                         return
                     end

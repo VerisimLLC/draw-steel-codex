@@ -4555,3 +4555,35 @@ ActivatedAbility.RegisterProperty {
     name = "All Force Move From Caster",
     description = "If true, push/pull/slide effects from this ability use the original caster as the source for size-difference calculations (Big Versus Little), rather than this ability's caster. Generally only used within Invoked Abilities",
 }
+
+--"Block Enemy Line of Effect": a creature carrying this custom attribute stands in the way
+--of its enemies' targeting -- an enemy can't pick a target it can only reach by drawing a
+--line through the blocker's space. Reported as a reasoned failure (false plus a message) so
+--the action bar greys the target out with a tooltip saying who is in the way, rather than
+--silently dropping it from the candidate list.
+local g_baseTargetPassesFilter = ActivatedAbility.TargetPassesFilter
+function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, filterOverride)
+    local result, reason = g_baseTargetPassesFilter(self, casterToken, targetToken, symbols, filterOverride)
+    if not result then
+        return result, reason
+    end
+
+    if casterToken == nil or targetToken == nil or targetToken.isObject then
+        return result, reason
+    end
+
+    --An area ability's line of effect runs from wherever the area is centred, not from the
+    --caster; this matches the line-of-sight check the base filter makes just above.
+    local originLoc = nil
+    local targetArea = (symbols ~= nil) and symbols.targetArea or nil
+    if targetArea ~= nil then
+        originLoc = targetArea.origin
+    end
+
+    local blocker = RuleUtils.LineOfEffectBlocker(casterToken, targetToken, originLoc)
+    if blocker == nil then
+        return result, reason
+    end
+
+    return false, string.format("%s blocks line of effect to this creature.", RuleUtils.LineOfEffectBlockerName(blocker))
+end

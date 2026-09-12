@@ -260,7 +260,8 @@ local function CollectMovementConstraintCandidates(behavior, anchorType, casterT
     for _,candidate in ipairs(dmhub.allTokens) do
         local include = MovementConstraintCandidateIsLiving(candidate, movedToken)
         if include and anchorType == "nearest_enemy" then
-            include = not IsFriendForTargeting(casterToken, candidate)
+            --strict == false: tri-state IsFriendForTargeting, nil (neutral) is not an enemy.
+            include = IsFriendForTargeting(casterToken, candidate) == false
         end
         if include and maxDistance ~= nil and movedToken:Distance(candidate) > maxDistance then
             include = false

@@ -98,13 +98,25 @@ function GameHud.CreateRollDialog(self)
     local m_multitargets = nil
     local m_CalculateMultiTargets = nil
 
+    -- True if this row is for creature c, including a row a trigger retargeted
+    -- away from c while the dialog is open (the row then carries originalid).
+    local function MultiTargetIsFor(target, c)
+        if c == nil then
+            return false
+        end
+        if target.token.properties == c then
+            return true
+        end
+        return target.originalid ~= nil and target.originalid == dmhub.LookupTokenId(c)
+    end
+
     local GetCurrentMultiTarget = function()
         if m_multitargets == nil or targetCreature == nil then
             return nil
         end
 
         for i, target in ipairs(m_multitargets) do
-            if target.token.properties == targetCreature then
+            if MultiTargetIsFor(target, targetCreature) then
                 return i
             end
         end
@@ -113,6 +125,33 @@ function GameHud.CreateRollDialog(self)
     end
 
     local m_symbols = nil
+
+    -- Records a trigger-chosen retarget as soon as it arrives, so the next
+    -- recalculation rebuilds that row for the new creature (its own flanking,
+    -- cover and conditions). A withdrawn retarget swings the row back.
+    local function SyncLiveRetargets()
+        if m_multitargets == nil or m_symbols == nil or m_symbols.cast == nil then
+            return
+        end
+        for _, target in ipairs(m_multitargets) do
+            local hasRedirect = false
+            local retargetid = nil
+            local casterid = nil
+            for _, trigger in ipairs(target.triggers or {}) do
+                local powerMod = trigger.modifier:try_get("powerRollModifier")
+                if powerMod ~= nil and powerMod:try_get("changeTarget") and powerMod:try_get("changeTargetEffect", "all") == "all" then
+                    hasRedirect = true
+                    if retargetid == nil and trigger.triggered and type(trigger.retargetid) == "string" then
+                        retargetid = trigger.retargetid
+                        casterid = trigger.charid
+                    end
+                end
+            end
+            if hasRedirect then
+                m_symbols.cast:SyncLiveRetarget(target.originalid or target.token.charid, casterid, retargetid)
+            end
+        end
+    end
 
     --any ongoing roll as a result of this dialog.
     local m_rollInfo = nil
@@ -1055,9 +1094,11 @@ function GameHud.CreateRollDialog(self)
                         m_openedTriggers = {}
                     end
 
+                    -- Keyed by the original target so a row swapped to its redirect
+                    -- target keeps talking to the same trigger record.
                     local key = trigger.modifier.guid .. (trigger.charid or "")
                     if not targetAll then
-                        key = key .. target.token.charid
+                        key = key .. (target.originalid or target.token.charid)
                     end
 
                     -- Skip triggers that fail roll requirements
@@ -1212,7 +1253,10 @@ function GameHud.CreateRollDialog(self)
                 if token ~= nil then
                     local tokenTriggers = token.properties:GetAvailableTriggers() or {}
                     local tokenTrigger = tokenTriggers[trigger.id]
-                    if tokenTrigger ~= nil and (tokenTrigger.triggered ~= trigger.triggered or tokenTrigger.resolving ~= trigger.resolving) then
+                    --retargetid is part of the change detection: a trigger-before
+                    --flow (e.g. Devilish Charm) picks the new target after
+                    --activation without flipping triggered.
+                    if tokenTrigger ~= nil and (tokenTrigger.triggered ~= trigger.triggered or tokenTrigger.retargetid ~= trigger.retargetid or tokenTrigger.resolving ~= trigger.resolving) then
                         trigger.triggered = tokenTrigger.triggered
                         trigger.retargetid = tokenTrigger.retargetid
                         --carry resolving into our copy so the periodic re-dispatch
@@ -1246,6 +1290,7 @@ function GameHud.CreateRollDialog(self)
             end
 
             if needUpdate then
+                SyncLiveRetargets()
                 RecalculateMultiTargets()
             end
         end,
@@ -2333,16 +2378,24 @@ function GameHud.CreateRollDialog(self)
 
         rollInput:SetClass("manualEdit", false)
 
+        -- Rows keep their order when a retarget swaps one to a new creature, so
+        -- the current row's position still finds it if the old creature is gone.
+        local previousIndex = GetCurrentMultiTarget()
+
         if m_CalculateMultiTargets ~= nil then
             m_multitargets = m_CalculateMultiTargets()
         end
 
         local index = nil
         for i, target in ipairs(m_multitargets) do
-            if target.token.properties == targetCreature then
+            if MultiTargetIsFor(target, targetCreature) then
                 index = i
                 break
             end
+        end
+
+        if index == nil and previousIndex ~= nil and previousIndex <= #m_multitargets then
+            index = previousIndex
         end
 
         if index == nil then
@@ -3140,7 +3193,14 @@ function GameHud.CreateRollDialog(self)
                         for i, target in ipairs(multitargetsUsed) do
                             for j, trigger in ipairs(target.triggers or {}) do
                                 if trigger.triggered and trigger.modifier.powerRollModifier:try_get("changeTarget") and type(trigger.retargetid) == "string" and m_symbols ~= nil and m_symbols.cast ~= nil then
-                                    m_symbols.cast:RecordRetarget { casterid = trigger.charid, tokenid = target.token.charid, retargetid = trigger.retargetid, retargetType = trigger.modifier.powerRollModifier:try_get("changeTargetEffect", "all") }
+                                    --an "all" retarget is usually already recorded live
+                                    --(SyncLiveRetargets), which also swapped this row to
+                                    --the new target; record from the original target.
+                                    local fromid = target.originalid or target.token.charid
+                                    local retargetType = trigger.modifier.powerRollModifier:try_get("changeTargetEffect", "all")
+                                    if not m_symbols.cast:HasRetarget(fromid, trigger.retargetid, retargetType) then
+                                        m_symbols.cast:RecordRetarget { casterid = trigger.charid, tokenid = fromid, retargetid = trigger.retargetid, retargetType = retargetType }
+                                    end
                                 end
                             end
 

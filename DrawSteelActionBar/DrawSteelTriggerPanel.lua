@@ -712,6 +712,8 @@ mod.shared.CreateTriggerPanel = function()
                                                     execute = function()
                                                         trigger.triggered = true
                                                         trigger.retargetid = newTargetToken.charid
+                                                        --choosing the new target commits the trigger, so the card leaves the drawer.
+                                                        trigger.dismissed = true
 
                                                         g_token.properties:DispatchAvailableTrigger(trigger)
                                                     end,
@@ -941,6 +943,8 @@ mod.shared.CreateTriggerPanel = function()
 
                                                             trigger.triggered = index
                                                             trigger.retargetid = newTargetToken.charid
+                                                            --choosing the new target commits the trigger, so the card leaves the drawer.
+                                                            trigger.dismissed = true
 
                                                             g_token.properties:DispatchAvailableTrigger(trigger)
                                                         end,
@@ -1166,6 +1170,8 @@ mod.shared.CreateTriggerPanel = function()
                                                     execute = function()
                                                         trigger.triggered = true
                                                         trigger.retargetid = newTargetToken.charid
+                                                        --choosing the new target commits the trigger, so the card leaves the drawer.
+                                                        trigger.dismissed = true
 
                                                         g_token.properties:DispatchAvailableTrigger(trigger)
                                                     end,
@@ -1678,6 +1684,8 @@ mod.shared.CreateTriggerPanel = function()
 
                                                             trigger.triggered = index
                                                             trigger.retargetid = newTargetToken.charid
+                                                            --choosing the new target commits the trigger, so the card leaves the drawer.
+                                                            trigger.dismissed = true
 
                                                             g_token.properties:DispatchAvailableTrigger(trigger)
                                                         end,

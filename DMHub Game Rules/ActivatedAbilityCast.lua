@@ -766,6 +766,44 @@ function ActivatedAbilityCast:RecordRetarget(retarget)
     retargets[#retargets+1] = retarget
 end
 
+--- True if an identical retarget has already been recorded on this cast.
+--- @param tokenid string
+--- @param retargetid string
+--- @param retargetType string
+--- @return boolean
+function ActivatedAbilityCast:HasRetarget(tokenid, retargetid, retargetType)
+    for _, retarget in ipairs(self:try_get("retargets", {})) do
+        if retarget.tokenid == tokenid and retarget.retargetid == retargetid and retarget.retargetType == retargetType then
+            return true
+        end
+    end
+    return false
+end
+
+--- Records (or clears) an open roll's "all" retarget for tokenid, so the dialog
+--- can rebuild that row for the new creature. Pass a nil retargetid when the
+--- trigger was withdrawn. Returns true if anything changed.
+--- @param tokenid string the target the strike was originally aimed at
+--- @param casterid string the trigger's owner
+--- @param retargetid nil|string the creature the trigger redirected to
+--- @return boolean
+function ActivatedAbilityCast:SyncLiveRetarget(tokenid, casterid, retargetid)
+    local retargets = self:get_or_add("retargets", {})
+    local changed = false
+    for i = #retargets, 1, -1 do
+        local retarget = retargets[i]
+        if retarget.live and retarget.tokenid == tokenid and retarget.retargetid ~= retargetid then
+            table.remove(retargets, i)
+            changed = true
+        end
+    end
+    if type(retargetid) == "string" and not self:HasRetarget(tokenid, retargetid, "all") then
+        retargets[#retargets+1] = { casterid = casterid, tokenid = tokenid, retargetid = retargetid, retargetType = "all", live = true }
+        changed = true
+    end
+    return changed
+end
+
 function ActivatedAbilityCast:RedirectTarget(target)
     local retargets = self:try_get("retargets")
     if retargets == nil then

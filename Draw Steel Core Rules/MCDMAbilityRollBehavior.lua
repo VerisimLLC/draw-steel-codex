@@ -1255,13 +1255,16 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     local baseBoons = nil
     local baseBanes = nil
 
+    --The targets as first chosen; every recalculation re-applies redirects to these.
+    local originalTargets = table.shallow_copy(targets or {})
+
     local CalculateMultitargets = function()
         while #multitargets > 0 do
             table.remove(multitargets, #multitargets)
         end
 
         --respect any target redirecting occurring.
-        for i,target in ipairs(targets or {}) do
+        for i,target in ipairs(originalTargets) do
             targets[i] = options.symbols.cast:RedirectTarget(target)
         end
 
@@ -1505,12 +1508,21 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             end
 
 
+            --A retargeted row uses the new creature's modifiers but keeps the old
+            --row's triggers, so the redirecting trigger (and any edge it grants) stays.
+            local rowTriggers = {}
+            local originalRow = target.originalid ~= nil and multitargetsByTokenId[target.originalid] or nil
+            if originalRow ~= nil then
+                rowTriggers = originalRow.triggers
+            end
+
             multitargets[#multitargets+1] = {
                 token = target.token,
+                originalid = target.originalid,
                 boons = boons - baseBoons,
                 banes = banes - baseBanes,
                 modifiers = candidateModifiers,
-                triggers = {},
+                triggers = rowTriggers,
             }
 
             multitargetsByTokenId[target.token.charid] = multitargets[#multitargets]

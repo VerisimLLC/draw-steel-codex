@@ -754,6 +754,16 @@ function GameHud.LootContainer(self, token, object)
 		return
 	end
 
+	--Harvest-gated loot (e.g. the Shambling Mound's Alchemical Ingredients):
+	--the first attempt to loot prompts the looter with a characteristic test;
+	--the tier rolled decides what the container holds. Later loots go straight
+	--to the container.
+	local harvest = lootobj.properties:try_get("harvestTest")
+	if harvest ~= nil and not harvest.resolved then
+		self:RunHarvestTest(token, lootobj, object)
+		return
+	end
+
 	if lootobj.instantLoot then
 		GameHud.LootAll(lootobj, token)
 		if lootobj.destroyOnEmpty then
@@ -764,7 +774,120 @@ function GameHud.LootContainer(self, token, object)
 
 	self.inventoryDialog.data.open(token, {})
 	self.tradeInventoryDialog.data.open(lootobj, { isobject = true, isshop = lootobj.shop, title = cond(lootobj.shop, 'Shop', lootobj.objectInstance.description), tradewith = token })
-	
+
+end
+
+--Prompt the looting player with the harvest test stored on a loot container,
+--then stock the container based on the tier rolled and open it. Runs on the
+--looting player's client (LootContainer is invoked there by the engine).
+function GameHud.RunHarvestTest(self, token, lootobj, object)
+	local harvest = lootobj.properties:try_get("harvestTest")
+	if harvest == nil then
+		return
+	end
+
+	--Capture the object's id up front. The roll below yields for several
+	--seconds while the dice resolve, and across those yields the loot component
+	--(and its live object) can re-sync from the cloud, leaving our captured
+	--`lootobj` a stale reference whose mutations never upload. After the roll we
+	--re-fetch the live object by id and stock THAT. See GetObject below.
+	local objid = object ~= nil and object.id or nil
+	local floorid = token.floorid
+
+	dmhub.Coroutine(function()
+		--Wrap each tier outcome in a {#...} spoiler. The power-table roll dialog
+		--hides spoiler content from players before the dice land and reveals the
+		--achieved tier when the roll finishes (see finishRoll's {#->{! swap in
+		--MCDMAbilityRollBehavior), so the looter can't see the yield in advance.
+		local tierDescriptions = {}
+		for i,text in ipairs(harvest.tiers or {}) do
+			if harvest.spoilers ~= false and trim(text) ~= "" then
+				tierDescriptions[i] = string.format("{#%s}", text)
+			else
+				tierDescriptions[i] = text
+			end
+		end
+
+		--include the characteristic in the check text so the dialog heading
+		--reads e.g. "Alchemical Ingredients Reason test for Talent".
+		local attrid = harvest.attrid or "rea"
+		local attrInfo = creature.attributesInfo[attrid]
+		local attrName = (attrInfo ~= nil and attrInfo.description) or attrid
+
+		local check = RollCheck.new{
+			type = "test_power_roll",
+			id = attrid,
+			text = string.format("%s %s", harvest.title or "Harvest", attrName),
+			options = {
+				tiers = tierDescriptions,
+			},
+		}
+
+		--forceuserid: prompt the user who clicked the container, on this client.
+		--Without it the roll listener defers player-controlled tokens to their
+		--owning player's client, which never prompts when the DM (or another
+		--controller) is the one looting.
+		local actionid = dmhub.SendActionRequest(RollRequest.new{
+			title = harvest.title or "Harvest",
+			checks = { check },
+			tokens = { [token.charid] = { forceuserid = dmhub.loginUserid } },
+		})
+
+		local rollResult = {}
+		AwaitRequestedActionCoroutine(actionid, rollResult)
+		while rollResult.result == nil do
+			coroutine.yield(0.1)
+		end
+
+		if rollResult.result == false then
+			--the roll was declined or canceled; the container stays unharvested.
+			return
+		end
+
+		local tokenInfo = rollResult.action.info.tokens[token.charid]
+		local total = tokenInfo ~= nil and tokenInfo.result or nil
+		if total == nil then
+			return
+		end
+
+		local tier = RollUtils.DiceResultToTier{ total = total }
+
+		--Re-fetch the live loot component now that the roll is done -- the
+		--reference captured before the yields may be stale.
+		local liveLoot = lootobj
+		if objid ~= nil then
+			local floor = game.GetFloor(floorid)
+			if floor ~= nil then
+				local liveObj = floor:GetObject(objid)
+				if liveObj ~= nil then
+					local c = liveObj:GetComponent("Loot")
+					if c ~= nil then
+						liveLoot = c
+					end
+				end
+			end
+		end
+
+		local liveHarvest = liveLoot.properties:try_get("harvestTest") or harvest
+
+		liveLoot:BeginChanges()
+		for _,entry in ipairs(liveHarvest.items or harvest.items or {}) do
+			local quantities = entry.quantities or {}
+			local quantity = quantities[tier] or 0
+			if quantity > 0 then
+				liveLoot.properties:SetItemQuantity(entry.itemid, quantity)
+			end
+		end
+		if liveLoot.properties:try_get("harvestTest") ~= nil then
+			liveLoot.properties.harvestTest.resolved = true
+			liveLoot.properties.harvestTest.tier = tier
+		end
+		liveLoot:CompleteChanges("Harvest")
+
+		--open the container so the looter sees what they extracted (possibly nothing).
+		self.inventoryDialog.data.open(token, {})
+		self.tradeInventoryDialog.data.open(liveLoot, { isobject = true, title = harvest.title or liveLoot.objectInstance.description, tradewith = token })
+	end)
 end
 
 setting{

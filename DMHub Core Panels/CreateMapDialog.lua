@@ -3266,9 +3266,12 @@ mod.shared.FinishMapImport = function(mapName, info)
     end
 
 
+    --CreateMap indexes floors from 0 (see parentFloor above), so 0 puts the ground
+    --line below the lowest floor. Underground floors get an automatic ceiling, which
+    --capped flyers at the top of an imported floor.
     local guid = game.CreateMap{
         description = mapName,
-        groundLevel = #floors,
+        groundLevel = 0,
         floors = floors,
     }
     dmhub.Coroutine(function()

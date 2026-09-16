@@ -1,0 +1,1888 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Code documentation for the Draw Steel Codex DMHub mod">
+      
+      
+      
+      
+        <link rel="prev" href="../ui-panels/">
+      
+      
+        <link rel="next" href="../document-system/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Abilities - Draw Steel Codex Wiki</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Lato";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#abilities" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Draw Steel Codex Wiki" class="md-header__button md-logo" aria-label="Draw Steel Codex Wiki" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Draw Steel Codex Wiki
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Abilities
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/VerisimLLC/draw-steel-codex" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    VerisimLLC/draw-steel-codex
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/overview/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../patterns/game-types/" class="md-tabs__link">
+          
+  
+  
+  Design Patterns
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../definitions/" class="md-tabs__link">
+          
+  
+  
+  Modules
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/file-index/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Draw Steel Codex Wiki" class="md-nav__button md-logo" aria-label="Draw Steel Codex Wiki" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Draw Steel Codex Wiki
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/VerisimLLC/draw-steel-codex" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    VerisimLLC/draw-steel-codex
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/module-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Module Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/loading-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Loading System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Patterns
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design Patterns
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/game-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Game Types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/data-tables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Tables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/token-mutations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Token Mutations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/shared-documents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shared Documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/ui-framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../patterns/goblinscript/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GoblinScript
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modules
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modules
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../definitions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Engine API (Definitions)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../game-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Game Rules (Foundation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../draw-steel-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Draw Steel Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../character-builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Character Builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ui-panels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI & Panels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Abilities
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Abilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#lifecycle-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lifecycle Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#activatedability-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ActivatedAbility (Definition)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#activatedabilitycast-runtime-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ActivatedAbilityCast (Runtime State)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-behavior-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Behavior System
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Behavior System">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-behavior-types-in-activatedabilitylua" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Behavior Types (in ActivatedAbility.lua)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extended-behaviors-in-draw-steel-ability-behaviors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extended Behaviors (in Draw Steel Ability Behaviors/)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../document-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/file-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#lifecycle-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lifecycle Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#activatedability-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ActivatedAbility (Definition)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#activatedabilitycast-runtime-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ActivatedAbilityCast (Runtime State)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-behavior-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Behavior System
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Behavior System">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-behavior-types-in-activatedabilitylua" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Behavior Types (in ActivatedAbility.lua)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extended-behaviors-in-draw-steel-ability-behaviors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extended Behaviors (in Draw Steel Ability Behaviors/)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="abilities">Abilities<a class="headerlink" href="#abilities" title="Permanent link">&para;</a></h1>
+<p>Abilities in Draw Steel Codex follow a three-stage lifecycle: <strong>definition</strong>, <strong>cast</strong>, and <strong>resolution</strong>. The core types live in <code>DMHub Game Rules/</code> while the individual behavior implementations live in <code>Draw Steel Ability Behaviors/</code> (24 files).</p>
+<hr />
+<h2 id="lifecycle-overview">Lifecycle Overview<a class="headerlink" href="#lifecycle-overview" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>ActivatedAbility          ActivatedAbilityCast          Behavior execution
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>(data definition)  ---&gt;   (runtime cast state)   ---&gt;   (per-target effects)
+</code></pre></div>
+<ol>
+<li><strong>Definition</strong> -- An <code>ActivatedAbility</code> object stores everything about <em>what</em> an ability does: range, targeting, resource costs, duration, and an ordered list of <code>behaviors</code>.</li>
+<li><strong>Cast</strong> -- When a creature uses the ability, an <code>ActivatedAbilityCast</code> is created. It accumulates runtime state: roll results, damage dealt, targets hit, forced movement paths, and per-target tier outcomes.</li>
+<li><strong>Resolution</strong> -- Each behavior in the ability's <code>behaviors</code> list executes in order against the cast's targets, applying damage, conditions, forced movement, and other effects.</li>
+</ol>
+<hr />
+<h2 id="activatedability-definition">ActivatedAbility (Definition)<a class="headerlink" href="#activatedability-definition" title="Permanent link">&para;</a></h2>
+<p>Registered in <code>DMHub Game Rules/ActivatedAbility.lua</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">ActivatedAbility</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">RegisterGameType</span><span class="p">(</span><span class="s2">"ActivatedAbility"</span><span class="p">)</span>
+</code></pre></div>
+<p>Key fields on every ability:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>description</code></td>
+<td>string</td>
+<td>Rules text shown to players</td>
+</tr>
+<tr>
+<td><code>flavor</code></td>
+<td>string</td>
+<td>Lore text for tooltips</td>
+</tr>
+<tr>
+<td><code>range</code></td>
+<td>number</td>
+<td>Targeting range in world units</td>
+</tr>
+<tr>
+<td><code>selfTarget</code></td>
+<td>boolean</td>
+<td>Always targets the caster</td>
+</tr>
+<tr>
+<td><code>castImmediately</code></td>
+<td>boolean</td>
+<td>Auto-cast when no targeting choices exist</td>
+</tr>
+<tr>
+<td><code>actionResourceId</code></td>
+<td>string</td>
+<td>Resource consumed to cast (e.g. an action)</td>
+</tr>
+<tr>
+<td><code>resourceCost</code> / <code>resourceNumber</code></td>
+<td>string / number</td>
+<td>Secondary resource cost</td>
+</tr>
+<tr>
+<td><code>targetFilter</code></td>
+<td>string</td>
+<td>GoblinScript formula filtering valid targets</td>
+</tr>
+<tr>
+<td><code>durationType</code></td>
+<td>string</td>
+<td><code>"instant"</code>, <code>"rounds"</code>, <code>"minutes"</code>, <code>"hours"</code>, or <code>"days"</code></td>
+</tr>
+<tr>
+<td><code>concentration</code></td>
+<td>boolean</td>
+<td>Requires concentration to maintain</td>
+</tr>
+<tr>
+<td><code>behaviors</code></td>
+<td>list</td>
+<td>Ordered list of <code>ActivatedAbilityBehavior</code> objects</td>
+</tr>
+<tr>
+<td><code>categorization</code></td>
+<td>string</td>
+<td>Category: <code>"none"</code>, <code>"action"</code>, <code>"maneuver"</code>, etc.</td>
+</tr>
+<tr>
+<td><code>multipleModes</code></td>
+<td>boolean</td>
+<td>Ability has selectable modes</td>
+</tr>
+<tr>
+<td><code>isSpell</code></td>
+<td>boolean</td>
+<td>Treated as a spell</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition info">
+<p class="admonition-title">GoblinScript integration</p>
+<p>Fields like <code>targetFilter</code>, <code>rangeDisadvantage</code>, and <code>channelIncrement</code> accept GoblinScript formula strings. These are evaluated at cast time against the caster and target context.</p>
+</div>
+<hr />
+<h2 id="activatedabilitycast-runtime-state">ActivatedAbilityCast (Runtime State)<a class="headerlink" href="#activatedabilitycast-runtime-state" title="Permanent link">&para;</a></h2>
+<p>Registered in <code>DMHub Game Rules/ActivatedAbilityCast.lua</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">ActivatedAbilityCast</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">RegisterGameType</span><span class="p">(</span><span class="s2">"ActivatedAbilityCast"</span><span class="p">)</span>
+</code></pre></div>
+<p>The cast object tracks everything that happens during resolution:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tier</code></td>
+<td>number</td>
+<td>Power roll result tier</td>
+</tr>
+<tr>
+<td><code>damagedealt</code></td>
+<td>number</td>
+<td>Total damage dealt</td>
+</tr>
+<tr>
+<td><code>damageraw</code></td>
+<td>number</td>
+<td>Raw (pre-mitigation) damage</td>
+</tr>
+<tr>
+<td><code>naturalattackroll</code></td>
+<td>number</td>
+<td>Unmodified attack roll</td>
+</tr>
+<tr>
+<td><code>attackroll</code></td>
+<td>number</td>
+<td>Final attack roll</td>
+</tr>
+<tr>
+<td><code>healing</code></td>
+<td>number</td>
+<td>Total healing applied</td>
+</tr>
+<tr>
+<td><code>spacesMoved</code></td>
+<td>number</td>
+<td>Spaces of forced movement applied</td>
+</tr>
+<tr>
+<td><code>targets</code></td>
+<td>table</td>
+<td>List of targeted tokens</td>
+</tr>
+<tr>
+<td><code>tokenToTier</code></td>
+<td>table</td>
+<td>Map of token to tier outcome</td>
+</tr>
+<tr>
+<td><code>inflictedConditions</code></td>
+<td>table</td>
+<td>Conditions applied during the cast</td>
+</tr>
+<tr>
+<td><code>memory</code></td>
+<td>table or false</td>
+<td>Custom per-cast memory for behaviors</td>
+</tr>
+<tr>
+<td><code>forcedMovementDamageDealt</code></td>
+<td>number</td>
+<td>Damage from forced movement collisions</td>
+</tr>
+</tbody>
+</table>
+<p>The cast exposes these fields to GoblinScript via <code>helpSymbols</code>, so later behaviors can reference earlier results (e.g. damage dealt by a prior behavior).</p>
+<hr />
+<h2 id="the-behavior-system">The Behavior System<a class="headerlink" href="#the-behavior-system" title="Permanent link">&para;</a></h2>
+<p>Each <code>ActivatedAbility</code> contains an ordered list of <strong>behaviors</strong> -- small, composable units that define what happens when the ability resolves. The base type is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nv">ActivatedAbilityBehavior</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">RegisterGameType</span><span class="p">(</span><span class="s2">"ActivatedAbilityBehavior"</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="core-behavior-types-in-activatedabilitylua">Core Behavior Types (in <code>ActivatedAbility.lua</code>)<a class="headerlink" href="#core-behavior-types-in-activatedabilitylua" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ActivatedAbilityAttackBehavior</code></td>
+<td>Make an attack roll</td>
+</tr>
+<tr>
+<td><code>ActivatedAbilityDamageBehavior</code></td>
+<td>Deal damage</td>
+</tr>
+<tr>
+<td><code>ActivatedAbilityHealBehavior</code></td>
+<td>Restore stamina</td>
+</tr>
+<tr>
+<td><code>ActivatedAbilitySetStaminaBehavior</code></td>
+<td>Set stamina to a specific value</td>
+</tr>
+<tr>
+<td><code>ActivatedAbilityApplyOngoingEffectBehavior</code></td>
+<td>Apply a persistent effect</td>
+</tr>
+<tr>
+<td><code>ActivatedAbilityRemoveOngoingEffectBehavior</code></td>
+<td>Remove an ongoing effect</td>
+</tr>
+<tr>
+<td><code>ActivatedAbilityForcedMovementBehavior</code></td>
+<td>Push, pull, or slide targets</td>
+</tr>
+<tr>
+<td><code>ActivatedAbilityModifiersBehavior</code></td>
+<td>Grant or remove modifiers</td>
+</tr>
+<tr>
+<td><code>ActivatedAbilityAuraBehavior</code></td>
+<td>Create an aura zone</td>
+</tr>
+<tr>
+<td><code>ActivatedAbilityMoveAuraBehavior</code></td>
+<td>Reposition an existing aura</td>
+</tr>
+<tr>
+<td><code>ActivatedAbilityTransformBehavior</code></td>
+<td>Transform the caster</td>
+</tr>
+<tr>
+<td><code>ActivatedAbilityContestedAttackBehavior</code></td>
+<td>Opposed roll (contested check)</td>
+</tr>
+<tr>
+<td><code>ActivatedAbilityApplyMomentaryEffectBehavior</code></td>
+<td>Brief visual/mechanical flash</td>
+</tr>
+<tr>
+<td><code>ActivatedAbilityCastSpellBehavior</code></td>
+<td>Trigger another ability as a sub-cast</td>
+</tr>
+<tr>
+<td><code>ActivatedAbilityAugmentedAbilityBehavior</code></td>
+<td>Augment or upgrade an ability</td>
+</tr>
+</tbody>
+</table>
+<h3 id="extended-behaviors-in-draw-steel-ability-behaviors">Extended Behaviors (in <code>Draw Steel Ability Behaviors/</code>)<a class="headerlink" href="#extended-behaviors-in-draw-steel-ability-behaviors" title="Permanent link">&para;</a></h3>
+<p>These 24 files add Draw Steel-specific behavior types:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AbilityDamage.lua</code></td>
+<td>DS-specific damage with tier scaling</td>
+</tr>
+<tr>
+<td><code>AbilityForcedMovementLoc.lua</code></td>
+<td>Location-based forced movement</td>
+</tr>
+<tr>
+<td><code>AbilityTemporaryEffects.lua</code></td>
+<td>Temporary effect application</td>
+</tr>
+<tr>
+<td><code>AbilityChangeElevation.lua</code></td>
+<td>Change a creature's elevation</td>
+</tr>
+<tr>
+<td><code>AbilityChangeTerrain.lua</code></td>
+<td>Alter terrain on the map</td>
+</tr>
+<tr>
+<td><code>AbilityCreateObject.lua</code></td>
+<td>Spawn a map object</td>
+</tr>
+<tr>
+<td><code>AbilityDestroyCreature.lua</code></td>
+<td>Remove a creature from play</td>
+</tr>
+<tr>
+<td><code>AbilityDisguise.lua</code></td>
+<td>Apply a disguise</td>
+</tr>
+<tr>
+<td><code>AbilityFall.lua</code></td>
+<td>Force a creature to fall</td>
+</tr>
+<tr>
+<td><code>AbilityCharacterSpeech.lua</code></td>
+<td>Trigger in-character speech</td>
+</tr>
+<tr>
+<td><code>AbilityMacro.lua</code></td>
+<td>Execute a chat macro</td>
+</tr>
+<tr>
+<td><code>AbilityMemory.lua</code></td>
+<td>Store data in the cast's memory</td>
+</tr>
+<tr>
+<td><code>AbilityOpposedPowerRoll.lua</code></td>
+<td>Opposed power roll</td>
+</tr>
+<tr>
+<td><code>AbilityPayCost.lua</code></td>
+<td>Deduct an additional resource cost</td>
+</tr>
+<tr>
+<td><code>AbilityPersistentCast.lua</code></td>
+<td>Maintain a persistent casting state</td>
+</tr>
+<tr>
+<td><code>AbilityRaiseCorpse.lua</code></td>
+<td>Raise a dead creature</td>
+</tr>
+<tr>
+<td><code>AbilityRecastAbility.lua</code></td>
+<td>Re-trigger another ability</td>
+</tr>
+<tr>
+<td><code>AbilityRecoverSelection.lua</code></td>
+<td>Recover a previous target selection</td>
+</tr>
+<tr>
+<td><code>AbilityRevertLocation.lua</code></td>
+<td>Return a creature to a prior location</td>
+</tr>
+<tr>
+<td><code>AbilityRoutineCast.lua</code></td>
+<td>Routine (automatic success) cast</td>
+</tr>
+<tr>
+<td><code>AbilitySetStamina.lua</code></td>
+<td>DS stamina manipulation</td>
+</tr>
+<tr>
+<td><code>AbilityStealAbility.lua</code></td>
+<td>Copy or steal an ability</td>
+</tr>
+<tr>
+<td><code>AbilityTargetLocs.lua</code></td>
+<td>Target map locations instead of creatures</td>
+</tr>
+<tr>
+<td><code>AbilityAddNewTargets.lua</code></td>
+<td>Add additional targets mid-resolution</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title">Adding a new behavior</p>
+<p>Create a new <code>RegisterGameType</code> inheriting from <code>ActivatedAbilityBehavior</code>, implement its execution logic, and add it to an existing file in <code>Draw Steel Ability Behaviors/</code>. Do not create new Lua files without registering them through the module system.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

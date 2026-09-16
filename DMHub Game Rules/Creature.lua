@@ -9894,8 +9894,11 @@ function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localF
 	local mods = self:GetActiveModifiers()
 	local result = false
 
+    --Remote (relayed) events always collect the per-ability gate results so
+    --the TRIGGERRELAY:: trail shows why a relayed event did or did not prompt.
+    local remote = info ~= nil and info.remote == true
     local debugLog = nil
-    if creature.debugTriggerHandler then
+    if creature.debugTriggerHandler or remote then
         debugLog = {}
     end
 
@@ -9907,6 +9910,16 @@ function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localF
 	end
 
 	result = self:RemoveOngoingEffectsOnTrigger(eventName, info) or result
+
+    if remote then
+        local parts = {}
+        for _,entry in ipairs(debugLog) do
+            parts[#parts+1] = string.format("%s -> %s", tostring(entry.name), entry.success and "ok" or tostring(entry.reason))
+        end
+        local token = dmhub.LookupToken(self)
+        print("TRIGGERRELAY:: EVAL", eventName, "on", token and token.name or "?", token and token.charid or "?",
+            #parts == 0 and "(no ability reached the gates)" or table.concat(parts, "; "))
+    end
 
     if creature.debugTriggerHandler then
         creature.debugTriggerHandler(self, eventName, info, debugLog)
@@ -9948,6 +9961,34 @@ local g_serializableUserTypes = {
     LuaUnicodeString = true,
     LuaPath = true,
 }
+
+--Age in seconds of a relay record's timestamp. Records are written with
+--ServerTimestamp(), so the writer's own copy holds the "__serverTimestamp"
+--placeholder string (age 0) until the server echoes the resolved number; both
+--forms are live. Anything else is not a timestamp and returns nil.
+function EventTimestampAge(timestamp)
+    if type(timestamp) == "number" or timestamp == "__serverTimestamp" then
+        return TimestampAgeInSeconds(timestamp)
+    end
+    return nil
+end
+
+--Compact one-line description of a relay record for the TRIGGERRELAY:: trail.
+local function DescribeRelayEvent(event)
+    if type(event) ~= "table" then
+        return "<" .. type(event) .. ">"
+    end
+    local info = event.info
+    local keys = {}
+    if type(info) == "table" then
+        for k,_ in pairs(info) do keys[#keys+1] = tostring(k) end
+        table.sort(keys)
+    end
+    local age = EventTimestampAge(event.timestamp)
+    return string.format("event=%s to=%s timestamp=%s age=%s info={%s}",
+        tostring(event.eventName), tostring(event.userid), tostring(event.timestamp),
+        age ~= nil and string.format("%.1fs", age) or "n/a", table.concat(keys, ","))
+end
 
 function SerializeEventValue(value, visited)
     local valtype = type(value)
@@ -10067,8 +10108,13 @@ local function WriteAIReactionMessage(props, field, id, value)
     }
 end
 
---Legacy events can arrive from older clients. Inspect each record separately:
---a malformed head or a different recipient must not block everyone behind it.
+--Drain the relay queue other clients write to via DispatchEvent. Inspect each
+--record separately so a bad head or a different recipient never blocks the rest.
+--Only records addressed to this user are evaluated; records for other users
+--are left alone until they expire. In particular a record this client just
+--wrote still carries the "__serverTimestamp" placeholder until the server
+--echo -- it is live, not malformed (see EventTimestampAge). Every decision is
+--logged with a TRIGGERRELAY:: prefix so a lost prompt can be traced end to end.
 function creature:PumpTriggeredEvents()
     local token = dmhub.LookupToken(self)
     local events = self:try_get("triggeredEvents")
@@ -10076,27 +10122,34 @@ function creature:PumpTriggeredEvents()
     self._tmp_pumpingTriggeredEvents = true
     local consumed = {}
     for _,event in pairs(events) do
+        local age = type(event) == "table" and EventTimestampAge(event.timestamp) or nil
         local valid = type(event) == "table" and type(event.userid) == "string"
-            and type(event.eventName) == "string" and type(event.timestamp) == "number"
-        if not valid or TimestampAgeInSeconds(event.timestamp) >= 30 or event.userid == dmhub.userid then
+            and type(event.eventName) == "string" and age ~= nil
+        local mine = valid and event.userid == dmhub.userid
+        if not valid then
+            --Junk we cannot even address. Old clients wrote records of the same
+            --shape, so this only fires for genuinely damaged data.
+            consumed[event] = "malformed relay record"
+            print("TRIGGERRELAY:: DROP malformed on", token.name, token.charid, DescribeRelayEvent(event))
+        elseif age >= 30 then
+            consumed[event] = "relay record expired before evaluation"
+            if mine then
+                print("TRIGGERRELAY:: DROP expired on", token.name, token.charid, DescribeRelayEvent(event))
+            end
+        elseif mine then
             consumed[event] = true
-            if valid and event.userid == dmhub.userid and TimestampAgeInSeconds(event.timestamp) < 30 then
-                local ok, err = pcall(function()
-                    local info = DeserializeEventValue(event.info or {})
-                    info.remote = true
-                    self:TriggerEvent(event.eventName, info, true, "skipLocal")
-                end)
-                if not ok then
-                    consumed[event] = tostring(err)
-                    print("AI:: LEGACY EVENT FAILED", event.eventName, tostring(err))
-                end
-            elseif not valid then
-                consumed[event] = "malformed legacy movement event"
-                print("AI:: MALFORMED LEGACY EVENT DISCARDED", token.charid)
-            else
-                consumed[event] = "legacy movement event expired before evaluation"
+            print("TRIGGERRELAY:: RECV on", token.name, token.charid, DescribeRelayEvent(event))
+            local ok, err = pcall(function()
+                local info = DeserializeEventValue(event.info or {})
+                info.remote = true
+                self:TriggerEvent(event.eventName, info, true, "skipLocal")
+            end)
+            if not ok then
+                consumed[event] = tostring(err)
+                print("TRIGGERRELAY:: EVAL ERROR on", token.name, token.charid, event.eventName, tostring(err))
             end
         end
+        --else: addressed to another user; leave it for them.
     end
     if next(consumed) ~= nil then
         token:ModifyProperties{
@@ -10336,7 +10389,7 @@ function creature:DispatchEvent(eventName, info)
 			local triggeredEvents = self:get_or_add("triggeredEvents", {})
 
             --clear out any old or invalid events.
-            while #triggeredEvents > 0 and (triggeredEvents[1] == nil or triggeredEvents[1].timestamp == nil or TimestampAgeInSeconds(triggeredEvents[1].timestamp) > 30) do
+            while #triggeredEvents > 0 and (triggeredEvents[1] == nil or EventTimestampAge(triggeredEvents[1].timestamp) == nil or EventTimestampAge(triggeredEvents[1].timestamp) > 30) do
                 table.remove(triggeredEvents, 1)
             end
 
@@ -10347,6 +10400,8 @@ function creature:DispatchEvent(eventName, info)
 				info = info,
 			}
 
+            print("TRIGGERRELAY:: SEND", eventName, "for", token.name, token.charid, "to", activecontroller,
+                "abilities=" .. table.concat(abilityNames, ", "), "queued=" .. #triggeredEvents)
 		end,
 	}
 end

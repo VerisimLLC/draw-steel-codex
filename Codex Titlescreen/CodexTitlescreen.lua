@@ -915,6 +915,56 @@ local function TooManyGamesDialog(element)
 end
 
 
+--The titlescreen HEROES roster in slot order, plus how many of those entries the
+--player made. Ranked, not filtered: module NPCs that a lobby picked up before
+--InstallModuleCo learned to skip them carry no ctime, so a plain ctime sort ties
+--them at 0 and pushes the player's own heroes past the eighth slot. Filtering
+--them out instead would hide monster-typed heroes, which are legitimate (see
+--HeroIsUnstarted).
+local function LobbyHeroes()
+    local entries = {}
+    for _, c in ipairs(table.values(dmhub.GetAllCharacters())) do
+        local props = c.properties
+        local ctime = props ~= nil and rawget(props, "ctime") or nil
+        if type(ctime) ~= "number" then
+            --Absent on module content; a non-number errors the comparator mid-sort.
+            ctime = 0
+        end
+
+        local rank = 2
+        if props ~= nil and rawget(props, "creatorid") == dmhub.userid then
+            --Stamped by CreateHero and ImportForgeSteel: unambiguously ours.
+            rank = 0
+        elseif ctime ~= 0 then
+            --Made by character.CreateNew back before creatorid was recorded.
+            rank = 1
+        end
+
+        entries[#entries+1] = { char = c, rank = rank, ctime = ctime }
+    end
+
+    table.sort(entries, function(a, b)
+        if a.rank ~= b.rank then
+            return a.rank < b.rank
+        end
+        if a.ctime ~= b.ctime then
+            return a.ctime < b.ctime
+        end
+        return tostring(a.char.charid) < tostring(b.char.charid)
+    end)
+
+    local chars = {}
+    local nheroes = 0
+    for i, entry in ipairs(entries) do
+        chars[i] = entry.char
+        if entry.rank < 2 then
+            nheroes = nheroes + 1
+        end
+    end
+
+    return chars, nheroes
+end
+
 --A hero the player abandoned in the builder without building anything: no
 --name, no class, and no portrait. CreateHero has to commit the character to
 --the lobby before the builder can open it (the builder edits a real character
@@ -7172,8 +7222,8 @@ function CreateTitlescreen(dialog, options)
 
                                     monitorGame = "/characters",
                                     refreshGame = function(element)
-                                        local chars = table.values(dmhub.GetAllCharacters())
-                                        element:SetClass("hidden", #chars >= 8)
+                                        local _, nheroes = LobbyHeroes()
+                                        element:SetClass("hidden", nheroes >= 8)
                                     end,
 
                                     press = CreateHero,
@@ -7211,8 +7261,8 @@ function CreateTitlescreen(dialog, options)
 
                                     monitorGame = "/characters",
                                     refreshGame = function(element)
-                                        local chars = table.values(dmhub.GetAllCharacters())
-                                        element:SetClass("hidden", #chars >= 8)
+                                        local _, nheroes = LobbyHeroes()
+                                        element:SetClass("hidden", nheroes >= 8)
                                     end,
 
                                     press = ImportForgeSteel,
@@ -7254,16 +7304,7 @@ function CreateTitlescreen(dialog, options)
                             end,
 
                             refreshGame = function(element)
-                                local chars = table.values(dmhub.GetAllCharacters())
-                                table.sort(chars, function(a, b)
-                                    local ca = rawget(a.properties, "ctime") or 0
-                                    local cb = rawget(b.properties, "ctime") or 0
-                                    if type(ca) ~= "number" or type(cb) ~= "number" then
-                                        printf("ERROR ctime sort: a.charid=%s ca=%s(%s) b.charid=%s cb=%s(%s)", tostring(a.charid), tostring(ca), type(ca), tostring(b.charid), tostring(cb), type(cb))
-                                        return false
-                                    end
-                                    return ca < cb
-                                end)
+                                local chars = LobbyHeroes()
                                 local games = lobby.games
                                 element:FireEventTree("characters", chars, games)
                             end,

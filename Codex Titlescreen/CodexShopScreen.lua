@@ -5115,22 +5115,32 @@ local function CreateShopScreenInternal(arguments)
 
 							gui.Input{
 								placeholderText = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
-								characterLimit = 36,
+								--deliberately longer than the 36-character code: users paste codes
+								--with whitespace around them, and the field truncates before the edit
+								--handler ever sees the text, so a tight limit would eat the last
+								--characters of an otherwise valid code. We trim below instead.
+								characterLimit = 80,
 								width = 400,
 								textAlignment = "left",
 								edit = function(element)
+									--auto-trim pasted codes. textNoNotify avoids re-entering this handler.
+									local trimmed = trim(element.text)
+									if trimmed ~= element.text then
+										element.textNoNotify = trimmed
+									end
+
 									element.parent:FireEventTree("cleargift")
-									if #element.text ~= 0 and #element.text ~= 36 then
+									if #trimmed ~= 0 and #trimmed ~= 36 then
 										element.parent:FireEventTree("message", "Incorrect number of characters")
-									elseif #element.text == 36 then
+									elseif #trimmed == 36 then
 										element.parent:FireEventTree("message", "Searching...")
-										shop:QueryGiftCode(element.text, function(coupon)
+										shop:QueryGiftCode(trimmed, function(coupon)
 											if coupon == nil then
 												element.parent:FireEventTree("message", "Invalid gift code")
 												return
 											end
 
-											if element == nil or (not element.valid) or coupon.code ~= element.text then
+											if element == nil or (not element.valid) or coupon.code ~= trimmed then
 												--user edited the input since the request was sent.
 												return
 											end
@@ -5147,7 +5157,7 @@ local function CreateShopScreenInternal(arguments)
 											end
 
 											element.parent:FireEventTree("message", "Your gift code is ready to be redeemed!")
-											element.parent:FireEventTree("showgift", item, element.text)
+											element.parent:FireEventTree("showgift", item, trimmed)
 										end,
 										function(error)
 											element.parent:FireEventTree("message", string.format("Error: %s", error))

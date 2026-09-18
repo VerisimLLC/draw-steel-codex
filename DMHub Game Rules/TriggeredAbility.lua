@@ -1602,16 +1602,23 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             --GetAvailableTriggers rebuilds its table and momentarily omits us.
             local missingSince = nil
 
+            --Why the watch ended, for the TRIGGERGUARD:: line in the cleanup
+            --below. Prompts that vanish with no explanation (report 5G7XGRU3)
+            --were undiagnosable because every exit path looked the same.
+            local exitReason = nil
+
 			while trigger ~= nil and (not trigger.triggered) and (not trigger.dismissed) and sustain do
 				coroutine.yield()
 
 				trigger = nil
                 if casterToken == nil or (not casterToken.valid) then
+                    exitReason = "caster token invalid"
                     break
                 end
 
                 if expireAt ~= nil then
                     if dmhub.Time() >= expireAt then
+                        exitReason = "turn changed; 6s grace elapsed"
                         sustain = false
                     end
                 elseif (not self.hostile) and casterToken.properties:GetResourceRefreshId("turn") ~= turnid and (dmhub.initiativeQueue == nil or (not dmhub.initiativeQueue:ChoosingTurn())) then
@@ -1660,6 +1667,13 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 end
 
                 if trigger == nil or not casterToken.valid then
+                    if not casterToken.valid then
+                        exitReason = "caster token invalid"
+                    elseif wasDismissed then
+                        exitReason = "cleared (dismissed or cleared elsewhere)"
+                    else
+                        exitReason = "record missing from availableTriggers for >5s"
+                    end
                     break
                 end
 
@@ -1674,14 +1688,16 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                     --rather than escaping the coroutine and stranding the panel.
                     local ok, err = pcall(function()
                         if not self:CanAfford(casterToken) then
+                            exitReason = "can no longer afford the cost"
                             sustain = false
                         end
 
-                        if trim(self.conditionFormula) ~= "" then
+                        if sustain and trim(self.conditionFormula) ~= "" then
                             local condition = ExecuteGoblinScript(self.conditionFormula,
                                 casterToken.properties:LookupSymbol(symbols), 0, "Trigger condition")
                             if tonumber(condition) == 0 then
                                 --we no longer sustain the trigger condition
+                                exitReason = "condition formula no longer met"
                                 sustain = false
                             end
                         end
@@ -1689,6 +1705,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
                     if not ok then
                         printf("Error evaluating trigger sustain condition: %s", tostring(err))
+                        exitReason = "error evaluating sustain condition: " .. tostring(err)
                         sustain = false
                     end
                 end
@@ -1701,6 +1718,18 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             --This coroutine is done watching the prompt; from here any entry
             --that somehow survives the cleanup below is orphaned.
             g_liveTriggerWatchers[guid] = nil
+
+			--One line per prompt lifetime saying how it ended, so a prompt that
+			--vanished can be explained from the log.
+			if trigger ~= nil and trigger.triggered then
+				exitReason = "accepted"
+			elseif trigger ~= nil and trigger.dismissed then
+				exitReason = "dismissed"
+			elseif exitReason == nil then
+				exitReason = "unknown"
+			end
+			printf("TRIGGERGUARD:: prompt %s (%s) on %s ended: %s", tostring(guid), tostring(self.name),
+				tostring(casterToken ~= nil and casterToken.charid or "?"), exitReason)
 
 			--Guaranteed cleanup: remove the panel entry by guid on EVERY exit
 			--path (triggered, dismissed, sustain lost, caster invalid, transient
@@ -2101,8 +2130,10 @@ function TriggeredAbility.ActivateOrphanedTrigger(casterToken, triggerid)
 	end
 
 	local casterCreature = casterToken.properties
-	local availableTriggers = casterCreature:try_get("availableTriggers")
-	local record = availableTriggers ~= nil and availableTriggers[triggerid] or nil
+	--Typed read: by the time this deferral fires, an echo can have replaced
+	--the record with an untyped stub (report VFB3EC4V crashed on record:try_get
+	--below). A stub is treated as "already consumed"; Repair removes it.
+	local record = casterCreature:GetAvailableTriggerRecord(triggerid)
 	if record == nil then
 		--already consumed.
 		return

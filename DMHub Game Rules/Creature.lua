@@ -9934,6 +9934,28 @@ end
 
 local g_aiActivityReactionExpirySeconds = 600
 
+--The Monster AI activity (a move or an ability cast) currently in flight on
+--this client, or nil. MonsterAI sets it around each action it takes; while it
+--is set, every event DispatchEvent raises on a player-controlled creature
+--carries it as info.aiActivityId, so a prompt the action provokes -- the
+--Talent's Repulsive Ward on the damage a monster strike deals, an opportunity
+--attack on its move -- becomes a pending AI reaction the host waits on before
+--the AI proceeds (see BeginPendingAIActivityReaction below). Only the client
+--running the AI ever sets this; the AI thread clears it on start and stop.
+local g_aiActivityInProgress = nil
+
+function creature.SetAIActivityInProgress(activityId)
+    if type(activityId) == "string" and activityId ~= "" then
+        g_aiActivityInProgress = activityId
+    else
+        g_aiActivityInProgress = nil
+    end
+end
+
+function creature.GetAIActivityInProgress()
+    return g_aiActivityInProgress
+end
+
 --Serialization helpers for event payloads that cross the network (the
 --triggeredEvents and remoteInvokes queues written via ModifyProperties).
 --Event info can hold live objects nested inside tables: e.g. info.cast is an
@@ -10226,7 +10248,7 @@ function creature:PumpAIReactionEvents()
                     and type(request.info) == "table" and request.info.aiActivityId == request.activityId
                 if not valid or TimestampAgeInSeconds(request.timestamp) >= g_aiReactionDeliverySeconds then
                     receipt.state = "failed"
-                    receipt.reason = valid and "movement event arrived after its delivery deadline" or "malformed movement event"
+                    receipt.reason = valid and "reaction event arrived after its delivery deadline" or "malformed reaction event"
                 end
                 localReceipts[id] = dmhub.ToJson(receipt)
                 WriteAIReactionMessage(self, "aiReactionReceipts", id, receipt)
@@ -10263,15 +10285,15 @@ function creature:GetAIReactionDeliveryStatus(activityId)
             local age = valid and TimestampAgeInSeconds(request.timestamp) or math.huge
             if receipt ~= nil and (receipt.id ~= id or receipt.activityId ~= activityId) then receipt = nil end
             if not valid then
-                failure = "malformed movement delivery record"
+                failure = "malformed reaction delivery record"
             elseif receipt ~= nil and receipt.state == "failed" then
-                failure = receipt.reason or "movement event evaluation failed"
+                failure = receipt.reason or "reaction event evaluation failed"
             elseif receipt == nil or receipt.state ~= "evaluated" then
                 pending = pending + 1
                 description = "client to evaluate " .. request.ability
                 if age >= g_aiReactionDeliverySeconds then
-                    failure = receipt ~= nil and "movement event evaluation was interrupted"
-                        or "no movement event acknowledgment after 15 seconds"
+                    failure = receipt ~= nil and "reaction event evaluation was interrupted"
+                        or "no reaction event acknowledgment after 15 seconds"
                 elseif receipt == nil and self:try_get("_tmp_aiReactionOutbox", {})[id] ~= nil
                     and age >= (request.attempt or 1)*g_aiReactionRetrySeconds then
                     request.attempt = (request.attempt or 1) + 1
@@ -10285,6 +10307,13 @@ function creature:GetAIReactionDeliveryStatus(activityId)
 end
 
 function creature:DispatchEvent(eventName, info)
+
+    --Stamp the Monster AI's in-flight activity on the event so any prompt it
+    --raises on a hero is tracked as a reaction the AI waits on. A mover's
+    --OnMove stamps its own id ahead of us; the two agree.
+    if g_aiActivityInProgress ~= nil and type(info) == "table" and info.aiActivityId == nil then
+        info.aiActivityId = g_aiActivityInProgress
+    end
 
     local triggeredOnOthers = false
     if info == nil or info.subject == nil then
@@ -10454,7 +10483,7 @@ end
 --- @field auraControllerId false|string
 --- @field execSymbols false|table SerializeEventValue-encoded event symbols for orphan recovery.
 --- @field execTargets false|table SerializeEventValue-encoded targets for orphan recovery.
---- @field aiActivityId false|string The Monster AI movement activity waiting for this prompt.
+--- @field aiActivityId false|string The Monster AI activity (move or cast) waiting for this prompt.
 ActiveTrigger = RegisterGameType("ActiveTrigger")
 ActiveTrigger.id = ""
 ActiveTrigger.charid = ""
@@ -10532,9 +10561,11 @@ ActiveTrigger.invocation = false
 --existed have 0 here and fall back to timestamp.
 ActiveTrigger.expiryTimestamp = 0
 
---A movement event marker is replaced by one marker per prompt on the player's
---token. The AI host can see these records, so it can wait across clients without
---keeping the prompt card alive after the player has made a choice.
+--An AI activity's event marker is replaced by one marker per prompt on the
+--player's token. The AI host can see these records, so it can wait across
+--clients without keeping the prompt card alive after the player has made a
+--choice. The activity is a monster move (opportunity attacks) or an ability
+--cast (Repulsive Ward and other prompts its damage or effects provoke).
 function creature:BeginPendingAIActivityReaction(activityId, reactionId, abilityName)
     if type(activityId) ~= "string" or activityId == "" or type(reactionId) ~= "string" or reactionId == "" then
         return
@@ -10876,6 +10907,35 @@ function ActiveTrigger:EnhancementOptions(token)
 end
 
 
+--Keys of availableTriggers entries already reported as untyped, so a stub that
+--lingers until Repair removes it logs once rather than every frame.
+local g_reportedUntypedTriggers = {}
+
+--An availableTriggers entry that is not a typed ActiveTrigger (no metatable)
+--is a hollow stub: a stale sub-field write that landed after the record was
+--cleared, or a same-frame patch fold, recreated the key holding one or two
+--fields and no __typeName. It has none of ActiveTrigger's methods, so any
+--consumer that calls one on it crashes (report VFB3EC4V: ActivateOrphanedTrigger
+--calling record:try_get). Consumers must never see one; creature:Repair
+--deletes it on the next validation pass. Logged once per key so the source
+--of the stale write can be traced (see TRIGGERGUARD:: lines).
+local function IsUntypedTrigger(key, value)
+	if type(value) == "table" and getmetatable(value) ~= nil then
+		return false
+	end
+
+	if not g_reportedUntypedTriggers[key] then
+		g_reportedUntypedTriggers[key] = true
+		local fields = {}
+		if type(value) == "table" then
+			for k,_ in pairs(value) do fields[#fields+1] = tostring(k) end
+			table.sort(fields)
+		end
+		printf("TRIGGERGUARD:: untyped availableTriggers entry %s (%s) fields={%s}; ignoring until Repair removes it", tostring(key), type(value), table.concat(fields, ","))
+	end
+	return true
+end
+
 --- @return nil|table<string,ActiveTrigger>
 function creature:GetAvailableTriggers(excludeDismissed)
 	local availableTriggers = self:try_get("availableTriggers")
@@ -10886,7 +10946,7 @@ function creature:GetAvailableTriggers(excludeDismissed)
 	local hasExpired = false
 	local hasValid = false
 	for key,value in pairs(availableTriggers) do
-		if TriggerExpired(value) or value.id ~= key then
+		if IsUntypedTrigger(key, value) or TriggerExpired(value) or value.id ~= key then
 			hasExpired = true
 		elseif (not value.dismissed) or (not excludeDismissed) then
 			hasValid = true
@@ -10903,7 +10963,7 @@ function creature:GetAvailableTriggers(excludeDismissed)
 
 	local result = {}
 	for key,value in pairs(availableTriggers) do
-		if value.id == key and ((not value.dismissed) or (not excludeDismissed)) then
+		if (not IsUntypedTrigger(key, value)) and value.id == key and ((not value.dismissed) or (not excludeDismissed)) then
 			if not TriggerExpired(value) then
 				result[key] = value
 			end
@@ -10911,6 +10971,21 @@ function creature:GetAvailableTriggers(excludeDismissed)
 	end
 
 	return result
+end
+
+--The typed record for a prompt id, or nil if there is none or the stored
+--entry is an untyped stub (see IsUntypedTrigger). For readers that must see
+--the raw stored record rather than GetAvailableTriggers' filtered view --
+--the deferred acceptance consumers, which re-read the record 0.25s after the
+--accept was recorded, by which time an echo may have replaced it.
+--- @return nil|ActiveTrigger
+function creature:GetAvailableTriggerRecord(triggerid)
+	local availableTriggers = self:try_get("availableTriggers")
+	local record = availableTriggers ~= nil and availableTriggers[triggerid] or nil
+	if record == nil or IsUntypedTrigger(triggerid, record) then
+		return nil
+	end
+	return record
 end
 
 -- called when another token is deleted.

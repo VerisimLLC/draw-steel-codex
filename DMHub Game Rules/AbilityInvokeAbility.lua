@@ -2307,8 +2307,9 @@ function AbilityInvocation.ActivateInvocationPrompt(casterToken, triggerid)
         return
     end
 
-    local availableTriggers = casterToken.properties:try_get("availableTriggers")
-    local record = availableTriggers ~= nil and availableTriggers[triggerid] or nil
+    --Typed read: an untyped stub (a stale echo landing inside the deferral)
+    --reads as already consumed rather than crashing on a method call.
+    local record = casterToken.properties:GetAvailableTriggerRecord(triggerid)
     if record == nil then
         --already consumed.
         return

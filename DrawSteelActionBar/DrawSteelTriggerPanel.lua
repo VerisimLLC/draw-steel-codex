@@ -34,6 +34,13 @@ local g_triggerListMaxHeight = 520
 local g_triggerScrollbarWidth = 20
 local g_triggerListWidth = g_triggerCardOuterWidth + g_triggerScrollbarWidth
 
+--Candidate portraits on a trigger card. A merged prompt can offer half the
+--party at once, so these are sized to fit three per row across the card
+--rather than to show a single target large.
+local g_triggerPortraitSize = 34
+local g_triggerPortraitImageSize = 28
+local g_triggerPortraitMargin = 1
+
 -- Build the candidate retarget list for a triggered ability that changes its
 -- target. Every token passing the all-inclusive changeTargetFilter is returned
 -- in `targets`. A token that additionally fails one of the "reasoned" filters is
@@ -168,9 +175,11 @@ end
 -- strike damages three allies) is a single prompt. Pressing it first asks, on
 -- the map, which target it is for; the card's press then runs again with the
 -- picked charid as its second argument.
-local function ChooseTriggerTarget(element, triggerToken, trigger)
+-- candidateIds narrows the offer to part of the prompt's targets: a merged
+-- card's modes can each apply to a different set of subjects.
+local function ChooseTriggerTarget(element, triggerToken, trigger, candidateIds)
     local candidates = {}
-    for _,targetid in ipairs(trigger.targets) do
+    for _,targetid in ipairs(candidateIds or trigger.targets) do
         local tok = dmhub.GetTokenById(targetid)
         if tok ~= nil and tok.valid then
             candidates[#candidates+1] = tok
@@ -622,7 +631,16 @@ mod.shared.CreateTriggerPanel = function()
 
 				local newTriggerPanels = {}
 				for key,trigger in pairs(availableTriggers) do
-					if not trigger.dismissed then
+					--mergedInto marks a prompt folded into another one's card, so the
+					--group draws once. Should that card be gone, show this one anyway:
+					--an uncollapsed group beats a prompt nobody can reach.
+					local hidden = false
+					if trigger.mergedInto ~= false then
+						local front = availableTriggers[trigger.mergedInto]
+						hidden = front ~= nil and (not front.dismissed)
+					end
+
+					if not trigger.dismissed and not hidden then
 						if trigger:CanDismiss() then
 							anyDismissable = true
 						end
@@ -657,26 +675,40 @@ mod.shared.CreateTriggerPanel = function()
 							local targetPanels = {}
 							for _,target in ipairs(trigger.targets) do
 								local token = dmhub.GetTokenById(target)
-								targetPanels[#targetPanels+1] = gui.Panel{
-									width = 48,
-									height = 48,
-									hmargin = 2,
-									--of several candidates, only the one picked stays shown.
-									refresh = function(element)
-										local live = availableTriggers ~= nil and availableTriggers[key] or nil
-										element:SetClass("collapsed", live ~= nil and live.chosenTargetId ~= false and live.chosenTargetId ~= target)
-									end,
-									gui.CreateTokenImage(token, {
-										width = 40,
-										height = 40,
-										halign = "center",
-										valign = "center",
-									}),
-								}
+								--a candidate that has despawned draws an empty cell in the grid, and
+								--the picker refuses it anyway, so leave it out entirely.
+								if token ~= nil and token.valid then
+									targetPanels[#targetPanels+1] = gui.Panel{
+										width = g_triggerPortraitSize,
+										height = g_triggerPortraitSize,
+										hmargin = g_triggerPortraitMargin,
+										--of several candidates, only the one picked stays shown; one that
+										--dies while the card is up drops out as well.
+										refresh = function(element)
+											local live = availableTriggers ~= nil and availableTriggers[key] or nil
+											local tok = dmhub.GetTokenById(target)
+											local hide = tok == nil or (not tok.valid)
+											if (not hide) and live ~= nil then
+												hide = live.chosenTargetId ~= false and live.chosenTargetId ~= target
+											end
+
+											element:SetClass("collapsed", hide)
+										end,
+										gui.CreateTokenImage(token, {
+											width = g_triggerPortraitImageSize,
+											height = g_triggerPortraitImageSize,
+											halign = "center",
+											valign = "center",
+										}),
+									}
+								end
 							end
 
                             if #targetPanels > 0 then
                                 targetPanels[#targetPanels+1] = gui.Panel{
+                                    --only shown once a retarget is picked, so it must start hidden:
+                                    --until refresh first runs it would hold a cell in the grid.
+                                    classes = {"collapsed"},
                                     refresh = function(element)
                                         if availableTriggers == nil then
                                             return
@@ -699,9 +731,16 @@ mod.shared.CreateTriggerPanel = function()
                                 }
 
                                 targetPanels[#targetPanels+1] = gui.Panel{
-                                    width = 48,
-                                    height = 48,
-                                    hmargin = 2,
+                                    width = g_triggerPortraitSize,
+                                    height = g_triggerPortraitSize,
+                                    hmargin = g_triggerPortraitMargin,
+                                    --the wrapper has to collapse too, not just the image inside it:
+                                    --a hidden image still leaves its cell in the portrait grid.
+                                    classes = {"collapsed"},
+                                    refresh = function(element)
+                                        local live = availableTriggers ~= nil and availableTriggers[key] or nil
+                                        element:SetClass("collapsed", live == nil or (not live.retargetid))
+                                    end,
                                     gui.CreateTokenImage(nil, {
                                         refresh = function(element)
                                             if availableTriggers == nil then
@@ -716,8 +755,8 @@ mod.shared.CreateTriggerPanel = function()
                                                 element:SetClass("collapsed", true)
                                             end
                                         end,
-                                        width = 40,
-                                        height = 40,
+                                        width = g_triggerPortraitImageSize,
+                                        height = g_triggerPortraitImageSize,
                                         halign = "center",
                                         valign = "center",
                                     }),
@@ -1143,6 +1182,21 @@ mod.shared.CreateTriggerPanel = function()
                                 expiryBarFill,
                             }
 
+                            --Whichever card the mouse is over owns the target highlighting the mode
+                            --cards share with the main one. Entering fires before leaving, so a bare
+                            --flag could not tell an arriving card from the departing one.
+                            local pseudoHoverOwner = nil
+
+                            --Drops the line-of-sight rays a card drew. Separate from the dehover event
+                            --so hover can always clear before redrawing, even while a mode card owns the
+                            --highlighting and dehover itself has to leave the rays alone.
+                            local function ClearTriggerRays(panel)
+                                for _,ray in ipairs(panel.data.rays) do
+                                    ray:Destroy()
+                                end
+                                panel.data.rays = {}
+                            end
+
                             local triggerPanel
 							triggerPanel = gui.Panel{
                                 data = {
@@ -1152,8 +1206,10 @@ mod.shared.CreateTriggerPanel = function()
 								classes = {"triggerPanel"},
                                 blurBackground = true,
 
-                                hover = function(element)
-                                    element:FireEvent("dehover")
+                                --targetids narrows the rays to one mode's subjects: a mode card fires
+                                --this event itself, since it shares the main card's highlighting.
+                                hover = function(element, targetids)
+                                    ClearTriggerRays(element)
 
 									if availableTriggers == nil then
 										return
@@ -1169,7 +1225,7 @@ mod.shared.CreateTriggerPanel = function()
                                         menu:FireEventTree("showability", trigger)
                                     end
 
-                                    for _,targetid in ipairs(trigger.targets or {}) do
+                                    for _,targetid in ipairs(targetids or trigger.targets or {}) do
                                         local target = dmhub.GetTokenById(targetid)
                                         if target ~= nil then
                                             local ray = dmhub.MarkLineOfSight(g_token, target, g_token.properties:GetPierceWalls())
@@ -1179,10 +1235,13 @@ mod.shared.CreateTriggerPanel = function()
                                 end,
 
                                 dehover = function(element)
-                                    for _,ray in ipairs(element.data.rays) do
-                                        ray:Destroy()
+                                    --a mode card has taken the highlighting over, so its rays are the
+                                    --live ones now; only its own dehover may clear them.
+                                    if pseudoHoverOwner ~= nil then
+                                        return
                                     end
-                                    element.data.rays = {}
+
+                                    ClearTriggerRays(element)
 
                                     local menu = element:FindParentWithClass("customActionBar")
                                     if menu ~= nil and not element:HasClass("pseudohover") then
@@ -1629,14 +1688,44 @@ mod.shared.CreateTriggerPanel = function()
 								--can always agree to allow it.
 								local unavailable = option.unavailable == true
 
+								--On a merged card each mode carries the subjects whose own
+								--prompt offers it, since a mode's condition is tested against
+								--each subject. Unmerged prompts have none and show no row.
+								local modeTargets = option.targets
+								local modeTargetPanels = {}
+								for _,targetid in ipairs(modeTargets or {}) do
+									local modeToken = dmhub.GetTokenById(targetid)
+									if modeToken ~= nil then
+										modeTargetPanels[#modeTargetPanels+1] = gui.Panel{
+											width = g_triggerPortraitSize,
+											height = g_triggerPortraitSize,
+											hmargin = g_triggerPortraitMargin,
+											gui.CreateTokenImage(modeToken, {
+												width = g_triggerPortraitImageSize,
+												height = g_triggerPortraitImageSize,
+												halign = "center",
+												valign = "center",
+											}),
+										}
+									end
+								end
+
 								children[#children+1] = gui.Panel{
 									classes = {"triggerPanel", cond(unavailable, "unavailableMode")},
 
                                     hover = function(element)
+                                        pseudoHoverOwner = element
                                         triggerPanel:SetClass("pseudohover", true)
-                                        triggerPanel:FireEvent("hover")
+                                        triggerPanel:FireEvent("hover", modeTargets)
                                     end,
                                     dehover = function(element)
+                                        --another mode card already owns the highlighting, so this is just the
+                                        --tail of moving onto it: leave its rays up.
+                                        if pseudoHoverOwner ~= element then
+                                            return
+                                        end
+
+                                        pseudoHoverOwner = nil
                                         triggerPanel:SetClass("pseudohover", false)
                                         if not triggerPanel:HasClass("hover") then
                                             triggerPanel:FireEvent("dehover")
@@ -1679,6 +1768,15 @@ mod.shared.CreateTriggerPanel = function()
                                             interactable = false,
                                             markdown = true,
                                             text = tostring(option.conditionReason or ""),
+                                        },
+                                        gui.Panel{
+                                            classes = {cond(#modeTargetPanels == 0, "collapsed")},
+                                            width = "100%",
+                                            height = "auto",
+                                            flow = "horizontal",
+                                            wrap = true,
+                                            vmargin = 2,
+                                            children = modeTargetPanels,
                                         },
                                     },
 
@@ -1742,8 +1840,13 @@ mod.shared.CreateTriggerPanel = function()
                                         if chosenTargetId == nil and (not trigger.triggered) then
                                             local live = availableTriggers ~= nil and availableTriggers[key] or trigger
                                             if live:NeedsTargetChoice() then
-                                                ChooseTriggerTarget(element, g_token, live)
-                                                return
+                                                --a mode only one subject qualifies for needs no picker.
+                                                if modeTargets ~= nil and #modeTargets == 1 then
+                                                    chosenTargetId = modeTargets[1]
+                                                else
+                                                    ChooseTriggerTarget(element, g_token, live, modeTargets)
+                                                    return
+                                                end
                                             end
                                         end
                                         local targetId = chosenTargetId or trigger:GetTargetId()

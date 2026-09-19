@@ -1476,6 +1476,17 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 end
             end
 
+            --A trigger whose subject is the caster themself (My Life For Yours on your
+            --own damage) resolves to just the caster, which the filter above empties --
+            --leaving the card with no portrait at all. Name the caster instead.
+            if #targetids == 0 then
+                for i,tok in ipairs(targets) do
+                    if tok.token ~= nil then
+                        targetids[#targetids+1] = tok.token.charid
+                    end
+                end
+            end
+
             local casterSymbols = casterToken.properties:LookupSymbol{}
 
             local activateText = nil
@@ -1572,6 +1583,13 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
             if self:ActionResource() == CharacterResource.triggerResourceId then
                 trigger.free = false
+            end
+
+            --One burst raises one of these prompts per damaged subject, but the reactor
+            --has only the one triggered action, so the panel folds them into a single
+            --card. Free and passive may fire per subject -- PowerRollTriggerChoosesTarget.
+            if (not trigger.free) and (not trigger.noDeduplicate) then
+                trigger.mergeKey = string.format("%s/%s", tostring(self:try_get("guid") or self.name), casterToken.charid)
             end
 
 			casterToken:ModifyProperties{

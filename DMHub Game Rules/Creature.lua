@@ -10486,6 +10486,9 @@ end
 --- @field targets string[]
 --- @field candidateTargets boolean True when targets are candidates of which the reactor picks one, rather than all being affected.
 --- @field chosenTargetId false|string With candidateTargets, the candidate the reactor picked.
+--- @field mergeKey false|string Groups prompts one event raised for several subjects, which share a single triggered action.
+--- @field mergedInto false|string Set on every prompt of a merged group but the one fronting it; the panel hides these.
+--- @field mergeMembers false|table<string,string> On the front prompt of a merged group: subject charid -> the prompt id that owns it.
 --- @field powerRollModifier false|CharacterModifier
 --- @field triggered boolean|number
 --- @field dismissed boolean
@@ -10527,6 +10530,16 @@ ActiveTrigger.targets = {}
 --pick. Otherwise every target is affected. See NeedsTargetChoice / GetTargetId.
 ActiveTrigger.candidateTargets = false
 ActiveTrigger.chosenTargetId = false
+
+--One event can raise this prompt for several subjects at once (My Life For
+--Yours when a blast damages three allies and the Censor), yet they all spend
+--the same single triggered action, so the panel folds them into one card with
+--a subject picker. mergeKey groups them; the first prompt on the list fronts
+--the group and carries mergeMembers, the rest carry mergedInto and are hidden.
+--Accepting the front card routes the pick -- see DispatchAvailableTrigger.
+ActiveTrigger.mergeKey = false
+ActiveTrigger.mergedInto = false
+ActiveTrigger.mergeMembers = false
 ActiveTrigger.triggered = false
 ActiveTrigger.dismissed = false
 ActiveTrigger.ping = false
@@ -11012,19 +11025,156 @@ function creature:GetAvailableTriggerRecord(triggerid)
 	return record
 end
 
+--Drop one subject from a merged group's front card: that creature has left
+--play, so it is no longer a candidate. Returns false once none are left.
+local function RemoveMergedCandidate(front, charid)
+	if front.mergeMembers == false then
+		return true
+	end
+
+	local members = {}
+	for id,promptid in pairs(front.mergeMembers) do
+		if id ~= charid then
+			members[id] = promptid
+		end
+	end
+	front.mergeMembers = members
+
+	local targets = {}
+	for _,id in ipairs(front.targets) do
+		if id ~= charid then
+			targets[#targets+1] = id
+		end
+	end
+	front.targets = targets
+
+	local modes = {}
+	for _,entry in ipairs(front.modes) do
+		local copy = DeepCopy(entry)
+		if copy.targets ~= nil then
+			local kept = {}
+			for _,id in ipairs(copy.targets) do
+				if id ~= charid then
+					kept[#kept+1] = id
+				end
+			end
+			copy.targets = kept
+		end
+
+		--a mode nobody is left to use drops off the card with them.
+		if copy.targets == nil or #copy.targets > 0 then
+			modes[#modes+1] = copy
+		end
+	end
+	front.modes = modes
+
+	front.candidateTargets = #front.targets > 1
+	return #front.targets > 0
+end
+
+--The prompt fronting a merged group is going away (its own subject died or
+--stopped qualifying). Hand the group to a surviving member so the others keep
+--their single card instead of scattering back into one card each. goneCharid
+--is a subject leaving play in the same breath, which no heir may inherit.
+local function PromoteMergedTriggerGroup(availableTriggers, cleared, goneCharid)
+	if cleared == nil or cleared.mergeMembers == false then
+		return
+	end
+
+	--subjects the departing prompt itself owned; they leave with it.
+	local gone = {}
+	if goneCharid ~= nil then
+		gone[goneCharid] = true
+	end
+	for charid,id in pairs(cleared.mergeMembers) do
+		if id == cleared.id then
+			gone[charid] = true
+		end
+	end
+
+	local heir = nil
+	for charid,id in pairs(cleared.mergeMembers) do
+		if heir == nil and (not gone[charid]) then
+			local other = availableTriggers[id]
+			if other ~= nil and (not other.dismissed) and (not other.triggered) then
+				heir = other
+			end
+		end
+	end
+
+	if heir == nil then
+		return
+	end
+
+	local members = {}
+	for charid,id in pairs(cleared.mergeMembers) do
+		local other = availableTriggers[id]
+		if (not gone[charid]) and other ~= nil and (not other.dismissed) then
+			members[charid] = id
+		end
+	end
+
+	local function surviving(list)
+		local result = {}
+		for _,charid in ipairs(list or {}) do
+			if members[charid] ~= nil then
+				result[#result+1] = charid
+			end
+		end
+		return result
+	end
+
+	--the heir carries the whole group's candidates and modes, so its own
+	--`triggered` still reads as a position in this list -- ModeIndexForTriggered
+	--maps it back to the ability's modeList either way.
+	heir.targets = surviving(cleared.targets)
+
+	local modes = {}
+	for _,entry in ipairs(cleared.modes) do
+		local copy = DeepCopy(entry)
+		copy.targets = surviving(entry.targets)
+		if #copy.targets > 0 then
+			modes[#modes+1] = copy
+		end
+	end
+	heir.modes = modes
+
+	heir.mergeMembers = members
+	heir.candidateTargets = #heir.targets > 1
+	heir.mergedInto = false
+
+	for _,id in pairs(members) do
+		if id ~= heir.id then
+			local other = availableTriggers[id]
+			if other ~= nil then
+				other.mergedInto = heir.id
+			end
+		end
+	end
+end
+
 -- called when another token is deleted.
 --- @param charid string The character id of the token being deleted.
 function creature:OnTokenDelete(charid)
     local clears = nil
+    local shrinks = nil
 	local availableTriggers = self:get_or_add("availableTriggers", {})
     for key,value in pairs(availableTriggers) do
         if table.contains(value.targets, charid) then
-            clears = clears or {}
-            clears[#clears+1] = key
+            --A merged group's front card lists every subject, so one death must take
+            --that candidate off the card rather than the whole card with it, which
+            --would scatter the group. Only the dead subject's own prompt is cleared.
+            if value.mergeMembers ~= false and value.mergeMembers[charid] ~= value.id then
+                shrinks = shrinks or {}
+                shrinks[#shrinks+1] = value
+            else
+                clears = clears or {}
+                clears[#clears+1] = key
+            end
         end
     end
 
-    if clears == nil then
+    if clears == nil and shrinks == nil then
         return
     end
 
@@ -11033,12 +11183,157 @@ function creature:OnTokenDelete(charid)
         token:ModifyProperties{
             description = "Clear Available Triggers",
             execute = function()
-                for _,key in ipairs(clears) do
+                for _,front in ipairs(shrinks or {}) do
+                    if not RemoveMergedCandidate(front, charid) then
+                        availableTriggers[front.id] = nil
+                    end
+                end
+
+                for _,key in ipairs(clears or {}) do
+                    PromoteMergedTriggerGroup(availableTriggers, availableTriggers[key], charid)
                     availableTriggers[key] = nil
                 end
             end,
         }
     end
+end
+
+--The position in `modes` that selects the ability's modeList entry `modeIndex`,
+--as an ActiveTrigger.triggered value. The inverse of ModeIndexForTriggered:
+--each prompt of a merged group hides the modes its own subject fails, so one
+--mode sits at different positions in different members' lists.
+local function TriggeredValueForModeIndex(record, modeIndex)
+	if modeIndex == nil or modeIndex <= 1 then
+		return true
+	end
+
+	for i,entry in ipairs(record.modes) do
+		if entry.modeIndex == modeIndex then
+			return i
+		end
+	end
+
+	return true
+end
+
+--Fold a newly raised prompt into the group of prompts the same event already
+--raised for other subjects, if there is one. The new prompt is still stored --
+--its own coroutine goes on watching it, and it is what actually runs if its
+--subject is the one picked -- but it is marked mergedInto so the panel draws
+--only the group's front card. See ActiveTrigger.mergeKey.
+local function MergeTriggerIntoGroup(availableTriggers, triggerInfo)
+	if triggerInfo.mergeKey == false or availableTriggers[triggerInfo.id] ~= nil then
+		return
+	end
+
+	local leader = nil
+	for _,other in pairs(availableTriggers) do
+		if other.mergeKey == triggerInfo.mergeKey and other.mergedInto == false and (not other.dismissed) and (not other.triggered) then
+			leader = other
+			break
+		end
+	end
+
+	if leader == nil then
+		return
+	end
+
+	if leader.mergeMembers == false then
+		--First merge into this prompt: it fronts the group from here on. Copy
+		--before mutating -- a prompt with no targets or modes of its own reads
+		--the game type's shared default table, which must never be written to.
+		leader.targets = table.shallow_copy(leader.targets)
+
+		local members = {}
+		for _,charid in ipairs(leader.targets) do
+			members[charid] = leader.id
+		end
+		leader.mergeMembers = members
+		leader.candidateTargets = true
+
+		local modes = {}
+		for i,entry in ipairs(leader.modes) do
+			local copy = DeepCopy(entry)
+			copy.targets = table.shallow_copy(leader.targets)
+			modes[i] = copy
+		end
+		leader.modes = modes
+	end
+
+	local members = leader.mergeMembers
+	for _,charid in ipairs(triggerInfo.targets) do
+		if members[charid] == nil then
+			members[charid] = triggerInfo.id
+			leader.targets[#leader.targets+1] = charid
+		end
+	end
+
+	--A mode's condition is evaluated against each subject, so one member can
+	--offer a mode another cannot. Carry the subjects each mode is on offer for:
+	--that is what the mode's card shows portraits of, and all its picker offers.
+	for _,entry in ipairs(triggerInfo.modes) do
+		local existing = nil
+		for _,leaderEntry in ipairs(leader.modes) do
+			if leaderEntry.modeIndex == entry.modeIndex then
+				existing = leaderEntry
+				break
+			end
+		end
+
+		if existing == nil then
+			existing = DeepCopy(entry)
+			existing.targets = {}
+			leader.modes[#leader.modes+1] = existing
+		elseif entry.unavailable ~= true and existing.unavailable == true then
+			--on offer for at least one subject, so the card is not greyed out.
+			existing.unavailable = nil
+			existing.conditionReason = nil
+		end
+
+		for _,charid in ipairs(triggerInfo.targets) do
+			if not table.contains(existing.targets, charid) then
+				existing.targets[#existing.targets+1] = charid
+			end
+		end
+	end
+
+	triggerInfo.mergedInto = leader.id
+end
+
+--Hand an accepted front card over to the member that owns the picked subject,
+--and withdraw the rest of the group. Every prompt in the group has its own
+--subject and its own watching coroutine, so the pick decides which one runs;
+--the others are dismissed exactly as they would have been had the player
+--accepted one of several separate cards. See ActiveTrigger.mergeKey.
+local function RouteMergedTriggerAccept(availableTriggers, triggerInfo)
+	if triggerInfo.mergeMembers == false or (not triggerInfo.triggered) then
+		return
+	end
+
+	local targetid = triggerInfo:GetTargetId()
+	local memberid = targetid ~= nil and triggerInfo.mergeMembers[targetid] or nil
+	local member = nil
+	if memberid ~= nil and memberid ~= triggerInfo.id then
+		member = availableTriggers[memberid]
+	end
+
+	local modeIndex = triggerInfo:ModeIndexForTriggered(triggerInfo.triggered)
+
+	for _,id in pairs(triggerInfo.mergeMembers) do
+		local other = availableTriggers[id]
+		if other ~= nil and other ~= member and other.id ~= triggerInfo.id and (not other.triggered) then
+			other.dismissed = true
+		end
+	end
+
+	if member == nil then
+		--the front card is itself the prompt for the picked subject; it runs.
+		return
+	end
+
+	member.triggered = TriggeredValueForModeIndex(member, modeIndex)
+	triggerInfo.triggered = false
+	triggerInfo.dismissed = true
 end
 
 --- @param triggerInfo ActiveTrigger
@@ -11051,6 +11346,11 @@ function creature:DispatchAvailableTrigger(triggerInfo)
 
 
 	local availableTriggers = self:get_or_add("availableTriggers", {})
+
+	if triggerInfo ~= nil then
+		RouteMergedTriggerAccept(availableTriggers, triggerInfo)
+		MergeTriggerIntoGroup(availableTriggers, triggerInfo)
+	end
 
     --A dispatch of a trigger that is already on the list is the user interacting
     --with it (activating, dismissing, picking an enhancement, retargeting). That
@@ -11142,6 +11442,8 @@ function creature:ClearAvailableTrigger(triggerInfo)
 	if cleared ~= nil and cleared.aiActivityId ~= false and (cleared.triggered == false or cleared.dismissed) then
 		self:CompletePendingAIActivityReaction(cleared.aiActivityId, cleared.id)
 	end
+
+	PromoteMergedTriggerGroup(availableTriggers, cleared)
 
 	local deletes = {}
 	for key,value in pairs(availableTriggers) do

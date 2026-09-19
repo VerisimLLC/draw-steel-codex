@@ -187,16 +187,13 @@ local function ChooseTriggerTarget(element, triggerToken, trigger)
         targets = candidates,
         prompt = string.format("Choose a target for %s", tostring(trigger:GetText())),
         choose = function(targetToken)
-            --deferred: the picker tears itself down (focus, prompt, token
-            --highlights) right after this returns, which would clobber any
-            --picker or movement prompt the press opens next.
-            local charid = targetToken.charid
-            dmhub.Schedule(0.1, function()
-                if mod.unloaded or not element.valid then
-                    return
-                end
-                element:FireEvent("press", charid)
-            end)
+            --The picker now tears itself down before handing the pick on, so the
+            --press runs straight away; a card rebuilt in the meantime is gone and
+            --there is nothing to press.
+            if mod.unloaded or not element.valid then
+                return
+            end
+            element:FireEvent("press", targetToken.charid)
         end,
         cancel = function()
         end,

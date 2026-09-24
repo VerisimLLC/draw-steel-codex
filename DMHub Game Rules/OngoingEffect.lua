@@ -247,6 +247,14 @@ function TimePoint.Create()
 			round = initiativeQueue.round,
 			initiativeid = initiativeid,
 			initiativeord = initiativeord,
+
+			--The queue's per-round turn counter (bumped by SelectTurn, reset to 1
+			--by NextRound). RoundsSince uses it to spot a turn boundary in the two
+			--cases the initiative-ord comparison cannot: when nobody held the turn
+			--at this moment (initiativeid is nil), and when the entry recorded here
+			--later leaves the queue. Queues predating the counter leave it nil, and
+			--RoundsSince then behaves exactly as it did before.
+			turn = initiativeQueue:try_get("turn"),
 		}
 	else
 		return TimePoint.new{
@@ -302,10 +310,38 @@ function TimePoint:RoundsSince()
 	local turnPassed = false
 	local turnPending = false
 
+	--Has the queue moved past the turn we were created on, judged purely by the
+	--queue's own turn counter? The counter resets to 1 each round, so "moved on"
+	--means a later round or a later turn within this one. This is the only signal
+	--that works in Draw Steel, where every entry is created with initiative 0 and
+	--dexterity 0 (all the SetInitiative(id, 0, 0) call sites) and so the ord
+	--comparison below can never fire. nil on either side -- a TimePoint or a queue
+	--from before the counter was recorded -- leaves this false and the old
+	--behaviour intact.
+	local recordedTurn = self:try_get("turn")
+	local queueTurn = initiativeQueue:try_get("turn")
+	local turnCounterPassed = recordedTurn ~= nil and queueTurn ~= nil and
+	                          (initiativeQueue.round > self.round or queueTurn > recordedTurn)
+
 	if self:try_get("initiativeid") ~= nil then
 		local hasHadTurn = initiativeQueue:HasHadTurn(self.initiativeid)
-		turnPassed = hasHadTurn
-		turnPending = (not hasHadTurn) and (not currentlyOurTurn)
+		if hasHadTurn == nil then
+			--the entry we were created on has left the queue, so it can never
+			--report having had its turn. Without the counter this went to
+			--turnPending forever and the effect only cleared on a round advance.
+			turnPassed = turnCounterPassed
+		else
+			turnPassed = hasHadTurn
+			turnPending = (not hasHadTurn) and (not currentlyOurTurn)
+		end
+
+	elseif turnCounterPassed then
+		--Created while nobody held the turn: between turns (Draw Steel's
+		--currentTurn = false "Drag Hero Here" gap), which is where an object's
+		--ability the Director fires off lands. No entry was recorded, so
+		--initiativeord is the 0 placeholder and the ord test below is meaningless;
+		--the counter is the only thing that can say a turn has since ended.
+		turnPassed = true
 
 	elseif initiativeEntry ~= nil then
 		local ord = initiativeEntry.initiative + initiativeEntry.dexterity*0.01

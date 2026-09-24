@@ -27,6 +27,15 @@ function CharacterBuilder._detailPanel()
         height = "99%",
         valign = "center",
         borderColor = "blue",
+
+        -- Monsters have no selector rail or character panel; take their space.
+        refreshBuilderState = function(element, state)
+            local isHero = (state:Get("tokenKind") or "hero") == "hero"
+            local width = isHero and CBStyles.SIZES.CENTER_PANEL_WIDTH or CBStyles.SIZES.CENTER_PANEL_WIDTH_MONSTER
+            if element.selfStyle.width ~= width then
+                element.selfStyle.width = width
+            end
+        end,
     }
 end
 

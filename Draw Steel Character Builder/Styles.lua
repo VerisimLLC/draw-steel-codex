@@ -26,6 +26,8 @@ CBStyles.COLORS = {
     GRAY02 = "#666663",
     PANEL_BG = "#080B09",
     GRAY_TRANSPARENT = "#10110FF3",
+    -- Codex Note callout text: silver, apart from the cream rules text.
+    NOTE_SILVER = "#CDCDCD",
 
     -- For selections like skills etc.
     FILLED_ITEM_BG = "srgb:#DFCFC01A",
@@ -72,6 +74,8 @@ CBStyles.SIZES = {
 }
 CBStyles.SIZES.BUTTON_PANEL_WIDTH = CBStyles.SIZES.ACTION_BUTTON_WIDTH + 60
 CBStyles.SIZES.CENTER_PANEL_WIDTH = "100%-" .. (30 + CBStyles.SIZES.BUTTON_PANEL_WIDTH + CBStyles.SIZES.CHARACTER_PANEL_WIDTH)
+-- Monsters have neither the selector rail nor the character panel.
+CBStyles.SIZES.CENTER_PANEL_WIDTH_MONSTER = "100%-30"
 
 --- Prepend root selectors to each style's selectors array
 --- @param rootSelectors string|table The selectors to prepend
@@ -103,6 +107,35 @@ local function _baseStyles()
             fontSize = 14,
             color = "@fgStrong",
             bold = false,
+        },
+        -- Codex Note callout: full frame, keeping blockQuote's thick left bar.
+        {
+            selectors = {"panel", "blockQuote", "codex-note"},
+            border = {x1 = 4, x2 = 1, y1 = 1, y2 = 1},
+            cornerRadius = 8,
+        },
+        -- Rulebook-style sidebar box (e.g. "Lots of Options!").
+        {
+            selectors = {"builder-sidebar"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            vpad = 14,
+            hpad = 6,
+            borderBox = true,
+            bgimage = true,
+            bgcolor = "@bgAlt",
+            border = 1,
+            borderColor = "@border",
+            cornerRadius = 8,
+        },
+        {
+            selectors = {"builder-sidebar-ornament"},
+            width = 10,
+            height = 10,
+            halign = "center",
+            bgimage = true,
+            bgcolor = "@border",
         },
     }
 end
@@ -198,6 +231,66 @@ local function _panelStyles()
             valign = "bottom",
             vmargin = 8,
             flow = "vertical",
+            bgimage = true,
+            bgcolor = CBStyles.COLORS.GRAY_TRANSPARENT,
+        },
+        -- Entries inside choices-overview-body skip their own backing.
+        {
+            selectors = {"detail-overview-labels", "seamless"},
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"choices-overview-body"},
+            width = "100%-4",
+            height = "auto",
+            halign = "center",
+            flow = "vertical",
+            bgimage = true,
+            bgcolor = CBStyles.COLORS.GRAY_TRANSPARENT,
+        },
+        -- Framed intro passage (e.g. "Animals").
+        {
+            selectors = {"detail-overview-labels", "lore-box"},
+            border = 1,
+            borderColor = "@border",
+            cornerRadius = 8,
+            vpad = 6,
+            borderBox = true,
+        },
+        -- Background-reading column right of the Choices nav.
+        {
+            selectors = {"choices-lore-panel"},
+            width = 400,
+            height = "100%-12",
+            tmargin = 12,
+            hmargin = 16,
+            valign = "top",
+            flow = "vertical",
+        },
+        -- Art column; the image keeps its own proportions.
+        {
+            selectors = {"choices-art-panel"},
+            width = 420,
+            height = "100%-20",
+            tmargin = 20,
+            rmargin = 16,
+            valign = "top",
+            flow = "vertical",
+        },
+        {
+            selectors = {"choices-art-image"},
+            width = "auto",
+            height = "auto",
+            maxWidth = 420,
+            maxHeight = 900,
+            halign = "center",
+            valign = "top",
+            border = 1,
+            borderColor = "@border",
+        },
+        -- Overview panel in the same black as its text backing.
+        {
+            selectors = {"detail-overview-panel", "solid-bg"},
             bgimage = true,
             bgcolor = CBStyles.COLORS.GRAY_TRANSPARENT,
         },
@@ -697,6 +790,18 @@ local function _labelStyles()
             selectors = {"info", "overview", "detail-header"},
             fontSize = 22,
             bold = true,
+        },
+        {
+            selectors = {"info", "overview", "codex-note-text"},
+            color = CBStyles.COLORS.NOTE_SILVER,
+        },
+        -- Centered title of a builder-sidebar box.
+        {
+            selectors = {"info", "overview", "builder-sidebar-title"},
+            textAlignment = "center",
+            fontSize = 18,
+            bold = true,
+            bmargin = 4,
         },
 
         -- Feature names & descriptions for selection panels

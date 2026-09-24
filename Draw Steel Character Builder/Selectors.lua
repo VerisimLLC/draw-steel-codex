@@ -226,6 +226,15 @@ function CBSelectors.CreatePanel()
             _fireControllerEvent("selectorChange", selector)
         end,
 
+        -- Monsters only have the auto-opened Choices step, so hide the rail.
+        refreshBuilderState = function(element, state)
+            local isMonster = state:Get("tokenKind") == "monster"
+            element:SetClass("collapsed", isMonster)
+            if isMonster then
+                element:HaltEventPropagation()
+            end
+        end,
+
         children = selectors,
     }
 

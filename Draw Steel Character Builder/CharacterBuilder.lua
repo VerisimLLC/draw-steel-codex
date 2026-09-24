@@ -857,6 +857,10 @@ function CharacterBuilder._makeFeatureRegistry(options)
                             local feature = featureCache and featureCache:GetFeature(element.parent.data.featureId)
                             visible = visible and (feature and not feature:SuppressStatus())
                             local filled = feature and feature:IsComplete()
+                            -- Open-ended choices always count as complete; fill once something is bought.
+                            if feature and feature:IsUnbounded() then
+                                filled = #feature:GetSelectedNames() > 0
+                            end
                             element:SetClass("filled", filled)
                         end
                         element:SetClass("collapsed", not visible)

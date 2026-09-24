@@ -2596,11 +2596,53 @@ function MarkdownDocument:GetReferencedAnnotations(options)
     return result
 end
 
-function MarkdownDocument:PatchToken(token, str)
-    local lines = table.shallow_copy(token.lines)
-    local line = token.lines[token.lineIndex]
-    lines[token.lineIndex] = line:sub(1, token.linepos) .. str .. line:sub(token.linepos + token.length + 1)
+--Edit a single line of the document against its CURRENT text.
+--
+--Every in-place control (checkbox, bar, counter, macro, spoiler link, power-roll
+--preset) used to rebuild the whole document from the `lines` snapshot the
+--tokenizer captured at render time, and write that back wholesale. Nothing
+--re-tokenizes after such a write -- only the server echo does -- so between a
+--click and its echo every control on the page still holds the pre-click
+--snapshot, and the next click rewrote the document from text that no longer
+--existed. That silently reverted the previous edit, and any edit that had
+--arrived from another client in between, since Upload() with no original is a
+--full-item write of the whole document. It also meant a patch issued from a
+--player-view render wrote back spoiler-STRIPPED text (BreakdownRichTags runs
+--StripSpoilers before it splits the lines), destroying every hidden block.
+--
+--So: re-split the live text here, splice only the one line being edited, and
+--refuse the write if that line no longer looks the way the snapshot said it
+--did. A refused click is recoverable -- the pending echo re-renders and the
+--user clicks again -- where a silently reverted document is not.
+--
+--Returns true when the edit was applied.
+function MarkdownDocument:MutateLine(lineIndex, expectedLine, fn)
+    --Normalize the way BreakdownRichTags does, so lineIndex means the same thing
+    --here as it did when the snapshot was taken. GetTextContent has already
+    --stripped carriage returns.
+    local lines = string.split_allow_duplicates((self:GetTextContent():gsub("\v", "\n")), "\n")
+
+    local line = lines[lineIndex]
+    if line == nil or line ~= expectedLine then
+        return false
+    end
+
+    local newLine = fn(line)
+    if newLine == nil or newLine == line then
+        return false
+    end
+
+    lines[lineIndex] = newLine
     self:SetTextContent(table.concat(lines, "\n"))
+    return true
+end
+
+--Replace one token's span in place. Returns false without writing if the token's
+--line has moved since the render that produced it -- see MutateLine.
+function MarkdownDocument:PatchToken(token, str)
+    return self:MutateLine(token.lineIndex, token.lines[token.lineIndex], function(line)
+        return line:sub(1, token.linepos) .. str .. line:sub(token.linepos + token.length + 1)
+    end)
 end
 
 function MarkdownDocument:GetRollableTableFromTokens(tableid, tokens, startPos)
@@ -2929,10 +2971,14 @@ local function PowerRollDisplay(doc)
                         end
                     end
 
-                    local lines = table.shallow_copy(token.lines)
-                    lines[token.lineIndex+1] = g_hardwiredPowerTableList[nextIndex].preset
-                    doc:SetTextContent(table.concat(lines, "\n"))
-                    doc:Upload()
+                    local presetLine = token.lineIndex + 1
+                    local applied = doc:MutateLine(presetLine, token.lines[presetLine], function()
+                        return g_hardwiredPowerTableList[nextIndex].preset
+                    end)
+
+                    if applied then
+                        doc:Upload()
+                    end
                 end,
             },
         },
@@ -4423,21 +4469,20 @@ local function RenderMarkdownTokens(ctx, tokens)
                                     return
                                 end
 
-                                local lines = table.shallow_copy(spoilerInfo.lines)
-                                local line = spoilerInfo.lines[spoilerInfo.lineIndex]
-                                for i=spoilerInfo.linepos,#line do
-                                    if line:sub(i,i) == "{" then
-                                        local nextChar = line:sub(i+1,i+1)
-                                        if nextChar == "!" then
-                                            line = line:sub(1,i) .. line:sub(i+2)
-                                        else
-                                            line = line:sub(1,i) .. "!" .. line:sub(i+1)
+                                local applied = ctx.doc:MutateLine(spoilerInfo.lineIndex, spoilerInfo.lines[spoilerInfo.lineIndex], function(line)
+                                    for i=spoilerInfo.linepos,#line do
+                                        if line:sub(i,i) == "{" then
+                                            if line:sub(i+1,i+1) == "!" then
+                                                return line:sub(1,i) .. line:sub(i+2)
+                                            end
+                                            return line:sub(1,i) .. "!" .. line:sub(i+1)
                                         end
-                                        lines[spoilerInfo.lineIndex] = line
-                                        ctx.doc:SetTextContent(table.concat(lines, "\n"))
-                                        ctx.doc:Upload()
-                                        break
                                     end
+                                    return nil
+                                end)
+
+                                if applied then
+                                    ctx.doc:Upload()
                                 end
 
                                 return

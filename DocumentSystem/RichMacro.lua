@@ -158,8 +158,9 @@ function RichMacro.CreateDisplay(self)
 
             if m_strike ~= nil and m_token ~= nil and self:GetDocument() ~= nil then
                 local doc = self:GetDocument()
-                doc:PatchToken(m_token, string.format("[[/%s%s|%s]]", cond(m_strike == "~", "/", "~"), m_command, m_text))
-                doc:Upload()
+                if doc:PatchToken(m_token, string.format("[[/%s%s|%s]]", cond(m_strike == "~", "/", "~"), m_command, m_text)) then
+                    doc:Upload()
+                end
             end
         end,
         rightClick = function(element)

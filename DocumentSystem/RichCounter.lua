@@ -66,9 +66,10 @@ function RichCounter.CreateDisplay(self)
 
                 if m_token ~= nil and self:GetDocument() ~= nil then
                     local doc = self:GetDocument()
-                    doc:PatchToken(m_token, string.format("[[%d]]", n))
-                    doc:Upload()
-                    element:SetClass("uploading", true)
+                    if doc:PatchToken(m_token, string.format("[[%d]]", n)) then
+                        doc:Upload()
+                        element:SetClass("uploading", true)
+                    end
                 end
             end,
         },

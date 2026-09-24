@@ -821,6 +821,35 @@ function CharacterBuilder._makeFeatureRegistry(options)
                     end
                     element:SetClass("collapsed-anim", not element.data.visible)
                 end,
+                -- Flag an unfilled choice that a pick in another choice revealed.
+                refreshBuilderState = function(element, state)
+                    local featureId = element.data.featureId
+                    local featureCache = state:Get(selector .. ".featureCache")
+                    local cached = featureCache and featureCache:GetFeature(featureId)
+                    local shown = cached ~= nil
+                        and (getSelected(CharacterBuilder._getHero()) or "nil") == element.data.selectedId
+                    local alert = shown
+                        and featureCache:IsNestedFeature(featureId)
+                        and not cached:IsComplete()
+                    element:FireEventTree("setNestedAlert", alert == true)
+                end,
+                -- Pulsing halo; first child so it draws under the button.
+                gui.Panel{
+                    classes = {"builder-base", "panel-base", "nested-choice-glow", "collapsed"},
+                    floating = true,
+                    halign = "center",
+                    valign = "top",
+                    y = 4,
+                    interactable = false,
+                    setNestedAlert = function(element, on)
+                        element:SetClass("collapsed", not on)
+                        element.thinkTime = on and 0.05 or 0
+                    end,
+                    think = function(element)
+                        local r = (math.sin(dmhub.Time() * 2 * math.pi / 1.6) + 1) / 2
+                        element.selfStyle.opacity = 0.2 + 0.6 * r
+                    end,
+                },
                 CharacterBuilder._makeCategoryButton{
                     text = CharacterBuilder._stripSignatureTrait(feature:GetName()),
                     press = function(element)
@@ -862,6 +891,18 @@ function CharacterBuilder._makeFeatureRegistry(options)
                         element:SetClass("collapsed", not visible)
                     end,
                 }),
+                gui.NewContentAlert{
+                    classes = {"collapsed"},
+                    -- Centered on the button's top-right corner (8px margin in).
+                    size = 12,
+                    x = -2,
+                    y = 2,
+                    valign = "top",
+                    interactable = false,
+                    setNestedAlert = function(element, on)
+                        element:SetClass("collapsed", not on)
+                    end,
+                },
             },
             panel = CharacterBuilder._makeFeaturePanelContainer{
                 data = {

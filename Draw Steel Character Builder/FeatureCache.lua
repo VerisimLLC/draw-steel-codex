@@ -54,8 +54,43 @@ function CBFeatureCache.CreateNew(hero, selectedId, selectedName, features)
     }
 
     CBFeatureCache._processFeatures(opts, hero, features)
+    opts.nestedGuids = CBFeatureCache._nestedChoiceGuids(hero, opts.keyed)
 
     return CBFeatureCache.new(opts)
+end
+
+--- Guids of choices surfaced by an option picked in another cached choice.
+--- @param hero creature
+--- @param keyed table<string, CBFeatureWrapper>
+--- @return table<string, boolean>
+function CBFeatureCache._nestedChoiceGuids(hero, keyed)
+    local nested = {}
+    local levelChoices = hero and hero:GetLevelChoices()
+    if levelChoices == nil then return nested end
+    for guid, wrapper in pairs(keyed) do
+        if levelChoices[guid] ~= nil then
+            -- pcall: not every choice type has FillFeaturesRecursive.
+            pcall(function()
+                local feature = wrapper:GetFeature()
+                local descendants = {}
+                feature:FillFeaturesRecursive(levelChoices, descendants)
+                for _,f in ipairs(descendants) do
+                    local id = f ~= feature and f:try_get("guid") or nil
+                    if id ~= nil and id ~= guid then
+                        nested[id] = true
+                    end
+                end
+            end)
+        end
+    end
+    return nested
+end
+
+--- True when this choice was surfaced by a pick in another choice.
+--- @param guid string
+--- @return boolean
+function CBFeatureCache:IsNestedFeature(guid)
+    return self:try_get("nestedGuids", {})[guid] == true
 end
 
 --- @return boolean

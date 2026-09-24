@@ -3757,7 +3757,9 @@ function GameHud.CreateEmbeddedRollDialog()
                                             --Multi-target rolls keep a separate copy of the
                                             --modifier for each target; propagate the choice to
                                             --all copies so one selection covers the whole use.
-                                            if m_multitargets ~= nil and guid ~= nil then
+                                            --damageTypeChoicePerTarget keeps each target's pick separate.
+                                            local perTarget = mod.modifier:try_get("damageTypeChoicePerTarget", false)
+                                            if m_multitargets ~= nil and guid ~= nil and not perTarget then
                                                 for _,target in ipairs(m_multitargets) do
                                                     for _,entry in ipairs(target.modifiers or {}) do
                                                         if entry.modifier ~= nil and entry.modifier ~= mod.modifier and entry.modifier:try_get("guid") == guid then

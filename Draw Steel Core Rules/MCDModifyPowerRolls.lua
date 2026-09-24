@@ -2416,6 +2416,31 @@ CharacterModifier.TypeInfo.power = {
                 }
             }
 
+            --Lets each target of a multi-target roll pick its own damage type.
+            local hasDamageTypeChoice = false
+            for _,v in pairs(modifier:try_get("damageTypeMappings", {})) do
+                if #CharacterModifier.DamageMappingDestinations(v) > 1 then
+                    hasDamageTypeChoice = true
+                end
+            end
+            if hasDamageTypeChoice and modifier.rollType ~= "project_roll" then
+                children[#children+1] = gui.Check{
+                    styles = ThemeEngine.GetStyles(),
+                    style = {
+                        height = 30,
+                        width = 300,
+                        fontSize = 18,
+                        halign = "left",
+                    },
+                    text = "Choose Damage Type Per Target",
+                    value = modifier:try_get("damageTypeChoicePerTarget", false),
+                    change = function(element)
+                        modifier.damageTypeChoicePerTarget = element.value
+                        Refresh()
+                    end,
+                }
+            end
+
             children[#children+1] = gui.Panel{
                 classes = {"formPanel", cond(modifier.rollType == "project_roll", "collapsed-anim")},
                 gui.Label{

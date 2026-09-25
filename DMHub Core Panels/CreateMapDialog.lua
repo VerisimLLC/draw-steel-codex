@@ -583,7 +583,8 @@ mod.shared.ShowCreateMapDialog = function()
     --"cavern"), so a search shows the variant that earned the match rather
     --than the map's base appearance; maps in turn are ranked by their best
     --variant. Variant index breaks ties, so an empty search (every score 0)
-    --keeps index order.
+    --keeps index order. tiebreak(entry), when given, ranks maps whose best
+    --variants matched equally well (higher first) ahead of index order.
     local BetterMatch = function(a, b)
         local sa = a.matchScore or 0
         local sb = b.matchScore or 0
@@ -593,7 +594,7 @@ mod.shared.ShowCreateMapDialog = function()
         return a.variantIndex < b.variantIndex
     end
 
-    local DiversifyEntries = function(entries, searching)
+    local DiversifyEntries = function(entries, searching, tiebreak)
         local byMap = {}
         local order = {}
         for _, entry in ipairs(entries) do
@@ -614,12 +615,16 @@ mod.shared.ShowCreateMapDialog = function()
         --stable: groups whose best variants tie keep their index order.
         for i, group in ipairs(order) do
             group.ord = i
+            group.tiebreak = tiebreak ~= nil and tiebreak(group[1]) or 0
         end
         table.sort(order, function(a, b)
             local sa = a[1].matchScore or 0
             local sb = b[1].matchScore or 0
             if sa ~= sb then
                 return sa > sb
+            end
+            if a.tiebreak ~= b.tiebreak then
+                return a.tiebreak > b.tiebreak
             end
             return a.ord < b.ord
         end)
@@ -1185,19 +1190,32 @@ mod.shared.ShowCreateMapDialog = function()
         packGrid.children = tiles
     end
 
+    --what the grid ranks by: m_rankMarkup[pack] is the set of that pack's
+    --maps with shared markup, m_rankStats how many users have added each
+    --map (see LoadRankSignals).
+    local m_rankMarkup = {}
+    local m_rankStats = nil
+
     local RefreshPackGrid = function()
         if m_dialog == nil or not m_dialog.valid or not mappacks.synced then
             return
         end
 
         --the full match list; entries are small tables and only the shown
-        --chunk becomes widgets.
+        --chunk becomes widgets. Browsing (no search) gets the mixed-up
+        --browse order; a search keeps match quality first, with markup and
+        --popularity deciding between equally good matches.
         local searching = m_search:match("%S") ~= nil
         m_packEntries = DiversifyEntries(FilterByKind(mappacks.Search{
             text = m_search,
             pack = m_packFilter,
             maxResults = 100000,
-        }, m_packKind), searching)
+        }, m_packKind), searching, function(entry)
+            return mod.shared.MapPackEntryBoost(entry, m_rankMarkup, m_rankStats)
+        end)
+        if not searching then
+            m_packEntries = mod.shared.RankMapPackEntriesForBrowsing(m_packEntries, m_rankMarkup, m_rankStats)
+        end
 
         --keep the selected variant if its map is still listed, even when
         --the grid shows a different variant of it.
@@ -2319,7 +2337,38 @@ mod.shared.ShowCreateMapDialog = function()
 
     m_modalLayer = gui.ShowModal(m_dialog)
 
+    --fills m_rankMarkup and m_rankStats for every synced pack. Both are
+    --cached for the session, so after the first open everything arrives
+    --synchronously and the caller's own refresh ranks with it; otherwise
+    --the grid re-ranks once when the last fetch lands.
+    local LoadRankSignals = function()
+        --held at 1 until every request is issued, so fetches that answer
+        --synchronously never trigger the re-rank.
+        local pending = 1
+        local Done = function()
+            pending = pending - 1
+            if pending == 0 then
+                RefreshPackGrid()
+            end
+        end
+        pending = pending + 1
+        mod.shared.GetMapPackStats(function(stats)
+            m_rankStats = stats
+            Done()
+        end)
+        for _, pack in ipairs(mappacks.packs) do
+            local packid = pack.id
+            pending = pending + 1
+            mod.shared.GetMapPackMarkupMaps(packid, function(set)
+                m_rankMarkup[packid] = set
+                Done()
+            end)
+        end
+        pending = pending - 1
+    end
+
     if mappacks.synced then
+        LoadRankSignals()
         BuildLibraryNav()
         RefreshPackGrid()
     end
@@ -2328,10 +2377,12 @@ mod.shared.ShowCreateMapDialog = function()
     --pack index blobs are downloaded.
     mappacks.Sync{
         success = function()
+            LoadRankSignals()
             BuildLibraryNav()
             RefreshPackGrid()
         end,
         error = function(msg)
+            LoadRankSignals()
             BuildLibraryNav()
             RefreshPackGrid()
             if m_dialog ~= nil and m_dialog.valid then

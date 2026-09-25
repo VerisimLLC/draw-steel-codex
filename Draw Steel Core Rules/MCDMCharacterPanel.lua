@@ -10467,6 +10467,21 @@ function TacPanel.PersistentAbilities()
             --matches the flat threshold of 2 this panel used before the checklist lookup.)
             startOfTurnHeroicResource = tonumber(evaluatedGain) or dmhub.RollExpectedValue(evaluatedGain)
 
+            --After the start-of-turn persistence prompt, "Essence at Start" lowers the
+            --gain above by the cost already paid, so comparing costs against it would
+            --count them twice. While it is active use the full gain the prompt recorded.
+            local recordedGain = tonumber(token.properties:try_get("persistenceGainAtStart"))
+            if recordedGain ~= nil then
+                local effectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+                for _, effect in ipairs(token.properties:ActiveOngoingEffects()) do
+                    local effectInfo = effectsTable[effect.ongoingEffectid]
+                    if effectInfo ~= nil and string.lower(effectInfo.name or "") == "essence at start" then
+                        startOfTurnHeroicResource = recordedGain
+                        break
+                    end
+                end
+            end
+
             if totalCost > startOfTurnHeroicResource then
                 children[#children+1] = gui.Label{
                     classes = {"danger", "sizeXs"},

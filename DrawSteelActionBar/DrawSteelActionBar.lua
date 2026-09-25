@@ -8565,7 +8565,7 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
 
     local pierceWalls = originToken.properties:GetPierceWalls()
     if originToken:GetLineOfSight(targetToken, pierceWalls) == 0 then
-        markers:AddLabel("No Line of Sight", "forbidden")
+        markers:AddLabel("No Line of Effect", "forbidden")
         return
     end
 

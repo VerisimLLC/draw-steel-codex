@@ -238,7 +238,8 @@ end
 --also a public, content-addressed blob, which any client loads through an
 --"md5:<blob>" id with no asset record needed (as chat attachments do). Swap
 --each asset id for that form; ids it cannot resolve are left as they are.
-local function PortableImageId(id)
+--The editor's cast picker uses it too.
+function AdventurePage.PortableImageId(id)
     if type(id) ~= "string" or id == "" or id:sub(1, 4) == "md5:" then
         return id
     end
@@ -254,6 +255,7 @@ local function PortableImageId(id)
     end
     return id
 end
+local PortableImageId = AdventurePage.PortableImageId
 
 local function PortableConfig(cfg)
     cfg.heroImage = PortableImageId(cfg.heroImage)
@@ -1209,6 +1211,7 @@ local function MakeMapsSlide(width, stageH)
         local state = {dims = nil, time = 0, pins = {}, video = video, hold = hold, active = false}
 
         local image = gui.Panel{
+            classes = {"adventureMapMedia"},
             floating = true,
             width = width,
             height = stageH,
@@ -1222,7 +1225,7 @@ local function MakeMapsSlide(width, stageH)
         local videoPanel = nil
         if video ~= nil then
             videoPanel = gui.Panel{
-                classes = {"collapsed"},
+                classes = {"adventureMapMedia", "collapsed"},
                 floating = true,
                 width = width,
                 height = stageH,
@@ -1366,9 +1369,11 @@ local function MakeMapsSlide(width, stageH)
         width = width,
         height = stageH,
         interactable = false,
+        --opacity is not inherited (it fades only a panel's own image), so the
+        --cross-fade is on each layer's poster and video, keyed off the layer.
         styles = {
-            {selectors = {"adventureMapLayer"}, opacity = 0, transitionTime = g_mapFadeTime},
-            {selectors = {"adventureMapLayer", "mapShown"}, opacity = 1, transitionTime = g_mapFadeTime},
+            {selectors = {"adventureMapMedia"}, opacity = 0, transitionTime = g_mapFadeTime},
+            {selectors = {"adventureMapMedia", "parent:mapShown"}, opacity = 1, transitionTime = g_mapFadeTime},
         },
     }
 
@@ -1555,7 +1560,8 @@ local function MakeMediaViewer(width, stageH)
         --fan can stick out past the stage.
         styles = {
             {selectors = {"adventurePin"}, opacity = 0, transitionTime = 1.2},
-            {selectors = {"adventurePin", "pinShown"}, opacity = 1, transitionTime = 1.2},
+            --parent:mapShown: a hidden map layer's pins must not show over the current one.
+            {selectors = {"adventurePin", "pinShown", "parent:mapShown"}, opacity = 1, transitionTime = 1.2},
         },
     }
 
@@ -1701,9 +1707,10 @@ local function SerifHeading(text, size)
     }
 end
 
---How far popout art is inset, and scaled, matching gui.CreateTokenImage so a
---popout token looks the same here as on the map.
-local g_popoutBorder = 0.14
+--Popout art is drawn whole, this much larger than the frame at popoutScale 1,
+--matching the map's TokenPopoutShader (its frameUV factor). Cropping the edges
+--instead, as gui.CreateTokenImage does, cuts off whatever pokes out the top.
+local g_popoutArtScale = 1.46
 
 --The window of a regular token's art that shows in the ring. Placed art
 --(zoom + center, set by dragging in the editor) is recomputed from the image's
@@ -1786,11 +1793,10 @@ function AdventurePage.MakeCastPortrait(size, extra)
             if member.token and member.popout then
                 portrait.bgimage = "panels/square.png"
                 portrait.selfStyle.bgcolor = cond(framed, "clear", "#ffffff10")
-                local b = g_popoutBorder
                 local offset = member.offset or {x = 0, y = 0}
                 popoutArt.bgimage = member.image
-                popoutArt.selfStyle.imageRect = {x1 = b, y1 = b, x2 = 1 - b, y2 = 1 - b}
-                popoutArt.selfStyle.scale = 1 / (member.popoutScale or 1)
+                popoutArt.selfStyle.imageRect = {x1 = 0, y1 = 0, x2 = 1, y2 = 1}
+                popoutArt.selfStyle.scale = g_popoutArtScale / (member.popoutScale or 1)
                 popoutArt.selfStyle.x = (offset.x or 0) * size
                 popoutArt.selfStyle.y = (offset.y or 0) * size
             elseif member.token then

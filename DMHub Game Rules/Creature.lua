@@ -1174,14 +1174,34 @@ end
 function creature:FillCalculatedStatusIcons(result)
 	local mods = self:GetActiveModifiers()
 
-    if self._tmp_concealed then
-        result[#result+1] = {
-            id = "concealed",
-            icon = "ui-icons/eye.png",
-            hoverText = "Concealed",
-            statusIcon = true,
-            statusText = "Concealed",
-        }
+    --Concealment from the map or invisibility has no condition entry of its own,
+    --so show it as the Concealment condition. A creature that has the condition
+    --itself already shows it (as its ongoing effect or a condition below).
+    if self._tmp_concealed and not self:HasConcealmentCondition() then
+        local conditionInfo = CharacterCondition.conditionsByName["concealment"]
+        local token = dmhub.LookupToken(self)
+        local source = "From invisibility."
+        if token ~= nil and token.hasConcealment then
+            source = "From the area this creature is in."
+        end
+        if conditionInfo ~= nil then
+            result[#result+1] = {
+                id = "concealed",
+                icon = conditionInfo.iconid,
+                style = conditionInfo.display,
+                hoverText = string.format("%s: %s\n\n<b>%s</b>", conditionInfo.name, conditionInfo.description, source),
+                statusIcon = true,
+                statusText = conditionInfo.name,
+            }
+        else
+            result[#result+1] = {
+                id = "concealed",
+                icon = "ui-icons/eye.png",
+                hoverText = "Concealment\n\n<b>" .. source .. "</b>",
+                statusIcon = true,
+                statusText = "Concealment",
+            }
+        end
     end
 
 	local conditions = self:try_get("_tmp_directConditions")
@@ -4882,6 +4902,10 @@ function creature:RefreshToken(token)
         self._tmp_movementcarrier = CharacterModifier.GetMovementCarrierFromModifiers(self, modifiers)
     end
 
+    --Read by the engine's token renderer, which eases toward these (see GameSystem.lua).
+    self._tmp_tokenOpacity = self:CalculateAttribute("tokenopacity", 1)
+    self._tmp_tokenBrightness = self:CalculateAttribute("tokenbrightness", 1)
+
 	--check if any inflicted conditions or ongoing effects no longer sustain.
 	if token.activeControllerId == nil then
         if self:has_key("inflictedConditions") then
@@ -5106,16 +5130,21 @@ function creature:GetActiveModifiersExcludingAuras(calculatingModifiers)
 	--previous update keeps them counted.
 	--The map check is inlined rather than calling IsConcealed, whose immunity check
 	--would ask for the modifier list this function is building.
+	--The Concealment condition counts too. Before the build, a condition bestowed
+	--by a modifier is only known from the previous update's list.
 	local token = dmhub.LookupToken(self)
-	self._tmp_concealed = (token ~= nil and token.hasConcealment) or self._tmp_concealedInvisibleUpdate >= dmhub.ngameupdate - 1
+	local concealedBySurroundings = (token ~= nil and token.hasConcealment) or self._tmp_concealedInvisibleUpdate >= dmhub.ngameupdate - 1
+	self._tmp_concealed = concealedBySurroundings or self:HasConcealmentCondition()
 
 	local modifiers = self:CalculateActiveModifiers(calculatingModifiers)
 
-	--Immunity to Concealment comes from the modifiers, so it can only be checked
-	--once the list exists. When it cancels concealment, rebuild the list so
-	--"Concealed"-gated filterConditions see the corrected value.
-	if self._tmp_concealed and self:IsImmuneToConcealment(modifiers) then
-		self._tmp_concealed = false
+	--Immunity to Concealment and bestowed Concealment conditions both come from the
+	--modifiers, so the final answer is only known once the list exists. When it
+	--differs from the guess above, rebuild the list so "Concealed"-gated
+	--filterConditions see the corrected value. This only happens on a change.
+	local concealed = (concealedBySurroundings or self:HasConcealmentCondition()) and not self:IsImmuneToConcealment(modifiers)
+	if concealed ~= self._tmp_concealed then
+		self._tmp_concealed = concealed
 		if calculatingModifiers ~= nil then
 			for i = #calculatingModifiers, 1, -1 do
 				calculatingModifiers[i] = nil
@@ -6985,8 +7014,6 @@ function creature:IsOurTurn()
 end
 
 function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, options)
-
-    print("Caster:: Info:", casterInfo, json(casterInfo))
 
     --Avoidance (Draw Steel Lightbender trait): a save-ends ongoing effect on a
     --creature with this attribute is downgraded to end-of-next-turn instead.
@@ -9956,6 +9983,43 @@ end
 
 creature.debugTriggerHandler = false
 
+--Acknowledges an event dispatched with DispatchEventAndWait (MCDMCreature.lua),
+--which may be waiting on another machine. `context` is the event info or the
+--trigger symbols built from it; the wait id and the waiting creature's charid
+--ride in it. Only this creature's own triggers answer the wait, so a reaction
+--on some other creature cannot end it early. Written to the token so the waiting
+--client sees it whichever machine resolved the trigger.
+function creature:AckEventWait(context)
+    if type(context) ~= "table" then
+        return
+    end
+    local waitid = rawget(context, "eventwaitid")
+    local charid = rawget(context, "eventwaitcharid")
+    if type(waitid) ~= "string" or type(charid) ~= "string" then
+        return
+    end
+
+    local token = dmhub.LookupToken(self)
+    if token == nil or not token.valid or token.charid ~= charid then
+        return
+    end
+
+    token:ModifyProperties{
+        description = "Acknowledge Event",
+        undoable = false,
+        execute = function()
+            local acks = self:get_or_add("eventWaitAcks", {})
+            --prune old acknowledgements so the table stays small.
+            for key,timestamp in pairs(acks) do
+                if type(timestamp) ~= "number" or TimestampAgeInSeconds(timestamp) > 300 then
+                    acks[key] = nil
+                end
+            end
+            acks[waitid] = dmhub.serverTimeMilliseconds
+        end,
+    }
+end
+
 --an event is triggered which could cause triggered abilities to go off.
 --localFilter: nil = all triggers, "localOnly" = only local-only triggers, "skipLocal" = skip local-only triggers
 function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localFilter)
@@ -9966,6 +10030,7 @@ function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localF
 
 	local mods = self:GetActiveModifiers()
 	local result = false
+	local firedBefore = TriggeredAbility.FiredCount()
 
     --Remote (relayed) events always collect the per-ability gate results so
     --the TRIGGERRELAY:: trail shows why a relayed event did or did not prompt.
@@ -9980,6 +10045,15 @@ function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localF
 		if triggered then
 			result = true
 		end
+	end
+
+	--A DispatchEventAndWait caller is waiting on this event, and none of this
+	--creature's triggers fired (every one failed a condition or gate), so
+	--nothing will finish to release it: release it now. The "localOnly" pass is
+	--skipped because the relayed "skipLocal" pass still has to run elsewhere.
+	if localFilter ~= "localOnly" and type(info) == "table" and rawget(info, "eventwaitid") ~= nil
+		and TriggeredAbility.FiredCount() == firedBefore then
+		self:AckEventWait(info)
 	end
 
 	result = self:RemoveOngoingEffectsOnTrigger(eventName, info) or result

@@ -75,6 +75,10 @@ function mappacks.ListMarkup(options) end
 --- @param options {pack: string, success: nil|fun(mapids: string[]), error: nil|fun(message: string)}
 function mappacks.ListMarkupMaps(options) end
 
+--- Reads how popular each map-pack map is: stats[pack][mapid].adds is the number of distinct users who have added that map to a game with AddMapToGame. Maps nobody has added are absent. One read of /MapPackStats for every pack. Calls options.success with the table, or options.error with a message.
+--- @param options {success: nil|fun(stats: table<string, table<string, {adds: integer}>>), error: nil|fun(message: string)}
+function mappacks.GetMapStats(options) end
+
 --- Removes a shared markup set. Only the user who uploaded it may delete it (the cloud rejects anyone else).
 --- @param options {pack: string, mapid: string, id: string, success: nil|fun(), error: nil|fun(message: string)}
 function mappacks.DeleteMarkup(options) end

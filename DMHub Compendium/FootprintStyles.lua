@@ -50,6 +50,7 @@ local g_builtinStyles = {
     { id = "boots", name = "Boots", imageid = "footprints/boots.png", length = 0.3, spacing = 0.45, alternate = true },
     { id = "hooves", name = "Hooves", imageid = "footprints/hooves.png", length = 0.2, spacing = 0.5, alternate = true },
     { id = "paws", name = "Paws", imageid = "footprints/paws.png", length = 0.2, spacing = 0.4, alternate = true },
+    { id = "talons", name = "Talons", imageid = "footprints/talons.png", length = 0.24, spacing = 0.4, alternate = true },
     --one wavy drag mark per print, laid end to end into a continuous trail.
     { id = "trail", name = "Trail", imageid = "footprints/trail.png", length = 0.45, spacing = 0.45, alternate = false },
 }

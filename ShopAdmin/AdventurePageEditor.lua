@@ -1418,6 +1418,15 @@ function AdventurePageEditor.Create()
                                 interactable = false,
                             },
                             click = function()
+                                --the token's art id only resolves where the adventure's
+                                --images are loaded; store the public blob id instead. The
+                                --snapshot download registers those images in the background.
+                                local image = AdventurePage.PortableImageId(member.image)
+                                if image:sub(1, 4) ~= "md5:" then
+                                    status.text = "That art is still loading. Try again in a moment."
+                                    return
+                                end
+                                member.image = image
                                 gui.CloseModal()
                                 Edit(function(c)
                                     if #c.cast < g_maxCast then

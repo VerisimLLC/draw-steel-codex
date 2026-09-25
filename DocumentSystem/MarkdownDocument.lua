@@ -7884,6 +7884,10 @@ local Seamless = {}
 --light parchment stylesheets, where a low-alpha white would vanish.
 local SEAMLESS_FENCE_DIM = "#8a8a8a"
 
+--Above this many non-whitespace source characters the editor drops glossary
+--underlines (see the glossary setup in CompileDecorations for why).
+local SEAMLESS_GLOSSARY_MAX_GLYPHS = 14000
+
 --Open/close TMP tag pair for a heading level's skin entry. Mirrors
 --SkinHeadingMarkup, but as a pair around a source RANGE rather than wrapping a
 --copied string. Case transforms (allcaps) are omitted: a display decoration
@@ -8048,8 +8052,13 @@ function Seamless.CompileDecorations(doc, text)
     --the first occurrence of each term in the DOCUMENT underlines; the
     --display path washes per label, and per-doc is the editor's coarser
     --equivalent of that.
+    --Long documents skip the hints: TMP caps the editor's main mesh at 16383
+    --quads and appends underline quads after every glyph, so past the cap any
+    --<u> blanks the whole editor. Non-whitespace source chars bound the glyph
+    --count from above; the margin leaves room for the document's own underlines.
+    local _, glyphBound = text:gsub("%S", "")
     local glossaryIndex = nil
-    if g_glossaryHintsSetting:Get() ~= "off" then
+    if g_glossaryHintsSetting:Get() ~= "off" and glyphBound <= SEAMLESS_GLOSSARY_MAX_GLYPHS then
         local idx = GetGlossaryIndex()
         if next(idx) ~= nil then
             glossaryIndex = idx

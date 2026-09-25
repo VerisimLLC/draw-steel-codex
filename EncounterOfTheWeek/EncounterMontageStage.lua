@@ -67,6 +67,11 @@ local SCENE_PORTRAIT_FADE = 0.15
 local SCENE_BOX_HEIGHT = 196
 --typing speed of a line, in characters per second.
 local SCENE_TYPE_CPS = 45
+--A chest row found for the first time holds "???" this long after the roll
+--lands, then types in; a client that sees the landing later than the
+--window shows it settled.
+local CHEST_REVEAL_DELAY = 0.6
+local CHEST_REVEAL_WINDOW = 4
 local SCENE_ACTOR_FADE = 0.35
 --seconds per half-cycle of the page prompt's blink.
 local SCENE_PROMPT_BLINK = 0.6
@@ -1766,7 +1771,8 @@ local function OptionCard(entry, option, index, m)
         bgimage = "panels/square.png",
         children = children,
         press = function(element)
-            if not mine or option.roll == nil or locked then
+            --a "Delve:" option has no roll; it enters its delve instead.
+            if not mine or locked or (option.roll == nil and (option.delve == nil or m.turn.delve ~= nil)) then
                 return
             end
             audio.FireSoundEvent("Mouse.Click")
@@ -2376,7 +2382,8 @@ local function CreateSceneStage()
                     ShowDetail(m_detailDefault)
                 end,
                 press = function(element)
-                    if not mine or option.roll == nil or locked then
+                    --a "Delve:" option has no roll; it enters its delve instead.
+                    if not mine or locked or (option.roll == nil and (option.delve == nil or t.delve ~= nil)) then
                         return
                     end
                     audio.FireSoundEvent("Mouse.Click")
@@ -2420,25 +2427,147 @@ local function CreateSceneStage()
         }
     end
 
-    --A delve's chest table, in the middle of the stage while its dice are
-    --out: one row per range, the same look as a test's tier rows.
-    local function ChestCard(chestTable)
-        local rows = {
+    --A delve's chest table, in the middle of the stage from the moment its
+    --dice are out until the hero takes the find: one row per range, the
+    --same look as a test's tier rows. A row the party has never landed on
+    --reads "???" (EncounterMontage.ChestRowSeen). While the dice tumble, the
+    --row their running total would land on is highlighted; once landed
+    --(t.chest.rowIndex) the card rests on that row, and a row nobody had
+    --seen shows "???" a moment longer, then types its treasure in.
+    local function ChestCard(chestTable, t)
+        local c = t.chest or {}
+        local delveName = t.delve ~= nil and t.delve.name or nil
+        local landedIndex = cond(t.status == "chestlanded", c.rowIndex, nil)
+        ---@type Panel[]
+        local children = {
             gui.Label{ classes = {"eotwOptionName"}, text = "A chest", interactable = false },
             gui.Label{ classes = {"eotwOptionRoll"}, text = string.format("%s: %s", chestTable.name or "Treasure", chestTable.dice or "1d6"), interactable = false },
         }
-        for _, row in ipairs(chestTable.rows or {}) do
+        local rowPanels = {}
+        for i, row in ipairs(chestTable.rows or {}) do
             local range = cond(row.lo == row.hi, tostring(row.lo), string.format("%d-%d", row.lo, row.hi))
-            rows[#rows + 1] = gui.Panel{
+            local full = EncounterScript.VisibleText(row.text)
+            --only a client that watched the landing plays the reveal; a
+            --late joiner sees it settled.
+            local reveal = landedIndex == i and c.newReveal == true
+                and dmhub.serverTime - (tonumber(c.landedAt) or 0) < CHEST_REVEAL_WINDOW
+            local text = full
+            if reveal or not EncounterMontage.ChestRowSeen(delveName, row) then
+                text = "???"
+            end
+            local textLabel = gui.Label{ classes = {"eotwTierText"}, text = text, interactable = false }
+            local panel = gui.Panel{
                 width = "100%",
                 height = "auto",
                 flow = "horizontal",
                 vmargin = 1,
                 interactable = false,
                 gui.Label{ classes = {"eotwTierRange"}, text = range, interactable = false },
-                gui.Label{ classes = {"eotwTierText"}, text = EncounterScript.VisibleText(row.text), interactable = false },
+                textLabel,
+                think = function(element)
+                    local r = element.data.reveal
+                    if r == nil then
+                        element.thinkTime = nil
+                        return
+                    end
+                    local now = dmhub.Time()
+                    if now < r.start then
+                        return
+                    end
+                    local n = math.floor((now - r.start) * SCENE_TYPE_CPS)
+                    if n >= r.total then
+                        textLabel.text = r.full
+                        element.data.reveal = nil
+                        element.thinkTime = nil
+                    else
+                        textLabel.text = RevealText(r.full, n)
+                    end
+                end,
             }
+            panel.data = {}
+            if reveal then
+                panel.data.reveal = { full = full, total = VisibleLength(full), start = dmhub.Time() + CHEST_REVEAL_DELAY }
+                panel.thinkTime = 0.03
+            end
+            rowPanels[i] = panel
         end
+
+        --light one row (nil = none) and dim the rest.
+        local function MarkRow(index)
+            for i, panel in ipairs(rowPanels) do
+                for _, label in ipairs(panel.children) do
+                    label:SetClass("landed", index == i)
+                    label:SetClass("dim", index ~= nil and index ~= i)
+                end
+            end
+        end
+
+        local function RowFor(total)
+            for i, row in ipairs(chestTable.rows or {}) do
+                if total >= row.lo and total <= row.hi then
+                    return i
+                end
+            end
+            return nil
+        end
+
+        children[#children + 1] = gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            interactable = false,
+            children = rowPanels,
+            data = { dice = nil, faces = {} },
+            create = function(element)
+                if landedIndex ~= nil then
+                    MarkRow(landedIndex)
+                elseif t.status == "chest" then
+                    element.thinkTime = 0.1
+                end
+            end,
+            --wait for the chest's dice: the roller's own client knows them
+            --the moment they are thrown, everyone else once the host has them.
+            think = function(element)
+                local m = EncounterMontage.GetState()
+                local turn = m ~= nil and m.turn or nil
+                if turn == nil or turn.status ~= "chest" then
+                    element.thinkTime = nil
+                    return
+                end
+                local dice = turn.chest
+                local localDice = EncounterMontage.localChestDice
+                if localDice ~= nil and localDice.rollSeq == turn.rollSeq then
+                    dice = localDice
+                end
+                if dice == nil or dice.guids == nil or #dice.guids == 0 then
+                    return
+                end
+                element.thinkTime = nil
+                element.data.dice = dice
+                for _, guid in ipairs(dice.guids) do
+                    local events = chat.DiceEvents(guid)
+                    if events ~= nil then
+                        events:Listen(element)
+                    end
+                end
+            end,
+            diceface = function(element, diceguid, num)
+                local dice = element.data.dice
+                if dice == nil then
+                    return
+                end
+                element.data.faces[diceguid] = num
+                local total = tonumber(dice.mod) or 0
+                local count = 0
+                for _, value in pairs(element.data.faces) do
+                    count = count + 1
+                    total = total + value
+                end
+                if count >= #dice.guids then
+                    MarkRow(RowFor(total))
+                end
+            end,
+        }
         return gui.Panel{
             classes = {"eotwOptionCard"},
             width = "100%",
@@ -2448,7 +2577,7 @@ local function CreateSceneStage()
             borderBox = true,
             vmargin = 5,
             bgimage = "panels/square.png",
-            children = rows,
+            children = children,
         }
     end
 
@@ -2484,6 +2613,7 @@ local function CreateSceneStage()
 
     local function DelveChoiceButtons(m, t)
         local mine = IsMyTurn(m)
+        ---@type Panel[]
         local children = {
             gui.Label{
                 classes = {"eotwSceneHint"},
@@ -2491,9 +2621,9 @@ local function CreateSceneStage()
             },
         }
         if mine then
-            local function Button(label, kind, tooltip)
+            local function Button(label, kind, tooltip, locked)
                 return gui.Panel{
-                    classes = {"eotwSceneOption", "actionable"},
+                    classes = Classes("eotwSceneOption", not locked and "actionable", locked and "locked"),
                     width = "auto",
                     height = "auto",
                     halign = "left",
@@ -2502,17 +2632,29 @@ local function CreateSceneStage()
                     borderBox = true,
                     vmargin = 2,
                     bgimage = "panels/square.png",
-                    gui.Label{ classes = {"eotwSceneOptionName"}, text = label, interactable = false },
+                    gui.Label{ classes = Classes("eotwSceneOptionName", locked and "locked"), text = label, interactable = false },
                     linger = function(element)
                         gui.Tooltip(tooltip)(element)
                     end,
                     press = function(element)
+                        if locked then
+                            return
+                        end
                         audio.FireSoundEvent("Mouse.Click")
                         EncounterMontage.SendRequest(kind, {})
                     end,
                 }
             end
-            children[#children + 1] = Button("Press deeper", "delveOn", "Face another obstacle. There may be more treasure further in.")
+            --pressing on costs a Recovery up front (EncounterMontage.CanPressDeeper).
+            local cost = EncounterMontage.DELVE_PRESS_ON_COST
+            local costText = EncounterScript.Plural(cost, "Recovery", "Recoveries")
+            if EncounterMontage.CanPressDeeper(t.heroid) then
+                children[#children + 1] = Button(string.format("Press deeper (lose %s)", costText), "delveOn",
+                    string.format("Lose %s now and face another obstacle. There may be more treasure further in.", costText))
+            else
+                children[#children + 1] = Button(string.format("Press deeper (lose %s)", costText), "delveOn",
+                    string.format("Pressing deeper costs %s, and you do not have one to spare.", costText), true)
+            end
             children[#children + 1] = Button("Turn back", "delveOut", "Leave with everything you have found. This ends your turn.")
         end
         return children
@@ -2609,18 +2751,48 @@ local function CreateSceneStage()
         m_detailDefault = {}
         if t.status == "choosing" then
             boxExtra.children = OptionButtons(m, here)
-        elseif t.status == "chest" then
+        elseif t.status == "chest" or t.status == "chestlanded" then
             local delve = EncounterMontage.TurnDelve(t)
             local chest = delve ~= nil and delve.sections.chest or nil
             if chest ~= nil and chest.table ~= nil then
-                m_detailDefault = { ChestCard(chest.table) }
+                m_detailDefault = { ChestCard(chest.table, t) }
             end
-            boxExtra.children = {
-                gui.Label{
-                    classes = {"eotwSceneHint"},
-                    text = cond(IsMyTurn(m), "Roll for what the chest holds...", string.format("%s opens the chest...", t.heroName or "The hero")),
-                },
-            }
+            if t.status == "chest" then
+                boxExtra.children = {
+                    gui.Label{
+                        classes = {"eotwSceneHint"},
+                        text = cond(IsMyTurn(m), "Roll for what the chest holds...", string.format("%s opens the chest...", t.heroName or "The hero")),
+                    },
+                }
+            else
+                --the roll rests on its row until the hero takes the find.
+                ---@type Panel[]
+                local landed = {
+                    gui.Label{
+                        classes = {"eotwSceneHint"},
+                        text = string.format("%s rolls %s.", t.heroName or "The hero", tostring((t.chest or {}).total or "?")),
+                    },
+                }
+                if IsMyTurn(m) then
+                    landed[#landed + 1] = gui.Panel{
+                        classes = {"eotwSceneOption", "actionable"},
+                        width = "auto",
+                        height = "auto",
+                        halign = "left",
+                        hpad = 14,
+                        vpad = 5,
+                        borderBox = true,
+                        vmargin = 2,
+                        bgimage = "panels/square.png",
+                        gui.Label{ classes = {"eotwSceneOptionName"}, text = "Continue", interactable = false },
+                        press = function(element)
+                            audio.FireSoundEvent("Mouse.Click")
+                            EncounterMontage.SendRequest("chestTake", {})
+                        end,
+                    }
+                end
+                boxExtra.children = landed
+            end
         elseif t.status == "delvechoice" then
             m_detailDefault = { HaulCard(t) }
             boxExtra.children = DelveChoiceButtons(m, t)

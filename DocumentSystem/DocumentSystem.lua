@@ -3228,6 +3228,20 @@ function CustomDocument.GetOrCreateTabbedViewer()
         flow = "horizontal",
         halign = "left",
         valign = "top",
+
+        --window-shade, the backstop: hide the whole body in ONE place rather than
+        --relying on every document interface to hide itself. The interfaces built
+        --here have their own journalShade handlers, but a document type supplied by
+        --a module has none, and without this its content paints unclipped outside
+        --the rolled-up window -- over the tab strip and the map -- because
+        --updateShadeHeight only shrinks the window, it does not remove the body
+        --from layout. Collapsing the row also makes the shaded height honest
+        --instead of forced. The rail keeps its own handler: it has to restore the
+        --user's pin preference on unshade, which this cannot know.
+        journalShade = function(element, shaded)
+            element:SetClass("collapsed", shaded)
+        end,
+
         treeRail,
         contentArea,
     }

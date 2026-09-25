@@ -4857,7 +4857,7 @@ has no portrait yet** (it shows the default monster avatar).
   are montage-only.
 - The Witch is played by the **Wode Hag** (has portrait art; the montage is set in the Wode), not the bestiary Hag, which has no portrait (2026-09-24; in the working copy, uploads with the delve content).
 
-### Delves: a dungeon crawl inside one approach (DECIDED + BUILT 2026-09-24; Lua only; parser unit-tested, 16 new checks; runtime and stage luac-clean + type-checked but UNTESTED live -- the app was closed; the content is in the week's document (since 2026-09-24 the `Forbidden Tomb Delve` sub-document); UNCOMMITTED)
+### Delves: a dungeon crawl inside one approach (DECIDED + BUILT 2026-09-24; Lua only; parser unit-tested, 16 new checks; first playtest by the user 2026-09-24 ("too easy"), tuning pass BUILT the same day, needs a RESTART and is UNTESTED live; the content is in the week's document (since 2026-09-24 the `Forbidden Tomb Delve` sub-document); UNCOMMITTED)
 
 User direction (2026-09-24): a new opportunity, the **Forbidden Tomb**, is a
 loop: the hero meets obstacles (undead, traps, puzzles), finds a chest
@@ -4923,11 +4923,19 @@ machinery unchanged. When its test lands, `ApplyResolution` hands it to
 `delve.applied`), then -- Recoveries at 0 -> forced out; the chest is due
 (`sinceChest >= chestAt`, re-drawn from the Chest interval each time) ->
 the Chest scene, then status `"chest"`, whose roll the delving player's
-client makes with `dmhub.Roll` (real dice, in chat) and reports as
-`chestRolled`; the row's effects apply and the Continue scene plays,
-led by "<Hero> rolls N: <row>"; then status `"delvechoice"` with "Press
-deeper" (`delveOn`) / "Turn back" (`delveOut`); otherwise the next
-obstacle. No obstacles left -> "There is nothing further to find here."
+client makes with `dmhub.Roll` (real dice, in chat). Its `begin` callback
+sends the dice guids and flat modifier (`chestRolling` -> `turn.chest`,
+and `EncounterMontage.localChestDice` on the roller's own client, so it
+does not wait for the host), and every client's chest card follows the
+dice (`chat.DiceEvents(guid)` `diceface`), highlighting the row the
+running total lands on. `complete` sends `chestRolled`: status
+`"chestlanded"`, `turn.chest.{ total, rowIndex, newReveal, landedAt }`,
+and the row is marked seen. **The table rests on the landed row** until
+the delving player clicks **Continue** (`chestTake`); only then do the
+row's effects apply and the Continue scene play (no lead line any more:
+the find was just on show). Then status `"delvechoice"` with "Press
+deeper (lose 1 Recovery)" (`delveOn`) / "Turn back" (`delveOut`);
+otherwise the next obstacle. No obstacles left -> "There is nothing further to find here."
 and out. Leaving plays Leave / Forced Out and `DelveFinish` resolves the
 turn: acted, the entry taken, and a log line `{ delve, depth, chests,
 applied }` that the round view summarises ("X delved into Y: N obstacles
@@ -4936,9 +4944,44 @@ inside a delve (the host also refuses `pass` there): the way out is
 turning back at a chest. Each delve scene starts with an empty stage.
 
 **The stage.** Title "<Hero> in <Entry>: <Obstacle>"; the obstacle's
-options as usual; while the chest's dice are out the table sits mid-stage
-(`ChestCard`); at the choice, mid-stage shows the haul so far and the
-obstacles / chests / Recoveries left (`HaulCard`), the box the two buttons.
+options as usual; from the moment the chest's dice are out until
+Continue, the table sits mid-stage (`ChestCard(chestTable, t)`); at the
+choice, mid-stage shows the haul so far and the obstacles / chests /
+Recoveries left (`HaulCard`), the box the two buttons.
+
+**Tuning after the first playtest (user direction 2026-09-24: "too
+easy"):**
+- **Every tier 1 and tier 2 result that carries malice also costs a
+  Recovery** (the ones that did not already got " You lose a recovery."
+  appended -- 9 lines in the live `Forbidden Tomb Delve` sub-document:
+  both tiers of each puzzle's solve option, and tier 2 of each
+  break-through option; tier 3 of a break-through stays +1 malice only).
+  Verified by re-parsing live: every T1/T2 malice tier now also has a
+  `loserecovery` effect. The pre-edit text is in that session's
+  `_G.g_tombBackup_20260924` only.
+- **Pressing deeper costs a Recovery, paid immediately** on `delveOn`
+  (`EncounterMontage.DELVE_PRESS_ON_COST`, via `ApplyEffects` with a
+  `loserecovery` effect, so it lands in `delve.applied` and the log).
+  Decision taken without asking (flag it if wrong): the button is
+  **locked** unless the hero has MORE Recoveries than the cost
+  (`EncounterMontage.CanPressDeeper`; the host refuses too) -- paying
+  your last Recovery would only get you forced out before meeting
+  anything.
+- **No assists in a delve**: it is the hero going through alone.
+  `EligibleAssistants` returns nothing while `turn.delve` is set, so the
+  assist window never opens and no card is badged.
+- **The chest roll previews and rests** (above): the running row is lit
+  while the dice tumble, the card stays on the landed row, and the player
+  clicks Continue to take the find.
+- **Unfound treasure reads `???`.** A row nobody has landed on shows
+  `???` (while tumbling too); the first time the roll lands on it, it
+  holds `???` for 0.6s (`CHEST_REVEAL_DELAY`) and then types its
+  treasure in; from then on every chest shows it. Stored per game in
+  `data.chestSeen[MatchKey(delve name)]["lo-hi"]`
+  (`EncounterMontage.ChestRowSeen`), and **deliberately not cleared by
+  the dev reset** -- what the party has learned stays learned. A client
+  that sees the landing more than 4s late (`CHEST_REVEAL_WINDOW`) shows
+  it settled.
 
 **The week document's new content** (written; not yet uploaded -- the app
 was closed; the text is the scratch copy `week_scenes.md`, and a rules
@@ -4959,9 +5002,13 @@ King's Riddle (Unquiet Spirit, speaking Ullorvic), each solved (+2 / +1 /
 cursed: +2 malice and -1 Recovery / +2 / +1) -- plus the Chest, Continue,
 Leave and Forced Out scenes.
 
-**Next:** start the app, upload the document (rules-diff it against the
-live one first), and play a delve end to end: an obstacle with an assist,
-a chest roll, press deeper, turn back; and a forced exit at 0 Recoveries.
+**Next:** restart the app (the tuning pass is only on disk) and play a
+delve end to end: an obstacle (confirm no assist window), a chest roll
+(the row lights while tumbling, `???` -> reveal on a new row, the card
+waits for Continue, a second client sees the same), press deeper (a
+Recovery goes; locked at 1 Recovery), turn back; and a forced exit at 0
+Recoveries. To see the `???` again, clear `data.chestSeen` in the
+`eotwscript` document.
 
 ### Scaling a montage to the party (DECIDED + BUILT 2026-09-20; Lua only; parser unit-tested with the bundled interpreter; runtime UNTESTED live -- needs a restart; UNCOMMITTED)
 
@@ -7706,10 +7753,14 @@ and 30 change nothing visible for a script with no montage.
     `EncounterMontageStage.lua` (`CreateSceneStage` + its style rules),
     `tests/encounter_script_test.lua`. Next: the "still to verify" list there.
 
-51. [~] **Delves** (BUILT 2026-09-24; parser unit-tested; runtime/stage
-    UNTESTED live; the content is in the live week's document -- since the
-    split, the `Forbidden Tomb Delve` sub-document; UNCOMMITTED). Design,
-    grammar and status in "Delves: a dungeon crawl inside one approach".
+51. [~] **Delves** (BUILT 2026-09-24; parser unit-tested; first played by
+    the user 2026-09-24 -- "Enter the tomb" did nothing until the stage's
+    click gate learned about roll-less `Delve:` options; then the tuning
+    pass after that playtest (Recovery costs, no assists, chest roll that
+    rests on its row, `???` rows) BUILT, needs a RESTART, UNTESTED live; the
+    content is in the live week's document -- since the split, the
+    `Forbidden Tomb Delve` sub-document; UNCOMMITTED). Design, grammar and
+    status in "Delves: a dungeon crawl inside one approach".
 
 52. [~] **Sub-documents** (BUILT 2026-09-24; parser unit-tested; the live
     week SPLIT into a 2 KB master + 16 linked sub-documents and VERIFIED to
@@ -7951,13 +8002,16 @@ no core change.
   `Forbidden Tomb Delve`. BUILT; parser unit-tested (448 checks, up from
   429); VERIFIED over MCP that the split parses identically to the old
   single document and that the runtime picks the master, not a part.
-  UNCOMMITTED, not deployed; a montage PLAYED on the split document is
-  UNTESTED.** Also fixed on the way: `SceneImage` read the first `[[scene]]`
-  for every beat instead of the journal's `scene-1`/`scene-2` keys (harmless
-  so far -- one image). Design + file list under "Splitting a script across
-  documents". The EotW publisher's dry run currently fails on an unrelated
-  U+008A character in `C:\dev\eotw\...\actions-in-combat.yaml`; fix that
-  before the next publish.
+  COMMITTED (main b309f8e0, cherry-picked to release/0.0.841 fc05e483) and
+  DEPLOYED at 0.0.841 (dev + beta; EncounterOfTheWeek mod only, deploy id
+  61c1e92b-9eae-4cc1-aea7-ea4371ea0c78); module version 25 PUBLISHED
+  (dataid 0aad1d8a, `--force` over the standing warnings: no bare
+  `Encounter` map, floor-object holes 5939fe95 and 9325d163). A montage
+  PLAYED on the split document is UNTESTED.** Also fixed on the way:
+  `SceneImage` read the first `[[scene]]` for every beat instead of the
+  journal's `scene-1`/`scene-2` keys (harmless so far -- one image). Design
+  + file list under "Splitting a script across documents". (The U+008A
+  publisher failure noted here earlier no longer reproduces.)
 
 - 2026-09-20 (Intelligence + Tactical Preparation): **A narrative
   beat can write `Unlock: Intelligence` to turn the feature on; a montage or

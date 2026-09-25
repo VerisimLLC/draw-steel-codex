@@ -57,8 +57,15 @@
 --                                              "delves (host side)"). While
 --                                              obstacleId is set, the turn's entry
 --                                              and option are the OBSTACLE's.
---                   status also "chest" (the chest's dice roll is out) and
---                   "delvechoice" (press deeper or turn back) inside a delve.
+--                   status also "chest" (the chest's dice roll is out),
+--                   "chestlanded" (the roll has landed; the hero clicks to
+--                   take the find) and "delvechoice" (press deeper or turn
+--                   back) inside a delve.
+--                   chest = nil | { guids = { guid, ... }, mod, total, rowIndex,
+--                                   newReveal, landedAt }
+--                                           -- the chest roll in flight: its dice (so
+--                                              every client can follow them), then
+--                                              where it landed.
 --                   optionIndex, rollSeq, tier, total, natural, applied = {...}, resolvedAt,
 --                   attrid, skillid,        -- what the acting hero rolled with
 --                   baseTier, baseTotal,    -- the test's own result, before an assist
@@ -99,6 +106,11 @@
 --                  -- surges banked by "at the start of the next combat you
 --                     gain N surges", paid out (and cleared) by
 --                     ApplyPendingCombatBoons when combat starts.
+--  data.chestSeen = nil | { [delve MatchKey] = { ["lo-hi"] = true } }
+--                  -- the rows of each delve's chest table the party has
+--                     landed on; the rest read "???" (EncounterMontage.ChestRowSeen).
+--                     Deliberately NOT cleared by a reset: what the party has
+--                     learned about the treasure stays learned.
 --  data.zoneSetup, data.revealZones, data.zonesRevealed
 --                  -- the encounter's zone setup (placed traps) and the
 --                     "Reveal Traps" banked/applied reveals; see
@@ -869,6 +881,10 @@ function EncounterMontage.EligibleAssistants(m, beat, heroes)
         return result
     end
     if t.status ~= "assist" and t.status ~= "rolling" then
+        return result
+    end
+    --a delve is the hero going through alone: nobody assists in it.
+    if t.delve ~= nil then
         return result
     end
     local entry = EncounterMontage.TurnEntry(beat, t)
@@ -2400,6 +2416,35 @@ end
 
 EncounterMontage.HeroRecoveries = HeroRecoveries
 
+--Pressing deeper after a chest costs a Recovery on the spot (user direction
+--2026-09-24). It is only offered with Recoveries to spare after paying:
+--a hero left on 0 would be forced out before meeting anything.
+EncounterMontage.DELVE_PRESS_ON_COST = 1
+
+function EncounterMontage.CanPressDeeper(heroid)
+    return HeroRecoveries(heroid) > EncounterMontage.DELVE_PRESS_ON_COST
+end
+
+--Chest rows the party has never landed on read "???" (user direction
+--2026-09-24); once landed, a row stays known for every later chest.
+local function ChestRowKey(row)
+    return string.format("%d-%d", row.lo or 0, row.hi or 0)
+end
+
+function EncounterMontage.ChestRowSeen(delveName, row)
+    local seen = nil
+    pcall(function() seen = mod:GetDocumentSnapshot(DOC_ID).data.chestSeen end)
+    local forDelve = seen ~= nil and seen[EncounterScript.MatchKey(delveName or "")] or nil
+    return forDelve ~= nil and forDelve[ChestRowKey(row)] == true
+end
+
+local function MarkChestRowSeen(doc, delveName, row)
+    local key = EncounterScript.MatchKey(delveName or "")
+    doc.data.chestSeen = doc.data.chestSeen or {}
+    doc.data.chestSeen[key] = doc.data.chestSeen[key] or {}
+    doc.data.chestSeen[key][ChestRowKey(row)] = true
+end
+
 local function ChestInterval(delve)
     local lo, hi = 1, 2
     if delve ~= nil and delve.chestEvery ~= nil then
@@ -2431,6 +2476,7 @@ local function ClearTest(t)
     t.skillid = nil
     t.assist = nil
     t.assistOpenedAt = nil
+    t.chest = nil
 end
 
 local DelveAdvance
@@ -2761,7 +2807,8 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
         t.baseTier = tierIndex
         t.baseTotal = req.total
 
-        --below tier 3, a skilled hero may still lend a hand.
+        --below tier 3, a skilled hero may still lend a hand (never in a
+        --delve: EligibleAssistants is empty there).
         if tierIndex < 3 and #EncounterMontage.EligibleAssistants(m, beat, heroes) > 0 then
             t.status = "assist"
             t.assistOpenedAt = dmhub.serverTime
@@ -2892,7 +2939,22 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
         end
         ResolveTurn(m, doc, t, entry, option, t.baseTier or t.tier or 1, heroes, userid)
         return string.format("%s takes the result unassisted", t.heroName or "The hero")
+    elseif kind == "chestRolling" then
+        --the chest's dice are in the air: record them so every client's
+        --chest card can follow the tumble (EncounterMontageStage.ChestCard).
+        local t = m.turn
+        if t == nil or t.delve == nil or t.status ~= "chest" or t.userid ~= userid or t.rollSeq ~= req.rollSeq then
+            return "ignored chest dice: stale"
+        end
+        local guids = {}
+        for _, guid in ipairs(req.guids or {}) do
+            guids[#guids + 1] = tostring(guid)
+        end
+        t.chest = { guids = guids, mod = tonumber(req.mod) or 0 }
+        return "chest dice rolling"
     elseif kind == "chestRolled" then
+        --the roll has landed: the table rests on the row (revealing it if
+        --the party has never seen it) until the hero clicks to take it.
         local t = m.turn
         if t == nil or t.delve == nil or t.status ~= "chest" or t.userid ~= userid or t.rollSeq ~= req.rollSeq then
             return "ignored chest roll: stale"
@@ -2900,8 +2962,35 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
         local delve = EncounterMontage.TurnDelve(t)
         local chest = delve ~= nil and delve.sections.chest or nil
         local total = math.floor(tonumber(req.total) or 1)
-        local row = chest ~= nil and EncounterScript.ChestRow(chest.table, total) or nil
-        local lead = { string.format("%s rolls %d.", t.heroName or "The hero", total) }
+        local rows = (chest ~= nil and chest.table ~= nil and chest.table.rows) or {}
+        local rowIndex = nil
+        for i, row in ipairs(rows) do
+            if total >= row.lo and total <= row.hi then
+                rowIndex = i
+                break
+            end
+        end
+        t.chest = t.chest or {}
+        t.chest.total = total
+        t.chest.rowIndex = rowIndex
+        t.chest.landedAt = dmhub.serverTime
+        t.chest.newReveal = false
+        if rowIndex ~= nil then
+            local row = rows[rowIndex]
+            t.chest.newReveal = not EncounterMontage.ChestRowSeen(t.delve.name, row)
+            MarkChestRowSeen(doc, t.delve.name, row)
+        end
+        t.status = "chestlanded"
+        return string.format("%s's chest roll lands on %d", t.heroName or "A hero", total)
+    elseif kind == "chestTake" then
+        local t = m.turn
+        if t == nil or t.delve == nil or t.status ~= "chestlanded" or t.userid ~= userid or t.chest == nil then
+            return "ignored chest take: not the moment"
+        end
+        local delve = EncounterMontage.TurnDelve(t)
+        local chest = delve ~= nil and delve.sections.chest or nil
+        local row = chest ~= nil and chest.table ~= nil and chest.table.rows[t.chest.rowIndex or 0] or nil
+        local total = t.chest.total
         if row ~= nil then
             local hero = HeroByCharid(heroes, t.heroid)
             local applied = EncounterMontage.ApplyEffects(row.effects, {
@@ -2913,18 +3002,31 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
                 doc = doc,
             })
             DelveAddApplied(t, applied)
-            lead[1] = string.format("%s rolls %d: %s", t.heroName or "The hero", total, EncounterScript.VisibleText(row.text))
         end
         t.delve.chests = (t.delve.chests or 0) + 1
         t.rollSeq = nil
-        DelveScene(m, doc, t, heroes, "continue", "delve-choice", lead)
-        return string.format("%s opens a chest: %d", t.heroName or "A hero", total)
+        t.chest = nil
+        --the find was just on show, so the Continue scene needs no lead line.
+        DelveScene(m, doc, t, heroes, "continue", "delve-choice")
+        return string.format("%s opens a chest: %s", t.heroName or "A hero", tostring(total))
     elseif kind == "delveOn" or kind == "delveOut" then
         local t = m.turn
         if t == nil or t.delve == nil or t.status ~= "delvechoice" or t.userid ~= userid then
             return "ignored delve choice: not the moment"
         end
         if kind == "delveOn" then
+            if not EncounterMontage.CanPressDeeper(t.heroid) then
+                return "ignored press deeper: no Recovery to spare"
+            end
+            local applied = EncounterMontage.ApplyEffects({ { kind = "loserecovery", qty = EncounterMontage.DELVE_PRESS_ON_COST } }, {
+                heroEntry = HeroByCharid(heroes, t.heroid),
+                userid = userid,
+                entryName = t.delve.entryName,
+                entryId = t.entryId,
+                montage = m,
+                doc = doc,
+            })
+            DelveAddApplied(t, applied)
             DelveNextObstacle(m, doc, t, heroes)
             return string.format("%s presses deeper into %s", t.heroName or "A hero", t.delve.entryName or "the delve")
         end
@@ -3689,6 +3791,21 @@ function EncounterMontage.ClientTick()
             roll = (chestTable ~= nil and chestTable.dice) or "1d6",
             description = string.format("%s: %s", t.delve.entryName or "Delve", (chestTable ~= nil and chestTable.name) or "Chest"),
             tokenid = t.heroid,
+            --tell the host which dice are tumbling, so every client's chest
+            --card can highlight the row they are landing on.
+            begin = function(rollInfo)
+                if mod.unloaded then
+                    return
+                end
+                local guids = {}
+                local flat = rollInfo.total or 0
+                for _, r in ipairs(rollInfo.rolls or {}) do
+                    guids[#guids + 1] = r.guid
+                    flat = flat - (r.result or 0)
+                end
+                EncounterMontage.localChestDice = { rollSeq = seq, guids = guids, mod = flat }
+                EncounterMontage.SendRequest("chestRolling", { rollSeq = seq, guids = guids, mod = flat })
+            end,
             complete = function(rollInfo)
                 if mod.unloaded then
                     return

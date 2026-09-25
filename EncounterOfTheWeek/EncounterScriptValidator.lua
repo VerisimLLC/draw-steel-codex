@@ -82,14 +82,25 @@ local function DocumentOptions()
     return options, currentId
 end
 
-local function DocumentText(docid)
+--The map a document is filed under, or nil: its sub-document links resolve
+--against that map's journal first, as they do at runtime.
+local function DocumentMap(doc)
+    for _, map in ipairs(game.maps or {}) do
+        if CustomDocument.IsDocInAccessibleRoot(doc, { [map.id] = true }) then
+            return map.id
+        end
+    end
+    return nil
+end
+
+--The document as the runtime reads it: sub-documents spliced in, parsed.
+local function LoadDocument(docid)
     local doc = (dmhub.GetTable("documents") or {})[docid]
     if doc == nil then
         return nil
     end
-    local text = nil
-    pcall(function() text = doc:GetTextContent() end)
-    return text
+    local script = EncounterMontage.LoadScript(docid, DocumentMap(doc))
+    return script ~= nil and script.parse or nil
 end
 
 --- the checks the pure parser cannot make -----------------------------------
@@ -278,7 +289,7 @@ local function Report(parse)
                     cond(ins.deleteOthers, ", delete the other " .. ins.zone .. " zones", ""))
             else
                 Row(1, "flavourUnknown", "setup %s: UNRECOGNIZED '%s'", ins.label, ins.text)
-                Problem("line %d: setup instruction '%s' is not understood", ins.line or 0, ins.text)
+                Problem("%s: setup instruction '%s' is not understood", EncounterScript.LineLabel(parse, ins.line), ins.text)
             end
         end
 
@@ -317,7 +328,7 @@ local function Report(parse)
                         Row(4, "roll", "%s: %s", o.roll.name, o.roll.attr)
                         for _, problem in ipairs(AttrProblems(o.roll.attr)) do
                             Row(5, "flavourUnknown", "%s", problem)
-                            Problem("line %d: option '%s' -- %s", o.line or 0, o.name, problem)
+                            Problem("%s: option '%s' -- %s", EncounterScript.LineLabel(parse, o.line), o.name, problem)
                         end
                         for t in ipairs(o.roll.tiers) do
                             local label = string.format("tier %d: ", t)
@@ -397,13 +408,12 @@ end
 --Build the report body for one document id. Returns the list of children.
 function EncounterScriptValidator.BuildReport(docid)
     local children = {}
-    local text = DocumentText(docid)
-    if text == nil then
+    local parse = LoadDocument(docid)
+    if parse == nil then
         children[#children + 1] = gui.Label{ classes = {"eotwValSummary"}, text = "No such document." }
         return children
     end
 
-    local parse = EncounterScript.Parse(text)
     local rows, problems, counts, textOnly = Report(parse)
     local checks = NameChecks(parse)
     for _, check in ipairs(checks) do
@@ -418,6 +428,18 @@ function EncounterScriptValidator.BuildReport(docid)
             counts.beats, counts.entries, counts.options, counts.rules, counts.flavour,
             cond(#problems == 0, "no problems", string.format("%d PROBLEMS", #problems))),
     }
+    --the sub-documents this one pulled in, so a link that silently stayed
+    --prose (a typo'd name warns; a link to a monster does not) is visible.
+    local included = {}
+    for _, info in pairs(parse.included or {}) do
+        included[#included + 1] = tostring(info.name or info.id)
+    end
+    if #included > 0 then
+        table.sort(included)
+        children[#children + 1] = RowLabel{ depth = 0, class = "note",
+            text = string.format("includes %d sub-document%s: %s", #included, cond(#included == 1, "", "s"), table.concat(included, ", ")) }
+    end
+
     if not parse.hasEncounterTag then
         children[#children + 1] = RowLabel{ depth = 0, class = "problem",
             text = "no [[encounter]] island: this document spawns no combat" }

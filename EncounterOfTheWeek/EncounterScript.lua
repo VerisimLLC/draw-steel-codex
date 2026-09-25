@@ -1742,6 +1742,168 @@ local function SplitLines(text)
     return lines
 end
 
+EncounterScript.SplitLines = SplitLines
+
+--- sub-documents -------------------------------------------------------------
+--
+--A week's script can be spread over several journal documents. A line that
+--is NOTHING BUT a link to another document -- the journal's page embed
+--"[:Name]", a full link "[label](target)", or the "[Name]" shorthand -- is
+--replaced by that document's text, recursively, before the script is
+--parsed. A link inside a sentence stays a link. Design:
+--EncounterOfTheWeek.md, "Splitting a script across documents".
+
+EncounterScript.maxIncludeDepth = 8
+
+--The link target of a line that is only a link, or nil. The same three
+--forms Seamless.LinkAtPosition follows (MarkdownDocument.lua); rich [[tags]],
+--checkboxes and images are not links.
+function EncounterScript.IncludeTarget(line)
+    local t = trim(line)
+    local target = string.match(t, "^%[:([^%[%]]+)%]$")
+    if target ~= nil then
+        return trim(target)
+    end
+    local _, linkTarget = string.match(t, "^%[([^%[%]]*)%]%(([^%(%)]+)%)$")
+    if linkTarget ~= nil then
+        return trim(linkTarget)
+    end
+    local label = string.match(t, "^%[([^%[%]]+)%]$")
+    if label ~= nil and not string.match(label, "^[xX ]$") then
+        return trim(label)
+    end
+    return nil
+end
+
+--"line 12", or "'Mysterious Cottage' line 12" for a line that came from a
+--document other than the script's own.
+function EncounterScript.DescribeSource(src, rootId)
+    if src == nil then
+        return "line ?"
+    end
+    if src.docid == rootId then
+        return string.format("line %d", src.line)
+    end
+    return string.format("'%s' line %d", tostring(src.name or src.docid), src.line)
+end
+
+--Splice included documents into a script's text.
+--  root = { id, name, text } -- the script's own document
+--  resolve(target) -> { id, name, text } for a journal document, or
+--      nil, problem -- problem is nil when the link is fine but names no
+--      document (a monster, a PDF, a web page): the line stays as prose;
+--      otherwise a string saying what is wrong: the line stays, and warns
+--Returns {
+--  text = the expanded text,
+--  sources = { [expandedLine] = { docid, name, line } } -- where each line of
+--      the expanded text came from (line is 1-based within that document)
+--  included = { [docid] = { id, name } } -- every document spliced in
+--  warnings = { "...", ... },
+--}
+function EncounterScript.ExpandIncludes(root, resolve)
+    local out, sources, warnings, included = {}, {}, {}, {}
+    local function Warn(src, fmt, ...)
+        warnings[#warnings + 1] = EncounterScript.DescribeSource(src, root.id) .. ": " .. string.format(fmt, ...)
+    end
+    local stack = {}
+    local function Expand(doc, depth)
+        stack[doc.id] = true
+        for i, line in ipairs(SplitLines(doc.text)) do
+            local src = { docid = doc.id, name = doc.name, line = i }
+            local spliced = false
+            local target = EncounterScript.IncludeTarget(line)
+            if target ~= nil then
+                local child, problem = resolve(target)
+                if child == nil then
+                    if problem ~= nil then
+                        Warn(src, "'%s' %s; the line is left as text", target, problem)
+                    end
+                elseif stack[child.id] then
+                    Warn(src, "'%s' includes itself; not included again", tostring(child.name or target))
+                elseif depth >= EncounterScript.maxIncludeDepth then
+                    Warn(src, "'%s' is nested more than %d documents deep; not included", tostring(child.name or target), EncounterScript.maxIncludeDepth)
+                else
+                    included[child.id] = { id = child.id, name = child.name }
+                    --blank lines around the splice, so a paragraph above or
+                    --below the link never runs into the included text.
+                    out[#out + 1] = ""
+                    sources[#out] = src
+                    Expand(child, depth + 1)
+                    out[#out + 1] = ""
+                    sources[#out] = src
+                    spliced = true
+                end
+            end
+            if not spliced then
+                out[#out + 1] = line
+                sources[#out] = src
+            end
+        end
+        stack[doc.id] = nil
+    end
+    Expand(root, 0)
+    return { text = table.concat(out, "\n"), sources = sources, included = included, warnings = warnings }
+end
+
+--Where a line of a parsed script came from, for a message. Plain "line N"
+--for a script that was parsed without ParseExpanded.
+function EncounterScript.LineLabel(parse, lineIndex)
+    if parse == nil or parse.sources == nil then
+        return string.format("line %d", lineIndex or 0)
+    end
+    return EncounterScript.DescribeSource(parse.sources[lineIndex or 0], parse.rootId)
+end
+
+--Parse an ExpandIncludes result. The parse also carries `sources`, `rootId`
+--and `included`; its warnings name the document each line came from, and
+--the include problems come first.
+function EncounterScript.ParseExpanded(expansion, rootId)
+    local parse = EncounterScript.Parse(expansion.text)
+    parse.sources = expansion.sources
+    parse.rootId = rootId
+    parse.included = expansion.included
+    local warnings = {}
+    for _, w in ipairs(expansion.warnings) do
+        warnings[#warnings + 1] = w
+    end
+    for _, w in ipairs(parse.warnings) do
+        local n, rest = string.match(w, "^line (%d+): (.*)$")
+        if n ~= nil then
+            w = EncounterScript.LineLabel(parse, tonumber(n)) .. ": " .. rest
+        end
+        warnings[#warnings + 1] = w
+    end
+    parse.warnings = warnings
+    return parse
+end
+
+--The journal keys a document's annotations by tag text, and a repeated tag
+--by occurrence: the 1st [[scene]] is "scene", the 2nd "scene-1", the 3rd
+--"scene-2" (MarkdownDocument:GetReferencedAnnotations). The key for the tag
+--`tagText` on line `line` of `text`.
+function EncounterScript.AnnotationKey(text, tagText, line)
+    local needle = "[[" .. tagText .. "]]"
+    local count = 0
+    for i, l in ipairs(SplitLines(text)) do
+        if i >= line then
+            break
+        end
+        local from = 1
+        while true do
+            local s, e = string.find(l, needle, from, true)
+            if s == nil then
+                break
+            end
+            count = count + 1
+            from = e + 1
+        end
+    end
+    if count == 0 then
+        return tagText
+    end
+    return tagText .. "-" .. count
+end
+
 function EncounterScript.Parse(text)
     local lines = SplitLines(text)
     --`delves`: the "# Delve: <Name>" sections, by EncounterScript.MatchKey
@@ -2178,8 +2340,12 @@ function EncounterScript.Parse(text)
             end
             if beat ~= nil then
                 beat.tags[#beat.tags + 1] = tagText
+                --sceneLine says WHICH [[scene]] this is: its annotation lives
+                --on the document the line came from (see ExpandIncludes),
+                --keyed by how many of the same tag precede it there.
                 if beat.kind == "montage" and tagName == "scene" and beat.sceneTag == nil then
                     beat.sceneTag = tagText
+                    beat.sceneLine = i
                 end
                 if beat.kind == "narrative" and tagName == "scene" then
                     --inside a section it is that section's backdrop; above
@@ -2187,9 +2353,11 @@ function EncounterScript.Parse(text)
                     if section ~= nil then
                         if section.sceneTag == nil then
                             section.sceneTag = tagText
+                            section.sceneLine = i
                         end
                     elseif beat.sceneTag == nil then
                         beat.sceneTag = tagText
+                        beat.sceneLine = i
                     end
                 end
                 if tagName == "encounter" and beat.encounterTag == nil then

@@ -4399,7 +4399,10 @@ it exposed, both silent:
   document filed under the encounter map's journal folder; info bubbles
   are encounter-only because a bubble carries no beats). Nothing new has
   to be registered or named; the week's document simply grows a `# Montage`
-  section above its `# Encounter` section.
+  section above its `# Encounter` section. Since 2026-09-24 that document
+  may pull in **sub-documents** by linking to them, and a document another
+  one includes is never a script of its own -- see "Splitting a script
+  across documents" below.
 - **Beats** are the document's `#` (H1) headings, in order. Recognized
   kinds, case-insensitive: `# Montage`, `# Narrative` (see "Narrative
   beats" below) and `# Encounter`. Anything else is ignored with a parser
@@ -4411,6 +4414,128 @@ it exposed, both silent:
   as today.
 - The `[[encounter]]` island is still found by `Encounter.GetEncountersOnCurrentMap`
   + the parentFolder filter; the parser only decides WHEN it spawns.
+
+### Splitting a script across documents (DECIDED + BUILT 2026-09-24; Lua only; parser unit-tested, 19 new checks; VERIFIED in the authoring game over MCP -- the split week parses identically; a played-through montage on the split document UNTESTED; UNCOMMITTED)
+
+User direction (2026-09-24): the week's document had grown to 40 KB and
+should not have to be one huge page -- make scripts work with the journal's
+linking and embedding, and break the live week into sub-documents linked
+from a master.
+
+**The rule.** Before a script is parsed, every line that is **nothing but a
+link to another journal document** is replaced by that document's text,
+recursively. The three link forms the journal itself follows
+(`Seamless.LinkAtPosition`) all count:
+
+```
+[Opportunity: Mysterious Cottage](document:Mysterious Cottage)   a link (what the week uses)
+[:Mysterious Cottage]                                            a page embed
+[Mysterious Cottage]                                             the shorthand link
+```
+
+- A link **inside a sentence** stays a link; only a line of its own splices.
+  Rich `[[tags]]`, checkboxes and images are never links.
+- The splice is textual, with a blank line either side: a sub-document can
+  hold anything the master could -- an entry (`## Opportunity: ...`), a
+  whole round, a whole beat, or a `# Delve:`. Sub-documents may link to
+  further sub-documents (depth cap 8); a cycle warns and stops.
+- **Link vs embed** is purely how the journal shows the master: a link reads
+  as a one-line table of contents entry you click through; an embed renders
+  the sub-document inline (the journal nests embeds 3 deep). The parser
+  treats both the same. The live week uses links, so the master stays a
+  short index.
+- **Resolution** (`EncounterMontage.ResolveScriptInclude`): `document:` is
+  optional; a document id works too. A document **filed under the same
+  map** wins over one of the same name elsewhere in the journal, so two
+  weeks can each have a "Mysterious Cottage"; failing that it is
+  `CustomDocument.ResolveLink`, exactly what clicking the link opens. A
+  link that resolves to something that is not a journal document (a
+  monster, a PDF, a map, a URL) is left as prose, silently; a link that
+  resolves to nothing is left as prose **with a warning**.
+- **Discovery**: `FindMapScript` loads every markdown document under the
+  map (each expanded), and any document another one includes is a *part*,
+  never a candidate script -- so the sub-documents can sit in the map's
+  own journal folder beside the master without competing with it.
+- **Where sub-documents live**: directly in the map's journal folder (the
+  "Map Documents" list). That is also what the publisher ships: it seeds
+  every non-hidden markdown document whose `parentFolder` chain roots at the
+  map (`tools/eotw_publish/documents.py` `find_map_documents`), so nothing
+  in the publisher had to change. A subfolder under the map would satisfy
+  the runtime, but whether the publisher's dependency walk ships the
+  *folder* record is unverified, so the week does not use one.
+- **Warnings name their document**: a problem on line 29 of the Mysterious
+  Cottage sub-document reads `'Mysterious Cottage' line 29: ...`; lines of
+  the master keep the plain `line N:`. Same in the validator panel, which
+  also lists the sub-documents it pulled in, and in `/eotwscript`.
+- **Rich tags stay with their document.** A `[[scene]]` island's annotation
+  is stored on the document that contains it, so the parser now records the
+  tag's line (`beat.sceneLine` / `section.sceneLine`), and
+  `EncounterMontage.SceneImage` reads the annotation from the document that
+  line came from. It also now uses the journal's key for a repeated tag --
+  the 1st `[[scene]]` is `scene`, the 2nd `scene-1`, the 3rd `scene-2`
+  (`EncounterScript.AnnotationKey`, the rule in
+  `MarkdownDocument:GetReferencedAnnotations`). Before this, every beat read
+  the FIRST scene's annotation whatever the journal showed; it went unnoticed
+  because the week's three scenes carry the same image. The `[[encounter]]`
+  island needs nothing new: `GetEncountersOnCurrentMap` already harvests
+  every document under the map. In the live week every rich tag stayed in
+  the master, so no annotation moved.
+- **Cache**: `FindMapScript` re-expands only when its signature changes --
+  every candidate document's id, name and text length, plus those of every
+  document the last parse included (which may live outside the map).
+
+**Code.** `EncounterScript.lua` (pure): `IncludeTarget`, `ExpandIncludes`,
+`ParseExpanded`, `LineLabel`, `DescribeSource`, `AnnotationKey`, the
+exported `SplitLines`, and `sceneLine` on beats and sections.
+`EncounterMontage.lua`: `ResolveScriptInclude`, `LoadScript` (one document
+-> expanded + parsed script; the validator uses it too), the rewritten
+`FindMapScript` + `ScriptSignature`, `SceneImage`. `EncounterNarrative.lua`:
+`SceneImage` passes the section/beat through so `sceneLine` reaches it.
+`EncounterScriptValidator.lua`: parses through `LoadDocument`, labels lines
+by document, lists the includes. Tests: the "sub-documents" block in
+`tests/encounter_script_test.lua` (448 checks in all).
+
+**The live week, split (2026-09-24).** The master `Encounter` document
+(`98a5a5bf`) went from 40,123 to 1,978 bytes. It keeps the beat skeleton --
+both narrative beats, the montage intro, the three `[[scene]]` islands, the
+round headings and their party-size directives, and the `# Encounter` beat
+with its setup line and `[[encounter]]` -- and each montage entry and the
+delve is a link line. Sixteen sub-documents, all filed under the map
+(`9ca4404c`), named after the entry (the `(Required)`/`(Locked)`/
+`(Temporary)` tags stay on the heading inside the sub-document, not in its
+name):
+
+| Round 1 | Round 2 | Elsewhere |
+|---|---|---|
+| Mysterious Cottage `e5c2ada5` | Hunter's Camp `38e5ce86` | Forbidden Tomb Delve `589de210` (the `# Delve: Forbidden Tomb`, 12.9 KB) |
+| Elvish Enclave `9ccdd7d4` | Hot Spring `02f19814` | |
+| Wayside Shrine `6aa4e185` | Warded Standing Stones `6efba4db` | |
+| The Little Stalker `e5974dc5` | Forbidden Tomb `27a287aa` | |
+| Talk to the Goblin `ae616c58` | Goblin Scouts `2830eeef` | |
+| Scout out the Forest `8bc4fc36` | Gathering Darkness `7405567d` | |
+| Dangerous Beasts `5390040e` | | |
+| Treacherous Ravine `4905e1cd` | | |
+| Traps in the Forest `442a2d5a` | | |
+
+VERIFIED over MCP: before writing anything the split was expanded in memory
+and parsed to the same `EncounterScript.Describe` output as the unsplit
+document (only warning locations differ, now naming the sub-document); after
+writing, the runtime `FindMapScript` picked the master (not a part),
+included all 16, matched the pre-split parse, resolved the three scene images
+and the encounter, found the delve, and re-parsed when a sub-document's text
+changed. All 16 master links resolve through `CustomDocument.ResolveLink` to
+the map's own sub-document. The 17 files are in `C:\dev\eotw\objectTables\documents\`
+(`encounter.yaml` plus one per sub-document). The pre-split document is
+saved only in that session's temporary scratchpad (`encounter.yaml.bak`;
+the authoring directory's document files are untracked in its git repo),
+so treat the split as the source of truth; an older copy is the journal's
+"Encounter (backup before scenes 2026-09-23)".
+
+**Still to verify**: a montage played through on the split document (the
+data path is proven identical, the stage has not been watched); the
+publisher shipping the sub-documents (its dry run currently dies on an
+unrelated bad character in `actions-in-combat.yaml` before it gets that
+far -- U+008A mojibake, a separate fix).
 
 ### Montage grammar
 
@@ -4732,7 +4857,7 @@ has no portrait yet** (it shows the default monster avatar).
   are montage-only.
 - The Witch is played by the **Wode Hag** (has portrait art; the montage is set in the Wode), not the bestiary Hag, which has no portrait (2026-09-24; in the working copy, uploads with the delve content).
 
-### Delves: a dungeon crawl inside one approach (DECIDED + BUILT 2026-09-24; Lua only; parser unit-tested, 16 new checks; runtime and stage luac-clean + type-checked but UNTESTED live -- the app was closed; the week document's new content NOT YET UPLOADED; UNCOMMITTED)
+### Delves: a dungeon crawl inside one approach (DECIDED + BUILT 2026-09-24; Lua only; parser unit-tested, 16 new checks; runtime and stage luac-clean + type-checked but UNTESTED live -- the app was closed; the content is in the week's document (since 2026-09-24 the `Forbidden Tomb Delve` sub-document); UNCOMMITTED)
 
 User direction (2026-09-24): a new opportunity, the **Forbidden Tomb**, is a
 loop: the hero meets obstacles (undead, traps, puzzles), finds a chest
@@ -7582,8 +7707,16 @@ and 30 change nothing visible for a script with no montage.
     `tests/encounter_script_test.lua`. Next: the "still to verify" list there.
 
 51. [~] **Delves** (BUILT 2026-09-24; parser unit-tested; runtime/stage
-    UNTESTED live; content written, NOT UPLOADED; UNCOMMITTED). Design,
+    UNTESTED live; the content is in the live week's document -- since the
+    split, the `Forbidden Tomb Delve` sub-document; UNCOMMITTED). Design,
     grammar and status in "Delves: a dungeon crawl inside one approach".
+
+52. [~] **Sub-documents** (BUILT 2026-09-24; parser unit-tested; the live
+    week SPLIT into a 2 KB master + 16 linked sub-documents and VERIFIED to
+    parse identically over MCP; a played montage on it UNTESTED;
+    UNCOMMITTED). A line that is only a link (or embed) to another journal
+    document splices that document in. Design, the split and status in
+    "Splitting a script across documents" under Architecture Notes.
 
 Deliverable: the week's document is a script; a montage plays before the
 fight with every player dragging their heroes onto opportunities and
@@ -7808,7 +7941,25 @@ no core change.
 
 # Status
 
-- 2026-09-20 (Intelligence + Tactical Preparation, latest): **A narrative
+- 2026-09-24 (sub-documents, latest): **A script can be spread over several
+  journal documents: a line that is nothing but a link (`[label](document:Name)`),
+  a page embed (`[:Name]`) or the `[Name]` shorthand is replaced by that
+  document's text before parsing, recursively, preferring a document filed
+  under the same map. The live week is now a 1,978-byte master `Encounter`
+  (the beat skeleton, every rich tag, the round directives) linking 16
+  sub-documents in the map's journal folder -- one per montage entry plus
+  `Forbidden Tomb Delve`. BUILT; parser unit-tested (448 checks, up from
+  429); VERIFIED over MCP that the split parses identically to the old
+  single document and that the runtime picks the master, not a part.
+  UNCOMMITTED, not deployed; a montage PLAYED on the split document is
+  UNTESTED.** Also fixed on the way: `SceneImage` read the first `[[scene]]`
+  for every beat instead of the journal's `scene-1`/`scene-2` keys (harmless
+  so far -- one image). Design + file list under "Splitting a script across
+  documents". The EotW publisher's dry run currently fails on an unrelated
+  U+008A character in `C:\dev\eotw\...\actions-in-combat.yaml`; fix that
+  before the next publish.
+
+- 2026-09-20 (Intelligence + Tactical Preparation): **A narrative
   beat can write `Unlock: Intelligence` to turn the feature on; a montage or
   narrative outcome can pay `+1 Intelligence` into a party-shared pool shown
   beside Malice and Hero Tokens (`phosphor/brain.png`); and at the outset of

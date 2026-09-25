@@ -116,11 +116,11 @@ function EncounterNarrative.SceneImage(script, beat, section)
     if script == nil or script.doc == nil then
         return nil
     end
-    local tag = (section ~= nil and section.sceneTag) or (beat ~= nil and beat.sceneTag) or nil
-    if tag == nil then
+    local holder = (section ~= nil and section.sceneTag ~= nil) and section or beat
+    if holder == nil or holder.sceneTag == nil then
         return nil
     end
-    return EncounterMontage.SceneImage(script, { sceneTag = tag })
+    return EncounterMontage.SceneImage(script, holder)
 end
 
 --- voters ------------------------------------------------------------------

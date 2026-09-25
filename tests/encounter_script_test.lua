@@ -1311,4 +1311,68 @@ check(EncounterScript.SubstitutePC("PC sees PC's reflection in PCB", "Shadow") =
 local plain = EncounterScript.MontageEntries(EncounterScript.Parse(SAMPLE).beats[1])[1]
 check(plain.scripted == nil and plain.scene == nil, "an entry without --- has no scene")
 
+--sub-documents: a line that is only a link splices that document in
+do
+    local NL = string.char(10)
+    local docs = {
+        cottage = { id = "cottage", name = "Mysterious Cottage", text = table.concat({
+            "## Opportunity: Mysterious Cottage", "", "A cottage.", "",
+            "### Knock", "|Test: Presence", "|a", "|b", "|c", "",
+            "[:Cottage Extras]",
+        }, NL) },
+        extras = { id = "extras", name = "Cottage Extras", text = table.concat({
+            "### Peek", "|Peek Test: Agility", "|a", "|b", "|c", "|oops: nothing",
+        }, NL) },
+        loop = { id = "loop", name = "Loop", text = "[Loop](document:Loop)" },
+    }
+    local byName = { ["mysterious cottage"] = docs.cottage, ["cottage extras"] = docs.extras, ["loop"] = docs.loop }
+    local function resolve(target)
+        local key = string.lower(target):gsub("^document:", "")
+        if byName[key] ~= nil then
+            return byName[key]
+        end
+        if key == "goblin" then
+            return nil, nil --a monster: a link, not a document
+        end
+        return nil, "names no journal document"
+    end
+
+    check(EncounterScript.IncludeTarget("[:Cottage]") == "Cottage", "embed form")
+    check(EncounterScript.IncludeTarget("  [Go there](document:Cottage)  ") == "document:Cottage", "full link form")
+    check(EncounterScript.IncludeTarget("[Cottage]") == "Cottage", "shorthand form")
+    check(EncounterScript.IncludeTarget("[[scene]]") == nil, "a rich tag is not a link")
+    check(EncounterScript.IncludeTarget("[x]") == nil and EncounterScript.IncludeTarget("[ ]") == nil, "checkboxes are not links")
+    check(EncounterScript.IncludeTarget("![map](img.png)") == nil, "an image is not a link")
+    check(EncounterScript.IncludeTarget("See [Cottage] for more.") == nil, "a link inside a sentence is only a link")
+
+    local root = { id = "root", name = "Encounter", text = table.concat({
+        "# Montage", "", "[[scene]]", "", "## Round 1", "",
+        "[The cottage](document:Mysterious Cottage)",
+        "[Goblin]",
+        "[Nowhere]",
+        "[:Loop]",
+        "", "# Encounter", "", "[[encounter]]",
+    }, NL) }
+    local expansion = EncounterScript.ExpandIncludes(root, resolve)
+    local parse = EncounterScript.ParseExpanded(expansion, "root")
+    local entries = EncounterScript.MontageEntries(parse.beats[1])
+    check(#parse.beats == 2 and #entries == 1 and entries[1].name == "Mysterious Cottage", "the linked entry is spliced into the round")
+    check(#entries[1].options == 2 and entries[1].options[2].name == "Peek", "a nested embed splices too")
+    check(parse.included.cottage ~= nil and parse.included.extras ~= nil and parse.included.loop ~= nil, "included lists every spliced document")
+    check(string.find(expansion.text, "[Goblin]", 1, true) ~= nil, "a link to a non-document stays as text")
+    local warnText = table.concat(parse.warnings, "; ")
+    check(string.find(warnText, "line 9: 'Nowhere' names no journal document", 1, true) ~= nil, "an unresolved link warns with its line: " .. warnText)
+    check(string.find(warnText, "'Loop' line 1: 'Loop' includes itself", 1, true) ~= nil, "a cycle warns and stops")
+    check(string.find(warnText, "'Cottage Extras' line 6:", 1, true) ~= nil, "a parser warning names the sub-document and its own line")
+    local peek = entries[1].options[2]
+    check(EncounterScript.LineLabel(parse, peek.line) == "'Cottage Extras' line 1", "LineLabel maps an expanded line home")
+    check(EncounterScript.LineLabel(parse, parse.beats[1].sceneLine) == "line 3" and parse.beats[1].sceneTag == "scene", "sceneLine records the tag's line")
+
+    --the journal's repeated-tag keys
+    local tagged = table.concat({ "[[scene]]", "x", "[[scene]] and [[scene]]", "[[scene]]" }, NL)
+    check(EncounterScript.AnnotationKey(tagged, "scene", 1) == "scene", "first tag")
+    check(EncounterScript.AnnotationKey(tagged, "scene", 3) == "scene-1", "second tag")
+    check(EncounterScript.AnnotationKey(tagged, "scene", 4) == "scene-3", "a line after a line with two tags")
+end
+
 print(string.format("encounter_script_test: %d checks passed", passed))

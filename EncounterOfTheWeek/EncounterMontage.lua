@@ -272,15 +272,127 @@ end
 
 --- the script --------------------------------------------------------------
 
---Cache of the current map's parsed script, keyed by document id + text
---length (the text is only re-parsed when the document actually changes).
+--Cache of the current map's parsed script, keyed by a signature of every
+--document it could be built from (see ScriptSignature): the text is only
+--re-expanded and re-parsed when one of them actually changes.
 local m_scriptCache = nil
 
+local function DocumentText(doc)
+    local text = ""
+    pcall(function() text = doc:GetTextContent() or "" end)
+    return text
+end
+
+local function IsMarkdown(doc)
+    return type(doc) == "table" and doc.typeName == "MarkdownDocument"
+end
+
+--Resolve a sub-document link in a map's script (EncounterScript.ExpandIncludes'
+--`resolve`). A document filed under the same map wins over one of the same
+--name elsewhere in the journal, so two weeks can both have a "Mysterious
+--Cottage" without crossing wires; anything else goes through the journal's
+--own CustomDocument.ResolveLink, exactly what clicking the link opens.
+function EncounterMontage.ResolveScriptInclude(target, mapid)
+    local docsTable = dmhub.GetTable("documents") or {}
+    local key = string.lower(target)
+    local bare = string.match(key, "^document:(.+)$") or key
+    local function Found(docid, doc)
+        return { id = docid, name = doc.description or docid, text = DocumentText(doc) }
+    end
+
+    if IsMarkdown(docsTable[bare]) and not docsTable[bare].hidden then
+        return Found(bare, docsTable[bare])
+    end
+    if mapid ~= nil then
+        local bestid = nil
+        for docid, doc in unhidden_pairs(docsTable) do
+            if IsMarkdown(doc) and string.lower(doc.description or "") == bare
+                and CustomDocument.IsDocInAccessibleRoot(doc, { [mapid] = true })
+                and (bestid == nil or docid < bestid) then
+                bestid = docid
+            end
+        end
+        if bestid ~= nil then
+            return Found(bestid, docsTable[bestid])
+        end
+    end
+
+    local resolved = nil
+    pcall(function() resolved = CustomDocument.ResolveLink(target) end)
+    if resolved == nil then
+        return nil, "names no journal document"
+    end
+    if IsMarkdown(resolved) then
+        for docid, doc in pairs(docsTable) do
+            if doc == resolved then
+                return Found(docid, doc)
+            end
+        end
+        local id = nil
+        pcall(function() id = resolved.id end)
+        if id ~= nil then
+            return Found(id, resolved)
+        end
+    end
+    --a monster, a PDF, a map, a web page: a link, not a sub-document.
+    return nil, nil
+end
+
+--Expand and parse one document as a script (its sub-documents spliced in).
+--Returns { docid, doc, parse, text, explicit }; parse.included lists the
+--documents it pulled in.
+function EncounterMontage.LoadScript(docid, mapid)
+    local doc = (dmhub.GetTable("documents") or {})[docid]
+    if doc == nil then
+        return nil
+    end
+    local expansion = EncounterScript.ExpandIncludes(
+        { id = docid, name = doc.description or docid, text = DocumentText(doc) },
+        function(target) return EncounterMontage.ResolveScriptInclude(target, mapid) end)
+    local parse = EncounterScript.ParseExpanded(expansion, docid)
+    local explicit = #parse.beats > 0 and not parse.beats[1].implicit
+    return { docid = docid, doc = doc, parse = parse, text = expansion.text, explicit = explicit }
+end
+
+--Everything a map's script could have been built from: every candidate
+--document plus every document the last parse included (which may live
+--outside the map's folder), by id, name and text length.
+local function ScriptSignature(candidates, included)
+    local docsTable = dmhub.GetTable("documents") or {}
+    local parts = {}
+    local seen = {}
+    local function Add(docid, doc)
+        if seen[docid] then
+            return
+        end
+        seen[docid] = true
+        if doc == nil then
+            parts[#parts + 1] = docid .. "=missing"
+        else
+            parts[#parts + 1] = string.format("%s=%s:%d", docid, tostring(doc.description), #DocumentText(doc))
+        end
+    end
+    for _, c in ipairs(candidates) do
+        Add(c.docid, c.doc)
+    end
+    local extra = {}
+    for docid in pairs(included or {}) do
+        extra[#extra + 1] = docid
+    end
+    table.sort(extra)
+    for _, docid in ipairs(extra) do
+        Add(docid, docsTable[docid])
+    end
+    return table.concat(parts, "|")
+end
+
 --Find the map's script: the markdown document filed under the encounter
---map's journal folder (the same rule FindMapEncounter uses), parsed. When
---several qualify, the first (by name) that declares beats wins. A map with
---only an info-bubble encounter and no document gets one implicit encounter
---beat, so a week authored the old way plays exactly as before.
+--map's journal folder (the same rule FindMapEncounter uses), with its
+--sub-documents spliced in, parsed. A document that another one includes is
+--a part of that script, never a script of its own. When several qualify,
+--the first (by name) that declares beats wins. A map with only an
+--info-bubble encounter and no document gets one implicit encounter beat, so
+--a week authored the old way plays exactly as before.
 --Returns { docid, doc, parse, text } or a script with no beats.
 function EncounterMontage.FindMapScript(force)
     local mapid = game.currentMapId
@@ -299,20 +411,30 @@ function EncounterMontage.FindMapScript(force)
         return a.docid < b.docid
     end)
 
-    local best = nil
-    for _, c in ipairs(candidates) do
-        local text = ""
-        pcall(function() text = c.doc:GetTextContent() or "" end)
-        if m_scriptCache ~= nil and not force and m_scriptCache.docid == c.docid and m_scriptCache.textLength == #text then
-            m_scriptCache.doc = c.doc
-            return m_scriptCache
+    if m_scriptCache ~= nil and not force and m_scriptCache.docid ~= nil and m_scriptCache.mapid == mapid
+        and m_scriptCache.signature == ScriptSignature(candidates, m_scriptCache.allIncluded) then
+        if m_scriptCache.docid ~= nil then
+            m_scriptCache.doc = docsTable[m_scriptCache.docid] or m_scriptCache.doc
         end
-        local parse = EncounterScript.Parse(text)
-        if #parse.beats > 0 then
-            local explicit = not parse.beats[1].implicit
-            if best == nil or (explicit and not best.explicit) then
-                best = { docid = c.docid, doc = c.doc, parse = parse, text = text, textLength = #text, explicit = explicit }
-                if explicit then
+        return m_scriptCache
+    end
+
+    local loaded = {}
+    local allIncluded = {}
+    for _, c in ipairs(candidates) do
+        local script = EncounterMontage.LoadScript(c.docid, mapid)
+        loaded[#loaded + 1] = script
+        for docid in pairs(script ~= nil and script.parse.included or {}) do
+            allIncluded[docid] = true
+        end
+    end
+
+    local best = nil
+    for _, script in ipairs(loaded) do
+        if script ~= nil and not allIncluded[script.docid] and #script.parse.beats > 0 then
+            if best == nil or (script.explicit and not best.explicit) then
+                best = script
+                if script.explicit then
                     break
                 end
             end
@@ -330,22 +452,42 @@ function EncounterMontage.FindMapScript(force)
         if entry ~= nil then
             beats[1] = { kind = "encounter", title = "Encounter", line = 0, tags = { "encounter" }, implicit = true }
         end
-        best = { docid = nil, doc = nil, parse = { beats = beats, warnings = {}, hasEncounterTag = entry ~= nil }, text = "", textLength = 0 }
+        best = { docid = nil, doc = nil, parse = { beats = beats, warnings = {}, hasEncounterTag = entry ~= nil }, text = "" }
     end
+    best.mapid = mapid
+    best.allIncluded = allIncluded
+    best.signature = ScriptSignature(candidates, allIncluded)
     m_scriptCache = best
     return best
 end
 
 --The first montage beat's scene image (a RichScene annotation's coverart),
---or nil.
+--or nil. `beat` is anything with a sceneTag and sceneLine (a beat, or a
+--narrative section). The annotation is read from the document that line
+--came from -- a sub-document keeps its own [[scene]] islands -- under the
+--journal's key for it (a repeated tag is "scene-1", "scene-2", ...).
 function EncounterMontage.SceneImage(script, beat)
     if script == nil or script.doc == nil or beat == nil or beat.sceneTag == nil then
         return nil
     end
     local image = nil
     pcall(function()
-        local annotations = script.doc:try_get("annotations")
-        local tag = annotations ~= nil and annotations[beat.sceneTag] or nil
+        local doc = script.doc
+        local key = beat.sceneTag
+        local src = beat.sceneLine ~= nil and script.parse.sources ~= nil and script.parse.sources[beat.sceneLine] or nil
+        if src ~= nil then
+            doc = (dmhub.GetTable("documents") or {})[src.docid] or doc
+            --the stage asks every frame it rebuilds; the key only changes
+            --with the text, and a text change makes a new script.
+            script.sceneKeys = script.sceneKeys or {}
+            key = script.sceneKeys[beat.sceneLine]
+            if key == nil then
+                key = EncounterScript.AnnotationKey(DocumentText(doc), beat.sceneTag, src.line)
+                script.sceneKeys[beat.sceneLine] = key
+            end
+        end
+        local annotations = doc:try_get("annotations")
+        local tag = annotations ~= nil and (annotations[key] or annotations[beat.sceneTag]) or nil
         if tag ~= nil and tag.typeName == "RichScene" then
             local img = tag.image
             if type(img) == "string" and img ~= "" then
@@ -3798,6 +3940,9 @@ pcall(function()
             local script = EncounterMontage.FindMapScript(true)
             local lines = {}
             lines[#lines + 1] = string.format("script document: %s", tostring(script.docid))
+            for _, info in pairs(script.parse.included or {}) do
+                lines[#lines + 1] = string.format("  includes: %s (%s)", tostring(info.name), tostring(info.id))
+            end
             lines[#lines + 1] = EncounterScript.Describe(script.parse)
             local items, monsters = EncounterScript.ReferencedNames(script.parse)
             for name, _ in pairs(items) do

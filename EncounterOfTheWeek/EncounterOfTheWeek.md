@@ -4857,7 +4857,7 @@ has no portrait yet** (it shows the default monster avatar).
   are montage-only.
 - The Witch is played by the **Wode Hag** (has portrait art; the montage is set in the Wode), not the bestiary Hag, which has no portrait (2026-09-24; in the working copy, uploads with the delve content).
 
-### Delves: a dungeon crawl inside one approach (DECIDED + BUILT 2026-09-24; Lua only; parser unit-tested, 16 new checks; first playtest by the user 2026-09-24 ("too easy"), tuning pass BUILT the same day, needs a RESTART and is UNTESTED live; the content is in the week's document (since 2026-09-24 the `Forbidden Tomb Delve` sub-document); UNCOMMITTED)
+### Delves: a dungeon crawl inside one approach (DECIDED + BUILT 2026-09-24; Lua only; parser unit-tested, 16 new checks; first playtest by the user 2026-09-24 ("too easy"), tuning pass BUILT the same day and UNTESTED live; committed main b0abbf96 / release/0.0.841 044d7c80, DEPLOYED at 0.0.841 (deploy 7e97ecbe) and in module version 27; the content is in the week's document (since 2026-09-24 the `Forbidden Tomb Delve` sub-document))
 
 User direction (2026-09-24): a new opportunity, the **Forbidden Tomb**, is a
 loop: the hero meets obstacles (undead, traps, puzzles), finds a chest
@@ -5002,8 +5002,8 @@ King's Riddle (Unquiet Spirit, speaking Ullorvic), each solved (+2 / +1 /
 cursed: +2 malice and -1 Recovery / +2 / +1) -- plus the Chest, Continue,
 Leave and Forced Out scenes.
 
-**Next:** restart the app (the tuning pass is only on disk) and play a
-delve end to end: an obstacle (confirm no assist window), a chest roll
+**Next:** restart the app (deployed, but a running app keeps the code it
+loaded) and play a delve end to end: an obstacle (confirm no assist window), a chest roll
 (the row lights while tumbling, `???` -> reveal on a new row, the card
 waits for Continue, a second client sees the same), press deeper (a
 Recovery goes; locked at 1 Recovery), turn back; and a forced exit at 0
@@ -7757,10 +7757,15 @@ and 30 change nothing visible for a script with no montage.
     the user 2026-09-24 -- "Enter the tomb" did nothing until the stage's
     click gate learned about roll-less `Delve:` options; then the tuning
     pass after that playtest (Recovery costs, no assists, chest roll that
-    rests on its row, `???` rows) BUILT, needs a RESTART, UNTESTED live; the
-    content is in the live week's document -- since the split, the
-    `Forbidden Tomb Delve` sub-document; UNCOMMITTED). Design, grammar and
-    status in "Delves: a dungeon crawl inside one approach".
+    rests on its row, `???` rows) BUILT, UNTESTED live; COMMITTED (main
+    b0abbf96, cherry-picked to release/0.0.841 044d7c80) and DEPLOYED at
+    0.0.841 (dev + beta; EncounterOfTheWeek mod only, deploy id
+    7e97ecbe-f241-448f-bdc4-78ad65c6793e); module version 27 PUBLISHED
+    (dataid 6f829874, `--force` over the standing warnings) carrying the
+    tomb's new Recovery costs -- the content is in the live week's
+    document, since the split the `Forbidden Tomb Delve` sub-document).
+    Design, grammar and status in "Delves: a dungeon crawl inside one
+    approach".
 
 52. [~] **Sub-documents** (BUILT 2026-09-24; parser unit-tested; the live
     week SPLIT into a 2 KB master + 16 linked sub-documents and VERIFIED to

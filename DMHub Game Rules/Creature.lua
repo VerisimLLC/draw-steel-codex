@@ -5104,9 +5104,27 @@ function creature:GetActiveModifiersExcludingAuras(calculatingModifiers)
 	--results for the whole update. Invisibility modifiers can only mark concealment
 	--from OnTokenRefresh, which runs after this rebuild, so their stamp from the
 	--previous update keeps them counted.
-	self._tmp_concealed = self:IsConcealed() or self._tmp_concealedInvisibleUpdate >= dmhub.ngameupdate - 1
+	--The map check is inlined rather than calling IsConcealed, whose immunity check
+	--would ask for the modifier list this function is building.
+	local token = dmhub.LookupToken(self)
+	self._tmp_concealed = (token ~= nil and token.hasConcealment) or self._tmp_concealedInvisibleUpdate >= dmhub.ngameupdate - 1
 
-	self._tmp_modifiers_excluding_auras = self:CalculateActiveModifiers(calculatingModifiers)
+	local modifiers = self:CalculateActiveModifiers(calculatingModifiers)
+
+	--Immunity to Concealment comes from the modifiers, so it can only be checked
+	--once the list exists. When it cancels concealment, rebuild the list so
+	--"Concealed"-gated filterConditions see the corrected value.
+	if self._tmp_concealed and self:IsImmuneToConcealment(modifiers) then
+		self._tmp_concealed = false
+		if calculatingModifiers ~= nil then
+			for i = #calculatingModifiers, 1, -1 do
+				calculatingModifiers[i] = nil
+			end
+		end
+		modifiers = self:CalculateActiveModifiers(calculatingModifiers)
+	end
+
+	self._tmp_modifiers_excluding_auras = modifiers
 	self._tmp_modifiersRefreshExcludingAuras = dmhub.ngameupdate
 
 	return self._tmp_modifiers_excluding_auras

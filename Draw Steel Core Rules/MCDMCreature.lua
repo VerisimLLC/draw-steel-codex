@@ -3687,9 +3687,40 @@ function creature:RollConditionSave(condid, abilityOptions)
     ability:Cast(token, { { token = token } }, abilityOptions)
 end
 
+--True if this creature is immune to the Concealment condition, so nothing
+--(concealing zones, auras, terrain, invisibility) makes it concealed.
+--modifiers: optional modifier list to read immunities from instead of
+--GetActiveModifiers. GetActiveModifiersExcludingAuras passes the list it is
+--still building, because calling GetActiveModifiers there would recurse.
+--- @param modifiers nil|table
+--- @return boolean
+function creature:IsImmuneToConcealment(modifiers)
+    local condition = CharacterCondition.conditionsByName["concealment"]
+    if condition == nil then
+        return false
+    end
+
+    if modifiers == nil then
+        return self:GetConditionImmunities()[condition.id] and true or false
+    end
+
+    local innate = rawget(self, "innateConditionImmunities")
+    if innate ~= nil and innate[condition.id] then
+        return true
+    end
+
+    local immunities = {}
+    for _,mod in ipairs(modifiers) do
+        mod.mod:FillConditionImmunities(mod, self, immunities)
+    end
+    return immunities[condition.id] and true or false
+end
+
+--True if the creature stands where the map grants concealment (zones, auras,
+--terrain) and is not immune to concealment.
 function creature:IsConcealed()
     local token = dmhub.LookupToken(self)
-    return token ~= nil and token.hasConcealment
+    return token ~= nil and token.hasConcealment and not self:IsImmuneToConcealment()
 end
 
 creature.RegisterSymbol {

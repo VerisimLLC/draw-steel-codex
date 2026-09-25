@@ -3739,6 +3739,11 @@ function CustomDocument.GetOrCreateTabbedViewer()
                 end
                 tab.tabButton:SetClass("selected", tab.tabId == tabId)
             end
+            --the pass above un-collapses the new tab's content, which while the
+            --window is rolled up would paint outside the shaded strip.
+            if element.data.shaded then
+                element:FireEventTree("journalShade", true)
+            end
             refreshTabVisibility(element)
             syncNavState(element)
             element:FireEventTree("refreshNavButtons")

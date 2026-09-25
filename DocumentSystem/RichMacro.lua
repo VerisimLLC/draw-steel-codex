@@ -158,8 +158,14 @@ function RichMacro.CreateDisplay(self)
 
             if m_strike ~= nil and m_token ~= nil and self:GetDocument() ~= nil then
                 local doc = self:GetDocument()
-                doc:PatchToken(m_token, string.format("[[/%s%s|%s]]", cond(m_strike == "~", "/", "~"), m_command, m_text))
-                doc:Upload()
+                local newStrike = cond(m_strike == "~", "/", "~")
+                if doc:PatchToken(m_token, string.format("[[/%s%s|%s]]", newStrike, m_command, m_text)) then
+                    --PatchToken does not re-fire refreshTag, so carry the new state
+                    --here or a second click recomputes the same replacement and is
+                    --refused as a no-op until the echo re-renders.
+                    m_strike = newStrike
+                    doc:Upload()
+                end
             end
         end,
         rightClick = function(element)

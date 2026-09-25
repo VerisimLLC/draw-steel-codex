@@ -11,6 +11,12 @@ function RichCounter.CreateDisplay(self)
     local m_token
     local m_styled = false
 
+    --The number the document last rendered, so a refused write can put the label
+    --back. Unlike the bar and the checkbox, this is a text field: the typed value
+    --sits in it until something repaints, and a refusal produces no write and so
+    --no echo and no render.
+    local m_number = nil
+
     resultPanel = gui.Panel{
         classes = {"richCounterFrame", "bg", "fgStrong"},
         width = 64,
@@ -53,6 +59,7 @@ function RichCounter.CreateDisplay(self)
             refreshTag = function(element, tag, match, token)
                 self = tag or self
                 element.text = match.number
+                m_number = match.number
                 m_token = token
                 element:SetClass("uploading", false)
             end,
@@ -66,9 +73,17 @@ function RichCounter.CreateDisplay(self)
 
                 if m_token ~= nil and self:GetDocument() ~= nil then
                     local doc = self:GetDocument()
-                    doc:PatchToken(m_token, string.format("[[%d]]", n))
-                    doc:Upload()
-                    element:SetClass("uploading", true)
+                    if doc:PatchToken(m_token, string.format("[[%d]]", n)) then
+                        doc:Upload()
+                        element:SetClass("uploading", true)
+                    elseif m_number ~= nil then
+                        --Refused: the line moved, or this render can never match it
+                        --(a Director viewing as a player renders spoiler-stripped
+                        --text, so no live line ever matches). Nothing will repaint,
+                        --so put the document's number back rather than leaving the
+                        --typed one standing as though it had been saved.
+                        element.text = m_number
+                    end
                 end
             end,
         },

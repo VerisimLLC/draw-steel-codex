@@ -2596,11 +2596,75 @@ function MarkdownDocument:GetReferencedAnnotations(options)
     return result
 end
 
-function MarkdownDocument:PatchToken(token, str)
-    local lines = table.shallow_copy(token.lines)
-    local line = token.lines[token.lineIndex]
-    lines[token.lineIndex] = line:sub(1, token.linepos) .. str .. line:sub(token.linepos + token.length + 1)
+--Edit a single line of the document against its CURRENT text.
+--
+--Every in-place control (checkbox, bar, counter, macro, spoiler link, power-roll
+--preset) used to rebuild the whole document from the `lines` snapshot the
+--tokenizer captured at render time, and write that back wholesale. Nothing
+--re-tokenizes after such a write -- only the server echo does -- so between a
+--click and its echo every control on the page still holds the pre-click
+--snapshot, and the next click rewrote the document from text that no longer
+--existed. That silently reverted the previous edit, and any edit that had
+--arrived from another client in between, since Upload() with no original is a
+--full-item write of the whole document. It also meant a patch issued from a
+--player-view render wrote back spoiler-STRIPPED text (BreakdownRichTags runs
+--StripSpoilers before it splits the lines), destroying every hidden block.
+--
+--So: re-split the live text here, splice only the one line being edited, and
+--refuse the write if that line no longer looks the way the snapshot said it
+--did. A refused click is recoverable -- the pending echo re-renders and the
+--user clicks again -- where a silently reverted document is not.
+--
+--Returns true when the edit was applied, followed by the line that was written.
+function MarkdownDocument:MutateLine(lineIndex, expectedLine, fn)
+    --Normalize the way BreakdownRichTags does, so lineIndex means the same thing
+    --here as it did when the snapshot was taken. GetTextContent has already
+    --stripped carriage returns.
+    local lines = string.split_allow_duplicates((self:GetTextContent():gsub("\v", "\n")), "\n")
+
+    local line = lines[lineIndex]
+    if line == nil or line ~= expectedLine then
+        return false
+    end
+
+    local newLine = fn(line)
+    if newLine == nil or newLine == line then
+        return false
+    end
+
+    lines[lineIndex] = newLine
     self:SetTextContent(table.concat(lines, "\n"))
+    return true, newLine
+end
+
+--Replace one token's span in place. Returns false without writing if the token's
+--line has moved since the render that produced it -- see MutateLine.
+--
+--On success the render snapshot is advanced to the line just written, but ONLY
+--when the replacement is the same length as the span it replaced. Nothing
+--re-tokenizes until the server echo arrives, so without this a second
+--interaction with the same control inside that window still validates against
+--pre-edit text, fails the guard and is dropped with no write and no feedback --
+--three quick + clicks on a bar advanced it by one.
+--
+--The length condition is not a nicety. token.lines is ONE table shared by every
+--token in the render (see the linesContext threading in BreakdownRichTags), so
+--this advances the snapshot for every control on the line. A replacement that
+--changes the line's length ([[9]] -> [[10]]) shifts every later linepos on it,
+--and because the snapshot would then MATCH the live text those controls' guards
+--would pass and splice at the wrong offset -- corrupting the line in exactly the
+--way MutateLine exists to prevent. Length-changing callers stay refused until
+--the echo re-renders; RichCounter, the only one, restores its label instead.
+function MarkdownDocument:PatchToken(token, str)
+    local applied, newLine = self:MutateLine(token.lineIndex, token.lines[token.lineIndex], function(line)
+        return line:sub(1, token.linepos) .. str .. line:sub(token.linepos + token.length + 1)
+    end)
+
+    if applied and #str == token.length then
+        token.lines[token.lineIndex] = newLine
+    end
+
+    return applied
 end
 
 function MarkdownDocument:GetRollableTableFromTokens(tableid, tokens, startPos)
@@ -2770,7 +2834,9 @@ end
 local g_riderColors = {
     unlocked = "#d9b3ff", locked = "#e08c8c", met = "#9be29b", hurt = "#e08c8c", unmet = "#8a8a8a",
 }
-local function RiderRows(doc)
+--getDocument() resolves the document on each use rather than capturing it: this
+--panel is pooled and outlives the object it was built with. See PowerRollDisplay.
+local function RiderRows(getDocument)
     return gui.Panel{
         width = "100%",
         height = "auto",
@@ -2785,7 +2851,7 @@ local function RiderRows(doc)
                 return
             end
             local verdict = nil
-            if doc:IsPlayerView(element) then
+            if getDocument():IsPlayerView(element) then
                 local token = dmhub.currentToken
                 if token ~= nil and token.properties ~= nil then
                     verdict = TestRiders.VerdictFor(token.properties, riders)
@@ -2810,12 +2876,18 @@ local function RiderRows(doc)
     }
 end
 
-local function PowerRollDisplay(doc)
+--getDocument() must RESOLVE the document, not be handed it. This panel is pooled
+--(ctx.pools.powerTables) and the pool lives on the render context, which persists
+--across renders, while a cloud update REPLACES the document's table row -- so
+--ctx.doc is a different object after the first echo and a captured one is
+--orphaned. Writing through an orphan splices into its stale text and uploads that
+--as a full-item write, reverting every edit made since this panel was built.
+local function PowerRollDisplay(getDocument)
     local resultPanel
 
     local m_token = nil
     local m_info = nil
-    local riderRows = RiderRows(doc)
+    local riderRows = RiderRows(getDocument)
 
     --how the roll's riders fell for the viewing player's hero (nil when the
     --roll has none, or in the Director's view)
@@ -2859,7 +2931,7 @@ local function PowerRollDisplay(doc)
                         end
                     end
 
-                    if not doc:IsPlayerView(element) then
+                    if not getDocument():IsPlayerView(element) then
                         LaunchablePanel.LaunchPanelByName("Request Rolls", {
                             title = string.format("%s: %s", m_info.name, m_info.attr),
                             powerRollTable = PowerRollTable.Create {
@@ -2929,10 +3001,15 @@ local function PowerRollDisplay(doc)
                         end
                     end
 
-                    local lines = table.shallow_copy(token.lines)
-                    lines[token.lineIndex+1] = g_hardwiredPowerTableList[nextIndex].preset
-                    doc:SetTextContent(table.concat(lines, "\n"))
-                    doc:Upload()
+                    local presetLine = token.lineIndex + 1
+                    local doc = getDocument()
+                    local applied = doc:MutateLine(presetLine, token.lines[presetLine], function()
+                        return g_hardwiredPowerTableList[nextIndex].preset
+                    end)
+
+                    if applied then
+                        doc:Upload()
+                    end
                 end,
             },
         },
@@ -3905,7 +3982,9 @@ local function RenderMarkdownTokens(ctx, tokens)
             currentTableRow = nil
             currentRichRow = nil
 
-            local panel = m_powerTables[#newPowerTables + 1] or PowerRollDisplay(ctx.doc)
+            --A getter, not ctx.doc: the panel is pooled and ctx.doc is reassigned
+            --to a new object on every refresh (see PowerRollDisplay).
+            local panel = m_powerTables[#newPowerTables + 1] or PowerRollDisplay(function() return ctx.doc end)
             ApplyBlockFrame(panel, ((resolvedSkin.blocks or {}).powerRoll or {}).box)
             panel:FireEventTree("refreshPowerRoll", token)
             ApplyBlockInner(panel, ((resolvedSkin.blocks or {}).powerRoll or {}).inner, "powerRoll")
@@ -4423,21 +4502,20 @@ local function RenderMarkdownTokens(ctx, tokens)
                                     return
                                 end
 
-                                local lines = table.shallow_copy(spoilerInfo.lines)
-                                local line = spoilerInfo.lines[spoilerInfo.lineIndex]
-                                for i=spoilerInfo.linepos,#line do
-                                    if line:sub(i,i) == "{" then
-                                        local nextChar = line:sub(i+1,i+1)
-                                        if nextChar == "!" then
-                                            line = line:sub(1,i) .. line:sub(i+2)
-                                        else
-                                            line = line:sub(1,i) .. "!" .. line:sub(i+1)
+                                local applied = ctx.doc:MutateLine(spoilerInfo.lineIndex, spoilerInfo.lines[spoilerInfo.lineIndex], function(line)
+                                    for i=spoilerInfo.linepos,#line do
+                                        if line:sub(i,i) == "{" then
+                                            if line:sub(i+1,i+1) == "!" then
+                                                return line:sub(1,i) .. line:sub(i+2)
+                                            end
+                                            return line:sub(1,i) .. "!" .. line:sub(i+1)
                                         end
-                                        lines[spoilerInfo.lineIndex] = line
-                                        ctx.doc:SetTextContent(table.concat(lines, "\n"))
-                                        ctx.doc:Upload()
-                                        break
                                     end
+                                    return nil
+                                end)
+
+                                if applied then
+                                    ctx.doc:Upload()
                                 end
 
                                 return
@@ -9621,8 +9699,9 @@ end
 --panel {title label, preset label} + four TierRoll rows {icon, text
 --label}); keep the two in sync.
 --opts:
---  GetDocument() -> the document (PowerRollDisplay's constructor wants it;
---    its press handlers never fire -- the subtree is non-interactable).
+--  GetDocument() -> the document. Passed to PowerRollDisplay as the getter it
+--    takes, so it resolves per use rather than being captured; its press
+--    handlers never fire here anyway -- the subtree is non-interactable.
 --  FocusSourceAt(byteOffset): put the editor caret at the 1-based source
 --    byte offset (focuses the editor).
 --  GetBlockSkin() -> the resolved stylesheet's blocks.powerRoll config, or
@@ -9631,7 +9710,7 @@ local function CreatePowerRollIslandWidget(opts)
     local m_meta = nil
     local resultPanel
 
-    local display = PowerRollDisplay(opts.GetDocument())
+    local display = PowerRollDisplay(opts.GetDocument)
 
     --mousePoint is geometric, not raycast-based, so the click mapping below
     --still reads positions off non-interactable rows and labels.

@@ -136,11 +136,16 @@ function RichBar.CreateDisplay(self)
             return
         end
 
+        local doc = self:GetDocument()
+        if not doc:PatchToken(m_token, "[[" .. string.rep("#", newValue) .. string.rep("-", m_count - newValue) .. "]]") then
+            --The line moved under us; the pending echo re-renders with the truth.
+            --Leave m_value alone: advancing it here would show a fill the document
+            --does not have, and the next click would compute its delta from it.
+            return
+        end
+
         --PatchToken does not re-fire refreshTag, so move the value here or the fill never updates.
         m_value = newValue
-
-        local doc = self:GetDocument()
-        doc:PatchToken(m_token, "[[" .. string.rep("#", newValue) .. string.rep("-", m_count - newValue) .. "]]")
 
         fillBar:SetClass("uploading", true)
 

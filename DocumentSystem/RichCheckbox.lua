@@ -95,7 +95,12 @@ function RichCheckbox.CreateDisplay(self)
             local value = element.value
             if m_token ~= nil and self:GetDocument() ~= nil then
                 local doc = self:GetDocument()
-                doc:PatchToken(m_token, string.format("[%s]%s%s", cond(element.value, "X", " "), m_space, m_name))
+                if not doc:PatchToken(m_token, string.format("[%s]%s%s", cond(value, "X", " "), m_space, m_name)) then
+                    --The line moved under us. Put the box back the way the document
+                    --still has it; the pending echo re-renders with the truth.
+                    element.value = not value
+                    return
+                end
                 doc:Upload()
                 element:SetClass("uploading", true)
             end

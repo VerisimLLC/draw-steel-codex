@@ -94,6 +94,7 @@ CharacterModifier.TypeInfo.grantSpells = {
             idChosen = "add",
             hasSearch = true,
             change = function(element)
+                ---@cast element Dropdown
                 if element.idChosen ~= "add" then
                     modifier.spells[#modifier.spells+1] = element.idChosen
                     Refresh()
@@ -105,6 +106,7 @@ CharacterModifier.TypeInfo.grantSpells = {
             options = CharacterModifier.GetSpellcastingClassOptions(),
             idChosen = modifier.applyto,
             change = function(element)
+                ---@cast element Dropdown
                 modifier.applyto = element.idChosen
             end,
         }

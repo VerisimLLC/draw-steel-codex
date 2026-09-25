@@ -1339,6 +1339,7 @@ function MM.BuildPropsMode()
                 end,
 
                 change = function(element)
+                    ---@cast element Dropdown
                     if element.data.refreshing then
                         return
                     end
@@ -1558,6 +1559,7 @@ function MM.BuildPropsMode()
                 end,
 
                 change = function(element)
+                    ---@cast element Dropdown
                     if element.data.refreshing then
                         return
                     end

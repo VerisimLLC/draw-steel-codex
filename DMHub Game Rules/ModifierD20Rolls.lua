@@ -359,6 +359,7 @@ CharacterModifier.TypeInfo.d20 = {
 
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								modifier.subtype = element.idChosen
 								Refresh()
 							end,
@@ -408,6 +409,7 @@ CharacterModifier.TypeInfo.d20 = {
 
 							events = {
 								change = function(element)
+									---@cast element Dropdown
 									modifier.skill = element.idChosen
 									Refresh()
 								end,
@@ -443,6 +445,7 @@ CharacterModifier.TypeInfo.d20 = {
 
 								events = {
 									change = function(element)
+										---@cast element Dropdown
 										modifier.skillSpecialization = element.idChosen
 									end,
 								},
@@ -534,6 +537,7 @@ CharacterModifier.TypeInfo.d20 = {
 
 							events = {
 								change = function(element)
+									---@cast element Dropdown
 									modifier.save = element.idChosen
 								end,
 							},
@@ -586,6 +590,7 @@ CharacterModifier.TypeInfo.d20 = {
 						options = d20ModifyOptions,
 						idChosen = modifier:try_get("modifyType", "roll"),
 						change = function(element)
+							---@cast element Dropdown
 							modifier.modifyType = element.idChosen
 							Refresh()
 						end,
@@ -691,6 +696,7 @@ CharacterModifier.TypeInfo.d20 = {
 							options = CharacterOngoingEffect.durationOptions,
 							idChosen = idChosen,
 							change = function(element)
+								---@cast element Dropdown
 								if element.idChosen == 'turn' then
 									cond.duration = 0
 								elseif element.idChosen == 'rounds' or element.idChosen == 'rounds_end_turn' then
@@ -752,6 +758,7 @@ CharacterModifier.TypeInfo.d20 = {
 					idChosen = 'add',
 
 					change = function(element)
+						---@cast element Dropdown
 						if ongoingEffectsTable[element.idChosen] then
 							modifier.applyOngoingEffects = modifier:try_get('applyOngoingEffects', {})
 							modifier.applyOngoingEffects[#modifier.applyOngoingEffects+1] = { ongoingEffect = element.idChosen }
@@ -808,6 +815,7 @@ CharacterModifier.TypeInfo.d20 = {
 						},
 					},
 					change = function(element)
+						---@cast element Dropdown
 						if element.idChosen ~= conditionType then
 							modifier.conditions = nil --get rid of deprecated condition.
 							if element.idChosen == "never" then

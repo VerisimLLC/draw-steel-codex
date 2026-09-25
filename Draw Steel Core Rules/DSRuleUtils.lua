@@ -373,6 +373,23 @@ RuleUtils = {
         end
     end,
 
+    --The one legal retarget candidate, or nil if there are zero or several.
+    --A candidate with an entry in `reasons` (out of range, filtered) is not
+    --legal. Retarget prompts pass autoPickSole so a picker with one answer
+    --(e.g. Mirror Token: "back onto the attacker") never has to be shown.
+    SoleRetargetCandidate = function(targets, reasons)
+        local sole = nil
+        for _, tok in ipairs(targets or {}) do
+            if reasons == nil or reasons[tok.charid] == nil then
+                if sole ~= nil then
+                    return nil
+                end
+                sole = tok
+            end
+        end
+        return sole
+    end,
+
     --True if the trigger's power-roll modifier lets the player keep the
     --original target in its retarget picker (changeTargetAllowOriginal).
     RetargetAllowsOriginal = function(trigger)

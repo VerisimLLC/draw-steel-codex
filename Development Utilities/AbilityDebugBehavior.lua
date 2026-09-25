@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("ActivatedAbilityDebugBehavior", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityDebugBehavior: ActivatedAbilityBehavior
+ActivatedAbilityDebugBehavior = RegisterGameType("ActivatedAbilityDebugBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
 {

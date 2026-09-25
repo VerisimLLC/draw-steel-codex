@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("ActivatedAbilityFallBehavior", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityFallBehavior: ActivatedAbilityBehavior
+ActivatedAbilityFallBehavior = RegisterGameType("ActivatedAbilityFallBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
 {
@@ -37,7 +38,7 @@ end
 --- allows it to rise into open air. When the ability finishes, if the target
 --- can no longer fly (the duration effect has expired), its move type is
 --- restored to a ground type and it falls if still in mid air.
-RegisterGameType("ActivatedAbilityLiftVerticalBehavior", "ActivatedAbilityBehavior")
+ActivatedAbilityLiftVerticalBehavior = RegisterGameType("ActivatedAbilityLiftVerticalBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
 {
@@ -147,7 +148,7 @@ end
 --- Unlike forced movement it never moves horizontally and never rises above
 --- ground level (floor altitude 0). The distance is chosen with +/- buttons and
 --- a Confirm button rather than by clicking the map.
-RegisterGameType("ActivatedAbilityDigVerticalBehavior", "ActivatedAbilityBehavior")
+ActivatedAbilityDigVerticalBehavior = RegisterGameType("ActivatedAbilityDigVerticalBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
 {

@@ -416,7 +416,15 @@ function InitiativeQueue.NextTurn(self, initiativeid)
             end
         end
 
+        --Connected users right now (same test encounter_complete uses), so a
+        --turn from a solo test can be told apart from one in a live session.
+        local usercount = 0
+        pcall(function() usercount = CountLoggedInUsers() end)
+
         track("turn_end", {
+            --the join key to encounter_complete / hero_role_fallback.
+            battleid = self:try_get("guid"),
+            usercount = usercount,
             turnDurationSeconds = turnDuration and math.floor(turnDuration) or nil,
             tokenName = tokenName,
             isHero = isHero,
@@ -827,3 +835,118 @@ dmhub.RegisterEventHandler("spawnFromBestiary", function(charids)
         addToInitiative()
     end 
 end)
+
+--Per-client combat performance: every machine in a fight measures its own frame
+--times from combat start to combat end and sends one `encounter_perf` event,
+--joined to the Director's encounter_complete on battleid. encounter_complete is
+--only ever sent from the Director's machine, so it cannot say how the players'
+--machines fared; this can, and records which hero classes this client was
+--playing and how busy the map got. A slow poll rather than a panel monitor, so it
+--runs whatever UI is up.
+local g_perfWindowKey = "encounter"
+local g_perfBattle = nil --{battleid, round, joinedRound, peakTokens, peakHeroes, peakSummoned, classes}
+
+local function SampleEncounterPerf(battle, queue)
+    battle.round = queue.round
+    local tokens, heroes, summoned = 0, 0, 0
+    for _, tok in pairs(dmhub.allTokens or {}) do
+        tokens = tokens + 1
+        if tok.summonerid ~= nil then
+            summoned = summoned + 1
+        end
+        local props = tok.properties
+        if props ~= nil and props:IsHero() then
+            heroes = heroes + 1
+            if tok.ownerId == dmhub.userid then
+                --IsHero() means the properties are a character.
+                local hero = props --[[@as character]]
+                local classInfo = hero:GetClass()
+                battle.classes[classInfo and classInfo.name or "hero"] = true
+            end
+        end
+    end
+    battle.peakTokens = math.max(battle.peakTokens, tokens)
+    battle.peakHeroes = math.max(battle.peakHeroes, heroes)
+    battle.peakSummoned = math.max(battle.peakSummoned, summoned)
+end
+
+local function FinishEncounterPerf(battle)
+    local stats = dmhub.EndPerfWindow(g_perfWindowKey)
+    --a combat opened and closed again, or one this client barely watched.
+    if stats == nil or stats.focusedSeconds < 30 then
+        return
+    end
+
+    local classes = {}
+    for name, _ in pairs(battle.classes) do
+        classes[#classes + 1] = name
+    end
+    table.sort(classes)
+
+    local usercount = 0
+    pcall(function() usercount = CountLoggedInUsers() end)
+
+    track("encounter_perf", {
+        battleid = battle.battleid,
+        director = dmhub.isDM,
+        host = dmhub.isDMOrPlayerHost,
+        heroClasses = table.concat(classes, ","),
+        heroesControlled = #classes,
+        rounds = battle.round,
+        --joined (or reloaded) after round 1: the window missed the start.
+        joinedRound = battle.joinedRound,
+        usercount = usercount,
+        peakTokens = battle.peakTokens,
+        peakHeroes = battle.peakHeroes,
+        peakSummoned = battle.peakSummoned,
+        seconds = math.floor(stats.seconds),
+        focusedSeconds = math.floor(stats.focusedSeconds),
+        frames = stats.frames,
+        meanMs = stats.meanMs,
+        p50Ms = stats.p50Ms,
+        p90Ms = stats.p90Ms,
+        p95Ms = stats.p95Ms,
+        p99Ms = stats.p99Ms,
+        maxMs = stats.maxMs,
+        hitches = stats.hitches,
+        hitchSeconds = stats.hitchSeconds,
+        slowFrames = stats.slowFrames,
+        refreshRate = stats.refreshRate,
+        vsyncCount = stats.vsyncCount,
+        targetFrameRate = stats.targetFrameRate,
+        dailyLimit = 20,
+    })
+end
+
+local function PollEncounterPerf()
+    local queue = dmhub.initiativeQueue
+    if queue ~= nil and (queue.hidden or dmhub.isLobbyGame or dmhub.harnessMode ~= nil) then
+        queue = nil
+    end
+    local battleid = queue ~= nil and queue:try_get("guid") or nil
+
+    if g_perfBattle ~= nil and g_perfBattle.battleid ~= battleid then
+        FinishEncounterPerf(g_perfBattle)
+        g_perfBattle = nil
+    end
+
+    if queue ~= nil and battleid ~= nil then
+        if g_perfBattle == nil then
+            dmhub.BeginPerfWindow(g_perfWindowKey)
+            g_perfBattle = {
+                battleid = battleid,
+                round = queue.round,
+                joinedRound = queue.round,
+                peakTokens = 0,
+                peakHeroes = 0,
+                peakSummoned = 0,
+                classes = {},
+            }
+        end
+        SampleEncounterPerf(g_perfBattle, queue)
+    end
+
+    dmhub.Schedule(2, PollEncounterPerf)
+end
+
+dmhub.Schedule(2, PollEncounterPerf)

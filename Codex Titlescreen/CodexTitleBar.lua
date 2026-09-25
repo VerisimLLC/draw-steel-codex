@@ -56,6 +56,13 @@ local function GetStoreMenuItems()
                 OpenShopScreen(true)
             end,
         },
+        {
+            text = "Library",
+            icon = "phosphor/book-open.png",
+            click = function()
+                OpenLibraryScreen()
+            end,
+        },
     }
 end
 

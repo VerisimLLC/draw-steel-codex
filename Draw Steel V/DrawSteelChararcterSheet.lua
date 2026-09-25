@@ -1310,6 +1310,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             end,
 
             change = function(element)
+                ---@cast element Dropdown
                 if element.idChosen == "gm" then
                     CharacterSheet.instance.data.info.token.ownerId = nil
                 elseif GetParty(element.idChosen) ~= nil then
@@ -1744,6 +1745,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                                                 options = monsterOptions,
                                                 idChosen = token.properties:try_get("groupid", "none"),
                                                 change = function(element)
+                                                    ---@cast element Dropdown
                                                     local token = CharacterSheet.instance.data.info.token
                                                     if element.idChosen == nil then
                                                         token.properties.groupid = nil
@@ -1895,6 +1897,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                     element.idChosen = c:Organization() or "none"
                 end,
                 change = function(element)
+                    ---@cast element Dropdown
                     local c = CharacterSheet.instance.data.info.token.properties
 
                     if c.minion and element.idChosen ~= "minion" then
@@ -1944,6 +1947,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                     element.idChosen = c.followerType
                 end,
                 change = function(element)
+                    ---@cast element Dropdown
                     local c = CharacterSheet.instance.data.info.token.properties
 
                     c.followerType = element.idChosen
@@ -1996,6 +2000,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                     element.idChosen = c:Role() or "none"
                 end,
                 change = function(element)
+                    ---@cast element Dropdown
                     local c = CharacterSheet.instance.data.info.token.properties
 
                     local org = c:Organization() or "platoon"
@@ -2126,6 +2131,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                     element.idChosen = cond(c:try_get("treatAsObject", false), "object", "creature")
                 end,
                 change = function(element)
+                    ---@cast element Dropdown
                     local c = CharacterSheet.instance.data.info.token.properties
                     c.treatAsObject = (element.idChosen == "object")
                     CharacterSheet.instance:FireEvent('refreshAll')
@@ -2539,6 +2545,7 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
                 idChosen = cond(resistanceEntry.dr >= 0, "immunity", "vulnerability"),
                 events = {
                     change = function(element)
+                        ---@cast element Dropdown
                         resistanceEntry.dr = math.abs(resistanceEntry.dr) *
                         cond(element.optionChosen == "immunity", 1, -1)
                         resultPanel:FireEvent("change")
@@ -2615,6 +2622,7 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
 
                 events = {
                     change = function(element)
+                        ---@cast element Dropdown
                         resistanceEntry.damageType = element.optionChosen
                         resultPanel:FireEvent("change")
                     end,
@@ -7299,6 +7307,7 @@ local function CharacterSheetEditLanguagesPopup(element)
         end,
 
         change = function(element)
+            ---@cast element Dropdown
             if element.idChosen ~= "none" then
                 if element.idChosen == "custom" then
                     creature.customInnateLanguage = ""
@@ -8216,6 +8225,7 @@ local function FeaturesIndexPanel()
                         options = options,
                         idChosen = idChosen,
                         change = function(element)
+                            ---@cast element Dropdown
                             local c = CharacterSheet.instance.data.info.token.properties
                             local choice = element.idChosen
                             if choice == "none" then

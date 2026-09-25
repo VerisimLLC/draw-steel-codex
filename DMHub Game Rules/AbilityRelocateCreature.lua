@@ -1105,6 +1105,7 @@ function ActivatedAbilityRelocateCreatureBehavior:EditorItems(parentPanel)
 			},
 			idChosen = self.movementType,
 			change = function(element)
+				---@cast element Dropdown
 				self.movementType = element.idChosen
 			end,
 		},

@@ -1481,6 +1481,7 @@ local function CreateDieRow(die, onChanged)
             },
             idChosen = tostring(die.type),
             change = function(element)
+                ---@cast element Dropdown
                 net.Post{
                     url = CGB.getBaseUrl() .. "/v1/dice/" .. die.id .. "/type",
                     data = { type = element.idChosen },
@@ -1498,6 +1499,7 @@ local function CreateDieRow(die, onChanged)
             options = DIE_TYPE_OPTIONS,
             idChosen = tostring(die.type),
             change = function(element)
+                ---@cast element Dropdown
                 net.Post{
                     url = CGB.getBaseUrl() .. "/v1/dice/" .. die.id .. "/type",
                     data = { type = element.idChosen },

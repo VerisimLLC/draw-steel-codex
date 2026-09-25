@@ -176,6 +176,7 @@ function MM.BuildFootstepsMode()
         idChosen = tostring(EffectiveFootstepDefault(FootstepVariationState())),
         options = BuildFootstepDefaultOptions(),
         change = function(element)
+            ---@cast element Dropdown
             local value = tonumber(element.idChosen) or 0
             local state = FootstepVariationState()
             if state ~= nil then

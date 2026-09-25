@@ -2475,6 +2475,7 @@ local function CreateLinesVeilsSection()
             },
             idChosen = "line",
             change = function(element)
+                ---@cast element Dropdown
                 kindChosen = element.idChosen
             end,
         },

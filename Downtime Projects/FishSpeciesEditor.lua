@@ -92,6 +92,7 @@ function FishSpeciesEditor.CreateEditor()
         classes = { "dropdown", "form" },
         options = ConstantOptions(FSHConstants.WATER_TYPE),
         change = function(element)
+            ---@cast element Dropdown
             if m_species == nil then
                 return
             end
@@ -104,6 +105,7 @@ function FishSpeciesEditor.CreateEditor()
         classes = { "dropdown", "form" },
         options = ConstantOptions(FSHConstants.BAND),
         change = function(element)
+            ---@cast element Dropdown
             if m_species == nil then
                 return
             end
@@ -128,6 +130,7 @@ function FishSpeciesEditor.CreateEditor()
         classes = { "dropdown", "form" },
         options = IconOptions(),
         change = function(element)
+            ---@cast element Dropdown
             if m_species == nil then
                 return
             end
@@ -314,6 +317,7 @@ function FishSpeciesEditor.Show(parentPanel)
         options = ConstantOptions(FSHConstants.WATER_TYPE),
         idChosen = m_waterType,
         change = function(element)
+            ---@cast element Dropdown
             m_waterType = element.idChosen
             --The selected species may not belong to the water now in view.
             editorPanel.data.SetData(nil)

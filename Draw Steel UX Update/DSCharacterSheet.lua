@@ -1613,6 +1613,7 @@ function DSCharacterSheet.CharacterSheetAvatarPanel()
 			end,
 
 			change = function(element)
+				---@cast element Dropdown
 				if element.idChosen == "gm" then
 					CharacterSheet.instance.data.info.token.ownerId = nil
 				elseif GetParty(element.idChosen) ~= nil then
@@ -4038,6 +4039,7 @@ function DSCharacterSheet.CharacterFeaturesPanel()
 							end,
 
 							change = function(element)
+								---@cast element Dropdown
 								local choice = element.idChosen
 								if choice == 'none' then
 									choice = nil

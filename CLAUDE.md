@@ -207,9 +207,12 @@ handling; see "Checking Lua Yourself" in the root [`CLAUDE.md`](../CLAUDE.md).
 **Do not leave a file worse typed than you found it.** `luac -p` only catches syntax.
 The type checker is `../tools/lua-typing/check.ps1` (run it from the repo root), and
 `tools/lua-typing/baseline.json` holds a per-file ceiling; the run exits 1 when a file goes
-over it, naming the file and the delta. Run it before you call Lua work finished. It takes
-~3.5 minutes and needs the whole codex in one pass -- a subdirectory run reports globals
-defined elsewhere as undefined, so it cannot answer this.
+over it, naming the file and the delta. Run it before you call Lua work finished. Use
+`-Changed` while editing (~15 s; only the git-changed files are diagnosed, with the rest
+of the codex loaded as a library so nothing shows as undefined) and the plain whole-codex
+run (~3.5 min) before committing -- only the full run catches an edit that breaks typing
+in a file you did not change. Do not use `-Target` on a subdirectory: that loses the
+workspace and reports everything defined elsewhere as undefined.
 
 The ceiling has slack in it because LuaLS is not deterministic here (the same code checks
 to a number ~12 wide), so do not read small count changes as signal in either direction.

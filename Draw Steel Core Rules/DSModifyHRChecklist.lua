@@ -163,6 +163,7 @@ CharacterModifier.TypeInfo.modifyresourcechecklist = {
                             },
                             idChosen = entry.mode or "encounter",
                             change = function(e)
+                                ---@cast e Dropdown
                                 entry.mode = e.idChosen
                                 Refresh()
                             end,

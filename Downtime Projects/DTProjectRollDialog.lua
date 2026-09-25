@@ -389,6 +389,7 @@ function DTEventRollDialog.ShowDialog(args)
                 options = tableOptions,
                 idChosen = selectedTableId,
                 change = function(element)
+                    ---@cast element Dropdown
                     selectedTableId = element.idChosen
                 end,
             },

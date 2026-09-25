@@ -1928,6 +1928,26 @@ Two things to warn them about:
 - Start zone: an `EnvironmentalKeyword` named "Start" -- the keyword is defined in the mcdm-encounteroftheweek module -- (compendium: Rules > Environmental Keywords; `EnvironmentalKeyword.lua`), painted as a markup zone (`floor.markupZones` records, `floor:SetMarkupZone`; schema at `MapMarkupPanel.lua:944-998`). Query tiles by scanning `floor.markupZones` for records with `keyword == startKeywordId` (skip `category == "surface"/"hole"`); resolve the id via `EnvironmentalKeyword.keywordsByName["start"]`. Per-square test: `game.GetAurasAtLoc(loc)` + `aura.auraInstance.aura:try_get("environmentalKeywordId")`. GoblinScript: `target.Environment has "Start"` works as a targetFilter.
 - Monster AI: lives in `Monster AI/` as a `dmonly` DockablePanel background process (`MonsterAIPanel.lua`). BUILT (2026-08-28): `MonsterAI.StartAI()` / `MonsterAI.StopAI()` / `MonsterAI.IsAIRunning()` exported from `MonsterAIPanel.lua`, wrapping the same StartProcess/StopProcess calls the panel button makes (the button now routes through them). `DockablePanel.StartProcess` is independent of panel visibility (verified in source), so the AI runs headless on a host whose dmonly panels are hidden. `MonsterAI.active` is presentation/lifecycle state; `MonsterAI.IsAIRunning()` is the authoritative process-liveness read. As of 2026-08-31, `EnsureAIRunning` uses the latter so EotW restarts a process even if a catastrophic exit left the former stale. Normal turn, actor, move, trigger, and process-iteration failures are contained inside the Monster AI framework before that watchdog is needed.
 
+### End-of-turn prompts hold the turn before Monster AI turns
+
+Implemented in source 2026-09-22, UNTESTED in-app: a hero's mandatory end-of-turn
+trigger that prompts them (Revitalizing Limerick: choose allies to spend a
+Recovery) used to lose the race with the turn handoff. `GameHud:NextInitiative`
+dispatched `EndTurn`, waited 0.1s, and marked the entry moved, so the AI host saw
+the monsters' side arrive and claimed a turn while the troubadour's player was
+still choosing. The prompt is a local cast on the ending player's client (the
+invoke has no `runOnController`), so nothing synced could tell the host about it.
+
+Fix: the `End Turn Casts` between-turn handler in
+`Draw Steel Core Rules/MCDMInitiativeBar.lua` (priority 0) keeps the ended entry
+current until this client's casts have been idle for 0.3s, bounded at 600s with an
+`ENDTURN::` log line. Every remote client, including the AI, already respects a
+turn that is still current, so no new marker or AI-side check was needed.
+`tests/end_turn_cast_wait_test.lua` covers release, hold, chained-cast gaps, and
+the deadline. Known gap: a `runOnController` invoke that prompts a DIFFERENT
+player (an ally's client) finishes the ending client's cast immediately, so that
+prompt is still not waited on.
+
 ### End-of-turn saving throws before Monster AI turns
 
 Implemented in source 2026-09-21: Monster AI waits for player-controlled
@@ -4379,7 +4399,10 @@ it exposed, both silent:
   document filed under the encounter map's journal folder; info bubbles
   are encounter-only because a bubble carries no beats). Nothing new has
   to be registered or named; the week's document simply grows a `# Montage`
-  section above its `# Encounter` section.
+  section above its `# Encounter` section. Since 2026-09-24 that document
+  may pull in **sub-documents** by linking to them, and a document another
+  one includes is never a script of its own -- see "Splitting a script
+  across documents" below.
 - **Beats** are the document's `#` (H1) headings, in order. Recognized
   kinds, case-insensitive: `# Montage`, `# Narrative` (see "Narrative
   beats" below) and `# Encounter`. Anything else is ignored with a parser
@@ -4391,6 +4414,128 @@ it exposed, both silent:
   as today.
 - The `[[encounter]]` island is still found by `Encounter.GetEncountersOnCurrentMap`
   + the parentFolder filter; the parser only decides WHEN it spawns.
+
+### Splitting a script across documents (DECIDED + BUILT 2026-09-24; Lua only; parser unit-tested, 19 new checks; VERIFIED in the authoring game over MCP -- the split week parses identically; a played-through montage on the split document UNTESTED; UNCOMMITTED)
+
+User direction (2026-09-24): the week's document had grown to 40 KB and
+should not have to be one huge page -- make scripts work with the journal's
+linking and embedding, and break the live week into sub-documents linked
+from a master.
+
+**The rule.** Before a script is parsed, every line that is **nothing but a
+link to another journal document** is replaced by that document's text,
+recursively. The three link forms the journal itself follows
+(`Seamless.LinkAtPosition`) all count:
+
+```
+[Opportunity: Mysterious Cottage](document:Mysterious Cottage)   a link (what the week uses)
+[:Mysterious Cottage]                                            a page embed
+[Mysterious Cottage]                                             the shorthand link
+```
+
+- A link **inside a sentence** stays a link; only a line of its own splices.
+  Rich `[[tags]]`, checkboxes and images are never links.
+- The splice is textual, with a blank line either side: a sub-document can
+  hold anything the master could -- an entry (`## Opportunity: ...`), a
+  whole round, a whole beat, or a `# Delve:`. Sub-documents may link to
+  further sub-documents (depth cap 8); a cycle warns and stops.
+- **Link vs embed** is purely how the journal shows the master: a link reads
+  as a one-line table of contents entry you click through; an embed renders
+  the sub-document inline (the journal nests embeds 3 deep). The parser
+  treats both the same. The live week uses links, so the master stays a
+  short index.
+- **Resolution** (`EncounterMontage.ResolveScriptInclude`): `document:` is
+  optional; a document id works too. A document **filed under the same
+  map** wins over one of the same name elsewhere in the journal, so two
+  weeks can each have a "Mysterious Cottage"; failing that it is
+  `CustomDocument.ResolveLink`, exactly what clicking the link opens. A
+  link that resolves to something that is not a journal document (a
+  monster, a PDF, a map, a URL) is left as prose, silently; a link that
+  resolves to nothing is left as prose **with a warning**.
+- **Discovery**: `FindMapScript` loads every markdown document under the
+  map (each expanded), and any document another one includes is a *part*,
+  never a candidate script -- so the sub-documents can sit in the map's
+  own journal folder beside the master without competing with it.
+- **Where sub-documents live**: directly in the map's journal folder (the
+  "Map Documents" list). That is also what the publisher ships: it seeds
+  every non-hidden markdown document whose `parentFolder` chain roots at the
+  map (`tools/eotw_publish/documents.py` `find_map_documents`), so nothing
+  in the publisher had to change. A subfolder under the map would satisfy
+  the runtime, but whether the publisher's dependency walk ships the
+  *folder* record is unverified, so the week does not use one.
+- **Warnings name their document**: a problem on line 29 of the Mysterious
+  Cottage sub-document reads `'Mysterious Cottage' line 29: ...`; lines of
+  the master keep the plain `line N:`. Same in the validator panel, which
+  also lists the sub-documents it pulled in, and in `/eotwscript`.
+- **Rich tags stay with their document.** A `[[scene]]` island's annotation
+  is stored on the document that contains it, so the parser now records the
+  tag's line (`beat.sceneLine` / `section.sceneLine`), and
+  `EncounterMontage.SceneImage` reads the annotation from the document that
+  line came from. It also now uses the journal's key for a repeated tag --
+  the 1st `[[scene]]` is `scene`, the 2nd `scene-1`, the 3rd `scene-2`
+  (`EncounterScript.AnnotationKey`, the rule in
+  `MarkdownDocument:GetReferencedAnnotations`). Before this, every beat read
+  the FIRST scene's annotation whatever the journal showed; it went unnoticed
+  because the week's three scenes carry the same image. The `[[encounter]]`
+  island needs nothing new: `GetEncountersOnCurrentMap` already harvests
+  every document under the map. In the live week every rich tag stayed in
+  the master, so no annotation moved.
+- **Cache**: `FindMapScript` re-expands only when its signature changes --
+  every candidate document's id, name and text length, plus those of every
+  document the last parse included (which may live outside the map).
+
+**Code.** `EncounterScript.lua` (pure): `IncludeTarget`, `ExpandIncludes`,
+`ParseExpanded`, `LineLabel`, `DescribeSource`, `AnnotationKey`, the
+exported `SplitLines`, and `sceneLine` on beats and sections.
+`EncounterMontage.lua`: `ResolveScriptInclude`, `LoadScript` (one document
+-> expanded + parsed script; the validator uses it too), the rewritten
+`FindMapScript` + `ScriptSignature`, `SceneImage`. `EncounterNarrative.lua`:
+`SceneImage` passes the section/beat through so `sceneLine` reaches it.
+`EncounterScriptValidator.lua`: parses through `LoadDocument`, labels lines
+by document, lists the includes. Tests: the "sub-documents" block in
+`tests/encounter_script_test.lua` (448 checks in all).
+
+**The live week, split (2026-09-24).** The master `Encounter` document
+(`98a5a5bf`) went from 40,123 to 1,978 bytes. It keeps the beat skeleton --
+both narrative beats, the montage intro, the three `[[scene]]` islands, the
+round headings and their party-size directives, and the `# Encounter` beat
+with its setup line and `[[encounter]]` -- and each montage entry and the
+delve is a link line. Sixteen sub-documents, all filed under the map
+(`9ca4404c`), named after the entry (the `(Required)`/`(Locked)`/
+`(Temporary)` tags stay on the heading inside the sub-document, not in its
+name):
+
+| Round 1 | Round 2 | Elsewhere |
+|---|---|---|
+| Mysterious Cottage `e5c2ada5` | Hunter's Camp `38e5ce86` | Forbidden Tomb Delve `589de210` (the `# Delve: Forbidden Tomb`, 12.9 KB) |
+| Elvish Enclave `9ccdd7d4` | Hot Spring `02f19814` | |
+| Wayside Shrine `6aa4e185` | Warded Standing Stones `6efba4db` | |
+| The Little Stalker `e5974dc5` | Forbidden Tomb `27a287aa` | |
+| Talk to the Goblin `ae616c58` | Goblin Scouts `2830eeef` | |
+| Scout out the Forest `8bc4fc36` | Gathering Darkness `7405567d` | |
+| Dangerous Beasts `5390040e` | | |
+| Treacherous Ravine `4905e1cd` | | |
+| Traps in the Forest `442a2d5a` | | |
+
+VERIFIED over MCP: before writing anything the split was expanded in memory
+and parsed to the same `EncounterScript.Describe` output as the unsplit
+document (only warning locations differ, now naming the sub-document); after
+writing, the runtime `FindMapScript` picked the master (not a part),
+included all 16, matched the pre-split parse, resolved the three scene images
+and the encounter, found the delve, and re-parsed when a sub-document's text
+changed. All 16 master links resolve through `CustomDocument.ResolveLink` to
+the map's own sub-document. The 17 files are in `C:\dev\eotw\objectTables\documents\`
+(`encounter.yaml` plus one per sub-document). The pre-split document is
+saved only in that session's temporary scratchpad (`encounter.yaml.bak`;
+the authoring directory's document files are untracked in its git repo),
+so treat the split as the source of truth; an older copy is the journal's
+"Encounter (backup before scenes 2026-09-23)".
+
+**Still to verify**: a montage played through on the split document (the
+data path is proven identical, the stage has not been watched); the
+publisher shipping the sub-documents (its dry run currently dies on an
+unrelated bad character in `actions-in-combat.yaml` before it gets that
+far -- U+008A mojibake, a separate fix).
 
 ### Montage grammar
 
@@ -4444,6 +4589,427 @@ the bundled `lua.exe`:
   that appears in the parenthesized list. That mapping is duplicated in
   the codemod rather than factored into core so the codemod keeps working
   against the retail core it ships with.
+### Montage scenes: the approach plays on a stage (DECIDED + BUILT 2026-09-23; Lua only; parser unit-tested, 34 new checks; VERIFIED live end to end in the authoring game (single client); UNCOMMITTED)
+
+User direction (2026-09-23): when a hero approaches an opportunity or
+threat, the centre turn panel becomes a small **stage** that plays a
+scripted scene, old-school-RPG style. The approaching hero's portrait
+stands on the left; characters the scene brings on stand on the right;
+speech appears in JRPG bubbles under the speaker's portrait, with the
+speaker lit and everyone else dimmed; narration types out in a box along the
+bottom; a caret blinks at the end of a finished line, and the acting
+hero's player clicks to turn the page.
+
+**Decisions (2026-09-23, with the user):**
+- **Layout: the classic bottom box.** Portraits along the top of the stage
+  (hero left, cast right, the right side at 0.8 scale when two or more
+  share it), speech bubbles under the portraits, and narration ALWAYS in
+  the box across the bottom. Chosen over "narration on the free side,
+  then a top strip" (it moves mid-scene) and "three fixed columns" (the
+  portraits and bubbles get too narrow).
+  **Revised after the first playtest (user direction 2026-09-23):** the
+  figures stand directly ON the dialog box, larger (230 x 300 showing), and
+  are no longer cards: no border or backing, the portrait fades into the
+  scene at its top and sides (`edgeFade` 0.15), and the name is overlaid on
+  its foot (white over a dark offset copy). The bottom must not fade, and
+  the portrait must end cleanly on the box top (a first version ran the
+  image on behind the box to hide a faded band; it showed through -- user
+  note). `edgeFade` measures from the edges of the whole IMAGE (image-rect
+  space), not the panel, so `SetPortraitFrom(..., keepBottom)` frames a
+  taller crop and trims its bottom band away: the crop's bottom edge then
+  lies beyond the fade and stays crisp, while the top and sides fade. The
+  speaker's 6% growth pivots at the feet (`pivot = {0.5, 0}`), so they
+  grow upward and never dip into the box. `edgeFade` has to be set on the
+  panel itself: from a class rule it is silently not applied (verified
+  live). **There are no speech
+  bubbles any more** (second playtest note, same day): speech takes the
+  narrator's place in the dialog box, upright, under the speaker's name in
+  gold (with the language note, "Witch (speaking Hyrallic)"; a garbled line
+  is italic and muted). Narration is italic with no name, so the two never
+  read alike. Who has the floor is shown on stage: at rest (narration, the
+  choice, the roll) the figures are a touch dim (brightness 0.8); the
+  speaker lights up (1.1), grows 6% and their overlaid name turns gold;
+  anyone else on stage sinks back (0.45, desaturated).
+  **Third playtest notes (same day):** (1) once a turn resolves, the centre
+  goes straight back to the neutral round view ("Round N", whose move it
+  is, and the last log entry as a one-line summary with the applied lines)
+  instead of leaving the stage up; the stage is shown only while a turn is
+  in flight (`staged` excludes "resolved"; `BuildTurnChildren` treats a
+  resolved turn as no turn; the old resolved box view is gone). (2) While
+  the dice tumble, the live tier table only HIGHLIGHTS the running tier --
+  a hidden outcome keeps its teaser, so the roll is never previewed; when
+  the roll settles the landed tier's outcome types in over its teaser
+  (`SetLandedTier(rows, tier, reveal)`). (3) All typing is layout-stable:
+  the whole line is laid out from the first frame and the untyped rest is
+  drawn in a clear colour (`RevealText` / `VisibleLength`, rich-text tags
+  kept in the typed part, stripped from the hidden part), so a word never
+  starts at the end of a line and jumps down, and a revealed outcome takes
+  its final size the moment the roll settles. (4) Entry-card titles were
+  unreadable while dragging: the engine marks valid drops `drag-target`,
+  the theme (DefaultStyles "DRAG & DROP") paints them light and darkens the
+  text of their DIRECT children only (`parent:drag-target`; `parent:`
+  matches the immediate parent and nothing further up). The title sat in a
+  row panel with the threat's malice diamond, so it stayed white. It is now
+  a direct child of the card, and the diamond floats in the corner.
+- **Choices live in the bottom box as bare option names**, stacked one per
+  row like an RPG choice menu (the box is 196 tall so the prompt plus four
+  rows fit; a longer list scrolls). The do-nothing choice is **Leave**
+  (was "Pass"), tooltip "Leave without doing anything. This passes your
+  turn -- not very heroic." (user direction 2026-09-23). Hovering one
+  lays its full test (roll, riders, tier table) in the middle of the stage,
+  between the characters. The same centre spot shows the chosen option's
+  live tier table while it is rolled, the base tier while an assist is
+  possible, and the landed tier once resolved; the box holds the matching
+  short text (make your roll / the assist slot / tier + applied lines +
+  whose move it is).
+- **Only the acting hero's player advances.** No timeout, no takeover by
+  other players. If they vanish, the scene waits. (Offered alternatives,
+  "others can take over after ~30s" and "auto-advance on a timer", were
+  declined.) A click while a line is still typing only finishes it,
+  locally, for anyone.
+- **Languages: garbled unless the PC speaks it.** The scene is told from
+  the approaching hero's point of view: a line tagged `(in Hyrallic)` reads
+  plainly for everyone (the bubble says "Witch (in Hyrallic)") if the hero
+  knows Hyrallic, and as a deterministic letter-scramble for everyone
+  ("Witch (speaking Hyrallic)", italic) if not.
+- **Conditions:** `PC speaks X`, `PC is X` (class, subclass, ancestry),
+  `PC has X` (skill), `PC chose X` (option), `tier1`..`tier3`, `crit`, and
+  `not` / `and` / `or` / parentheses.
+- **Every approach uses the stage**, scripted or not. An entry with no
+  scene gets an automatic intro: "<Hero> approaches <Entry>...", then its
+  `Options:` text if it has one.
+
+**The grammar.** A `---` line inside an opportunity or threat, above its
+first `### option`, ends the card text and starts the entry's scene. From
+then on, every non-blank line is one step (they are NOT joined into
+paragraphs):
+
+```
+## Opportunity: Mysterious Cottage
+
+A mysterious cottage lays off the path. Dare you approach?
+
+---
+
+PC approaches the cottage...                  narration ("PC" -> the hero's name)
+PC: I see a Witch within!                     speech by the hero
+Witch (Hag) enters                            a character comes on; (Hag) is the
+                                              bestiary monster whose portrait shows
+Witch: (in Hyrallic) Oh ancient spirits...    speech in a language
+if PC speaks Hyrallic then                    if / elseif / else / end (any indent)
+    PC: She brews healing potions!
+else
+    PC: Is she wicked?
+end
+
+### Negotiate with her for some aid
+
+PC: Good morrow!                              plays once this option is picked
+
+|Negotiation Test: Presence (Empathize, Lie, Flirt, Persuade)
+|You fail at the test => The witch is unimpressed.
+|...
+
+if tier1 then                                 plays once the roll has landed
+    Witch: Begone!
+elseif tier2 then
+    Witch: Take this and begone.
+else
+    Witch: Here, potions for you and your friends.
+    Witch exits
+end
+```
+
+- **In a scripted entry, an option's lines above its roll are its pre-roll
+  scene and its lines below the roll are its outcome scene.** They are not
+  the option's description (in an entry without `---` they still are).
+- `Name (Monster) enters` / `appears` / `arrives`; a bare `Name enters`
+  uses the name as the monster. `Name exits` / `leaves` / `departs` only for
+  a name that enters somewhere in the entry (otherwise it is narration).
+- `Name: text` is speech only when Name is `PC` or a character who enters
+  somewhere in the entry, so "Beware: the path is steep" stays narration. A
+  character who speaks before entering is brought on as they speak.
+- **Emotes** (user direction 2026-09-23): `Witch is alarmed` on a line of
+  its own, or `Goblin (scared): Let go!` on a line of speech. Three:
+  **alert** (a red "!" in a cream balloon pops up over the figure's
+  top-right corner), **alarmed** (three yellow dashes fanned out there),
+  **scared** (the figure shakes violently, +-7px at ~30Hz, for 1.4s). The
+  marks pop in from small, hold 1.6s and fade. Like an entrance, an emote
+  plays as the NEXT line appears (it is not a line of its own), and it
+  counts only for `PC` or a character who enters in the entry, so "The
+  forest is alert" stays narration; an unknown emote word is narration too.
+  A stage that comes up mid-line (a join) does not replay emotes. Code:
+  `EncounterScript.SCENE_EMOTES`, the `emote` step in `CompileScene`,
+  `step.emotes` from `FlattenScene`, the PC -> left-side mapping in
+  `BuildScenePart`, and `EmoteMarker` / the actor's `emote` event /
+  `PlayEmotes` in the stage (the shake moves an inner wrapper that carries
+  no style rules, because a rule's `transitionTime` would smooth the jerks
+  into a drift). VERIFIED on screen 2026-09-23 (all three; the shake
+  measured at 7px off rest mid-motion and back at rest after).
+- `if` is a branch only when the line ends in `then` or its condition
+  parses cleanly, so narration like "If you listen closely..." stays
+  narration. `then` is optional; `else if` / `elseif` / `end if` /
+  `endif` all work.
+- `tier3` also holds on a critical; `crit` is the fourth tier only. A tier
+  test outside an outcome scene warns and is never true.
+- The entry's `Options:` and `Consequence:` lines keep their meaning inside
+  a scene (one line each). An `Options:` text plays as the intro's last
+  narration.
+- Parser warnings: a stray `else`/`elseif`/`end`, an unclosed `if`, an
+  unknown condition, a tier test before the roll, `PC chose` naming no
+  option of the entry, a second `---`, a `---` outside an entry or below
+  an option.
+
+**How it runs** (`EncounterMontage.lua`). New turn status `"scene"`, before
+`choosing` (the intro), before `rolling` (an option's pre-roll lines) and
+before `resolved` (the outcome lines -- **effects are applied only after the
+outcome lines have been read**, so the potions reach the haul after the
+witch hands them over). The host flattens each part for this hero and
+this roll (`BuildScenePart`: conditions evaluated with the test riders'
+`HeroFacts` + `RequirementMet`, "PC" substituted, foreign lines garbled)
+and stores the resulting lines on the turn as `turn.scene = { id, part,
+steps, cast }`, so every client shows the same thing without evaluating
+the script. The page cursor is `data.montageScene = { id, index }`, the
+one key a player writes directly (`EncounterMontage.AdvanceScene`, gated by
+`LocalUserPacesScene`): a request round trip through the 0.5s host tick for
+every line would make dialogue sluggish. The host only reads it, and moves
+the turn on (`FinishScenePart`) once `index` passes the last line. Scene ids
+come from `m.seq`, and `Begin` clears the cursor so a restarted montage
+cannot skip its first scene. `ResolveTurn` became `ApplyResolution` plus a
+wrapper that plays the outcome lines first.
+
+**The stage** (`EncounterMontageStage.lua`, `CreateSceneStage`). It
+replaces the turn panel's contents for as long as `m.turn` is set
+(`turnScroll` holds the old round/idle/consequence text, which
+`BuildTurnChildren` now builds only when no turn is in flight; its
+per-turn branches became `AssistChildren` / `ResolvedChildren` and the
+`Portrait` / `PassCard` helpers they used were removed). Typing is local
+(45 chars/s, UTF-8 safe) and keyed on `sceneId:index`, so unrelated
+document refreshes never restart a line. Actors fade and rise in and out
+(`eotwSceneOffstage`, the entry cards' appear pattern). A stage that comes
+up mid-turn (a join, a reload) shows the current line settled, with no
+typing and no entrances. Portraits: the hero's `offTokenPortrait`; a cast
+member's bestiary monster `asset.info.offTokenPortrait`, found by
+`EncounterMontage.FindMonster(monster)` then by name. **The bestiary Hag
+has no portrait yet** (it shows the default monster avatar).
+
+**Status / next steps:**
+- Parser: `tests/encounter_script_test.lua`, 404 checks pass (34 new).
+- Runtime and stage: luac-clean; `check.ps1 -Changed` holds all three files
+  to their ceilings. **VERIFIED live 2026-09-23** in the authoring game
+  (`e96656f3`, whose week document already carries the user's cottage
+  scene), single client, through the virtual input bridge: the Dwarf Fury
+  approached the Mysterious Cottage; narration typed into the box with the
+  caret; clicks paged through the hero's bubble (hero lit, gold border),
+  the Witch's entrance (Hag default avatar, fade-in) and her Hyrallic line
+  GARBLED ("Witch (speaking Hyrallic)"), then the non-speaker branch; the
+  last click moved the turn to choosing; bare option buttons + Pass in the
+  box; hovering "Negotiate" put the test card mid-stage; clicking it played
+  the pre-roll line, then the real roll dialog opened with the live tier
+  table mid-stage; a real 19 (tier 3) played the Witch's tier-3 line with
+  nothing yet in the haul, and only after the last click did the three
+  Healing Potions land and the resolved view show tier + applied lines +
+  whose move. A second run with the High Elf Tactician (who knows
+  Hyrallic) showed the line plainly as "Witch (in Hyrallic)" and the
+  friendly branch. Two fixes came out of it: the box's text was centred
+  vertically (now top-aligned) and a locked option did not look locked
+  (brightness does not reach the label; the name now dims itself). No Lua
+  errors. The residue (montage state, the potions) was cleaned out; the
+  three pregens were placed on the map for the test and left there.
+- **Still to verify:** a second client (only the acting player gets the
+  caret; the others watch the same lines), the assist window on the stage,
+  and a late joiner arriving mid-scene (it should come up settled).
+- **Dev-driver trap** (not new, found on the way): `/eotwmontage start`
+  runs the montage beat, but the script stage chooses its BODY from
+  `doc.data.beat`, which only the real beat machine sets -- with it unset
+  the stage mounts beat 1 (here a narrative) and shows an empty bar. Set
+  `doc.data.beat` to the montage's beat index when testing. The party-size
+  draw may also remove the entry you want to test (`m.removed`).
+- Not built (out of scope for v1): an assisting hero appearing on stage,
+  voice / sound per line, keyboard paging, scenes in narrative beats or on
+  unresolved-threat consequences, a portrait override for a cast member
+  other than its bestiary monster.
+- **The week document uses 25 emotes** (2026-09-23): alert as a hero senses
+  something (the cottage, the stalker, the howl, the tripwire, the breath
+  in the dark) and as the Elf Warden challenges them; alarmed at shocks (the
+  ghost at the shrine, the scout's arrow, a pot boiling over, the wards
+  backfiring, the witch catching a thief); scared for the captured goblins,
+  the falling climber and the arrow volley. Rules re-verified identical
+  (395-field fingerprint, same 46 warnings) before the upload.
+- **The week document is fully scripted** (2026-09-23, user direction: "the
+  same outcomes, scripted dialog throughout"). All 13 montage entries have a
+  `---` scene, and every option has a line before its roll and a
+  tier-branched outcome after it. The cast is played by bestiary monsters:
+  Witch = Hag, Elf Warden = Wode Elf Warleader, Elf Sentry = Wode Elf Sentry,
+  Shrine Spirit = Unquiet Spirit, "Snik" the goblin = Goblin Guide (the same
+  monster the befriend outcome spawns), Wolf = Wolf, Goblin Scout = Goblin
+  Sniper. Language lines use Hyrallic (witch), Yllyric (elves, matching the
+  Enclave's `Edge: You speak Yllyric` rider) and Szetch (goblins). Each
+  entry's `Options:` line was folded into its scene. **Nothing the rules
+  act on changed**: an in-app comparison of the old and new parse matched
+  448 fields (beats, sections, unlocks, setup, round scaling, entry ids,
+  tags, descriptions, consequences, option names, roll names/attrs, every
+  tier's text, teaser and effect count, riders) with zero differences and
+  the same 46 warnings (all tier flavour text). The original is kept as
+  the document "Encounter (backup before scenes, 2026-09-23)"
+  (`4711d2b5-0d68-47b1-8ea7-1642e1918a9e`, in Private Documents, so it is
+  never read as the map's script). The narrative beats are unchanged: scenes
+  are montage-only.
+- The Witch is played by the **Wode Hag** (has portrait art; the montage is set in the Wode), not the bestiary Hag, which has no portrait (2026-09-24; in the working copy, uploads with the delve content).
+
+### Delves: a dungeon crawl inside one approach (DECIDED + BUILT 2026-09-24; Lua only; parser unit-tested, 16 new checks; first playtest by the user 2026-09-24 ("too easy"), tuning pass BUILT the same day and UNTESTED live; committed main b0abbf96 / release/0.0.841 044d7c80, DEPLOYED at 0.0.841 (deploy 7e97ecbe) and in module version 27; the content is in the week's document (since 2026-09-24 the `Forbidden Tomb Delve` sub-document))
+
+User direction (2026-09-24): a new opportunity, the **Forbidden Tomb**, is a
+loop: the hero meets obstacles (undead, traps, puzzles), finds a chest
+(a d6 table of treasure) every 1-2 obstacles, and after each chest may press
+deeper or turn back; with no Recoveries left they are forced out.
+
+**Decisions (with the user):** Scout out the Forest is (Required) in Round
+1 and the Forbidden Tomb a normal opportunity in Round 2; **flat** -- going
+deeper is not harder, it just means more chests; **one hero, one turn** --
+the whole delve is the approaching hero's turn, then the tomb is taken;
+the chest table is **1-2 Healing Potion, 3 Black Ash Dart, 4 Buzz Balm,
+5 Growth Potion, 6 Color Cloak - Blue** (the level-1 / 1st-echelon
+trinkets and consumables with gold implementation, fishing meals, the
+hunting draught and the beastheart-only collar left out). Ullorvic is the
+star elves' dead language; its related languages are Hyrallic and Yllyric
+(Heroes, "Dead Languages"), so "can read the tomb" is `PC speaks Ullorvic
+or PC speaks Hyrallic or PC speaks Yllyric`, and the puzzles' edge is
+`|Edge: You speak Ullorvic, Hyrallic or Yllyric`.
+
+**The grammar.** An option enters a delve with a `Delve: <Name>` line
+(above where its roll would be; the option has no roll). The delve itself
+is a `# Delve: <Name>` section anywhere in the document -- NOT a beat
+(`parse.delves`, by `MatchKey`; nothing plays it in order):
+
+```
+# Delve: Forbidden Tomb
+Chest: every 1-2 obstacles          (default 1-2)
+
+## Obstacle: The Restless Dead       an obstacle: exactly an opportunity's
+Card text.                           shape -- card text, "---" scene,
+---                                  "### options" with power rolls,
+Skeleton (Soulwight) enters          pre-roll and outcome lines
+...
+### Fight them
+|Combat Test: Might or Agility (Endurance, Gymnastics, Lift)
+|...three tiers...
+
+## Chest                             a scene, then a dice table
+PC finds a chest...
+|Treasure: 1d6
+|1-2: You gain one Healing Potion    "|N-M: result" or "|N: result"; each
+|3: You gain one Black Ash Dart      row's text uses the tier clause grammar
+
+## Continue                          played after each chest, before the choice
+## Leave                             (or "## Turn Back") walking out
+## Forced Out                        walking out with no Recoveries left
+```
+
+Every line under Chest / Continue / Leave / Forced Out is a scene line (no
+`---` needed). Parser warnings: a delve with no obstacles, no Chest, a
+Chest with no table, options under a scene section, an obstacle option
+with no roll, a `Delve:` naming no delve, a dice table outside a Chest.
+
+**How it runs** (`EncounterMontage.lua`, "delves (host side)"). Choosing
+the option sets `turn.delve = { name, entryName, depth, sinceChest,
+chestAt, used, obstacleId, chests, applied }`, plays the option's own
+lines, then `DelveNextObstacle`: a random obstacle not met yet becomes
+`delve.obstacleId`, and from then on `EncounterMontage.TurnEntry(beat, t)`
+(which every turn lookup now goes through) returns the OBSTACLE, so its
+scene, choice, roll, assist and outcome lines run on the existing
+machinery unchanged. When its test lands, `ApplyResolution` hands it to
+`DelveObstacleResolved`: effects apply at once (collected in
+`delve.applied`), then -- Recoveries at 0 -> forced out; the chest is due
+(`sinceChest >= chestAt`, re-drawn from the Chest interval each time) ->
+the Chest scene, then status `"chest"`, whose roll the delving player's
+client makes with `dmhub.Roll` (real dice, in chat). Its `begin` callback
+sends the dice guids and flat modifier (`chestRolling` -> `turn.chest`,
+and `EncounterMontage.localChestDice` on the roller's own client, so it
+does not wait for the host), and every client's chest card follows the
+dice (`chat.DiceEvents(guid)` `diceface`), highlighting the row the
+running total lands on. `complete` sends `chestRolled`: status
+`"chestlanded"`, `turn.chest.{ total, rowIndex, newReveal, landedAt }`,
+and the row is marked seen. **The table rests on the landed row** until
+the delving player clicks **Continue** (`chestTake`); only then do the
+row's effects apply and the Continue scene play (no lead line any more:
+the find was just on show). Then status `"delvechoice"` with "Press
+deeper (lose 1 Recovery)" (`delveOn`) / "Turn back" (`delveOut`);
+otherwise the next obstacle. No obstacles left -> "There is nothing further to find here."
+and out. Leaving plays Leave / Forced Out and `DelveFinish` resolves the
+turn: acted, the entry taken, and a log line `{ delve, depth, chests,
+applied }` that the round view summarises ("X delved into Y: N obstacles
+met, M chests opened." plus every applied line). Leave is not offered
+inside a delve (the host also refuses `pass` there): the way out is
+turning back at a chest. Each delve scene starts with an empty stage.
+
+**The stage.** Title "<Hero> in <Entry>: <Obstacle>"; the obstacle's
+options as usual; from the moment the chest's dice are out until
+Continue, the table sits mid-stage (`ChestCard(chestTable, t)`); at the
+choice, mid-stage shows the haul so far and the obstacles / chests /
+Recoveries left (`HaulCard`), the box the two buttons.
+
+**Tuning after the first playtest (user direction 2026-09-24: "too
+easy"):**
+- **Every tier 1 and tier 2 result that carries malice also costs a
+  Recovery** (the ones that did not already got " You lose a recovery."
+  appended -- 9 lines in the live `Forbidden Tomb Delve` sub-document:
+  both tiers of each puzzle's solve option, and tier 2 of each
+  break-through option; tier 3 of a break-through stays +1 malice only).
+  Verified by re-parsing live: every T1/T2 malice tier now also has a
+  `loserecovery` effect. The pre-edit text is in that session's
+  `_G.g_tombBackup_20260924` only.
+- **Pressing deeper costs a Recovery, paid immediately** on `delveOn`
+  (`EncounterMontage.DELVE_PRESS_ON_COST`, via `ApplyEffects` with a
+  `loserecovery` effect, so it lands in `delve.applied` and the log).
+  Decision taken without asking (flag it if wrong): the button is
+  **locked** unless the hero has MORE Recoveries than the cost
+  (`EncounterMontage.CanPressDeeper`; the host refuses too) -- paying
+  your last Recovery would only get you forced out before meeting
+  anything.
+- **No assists in a delve**: it is the hero going through alone.
+  `EligibleAssistants` returns nothing while `turn.delve` is set, so the
+  assist window never opens and no card is badged.
+- **The chest roll previews and rests** (above): the running row is lit
+  while the dice tumble, the card stays on the landed row, and the player
+  clicks Continue to take the find.
+- **Unfound treasure reads `???`.** A row nobody has landed on shows
+  `???` (while tumbling too); the first time the roll lands on it, it
+  holds `???` for 0.6s (`CHEST_REVEAL_DELAY`) and then types its
+  treasure in; from then on every chest shows it. Stored per game in
+  `data.chestSeen[MatchKey(delve name)]["lo-hi"]`
+  (`EncounterMontage.ChestRowSeen`), and **deliberately not cleared by
+  the dev reset** -- what the party has learned stays learned. A client
+  that sees the landing more than 4s late (`CHEST_REVEAL_WINDOW`) shows
+  it settled.
+
+**The week document's new content** (written; not yet uploaded -- the app
+was closed; the text is the scratch copy `week_scenes.md`, and a rules
+diff against the live document showed no existing field changed):
+Scout out the Forest (Required, Round 1: "Scout the forest", Agility or
+Intuition (Alertness, Navigate, Search, Sneak), +1 Int & -1 Recovery /
++1 Int / +2 Int; "Track goblin trails", Intuition (Track), Allow: skilled
+in Track, +2 Int & -2 Recoveries / +2 Int & -1 / +2 Int); Forbidden Tomb
+(Round 2, the Ullorvic inscription, "Enter the tomb" -> `Delve: Forbidden
+Tomb`); and `# Delve: Forbidden Tomb` at the end of the document with
+nine obstacles -- undead: The Restless Dead (Soulwight), The Wailing Ghost
+(Ghost), The Armored Guardian (Armored Soulwight), each fought (Might /
+Agility) or avoided (Reason / Intuition), -2 / -1 / 0 Recoveries and the
+dead always fall; traps: Crushing Stones, Darts in the Walls (stamina
+costs), The Collapsing Stair; puzzles: The Sealed Door, The Star Map, The
+King's Riddle (Unquiet Spirit, speaking Ullorvic), each solved (+2 / +1 /
+0 malice, edge for Ullorvic-family speakers) or broken through (always
+cursed: +2 malice and -1 Recovery / +2 / +1) -- plus the Chest, Continue,
+Leave and Forced Out scenes.
+
+**Next:** restart the app (deployed, but a running app keeps the code it
+loaded) and play a delve end to end: an obstacle (confirm no assist window), a chest roll
+(the row lights while tumbling, `???` -> reveal on a new row, the card
+waits for Continue, a second client sees the same), press deeper (a
+Recovery goes; locked at 1 Recovery), turn back; and a forced exit at 0
+Recoveries. To see the `???` again, clear `data.chestSeen` in the
+`eotwscript` document.
+
 ### Scaling a montage to the party (DECIDED + BUILT 2026-09-20; Lua only; parser unit-tested with the bundled interpreter; runtime UNTESTED live -- needs a restart; UNCOMMITTED)
 
 User direction (2026-09-20): a week should be able to trim itself for a
@@ -5146,8 +5712,22 @@ because `montage.*` is rebuilt for every montage beat while the outcome
 must survive until the encounter beat starts combat. `/eotwmontage reset`
 clears it with the rest.
 
-Entry ids are `r<n>/<kind>/<slug>` (e.g. `r1/threat/dangerous-beasts`) so a
+Entry ids are `r<n>-<kind>-<slug>` (e.g. `r1-threat-dangerous-beasts`) so a
 resumed client re-parsing the same text lands on the same ids.
+
+**An id must never contain `/`.** Ids are used as document KEYS
+(`montage.vanquished`, `.taken`, `.expired`, `.removed`), and the engine
+builds a patch path by joining table keys with `/`
+(`ScriptSerialize.BuildPathToJson`), unescaped. A `/` in a key is read as a
+path separator by the server and by every other client, so
+`vanquished["r1/threat/beasts"] = true` is stored as
+`vanquished.r1.threat.beasts`: the host, which set the flat key in its own
+Lua table, sees the threat vanquished, and nobody else ever does. Only the
+FIRST such write per table survives -- empty -> non-empty makes
+`LuaValuePatch` retransmit the whole node, so that key travels inside the
+payload rather than in the path -- which is what made it look intermittent.
+Ids used `/` until 2026-09-22; that was the cause of "the threat is gone for
+me but still on the board for my players".
 
 **Host-arbitrated, single writer for state.** Players never edit
 `montage.*` directly; they stamp `requests[userid]` (each with a rising
@@ -5486,8 +6066,10 @@ Start-zone confinement stays on underneath):
   the sweep is re-run at most every 5s rather than on every 0.5s card
   tick. The skills block is 46 tall (four lines at font size 9, enough for
   a ten-skill hero) and the montage card grows by exactly that -- 176 ->
-  222 -- so the portrait keeps its area; `HERO_ROW_HEIGHT` in
-  `EncounterMontageStage.lua` is 320 to match.
+  222 -- so the portrait keeps its area. The montage stage's row is
+  `MONTAGE_HERO_ROW_HEIGHT` (279: the 1.2-uiscale card, 267, plus a 12px
+  gap to the screen edge); the narrative and prep stages still use
+  `HERO_ROW_HEIGHT` (360), which leaves room under the card.
   `canDragOnto` = the card's hero is the local user's (`canControlAsUser`),
   has not acted, the target entry is available and no turn is in flight.
   `drag(element, target)` stamps the approach request. **The card is only
@@ -5502,9 +6084,18 @@ Start-zone confinement stays on underneath):
   desaturated and dimmed. Clicking a card still pops out the (read-only)
   character panel, on `click` rather than `press` so a drag's release does
   not open it. NOT built: a click-to-select fallback for people who do not
-  drag. Beneath each hero card, a half-size **ally card** per
-  `allies[heroid]` entry (portrait + name + stamina bar), also under the
-  right-rail roster cards.
+  drag. Each hero has a half-size **ally card** per `allies[heroid]` entry
+  (portrait + name + stamina bar). On the **montage** stage they stack
+  bottom-up against the hero card's right edge at 0.75 uiscale
+  (`MONTAGE_ALLY_UISCALE`), and the stack widens the hero's column, so a hero
+  with an ally stands a little further from the next hero (user direction
+  2026-09-23). That let the row shrink to just the card, so the party sits
+  at the bottom of the screen and the turn panel is ~80px taller. The
+  narrative and prep stages and the right-rail roster still put ally cards
+  UNDER the hero card. Switching from a montage beat to a narrative beat
+  therefore moves the hero cards ~80px (open question: give those stages the
+  same layout?). A single column of allies holds about four; more would
+  climb past the top of the card.
 - **The haul strip** (user direction 2026-09-18): down the LEFT edge of
   each montage hero card, one icon per distinct item that hero has been
   granted this montage (`EncounterMontage.GetItems(charid)` over
@@ -7152,6 +7743,37 @@ and 30 change nothing visible for a script with no montage.
     reveal, the traps go down and the zones stay hidden from players.
     `/eotwmontage reset` must remove the traps and bring back all 15 tiles.
 
+50. [~] **Montage scenes** (BUILT 2026-09-23; parser unit-tested; VERIFIED
+    live end to end on one client, multi-client UNTESTED; UNCOMMITTED). Design, grammar and status in
+    "Montage scenes: the approach plays on a stage" under Architecture Notes.
+    Files: `EncounterScript.lua` (`ParseCondition`, `CompileScene`,
+    `FlattenScene`, `Garble`, `SubstitutePC`, the `---` / option scene
+    capture), `EncounterMontage.lua` (`BuildScenePart`, `ResolveTurn` ->
+    `ApplyResolution`, `FinishScenePart`, `SceneCursor` / `AdvanceScene`),
+    `EncounterMontageStage.lua` (`CreateSceneStage` + its style rules),
+    `tests/encounter_script_test.lua`. Next: the "still to verify" list there.
+
+51. [~] **Delves** (BUILT 2026-09-24; parser unit-tested; first played by
+    the user 2026-09-24 -- "Enter the tomb" did nothing until the stage's
+    click gate learned about roll-less `Delve:` options; then the tuning
+    pass after that playtest (Recovery costs, no assists, chest roll that
+    rests on its row, `???` rows) BUILT, UNTESTED live; COMMITTED (main
+    b0abbf96, cherry-picked to release/0.0.841 044d7c80) and DEPLOYED at
+    0.0.841 (dev + beta; EncounterOfTheWeek mod only, deploy id
+    7e97ecbe-f241-448f-bdc4-78ad65c6793e); module version 27 PUBLISHED
+    (dataid 6f829874, `--force` over the standing warnings) carrying the
+    tomb's new Recovery costs -- the content is in the live week's
+    document, since the split the `Forbidden Tomb Delve` sub-document).
+    Design, grammar and status in "Delves: a dungeon crawl inside one
+    approach".
+
+52. [~] **Sub-documents** (BUILT 2026-09-24; parser unit-tested; the live
+    week SPLIT into a 2 KB master + 16 linked sub-documents and VERIFIED to
+    parse identically over MCP; a played montage on it UNTESTED;
+    UNCOMMITTED). A line that is only a link (or embed) to another journal
+    document splices that document in. Design, the split and status in
+    "Splitting a script across documents" under Architecture Notes.
+
 Deliverable: the week's document is a script; a montage plays before the
 fight with every player dragging their heroes onto opportunities and
 threats, rolling in front of everyone, and its outcomes (items, stamina,
@@ -7375,7 +7997,28 @@ no core change.
 
 # Status
 
-- 2026-09-20 (Intelligence + Tactical Preparation, latest): **A narrative
+- 2026-09-24 (sub-documents, latest): **A script can be spread over several
+  journal documents: a line that is nothing but a link (`[label](document:Name)`),
+  a page embed (`[:Name]`) or the `[Name]` shorthand is replaced by that
+  document's text before parsing, recursively, preferring a document filed
+  under the same map. The live week is now a 1,978-byte master `Encounter`
+  (the beat skeleton, every rich tag, the round directives) linking 16
+  sub-documents in the map's journal folder -- one per montage entry plus
+  `Forbidden Tomb Delve`. BUILT; parser unit-tested (448 checks, up from
+  429); VERIFIED over MCP that the split parses identically to the old
+  single document and that the runtime picks the master, not a part.
+  COMMITTED (main b309f8e0, cherry-picked to release/0.0.841 fc05e483) and
+  DEPLOYED at 0.0.841 (dev + beta; EncounterOfTheWeek mod only, deploy id
+  61c1e92b-9eae-4cc1-aea7-ea4371ea0c78); module version 25 PUBLISHED
+  (dataid 0aad1d8a, `--force` over the standing warnings: no bare
+  `Encounter` map, floor-object holes 5939fe95 and 9325d163). A montage
+  PLAYED on the split document is UNTESTED.** Also fixed on the way:
+  `SceneImage` read the first `[[scene]]` for every beat instead of the
+  journal's `scene-1`/`scene-2` keys (harmless so far -- one image). Design
+  + file list under "Splitting a script across documents". (The U+008A
+  publisher failure noted here earlier no longer reproduces.)
+
+- 2026-09-20 (Intelligence + Tactical Preparation): **A narrative
   beat can write `Unlock: Intelligence` to turn the feature on; a montage or
   narrative outcome can pay `+1 Intelligence` into a party-shared pool shown
   beside Malice and Hero Tokens (`phosphor/brain.png`); and at the outset of

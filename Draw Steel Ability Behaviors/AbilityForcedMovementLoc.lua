@@ -1,7 +1,8 @@
 local mod = dmhub.GetModLoading()
 
 
-RegisterGameType("ActivatedAbilityForcedMovementLocBehavior", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityForcedMovementLocBehavior: ActivatedAbilityBehavior
+ActivatedAbilityForcedMovementLocBehavior = RegisterGameType("ActivatedAbilityForcedMovementLocBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
 {
@@ -144,6 +145,7 @@ function ActivatedAbilityForcedMovementLocBehavior:EditorItems(parentPanel)
                 { id = 'target', text = 'First Target' },
             },
             change = function(element)
+                ---@cast element Dropdown
                 self.type = element.idChosen
                 parentPanel:FireEventTree("refreshOriginType")
             end,

@@ -1,7 +1,8 @@
 local mod = dmhub.GetModLoading()
 
 
-RegisterGameType("ActivatedAbilityApplyAbilityDurationEffect", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityApplyAbilityDurationEffect: ActivatedAbilityBehavior
+ActivatedAbilityApplyAbilityDurationEffect = RegisterGameType("ActivatedAbilityApplyAbilityDurationEffect", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
 {

@@ -489,6 +489,7 @@ local function makeSkillDropdowns(item, skills)
                     skillId = skillId,
                 },
                 change = function(element)
+                    ---@cast element Dropdown
                     local newId = element.idChosen
                     if newId ~= element.data.skillId then
                         element.data.skillId = newId

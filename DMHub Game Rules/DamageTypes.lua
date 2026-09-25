@@ -209,6 +209,7 @@ local SetDamageType = function(tableName, damageTypePanel, damageid)
 				idChosen = damageType.category,
 				options = categories,
 				change = function(element)
+					---@cast element Dropdown
 					damageType.category = element.idChosen
 					UploadDamageType()
 				end,

@@ -292,6 +292,7 @@ function PowerRollTableGroup.CreateEditor()
                 end,
 
                 change = function(element)
+                    ---@cast element Dropdown
                     m_group.skill = element.idChosen
                     Upload()
                     resultPanel:FireEventTree("refreshCharacteristics")
@@ -405,6 +406,7 @@ function PowerRollTableGroup.CreateEditor()
                                 end,
 
                                 change = function(element)
+                                    ---@cast element Dropdown
                                     if element.idChosen == INHERIT_OPTION then
                                         m_group.tables[index].characteristics = nil
                                     else

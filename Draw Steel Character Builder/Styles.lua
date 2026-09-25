@@ -454,6 +454,15 @@ local function _panelStyles()
             selectors = {"progress-pip", "filled"},
             bgcolor = "@accent",
         },
+        -- Halo behind an unfilled nested choice button; opacity pulses in Lua.
+        {
+            selectors = {"nested-choice-glow"},
+            width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH + 8,
+            height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT + 8,
+            bgimage = true,
+            bgcolor = "@accent",
+            cornerRadius = 6,
+        },
 
         -- Gradient-based progress pip styles (fill from bottom to top)
         -- For diamond shape (45° rotated), gradient goes from bottom corner to top corner

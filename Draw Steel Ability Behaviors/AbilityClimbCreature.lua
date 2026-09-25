@@ -259,6 +259,7 @@ function ActivatedAbilityClimbCreatureBehavior:EditorItems(parentPanel)
 				{id = 'dismount', text = 'Targets get off what they are climbing'},
 			},
 			change = function(element)
+				---@cast element Dropdown
 				self.operation = element.idChosen
 				dismountPanel:SetClass("collapsed", self.operation ~= "dismount")
 			end,

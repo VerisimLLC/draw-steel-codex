@@ -160,6 +160,7 @@ function ActivatedAbilityInitiativeBehavior:EditorItems(parentPanel)
             },
             idChosen = self:try_get("mode", "begin_turn"),
             change = function(element)
+                ---@cast element Dropdown
                 self.mode = element.idChosen
             end,
         },

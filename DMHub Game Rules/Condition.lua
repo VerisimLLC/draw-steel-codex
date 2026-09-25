@@ -260,6 +260,7 @@ local SetData = function(tableName, conditionPanel, condid)
 			options = emojiOptions,
 			idChosen = condition.emoji,
 			change = function(element)
+				---@cast element Dropdown
 				condition.emoji = element.idChosen
 				UploadCondition()
 			end,
@@ -310,6 +311,7 @@ local SetData = function(tableName, conditionPanel, condid)
 			options = CharacterCondition.BuffTypeOptions,
 			idChosen = condition.buffType,
 			change = function(element)
+				---@cast element Dropdown
 				condition.buffType = element.idChosen
 				UploadCondition()
 			end,

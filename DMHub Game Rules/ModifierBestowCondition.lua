@@ -76,6 +76,7 @@ CharacterModifier.TypeInfo.bestowcondition = {
 
                         events = {
                             change = function(element)
+                                ---@cast element Dropdown
                                 modifier.conditionid = element.idChosen
                                 Refresh()
                             end,

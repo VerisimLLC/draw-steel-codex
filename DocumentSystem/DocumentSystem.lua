@@ -4371,7 +4371,8 @@ GameHud.RegisterPresentableDialog {
 -- survives close and reopen within the session.
 ----------------------------------------------------------------------
 
-RegisterGameType("PanelDocument", "CustomDocument")
+--- @class PanelDocument: CustomDocument
+PanelDocument = RegisterGameType("PanelDocument", "CustomDocument")
 PanelDocument.nodeType = "panel"
 PanelDocument.docType = "note"
 PanelDocument.panelName = ""
@@ -4799,7 +4800,8 @@ end
 -- supplies a synthetic registration instead of looking one up.
 ----------------------------------------------------------------------
 
-RegisterGameType("CharacterPanelDocument", "PanelDocument")
+--- @class CharacterPanelDocument: PanelDocument
+CharacterPanelDocument = RegisterGameType("CharacterPanelDocument", "PanelDocument")
 CharacterPanelDocument.charid = ""
 CharacterPanelDocument.DefaultWidth = 400
 CharacterPanelDocument.DefaultHeight = 640
@@ -14789,6 +14791,7 @@ RailScriptButtonDialog = function(toolkitid, idx)
         height = 26,
         valign = "center",
         change = function(element)
+            ---@cast element Dropdown
             m_mode = element.idChosen
             codeSection:SetClass("collapsed", m_mode ~= "script")
             commandSection:SetClass("collapsed", m_mode ~= "command")
@@ -16044,6 +16047,7 @@ local function RailShowCommunityBrowser(side, opts)
                 valign = "center",
                 rmargin = 32,
                 change = function(dropdownElement)
+                    ---@cast dropdownElement Dropdown
                     m_sort = dropdownElement.idChosen or "hearts"
                     RenderCards()
                 end,

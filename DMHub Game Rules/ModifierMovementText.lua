@@ -94,6 +94,7 @@ CharacterModifier.TypeInfo.movementtext = {
                         options = g_textTypeDomains,
                         idChosen = domain,
                         change = function(self)
+                            ---@cast self Dropdown
                             modifier.texttype = self.idChosen
                             Refresh()
                         end,
@@ -116,6 +117,7 @@ CharacterModifier.TypeInfo.movementtext = {
                         },
                         idChosen = modifier.color,
                         change = function(self)
+                            ---@cast self Dropdown
                             modifier.color = self.idChosen
                             Refresh()
                         end,
@@ -144,6 +146,7 @@ CharacterModifier.TypeInfo.movementtext = {
                         },
                         idChosen = modifier:try_get("movementType", "all"),
                         change = function(element)
+                            ---@cast element Dropdown
                             modifier.movementType = element.idChosen
                             Refresh()
                         end,
@@ -337,6 +340,7 @@ CharacterModifier.TypeInfo.movementrestriction = {
                     options = g_restrictionTypes,
                     idChosen = restrictionType,
                     change = function(self)
+                        ---@cast self Dropdown
                         modifier.restrictionType = self.idChosen
                         Refresh()
                     end,

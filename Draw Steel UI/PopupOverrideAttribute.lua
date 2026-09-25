@@ -750,6 +750,7 @@ function gui.PopupMonsterSize(args)
             options = sizeOptions,
             idChosen = currentSize,
             change = function(el)
+                ---@cast el Dropdown
                 local newSize = el.idChosen
                 if characterSheet then
                     currentToken = CharacterSheet.instance.data.info.token

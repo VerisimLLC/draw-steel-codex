@@ -225,6 +225,7 @@ function CharacterModifier:ResourceCostEditor(options)
 			idChosen = self:try_get("resourceCost", "none"),
 			options = resourceOptions,
 			change = function(element)
+				---@cast element Dropdown
 				self.resourceCost = element.idChosen
 				resultPanel:FireEvent("change")
 			end,
@@ -642,6 +643,7 @@ CharacterModifier.TypeInfo.attribute = {
 						idChosen = modifier:try_get('operation', 'add'),
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								modifier.operation = element.idChosen
 								Refresh()
 							end,
@@ -716,6 +718,7 @@ CharacterModifier.TypeInfo.attribute = {
 						optionChosen = catChosen,
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								m_categoryOverride = element.optionChosen
 								Refresh()
 							end,
@@ -746,6 +749,7 @@ CharacterModifier.TypeInfo.attribute = {
 						idChosen = cond(haveOption, idChosen, "none"),
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								if element.idChosen ~= "none" then
 									modifier.attribute = element.idChosen
 									local newAttributeType = CustomAttribute.GetAttributeType(modifier.attribute)
@@ -807,6 +811,7 @@ CharacterModifier.TypeInfo.attribute = {
 							options = attributeType:GetDropdownOptions(attrInfo),
 							idChosen = dropdownIdChosen,
 							change = function(element)
+								---@cast element Dropdown
 								if element.idChosen == AttributeTypeCreatureSet.FilterSentinelId then
 									if not AttributeTypeCreatureSet.IsFilterValue(modifier.value) then
 										modifier.value = AttributeTypeCreatureSet.MakeFilterValue("")
@@ -918,6 +923,7 @@ CharacterModifier.TypeInfo.attribute = {
 							idChosen = modifier:try_get('keyword') or 'none',
 							events = {
 								change = function(element)
+									---@cast element Dropdown
 									if element.idChosen == 'none' then
 										modifier.keyword = nil
 									else
@@ -1122,6 +1128,7 @@ CharacterModifier.TypeInfo.resistance = {
 						idChosen = modifier.resistances[1].apply,
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								for i,entry in ipairs(modifier.resistances) do
 									entry.apply = element.idChosen
 									if entry.apply == 'Damage Reduction' then
@@ -1286,6 +1293,7 @@ CharacterModifier.TypeInfo.resistance = {
                     options = dropdownOptions,
                     textDefault = "Add Keyword...",
                     change = function(element)
+                        ---@cast element Dropdown
                         if element.idChosen ~= nil and GameSystem.abilityKeywords[element.idChosen] then
                             modifier.resistances[1]:get_or_add("keywords", {})[element.idChosen] = true
                         end
@@ -1360,6 +1368,7 @@ CharacterModifier.TypeInfo.resistance = {
                     textDefault = string.format("%s damage", r.damageType),
                     sort = true,
 					change = function(element)
+						---@cast element Dropdown
 						if element.idChosen == '(Remove)' then
 							table.remove(modifier.resistances, i)
 						else
@@ -1389,6 +1398,7 @@ CharacterModifier.TypeInfo.resistance = {
                     textDefault = "Add...",
                     sort = true,
 					change = function(element)
+						---@cast element Dropdown
 						if optionsTable[element.idChosen] then
 							local newEntry = DeepCopy(modifier.resistances[1])
 							newEntry.damageType = element.idChosen
@@ -1576,6 +1586,7 @@ CharacterModifier.TypeInfo.conditionimmunity = {
 						options = options,
 						idChosen = 'none',
 						change = function(element)
+							---@cast element Dropdown
 							if element.idChosen ~= "none" then
 								modifier.conditions[#modifier.conditions+1] = element.idChosen
 							end
@@ -1708,6 +1719,7 @@ CharacterModifier.TypeInfo.rollsattacking = {
 					},
 					idChosen = modifier:try_get("rollType", "attack"),
 					change = function(element)
+						---@cast element Dropdown
 						modifier.rollType = element.idChosen
 					end,
 				},
@@ -1900,6 +1912,7 @@ CharacterModifier.TypeInfo.attackattribute = {
 					options = creature.attributeDropdownOptions,
 					idChosen = modifier:try_get("attribute", "dex"),
 					change = function(element)
+						---@cast element Dropdown
 						modifier.attribute = element.idChosen
 					end,
 				},
@@ -2282,6 +2295,7 @@ CharacterModifier.TypeInfo.spell = {
 					idChosen = modifier.spell,
 					hasSearch = true,
 					change = function(element)
+						---@cast element Dropdown
 						modifier.spell = element.idChosen
 						levelPanel:FireEventTree("create")
 					end,
@@ -2339,6 +2353,7 @@ CharacterModifier.TypeInfo.spell = {
 					options = creature.attributeDropdownOptions,
 					idChosen = modifier:try_get("attribute", "int"),
 					change = function(element)
+						---@cast element Dropdown
 						modifier.attribute = element.idChosen
 					end,
 				},
@@ -2728,6 +2743,7 @@ CharacterModifier.TypeInfo.resource = {
 
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								modifier.resourceType = element.idChosen
 								Refresh()
 							end,
@@ -3135,6 +3151,7 @@ function CharacterModifier:PopupEditor()
 								idChosen = self.behavior,
 								events = {
 									change = function(element)
+										---@cast element Dropdown
 										self.behavior = element.idChosen
 
 										--A leftover triggeredAbility from a previous "trigger"

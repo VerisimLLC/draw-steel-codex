@@ -73,6 +73,7 @@ function ActivatedAbilityConditionSourceBehavior:EditorItems(parentPanel)
             },
             idChosen = self:try_get("conditionMode", "ability"),
             change = function(element)
+                ---@cast element Dropdown
                 self.conditionMode = element.idChosen
             end,
         },
@@ -89,6 +90,7 @@ function ActivatedAbilityConditionSourceBehavior:EditorItems(parentPanel)
             options = options,
             idChosen = self.condid,
             change = function(element)
+                ---@cast element Dropdown
                 self.condid = element.idChosen
             end,
         },

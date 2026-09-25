@@ -143,6 +143,7 @@ CharacterModifier.TypeInfo.triggerdisplay = {
                     options = g_triggeredAbilityTypes,
                     idChosen = modifier.ability.type,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.ability.type = element.idChosen
                         Refresh()
                     end,

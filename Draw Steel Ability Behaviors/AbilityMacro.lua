@@ -1,7 +1,8 @@
 local mod = dmhub.GetModLoading()
 
 
-RegisterGameType("ActivatedAbilityMacroBehavior", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityMacroBehavior: ActivatedAbilityBehavior
+ActivatedAbilityMacroBehavior = RegisterGameType("ActivatedAbilityMacroBehavior", "ActivatedAbilityBehavior")
 
 
 ActivatedAbility.RegisterType

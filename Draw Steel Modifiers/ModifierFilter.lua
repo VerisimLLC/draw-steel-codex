@@ -35,6 +35,7 @@ CharacterModifier.TypeInfo.filter = {
                     hasSearch = true,
                     sort = true,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.filterid = element.idChosen
                         Refresh()
                     end,

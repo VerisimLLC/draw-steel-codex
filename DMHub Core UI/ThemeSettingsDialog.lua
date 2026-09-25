@@ -442,6 +442,7 @@ CreateThemeSettingsDialog = function()
                     idChosen = selectedSchemeId,
                     options = schemeOptions,
                     change = function(element)
+                        ---@cast element Dropdown
                         if element.idChosen == "__create_new__" then
                             showCreator(nil)
                             return

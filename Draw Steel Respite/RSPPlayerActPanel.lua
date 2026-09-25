@@ -147,9 +147,11 @@ local function BuildActivityPane(selection)
         options = Options(),
         idChosen = FirstKey(),
         change = function(element)
+            ---@cast element Dropdown
             body:FireEventTree("showActivity", element.idChosen)
         end,
         create = function(element)
+            ---@cast element Dropdown
             body:FireEventTree("showActivity", element.idChosen)
         end,
         -- The Director can withdraw an activity mid-Respite, so the menu is

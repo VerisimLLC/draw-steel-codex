@@ -57,6 +57,7 @@ function ActivatedAbilityChangeMovementTypeBehavior:EditorItems(parentPanel)
 			options = creature.movementTypeInfo,
 			idChosen = self.movementType,
 			change = function(element)
+				---@cast element Dropdown
 				self.movementType = element.idChosen
 			end,
 		},

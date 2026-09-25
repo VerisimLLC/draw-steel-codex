@@ -725,6 +725,7 @@ function ActivatedAbilityReplenishBehavior:EditorItems(parentPanel)
                 options = options,
                 textOverride = "Choose...",
                 change = function(element)
+                    ---@cast element Dropdown
                     self.resourceid = element.idChosen
                     local options = self:get_or_add("resourceOptions", {})
                     options[#options+1] = element.idChosen
@@ -744,6 +745,7 @@ function ActivatedAbilityReplenishBehavior:EditorItems(parentPanel)
                 idChosen = self.resourceid,
                 options = options,
                 change = function(element)
+                    ---@cast element Dropdown
                     self.resourceid = element.idChosen
                     parentPanel:FireEvent("refreshBehavior")
                 end,
@@ -772,6 +774,7 @@ function ActivatedAbilityReplenishBehavior:EditorItems(parentPanel)
             idChosen = self:try_get("checklistid", "none"),
             hasSearch = true,
             change = function(element)
+                ---@cast element Dropdown
                 self.checklistid = element.idChosen
                 parentPanel:FireEvent("refreshBehavior")
             end,
@@ -798,6 +801,7 @@ function ActivatedAbilityReplenishBehavior:EditorItems(parentPanel)
                 },
             },
             change = function(element)
+                ---@cast element Dropdown
                 self.mode = element.idChosen
                 parentPanel:FireEvent("refreshBehavior")
             end,

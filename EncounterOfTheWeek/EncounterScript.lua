@@ -1250,6 +1250,484 @@ end
 
 --- the document ------------------------------------------------------------
 
+--- scenes ------------------------------------------------------------------------
+--
+--A montage entry may carry a SCENE: after a "---" line in the entry's body,
+--each line is one step played on the stage when a hero approaches (see
+--"Montage scenes" in EncounterOfTheWeek.md). In such an entry an option's
+--lines above its power roll play once the option is picked, and its lines
+--below the roll play once the roll has landed. Grammar, one step per line:
+--  PC: I see a witch!                speech ("PC" is the approaching hero)
+--  Witch: (in Hyrallic) Oh spirits   speech in a language
+--  Witch (Hag) enters                a character comes on stage; the
+--                                    parenthesis names the bestiary monster
+--                                    whose portrait is shown
+--  Witch exits                       and leaves again
+--  Witch is alarmed                  an emote (alert, scared, alarmed),
+--  Goblin (scared): Let go!          alone or on a line of speech; it
+--                                    plays as the next line appears
+--  if PC speaks Hyrallic then        branches: if / elseif / else / end
+--  anything else                     narration
+--The compiled scene is a tree of steps; FlattenScene walks it for one hero
+--and one roll and returns the lines that actually play.
+
+local SCENE_ENTER_VERBS = { enters = true, appears = true, arrives = true }
+local SCENE_EXIT_VERBS = { exits = true, leaves = true, departs = true }
+--Emotes a character can show ("Witch is alarmed", "Goblin (scared): ...").
+EncounterScript.SCENE_EMOTES = { alert = true, scared = true, alarmed = true }
+
+--The named sections of a "# Delve: <Name>" (lowered heading -> key), besides
+--its "## Obstacle: ..." entries: the chest (scene + dice table), the scene
+--offering to press on, and the scenes for walking out and being forced out.
+EncounterScript.DELVE_SECTIONS = {
+    ["chest"] = "chest",
+    ["continue"] = "continue",
+    ["leave"] = "leave",
+    ["turn back"] = "leave",
+    ["forced out"] = "forced",
+}
+
+--"Witch (Hag) enters" -> "Witch", "Hag"; "Witch enters" -> "Witch", "Witch".
+local function ParseEnterLine(line)
+    local body, verb = string.match(line, "^(.-)%s+(%a+)[%.!]*$")
+    if body == nil or not SCENE_ENTER_VERBS[lower(verb)] then
+        return nil
+    end
+    local name, monster = string.match(body, "^(.-)%s*%(([^()]+)%)$")
+    if name == nil then
+        name, monster = body, body
+    end
+    name, monster = trim(name), trim(monster)
+    if name == "" or monster == "" or lower(name) == "pc" then
+        return nil
+    end
+    return name, monster
+end
+
+local function ParseExitLine(line)
+    local name, verb = string.match(line, "^(.-)%s+(%a+)[%.!]*$")
+    if name == nil or not SCENE_EXIT_VERBS[lower(verb)] then
+        return nil
+    end
+    return trim(name)
+end
+
+--One condition atom ("pc speaks hyrallic", "tier 2", "crit") -> a node.
+local function ParseConditionAtom(text)
+    local s = trim(text)
+    local n = string.match(s, "^tier%s*(%d)$")
+    if n ~= nil then
+        return { op = "tier", tier = tonumber(n) }
+    end
+    local words = { one = 1, two = 2, three = 3 }
+    local w = string.match(s, "^tier%s+(%a+)$")
+    if w ~= nil and words[w] ~= nil then
+        return { op = "tier", tier = words[w] }
+    end
+    if s == "crit" or s == "critical" or s == "critical success" or s == "a critical success" then
+        return { op = "tier", tier = 4 }
+    end
+    local name = string.match(s, "^pc does not speak (.+)$") or string.match(s, "^pc doesn't speak (.+)$")
+    if name ~= nil then
+        return { op = "not", a = { op = "speaks", name = trim(name) } }
+    end
+    name = string.match(s, "^pc speaks (.+)$") or string.match(s, "^pc knows (.+)$")
+    if name ~= nil then
+        return { op = "speaks", name = trim(name) }
+    end
+    name = string.match(s, "^pc is skilled in (.+)$") or string.match(s, "^pc has (.+)$")
+    if name ~= nil then
+        return { op = "has", name = trim(name) }
+    end
+    name = string.match(s, "^pc is an? (.+)$") or string.match(s, "^pc is (.+)$")
+    if name ~= nil then
+        return { op = "is", name = trim(name) }
+    end
+    name = string.match(s, "^pc chose (.+)$") or string.match(s, "^pc chooses (.+)$")
+    if name ~= nil then
+        return { op = "chose", name = trim(name) }
+    end
+    return { op = "unknown", text = s }
+end
+
+--"not", "and", "or" and parentheses around atoms; "and" binds tighter than
+--"or". Returns the condition tree and a list of problems (strings).
+function EncounterScript.ParseCondition(text)
+    local problems = {}
+    local src = lower(trim(text or ""))
+    src = string.gsub(src, "%s+then$", "")
+    src = string.gsub(src, "%(", " ( ")
+    src = string.gsub(src, "%)", " ) ")
+    local tokens = {}
+    for tok in string.gmatch(src, "%S+") do
+        tokens[#tokens + 1] = tok
+    end
+    local pos = 1
+
+    local ParseOr
+    local function ParseUnary()
+        local tok = tokens[pos]
+        if tok == "not" then
+            pos = pos + 1
+            return { op = "not", a = ParseUnary() }
+        end
+        if tok == "(" then
+            pos = pos + 1
+            local node = ParseOr()
+            if tokens[pos] == ")" then
+                pos = pos + 1
+            else
+                problems[#problems + 1] = "missing ')'"
+            end
+            return node
+        end
+        local words = {}
+        while tokens[pos] ~= nil and tokens[pos] ~= "and" and tokens[pos] ~= "or" and tokens[pos] ~= ")" do
+            words[#words + 1] = tokens[pos]
+            pos = pos + 1
+        end
+        if #words == 0 then
+            problems[#problems + 1] = "a condition is missing"
+            return { op = "unknown", text = "" }
+        end
+        local atom = ParseConditionAtom(table.concat(words, " "))
+        if atom.op == "unknown" then
+            problems[#problems + 1] = string.format("'%s' is not a condition (use 'PC speaks X', 'PC is X', 'PC has X', 'PC chose X', 'tier1'-'tier3' or 'crit')", atom.text)
+        end
+        return atom
+    end
+    local function ParseAnd()
+        local node = ParseUnary()
+        while tokens[pos] == "and" do
+            pos = pos + 1
+            node = { op = "and", a = node, b = ParseUnary() }
+        end
+        return node
+    end
+    ParseOr = function()
+        local node = ParseAnd()
+        while tokens[pos] == "or" do
+            pos = pos + 1
+            node = { op = "or", a = node, b = ParseAnd() }
+        end
+        return node
+    end
+
+    local tree = ParseOr()
+    if tokens[pos] ~= nil then
+        problems[#problems + 1] = string.format("unexpected '%s'", tokens[pos])
+    end
+    return tree, problems
+end
+
+--Does a condition mention the roll's tier anywhere?
+local function ConditionUsesTier(node)
+    if node == nil then
+        return false
+    end
+    if node.op == "tier" then
+        return true
+    end
+    return ConditionUsesTier(node.a) or ConditionUsesTier(node.b)
+end
+
+--Every character a scene brings on stage, keyed by lowered name. Speech is
+--only recognized from these (and PC), so narration with a colon in it
+--("Beware: the path is steep") stays narration.
+function EncounterScript.SceneActors(rawLists)
+    local actors = {}
+    for _, list in ipairs(rawLists) do
+        for _, raw in ipairs(list or {}) do
+            local name, monster = ParseEnterLine(raw.text)
+            if name ~= nil and actors[lower(name)] == nil then
+                actors[lower(name)] = { name = name, monster = monster }
+            end
+        end
+    end
+    return actors
+end
+
+--Compile one run of raw scene lines ({ text, line }) into a step tree.
+--`part` is "intro", "option" or "outcome": only an outcome knows the tier.
+--`warn(line, fmt, ...)` reports authoring problems.
+function EncounterScript.CompileScene(rawLines, actors, part, warn)
+    local root = { steps = {} }
+    --the stack of open blocks; each frame is { node = ifNode, steps = the
+    --branch list lines are being added to }.
+    local stack = {}
+    local function Current()
+        if #stack == 0 then
+            return root.steps
+        end
+        return stack[#stack].steps
+    end
+    local function Condition(text, lineNo)
+        local tree, problems = EncounterScript.ParseCondition(text)
+        for _, p in ipairs(problems) do
+            warn(lineNo, "scene condition '%s': %s", trim(text), p)
+        end
+        if part ~= "outcome" and ConditionUsesTier(tree) then
+            warn(lineNo, "scene condition '%s' tests the tier, which is only known in the lines below an option's power roll; it is never true here", trim(text))
+        end
+        return tree
+    end
+
+    for _, raw in ipairs(rawLines or {}) do
+        local line = trim(raw.text)
+        local lc = lower(line)
+        local lineNo = raw.line
+        local ifCond = string.match(line, "^[iI][fF]%s+(.+)$")
+        local elseifCond = string.match(line, "^[eE][lL][sS][eE]%s*[iI][fF]%s+(.+)$")
+        --narration may begin with "If" ("If you listen closely..."): it is
+        --a branch only when it ends in "then" or reads as a condition.
+        local function IsBranch(condText)
+            if condText == nil then
+                return false
+            end
+            if string.match(lower(condText), "%s+then$") ~= nil then
+                return true
+            end
+            local _, problems = EncounterScript.ParseCondition(condText)
+            return #problems == 0
+        end
+        if not IsBranch(elseifCond) then
+            elseifCond = nil
+        end
+        if elseifCond == nil and not IsBranch(ifCond) then
+            ifCond = nil
+        end
+        if elseifCond ~= nil then
+            local frame = stack[#stack]
+            if frame == nil or frame.inElse then
+                warn(lineNo, "'%s' has no 'if' above it; ignored", line)
+            else
+                local branch = { cond = Condition(elseifCond, lineNo), steps = {} }
+                frame.node.branches[#frame.node.branches + 1] = branch
+                frame.steps = branch.steps
+            end
+        elseif ifCond ~= nil then
+            local node = { kind = "if", line = lineNo, branches = {} }
+            local branch = { cond = Condition(ifCond, lineNo), steps = {} }
+            node.branches[1] = branch
+            local list = Current()
+            list[#list + 1] = node
+            stack[#stack + 1] = { node = node, steps = branch.steps }
+        elseif lc == "else" or lc == "else:" or lc == "otherwise" then
+            local frame = stack[#stack]
+            if frame == nil or frame.inElse then
+                warn(lineNo, "'%s' has no 'if' above it; ignored", line)
+            else
+                frame.node.elseSteps = {}
+                frame.steps = frame.node.elseSteps
+                frame.inElse = true
+            end
+        elseif lc == "end" or lc == "end if" or lc == "endif" then
+            if #stack == 0 then
+                warn(lineNo, "'end' has no 'if' above it; ignored")
+            else
+                stack[#stack] = nil
+            end
+        else
+            local step = nil
+            local enterName, monster = ParseEnterLine(line)
+            local exitName = ParseExitLine(line)
+            --"Witch is alarmed": only for PC or a character of the scene,
+            --so "The forest is alert" stays narration.
+            local emoteName, emoteWord = string.match(line, "^(.-)%s+is%s+(%a+)[%.!]*$")
+            local emoteKey = emoteName ~= nil and lower(trim(emoteName)) or nil
+            if emoteKey ~= nil and not (EncounterScript.SCENE_EMOTES[lower(emoteWord)] and (emoteKey == "pc" or actors[emoteKey] ~= nil)) then
+                emoteKey = nil
+            end
+            if enterName ~= nil then
+                step = { kind = "enter", name = enterName, monster = monster, line = lineNo }
+            elseif exitName ~= nil and actors[lower(exitName)] ~= nil then
+                step = { kind = "exit", name = actors[lower(exitName)].name, line = lineNo }
+            elseif emoteKey ~= nil then
+                step = {
+                    kind = "emote",
+                    name = cond(emoteKey == "pc", "PC", actors[emoteKey] ~= nil and actors[emoteKey].name or ""),
+                    emote = lower(emoteWord),
+                    line = lineNo,
+                }
+            else
+                local speaker, said = string.match(line, "^([^:]+):%s*(.+)$")
+                --"Goblin (scared): Let go!" -- an emote on the speaker.
+                local speakerEmote = nil
+                if speaker ~= nil then
+                    local bare, word = string.match(trim(speaker), "^(.-)%s*%((%a+)%)$")
+                    if bare ~= nil and EncounterScript.SCENE_EMOTES[lower(word)] then
+                        speaker = bare
+                        speakerEmote = lower(word)
+                    end
+                end
+                local key = speaker ~= nil and lower(trim(speaker)) or nil
+                if key ~= nil and (key == "pc" or actors[key] ~= nil) then
+                    local lang, rest = string.match(said, "^%(%s*[iI][nN]%s+([^)]-)%s*%)%s*(.*)$")
+                    step = {
+                        kind = "say",
+                        speaker = cond(key == "pc", "PC", actors[key] ~= nil and actors[key].name or trim(speaker)),
+                        text = cond(lang ~= nil, rest, said),
+                        lang = lang,
+                        emote = speakerEmote,
+                        line = lineNo,
+                    }
+                else
+                    step = { kind = "narrate", text = line, line = lineNo }
+                end
+            end
+            local list = Current()
+            list[#list + 1] = step
+        end
+    end
+    if #stack > 0 then
+        warn(stack[#stack].node.line, "'if' is never closed with 'end'; closed at the end of the scene")
+    end
+    return root.steps
+end
+
+--Evaluate a condition tree. `test(atom)` answers one atom (speaks / is /
+--has / chose); tiers are compared here. tier3 also holds on a critical.
+local function EvalCondition(node, test, tier)
+    if node == nil then
+        return false
+    end
+    local op = node.op
+    if op == "and" then
+        return EvalCondition(node.a, test, tier) and EvalCondition(node.b, test, tier)
+    elseif op == "or" then
+        return EvalCondition(node.a, test, tier) or EvalCondition(node.b, test, tier)
+    elseif op == "not" then
+        return not EvalCondition(node.a, test, tier)
+    elseif op == "tier" then
+        if tier == nil then
+            return false
+        end
+        if node.tier == 3 then
+            return tier >= 3
+        end
+        return tier == node.tier
+    elseif op == "unknown" then
+        return false
+    end
+    return test(node) == true
+end
+
+EncounterScript.EvalCondition = EvalCondition
+
+--Walk a compiled scene for one playing and return the lines that play:
+--{ { kind = "narrate"|"say", text, speaker, lang, line,
+--    cast = { { name, monster }, ... },
+--    emotes = nil | { { name ("PC" or a character), emote }, ... } }, ... }. `cast` is who is on the
+--right-hand side of the stage while that line shows (the hero is always on
+--the left). Entrances and exits are not lines of their own -- they land with
+--the next line -- and `cast` (the list the scene starts with) is updated in
+--place, so a scene part hands its final cast on to the next part.
+--A character who speaks before entering is brought on as they speak.
+--`env` = { test = function(atomNode) -> bool, tier = n|nil, actors = map }.
+function EncounterScript.FlattenScene(steps, env, cast)
+    local out = {}
+    local function Snapshot()
+        local copy = {}
+        for i, c in ipairs(cast) do
+            copy[i] = { name = c.name, monster = c.monster }
+        end
+        return copy
+    end
+    local function OnStage(name)
+        for i, c in ipairs(cast) do
+            if lower(c.name) == lower(name) then
+                return i
+            end
+        end
+        return nil
+    end
+    --emotes wait for the next line that plays, like entrances do.
+    local pendingEmotes = {}
+    local function Walk(list)
+        for _, step in ipairs(list or {}) do
+            if step.kind == "emote" then
+                pendingEmotes[#pendingEmotes + 1] = { name = step.name, emote = step.emote }
+            elseif step.kind == "if" then
+                local taken = nil
+                for _, branch in ipairs(step.branches) do
+                    if EvalCondition(branch.cond, env.test, env.tier) then
+                        taken = branch.steps
+                        break
+                    end
+                end
+                if taken == nil then
+                    taken = step.elseSteps
+                end
+                Walk(taken)
+            elseif step.kind == "enter" then
+                if OnStage(step.name) == nil then
+                    cast[#cast + 1] = { name = step.name, monster = step.monster }
+                end
+            elseif step.kind == "exit" then
+                local i = OnStage(step.name)
+                if i ~= nil then
+                    table.remove(cast, i)
+                end
+            else
+                if step.kind == "say" and step.speaker ~= "PC" and OnStage(step.speaker) == nil then
+                    local actor = (env.actors or {})[lower(step.speaker)]
+                    cast[#cast + 1] = { name = step.speaker, monster = actor ~= nil and actor.monster or step.speaker }
+                end
+                if step.emote ~= nil then
+                    pendingEmotes[#pendingEmotes + 1] = { name = step.speaker, emote = step.emote }
+                end
+                out[#out + 1] = {
+                    kind = step.kind,
+                    text = step.text,
+                    speaker = step.speaker,
+                    lang = step.lang,
+                    line = step.line,
+                    cast = Snapshot(),
+                    emotes = cond(#pendingEmotes > 0, pendingEmotes, nil),
+                }
+                pendingEmotes = {}
+            end
+        end
+    end
+    Walk(steps)
+    return out
+end
+
+--Replace the word "PC" (and "PC's") with the hero's name.
+function EncounterScript.SubstitutePC(text, heroName)
+    local result = string.gsub(text or "", "%f[%w]PC%f[%W]", function()
+        return heroName
+    end)
+    return result
+end
+
+--Words in a language the hero does not know: every letter is swapped for
+--another, deterministically (the same line always garbles the same way),
+--keeping case, spacing and punctuation so it still reads as speech.
+function EncounterScript.Garble(text, language)
+    local seed = 7
+    for i = 1, #(language or "") do
+        seed = (seed * 31 + string.byte(language, i)) % 9973
+    end
+    local vowels = "aeiouy"
+    local consonants = "bcdfghjklmnpqrstvwxz"
+    local n = 0
+    local result = string.gsub(text or "", "%a", function(ch)
+        n = n + 1
+        local isUpper = ch ~= string.lower(ch)
+        local lc = string.lower(ch)
+        local pool = cond(string.find(vowels, lc, 1, true) ~= nil, vowels, consonants)
+        local idx = string.find(pool, lc, 1, true) or 1
+        local shifted = ((idx - 1 + seed + n * 7) % #pool) + 1
+        local out = string.sub(pool, shifted, shifted)
+        if isUpper then
+            out = string.upper(out)
+        end
+        return out
+    end)
+    return result
+end
+
 local function SplitLines(text)
     local lines = {}
     text = string.gsub(text or "", "\r\n", "\n")
@@ -1264,9 +1742,174 @@ local function SplitLines(text)
     return lines
 end
 
+EncounterScript.SplitLines = SplitLines
+
+--- sub-documents -------------------------------------------------------------
+--
+--A week's script can be spread over several journal documents. A line that
+--is NOTHING BUT a link to another document -- the journal's page embed
+--"[:Name]", a full link "[label](target)", or the "[Name]" shorthand -- is
+--replaced by that document's text, recursively, before the script is
+--parsed. A link inside a sentence stays a link. Design:
+--EncounterOfTheWeek.md, "Splitting a script across documents".
+
+EncounterScript.maxIncludeDepth = 8
+
+--The link target of a line that is only a link, or nil. The same three
+--forms Seamless.LinkAtPosition follows (MarkdownDocument.lua); rich [[tags]],
+--checkboxes and images are not links.
+function EncounterScript.IncludeTarget(line)
+    local t = trim(line)
+    local target = string.match(t, "^%[:([^%[%]]+)%]$")
+    if target ~= nil then
+        return trim(target)
+    end
+    local _, linkTarget = string.match(t, "^%[([^%[%]]*)%]%(([^%(%)]+)%)$")
+    if linkTarget ~= nil then
+        return trim(linkTarget)
+    end
+    local label = string.match(t, "^%[([^%[%]]+)%]$")
+    if label ~= nil and not string.match(label, "^[xX ]$") then
+        return trim(label)
+    end
+    return nil
+end
+
+--"line 12", or "'Mysterious Cottage' line 12" for a line that came from a
+--document other than the script's own.
+function EncounterScript.DescribeSource(src, rootId)
+    if src == nil then
+        return "line ?"
+    end
+    if src.docid == rootId then
+        return string.format("line %d", src.line)
+    end
+    return string.format("'%s' line %d", tostring(src.name or src.docid), src.line)
+end
+
+--Splice included documents into a script's text.
+--  root = { id, name, text } -- the script's own document
+--  resolve(target) -> { id, name, text } for a journal document, or
+--      nil, problem -- problem is nil when the link is fine but names no
+--      document (a monster, a PDF, a web page): the line stays as prose;
+--      otherwise a string saying what is wrong: the line stays, and warns
+--Returns {
+--  text = the expanded text,
+--  sources = { [expandedLine] = { docid, name, line } } -- where each line of
+--      the expanded text came from (line is 1-based within that document)
+--  included = { [docid] = { id, name } } -- every document spliced in
+--  warnings = { "...", ... },
+--}
+function EncounterScript.ExpandIncludes(root, resolve)
+    local out, sources, warnings, included = {}, {}, {}, {}
+    local function Warn(src, fmt, ...)
+        warnings[#warnings + 1] = EncounterScript.DescribeSource(src, root.id) .. ": " .. string.format(fmt, ...)
+    end
+    local stack = {}
+    local function Expand(doc, depth)
+        stack[doc.id] = true
+        for i, line in ipairs(SplitLines(doc.text)) do
+            local src = { docid = doc.id, name = doc.name, line = i }
+            local spliced = false
+            local target = EncounterScript.IncludeTarget(line)
+            if target ~= nil then
+                local child, problem = resolve(target)
+                if child == nil then
+                    if problem ~= nil then
+                        Warn(src, "'%s' %s; the line is left as text", target, problem)
+                    end
+                elseif stack[child.id] then
+                    Warn(src, "'%s' includes itself; not included again", tostring(child.name or target))
+                elseif depth >= EncounterScript.maxIncludeDepth then
+                    Warn(src, "'%s' is nested more than %d documents deep; not included", tostring(child.name or target), EncounterScript.maxIncludeDepth)
+                else
+                    included[child.id] = { id = child.id, name = child.name }
+                    --blank lines around the splice, so a paragraph above or
+                    --below the link never runs into the included text.
+                    out[#out + 1] = ""
+                    sources[#out] = src
+                    Expand(child, depth + 1)
+                    out[#out + 1] = ""
+                    sources[#out] = src
+                    spliced = true
+                end
+            end
+            if not spliced then
+                out[#out + 1] = line
+                sources[#out] = src
+            end
+        end
+        stack[doc.id] = nil
+    end
+    Expand(root, 0)
+    return { text = table.concat(out, "\n"), sources = sources, included = included, warnings = warnings }
+end
+
+--Where a line of a parsed script came from, for a message. Plain "line N"
+--for a script that was parsed without ParseExpanded.
+function EncounterScript.LineLabel(parse, lineIndex)
+    if parse == nil or parse.sources == nil then
+        return string.format("line %d", lineIndex or 0)
+    end
+    return EncounterScript.DescribeSource(parse.sources[lineIndex or 0], parse.rootId)
+end
+
+--Parse an ExpandIncludes result. The parse also carries `sources`, `rootId`
+--and `included`; its warnings name the document each line came from, and
+--the include problems come first.
+function EncounterScript.ParseExpanded(expansion, rootId)
+    local parse = EncounterScript.Parse(expansion.text)
+    parse.sources = expansion.sources
+    parse.rootId = rootId
+    parse.included = expansion.included
+    local warnings = {}
+    for _, w in ipairs(expansion.warnings) do
+        warnings[#warnings + 1] = w
+    end
+    for _, w in ipairs(parse.warnings) do
+        local n, rest = string.match(w, "^line (%d+): (.*)$")
+        if n ~= nil then
+            w = EncounterScript.LineLabel(parse, tonumber(n)) .. ": " .. rest
+        end
+        warnings[#warnings + 1] = w
+    end
+    parse.warnings = warnings
+    return parse
+end
+
+--The journal keys a document's annotations by tag text, and a repeated tag
+--by occurrence: the 1st [[scene]] is "scene", the 2nd "scene-1", the 3rd
+--"scene-2" (MarkdownDocument:GetReferencedAnnotations). The key for the tag
+--`tagText` on line `line` of `text`.
+function EncounterScript.AnnotationKey(text, tagText, line)
+    local needle = "[[" .. tagText .. "]]"
+    local count = 0
+    for i, l in ipairs(SplitLines(text)) do
+        if i >= line then
+            break
+        end
+        local from = 1
+        while true do
+            local s, e = string.find(l, needle, from, true)
+            if s == nil then
+                break
+            end
+            count = count + 1
+            from = e + 1
+        end
+    end
+    if count == 0 then
+        return tagText
+    end
+    return tagText .. "-" .. count
+end
+
 function EncounterScript.Parse(text)
     local lines = SplitLines(text)
-    local result = { beats = {}, warnings = {}, hasEncounterTag = false }
+    --`delves`: the "# Delve: <Name>" sections, by EncounterScript.MatchKey
+    --of their name. They are not beats -- nothing plays them in order -- an
+    --option enters one with a "Delve: <Name>" line (see "Delves" below).
+    local result = { beats = {}, warnings = {}, hasEncounterTag = false, delves = {} }
 
     local function Warn(lineIndex, fmt, ...)
         result.warnings[#result.warnings + 1] = string.format("line %d: " .. fmt, lineIndex, ...)
@@ -1279,6 +1922,10 @@ function EncounterScript.Parse(text)
     local option = nil    --current option (montage entry or narrative section)
     local paragraph = {}  --accumulating prose lines
     local paragraphLine = 0
+    --where scene lines go while one is being read (an entry's scene after
+    --its "---", or a scripted entry's option above / below its roll); nil
+    --when lines are ordinary prose.
+    local sceneTarget = nil
 
     local function EnsureRound(lineIndex)
         if round == nil then
@@ -1368,10 +2015,18 @@ function EncounterScript.Parse(text)
             end
             return
         end
-        if beat.kind ~= "montage" then
+        if beat.kind ~= "montage" and beat.kind ~= "delve" then
             return
         end
         if option ~= nil then
+            --"Delve: Forbidden Tomb" on an option: taking the option enters
+            --that delve instead of rolling a test.
+            local delveName = string.match(text, "^[Dd]elve:%s*(.-)%s*$")
+            if delveName ~= nil and delveName ~= "" then
+                option.delve = delveName
+                option.delveLine = paragraphLine
+                return
+            end
             option.text = cond(option.text == "", text, option.text .. "\n\n" .. text)
             return
         end
@@ -1402,6 +2057,26 @@ function EncounterScript.Parse(text)
                 return
             end
             entry.description = cond(entry.description == "", text, entry.description .. "\n\n" .. text)
+            return
+        end
+        if beat.kind == "delve" then
+            --"Chest: every 1-2 obstacles" sets how often a chest turns up;
+            --other prose is the delve's own notes.
+            local lo, hi = string.match(lower(text), "^chest:%s*every%s+(%d+)%s*%-%s*(%d+)")
+            if lo == nil then
+                lo = string.match(lower(text), "^chest:%s*every%s+(%d+)")
+                hi = lo
+            end
+            if lo ~= nil then
+                lo, hi = tonumber(lo), tonumber(hi)
+                if lo < 1 or hi < lo then
+                    Warn(paragraphLine, "'%s' is not a usable chest interval; using every 1-2 obstacles", trim(text))
+                else
+                    beat.chestEvery = { lo, hi }
+                end
+                return
+            end
+            beat.intro = cond(beat.intro == "", text, beat.intro .. "\n\n" .. text)
             return
         end
         if round ~= nil then
@@ -1453,8 +2128,11 @@ function EncounterScript.Parse(text)
             FlushParagraph()
             local title = trim(h1)
             local kind = lower(title)
-            if kind ~= "montage" and kind ~= "encounter" and kind ~= "narrative" then
-                Warn(i, "unknown beat '%s' (expected Montage, Narrative or Encounter); ignored", title)
+            local delveName = string.match(title, "^[Dd]elve:%s*(.+)$")
+            if delveName ~= nil then
+                kind = "delve"
+            elseif kind ~= "montage" and kind ~= "encounter" and kind ~= "narrative" then
+                Warn(i, "unknown beat '%s' (expected Montage, Narrative, Encounter or Delve: <name>); ignored", title)
                 kind = "unknown"
             end
             beat = { kind = kind, title = title, line = i, tags = {} }
@@ -1467,10 +2145,26 @@ function EncounterScript.Parse(text)
             elseif kind == "encounter" then
                 beat.setup = {}
             end
-            result.beats[#result.beats + 1] = beat
+            if kind == "delve" then
+                beat.name = trim(delveName)
+                beat.intro = ""
+                beat.obstacles = {}
+                beat.sections = {}
+                beat.chestEvery = { 1, 2 }
+                local key = EncounterScript.MatchKey(beat.name)
+                if result.delves[key] ~= nil then
+                    Warn(i, "a second '# Delve: %s'; only the first is used", beat.name)
+                else
+                    result.delves[key] = beat
+                end
+            else
+                result.beats[#result.beats + 1] = beat
+            end
             round, entry, section, option = nil, nil, nil, nil
+            sceneTarget = nil
         elseif h2 ~= nil then
             FlushParagraph()
+            sceneTarget = nil
             local title = trim(h2)
             if beat ~= nil and beat.kind == "narrative" then
                 section = {
@@ -1481,9 +2175,51 @@ function EncounterScript.Parse(text)
                     mode = "together",
                     options = {},
                 }
-                section.id = string.format("s%d/%s", #beat.sections + 1, Slug(title))
+                --no "/" in an id: see the note on entry.id below.
+                section.id = string.format("s%d-%s", #beat.sections + 1, Slug(title))
                 beat.sections[#beat.sections + 1] = section
                 option = nil
+            elseif beat ~= nil and beat.kind == "delve" then
+                entry, option = nil, nil
+                local obstacleName = string.match(title, "^[Oo]bstacle:%s*(.+)$")
+                local sectionKey = EncounterScript.DELVE_SECTIONS[lower(title)]
+                if obstacleName ~= nil then
+                    entry = {
+                        kind = "obstacle",
+                        name = trim(obstacleName),
+                        line = i,
+                        description = "",
+                        approach = "",
+                        options = {},
+                        delve = beat.name,
+                    }
+                    --no "/" in an id: see the note on entry.id below.
+                    entry.id = string.format("d-%s-%s", Slug(beat.name), Slug(entry.name))
+                    beat.obstacles[#beat.obstacles + 1] = entry
+                elseif sectionKey ~= nil then
+                    --a scene of the delve itself: every line under it plays.
+                    entry = {
+                        kind = "delvesection",
+                        section = sectionKey,
+                        name = title,
+                        line = i,
+                        description = "",
+                        approach = "",
+                        options = {},
+                        scripted = true,
+                        sceneLines = {},
+                        delve = beat.name,
+                    }
+                    entry.id = string.format("d-%s-%s", Slug(beat.name), sectionKey)
+                    if beat.sections[sectionKey] ~= nil then
+                        Warn(i, "delve '%s' already has a '## %s'; this one is ignored", beat.name, title)
+                    else
+                        beat.sections[sectionKey] = entry
+                    end
+                    sceneTarget = entry.sceneLines
+                else
+                    Warn(i, "'## %s' in a delve is not 'Obstacle: <name>', 'Chest', 'Continue', 'Leave' or 'Forced Out'; ignored", title)
+                end
             elseif beat == nil or beat.kind ~= "montage" then
                 Warn(i, "'## %s' outside a montage or narrative beat; ignored", title)
             else
@@ -1542,7 +2278,16 @@ function EncounterScript.Parse(text)
                         consequence = nil,
                         options = {},
                     }
-                    entry.id = string.format("r%d/%s/%s", round.number, entryKind, Slug(entry.name))
+                    --NB: an id becomes a KEY in the montage document
+                    --(m.vanquished / m.taken / m.expired / m.removed), and
+                    --the engine builds its patch paths by joining table keys
+                    --with "/" (ScriptSerialize.BuildPathToJson). A "/" inside
+                    --a key is therefore read as a path separator by the
+                    --server and by every other client, so the write lands
+                    --nested and is invisible to everyone but the writer.
+                    --Keep ids free of "/" -- Slug() already reduces the name
+                    --to [a-z0-9-].
+                    entry.id = string.format("r%d-%s-%s", round.number, entryKind, Slug(entry.name))
                     round.entries[#round.entries + 1] = entry
                     option = nil
                 else
@@ -1551,6 +2296,7 @@ function EncounterScript.Parse(text)
             end
         elseif h3 ~= nil then
             FlushParagraph()
+            sceneTarget = nil
             local title = trim(h3)
             if beat ~= nil and beat.kind == "narrative" then
                 if section == nil then
@@ -1564,6 +2310,25 @@ function EncounterScript.Parse(text)
             else
                 option = { name = title, line = i, text = "", roll = nil }
                 entry.options[#entry.options + 1] = option
+                --in a scripted entry, what an option says before its roll
+                --is the scene played once it is picked.
+                if entry.scripted then
+                    option.preLines = {}
+                    sceneTarget = option.preLines
+                end
+            end
+        elseif string.match(line, "^%-%-%-+$") and beat ~= nil and (beat.kind == "montage" or beat.kind == "delve") then
+            --"---" ends an entry's card text and starts its scene.
+            FlushParagraph()
+            if entry == nil or option ~= nil then
+                Warn(i, "'---' starts a scene only inside an opportunity or threat, above its first '### option'; ignored")
+            else
+                if entry.scripted then
+                    Warn(i, "%s '%s' already has a scene; this '---' is ignored", entry.kind, entry.name)
+                end
+                entry.scripted = true
+                entry.sceneLines = entry.sceneLines or {}
+                sceneTarget = entry.sceneLines
             end
         elseif string.match(line, "^%[%[.+%]%]$") then
             --a rich-tag island on a line of its own
@@ -1575,8 +2340,12 @@ function EncounterScript.Parse(text)
             end
             if beat ~= nil then
                 beat.tags[#beat.tags + 1] = tagText
+                --sceneLine says WHICH [[scene]] this is: its annotation lives
+                --on the document the line came from (see ExpandIncludes),
+                --keyed by how many of the same tag precede it there.
                 if beat.kind == "montage" and tagName == "scene" and beat.sceneTag == nil then
                     beat.sceneTag = tagText
+                    beat.sceneLine = i
                 end
                 if beat.kind == "narrative" and tagName == "scene" then
                     --inside a section it is that section's backdrop; above
@@ -1584,9 +2353,11 @@ function EncounterScript.Parse(text)
                     if section ~= nil then
                         if section.sceneTag == nil then
                             section.sceneTag = tagText
+                            section.sceneLine = i
                         end
                     elseif beat.sceneTag == nil then
                         beat.sceneTag = tagText
+                        beat.sceneLine = i
                     end
                 end
                 if tagName == "encounter" and beat.encounterTag == nil then
@@ -1612,7 +2383,45 @@ function EncounterScript.Parse(text)
             --a power roll block: "|Name: Attr" then 3-4 "|tier" lines
             FlushParagraph()
             local name, attr = string.match(line, "^|([^|]+): ([^|]+)$")
-            if name == nil then
+            local dice = attr ~= nil and string.match(trim(attr), "^(%d*[dD]%d+)$") or nil
+            if name ~= nil and dice ~= nil then
+                --"|Treasure: 1d6" then one "|1-2: result" row per range: a
+                --table rolled on with plain dice (a delve's chest).
+                local tableRoll = { name = trim(name), dice = lower(dice), rows = {} }
+                local j = i + 1
+                while j <= #lines do
+                    local rowText = string.match(trim(lines[j]), "^|([^|]*)$")
+                    if rowText == nil then
+                        break
+                    end
+                    local lo, hi, what = string.match(trim(rowText), "^(%d+)%s*%-%s*(%d+)%s*:%s*(.*)$")
+                    if lo == nil then
+                        lo, what = string.match(trim(rowText), "^(%d+)%s*:%s*(.*)$")
+                        hi = lo
+                    end
+                    if lo == nil then
+                        Warn(j, "'|%s' is not a table row (use '|1-2: result' or '|3: result'); ignored", trim(rowText))
+                    else
+                        local row = { lo = tonumber(lo), hi = tonumber(hi), text = trim(what), line = j }
+                        row.effects = EncounterScript.ParseEffects(row.text)
+                        for _, effect in ipairs(row.effects) do
+                            if effect.unrecognized then
+                                Warn(j, "unrecognized effect '%s' (shown as text only)", effect.text)
+                            end
+                        end
+                        tableRoll.rows[#tableRoll.rows + 1] = row
+                    end
+                    j = j + 1
+                end
+                if entry == nil or entry.section ~= "chest" then
+                    Warn(i, "a dice table ('%s: %s') belongs under a delve's '## Chest'; ignored", trim(name), dice)
+                elseif entry.table ~= nil then
+                    Warn(i, "the chest already has a table; '%s' ignored", trim(name))
+                else
+                    entry.table = tableRoll
+                end
+                i = j - 1
+            elseif name == nil then
                 Warn(i, "'|' line is not a power roll header (|Name: Attr); ignored")
             else
                 local tiers = {}
@@ -1668,8 +2477,31 @@ function EncounterScript.Parse(text)
                         end
                     end
                     option.roll = roll
+                    --and what it says after the roll plays once it lands.
+                    if entry ~= nil and entry.scripted then
+                        option.postLines = {}
+                        sceneTarget = option.postLines
+                    end
                 end
                 i = j - 1
+            end
+        elseif sceneTarget ~= nil and line ~= "" then
+            --one scene step per line. The entry's own "Options:" and
+            --"Consequence:" paragraphs still mean what they always did.
+            local label = string.match(line, "^(%a+):")
+            label = label ~= nil and lower(label) or nil
+            if sceneTarget == (entry ~= nil and entry.sceneLines or nil)
+                and (label == "options" or label == "option" or label == "consequence" or label == "consequences") then
+                FlushParagraph()
+                paragraph = { line }
+                paragraphLine = i
+                FlushParagraph()
+            elseif option ~= nil and sceneTarget == option.preLines and string.match(line, "^[Dd]elve:%s*.+$") then
+                --taking this option enters a delve (see FlushParagraph).
+                option.delve = trim(string.match(line, "^[Dd]elve:%s*(.+)$"))
+                option.delveLine = i
+            else
+                sceneTarget[#sceneTarget + 1] = { text = line, line = i }
             end
         elseif line == "" then
             FlushParagraph()
@@ -1682,6 +2514,72 @@ function EncounterScript.Parse(text)
         i = i + 1
     end
     FlushParagraph()
+
+    --scenes: compiled once the whole entry has been read, because speech is
+    --recognized from the characters the entry brings on anywhere in it. A
+    --delve's obstacles and sections are compiled the same way.
+    local scripted = {}
+    for _, b in ipairs(result.beats) do
+        for _, e in ipairs(EncounterScript.MontageEntries(b)) do
+            scripted[#scripted + 1] = e
+        end
+    end
+    for _, d in pairs(result.delves) do
+        for _, e in ipairs(d.obstacles) do
+            scripted[#scripted + 1] = e
+        end
+        for _, e in pairs(d.sections) do
+            scripted[#scripted + 1] = e
+        end
+    end
+    do
+        for _, e in ipairs(scripted) do
+            if e.scripted then
+                local lists = { e.sceneLines }
+                for _, o in ipairs(e.options) do
+                    lists[#lists + 1] = o.preLines
+                    lists[#lists + 1] = o.postLines
+                end
+                e.actors = EncounterScript.SceneActors(lists)
+                e.scene = EncounterScript.CompileScene(e.sceneLines, e.actors, "intro", Warn)
+                local optionKeys = {}
+                for _, o in ipairs(e.options) do
+                    optionKeys[EncounterScript.MatchKey(o.name)] = true
+                end
+                for _, o in ipairs(e.options) do
+                    o.preScene = EncounterScript.CompileScene(o.preLines, e.actors, "option", Warn)
+                    o.postScene = EncounterScript.CompileScene(o.postLines, e.actors, "outcome", Warn)
+                end
+                --"PC chose X" has to name one of this entry's options.
+                local function CheckChose(steps)
+                    for _, step in ipairs(steps or {}) do
+                        if step.kind == "if" then
+                            for _, branch in ipairs(step.branches) do
+                                local function Visit(node)
+                                    if node == nil then
+                                        return
+                                    end
+                                    if node.op == "chose" and not optionKeys[EncounterScript.MatchKey(node.name)] then
+                                        Warn(step.line, "'PC chose %s' names no '### option' of %s", node.name, e.name)
+                                    end
+                                    Visit(node.a)
+                                    Visit(node.b)
+                                end
+                                Visit(branch.cond)
+                                CheckChose(branch.steps)
+                            end
+                            CheckChose(step.elseSteps)
+                        end
+                    end
+                end
+                CheckChose(e.scene)
+                for _, o in ipairs(e.options) do
+                    CheckChose(o.preScene)
+                    CheckChose(o.postScene)
+                end
+            end
+        end
+    end
 
     --post-parse checks
     for _, b in ipairs(result.beats) do
@@ -1708,7 +2606,14 @@ function EncounterScript.Parse(text)
                         Warn(e.line, "%s '%s' has no options", e.kind, e.name)
                     end
                     for _, o in ipairs(e.options) do
-                        if o.roll == nil then
+                        if o.delve ~= nil then
+                            if result.delves[EncounterScript.MatchKey(o.delve)] == nil then
+                                Warn(o.delveLine or o.line, "option '%s' enters the delve '%s', but there is no '# Delve: %s'", o.name, o.delve, o.delve)
+                            end
+                            if o.roll ~= nil then
+                                Warn(o.line, "option '%s' enters a delve; its power roll is ignored", o.name)
+                            end
+                        elseif o.roll == nil then
                             Warn(o.line, "option '%s' has no power roll", o.name)
                         end
                     end
@@ -1832,6 +2737,38 @@ function EncounterScript.Parse(text)
         end
     end
 
+    --delves: something to meet, a way to be rewarded, and tests to take.
+    for _, d in pairs(result.delves) do
+        if #d.obstacles == 0 then
+            Warn(d.line, "delve '%s' has no '## Obstacle: ...'", d.name)
+        end
+        local chest = d.sections.chest
+        if chest == nil then
+            Warn(d.line, "delve '%s' has no '## Chest'; no treasure will turn up", d.name)
+        elseif chest.table == nil then
+            Warn(chest.line, "delve '%s': '## Chest' has no dice table ('|Treasure: 1d6' then '|1-2: ...' rows)", d.name)
+        end
+        for _, sec in pairs(d.sections) do
+            if #sec.options > 0 then
+                Warn(sec.line, "'## %s' of delve '%s' is a scene; its '### options' are ignored", sec.name, d.name)
+            end
+        end
+        for _, e in ipairs(d.obstacles) do
+            if #e.options == 0 then
+                Warn(e.line, "obstacle '%s' has no options", e.name)
+            end
+            for _, o in ipairs(e.options) do
+                if o.roll == nil then
+                    Warn(o.line, "option '%s' has no power roll", o.name)
+                end
+                if o.delve ~= nil then
+                    Warn(o.delveLine or o.line, "option '%s' is inside a delve already; 'Delve: %s' is ignored", o.name, o.delve)
+                    o.delve = nil
+                end
+            end
+        end
+    end
+
     --implicit encounter: no beats at all, but an [[encounter]] island
     if #result.beats == 0 and result.hasEncounterTag then
         result.beats[1] = { kind = "encounter", title = "Encounter", line = 0, tags = { "encounter" }, setup = {}, implicit = true }
@@ -1849,6 +2786,34 @@ function EncounterScript.MontageEntries(beat)
         end
     end
     return result
+end
+
+--The "# Delve: <Name>" a parse defines, by name (nil when there is none).
+function EncounterScript.FindDelve(parse, name)
+    if parse == nil or parse.delves == nil or name == nil then
+        return nil
+    end
+    return parse.delves[EncounterScript.MatchKey(name)]
+end
+
+--One obstacle of a delve, by id.
+function EncounterScript.FindObstacle(delve, obstacleId)
+    for _, e in ipairs((delve and delve.obstacles) or {}) do
+        if e.id == obstacleId then
+            return e
+        end
+    end
+    return nil
+end
+
+--The row of a delve chest's table a dice total lands on (nil if none).
+function EncounterScript.ChestRow(tableRoll, total)
+    for _, row in ipairs((tableRoll and tableRoll.rows) or {}) do
+        if total >= row.lo and total <= row.hi then
+            return row
+        end
+    end
+    return nil
 end
 
 function EncounterScript.FindEntry(beat, entryId)

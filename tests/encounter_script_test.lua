@@ -99,7 +99,7 @@ check(#entries == 3, "three entries in round 1")
 
 local cottage = entries[1]
 check(cottage.kind == "opportunity" and cottage.name == "Mysterious Cottage", "cottage entry")
-check(cottage.id == "r1/opportunity/mysterious-cottage", "stable entry id: " .. cottage.id)
+check(cottage.id == "r1-opportunity-mysterious-cottage", "stable entry id: " .. cottage.id)
 check(cottage.description == "A mysterious cottage lays off the path. Dare you approach?", "cottage description")
 check(cottage.approach == "Approaching the cottage, you see a witch within, brewing some potions in her cauldron.", "cottage approach text")
 check(cottage.consequence == nil, "opportunities have no consequence")
@@ -146,7 +146,7 @@ local o2 = outsmart.roll.effects[2]
 check(#o2 == 2 and o2[1].kind == "malice" and o2[1].qty == 2 and o2[2].kind == "vanquish", "+2 malice, vanquished")
 
 --- helpers -------------------------------------------------------------------
-check(EncounterScript.FindEntry(montage, "r1/threat/dangerous-beasts") == beasts, "FindEntry")
+check(EncounterScript.FindEntry(montage, "r1-threat-dangerous-beasts") == beasts, "FindEntry")
 check(#EncounterScript.EntriesForRound(montage, 1) == 3, "entries for round 1")
 check(#EncounterScript.EntriesForRound(montage, 5) == 3, "entries persist into later rounds")
 local items, monsters = EncounterScript.ReferencedNames(parse)
@@ -206,7 +206,7 @@ local eb = edge.beats[1]
 check(eb.intro == "Some intro prose.", "intro captured")
 check(#eb.rounds == 1 and eb.rounds[1].implicit and eb.rounds[1].number == 1, "implicit round")
 local rock = eb.rounds[1].entries[1]
-check(rock.id == "r1/threat/rockfall", "rock id")
+check(rock.id == "r1-threat-rockfall", "rock id")
 check(#rock.options[1].roll.tiers == 4, "four tiers")
 check(rock.options[1].roll.effects[4][2].kind == "item" and rock.options[1].roll.effects[4][2].qty == 2, "critical tier item x2")
 check(rock.options[1].roll.effects[1][1].unrecognized == true, "unknown clause flagged")
@@ -422,7 +422,7 @@ check(#nar.beats[1].sections == 3, "three sections")
 
 local sec1 = nar.beats[1].sections[1]
 check(sec1.name == "The Crossroads", "section 1 name")
-check(sec1.id == "s1/the-crossroads", "section 1 id")
+check(sec1.id == "s1-the-crossroads", "section 1 id")
 check(sec1.mode == "together" and sec1.modeExplicit, "section 1 is an agreed choice")
 check(sec1.prompt == "Which way do you go?", "section 1 prompt")
 check(sec1.text == "The road forks at a weathered shrine.", "section 1 text")
@@ -573,7 +573,7 @@ check(EncounterScript.EffectIsMechanical(spans[2].effect) and not EncounterScrip
 
 --montage parsing is untouched by the narrative branch
 check(EncounterScript.SectionCount(nar.beats[1]) == 3, "SectionCount")
-check(EncounterScript.FindSection(nar.beats[1], "s2/the-shrine") == sec2, "FindSection")
+check(EncounterScript.FindSection(nar.beats[1], "s2-the-shrine") == sec2, "FindSection")
 
 --- riders: requirements that gate or modify a test ------------------------
 
@@ -737,11 +737,11 @@ check(EncounterScript.ScalingRemovals(sb.rounds[2], 99).opportunity == 1, "6+ is
 --a deterministic draw: always the first of the pool
 local first = function(n) return 1 end
 local removed = EncounterScript.ChooseRemovedEntries(sb, 3, first)
-check(removed["r1/opportunity/hunter-s-camp"] == nil, "(Required) is never drawn")
-check(removed["r1/opportunity/standing-stones"] == true, "the removable opportunity is drawn instead")
-check(removed["r1/threat/mire"] and removed["r1/threat/fog"], "two threats asked for, two threats drawn")
-check(removed["r2/opportunity/ford"] == nil, "a round-1 directive does not reach round 2")
-check(EncounterScript.ChooseRemovedEntries(sb, 7, first)["r2/opportunity/ford"] == true, "a round-2 directive draws from round 2")
+check(removed["r1-opportunity-hunter-s-camp"] == nil, "(Required) is never drawn")
+check(removed["r1-opportunity-standing-stones"] == true, "the removable opportunity is drawn instead")
+check(removed["r1-threat-mire"] and removed["r1-threat-fog"], "two threats asked for, two threats drawn")
+check(removed["r2-opportunity-ford"] == nil, "a round-1 directive does not reach round 2")
+check(EncounterScript.ChooseRemovedEntries(sb, 7, first)["r2-opportunity-ford"] == true, "a round-2 directive draws from round 2")
 check(next(EncounterScript.ChooseRemovedEntries(sb, 2, first)) == nil, "a party outside every range loses nothing")
 check(EncounterScript.HasScaling(sb) and EncounterScript.RoundHasScaling(sb, 2), "HasScaling / RoundHasScaling")
 check(not EncounterScript.HasScaling(EncounterScript.Parse(SAMPLE).beats[1]), "a montage with no directives has no scaling")
@@ -763,7 +763,7 @@ for _, w in ipairs(overdraw.warnings) do
     if string.find(w, "introduces only 1", 1, true) then sawOverdraw = true end
 end
 check(sawOverdraw, "asking for more than the round has warns")
-check(EncounterScript.ChooseRemovedEntries(overdraw.beats[1], 3, first)["r1/threat/mire"] == true, "and drops everything it can")
+check(EncounterScript.ChooseRemovedEntries(overdraw.beats[1], 3, first)["r1-threat-mire"] == true, "and drops everything it can")
 check(string.find(EncounterScript.Describe(sp), "scaling: 3-5 players -> -1 opportunity, -1 threat", 1, true) ~= nil, "dump lists the directives")
 check(string.find(EncounterScript.Describe(sp), "Hunter's Camp (required)", 1, true) ~= nil, "dump marks required entries")
 
@@ -843,8 +843,8 @@ local lockScaled = EncounterScript.Parse(table.concat({
     "### Knock", "|Knock: Presence", "|You fail at the test", "|+1 malice", "|+2 malice",
 }, string.char(10)))
 local lockDrawn = EncounterScript.ChooseRemovedEntries(lockScaled.beats[1], 3, first)
-check(lockDrawn["r1/opportunity/interrogate-the-goblin"] == nil, "(Locked) is never drawn by a party-size directive")
-check(lockDrawn["r1/opportunity/mysterious-cottage"] == true, "the unlocked entry is the one that goes")
+check(lockDrawn["r1-opportunity-interrogate-the-goblin"] == nil, "(Locked) is never drawn by a party-size directive")
+check(lockDrawn["r1-opportunity-mysterious-cottage"] == true, "the unlocked entry is the one that goes")
 check(string.find(EncounterScript.Describe(lk), "Interrogate the Goblin (locked)", 1, true) ~= nil, "dump marks locked entries")
 check(string.find(EncounterScript.Describe(lk), "The Pact (required) (locked)", 1, true) ~= nil, "dump marks both tags")
 
@@ -1088,5 +1088,291 @@ local orphan = EncounterScript.Parse(table.concat({
 }, string.char(10)))
 check(#orphan.warnings == 1 and string.find(orphan.warnings[1], "nothing unlocks Intelligence", 1, true) ~= nil,
     "an intelligence clause with no unlock warns: " .. table.concat(orphan.warnings, "; "))
+
+--- scenes -------------------------------------------------------------------------
+
+local SCENE = table.concat({
+    "# Montage",
+    "",
+    "## Round 1",
+    "",
+    "## Opportunity: Mysterious Cottage",
+    "",
+    "A mysterious cottage lays off the path. Dare you approach?",
+    "",
+    "---",
+    "",
+    "PC approaches the cottage...",
+    "",
+    "PC: I see a Witch within! What is she brewing?",
+    "",
+    "Witch (Hag) enters",
+    "",
+    "Witch: (in Hyrallic) Oh now ancient spirits, bless this brew I make.",
+    "",
+    "if PC speaks Hyrallic then",
+    "    PC: She brews potion of healing, perhaps she is friendly?",
+    "else",
+    "    PC: I wonder of what she speaks? Is she wicked?",
+    "end",
+    "",
+    "If you listen closely, you hear bubbling.",
+    "",
+    "Beware: the path is steep.",
+    "",
+    "### Negotiate with her for some aid",
+    "",
+    "PC: Good morrow! Might you offer us some aid?",
+    "",
+    "|Negotiation Test: Presence (Empathize, Lie, Flirt, Persuade)",
+    "|You fail at the test => The witch is unimpressed.",
+    "|You gain a small boon => You gain one Healing Potion",
+    "|You gain a large boon => Each party member gains one Healing Potion",
+    "",
+    "if tier1 then",
+    "    Witch: Begone, lest I turn you into a toad!",
+    "elseif tier2 then",
+    "    Witch: Very well take this and begone.",
+    "else",
+    "    Witch: Here take some potions for you and also your friends.",
+    "    Witch exits",
+    "end",
+    "",
+    "### Steal some potions",
+    "",
+    "|Thievery Test: Agility (Sneak)",
+    "|You lose 6 Stamina.",
+    "|You lose 6 Stamina. Each party member gains one Healing Potion.",
+    "|Each party member gains one Healing Potion",
+    "",
+    "if PC chose Steal some potions and not tier1 then",
+    "    PC: Got them!",
+    "end",
+}, string.char(10))
+
+local sceneParse = EncounterScript.Parse(SCENE)
+local sceneWarnings = {}
+for _, w in ipairs(sceneParse.warnings) do
+    --flavour text in a tier is the tier grammar's business, not the scene's
+    if string.find(w, "unrecognized effect", 1, true) == nil then
+        sceneWarnings[#sceneWarnings + 1] = w
+    end
+end
+check(#sceneWarnings == 0, "the scene sample parses clean: " .. table.concat(sceneWarnings, "; "))
+local cottage = EncounterScript.MontageEntries(sceneParse.beats[1])[1]
+check(cottage.scripted == true, "--- marks the entry scripted")
+check(cottage.description == "A mysterious cottage lays off the path. Dare you approach?", "the card text stops at ---")
+check(cottage.actors["witch"] ~= nil and cottage.actors["witch"].monster == "Hag", "the witch is an actor played by the Hag")
+check(#cottage.scene == 7, "the intro has 7 top-level steps, got " .. #cottage.scene)
+check(cottage.scene[1].kind == "narrate" and cottage.scene[1].text == "PC approaches the cottage...", "narration")
+check(cottage.scene[2].kind == "say" and cottage.scene[2].speaker == "PC", "PC speech")
+check(cottage.scene[3].kind == "enter" and cottage.scene[3].name == "Witch", "an entrance")
+check(cottage.scene[4].kind == "say" and cottage.scene[4].lang == "Hyrallic"
+    and cottage.scene[4].text == "Oh now ancient spirits, bless this brew I make.", "a language tag is lifted off the line")
+check(cottage.scene[5].kind == "if" and cottage.scene[5].elseSteps ~= nil, "an if/else block")
+check(cottage.scene[6].kind == "narrate", "narration that starts with 'If' is not a branch")
+check(cottage.scene[7].kind == "narrate", "'Beware:' is not a speaker")
+local negotiate = cottage.options[1]
+check(negotiate.text == "" and #negotiate.preScene == 1 and negotiate.preScene[1].kind == "say", "the option's line above the roll is its pre-roll scene")
+check(negotiate.roll ~= nil and #negotiate.roll.tiers == 3, "the roll still parses under a pre-roll scene")
+check(#negotiate.postScene == 1 and #negotiate.postScene[1].branches == 2, "the if/elseif/else after the roll is the outcome scene")
+
+--flattening for one hero
+local function Env(facts, tier, chose)
+    return {
+        tier = tier,
+        actors = cottage.actors,
+        test = function(atom)
+            if atom.op == "speaks" then return facts.speaks == string.lower(atom.name) end
+            if atom.op == "chose" then return chose ~= nil and string.lower(atom.name) == string.lower(chose) end
+            return false
+        end,
+    }
+end
+local cast = {}
+local intro = EncounterScript.FlattenScene(cottage.scene, Env({ speaks = "hyrallic" }), cast)
+check(#intro == 6, "six lines play in the intro, got " .. #intro)
+check(#intro[2].cast == 0 and #intro[3].cast == 1 and intro[3].cast[1].name == "Witch", "the witch is on stage from her first line")
+check(string.find(intro[4].text, "potion of healing", 1, true) ~= nil, "the Hyrallic speaker gets the friendly branch")
+check(#cast == 1, "the witch is still on stage when the intro ends")
+local intro2 = EncounterScript.FlattenScene(cottage.scene, Env({}), {})
+check(string.find(intro2[4].text, "Is she wicked", 1, true) ~= nil, "a hero without Hyrallic gets the else branch")
+local out1 = EncounterScript.FlattenScene(negotiate.postScene, Env({}, 1), { { name = "Witch", monster = "Hag" } })
+check(#out1 == 1 and string.find(out1[1].text, "toad", 1, true) ~= nil, "tier 1 outcome line")
+local castAfter = { { name = "Witch", monster = "Hag" } }
+local out3 = EncounterScript.FlattenScene(negotiate.postScene, Env({}, 4), castAfter)
+check(#out3 == 1 and string.find(out3[1].text, "potions", 1, true) ~= nil and #castAfter == 0, "a critical takes the else branch, and the witch exits")
+local steal = cottage.options[2]
+check(#EncounterScript.FlattenScene(steal.postScene, Env({}, 2, "Steal some potions"), {}) == 1, "PC chose X and not tier1")
+check(#EncounterScript.FlattenScene(steal.postScene, Env({}, 1, "Steal some potions"), {}) == 0, "not tier1 fails on tier 1")
+
+--speech before an entrance brings the speaker on
+local early = EncounterScript.Parse(table.concat({
+    "# Montage", "## Opportunity: Shrine", "---", "Voice: Who goes there?", "Voice (Hag) enters",
+    "### Pray", "|Prayer: Presence", "|a", "|b", "|c",
+}, string.char(10)))
+local shrine = EncounterScript.MontageEntries(early.beats[1])[1]
+local earlyLines = EncounterScript.FlattenScene(shrine.scene, { actors = shrine.actors, test = function() return false end }, {})
+check(#earlyLines == 1 and earlyLines[1].kind == "say" and #earlyLines[1].cast == 1 and earlyLines[1].cast[1].monster == "Hag",
+    "a speaker is brought on stage by their first line")
+
+--emotes: a stage direction or a tag on a speaker, landing on the next line
+local emoteParse = EncounterScript.Parse(table.concat({
+    "# Montage", "## Opportunity: Hut", "---",
+    "Witch (Hag) enters", "Witch is alarmed", "PC is alert", "Witch: Who goes there?",
+    "Witch (scared): Please, spare me!", "The forest is alert.", "Witch is sleepy",
+    "### Knock", "|Knock: Presence", "|a", "|b", "|c",
+}, string.char(10)))
+local hut = EncounterScript.MontageEntries(emoteParse.beats[1])[1]
+check(hut.scene[2].kind == "emote" and hut.scene[2].name == "Witch" and hut.scene[2].emote == "alarmed", "'Witch is alarmed' is an emote")
+check(hut.scene[3].kind == "emote" and hut.scene[3].name == "PC" and hut.scene[3].emote == "alert", "'PC is alert' is an emote")
+check(hut.scene[5].kind == "say" and hut.scene[5].speaker == "Witch" and hut.scene[5].emote == "scared"
+    and hut.scene[5].text == "Please, spare me!", "'Witch (scared): ...' is speech with an emote")
+check(hut.scene[6].kind == "narrate", "'The forest is alert.' names no character: narration")
+check(hut.scene[7].kind == "narrate", "an unknown emote word is narration")
+local emoteLines = EncounterScript.FlattenScene(hut.scene, { actors = hut.actors, test = function() return false end }, {})
+check(#emoteLines == 4, "emote directions are not lines of their own, got " .. #emoteLines)
+check(emoteLines[1].emotes ~= nil and #emoteLines[1].emotes == 2 and emoteLines[1].emotes[1].emote == "alarmed"
+    and emoteLines[1].emotes[2].name == "PC", "both emotes land on the next line")
+check(emoteLines[2].emotes ~= nil and emoteLines[2].emotes[1].name == "Witch" and emoteLines[2].emotes[1].emote == "scared",
+    "a speaker's own emote lands on their line")
+check(emoteLines[3].emotes == nil, "a line with no emote carries none")
+
+--delves: a "# Delve:" section of obstacles, a chest table and scenes,
+--entered by an option's "Delve: <Name>" line
+local DELVE = table.concat({
+    "# Montage", "## Round 1",
+    "## Opportunity: Forbidden Tomb", "A tomb.", "---", "PC reads the door.",
+    "### Enter the tomb", "PC: In we go.", "Delve: Forbidden Tomb",
+    "# Delve: Forbidden Tomb", "Chest: every 1-2 obstacles",
+    "## Obstacle: The Restless Dead", "Bones stir.", "---", "Skeleton (Soulwight) enters", "Skeleton: Leave!",
+    "### Fight them", "|Combat Test: Might or Agility", "|You lose two recoveries. The undead are destroyed.", "|You lose a recovery.", "|The undead are destroyed.",
+    "## Obstacle: A Pit", "A pit.",
+    "### Jump it", "|Jump Test: Agility", "|You lose a recovery.", "|You lose a recovery.", "|Nothing.",
+    "## Chest", "PC pries open a chest.",
+    "|Treasure: 1d6", "|1-2: You gain one Healing Potion", "|3: You gain one Black Ash Dart", "|4-6: You gain one Buzz Balm",
+    "## Continue", "PC: Deeper, or back?",
+    "## Forced Out", "PC staggers out.",
+}, string.char(10))
+local delveParse = EncounterScript.Parse(DELVE)
+local delveWarns = {}
+for _, w in ipairs(delveParse.warnings) do
+    if string.find(w, "unrecognized effect", 1, true) == nil then delveWarns[#delveWarns + 1] = w end
+end
+check(#delveWarns == 0, "the delve sample parses clean: " .. table.concat(delveWarns, "; "))
+check(#delveParse.beats == 1, "a delve is not a beat")
+local tomb = EncounterScript.FindDelve(delveParse, "forbidden tomb")
+check(tomb ~= nil and tomb.name == "Forbidden Tomb", "FindDelve by name, any case")
+check(tomb.chestEvery[1] == 1 and tomb.chestEvery[2] == 2, "Chest: every 1-2 obstacles")
+check(#tomb.obstacles == 2 and tomb.obstacles[1].id == "d-forbidden-tomb-the-restless-dead", "obstacles with ids")
+check(tomb.obstacles[1].scripted and #tomb.obstacles[1].scene == 2 and tomb.obstacles[1].actors["skeleton"] ~= nil, "an obstacle's scene and cast")
+check(#tomb.obstacles[1].options == 1 and #tomb.obstacles[1].options[1].roll.tiers == 3, "an obstacle's test")
+check(tomb.obstacles[2].scripted == nil and tomb.obstacles[2].description == "A pit.", "an unscripted obstacle keeps its card text")
+local chestSec = tomb.sections.chest
+check(chestSec ~= nil and chestSec.scene ~= nil and #chestSec.scene == 1, "the chest scene")
+check(chestSec.table ~= nil and chestSec.table.dice == "1d6" and #chestSec.table.rows == 3, "the chest table")
+check(EncounterScript.ChestRow(chestSec.table, 2).text == "You gain one Healing Potion", "row 1-2")
+check(EncounterScript.ChestRow(chestSec.table, 5).effects[1].kind == "item", "row 4-6 grants an item")
+check(tomb.sections.continue ~= nil and tomb.sections.forced ~= nil and tomb.sections.leave == nil, "named sections")
+local tombEntry = EncounterScript.MontageEntries(delveParse.beats[1])[1]
+check(tombEntry.options[1].delve == "Forbidden Tomb" and tombEntry.options[1].roll == nil, "the option enters the delve")
+check(#tombEntry.options[1].preScene == 1, "'Delve:' is not a scene line")
+local noDelve = EncounterScript.Parse(table.concat({
+    "# Montage", "## Opportunity: Hole", "### Go in", "Delve: Nowhere",
+}, string.char(10)))
+check(string.find(table.concat(noDelve.warnings, "; "), "there is no '# Delve: Nowhere'", 1, true) ~= nil, "a missing delve warns")
+
+--authoring mistakes warn
+local bad = EncounterScript.Parse(table.concat({
+    "# Montage", "## Opportunity: Shrine", "---",
+    "if tier2 then", "It glows.", "end", "else", "if PC speaks Caelian then", "Hello.",
+    "### Pray", "PC chose Dance", "|Prayer: Presence", "|a", "|b", "|c",
+    "if PC chose Dance then", "x", "end",
+}, string.char(10)))
+local warnText = table.concat(bad.warnings, "; ")
+check(string.find(warnText, "only known in the lines below", 1, true) ~= nil, "a tier test before the roll warns")
+check(string.find(warnText, "'else' has no 'if'", 1, true) ~= nil, "a stray else warns")
+check(string.find(warnText, "never closed", 1, true) ~= nil, "an unclosed if warns")
+check(string.find(warnText, "names no '### option'", 1, true) ~= nil, "PC chose <unknown option> warns")
+
+--conditions
+local tree, problems = EncounterScript.ParseCondition("not (PC is Polder or PC has Magic) and crit then")
+check(#problems == 0 and tree.op == "and" and tree.a.op == "not" and tree.a.a.op == "or" and tree.b.op == "tier" and tree.b.tier == 4,
+    "not / parentheses / or / and / crit")
+
+--garbling
+local g1 = EncounterScript.Garble("Oh now, ancient spirits!", "Hyrallic")
+check(g1 ~= "Oh now, ancient spirits!" and #g1 == #"Oh now, ancient spirits!" and string.sub(g1, 3, 3) == " "
+    and string.sub(g1, -1) == "!", "garbled text keeps its shape: " .. g1)
+check(EncounterScript.Garble("Oh now, ancient spirits!", "Hyrallic") == g1, "garbling is deterministic")
+check(EncounterScript.SubstitutePC("PC sees PC's reflection in PCB", "Shadow") == "Shadow sees Shadow's reflection in PCB", "PC substitution")
+
+--an unscripted entry is unchanged: option prose is still its description
+local plain = EncounterScript.MontageEntries(EncounterScript.Parse(SAMPLE).beats[1])[1]
+check(plain.scripted == nil and plain.scene == nil, "an entry without --- has no scene")
+
+--sub-documents: a line that is only a link splices that document in
+do
+    local NL = string.char(10)
+    local docs = {
+        cottage = { id = "cottage", name = "Mysterious Cottage", text = table.concat({
+            "## Opportunity: Mysterious Cottage", "", "A cottage.", "",
+            "### Knock", "|Test: Presence", "|a", "|b", "|c", "",
+            "[:Cottage Extras]",
+        }, NL) },
+        extras = { id = "extras", name = "Cottage Extras", text = table.concat({
+            "### Peek", "|Peek Test: Agility", "|a", "|b", "|c", "|oops: nothing",
+        }, NL) },
+        loop = { id = "loop", name = "Loop", text = "[Loop](document:Loop)" },
+    }
+    local byName = { ["mysterious cottage"] = docs.cottage, ["cottage extras"] = docs.extras, ["loop"] = docs.loop }
+    local function resolve(target)
+        local key = string.lower(target):gsub("^document:", "")
+        if byName[key] ~= nil then
+            return byName[key]
+        end
+        if key == "goblin" then
+            return nil, nil --a monster: a link, not a document
+        end
+        return nil, "names no journal document"
+    end
+
+    check(EncounterScript.IncludeTarget("[:Cottage]") == "Cottage", "embed form")
+    check(EncounterScript.IncludeTarget("  [Go there](document:Cottage)  ") == "document:Cottage", "full link form")
+    check(EncounterScript.IncludeTarget("[Cottage]") == "Cottage", "shorthand form")
+    check(EncounterScript.IncludeTarget("[[scene]]") == nil, "a rich tag is not a link")
+    check(EncounterScript.IncludeTarget("[x]") == nil and EncounterScript.IncludeTarget("[ ]") == nil, "checkboxes are not links")
+    check(EncounterScript.IncludeTarget("![map](img.png)") == nil, "an image is not a link")
+    check(EncounterScript.IncludeTarget("See [Cottage] for more.") == nil, "a link inside a sentence is only a link")
+
+    local root = { id = "root", name = "Encounter", text = table.concat({
+        "# Montage", "", "[[scene]]", "", "## Round 1", "",
+        "[The cottage](document:Mysterious Cottage)",
+        "[Goblin]",
+        "[Nowhere]",
+        "[:Loop]",
+        "", "# Encounter", "", "[[encounter]]",
+    }, NL) }
+    local expansion = EncounterScript.ExpandIncludes(root, resolve)
+    local parse = EncounterScript.ParseExpanded(expansion, "root")
+    local entries = EncounterScript.MontageEntries(parse.beats[1])
+    check(#parse.beats == 2 and #entries == 1 and entries[1].name == "Mysterious Cottage", "the linked entry is spliced into the round")
+    check(#entries[1].options == 2 and entries[1].options[2].name == "Peek", "a nested embed splices too")
+    check(parse.included.cottage ~= nil and parse.included.extras ~= nil and parse.included.loop ~= nil, "included lists every spliced document")
+    check(string.find(expansion.text, "[Goblin]", 1, true) ~= nil, "a link to a non-document stays as text")
+    local warnText = table.concat(parse.warnings, "; ")
+    check(string.find(warnText, "line 9: 'Nowhere' names no journal document", 1, true) ~= nil, "an unresolved link warns with its line: " .. warnText)
+    check(string.find(warnText, "'Loop' line 1: 'Loop' includes itself", 1, true) ~= nil, "a cycle warns and stops")
+    check(string.find(warnText, "'Cottage Extras' line 6:", 1, true) ~= nil, "a parser warning names the sub-document and its own line")
+    local peek = entries[1].options[2]
+    check(EncounterScript.LineLabel(parse, peek.line) == "'Cottage Extras' line 1", "LineLabel maps an expanded line home")
+    check(EncounterScript.LineLabel(parse, parse.beats[1].sceneLine) == "line 3" and parse.beats[1].sceneTag == "scene", "sceneLine records the tag's line")
+
+    --the journal's repeated-tag keys
+    local tagged = table.concat({ "[[scene]]", "x", "[[scene]] and [[scene]]", "[[scene]]" }, NL)
+    check(EncounterScript.AnnotationKey(tagged, "scene", 1) == "scene", "first tag")
+    check(EncounterScript.AnnotationKey(tagged, "scene", 3) == "scene-1", "second tag")
+    check(EncounterScript.AnnotationKey(tagged, "scene", 4) == "scene-3", "a line after a line with two tags")
+end
 
 print(string.format("encounter_script_test: %d checks passed", passed))

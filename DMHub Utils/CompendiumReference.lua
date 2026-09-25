@@ -1,7 +1,8 @@
 local mod = dmhub.GetModLoading()
 
 
-RegisterGameType("CompendiumReference")
+--- @class CompendiumReference: GameType
+CompendiumReference = RegisterGameType("CompendiumReference")
 
 CompendiumReference.targetTable = ""
 CompendiumReference.targetid = ""

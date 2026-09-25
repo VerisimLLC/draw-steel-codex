@@ -1940,6 +1940,7 @@ local function _buildOverviewSection(ability, fireChange)
                 options = categoryOptions,
                 sort = true,
                 change = function(element)
+                    ---@cast element Dropdown
                     ability.categorization = element.idChosen
                     fireChange()
                 end,
@@ -1970,6 +1971,7 @@ local function _buildOverviewSection(ability, fireChange)
                         { id = "Villain Action 3", text = "Villain Action 3" },
                     },
                     change = function(element)
+                        ---@cast element Dropdown
                         ability.villainAction = element.idChosen
                         fireChange()
                     end,
@@ -2215,6 +2217,7 @@ _buildModesBlock = function(ability, fireChange)
                 {id = "variations", text = "Ability Variations"},
             },
             change = function(element)
+                ---@cast element Dropdown
                 ability.multipleModes = element.idChosen
                 if ability.multipleModes and ability:try_get("modeList") == nil then
                     ability.modeList = {}
@@ -2546,6 +2549,7 @@ local function _buildCostAndActionSection(ability, fireChange)
             idChosen = ability:ActionResource() or "none",
             options = CharacterResource.GetActionOptions(),
             change = function(element)
+                ---@cast element Dropdown
                 ability.actionResourceId = element.idChosen
                 fireChange()
             end,
@@ -2559,6 +2563,7 @@ local function _buildCostAndActionSection(ability, fireChange)
             idChosen = ability:try_get("resourceCost", "none"),
             options = resourceOptions,
             change = function(element)
+                ---@cast element Dropdown
                 ability.resourceCost = element.idChosen
                 fireChange()
             end,
@@ -2624,6 +2629,7 @@ local function _buildCostAndActionSection(ability, fireChange)
             idChosen = ability:try_get("channeledResource", "none"),
             options = resourceOptions,
             change = function(element)
+                ---@cast element Dropdown
                 ability.channeledResource = element.idChosen
                 fireChange()
             end,
@@ -2821,6 +2827,7 @@ local function _buildCostAndActionSection(ability, fireChange)
                     idChosen = persistenceMode(),
                     options = ActivatedAbility.PersistenceModes,
                     change = function(element)
+                        ---@cast element Dropdown
                         local p = ability:get_or_add("persistence", {})
                         p.mode = element.idChosen
                         fireChange()
@@ -3282,6 +3289,7 @@ local function _buildTargetingSection(ability, fireChange)
             options = ability:GetDisplayedTargetTypeOptions(),
             idChosen = ability:GetChosenTargetTypeInDropdown(),
             change = function(element)
+                ---@cast element Dropdown
                 ability:SetChosenTargetTypeFromDropdown(element.idChosen)
                 fireChange()
             end,
@@ -3559,6 +3567,7 @@ local function _buildTargetingSection(ability, fireChange)
             },
             idChosen = affectsIdChosen(),
             change = function(element)
+                ---@cast element Dropdown
                 if element.idChosen == "all" then
                     ability.objectTarget = false
                     ability.targetAllegiance = nil
@@ -3644,6 +3653,7 @@ local function _buildTargetingSection(ability, fireChange)
             },
             idChosen = ability:try_get("targeting", "direct"),
             change = function(element)
+                ---@cast element Dropdown
                 ability.targeting = element.idChosen
                 fireChange()
             end,
@@ -3685,6 +3695,7 @@ local function _buildTargetingSection(ability, fireChange)
                 options = ActivatedAbility.ForcedMovementTypes,
                 idChosen = ability:try_get("forcedMovement", "slide"),
                 change = function(element)
+                    ---@cast element Dropdown
                     ability.forcedMovement = element.idChosen
                     fireChange()
                 end,
@@ -4518,6 +4529,7 @@ local function _buildPresentationSection(ability, fireChange)
                 options = DisplayGradients.GetOptions(),
                 idChosen = ability:try_get("iconGradient", "none"),
                 change = function(element)
+                    ---@cast element Dropdown
                     ability.iconGradient = element.idChosen
                     refreshIconDisplay()
                     fireChange()
@@ -4566,6 +4578,7 @@ local function _buildPresentationSection(ability, fireChange)
         sort = true,
         idChosen = ability:try_get("castingEmote", "none"),
         change = function(element)
+            ---@cast element Dropdown
             if element.idChosen == "none" then
                 ability.castingEmote = nil
             else
@@ -4582,6 +4595,7 @@ local function _buildPresentationSection(ability, fireChange)
         sort = true,
         idChosen = ability:try_get("impactEmote", "none"),
         change = function(element)
+            ---@cast element Dropdown
             if element.idChosen == "none" then
                 ability.impactEmote = nil
             else
@@ -4612,6 +4626,7 @@ local function _buildPresentationSection(ability, fireChange)
             element.idChosen = ability.projectileObject
         end,
         change = function(element)
+            ---@cast element Dropdown
             ability.projectileObject = element.idChosen
             fireChange()
         end,

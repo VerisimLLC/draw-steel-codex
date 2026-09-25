@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("Hud")
+--- @class Hud: GameType
+Hud = RegisterGameType("Hud")
 
 function Hud.HasFocus(self)
 	return gui.HasFocus()
@@ -782,7 +783,8 @@ function Hud:UploadDialog(options)
 	return dialog
 end
 
-RegisterGameType("GameHud", "Hud")
+--- @class GameHud: Hud
+GameHud = RegisterGameType("GameHud", "Hud")
 
 -- Fullscreen host panel for the shop/inventory screen. Set by
 -- dmhub.CreateGameHud for the in-game hud; stays false for the lobby hud

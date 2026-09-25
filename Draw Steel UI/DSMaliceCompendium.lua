@@ -218,6 +218,7 @@ CreateEditorPanel = function(key, monsterGroup)
                                     return opts
                                 end)(),
                                 change = function(element)
+                                    ---@cast element Dropdown
                                     ability.minLevel = tonumber(element.idChosen)
                                     dmhub.SetAndUploadTableItem(MonsterGroup.tableName, monsterGroup)
                                 end,

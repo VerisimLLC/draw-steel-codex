@@ -21,7 +21,8 @@ local g_menuGradient = gui.Gradient{
     },
 }
 
-RegisterGameType("TokenHud", "Hud")
+--- @class TokenHud: Hud
+TokenHud = RegisterGameType("TokenHud", "Hud")
 
 local RadialStyles = {
 	gui.Style{

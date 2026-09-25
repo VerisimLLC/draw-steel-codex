@@ -69,6 +69,7 @@ CharacterModifier.TypeInfo.conditionsourcebestow = {
 
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								modifier.sourceConditionid = element.idChosen
 								Refresh()
 							end,
@@ -114,6 +115,7 @@ CharacterModifier.TypeInfo.conditionsourcebestow = {
 
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								modifier.conditionid = element.idChosen
 								Refresh()
 							end,

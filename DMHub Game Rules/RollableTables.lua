@@ -527,6 +527,7 @@ local SetData = function(tableName, rolltablePanel, key, options)
 				options = rollTypes,
 				idChosen = data.rollType,
 				change = function(element)
+					---@cast element Dropdown
 					data.rollType = element.idChosen
 					UploadTable()
 					Rebuild()
@@ -615,6 +616,7 @@ local SetData = function(tableName, rolltablePanel, key, options)
 				},
 
 				change = function(element)
+					---@cast element Dropdown
 					data.visibility = element.idChosen
 					UploadTable()
 					tablePanel:FireEvent("refreshTable")

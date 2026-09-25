@@ -2119,6 +2119,7 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
 				optionChosen = resistanceEntry.apply,
 				events = {
 					change = function(element)
+						---@cast element Dropdown
 						resistanceEntry.apply = element.optionChosen
 						resultPanel:FireEvent("change")
 						element.parent:FireEventTree("refresh")
@@ -2188,6 +2189,7 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
 
 				events = {
 					change = function(element)
+						---@cast element Dropdown
 						if element.optionChosen == 'all' then
 							resistanceEntry.nonmagic = nil
 						else
@@ -2219,6 +2221,7 @@ local EditResistanceEntry = function(creature, resistanceEntry, params)
 
 				events = {
 					change = function(element)
+						---@cast element Dropdown
 						resistanceEntry.damageType = element.optionChosen
 						resultPanel:FireEvent("change")
 					end,
@@ -2379,6 +2382,7 @@ function CharSheet.CharacterSheetEditLanguagesPopup(element, info)
 		end,
 
 		change = function(element)
+			---@cast element Dropdown
 			if element.idChosen ~= "none" then
 				if element.idChosen == "custom" then
 					creature.customInnateLanguage = ""
@@ -2458,6 +2462,7 @@ function CharSheet.CharacterSheetEditLanguagesPopup(element, info)
 							end,
 
 							change = function(element)
+								---@cast element Dropdown
 								if element.idChosen == "_erase" then
 									creature.innateEquipmentProficiencies[equipid] = nil
 								else
@@ -2498,6 +2503,7 @@ function CharSheet.CharacterSheetEditLanguagesPopup(element, info)
 		end,
 
 		change = function(element)
+			---@cast element Dropdown
 			if element.idChosen ~= "none" then
 				creature:get_or_add("innateEquipmentProficiencies", {})[element.idChosen] = { proficiency = GameSystem.ProficientId() }
 				resultPanel:FireEventTree("refreshPanel")
@@ -3025,6 +3031,7 @@ function CharSheet.CharacterSheetEditResistancesPopup(element, info)
 		end,
 
 		change = function(element)
+			---@cast element Dropdown
 			if element.idChosen == "none" then
 				return
 			end
@@ -3276,6 +3283,7 @@ function CharSheet.CharacterSheetAvatarPanel()
 			end,
 
 			change = function(element)
+				---@cast element Dropdown
 				if element.idChosen == "gm" then
 					CharacterSheet.instance.data.info.token.ownerId = nil
 				elseif GetParty(element.idChosen) ~= nil then
@@ -3471,6 +3479,7 @@ function CharSheet.CharacterSheetAvatarPanel()
 						options = sizes,
 						idChosen = info.token.properties:try_get("creatureSizeOverride", "none"),
 						change = function(element)
+							---@cast element Dropdown
 							if element.idChosen == "none" then
 								info.token.properties.creatureSizeOverride = nil
 							else
@@ -3488,6 +3497,7 @@ function CharSheet.CharacterSheetAvatarPanel()
 						options = creature.sizes,
 						idChosen = info.token.properties:GetBaseCreatureSize() or info.token.creatureSize,
 						change = function(element)
+							---@cast element Dropdown
 							info.token.properties.creatureSize = element.idChosen
 							CharacterSheet.instance:FireEvent("refreshAll")
 						end,
@@ -5407,6 +5417,7 @@ function CharSheet.CharacterFeaturesPanel()
 							end,
 
 							change = function(element)
+								---@cast element Dropdown
 								local choice = element.idChosen
 								if choice == 'none' then
 									choice = nil

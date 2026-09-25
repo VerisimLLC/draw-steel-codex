@@ -725,6 +725,7 @@ local function BuildParamRows(macroName, params, values, onChanged)
                 halign = "right",
                 valign = "center",
                 change = function(element)
+                    ---@cast element Dropdown
                     values[index] = element.idChosen
                     Changed()
                 end,

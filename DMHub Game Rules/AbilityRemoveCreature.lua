@@ -38,34 +38,21 @@ function ActivatedAbilityRemoveCreatureBehavior:DropLoot(token, newObj)
 	local inventory = DeepCopy(token.properties:try_get("inventory", {}))
 
 
-	--drop the held items as well.
-    --[[ --In Draw Steel held equipment is only e.g. torches so we don't drop.
-	local equip = token.properties:Equipment()
-	local sharesSeen = {}
-	for slotid,itemid in pairs(equip) do
-		
-		--make sure this isn't a shared slot.
-		local metaslot = token.properties:EquipmentMetaSlot(slotid)
-		local seen = false
-		if metaslot.share ~= nil then
-			if sharesSeen[metaslot.share] then
-				seen = true
-			else
-				sharesSeen[metaslot.share] = true
-			end
-		end
-
-		if not seen then
+	--Draw Steel keeps real treasure in the leveled and trinket slots, so only
+	--those drop -- the hands are mostly torches. Walking slots rather than item
+	--categories also picks up artifacts, which share the leveled slots.
+	for slotid,itemid in pairs(token.properties:Equipment()) do
+		local slotInfo = creature.EquipmentSlots[slotid]
+		if slotInfo ~= nil and (slotInfo.leveled or slotInfo.trinket) then
 			local entry = inventory[itemid]
 			if entry == nil then
-				entry = {quantity = 0}
+				entry = { quantity = 0 }
 				inventory[itemid] = entry
 			end
 
-			entry.quantity = entry.quantity + 1
+			entry.quantity = (entry.quantity or 0) + 1
 		end
 	end
-    --]]
 
 	local haveItems = false
 	for _,itemid in pairs(inventory) do

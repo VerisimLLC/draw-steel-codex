@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("ActivatedAbilityChangeTerrainBehavior", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityChangeTerrainBehavior: ActivatedAbilityBehavior
+ActivatedAbilityChangeTerrainBehavior = RegisterGameType("ActivatedAbilityChangeTerrainBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
 {
@@ -117,6 +118,7 @@ function ActivatedAbilityChangeTerrainBehavior:EditorItems(parentPanel)
                 { id = 'square', text = 'Square' },
             },
             change = function(element)
+                ---@cast element Dropdown
                 self.shape = element.idChosen
             end,
         }
@@ -170,6 +172,7 @@ function ActivatedAbilityChangeTerrainBehavior:EditorItems(parentPanel)
             sort = true,
             options = terrainOptions,
             change = function(element)
+                ---@cast element Dropdown
                 self.tileid = element.idChosen
             end,
         }

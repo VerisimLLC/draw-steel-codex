@@ -933,9 +933,12 @@ local function RebuildZoneCache()
     end
 
     --"Entire Map" types: one aura per floor over everything the painted zones
-    --left it, and NO overlay entry - a blanket that striped the whole map
-    --would bury the zones the DM is painting. They go in auraSources like any
-    --other zone so a live dispelling aura suppresses them the same way.
+    --left it. A plain blanket gets NO overlay entry - striping the whole map
+    --would bury the zones the DM is painting - but a dynamic-light blanket
+    --(Darkness) does: its tiles are only the dark ones, and seeing where the
+    --light reaches is the point. Same opt-in as a painted zone (the Map
+    --Overlay's per-type checkbox). They go in auraSources/overlaySources like
+    --any other zone so a live dispelling aura suppresses them the same way.
     m.entireMap.Rebuild(floorList)
     for _,entry in ipairs(m.entireMap.entries) do
         local locsUserdata = {}
@@ -947,6 +950,24 @@ local function RebuildZoneCache()
             }
         end
         entry.locsUserdata = locsUserdata
+
+        if dynThresholds[entry.keywordid] ~= nil and #locsUserdata > 0 then
+            m.zoneOverlayZones[#m.zoneOverlayZones+1] = {
+                locs = locsUserdata,
+                color = ZoneOverlayColor(entry.patternColor),
+                angleRadians = entry.patternAngle,
+                label = ZoneOverlayLabel(entry),
+                playerVisible = false,
+                difficultTerrain = entry.flags.difficultTerrain,
+                water = entry.flags.water,
+                concealment = entry.flags.concealment,
+                climbable = entry.flags.climbable,
+                floorIndex = entry.floorIndex,
+                keywordid = entry.keywordid,
+                zonegroup = m.zoneStripes.GroupKey(entry),
+            }
+            m.dispelState.overlaySources[#m.zoneOverlayZones] = entry
+        end
 
         local instance = BuildZoneAuraInstance(entry)
         if instance ~= nil then
@@ -1766,7 +1787,8 @@ function MapMarkup.GetZoneTypesOnMap()
         end
     end
     --"Entire Map" blankets: the type is in force even though nothing is drawn
-    --for it. Never player-visible.
+    --for it (except dynamic-light blankets, which stripe their dark tiles).
+    --Never player-visible.
     for _,entry in ipairs(m.entireMap.entries) do
         Add(entry.keywordid, entry.keywordName or entry.name, entry.patternColor, false)
     end

@@ -41,6 +41,7 @@ LaunchablePanel.Register{
                     idChosen = m_font,
                     options = fontOptions,
                     change = function(element)
+                        ---@cast element Dropdown
                         m_font = element.idChosen
                         resultPanel:FireEventTree("refreshFont")
                     end,

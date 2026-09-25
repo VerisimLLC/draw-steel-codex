@@ -97,6 +97,7 @@ local BrushFieldEditors = {
 			idChosen = asset[args.field],
 
 			change = function(element)
+				---@cast element Dropdown
 				asset[args.field] = element.idChosen
 				--if not args.temporary then
 					asset:Upload()
@@ -196,6 +197,7 @@ local BrushFieldEditors = {
 
 								idChosen = param.source,
 								change = function(element)
+									---@cast element Dropdown
 									param = asset:GetParameter(args.field)
 									param.source = element.idChosen
 									asset:SetParameter(args.field, param)

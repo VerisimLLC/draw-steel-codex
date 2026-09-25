@@ -218,6 +218,7 @@ local SetData = function(tableName, currencyPanel, condid)
 				element.options = possibleStandards
 			end,
 			change = function(element)
+				---@cast element Dropdown
 				currency.standard = element.idChosen
 				valuePanel:FireEvent("showValue")
 				UploadCurrency()

@@ -7,7 +7,7 @@ local mod = dmhub.GetModLoading()
 --- The host ability must use a point/area target type so that options.targetArea is populated.
 --- @field summary string Short label shown in the behavior list in the ability editor.
 --- @field auraName string Name of the caster's aura to relocate (matched against AuraInstance.name).
-RegisterGameType("ActivatedAbilityRelocateAuraBehavior", "ActivatedAbilityBehavior")
+ActivatedAbilityRelocateAuraBehavior = RegisterGameType("ActivatedAbilityRelocateAuraBehavior", "ActivatedAbilityBehavior")
 
 -- Register this behavior so it can be selected and added to any ability in the ability editor.
 ActivatedAbility.RegisterType{
@@ -143,7 +143,7 @@ end
 --- choice and has no Lua surface to hook.
 --- @field summary string Short label shown in the behavior list in the ability editor.
 --- @field auraName string Name of the portal aura to link (matched against the placed aura's name).
-RegisterGameType("ActivatedAbilityPortalTransitBehavior", "ActivatedAbilityBehavior")
+ActivatedAbilityPortalTransitBehavior = RegisterGameType("ActivatedAbilityPortalTransitBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType{
     id = "portal_transit",
@@ -993,7 +993,8 @@ local function FitGrownFootprint(tok)
 end
 
 --- @field floatText string Label floated over each pulled creature ("" for none).
-RegisterGameType("ActivatedAbilityPullIntoCasterBehavior", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityPullIntoCasterBehavior: ActivatedAbilityBehavior
+ActivatedAbilityPullIntoCasterBehavior = RegisterGameType("ActivatedAbilityPullIntoCasterBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType{
     id = 'pull_into_caster',
@@ -1067,7 +1068,8 @@ end
 --- @field addAsTarget boolean Replace the cast's targets with the displaced creatures.
 --- @field promptText string Prompt shown when several squares are equally near.
 --- @field floatText string Label floated over each displaced creature ("" for none).
-RegisterGameType("ActivatedAbilityDisplaceOverlappingBehavior", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityDisplaceOverlappingBehavior: ActivatedAbilityBehavior
+ActivatedAbilityDisplaceOverlappingBehavior = RegisterGameType("ActivatedAbilityDisplaceOverlappingBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType{
     id = 'displace_overlapping',
@@ -1257,6 +1259,7 @@ function ActivatedAbilityDisplaceOverlappingBehavior:EditorItems(parentPanel)
                 options = effectOptions,
                 idChosen = self:try_get(field, ""),
                 change = function(element)
+                    ---@cast element Dropdown
                     self[field] = element.idChosen
                 end,
             },
@@ -1315,7 +1318,7 @@ end
 --- @field searchRadius number How far (squares) around the line's end to look for a free landing square.
 --- @field addAsTarget boolean Append the hurled creature to the cast's targets for later behaviors.
 --- @field promptText string Prompt shown when the director must choose between equally near squares.
-RegisterGameType("ActivatedAbilityHurlGrabbedBehavior", "ActivatedAbilityBehavior")
+ActivatedAbilityHurlGrabbedBehavior = RegisterGameType("ActivatedAbilityHurlGrabbedBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType{
     id = 'hurl_grabbed',

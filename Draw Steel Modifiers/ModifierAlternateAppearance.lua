@@ -53,6 +53,7 @@ CharacterModifier.TypeInfo.alternateappearance = {
                 sort = true,
                 hasSearch = true,
                 change = function(element)
+                    ---@cast element Dropdown
                     modifier.monsterDefault = element.idChosen
                 end,
             }

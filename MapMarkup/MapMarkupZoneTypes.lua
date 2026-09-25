@@ -527,7 +527,9 @@ end
 --
 --Blankets deliberately do NOT feed the overlay: striping every tile of the
 --map would bury the painted zones the DM is actually working with. The lit
---button on the palette chip is the indicator.
+--button on the palette chip is the indicator. Exception: a dynamic-light
+--blanket (m.dynamicLight) stripes its currently-dark tiles, so the DM can see
+--where light reaches.
 --
 --One table rather than a handful of file-level locals, grouping the related
 --state (same reason as m.zoneStripes and m.dispelState). Rebuild is assigned
@@ -657,16 +659,17 @@ local function ZoneLocKey(x, y)
 end
 
 --Dynamic-light zone types: a zone type can be set to only apply where the map's
---light level is below a per-type threshold (the flagship use: Darkness that is
---dynamically calculated from the light on the map). The engine samples light
---deterministically (dmhub.GetDarkTiles: ambient day/night + token/object lights
---with wall shadowing, animation-free), and the sampled dark sets carve the
+--light ADDED by light sources is at or below a per-type threshold (the flagship
+--use: Darkness that recedes around torches and placed lights). The map's ambient
+--light is ignored, so 0% means "dark wherever no light reaches". The engine
+--samples light deterministically (dmhub.GetDarkTiles: token/object lights with
+--wall shadowing, animation-free), and the sampled dark sets carve the
 --type's footprints -- painted zones AND its Entire Map blanket -- exactly like
 --the dispel machinery carves them: records are untouched, the auras and overlay
 --stripes just skip lit tiles.
 --
---Per-map setting "kwid:pct;kwid:pct" (pct = light threshold percent; below it a
---tile counts as dark), sorted for a stable cache key. Sampled state lives here
+--Per-map setting "kwid:pct;kwid:pct" (pct = light threshold percent 0..100; at or
+--below it a tile counts as dark), sorted for a stable cache key. Sampled state lives here
 --too: [floorid.."@"..pct] = {state=<engine hash>, dark={[lockey]=true}}, with
 --`serial` bumped on every change so EnsureZoneCache rebuilds. All of it on ONE
 --table, grouping the related state (see m.entireMap).
@@ -724,7 +727,8 @@ function m.dynamicLight.Thresholds()
         if item ~= "" then
             local kwid, pct = string.match(item, "^(.-):(%d+)$")
             pct = tonumber(pct)
-            if kwid ~= nil and kwid ~= "" and pct ~= nil and pct > 0 then
+            --0 is valid: "dark wherever no light source reaches".
+            if kwid ~= nil and kwid ~= "" and pct ~= nil and pct >= 0 then
                 local allowed = false
                 local kw = GetKeyword(kwid)
                 if kw ~= nil then

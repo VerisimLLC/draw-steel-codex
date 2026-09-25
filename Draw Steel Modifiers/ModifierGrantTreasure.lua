@@ -222,6 +222,7 @@ CharacterModifier.TypeInfo.granttreasure = {
                 options = CATEGORY_OPTIONS,
                 idChosen = modifier:try_get("treasureCategory", "trinket"),
                 change = function(element)
+                    ---@cast element Dropdown
                     modifier.treasureCategory = element.idChosen
                     RefreshMatchCount()
                 end,
@@ -239,6 +240,7 @@ CharacterModifier.TypeInfo.granttreasure = {
                 options = ECHELON_OPTIONS,
                 idChosen = tostring(tonumber(modifier:try_get("treasureEchelon", 1)) or 1),
                 change = function(element)
+                    ---@cast element Dropdown
                     modifier.treasureEchelon = tonumber(element.idChosen) or 0
                     RefreshMatchCount()
                 end,
@@ -274,6 +276,7 @@ CharacterModifier.TypeInfo.granttreasure = {
                 options = DELIVERY_OPTIONS,
                 idChosen = modifier:try_get("treasureDelivery", "claim"),
                 change = function(element)
+                    ---@cast element Dropdown
                     modifier.treasureDelivery = element.idChosen
                 end,
             },
@@ -407,6 +410,7 @@ CharacterModifier.TypeInfo.granttreasure = {
                 options = itemOptions,
                 idChosen = chosenItemid or "none",
                 change = function(element)
+                    ---@cast element Dropdown
                     local current = GetGrantState(creature, modifier, true)
                     if current.claimed then
                         return
@@ -835,6 +839,7 @@ function ActivatedAbilityManifestTreasureBehavior:EditorItems(parentPanel)
             options = MANIFEST_MODE_OPTIONS,
             idChosen = self.mode,
             change = function(element)
+                ---@cast element Dropdown
                 self.mode = element.idChosen
             end,
         },

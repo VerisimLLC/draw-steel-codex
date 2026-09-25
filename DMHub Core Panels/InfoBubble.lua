@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("InfoBubble")
+--- @class InfoBubble: GameType
+InfoBubble = RegisterGameType("InfoBubble")
 
 local styles = {
 	{

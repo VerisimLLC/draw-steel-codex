@@ -968,6 +968,7 @@ CharacterModifier.TypeInfo.modifyability = {
 						idChosen = modifier:try_get("actionResourceId", "nochange"),
 						options = actions,
 						change = function(element)
+							---@cast element Dropdown
 							if element.idChosen == "nochange" then
 								modifier.actionResourceId = nil
 							else
@@ -1017,6 +1018,7 @@ CharacterModifier.TypeInfo.modifyability = {
 									optionChosen = attr.operation,
 									options = info.operations,
 									change = function(element)
+										---@cast element Dropdown
 										modifier.attributes[i].operation = element.optionChosen
 										Refresh()
 									end,
@@ -1055,6 +1057,7 @@ CharacterModifier.TypeInfo.modifyability = {
 									options = dummyAbility:GetDisplayedTargetTypeOptions(),
 									idChosen = attr.targeting or "self",
 									change = function(element)
+										---@cast element Dropdown
 										attr.targeting = element.idChosen
 										Refresh()
 									end,
@@ -1089,6 +1092,7 @@ CharacterModifier.TypeInfo.modifyability = {
 									},
 									idChosen = attr.allegiance or "all",
 									change = function(element)
+										---@cast element Dropdown
 										attr.allegiance = element.idChosen
 										Refresh()
 									end,
@@ -1360,6 +1364,7 @@ CharacterModifier.TypeInfo.modifyability = {
 									options = rules.damageTypesAvailable,
 									idChosen = attr.value,
 									change = function(element)
+										---@cast element Dropdown
 										modifier.attributes[i].value = element.idChosen
 										Refresh()
 									end,
@@ -1391,6 +1396,7 @@ CharacterModifier.TypeInfo.modifyability = {
 									},
 									idChosen = attr.value or "all",
 									change = function(element)
+										---@cast element Dropdown
 										modifier.attributes[i].value = element.idChosen
 										Refresh()
 									end,
@@ -1517,6 +1523,7 @@ CharacterModifier.TypeInfo.modifyability = {
 				fontSize = 16,
 
 				change = function(element)
+					---@cast element Dropdown
 					if element.idChosen == "none" then
 						return
 					end
@@ -1567,6 +1574,7 @@ CharacterModifier.TypeInfo.modifyability = {
 						},
 						idChosen = ReplaceBehaviorToEnum(modifier:try_get("replaceBehaviors", false)),
 						change = function(element)
+							---@cast element Dropdown
 							modifier.replaceBehaviors = element.idChosen
 						end,
 					}

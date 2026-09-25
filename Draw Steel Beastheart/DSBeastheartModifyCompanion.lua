@@ -120,6 +120,7 @@ CharacterModifier.TypeInfo.modsummoner = {
                 },
                 idChosen = modifier:try_get("mode", "summoner"),
                 change = function(element)
+                    ---@cast element Dropdown
                     modifier.mode = element.idChosen
                 end,
             },

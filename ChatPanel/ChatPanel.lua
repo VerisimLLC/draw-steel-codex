@@ -1730,6 +1730,7 @@ CreateChatPanel = function()
             end,
 
             change = function(element)
+                ---@cast element Dropdown
                 local tokens = dmhub.selectedOrPrimaryTokens
                 if tokens == nil or #tokens == 0 or #tokens > 1 then
                     element:SetClass("collapsed", true)

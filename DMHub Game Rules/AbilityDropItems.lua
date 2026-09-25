@@ -225,6 +225,7 @@ function ActivatedAbilityDropItemsBehavior:EditorItems(parentPanel)
             idChosen = self.slotTarget,
             options = ActivatedAbilityDropItemsBehavior.slotTargetTypes,
             change = function(element)
+                ---@cast element Dropdown
                 self.slotTarget = element.idChosen
             end,
 
@@ -242,6 +243,7 @@ function ActivatedAbilityDropItemsBehavior:EditorItems(parentPanel)
             idChosen = self.number,
             options = ActivatedAbilityDropItemsBehavior.numberOptions,
             change = function(element)
+                ---@cast element Dropdown
                 self.number = element.idChosen
             end,
 
@@ -259,6 +261,7 @@ function ActivatedAbilityDropItemsBehavior:EditorItems(parentPanel)
             idChosen = self.discardBehavior,
             options = ActivatedAbilityDropItemsBehavior.behaviorOptions,
             change = function(element)
+                ---@cast element Dropdown
                 self.discardBehavior = element.idChosen
             end,
 

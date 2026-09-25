@@ -254,6 +254,7 @@ CharacterModifier.TypeInfo.proficiency = {
 
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								if modifier.subtype ~= element.idChosen then
 									modifier.subtype = element.idChosen
 									if element.idChosen == 'skill' then
@@ -382,6 +383,7 @@ CharacterModifier.TypeInfo.proficiency = {
 
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								if element.idChosen ~= 'none' then
 									modifier.skills[element.idChosen] = true
 									Refresh()
@@ -439,6 +441,7 @@ CharacterModifier.TypeInfo.proficiency = {
 
 							events = {
 								change = function(element)
+									---@cast element Dropdown
 									if modifier.proficiency ~= element.idChosen then
 										modifier.proficiency = element.idChosen
 										Refresh()

@@ -149,7 +149,8 @@ setting{
 --clicks) and the floor up/down keybinds (macros in Commands.lua, key bindings in
 --Keybinds.lua). Registered as a game type so it is a well-formed global namespace in every
 --load context (a bare global assignment trips the strict-global guard on some reload paths).
-RegisterGameType("FloorNavigation")
+--- @class FloorNavigation: GameType
+FloorNavigation = RegisterGameType("FloorNavigation")
 
 --The live Floors & Layers list panel, if one is open. The panel registers itself here when
 --built (see CreateLayersPanel) so keybind-driven navigation can refresh its eye icons the
@@ -578,6 +579,7 @@ local function ShowFloorSettings(floor, onHeightChanged)
 				},
 				idChosen = CurrentLayerType(),
 				change = function(element)
+					---@cast element Dropdown
 					local id = element.idChosen
 					if id == "floor" then
 						floor.roof = false
@@ -1176,6 +1178,7 @@ local function ShowFloorSettings(floor, onHeightChanged)
 					},
 					idChosen = ceilingValue,
 					change = function(element)
+						---@cast element Dropdown
 						pcall(function() floor.ceiling = element.idChosen end)
 						resolvedLabel.text = ResolvedCeilingText()
 					end,

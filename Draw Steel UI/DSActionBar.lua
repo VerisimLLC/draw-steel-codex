@@ -4819,6 +4819,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                             targets = targets,
                                             reasons = retargetReasons,
                                             prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType, allowOriginal),
+                                            autoPickSole = true,
                                             choose = function(newTargetToken)
                                                 if token == nil then
                                                     return
@@ -5020,6 +5021,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                                 targets = targets,
                                                 reasons = retargetReasons,
                                                 prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType, allowOriginal),
+                                                autoPickSole = true,
                                                 choose = function(newTargetToken)
                                                     if token == nil then
                                                         return
@@ -5285,6 +5287,15 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 
 
             chooseTarget = function(element, options)
+
+                --retarget prompts with exactly one legal choice resolve without asking.
+                if options.autoPickSole then
+                    local sole = RuleUtils.SoleRetargetCandidate(options.targets, options.reasons)
+                    if sole ~= nil then
+                        options.choose(sole)
+                        return
+                    end
+                end
 
                 ClearRadiusMarkers()
 

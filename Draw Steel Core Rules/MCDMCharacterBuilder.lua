@@ -176,6 +176,7 @@ function CharSheet.FeaturePanel()
                     menuHeight = cond(hasCustomPanels, 920, 545),
 					sort = true,
 					change = function(element)
+						---@cast element Dropdown
 						local choice = element.idChosen
 						if choice == 'none' then
 							choice = nil

@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("ActivatedAbilityRaiseCorpseBehavior", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityRaiseCorpseBehavior: ActivatedAbilityBehavior
+ActivatedAbilityRaiseCorpseBehavior = RegisterGameType("ActivatedAbilityRaiseCorpseBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
 {

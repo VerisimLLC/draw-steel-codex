@@ -1962,6 +1962,7 @@ CreateImportAssetsDialog = function(args)
             element:FireEvent("change")
         end,
         change = function(element)
+            ---@cast element Dropdown
             g_currentImporterSetting:Set(element.idChosen)
             m_currentImporter = importers[element.idChosen]
             m_currentImporterId = element.idChosen

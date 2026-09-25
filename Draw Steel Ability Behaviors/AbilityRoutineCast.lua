@@ -1,7 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 --- @class ActivatedAbilityRoutineControlBehavior:ActivatedAbilityBehavior
-RegisterGameType("ActivatedAbilityRoutineControlBehavior", "ActivatedAbilityBehavior")
+ActivatedAbilityRoutineControlBehavior = RegisterGameType("ActivatedAbilityRoutineControlBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilityRoutineControlBehavior.summary = "Routine Control"
 ActivatedAbilityRoutineControlBehavior.triggerOnly = true

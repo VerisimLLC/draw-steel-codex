@@ -562,6 +562,7 @@ function CreateFollowerEditorDialog(follower, options)
                 options = types,
                 idChosen = follower.type,
                 change = function(element)
+                    ---@cast element Dropdown
                     if follower.type ~= element.idChosen then
                         follower.skills = {}
                         follower.type = element.idChosen
@@ -629,6 +630,7 @@ function CreateFollowerEditorDialog(follower, options)
                 idChosen = follower.ancestry,
                 textDefault = "Select an ancestry...",
                 change = function(element)
+                    ---@cast element Dropdown
                     follower.ancestry = element.idChosen
                 end,
             }
@@ -661,6 +663,7 @@ function CreateFollowerEditorDialog(follower, options)
                 idChosen = follower.characteristic,
                 textDefault = "Select a characteristic...",
                 change = function(element)
+                    ---@cast element Dropdown
                     follower.characteristic = element.idChosen
                 end,
             }
@@ -788,6 +791,7 @@ function CreateFollowerEditorDialog(follower, options)
                 options = retainerTypes,
                 idChosen = follower.retainerType or "none",
                 change = function(element)
+                    ---@cast element Dropdown
                     follower.retainerType = element.idChosen
                     editorPanel:FireEventTree("refreshAll")
                 end,

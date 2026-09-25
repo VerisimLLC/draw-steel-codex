@@ -1,7 +1,8 @@
 local mod = dmhub.GetModLoading()
 
 
-RegisterGameType("SignInteractive", "Interactive")
+--- @class SignInteractive: Interactive
+SignInteractive = RegisterGameType("SignInteractive", "Interactive")
 
 SignInteractive.id = "Sign"
 SignInteractive.text = "Sign"
@@ -90,7 +91,8 @@ end
 --through the squishfx document below to make every client's copy wobble.
 --============================================================================
 
-RegisterGameType("SquishFx")
+--- @class SquishFx: GameType
+SquishFx = RegisterGameType("SquishFx")
 
 SquishFx.docid = "squishfx"
 --"" not nil: assigning nil to a game-type field is a no-op, so the field
@@ -164,7 +166,8 @@ function SquishFx.CreateMonitorPanel()
     }
 end
 
-RegisterGameType("SquishInteractive", "Interactive")
+--- @class SquishInteractive: Interactive
+SquishInteractive = RegisterGameType("SquishInteractive", "Interactive")
 
 SquishInteractive.id = "Squish"
 SquishInteractive.text = "Squishy"

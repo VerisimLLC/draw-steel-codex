@@ -3304,6 +3304,7 @@ local function CreateCategoryDropdown(asset, opts)
 		end,
 
 		change = function(element)
+			---@cast element Dropdown
 			local newCategory = element.idChosen
 			if newCategory == "none" then
 				newCategory = nil
@@ -10038,6 +10039,7 @@ local function CreateGameModeMusicBody()
 					--had the ~21 reads it needs to cross the 0.99 clamp -- after which
 					--nothing reads it again and it sits below 1 for the whole session.
 					change = function(element)
+						---@cast element Dropdown
 						local doc = GetBindingsDoc()
 						doc:BeginChange()
 						if doc.data.modes == nil then

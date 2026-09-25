@@ -937,6 +937,7 @@ local function buildTriggerSection(ability, refreshSection, fireChange, editorOp
             options = SUBJECT_OPTIONS,
             idChosen = ability:try_get("subject", "self"),
             change = function(element)
+                ---@cast element Dropdown
                 ability.subject = element.idChosen
                 -- Subject also gates valid target types (e.g. "subject"),
                 -- so refresh the Setup section's Target dropdown tree-wide.
@@ -955,6 +956,7 @@ local function buildTriggerSection(ability, refreshSection, fireChange, editorOp
             options = WHEN_ACTIVE_OPTIONS,
             idChosen = ability:try_get("whenActive", "always"),
             change = function(element)
+                ---@cast element Dropdown
                 ability.whenActive = element.idChosen
             end,
         })
@@ -974,6 +976,7 @@ local function buildTriggerSection(ability, refreshSection, fireChange, editorOp
             options = conditionOptions,
             idChosen = ability:try_get("characterConditionRequired", "none"),
             change = function(element)
+                ---@cast element Dropdown
                 if element.idChosen == "none" then
                     ability.characterConditionRequired = nil
                 else
@@ -1358,6 +1361,7 @@ local function buildSetupSection(ability, refreshSection, fireChange, editorOpti
             idChosen = ability:ActionResource() or "none",
             options = actionOptions,
             change = function(element)
+                ---@cast element Dropdown
                 if element.idChosen == "none" then
                     ability.actionResourceId = nil
                 else
@@ -1425,6 +1429,7 @@ local function buildSetupSection(ability, refreshSection, fireChange, editorOpti
             idChosen = ability.despawnBehavior,
             options = DESPAWN_OPTIONS,
             change = function(element)
+                ---@cast element Dropdown
                 ability.despawnBehavior = element.idChosen
             end,
         },
@@ -1574,6 +1579,7 @@ local function buildKeywordsPicker(ability, fireChange)
                 halign = "left",
                 width = 240,
                 change = function(element)
+                    ---@cast element Dropdown
                     if element.idChosen ~= "none" then
                         local set = ability:get_or_add("displayKeywords", {})
                         set[element.idChosen] = true
@@ -1654,6 +1660,7 @@ local function buildDisplaySection(ability, refreshSection, fireChange)
             idChosen = ability:try_get("displayCardType") or "trigger",
             options = CARD_TYPE_OPTIONS,
             change = function(element)
+                ---@cast element Dropdown
                 ability.displayCardType = element.idChosen
                 if fireChange then fireChange() end
             end,
@@ -5681,6 +5688,7 @@ local function buildTestTriggerCard(ability, opts)
                 options = items,
                 idChosen = hasMatch and current or "",
                 change = function(element)
+                    ---@cast element Dropdown
                     v.raw = element.idChosen or ""
                     refreshTest()
                 end,
@@ -5805,6 +5813,7 @@ local function buildTestTriggerCard(ability, opts)
                         halign = "left",
                         width = 200,
                         change = function(element)
+                            ---@cast element Dropdown
                             if element.idChosen and element.idChosen ~= "none" then
                                 local cur = parseChosen(v.raw)
                                 cur[string.lower(element.idChosen)] = true
@@ -7021,6 +7030,7 @@ function TriggeredAbility:GenerateEmbeddedEditor()
                 idChosen = self:ActionResource() or "none",
                 options = actionOptions,
                 change = function(element)
+                    ---@cast element Dropdown
                     if element.idChosen == "none" then
                         self.actionResourceId = nil
                     else
@@ -7038,6 +7048,7 @@ function TriggeredAbility:GenerateEmbeddedEditor()
                 idChosen = self.despawnBehavior,
                 options = self.DespawnBehaviors,
                 change = function(element)
+                    ---@cast element Dropdown
                     self.despawnBehavior = element.idChosen
                 end,
             },
@@ -7066,6 +7077,7 @@ function TriggeredAbility:GenerateEmbeddedEditor()
                 idChosen = self.mandatory,
                 options = TriggeredAbility.mandatoryTriggerSettings,
                 change = function(element)
+                    ---@cast element Dropdown
                     self.mandatory = element.idChosen
                     RefreshPromptVisibility()
                 end,

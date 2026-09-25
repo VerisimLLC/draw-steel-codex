@@ -469,6 +469,7 @@ function Spell:GenerateEditor(options)
 					options = Spell.schools,
 					idChosen = self.school,
 					change = function(element)
+						---@cast element Dropdown
 						self.school = element.idChosen
 					end,
 				},
@@ -538,6 +539,7 @@ function Spell:GenerateEditor(options)
 					options = CharacterResource.GetActionOptions(),
 					idChosen = self:ActionResource(),
 					change = function(element)
+						---@cast element Dropdown
 						self.actionResourceId = element.idChosen
 						self:get_or_add("castingTimeDuration", "1 minute")
 						resultPanel:FireEventTree("refreshSpell")
@@ -641,6 +643,7 @@ function Spell:GenerateEditor(options)
 					options = castEffectOptions,
 					idChosen = self:try_get("castingEmote", "none"),
 					change = function(element)
+						---@cast element Dropdown
 						if element.idChosen == "none" then
 							self.castingEmote = nil
 						else
@@ -661,6 +664,7 @@ function Spell:GenerateEditor(options)
 					options = castEffectOptions,
 					idChosen = self:try_get("impactEmote", "empty"),
 					change = function(element)
+						---@cast element Dropdown
 						if element.idChosen == "empty" then
 							self.impactEmote = nil
 						else
@@ -702,6 +706,7 @@ function Spell:GenerateEditor(options)
 
 					end,
 					change = function(element)
+						---@cast element Dropdown
 						self.projectileObject = element.idChosen
 					end,
 				},

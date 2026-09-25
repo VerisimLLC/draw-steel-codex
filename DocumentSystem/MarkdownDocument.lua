@@ -71,6 +71,8 @@ local g_defaultSkin = {
     bullet  = { glyph = false, glyphFont = nil, color = nil, indent = 0, hangingIndent = 0, spacing = 0 },
     ordered = { color = nil, indent = 0, hangingIndent = 0, spacing = 0 },
     quote   = { font = nil, color = nil, bgcolor = nil, bold = false, italic = false, justify = nil, barColor = nil, inset = 0 },
+    -- secret.color: DM-only `{...}` text. Unset leaves it to the engine's own pale default.
+    secret  = { color = nil },
     rule    = { image = nil, color = nil, thickness = 1, margin = 0 },
     link    = { color = nil, underline = true },
     -- page.margin (optional, px): symmetric inner padding insetting content from
@@ -128,7 +130,7 @@ local function MergeSkin(parent, child)
         out.headings[level] = MergeSection(ph[level], ch[level])
     end
     -- single-section keys
-    for _, key in ipairs({"body", "bullet", "ordered", "quote", "rule", "link", "page", "embed", "button"}) do
+    for _, key in ipairs({"body", "bullet", "ordered", "quote", "secret", "rule", "link", "page", "embed", "button"}) do
         out[key] = MergeSection(parent and parent[key], child[key])
     end
     -- blocks: per-block-type box merge (each block type has its own box override)
@@ -1226,6 +1228,98 @@ end
 -- Test hook.
 MarkdownDocument.__ColorizeLinks = ColorizeLinks
 
+--The page's body ink, with the default sheet's fallback in one place: every site that
+--paints text onto a repainted page has to agree on it, and g_defaultSkin.body.color is
+--nil, so a sheet that repaints the page but leaves body text alone resolves to nothing.
+local function SkinBodyInk(base)
+    return SkinColor(((base or {}).body or {}).color) or "#241f17"
+end
+
+local function SecretSkinColor(base)
+    base = base or {}
+    local explicit = SkinColor((base.secret or {}).color)
+    if explicit ~= nil then return explicit end
+    --Only sheets that repaint the page need this; the engine's pale default suits dark chrome.
+    if SkinColor((base.page or {}).bgcolor) == nil then return nil end
+    local ink = SkinBodyInk(base)
+    --Dimmed, so it still reads as "players cannot see this".
+    if ink:match("^#%x%x%x%x%x%x$") then return ink .. "aa" end
+    return ink
+end
+
+--The engine's fixed pale `{...}` colour yields only to a colour tag INSIDE the braces.
+--Closed and reopened at each newline: the caller styles line by line, so an open tag leaks.
+--
+--`depth` carries brace state in and out, so a caller that has ALREADY split the text can
+--feed it one line at a time and still colour a secret spanning several of them. Called on
+--a whole string without it, the result is byte-for-byte what it always was.
+local function ColorizeSecrets(text, color, depth)
+    depth = depth or 0
+    if color == nil or type(text) ~= "string" or text == "" then return text, depth end
+    --A continuation line carries no brace of its own but still needs the colour.
+    if depth == 0 and string.find(text, "{", 1, true) == nil then return text, depth end
+
+    local open = string.format("<color=%s>", color)
+    local out = {}
+    if depth > 0 then out[#out + 1] = open end
+    local pos = 1
+    while true do
+        local idx = string.find(text, "[{}\n]", pos)
+        if idx == nil then
+            out[#out + 1] = string.sub(text, pos)
+            break
+        end
+        out[#out + 1] = string.sub(text, pos, idx - 1)
+
+        local c = string.sub(text, idx, idx)
+        if c == "{" then
+            local nextChar = string.sub(text, idx + 1, idx + 1)
+            --The marker must stay flush against the brace or the engine stops seeing the span.
+            local marker = nil
+            if nextChar == "#" then
+                marker = "#"
+            elseif nextChar == ":" then
+                --{:Language: ...} -- the marker runs to the closing colon, but only
+                --within this line and this span: an unbounded search runs past the
+                --closing brace and claims the next colon in ordinary prose (a time
+                --of day, say), dimming text that was never secret.
+                local stop = string.find(text, "[\n}]", idx + 2)
+                local close = string.find(text, ":", idx + 2, true)
+                if close ~= nil and (stop == nil or close < stop) then
+                    marker = string.sub(text, idx + 1, close)
+                end
+            elseif nextChar ~= "!" and nextChar ~= "." then
+                marker = ""
+            end
+
+            if depth == 0 and marker ~= nil then
+                depth = 1
+                out[#out + 1] = "{" .. marker .. open
+                pos = idx + 1 + #marker
+                goto continue
+            end
+
+            if depth > 0 then depth = depth + 1 end
+            out[#out + 1] = c
+        elseif c == "}" and depth > 0 then
+            depth = depth - 1
+            out[#out + 1] = (depth == 0) and "</color>}" or c
+        elseif c == "\n" and depth > 0 then
+            out[#out + 1] = "</color>\n" .. open
+        else
+            out[#out + 1] = c
+        end
+
+        pos = idx + 1
+        ::continue::
+    end
+
+    if depth > 0 then out[#out + 1] = "</color>" end
+    return table.concat(out), depth
+end
+
+MarkdownDocument.__ColorizeSecrets = ColorizeSecrets
+
 local ApplySkinToText
 ApplySkinToText = function(text, base, opts)
     if type(text) ~= "string" or text == "" then return text end
@@ -1248,11 +1342,19 @@ ApplySkinToText = function(text, base, opts)
     local bodyColor = (base.body or {}).color
     local bodyFont = (base.body or {}).font
     local linkSkin = base.link
+    --Secrets are coloured per line, below, rather than over the whole text up front:
+    --the tag reopens after every newline, and a continuation line that starts with a
+    --`<color=...>` tag no longer matches the heading/bullet/ordered patterns, so every
+    --list item and heading inside a multi-line secret lost its skin and showed a bare
+    --`-` or `#`. secretDepth carries the brace state from one line to the next.
+    local secretColor = SecretSkinColor(base)
+    local secretDepth = 0
     for _, line in ipairs(lines) do
         local hashes, hContent = string.match(line, "^(#+) (.*)$")
         local bmarker, bContent = string.match(line, "^([%-%*]) (.*)$")
         local onum, oContent = string.match(line, "^(%d+%.) (.*)$")
         if hashes ~= nil and #hashes >= 1 and #hashes <= 5 then
+            hContent, secretDepth = ColorizeSecrets(hContent, secretColor, secretDepth)
             local h = (base.headings or {})[#hashes] or {}
             local before = SkinGapLine(h.spaceBefore)
             if before then out[#out + 1] = before end
@@ -1261,14 +1363,18 @@ ApplySkinToText = function(text, base, opts)
             local ruled = opts and opts.ruledLevels and opts.ruledLevels[#hashes]
             if after and not ruled then out[#out + 1] = after end
         elseif bmarker ~= nil then
+            bContent, secretDepth = ColorizeSecrets(bContent, secretColor, secretDepth)
             out[#out + 1] = SkinBulletMarkup(base.bullet, bmarker, ColorizeLinks(bContent, linkSkin), bodyColor, bodyFont)
         elseif onum ~= nil then
+            oContent, secretDepth = ColorizeSecrets(oContent, secretColor, secretDepth)
             out[#out + 1] = SkinOrderedMarkup(base.ordered, onum, ColorizeLinks(oContent, linkSkin), bodyColor, bodyFont)
         elseif line == "" then
             local gap = SkinGapLine(bodyPS)
             out[#out + 1] = gap or SkinBodyMarkup(base.body, line)
         else
-            out[#out + 1] = SkinBodyMarkup(base.body, ColorizeLinks(line, linkSkin))
+            local body
+            body, secretDepth = ColorizeSecrets(line, secretColor, secretDepth)
+            out[#out + 1] = SkinBodyMarkup(base.body, ColorizeLinks(body, linkSkin))
         end
     end
     return table.concat(out, "\n")
@@ -1302,6 +1408,9 @@ MarkdownDocument.__ApplyInlineClasses = ApplyInlineClasses
 RichTag = RegisterGameType("RichTag")
 RichTag.pattern = false
 RichTag.hasEdit = true
+--Set by tags that stretch to fill their container (the fill bar).
+--A "100%" child cannot resolve against an auto-width table cell, so such a cell gets a definite width.
+RichTag.fillsCell = false
 
 function RichTag.Create()
     return RichTag.new {}
@@ -1433,7 +1542,7 @@ function MarkdownDocument.PageSkinPalette(doc)
     local page = SkinColor((base.page or {}).bgcolor)
     if page == nil then return nil end
 
-    local ink = SkinColor((base.body or {}).color) or "#241f17"
+    local ink = SkinBodyInk(base)
     local accent = SkinColor((base.bullet or {}).color)
         or SkinColor((base.link or {}).color)
         or ink
@@ -1460,23 +1569,81 @@ function MarkdownDocument.PageSkinPalette(doc)
     }
 end
 
-local function StripSpoilers(text)
+--Redaction hides text by drawing it in the same colour as its own highlight, so
+--`ink` must feed both; the app theme's pale @fg leaves a washed-out bar on a page.
+--A deterministic letter permutation, one per language. NOT cryptography and not meant
+--to be -- the plaintext still reaches the client either way. It exists so that reading
+--the glyphs back returns nothing: a bare font swap is a one-to-one substitution, and the
+--face we use has a published key layout, so transliterating it returns the secret intact.
+--Keyed on the language id, so each language is consistently its own cipher.
+local g_cloakAlphabets = {}
+local function CloakAlphabet(key)
+    local cached = g_cloakAlphabets[key]
+    if cached ~= nil then return cached end
+
+    local letters = {}
+    for n = 1, 26 do letters[n] = string.char(96 + n) end
+
+    --A local LCG, seeded from the key: math.randomseed would perturb the global stream
+    --the rest of the client draws from, and this must be stable across clients anyway.
+    local seed = 5381
+    for n = 1, #key do
+        seed = (seed * 33 + string.byte(key, n)) % 4294967296
+    end
+    local function nextIndex(limit)
+        seed = (seed * 1103515245 + 12345) % 2147483648
+        return seed % limit + 1
+    end
+
+    for n = 26, 2, -1 do
+        local j = nextIndex(n)
+        letters[n], letters[j] = letters[j], letters[n]
+    end
+
+    local map = {}
+    for n = 1, 26 do map[string.char(96 + n)] = letters[n] end
+    g_cloakAlphabets[key] = map
+    return map
+end
+
+--Substitute letters, leaving spacing, digits and punctuation alone so the line keeps the
+--length and word shapes that make the font swap worth having. nil map = pass through.
+local function CloakText(s, map)
+    if map == nil or s == "" then return s end
+    return (s:gsub("%a", function(ch)
+        local lower = string.lower(ch)
+        local sub = map[lower]
+        if sub == nil then return ch end
+        if ch == lower then return sub end
+        return string.upper(sub)
+    end))
+end
+
+local function StripSpoilers(text, ink)
+    local redact = ThemeEngine.ResolveTokens("<alpha=#FF><mark=@fg><color=@fg>")
+    if ink ~= nil then
+        redact = string.format("<alpha=#FF><mark=%s><color=%s>", ink, ink)
+    end
+
     local result = ""
     local i, depth = 1, 0
     local markDepth = 0
     local markEnd = nil
+    --Non-nil only inside a language span the reader cannot read, and only when the font
+    --swap actually took (the blanking-bar fallback shows nothing to transliterate).
+    local cloak = nil
 
     while true do
         local a, b, brace = text:find("([{}])", i)
         if not a then
             if depth == 0 then
-                result = result .. text:sub(i)
+                result = result .. CloakText(text:sub(i), cloak)
             end
             break
         end
 
         if depth == 0 and a > i then
-            result = result .. text:sub(i, a - 1)
+            result = result .. CloakText(text:sub(i, a - 1), cloak)
         end
 
         if brace == "{" then
@@ -1485,7 +1652,7 @@ local function StripSpoilers(text)
                 b = b + 1
             elseif text:sub(a + 1, a + 1) == "#" and depth == 0 then
                 if markDepth == 0 then
-                    result = result .. ThemeEngine.ResolveTokens("<alpha=#FF><mark=@fg><color=@fg>")
+                    result = result .. redact
                     markEnd = "</color></mark>"
                 end
                 markDepth = markDepth + 1
@@ -1539,23 +1706,41 @@ local function StripSpoilers(text)
 
 
                     if markDepth == 1 and not canSpeak then
-                        --TODO: get fonts working.
-                        result = result .. ThemeEngine.ResolveTokens("<alpha=#FF><mark=@fg><color=@fg>")
-                        markEnd = "</color></mark>"
-                        --result = result .. "<font=\"Tengwar\">"
-                        --markEnd = "</font>"
+                        --Guarded: an unavailable font id leaks the literal <font> tag into the text.
+                        if FontAvailable("tengwar") then
+                            result = result .. "<font=\"tengwar\">"
+                            markEnd = "</font>"
+                            --bestLanguage is nil when the {:Name:} does not resolve to a
+                            --known language; canSpeak is false either way, so we still
+                            --reach here. Key on the authored name so an unrecognised
+                            --language is cloaked too, and consistently.
+                            cloak = CloakAlphabet(bestLanguage ~= nil and bestLanguage.id or langName)
+                        else
+                            result = result .. redact
+                            markEnd = "</color></mark>"
+                        end
                     end
                 end
             elseif text:sub(a + 1, a + 1) == "." and depth == 0 then
                 -- Inline class span {.name text}: copy verbatim so the render-time
                 -- ApplyInlineClasses pass (which has the resolved classes) handles
                 -- it. Stripping here would lose the class for player view.
+                --Inside an unreadable language span the inner text still has to be
+                --cloaked, or a nested class span hands back the one thing it was hiding.
+                --The {.name prefix and closing brace stay literal for ApplyInlineClasses.
+                local function CloakInlineClass(span)
+                    if cloak == nil then return span end
+                    local prefix, inner = span:match("^(%{%.[%w_%-]+ )(.*)%}$")
+                    if prefix == nil then return span end
+                    return prefix .. CloakText(inner, cloak) .. "}"
+                end
+
                 local close = text:find("}", a + 1, true)
                 if close ~= nil then
-                    result = result .. text:sub(a, close)
+                    result = result .. CloakInlineClass(text:sub(a, close))
                     b = close
                 else
-                    result = result .. text:sub(a)
+                    result = result .. CloakInlineClass(text:sub(a))
                     b = #text
                 end
             else
@@ -1569,6 +1754,7 @@ local function StripSpoilers(text)
                 if markDepth == 0 and markEnd ~= nil then
                     result = result .. markEnd
                     markEnd = nil
+                    cloak = nil
                 end
             end
         end
@@ -1609,7 +1795,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
     end
 
     if isPlayer then
-        content = StripSpoilers(content)
+        content = StripSpoilers(content, options.inkColor)
     end
 
     local stylingInfo = options.stylingInfo or { colorStack = {} }
@@ -3737,11 +3923,25 @@ local function RenderMarkdownTokens(ctx, tokens)
                 valign = "top",
                 width = "100%",
             }
-            -- Plan 2: apply rule skin (only spike-confirmed props).
-            -- Spike result: bgcolor and tmargin/bmargin error on selfStyle set;
-            -- height works. Only thickness is applied here.
+            --The gradient must be cleared with the colour or it washes the colour back out.
+            --Pooled dividers are reused, so every branch assigns rather than falling through.
             local rule = resolvedSkin.rule or {}
             if rule.thickness then divider.selfStyle.height = rule.thickness end
+            local ruleColor = SkinColor(rule.color)
+            if ruleColor ~= nil then
+                divider.selfStyle.bgcolor = ruleColor
+                divider.selfStyle.gradient = nil
+            else
+                --Clearing to nil would leave an unskinned divider invisible.
+                divider.selfStyle.bgcolor = Styles.textColor
+                divider.selfStyle.gradient = Styles.horizontalGradient
+            end
+            --Assigns on both branches, as the note above requires: a pooled divider
+            --that once carried a margin otherwise keeps it after the stylesheet drops
+            --it back to 0, which the editor's live preview shows immediately.
+            local ruleMargin = (type(rule.margin) == "number" and rule.margin > 0) and rule.margin or 0
+            divider.selfStyle.tmargin = ruleMargin
+            divider.selfStyle.bmargin = ruleMargin
 
             newDividers[#newDividers + 1] = divider
             children[#children + 1] = divider
@@ -4090,6 +4290,10 @@ local function RenderMarkdownTokens(ctx, tokens)
             end
 
             currentRichRow.selfStyle.maxWidth = string.format("%d%%-%d", round(cellWidth), round(tableHeaderSpacing))
+
+            --Unused here; read further down the loop by the fillsCell branch.
+            currentRichRow.data.cellWidth = cellWidth
+            currentRichRow.data.cellSpacing = tableHeaderSpacing
 
             --column alignment from a GitHub-style separator row, if declared.
             --Tables render COMPACT by default (auto-width cells sized to
@@ -4653,6 +4857,13 @@ local function RenderMarkdownTokens(ctx, tokens)
                     end
 
                     currentRichRow.data.tagInRow = true
+
+                    if richTag.fillsCell and currentRichRow.data.cellWidth ~= nil then
+                        currentRichRow.selfStyle.width = string.format("%d%%-%d",
+                            round(currentRichRow.data.cellWidth),
+                            round(currentRichRow.data.cellSpacing or 0) + 10)
+                    end
+
                     --a rich tag with same-line text: an auto-width label's maxWidth
                     --of 100% is the full row width, but the label starts after the
                     --tag panel, so long text overflows the row by the tag's width
@@ -5399,7 +5610,15 @@ function MarkdownDocument.DisplayPanel(self, args)
             -- trackPositions stamps each token's source line (purely additive; rendering
             -- ignores srcLine) so the rendered blocks below can be tagged for the preview's
             -- content-aware scroll sync (SyncPreviewScroll).
-            local tokens = BreakdownRichTags(self:GetTextContent(), nil, { player = self:IsPlayerView(element), trackPositions = true }, ctx.tokenExtraInfo)
+            --GetResolvedStylesheet is memoized, so resolving again here is free.
+            local playerInk = nil
+            do
+                local sheet = self:GetResolvedStylesheet().base or {}
+                if SkinColor((sheet.page or {}).bgcolor) ~= nil then
+                    playerInk = SkinBodyInk(sheet)
+                end
+            end
+            local tokens = BreakdownRichTags(self:GetTextContent(), nil, { player = self:IsPlayerView(element), trackPositions = true, inkColor = playerInk }, ctx.tokenExtraInfo)
 
             if ctx.tokenExtraInfo.queries ~= nil then
                 element.thinkTime = 0.2
@@ -7613,6 +7832,7 @@ local function CreateMarkdownToolbar(opts)
             options = JournalStylesheet.PickerOptions(),
             idChosen = opts.GetStylesheetId() or "",
             change = function(element)
+                ---@cast element Dropdown
                 opts.OnStylesheetChanged(element.idChosen)
             end,
         },
@@ -7663,6 +7883,10 @@ local Seamless = {}
 --(the ::: fences). A mid-gray reads on both the dark default page and the
 --light parchment stylesheets, where a low-alpha white would vanish.
 local SEAMLESS_FENCE_DIM = "#8a8a8a"
+
+--Above this many non-whitespace source characters the editor drops glossary
+--underlines (see the glossary setup in CompileDecorations for why).
+local SEAMLESS_GLOSSARY_MAX_GLYPHS = 14000
 
 --Open/close TMP tag pair for a heading level's skin entry. Mirrors
 --SkinHeadingMarkup, but as a pair around a source RANGE rather than wrapping a
@@ -7828,8 +8052,13 @@ function Seamless.CompileDecorations(doc, text)
     --the first occurrence of each term in the DOCUMENT underlines; the
     --display path washes per label, and per-doc is the editor's coarser
     --equivalent of that.
+    --Long documents skip the hints: TMP caps the editor's main mesh at 16383
+    --quads and appends underline quads after every glyph, so past the cap any
+    --<u> blanks the whole editor. Non-whitespace source chars bound the glyph
+    --count from above; the margin leaves room for the document's own underlines.
+    local _, glyphBound = text:gsub("%S", "")
     local glossaryIndex = nil
-    if g_glossaryHintsSetting:Get() ~= "off" then
+    if g_glossaryHintsSetting:Get() ~= "off" and glyphBound <= SEAMLESS_GLOSSARY_MAX_GLYPHS then
         local idx = GetGlossaryIndex()
         if next(idx) ~= nil then
             glossaryIndex = idx

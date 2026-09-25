@@ -369,6 +369,18 @@ function loot.GiveItem(self, itemid, quantity, slotIndex)
 	self:SetItemQuantity(itemid, currentQuantity + quantity, slotIndex)
 end
 
+--- Floats the item's icon up off the token (TokenUI's "loseItem" animation) to
+--- show it being used up, e.g. a consumable spent. Call inside ModifyProperties
+--- so the animation syncs to other clients along with the item change.
+--- @param itemid string
+function creature:QueueLoseItemAnimation(itemid)
+	local anim = self:GetOrAddAnimation{
+		animType = "loseItem",
+		items = {},
+	}
+	anim.items[itemid] = 1
+end
+
 function creature.GiveItem(self, itemid, quantity, slotIndex)
 	if quantity < 0 and -quantity > creature.GetItemQuantity(self, itemid) then
 		--don't have enough items so see if we can unequip.

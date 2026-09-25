@@ -5358,6 +5358,81 @@ local function RunBetweenTurnHandler(handler, context)
 	end
 end
 
+--How long the ended turn stays current while this client's own casts finish
+--before the transition gives up and advances anyway. This is a stranded-turn
+--backstop, not a gameplay timer: the trigger prompt expiry in Creature.lua
+--and the Monster AI's reaction-marker expiry use the same 10-minute scale.
+local END_TURN_CAST_WAIT_SECONDS = 600
+
+--Casts must be idle this long before the turn is released. A cast that ends
+--by starting another (a deferred trigger cast launched from the finishing
+--cast's atexit, or one queued for the next frame) leaves a momentary gap in
+--coroutineStorage; a single-frame "no casts" reading must not slip through it.
+local END_TURN_CAST_IDLE_SECONDS = 0.3
+
+--Hold the ended turn open while casts its end-of-turn events started are still
+--resolving on this client.
+--
+--A mandatory endturn trigger whose invoked ability prompts the player
+--(Revitalizing Limerick: "choose allies to spend a Recovery"; the Tactician's
+--and Conduit's end-of-turn recovery grants work the same way) fires inline
+--from EndTurn in NextInitiative and then sits in ActivatedAbility.coroutineStorage
+--waiting for the choice. NextInitiative used to mark the entry moved 0.1s
+--after EndTurn regardless, so every other client -- including the Monster AI
+--host, which gates on queue:IsPlayersTurn() and CurrentInitiativeId() -- saw
+--the monsters' side arrive and the AI claimed a turn while the player was
+--still choosing. Keeping the ended entry current until this client's casts
+--settle is a wait every remote client already respects, so no cross-client
+--marker is needed: the initiative bar simply keeps showing the hero's turn
+--until their prompt is answered or cancelled.
+--
+--Waits on every live cast on this client, not just the ended tokens': the
+--invoked ability may be cast BY an ally token this player controls (the
+--Tactician's grant), and any cast this user has open when their turn ends is
+--theirs to finish before the monsters act. Bounded so a cast that never
+--finishes cannot strand initiative; the abandon is logged the way the
+--deferred-cast machinery logs its own (see CASTSTALL in ActivatedAbility.lua).
+--
+--Returns true when casts became idle, false when the deadline released it.
+function GameHud.WaitForEndTurnCasts(context)
+	local deadline = dmhub.Time() + END_TURN_CAST_WAIT_SECONDS
+	local idleSince = nil
+	local lastLog = dmhub.Time()
+	while true do
+		local activeCasts = ActivatedAbility.CountActiveCasts()
+		if activeCasts <= 0 then
+			idleSince = idleSince or dmhub.Time()
+			if dmhub.Time() - idleSince >= END_TURN_CAST_IDLE_SECONDS then
+				return true
+			end
+		else
+			idleSince = nil
+			if dmhub.Time() >= deadline then
+				printf("ENDTURN:: releasing turn %s with %d cast(s) still live after %ds",
+					tostring(context ~= nil and context.endedInitiativeId or "?"), activeCasts,
+					END_TURN_CAST_WAIT_SECONDS)
+				return false
+			end
+			if dmhub.Time() - lastLog >= 30 then
+				lastLog = dmhub.Time()
+				printf("ENDTURN:: holding turn %s open for %d live cast(s)",
+					tostring(context ~= nil and context.endedInitiativeId or "?"), activeCasts)
+			end
+		end
+		coroutine.yield(0.1)
+	end
+end
+
+--Runs first: the Monster AI's villain-action window (priority 50) and the
+--queue advance both belong after the ending creature's own prompts resolve.
+GameHud.RegisterBetweenTurnHandler{
+	id = "End Turn Casts",
+	priority = 0,
+	run = function(context)
+		GameHud.WaitForEndTurnCasts(context)
+	end,
+}
+
 function GameHud:NextInitiative(oncomplete)
 	local info = self.initiativeInterface
 	local mainInitiativeBar = self.choiceInitiativeBar

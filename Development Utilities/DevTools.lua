@@ -875,6 +875,7 @@ DockablePanel.Register{
                     idChosen = m_mode,
                     width = 200, height = 24, fontSize = 14,
                     change = function(element)
+                        ---@cast element Dropdown
                         m_mode = element.idChosen
                     end,
                 },
@@ -2145,6 +2146,7 @@ function TestHarness.Show(id, args)
         options = DropdownOptions(g_stagePresets),
         idChosen = m_stageSettings.size,
         change = function(element)
+            ---@cast element Dropdown
             TestHarness.SetStage{ size = element.idChosen }
         end,
     }
@@ -2156,6 +2158,7 @@ function TestHarness.Show(id, args)
         options = DropdownOptions(g_stageCascades),
         idChosen = m_stageSettings.cascade,
         change = function(element)
+            ---@cast element Dropdown
             TestHarness.SetStage{ cascade = element.idChosen }
         end,
     }
@@ -2167,6 +2170,7 @@ function TestHarness.Show(id, args)
         options = DropdownOptions(g_stageBackdrops),
         idChosen = m_stageSettings.backdrop,
         change = function(element)
+            ---@cast element Dropdown
             TestHarness.SetStage{ backdrop = element.idChosen }
         end,
     }
@@ -2243,6 +2247,7 @@ function TestHarness.Show(id, args)
                 options = dropdownOptions,
                 idChosen = (reg ~= nil and id) or (dropdownOptions[1] ~= nil and dropdownOptions[1].id) or "",
                 change = function(element)
+                    ---@cast element Dropdown
                     if element.idChosen ~= m_activeId then
                         TestHarness.Show(element.idChosen, args)
                     end
@@ -2908,6 +2913,7 @@ TestHarness.Register{
                     options = fixtureOptions,
                     idChosen = fixtureId,
                     change = function(element)
+                        ---@cast element Dropdown
                         ctx.fixture = element.idChosen
                         editor.text = FixtureText(element.idChosen)
                         ApplySeamlessDecorations()

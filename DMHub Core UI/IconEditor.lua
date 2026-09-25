@@ -721,6 +721,13 @@ function gui.IconEditor(args)
 				search = "",
 				library = "zoneart",
 			},
+			--creature footprint art (Compendium > Assets > Footprints).
+			{
+				text = "Footprints",
+				id = "footprints",
+				search = "",
+				library = "footprints",
+			},
 		}
 
 		options[#options+1] = {
@@ -810,6 +817,7 @@ function gui.IconEditor(args)
 
 					events = {
 						change = function(element)
+							---@cast element Dropdown
 							lastSearch = nil
 							local selected = optionMap[element.idChosen]
 							library = selected.library

@@ -64,6 +64,7 @@ gui.KeywordSelector = function(args)
         options = dropdownOptions,
         textDefault = "Add Keyword...",
         change = function(element)
+            ---@cast element Dropdown
             if element.idChosen ~= nil and GameSystem.abilityKeywords[element.idChosen] then
                 keywords[element.idChosen] = true
             end

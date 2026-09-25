@@ -368,6 +368,24 @@ GameSystem.RegisterModifiableAttribute{
     category = "Combat",
 }
 
+--Token appearance multipliers. Both have a base value of 1 (see creature:RefreshToken);
+--the token eases to a new value over a quarter second rather than snapping.
+--Opacity: 0 = invisible, 1 = normal. The Director and controllers always see at least 25%.
+GameSystem.RegisterModifiableAttribute{
+    id = "tokenopacity",
+    text = "Token Opacity",
+    attributeType = "number",
+    category = "Appearance",
+}
+
+--Brightness: 0 = black silhouette, 1 = normal, up to 3 = washed toward white.
+GameSystem.RegisterModifiableAttribute{
+    id = "tokenbrightness",
+    text = "Token Brightness",
+    attributeType = "number",
+    category = "Appearance",
+}
+
 --[==[ DEAD_CODE - overridden by Draw Steel Core Rules\MCDMRules.lua:601
 function GameSystem.IgnoreOffhandWeaponPenalty(creature, weapon)
 	return creature:CalculateAttribute('ignoreoffhandpenalty', 0) > 0

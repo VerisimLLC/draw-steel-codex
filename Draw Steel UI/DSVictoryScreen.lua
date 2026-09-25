@@ -35,7 +35,8 @@ local mod = dmhub.GetModLoading()
 -- synced document is needed -- the live encounter is already networked to all clients.
 ----------------------------------------------------------------------
 
-RegisterGameType("DSVictoryScreen")
+--- @class DSVictoryScreen: GameType
+DSVictoryScreen = RegisterGameType("DSVictoryScreen")
 
 -- Proceed override hook: a mod (e.g. Encounter of the Week's Director-less
 -- games) can open the Proceed button to non-Directors and/or take over the

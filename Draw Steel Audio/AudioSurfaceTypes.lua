@@ -30,6 +30,9 @@ AudioObjectDestructionTypes = {
     },
 }
 
+--Footprint fields on a surface (read by LeaveFootprints in AudioMain.lua):
+--  footprints        true if creatures walking on it leave tracks.
+--  footprintLifetime seconds a print takes to fade away completely (default 60).
 AudioSurfaceTypes = {
     surfaces = {
         {
@@ -46,6 +49,9 @@ AudioSurfaceTypes = {
             id = 3,
             text = "Grass",
             sound = "Foot.Generic_Grass",
+            --trampled grass springs back quickly.
+            footprints = true,
+            footprintLifetime = 10,
         },
         {
             id = 4,
@@ -77,6 +83,8 @@ AudioSurfaceTypes = {
             id = 9,
             text = "Snow",
             sound = "Foot.Generic_Snow",
+            footprints = true,
+            footprintLifetime = 60,
         }
     }
 }

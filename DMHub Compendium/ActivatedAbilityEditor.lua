@@ -212,6 +212,7 @@ function ActivatedAbility:IconEditorPanel()
                     options = DisplayGradients.GetOptions(),
                     idChosen = self:try_get("iconGradient", "none"),
                     change = function(element)
+                        ---@cast element Dropdown
                         self.iconGradient = element.idChosen
                         iconEditor:FireEvent('create')
                     end,
@@ -364,6 +365,7 @@ function ActivatedAbility:PersistencePanel()
 					options = ActivatedAbility.PersistenceModes,
 					idChosen = self:Persistence().mode or "recast",
 					change = function(element)
+						---@cast element Dropdown
 						local persistence = self:get_or_add("persistence", {})
 						persistence.mode = element.idChosen
 						resultPanel:FireEventTree("refreshPersistence")
@@ -612,6 +614,7 @@ function ActivatedAbility:TargetTypeEditor()
                     },
                 },
                 change = function(element)
+                    ---@cast element Dropdown
                     self.multipleModes = element.idChosen
                     if self.multipleModes and self:try_get("modeList") == nil then
                         self.modeList = {
@@ -828,6 +831,7 @@ function ActivatedAbility:TargetTypeEditor()
 				options = Spell.durationTypes,
 				idChosen = self.durationType,
 				change = function(element)
+					---@cast element Dropdown
 					self.durationType = element.idChosen
 					resultPanel:FireEventTree("refreshSpell")
 				end,
@@ -1029,6 +1033,7 @@ function ActivatedAbility:TargetTypeEditor()
 				options = self:GetDisplayedTargetTypeOptions(),
 				idChosen = self:GetChosenTargetTypeInDropdown(),
 				change = function(element)
+                    ---@cast element Dropdown
                     self:SetChosenTargetTypeFromDropdown(element.idChosen)
 					resultPanel:FireEventTree("refreshAbility")
 				end,
@@ -1114,6 +1119,7 @@ function ActivatedAbility:TargetTypeEditor()
                            cond(self.targetAllegiance == "ally", "ally",
                            cond(self.targetAllegiance == "enemy", "enemy", "all")))),
 				change = function(element)
+                    ---@cast element Dropdown
                     if element.idChosen == "all" then
                         self.objectTarget = false
                         self.targetAllegiance = nil
@@ -1183,6 +1189,7 @@ function ActivatedAbility:TargetTypeEditor()
 				},
 				idChosen = self:try_get("targeting", "direct"),
 				change = function(element)
+					---@cast element Dropdown
 					self.targeting = element.idChosen
 					resultPanel:FireEventTree("refreshAbility")
 				end,
@@ -1216,6 +1223,7 @@ function ActivatedAbility:TargetTypeEditor()
 
 				idChosen = self:try_get("forcedMovement", "slide"),
 				change = function(element)
+					---@cast element Dropdown
 					self.forcedMovement = element.idChosen
 					resultPanel:FireEventTree("refreshAbility")
 				end,
@@ -1785,6 +1793,7 @@ function ActivatedAbility:BehaviorEditor(options)
 			--idChosen = self.abilityType,
 			idChosen = "none",
 			change = function(element)
+				---@cast element Dropdown
 				if element.idChosen == "none" then
 					return
 				end
@@ -1989,6 +1998,7 @@ function ActivatedAbilityBehavior:ApplyToEditor(parentPanel, list)
 			options = dropdownOptions,
 			idChosen = self.applyto,
 			change = function(element)
+				---@cast element Dropdown
 				self.applyto = element.idChosen
 				parentPanel:FireEvent('refreshBehavior')
 			end,
@@ -2068,6 +2078,7 @@ function ActivatedAbilityBehavior:AttackTypeEditor(parentPanel, list)
 			options = {"Melee", "Ranged"},
 			idChosen = self:try_get('attackType', 'Ranged'),
 			change = function(element)
+				---@cast element Dropdown
 				self.attackType = element.idChosen
 			end,
 		},
@@ -2168,6 +2179,7 @@ function ActivatedAbilityBehavior:AttackTypeEditor(parentPanel, list)
 				idChosen = nil,
 				textOverride = "Add Property...",
 				change = function(element)
+					---@cast element Dropdown
 					self:get_or_add("weaponProperties", {})[element.idChosen] = true
 					parentPanel:FireEvent("refreshBehavior")
 				end,
@@ -2539,6 +2551,7 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
 			options = CharacterOngoingEffect.durationOptions,
 			idChosen = idChosen,
 			change = function(element)
+				---@cast element Dropdown
 				if element.idChosen == 'turn' then
 					self.duration = 0
 				elseif element.idChosen == 'rounds' or element.idChosen == 'rounds_end_turn' then
@@ -2682,6 +2695,7 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
 			hasSearch = true,
 			idChosen = (self:try_get("ongoingEffectSource", "specific") == "formula") and "formula" or self:try_get("ongoingEffect", "none"),
 			change = function(element)
+				---@cast element Dropdown
 				if element.idChosen == "formula" then
 					self.ongoingEffectSource = "formula"
 					parentPanel:FireEvent('refreshBehavior')
@@ -2786,6 +2800,7 @@ function ActivatedAbilityBehavior:DamageTypeEditor(parentPanel, list)
 			options = rules.damageTypesAvailable,
 			idChosen = self.damageType,
 			change = function(element)
+				---@cast element Dropdown
 				self.damageType = element.idChosen
 			end,
 		},
@@ -2874,6 +2889,7 @@ function ActivatedAbilityBehavior:AuraEditor(parentPanel, list)
             },
 			idChosen = self.duration,
 			change = function(element)
+				---@cast element Dropdown
 				self.duration = element.idChosen
 				parentPanel:FireEvent('refreshBehavior')
 			end,
@@ -3029,6 +3045,7 @@ function ActivatedAbilityBehavior:ForcedMovementEditor(parentPanel, list)
 			options = ActivatedAbilityForcedMovementBehavior.moveTypeOptions,
 			idChosen = self.moveType,
 			change = function(element)
+				---@cast element Dropdown
 				self.moveType = element.idChosen
 
 				parentPanel:FireEvent('refreshBehavior')
@@ -3309,6 +3326,7 @@ function ActivatedAbilityBehavior:CheckTypeEditor(parentPanel, title, attributeN
 				options = attributeOptions,
 				idChosen = "none",
 				change = function(element)
+					---@cast element Dropdown
 					if element.idChosen ~= "none" then
 						attributes[i] = element.idChosen
 					end
@@ -3327,6 +3345,7 @@ function ActivatedAbilityBehavior:CheckTypeEditor(parentPanel, title, attributeN
 			options = options,
 			idChosen = "none",
 			change = function(element)
+				---@cast element Dropdown
 				if element.idChosen ~= "none" then
 					attributes[#attributes+1] = element.idChosen
 				end

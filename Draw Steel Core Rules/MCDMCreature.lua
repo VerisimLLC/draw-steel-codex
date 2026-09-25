@@ -385,9 +385,57 @@ function creature:GetSurgeSharingSummonerToken()
     return nil
 end
 
+--- @return creature|nil mentor whose surge pool this retainer shares, else nil.
+function creature:GetSurgeSharingMentor()
+    if not self:IsRetainer() then
+        return nil
+    end
+
+    -- GetMentor scans whole parties and this runs from per-frame UI, so cache it per game update.
+    -- false (not nil) marks "no mentor" as a cached answer.
+    if self:try_get("_tmp_surgeMentorUpdate") ~= dmhub.ngameupdate then
+        local mentor = self:GetMentor()
+        if mentor == self then
+            mentor = nil
+        end
+        self._tmp_surgeMentor = mentor or false
+        self._tmp_surgeMentorUpdate = dmhub.ngameupdate
+    end
+
+    return self._tmp_surgeMentor or nil
+end
+
+--- @return creature the creature whose surge pool this one spends from: its mentor, its surge-sharing summoner, or itself.
+function creature:GetSurgePoolOwner()
+    local mentor = self:GetSurgeSharingMentor()
+    if mentor ~= nil then
+        return mentor
+    end
+
+    local summonerToken = self:GetSurgeSharingSummonerToken()
+    if summonerToken ~= nil then
+        return summonerToken.properties
+    end
+
+    return self
+end
+
 function creature:ConsumeSurges(ncount, note)
     local surgeid = CharacterResource.nameToId["Surges"]
     if surgeid == nil then
+        return
+    end
+
+    -- Retainers spend from their mentor's pool, matching where Resource.lua sends their surge gains.
+    local mentor = self:GetSurgeSharingMentor()
+    local mentorToken = mentor ~= nil and dmhub.LookupToken(mentor) or nil
+    if mentorToken ~= nil then
+        mentorToken:ModifyProperties{
+            description = "Consume Surges",
+            execute = function()
+                mentorToken.properties:AddUnboundedResource(surgeid, -ncount, note or "Consumed Surges")
+            end,
+        }
         return
     end
 
@@ -411,6 +459,11 @@ function creature:GetAvailableSurges()
         return 0
     end
 
+    local mentor = self:GetSurgeSharingMentor()
+    if mentor ~= nil then
+        return mentor:GetUnboundedResourceQuantity(surgeid)
+    end
+
     local summonerToken = self:GetSurgeSharingSummonerToken()
     if summonerToken ~= nil then
         return summonerToken.properties:GetUnboundedResourceQuantity(surgeid)
@@ -421,6 +474,11 @@ function creature:GetAvailableSurges()
 end
 
 function creature:GetMaxSurgeCount()
+    local mentor = self:GetSurgeSharingMentor()
+    if mentor ~= nil then
+        return mentor:GetMaxSurgeCount()
+    end
+
     local summonerToken = self:GetSurgeSharingSummonerToken()
     if summonerToken ~= nil then
         return summonerToken.properties:GetMaxSurgeCount()
@@ -3629,9 +3687,52 @@ function creature:RollConditionSave(condid, abilityOptions)
     ability:Cast(token, { { token = token } }, abilityOptions)
 end
 
+--True if this creature is immune to the Concealment condition, so nothing
+--(concealing zones, auras, terrain, invisibility) makes it concealed.
+--modifiers: optional modifier list to read immunities from instead of
+--GetActiveModifiers. GetActiveModifiersExcludingAuras passes the list it is
+--still building, because calling GetActiveModifiers there would recurse.
+--- @param modifiers nil|table
+--- @return boolean
+function creature:IsImmuneToConcealment(modifiers)
+    local condition = CharacterCondition.conditionsByName["concealment"]
+    if condition == nil then
+        return false
+    end
+
+    if modifiers == nil then
+        return self:GetConditionImmunities()[condition.id] and true or false
+    end
+
+    local innate = rawget(self, "innateConditionImmunities")
+    if innate ~= nil and innate[condition.id] then
+        return true
+    end
+
+    local immunities = {}
+    for _,mod in ipairs(modifiers) do
+        mod.mod:FillConditionImmunities(mod, self, immunities)
+    end
+    return immunities[condition.id] and true or false
+end
+
+--True if the creature has the Concealment condition itself: from an ongoing
+--effect (e.g. a Concealment Potion), a direct infliction, or a modifier that
+--bestows it (e.g. the grilp's Shifting Camouflage). The condition carries no
+--rules of its own; it counts toward "Concealed", and the Concealment global
+--rule mod gives the bane. Callers check immunity separately.
+--- @return boolean
+function creature:HasConcealmentCondition()
+    local condition = CharacterCondition.conditionsByName["concealment"]
+    return condition ~= nil and self:HasCondition(condition.id) ~= false
+end
+
+--True if the creature has concealment: it stands where the map grants it
+--(zones, auras, terrain) or has the Concealment condition, and is not immune.
+--Invisibility is not checked here; it marks _tmp_concealed from OnTokenRefresh.
 function creature:IsConcealed()
     local token = dmhub.LookupToken(self)
-    return token ~= nil and token.hasConcealment
+    return token ~= nil and (token.hasConcealment or self:HasConcealmentCondition()) and not self:IsImmuneToConcealment()
 end
 
 creature.RegisterSymbol {
@@ -3642,7 +3743,7 @@ creature.RegisterSymbol {
     help = {
         name = "Concealed",
         type = "boolean",
-        desc = "True if the creature is in an area that is concealed.",
+        desc = "True if the creature has concealment: it is in a concealing area, is invisible, or has the Concealment condition.",
     }
 }
 
@@ -3775,8 +3876,8 @@ creature.RegisterSymbol {
 }
 
 --True if the creature has concealment from a source other than darkness:
---invisibility, a concealment aura or zone whose Environmental Keyword is not
---Darkness, or terrain tiles flagged as concealing. Used by the Concealment
+--invisibility, the Concealment condition, a concealment aura or zone whose
+--Environmental Keyword is not Darkness, or terrain tiles flagged as concealing. Used by the Concealment
 --global rule mod so "ignores concealment created by darkness" features (e.g.
 --shadow elf Of the Umbra) still take the bane when the target is also
 --concealed by something else.
@@ -3784,6 +3885,12 @@ function creature:HasConcealmentIgnoringDarkness()
     --Invisibility marks concealment via a game-update stamp rather than the
     --map; use the same freshness rule as the _tmp_concealed refresh.
     if self:try_get("_tmp_concealedInvisibleUpdate", -10) >= dmhub.ngameupdate - 1 then
+        return true
+    end
+
+    --The Concealment condition comes from potions, traits and effects, never
+    --from darkness (darkness conceals through its keyword's aura instead).
+    if self:HasConcealmentCondition() then
         return true
     end
 
@@ -3840,7 +3947,7 @@ creature.RegisterSymbol {
     help = {
         name = "Concealed Ignoring Darkness",
         type = "boolean",
-        desc = "True if the creature has concealment from a source other than darkness: invisibility, a concealment zone or aura whose keyword is not Darkness, or concealing terrain.",
+        desc = "True if the creature has concealment from a source other than darkness: invisibility, the Concealment condition, a concealment zone or aura whose keyword is not Darkness, or concealing terrain.",
         seealso = {"Concealed", "Environment"},
     }
 }
@@ -6662,55 +6769,96 @@ function creature:DispatchEventAndWait(eventName, info)
         return
     end
 
-    -- If there are triggers, set up waiting mechanism
-    local eventComplete = false
+    --The trigger may run on another machine (the event is relayed to the
+    --player controlling this creature), so completion is signalled through the
+    --token rather than a local event: the event carries a wait id, and whichever
+    --client resolves it writes that id to eventWaitAcks (creature:AckEventWait).
+    --Before this, a Director starting a hero's turn waited on a local event the
+    --player's machine fired, never saw it, and the hero's beginturn never
+    --happened (bug report 33XSQWVM).
+    local token = dmhub.LookupToken(self)
+    local charid = token ~= nil and token.charid or nil
+    if charid == nil then
+        self:DispatchEvent(eventName, info)
+        return
+    end
 
-    EventUtils.RegisterGlobalEventHandler(mod, eventName, function(pass)
-        eventComplete = pass
-    end)
+    local waitid = dmhub.GenerateGuid()
+    info = info or {}
+    info.eventwaitid = waitid
+    info.eventwaitcharid = charid
+
+    --The turn this wait belongs to. If the queue moves on (the turn is ended or
+    --another one is started) there is nothing left to wait for.
+    local startQueue = dmhub.initiativeQueue
+    local startTurn = startQueue ~= nil and startQueue:try_get("currentTurn") or nil
+    local startRound = startQueue ~= nil and startQueue.round or nil
+    local function TurnStillCurrent()
+        local q = dmhub.initiativeQueue
+        if q == nil or q.hidden then
+            return false
+        end
+        return q:try_get("currentTurn") == startTurn and q.round == startRound
+    end
+
+    --Always read the live properties: a synced write can replace the object
+    --this method was called on.
+    local function Props()
+        local tok = dmhub.GetTokenById(charid)
+        if tok ~= nil and tok.valid and tok.properties ~= nil then
+            return tok.properties
+        end
+        return nil
+    end
 
     self:DispatchEvent(eventName, info)
 
     --Briefly wait for available triggers to populate
     coroutine.yield(0.5)
-    local triggerId
-    --track this trigger's id
-    for _, triggerInfo in pairs(self:GetAvailableTriggers() or {}) do
-        if triggerInfo.text == modName then
-            triggerId = triggerInfo.id
-            break
+
+    --A prompt the player is still looking at is waited on indefinitely, as
+    --before. Otherwise give up after this long, so a lost acknowledgement costs a
+    --delay rather than the whole turn.
+    local maxWaitWithoutPrompt = 180
+    local startTime = dmhub.Time()
+
+    local triggerId = nil
+    local outcome = nil
+    while outcome == nil do
+        local props = Props()
+        if props == nil or mod.unloaded then
+            outcome = "creature gone"
+        elseif props:try_get("eventWaitAcks", {})[waitid] ~= nil then
+            outcome = "acknowledged"
+        elseif not TurnStillCurrent() then
+            outcome = "turn moved on"
+        else
+            local triggers = props:GetAvailableTriggers() or {}
+            if triggerId ~= nil then
+                --The prompt we were watching has been accepted or dismissed.
+                if triggers[triggerId] == nil then
+                    outcome = "prompt resolved"
+                end
+            else
+                for _, triggerInfo in pairs(triggers) do
+                    if triggerInfo.text == modName then
+                        triggerId = triggerInfo.id
+                        break
+                    end
+                end
+                if triggerId == nil and dmhub.Time() - startTime > maxWaitWithoutPrompt then
+                    outcome = "timed out"
+                end
+            end
+        end
+
+        if outcome == nil then
+            coroutine.yield(0.1)
         end
     end
 
-    --wait for event to complete or trigger to be dismissed
-    local triggerStillExists = true
-    while not eventComplete and triggerStillExists do
-        
-        if triggerId then
-            -- We have a trigger ID, check if it still exists
-            triggerStillExists = false
-            for _, triggerInfo in pairs(self:GetAvailableTriggers() or {}) do
-                if triggerInfo.id == triggerId then
-                    triggerStillExists = true
-                    break
-                end
-            end
-        else
-            -- We don't have a trigger ID yet, try to find it
-            for _, triggerInfo in pairs(self:GetAvailableTriggers() or {}) do
-                if triggerInfo.text == modName then
-                    triggerId = triggerInfo.id
-                    triggerStillExists = true
-                    break
-                end
-            end
-            -- If we still haven't found it, keep waiting
-            if not triggerId then
-                triggerStillExists = true
-            end
-        end
-        
-        coroutine.yield(0.1)
+    if outcome ~= "acknowledged" and outcome ~= "prompt resolved" then
+        printf("EVENTWAIT:: %s on %s stopped waiting: %s", eventName, tostring(token.name), outcome)
     end
 end
 

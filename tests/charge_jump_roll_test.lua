@@ -78,6 +78,7 @@ function tok:Move(target, options)
     if reaction then reaction(#moves) end
     return {numSteps = distance}
 end
+--- @class RollPropertiesPowerTable: GameType
 RollPropertiesPowerTable = RegisterGameType("RollPropertiesPowerTable")
 RollUtils = {DiceResultToTier = function() return selectedTier end}
 Skill = {tableName = "skills"}

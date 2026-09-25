@@ -3016,6 +3016,7 @@ CreateScreen = function(args)
                     options = encounterOptions,
                     idChosen = m_encounter or ENCOUNTER_MAP_NAME,
                     change = function(element)
+                        ---@cast element Dropdown
                         m_encounter = element.idChosen
                     end,
                 },

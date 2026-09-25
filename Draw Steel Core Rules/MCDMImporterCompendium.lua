@@ -260,6 +260,7 @@ local function CreateEditPanel(tableName)
                         element.idChosen = item:try_get("importMatchType", "rules")
                     end,
                     change = function(element)
+                        ---@cast element Dropdown
                         if m_item ~= nil then
                             m_item.importMatchType = element.idChosen
                             editPanel:FireEvent("change")
@@ -748,6 +749,7 @@ local function CreateEditAbilityEffectsPanel(tableName)
                         element.idChosen = item:try_get("importMatchType", "rules")
                     end,
                     change = function(element)
+                        ---@cast element Dropdown
                         if m_item ~= nil then
                             m_item.importMatchType = element.idChosen
                             editPanel:FireEvent("change")

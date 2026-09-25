@@ -153,6 +153,7 @@ local CreateBetaBranchEditor = function()
 					},
 				},
 				change = function(element)
+					---@cast element Dropdown
 					dmhub.betaBranch = element.idChosen
 					changesLabel:SetClass("collapseAnim", false)
 				end,
@@ -212,6 +213,7 @@ CreateLanguageEditor = function()
 				idChosen = dmhub.GetSettingValue("lang"),
 				options = options,
 				change = function(element)
+					---@cast element Dropdown
 					dmhub.SetSettingValue("lang", element.idChosen)
 				end,
 			},

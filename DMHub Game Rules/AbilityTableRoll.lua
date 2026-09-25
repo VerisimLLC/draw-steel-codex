@@ -203,6 +203,7 @@ function ActivatedAbilityTableRollBehavior:EditorItems(parentPanel)
             options = tableTypeOptions,
             idChosen = self.tableType,
             change = function(element)
+                ---@cast element Dropdown
                 self.tableType = element.idChosen
                 tableParent:FireEvent("refreshTableType")
                 parentPanel:FireEventTree("refreshTable")
@@ -252,6 +253,7 @@ function ActivatedAbilityTableRollBehavior:EditorItems(parentPanel)
                         textDefault = "Select Table...",
                         idChosen = self.tableid,
                         change = function(element)
+                            ---@cast element Dropdown
                             self.tableid = element.idChosen
                             parentPanel:FireEventTree("refreshTable")
                         end,
@@ -292,6 +294,7 @@ function ActivatedAbilityTableRollBehavior:EditorItems(parentPanel)
             },
             idChosen = self.resourceAction,
             change = function(element)
+                ---@cast element Dropdown
                 self.resourceAction = element.idChosen
             end,
         },
@@ -315,6 +318,7 @@ function ActivatedAbilityTableRollBehavior:EditorItems(parentPanel)
             },
             idChosen = self:try_get("itemAction", "none"),
             change = function(element)
+                ---@cast element Dropdown
                 self.itemAction = element.idChosen
             end,
         },
@@ -337,6 +341,7 @@ function ActivatedAbilityTableRollBehavior:EditorItems(parentPanel)
             },
             idChosen = self:try_get("monsterAction", "none"),
             change = function(element)
+                ---@cast element Dropdown
                 self.monsterAction = element.idChosen
             end,
         },

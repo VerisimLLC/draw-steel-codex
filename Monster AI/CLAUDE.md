@@ -82,6 +82,19 @@ does not stop monster trigger polling or cooperative AI shutdown. Run
 `../dependencies/lua/bin/lua.exe tests/ai_end_turn_save_test.lua` from the codex
 root for prompt lifecycle and process wait/resume/stop coverage.
 
+The turn handoff itself also waits. A hero's mandatory end-of-turn trigger
+whose invoked ability prompts them (Revitalizing Limerick's "choose allies to
+spend a Recovery", the Tactician's and Conduit's recovery grants) fires inline
+from `EndTurn` and then sits in `ActivatedAbility.coroutineStorage` waiting for
+the choice. The `End Turn Casts` between-turn handler in
+`Draw Steel Core Rules/MCDMInitiativeBar.lua` (priority 0, ahead of the villain
+action window) keeps the ended entry current until this client's casts have
+been idle for 0.3s, so the AI host still reads the heroes' side and does not
+claim a turn -- no cross-client marker is involved. A cast that never finishes
+releases the turn after 600s with an `ENDTURN::` log line. Run
+`../dependencies/lua/bin/lua.exe tests/end_turn_cast_wait_test.lua` from the
+codex root.
+
 `MonsterAI:MoveToken` does not return until the token's path animation finishes
 and every player-controlled trigger caused by that movement is resolved. A
 movement activity ID follows remote event delivery into each trigger. Remote

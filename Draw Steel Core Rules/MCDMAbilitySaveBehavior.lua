@@ -446,6 +446,7 @@ function ActivatedAbilitySaveBehavior:EditorItems(parentPanel)
                 { id = "one", text = "One Chosen Condition" },
             },
             change = function(element)
+                ---@cast element Dropdown
                 self.conditionsMode = element.idChosen
                 --parentPanel:FireEvent("refreshBehavior")
             end,
@@ -470,6 +471,7 @@ function ActivatedAbilitySaveBehavior:EditorItems(parentPanel)
                 { id = "eot", text = "End of Turn Only" },
             },
             change = function(element)
+                ---@cast element Dropdown
                 self.durationScope = element.idChosen
             end,
         },
@@ -508,6 +510,7 @@ function ActivatedAbilitySaveBehavior:EditorItems(parentPanel)
                 { id = "purge", text = "Remove Without Roll" },
             },
             change = function(element)
+                ---@cast element Dropdown
                 self.rollMode = element.idChosen
                 --parentPanel:FireEvent("refreshBehavior")
             end,

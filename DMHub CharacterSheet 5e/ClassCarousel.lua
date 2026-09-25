@@ -411,6 +411,7 @@ function CharSheet.StartingEquipmentDisplay(claimedKey, hasclassStyle)
                                                             width = 180,
                                                             height = 20,
                                                             change = function(element)
+                                                                ---@cast element Dropdown
                                                                 local equipmentChoiceId = string.format("%s-%d", itemEntry.guid, i)
                                                                 creature = CharacterSheet.instance.data.info.token.properties
                                                                 creatureEquipmentChoices = creature:try_get("equipmentChoices", {})

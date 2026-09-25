@@ -1,9 +1,12 @@
 local mod = dmhub.GetModLoading()
 
 
-RegisterGameType("MCDMNegotiation")
-RegisterGameType("MCDMMotivation")
-RegisterGameType("MCDMPitfall")
+--- @class MCDMNegotiation: GameType
+MCDMNegotiation = RegisterGameType("MCDMNegotiation")
+--- @class MCDMMotivation: GameType
+MCDMMotivation = RegisterGameType("MCDMMotivation")
+--- @class MCDMPitfall: GameType
+MCDMPitfall = RegisterGameType("MCDMPitfall")
 
 function MCDMNegotiation.Create()
 	return MCDMNegotiation.new {
@@ -1515,6 +1518,7 @@ function NegotiationDocument:EditPanel()
             options = attitudeOptions,
             idChosen = doc:try_get("attitude", "suspicious"),
             change = function(element)
+                ---@cast element Dropdown
                 doc.attitude = element.idChosen
                 CustomDocument.NotifyEdited(element)
             end,
@@ -2917,6 +2921,7 @@ local function CreateNegotiationRunner()
             options = attitudeOptions,
             idChosen = m_attitude,
             change = function(element)
+                ---@cast element Dropdown
                 m_attitude = element.idChosen
             end,
         }

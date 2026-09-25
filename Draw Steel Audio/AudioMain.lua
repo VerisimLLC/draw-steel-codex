@@ -1856,6 +1856,92 @@ audio.SoundEvent{
 
 
 
+--Tracks on surfaces flagged footprints in AudioSurfaceTypes (snow, grass), in the
+--style the creature picked on its Appearance tab (FootprintStyle, DMHub Compendium).
+--The surface sets how long prints take to fade.
+--Prints are client-local and fade out over a minute (engine FootprintRenderer);
+--every client runs this hook for every token's move animation, so they all lay
+--the same tracks. Prints are spaced by distance along the path rather than per
+--frame, so they land in the same places on every client whatever its frame rate.
+local function LeaveFootprints(args, surfaceInfo, leaveTracks)
+    local token = args.token
+
+    --args is a fresh table for each move, so the style is looked up once per move.
+    --false = this creature leaves no prints.
+    if args.footprintStyle == nil then
+        args.footprintStyle = FootprintStyle.GetForCreature(token.properties) or false
+    end
+    if args.footprintStyle == false then
+        return
+    end
+    local style = args.footprintStyle --[[@as table]]
+
+    --style sizes are for a medium creature (radius 0.5).
+    local sizeScale = token.radiusInTiles*2
+    local stride = math.max(0.1, style.spacing*sizeScale)
+    if args.nextFootprint == nil then
+        args.nextFootprint = stride*0.5
+    end
+
+    if args.distanceMoved < args.nextFootprint then
+        return
+    end
+
+    --delta is previous position minus current, so it points back along the path.
+    local delta = args.delta
+    local len = math.sqrt(delta.x*delta.x + delta.y*delta.y)
+
+    --a hidden creature must not give itself away to players through its tracks.
+    if token.invisibleToPlayers and not dmhub.isDM then
+        leaveTracks = false
+    end
+
+    --riders move with their mount, whose own feet leave the tracks.
+    if leaveTracks and (token.mountedOn ~= nil or token.mountObject ~= nil) then
+        leaveTracks = false
+    end
+
+    local floor = nil
+    if leaveTracks and len > 0.0001 then
+        floor = game.GetFloor(token.floorid)
+    end
+
+    local backx, backy = 0, 0
+    if len > 0.0001 then
+        backx, backy = delta.x/len, delta.y/len
+    end
+
+    --forward (direction of travel) and its left-hand perpendicular.
+    local fx, fy = -backx, -backy
+    local lx, ly = -fy, fx
+    local angle = math.deg(math.atan(fy, fx))
+    local lateral = cond(style.alternate, 0.09*sizeScale, 0)
+
+    --always consume the distance, even off snow, so stepping onto snow does not
+    --dump a burst of prints for all the ground already covered.
+    while args.distanceMoved >= args.nextFootprint do
+        local back = args.distanceMoved - args.nextFootprint
+        args.nextFootprint = args.nextFootprint + stride
+        args.footprintLeft = not args.footprintLeft
+
+        if floor ~= nil then
+            local side = cond(args.footprintLeft, 1, -1)
+            floor:AddFootprint{
+                x = args.position.x + backx*back + lx*lateral*side,
+                y = args.position.y + backy*back + ly*lateral*side,
+                angle = angle,
+                image = style.imageid,
+                length = style.length,
+                scale = sizeScale,
+                color = FootprintStyle.printColor,
+                lifetime = surfaceInfo.footprintLifetime or 60,
+                --print art is a right foot; mirror it for the left.
+                mirror = style.alternate and args.footprintLeft,
+            }
+        end
+    end
+end
+
 dmhub.TokenMovingOnPath = function(args)
     local surface = args.path:GetStepSurfaceType(args.stepIndex) or 0
     local surfaceInfo = AudioSurfaceTypes.surfaces[surface]
@@ -1913,6 +1999,10 @@ dmhub.TokenMovingOnPath = function(args)
     local sound = surfaceInfo.sound or "Foot.Generic_Generic"
 
     local puddle = surfaceInfo.puddleSound
+
+    local pathMovementType = args.path.movementType
+    local onFoot = pathMovementType == "walk" or pathMovementType == "shift"
+    LeaveFootprints(args, surfaceInfo, surfaceInfo.footprints == true and onFoot and not inwater)
 
     if flying then
        sound = "Foot.Fly_Wing"

@@ -2733,6 +2733,7 @@ function RunRestoreOldVersionDialog(root, game)
         options = DURATION_OPTIONS,
         idChosen = m_selectedDurationId,
         change = function(element)
+            ---@cast element Dropdown
             m_selectedDurationId = element.idChosen
             m_selectedBookmarkId = nil
             customDateRow:SetClass("hidden", element.idChosen ~= "custom")
@@ -4309,6 +4310,7 @@ function CreateGameDialog()
                 options = m_moduleOptions,
                 idChosen = m_moduleid,
                 change = function(element)
+                    ---@cast element Dropdown
                     m_moduleid = element.idChosen
                     resultPanel:FireEventTree("refreshModule")
                 end,
@@ -4376,6 +4378,7 @@ function CreateGameDialog()
                         end
                     end,
                     change = function(element)
+                        ---@cast element Dropdown
                         resultPanel.data.backend = element.idChosen
                     end,
                 },

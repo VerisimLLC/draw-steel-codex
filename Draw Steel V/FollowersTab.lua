@@ -142,6 +142,7 @@ function CharSheet.FollowersInnerPanel()
                 end,
 
                 change = function(element)
+                    ---@cast element Dropdown
                     follower.followerToken = element.idChosen
                     resultPanel:FireEventTree("refreshAll")
                 end,
@@ -216,6 +217,7 @@ function CharSheet.FollowersInnerPanel()
                     idChosen = newFollowerType,
 
                     change = function(element)
+                        ---@cast element Dropdown
                         newFollowerType = element.idChosen
                         follower.manual = (element.idChosen == "existing")
                         resultPanel:FireEventTree("refreshAll")
@@ -284,6 +286,7 @@ function CharSheet.FollowersInnerPanel()
                     end,
 
                     change = function(element)
+                        ---@cast element Dropdown
                         options.pregenid = element.idChosen
                     end,
                 },
@@ -316,6 +319,7 @@ function CharSheet.FollowersInnerPanel()
                         idChosen = follower.ancestry,
 
                         change = function(element)
+                            ---@cast element Dropdown
                             follower.ancestry = element.idChosen
                             resultPanel:FireEventTree("refreshAll")
                         end,
@@ -358,6 +362,7 @@ function CharSheet.FollowersInnerPanel()
                         idChosen = follower.characteristic,
 
                         change = function(element)
+                            ---@cast element Dropdown
                             follower.characteristic = element.idChosen
                             resultPanel:FireEventTree("refreshAll")
                         end,
@@ -394,6 +399,7 @@ function CharSheet.FollowersInnerPanel()
                     end,
 
                     change = function(element)
+                        ---@cast element Dropdown
                         options.followerToken = element.idChosen
                         resultPanel:FireEventTree("refreshAll")
                     end,
@@ -600,6 +606,7 @@ function CharSheet.FollowersInnerPanel()
                                 end,
                                 
                                 change = function(element)
+                                    ---@cast element Dropdown
                                     local mentorToken = CharacterSheet.instance.data.info.token
                                     if mentorToken then
                                         mentorToken:ModifyProperties{

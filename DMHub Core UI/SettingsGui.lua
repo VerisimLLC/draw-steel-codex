@@ -611,6 +611,7 @@ local SettingsEditors = {
 						element.idChosen = value
 					end,
 					change = function(element)
+						---@cast element Dropdown
 						dmhub.SetSettingValue(var.id, element.idChosen)
 						if var.onchange then
 							var.onchange()

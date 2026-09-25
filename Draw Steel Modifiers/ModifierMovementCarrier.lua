@@ -80,6 +80,7 @@ CharacterModifier.TypeInfo.movementcarrier = {
                     },
                     idChosen = modifier:try_get("carrier", "condition_caster"),
                     change = function(dropdown)
+                        ---@cast dropdown Dropdown
                         modifier.carrier = dropdown.idChosen
                         element:FireEvent("refreshModifier")
                     end,
@@ -305,6 +306,7 @@ function ActivatedAbilityMovementCarrierBehavior:EditorItems(parentPanel)
             hasSearch = true,
             idChosen = self:try_get("ongoingEffect", "none"),
             change = function(dropdown)
+                ---@cast dropdown Dropdown
                 self.ongoingEffect = dropdown.idChosen
                 parentPanel:FireEvent("refreshBehavior")
             end,

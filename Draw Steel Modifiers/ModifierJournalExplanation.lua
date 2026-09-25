@@ -50,6 +50,7 @@ CharacterModifier.TypeInfo.journalexplanation = {
 					sort = true,
 					hasSearch = true,
 					change = function(element)
+						---@cast element Dropdown
 						modifier.targetDocId = element.idChosen
 						Refresh()
 					end,
@@ -200,6 +201,7 @@ function ActivatedAbilityShowJournalBehavior:EditorItems(parentPanel)
 			sort = true,
 			hasSearch = true,
 			change = function(element)
+				---@cast element Dropdown
 				self.templateDocId = element.idChosen
 			end,
 		}

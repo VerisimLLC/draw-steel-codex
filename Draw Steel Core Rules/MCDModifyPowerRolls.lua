@@ -1294,6 +1294,7 @@ CharacterModifier.TypeInfo.power = {
                     options = g_powerRollTypes,
                     idChosen = modifier.rollType,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.rollType = element.idChosen
                         Refresh()
                     end,
@@ -1322,6 +1323,7 @@ CharacterModifier.TypeInfo.power = {
                         options = options,
                         idChosen = modifier:try_get("attribute", "all"),
                         change = function(element)
+                            ---@cast element Dropdown
                             modifier.attribute = element.idChosen
                             Refresh()
                         end,
@@ -1363,6 +1365,7 @@ CharacterModifier.TypeInfo.power = {
                     textDefault = "Add Skill...",
                     options = Skill.skillsDropdownOptions,
                     change = function(element)
+                        ---@cast element Dropdown
                         skills[#skills+1] = element.idChosen
                         modifier.skills = skills
                         Refresh()
@@ -1409,6 +1412,7 @@ CharacterModifier.TypeInfo.power = {
                         },
 					},
 					change = function(element)
+                        ---@cast element Dropdown
                         modifier.resourceCostType = element.idChosen
                         Refresh()
 					end,
@@ -1552,6 +1556,7 @@ CharacterModifier.TypeInfo.power = {
                         },
 					},
 					change = function(element)
+                        ---@cast element Dropdown
                         modifier.rollRequirement = element.idChosen
                         Refresh()
 					end,
@@ -1591,6 +1596,7 @@ CharacterModifier.TypeInfo.power = {
 						},
 					},
 					change = function(element)
+						---@cast element Dropdown
 						if element.idChosen ~= conditionType then
 							if element.idChosen == "never" then
 								modifier.activationCondition = false
@@ -1753,6 +1759,7 @@ CharacterModifier.TypeInfo.power = {
                     valign = "center",
                     idChosen = modtype,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.modtype = element.idChosen
                         Refresh()
                     end,
@@ -1814,6 +1821,7 @@ CharacterModifier.TypeInfo.power = {
                     valign = "center",
                     idChosen = modifier:try_get("potencymod", "none"),
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.potencymod = element.idChosen
                         Refresh()
                     end,
@@ -1976,6 +1984,7 @@ CharacterModifier.TypeInfo.power = {
                             },
 
                             change = function(element)
+                                ---@cast element Dropdown
                                 modifier.changeTargetRange = element.idChosen
                                 Refresh()
                             end,
@@ -2153,6 +2162,7 @@ CharacterModifier.TypeInfo.power = {
                             valign = "center",
                             idChosen = modifier:try_get("changeTargetEffect", "all"),
                             change = function(element)
+                                ---@cast element Dropdown
                                 modifier.changeTargetEffect = element.idChosen
                                 Refresh()
                             end,
@@ -2227,6 +2237,7 @@ CharacterModifier.TypeInfo.power = {
                         idChosen = modifier:try_get("damageModifierType", "none"),
                         options = damageTypeOptions,
                         change = function(element)
+                            ---@cast element Dropdown
                             modifier.damageModifierType = element.idChosen
                             Refresh()
                         end,
@@ -2258,6 +2269,7 @@ CharacterModifier.TypeInfo.power = {
                     },
                     idChosen = modifier:try_get("damageMultiplier", "full"),
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.damageMultiplier = element.idChosen
                     end,
                 }
@@ -2455,6 +2467,7 @@ CharacterModifier.TypeInfo.power = {
                     idChosen = modifier:try_get("surgeDamageType", "none"),
                     options = rules.damageTypesAvailable,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.surgeDamageType = element.idChosen
                         Refresh()
                     end,
@@ -2517,6 +2530,7 @@ CharacterModifier.TypeInfo.power = {
                                     },
                                     idChosen = adjustment.type,
                                     change = function(element)
+                                        ---@cast element Dropdown
                                         adjustments[i].type = element.idChosen
                                         Refresh()
                                     end,
@@ -2538,6 +2552,7 @@ CharacterModifier.TypeInfo.power = {
                                     },
                                     idChosen = adjustment.operation or "add",
                                     change = function(element)
+                                        ---@cast element Dropdown
                                         adjustments[i].operation = element.idChosen
                                         Refresh()
                                     end,
@@ -2624,6 +2639,7 @@ CharacterModifier.TypeInfo.power = {
                         },
                         idChosen = (replaceForcedMovement and replaceForcedMovement.from) or "none",
                         change = function(element)
+                            ---@cast element Dropdown
                             if element.idChosen == "none" then
                                 modifier.replaceForcedMovement = nil
                             else
@@ -2655,6 +2671,7 @@ CharacterModifier.TypeInfo.power = {
                         },
                         idChosen = (replaceForcedMovement and replaceForcedMovement.to) or "slide",
                         change = function(element)
+                            ---@cast element Dropdown
                             local r = modifier:get_or_add("replaceForcedMovement", {})
                             r.to = element.idChosen
                             r.from = r.from or "push"

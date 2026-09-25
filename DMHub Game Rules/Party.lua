@@ -321,6 +321,7 @@ SetData = function(tableName, partyPanel, partyid)
 					options = relationshipValues,
 					optionChosen = cond(friends[partyid], "Friendly", "Hostile"),
 					change = function(element)
+						---@cast element Dropdown
 						if element.optionChosen == "Hostile" then
 							party:RemoveAllyParty(friendid)
 							UploadParty()

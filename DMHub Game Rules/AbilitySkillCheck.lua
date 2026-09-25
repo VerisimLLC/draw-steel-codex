@@ -192,6 +192,7 @@ function ActivatedAbilitySkillCheckBehavior:DCEditor(parentPanel, list)
             },
             idChosen = self.rollType,
             change = function(element)
+                ---@cast element Dropdown
                 if element.idChosen == self.rollType then
                     return
                 end
@@ -230,6 +231,7 @@ function ActivatedAbilitySkillCheckBehavior:DCEditor(parentPanel, list)
                 idChosen = self:try_get('dc', 'none'),
                 textDefault = "Choose...",
                 change = function(element)
+                    ---@cast element Dropdown
                     if element.idChosen == 'none' then
                         self.dc = nil
                     else

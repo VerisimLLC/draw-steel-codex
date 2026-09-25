@@ -111,6 +111,7 @@ CharacterModifier.TypeInfo.altspells = {
                     height = 40,
                     fontSize = 20,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.methodid = element.idChosen
                     end,
                 }
@@ -132,6 +133,7 @@ CharacterModifier.TypeInfo.altspells = {
                     height = 40,
                     fontSize = 20,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.spellList = element.idChosen
                     end,
                 }
@@ -157,6 +159,7 @@ CharacterModifier.TypeInfo.altspells = {
 
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								modifier.resourceType = element.idChosen
 								Refresh()
 							end,

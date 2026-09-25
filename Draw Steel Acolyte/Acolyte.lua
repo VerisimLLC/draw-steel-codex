@@ -724,7 +724,8 @@ end
 --   * cancelRoll              : delete the offered card; nothing resolves
 -- The dialog's own standard roll card is suppressed in section 8b.
 
-RegisterGameType("ActivatedAbilityPatronGazeResolveBehavior", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityPatronGazeResolveBehavior: ActivatedAbilityBehavior
+ActivatedAbilityPatronGazeResolveBehavior = RegisterGameType("ActivatedAbilityPatronGazeResolveBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilityPatronGazeResolveBehavior.summary = "Patron's Gaze Risk Resolve"
 

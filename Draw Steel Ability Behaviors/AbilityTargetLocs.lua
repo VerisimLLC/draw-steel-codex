@@ -77,6 +77,7 @@ function ActivatedAbilityManipulateTargetLocs:EditorItems(parentPanel)
                 },
                 idChosen = self.mode,
                 change = function(element)
+                    ---@cast element Dropdown
                     self.mode = element.idChosen
                     Refresh()
                 end,

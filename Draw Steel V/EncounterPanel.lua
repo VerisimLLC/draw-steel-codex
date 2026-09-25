@@ -1245,6 +1245,7 @@ local function CreateScriptParamsRow(encounter, refresh)
                 options = options,
                 idChosen = current,
                 change = function(element)
+                    ---@cast element Dropdown
                     CommitParamValue(instance, param.id, element.idChosen)
                 end,
             }
@@ -1284,6 +1285,7 @@ local function CreateScriptParamsRow(encounter, refresh)
                     options = options,
                     idChosen = chosen,
                     change = function(element)
+                        ---@cast element Dropdown
                         local v = element.idChosen
                         if v == "none" then
                             v = nil
@@ -1567,6 +1569,7 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
                 end,
 
                 change = function(element)
+                    ---@cast element Dropdown
                     encounter.victoryCondition = element.idChosen
                     partyBar:FireEventTree("refreshDestroy")
                 end,
@@ -1692,6 +1695,7 @@ local function CreatePartyBar(encounter, party, refresh, rebuild, budgetDial)
                             options = keywordOptions,
                             idChosen = chosen,
                             change = function(dropdown)
+                                ---@cast dropdown Dropdown
                                 encounter.victoryDestroyKeyword = dropdown.idChosen
                             end,
                         },
@@ -3321,6 +3325,7 @@ local function CreateWaveSections(args)
                         },
                         idChosen = tostring(thisWave.round),
                         change = function(element)
+                            ---@cast element Dropdown
                             if element.idChosen == "every" then
                                 thisWave.round = "every"
                             else
@@ -3548,6 +3553,7 @@ local function createEncounterScriptsPanel(encounter, onChange)
                 options = addOptions,
                 idChosen = "none",
                 change = function(element)
+                    ---@cast element Dropdown
                     local chosen = element.idChosen
                     if chosen == "none" then
                         return

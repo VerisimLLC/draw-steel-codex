@@ -39,6 +39,7 @@ local SetGlobalRuleMod = function(tableName, ruleModPanel, ruleModid)
 			options = GlobalRuleMod.ApplyOptions,
 			idChosen = ruleMod:GetApplyID(),
 			change = function(element)
+				---@cast element Dropdown
 				ruleMod.applyRetainers = element.idChosen == "retainers" or element.idChosen == "characters_retainers" or element.idChosen == "characters_retainers_companions" or element.idChosen == "all"
 				ruleMod.applyCharacters = element.idChosen == "characters" or element.idChosen == "characters_retainers" or element.idChosen == "characters_retainers_companions" or element.idChosen == "all"
 				ruleMod.applyMonsters = element.idChosen == "monsters" or element.idChosen == "all"

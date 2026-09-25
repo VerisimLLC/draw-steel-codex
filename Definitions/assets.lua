@@ -222,3 +222,14 @@ function assets:LoadImageOrVideoFileLocally(path) end
 --- @param maxDimension number The maximum size in pixels of the image's longer edge.
 --- @return nil|LocalImageOrVideoFileLua
 function assets:LoadImageFileLocallyResized(path, maxDimension) end
+
+--- Downscales an image that is already cached on this machine to width x height and returns it re-encoded, ready for assets:UploadImageAsset{data = result.data}. imageid is an image asset guid or an 'md5:' image id. The image must have been shown (so downloaded) first. Never upscales: a size at or above the original returns nil. The result is JPEG, or PNG when the image has transparency. Returns nil if the image is not cached here or could not be decoded. Runs on the main thread and takes a moment for a large image.
+--- @param imageid string An image asset guid or an 'md5:' image id.
+--- @param width number The width to scale to, in pixels.
+--- @param height number The height to scale to, in pixels.
+--- @return nil|{data: LuaByteArray, width: number, height: number, bytes: number, format: 'jpeg'|'png'}
+function assets:ResizeCachedImage(imageid, width, height) end
+
+--- Plays a local MP4 or WebM file silently and captures its first frame as an opaque PNG, ready for assets:UploadImageAsset{data = result.data} -- a poster image for the video. Nothing is uploaded. Pass maxWidth/maxHeight to scale the frame down to fit inside them (never up; scaled sizes are rounded to multiples of 4). done(result) is called with result = {data, width, height, videoWidth, videoHeight, duration}, width/height being the PNG's size and duration the video's length in seconds (0 if unknown); error(message) is called instead if the file cannot be played. The file is converted first if needed, as an upload would be, so this can take a few seconds.
+--- @param options {path: string, maxWidth: nil|number, maxHeight: nil|number, done: fun(result: {data: LuaByteArray, width: number, height: number, videoWidth: number, videoHeight: number, duration: number}), error: nil|fun(message: string)}
+function assets:ExtractVideoFrame(options) end

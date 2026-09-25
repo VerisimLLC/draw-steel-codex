@@ -177,6 +177,7 @@ function ActivatedAbilityAddNewTargetsBehavior:EditorItems(parentPanel)
 			},
 			idChosen = self.targetMode,
 			change = function(element)
+				---@cast element Dropdown
 				self.targetMode = element.idChosen
 			end,
 		}

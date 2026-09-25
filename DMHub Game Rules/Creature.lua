@@ -1174,14 +1174,34 @@ end
 function creature:FillCalculatedStatusIcons(result)
 	local mods = self:GetActiveModifiers()
 
-    if self._tmp_concealed then
-        result[#result+1] = {
-            id = "concealed",
-            icon = "ui-icons/eye.png",
-            hoverText = "Concealed",
-            statusIcon = true,
-            statusText = "Concealed",
-        }
+    --Concealment from the map or invisibility has no condition entry of its own,
+    --so show it as the Concealment condition. A creature that has the condition
+    --itself already shows it (as its ongoing effect or a condition below).
+    if self._tmp_concealed and not self:HasConcealmentCondition() then
+        local conditionInfo = CharacterCondition.conditionsByName["concealment"]
+        local token = dmhub.LookupToken(self)
+        local source = "From invisibility."
+        if token ~= nil and token.hasConcealment then
+            source = "From the area this creature is in."
+        end
+        if conditionInfo ~= nil then
+            result[#result+1] = {
+                id = "concealed",
+                icon = conditionInfo.iconid,
+                style = conditionInfo.display,
+                hoverText = string.format("%s: %s\n\n<b>%s</b>", conditionInfo.name, conditionInfo.description, source),
+                statusIcon = true,
+                statusText = conditionInfo.name,
+            }
+        else
+            result[#result+1] = {
+                id = "concealed",
+                icon = "ui-icons/eye.png",
+                hoverText = "Concealment\n\n<b>" .. source .. "</b>",
+                statusIcon = true,
+                statusText = "Concealment",
+            }
+        end
     end
 
 	local conditions = self:try_get("_tmp_directConditions")
@@ -4882,6 +4902,10 @@ function creature:RefreshToken(token)
         self._tmp_movementcarrier = CharacterModifier.GetMovementCarrierFromModifiers(self, modifiers)
     end
 
+    --Read by the engine's token renderer, which eases toward these (see GameSystem.lua).
+    self._tmp_tokenOpacity = self:CalculateAttribute("tokenopacity", 1)
+    self._tmp_tokenBrightness = self:CalculateAttribute("tokenbrightness", 1)
+
 	--check if any inflicted conditions or ongoing effects no longer sustain.
 	if token.activeControllerId == nil then
         if self:has_key("inflictedConditions") then
@@ -5104,9 +5128,32 @@ function creature:GetActiveModifiersExcludingAuras(calculatingModifiers)
 	--results for the whole update. Invisibility modifiers can only mark concealment
 	--from OnTokenRefresh, which runs after this rebuild, so their stamp from the
 	--previous update keeps them counted.
-	self._tmp_concealed = self:IsConcealed() or self._tmp_concealedInvisibleUpdate >= dmhub.ngameupdate - 1
+	--The map check is inlined rather than calling IsConcealed, whose immunity check
+	--would ask for the modifier list this function is building.
+	--The Concealment condition counts too. Before the build, a condition bestowed
+	--by a modifier is only known from the previous update's list.
+	local token = dmhub.LookupToken(self)
+	local concealedBySurroundings = (token ~= nil and token.hasConcealment) or self._tmp_concealedInvisibleUpdate >= dmhub.ngameupdate - 1
+	self._tmp_concealed = concealedBySurroundings or self:HasConcealmentCondition()
 
-	self._tmp_modifiers_excluding_auras = self:CalculateActiveModifiers(calculatingModifiers)
+	local modifiers = self:CalculateActiveModifiers(calculatingModifiers)
+
+	--Immunity to Concealment and bestowed Concealment conditions both come from the
+	--modifiers, so the final answer is only known once the list exists. When it
+	--differs from the guess above, rebuild the list so "Concealed"-gated
+	--filterConditions see the corrected value. This only happens on a change.
+	local concealed = (concealedBySurroundings or self:HasConcealmentCondition()) and not self:IsImmuneToConcealment(modifiers)
+	if concealed ~= self._tmp_concealed then
+		self._tmp_concealed = concealed
+		if calculatingModifiers ~= nil then
+			for i = #calculatingModifiers, 1, -1 do
+				calculatingModifiers[i] = nil
+			end
+		end
+		modifiers = self:CalculateActiveModifiers(calculatingModifiers)
+	end
+
+	self._tmp_modifiers_excluding_auras = modifiers
 	self._tmp_modifiersRefreshExcludingAuras = dmhub.ngameupdate
 
 	return self._tmp_modifiers_excluding_auras
@@ -5170,14 +5217,18 @@ end
 
 function creature:FillEquipmentModifiers(result)
 	local gearTable = GetTableCached('tbl_Gear')
+	local equippedIds = {}
 	for slotid,itemid in pairs(self:EquipmentInUse()) do
 		local item = gearTable[itemid]
 		if item then
+			equippedIds[itemid] = true
 			item:EnsureDomains()
 			local features = item:try_get("features")
 			if features then
+				--consumeItemId: a trigger from a consumable spends the item (TriggerPayCost).
+				local params = cond(EquipmentCategory.IsConsumable(item), {consumeItemId = itemid}, nil)
 				for i,feature in ipairs(features) do
-                    feature:FillModifiers(self, result)
+                    feature:FillModifiers(self, result, params)
 				end
 			end
 
@@ -5188,6 +5239,22 @@ function creature:FillEquipmentModifiers(result)
 					for _,feature in ipairs(propInfo.features) do
                         feature:FillModifiers(self, result)
 					end
+				end
+			end
+		end
+	end
+
+	--Consumables can't be equipped, so their magical properties apply while the
+	--item is merely carried (e.g. Mirror Token: "while on your person"). Entries
+	--are tagged with consumeItemId so a trigger that fires spends one of the item.
+	for itemid,entry in pairs(self:try_get("inventory", {})) do
+		local item = gearTable[itemid]
+		if item ~= nil and (not equippedIds[itemid]) and (entry.quantity or 0) > 0 and EquipmentCategory.IsConsumable(item) then
+			local features = item:try_get("features")
+			if features ~= nil and #features > 0 then
+				item:EnsureDomains()
+				for _,feature in ipairs(features) do
+					feature:FillModifiers(self, result, {consumeItemId = itemid})
 				end
 			end
 		end
@@ -6948,8 +7015,6 @@ end
 
 function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, options)
 
-    print("Caster:: Info:", casterInfo, json(casterInfo))
-
     --Avoidance (Draw Steel Lightbender trait): a save-ends ongoing effect on a
     --creature with this attribute is downgraded to end-of-next-turn instead.
     if duration == "save_ends" and self:CalculateNamedCustomAttribute("Avoidance Save Ends Conversion") > 0 then
@@ -7709,6 +7774,27 @@ function creature:MatchesString(viewingToken, token, str)
         end
     end
 
+    --Ongoing effects match by their own name, so an effect is found even when its
+    --modifiers are named differently or it has none. Same "hidden" exclusion as above.
+    if str ~= "hidden" then
+        local ongoingEffects = self:ActiveOngoingEffects()
+        if #ongoingEffects > 0 then
+            local ongoingEffectsTable = GetTableCached("characterOngoingEffects") or {}
+            local pattern = nil
+            if string.find(str, "*") then
+                pattern = string.gsub(str, "%*", ".*")
+            end
+            for i=1,#ongoingEffects do
+                local info = ongoingEffectsTable[ongoingEffects[i].ongoingEffectid]
+                if info ~= nil then
+                    local effectName = string.lower(info.name)
+                    if effectName == str or (pattern ~= nil and regex.Match(effectName, pattern)) then
+                        return true
+                    end
+                end
+            end
+        end
+    end
 
     local condition = CharacterCondition.conditionsByName[str]
     if condition ~= nil and self:HasCondition(condition.id) then
@@ -8041,22 +8127,22 @@ creature.helpSymbols = {
 	countnearbyenemies = {
 		name = "Count Nearby Enemies",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live enemy creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups, the names of features, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		desc = "A function which is shown a distance in squares and tells us the number of live enemy creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can include monster groups, the names of features, ongoing effects, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
 		examples = {"OBJ.Count Nearby Enemies(1)", "OBJ.Count Nearby Enemies(1, 1)", "OBJ.Count Nearby Enemies(5, \"Goblin\")", "OBJ.Count Nearby Enemies(10, \"ally\")", "OBJ.Count Nearby Enemies(5, \"enemy\", \"Goblin\")", "OBJ.Count Nearby Enemies(1, \"Winded\")", "OBJ.Count Nearby Enemies(1, \"~Winded\")"},
 	},
 
 	countnearbyfriends = {
 		name = "Count Nearby Friends",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live allied creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can incldue monster groups, the names of features, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		desc = "A function which is shown a distance in squares and tells us the number of live allied creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. Criteria can include monster groups, the names of features, ongoing effects, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
 		examples = {"OBJ.Count Nearby Friends(5)", "OBJ.Count Nearby Friends(1, 1)", "OBJ.Count Nearby Friends(5, \"Winded\")"},
 	},
 
 	countnearbycreatures = {
 		name = "Count Nearby Creatures",
 		type = "function",
-		desc = "A function which is shown a distance in squares and tells us the number of live creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. 'ally' and 'enemy' work, as do monster groups, the names of features, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
-		examples = {"OBJ.Count Nearby Creatures(5)", "OBJ.Count Nearby Creatures(1, \"Enemy\", \"Goblin\") > 2", "OBJ.Count Nearby Creatures(1, 1, \"Enemy\")", "OBJ.Count Nearby Creatures(2, \"Enemy\", \"Winded\")"},
+		desc = "A function which is shown a distance in squares and tells us the number of live creatures within that distance of this creature. This can be given additional parameters after the distance to filter the criteria. 'ally' and 'enemy' work, as do monster groups, the names of features and ongoing effects, condition names such as \"Prone\", and states such as \"Winded\". Put a ~ in front of a criteria to invert it. Creatures can also be provided as parameters and those specific creatures will be excluded from the match. Additional parameters can also include a number, which acts as a maximum altitude difference in tiles between this creature and the nearby creature.",
+		examples = {"OBJ.Count Nearby Creatures(5)", "OBJ.Count Nearby Creatures(1, \"Enemy\", \"Goblin\") > 2", "OBJ.Count Nearby Creatures(1, 1, \"Enemy\")", "OBJ.Count Nearby Creatures(2, \"Enemy\", \"Winded\")", "OBJ.Count Nearby Creatures(5, \"Judged\")"},
 	},
 
 	countriders = {
@@ -9897,6 +9983,43 @@ end
 
 creature.debugTriggerHandler = false
 
+--Acknowledges an event dispatched with DispatchEventAndWait (MCDMCreature.lua),
+--which may be waiting on another machine. `context` is the event info or the
+--trigger symbols built from it; the wait id and the waiting creature's charid
+--ride in it. Only this creature's own triggers answer the wait, so a reaction
+--on some other creature cannot end it early. Written to the token so the waiting
+--client sees it whichever machine resolved the trigger.
+function creature:AckEventWait(context)
+    if type(context) ~= "table" then
+        return
+    end
+    local waitid = rawget(context, "eventwaitid")
+    local charid = rawget(context, "eventwaitcharid")
+    if type(waitid) ~= "string" or type(charid) ~= "string" then
+        return
+    end
+
+    local token = dmhub.LookupToken(self)
+    if token == nil or not token.valid or token.charid ~= charid then
+        return
+    end
+
+    token:ModifyProperties{
+        description = "Acknowledge Event",
+        undoable = false,
+        execute = function()
+            local acks = self:get_or_add("eventWaitAcks", {})
+            --prune old acknowledgements so the table stays small.
+            for key,timestamp in pairs(acks) do
+                if type(timestamp) ~= "number" or TimestampAgeInSeconds(timestamp) > 300 then
+                    acks[key] = nil
+                end
+            end
+            acks[waitid] = dmhub.serverTimeMilliseconds
+        end,
+    }
+end
+
 --an event is triggered which could cause triggered abilities to go off.
 --localFilter: nil = all triggers, "localOnly" = only local-only triggers, "skipLocal" = skip local-only triggers
 function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localFilter)
@@ -9907,6 +10030,7 @@ function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localF
 
 	local mods = self:GetActiveModifiers()
 	local result = false
+	local firedBefore = TriggeredAbility.FiredCount()
 
     --Remote (relayed) events always collect the per-ability gate results so
     --the TRIGGERRELAY:: trail shows why a relayed event did or did not prompt.
@@ -9921,6 +10045,15 @@ function creature:TriggerEvent(eventName, info, alreadyTriggeredOnOthers, localF
 		if triggered then
 			result = true
 		end
+	end
+
+	--A DispatchEventAndWait caller is waiting on this event, and none of this
+	--creature's triggers fired (every one failed a condition or gate), so
+	--nothing will finish to release it: release it now. The "localOnly" pass is
+	--skipped because the relayed "skipLocal" pass still has to run elsewhere.
+	if localFilter ~= "localOnly" and type(info) == "table" and rawget(info, "eventwaitid") ~= nil
+		and TriggeredAbility.FiredCount() == firedBefore then
+		self:AckEventWait(info)
 	end
 
 	result = self:RemoveOngoingEffectsOnTrigger(eventName, info) or result
@@ -10475,7 +10608,7 @@ function creature:SetTriggeredAbilityEnabled(ability, value)
 	activeTriggers[ability.guid] = value
 end
 
---- @class ActiveTrigger
+--- @class ActiveTrigger: GameType
 --- @field timestamp number
 --- @field expiryTimestamp number
 --- @field id string

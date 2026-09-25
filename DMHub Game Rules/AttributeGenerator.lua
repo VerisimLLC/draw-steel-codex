@@ -351,6 +351,7 @@ local ShowEditor = function(data, method, resultPanel)
                 options = AttributeGenerator.availableMethods,
                 idChosen = data.method,
                 change = function(element)
+                    ---@cast element Dropdown
                     data.method = element.idChosen
                     resultPanel:FireEvent("change")
                 end,

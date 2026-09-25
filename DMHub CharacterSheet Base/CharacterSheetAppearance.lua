@@ -1540,6 +1540,7 @@ function CharSheet.MountablePanel()
         gui.Dropdown {
             halign = "center",
             change = function(element)
+                ---@cast element Dropdown
                 local info = CharacterSheet.instance.data.info
                 info.token.saddles = tonumber(element.idChosen)
                 info.token:UploadAppearance()
@@ -1575,6 +1576,7 @@ function CharSheet.MountablePanel()
                     element.idChosen = tostring(info.token.saddleSize)
                 end,
                 change = function(element)
+                    ---@cast element Dropdown
                     local info = CharacterSheet.instance.data.info
                     info.token.saddleSize = element.idChosen
                     info.token:UploadAppearance()
@@ -3036,6 +3038,7 @@ function CharSheet.AppearancePanel()
             halign = "right",
             options = {},
             change = function(element)
+                ---@cast element Dropdown
                 SaveTokenDice(slot.key, element.idChosen or "")
             end,
         }
@@ -3138,6 +3141,7 @@ function CharSheet.AppearancePanel()
                 halign = "right",
                 options = {},
                 change = function(element)
+                    ---@cast element Dropdown
                     local info = CharacterSheet.instance.data.info
                     local equipment = info.token.properties:Equipment()
                     if element.idChosen == "none" then
@@ -3235,6 +3239,7 @@ function CharSheet.AppearancePanel()
                 halign = "right",
                 options = {},
                 change = function(element)
+                    ---@cast element Dropdown
                     local info = CharacterSheet.instance.data.info
                     info.token.teleportAnimation = element.idChosen or ""
                     info.token:UploadAppearance()
@@ -3262,6 +3267,66 @@ function CharSheet.AppearancePanel()
                     local current = info.token.teleportAnimation or ""
                     if current == "" then current = "default" end
                     element.idChosen = current
+                end,
+            }
+        },
+
+        --The tracks this creature leaves on snow (FootprintStyles.lua). Unset means
+        --the default Feet style, so every creature leaves tracks until told not to.
+        gui.Panel {
+            vmargin = 16,
+            flow = "horizontal",
+            halign = "center",
+            valign = "top",
+            width = 400,
+            height = 24,
+            linger = function(element)
+                gui.Tooltip{
+                    text = "The tracks this creature leaves when it walks through snow. Add more styles in Compendium > Assets > Footprints.",
+                    halign = "center",
+                    valign = "top",
+                }(element)
+            end,
+            gui.Label {
+                classes = {"sizeM"},
+                text = "Footprints:",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+            },
+            gui.Dropdown {
+                width = 180,
+                valign = "center",
+                halign = "right",
+                options = {},
+                change = function(element)
+                    ---@cast element Dropdown
+                    local tok = CharacterSheet.instance.data.info.token
+                    local chosen = element.idChosen
+                    if chosen == FootprintStyle.defaultId then
+                        chosen = nil
+                    end
+                    tok:ModifyProperties{
+                        description = "Change footprints",
+                        execute = function()
+                            tok.properties.footprintStyle = chosen
+                        end,
+                    }
+                    CharacterSheet.instance:FireEvent("refreshAll")
+                end,
+                refreshAppearance = function(element, info)
+                    ---@cast element Dropdown
+                    element.options = FootprintStyle.GetOptions()
+
+                    --a style that was deleted from the compendium shows as Feet,
+                    --which is what the creature now leaves.
+                    local style = FootprintStyle.GetForCreature(info.token.properties)
+                    if style == nil then
+                        element.idChosen = FootprintStyle.noneId
+                    else
+                        element.idChosen = style.id
+                    end
                 end,
             }
         },

@@ -2308,6 +2308,7 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
         },
         idChosen = rollType,
         change = function(element)
+            ---@cast element Dropdown
             self.isTest = (element.idChosen == "test" or element.idChosen == "targettest")
             self.resistanceRoll = (element.idChosen == "resistance" or element.idChosen == "targettest")
             rollPanel:SetClass("collapsed", self:try_get("resistanceRoll", false))
@@ -2361,6 +2362,7 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
                 options = creature.attributeDropdownOptionsWithNone,
                 idChosen = self:try_get("attrid", "none"),
                 change = function(element)
+                    ---@cast element Dropdown
                     self.attrid = element.idChosen
                 end,
             },
@@ -2380,6 +2382,7 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
                 hasSearch = true,
                 idChosen = self:try_get("skillid", "none"),
                 change = function(element)
+                    ---@cast element Dropdown
                     self.skillid = element.idChosen
                 end,
             },
@@ -2402,6 +2405,7 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
             idChosen = self:ResistanceAttr(),
             options = creature.attributeDropdownOptions,
             change = function(element)
+                ---@cast element Dropdown
                 self.resistanceAttr = element.idChosen
                 -- Preview shows the resistance attribute name in its header.
                 element:FireEventOnParents("refreshAbilityPreview")
@@ -2562,6 +2566,7 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
                 },
                 idChosen = "none",
                 change = function(element)
+                    ---@cast element Dropdown
                     local modifiers = self:get_or_add("modifiers", {})
                     modifiers[#modifiers+1] = {
                         type = element.idChosen,

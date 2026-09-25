@@ -47,6 +47,7 @@ CharacterModifier.TypeInfo.castingorigin = {
 					el:FireEvent("create")
 				end,
 				change = function(el)
+					---@cast el Dropdown
 					if el.idChosen ~= "none" then
 						modifier.keywordFilter[el.idChosen] = true
 						Refresh()

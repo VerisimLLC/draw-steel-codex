@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("ActivatedAbilityPlaySoundBehavior", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityPlaySoundBehavior: ActivatedAbilityBehavior
+ActivatedAbilityPlaySoundBehavior = RegisterGameType("ActivatedAbilityPlaySoundBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
 {
@@ -92,6 +93,7 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
                 { id = "custom", text = "Custom" },
             },
             change = function(element)
+                ---@cast element Dropdown
                 self.mode = element.idChosen
                 builtinPanel:SetClass("collapsed", self.mode ~= "builtin")
                 customPanel:SetClass("collapsed", self.mode ~= "custom")
@@ -112,6 +114,7 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
             sort = true,
             options = soundOptions,
             change = function(element)
+                ---@cast element Dropdown
                 self.soundEvent = element.idChosen
             end,
         }

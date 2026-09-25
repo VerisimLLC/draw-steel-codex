@@ -586,6 +586,7 @@ function ActivatedAbilityBuildWallBehavior:EditorItems(parentPanel)
             textDefault = "Choose Object...",
             idChosen = self.objectid,
             change = function(element)
+                ---@cast element Dropdown
                 self.objectid = element.idChosen
             end,
         }

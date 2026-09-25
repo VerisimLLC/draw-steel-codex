@@ -119,6 +119,7 @@ function ActivatedAbilityApplyRidersBehavior:EditorItems(parentPanel)
                 sort = true,
                 hasSearch = true,
                 change = function(element)
+                    ---@cast element Dropdown
                     self.conditionid = element.idChosen
                     print("Riders: Condition changed", element.idChosen)
                     Refresh()
@@ -138,6 +139,7 @@ function ActivatedAbilityApplyRidersBehavior:EditorItems(parentPanel)
                     options = riderOptions,
                     sort = true,
                     change = function(element)
+                        ---@cast element Dropdown
                         self.riderid = element.idChosen
                         Refresh()
                     end,

@@ -102,6 +102,7 @@ function ActivatedAbilityCreateItemBehavior:EditorItems(parentPanel)
             hasSearch = true,
             options = options,
             change = function(element)
+                ---@cast element Dropdown
                 self.itemid = element.idChosen
             end,
         }

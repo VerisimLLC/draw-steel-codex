@@ -684,7 +684,8 @@ dmhub.tokenAnimations:RegisterTeleport{
     animation = HopAnimation(true),
 }
 
-RegisterGameType("ActivatedAbilityHopBehavior", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityHopBehavior: ActivatedAbilityBehavior
+ActivatedAbilityHopBehavior = RegisterGameType("ActivatedAbilityHopBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbilityHopBehavior.summary = 'Hop In Place'
 ActivatedAbilityHopBehavior.shake = true

@@ -17,12 +17,16 @@ local mod = dmhub.GetModLoading()
 --      media = {
 --          --tab 1: the cover with sample pages fanned out behind it.
 --          book = {cover = "<guid>", pages = {"<guid>", ...}},
---          --tab 2: every map in turn. x/y of a pin are fractions of the map
---          --image from its TOP-left.
+--          --tab 2: every map in turn. A map is a looping video plus a PNG
+--          --poster (its first frame: the tab thumbnail, shown until the video
+--          --plays); width/height/duration are the video's.
 --          maps = {
---              {image = "<guid>", name = "Temple Olea",
---               pins = {{label = "The ford", x = 0.4, y = 0.7}}},
+--              {video = "<guid>", image = "<poster guid>", name = "Temple Olea",
+--               width = 1920, height = 1080, duration = 24},
 --          },
+--          --Maps saved before videos have only an image, which pans slowly with
+--          --place names over it; a pin's x/y are fractions of the image from its
+--          --TOP-left: pins = {{label = "The ford", x = 0.4, y = 0.7}}.
 --          --tabs 3-5: art, each shown whole.
 --          art = { {image = "<guid>", caption = "The winter wood", label = "Art"} },
 --      },
@@ -234,7 +238,8 @@ end
 --also a public, content-addressed blob, which any client loads through an
 --"md5:<blob>" id with no asset record needed (as chat attachments do). Swap
 --each asset id for that form; ids it cannot resolve are left as they are.
-local function PortableImageId(id)
+--The editor's cast picker uses it too.
+function AdventurePage.PortableImageId(id)
     if type(id) ~= "string" or id == "" or id:sub(1, 4) == "md5:" then
         return id
     end
@@ -250,6 +255,7 @@ local function PortableImageId(id)
     end
     return id
 end
+local PortableImageId = AdventurePage.PortableImageId
 
 local function PortableConfig(cfg)
     cfg.heroImage = PortableImageId(cfg.heroImage)
@@ -266,6 +272,42 @@ local function PortableConfig(cfg)
 end
 
 --Builds the draft and calls callback(cfg), or callback(nil, errorMessage).
+--A cast entry drawn from one of the adventure's tokens: the token art plus
+--everything that decides how the token looks in game (its crop, or popout art
+--and scale, and its frame and the frame's hue shift), so the page can draw it
+--exactly as the token looks. Returns nil for a token with no name or only the
+--default avatar. nameOverride names a bestiary monster's token, which carries
+--no name of its own.
+function AdventurePage.CastFromToken(tok, nameOverride)
+    local name, portrait, rect, popout, popoutScale = nameOverride, nil, nil, false, 1
+    local frame, frameHue = nil, 0
+    if name == nil then
+        pcall(function() name = tok.name end)
+    end
+    pcall(function() portrait = tok.portrait end)
+    pcall(function() popout = tok.popoutPortrait == true end)
+    pcall(function() popoutScale = tok.popoutScale or 1 end)
+    pcall(function() frame = tok.portraitFrame end)
+    pcall(function() frameHue = tok.portraitFrameHueShift or 0 end)
+    pcall(function()
+        local r = tok.portraitRect
+        rect = {x1 = r.x1, y1 = r.y1, x2 = r.x2, y2 = r.y2}
+    end)
+    --"High Elf Quiver 3" and its siblings are one cast member.
+    if type(name) == "string" then
+        name = name:gsub("%s+%d+$", "")
+    end
+    if type(name) ~= "string" or name == "" or type(portrait) ~= "string"
+        or portrait == "" or portrait:find("DEFAULT") then
+        return nil
+    end
+    if type(frame) ~= "string" or frame == "" then
+        frame = nil
+    end
+    return {image = portrait, name = name, role = "", token = true, rect = rect,
+        popout = popout, popoutScale = popoutScale, frame = frame, frameHue = frameHue}
+end
+
 function AdventurePage.AutoFill(item, callback)
     local moduleid = item.assetid
     if item.itemType ~= "Module" or moduleid == nil or moduleid == "" then
@@ -378,22 +420,11 @@ function AdventurePage.AutoFill(item, callback)
                         local seen = {}
                         local members = {}
                         for _, tok in pairs(snapshot.characters or {}) do
-                            local name, portrait = nil, nil
-                            pcall(function() name = tok.name end)
-                            pcall(function() portrait = tok.offTokenPortrait end)
-                            if portrait == nil or portrait == "" then
-                                pcall(function() portrait = tok.portrait end)
-                            end
-                            --"High Elf Quiver 3" and its siblings are one cast member.
-                            if type(name) == "string" and name ~= "" then
-                                name = name:gsub("%s+%d+$", "")
-                            end
-                            local usable = type(name) == "string" and name ~= "" and type(portrait) == "string"
-                                and portrait ~= "" and not portrait:find("DEFAULT")
-                            if usable and not seen[name] and not seen[portrait] then
-                                seen[name] = true
-                                seen[portrait] = true
-                                members[#members + 1] = {image = portrait, name = name, role = ""}
+                            local member = AdventurePage.CastFromToken(tok)
+                            if member ~= nil and not seen[member.name] and not seen[member.image] then
+                                seen[member.name] = true
+                                seen[member.image] = true
+                                members[#members + 1] = member
                             end
                         end
                         table.sort(members, function(a, b) return a.name < b.name end)
@@ -1153,9 +1184,10 @@ local function MakeBookSlide(width, stageH)
     }
 end
 
---Tab 2: every map in turn. Each map is its own layer (the art plus its place
---names) that drifts slowly; after g_mapHoldTime the next layer fades in over
---it. Only the showing layer and the one fading out are updated.
+--Tab 2: every map in turn. Each map is its own layer: a looping video over its
+--poster, or for an older map a still image and its place names drifting
+--slowly. After g_mapHoldTime (or one loop of a longer video) the next layer
+--fades in over it. Only the showing layer and the one fading out are updated.
 local function MakeMapsSlide(width, stageH)
     local caption = MakeCaption(width, stageH)
     local m_maps = {}
@@ -1167,9 +1199,19 @@ local function MakeMapsSlide(width, stageH)
     local m_still = false
 
     local function MakeLayer(map)
-        local state = {dims = nil, time = 0, pins = {}}
+        local video = nil
+        if type(map.video) == "string" and map.video ~= "" then
+            video = map.video
+        end
+        --how long this map shows before the next: at least one whole loop.
+        local hold = g_mapHoldTime
+        if video ~= nil and (tonumber(map.duration) or 0) > hold then
+            hold = tonumber(map.duration)
+        end
+        local state = {dims = nil, time = 0, pins = {}, video = video, hold = hold, active = false}
 
         local image = gui.Panel{
+            classes = {"adventureMapMedia"},
             floating = true,
             width = width,
             height = stageH,
@@ -1177,6 +1219,20 @@ local function MakeMapsSlide(width, stageH)
             bgimage = "panels/square.png",
             bgcolor = "#ffffff00",
         }
+
+        --the video, over the poster in image. No placeholder bgimage: a video
+        --draws nothing until its first frame, so the poster shows until then.
+        local videoPanel = nil
+        if video ~= nil then
+            videoPanel = gui.Panel{
+                classes = {"adventureMapMedia", "collapsed"},
+                floating = true,
+                width = width,
+                height = stageH,
+                interactable = false,
+                bgcolor = "#ffffffff",
+            }
+        end
 
         for i, pin in ipairs(map.pins or {}) do
             state.pins[i] = gui.Label{
@@ -1202,6 +1258,14 @@ local function MakeMapsSlide(width, stageH)
             }
         end
 
+        local layerChildren = {image}
+        if videoPanel ~= nil then
+            layerChildren[#layerChildren + 1] = videoPanel
+        end
+        for _, pin in ipairs(state.pins) do
+            layerChildren[#layerChildren + 1] = pin
+        end
+
         local layer = gui.Panel{
             classes = {"adventureMapLayer"},
             floating = true,
@@ -1210,7 +1274,7 @@ local function MakeMapsSlide(width, stageH)
             height = stageH,
             interactable = false,
             data = {state = state, map = map},
-            children = {image, table.unpack(state.pins)},
+            children = layerChildren,
         }
 
         --Positions the window and the pins for this layer's own clock.
@@ -1218,15 +1282,29 @@ local function MakeMapsSlide(width, stageH)
             if state.dims == nil then
                 return
             end
-            local u, v = 0.5, 0.5
-            if not m_still then
+            local u, v, zoom = 0.5, 0.5, g_panZoom
+            if videoPanel ~= nil then
+                --the video is the motion: it fills the frame, centred, with no
+                --pan. It plays only while its layer shows or fades out (so the
+                --hidden maps are not all decoding); otherwise, and with reduced
+                --motion, the poster stands in.
+                zoom = 1
+                local playing = state.active and not m_still
+                videoPanel:SetClass("collapsed", not playing)
+                if playing and videoPanel.bgimage ~= video then
+                    videoPanel.bgimage = video
+                end
+            elseif not m_still then
                 --cosine ease: slows to a stop at each end of the sweep.
                 local phase = (state.time / g_panPeriod) * 2 * math.pi
                 u = 0.5 - 0.5 * math.cos(phase)
                 v = 0.5 - 0.5 * math.cos(phase * g_panVerticalRatio)
             end
-            local rect, left, top, wFrac, hFrac = CoverWindow(width, stageH, state.dims.width, state.dims.height, g_panZoom, u, v)
+            local rect, left, top, wFrac, hFrac = CoverWindow(width, stageH, state.dims.width, state.dims.height, zoom, u, v)
             image.selfStyle.imageRect = rect
+            if videoPanel ~= nil then
+                videoPanel.selfStyle.imageRect = rect
+            end
             for i, pinDef in ipairs(map.pins or {}) do
                 local label = state.pins[i]
                 local px = ((pinDef.x or 0.5) - left) / wFrac
@@ -1238,17 +1316,25 @@ local function MakeMapsSlide(width, stageH)
         end
 
         image.bgimage = map.image
-        AdventurePage.ImageDimensions(map.image, function(dims)
-            if mod.unloaded or not image.valid then
-                return
-            end
-            if dims == nil or (dims.width or 0) <= 0 or (dims.height or 0) <= 0 then
-                return
-            end
-            state.dims = dims
+        local mapW, mapH = tonumber(map.width) or 0, tonumber(map.height) or 0
+        if video ~= nil and mapW > 0 and mapH > 0 then
+            --the poster has the video's shape, which the map records.
+            state.dims = {width = mapW, height = mapH}
             state.apply()
             image.selfStyle.bgcolor = "#ffffffff"
-        end)
+        else
+            AdventurePage.ImageDimensions(map.image, function(dims)
+                if mod.unloaded or not image.valid then
+                    return
+                end
+                if dims == nil or (dims.width or 0) <= 0 or (dims.height or 0) <= 0 then
+                    return
+                end
+                state.dims = dims
+                state.apply()
+                image.selfStyle.bgcolor = "#ffffffff"
+            end)
+        end
 
         return layer
     end
@@ -1265,6 +1351,11 @@ local function MakeMapsSlide(width, stageH)
         m_hold = 0
         for i, layer in ipairs(m_layers) do
             layer:SetClass("mapShown", i == m_current)
+            local s = layer.data.state
+            s.active = i == m_current or i == m_previous
+            if s.video ~= nil and i ~= m_current then
+                s.apply()
+            end
         end
         local state = m_layers[m_current].data.state
         state.time = 0
@@ -1278,9 +1369,11 @@ local function MakeMapsSlide(width, stageH)
         width = width,
         height = stageH,
         interactable = false,
+        --opacity is not inherited (it fades only a panel's own image), so the
+        --cross-fade is on each layer's poster and video, keyed off the layer.
         styles = {
-            {selectors = {"adventureMapLayer"}, opacity = 0, transitionTime = g_mapFadeTime},
-            {selectors = {"adventureMapLayer", "mapShown"}, opacity = 1, transitionTime = g_mapFadeTime},
+            {selectors = {"adventureMapMedia"}, opacity = 0, transitionTime = g_mapFadeTime},
+            {selectors = {"adventureMapMedia", "parent:mapShown"}, opacity = 1, transitionTime = g_mapFadeTime},
         },
     }
 
@@ -1306,20 +1399,33 @@ local function MakeMapsSlide(width, stageH)
                 return
             end
             local dt = element.thinkTime
+            local state = m_layers[m_current].data.state
             if not m_still then
-                local state = m_layers[m_current].data.state
-                state.time = state.time + dt
-                state.apply()
+                --a video layer is set up once, by Select; only still maps drift.
+                if state.video == nil then
+                    state.time = state.time + dt
+                    state.apply()
+                end
                 --keep the outgoing map drifting until it has faded away.
                 if m_previous ~= nil and m_previous ~= m_current and m_hold < g_mapFadeTime then
                     local prev = m_layers[m_previous].data.state
-                    prev.time = prev.time + dt
-                    prev.apply()
+                    if prev.video == nil then
+                        prev.time = prev.time + dt
+                        prev.apply()
+                    end
                 end
             end
             if #m_layers > 1 and not m_still then
                 m_hold = m_hold + dt
-                if m_hold >= g_mapHoldTime then
+                --the outgoing map has faded away: stop its video.
+                if m_previous ~= nil and m_previous ~= m_current and m_hold >= g_mapFadeTime then
+                    local prev = m_layers[m_previous].data.state
+                    if prev.active then
+                        prev.active = false
+                        prev.apply()
+                    end
+                end
+                if m_hold >= state.hold then
                     Select((m_current % #m_layers) + 1)
                 end
             end
@@ -1454,7 +1560,8 @@ local function MakeMediaViewer(width, stageH)
         --fan can stick out past the stage.
         styles = {
             {selectors = {"adventurePin"}, opacity = 0, transitionTime = 1.2},
-            {selectors = {"adventurePin", "pinShown"}, opacity = 1, transitionTime = 1.2},
+            --parent:mapShown: a hidden map layer's pins must not show over the current one.
+            {selectors = {"adventurePin", "pinShown", "parent:mapShown"}, opacity = 1, transitionTime = 1.2},
         },
     }
 
@@ -1600,17 +1707,125 @@ local function SerifHeading(text, size)
     }
 end
 
-local function MakeCastMember(size, colW)
+--Popout art is drawn whole, this much larger than the frame at popoutScale 1,
+--matching the map's TokenPopoutShader (its frameUV factor). Cropping the edges
+--instead, as gui.CreateTokenImage does, cuts off whatever pokes out the top.
+local g_popoutArtScale = 1.46
+
+--The window of a regular token's art that shows in the ring. Placed art
+--(zoom + center, set by dragging in the editor) is recomputed from the image's
+--size, keeping the window square on screen and inside the image; otherwise the
+--token's own crop is used. center is in image fractions, top-down.
+function AdventurePage.CastRect(member, dims)
+    if member.zoom == nil or dims == nil or (dims.width or 0) <= 0 or (dims.height or 0) <= 0 then
+        return member.rect or {x1 = 0, y1 = 0, x2 = 1, y2 = 1}
+    end
+    local side = math.min(dims.width, dims.height) / math.max(1, member.zoom)
+    local rw, rh = side / dims.width, side / dims.height
+    local center = member.center or {x = 0.5, y = 0.5}
+    local cx = math.max(rw / 2, math.min(1 - rw / 2, center.x or 0.5))
+    local cy = math.max(rh / 2, math.min(1 - rh / 2, center.y or 0.5))
+    --imageRect runs bottom-up.
+    return {x1 = cx - rw / 2, x2 = cx + rw / 2, y1 = 1 - cy - rh / 2, y2 = 1 - cy + rh / 2}
+end
+
+--A cast portrait as the store page draws it. A member picked from one of the
+--adventure's tokens is drawn exactly as gui.CreateTokenImage draws that token:
+--its art cut out by its frame with the frame on top, or popout art over the
+--frame. Anything else (uploaded art, and tokens picked before frames were
+--recorded) gets the page's own ring, with plain images and regular tokens
+--clipped inside it and popout art breaking out over it. Fire
+--showMember(member) to fill it. The editor uses it as its preview.
+function AdventurePage.MakeCastPortrait(size, extra)
     local portrait = gui.Panel{
         width = size,
         height = size,
         halign = "center",
+        valign = "center",
         bgimage = "panels/square.png",
         bgcolor = "#ffffff10",
         cornerRadius = size / 2,
         borderWidth = 2,
         borderColor = "#f6ddb640",
+        interactable = false,
     }
+    --the token's own frame, over regular art and under popout art.
+    local frameArt = gui.Panel{
+        classes = {"collapsed"},
+        floating = true,
+        width = size,
+        height = size,
+        halign = "center",
+        valign = "center",
+        bgcolor = "white",
+        interactable = false,
+    }
+    local popoutArt = gui.Panel{
+        classes = {"collapsed"},
+        floating = true,
+        width = size,
+        height = size,
+        halign = "center",
+        valign = "center",
+        bgcolor = "white",
+        interactable = false,
+    }
+    local args = {
+        width = size,
+        height = size,
+        halign = "center",
+        portrait,
+        frameArt,
+        popoutArt,
+        showMember = function(element, member)
+            local framed = member.token and type(member.frame) == "string" and member.frame ~= ""
+            popoutArt:SetClass("collapsed", not (member.token and member.popout))
+            frameArt:SetClass("collapsed", not framed)
+            if framed then
+                frameArt.bgimage = member.frame
+                frameArt.selfStyle.hueshift = member.frameHue or 0
+            end
+            --a framed token draws no ring: the frame is its border.
+            portrait.selfStyle.cornerRadius = cond(framed, 0, size / 2)
+            portrait.selfStyle.borderWidth = cond(framed, 0, 2)
+            --regular art is cut out by the frame, as on the map.
+            portrait.bgimageTokenMask = cond(framed and not member.popout, member.frame, nil)
+            if member.token and member.popout then
+                portrait.bgimage = "panels/square.png"
+                portrait.selfStyle.bgcolor = cond(framed, "clear", "#ffffff10")
+                local offset = member.offset or {x = 0, y = 0}
+                popoutArt.bgimage = member.image
+                popoutArt.selfStyle.imageRect = {x1 = 0, y1 = 0, x2 = 1, y2 = 1}
+                popoutArt.selfStyle.scale = g_popoutArtScale / (member.popoutScale or 1)
+                popoutArt.selfStyle.x = (offset.x or 0) * size
+                popoutArt.selfStyle.y = (offset.y or 0) * size
+            elseif member.token then
+                local image = member.image
+                portrait.bgimage = image
+                portrait.selfStyle.bgcolor = "#ffffffff"
+                portrait.selfStyle.imageRect = AdventurePage.CastRect(member, nil)
+                if member.zoom ~= nil then
+                    AdventurePage.ImageDimensions(image, function(dims)
+                        if mod.unloaded or not portrait.valid or portrait.bgimage ~= image then
+                            return
+                        end
+                        portrait.selfStyle.imageRect = AdventurePage.CastRect(member, dims)
+                    end)
+                end
+            else
+                --v = 0: keep the top of the art, where faces usually are.
+                ShowCovered(portrait, member.image, size, size, 0)
+            end
+        end,
+    }
+    for k, v in pairs(extra or {}) do
+        args[k] = v
+    end
+    return gui.Panel(args)
+end
+
+local function MakeCastMember(size, colW)
+    local portrait = AdventurePage.MakeCastPortrait(size)
     local name = gui.Label{
         fontSize = 15,
         color = g_textStrong,
@@ -1635,8 +1850,7 @@ local function MakeCastMember(size, colW)
         name,
         role,
         showMember = function(element, member)
-            --v = 0: keep the top of the art, where faces usually are.
-            ShowCovered(portrait, member.image, size, size, 0)
+            portrait:FireEvent("showMember", member)
             name.text = member.name or ""
             role.text = member.role or ""
             role:SetClass("collapsed", (member.role or "") == "")

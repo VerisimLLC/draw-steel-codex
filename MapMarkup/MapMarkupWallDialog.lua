@@ -421,6 +421,7 @@ local function ShowMarkupWallDialog(wallid, owner)
                         },
                     },
                     change = function(element)
+                        ---@cast element Dropdown
                         asset.cover = element.idChosen
                     end,
                 },
@@ -450,6 +451,7 @@ local function ShowMarkupWallDialog(wallid, owner)
                         },
                     },
                     change = function(element)
+                        ---@cast element Dropdown
                         asset.climbable = element.idChosen
                     end,
                 },
@@ -514,6 +516,7 @@ local function ShowMarkupWallDialog(wallid, owner)
                         return result
                     end)(),
                     change = function(element)
+                        ---@cast element Dropdown
                         breakMaterialId = element.idChosen
                         local material = MM.BreakMaterialById(breakMaterialId)
                         --Presets stamp their stamina; Custom keeps whatever

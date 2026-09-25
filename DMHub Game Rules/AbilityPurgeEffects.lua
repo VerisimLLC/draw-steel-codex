@@ -2308,6 +2308,7 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
             idChosen = self.mode,
             options = ActivatedAbilityPurgeEffectsBehavior.modeOptions,
             change = function(element)
+                ---@cast element Dropdown
                 self.mode = element.idChosen
                 parentPanel:FireEvent("refreshBehavior")
             end,
@@ -2348,6 +2349,7 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
                 options = effectOptions,
                 hasSearch = true,
                 change = function(element)
+                    ---@cast element Dropdown
                     self.ongoingEffect = element.idChosen
                     parentPanel:FireEvent("refreshBehavior")
                 end,
@@ -2439,6 +2441,7 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
                         element.idChosen = "none"
                     end,
                     change = function(element)
+                        ---@cast element Dropdown
                         if element.idChosen ~= "none" then
                             self.conditions[#self.conditions+1] = element.idChosen
                         end
@@ -2460,6 +2463,7 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
             idChosen = self.purgeType,
             options = ActivatedAbilityPurgeEffectsBehavior.purgeTypeOptions,
             change = function(element)
+                ---@cast element Dropdown
                 self.purgeType = element.idChosen
                 parentPanel:FireEventTree("refreshPurge")
             end,
@@ -2544,6 +2548,7 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
                 },
             },
             change = function(element)
+                ---@cast element Dropdown
                 self.targetDuration = element.idChosen
             end,
         },

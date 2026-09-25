@@ -574,6 +574,7 @@ function Aura.CreateSimplePowerRollEditor(options)
                 options = Aura.PowerRollShiftEntryModeOptions,
                 idChosen = obj:try_get("powerRollShiftEntryMode", "normal"),
                 change = function(element)
+                    ---@cast element Dropdown
                     obj.powerRollShiftEntryMode = element.idChosen
                     onchange()
                 end,
@@ -694,6 +695,7 @@ function Aura:GenerateEditor(options)
                         options = Aura.TriggerMovementFilters,
                         idChosen = trigger.movementFilter or "all",
                         change = function(element)
+                            ---@cast element Dropdown
                             trigger.movementFilter = element.idChosen
                             resultPanel:FireEventTree("refreshAura")
                         end,
@@ -715,6 +717,7 @@ function Aura:GenerateEditor(options)
                 halign = "left",
                 valign = "top",
                 change = function(element)
+                    ---@cast element Dropdown
                     if #self.triggers == 0 then
                         --make sure we have unique triggers.
                         self.triggers = {}
@@ -864,6 +867,7 @@ function Aura:GenerateEditor(options)
                     hasSearch = true,
                     idChosen = self.objectid,
                     change = function(element)
+                        ---@cast element Dropdown
                         self.objectid = element.idChosen
                     end,
                 },
@@ -881,6 +885,7 @@ function Aura:GenerateEditor(options)
                     options = Aura.ApplyOptions,
                     idChosen = self.applyto,
                     change = function(element)
+                        ---@cast element Dropdown
                         self.applyto = element.idChosen
                     end,
                 },
@@ -944,6 +949,7 @@ function Aura:GenerateEditor(options)
                     options = table.append_arrays({ { id = "none", text = "none" } }, map(rules.damageTypesAvailable, function(
                         a) return { id = a, text = a } end)),
                     change = function(element)
+                        ---@cast element Dropdown
                         self.movedamage = element.idChosen
                         resultPanel:FireEventTree("refreshAura")
                     end,
@@ -986,6 +992,7 @@ function Aura:GenerateEditor(options)
                 },
                 idChosen = self:try_get("movementDamageFilter") or (self:try_get("shiftAvoidsDamage", false) and "nonshift" or "all"),
                 change = function(element)
+                    ---@cast element Dropdown
                     self.movementDamageFilter = element.idChosen
                     resultPanel:FireEventTree("refreshAura")
                 end,
@@ -1116,6 +1123,7 @@ function Aura:GenerateEditor(options)
                     options = CharacterResource.GetActionOptions(),
                     idChosen = self.relocateResource,
                     change = function(element)
+                        ---@cast element Dropdown
                         self.relocateResource = element.idChosen
                     end,
                 },

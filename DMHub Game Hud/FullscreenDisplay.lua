@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("FullscreenDisplay")
+--- @class FullscreenDisplay: GameType
+FullscreenDisplay = RegisterGameType("FullscreenDisplay")
 
 FullscreenDisplay.docid = "fullscreen_display"
 
@@ -154,7 +155,8 @@ end
 -- at the top-most overlay layer of the game HUD.
 ----------------------------------------------------------------------
 
-RegisterGameType("DramaticBanner")
+--- @class DramaticBanner: GameType
+DramaticBanner = RegisterGameType("DramaticBanner")
 
 DramaticBanner.docid = "dramatic_banner"
 

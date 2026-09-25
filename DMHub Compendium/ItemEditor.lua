@@ -483,6 +483,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 									height = 26,
 									fontSize = 18,
 									change = function(element)
+										---@cast element Dropdown
 										if element.idChosen ~= 'choose' then
 											document.equipmentCategory = element.idChosen
 											parentElement:FireEvent("create")
@@ -513,6 +514,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 						itemidsKnown = {},
 					},
 					change = function(element)
+						---@cast element Dropdown
 						if element.idChosen == "none" then
 							document.baseid = nil
 						else
@@ -645,6 +647,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 							element.idChosen = document:try_get("rarity", "common")
 						end,
 						change = function(element)
+							---@cast element Dropdown
 							document.rarity = element.idChosen
 							Refresh()
 						end,
@@ -981,6 +984,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 					end,
 
 					change = function(element)
+						---@cast element Dropdown
 						if element.idChosen ~= "new" then
 							document.packItems = document:try_get("packItems", {})
 							document.packItems[#document.packItems+1] = {
@@ -1661,6 +1665,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 							element.optionChosen = document.stealth
 						end,
 						change = function(element)
+							---@cast element Dropdown
 							document.stealth = element.optionChosen
 						end,
 					}
@@ -1821,6 +1826,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 					end,
 
 					change = function(element)
+						---@cast element Dropdown
 						document.ammunitionType = element.idChosen
 						if document.ammunitionType == "none" then
 							document.ammunitionType = nil
@@ -1844,6 +1850,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 						end,
 						
 						change = function(element)
+							---@cast element Dropdown
 							document.damageType = element.optionChosen
 							Refresh()
 						end,
@@ -1896,6 +1903,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 						end,
 						
 						change = function(element)
+							---@cast element Dropdown
 							document.hands = element.optionChosen
 							Refresh()
 						end,
@@ -1923,6 +1931,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 						end,
 						
 						change = function(element)
+							---@cast element Dropdown
 							document:SetProperty(element.idChosen, true)
 							element.options = DataTables.tbl_Gear.GetAvailableProperties(document)
 							Refresh()
@@ -2210,6 +2219,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
 						height = 50,
 					},
 					change = function(element)
+						---@cast element Dropdown
 						if element.idChosen == 'none' then
 							document.accessory = nil
 						else

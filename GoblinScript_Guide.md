@@ -328,9 +328,9 @@ Additional movement types (Climbing, Swimming, Teleport, etc.) generate speed fi
 | Field | Type | Description |
 |---|---|---|
 | Distance | Function | `Distance(Target)` -- distance in squares |
-| Count Nearby Enemies | Function | `Count Nearby Enemies(5)` -- live enemies in range. Optional filters: group names, feature names, creatures to exclude. |
+| Count Nearby Enemies | Function | `Count Nearby Enemies(5)` -- live enemies in range. Optional filters: group names, feature names, ongoing effect names, creatures to exclude. |
 | Count Nearby Friends | Function | `Count Nearby Friends(5)` -- live allies in range. Same filters. |
-| Count Nearby Creatures | Function | `Count Nearby Creatures(5)` -- all live creatures. Accepts `"ally"`, `"enemy"`, group/feature/creature filters. |
+| Count Nearby Creatures | Function | `Count Nearby Creatures(5)` -- all live creatures. Accepts `"ally"`, `"enemy"`, group/feature/ongoing-effect/creature filters. |
 | Count Riders | Function | `Count Riders("goblin")` -- riders matching filter |
 
 ---

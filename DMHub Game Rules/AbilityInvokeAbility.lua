@@ -1641,6 +1641,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 				},
 				idChosen = self.abilityType,
 				change = function(element)
+					---@cast element Dropdown
 					self.abilityType = element.idChosen
 					parentPanel:FireEventTree("refreshInvoke")
 				end,
@@ -1830,6 +1831,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 			options = standardAbilities,
             hasSearch = true,
 			change = function(element)
+				---@cast element Dropdown
 				self.standardAbility = element.idChosen
 				parentPanel:FireEventTree("refreshInvoke")
 			end,
@@ -1919,6 +1921,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 			},
 			idChosen = self.targeting,
 			change = function(element)
+				---@cast element Dropdown
 				self.targeting = element.idChosen
                 targetingFormulaPanel:FireEvent("refreshTargeting")
                 autoSelectInheritedCheck:FireEvent("refreshTargeting")
@@ -2023,6 +2026,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
             options = g_movementConstraintOptions,
             idChosen = self:try_get("movementConstraint", "none"),
             change = function(element)
+                ---@cast element Dropdown
                 self.movementConstraint = element.idChosen
             end,
         },
@@ -2039,6 +2043,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
             options = g_movementConstraintAnchorOptions,
             idChosen = self:try_get("movementConstraintAnchor", "caster"),
             change = function(element)
+                ---@cast element Dropdown
                 self.movementConstraintAnchor = element.idChosen
             end,
         },

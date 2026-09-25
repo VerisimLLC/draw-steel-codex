@@ -2895,6 +2895,7 @@ CreateDiceStudioPanel = function()
 				end
 			end,
 			change = function(element)
+				---@cast element Dropdown
 				if element.idChosen == "default" then
 					studio:SetMaterialForType(faces, nil)
 				else
@@ -3859,6 +3860,7 @@ CreateDiceStudioPanel = function()
 						element.idChosen = tostring(binding.xRotation)
 					end,
 					change = function(element)
+						---@cast element Dropdown
 						binding.xRotation = tonumber(element.idChosen) or 0
 						RefreshDice()
 					end,
@@ -3894,6 +3896,7 @@ CreateDiceStudioPanel = function()
 						element.idChosen = binding.layerPlacement
 					end,
 					change = function(element)
+						---@cast element Dropdown
 						binding.layerPlacement = element.idChosen
 						-- RefreshDice() does not broadcast "refreshDice", so toggle the opacity
 						-- sliders' visibility directly here.
@@ -4101,6 +4104,7 @@ CreateDiceStudioPanel = function()
 			element:FireEvent("create")
 		end,
 		change = function(element)
+			---@cast element Dropdown
 			if element.idChosen ~= "" then
 				diceEventRows.data.added[element.idChosen] = true
 				element.root:FireEventTree("refreshDice")
@@ -4205,6 +4209,7 @@ CreateDiceStudioPanel = function()
 				element.idChosen = CurrentId()
 			end,
 			change = function(element)
+				---@cast element Dropdown
 				local id = element.idChosen
 				studio:SetEventSound(eventName, id == "none" and "" or id)
 				volumeRow:SetClass("collapsed", id == "none")
@@ -4325,6 +4330,7 @@ CreateDiceStudioPanel = function()
 				element.idChosen = CurrentFamilyId()
 			end,
 			change = function(element)
+				---@cast element Dropdown
 				studio:SetImpactFamily(element.idChosen)
 				RefreshDice()
 			end,
@@ -4650,6 +4656,7 @@ end
 			options = g_slotTypeOptions,
 			idChosen = slot.slotType,
 			change = function(element)
+				---@cast element Dropdown
 				local slots = TryGetSlots()
 				local cur = slots ~= nil and slots[index] or nil
 				if cur == nil or cur.slotType == element.idChosen then
@@ -4677,6 +4684,7 @@ end
 				options = SlotDamageTypeOptions(),
 				idChosen = slot.damageType or "",
 				change = function(element)
+					---@cast element Dropdown
 					local slots = TryGetSlots()
 					local cur = slots ~= nil and slots[index] or nil
 					if cur == nil then
@@ -4695,6 +4703,7 @@ end
 				options = SlotMonsterGroupOptions(),
 				idChosen = slot.groupid or "",
 				change = function(element)
+					---@cast element Dropdown
 					local slots = TryGetSlots()
 					local cur = slots ~= nil and slots[index] or nil
 					if cur == nil then
@@ -4713,6 +4722,7 @@ end
 				options = SlotClassOptions(),
 				idChosen = slot.classid or "",
 				change = function(element)
+					---@cast element Dropdown
 					local slots = TryGetSlots()
 					local cur = slots ~= nil and slots[index] or nil
 					if cur == nil then
@@ -4745,6 +4755,7 @@ end
 							options = subclassOptions,
 							idChosen = slot.subclassid or "",
 							change = function(element)
+								---@cast element Dropdown
 								local slots = TryGetSlots()
 								local cur = slots ~= nil and slots[index] or nil
 								if cur == nil then
@@ -5559,6 +5570,7 @@ end
 								element.idChosen = dicestudio.trailShape or "petal"
 							end,
 							change = function(element)
+								---@cast element Dropdown
 								dicestudio.trailShape = element.idChosen
 								RefreshDice()
 							end,
@@ -5664,6 +5676,7 @@ end
 									element.idChosen = dicestudio.trail2Shape or "spark"
 								end,
 								change = function(element)
+									---@cast element Dropdown
 									dicestudio.trail2Shape = element.idChosen
 									RefreshDice()
 								end,
@@ -6431,6 +6444,7 @@ end
 								options = cloudDice,
 								idChosen = chosenId,
 								change = function(element)
+									---@cast element Dropdown
 									chosenId = element.idChosen
 								end,
 							},
@@ -6811,6 +6825,7 @@ end
 					element.optionChosen = studio.font
 				end,
 				change = function(element)
+					---@cast element Dropdown
 					studio.font = element.optionChosen
 				end,
 			},
@@ -6833,6 +6848,7 @@ end
 					element.optionChosen = studio.border
 				end,
 				change = function(element)
+					---@cast element Dropdown
 					studio.border = element.optionChosen
 				end,
 			},
@@ -6864,6 +6880,7 @@ end
 						element.idChosen = studio.specialMovement
 					end,
 					change = function(element)
+						---@cast element Dropdown
 						studio.specialMovement = element.idChosen
 						RefreshDice()
 						element.root:FireEventTree("refreshDice")
@@ -7166,6 +7183,7 @@ end
 
                         end,
                         change = function(element)
+                            ---@cast element Dropdown
                             studio.material = idToMaterial[element.idChosen]
                             RefreshDice()
                             materialPropertiesPanel:FireEvent("newmaterial")
@@ -7237,6 +7255,7 @@ end
                             element.idChosen = studio.numbersMaterialName or "none"
                         end,
                         change = function(element)
+                            ---@cast element Dropdown
                             if element.idChosen == "none" then
                                 studio.numbersMaterialName = nil
                             else

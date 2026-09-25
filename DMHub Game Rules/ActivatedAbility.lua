@@ -2375,6 +2375,9 @@ function ActivatedAbility:ConsumeResources(casterToken, options)
                             dmhub.SetAndUploadTableItem(equipment.tableName, itemInfo)
                         else
                             tok.properties:GiveItem(k,-quantity)
+                            if itemInfo ~= nil and EquipmentCategory.IsConsumable(itemInfo) then
+                                tok.properties:QueueLoseItemAnimation(k)
+                            end
                         end
                     end
                 end

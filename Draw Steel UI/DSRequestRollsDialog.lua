@@ -70,13 +70,15 @@ local g_TokenPoolStyles = {
 --           condition: if present, the id of a condition that is being tested. Can use "concentration" for concentration checks.
 --           specializations: if present, a {k -> true} map of specialization ID's for this check.
 --           forcedmodifiers: if present, forces a list of modifiers on character for roll 
-RegisterGameType("RollCheck")
+--- @class RollCheck: GameType
+RollCheck = RegisterGameType("RollCheck")
 
 --A RollRequest instance has the following fields:
 -- checks = a list of RollChecks that the token can choose from. Most often this will just have one option.
 -- tokens = map of token id -> result table. Result table begins empty and is filled by the target. May have a checks list which is a list of indexes into checks that are available to this token.
 -- contest = (optional) if true this is a contested roll between the tokens. The tokens map will have a "team" identifier to signal which side of the contest they are on.
-RegisterGameType("RollRequest")
+--- @class RollRequest: GameType
+RollRequest = RegisterGameType("RollRequest")
 
 RollCheck.consequences = ''
 RollCheck.explanation = ''
@@ -1468,6 +1470,7 @@ function ShowRequireRollDialog(args)
 								idChosen = checkInfo.group:Get(),
 								width = 160,
 								change = function(element)
+									---@cast element Dropdown
 									checkInfo.group:Set(element.idChosen)
 									g_requireRollDialog:FireEventTree('refreshDiceCheck')
 								end,
@@ -1767,6 +1770,7 @@ function ShowRequireRollDialog(args)
                     options = PowerRollTableGroup.CreateDropdownOptions(),
                     idChosen = g_selectedPowerRoll:Get(),
                     change = function(element)
+                        ---@cast element Dropdown
                         g_selectedPowerRoll:Set(element.idChosen)
                         element.parent:FireEventTree("update")
                         ApplyPowerTableSuggestions(element.idChosen, true)

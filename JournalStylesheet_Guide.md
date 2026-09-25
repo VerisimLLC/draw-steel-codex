@@ -298,6 +298,24 @@ active theme.
 > `quote.bold` and `quote.justify` exist in the data model but are still
 > **reserved** -- not currently drawn by the renderer.
 
+### `secret` (DM-only text: `{ ... }`)
+| Field   | Type  | Effect                                  |
+|---------|-------|-----------------------------------------|
+| `color` | color | Text color of a `{...}` secret span.    |
+
+The engine's markdown paints secret spans a fixed pale color chosen for the dark
+app chrome, which is illegible on a repainted page. It cannot be overridden
+through `gui.MarkdownStyle` (a `"{"` key does nothing), but a `<color>` tag
+*inside* the braces does win, so the renderer injects one.
+
+Precedence: `secret.color` if set; otherwise, **only when the sheet sets
+`page.bgcolor`**, the body ink at 67% alpha (dimmed, so it still reads as
+"players cannot see this"); otherwise nothing is injected and the engine's own
+color stands. That last case is what keeps default-skin journals unchanged.
+
+Only `{...}` is touched. `{!...}` (revealed), `{#...}` (redacted), `{:Lang:...}`
+and `{.class ...}` keep their own handling.
+
 ### `rule` (horizontal divider: `---`)
 | Field       | Type | Effect                          |
 |-------------|------|---------------------------------|

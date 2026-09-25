@@ -531,6 +531,7 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 		
 			events = {
 				change = function(element)
+					---@cast element Dropdown
 					local groupid = dmhub.GenerateGuid()
 					for i,fieldInstance in ipairs(fieldInfo.fieldList) do
 						fieldInstance:SetValue(element.idChosen, valueIndex)
@@ -1528,6 +1529,7 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 
 			events = {
 				change = function(element)
+					---@cast element Dropdown
 					local groupid = dmhub.GenerateGuid()
 					for i,fieldInstance in ipairs(fieldInfo.fieldList) do
 						fieldInstance:SetValue(element.idChosen, valueIndex)
@@ -1555,6 +1557,7 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 			valign = 'center',
 			events = {
 				change = function(element)
+					---@cast element Dropdown
 					local groupid = dmhub.GenerateGuid()
 					local newValue = element.optionChosen == 'Yes'
 					for i,fieldInstance in ipairs(fieldInfo.fieldList) do
@@ -2313,6 +2316,7 @@ local CreateArtistAndKeywordsPanel = function(nodes, options)
 			end,
 			events = {
 				change = function(element)
+					---@cast element Dropdown
 					for i,n in ipairs(nodes) do
 						n.artist = element.idChosen
 					end
@@ -2802,6 +2806,7 @@ local CreateObjectEditor = function(nodes, options)
 							element.options = options
 						end,
 						change = function(element)
+							---@cast element Dropdown
 							local groupid = dmhub.GenerateGuid()
 							local componentName = element.optionChosen
 							for i,node in ipairs(nodes) do

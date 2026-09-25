@@ -463,6 +463,7 @@ local function BandEditor(bandid)
                     sort = true, hasSearch = true,
                     options = LanguageOptions(), idChosen = l.id,
                     change = function(element)
+                        ---@cast element Dropdown
                         langList[idx].id = element.idChosen Upload(g)
                     end,
                 },
@@ -476,6 +477,7 @@ local function BandEditor(bandid)
                     options = MonsterGroup.languageQualifiers,
                     idChosen = qualifier,
                     change = function(element)
+                        ---@cast element Dropdown
                         if element.idChosen == qualifier then return end
                         langList[idx].qualifier = element.idChosen Upload(g)
                     end,
@@ -592,6 +594,7 @@ local function BandEditor(bandid)
                             return o
                         end)(),
                         change = function(element)
+                            ---@cast element Dropdown
                             ability.minLevel = tonumber(element.idChosen) Upload(g)
                         end,
                     },

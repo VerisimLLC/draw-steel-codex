@@ -1036,6 +1036,20 @@ function dmhub.Time() end
 --- @return number
 function dmhub.FrameCount() end
 
+--- Starts measuring frame times into a named window, for analytics (e.g. one per combat). Frames are timed on the real clock and only counted while the app is focused. Read it with dmhub.GetPerfWindow and close it with dmhub.EndPerfWindow.
+--- @param key string A name for the window; beginning a window that is already open restarts it.
+function dmhub.BeginPerfWindow(key) end
+
+--- The frame-time summary of an open window, leaving it open, or nil if no window of that name is open. seconds is real time since the window began; focusedSeconds and frames cover focused frames only. Percentiles are in milliseconds (0.25ms resolution below 100ms). hitches counts frames of 100ms or more, hitchSeconds their total time; slowFrames counts frames below 30fps. refreshRate / vsyncCount / targetFrameRate are the current display settings, which cap the best frame time possible.
+--- @param key string
+--- @return nil|{seconds: number, focusedSeconds: number, frames: number, meanMs: number, p50Ms: number, p90Ms: number, p95Ms: number, p99Ms: number, maxMs: number, hitches: number, hitchSeconds: number, slowFrames: number, refreshRate: number, vsyncCount: number, targetFrameRate: number}
+function dmhub.GetPerfWindow(key) end
+
+--- Closes a window started with dmhub.BeginPerfWindow and returns its summary (see dmhub.GetPerfWindow), or nil if no window of that name is open.
+--- @param key string
+--- @return nil|{seconds: number, focusedSeconds: number, frames: number, meanMs: number, p50Ms: number, p90Ms: number, p95Ms: number, p99Ms: number, maxMs: number, hitches: number, hitchSeconds: number, slowFrames: number, refreshRate: number, vsyncCount: number, targetFrameRate: number}
+function dmhub.EndPerfWindow(key) end
+
 --- Log the given message locally to the chat panel.
 --- @param msg? string
 function dmhub.Log(msg) end

@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("Keybinds")
+--- @class Keybinds: GameType
+Keybinds = RegisterGameType("Keybinds")
 
 Keybinds.sections = {}
 function Keybinds.RegisterSection(args)

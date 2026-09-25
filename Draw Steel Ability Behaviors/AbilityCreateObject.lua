@@ -461,6 +461,7 @@ function ActivatedAbilityCreateLaneObjectBehavior:EditorItems(parentPanel)
             hasSearch = true,
             idChosen = self.objectid,
             change = function(element)
+                ---@cast element Dropdown
                 self.objectid = element.idChosen
             end,
         }
@@ -517,6 +518,7 @@ function ActivatedAbilityCreateObjectBehavior:EditorItems(parentPanel)
                 textDefault = "Choose Object...",
                 idChosen = self.objectid,
                 change = function(element)
+                    ---@cast element Dropdown
                     self.objectid = element.idChosen
                     Refresh()
                 end,

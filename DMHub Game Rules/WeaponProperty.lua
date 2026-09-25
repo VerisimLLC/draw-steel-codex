@@ -163,6 +163,7 @@ function WeaponProperty.CreateEditor()
                     element.idChosen = item.itemType
                 end,
                 change = function(element)
+                    ---@cast element Dropdown
                     m_item.itemType = element.idChosen
                     OnChange()
                 end,

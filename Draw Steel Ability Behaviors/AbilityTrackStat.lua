@@ -10,7 +10,8 @@ local mod = dmhub.GetModLoading()
 -- is participating in the current live encounter (a hero's summon attributes to its
 -- summoner), and every other creature (monsters, objects, out-of-combat hits) is
 -- silently ignored -- so this behavior is safe to point at any "Apply To" selection.
-RegisterGameType("ActivatedAbilityTrackStatBehavior", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityTrackStatBehavior: ActivatedAbilityBehavior
+ActivatedAbilityTrackStatBehavior = RegisterGameType("ActivatedAbilityTrackStatBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
 {

@@ -556,6 +556,7 @@ ShowShopPanel = function(parentPanel)
                     end
                 end,
                 change = function(element)
+                    ---@cast element Dropdown
                     local state = element.idChosen
                     m_item.onsale = (state == "live" or state == "livefeatured")
                     SetItemPreview(m_item, state == "preview")
@@ -676,6 +677,7 @@ ShowShopPanel = function(parentPanel)
                 end,
 
                 change = function(element)
+                    ---@cast element Dropdown
                     if element.idChosen == "none" then
                         m_item.artistid = nil
                     else
@@ -762,6 +764,7 @@ ShowShopPanel = function(parentPanel)
                     element.idChosen = item.itemType
                 end,
                 change = function(element)
+                    ---@cast element Dropdown
                     m_item.itemType = element.idChosen
                     m_item:Upload()
                     editingPanel:FireEventTree("item", m_item)
@@ -899,6 +902,7 @@ ShowShopPanel = function(parentPanel)
                         element.idChosen = item.assetid
                     end,
                     change = function(element)
+                        ---@cast element Dropdown
                         m_item.assetid = element.idChosen
                         m_item:Upload()
                         --New dice set: refresh both live previews.
@@ -1592,10 +1596,21 @@ ShowShopPanel = function(parentPanel)
                     },
 
                     couponCodes = function(element, codes)
+                        --Newest first, capped at MAX_SHOWN rows so items with many
+                        --codes don't build an unbounded list.
+                        local MAX_SHOWN = 50
+                        local keys = {}
+                        for k,_ in pairs(codes) do
+                            keys[#keys+1] = k
+                        end
+                        table.sort(keys, function(a,b) return (codes[a].ctime or 0) > (codes[b].ctime or 0) end)
+
                         local newRows = {}
                         local children = {}
-                        for k,v in pairs(codes) do
-                            children[#children+1] = element.data.rows[k] or gui.Panel{
+                        for i = 1, math.min(#keys, MAX_SHOWN) do
+                            local k = keys[i]
+                            local v = codes[k]
+                            local row = element.data.rows[k] or gui.Panel{
                                 width = "auto",
                                 height = 26,
                                 flow = "horizontal",
@@ -1669,10 +1684,21 @@ ShowShopPanel = function(parentPanel)
                                 }
                             }
 
-                            table.sort(children, function(a,b) return a.data.ord > b.data.ord end)
+                            children[#children+1] = row
+                            newRows[k] = row
+                            row:FireEventTree("refreshCode", v)
+                        end
 
-                            newRows[k] = children[#children]
-                            children[#children]:FireEventTree("refreshCode", v)
+                        if #keys > MAX_SHOWN then
+                            children[#children+1] = gui.Label{
+                                text = string.format("Showing the %d newest of %d gift codes.", MAX_SHOWN, #keys),
+                                width = "auto",
+                                height = "auto",
+                                fontSize = 14,
+                                italics = true,
+                                hmargin = 16,
+                                vmargin = 4,
+                            }
                         end
 
                         element.data.rows = newRows

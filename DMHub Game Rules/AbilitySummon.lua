@@ -2818,6 +2818,7 @@ function ActivatedAbilitySummonBehavior:EditorItems(parentPanel)
 				},
 				idChosen = self.duplicateTargetOrigin,
 				change = function(element)
+					---@cast element Dropdown
 					self.duplicateTargetOrigin = element.idChosen
 				end,
 			},
@@ -3061,6 +3062,7 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
 				},
 				idChosen = self.tweakAnchor,
 				change = function(element)
+					---@cast element Dropdown
 					self.tweakAnchor = element.idChosen
 				end,
 			},
@@ -3094,6 +3096,7 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
             idChosen = self.monsterType,
             hasSearch = true,
             change = function(element)
+                ---@cast element Dropdown
                 self.monsterType = element.idChosen
                 element.parent.parent:FireEventTree("refreshMonsterType")
             end,

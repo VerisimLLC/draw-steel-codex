@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("EventHandlerComponent")
+--- @class EventHandlerComponent: GameType
+EventHandlerComponent = RegisterGameType("EventHandlerComponent")
 
 dmhub.CreateEventHandlerComponent = function()
     return EventHandlerComponent.new()
@@ -95,7 +96,8 @@ end
 
 
 --Event Trigger
-RegisterGameType("EventTriggerComponent")
+--- @class EventTriggerComponent: GameType
+EventTriggerComponent = RegisterGameType("EventTriggerComponent")
 
 dmhub.CreateEventTriggerComponent = function()
     return EventTriggerComponent.new()
@@ -150,7 +152,8 @@ function EventTriggerComponent.CreatePropertiesEditor(component)
 end
 
 --Data Input
-RegisterGameType("DataInputComponent")
+--- @class DataInputComponent: GameType
+DataInputComponent = RegisterGameType("DataInputComponent")
 
 dmhub.CreateDataInputComponent = function()
     return DataInputComponent.new()
@@ -228,7 +231,8 @@ function DataInputComponent.CreatePropertiesEditor(component)
 end
 
 --Data Output
-RegisterGameType("DataOutputComponent")
+--- @class DataOutputComponent: GameType
+DataOutputComponent = RegisterGameType("DataOutputComponent")
 
 dmhub.CreateDataOutputComponent = function()
     return DataOutputComponent.new()

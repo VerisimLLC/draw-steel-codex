@@ -260,6 +260,7 @@ function Translation.CreateEditor()
 				end,
 
 				change = function(element)
+					---@cast element Dropdown
 					showTranslated = element.optionChosen == "Show All Strings" or element.optionChosen == "Show Translated Strings"
 					showUntranslated = element.optionChosen == "Show All Strings" or element.optionChosen == "Show Untranslated Strings"
 					RecalculateStrings()
@@ -324,7 +325,8 @@ end
 
 local customStringsTable = "langstring"
 
-RegisterGameType("langstring")
+--- @class langstring: GameType
+langstring = RegisterGameType("langstring")
 
 langstring.name = "Translation"
 

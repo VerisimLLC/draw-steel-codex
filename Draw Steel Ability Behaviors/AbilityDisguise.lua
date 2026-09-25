@@ -65,6 +65,7 @@ function ActivatedAbilityDisguiseBehavior:EditorItems(parentPanel)
 
                 idChosen = self.mode,
                 change = function(element)
+                    ---@cast element Dropdown
                     self.mode = element.idChosen
                     Refresh()
                 end,
@@ -95,6 +96,7 @@ function ActivatedAbilityDisguiseBehavior:EditorItems(parentPanel)
                     sort = true,
                     hasSearch = true,
                     change = function(element)
+                        ---@cast element Dropdown
                         self.monsterType = element.idChosen
                     end,
                 }

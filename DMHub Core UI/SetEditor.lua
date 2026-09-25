@@ -37,6 +37,7 @@ function gui.SetEditor(args)
 			end,
 
 			change = function(element)
+                ---@cast element Dropdown
                 value[element.idChosen] = true
                 resultPanel:FireEventTree("refreshSet")
                 resultPanel:FireEvent("change", value)

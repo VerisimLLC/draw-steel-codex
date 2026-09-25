@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("ActivatedAbilityChangeElevationBehavior", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityChangeElevationBehavior: ActivatedAbilityBehavior
+ActivatedAbilityChangeElevationBehavior = RegisterGameType("ActivatedAbilityChangeElevationBehavior", "ActivatedAbilityBehavior")
 
 
 ActivatedAbility.RegisterType
@@ -128,6 +129,7 @@ function ActivatedAbilityChangeElevationBehavior:EditorItems(parentPanel)
                 {id = 'square', text = 'Square'},
             },
             change = function(element)
+                ---@cast element Dropdown
                 print("SHAPE:: SET", self.shape, "->", element.idChosen)
                 self.shape = element.idChosen
             end,

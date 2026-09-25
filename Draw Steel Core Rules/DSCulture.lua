@@ -215,6 +215,7 @@ local SetCulture = function(tableName, culturePanel, cultureid)
                 options = languageChoices,
                 idChosen = culture.languageid ~= "" and culture.languageid or "none",
                 change = function(element)
+                    ---@cast element Dropdown
                     local choice = element.idChosen
                     if choice == "none" then
                         culture.languageid = ""
@@ -256,6 +257,7 @@ local SetCulture = function(tableName, culturePanel, cultureid)
                 options = aspectOptions,
                 idChosen = aspectId ~= "" and aspectId or "none",
                 change = function(element)
+                    ---@cast element Dropdown
                     local choice = element.idChosen
                     if choice == "none" then
                         culture.aspects[cat.id] = ""

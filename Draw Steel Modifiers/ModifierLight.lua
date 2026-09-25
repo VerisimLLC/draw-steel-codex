@@ -47,6 +47,7 @@ CharacterModifier.TypeInfo.light = {
                     sort = true,
                     hasSearch = true,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.itemid = element.idChosen
                         Refresh()
                     end,

@@ -852,6 +852,7 @@ CharacterModifier.RegisterTriggerModifier{
                 idChosen = entry.actionResourceId or "none",
                 options = CharacterResource.GetActionOptions(),
                 change = function(element)
+                    ---@cast element Dropdown
                     entry.actionResourceId = element.idChosen
                     Refresh()
                 end,
@@ -1040,6 +1041,7 @@ CharacterModifier.TypeInfo.modifytrigger = {
                 width = 260,
                 fontSize = 16,
                 change = function(element)
+                    ---@cast element Dropdown
                     if element.idChosen == "none" then
                         return
                     end
@@ -1087,6 +1089,7 @@ CharacterModifier.TypeInfo.modifytrigger = {
                         },
                         idChosen = modifier:try_get("replaceBehaviors", "after"),
                         change = function(element)
+                            ---@cast element Dropdown
                             modifier.replaceBehaviors = element.idChosen
                         end,
                     },

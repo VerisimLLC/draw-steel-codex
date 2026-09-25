@@ -48,3 +48,8 @@ function PDFDocument:GetPageImageId(npage) end
 --- @param npage? number
 --- @return string
 function PDFDocument:GetPageThumbnailId(npage) end
+
+--- An image id for the given page rendered at up to 1024px: sharper than GetPageThumbnailId (256px) for large presentations such as book covers, far cheaper than GetPageImageId (4096px).
+--- @param npage? number
+--- @return string
+function PDFDocument:GetPageCoverId(npage) end

@@ -1,7 +1,9 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("InteractiveContainer")
-RegisterGameType("Interactive")
+--- @class InteractiveContainer: GameType
+InteractiveContainer = RegisterGameType("InteractiveContainer")
+--- @class Interactive: GameType
+Interactive = RegisterGameType("Interactive")
 
 local g_registry = {}
 

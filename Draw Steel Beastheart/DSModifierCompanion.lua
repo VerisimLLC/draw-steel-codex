@@ -37,6 +37,7 @@ CharacterModifier.TypeInfo.companion = {
                 sort = true,
                 hasSearch = true,
                 change = function(element)
+                    ---@cast element Dropdown
                     modifier.companionType = element.idChosen
                 end,
             },

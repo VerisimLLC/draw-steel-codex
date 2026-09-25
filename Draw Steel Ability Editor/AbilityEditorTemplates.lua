@@ -154,6 +154,7 @@ local function CreateAbilityTemplateEditor(tableName)
                     end
                 end,
                 change = function(element)
+                    ---@cast element Dropdown
                     if m_item ~= nil then
                         m_item.category = element.idChosen
                         editPanel:FireEvent("change")

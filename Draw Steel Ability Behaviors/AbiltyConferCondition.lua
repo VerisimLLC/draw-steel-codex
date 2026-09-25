@@ -528,6 +528,7 @@ function ActivatedAbilityConferConditionsBehavior:EditorItems(parentPanel)
             idChosen = self.conferType,
             options = ActivatedAbilityConferConditionsBehavior.conferTypeOptions,
             change = function(element)
+                ---@cast element Dropdown
                 self.conferType = element.idChosen
                 parentPanel:FireEvent("refreshBehavior")
             end,
@@ -665,6 +666,7 @@ function ActivatedAbilityConferConditionsBehavior:EditorItems(parentPanel)
                     element.idChosen = "none"
                 end,
                 change = function(element)
+                    ---@cast element Dropdown
                     if element.idChosen ~= "none" then
                         self.conditions[#self.conditions+1] = element.idChosen
                     end

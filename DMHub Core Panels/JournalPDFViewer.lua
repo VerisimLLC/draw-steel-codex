@@ -4066,12 +4066,15 @@ local function CreatePDFPopoutWindowControl(args)
     }
 end
 
-mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
+--options.host (optional): a panel to parent the viewer on instead of the
+--gamehud modal stack. The titlescreen needs this -- the gamehud modal layer
+--renders UNDERNEATH the titlescreen, so a normal modal there is invisible.
+mod.shared.ShowPDFViewerDialog = function(doc, starting_page, options)
     if g_pdfViewerDialog ~= nil and g_pdfViewerDialog.valid then
         if g_pdfViewerDialog.data.doc == doc then
             if starting_page == nil then
                 --opening the document that is already open with no page specified toggles it.
-                gui.CloseModal()
+                g_pdfViewerDialog.data.closeViewer()
             else
                 g_pdfViewerDialog:FireEventTree("gotopage", starting_page)
             end
@@ -4086,6 +4089,20 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
 
     local dialogPanel
     local popoutMaximizeControl
+
+    --hostFrame: the full-size wrapper added to options.host; nil when the
+    --viewer lives in the gamehud modal stack.
+    local host = options ~= nil and options.host or nil
+    local hostFrame = nil
+    local function CloseViewer()
+        if hostFrame ~= nil then
+            if hostFrame.valid then
+                hostFrame:DestroySelf()
+            end
+        else
+            gui.CloseModal()
+        end
+    end
 
     local popoutTitleBar = gui.Panel {
         classes = { "pdfPopoutTitleBar", "collapsed" },
@@ -4175,6 +4192,7 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
             doc = doc,
             poppedOut = false,
             chromeVisible = false,
+            closeViewer = CloseViewer,
         },
         styles = {
             ThemeEngine.GetStyles(),
@@ -4297,7 +4315,7 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                 --GameHud.instance is false while the hud is being rebuilt
                 --(e.g. a Lua reload with the viewer open); the fresh modal
                 --panel starts interactable so there is nothing to restore.
-                if GameHud.instance then
+                if hostFrame == nil and GameHud.instance then
                     GameHud.instance.modalPanel.interactable = true
                 end
             end
@@ -4369,7 +4387,7 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                         --back to the product name.
                         title = doc.description,
                     }
-                    gui.CloseModal()
+                    CloseViewer()
 
                     --Re-arm the PDF paging keys for the popped-out window.
                     --The manual destroy above balanced the modal's context
@@ -4394,8 +4412,7 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
                 valign = "center",
                 escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
                 press = function(element)
-                    gui.CloseModal()
-                    
+                    CloseViewer()
                 end,
             },
         },
@@ -4448,8 +4465,25 @@ mod.shared.ShowPDFViewerDialog = function(doc, starting_page)
     dialogPanel.data.pdfContextActive = true
     dmhub.PushCommandContext(PDF_COMMAND_CONTEXT)
 
-    gui.ShowModal(dialogPanel)
-    GameHud.instance.modalPanel.interactable = false
+    if host ~= nil then
+        --size to the host's visible area (its data.dialog, the contract the
+        --Shop and Library screens use too), not 100% of the host: the
+        --titlescreen root is far wider than the screen, which pushed the
+        --contents pane off-screen and blew up the page size.
+        local visible = host.data ~= nil and host.data.dialog or nil
+        hostFrame = gui.Panel {
+            floating = true,
+            width = visible ~= nil and visible.width or "100%",
+            height = visible ~= nil and visible.height or "100%",
+            halign = "center",
+            valign = "center",
+            dialogPanel,
+        }
+        host:AddChild(hostFrame)
+    else
+        gui.ShowModal(dialogPanel)
+        GameHud.instance.modalPanel.interactable = false
+    end
 end
 
 local function ParseDocumentURL(url)
@@ -4475,8 +4509,9 @@ local function ParseDocumentURL(url)
     }
 end
 
-function OpenPDFDocument(doc, page)
-    mod.shared.ShowPDFViewerDialog(doc, page)
+--options: see ShowPDFViewerDialog (options.host hosts the viewer on a panel).
+function OpenPDFDocument(doc, page, options)
+    mod.shared.ShowPDFViewerDialog(doc, page, options)
 end
 
 -- =============================================================================
@@ -4679,7 +4714,8 @@ dmhub.DescribeDocument = function(url)
     return "(Unknown)"
 end
 
-RegisterGameType("ImageDocument")
+--- @class ImageDocument: GameType
+ImageDocument = RegisterGameType("ImageDocument")
 
 ImageDocument.type = "image"
 ImageDocument.imageid = ""
@@ -4723,7 +4759,8 @@ function ImageDocument:Render(options)
     return gui.Panel(args)
 end
 
-RegisterGameType("PDFWrapper")
+--- @class PDFWrapper: GameType
+PDFWrapper = RegisterGameType("PDFWrapper")
 
 PDFWrapper.docid = ""
 PDFWrapper.width = 1024
@@ -4768,7 +4805,8 @@ function PDFWrapper:Render(options)
     return gui.Panel(args)
 end
 
-RegisterGameType("PDFFragment")
+--- @class PDFFragment: GameType
+PDFFragment = RegisterGameType("PDFFragment")
 
 PDFFragment.tableName = "pdfReferences"
 PDFFragment.refid = "none" --the PDF document we refer to.

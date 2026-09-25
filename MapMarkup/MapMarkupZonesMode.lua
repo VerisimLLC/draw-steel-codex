@@ -423,9 +423,9 @@ function MM.BuildZonesMode()
             },
         }
 
-        --"Dynamic Light": the zone type only applies where the map's light
-        --level is below the slider's threshold, recomputed live as lights
-        --move and the time of day changes. Double-gated: the engine must
+        --"Dynamic Light": the zone type only applies where the light added by
+        --light sources (ambient ignored) is at or below the slider's
+        --threshold, recomputed live as lights move. Double-gated: the engine must
         --support the sampling API (new), and the KEYWORD must have "Can Use
         --Dynamic Light" checked in its editor -- most zone types (Water,
         --Difficult Terrain) have no use for it, so only opted-in types
@@ -452,18 +452,14 @@ function MM.BuildZonesMode()
                 halign = "left",
                 valign = "center",
                 hmargin = 8,
-                value = (dynPct or 30) / 100,
-                hover = MM.SideTooltip("Light threshold: tiles where the light level is below this count as dark, and this zone type applies only there."),
+                value = (dynPct or 0) / 100,
+                hover = MM.SideTooltip("Light threshold, measured on light from light sources only (the map's ambient light always counts as dark). At 0%, any light reaching a tile dispels this zone type there; higher values need brighter light, so a torch clears a smaller area."),
                 confirm = function(element)
                     local keywordid = entry.keywordid
                     if keywordid == nil then
                         return
                     end
-                    local pct = round(element.value * 100)
-                    if pct < 1 then
-                        pct = 1
-                    end
-                    m.dynamicLight.Set(keywordid, pct)
+                    m.dynamicLight.Set(keywordid, round(element.value * 100))
                     --sample the new threshold NOW: waiting for the ticker
                     --leaves a visible blink where the zone rebuilds unfiltered
                     --(new threshold = no sample yet) and then snaps back a
@@ -480,7 +476,7 @@ function MM.BuildZonesMode()
                 halign = "left",
                 valign = "center",
                 bgimage = "panels/square.png",
-                hover = MM.SideTooltip("Calculate this zone type dynamically from the light on the map: it only applies where the light level is below the threshold. Updates as lights move, doors close and night falls. Painted zones and the Entire Map blanket are both filtered."),
+                hover = MM.SideTooltip("Calculate this zone type dynamically from light sources on the map (torches, lanterns, placed lights): it is dispelled wherever enough light reaches, and the map's ambient light never dispels it. Updates as lights move and doors open and close. Painted zones and the Entire Map blanket are both filtered."),
 
                 click = function(element)
                     --the row only shows for a resolved keyword (the
@@ -493,11 +489,7 @@ function MM.BuildZonesMode()
 
                     local lit = m.dynamicLight.GetThreshold(keywordid) == nil
                     if lit then
-                        local pct = round(dynSlider.value * 100)
-                        if pct < 1 then
-                            pct = 30
-                        end
-                        m.dynamicLight.Set(keywordid, pct)
+                        m.dynamicLight.Set(keywordid, round(dynSlider.value * 100))
                     else
                         m.dynamicLight.Set(keywordid, nil)
                     end
@@ -1032,6 +1024,7 @@ function MM.BuildZonesMode()
                         {id = "amount", text = "Set Amount"},
                     },
                     change = function(element)
+                        ---@cast element Dropdown
                         heightMode = element.idChosen
                         heightAmountPanel:SetClass("collapsed", heightMode ~= "amount")
                     end,

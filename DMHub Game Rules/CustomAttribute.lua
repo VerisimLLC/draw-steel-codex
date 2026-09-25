@@ -555,6 +555,7 @@ function CustomAttribute:GenerateEditor(options)
 			options = self.types,
 			idChosen = self.attributeType,
 			change = function(element)
+				---@cast element Dropdown
 				self.attributeType = element.idChosen
 				resultPanel:FireEvent("change")
 				resultPanel:FireEventTree("refreshType")
@@ -593,6 +594,7 @@ function CustomAttribute:GenerateEditor(options)
 			options = classOptions,
 			idChosen = self.classid,
 			change = function(element)
+				---@cast element Dropdown
 				self.classid = element.idChosen
 				resultPanel:FireEvent("change")
 			end,

@@ -39,6 +39,7 @@
 --- @field roofMinimumOpacityNoUpload any
 --- @field roofVisionExclusionFade number
 --- @field roofVisionExclusionFadeNoUpload any
+--- @field footprintCount number The number of footprints currently on this floor (on this client).
 --- @field charactersOnFloor any
 --- @field playerCharactersOnFloor any
 --- @field playerCharactersOnLayer any
@@ -90,6 +91,13 @@ function MapFloorLua:CreateLocalObjectFromBlueprint(options) end
 --- @param options? any
 --- @return any
 function MapFloorLua:SpawnEphemeralLevelObject(options) end
+
+--- Leaves a fading footprint on this floor. x/y are in token position space; angle is the direction the print faces in degrees counterclockwise from +x (default 90). image is an image asset id or a built-in image path such as 'footprints/boots.png', drawn toe-up (the top of the image points the way the creature walks); omit it for the generated boot print. length is the print's length in tiles (default 0.3) and width its width (default: follow the image's proportions); scale multiplies both (default 1). mirror flips it to the other foot; color tints it (default black at 40% opacity, a faint darkening of the ground); lifetime is the seconds it takes to fade away (default 60). Client-local: not saved or synced, so every client adds its own prints from the same token movement. Does nothing if the floor is not currently shown.
+--- @param options {x: number, y: number, angle: number|nil, image: string|nil, length: number|nil, width: number|nil, scale: number|nil, mirror: boolean|nil, color: Color|string|nil, lifetime: number|nil}
+function MapFloorLua:AddFootprint(options) end
+
+--- Removes every footprint on this floor immediately, on this client only.
+function MapFloorLua:ClearFootprints() end
 
 --- GetNumberOfProjectiles
 --- @param tokenid? string

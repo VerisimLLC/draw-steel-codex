@@ -313,6 +313,7 @@ function CharacterPrerequisite:Editor(params)
 				options = skillOptions,
 				idChosen = self.skill,
 				change = function(element)
+					---@cast element Dropdown
 					self.skill = element.idChosen
 					resultPanel:FireEvent("change")
 				end,

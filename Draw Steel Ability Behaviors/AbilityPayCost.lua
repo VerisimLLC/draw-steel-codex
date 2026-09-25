@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("ActivatedAbilityPayAbilityCostBehavior", "ActivatedAbilityBehavior")
+--- @class ActivatedAbilityPayAbilityCostBehavior: ActivatedAbilityBehavior
+ActivatedAbilityPayAbilityCostBehavior = RegisterGameType("ActivatedAbilityPayAbilityCostBehavior", "ActivatedAbilityBehavior")
 
 ActivatedAbility.RegisterType
 {

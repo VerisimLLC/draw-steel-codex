@@ -572,6 +572,7 @@ function FSHPanel.TripPane(args)
         options = ConstantOptions(FSHCast.TEST_MODE),
         idChosen = FSHCast.testMode,
         change = function(element)
+            ---@cast element Dropdown
             FSHCast.testMode = element.idChosen
         end
     }
@@ -588,6 +589,7 @@ function FSHPanel.TripPane(args)
         options = FSHEvents.TestRollOptions(),
         idChosen = tostring(FSHEvents.testRoll),
         change = function(element)
+            ---@cast element Dropdown
             FSHEvents.testRoll = tonumber(element.idChosen) or 0
         end
     }
@@ -1643,6 +1645,7 @@ local function PaintRespiteFields()
                 element.idChosen = FSHWater.GetWaterType()
             end,
             change = function(element)
+                ---@cast element Dropdown
                 FSHWater.SetWaterType(element.idChosen)
             end,
         }),

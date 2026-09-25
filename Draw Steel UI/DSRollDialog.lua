@@ -663,6 +663,10 @@ function GameHud.CreateRollDialog(self)
     local boonBar
     local surgesBar
 
+    --Surges only buy extra damage, so the surge controls are shown only when the
+    --power table deals damage. Recomputed by CalculateRollText each pass.
+    local m_surgeDamageAllowed = false
+
     local m_activeModifiers = {}
 
     local m_customContainer
@@ -811,6 +815,21 @@ function GameHud.CreateRollDialog(self)
         ShowTargetHints(newText)
 
         calculationOptions = calculationOptions or {}
+
+        --Decide before textCalculated so the surge icons see it before they add
+        --surge damage. HasDamage reads the tiers after modifiers but before surges.
+        m_surgeDamageAllowed = rollProperties ~= nil and rollProperties.typeName == "RollPropertiesPowerTable" and
+            rollProperties:try_get("tiers") ~= nil and rollProperties:HasDamage()
+        if not m_surgeDamageAllowed then
+            --Drop any surges spent on this target so they are neither applied nor consumed.
+            calculationOptions.surges = nil
+            local currentTarget = GetCurrentMultiTarget()
+            if currentTarget ~= nil and m_multitargets ~= nil then
+                local row = m_multitargets[currentTarget] --[[@as table]]
+                row.surges = 0
+            end
+        end
+
         calculationOptions.rollInfo = dmhub.ParseRoll(newText, creature)
         resultPanel:FireEventTree("textCalculated", calculationOptions)
 
@@ -1687,7 +1706,7 @@ function GameHud.CreateRollDialog(self)
                                 surgesAvailable = surgesAvailable + rollProperties:try_get("surges", 0)
                             end
 
-                            element:SetClass("hidden", (surgeNum - (m_multitargets[i].surges or 0)) > surgesAvailable)
+                            element:SetClass("hidden", (not m_surgeDamageAllowed) or (surgeNum - (m_multitargets[i].surges or 0)) > surgesAvailable)
                         end,
                         press = function(element)
                             if m_multitargets[i].surges == surgeNum then
@@ -1888,7 +1907,7 @@ function GameHud.CreateRollDialog(self)
                 calculationOptions = calculationOptions or {}
                 element:SetClass("collapsed",
                     rollProperties == nil or rollProperties.typeName ~= "RollPropertiesPowerTable" or creature == nil or
-                    surgesAvailable < index)
+                    (not m_surgeDamageAllowed) or surgesAvailable < index)
                 if rollProperties ~= nil and (not element:HasClass("collapsed")) then
                     element:SetClass("override", calculationOptions.surges ~= nil)
                     element:SetClass("inactive",
@@ -1967,8 +1986,17 @@ function GameHud.CreateRollDialog(self)
         height = "auto",
         halign = "center",
 
+        data = {
+            isAbilityRoll = false,
+        },
+
         prepare = function(element, options)
-            element:SetClass("collapsed", not string.find(options.type or "", "ability_power_roll"))
+            element.data.isAbilityRoll = string.find(options.type or "", "ability_power_roll") ~= nil
+            element:SetClass("collapsed", not (element.data.isAbilityRoll and m_surgeDamageAllowed))
+        end,
+
+        textCalculated = function(element)
+            element:SetClass("collapsed", not (element.data.isAbilityRoll and m_surgeDamageAllowed))
         end,
 
         gui.Panel {

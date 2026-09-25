@@ -24,6 +24,7 @@ end
 
 --- @class Dropdown:Panel
 --- @field idChosen nil|true|false|string The id of the option currently chosen.
+--- @field optionChosen nil|true|false|string Legacy alias of idChosen (GetOptionChosen/SetOptionChosen below).
 --- @field options DropdownOption[] The possible options to choose from
  
 

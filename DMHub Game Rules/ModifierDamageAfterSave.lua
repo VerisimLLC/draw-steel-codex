@@ -64,6 +64,7 @@ CharacterModifier.TypeInfo.modifydamageaftersave = {
 
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								modifier.attrid = element.idChosen
 								Refresh()
 							end,
@@ -100,6 +101,7 @@ CharacterModifier.TypeInfo.modifydamageaftersave = {
 
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								modifier.affect = element.idChosen
 								Refresh()
 							end,
@@ -140,6 +142,7 @@ CharacterModifier.TypeInfo.modifydamageaftersave = {
 
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								modifier.onsuccess = element.idChosen
 								Refresh()
 							end,
@@ -180,6 +183,7 @@ CharacterModifier.TypeInfo.modifydamageaftersave = {
 
 						events = {
 							change = function(element)
+								---@cast element Dropdown
 								modifier.onfail = element.idChosen
 								Refresh()
 							end,

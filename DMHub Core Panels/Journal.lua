@@ -15,7 +15,8 @@ local CreateJournalPanel
 
 local docid = "journal"
 
-RegisterGameType("CustomDocument")
+--- @class CustomDocument: GameType
+CustomDocument = RegisterGameType("CustomDocument")
 
 Commands.RegisterMacro{
     name = "doc",
@@ -1842,7 +1843,7 @@ local GetRecentDocumentsSetting = setting {
     id = "recentDocuments",
     description = "Recent Documents",
     storage = "preference",
-    default = { { id = "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904" }, { id = "cc66844a-04d0-49a0-8687-65ef83b15363" }, { id = "4dad1bc1-d23a-4780-ac6a-536a0f9cd9b9" } },
+    default = { { id = "e6cab5b7-a1c9-4b12-ad06-ed573f6ba904" }, { id = "cc66844a-04d0-49a0-8687-65ef83b15363" }, { id = "8e6b780e-754c-4c35-902f-c52e5745cfea" } },
 
 }
 

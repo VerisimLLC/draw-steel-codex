@@ -21,7 +21,7 @@ local mod = dmhub.GetModLoading()
 --- @field concealment boolean If true, an area marked with this keyword grants concealment. Uses the same terrain rule flag name as tiles (asset.rules.concealment).
 --- @field climbable boolean If true, an area marked with this keyword can be climbed, like a climbable wall: creatures in it may climb up to the ceiling of the floor.
 --- @field climbersOnly boolean Only meaningful when climbable is true: restricts climbing to natural climbers (climb speed >= walk speed), matching walls' "Climbable (Climbers Only)". Uses the same terrain rule flag name as tiles (rules.climbersOnly).
---- @field dynamicLight boolean If true, the Map Markup zone palette offers the "Dynamic Light" option for this keyword (its zones/blanket apply only where the map's light level is below a per-map threshold). Purely a UI/eligibility gate: the sampling and carving live in MapMarkupPanel.lua; unchecking disables an already-configured threshold without deleting it.
+--- @field dynamicLight boolean If true, the Map Markup zone palette offers the "Dynamic Light" option for this keyword (its zones/blanket apply only where the light added by light sources is at or below a per-map threshold; ambient light is ignored). Purely a UI/eligibility gate: the sampling and carving live in MapMarkupPanel.lua; unchecking disables an already-configured threshold without deleting it.
 --- @field dispels string[]|nil Ids (environmentalKeywords table keys) of keywords this keyword dispels. Painting a zone of this keyword deletes the overlap from zones of a dispelled keyword (and a dispelled keyword cannot be painted over this one); an aura carrying this keyword suppresses zones of dispelled keywords beneath it for as long as the aura covers them. No class default: assigned per instance by the editor (a class-level default table would be shared-mutable).
 --- @field movedamage string Damage type dealt to creatures moving through an area with this keyword, or "none" for no damage. Uses the same field names as Aura so the values copy straight onto zone auras.
 --- @field damage number Damage dealt per tile of the area a creature moves through (only meaningful when movedamage is not "none").
@@ -1134,6 +1134,7 @@ local ShowAppearanceDialog = function(keyword, UploadKeyword, onChanged)
 				{ id = "sprites", text = "Sprites" },
 			},
 			change = function(element)
+				---@cast element Dropdown
 				appearance.mode = element.idChosen
 				Commit()
 				dialogPanel:FireEventTree("refreshAppearance")
@@ -2072,6 +2073,7 @@ local SetData = function(tableName, keywordPanel, keyid)
 				{id = "amount", text = "Set Amount"},
 			},
 			change = function(element)
+				---@cast element Dropdown
 				if element.idChosen == "infinite" then
 					keyword.defaultHeight = nil
 				elseif element.idChosen == "ground" then
@@ -2197,7 +2199,7 @@ local SetData = function(tableName, keywordPanel, keyid)
 	}
 
 	--whether the Map Markup zone palette offers the "Dynamic Light" option for
-	--this keyword (zones apply only where map light is below a threshold).
+	--this keyword (zones are dispelled where light sources reach).
 	--Eligibility only: most keywords (Water, Difficult Terrain) have no use for
 	--it, so the palette stays uncluttered unless a keyword opts in.
 	children[#children+1] = gui.Panel{
@@ -2205,7 +2207,7 @@ local SetData = function(tableName, keywordPanel, keyid)
 		gui.Check{
 			value = keyword:try_get("dynamicLight", false),
 			text = "Can Use Dynamic Light",
-			tooltip = "Zones of this type can be set (in the map's Zone Types palette) to only apply where the light level on the map is below a threshold - e.g. Darkness that recedes around a carried torch. Unchecking hides the option and disables any configured threshold without deleting it.",
+			tooltip = "Zones of this type can be set (in the map's Zone Types palette) to be dispelled by light sources (torches, lanterns, placed lights; the map's ambient light never dispels them) - e.g. Darkness that recedes around a carried torch. Unchecking hides the option and disables any configured threshold without deleting it.",
 			change = function(element)
 				keyword.dynamicLight = element.value
 				UploadKeyword()
@@ -2305,6 +2307,7 @@ local SetData = function(tableName, keywordPanel, keyid)
 						idChosen = "none",
 						options = options,
 						change = function(dropdown)
+							---@cast dropdown Dropdown
 							if dropdown.idChosen == "none" then
 								return
 							end
@@ -2342,6 +2345,7 @@ local SetData = function(tableName, keywordPanel, keyid)
 			idChosen = keyword:try_get("movedamage", "none"),
 			options = table.append_arrays({{id = "none", text = "none"}}, map(rules.damageTypesAvailable, function(a) return {id = a, text = a} end)),
 			change = function(element)
+				---@cast element Dropdown
 				keyword.movedamage = element.idChosen
 				moveDamageDetails:SetClass("collapsed", element.idChosen == "none")
 				UploadKeyword()
@@ -2383,6 +2387,7 @@ local SetData = function(tableName, keywordPanel, keyid)
 				{id = "willing", text = "Willing Movement Only"},
 			},
 			change = function(element)
+				---@cast element Dropdown
 				keyword.movementDamageFilter = element.idChosen
 				UploadKeyword()
 			end,

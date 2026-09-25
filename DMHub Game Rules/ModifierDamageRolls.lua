@@ -200,6 +200,7 @@ CharacterModifier.TypeInfo.damage = {
 					options = damageModifierTypes,
 					idChosen = modifier:try_get("subtype", "attacks"),
 					change = function(element)
+						---@cast element Dropdown
 						modifier.subtype = element.idChosen
 						Refresh()
 					end,
@@ -342,6 +343,7 @@ CharacterModifier.TypeInfo.damage = {
 						},
 					},
 					change = function(element)
+						---@cast element Dropdown
 						if element.idChosen == idChosen then
 							return
 						end

@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("CommandDocument", "CustomDocument")
+--- @class CommandDocument: CustomDocument
+CommandDocument = RegisterGameType("CommandDocument", "CustomDocument")
 CommandDocument.command = ""
 
 function CommandDocument:ShowDocument()
@@ -13,7 +14,8 @@ function CommandDocument:ShowDocument()
 	LaunchablePanel.GetOrLaunchPanel(self.command)
 end
 
-RegisterGameType("MonsterReferenceDocument", "CustomDocument")
+--- @class MonsterReferenceDocument: CustomDocument
+MonsterReferenceDocument = RegisterGameType("MonsterReferenceDocument", "CustomDocument")
 MonsterReferenceDocument.monsterid = ""
 
 function MonsterReferenceDocument:Render()
@@ -27,7 +29,8 @@ end
 function MonsterReferenceDocument:ShowDocument()
 end
 
-RegisterGameType("PDFDeepLink", "CustomDocument")
+--- @class PDFDeepLink: CustomDocument
+PDFDeepLink = RegisterGameType("PDFDeepLink", "CustomDocument")
 PDFDeepLink.docid = ""
 PDFDeepLink.page = "C"
 
@@ -49,7 +52,8 @@ function PDFDeepLink:PreviewDescription()
     end
 end
 
-RegisterGameType("MapDocument", "CustomDocument")
+--- @class MapDocument: CustomDocument
+MapDocument = RegisterGameType("MapDocument", "CustomDocument")
 MapDocument.mapid = ""
 MapDocument.nodeType = "map"
 
@@ -86,7 +90,8 @@ end
 --camera on the bubble (on engine builds that support loc-based camera
 --moves), and opens the bubble's info dialog - the same one clicking the
 --bubble on the map shows.
-RegisterGameType("BubbleDocument", "CustomDocument")
+--- @class BubbleDocument: CustomDocument
+BubbleDocument = RegisterGameType("BubbleDocument", "CustomDocument")
 BubbleDocument.mapid = ""      --"" = the current map
 BubbleDocument.bubblename = "" --matched against bubble icon and description
 BubbleDocument.nodeType = "bubble"
@@ -791,7 +796,8 @@ function CustomDocument.OpenContent(node)
     end
 end
 
-RegisterGameType("CustomDocumentRef")
+--- @class CustomDocumentRef: GameType
+CustomDocumentRef = RegisterGameType("CustomDocumentRef")
 
 CustomDocumentRef.docid = ""
 

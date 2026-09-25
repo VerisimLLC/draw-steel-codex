@@ -101,6 +101,7 @@ local SetKit = function(tableName, kitPanel, kitid)
 			idChosen = kit.type,
 			options = Kit.kitTypes,
 			change = function(element)
+				---@cast element Dropdown
 				kit.type = element.idChosen
 				UploadKit()
 				element.parent:FireEventTree("changeType")
@@ -171,6 +172,7 @@ local SetKit = function(tableName, kitPanel, kitid)
 			idChosen = kit.armor,
 			options = Kit.armorTypes,
 			change = function(element)
+				---@cast element Dropdown
 				kit.armor = element.idChosen
 				UploadKit()
 			end,

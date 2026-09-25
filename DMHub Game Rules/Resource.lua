@@ -1297,7 +1297,12 @@ dmhub.RegisterEventHandler("refreshTables", function()
             end
 
             g_resourceLookupRecursionProtection = dmhub.FrameCount()
-			local result = (c.creature:GetResources()[k] or 0) - c.creature:GetResourceUsage(k, resourceInfo.usageLimit)
+			-- Retainers and surge-sharing summons spend from someone else's pool, so read that one.
+			local owner = c.creature
+			if k == CharacterResource.nameToId["Surges"] and owner.GetSurgePoolOwner then
+				owner = owner:GetSurgePoolOwner()
+			end
+			local result = (owner:GetResources()[k] or 0) - owner:GetResourceUsage(k, resourceInfo.usageLimit)
             g_resourceLookupRecursionProtection = nil
             return result
 		end

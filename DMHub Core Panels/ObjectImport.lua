@@ -156,6 +156,7 @@ local function ImportObjectsDialog(filePaths, progressPanel)
 				idChosen = 'null',
 				options = artistOptions,
 				change = function(element)
+					---@cast element Dropdown
 					if element.idChosen == 'null' then
 						artist = nil
 					else

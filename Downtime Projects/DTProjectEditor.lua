@@ -681,6 +681,7 @@ function DTProjectEditor:_createProjectForm()
                         end
                     end,
                     change = function(element)
+                        ---@cast element Dropdown
                         local project = element.parent.data.getProject(element)
                         if project and element.idChosen ~= project:GetStatus() then
                             modifyTokenProps{

@@ -5,10 +5,10 @@ Persistence = RegisterGameType("Persistence")
 Persistence.name = ""
 
 --- @class ActivatedAbilityPersistenceControlBehavior:ActivatedAbilityBehavior
-RegisterGameType("ActivatedAbilityPersistenceControlBehavior", "ActivatedAbilityBehavior")
+ActivatedAbilityPersistenceControlBehavior = RegisterGameType("ActivatedAbilityPersistenceControlBehavior", "ActivatedAbilityBehavior")
 
 --- @class ActivatedAbilityPersistenceCastBehavior:ActivatedAbilityBehavior
-RegisterGameType("ActivatedAbilityPersistenceCastBehavior", "ActivatedAbilityBehavior")
+ActivatedAbilityPersistenceCastBehavior = RegisterGameType("ActivatedAbilityPersistenceCastBehavior", "ActivatedAbilityBehavior")
 
 RegisterGoblinScriptSymbol(creature, {
 	name = "Number of Persistent Abilities",
@@ -236,7 +236,11 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
                         casterToken:ModifyProperties{
                             description = "Set Start of Turn Essence",
                             execute = function()
-                                casterToken.properties:ApplyOngoingEffect(id, nil, casterToken, {stacks = earnedEssence + 1})
+                                casterToken.properties:ApplyOngoingEffect(id, nil, {tokenid = casterToken.charid}, {stacks = earnedEssence + 1})
+                                --The effect lowers the start-of-turn gain by the cost just
+                                --paid; record the full gain so the persistent abilities panel
+                                --can still compare costs against it this turn.
+                                casterToken.properties.persistenceGainAtStart = startOfTurnHeroicResource
                             end,
                         }
                         break

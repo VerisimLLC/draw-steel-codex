@@ -142,7 +142,8 @@ local LibraryStyles = {
 	},
 }
 
-RegisterGameType("CompendiumPermission")
+--- @class CompendiumPermission: GameType
+CompendiumPermission = RegisterGameType("CompendiumPermission")
 
 function CompendiumPermission.TranslateKey(key)
 	return string.gsub(key, " ", "_")
@@ -1399,6 +1400,7 @@ local ShowSkillsPanel = function(parentPanel)
 				options = creature.attributeDropdownOptions,
 				idChosen = skill.attribute,
 				change = function(element)
+					---@cast element Dropdown
 					skill.attribute = element.idChosen
 					UploadSkill()
 				end,
@@ -1653,6 +1655,7 @@ local ShowResourcesPanel = function(parentPanel)
 				options = CharacterResource.groupingOptions,
 				idChosen = resource.grouping,
 				change = function(element)
+					---@cast element Dropdown
 					resource.grouping = element.idChosen
 					UploadResource()
 				end,
@@ -1720,6 +1723,7 @@ local ShowResourcesPanel = function(parentPanel)
 				options = { { id = "light", text = "Light" }, { id = "dark", text = "Dark" }},
 				idChosen = resource.textColor,
 				change = function(element)
+					---@cast element Dropdown
 					resource.textColor = element.idChosen
 					UploadResource()
 					quantityLabelPreview:FireEvent("create")
@@ -1853,6 +1857,7 @@ local ShowResourcesPanel = function(parentPanel)
 				options = { { id = "normal", text = "Normal" }, { id = "add", text = "Add" }},
 				idChosen = resource.display.normal.blend or 'normal',
 				change = function(element)
+					---@cast element Dropdown
 					for k,displayMode in pairs(resource.display) do
 						displayMode.blend = cond(element.idChosen == 'add', 'add', nil)
 					end
@@ -1912,6 +1917,7 @@ local ShowResourcesPanel = function(parentPanel)
 				options = CharacterResource.displayModeOptions,
 				idChosen = currentDisplayMode,
 				change = function(element)
+					---@cast element Dropdown
 					currentDisplayMode = element.idChosen
 					sliders[1].data.setValueNoEvent(resource.display[currentDisplayMode]['hueshift'])
 					sliders[2].data.setValueNoEvent(resource.display[currentDisplayMode]['saturation'])
@@ -2076,6 +2082,7 @@ local ShowResourcesPanel = function(parentPanel)
 				options = resourceChoices,
 				idChosen = resource.levelsFrom,
 				change = function(element)
+					---@cast element Dropdown
 					resource.levelsFrom = element.idChosen
 					UploadResource()
 				end,
@@ -3483,6 +3490,7 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 				idChosen = data:try_get("superset", "none"),
 
 				change = function(element)
+					---@cast element Dropdown
 					local val = element.idChosen
 					if val == 'none' then
 						val = nil
@@ -3524,6 +3532,7 @@ local ShowEquipmentCategoriesPanel = function(parentPanel)
 				idChosen = data.editorType,
 
 				change = function(element)
+					---@cast element Dropdown
 					data.editorType = element.idChosen
 					UploadData()
 				end,
@@ -3785,6 +3794,7 @@ local ShowImageFoldersPanel = function(parentPanel)
 				classes = {'formStacked'},
 				idChosen = data.imageType,
 				change = function(element)
+					---@cast element Dropdown
 					data.imageType = element.idChosen
 					UploadData()
 				end,
@@ -3855,6 +3865,7 @@ local ShowImageFoldersPanel = function(parentPanel)
 					end,
 
 					change = function(element)
+						---@cast element Dropdown
 						if element.idChosen == "none" then
 							data.artistid = nil
 						else
@@ -4629,6 +4640,7 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 				},
 				idChosen = data.emojiType,
 				change = function(element)
+					---@cast element Dropdown
 					data.emojiType = element.idChosen
 					UploadData()
 				end,
@@ -4737,6 +4749,7 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 				},
 				idChosen = data.styles[1].blend or "blend",
 				change = function(element)
+					---@cast element Dropdown
 					data.styles[1].blend = element.idChosen
 					UploadData()
 				end,
@@ -4790,6 +4803,7 @@ local ShowEmojiPanel = function(parentPanel, emojiType)
 				end,
 
 				change  = function(element)
+					---@cast element Dropdown
 					data.finishEmoji = element.idChosen
 					UploadData()
 				end,

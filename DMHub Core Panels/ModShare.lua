@@ -2371,6 +2371,7 @@ local showShareModuleDialog = function(options)
                 idChosen = SelectedPublishAs(),
                 width = 260,
                 change = function(element)
+                    ---@cast element Dropdown
                     if element.idChosen == "self" then
                         moduleInstance.authorid = module.savedAuthorid or dmhub.GetDisplayName(dmhub.userid)
                     else
@@ -2666,6 +2667,7 @@ local showShareModuleDialog = function(options)
                 hasSearch = true,
                 sort = true,
                 change = function(element)
+                    ---@cast element Dropdown
                     moduleInstance.coverDocumentId = element.idChosen ~= "none" and element.idChosen or nil
                 end,
             },
@@ -2704,6 +2706,7 @@ local showShareModuleDialog = function(options)
 				idChosen = cond(moduleInstance.deleted, "deleted", cond(moduleInstance.published, "public", "unlisted")),
 				events = {
 					change = function(element)
+						---@cast element Dropdown
 						moduleInstance.published = element.idChosen == "public"
 						moduleInstance.premium = element.idChosen == "premium"
 						moduleInstance.deleted = element.idChosen == "deleted"
@@ -3035,6 +3038,7 @@ local showShareModuleDialog = function(options)
 				idChosen = moduleInstance.moduleType,
 				width = 260,
 				change = function(element)
+					---@cast element Dropdown
 					moduleInstance.moduleType = element.idChosen
 					RefreshModuleType()
 				end,
@@ -5790,159 +5794,13 @@ mod.shared.ShowExportDialog = function()
 		height = "auto",
 		flow = "horizontal",
 
+		--the tour is a seamless loop: a sweep across the map and back, fading floors
+		--from the top down and back up. duration is one full loop.
 		refreshTour = function(element)
 			MapExport:SetMapTourExport{
 				width = tourWidth,
 				height = tourHeight,
 				duration = duration,
-				startDuration = 2,
-				sheet = function()
-					return gui.Panel{
-						id = "exportHud",
-						styles = Styles.default,
-						flow = "none",
-						width = 1920,
-						height = 1080,
-						gui.Panel{
-							bgimageAlpha = "panels/gamescreen/loadingscreen4.png",
-							width = "100%",
-							height = "100%",
-
-							styles = {
-								{
-									opacity = 0,
-								},
-								{
-									classes = {"open"},
-									bgimage = cond(game.currentMap.loadingScreenImage ~= nil, game.currentMap.loadingScreenImage, "panels/square.png"),
-									bgcolor = cond(game.currentMap.loadingScreenImage ~= nil, "white", "black"),
-									alphaThreshold = 1,
-									alphaThresholdFade = 0.1,
-									opacity = 1,
-								},
-								{
-									classes = {"endopen"},
-									bgcolor = cond(game.currentMap.loadingScreenImage ~= nil, "#ffffff00", "#00000000"),
-									alphaThreshold = -0.1,
-									transitionTime = 0.8,
-								},
-
-							},
-
-
-							thinkOpen = function(element, t)
-								element:SetClass("open", true)
-								element:SetClass("endopen", t >= 0.6)
-							end,
-							thinkClose = function(element)
-								element:SetClass("open", false)
-							end,
-							think = function(element)
-								element:SetClass("open", false)
-							end,
-
-
-						},
-
-						gui.Label{
-							id = "exportLabel",
-							halign = "center",
-							valign = "center",
-							fontSize = 96,
-							fontFace = "SellYourSoul",
-							text = game.currentMap.description,
-							width = "auto",
-							height = "auto",
-							styles = {
-								{
-									color = "#ffffffff",
-								},
-								{
-									classes = {"~shown"},
-									color = "#00000000",
-									transitionTime = 0.2,
-								},
-
-							},
-							thinkOpen = function(element, t)
-								element:SetClass("shown", t < 0.7)
-							end,
-							thinkClose = function(element)
-								element:SetClass("shown", false)
-							end,
-							think = function(element)
-								element:SetClass("shown", false)
-							end,
-						},
-
-
-
-						gui.Panel{
-							bgimage = "panels/square.png",
-							bgcolor = "black",
-							width = "100%",
-							height = "100%",
-
-							styles = {
-								{
-									opacity = 0,
-								},
-								{
-									classes = {"shown"},
-									transitionTime = 0.2,
-									opacity = 1,
-								}
-							},
-
-							thinkOpen = function(element, t)
-								element:SetClassTree("shown", false)
-							end,
-							thinkClose = function(element)
-								element:SetClassTree("shown", true)
-							end,
-							think = function(element)
-								element:SetClassTree("shown", false)
-							end,
-
-							gui.Panel{
-								width = "auto",
-								height = "auto",
-								flow = "vertical",
-								halign = "center",
-								valign = "center",
-								styles = {
-									{
-										opacity = 0,
-										color = "#ffffff00",
-									},
-									{
-										classes = {"shown"},
-										opacity = 1,
-										color = "white",
-										transitionTime = 0.2,
-									}
-
-								},
-								gui.Panel{
-									width = 768,
-									height = 768,
-									halign = "center",
-									bgimage = "panels/logo/DMHubLogo.png",
-									bgcolor = "white",
-								},
-								gui.Label{
-									fontFace = "cambria",
-									fontSize = 40,
-									width = "auto",
-									height = "auto",
-									halign = "center",
-									text = "www.dmhubapp.com",
-								}
-							}
-
-						},
-					}
-				end,
 			}
 		end,
 
@@ -6008,6 +5866,7 @@ mod.shared.ShowExportDialog = function()
 				},
 			},
 			change = function(element)
+				---@cast element Dropdown
 				hz = element.idChosen
 			end,
 
@@ -6096,6 +5955,7 @@ mod.shared.ShowExportDialog = function()
 				},
 			},
 			change = function(element)
+				---@cast element Dropdown
 				exportType = element.idChosen
 				if exportType == "tour" then
 					tourSettingsPanel:FireEvent("refreshTour")

@@ -35,7 +35,37 @@
 --                                              put on another test, for
 --                                              WHOEVER takes it
 --    turn = nil | { seq, userid, heroid, entryId,
---                   status = "choosing"|"rolling"|"assist"|"assisting"|"resolved",
+--                   status = "scene"|"choosing"|"rolling"|"assist"|"assisting"|"resolved",
+--                   scene = { id, part = "intro"|"option"|"outcome",
+--                             steps = { { kind = "narrate"|"say", text, speaker,
+--                                         side = "left"|"right", lang, garbled,
+--                                         cast = { { name, monster }, ... },
+--                                         emotes = nil | { { name, side, emote }, ... } }, ... },
+--                             cast },   -- the lines playing on the stage (see
+--                                          BuildScenePart); `cast` is who is on
+--                                          stage once the part has played
+--                   sceneAfter = "choosing"|"rolling"|"resolve",
+--                                           -- where a "scene" turn goes when its
+--                                              lines have all been read
+--                   pendingTier, resolveUserid,  -- an outcome scene's tier, applied
+--                                                   once the scene has played
+--                   delve = nil | { name, entryName, depth, sinceChest, chestAt,
+--                                   used = { [obstacleId] = true }, obstacleId,
+--                                   chests, applied = { line, ... } },
+--                                           -- a "Delve: <Name>" option was taken:
+--                                              the whole delve is this turn (see
+--                                              "delves (host side)"). While
+--                                              obstacleId is set, the turn's entry
+--                                              and option are the OBSTACLE's.
+--                   status also "chest" (the chest's dice roll is out),
+--                   "chestlanded" (the roll has landed; the hero clicks to
+--                   take the find) and "delvechoice" (press deeper or turn
+--                   back) inside a delve.
+--                   chest = nil | { guids = { guid, ... }, mod, total, rowIndex,
+--                                   newReveal, landedAt }
+--                                           -- the chest roll in flight: its dice (so
+--                                              every client can follow them), then
+--                                              where it landed.
 --                   optionIndex, rollSeq, tier, total, natural, applied = {...}, resolvedAt,
 --                   attrid, skillid,        -- what the acting hero rolled with
 --                   baseTier, baseTotal,    -- the test's own result, before an assist
@@ -51,6 +81,14 @@
 --          (a passed turn logs { round, passed = true, heroid, heroName, entryId, entryName })
 --    seq = n,
 --  }
+--  data.montageScene = nil | { id, index }
+--                  -- how far through the playing scene (turn.scene.id) the
+--                     party has read. The one key a PLAYER writes directly
+--                     (EncounterMontage.AdvanceScene): only the acting hero's
+--                     player advances it, and a round trip through the host
+--                     for every line would make the dialogue sluggish. The
+--                     host only reads it, to move the turn on once the last
+--                     line has been read.
 --  data.allies   = { [heroCharid] = { charid, ... } }  -- monsters that joined a hero
 --  data.items    = { [heroCharid] = { { itemid, name, qty }, ... } }
 --                  -- gear the montage granted, in the order it was granted
@@ -68,6 +106,11 @@
 --                  -- surges banked by "at the start of the next combat you
 --                     gain N surges", paid out (and cleared) by
 --                     ApplyPendingCombatBoons when combat starts.
+--  data.chestSeen = nil | { [delve MatchKey] = { ["lo-hi"] = true } }
+--                  -- the rows of each delve's chest table the party has
+--                     landed on; the rest read "???" (EncounterMontage.ChestRowSeen).
+--                     Deliberately NOT cleared by a reset: what the party has
+--                     learned about the treasure stays learned.
 --  data.zoneSetup, data.revealZones, data.zonesRevealed
 --                  -- the encounter's zone setup (placed traps) and the
 --                     "Reveal Traps" banked/applied reveals; see
@@ -241,15 +284,127 @@ end
 
 --- the script --------------------------------------------------------------
 
---Cache of the current map's parsed script, keyed by document id + text
---length (the text is only re-parsed when the document actually changes).
+--Cache of the current map's parsed script, keyed by a signature of every
+--document it could be built from (see ScriptSignature): the text is only
+--re-expanded and re-parsed when one of them actually changes.
 local m_scriptCache = nil
 
+local function DocumentText(doc)
+    local text = ""
+    pcall(function() text = doc:GetTextContent() or "" end)
+    return text
+end
+
+local function IsMarkdown(doc)
+    return type(doc) == "table" and doc.typeName == "MarkdownDocument"
+end
+
+--Resolve a sub-document link in a map's script (EncounterScript.ExpandIncludes'
+--`resolve`). A document filed under the same map wins over one of the same
+--name elsewhere in the journal, so two weeks can both have a "Mysterious
+--Cottage" without crossing wires; anything else goes through the journal's
+--own CustomDocument.ResolveLink, exactly what clicking the link opens.
+function EncounterMontage.ResolveScriptInclude(target, mapid)
+    local docsTable = dmhub.GetTable("documents") or {}
+    local key = string.lower(target)
+    local bare = string.match(key, "^document:(.+)$") or key
+    local function Found(docid, doc)
+        return { id = docid, name = doc.description or docid, text = DocumentText(doc) }
+    end
+
+    if IsMarkdown(docsTable[bare]) and not docsTable[bare].hidden then
+        return Found(bare, docsTable[bare])
+    end
+    if mapid ~= nil then
+        local bestid = nil
+        for docid, doc in unhidden_pairs(docsTable) do
+            if IsMarkdown(doc) and string.lower(doc.description or "") == bare
+                and CustomDocument.IsDocInAccessibleRoot(doc, { [mapid] = true })
+                and (bestid == nil or docid < bestid) then
+                bestid = docid
+            end
+        end
+        if bestid ~= nil then
+            return Found(bestid, docsTable[bestid])
+        end
+    end
+
+    local resolved = nil
+    pcall(function() resolved = CustomDocument.ResolveLink(target) end)
+    if resolved == nil then
+        return nil, "names no journal document"
+    end
+    if IsMarkdown(resolved) then
+        for docid, doc in pairs(docsTable) do
+            if doc == resolved then
+                return Found(docid, doc)
+            end
+        end
+        local id = nil
+        pcall(function() id = resolved.id end)
+        if id ~= nil then
+            return Found(id, resolved)
+        end
+    end
+    --a monster, a PDF, a map, a web page: a link, not a sub-document.
+    return nil, nil
+end
+
+--Expand and parse one document as a script (its sub-documents spliced in).
+--Returns { docid, doc, parse, text, explicit }; parse.included lists the
+--documents it pulled in.
+function EncounterMontage.LoadScript(docid, mapid)
+    local doc = (dmhub.GetTable("documents") or {})[docid]
+    if doc == nil then
+        return nil
+    end
+    local expansion = EncounterScript.ExpandIncludes(
+        { id = docid, name = doc.description or docid, text = DocumentText(doc) },
+        function(target) return EncounterMontage.ResolveScriptInclude(target, mapid) end)
+    local parse = EncounterScript.ParseExpanded(expansion, docid)
+    local explicit = #parse.beats > 0 and not parse.beats[1].implicit
+    return { docid = docid, doc = doc, parse = parse, text = expansion.text, explicit = explicit }
+end
+
+--Everything a map's script could have been built from: every candidate
+--document plus every document the last parse included (which may live
+--outside the map's folder), by id, name and text length.
+local function ScriptSignature(candidates, included)
+    local docsTable = dmhub.GetTable("documents") or {}
+    local parts = {}
+    local seen = {}
+    local function Add(docid, doc)
+        if seen[docid] then
+            return
+        end
+        seen[docid] = true
+        if doc == nil then
+            parts[#parts + 1] = docid .. "=missing"
+        else
+            parts[#parts + 1] = string.format("%s=%s:%d", docid, tostring(doc.description), #DocumentText(doc))
+        end
+    end
+    for _, c in ipairs(candidates) do
+        Add(c.docid, c.doc)
+    end
+    local extra = {}
+    for docid in pairs(included or {}) do
+        extra[#extra + 1] = docid
+    end
+    table.sort(extra)
+    for _, docid in ipairs(extra) do
+        Add(docid, docsTable[docid])
+    end
+    return table.concat(parts, "|")
+end
+
 --Find the map's script: the markdown document filed under the encounter
---map's journal folder (the same rule FindMapEncounter uses), parsed. When
---several qualify, the first (by name) that declares beats wins. A map with
---only an info-bubble encounter and no document gets one implicit encounter
---beat, so a week authored the old way plays exactly as before.
+--map's journal folder (the same rule FindMapEncounter uses), with its
+--sub-documents spliced in, parsed. A document that another one includes is
+--a part of that script, never a script of its own. When several qualify,
+--the first (by name) that declares beats wins. A map with only an
+--info-bubble encounter and no document gets one implicit encounter beat, so
+--a week authored the old way plays exactly as before.
 --Returns { docid, doc, parse, text } or a script with no beats.
 function EncounterMontage.FindMapScript(force)
     local mapid = game.currentMapId
@@ -268,20 +423,30 @@ function EncounterMontage.FindMapScript(force)
         return a.docid < b.docid
     end)
 
-    local best = nil
-    for _, c in ipairs(candidates) do
-        local text = ""
-        pcall(function() text = c.doc:GetTextContent() or "" end)
-        if m_scriptCache ~= nil and not force and m_scriptCache.docid == c.docid and m_scriptCache.textLength == #text then
-            m_scriptCache.doc = c.doc
-            return m_scriptCache
+    if m_scriptCache ~= nil and not force and m_scriptCache.docid ~= nil and m_scriptCache.mapid == mapid
+        and m_scriptCache.signature == ScriptSignature(candidates, m_scriptCache.allIncluded) then
+        if m_scriptCache.docid ~= nil then
+            m_scriptCache.doc = docsTable[m_scriptCache.docid] or m_scriptCache.doc
         end
-        local parse = EncounterScript.Parse(text)
-        if #parse.beats > 0 then
-            local explicit = not parse.beats[1].implicit
-            if best == nil or (explicit and not best.explicit) then
-                best = { docid = c.docid, doc = c.doc, parse = parse, text = text, textLength = #text, explicit = explicit }
-                if explicit then
+        return m_scriptCache
+    end
+
+    local loaded = {}
+    local allIncluded = {}
+    for _, c in ipairs(candidates) do
+        local script = EncounterMontage.LoadScript(c.docid, mapid)
+        loaded[#loaded + 1] = script
+        for docid in pairs(script ~= nil and script.parse.included or {}) do
+            allIncluded[docid] = true
+        end
+    end
+
+    local best = nil
+    for _, script in ipairs(loaded) do
+        if script ~= nil and not allIncluded[script.docid] and #script.parse.beats > 0 then
+            if best == nil or (script.explicit and not best.explicit) then
+                best = script
+                if script.explicit then
                     break
                 end
             end
@@ -299,22 +464,42 @@ function EncounterMontage.FindMapScript(force)
         if entry ~= nil then
             beats[1] = { kind = "encounter", title = "Encounter", line = 0, tags = { "encounter" }, implicit = true }
         end
-        best = { docid = nil, doc = nil, parse = { beats = beats, warnings = {}, hasEncounterTag = entry ~= nil }, text = "", textLength = 0 }
+        best = { docid = nil, doc = nil, parse = { beats = beats, warnings = {}, hasEncounterTag = entry ~= nil }, text = "" }
     end
+    best.mapid = mapid
+    best.allIncluded = allIncluded
+    best.signature = ScriptSignature(candidates, allIncluded)
     m_scriptCache = best
     return best
 end
 
 --The first montage beat's scene image (a RichScene annotation's coverart),
---or nil.
+--or nil. `beat` is anything with a sceneTag and sceneLine (a beat, or a
+--narrative section). The annotation is read from the document that line
+--came from -- a sub-document keeps its own [[scene]] islands -- under the
+--journal's key for it (a repeated tag is "scene-1", "scene-2", ...).
 function EncounterMontage.SceneImage(script, beat)
     if script == nil or script.doc == nil or beat == nil or beat.sceneTag == nil then
         return nil
     end
     local image = nil
     pcall(function()
-        local annotations = script.doc:try_get("annotations")
-        local tag = annotations ~= nil and annotations[beat.sceneTag] or nil
+        local doc = script.doc
+        local key = beat.sceneTag
+        local src = beat.sceneLine ~= nil and script.parse.sources ~= nil and script.parse.sources[beat.sceneLine] or nil
+        if src ~= nil then
+            doc = (dmhub.GetTable("documents") or {})[src.docid] or doc
+            --the stage asks every frame it rebuilds; the key only changes
+            --with the text, and a text change makes a new script.
+            script.sceneKeys = script.sceneKeys or {}
+            key = script.sceneKeys[beat.sceneLine]
+            if key == nil then
+                key = EncounterScript.AnnotationKey(DocumentText(doc), beat.sceneTag, src.line)
+                script.sceneKeys[beat.sceneLine] = key
+            end
+        end
+        local annotations = doc:try_get("annotations")
+        local tag = annotations ~= nil and (annotations[key] or annotations[beat.sceneTag]) or nil
         if tag ~= nil and tag.typeName == "RichScene" then
             local img = tag.image
             if type(img) == "string" and img ~= "" then
@@ -337,6 +522,28 @@ function EncounterMontage.CurrentBeat()
         return nil, script
     end
     return beat, script
+end
+
+--The delve a turn is in (its "# Delve:" definition), or nil.
+function EncounterMontage.TurnDelve(t)
+    if t == nil or t.delve == nil then
+        return nil
+    end
+    local script = EncounterMontage.FindMapScript()
+    return EncounterScript.FindDelve(script ~= nil and script.parse or nil, t.delve.name)
+end
+
+--The entry a turn is playing: the opportunity or threat itself, or -- inside
+--a delve -- the obstacle the hero is facing. Its options are the ones on
+--offer, rolled and resolved.
+function EncounterMontage.TurnEntry(beat, t)
+    if t == nil then
+        return nil
+    end
+    if t.delve ~= nil and t.delve.obstacleId ~= nil then
+        return EncounterScript.FindObstacle(EncounterMontage.TurnDelve(t), t.delve.obstacleId)
+    end
+    return EncounterScript.FindEntry(beat, t.entryId)
 end
 
 --- heroes ------------------------------------------------------------------
@@ -676,7 +883,11 @@ function EncounterMontage.EligibleAssistants(m, beat, heroes)
     if t.status ~= "assist" and t.status ~= "rolling" then
         return result
     end
-    local entry = EncounterScript.FindEntry(beat, t.entryId)
+    --a delve is the hero going through alone: nobody assists in it.
+    if t.delve ~= nil then
+        return result
+    end
+    local entry = EncounterMontage.TurnEntry(beat, t)
     local option = entry ~= nil and entry.options[t.optionIndex or 0] or nil
     if option == nil or option.roll == nil then
         return result
@@ -770,6 +981,46 @@ function EncounterMontage.SendRequest(kind, args)
     end
     m.requests[userid] = req
     doc:CompleteChange("Montage request: " .. tostring(kind), { undoable = false })
+    return true
+end
+
+--Which line of the playing scene the party is on (1-based; one past the
+--last line once it has all been read), or nil when no scene is playing.
+function EncounterMontage.SceneCursor(m)
+    local t = m ~= nil and m.turn or nil
+    local scene = t ~= nil and t.status == "scene" and t.scene or nil
+    if scene == nil then
+        return nil
+    end
+    local cursor = EncounterMontage.GetDoc().data.montageScene
+    if type(cursor) == "table" and cursor.id == scene.id then
+        return tonumber(cursor.index) or 1
+    end
+    return 1
+end
+
+--May the local user turn the scene's page? Only the player of the hero on
+--stage paces it.
+function EncounterMontage.LocalUserPacesScene(m)
+    local t = m ~= nil and m.turn or nil
+    return t ~= nil and t.status == "scene" and t.userid == dmhub.loginUserid
+end
+
+--The acting hero's player has finished reading the line on screen.
+function EncounterMontage.AdvanceScene()
+    local m = EncounterMontage.GetState()
+    if not EncounterMontage.LocalUserPacesScene(m) then
+        return false
+    end
+    local index = EncounterMontage.SceneCursor(m)
+    local scene = m.turn.scene
+    if index == nil or index > #(scene.steps or {}) then
+        return false
+    end
+    local doc = EncounterMontage.GetDoc()
+    doc:BeginChange()
+    doc.data.montageScene = { id = scene.id, index = index + 1 }
+    doc:CompleteChange("Montage scene: next line", { undoable = false })
     return true
 end
 
@@ -1968,11 +2219,120 @@ local function HeroByCharid(heroes, charid)
     return nil
 end
 
+--- scenes (host side) ---------------------------------------------------------
+--
+--A turn plays up to three scene parts on the stage: the INTRO when the hero
+--approaches, the OPTION's lines once one is picked, and the OUTCOME's lines
+--once the roll has landed (EncounterScript's scene grammar). The host
+--flattens each part for this hero and this roll into the lines that will
+--actually play and stores them on the turn, so every client shows exactly
+--the same thing without evaluating the script itself.
+
+--What scene conditions ask about the hero, answered with the same facts and
+--matcher the test riders use.
+local function SceneEnv(t, option, tier, actors)
+    local facts = EncounterMontage.HeroFacts(t.heroid)
+    local function Met(text)
+        local ok, met = pcall(function()
+            return EncounterScript.RequirementMet(EncounterScript.ParseRequirement(text), facts)
+        end)
+        return ok and met == true
+    end
+    return {
+        tier = tier,
+        actors = actors or {},
+        speaks = function(language)
+            return Met("you speak " .. language)
+        end,
+        test = function(atom)
+            if atom.op == "speaks" then
+                return Met("you speak " .. atom.name)
+            elseif atom.op == "is" then
+                return Met("you are a " .. atom.name)
+            elseif atom.op == "has" then
+                return Met("you are skilled in " .. atom.name)
+            elseif atom.op == "chose" then
+                return option ~= nil and EncounterScript.MatchKey(option.name) == EncounterScript.MatchKey(atom.name)
+            end
+            return false
+        end,
+    }
+end
+
+local function CopyCast(cast)
+    local copy = {}
+    for i, c in ipairs(cast or {}) do
+        copy[i] = { name = c.name, monster = c.monster }
+    end
+    return copy
+end
+
+--Build one scene part onto the turn (t.scene) and return how many lines it
+--plays. An entry with no scene of its own still gets an intro: the hero
+--approaching, then the entry's "Options:" text if it has one. A line in a
+--language the hero does not speak is garbled here, for everyone.
+local function BuildScenePart(m, t, entry, option, part, tier)
+    local heroName = t.heroName or "The hero"
+    local cast = CopyCast(t.scene ~= nil and t.scene.cast or nil)
+    local env = SceneEnv(t, option, tier, entry.actors)
+    local steps = {}
+    if part == "intro" then
+        if entry.scripted then
+            steps = EncounterScript.FlattenScene(entry.scene, env, cast)
+        else
+            steps[1] = { kind = "narrate", text = string.format("%s approaches %s...", heroName, entry.name), cast = {} }
+        end
+        if (entry.approach or "") ~= "" then
+            steps[#steps + 1] = { kind = "narrate", text = entry.approach, cast = CopyCast(cast) }
+        end
+    elseif part == "option" then
+        steps = EncounterScript.FlattenScene(option.preScene, env, cast)
+    else
+        steps = EncounterScript.FlattenScene(option.postScene, env, cast)
+    end
+    for _, step in ipairs(steps) do
+        step.text = EncounterScript.SubstitutePC(step.text, heroName)
+        step.line = nil
+        for _, e in ipairs(step.emotes or {}) do
+            if e.name == "PC" then
+                e.name = heroName
+                e.side = "left"
+            else
+                e.side = "right"
+            end
+        end
+        if step.kind == "say" then
+            if step.speaker == "PC" then
+                step.speaker = heroName
+                step.side = "left"
+            else
+                step.side = "right"
+            end
+            if step.lang ~= nil and not env.speaks(step.lang) then
+                step.text = EncounterScript.Garble(step.text, step.lang)
+                step.garbled = true
+            end
+        end
+    end
+    m.seq = (m.seq or 0) + 1
+    t.scene = { id = m.seq, part = part, steps = steps, cast = cast }
+    return #steps
+end
+
 --Apply the landed tier of a turn's chosen option and close the turn out:
 --effects, allies, the acted/taken bookkeeping, and the log line. Shared by
 --the plain "rolled" path and the assisted one, which arrives here with the
---tier the assist shifted it to.
-local function ResolveTurn(m, doc, t, entry, option, tierIndex, heroes, userid)
+--tier the assist shifted it to. An option with outcome lines plays them
+--first (ResolveTurn); this runs once they have been read.
+local DelveObstacleResolved
+
+local function ApplyResolution(m, doc, t, entry, option, tierIndex, heroes, userid)
+    --inside a delve an obstacle's result is applied and the delve goes on;
+    --the turn only ends when the hero leaves.
+    if t.delve ~= nil and t.delve.obstacleId ~= nil then
+        DelveObstacleResolved(m, doc, t, entry, option, tierIndex, heroes, userid)
+        return
+    end
     local hero = HeroByCharid(heroes, t.heroid)
     local applied, newAllies = EncounterMontage.ApplyEffects(option.roll.effects[tierIndex] or {}, {
         heroEntry = hero,
@@ -2017,6 +2377,289 @@ local function ResolveTurn(m, doc, t, entry, option, tierIndex, heroes, userid)
     }
 end
 
+--A test has landed on its final tier (after any assist): play the option's
+--outcome lines, if it has any for this tier, before anything is applied --
+--the witch hands over the potions, THEN they arrive in the haul.
+local function ResolveTurn(m, doc, t, entry, option, tierIndex, heroes, userid)
+    if option.postScene ~= nil and BuildScenePart(m, t, entry, option, "outcome", tierIndex) > 0 then
+        t.tier = tierIndex
+        t.pendingTier = tierIndex
+        t.resolveUserid = userid
+        t.status = "scene"
+        t.sceneAfter = "resolve"
+        return
+    end
+    ApplyResolution(m, doc, t, entry, option, tierIndex, heroes, userid)
+end
+
+--- delves (host side) ---------------------------------------------------------------
+--
+--A "Delve: <Name>" option takes the hero into a "# Delve:" section of the
+--script, and the whole delve is their turn (user direction 2026-09-24): they
+--meet a random obstacle they have not met yet and take one of its tests; its
+--result applies at once. Every 1-2 obstacles (the delve's "Chest: every
+--N-M") they find a chest and roll its dice table; then they choose to press
+--deeper or turn back. A hero with no Recoveries left is forced out, and a
+--delve with no obstacles left ends by itself. Leaving plays the delve's
+--"Leave" (or "Forced Out") scene and resolves the turn: the entry is taken
+--and everything gained goes in the log line. Flat: going deeper is not
+--harder, it is just more chests (user direction).
+
+local function HeroRecoveries(heroid)
+    local n = 0
+    local tok = dmhub.GetCharacterById(heroid)
+    if tok ~= nil and tok.valid and tok.properties ~= nil then
+        pcall(function() n = tok.properties:RecoveriesAvailableToSpend() or 0 end)
+    end
+    return n
+end
+
+EncounterMontage.HeroRecoveries = HeroRecoveries
+
+--Pressing deeper after a chest costs a Recovery on the spot (user direction
+--2026-09-24). It is only offered with Recoveries to spare after paying:
+--a hero left on 0 would be forced out before meeting anything.
+EncounterMontage.DELVE_PRESS_ON_COST = 1
+
+function EncounterMontage.CanPressDeeper(heroid)
+    return HeroRecoveries(heroid) > EncounterMontage.DELVE_PRESS_ON_COST
+end
+
+--Chest rows the party has never landed on read "???" (user direction
+--2026-09-24); once landed, a row stays known for every later chest.
+local function ChestRowKey(row)
+    return string.format("%d-%d", row.lo or 0, row.hi or 0)
+end
+
+function EncounterMontage.ChestRowSeen(delveName, row)
+    local seen = nil
+    pcall(function() seen = mod:GetDocumentSnapshot(DOC_ID).data.chestSeen end)
+    local forDelve = seen ~= nil and seen[EncounterScript.MatchKey(delveName or "")] or nil
+    return forDelve ~= nil and forDelve[ChestRowKey(row)] == true
+end
+
+local function MarkChestRowSeen(doc, delveName, row)
+    local key = EncounterScript.MatchKey(delveName or "")
+    doc.data.chestSeen = doc.data.chestSeen or {}
+    doc.data.chestSeen[key] = doc.data.chestSeen[key] or {}
+    doc.data.chestSeen[key][ChestRowKey(row)] = true
+end
+
+local function ChestInterval(delve)
+    local lo, hi = 1, 2
+    if delve ~= nil and delve.chestEvery ~= nil then
+        lo, hi = delve.chestEvery[1], delve.chestEvery[2]
+    end
+    return math.random(lo, hi)
+end
+
+local function DelveAddApplied(t, lines)
+    t.delve.applied = t.delve.applied or {}
+    for _, line in ipairs(lines or {}) do
+        t.delve.applied[#t.delve.applied + 1] = line
+    end
+end
+
+--a fresh test: nothing of the last obstacle's roll carries over.
+local function ClearTest(t)
+    t.optionIndex = nil
+    t.optionName = nil
+    t.rollSeq = nil
+    t.tier = nil
+    t.pendingTier = nil
+    t.resolveUserid = nil
+    t.total = nil
+    t.natural = nil
+    t.baseTier = nil
+    t.baseTotal = nil
+    t.attrid = nil
+    t.skillid = nil
+    t.assist = nil
+    t.assistOpenedAt = nil
+    t.chest = nil
+end
+
+local DelveAdvance
+
+--Play one of the delve's own scenes ("chest", "continue", "leave",
+--"forced"), with `lead` lines of narration first, then go on to `after`.
+local function DelveScene(m, doc, t, heroes, sectionKey, after, lead)
+    local delve = EncounterMontage.TurnDelve(t)
+    local section = delve ~= nil and delve.sections[sectionKey] or nil
+    --each scene of the delve starts with nobody else on stage.
+    t.scene = { cast = {} }
+    if section ~= nil then
+        BuildScenePart(m, t, section, nil, "intro")
+    else
+        m.seq = (m.seq or 0) + 1
+        t.scene = { id = m.seq, part = "intro", steps = {}, cast = {} }
+    end
+    for i = #(lead or {}), 1, -1 do
+        table.insert(t.scene.steps, 1, { kind = "narrate", text = lead[i], cast = {} })
+    end
+    if #t.scene.steps == 0 then
+        DelveAdvance(m, doc, t, heroes, after)
+        return
+    end
+    t.status = "scene"
+    t.sceneAfter = after
+end
+
+--Walk out: voluntarily ("leave"), with no Recoveries left ("forced"), or
+--because every obstacle has been met ("exhausted").
+local function DelveLeave(m, doc, t, heroes, why)
+    t.delve.obstacleId = nil
+    ClearTest(t)
+    local lead = nil
+    local delve = EncounterMontage.TurnDelve(t)
+    local sectionKey = cond(why == "forced", "forced", "leave")
+    if why == "forced" and (delve == nil or delve.sections.forced == nil) then
+        lead = { string.format("%s has no Recoveries left, and must turn back.", t.heroName or "The hero") }
+    elseif why == "exhausted" then
+        lead = { "There is nothing further to find here." }
+    end
+    DelveScene(m, doc, t, heroes, sectionKey, "delve-end", lead)
+end
+
+local function DelveNextObstacle(m, doc, t, heroes)
+    local delve = EncounterMontage.TurnDelve(t)
+    if delve == nil then
+        DelveLeave(m, doc, t, heroes, "exhausted")
+        return
+    end
+    if HeroRecoveries(t.heroid) <= 0 then
+        DelveLeave(m, doc, t, heroes, "forced")
+        return
+    end
+    local pool = {}
+    for _, ob in ipairs(delve.obstacles) do
+        if not (t.delve.used or {})[ob.id] then
+            pool[#pool + 1] = ob
+        end
+    end
+    if #pool == 0 then
+        DelveLeave(m, doc, t, heroes, "exhausted")
+        return
+    end
+    local ob = pool[math.random(1, #pool)]
+    t.delve.used = t.delve.used or {}
+    t.delve.used[ob.id] = true
+    t.delve.obstacleId = ob.id
+    ClearTest(t)
+    t.scene = { cast = {} }
+    if BuildScenePart(m, t, ob, nil, "intro") > 0 then
+        t.status = "scene"
+        t.sceneAfter = "choosing"
+    else
+        t.status = "choosing"
+    end
+end
+
+--The delve is over: the turn resolves like any other, with everything the
+--delve granted as its result.
+local function DelveFinish(m, doc, t)
+    local d = t.delve
+    t.status = "resolved"
+    t.applied = d.applied or {}
+    t.resolvedAt = dmhub.serverTime
+    m.acted = m.acted or {}
+    m.acted[t.heroid] = true
+    m.taken = m.taken or {}
+    m.taken[t.entryId] = true
+    m.log = m.log or {}
+    m.log[#m.log + 1] = {
+        round = m.round,
+        heroid = t.heroid,
+        heroName = t.heroName,
+        entryId = t.entryId,
+        entryName = d.entryName,
+        delve = true,
+        depth = d.depth or 0,
+        chests = d.chests or 0,
+        applied = d.applied or {},
+    }
+end
+
+--Where a delve scene hands over once it has been read (and straight away
+--for a scene with no lines).
+DelveAdvance = function(m, doc, t, heroes, after)
+    if after == "delve-start" or after == "delve-obstacle" then
+        DelveNextObstacle(m, doc, t, heroes)
+    elseif after == "delve-chest" then
+        m.seq = (m.seq or 0) + 1
+        t.rollSeq = m.seq
+        t.status = "chest"
+    elseif after == "delve-choice" then
+        t.status = "delvechoice"
+    elseif after == "delve-end" then
+        DelveFinish(m, doc, t)
+    end
+end
+
+--An obstacle's test has landed (after its outcome lines): apply it, then a
+--chest, the next obstacle, or the way out.
+DelveObstacleResolved = function(m, doc, t, entry, option, tierIndex, heroes, userid)
+    local hero = HeroByCharid(heroes, t.heroid)
+    local applied, newAllies = EncounterMontage.ApplyEffects(option.roll.effects[tierIndex] or {}, {
+        heroEntry = hero,
+        userid = userid,
+        entryName = t.delve.entryName,
+        entryId = t.entryId,
+        montage = m,
+        doc = doc,
+    })
+    if #newAllies > 0 then
+        doc.data.allies = doc.data.allies or {}
+        doc.data.allies[t.heroid] = doc.data.allies[t.heroid] or {}
+        for _, charid in ipairs(newAllies) do
+            table.insert(doc.data.allies[t.heroid], charid)
+        end
+    end
+    DelveAddApplied(t, applied)
+    t.delve.depth = (t.delve.depth or 0) + 1
+    t.delve.sinceChest = (t.delve.sinceChest or 0) + 1
+    t.delve.obstacleId = nil
+    ClearTest(t)
+    if HeroRecoveries(t.heroid) <= 0 then
+        DelveLeave(m, doc, t, heroes, "forced")
+        return
+    end
+    local delve = EncounterMontage.TurnDelve(t)
+    if delve ~= nil and delve.sections.chest ~= nil and delve.sections.chest.table ~= nil
+        and t.delve.sinceChest >= (t.delve.chestAt or 1) then
+        t.delve.sinceChest = 0
+        t.delve.chestAt = ChestInterval(delve)
+        DelveScene(m, doc, t, heroes, "chest", "delve-chest")
+        return
+    end
+    DelveNextObstacle(m, doc, t, heroes)
+end
+
+--Every line of the playing scene part has been read: move the turn on.
+local function FinishScenePart(m, doc, t, beat, heroes)
+    local after = t.sceneAfter
+    t.sceneAfter = nil
+    if after ~= nil and string.sub(after, 1, 6) == "delve-" then
+        DelveAdvance(m, doc, t, heroes, after)
+        return
+    end
+    local entry = EncounterMontage.TurnEntry(beat, t)
+    if after == "rolling" then
+        m.seq = (m.seq or 0) + 1
+        t.rollSeq = m.seq
+        t.status = "rolling"
+    elseif after == "resolve" then
+        local option = entry ~= nil and entry.options[t.optionIndex or 0] or nil
+        if option == nil or option.roll == nil then
+            t.status = "choosing"
+            return
+        end
+        ApplyResolution(m, doc, t, entry, option, t.pendingTier or t.tier or 1, heroes, t.resolveUserid or t.userid)
+    else
+        t.status = "choosing"
+    end
+end
+
 --Handle one player request against the (mutable) state. Returns a string
 --describing what happened, for the log.
 local function HandleRequest(m, doc, userid, req, beat, heroes)
@@ -2046,6 +2689,10 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
             status = "choosing",
             startedAt = dmhub.serverTime,
         }
+        if BuildScenePart(m, m.turn, entry, nil, "intro") > 0 then
+            m.turn.status = "scene"
+            m.turn.sceneAfter = "choosing"
+        end
         return string.format("%s approaches %s", hero.name, entry.name)
     elseif kind == "pass" then
         --there is no free withdrawal from an approach: the hero may only
@@ -2054,7 +2701,10 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
         if t == nil or t.userid ~= userid or t.status ~= "choosing" then
             return "ignored pass: not choosing"
         end
-        local entry = EncounterScript.FindEntry(beat, t.entryId)
+        if t.delve ~= nil then
+            return "ignored pass: inside a delve (turn back at the next chest)"
+        end
+        local entry = EncounterMontage.TurnEntry(beat, t)
         m.acted = m.acted or {}
         m.acted[t.heroid] = true
         m.log = m.log or {}
@@ -2074,10 +2724,37 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
         if t == nil or t.userid ~= userid or t.status ~= "choosing" then
             return "ignored choose: not choosing"
         end
-        local entry = EncounterScript.FindEntry(beat, t.entryId)
+        local entry = EncounterMontage.TurnEntry(beat, t)
         local option = entry ~= nil and entry.options[tonumber(req.optionIndex) or 0] or nil
-        if option == nil or option.roll == nil then
+        if option == nil or (option.roll == nil and (option.delve == nil or t.delve ~= nil)) then
             return "ignored choose: no such option"
+        end
+        if option.delve ~= nil and t.delve == nil then
+            local script = EncounterMontage.FindMapScript()
+            local delve = EncounterScript.FindDelve(script ~= nil and script.parse or nil, option.delve)
+            if delve == nil then
+                return string.format("ignored choose: no delve '%s' in the script", tostring(option.delve))
+            end
+            t.optionIndex = tonumber(req.optionIndex)
+            t.optionName = option.name
+            t.delve = {
+                name = delve.name,
+                entryName = entry.name,
+                depth = 0,
+                sinceChest = 0,
+                chestAt = ChestInterval(delve),
+                used = {},
+                chests = 0,
+                applied = {},
+            }
+            --the option's own lines ("PC: In we go") play first.
+            if option.preScene ~= nil and BuildScenePart(m, t, entry, option, "option") > 0 then
+                t.status = "scene"
+                t.sceneAfter = "delve-start"
+            else
+                DelveNextObstacle(m, doc, t, heroes)
+            end
+            return string.format("%s enters %s", t.heroName, delve.name)
         end
         --an Allow rider the hero does not meet locks the option; the stage
         --never sends this, but the host is the authority.
@@ -2085,9 +2762,15 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
         if verdict ~= nil and not verdict.allowed then
             return string.format("ignored choose: %s does not meet '%s'", t.heroName, EncounterMontage.DescribeUnmet(verdict))
         end
-        m.seq = (m.seq or 0) + 1
         t.optionIndex = tonumber(req.optionIndex)
         t.optionName = option.name
+        --the option's own lines play before the dice come out.
+        if option.preScene ~= nil and BuildScenePart(m, t, entry, option, "option") > 0 then
+            t.status = "scene"
+            t.sceneAfter = "rolling"
+            return string.format("%s chooses %s", t.heroName, option.name)
+        end
+        m.seq = (m.seq or 0) + 1
         t.status = "rolling"
         t.rollSeq = m.seq
         return string.format("%s chooses %s", t.heroName, option.name)
@@ -2106,7 +2789,7 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
         if t == nil or t.userid ~= userid or t.status ~= "rolling" or t.rollSeq ~= req.rollSeq then
             return "ignored roll: stale"
         end
-        local entry = EncounterScript.FindEntry(beat, t.entryId)
+        local entry = EncounterMontage.TurnEntry(beat, t)
         local option = entry ~= nil and entry.options[t.optionIndex or 0] or nil
         if option == nil or option.roll == nil then
             t.status = "choosing"
@@ -2124,7 +2807,8 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
         t.baseTier = tierIndex
         t.baseTotal = req.total
 
-        --below tier 3, a skilled hero may still lend a hand.
+        --below tier 3, a skilled hero may still lend a hand (never in a
+        --delve: EligibleAssistants is empty there).
         if tierIndex < 3 and #EncounterMontage.EligibleAssistants(m, beat, heroes) > 0 then
             t.status = "assist"
             t.assistOpenedAt = dmhub.serverTime
@@ -2214,7 +2898,7 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
         if t == nil or a == nil or a.userid ~= userid or t.status ~= "assisting" or a.rollSeq ~= req.rollSeq then
             return "ignored assist roll: stale"
         end
-        local entry = EncounterScript.FindEntry(beat, t.entryId)
+        local entry = EncounterMontage.TurnEntry(beat, t)
         local option = entry ~= nil and entry.options[t.optionIndex or 0] or nil
         if option == nil or option.roll == nil then
             t.status = "choosing"
@@ -2247,7 +2931,7 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
         if t.userid ~= userid then
             return "ignored noassist: not your test"
         end
-        local entry = EncounterScript.FindEntry(beat, t.entryId)
+        local entry = EncounterMontage.TurnEntry(beat, t)
         local option = entry ~= nil and entry.options[t.optionIndex or 0] or nil
         if option == nil or option.roll == nil then
             t.status = "choosing"
@@ -2255,6 +2939,99 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
         end
         ResolveTurn(m, doc, t, entry, option, t.baseTier or t.tier or 1, heroes, userid)
         return string.format("%s takes the result unassisted", t.heroName or "The hero")
+    elseif kind == "chestRolling" then
+        --the chest's dice are in the air: record them so every client's
+        --chest card can follow the tumble (EncounterMontageStage.ChestCard).
+        local t = m.turn
+        if t == nil or t.delve == nil or t.status ~= "chest" or t.userid ~= userid or t.rollSeq ~= req.rollSeq then
+            return "ignored chest dice: stale"
+        end
+        local guids = {}
+        for _, guid in ipairs(req.guids or {}) do
+            guids[#guids + 1] = tostring(guid)
+        end
+        t.chest = { guids = guids, mod = tonumber(req.mod) or 0 }
+        return "chest dice rolling"
+    elseif kind == "chestRolled" then
+        --the roll has landed: the table rests on the row (revealing it if
+        --the party has never seen it) until the hero clicks to take it.
+        local t = m.turn
+        if t == nil or t.delve == nil or t.status ~= "chest" or t.userid ~= userid or t.rollSeq ~= req.rollSeq then
+            return "ignored chest roll: stale"
+        end
+        local delve = EncounterMontage.TurnDelve(t)
+        local chest = delve ~= nil and delve.sections.chest or nil
+        local total = math.floor(tonumber(req.total) or 1)
+        local rows = (chest ~= nil and chest.table ~= nil and chest.table.rows) or {}
+        local rowIndex = nil
+        for i, row in ipairs(rows) do
+            if total >= row.lo and total <= row.hi then
+                rowIndex = i
+                break
+            end
+        end
+        t.chest = t.chest or {}
+        t.chest.total = total
+        t.chest.rowIndex = rowIndex
+        t.chest.landedAt = dmhub.serverTime
+        t.chest.newReveal = false
+        if rowIndex ~= nil then
+            local row = rows[rowIndex]
+            t.chest.newReveal = not EncounterMontage.ChestRowSeen(t.delve.name, row)
+            MarkChestRowSeen(doc, t.delve.name, row)
+        end
+        t.status = "chestlanded"
+        return string.format("%s's chest roll lands on %d", t.heroName or "A hero", total)
+    elseif kind == "chestTake" then
+        local t = m.turn
+        if t == nil or t.delve == nil or t.status ~= "chestlanded" or t.userid ~= userid or t.chest == nil then
+            return "ignored chest take: not the moment"
+        end
+        local delve = EncounterMontage.TurnDelve(t)
+        local chest = delve ~= nil and delve.sections.chest or nil
+        local row = chest ~= nil and chest.table ~= nil and chest.table.rows[t.chest.rowIndex or 0] or nil
+        local total = t.chest.total
+        if row ~= nil then
+            local hero = HeroByCharid(heroes, t.heroid)
+            local applied = EncounterMontage.ApplyEffects(row.effects, {
+                heroEntry = hero,
+                userid = userid,
+                entryName = t.delve.entryName,
+                entryId = t.entryId,
+                montage = m,
+                doc = doc,
+            })
+            DelveAddApplied(t, applied)
+        end
+        t.delve.chests = (t.delve.chests or 0) + 1
+        t.rollSeq = nil
+        t.chest = nil
+        --the find was just on show, so the Continue scene needs no lead line.
+        DelveScene(m, doc, t, heroes, "continue", "delve-choice")
+        return string.format("%s opens a chest: %s", t.heroName or "A hero", tostring(total))
+    elseif kind == "delveOn" or kind == "delveOut" then
+        local t = m.turn
+        if t == nil or t.delve == nil or t.status ~= "delvechoice" or t.userid ~= userid then
+            return "ignored delve choice: not the moment"
+        end
+        if kind == "delveOn" then
+            if not EncounterMontage.CanPressDeeper(t.heroid) then
+                return "ignored press deeper: no Recovery to spare"
+            end
+            local applied = EncounterMontage.ApplyEffects({ { kind = "loserecovery", qty = EncounterMontage.DELVE_PRESS_ON_COST } }, {
+                heroEntry = HeroByCharid(heroes, t.heroid),
+                userid = userid,
+                entryName = t.delve.entryName,
+                entryId = t.entryId,
+                montage = m,
+                doc = doc,
+            })
+            DelveAddApplied(t, applied)
+            DelveNextObstacle(m, doc, t, heroes)
+            return string.format("%s presses deeper into %s", t.heroName or "A hero", t.delve.entryName or "the delve")
+        end
+        DelveLeave(m, doc, t, heroes, "leave")
+        return string.format("%s turns back from %s", t.heroName or "A hero", t.delve.entryName or "the delve")
     elseif kind == "continue" then
         if m.phase ~= "consequences" then
             return "ignored continue"
@@ -2490,6 +3267,9 @@ function EncounterMontage.Begin(script, beat, beatIndex)
         seq = 0,
     }
     doc.data.stageDismissAt = nil
+    --scene ids restart with m.seq, so a cursor left over from an earlier
+    --run could otherwise skip the new run's first scene.
+    doc.data.montageScene = nil
     doc:CompleteChange("Montage started", { undoable = false })
     pcall(EncounterMontage.PrepareBoonAssets, beat)
     printf("EotW montage: beat %d started (%d rounds)", beatIndex, EncounterScript.RoundCount(beat))
@@ -2574,6 +3354,20 @@ function EncounterMontage.HostTick(script, beat, beatIndex)
         end
     end
 
+    --the acting hero's player has read the last line of the scene part on
+    --stage (EncounterMontage.AdvanceScene): the turn moves on. There is no
+    --timeout -- only that player paces their scene (user direction
+    --2026-09-23).
+    if m.turn ~= nil and m.turn.status == "scene" then
+        local t = m.turn
+        local scene = t.scene or {}
+        local cursor = doc.data.montageScene
+        if type(cursor) == "table" and cursor.id == scene.id
+            and (tonumber(cursor.index) or 1) > #(scene.steps or {}) then
+            FinishScenePart(m, doc, t, beat, heroes)
+        end
+    end
+
     --a claimed assist that never rolls hands the slot back, and the window
     --below then closes on its own clock.
     if m.turn ~= nil and m.turn.status == "assisting" and m.turn.assist ~= nil then
@@ -2598,7 +3392,7 @@ function EncounterMontage.HostTick(script, beat, beatIndex)
         end
         if age >= ASSIST_WINDOW_SECONDS then
             local t = m.turn
-            local entry = EncounterScript.FindEntry(beat, t.entryId)
+            local entry = EncounterMontage.TurnEntry(beat, t)
             local option = entry ~= nil and entry.options[t.optionIndex or 0] or nil
             if option ~= nil and option.roll ~= nil then
                 ResolveTurn(m, doc, t, entry, option, t.baseTier or t.tier or 1, heroes, t.userid)
@@ -2983,6 +3777,44 @@ function EncounterMontage.ClientTick()
         return
     end
     local t = m.turn
+    --a delve's chest: the delving hero's player rolls its dice, for all to
+    --see, once per chest.
+    if t.status == "chest" and t.userid == dmhub.loginUserid and t.delve ~= nil then
+        if m_launchedRollSeq == t.rollSeq then
+            return
+        end
+        m_launchedRollSeq = t.rollSeq
+        local seq = t.rollSeq
+        local delve = EncounterMontage.TurnDelve(t)
+        local chestTable = delve ~= nil and delve.sections.chest ~= nil and delve.sections.chest.table or nil
+        dmhub.Roll{
+            roll = (chestTable ~= nil and chestTable.dice) or "1d6",
+            description = string.format("%s: %s", t.delve.entryName or "Delve", (chestTable ~= nil and chestTable.name) or "Chest"),
+            tokenid = t.heroid,
+            --tell the host which dice are tumbling, so every client's chest
+            --card can highlight the row they are landing on.
+            begin = function(rollInfo)
+                if mod.unloaded then
+                    return
+                end
+                local guids = {}
+                local flat = rollInfo.total or 0
+                for _, r in ipairs(rollInfo.rolls or {}) do
+                    guids[#guids + 1] = r.guid
+                    flat = flat - (r.result or 0)
+                end
+                EncounterMontage.localChestDice = { rollSeq = seq, guids = guids, mod = flat }
+                EncounterMontage.SendRequest("chestRolling", { rollSeq = seq, guids = guids, mod = flat })
+            end,
+            complete = function(rollInfo)
+                if mod.unloaded then
+                    return
+                end
+                EncounterMontage.SendRequest("chestRolled", { rollSeq = seq, total = rollInfo.total })
+            end,
+        }
+        return
+    end
     --the test itself, or the assist someone stepped in with: whichever roll
     --is waiting on THIS user, at most once per rollSeq.
     local assisting = t.status == "assisting" and t.assist ~= nil and t.assist.userid == dmhub.loginUserid
@@ -2997,7 +3829,7 @@ function EncounterMontage.ClientTick()
     if beat == nil then
         return
     end
-    local entry = EncounterScript.FindEntry(beat, t.entryId)
+    local entry = EncounterMontage.TurnEntry(beat, t)
     local option = entry ~= nil and entry.options[t.optionIndex or 0] or nil
     if option == nil or option.roll == nil then
         return
@@ -3225,6 +4057,9 @@ pcall(function()
             local script = EncounterMontage.FindMapScript(true)
             local lines = {}
             lines[#lines + 1] = string.format("script document: %s", tostring(script.docid))
+            for _, info in pairs(script.parse.included or {}) do
+                lines[#lines + 1] = string.format("  includes: %s (%s)", tostring(info.name), tostring(info.id))
+            end
             lines[#lines + 1] = EncounterScript.Describe(script.parse)
             local items, monsters = EncounterScript.ReferencedNames(script.parse)
             for name, _ in pairs(items) do

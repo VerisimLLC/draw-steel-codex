@@ -73,6 +73,7 @@ CharacterModifier.TypeInfo.forcedmovement = {
 
                 textDefault = "Choose...",
                 change = function(element)
+                    ---@cast element Dropdown
                     m_from = element.idChosen
                     TryAdd()
                 end,
@@ -87,6 +88,7 @@ CharacterModifier.TypeInfo.forcedmovement = {
 
                 textDefault = "Choose...",
                 change = function(element)
+                    ---@cast element Dropdown
                     m_to = element.idChosen
                     TryAdd()
                 end,

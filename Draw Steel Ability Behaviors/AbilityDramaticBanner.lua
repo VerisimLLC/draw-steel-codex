@@ -79,6 +79,7 @@ function ActivatedAbilityDramaticBannerBehavior:EditorItems(parentPanel)
             idChosen = DramaticBanner.GetTypeInfo(self.bannerType).id,
             options = typeOptions,
             change = function(element)
+                ---@cast element Dropdown
                 self.bannerType = element.idChosen
             end,
         },

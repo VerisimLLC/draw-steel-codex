@@ -219,6 +219,7 @@ function ActivatedAbilityBehavior:OpposedCheckTypeEditor(parentPanel, title, att
 		options = attributeOptions,
 		idChosen = entry.attribute or "none",
 		change = function(element)
+			---@cast element Dropdown
 			if element.idChosen ~= "none" then
 				entry.attribute = element.idChosen
 				entry.skill = nil -- reset skill if attribute changes
@@ -238,6 +239,7 @@ function ActivatedAbilityBehavior:OpposedCheckTypeEditor(parentPanel, title, att
 			options = skillOptions,
 			idChosen = entry.skill or "none",
 			change = function(element)
+				---@cast element Dropdown
 				if element.idChosen ~= "none" then
 					entry.skill = element.idChosen
 				else

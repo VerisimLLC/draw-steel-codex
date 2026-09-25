@@ -579,7 +579,8 @@ function GameHud.CreateRollOnTableDialog(self)
     return resultPanel
 end
 
-RegisterGameType("RollOnTableProperties", "RollProperties")
+--- @class RollOnTableProperties: RollProperties
+RollOnTableProperties = RegisterGameType("RollOnTableProperties", "RollProperties")
 
 function RollOnTableProperties:GetOutcome(rollInfo)
     --overrideRollTotal is set by the Timeline override flow.

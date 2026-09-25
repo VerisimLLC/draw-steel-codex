@@ -135,6 +135,7 @@ CharacterModifier.TypeInfo.abilityimprovement = {
                     },
                     idChosen = modifier.resourceCostType,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.resourceCostType = element.idChosen
                         Refresh()
                     end,
@@ -219,6 +220,7 @@ CharacterModifier.TypeInfo.abilityimprovement = {
                 width = 260,
                 fontSize = 16,
                 change = function(element)
+                    ---@cast element Dropdown
                     if element.idChosen == "none" then return end
                     params[#params+1] = { id = element.idChosen, value = "" }
                     modifier.params = params

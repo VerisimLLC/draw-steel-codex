@@ -592,6 +592,7 @@ function RichVideo.CreateEditor(self)
                             { id = "right", text = "Align Right" },
                         },
                         change = function(element)
+                            ---@cast element Dropdown
                             self.halign = element.idChosen
                         end,
                     },

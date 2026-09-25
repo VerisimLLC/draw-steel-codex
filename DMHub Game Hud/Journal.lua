@@ -1,14 +1,17 @@
 local mod = dmhub.GetModLoading()
 
 --This is the start of a journaling system but not much has been done on it yet.
-RegisterGameType("JournalNode")
+--- @class JournalNode: GameType
+JournalNode = RegisterGameType("JournalNode")
 
 JournalNode.name = "New Document"
 JournalNode.parentid = "none"
 JournalNode.creatorid = "gm"
 
-RegisterGameType("JournalFolder", "JournalNode")
-RegisterGameType("JournalDocument", "JournalNode")
+--- @class JournalFolder: JournalNode
+JournalFolder = RegisterGameType("JournalFolder", "JournalNode")
+--- @class JournalDocument: JournalNode
+JournalDocument = RegisterGameType("JournalDocument", "JournalNode")
 
 JournalDocument.text = ""
 JournalDocument.image = ""

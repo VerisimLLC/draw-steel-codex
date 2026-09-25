@@ -1178,6 +1178,7 @@ function gui.VariantCollectionEditor(args)
 					idChosen = "none",
 					hasSearch = true,
 					change = function(element)
+						---@cast element Dropdown
 						if element.idChosen ~= "none" then
 							if itemCategories[element.idChosen] ~= nil then
 								for _,itemid in ipairs(itemCategories[element.idChosen]) do

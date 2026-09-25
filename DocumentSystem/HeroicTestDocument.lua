@@ -606,6 +606,7 @@ function HeroicTestDocument:EditPanel()
         options = g_difficultyDropdownOptions,
         idChosen = self:try_get("difficulty", "medium"),
         change = function(element)
+            ---@cast element Dropdown
             self:SetDifficulty(element.idChosen)
             --refreshDifficulty re-points the tier inputs AND the row labels
             --(TierRowLabel answers it alongside the display side's savedoc).

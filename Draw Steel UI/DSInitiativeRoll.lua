@@ -926,7 +926,8 @@ function showDrawSteelRerollBanner()
     GameHud.instance.parentPanel:AddChild(banner)
 end
 
-RegisterGameType("Encounter") --make sure we have it registered.
+--- @class Encounter: GameType
+Encounter = RegisterGameType("Encounter") --make sure we have it registered.
 
 --Journal "Draw Steel!" button entry point. Opens the combat setup dialog scoped to
 --the given authored encounter so the DM can confirm/adjust sides before rolling turn
@@ -2419,6 +2420,7 @@ local function ShowCombatSetupDialog(selectedTokens, preselectEncounter, presele
                     options = m_encounterOptions,
                     idChosen = m_selectedEncounterId,
                     change = function(element)
+                        ---@cast element Dropdown
                         m_selectedEncounterId = element.idChosen
                         ApplyEncounterToMonsters(ResolveEncounterEntry(m_selectedEncounterId))
                         element.root:FireEventTree("refreshSurprise")

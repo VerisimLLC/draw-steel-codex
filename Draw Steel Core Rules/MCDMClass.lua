@@ -251,6 +251,7 @@ function Class:HeroicResourceEditor(UploadFn)
                             },
                             idChosen = entry.mode or "encounter",
                             change = function(e)
+                                ---@cast e Dropdown
                                 entry.mode = e.idChosen
                                 UploadFn()
                             end,

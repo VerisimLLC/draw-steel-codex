@@ -7,7 +7,11 @@ CharacterModifier.TypeInfo.invisibility = {
     end,
 
     onTokenRefresh = function(modifier, creature, token)
-        -- Invisible creatures always have concealment from other creatures.
+        -- Invisible creatures always have concealment from other creatures,
+        -- unless they are immune to the Concealment condition.
+        if creature:IsImmuneToConcealment() then
+            return
+        end
         creature._tmp_concealed = true
         --stamp the update so the next modifier-list rebuild, which runs before
         --OnTokenRefresh, still counts invisibility toward "Concealed" when

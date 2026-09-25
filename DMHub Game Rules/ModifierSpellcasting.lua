@@ -198,6 +198,7 @@ CharacterModifier.TypeInfo.spellcasting = {
                         height = 40,
                         fontSize = 20,
                         change = function(element)
+                            ---@cast element Dropdown
                             modifier.classid = element.idChosen
 
                             local classInfo = classesTable[modifier.classid]
@@ -229,6 +230,7 @@ CharacterModifier.TypeInfo.spellcasting = {
                     height = 40,
                     fontSize = 20,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.spellcasting.attr = element.idChosen
                     end,
                 },
@@ -251,6 +253,7 @@ CharacterModifier.TypeInfo.spellcasting = {
                     height = 40,
                     fontSize = 20,
                     change = function(element)
+                        ---@cast element Dropdown
                         if element.idChosen == "none" then
                             modifier.spellcasting.spellLists = {}
                         else
@@ -303,6 +306,7 @@ CharacterModifier.TypeInfo.spellcasting = {
                         height = 40,
                         fontSize = 20,
                         change = function(element)
+                            ---@cast element Dropdown
                             modifier.leveling = element.idChosen
                             Refresh()
                         end,
@@ -393,6 +397,7 @@ CharacterModifier.TypeInfo.spellcasting = {
                     height = 40,
                     fontSize = 20,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.spellcasting.refreshType = element.idChosen
                         Refresh()
                     end,
@@ -415,6 +420,7 @@ CharacterModifier.TypeInfo.spellcasting = {
                     height = 40,
                     fontSize = 20,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.spellcasting.upcastingType = element.idChosen
                         Refresh()
                     end,

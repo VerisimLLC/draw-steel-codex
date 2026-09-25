@@ -1454,6 +1454,7 @@ function MapScript.CreateSettingsPanel()
                 options = options,
                 idChosen = current,
                 change = function(element)
+                    ---@cast element Dropdown
                     CommitParamValue(rec.guid, param.id, element.idChosen)
                 end,
             }
@@ -1647,6 +1648,7 @@ function MapScript.CreateSettingsPanel()
                 options = addOptions,
                 idChosen = "none",
                 change = function(element2)
+                    ---@cast element2 Dropdown
                     local chosen = element2.idChosen
                     if chosen == "none" then
                         return

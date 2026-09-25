@@ -428,6 +428,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
                         options = options,
                         idChosen = tag,
                         change = function(element)
+                            ---@cast element Dropdown
                             local newTags = {}
                             for _,tag in ipairs(currentTags) do
                                 if tag ~= element.idChosen then
@@ -470,6 +471,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
                 textOverride = "Add Tag...",
                 options = options,
                 change = function(element)
+                    ---@cast element Dropdown
                     local newTags = DeepCopy(currentTags)
                     newTags[#newTags+1] = element.idChosen
                     feature.tag = string.join(newTags,",")
@@ -523,6 +525,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 					idChosen = feature.featid,
 					hasSearch = true,
 					change = function(element)
+						---@cast element Dropdown
 						feature.featid = element.idChosen
 						resultPanel:FireEvent("change")
 						nameLabel.text = feature:Describe()
@@ -785,6 +788,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 				fontSize = 16,
 				
 				change = function(element)
+                    ---@cast element Dropdown
                     if g_registeredCharacterChoices[element.idChosen] ~= nil then
                         local t = g_registeredCharacterChoices[element.idChosen].type
 						self.features[#self.features+1] = t.Create{
@@ -946,6 +950,7 @@ local SetClass = function(tableName, classPanel, classid)
 				height = 40,
 				fontSize = 20,
 				change = function(element)
+					---@cast element Dropdown
 					class.hit_die = tonumber(element.idChosen)
 					UploadClass()
 				end,
@@ -989,6 +994,7 @@ local SetClass = function(tableName, classPanel, classid)
 				height = 40,
 				fontSize = 20,
 				change = function(element)
+					---@cast element Dropdown
 					class.primaryClassId = element.idChosen
 					class:ForceDomains()
 					UploadClass()
@@ -1330,6 +1336,7 @@ mod.shared.StartingEquipmentEditor = function(options)
 					vmargin = 8,
 					x = 32,
 					change = function(element)
+						---@cast element Dropdown
 						if element.idChosen ~= "add" then
 							option.items[#option.items+1] = {
 								guid = dmhub.GenerateGuid(),

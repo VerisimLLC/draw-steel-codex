@@ -496,6 +496,7 @@ LaunchablePanel.Register {
                                 },
                                 idChosen = "none",
                                 change = function(element)
+                                    ---@cast element Dropdown
                                     local hostPanel = element.parent.parent:Get("live-search-host")
                                     if hostPanel ~= nil then
                                         hostPanel:FireEvent("mountDataset", element.idChosen)
@@ -761,6 +762,7 @@ LaunchablePanel.Register {
                         },
                         idChosen = "option1",
                         change = function(element)
+                            ---@cast element Dropdown
                             outputLabel.text = "Dropdown changed to " .. element.idChosen
                         end,
 
@@ -1749,6 +1751,7 @@ end]],
                                     },
                                     idChosen = "1",
                                     change = function(element)
+                                        ---@cast element Dropdown
                                         outputLabel.text = "Level: " .. element.idChosen
                                     end,
                                 },

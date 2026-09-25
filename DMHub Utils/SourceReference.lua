@@ -142,6 +142,7 @@ function SourceReference:Editor(options)
                 options = sourcesOptions,
                 idChosen = self.docid,
                 change = function(element)
+                    ---@cast element Dropdown
                     self.docid = element.idChosen
                     -- picking a book prefills the page; leave it alone if we
                     -- cannot find the entry rather than guessing

@@ -93,12 +93,14 @@ local g_DialogStyles = {
 
 --A RestRequestToken instance has the following fields:
 -- complete = bool
-RegisterGameType("RestRequestToken")
+--- @class RestRequestToken: GameType
+RestRequestToken = RegisterGameType("RestRequestToken")
 
 --A RestRequest instance has the following fields:
 -- type = "short" / "long"
 -- tokens = string -> RequestRequestToken table.
-RegisterGameType("RestRequest")
+--- @class RestRequest: GameType
+RestRequest = RegisterGameType("RestRequest")
 
 if false then
 LaunchablePanel.Register{

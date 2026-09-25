@@ -583,6 +583,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 					idChosen = feature.featid,
 					hasSearch = true,
 					change = function(element)
+						---@cast element Dropdown
 						feature.featid = element.idChosen
 						resultPanel:FireEvent("change")
 						nameLabel.text = feature:Describe()
@@ -1035,6 +1036,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 				height = 30,
 
 				change = function(element)
+                    ---@cast element Dropdown
                     if g_registeredCharacterChoices[element.idChosen] ~= nil then
                         local t = g_registeredCharacterChoices[element.idChosen].type
 						self.features[#self.features+1] = t.Create{
@@ -1196,6 +1198,7 @@ local SetClass = function(tableName, classPanel, classid)
 				width = 200,
 				height = 40,
 				change = function(element)
+					---@cast element Dropdown
 					class.hit_die = tonumber(element.idChosen)
 					UploadClass()
 				end,
@@ -1236,6 +1239,7 @@ local SetClass = function(tableName, classPanel, classid)
 				options = options,
 				idChosen = class.primaryClassId,
 				change = function(element)
+					---@cast element Dropdown
 					class.primaryClassId = element.idChosen
 					class:ForceDomains()
 					UploadClass()
@@ -1769,6 +1773,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 					options = featureOptions,
 
 					change = function(element)
+						---@cast element Dropdown
 					if element.idChosen == 'feature' then
 						self.options[#self.options+1] = CharacterFeature.Create{
 							source = classOrRace:FeatureSourceName(),
@@ -2029,6 +2034,7 @@ mod.shared.StartingEquipmentEditor = function(options)
 					vmargin = 8,
 					x = 32,
 					change = function(element)
+						---@cast element Dropdown
 						if element.idChosen ~= "add" then
 							option.items[#option.items+1] = {
 								guid = dmhub.GenerateGuid(),

@@ -674,6 +674,7 @@ CreateClaudePanel = function()
         end,
 
         change = function(element)
+            ---@cast element Dropdown
             dmhub.SetSettingValue("claude_agent", element.idChosen)
         end,
     }

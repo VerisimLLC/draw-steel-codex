@@ -245,6 +245,7 @@ mod.shared.EditTilesheetAssetDialog = function(tileid, startingValues)
 
 					events = {
 						change = function(element)
+							---@cast element Dropdown
 							asset.oneLargeTile = (element.idChosen == "onelarge")
 							assets:RefreshAssets("Tilesheet")
 							calculateOrientationVisibility()
@@ -325,6 +326,7 @@ mod.shared.EditTilesheetAssetDialog = function(tileid, startingValues)
 
 					events = {
 						change = function(element)
+							---@cast element Dropdown
 							asset.effectLayer = element.idChosen
 							assets:RefreshAssets("Tilesheet")
 						end,
@@ -350,6 +352,7 @@ mod.shared.EditTilesheetAssetDialog = function(tileid, startingValues)
 
 					events = {
 						change = function(element)
+							---@cast element Dropdown
 							asset.useAlphaThreshold = cond(element.idChosen == 'blend', false, true)
 							assets:RefreshAssets("Tilesheet")
 						end,
@@ -703,6 +706,7 @@ mod.shared.EditTilesheetAssetDialog = function(tileid, startingValues)
             options = AudioSurfaceTypes.surfaces,
             idChosen = asset.rules.surfaceType or 1,
             change = function(element)
+                ---@cast element Dropdown
                 asset.rules.surfaceType = element.idChosen
 				assets:RefreshAssets("Tilesheet")
 				movementProperties:FireEventTree("refreshHidden")
@@ -2100,6 +2104,7 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 					},
 				},
 				change = function(element)
+					---@cast element Dropdown
 					asset.cover = element.idChosen
 					RefreshAssets()
 				end,
@@ -2123,6 +2128,7 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 					},
 				},
 				change = function(element)
+					---@cast element Dropdown
 					asset.solidity = element.idChosen
 					RefreshAssets()
 				end,
@@ -2203,6 +2209,7 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 							return result
 						end)(),
 						change = function(element)
+							---@cast element Dropdown
 							if element.idChosen == "__none__" then
 								asset.rubbleTerrainId = nil
 							else
@@ -2231,6 +2238,7 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 							return result
 						end)(),
 						change = function(element)
+							---@cast element Dropdown
 							if element.idChosen == "none" then
 								asset.breakSound = nil
 							else
@@ -2281,6 +2289,7 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 									return result
 								end)(),
 								change = function(element)
+									---@cast element Dropdown
 									if element.idChosen == "__default__" then
 										asset.replacementWallId = nil
 									else
@@ -2312,6 +2321,7 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 					},
 				},
 				change = function(element)
+					---@cast element Dropdown
 					asset.climbable = element.idChosen
 					RefreshAssets()
 				end,

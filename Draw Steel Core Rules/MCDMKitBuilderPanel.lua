@@ -907,6 +907,7 @@ function CharSheet.KitChoicePanel(options)
             width = 200,
             height = 26,
             change = function(element)
+                ---@cast element Dropdown
                 g_kitid = element.idChosen
                 resultPanel:FireEventTree("refreshBuilder")
             end,

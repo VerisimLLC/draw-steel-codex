@@ -14,13 +14,27 @@ function RichParty.Create()
     }
 end
 
+--Token portraits are artwork; deliberately not re-coloured.
+local function PartyStyles(pal)
+    local styles = {}
+
+    if pal ~= nil then
+        styles[#styles + 1] = { selectors = {"richParty"}, bgcolor = pal.page, borderColor = pal.border }
+        styles[#styles + 1] = { selectors = {"partyCaption"}, color = pal.ink }
+        styles[#styles + 1] = { selectors = {"label", "~button"}, color = pal.ink }
+    end
+
+    return ThemeEngine.MergeTokens(styles)
+end
+
 function RichParty.CreateDisplay(self)
     local resultPanel
 
     local m_token = {}
+    local m_palSignature = nil
 
     local nameLabel = gui.Label {
-        classes = {"sizeL", "bold"},
+        classes = {"sizeL", "bold", "partyCaption"},
         text = "Party Members",
         textAlignment = "center",
         halign = "center",
@@ -421,10 +435,28 @@ function RichParty.CreateDisplay(self)
             transitionTime = 0.2,
         },
     }
+    --Page overrides must be appended last so they win over the animation styles.
+    local function AllStyles(pal)
+        local styles = {}
+        for _, s in ipairs(tokenPanelStyles) do styles[#styles + 1] = s end
+        for _, s in ipairs(PartyStyles(pal) or {}) do styles[#styles + 1] = s end
+        return styles
+    end
+
     resultPanel = gui.Panel {
-        styles = tokenPanelStyles,
+        styles = AllStyles(nil),
         classes = {"richParty", "bordered"},
         dragTarget = true,
+
+        refreshTag = function(element, tag, match, token)
+            --Reassign only when the palette changes; refreshTag fires every render.
+            local pal = MarkdownDocument.PageSkinPalette((tag or self):GetDocument())
+            local sig = pal ~= nil and (pal.page .. "/" .. pal.ink .. "/" .. pal.accent) or nil
+            if sig ~= m_palSignature then
+                m_palSignature = sig
+                element.styles = AllStyles(pal)
+            end
+        end,
         minWidth = 300,
         width = "auto",
         height = 200,

@@ -507,6 +507,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     options = g_abilityTypeChoices,
                     idChosen = modifier.type,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.type = element.idChosen
                         Refresh()
                     end,
@@ -524,6 +525,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     options = g_targetChoices,
                     idChosen = modifier.targetType,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.targetType = element.idChosen
                         Refresh()
                     end,
@@ -550,6 +552,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     },
                     idChosen = modifier:try_get("multitarget", "one"),
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.multitarget = element.idChosen
                         Refresh()
                     end,
@@ -567,6 +570,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                     options = g_triggerChoices,
                     idChosen = modifier.trigger,
                     change = function(element)
+                        ---@cast element Dropdown
                         modifier.trigger = element.idChosen
                         Refresh()
                     end,
@@ -600,6 +604,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                         },
                         idChosen = modifier:try_get("damageType", "all"),
                         change = function(element)
+                            ---@cast element Dropdown
                             modifier.damageType = element.idChosen
                             Refresh()
                         end,
@@ -1065,6 +1070,8 @@ function CharacterModifier:TriggerModsPowerRoll(modContext, token, casterToken, 
                 targetid = targetToken.charid,
                 hostile = not token:IsFriend(casterToken),
                 originalAbilityRange = ability:GetRange(casterToken.properties),
+                --set when the trigger comes from a carried consumable (see FillEquipmentModifiers).
+                consumeItemId = modContext ~= nil and modContext.consumeItemId or nil,
             }
         end
     end
@@ -1078,7 +1085,9 @@ function CharacterModifier:TriggerModsCastingAbility(modContext, token, casterTo
     end
 end
 
---- @param info {modifier: CharacterModifier, charid: string, targetid: string}
+--- consumeItemId is set when the trigger comes from a carried consumable
+--- (Mirror Token, G'Allios Visiting Card): using the trigger spends one of it.
+--- @param info {modifier: CharacterModifier, charid: string, targetid: string, consumeItemId: nil|string}
 function CharacterModifier:TriggerPayCost(info)
     local casterToken = dmhub.GetTokenById(info.charid)
     if casterToken == nil then
@@ -1086,8 +1095,9 @@ function CharacterModifier:TriggerPayCost(info)
     end
 
     local costTrigger = self.type == "trigger"
+    local consumeItemId = info.consumeItemId
 
-    local hasCost = costTrigger
+    local hasCost = costTrigger or consumeItemId ~= nil
 
     if hasCost then
         casterToken:ModifyProperties{
@@ -1097,6 +1107,25 @@ function CharacterModifier:TriggerPayCost(info)
                     local resourcesTable = dmhub.GetTable("characterResources")
                     local resourceInfo = resourcesTable[g_triggerResourceId]
                     casterToken.properties:ConsumeResource(g_triggerResourceId, resourceInfo.usageLimit, 1, string.format("Used triggered ability: %s", self.name))
+                end
+
+                if consumeItemId ~= nil then
+                    --GiveItem falls back to unequipping, which covers a copy
+                    --equipped back when the item was categorized as a trinket.
+                    local props = casterToken.properties
+                    local carried = props:GetItemQuantity(consumeItemId) > 0
+                    if not carried then
+                        for _,equipid in pairs(props:Equipment()) do
+                            if equipid == consumeItemId then
+                                carried = true
+                                break
+                            end
+                        end
+                    end
+                    if carried then
+                        props:GiveItem(consumeItemId, -1)
+                        props:QueueLoseItemAnimation(consumeItemId)
+                    end
                 end
             end,
         }

@@ -125,6 +125,7 @@ local SetCultureAspect = function(cultureAspectPanel, cultureAspectid)
 			options = CultureAspect.categories,
 			idChosen = cultureAspect.category,
 			change = function(element)
+				---@cast element Dropdown
 				cultureAspect.category = element.idChosen
 				UploadCultureAspect()
 			end,

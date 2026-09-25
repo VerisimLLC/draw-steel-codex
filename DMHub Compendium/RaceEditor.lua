@@ -83,6 +83,7 @@ local SetRace = function(tableName, racePanel, raceid)
 				options = options,
 				idChosen = race:try_get("parentRace", "none"),
 				change = function(element)
+					---@cast element Dropdown
 					local val = element.idChosen
 					if val == "none" then
 						val = nil
@@ -181,6 +182,7 @@ local SetRace = function(tableName, racePanel, raceid)
 				idChosen = race:try_get("nameGenerator", "none"),
 				options = nameGeneratorOptions,
 				change = function(element)
+					---@cast element Dropdown
 					race.nameGenerator = element.idChosen
 					UploadRace()
 				end,
@@ -200,6 +202,7 @@ local SetRace = function(tableName, racePanel, raceid)
 				idChosen = race.size,
 				options = sizeOptions,
 				change = function(element)
+					---@cast element Dropdown
 					race.size = element.idChosen
 					UploadRace()
 				end,

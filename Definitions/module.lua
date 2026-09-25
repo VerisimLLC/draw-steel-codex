@@ -106,6 +106,10 @@ function module.DownloadModuleInfo(options) end
 --- @param options table Options table with 'moduleid' (string), 'success' (function(table)), and 'failure' (function(string)) fields.
 function module.DownloadModuleSnapshot(options) end
 
+--- Downloads the PDF documents a published module ships WITHOUT installing it. Calls options.success with a table of PDFDocumentAssetLua keyed by document id; they open in the PDF viewer and render thumbnails even outside games that install the module. A premium module fails unless the user owns it (purchase or Patreon). The module's contents are cached on disk, so repeat calls are local. Calls options.failure with an error message on failure.
+--- @param options {moduleid: string, success: fun(docs: table<string, PDFDocumentAssetLua>), failure: nil|fun(message: string)}
+function module.DownloadModulePDFDocuments(options) end
+
 --- Calculates the estimated download size in kilobytes for the given set of GUIDs, including assets, modules, and object tables.
 --- @param dynGuids table A table whose keys are GUID strings to calculate size for.
 --- @return number

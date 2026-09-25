@@ -66,8 +66,24 @@ function RichFollower:_validate()
     end
 end
 
+--The portrait is artwork; deliberately not re-coloured.
+local function FollowerStyles(pal)
+    local styles = {}
+
+    if pal ~= nil then
+        styles[#styles + 1] = { selectors = {"featureCardHeader"}, borderColor = pal.border }
+        styles[#styles + 1] = { selectors = {"featureCardBody"}, bgcolor = pal.wash, borderColor = pal.border }
+        styles[#styles + 1] = { selectors = {"label", "~button"}, color = pal.ink }
+        styles[#styles + 1] = { selectors = {"label", "button"}, color = pal.ink, bgcolor = pal.page, borderColor = pal.border }
+        styles[#styles + 1] = { selectors = {"label", "button", "hover"}, bgcolor = pal.wash, borderColor = pal.accent }
+    end
+
+    return ThemeEngine.MergeTokens(styles)
+end
+
 function RichFollower.CreateDisplay(self)
     local resultPanel
+    local m_palSignature = nil
     self:_validate()
 
     local titleLabel = gui.Label{
@@ -218,8 +234,18 @@ function RichFollower.CreateDisplay(self)
         height = "auto",
         pad = 2,
         halign = "left",
+        styles = FollowerStyles(nil),
         create = function(element)
             element:FireEventTree("refreshTag")
+        end,
+        refreshTag = function(element, tag)
+            --Reassign only when the palette changes; refreshTag fires every render.
+            local pal = MarkdownDocument.PageSkinPalette((tag or self):GetDocument())
+            local sig = pal ~= nil and (pal.page .. "/" .. pal.ink .. "/" .. pal.accent) or nil
+            if sig ~= m_palSignature then
+                m_palSignature = sig
+                element.styles = FollowerStyles(pal)
+            end
         end,
         headerPanel,
         detailPanel,

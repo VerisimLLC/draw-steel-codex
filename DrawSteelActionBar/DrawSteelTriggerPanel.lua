@@ -125,6 +125,7 @@ local function RunTriggerRetargetChoice(element, triggerToken, trigger, targetId
         targets = targets,
         reasons = retargetReasons,
         prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType, allowOriginal),
+        autoPickSole = true,
         choose = function(newTargetToken)
             if triggerToken == nil or not triggerToken.valid then
                 return
@@ -806,6 +807,7 @@ mod.shared.CreateTriggerPanel = function()
                                             targets = targets,
                                             reasons = retargetReasons,
                                             prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType, allowOriginal),
+                                            autoPickSole = true,
                                             choose = function(newTargetToken)
                                                 if g_token == nil then
                                                     return
@@ -1038,6 +1040,7 @@ mod.shared.CreateTriggerPanel = function()
                                                 targets = targets,
                                                 reasons = retargetReasons,
                                                 prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType, allowOriginal),
+                                                autoPickSole = true,
                                                 choose = function(newTargetToken)
                                                     if g_token == nil then
                                                         return
@@ -1299,6 +1302,7 @@ mod.shared.CreateTriggerPanel = function()
                                             targets = targets,
                                             reasons = retargetReasons,
                                             prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType, allowOriginal),
+                                            autoPickSole = true,
                                             choose = function(newTargetToken)
                                                 if g_token == nil then
                                                     return
@@ -1887,6 +1891,7 @@ mod.shared.CreateTriggerPanel = function()
                                                 targets = targets,
                                                 reasons = retargetReasons,
                                                 prompt = RuleUtils.RetargetPromptText(sourceToken, range, rangeType, allowOriginal),
+                                                autoPickSole = true,
                                                 choose = function(newTargetToken)
                                                     if g_token == nil then
                                                         return

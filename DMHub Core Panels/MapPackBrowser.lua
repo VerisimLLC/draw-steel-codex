@@ -444,6 +444,176 @@ mod.shared.GetMapPackMarkupMaps = function(pack, callback)
 	}
 end
 
+--how many distinct users have added each map-pack map to a game, fetched
+--once per session: callback(stats) with stats[pack][mapid].adds, maps
+--nobody has added absent. Fires synchronously once cached. A failed fetch
+--is treated as no data and not retried this session.
+local g_mapStats = nil
+local g_mapStatsWaiting = nil
+
+mod.shared.GetMapPackStats = function(callback)
+	if g_mapStats ~= nil then
+		callback(g_mapStats)
+		return
+	end
+	if g_mapStatsWaiting ~= nil then
+		table.insert(g_mapStatsWaiting, callback)
+		return
+	end
+	g_mapStatsWaiting = { callback }
+
+	local function finish(stats)
+		g_mapStats = stats
+		local queue = g_mapStatsWaiting
+		g_mapStatsWaiting = nil
+		for _, fn in ipairs(queue or {}) do
+			fn(stats)
+		end
+	end
+
+	mappacks.GetMapStats{
+		success = finish,
+		error = function(msg)
+			finish({})
+		end,
+	}
+end
+
+--the library's browse order (no search). Each map scores a seeded random
+--base in [0, 1) -- seeded by user and local date, so the order holds all
+--day and reshuffles the next -- plus MapPackEntryBoost for shared markup and
+--popularity. The grid is then filled greedily from the best-scoring few
+--candidates, each pick penalised for resembling the maps just placed: same
+--creator, overlapping themes (keywords weighted by rarity, so the
+--ubiquitous "wilderness" barely counts), or the same series (first word of
+--the scene name: "Sluice Cave" after "Sluice Sewers").
+local BROWSE_MARKUP_BOOST = 0.6
+local BROWSE_ADDS_PER_DOUBLING = 0.25
+local BROWSE_ADDS_CAP = 1.5
+local BROWSE_CREATOR_PENALTY = 0.35
+local BROWSE_CREATOR_WINDOW = 3
+local BROWSE_THEME_PENALTY = 0.5
+local BROWSE_THEME_WINDOW = 5
+local BROWSE_SERIES_PENALTY = 0.6
+local BROWSE_SERIES_WINDOW = 10
+local BROWSE_CANDIDATES = 40
+
+--32-bit FNV-1a of a string, as a fraction in [0, 1).
+local function HashFraction(text)
+	local h = 2166136261
+	for i = 1, #text do
+		h = ((h ~ string.byte(text, i)) * 16777619) & 0xffffffff
+	end
+	return h / 4294967296
+end
+
+--the ranking lift an entry's map earns: shared markup (markup[pack] is the
+--GetMapPackMarkupMaps set) and how many users have added it (stats from
+--GetMapPackStats), on a log scale so a few hits matter and a runaway
+--favourite cannot bury everything else. Either table may be nil.
+mod.shared.MapPackEntryBoost = function(entry, markup, stats)
+	local boost = 0
+	local markupSet = markup ~= nil and markup[entry.pack] or nil
+	if markupSet ~= nil and markupSet[entry.id] then
+		boost = boost + BROWSE_MARKUP_BOOST
+	end
+	local packStats = stats ~= nil and stats[entry.pack] or nil
+	local mapStats = packStats ~= nil and packStats[entry.id] or nil
+	local adds = mapStats ~= nil and tonumber(mapStats.adds) or 0
+	if adds > 0 then
+		boost = boost + math.min(BROWSE_ADDS_CAP, BROWSE_ADDS_PER_DOUBLING * math.log(1 + adds, 2))
+	end
+	return boost
+end
+
+--entries: one per map (the grid's no-search list). Returns them reordered.
+mod.shared.RankMapPackEntriesForBrowsing = function(entries, markup, stats)
+	local seed = tostring(dmhub.userid or "") .. os.date("%Y-%m-%d")
+
+	--keyword rarity: log(maps / maps carrying the keyword).
+	local df = {}
+	for _, entry in ipairs(entries) do
+		for _, word in ipairs(entry.keywords or {}) do
+			df[word] = (df[word] or 0) + 1
+		end
+	end
+	local idf = {}
+	for word, count in pairs(df) do
+		idf[word] = math.log(#entries / count)
+	end
+
+	local remaining = {}
+	for _, entry in ipairs(entries) do
+		local keywords = {}
+		local weight = 0
+		for _, word in ipairs(entry.keywords or {}) do
+			if not keywords[word] then
+				keywords[word] = true
+				weight = weight + idf[word]
+			end
+		end
+		local series = string.lower(entry.sceneName ~= "" and entry.sceneName or entry.name or "")
+		series = string.match(series, "^the%s+(%S+)") or string.match(series, "^(%S+)") or ""
+		remaining[#remaining + 1] = {
+			entry = entry,
+			score = HashFraction(seed .. entry.pack .. "/" .. entry.id) + mod.shared.MapPackEntryBoost(entry, markup, stats),
+			creator = mod.shared.MapPackCreatorId(entry),
+			series = series,
+			keywords = keywords,
+			weight = weight,
+		}
+	end
+	table.sort(remaining, function(a, b) return a.score > b.score end)
+
+	--0..1: the rarity-weighted share of keywords two maps have in common.
+	local function Similarity(a, b)
+		local denom = math.max(a.weight, b.weight)
+		if denom <= 0 then
+			return 0
+		end
+		local shared = 0
+		for word in pairs(a.keywords) do
+			if b.keywords[word] then
+				shared = shared + idf[word]
+			end
+		end
+		return shared / denom
+	end
+
+	local picked = {}
+	local result = {}
+	while #remaining > 0 do
+		local bestIndex = 1
+		local bestScore = nil
+		for i = 1, math.min(#remaining, BROWSE_CANDIDATES) do
+			local c = remaining[i]
+			local score = c.score
+			for back = 1, math.min(#picked, BROWSE_SERIES_WINDOW) do
+				local p = picked[#picked - back + 1]
+				if back <= BROWSE_CREATOR_WINDOW and p.creator == c.creator then
+					score = score - BROWSE_CREATOR_PENALTY
+				end
+				if back <= BROWSE_THEME_WINDOW then
+					--the most recent pick weighs most.
+					local decay = (BROWSE_THEME_WINDOW - back + 1) / BROWSE_THEME_WINDOW
+					score = score - BROWSE_THEME_PENALTY * decay * Similarity(c, p)
+				end
+				if c.series ~= "" and p.series == c.series then
+					score = score - BROWSE_SERIES_PENALTY
+				end
+			end
+			if bestScore == nil or score > bestScore then
+				bestScore = score
+				bestIndex = i
+			end
+		end
+		local choice = table.remove(remaining, bestIndex)
+		picked[#picked + 1] = choice
+		result[#result + 1] = choice.entry
+	end
+	return result
+end
+
 --a "Codex Enhancements" badge: the Codex logo beside the text, on a dark
 --backing so it reads over the map.
 mod.shared.CodexEnhancementsBadge = function(args)

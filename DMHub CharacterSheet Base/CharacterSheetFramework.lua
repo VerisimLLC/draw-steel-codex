@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("CharSheet")
+--- @class CharSheet: GameType
+CharSheet = RegisterGameType("CharSheet")
 
 CharSheet.defaultSheet = "Appearance"
 

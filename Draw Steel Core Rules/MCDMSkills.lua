@@ -272,6 +272,7 @@ local ShowSkillsPanel = function(parentPanel)
 				options = creature.attributeDropdownOptions,
 				idChosen = skill.attribute,
 				change = function(element)
+					---@cast element Dropdown
 					skill.attribute = element.idChosen
 					UploadSkill()
 				end,

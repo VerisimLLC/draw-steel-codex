@@ -943,6 +943,7 @@ function CBCharPanel._headerPanel()
         end,
 
         change = function(element)
+            ---@cast element Dropdown
             local hero = _getHero()
             if hero then
                 local extra = hero:ExtraLevelInfo()

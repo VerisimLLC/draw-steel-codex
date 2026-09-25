@@ -1304,6 +1304,7 @@ CreateEditor = function(panelArgs)
 		height = 30,
 
 		change = function(element)
+			---@cast element Dropdown
 			sortby = element.idChosen
 			dmhub.SetSettingValue("codemodsorting", sortby)
 			filesTable:FireEventTree("refreshMod")

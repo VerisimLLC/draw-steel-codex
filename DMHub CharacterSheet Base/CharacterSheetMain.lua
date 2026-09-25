@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("CharacterSheet")
+--- @class CharacterSheet: GameType
+CharacterSheet = RegisterGameType("CharacterSheet")
 
 if rawget(CharacterSheet, "instance") and CharacterSheet.instance.valid then
 	CharacterSheet.instance:DestroySelf()

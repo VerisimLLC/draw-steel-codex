@@ -1025,6 +1025,7 @@ CharacterModifier.TypeInfo.kitaccess = {
 			idChosen = modifier.kitType,
 			options = Kit.kitTypes,
 			change = function(element)
+				---@cast element Dropdown
 				modifier.kitType = element.idChosen
 			end,
 		}

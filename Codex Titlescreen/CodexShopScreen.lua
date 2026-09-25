@@ -3019,6 +3019,7 @@ local function ShowCustomUsesDialog(args)
 			options = g_slotTypeOptions,
 			idChosen = slot.slotType,
 			change = function(element)
+				---@cast element Dropdown
 				local cur = m_slots[index]
 				if cur == nil or cur.slotType == element.idChosen then
 					return
@@ -3045,6 +3046,7 @@ local function ShowCustomUsesDialog(args)
 				options = SlotDamageTypeOptions(),
 				idChosen = slot.damageType or "",
 				change = function(element)
+					---@cast element Dropdown
 					local cur = m_slots[index]
 					if cur == nil then
 						return
@@ -3063,6 +3065,7 @@ local function ShowCustomUsesDialog(args)
 				options = SlotMonsterGroupOptions(),
 				idChosen = slot.groupid or "",
 				change = function(element)
+					---@cast element Dropdown
 					local cur = m_slots[index]
 					if cur == nil then
 						return
@@ -3081,6 +3084,7 @@ local function ShowCustomUsesDialog(args)
 				options = SlotClassOptions(),
 				idChosen = slot.classid or "",
 				change = function(element)
+					---@cast element Dropdown
 					local cur = m_slots[index]
 					if cur == nil then
 						return
@@ -3113,6 +3117,7 @@ local function ShowCustomUsesDialog(args)
 							options = subclassOptions,
 							idChosen = slot.subclassid or "",
 							change = function(element)
+								---@cast element Dropdown
 								local cur = m_slots[index]
 								if cur == nil then
 									return

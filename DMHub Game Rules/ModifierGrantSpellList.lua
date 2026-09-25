@@ -45,6 +45,7 @@ CharacterModifier.TypeInfo.grantSpellList = {
             options = options,
             idChosen = modifier.listid,
             change = function(element)
+                ---@cast element Dropdown
 		modifier.listid = element.idChosen
             end,
         }
@@ -58,6 +59,7 @@ CharacterModifier.TypeInfo.grantSpellList = {
 		    options = CharacterModifier.GetSpellcastingClassOptions(),
 		    idChosen = modifier.applyto,
 		    change = function(element)
+		    	---@cast element Dropdown
 			modifier.applyto = element.idChosen
 		    end,
 		}

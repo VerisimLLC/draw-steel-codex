@@ -6656,6 +6656,12 @@ LaunchablePanel.Register{
 	valign = "center",
 	draggable = false,
 	overdocks = true,
+	--fills the screen, so the rail-mode Font Size zoom reflows it rather than
+	--growing it off screen (see CreateLaunchablePanel in game-hud-menu.txt).
+	fillsScreen = true,
+	--its editors have fixed widths (the ability editor page needs ~1560), so
+	--the zoom stops before the layout gets narrower than this.
+	minLayoutWidth = 1600,
 	filtered = function()
 		--a mod-enforced custom interface can remove Compendium access
 		--outright (e.g. Encounter of the Week games).

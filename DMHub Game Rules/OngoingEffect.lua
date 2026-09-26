@@ -14,6 +14,10 @@ CharacterOngoingEffect.endingEffectSavingThrowDC = 10
 CharacterOngoingEffect.sustainFormula = '' --a formula used to see if this effect keeps going.
 CharacterOngoingEffect.emoji = 'none'
 CharacterOngoingEffect.condition = 'none' --the underlying condition for this effect.
+--when true, an effect with an underlying condition still shows its OWN name/icon
+--on tokens and status displays instead of the condition's (e.g. "Engulfed" rather
+--than "Restrained"). The condition's mechanics are unaffected.
+CharacterOngoingEffect.displayOwnIdentity = false
 CharacterOngoingEffect.statusEffect = true --is this a standard status condition?
 CharacterOngoingEffect.hiddenOnToken = false
 CharacterOngoingEffect.hiddenFromEnemies = false --is this hidden from enemies?
@@ -149,7 +153,7 @@ function CharacterOngoingEffect:GetCondition()
 end
 
 function CharacterOngoingEffect:GetDisplayIcon()
-	if self.condition ~= "none" then
+	if self.condition ~= "none" and not self.displayOwnIdentity then
 		local cond = self:GetCondition()
 		if cond ~= nil then
 			return cond.iconid
@@ -159,7 +163,7 @@ function CharacterOngoingEffect:GetDisplayIcon()
 end
 
 function CharacterOngoingEffect:GetDisplayDisplay()
-	if self.condition ~= "none" then
+	if self.condition ~= "none" and not self.displayOwnIdentity then
 		local cond = self:GetCondition()
 		if cond ~= nil then
 			return cond.display

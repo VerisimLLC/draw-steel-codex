@@ -494,3 +494,260 @@ function ActivatedAbilityDamageChatMessage:GetTargetTokens()
     end
     return result
 end
+
+
+--- @class ActivatedAbilityLeechDamageBehavior:ActivatedAbilityBehavior
+--- Deals automatic (no power roll, no save) damage to its targets and then
+--- restores that same amount of Stamina to the aura's caster. Built for effects
+--- like the Shambling Mound's Leeching Wilds: "any enemy who starts their turn
+--- in the area takes N damage, and the shambling mound regains an equal amount
+--- of Stamina." The Stamina regained equals the damage actually taken after the
+--- target's damage immunities and weaknesses are applied, since it is read from
+--- the value InflictDamageInstance reports back.
+ActivatedAbilityLeechDamageBehavior = RegisterGameType("ActivatedAbilityLeechDamageBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbilityLeechDamageBehavior.summary = 'Leech Damage'
+ActivatedAbilityLeechDamageBehavior.roll = "4"
+ActivatedAbilityLeechDamageBehavior.damageType = "acid"
+
+ActivatedAbility.RegisterType
+{
+	id = 'leech_damage',
+	text = 'Leech Damage',
+	createBehavior = function()
+		return ActivatedAbilityLeechDamageBehavior.new{
+			roll = "4",
+			damageType = "acid",
+		}
+	end
+}
+
+function ActivatedAbilityLeechDamageBehavior:SummarizeBehavior(ability, creatureLookup)
+	return string.format("%s %s Damage; aura caster regains that Stamina",
+		dmhub.NormalizeRoll(dmhub.EvalGoblinScript(self.roll, creatureLookup, string.format("Leech damage for %s", ability.name))),
+		self.damageType)
+end
+
+--Resolve the creature that should regain Stamina: the aura's caster (the
+--creature the aura belongs to). On aura-modifier triggers the aura installs a
+--"caster" symbol pointing at its owner and an "aura" symbol holding the
+--AuraInstance (which carries its casterid). Prefer the symbol, fall back to the
+--aura's casterid, and return nil outside of an aura context so the behavior
+--simply deals damage with no heal.
+function ActivatedAbilityLeechDamageBehavior:ResolveLeechToken(options)
+	local symbols = options.symbols or {}
+
+	local casterSym = symbols.caster
+	if type(casterSym) == "function" then
+		casterSym = casterSym("self")
+	end
+	if casterSym ~= nil then
+		local tok = dmhub.LookupToken(casterSym)
+		if tok ~= nil and tok.valid then
+			return tok
+		end
+	end
+
+	local aura = symbols.aura
+	if aura ~= nil then
+		local casterid = nil
+		pcall(function() casterid = aura.casterid end)
+		if casterid ~= nil then
+			local tok = dmhub.GetTokenById(casterid)
+			if tok ~= nil and tok.valid then
+				return tok
+			end
+		end
+	end
+
+	return nil
+end
+
+function ActivatedAbilityLeechDamageBehavior:Cast(ability, casterToken, targets, options)
+	if #targets == 0 then
+		return
+	end
+
+	ability:CommitToPaying(casterToken, options)
+
+	local leechToken = self:ResolveLeechToken(options)
+
+	local damageType = self.damageType
+	local sourceDescription = ability.name
+
+	local totalDealt = 0
+
+	for _,target in ipairs(targets) do
+		if target.token ~= nil and target.token.valid and target.token.properties ~= nil then
+			local targetCreature = target.token.properties
+			local amount = dmhub.EvalGoblinScript(self.roll, casterToken.properties:LookupSymbol(options.symbols or {}), string.format("Leech damage for %s", ability.name))
+			amount = tonumber(amount) or 0
+			if amount > 0 then
+				target.token:ModifyProperties{
+					description = sourceDescription,
+					execute = function()
+						--No attacker is passed: this is automatic aura damage, mirroring
+						--creature:AuraDamage. damageDealt is the amount that landed after
+						--the target's immunities and weaknesses.
+						local res = targetCreature:InflictDamageInstance(amount, damageType, {}, sourceDescription, { damagesound = "Attack.Enviro" })
+						if type(res) == "table" and type(res.damageDealt) == "number" then
+							totalDealt = totalDealt + res.damageDealt
+						end
+					end,
+				}
+			end
+		end
+	end
+
+	if leechToken ~= nil and totalDealt > 0 then
+		local canHeal = (leechToken.properties:CalculateNamedCustomAttribute("Cannot Regain Stamina") == 0)
+		leechToken:ModifyProperties{
+			description = string.format("%s: Regain Stamina", ability.name),
+			execute = function()
+				leechToken.properties:Heal(totalDealt, sourceDescription)
+			end,
+		}
+		if canHeal then
+			leechToken.properties:FloatLabel(string.format("+%d Stamina", totalDealt), "#66ff66")
+		end
+	end
+end
+
+function ActivatedAbilityLeechDamageBehavior:EditorItems(parentPanel)
+	local result = {}
+	self:ApplyToEditor(parentPanel, result)
+	self:FilterEditor(parentPanel, result)
+	self:RollEditor(parentPanel, result)
+	self:DamageTypeEditor(parentPanel, result)
+	return result
+end
+
+--- @class ActivatedAbilityLeechTempStaminaBehavior:ActivatedAbilityBehavior
+--- Deals automatic damage to its targets and grants the caster a fixed amount
+--- of temporary Stamina for each target who actually took damage. Built for
+--- effects like the Shambling Mound's Leech maneuver: "Each creature engulfed
+--- by the shambling mound takes 5 poison damage. The shambling mound gains 5
+--- temporary Stamina for each creature who takes damage this way."
+--- The damage defaults to cannotBeReduced + bypassTempStamina because such
+--- effects usually originate "inside" a temporary-Stamina shield (the sack) and
+--- must hit the creature's real Stamina rather than the shield.
+ActivatedAbilityLeechTempStaminaBehavior = RegisterGameType("ActivatedAbilityLeechTempStaminaBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbilityLeechTempStaminaBehavior.summary = 'Leech Temporary Stamina'
+ActivatedAbilityLeechTempStaminaBehavior.roll = "5"
+ActivatedAbilityLeechTempStaminaBehavior.damageType = "poison"
+ActivatedAbilityLeechTempStaminaBehavior.tempPerTarget = "5"
+ActivatedAbilityLeechTempStaminaBehavior.cannotBeReduced = true
+ActivatedAbilityLeechTempStaminaBehavior.bypassTempStamina = true
+
+ActivatedAbility.RegisterType
+{
+	id = 'leech_temp_stamina',
+	text = 'Leech Temporary Stamina',
+	createBehavior = function()
+		return ActivatedAbilityLeechTempStaminaBehavior.new{
+			roll = "5",
+			damageType = "poison",
+			tempPerTarget = "5",
+		}
+	end
+}
+
+function ActivatedAbilityLeechTempStaminaBehavior:SummarizeBehavior(ability, creatureLookup)
+	return string.format("%s %s Damage; caster gains %s temporary Stamina per damaged target",
+		dmhub.NormalizeRoll(dmhub.EvalGoblinScript(self.roll, creatureLookup, string.format("Leech damage for %s", ability.name))),
+		self.damageType,
+		tostring(self.tempPerTarget))
+end
+
+function ActivatedAbilityLeechTempStaminaBehavior:Cast(ability, casterToken, targets, options)
+	if #targets == 0 then
+		return
+	end
+
+	ability:CommitToPaying(casterToken, options)
+
+	local damageType = self.damageType
+	local sourceDescription = ability.name
+	local cannotBeReduced = self:try_get("cannotBeReduced", true)
+	local bypassTempStamina = self:try_get("bypassTempStamina", true)
+
+	local numDamaged = 0
+	--charids of the creatures actually damaged, for the action-log card below.
+	local damagedTokenIds = {}
+	local lastAmount = 0
+
+	for _,target in ipairs(targets) do
+		if target.token ~= nil and target.token.valid and target.token.properties ~= nil then
+			local targetCreature = target.token.properties
+			local amount = dmhub.EvalGoblinScript(self.roll, casterToken.properties:LookupSymbol(options.symbols or {}), string.format("Leech damage for %s", ability.name))
+			amount = tonumber(amount) or 0
+			if amount > 0 then
+				lastAmount = amount
+				ability.RecordTokenMessage(target.token, options, string.format("%d %s damage", amount, damageType))
+				target.token:ModifyProperties{
+					description = sourceDescription,
+					execute = function()
+						local res = targetCreature:InflictDamageInstance(amount, damageType, {}, sourceDescription, {
+							attacker = casterToken.properties,
+							ability = ability,
+							hasability = true,
+							cannotBeReduced = cannotBeReduced,
+							bypassTempStamina = bypassTempStamina,
+						})
+						if type(res) == "table" and type(res.damageDealt) == "number" and res.damageDealt > 0 then
+							numDamaged = numDamaged + 1
+						end
+					end,
+				}
+				damagedTokenIds[#damagedTokenIds+1] = target.token.charid
+			end
+		end
+	end
+
+	local grantedTemp = 0
+	if numDamaged > 0 then
+		local perTarget = tonumber(dmhub.EvalGoblinScript(self.tempPerTarget, casterToken.properties:LookupSymbol(options.symbols or {}), string.format("Temp stamina for %s", ability.name))) or 0
+		--Draw Steel temporary Stamina does not stack: the higher of the current
+		--and new values wins. SetTemporaryHitpoints overwrites, so clamp here.
+		local grant = perTarget * numDamaged
+		if grant > 0 and grant > casterToken.properties:TemporaryHitpoints() then
+			grantedTemp = grant
+			casterToken:ModifyProperties{
+				description = string.format("%s: Gain Temporary Stamina", ability.name),
+				execute = function()
+					casterToken.properties:SetTemporaryHitpoints(grant, sourceDescription)
+					casterToken.properties:DispatchEvent("gaintempstamina", {})
+				end,
+			}
+			casterToken.properties:FloatLabel(string.format("+%d Temp Stamina", grant), "#66ff66")
+		end
+	end
+
+	--Action-log card: the base RecordTokenMessage notes are easy to miss, so post
+	--an explicit damage card (reusing the standard damage card) showing the poison
+	--dealt to each target, with the Stamina the caster leeched folded into the
+	--caption. Only when something actually happened.
+	if #damagedTokenIds > 0 then
+		local caption = ability.name
+		if grantedTemp > 0 then
+			caption = string.format("%s (+%d temporary Stamina)", ability.name, grantedTemp)
+		end
+		chat.SendCustom(ActivatedAbilityDamageChatMessage.new{
+			amount = lastAmount,
+			damageType = damageType,
+			chatMessage = caption,
+			casterid = casterToken.charid,
+			targetids = damagedTokenIds,
+		})
+	end
+end
+
+function ActivatedAbilityLeechTempStaminaBehavior:EditorItems(parentPanel)
+	local result = {}
+	self:ApplyToEditor(parentPanel, result)
+	self:FilterEditor(parentPanel, result)
+	self:RollEditor(parentPanel, result)
+	self:DamageTypeEditor(parentPanel, result)
+	return result
+end

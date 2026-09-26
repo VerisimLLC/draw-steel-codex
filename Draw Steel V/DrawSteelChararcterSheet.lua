@@ -7921,6 +7921,45 @@ local function FeatureEntryDescription(entry)
     return desc
 end
 
+--Features picked from a creature's template choices (e.g. animal traits),
+--using the deepest pick: "Elemental (Fire)" rather than "Elemental".
+--- @param creature creature
+--- @return CharacterFeature[]
+local function ChosenTemplateFeatures(creature)
+    local result = {}
+    local levelChoices = creature:GetLevelChoices() or {}
+    local function walk(choice)
+        local picks = levelChoices[choice.guid]
+        if picks == nil or #picks == 0 then
+            return
+        end
+        local options = choice:GetOptions(levelChoices) or {}
+        for _,pickid in ipairs(picks) do
+            for _,option in ipairs(options) do
+                if option.guid == pickid then
+                    local nestedPicks = levelChoices[option.guid]
+                    if option.IsDerivedFrom("CharacterFeatureChoice") and nestedPicks ~= nil and #nestedPicks > 0 then
+                        walk(option)
+                    else
+                        result[#result+1] = option
+                    end
+                end
+            end
+        end
+    end
+    for _,template in ipairs(creature:GetActiveTemplates()) do
+        --pcall: a malformed template entry should not blank the whole tab.
+        pcall(function()
+            for _,feature in ipairs(template.modifierInfo.features) do
+                if feature.IsDerivedFrom("CharacterFeatureChoice") then
+                    walk(feature)
+                end
+            end
+        end)
+    end
+    return result
+end
+
 --Display names of the options a fully-made choice slot resolved to, so the
 --row can read "Forgettable Face" rather than "Agent Perk".
 local function FeatureChosenTexts(feature, creature)
@@ -9184,6 +9223,41 @@ function CharSheet.InnerFeaturesPanel()
                 end,
             },
 
+            --Template traits picked in the builder (read-only here).
+            gui.Panel {
+                height = "auto",
+                halign = "center",
+                width = "100%-16",
+                flow = "vertical",
+                bmargin = 12,
+
+                refreshToken = function(element, info)
+                    local creature = info.token.properties
+                    local features = ChosenTemplateFeatures(creature)
+                    local children = {}
+                    for _,feature in ipairs(features) do
+                        --Match the ListEditor rows above, whose styles are scoped to it.
+                        children[#children+1] = gui.Panel {
+                            classes = { "modifier-summary-panel" },
+                            width = "100%",
+                            height = "auto",
+                            flow = "horizontal",
+                            vmargin = 2,
+                            gui.Label {
+                                classes = { "modifier-summary-label" },
+                                width = "100%-200",
+                                height = "auto",
+                                fontSize = 14,
+                                text = StringInterpolateGoblinScript(feature:GetSummaryText(), creature),
+                                markdown = true,
+                            },
+                        }
+                    end
+                    element.children = children
+                    element:SetClass("collapsed", #children == 0)
+                end,
+            },
+
             --creature templates.
             gui.Panel {
                 height = "auto",
@@ -9231,8 +9305,17 @@ function CharSheet.InnerFeaturesPanel()
                                     end
 
                                     element:SetClass("collapsed", false)
-                                    if templateInfo.description ~= '' then
-                                        label.text = string.format("%s--%s", templateInfo.name, templateInfo.description)
+                                    --Rules text lives in the builder; point there.
+                                    local hasChoices = false
+                                    pcall(function()
+                                        for _,feature in ipairs(templateInfo.modifierInfo.features) do
+                                            if feature.IsDerivedFrom("CharacterChoice") then
+                                                hasChoices = true
+                                            end
+                                        end
+                                    end)
+                                    if hasChoices then
+                                        label.text = string.format("%s - Traits can be chosen or adjusted in the Builder tab.", templateInfo.name)
                                     else
                                         label.text = templateInfo.name
                                     end

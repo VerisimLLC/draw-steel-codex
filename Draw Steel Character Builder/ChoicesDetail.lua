@@ -61,6 +61,73 @@ function CBChoicesDetail._navPanel()
     }
 end
 
+local function _trim(s)
+    return (string.match(s, "^%s*(.-)%s*$"))
+end
+
+--- Split off a trailing "Codex Note" paragraph ("{<B> Codex Note: </B> ...}"
+--- or "**Codex Note:** ...") so it can render as a callout.
+--- @param text string
+--- @return string main Description without the note.
+--- @return string|nil note The note body, or nil when there is none.
+local function _splitCodexNote(text)
+    local markerPos = string.find(text, "Codex Note", 1, true)
+    if markerPos == nil then
+        return text, nil
+    end
+
+    -- The note runs from the start of the paragraph holding the marker.
+    local paraStart = 1
+    local searchPos = 1
+    while true do
+        local nl = string.find(text, "\n", searchPos, true)
+        if nl == nil or nl >= markerPos then break end
+        paraStart = nl + 1
+        searchPos = nl + 1
+    end
+
+    local main = _trim(string.sub(text, 1, paraStart - 1))
+    local note = _trim(string.sub(text, paraStart))
+    note = string.gsub(note, "^{", "")
+    note = string.gsub(note, "}$", "")
+    note = string.gsub(note, "^%s*<[bB]>%s*Codex Note%s*:?%s*</[bB]>%s*:?", "")
+    note = string.gsub(note, "^%s*%*%*Codex Note%s*:?%s*%*%*%s*:?", "")
+    note = string.gsub(note, "^%s*Codex Note%s*:", "")
+    note = _trim(note)
+    if note == "" then
+        return text, nil
+    end
+    return main, note
+end
+
+--- Codex-logo callout that sets implementation notes apart from rules text.
+--- @param note string
+--- @return Panel
+local function _codexNoteCallout(note)
+    return gui.Panel{
+        classes = {"panel", "blockQuote", "codex-note"},
+        width = "100%-64",
+        height = "auto",
+        halign = "center",
+        flow = "horizontal",
+        gui.Panel{
+            width = 24,
+            height = 24,
+            valign = "top",
+            tmargin = 8,
+            bgimage = "ui-icons/codex-logo.png",
+            bgcolor = "white",
+        },
+        gui.Label{
+            classes = {"builder-base", "label", "info", "overview", "codex-note-text"},
+            width = "100%-24",
+            vpad = 6,
+            markdown = true,
+            text = "<b>Codex Note:</b> " .. note,
+        },
+    }
+end
+
 --- Build a single overview entry for a feature that grants choices: its
 --- title and (when present) its description text.
 --- @param title string|nil Omitted when the feature name is already the section header.
@@ -76,6 +143,11 @@ local function _featureOverviewEntry(title, description)
         }
     end
 
+    local note = nil
+    if description ~= nil and description ~= "" then
+        description, note = _splitCodexNote(description)
+    end
+
     if description ~= nil and description ~= "" then
         children[#children+1] = gui.Label{
             classes = {"builder-base", "label", "info", "overview"},
@@ -85,8 +157,12 @@ local function _featureOverviewEntry(title, description)
         }
     end
 
+    if note ~= nil then
+        children[#children+1] = _codexNoteCallout(note)
+    end
+
     return gui.Panel{
-        classes = {"builder-base", "panel-base", "detail-overview-labels"},
+        classes = {"builder-base", "panel-base", "detail-overview-labels", "seamless"},
         children = children,
     }
 end
@@ -116,9 +192,11 @@ end
 --- choice feature traces back to the same parent, that parent's name
 --- titles the section. A lone choice feature with no parent titles the
 --- section with its own name. Anything else falls back to "CHOICES".
+--- Also returns that shared parent, if any.
 --- @param features CBFeatureWrapper[] The choice-granting features (from _featuresWithChoices).
 --- @param creature creature|nil
---- @return string
+--- @return string title
+--- @return table|nil parent
 local function _choicesTitle(features, creature)
     if #features == 0 then
         return "CHOICES"
@@ -143,6 +221,7 @@ local function _choicesTitle(features, creature)
     -- the choice itself; compare owners by object identity.
     local ownerKey = nil
     local ownerName = nil
+    local ownerParent = nil
     for _,feature in ipairs(features) do
         local parent = parents[feature:GetGuid()]
         local key, name
@@ -157,15 +236,16 @@ local function _choicesTitle(features, creature)
         if ownerKey == nil then
             ownerKey = key
             ownerName = name
+            ownerParent = parent
         elseif ownerKey ~= key then
-            return "CHOICES"
+            return "CHOICES", nil
         end
     end
 
     if ownerName == nil or ownerName == "" then
-        return "CHOICES"
+        return "CHOICES", nil
     end
-    return ownerName
+    return ownerName, ownerParent
 end
 
 function CBChoicesDetail._overviewPanel()
@@ -178,7 +258,7 @@ function CBChoicesDetail._overviewPanel()
     }
 
     local nameLabel = gui.Panel{
-        classes = {"builder-base", "panel-base", "detail-overview-labels"},
+        classes = {"builder-base", "panel-base", "detail-overview-labels", "seamless"},
         headerLabel,
     }
 
@@ -186,7 +266,7 @@ function CBChoicesDetail._overviewPanel()
     -- Created lazily so an unused instance is never left orphaned.
     local function makeEmptyLabel()
         return gui.Panel{
-            classes = {"builder-base", "panel-base", "detail-overview-labels"},
+            classes = {"builder-base", "panel-base", "detail-overview-labels", "seamless"},
             gui.Label{
                 classes = {"builder-base", "label", "info", "overview"},
                 vpad = 6,
@@ -214,6 +294,10 @@ function CBChoicesDetail._overviewPanel()
             local featureCache = state:Get(SELECTOR .. ".featureCache")
             local features = _featuresWithChoices(featureCache)
 
+            -- Keep the section header in sync with the feature set: a shared
+            -- parent feature's name when there is one, else "CHOICES".
+            local title, parent = _choicesTitle(features, _getCreature())
+
             local sigParts = {}
             for _,feature in ipairs(features) do
                 sigParts[#sigParts+1] = feature:GetGuid()
@@ -222,15 +306,18 @@ function CBChoicesDetail._overviewPanel()
             if signature == element.data.signature then return end
             element.data.signature = signature
 
-            -- Keep the section header in sync with the feature set: a shared
-            -- parent feature's name when there is one, else "CHOICES".
-            headerLabel.text = _choicesTitle(features, _getCreature())
+            headerLabel.text = title
 
             -- A single feature's name already titles the section, so omit
             -- the redundant per-entry title in that case.
             local single = #features == 1
 
             local children = {}
+
+            -- The shared parent's rules text goes under the title.
+            if parent ~= nil then
+                children[#children+1] = _featureOverviewEntry(nil, _safeGet(parent, "description", ""))
+            end
             for _,feature in ipairs(features) do
                 local title = nil
                 if not single then
@@ -249,9 +336,11 @@ function CBChoicesDetail._overviewPanel()
 
     return gui.Panel{
         id = "choicesOverviewPanel",
-        -- No artwork for the Choices section: surfaceLinear paints a theme
-        -- gradient over the detail-overview-panel's white default.
-        classes = {"choicesOverviewPanel", "builder-base", "panel-base", "detail-overview-panel", "surfaceLinear", "border", "collapsed"},
+        -- Solid backing (no gradient bands); tmargin aligns with the nav.
+        classes = {"choicesOverviewPanel", "builder-base", "panel-base", "detail-overview-panel", "solid-bg", "border", "collapsed"},
+        valign = "top",
+        tmargin = 20,
+        height = "100%-24",
 
         data = {
             category = "overview",
@@ -272,8 +361,12 @@ function CBChoicesDetail._overviewPanel()
             tmargin = 32,
             valign = "top",
             vscroll = true,
-            nameLabel,
-            featureListPanel,
+            -- One shared backing so gaps between entries match the entries.
+            gui.Panel{
+                classes = {"builder-base", "panel-base", "choices-overview-body"},
+                nameLabel,
+                featureListPanel,
+            },
         }
     }
 end
@@ -304,8 +397,144 @@ function CBChoicesDetail._detailPanel()
     }
 end
 
+--- Rulebook-style sidebar box: rounded frame, centered title, diamonds.
+--- @param title string
+--- @param text string
+--- @return Panel
+local function _sidebarBox(title, text)
+    return gui.Panel{
+        classes = {"builder-sidebar"},
+        gui.Panel{
+            classes = {"builder-sidebar-ornament"},
+            floating = true,
+            valign = "top",
+            y = -18,
+            rotate = 45,
+        },
+        gui.Label{
+            classes = {"builder-base", "label", "info", "overview", "builder-sidebar-title"},
+            text = title,
+        },
+        gui.Label{
+            classes = {"builder-base", "label", "info", "overview"},
+            markdown = true,
+            text = text,
+        },
+        gui.Panel{
+            classes = {"builder-sidebar-ornament"},
+            floating = true,
+            valign = "bottom",
+            y = 18,
+            rotate = 45,
+        },
+    }
+end
+
+--- Intro text and sidebar tip from the shared parent's optional data fields
+--- builderIntroTitle/builderIntro and builderSidebarTitle/builderSidebar.
+--- @return Panel
+function CBChoicesDetail._lorePanel()
+    local introTitle = gui.Label{
+        classes = {"builder-base", "label", "info", "overview", "detail-header"},
+        vpad = 6,
+    }
+    local introText = gui.Label{
+        classes = {"builder-base", "label", "info", "overview"},
+        vpad = 6,
+        markdown = true,
+    }
+    local introPanel = gui.Panel{
+        classes = {"builder-base", "panel-base", "detail-overview-labels", "lore-box"},
+        -- detail-overview-labels bottom-aligns by default.
+        valign = "top",
+        introTitle,
+        introText,
+    }
+    local sidebarSlot = gui.Panel{
+        width = "100%-4",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        tmargin = 20,
+    }
+
+    return gui.Panel{
+        classes = {"builder-base", "panel-base", "choices-lore-panel", "collapsed"},
+        vscroll = true,
+        data = {
+            signature = nil,
+        },
+
+        refreshBuilderState = function(element, state)
+            local features = _featuresWithChoices(state:Get(SELECTOR .. ".featureCache"))
+            local _, parent = _choicesTitle(features, _getCreature())
+            local function field(name)
+                local value = parent and _safeGet(parent, name, "") or ""
+                return type(value) == "string" and value or ""
+            end
+            local iTitle, iText = field("builderIntroTitle"), field("builderIntro")
+            local sTitle, sText = field("builderSidebarTitle"), field("builderSidebar")
+
+            local signature = table.concat({iTitle, iText, sTitle, sText}, "\n")
+            if signature == element.data.signature then return end
+            element.data.signature = signature
+
+            element:SetClass("collapsed", iText == "" and sText == "")
+            introPanel:SetClass("collapsed", iText == "")
+            introTitle.text = iTitle
+            introTitle:SetClass("collapsed", iTitle == "")
+            introText.text = iText
+            if sText ~= "" then
+                sidebarSlot.children = {_sidebarBox(sTitle, sText)}
+            else
+                sidebarSlot.children = {}
+            end
+        end,
+
+        introPanel,
+        sidebarSlot,
+    }
+end
+
+--- The shared parent's builderArt image at its own proportions.
+--- @return Panel
+function CBChoicesDetail._artPanel()
+    local image = gui.Panel{
+        classes = {"builder-base", "panel-base", "choices-art-image"},
+        autosizeimage = true,
+        bgcolor = "white",
+    }
+
+    return gui.Panel{
+        classes = {"builder-base", "panel-base", "choices-art-panel", "collapsed"},
+        data = {
+            art = nil,
+        },
+
+        refreshBuilderState = function(element, state)
+            local features = _featuresWithChoices(state:Get(SELECTOR .. ".featureCache"))
+            local _, parent = _choicesTitle(features, _getCreature())
+            local art = parent and _safeGet(parent, "builderArt", nil) or nil
+            if type(art) ~= "string" or art == "" then
+                art = nil
+            end
+            if art == element.data.art then return end
+            element.data.art = art
+
+            element:SetClass("collapsed", art == nil)
+            if art ~= nil then
+                image.bgimage = art
+            end
+        end,
+
+        image,
+    }
+end
+
 function CBChoicesDetail.CreatePanel()
 
+    local lorePanel = CBChoicesDetail._lorePanel()
+    local artPanel = CBChoicesDetail._artPanel()
     local navPanel = CBChoicesDetail._navPanel()
     local detailPanel = CBChoicesDetail._detailPanel()
 
@@ -368,6 +597,8 @@ function CBChoicesDetail.CreatePanel()
         end,
 
         navPanel,
+        lorePanel,
+        artPanel,
         detailPanel,
     }
 end

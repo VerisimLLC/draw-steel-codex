@@ -366,6 +366,44 @@ function creature:GetPointsSpentByName(pointsName)
         string.lower(tostring(pointsName)))
 end
 
+--- Per-purchase breakdown of a points pool: { name, cost, choiceName } per
+--- selected option. Static so hot-reloaded tokens can call it.
+--- @param c creature
+--- @param pointsName string
+--- @return table[]
+function creature.PointsSpentBreakdown(c, pointsName)
+    local result = {}
+    if c == nil or pointsName == nil or pointsName == "" then
+        return result
+    end
+    local targetName = string.lower(tostring(pointsName))
+    local levelChoices = c:GetLevelChoices()
+    for _,entry in ipairs(c:GetBuilderChoiceFeatures()) do
+        local feature = entry.feature
+        if feature ~= nil and feature.typeName == "CharacterFeatureChoice" and feature:try_get("costsPoints", false) then
+            local name = feature:try_get("pointsName", "")
+            if name == nil or name == "" then
+                name = DEFAULT_POINTS_NAME
+            end
+            if string.lower(name) == targetName then
+                for _,selectedId in ipairs(levelChoices[feature.guid] or {}) do
+                    for _,option in ipairs(feature:try_get("options", {})) do
+                        if option.guid == selectedId then
+                            result[#result+1] = {
+                                name = option.name,
+                                cost = option.pointsCost or 1,
+                                choiceName = feature:try_get("name", ""),
+                            }
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return result
+end
+
 --- character override: point pools most commonly live on class/race/career/
 --- etc. features, which are surfaced by GetClassFeaturesAndChoicesWithDetails
 --- rather than the catch-all builder-choice sources.

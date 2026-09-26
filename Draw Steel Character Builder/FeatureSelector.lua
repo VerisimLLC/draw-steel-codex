@@ -385,10 +385,11 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
     end
 
     -- When a feature offers an unbounded number of point-costed choices, show
-    -- a running total of points spent of that type on the creature.
+    -- what the creature's points of that type were spent on (or the total).
     local pointsHeader = gui.Label{
         classes = {"builder-base", "label", "collapsed"},
         halign = "left",
+        textAlignment = "left",
         valign = "top",
         bold = true,
         fontSize = 16,
@@ -404,6 +405,23 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 local creature = _getCreature()
                 local spent = creature and creature:GetPointsSpentByName(pointsName) or 0
                 element.text = string.format("%d %s spent", spent, pointsName)
+
+                -- One line per purchase: "2 points spent on Elemental (Supernatural)".
+                local lines = {}
+                local listed = 0
+                for _,item in ipairs(creature and creature.PointsSpentBreakdown(creature, pointsName) or {}) do
+                    listed = listed + item.cost
+                    local category = string.match(item.choiceName, "^Choice of (.-) Traits?$") or item.choiceName
+                    local line = string.format("%d %s spent on %s", item.cost, item.cost == 1 and "point" or "points", item.name)
+                    if category ~= "" then
+                        line = string.format("%s (%s)", line, category)
+                    end
+                    lines[#lines+1] = line
+                end
+                -- Fall back to the total if the breakdown misses some points.
+                if #lines > 0 and listed == spent then
+                    element.text = table.concat(lines, "\n")
+                end
                 visible = true
             end
             element:SetClass("collapsed", not visible)

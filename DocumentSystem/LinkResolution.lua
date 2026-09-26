@@ -189,12 +189,21 @@ end
 --[:...] page embed shows), so mousing over the link reads the room info
 --without going anywhere. Falls back to PreviewDescription when the bubble
 --is on another map (not enumerable from here) or carries no document.
+--The starting depth deliberately bounds nesting inside a hover card more tightly
+--than a full journal page, but 2 bounded it to NOTHING: CreateEmbeddablePanel
+--refuses at >= 3 and adds 1 for the panel it builds, so the page rendered here
+--began life at 3 and every embed on it came back "(Too Deeply Nested)" -- while
+--the very same embed worked when the page was opened from the journal, which
+--starts at 0. That asymmetry is what reporters hit and could not explain
+--("sometimes it works"; "it was because I was in the Map Journal instead of the
+--original Journal"). 1 leaves room for one embed inside the previewed page and
+--still stops a hover card nesting as deeply as a journal page can.
 function BubbleDocument:Render(args)
     local doc = self:GetMarkdownDocument()
     if doc == nil then
         return nil
     end
-    return CustomDocument.CreateEmbeddablePanel(doc, { embedDepth = 2 })
+    return CustomDocument.CreateEmbeddablePanel(doc, { embedDepth = 1 })
 end
 
 function BubbleDocument:PreviewDescription()

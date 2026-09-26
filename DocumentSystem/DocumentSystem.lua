@@ -1193,6 +1193,63 @@ function CustomDocument:CreateInterface(args)
     local AUTOSAVE_IDLE_DELAY = 15
     local AUTOSAVE_MAX_DELAY = 60
 
+    -- A delta is only meaningful while the server still holds the baseline it was
+    -- computed against. Every in-place control (bar +/-, checkbox, counter, macro strike,
+    -- spoiler link, power-roll preset) uploads the WHOLE item out of band, and refreshGame
+    -- deliberately does not refresh us while we are editing -- so the document can move
+    -- under an open editor without data.original ever hearing about it. A delta computed
+    -- from the stale baseline then writes TextStorage shard keys derived from text the
+    -- server no longer holds. Usually the two sides touched different shards and it
+    -- composes; when they touched the SAME shard the other write is silently overwritten
+    -- and the resulting shard map is consistent only by luck.
+    --
+    -- True when the server has moved since our baseline AND our own edit overlaps what
+    -- moved there, i.e. when a delta must not be trusted.
+    local function DeltaBaselineStale()
+        local baseline = resultPanel.data.original
+        local baseId = resultPanel.data.originalUpdateId
+        if baseline == nil or baseId == nil then
+            return false
+        end
+
+        local live = (dmhub.GetTable(CustomDocument.tableName) or {})[self.id]
+        if live == nil or live.updateid == baseId or live.updateid == resultPanel.data.pendingUpload then
+            --unmoved, or moved only by our own save still awaiting its echo.
+            return false
+        end
+
+        local function sections(doc)
+            if doc == nil then
+                return nil
+            end
+            local ts = doc.textStorage
+            if ts == nil then
+                return nil
+            end
+            return ts.sections
+        end
+
+        local base, srv, mine = sections(baseline), sections(live), sections(self)
+        if base == nil or srv == nil or mine == nil then
+            --unsharded, or a shape we cannot compare: a moved server is enough on its own.
+            return true
+        end
+
+        for k, v in pairs(mine) do
+            if base[k] ~= v and srv[k] ~= base[k] then
+                --we rewrote a shard that the other write also changed.
+                return true
+            end
+        end
+        for k, v in pairs(base) do
+            if mine[k] == nil and srv[k] ~= v then
+                --we dropped a shard that the other write had changed.
+                return true
+            end
+        end
+        return false
+    end
+
     -- Issue a save and arm the confirmation watchdog. fullWrite=true forces a complete
     -- document upload with no delta baseline (used for the retry); otherwise the upload is
     -- a delta against the last server-confirmed baseline (data.original). Returns true if
@@ -1204,6 +1261,20 @@ function CustomDocument:CreateInterface(args)
         if not fullWrite and dmhub.DeepEqual(self, resultPanel.data.original) then
             --nothing changed since the confirmed baseline; nothing to upload.
             return false
+        end
+
+        if not fullWrite and DeltaBaselineStale() then
+            --Send the whole document instead. That loses the other client's overlapping
+            --change -- a single click to redo -- but leaves the document internally
+            --consistent, which a delta against a baseline the server no longer holds
+            --cannot promise. Logged rather than silent: this is the shape of "the
+            --journal ate my text" reports, and it has to be visible in recentErrors to
+            --be diagnosable at all.
+            local live = (dmhub.GetTable(CustomDocument.tableName) or {})[self.id] or {}
+            dmhub.Debug(string.format(
+                "JOURNAL_SAVE:: document '%s' moved under an open editor (baseline updateid %s, server now %s); writing the whole document instead of a delta.",
+                tostring(self.id), tostring(resultPanel.data.originalUpdateId), tostring(live.updateid)))
+            fullWrite = true
         end
 
         local deltaFrom = nil
@@ -1315,10 +1386,21 @@ function CustomDocument:CreateInterface(args)
                 if IsEditing() then
                     resultPanel:FireEventTree("savedoc")
                     if not dmhub.DeepEqual(self, resultPanel.data.original) then
-                        self:Upload(resultPanel.data.original)
+                        --This path saves without going through BeginSaveAttempt, so it
+                        --needs the same guard: a delta is worthless once the server no
+                        --longer holds the baseline it was computed against.
+                        if DeltaBaselineStale() then
+                            self:Upload()
+                        else
+                            self:Upload(resultPanel.data.original)
+                        end
                     end
                 else
                     resultPanel.data.original = DeepCopy(self)
+                    --the revision this baseline IS. DeltaBaselineStale compares the
+                    --server against it to tell "nobody else has touched this" from
+                    --"the baseline is fiction now".
+                    resultPanel.data.originalUpdateId = self.updateid
                     resultPanel.data.pendingOriginal = nil
                     resultPanel.data.pendingUpload = nil
                 end
@@ -2094,6 +2176,8 @@ function CustomDocument:CreateInterface(args)
                     --reaching here means the write really landed server-side.
                     if resultPanel.data.pendingOriginal ~= nil then
                         resultPanel.data.original = resultPanel.data.pendingOriginal
+                        --the echo we just matched IS this baseline's revision.
+                        resultPanel.data.originalUpdateId = doc.updateid
                         resultPanel.data.pendingOriginal = nil
                     end
                     resultPanel.data.pendingUpload = nil

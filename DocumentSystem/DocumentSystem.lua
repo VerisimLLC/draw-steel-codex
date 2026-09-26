@@ -3679,6 +3679,31 @@ function CustomDocument.GetOrCreateTabbedViewer()
             element.selfStyle.height = h
         end,
 
+        --The user closed the popped-out OS window. This is the ONE close path that
+        --does not run through closetab, so the unsaved-changes guard never sees it and
+        --anything typed since the last autosave was simply gone -- the form editors
+        --(montage, heroic test, negotiation) write straight into the document object
+        --and rely on the shell to upload, so up to AUTOSAVE_IDLE_DELAY seconds of a
+        --Director's work sat only in memory.
+        --
+        --The engine fires this synchronously on the window's sheet before it destroys
+        --the canvas (NativeWindowManager.cs, the CloseWindow branch), and only for a
+        --user-initiated close -- pop-in, Lua reload and app exit do not come here --
+        --so it is both the last moment the panels are alive and the right moment to
+        --act. Save rather than prompt: a modal raised inside a window that is being
+        --torn down cannot be answered.
+        --
+        --saveDocument is BeginSaveAttempt, which no-ops when the document has not
+        --diverged from its baseline, so firing it at every realized tab costs nothing
+        --for the tabs nobody edited. Unrealized tabs have no panel and no edits.
+        nativeWindowClosed = function(element)
+            for _, tab in ipairs(element.data.tabs or {}) do
+                if tab.contentPanel ~= nil and tab.contentPanel.valid then
+                    tab.contentPanel:FireEvent("saveDocument")
+                end
+            end
+        end,
+
         --window-shade: roll the window up so only the tab strip remains,
         --or roll it back down. Toggled by double-clicking the tab strip.
         toggleShade = function(element)

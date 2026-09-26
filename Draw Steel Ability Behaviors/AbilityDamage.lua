@@ -28,7 +28,7 @@ function ActivatedAbilityDamageBehavior:AccumulateSavingThrowConsequence(ability
 	consequences.damage = consequences.damage or {}
 	consequences.damage[#consequences.damage+1] = {
 		amount = dmhub.NormalizeRoll(dmhub.EvalGoblinScript(self.roll, casterToken.properties:LookupSymbol(options.symbols or {}), string.format("Damage roll for %s", ability.name))),
-		damageType = self.damageType,
+		damageType = self:EffectiveDamageType(ability, options),
 		success = self.dcsuccess,
 		tokens = tokenids,
 	}
@@ -51,7 +51,7 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
     if string.trim(self.chatMessage) ~= "" then
         logMessage = ActivatedAbilityDamageChatMessage.new{
             amount = 0,
-            damageType = self.damageType,
+            damageType = self:EffectiveDamageType(ability, options),
             chatMessage = self.chatMessage,
             casterid = casterToken.charid,
             targetids = tokenids,
@@ -141,7 +141,7 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 		local modifiers = casterToken.properties:GetDamageRollModifiers(nil, nil, {
 			ability = ability,
 			roll = targetGroup.roll,
-			damageTypes = StringSet.new{ strings = { self.damageType } },
+			damageTypes = StringSet.new{ strings = { self:EffectiveDamageType(ability, options) } },
 			symbols = {
 				ability = GenerateSymbols(ability),
 				cast = GenerateSymbols(options.symbols.cast),
@@ -382,6 +382,22 @@ function ActivatedAbilityDamageBehavior:Cast(ability, casterToken, targets, opti
 end
 
 
+--Modify Ability's "Damage Type: Add" can offer extra damage types as modes; when the caster
+--picked one, that mode's type replaces self.damageType for this cast.
+--- @param ability ActivatedAbility
+--- @param options nil|table Cast options; options.symbols.mode is the chosen mode index.
+--- @return string
+function ActivatedAbilityDamageBehavior:EffectiveDamageType(ability, options)
+	local mode = options ~= nil and options.symbols ~= nil and options.symbols.mode or nil
+	if mode ~= nil and ability ~= nil and ability.multipleModes then
+		local modeInfo = ability:try_get("modeList", {})[mode]
+		if modeInfo ~= nil and modeInfo.damageType ~= nil then
+			return modeInfo.damageType
+		end
+	end
+	return self.damageType
+end
+
 --NOTE: casterCreature may be nil (currently not used at all)
 function ActivatedAbilityDamageBehavior:DescribeRoll(casterCreature, ability, options)
 
@@ -391,7 +407,7 @@ function ActivatedAbilityDamageBehavior:DescribeRoll(casterCreature, ability, op
 		roll = dmhub.EvalGoblinScript(roll, casterCreature:LookupSymbol(options.symbols), string.format("Damage roll for table for %s", ability.name))
 	end
 
-	return string.format("%s [%s%s]", roll, cond(self:try_get("magicalDamage", ability.isSpell), "magical ", ""), self.damageType)
+	return string.format("%s [%s%s]", roll, cond(self:try_get("magicalDamage", ability.isSpell), "magical ", ""), self:EffectiveDamageType(ability, options))
 end
 
 function ActivatedAbilityDamageBehavior:AccumulateDamageTypes(ability, result)

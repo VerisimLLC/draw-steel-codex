@@ -704,16 +704,79 @@ CharacterModifier.RegisterAbilityModifier
 		},
 	}
 
+--- @param damageType string
+--- @return string
+local function DamageTypeModeText(damageType)
+	return string.upper(string.sub(damageType, 1, 1)) .. string.sub(damageType, 2) .. " Damage"
+end
+
+--Free strikes carry a single damage behavior, so the first one's type stands for the ability.
+--- @param ability ActivatedAbility
+--- @return string|nil
+local function FirstDirectDamageType(ability)
+	for _,behavior in ipairs(ability.behaviors) do
+		if behavior.typeName == "ActivatedAbilityDamageBehavior" then
+			return string.lower(behavior.damageType)
+		end
+	end
+	return nil
+end
+
+--"Add" offers the new type as a cast-time mode instead of retyping the damage. The mode
+--only records `damageType`; ActivatedAbilityDamageBehavior:EffectiveDamageType applies it
+--when cast, so power-roll tiers are not affected.
+--- @param ability ActivatedAbility
+--- @param value string
+local function AddDamageTypeMode(ability, value)
+	local baseType = FirstDirectDamageType(ability)
+	if baseType == nil or baseType == value then
+		--nothing to choose between, so don't make the player pick.
+		return
+	end
+
+	local modeList = ability:try_get("modeList")
+	if ability.multipleModes then
+		--only extend a mode list this operation built; never mix into authored modes.
+		if modeList == nil or #modeList < 2 or modeList[2].damageType == nil then
+			return
+		end
+		for _,mode in ipairs(modeList) do
+			if mode.damageType == value then
+				return
+			end
+		end
+	else
+		ability.multipleModes = true
+		modeList = {
+			{ text = DamageTypeModeText(baseType), rules = "", damageTypeBase = true },
+		}
+		ability.modeList = modeList
+	end
+
+	modeList[#modeList+1] = { text = DamageTypeModeText(value), rules = "", damageType = value }
+end
+
 CharacterModifier.RegisterAbilityModifier
 	{
 		id = "damagetype",
 		text = "Damage Type",
-		operations = { "Set" },
+		operations = { "Set", "Add" },
 		set = function(modifier, creature, ability, operation, value)
 			if value == nil or value == "" then
 				return true
 			end
 			value = string.lower(value)
+
+			if operation == "Add" then
+				AddDamageTypeMode(ability, value)
+				return true
+			end
+
+			--a Set that lands after an Add changes the base type, so relabel mode 1 to match.
+			local modeList = ability:try_get("modeList")
+			if modeList ~= nil and modeList[1] ~= nil and modeList[1].damageTypeBase then
+				modeList[1].text = DamageTypeModeText(value)
+			end
 
 			for _,behavior in ipairs(ability.behaviors) do
 				if behavior.typeName == "ActivatedAbilityDamageBehavior" then

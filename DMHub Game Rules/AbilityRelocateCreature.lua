@@ -361,6 +361,38 @@ function ActivatedAbilityRelocateCreatureBehavior:ExecuteGuaranteedCharge(caster
     end
 end
 
+--Rebound spends the full forced-movement distance, but the engine takes the total force from
+--the square that was clicked. If that click hits an obstacle short of the full distance, extend
+--it along the same straight line so the bounce uses all of the remaining force.
+local function ExtendReboundDestination(moverToken, loc, fullDist, probeOptions)
+    if loc == nil then
+        return loc
+    end
+
+    local origin = moverToken.loc
+    local dx = loc.x - origin.x
+    local dy = loc.y - origin.y
+    local dist = math.max(math.abs(dx), math.abs(dy))
+    if dist == 0 or dist >= fullDist then
+        return loc
+    end
+
+    --only the eight straight directions can be extended without changing the line.
+    if dx ~= 0 and dy ~= 0 and math.abs(dx) ~= math.abs(dy) then
+        return loc
+    end
+
+    local probe = moverToken:MarkMovementArrow(loc, probeOptions)
+    local collides = probe ~= nil and probe.path ~= nil and probe.path.hasCollision
+    moverToken:ClearMovementArrow()
+    if not collides then
+        return loc
+    end
+
+    local extra = fullDist - dist
+    return loc:dir(cond(dx == 0, 0, cond(dx > 0, extra, -extra)), cond(dy == 0, 0, cond(dy > 0, extra, -extra)))
+end
+
 --- @param targets {loc: Loc|nil, token: CharacterToken|nil}[]
 function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
     print("Relocate:: Cast relocate", #targets)
@@ -623,6 +655,10 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 			local throughCreatures = ability:try_get("forcedMovementThroughCreatures", false)
 			local forcedPushOptions = casterToken.properties:GetForcedPushOptions()
 			local abilityDist = ability:GetRange(casterToken.properties)/dmhub.unitsPerSquare
+			if forcedPushOptions.rebound and (ability.targeting == "straightline" or ability.targetType == "line") and #targets > 0 then
+				local probeOptions = {waypoints = options.symbols.waypoints, straightline = true, ignorecreatures = (ability.targetType == "line" or throughCreatures), forcedMovementDistance = abilityDist, rebound = true, maxBounces = forcedPushOptions.maxBounces}
+				targets[#targets].loc = ExtendReboundDestination(casterToken, targets[#targets].loc, abilityDist, probeOptions)
+			end
 			if ability.targeting == "straightline" or ability.targetType == "line" then
 				local abilityDistForArrow = abilityDist
 				local isVerticalSlide = (options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide")) == "vertical_slide"

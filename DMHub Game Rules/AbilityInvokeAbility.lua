@@ -813,6 +813,12 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                 targets = { { token = overrideLead } }
             else
                 targets, squadParticipantsByLead = CollapseTargetsBySquad(targets)
+                --Applying to the caster picks no minions, so don't narrow the squad to
+                --the caster alone: the whole squad joins in, as with a normal squad
+                --cast (e.g. Charge's follow-up attack must let every runner strike).
+                if self.applyto == "caster" then
+                    squadParticipantsByLead = nil
+                end
             end
         end
 

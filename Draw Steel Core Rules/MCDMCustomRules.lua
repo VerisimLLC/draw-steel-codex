@@ -440,3 +440,284 @@ CharacterResource.groupingOptions = {
         text = "Hidden",
     },
 }
+
+--[[
+    Rival Abilities (Monsters p.232): a rival can replace its signature ability
+    with a signature ability from its class, or from any kit for the classes in
+    RIVAL_KIT_CLASSES. The replacement deals extra damage equal to the rival's
+    level and targets two creatures if it normally targets one.
+
+    The options are built per rival from its class, so this choice lives once in
+    the Rival Ancestries template. A stored pick is "rivalsig:<ability guid>",
+    which is enough to rebuild the granted ability without the creature.
+]]
+--- @class CharacterRivalAbilityChoice: CharacterFeatureChoice
+--- @field new fun(o?: table): CharacterRivalAbilityChoice
+CharacterRivalAbilityChoice = RegisterGameType("CharacterRivalAbilityChoice", "CharacterFeatureChoice")
+
+CharacterRivalAbilityChoice.name = "Rival Abilities"
+CharacterRivalAbilityChoice.numChoices = "1"
+
+local RIVAL_OPTION_PREFIX = "rivalsig:"
+local RIVAL_ORIGINAL_ID = "rivalsig:original"
+
+--Which rivals may also take a kit signature ability. The book lists the fury,
+--shadow, and tactician; the censor is a house addition.
+local RIVAL_KIT_CLASSES = { Fury = true, Shadow = true, Tactician = true, Censor = true }
+
+--- The rival's class name from its stat block, e.g. "Rival Conduit E3" -> "Conduit".
+--- @param creature creature
+--- @return string|nil
+local function _rivalClassName(creature)
+    local monsterType = creature:try_get("monster_type", "")
+    local className = string.match(monsterType, "^Rival (.+)$")
+    if className == nil then return nil end
+    return (string.gsub(className, "%s+E%d+$", ""))
+end
+
+--- The stat block's own signature ability, if it has one.
+--- @param creature creature
+--- @return ActivatedAbility|nil
+local function _rivalOwnSignature(creature)
+    for _,ability in ipairs(creature:try_get("innateActivatedAbilities") or {}) do
+        if ability:try_get("categorization") == "Signature Ability" then
+            return ability
+        end
+    end
+    return nil
+end
+
+--- Signature abilities granted by a class's level-1 choices.
+--- @param class Class
+--- @return ActivatedAbility[]
+local function _classSignatureAbilities(class)
+    local result = {}
+    for _,level in pairs(class:try_get("levels") or {}) do
+        for _,feature in ipairs(level.features or {}) do
+            for _,option in ipairs(feature:try_get("options") or {}) do
+                for _,modifier in ipairs(option:try_get("modifiers") or {}) do
+                    local ability = modifier:try_get("activatedAbility")
+                    if ability ~= nil and ability:try_get("categorization") == "Signature Ability" then
+                        result[#result+1] = ability
+                    end
+                end
+            end
+        end
+    end
+    return result
+end
+
+--- Every class and kit signature ability, keyed by guid, with where it came from.
+--- @return table<string, {ability: ActivatedAbility, className: string|nil, kitName: string|nil}>
+local function _rivalAbilityIndex()
+    local index = {}
+    for _,class in unhidden_pairs(GetTableCached("classes")) do
+        for _,ability in ipairs(_classSignatureAbilities(class)) do
+            index[ability.guid] = { ability = ability, className = class.name }
+        end
+    end
+    for _,kit in unhidden_pairs(GetTableCached(Kit.tableName)) do
+        local ability = kit:try_get("signatureAbility")
+        if ability ~= nil and ability:try_get("guid") ~= nil then
+            index[ability.guid] = { ability = ability, kitName = kit.name }
+        end
+    end
+    return index
+end
+
+--Built options are cached by id: the builder asks for them every refresh.
+local g_rivalOptionCache = {}
+
+--- The option for one replacement ability: grants the rival version of the
+--- ability and suppresses the stat block's own signature ability.
+--- @param entry {ability: ActivatedAbility, className: string|nil, kitName: string|nil}
+--- @return CharacterFeature
+local function _rivalReplacementOption(entry)
+    local id = RIVAL_OPTION_PREFIX .. entry.ability.guid
+    local cached = g_rivalOptionCache[id]
+    if cached ~= nil then return cached end
+
+    local ability = DeepCopy(entry.ability)
+    ability.categorization = "Signature Ability"
+
+    local notes = {"+Level damage"}
+    if tostring(ability:try_get("numTargets", "1")) == "1" and ability:try_get("targetType") == "target" then
+        ability.numTargets = "2"
+        notes[#notes+1] = "targets 2"
+    end
+
+    --Extra damage equal to the rival's level, the way Ability Customisation adds damage.
+    local behaviorGuid = dmhub.GenerateGuid()
+    local powerMod = CharacterModifier.new{
+        guid = dmhub.GenerateGuid(),
+        sourceguid = behaviorGuid,
+        name = "Rival Ability",
+        description = "",
+        behavior = "power",
+        domains = {},
+    }
+    CharacterModifier.TypeInfo.power.init(powerMod)
+    powerMod.rollType = "ability_power_roll"
+    powerMod.activationCondition = true
+    powerMod.damageModifier = "Level"
+    ability.behaviors[#ability.behaviors+1] = ActivatedAbilityModifyPowerRollBehavior.new{
+        guid = behaviorGuid,
+        modifier = powerMod,
+    }
+
+    local source = entry.kitName and (entry.kitName .. " kit") or (entry.className or "")
+    local option = CharacterFeature.new{
+        guid = id,
+        name = ability.name,
+        description = string.format("%s signature ability (%s).", source, table.concat(notes, ", ")),
+        source = "Rival Abilities",
+        implementation = ability:try_get("implementation", 1),
+        --The builder lists class abilities, then kit abilities, each as its own group.
+        builderGroup = entry.kitName and "Kit Abilities" or "Class Abilities",
+        order = (entry.kitName and "3 " or "2 ") .. ability.name,
+        modifiers = {
+            CharacterModifier.new{
+                guid = id .. ":grant",
+                name = ability.name,
+                description = "",
+                behavior = "activated",
+                source = "Rival Abilities",
+                sourceguid = id,
+                activatedAbility = ability,
+            },
+            CharacterModifier.new{
+                guid = id .. ":suppress",
+                name = "Rival Abilities",
+                description = "",
+                behavior = "suppressabilities",
+                source = "Rival Abilities",
+                sourceguid = id,
+                --Hide other signature abilities (the stat block's own). No explanation, so
+                --it is removed rather than shown greyed out.
+                abilityFilter = string.format('Ability.Categorization != "Signature Ability" or Ability.Name = "%s"', ability.name),
+            },
+        },
+    }
+    g_rivalOptionCache[id] = option
+    return option
+end
+
+--- Display-only option for the stat block's own ability; picking it changes nothing.
+--- @param own ActivatedAbility
+--- @return CharacterFeature
+local function _rivalOriginalOption(own)
+    return CharacterFeature.new{
+        guid = RIVAL_ORIGINAL_ID,
+        name = own.name,
+        description = "The rival's own signature ability.",
+        source = "Rival Abilities",
+        implementation = own:try_get("implementation", 1),
+        builderGroup = "Class Abilities",
+        order = "1",
+        modifiers = {
+            CharacterModifier.new{
+                guid = RIVAL_ORIGINAL_ID .. ":show",
+                name = own.name,
+                description = "",
+                behavior = "activated",
+                source = "Rival Abilities",
+                sourceguid = RIVAL_ORIGINAL_ID,
+                activatedAbility = own,
+            },
+        },
+    }
+end
+
+--- Options for applying picks: only the stored replacements, no creature needed.
+--- @param choices table levelChoices
+--- @return CharacterFeature[]
+function CharacterRivalAbilityChoice:GetOptions(choices, creature)
+    if creature ~= nil then
+        return self:GetEntries(creature)
+    end
+    local result = {}
+    local picked = choices[self.guid]
+    if picked == nil then return result end
+    local index = nil
+    for _,id in ipairs(picked) do
+        if id ~= RIVAL_ORIGINAL_ID and string.sub(id, 1, #RIVAL_OPTION_PREFIX) == RIVAL_OPTION_PREFIX then
+            local cached = g_rivalOptionCache[id]
+            if cached == nil then
+                index = index or _rivalAbilityIndex()
+                local entry = index[string.sub(id, #RIVAL_OPTION_PREFIX + 1)]
+                cached = entry and _rivalReplacementOption(entry)
+            end
+            result[#result+1] = cached
+        end
+    end
+    return result
+end
+
+--- Builder list for this rival: its own ability first, then its class's
+--- signature abilities, then kit signature abilities where allowed.
+--- @param creature creature
+--- @return CharacterFeature[]
+function CharacterRivalAbilityChoice:GetEntries(creature)
+    local result = {}
+    local own = _rivalOwnSignature(creature)
+    if own ~= nil then
+        result[#result+1] = _rivalOriginalOption(own)
+    end
+
+    local className = _rivalClassName(creature)
+    if className == nil then return result end
+
+    local classEntries, kitEntries = {}, {}
+    for _,entry in pairs(_rivalAbilityIndex()) do
+        if entry.className == className then
+            classEntries[#classEntries+1] = entry
+        elseif entry.kitName ~= nil and RIVAL_KIT_CLASSES[className] then
+            kitEntries[#kitEntries+1] = entry
+        end
+    end
+    local byName = function(a, b) return a.ability.name < b.ability.name end
+    table.sort(classEntries, byName)
+    table.sort(kitEntries, byName)
+    for _,entry in ipairs(classEntries) do result[#result+1] = _rivalReplacementOption(entry) end
+    for _,entry in ipairs(kitEntries) do result[#result+1] = _rivalReplacementOption(entry) end
+    return result
+end
+
+function CharacterRivalAbilityChoice:Choices(numOption, existingChoices, creature)
+    local result = {}
+    for _,option in ipairs(self:GetEntries(creature)) do
+        result[#result+1] = {
+            id = option.guid,
+            text = option.name,
+            description = option.description,
+            modifiers = option.modifiers,
+        }
+    end
+    return result
+end
+
+--Builder hooks (looked up on the type table, so plain functions with self first).
+--Until the Director picks something, the stat block's own ability shows as chosen.
+function CharacterRivalAbilityChoice.GetSelected(self, creature)
+    local picked = creature:GetLevelChoices()[self.guid]
+    if picked == nil then
+        return { RIVAL_ORIGINAL_ID }
+    end
+    return picked
+end
+
+--A tactician or fury can have 30+ options, so offer the builder's search box.
+function CharacterRivalAbilityChoice.OfferFilter()
+    return true
+end
+
+--Removing the implicit "own ability" pick stores an empty list, which frees the
+--slot for a replacement.
+function CharacterRivalAbilityChoice.RemoveSelection(self, creature, option)
+    local levelChoices = creature:GetLevelChoices()
+    if levelChoices[self.guid] == nil and option ~= nil and option.guid == RIVAL_ORIGINAL_ID then
+        levelChoices[self.guid] = {}
+        return true
+    end
+    return false
+end

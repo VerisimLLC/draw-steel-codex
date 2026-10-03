@@ -268,6 +268,15 @@ local function _panelStyles()
             valign = "top",
             flow = "vertical",
         },
+        -- Showcase page (e.g. rival ancestry): sized like the hero Ancestry overview.
+        {
+            selectors = {"choices-showcase-panel"},
+            width = 620,
+            height = "100%-24",
+            tmargin = 20,
+            hmargin = 16,
+            valign = "top",
+        },
         -- Art column; the image keeps its own proportions.
         {
             selectors = {"choices-art-panel"},
@@ -363,6 +372,49 @@ local function _panelStyles()
         {
             selectors = {"feature-choice", "filtered"},
             collapsed = true,
+        },
+        -- Option groups (an option's builderGroup): a row in a collapsed group is hidden.
+        {
+            selectors = {"feature-choice", "group-collapsed"},
+            collapsed = true,
+        },
+        {
+            selectors = {"feature-group-header"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            valign = "top",
+            tmargin = 14,
+            bmargin = 6,
+            bgimage = true,
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"feature-group-row"},
+            width = "100%",
+            height = 34,
+            flow = "horizontal",
+        },
+        {
+            selectors = {"feature-group-caret"},
+            width = 14,
+            height = 14,
+            halign = "left",
+            valign = "center",
+            hmargin = 8,
+            bgcolor = "@fgMuted",
+        },
+        {
+            selectors = {"feature-group-header", "hover"},
+            bgcolor = "@bgRaised",
+        },
+        {
+            selectors = {"feature-group-underline"},
+            width = "100%",
+            height = 1,
+            bgimage = true,
+            bgcolor = "@border",
+            opacity = 0.35,
         },
         -- Drop target glow for individual target slots (when dragging options over)
         {
@@ -736,6 +788,25 @@ end
 --- @return table[] Array of style definitions
 local function _labelStyles()
     return _applyRootSelectors("label", {
+        -- Option group header text (FeatureSelector groupedOptionPanel).
+        {
+            selectors = {"builder-base", "feature-group-title"},
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            fontSize = 20,
+            bold = true,
+            color = "@fg",
+        },
+        {
+            selectors = {"builder-base", "feature-group-count"},
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            hmargin = 10,
+            fontSize = 16,
+            color = "@fgMuted",
+        },
         {
             selectors = {},
             height = "auto",
@@ -859,6 +930,15 @@ local function _labelStyles()
             textAlignment = "center",
             fontSize = 16,
             italics = true,
+        },
+        -- Rules text set like the Overview page (choice sets builderDescriptionStyle = "rules").
+        {
+            selectors = {"feature-header", "desc", "rules"},
+            width = "100%",
+            hpad = 12,
+            textAlignment = "left",
+            fontSize = 18,
+            italics = false,
         },
 
         -- Selector target for skill selection etc.

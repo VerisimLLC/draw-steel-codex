@@ -136,7 +136,7 @@ function CBFeatureSelector.BuildSelectorPanel(overrides)
             end,
         },
         gui.Label{
-            classes = {"builder-base", "label", "feature-header", "desc"},
+            classes = {"builder-base", "label", "feature-header", "desc", header.descriptionStyle},
             text = header.description,
             markdown = true,
             updateHeaderDesc = function(element, text)
@@ -233,6 +233,8 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
     local header = {
         name = feature:GetName(),
         description = feature:GetDescription(),
+        -- "rules" sets a long description as left-aligned body text (see Styles.lua).
+        descriptionStyle = _safeGet(feature:GetFeature(), "builderDescriptionStyle", nil),
     }
 
     local targetPanel = function(featureId, itemIndex)
@@ -815,22 +817,124 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         }
     end
 
+    -- An option's builderGroup (e.g. "Class Abilities"), or nil when ungrouped.
+    local function _optionGroup(option)
+        local raw = option and option:GetOption()
+        local group = raw and _safeGet(raw, "builderGroup", nil)
+        return type(group) == "string" and group or nil
+    end
+
+    -- A row plus a collapsible group header, shown only above the first row
+    -- of each group. Clicking the header hides or shows the whole group.
+    local groupedOptionPanel = function(featureId)
+        local row = optionPanel(featureId)
+        return gui.Panel{
+            classes = {"builder-base", "panel-base"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            valign = "top",
+            assignGroup = function(element, info)
+                row:SetClass("group-collapsed", info.collapsed == true)
+            end,
+            gui.Panel{
+                classes = {"builder-base", "panel-base", "feature-group-header", "collapsed"},
+                data = { group = nil },
+                press = function(element)
+                    if element.data.group ~= nil then
+                        element:FireEventOnParents("toggleOptionGroup", element.data.group)
+                    end
+                end,
+                assignGroup = function(element, info)
+                    element.data.group = info.name
+                    element:SetClass("collapsed", not info.first)
+                end,
+                -- Section-header grammar (STYLE_GUIDE.md): caret, label, count, underline.
+                gui.Panel{
+                    classes = {"builder-base", "panel-base", "feature-group-row"},
+                    interactable = false,
+                    gui.Panel{
+                        classes = {"builder-base", "panel-base", "feature-group-caret"},
+                        bgimage = "phosphor/caret-down-fill.png",
+                        assignGroup = function(element, info)
+                            element.bgimage = info.collapsed and "phosphor/caret-right-fill.png" or "phosphor/caret-down-fill.png"
+                        end,
+                    },
+                    gui.Label{
+                        classes = {"builder-base", "label", "feature-group-title"},
+                        assignGroup = function(element, info)
+                            element.text = info.name or ""
+                        end,
+                    },
+                    gui.Label{
+                        classes = {"builder-base", "label", "feature-group-count"},
+                        assignGroup = function(element, info)
+                            element.text = tostring(info.count or 0)
+                        end,
+                    },
+                },
+                gui.Panel{
+                    classes = {"builder-base", "panel-base", "feature-group-underline"},
+                    interactable = false,
+                },
+            },
+            row,
+        }
+    end
+
     local optionsContainer = {
         data = {
             featureId = feature:GetGuid(),
+            collapsedGroups = {},
         },
+        toggleOptionGroup = function(element, group)
+            element.data.collapsedGroups[group] = not element.data.collapsedGroups[group]
+            local state = _getState()
+            if state ~= nil then
+                element:FireEvent("refreshBuilderState", state)
+            end
+        end,
         refreshBuilderState = function(element, state)
             local cachedFeature = getCachedFeature(state, element.data.featureId)
             if cachedFeature == nil then return end
             local options = cachedFeature:GetChoices()
             if options == nil or #options == 0 then return end
 
+            local grouped = _optionGroup(options[1]) ~= nil
             for _ = #element.children + 1, #options do
-                element:AddChild(optionPanel(element.data.featureId))
+                element:AddChild(grouped and groupedOptionPanel(element.data.featureId) or optionPanel(element.data.featureId))
             end
 
             for i, child in ipairs(element.children) do
                 child:FireEventTree("assignItem", options[i])
+            end
+
+            if grouped then
+                local counts = {}
+                for _,option in ipairs(options) do
+                    -- Same rule the rows use: a picked unique option is hidden.
+                    if option:GetUnique() == false or option:GetSelected() == false then
+                        local group = _optionGroup(option) or ""
+                        counts[group] = (counts[group] or 0) + 1
+                    end
+                end
+                -- The header rides on the first visible row of each group, so a
+                -- group whose only option is already picked shows no header.
+                local previous = nil
+                for i, child in ipairs(element.children) do
+                    local option = options[i]
+                    local group = option and (_optionGroup(option) or "")
+                    local shown = option ~= nil and (option:GetUnique() == false or option:GetSelected() == false)
+                    child:FireEventTree("assignGroup", {
+                        name = group,
+                        first = shown and group ~= previous,
+                        count = group and counts[group] or 0,
+                        collapsed = group ~= nil and element.data.collapsedGroups[group] == true,
+                    })
+                    if shown then
+                        previous = group
+                    end
+                end
             end
         end,
     }

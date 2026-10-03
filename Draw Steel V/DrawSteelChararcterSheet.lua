@@ -1630,7 +1630,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                         else
                             s = band.name
                             local keywords = {}
-                            for keyword, _ in pairs(info.token.properties.keywords or {}) do
+                            for keyword, _ in pairs(info.token.properties:Keywords() or {}) do
                                 if keyword ~= band.name then
                                     keywords[#keywords + 1] = keyword
                                 end

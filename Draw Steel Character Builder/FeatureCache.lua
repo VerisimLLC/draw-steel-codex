@@ -40,6 +40,7 @@ local typeOrderTable = {
     CharacterCompanionChoice            = 152,
     SignatureAbilityPlaceholder         = 155,
     CharacterFeatureChoice              = 160,
+    CharacterRivalAbilityChoice         = 165,
     CharacterSkillChoice                = 170,
     CharacterLanguageChoice             = 180,
     CharacterForgetLanguageChoice       = 181,

@@ -1111,6 +1111,19 @@ local function CreateHero(element)
     end
 end
 
+-- Developer join codes, handed out by the internal dashboard's ticket page:
+-- "bug:<gameid>:<reportId>". Admin accounts only. The dashboard only issues one
+-- when the reporter allowed game entry (the app cannot read bug reports, so the
+-- consent check lives there). Returns gameid, reportId, or nil for anything else.
+-- Keep in step with internal-dashboards/src/dashboards/devJoin.js.
+local function ParseDevJoinCode(text)
+    if not dmhub.isAdminAccount then
+        return nil
+    end
+    local gameid, reportId = string.match(text, "^%s*bug:([^:%s]+):([^:%s]+)%s*$")
+    return gameid, reportId
+end
+
 local function CreateJoinGameModal(tokenToImport)
     local resultPanel
 
@@ -1126,6 +1139,10 @@ local function CreateJoinGameModal(tokenToImport)
     end
 
     local m_password = ""
+
+    -- Set while the invite code box holds a developer join code: {reportId = ...}.
+    -- Skips the game password and posts a chat notice on entry.
+    local m_devJoin = nil
 
     -- Dialog-internal layout rules: every label is 80%-wide, left-aligned,
     -- 16pt; every input fills 80%-16 to leave room for the border. Theme
@@ -1209,8 +1226,10 @@ local function CreateJoinGameModal(tokenToImport)
                         resultPanel:FireEventTree("searchingForGame")
 
                         local text = element.text
-                        lobby:LookupGame(text, function(gameInfo)
+                        local devGameid, devReportId = ParseDevJoinCode(text)
+                        lobby:LookupGame(devGameid or text, function(gameInfo)
                             if text == element.text then
+                                m_devJoin = cond(devGameid ~= nil, { reportId = devReportId }, nil)
                                 resultPanel:FireEventTree("lookupGame", gameInfo, text)
                             end
                         end)
@@ -1373,7 +1392,7 @@ local function CreateJoinGameModal(tokenToImport)
                 lookupGame = function(element, gameInfo)
                     element:SetClass("hidden",
                         gameInfo == nil or gameInfo.deleted or AlreadyInGame(gameInfo.gameid) or gameInfo.password == nil or
-                        gameInfo.password == "")
+                        gameInfo.password == "" or m_devJoin ~= nil)
                 end,
                 gui.Label {
                     fontSize = 16,
@@ -1405,6 +1424,26 @@ local function CreateJoinGameModal(tokenToImport)
                 },
             },
 
+            gui.Label {
+                classes = { "collapsed" },
+                fontSize = 16,
+                lookupGame = function(element, gameInfo)
+                    local show = m_devJoin ~= nil and gameInfo ~= nil and not gameInfo.deleted
+                    element:SetClass("collapsed", not show)
+                    if show then
+                        element.text = string.format(
+                            "Developer join for bug report %s. The game password is skipped, and a notice is posted in the game's chat when you enter. Use Leave Game on the game card when you are done.",
+                            m_devJoin.reportId)
+                    end
+                end,
+                searchingForGame = function(element)
+                    element:SetClass("collapsed", true)
+                end,
+                clearLookup = function(element)
+                    element:SetClass("collapsed", true)
+                end,
+            },
+
             gui.Button {
                 text = "Join Game",
                 classes = { "hidden" },
@@ -1418,7 +1457,7 @@ local function CreateJoinGameModal(tokenToImport)
                 lookupGame = function(element, gameInfo)
                     element:SetClass("hidden",
                         gameInfo == nil or gameInfo.deleted or AlreadyInGame(gameInfo.gameid) or
-                        (gameInfo.password ~= nil and gameInfo.password ~= "" and gameInfo.password ~= m_password))
+                        (m_devJoin == nil and gameInfo.password ~= nil and gameInfo.password ~= "" and gameInfo.password ~= m_password))
                     element.data.gameInfo = gameInfo
                 end,
                 passwordUpdated = function(element)
@@ -1428,7 +1467,7 @@ local function CreateJoinGameModal(tokenToImport)
                     end
                     element:SetClass("hidden",
                         gameInfo == nil or gameInfo.deleted or AlreadyInGame(gameInfo.gameid) or
-                        (gameInfo.password ~= nil and gameInfo.password ~= "" and gameInfo.password ~= m_password))
+                        (m_devJoin == nil and gameInfo.password ~= nil and gameInfo.password ~= "" and gameInfo.password ~= m_password))
                 end,
                 searchingForGame = function(element)
                     element:SetClass("hidden", true)
@@ -1456,6 +1495,7 @@ local function CreateJoinGameModal(tokenToImport)
 
                     lobby:JoinGame(gameid)
                     local root = element.root
+                    local devJoin = m_devJoin
 
                     dmhub.Coroutine(function()
                         for i = 1, 100 do
@@ -1468,6 +1508,18 @@ local function CreateJoinGameModal(tokenToImport)
                                             dmhub.CopyTokenToClipboard(tokenToImport)
                                             callback = function()
                                                 dmhub.PasteTokenFromClipboard(core.Loc { x = 0, y = 0 })
+                                            end
+                                        end
+                                        if devJoin ~= nil then
+                                            -- Tell the table why a stranger just walked in.
+                                            local baseCallback = callback
+                                            callback = function()
+                                                if baseCallback ~= nil then
+                                                    baseCallback()
+                                                end
+                                                chat.Send(string.format(
+                                                    "Hi! I'm from the Codex team, here to look into your bug report (%s). I'll leave when I'm done.",
+                                                    devJoin.reportId))
                                             end
                                         end
                                         root:FireEventTree("overrideLoadingScreenArt", game.coverart, game.gameid)

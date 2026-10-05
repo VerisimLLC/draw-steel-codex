@@ -7,9 +7,14 @@
 --  Edge / Double Edge / Bane / Double Bane: the hero rolls with that
 --    modifier when they meet the requirement.
 --A requirement is alternatives joined by "or" (commas work too), each
---"you are skilled in <skill>", "you speak <language>" or "you are a/an
---<class or ancestry>". A bare name in a list inherits the previous
---clause's kind: "you are skilled in Magic, Alchemy or Psionics".
+--"you are skilled in <skill>", "you speak <language>", "you are a/an
+--<class or ancestry>", "you can climb" / "you can fly" (a climb or fly
+--speed) or "your Wealth is 2 or higher". A bare name in a list inherits
+--the previous clause's kind: "you are skilled in Magic, Alchemy or
+--Psionics", "you can climb or fly".
+--A rider limited to one round of a montage puts it in its label:
+--"|Edge (Round 1): you can climb or fly" only counts while the montage is
+--in round 1 (facts.round); anywhere else it is never met.
 --
 --Everything above the "engine" marker is PURE Lua (no engine globals at
 --load or call time) so the grammar runs under the bundled lua.exe and is
@@ -50,8 +55,13 @@ local RIDER_LABELS = {
 --The edges (positive) or banes (negative) a rider effect grants.
 local RIDER_BOONS = { edge = 1, doubleedge = 2, bane = -1, doublebane = -2 }
 
-function TestRiders.Label(effect)
-    return RIDER_LABELS[effect] or effect
+--round: the montage round a rider is limited to (nil = any time).
+function TestRiders.Label(effect, round)
+    local label = RIDER_LABELS[effect] or effect
+    if round ~= nil then
+        label = string.format("%s (Round %d)", label, round)
+    end
+    return label
 end
 
 function TestRiders.Boons(effect)
@@ -61,20 +71,27 @@ end
 --"Edge: You speak Caelian" -> "edge", "You speak Caelian". Nil when the
 --line is not a rider (so a tier line that happens to contain a colon is
 --left alone: only the known effect words qualify). Accepts the text with
---or without its leading '|'.
+--or without its leading '|'. A third result is the round the rider is
+--limited to: "Edge (Round 1): ..." -> 1, otherwise nil.
 function TestRiders.ParseRiderLine(text)
     text = trim(text)
     text = string.gsub(text, "^|", "")
-    local label, rest = string.match(text, "^([%a ]-)%s*:%s*(.*)$")
+    local label, rest = string.match(text, "^([%a %d%(%)]-)%s*:%s*(.*)$")
     if label == nil then
         return nil
+    end
+    local round = nil
+    local bare, roundText = string.match(label, "^(.-)%s*%(%s*[rR][oO][uU][nN][dD]%s+(%d+)%s*%)%s*$")
+    if bare ~= nil then
+        label = bare
+        round = tonumber(roundText)
     end
     local key = string.gsub(lower(trim(label)), "%s+", " ")
     local effect = RIDER_EFFECTS[key]
     if effect == nil then
         return nil
     end
-    return effect, trim(rest)
+    return effect, trim(rest), round
 end
 
 --Names are compared lower-cased, single-spaced, and with a compendium
@@ -88,9 +105,36 @@ function TestRiders.NormalizeName(name)
     return s
 end
 
---One alternative of a requirement -> kind ("skill"|"language"|"kindred")
---and the normalized name, or nil when the clause has no recognized verb.
+--The movement modes a "you can <mode>" requirement may name.
+local MOVEMENT_MODES = { climb = true, fly = true, swim = true, burrow = true, teleport = true }
+
+--One alternative of a requirement -> kind ("skill"|"language"|"kindred"|
+--"movement"|"wealth") and the normalized name, or nil when the clause has
+--no recognized verb. A wealth requirement's name is its minimum, as text.
 local function ParseRequirementClause(lc)
+    --"you can climb" / "you have a fly speed": read before the generic
+    --"you can" strip below turns the clause into a bare word.
+    local mode = string.match(lc, "^you can (%a+)$") or string.match(lc, "^can (%a+)$")
+        or string.match(lc, "^you have an? (%a+) speed$") or string.match(lc, "^have an? (%a+) speed$")
+    if mode ~= nil and MOVEMENT_MODES[mode] then
+        return "movement", mode
+    end
+
+    --"your wealth is 2+" / "wealth 2+" / "your wealth is at least 2" /
+    --"wealth >= 2". ParseRequirement has already turned "2 or higher"
+    --into "2+" (an "or" would otherwise split the clause in two).
+    local w = lc
+    w = string.gsub(w, "^you have%s+", "")
+    w = string.gsub(w, "^your%s+", "")
+    w = string.gsub(w, "^a%s+", "")
+    local minimum = string.match(w, "^wealth is at least (%d+)$") or string.match(w, "^wealth of at least (%d+)$")
+        or string.match(w, "^wealth is (%d+)%+$") or string.match(w, "^wealth of (%d+)%+$")
+        or string.match(w, "^wealth (%d+)%+$") or string.match(w, "^wealth%s*>=%s*(%d+)$")
+        or string.match(w, "^at least (%d+) wealth$") or string.match(w, "^(%d+)%+ wealth$")
+    if minimum ~= nil then
+        return "wealth", tostring(tonumber(minimum))
+    end
+
     local s = lc
     s = string.gsub(s, "^you're%s+", "you are ")
     s = string.gsub(s, "^you have%s+", "have ")
@@ -152,8 +196,11 @@ end
 --"unknown" for a clause the grammar could not place (never met).
 function TestRiders.ParseRequirement(text)
     local req = { text = trim(text), alternatives = {}, unrecognized = false }
+    --"2 or higher" is one threshold, not two alternatives: fold it to "2+"
+    --before "or" is read as the separator.
+    local work = string.gsub(req.text, "(%d+)%s+[oO][rR]%s+%a+", function(n) return n .. "+" end)
     --commas and semicolons are alternatives too; "or" is the separator
-    local work = " " .. string.gsub(req.text, "[,;]", " or ") .. " "
+    work = " " .. string.gsub(work, "[,;]", " or ") .. " "
     work = string.gsub(work, "%s+[oO][rR]%s+", "\1")
     local lastKind = nil
     for part in string.gmatch(work, "[^\1]+") do
@@ -174,6 +221,15 @@ function TestRiders.ParseRequirement(text)
                     clause = "you speak " .. bare
                 elseif kind == "kindred" then
                     clause = cond(string.find(lower(bare), "^[aeiou]") ~= nil, "you are an ", "you are a ") .. bare
+                elseif kind == "movement" then
+                    if MOVEMENT_MODES[name] then
+                        clause = "you can " .. bare
+                    else
+                        kind = nil
+                    end
+                else
+                    --a wealth threshold has no bare-name form.
+                    kind = nil
                 end
             end
             if kind == nil then
@@ -194,18 +250,25 @@ function TestRiders.ParseRider(line)
     if effect == nil then
         return nil
     end
-    return { effect = effect, text = requirementText, requirement = TestRiders.ParseRequirement(requirementText) }
+    local _, _, round = TestRiders.ParseRiderLine(line)
+    return { effect = effect, text = requirementText, requirement = TestRiders.ParseRequirement(requirementText), round = round }
 end
 
 --Does a fact set satisfy a requirement? facts = { skill = { [name] = true },
---language = {...}, kindred = {...} }, every name normalized. Returns
---met, and the text of the alternative that met it. A fact that ENDS with
---the wanted name also counts ("high elf" meets "you are an Elf").
+--language = {...}, kindred = {...}, movement = {...}, wealth = n,
+--round = n }, every name normalized. Returns met, and the text of the
+--alternative that met it. A fact that ENDS with the wanted name also
+--counts ("high elf" meets "you are an Elf").
 function TestRiders.RequirementMet(req, facts)
     facts = facts or {}
     for _, alt in ipairs(req.alternatives or {}) do
         local set = facts[alt.kind]
-        if set ~= nil and alt.name ~= "" then
+        if alt.kind == "wealth" then
+            local wealth = tonumber(facts.wealth)
+            if wealth ~= nil and wealth >= (tonumber(alt.name) or math.huge) then
+                return true, alt.text
+            end
+        elseif type(set) == "table" and alt.name ~= "" then
             if set[alt.name] then
                 return true, alt.text
             end
@@ -231,6 +294,10 @@ function TestRiders.Evaluate(riders, facts)
     local result = { allowed = true, gated = false, unlockedBy = nil, boons = 0, banes = 0, applied = {}, unlocked = {}, unmet = {} }
     for _, rider in ipairs(riders or {}) do
         local met, why = TestRiders.RequirementMet(rider.requirement, facts)
+        --a rider limited to one montage round is never met outside it.
+        if rider.round ~= nil and tonumber((facts or {}).round) ~= rider.round then
+            met, why = false, nil
+        end
         if rider.effect == "allow" then
             result.gated = true
             if met then
@@ -284,7 +351,7 @@ function TestRiders.DescribeRows(riders, verdict)
     end
     local rows = {}
     for _, rider in ipairs(riders or {}) do
-        local label = TestRiders.Label(rider.effect)
+        local label = TestRiders.Label(rider.effect, rider.round)
         local text = rider.text
         local state = nil
         if verdict ~= nil then
@@ -313,13 +380,37 @@ end
 
 --What a hero is, for rider requirements: { skill = { ["magic"] = true },
 --language = { ["caelian"] = true }, kindred = { ["elementalist"] = true,
---["high elf"] = true } }, every name normalized the way the parser does.
---Kindred is the class, its subclass(es) and the ancestry (with any subrace).
+--["high elf"] = true }, movement = { ["climb"] = true }, wealth = 2 },
+--every name normalized the way the parser does. Kindred is the class, its
+--subclass(es) and the ancestry (with any subrace). "climb" means a climb
+--speed at least the creature's walking speed (creature:IsClimber), so the
+--climbing every hero can do at half speed does not count. The caller adds
+--`round` when there is one (the montage).
 function TestRiders.CreatureFacts(c)
-    local facts = { skill = {}, language = {}, kindred = {} }
+    local facts = { skill = {}, language = {}, kindred = {}, movement = {} }
     if c == nil then
         return facts
     end
+    pcall(function()
+        if c:IsClimber() then
+            facts.movement.climb = true
+        end
+    end)
+    for _, mode in ipairs({ "fly", "swim", "burrow" }) do
+        pcall(function()
+            if c:GetSpeed(mode) > 0 then
+                facts.movement[mode] = true
+            end
+        end)
+    end
+    pcall(function()
+        if c:CanTeleport() then
+            facts.movement.teleport = true
+        end
+    end)
+    pcall(function()
+        facts.wealth = c:CalculateNamedCustomAttribute("Wealth")
+    end)
     local function Add(kind, name)
         if type(name) == "string" and name ~= "" then
             facts[kind][TestRiders.NormalizeName(name)] = true
@@ -393,7 +484,7 @@ function TestRiders.AppendModifiers(modifiers, verdict, rollType)
     for _, applied in ipairs(verdict.applied or {}) do
         local modtype = RIDER_MODTYPES[applied.rider.effect]
         if modtype ~= nil then
-            local label = TestRiders.Label(applied.rider.effect)
+            local label = TestRiders.Label(applied.rider.effect, applied.rider.round)
             local ok, err = pcall(function()
                 local m = CharacterModifier.new{
                     guid = dmhub.GenerateGuid(),

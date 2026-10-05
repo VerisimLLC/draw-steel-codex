@@ -58,6 +58,88 @@ local function track(eventType, fields)
     analytics.Event(fields)
 end
 
+--Create the initiative queue for a resolved Draw Steel banner, with the side
+--that won going first: the live encounter, onset bookkeeping, the readied
+--encounter cleanup and the encounter_start telemetry. Runs on the controller.
+local function CreateCombatQueue(heroesWin)
+    local info = GameHud.instance.initiativeInterface
+    info.initiativeQueue = InitiativeQueue.Create()
+    info.initiativeQueue.playersGoFirst = heroesWin
+    info.initiativeQueue.playersTurn = heroesWin
+
+    --If an encounter was chosen (not "Custom"), attach a live encounter
+    --built from a deep copy of it. For a Custom combat there is no authored
+    --encounter, but we still create a basic live encounter so victory can be
+    --tracked and awarded -- it uses the Encounter defaults (1 Victory reward
+    --and the "all monsters defeated" victory condition).
+    if g_selectedEncounterOpenInitiative ~= nil then
+        info.initiativeQueue.liveEncounter = LiveEncounter.Create(g_selectedEncounterOpenInitiative)
+    else
+        local live = LiveEncounter.Create(Encounter.new())
+        --CountNonMinionMonsters (called in Create) reads the authored monster
+        --list, which is empty for Custom, so seed onsetMonsterCount from the
+        --actual non-minion monster tokens entering combat. Without this,
+        --CheckVictory short-circuits ("no monsters -> nothing to win").
+        local onsetMonsters = 0
+        for charid,_ in pairs(g_monsterTokensOpenInitiative or {}) do
+            local tok = dmhub.GetCharacterById(charid)
+            if tok ~= nil and tok.valid and tok.properties ~= nil
+                and tok.properties:IsMonster() and not tok.properties.minion then
+                onsetMonsters = onsetMonsters + 1
+            end
+        end
+        live.onsetMonsterCount = onsetMonsters
+        info.initiativeQueue.liveEncounter = live
+    end
+    ConfigureCombatSetupExtensions(info.initiativeQueue.liveEncounter)
+    --Snapshot the heroes' Recoveries at the onset of combat so the
+    --victory screen can show how they changed over the fight.
+    --both branches above just assigned a LiveEncounter.
+    local onsetEncounter = info.initiativeQueue.liveEncounter --[[@as LiveEncounter]]
+    onsetEncounter:RecordOnsetHeroes(g_playerTokensOpenInitiative)
+    g_selectedEncounterOpenInitiative = nil
+
+    --Combat has started: the readied encounter is consumed.
+    --Whatever route the monsters took onto the map, an armed
+    --click-to-place is now stale -- it would drop a second
+    --copy of the encounter into the fight -- so drop that too.
+    Encounter.ClearReadiedEncounter()
+    Encounter.DisarmClickToPlace()
+
+    Commands.rollinitiative()
+
+    -- Track encounter_start event
+    local heroCount = 0
+    local monsterCount = 0
+    local monsterTypes = {}
+    local monsterRoles = {}
+    for charid,_ in pairs(g_playerTokensOpenInitiative or {}) do
+        heroCount = heroCount + 1
+    end
+    for charid,_ in pairs(g_monsterTokensOpenInitiative or {}) do
+        monsterCount = monsterCount + 1
+        local tok = dmhub.GetCharacterById(charid)
+        if tok ~= nil and tok.valid then
+            local monsterType = tok.properties:try_get("monster_type", "unknown")
+            monsterTypes[#monsterTypes+1] = monsterType
+            local role = tok.properties:try_get("role", "")
+            if role ~= "" then
+                monsterRoles[#monsterRoles+1] = role
+            end
+        end
+    end
+    track("encounter_start", {
+        heroCount = heroCount,
+        monsterCount = monsterCount,
+        monsterTypes = table.concat(monsterTypes, ","),
+        monsterRoles = table.concat(monsterRoles, ","),
+        roundNumber = 1,
+        mapId = game.currentMapId,
+        mapName = (game.currentMap and game.currentMap.description) or "unknown",
+        dailyLimit = 10,
+    })
+end
+
 local function createDrawSteelBanner(options)
     print("BANNER:: CREATE")
 
@@ -267,82 +349,28 @@ local function createDrawSteelBanner(options)
                             end
                         end
                     elseif options.controller then
-                        local info = GameHud.instance.initiativeInterface
-                        info.initiativeQueue = InitiativeQueue.Create()
-                        info.initiativeQueue.playersGoFirst = m_heroesWin
-                        info.initiativeQueue.playersTurn = m_heroesWin
-
-                        --If an encounter was chosen (not "Custom"), attach a live encounter
-                        --built from a deep copy of it. For a Custom combat there is no authored
-                        --encounter, but we still create a basic live encounter so victory can be
-                        --tracked and awarded -- it uses the Encounter defaults (1 Victory reward
-                        --and the "all monsters defeated" victory condition).
-                        if g_selectedEncounterOpenInitiative ~= nil then
-                            info.initiativeQueue.liveEncounter = LiveEncounter.Create(g_selectedEncounterOpenInitiative)
+                        --a caller may hold the start of combat once the winner
+                        --is known (Encounter of the Week lets the heroes arrange
+                        --themselves when they win): it gets the result and a
+                        --begin function to call when it is ready.
+                        local heroesWin = m_heroesWin
+                        local begun = false
+                        local function Begin()
+                            if begun then
+                                return
+                            end
+                            begun = true
+                            CreateCombatQueue(heroesWin)
+                        end
+                        if options.holdBeforeQueue ~= nil then
+                            local ok, err = pcall(options.holdBeforeQueue, heroesWin, Begin)
+                            if not ok then
+                                print("BANNER:: holdBeforeQueue failed; starting combat now:", err)
+                                Begin()
+                            end
                         else
-                            local live = LiveEncounter.Create(Encounter.new())
-                            --CountNonMinionMonsters (called in Create) reads the authored monster
-                            --list, which is empty for Custom, so seed onsetMonsterCount from the
-                            --actual non-minion monster tokens entering combat. Without this,
-                            --CheckVictory short-circuits ("no monsters -> nothing to win").
-                            local onsetMonsters = 0
-                            for charid,_ in pairs(g_monsterTokensOpenInitiative or {}) do
-                                local tok = dmhub.GetCharacterById(charid)
-                                if tok ~= nil and tok.valid and tok.properties ~= nil
-                                    and tok.properties:IsMonster() and not tok.properties.minion then
-                                    onsetMonsters = onsetMonsters + 1
-                                end
-                            end
-                            live.onsetMonsterCount = onsetMonsters
-                            info.initiativeQueue.liveEncounter = live
+                            Begin()
                         end
-                        ConfigureCombatSetupExtensions(info.initiativeQueue.liveEncounter)
-                        --Snapshot the heroes' Recoveries at the onset of combat so the
-                        --victory screen can show how they changed over the fight.
-                        --both branches above just assigned a LiveEncounter.
-                        local onsetEncounter = info.initiativeQueue.liveEncounter --[[@as LiveEncounter]]
-                        onsetEncounter:RecordOnsetHeroes(g_playerTokensOpenInitiative)
-                        g_selectedEncounterOpenInitiative = nil
-
-                        --Combat has started: the readied encounter is consumed.
-                        --Whatever route the monsters took onto the map, an armed
-                        --click-to-place is now stale -- it would drop a second
-                        --copy of the encounter into the fight -- so drop that too.
-                        Encounter.ClearReadiedEncounter()
-                        Encounter.DisarmClickToPlace()
-
-                        Commands.rollinitiative()
-
-                        -- Track encounter_start event
-                        local heroCount = 0
-                        local monsterCount = 0
-                        local monsterTypes = {}
-                        local monsterRoles = {}
-                        for charid,_ in pairs(g_playerTokensOpenInitiative or {}) do
-                            heroCount = heroCount + 1
-                        end
-                        for charid,_ in pairs(g_monsterTokensOpenInitiative or {}) do
-                            monsterCount = monsterCount + 1
-                            local tok = dmhub.GetCharacterById(charid)
-                            if tok ~= nil and tok.valid then
-                                local monsterType = tok.properties:try_get("monster_type", "unknown")
-                                monsterTypes[#monsterTypes+1] = monsterType
-                                local role = tok.properties:try_get("role", "")
-                                if role ~= "" then
-                                    monsterRoles[#monsterRoles+1] = role
-                                end
-                            end
-                        end
-                        track("encounter_start", {
-                            heroCount = heroCount,
-                            monsterCount = monsterCount,
-                            monsterTypes = table.concat(monsterTypes, ","),
-                            monsterRoles = table.concat(monsterRoles, ","),
-                            roundNumber = 1,
-                            mapId = game.currentMapId,
-                            mapName = (game.currentMap and game.currentMap.description) or "unknown",
-                            dailyLimit = 10,
-                        })
                     end
 
                     self:DestroySelf()
@@ -912,8 +940,9 @@ local function createDrawSteelBanner(options)
     return BannerPanel
 end
 
-function showDrawSteelBanner(result)
-    local banner = createDrawSteelBanner{ controller = true, immediateResult = result }
+--holdBeforeQueue (optional): see Encounter.StartCombatWithTokens.
+function showDrawSteelBanner(result, holdBeforeQueue)
+    local banner = createDrawSteelBanner{ controller = true, immediateResult = result, holdBeforeQueue = holdBeforeQueue }
     GameHud.instance.parentPanel:AddChild(banner)
 end
 
@@ -970,6 +999,11 @@ end
 --  surprisedTokens: optional list of tokens given the Surprised condition
 --                 (until end of encounter) before the banner shows, the way
 --                 the dialog's "All Surprised" slider marks a side.
+--  holdBeforeQueue: optional function(heroesWin, begin). Called once the
+--                 banner has resolved who goes first, INSTEAD of creating the
+--                 initiative queue; call begin() (once, any time later) to
+--                 create it. Lets a game mode pause between the roll and the
+--                 first turn.
 --Returns true, or false + a reason string when combat cannot start.
 local SetTokenSurprised
 function Encounter.StartCombatWithTokens(args)
@@ -1022,7 +1056,7 @@ function Encounter.StartCombatWithTokens(args)
     --nil = no immediate result: the banner runs the normal claim-the-die
     --"Draw Steel" roll, and queue creation (plus readied-encounter cleanup)
     --happens when it resolves, exactly like the dialog path.
-    showDrawSteelBanner(immediateResult)
+    showDrawSteelBanner(immediateResult, args.holdBeforeQueue)
     return true
 end
 

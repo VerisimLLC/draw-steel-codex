@@ -1913,6 +1913,15 @@ function DSVictoryScreen.AwardVictories(live, amount, exemptions)
     dmhub:UploadInitiativeQueue()
 end
 
+-- Extra lines other modules add under a hero's card (Encounter of the Week
+-- lists the treasure a hero is taking home). id -> fn(live, token), which
+-- returns a short line of text or nil.
+local g_heroCardNotes = {}
+
+function DSVictoryScreen.RegisterHeroCardNote(id, fn)
+    g_heroCardNotes[id] = fn
+end
+
 -- Build a single hero's card: portrait, name, Stamina bar, Recoveries change, the fun
 -- role they earned (if any -- see ComputeHeroRoles; roleInfo may be nil and the role
 -- lines render blank), and a DEAD marker for fallen heroes. Every visible element
@@ -2109,6 +2118,31 @@ local function BuildHeroCard(live, token, roleInfo)
         fontSize = 13,
     }
 
+    -- Lines registered by other modules (DSVictoryScreen.RegisterHeroCardNote).
+    local noteLines = {}
+    for _, fn in pairs(g_heroCardNotes) do
+        local ok, text = pcall(fn, live, token)
+        if ok and type(text) == "string" and text ~= "" then
+            noteLines[#noteLines + 1] = text
+        end
+    end
+    table.sort(noteLines)
+    local notesLabel = gui.Label{
+        classes = {"victoryFade", "info"},
+        interactable = false,
+        text = table.concat(noteLines, "\n"),
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        tmargin = 8,
+        textAlignment = "center",
+        textWrap = true,
+        fontFace = "Book",
+        fontSize = 14,
+        fontWeight = "bold",
+    }
+    notesLabel:SetClass("collapsed", #noteLines == 0)
+
     -- "Victories: old -> new" line, hidden until the Award animation finishes.
     local victoriesLabel = gui.Label{
         classes = {"victoryFade", "scalein", "info"},
@@ -2179,7 +2213,7 @@ local function BuildHeroCard(live, token, roleInfo)
 
         -- dropLayer is LAST so it draws on top of the card content (in DMHub later
         -- siblings render above earlier ones), letting the icons land over the card.
-        children = { portraitPanel, nameLabel, staminaBar, recoveriesLabel, roleTitleLabel, roleTextLabel, victoriesLabel, dropLayer },
+        children = { portraitPanel, nameLabel, staminaBar, recoveriesLabel, roleTitleLabel, roleTextLabel, notesLabel, victoriesLabel, dropLayer },
 
         -- Drop `amount` victory icons into this card one at a time, then reveal the
         -- "Victories: old -> new" line. Orchestrated per-card by the screen's playAward.

@@ -32,6 +32,14 @@
 --  data.zonesRevealed = { [zone] = { keywordid, at, entryName,
 --                         original = { [zoneid] = { floorid, record } } } }
 --                   -- applied; clients switch their overlay on from this.
+--  data.revealObjects = { [name] = { name, entryName, at } }  -- banked by
+--                       "reveal the <Object> object"
+--  data.objectsRevealed = { [name] = { name, entryName, at,
+--                         switched = { {objid, floorid}, ... } } }
+--                   -- applied: the inactive objects switched on.
+--  data.startZones = { [zone] = { entryName, at } }  -- "the <Zone> zone
+--                    becomes a starting area"; the start-zone confinement
+--                    reads it (and the zone is revealed like any other).
 --
 --Everything is idempotent against the document, so the host tick may call
 --the two host entry points every 0.5s until the beat moves on.
@@ -266,6 +274,10 @@ function EncounterZones.RunEncounterSetup(beat)
                             cond(instruction.deleteOthers, " and trimmed the other zones", ""),
                             cond(entry.warning ~= nil, " (" .. tostring(entry.warning) .. ")", ""))
                     end
+                elseif instruction.kind == "bystanders" then
+                    --nothing to place: GatherCombatSides reads these when
+                    --combat starts.
+                    setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "bystanders", text = instruction.text }
                 else
                     setup.entries[#setup.entries + 1] = { label = instruction.label, kind = "unknown", text = instruction.text, error = "unrecognized instruction" }
                     printf("EotW zones: setup '%s' is not understood: %s", tostring(instruction.label), tostring(instruction.text))
@@ -332,6 +344,88 @@ function EncounterZones.ApplyPendingReveals()
     end
     doc.data.revealZones = nil
     doc:CompleteChange("Encounter zones revealed", { undoable = false })
+end
+
+--- object reveals and extra start zones ---------------------------------------
+
+--Every object on the current map whose name (or description) is `name`,
+--case-insensitive: { { obj, floorid }, ... }.
+local function ObjectsNamed(name)
+    local want = lower(name)
+    local result = {}
+    local map = game.currentMap
+    for _, floor in ipairs((map and map.floors) or {}) do
+        local objects = nil
+        pcall(function() objects = floor.objects end)
+        for _, obj in pairs(objects or {}) do
+            local shown, desc = nil, nil
+            pcall(function() shown = obj.name end)
+            pcall(function() desc = obj.description end)
+            if (type(shown) == "string" and lower(shown) == want) or (type(desc) == "string" and lower(desc) == want) then
+                result[#result + 1] = { obj = obj, floorid = floor.floorid }
+            end
+        end
+    end
+    return result
+end
+
+--Host: switch on every object a montage clause revealed ("reveal the
+--Treasure Chest object"). The author leaves such an object inactive (Object
+--Properties -> deactivate) so it is not on the map unless the party earns
+--it. Idempotent: an applied reveal moves from revealObjects to
+--objectsRevealed, with what it switched on so a test reset can switch it off.
+function EncounterZones.ApplyPendingObjectReveals()
+    local doc = Doc()
+    local pending = doc.data.revealObjects
+    if type(pending) ~= "table" or next(pending) == nil then
+        return
+    end
+    local revealed = {}
+    ElevateToHostPermissions()
+    local ok, err = pcall(function()
+        for key, info in pairs(pending) do
+            local switched = {}
+            local found = ObjectsNamed(info.name or key)
+            for _, entry in ipairs(found) do
+                if entry.obj.inactive then
+                    entry.obj.inactive = false
+                    entry.obj:Upload()
+                    switched[#switched + 1] = { objid = entry.obj.objid, floorid = entry.floorid }
+                end
+            end
+            revealed[key] = { name = info.name, entryName = info.entryName, at = dmhub.serverTime, switched = switched }
+            printf("EotW zones: revealed %d '%s' object(s) (%d found on the map)", #switched, tostring(info.name or key), #found)
+        end
+    end)
+    DropHostPermissions()
+    if not ok then
+        printf("EotW zones: object reveal failed: %s", tostring(err))
+        return
+    end
+    doc:BeginChange()
+    doc.data.objectsRevealed = doc.data.objectsRevealed or {}
+    for key, info in pairs(revealed) do
+        doc.data.objectsRevealed[key] = info
+    end
+    doc.data.revealObjects = nil
+    doc:CompleteChange("Encounter objects revealed", { undoable = false })
+end
+
+--The extra zone types a montage clause opened for the heroes to start in
+--("the Start2 zone becomes a starting area"), lower-cased. Read by every
+--client's start-zone confinement.
+function EncounterZones.UnlockedStartZones()
+    local result = {}
+    pcall(function()
+        local zones = Doc().data.startZones
+        if type(zones) == "table" then
+            for zone, _ in pairs(zones) do
+                result[#result + 1] = zone
+            end
+        end
+    end)
+    table.sort(result)
+    return result
 end
 
 --- every client: the overlay --------------------------------------------------
@@ -415,6 +509,18 @@ function EncounterZones.ResetMap(doc)
             end
         end
     end
+    local objectsRevealed = doc.data.objectsRevealed
+    if type(objectsRevealed) == "table" then
+        for _, info in pairs(objectsRevealed) do
+            for _, switched in ipairs(info.switched or {}) do
+                local obj = FindObjectInstance(switched.floorid, switched.objid)
+                if obj ~= nil and not obj.inactive then
+                    obj.inactive = true
+                    obj:Upload()
+                end
+            end
+        end
+    end
     m_appliedReveals = {}
 end
 
@@ -422,6 +528,9 @@ function EncounterZones.ClearDocState(doc)
     doc.data.zoneSetup = nil
     doc.data.revealZones = nil
     doc.data.zonesRevealed = nil
+    doc.data.revealObjects = nil
+    doc.data.objectsRevealed = nil
+    doc.data.startZones = nil
 end
 
 --- dev command -----------------------------------------------------------------

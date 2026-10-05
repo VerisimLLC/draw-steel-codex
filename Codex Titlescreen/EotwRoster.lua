@@ -438,6 +438,9 @@ local function ApplyOutcome(key, entry, tok)
     end)
     if not stamped then
         local victories = tonumber(type(entry.outcome) == "table" and entry.outcome.victories or 0) or 0
+        --non-consumable treasure the hero won in the encounter (the game
+        --records it; consumables stay behind).
+        local treasures = type(entry.outcome) == "table" and entry.outcome.treasures or nil
         tok:ModifyProperties{
             description = "Victory from Encounter of the Week",
             undoable = false,
@@ -445,6 +448,17 @@ local function ApplyOutcome(key, entry, tok)
                 local props = tok.properties
                 if victories > 0 then
                     props:SetVictories(props:GetVictories() + victories)
+                end
+                for _, t in ipairs(type(treasures) == "table" and treasures or {}) do
+                    local qty = math.floor(tonumber(t.quantity) or 0)
+                    if type(t.itemid) == "string" and qty > 0 then
+                        local ok, err = pcall(function() props:GiveItem(t.itemid, qty) end)
+                        if ok then
+                            printf("EotW town: %s brings home %s", tostring(tok.name), tostring(t.name))
+                        else
+                            printf("EotW town: could not give %s to %s: %s", tostring(t.name), tostring(tok.name), tostring(err))
+                        end
+                    end
                 end
                 local applied = {}
                 local old = rawget(props, "eotwOutcomes")
@@ -1653,7 +1667,13 @@ function EotwRoster.ShowGraveyard(host)
             }
             local fell = "Fell"
             if type(e.encounter) == "string" and e.encounter ~= "" then
-                fell = fell .. " in " .. e.encounter
+                --an encounter key; a community one reads "<title> (<module>)".
+                local eotw = rawget(_G, "EncounterOfTheWeek")
+                local where = e.encounter
+                if eotw ~= nil and eotw.EncounterDisplayName ~= nil then
+                    where = eotw.EncounterDisplayName(e.encounter)
+                end
+                fell = fell .. " in " .. where
             end
             if type(g.at) == "number" then
                 fell = fell .. ", " .. DescribeServerTimestamp(g.at)

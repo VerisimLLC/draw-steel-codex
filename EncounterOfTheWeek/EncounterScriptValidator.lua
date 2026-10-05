@@ -342,7 +342,7 @@ local function Report(parse)
                         end
                         for _, rider in ipairs(o.roll.riders or {}) do
                             Row(5, cond(rider.requirement.unrecognized, "flavourUnknown", "rule"),
-                                "%s: %s", EncounterScript.RiderLabel(rider.effect), rider.text)
+                                "%s: %s", EncounterScript.RiderLabel(rider.effect, rider.round), rider.text)
                         end
                     end
                 end

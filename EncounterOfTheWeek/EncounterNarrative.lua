@@ -914,6 +914,9 @@ pcall(function()
         command = function(str)
             local arg = string.lower(string.gsub(str or "", "^%s*(.-)%s*$", "%1"))
             if arg == "start" then
+                --the item snapshot the real host takes on arrival, so a
+                --playtest's treasure is tracked like a real game's.
+                pcall(function() EncounterOfTheWeekGame.EnsureArrivalItems() end)
                 EncounterNarrative.StartDevDriver()
             elseif arg == "stop" then
                 EncounterNarrative.StopDevDriver()

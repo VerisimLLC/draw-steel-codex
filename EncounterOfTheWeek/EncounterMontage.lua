@@ -102,6 +102,14 @@
 --                  -- "You cannot be surprised": the party is immune to the
 --                     Surprised condition in the next encounter (it still
 --                     loses the initiative if the montage says so).
+--  data.startZones = nil | { [zone keyword, lower-cased] = { entryName, at } }
+--                  -- "the Start2 zone becomes a starting area": extra zone
+--                     types the heroes may stand in before combat (the
+--                     start-zone confinement reads it).
+--  data.revealObjects = nil | { [object name, lower-cased] = { name, entryName, at } }
+--                  -- "reveal the Treasure Chest object", banked; the
+--                     encounter beat switches those inactive objects on and
+--                     moves the record to data.objectsRevealed.
 --  data.surges   = nil | { [heroCharid] = n }
 --                  -- surges banked by "at the start of the next combat you
 --                     gain N surges", paid out (and cleared) by
@@ -406,8 +414,9 @@ end
 --info-bubble encounter and no document gets one implicit encounter beat, so
 --a week authored the old way plays exactly as before.
 --Returns { docid, doc, parse, text } or a script with no beats.
-function EncounterMontage.FindMapScript(force)
-    local mapid = game.currentMapId
+--The markdown documents filed under a map's journal folder, sorted by name:
+--the candidates for its script. Returns a list of { docid, doc }.
+local function MapScriptCandidates(mapid)
     local docsTable = dmhub.GetTable("documents") or {}
     local candidates = {}
     for docid, doc in unhidden_pairs(docsTable) do
@@ -422,15 +431,13 @@ function EncounterMontage.FindMapScript(force)
         end
         return a.docid < b.docid
     end)
+    return candidates
+end
 
-    if m_scriptCache ~= nil and not force and m_scriptCache.docid ~= nil and m_scriptCache.mapid == mapid
-        and m_scriptCache.signature == ScriptSignature(candidates, m_scriptCache.allIncluded) then
-        if m_scriptCache.docid ~= nil then
-            m_scriptCache.doc = docsTable[m_scriptCache.docid] or m_scriptCache.doc
-        end
-        return m_scriptCache
-    end
-
+--Parse every candidate and pick the map's script: the first (by name) that
+--declares beats and is not part of another, preferring an explicit one.
+--Returns best (nil if none), allIncluded ({docid -> true}).
+local function ChooseMapScript(candidates, mapid)
     local loaded = {}
     local allIncluded = {}
     for _, c in ipairs(candidates) do
@@ -452,6 +459,42 @@ function EncounterMontage.FindMapScript(force)
             end
         end
     end
+    return best, allIncluded
+end
+
+--The script of any map in the game, not just the current one, for the
+--publish dialog's Encounter of the Week module type (ModShare.lua). Uncached
+--and with no info-bubble fallback (that reads the current map only).
+--Returns { script = { docid, doc, parse, text } or nil, documents = {docid ->
+--true} }, documents being every document the script could be built from:
+--the map's journal documents and everything they include.
+function EncounterMontage.ScriptForMap(mapid)
+    local candidates = MapScriptCandidates(mapid)
+    local best, allIncluded = ChooseMapScript(candidates, mapid)
+    local documents = {}
+    for _, c in ipairs(candidates) do
+        documents[c.docid] = true
+    end
+    for docid in pairs(allIncluded) do
+        documents[docid] = true
+    end
+    return { script = best, documents = documents }
+end
+
+function EncounterMontage.FindMapScript(force)
+    local mapid = game.currentMapId
+    local docsTable = dmhub.GetTable("documents") or {}
+    local candidates = MapScriptCandidates(mapid)
+
+    if m_scriptCache ~= nil and not force and m_scriptCache.docid ~= nil and m_scriptCache.mapid == mapid
+        and m_scriptCache.signature == ScriptSignature(candidates, m_scriptCache.allIncluded) then
+        if m_scriptCache.docid ~= nil then
+            m_scriptCache.doc = docsTable[m_scriptCache.docid] or m_scriptCache.doc
+        end
+        return m_scriptCache
+    end
+
+    local best, allIncluded = ChooseMapScript(candidates, mapid)
 
     if best == nil then
         --no document script: an info-bubble encounter is still an encounter.
@@ -508,6 +551,29 @@ function EncounterMontage.SceneImage(script, beat)
         end
     end)
     return image
+end
+
+--A montage's backdrop for a round: the [[scene]] under the latest "## Round
+--N" heading at or before `round` that names one (so a day scene for round 1
+--and a night scene for round 2), else the beat's own first scene.
+function EncounterMontage.MontageSceneImage(script, beat, round)
+    if beat == nil then
+        return nil
+    end
+    round = tonumber(round) or 1
+    local best = nil
+    for _, r in ipairs(beat.rounds or {}) do
+        if r.sceneTag ~= nil and r.number <= round and (best == nil or r.number > best.number) then
+            best = r
+        end
+    end
+    if best ~= nil then
+        local image = EncounterMontage.SceneImage(script, best)
+        if image ~= nil then
+            return image
+        end
+    end
+    return EncounterMontage.SceneImage(script, beat)
 end
 
 --The montage beat the state is running, from the current map's script.
@@ -762,12 +828,22 @@ end
 
 --What a hero is, for rider requirements (skills, languages, class /
 --subclass / ancestry), read off the creature by core (TestRiders).
+--`round` is the montage's current round, for "|Edge (Round 1): ..." riders.
 function EncounterMontage.HeroFacts(charid)
+    local facts
     local tok = dmhub.GetCharacterById(charid)
     if tok == nil or not tok.valid or tok.properties == nil then
-        return { skill = {}, language = {}, kindred = {} }
+        facts = { skill = {}, language = {}, kindred = {}, movement = {} }
+    else
+        facts = TestRiders.CreatureFacts(tok.properties)
     end
-    return TestRiders.CreatureFacts(tok.properties)
+    pcall(function()
+        local m = EncounterMontage.GetState()
+        if m ~= nil then
+            facts.round = m.round or 1
+        end
+    end)
+    return facts
 end
 
 --The standing edges and banes an earlier outcome put on this option's
@@ -1324,6 +1400,135 @@ local function EnsureRecoveryBoonEffect(amount)
     return dmhub.SetAndUploadTableItem("characterOngoingEffects", effect)
 end
 
+--The ongoing effect behind "your rolled damage is increased by N": a power
+--roll modifier that adds N to the damage of every damaging power roll, the
+--same shape as a kit's or a treasure's rolled-damage bonus. One asset per
+--value, reused, like the Recovery Value boon.
+local function EnsureDamageBoonEffect(amount)
+    local name = string.format("Montage Boon: Rolled Damage +%d", amount)
+    local t = dmhub.GetTable("characterOngoingEffects") or {}
+    for id, effect in pairs(t) do
+        if NameMatches(effect.name, name) then
+            return id
+        end
+    end
+    local effect = CharacterOngoingEffect.Create{
+        name = name,
+        source = "Montage",
+        description = string.format("You gain a +%d bonus to rolled damage.", amount),
+        custom = true,
+    }
+    local modifier = CharacterModifier.new{
+        behavior = "power",
+        name = name,
+        source = "Montage",
+        description = string.format("+%d to rolled damage.", amount),
+        guid = dmhub.GenerateGuid(),
+        domains = {},
+    }
+    CharacterModifier.TypeInfo.power.init(modifier)
+    modifier.rollType = "ability_power_roll"
+    modifier.modtype = "none"
+    modifier.activationCondition = true
+    modifier.damageModifier = tostring(amount)
+    effect.modifiers = { modifier }
+    return dmhub.SetAndUploadTableItem("characterOngoingEffects", effect)
+end
+
+--The ongoing effect behind "your maximum Stamina is reduced by N": a plain
+--attribute modifier on the Stamina maximum.
+local function EnsureMaxStaminaCurseEffect(amount)
+    local name = string.format("Montage Curse: Stamina Maximum -%d", amount)
+    local t = dmhub.GetTable("characterOngoingEffects") or {}
+    for id, effect in pairs(t) do
+        if NameMatches(effect.name, name) then
+            return id
+        end
+    end
+    local effect = CharacterOngoingEffect.Create{
+        name = name,
+        source = "Montage",
+        description = string.format("Your Stamina maximum is reduced by %d.", amount),
+        custom = true,
+    }
+    effect.modifiers = {
+        CharacterModifier.new{
+            behavior = "attribute",
+            attribute = "hitpoints",
+            operation = "add",
+            value = -amount,
+            name = name,
+            source = "Montage",
+            guid = dmhub.GenerateGuid(),
+        },
+    }
+    return dmhub.SetAndUploadTableItem("characterOngoingEffects", effect)
+end
+
+--Put one of the montage's ongoing effects on a hero until the next respite.
+--Same cache caveat as the Recovery Value boon (see GrantRecoveryBoon).
+local function ApplyMontageEffect(token, effectid, description)
+    if effectid == nil then
+        return false
+    end
+    if GetTableCached("characterOngoingEffects")[effectid] == nil then
+        printf("EotW montage: '%s' is not visible to the rules engine yet; '%s' was not applied", effectid, description)
+        return false
+    end
+    token:ModifyProperties{
+        description = description,
+        undoable = false,
+        execute = function()
+            token.properties:ApplyOngoingEffect(effectid, "until_rest", nil, {})
+        end,
+    }
+    return true
+end
+
+--"You lose a consumable": one consumable (by EquipmentCategory) picked at
+--random from the hero's inventory goes. A hero carrying none loses a
+--Recovery instead, and the party is told only of the Recovery. Returns the
+--item name lost (or nil) and the number of recoveries lost.
+local function LoseConsumable(token, note)
+    local gear = dmhub.GetTable("tbl_Gear") or {}
+    local candidates = {}
+    pcall(function()
+        local inventory = token.properties:try_get("inventory", {})
+        for itemid, entry in pairs(inventory) do
+            local item = gear[itemid]
+            if item ~= nil and type(entry) == "table" and (tonumber(entry.quantity) or 0) > 0
+                and EquipmentCategory.IsConsumable(item) then
+                candidates[#candidates + 1] = { itemid = itemid, name = item.name, quantity = entry.quantity }
+            end
+        end
+    end)
+    if #candidates == 0 then
+        return nil, LoseRecoveries(token, 1, note)
+    end
+    table.sort(candidates, function(a, b) return a.itemid < b.itemid end)
+    local pick = candidates[math.random(1, #candidates)]
+    token:ModifyProperties{
+        description = string.format("Montage: lose %s", pick.name),
+        undoable = false,
+        execute = function()
+            token.properties:SetItemQuantity(pick.itemid, pick.quantity - 1)
+        end,
+    }
+    return pick, 0
+end
+
+--Roll a plain dice expression ("1d6", "2d6", "d8") on the host.
+local function RollDiceExpression(dice)
+    local count, sides = string.match(string.lower(dice or ""), "^(%d*)d(%d+)$")
+    count = tonumber(count) or 1
+    sides = tonumber(sides) or 6
+    local total = 0
+    for _ = 1, math.max(1, count) do
+        total = total + math.random(1, math.max(1, sides))
+    end
+    return total
+end
+
 local function GrantRecoveryBoon(token, amount)
     local effectid = EnsureRecoveryBoonEffect(amount)
     if effectid == nil then
@@ -1359,10 +1564,20 @@ end
 --beat puts thousands of frames between the upload and the first grant.
 function EncounterMontage.PrepareBoonAssets(beat)
     local amounts = {}
+    local damageAmounts = {}
+    local staminaAmounts = {}
+    local any = false
     local function Collect(effects)
         for _, effect in ipairs(effects or {}) do
             if effect.kind == "recovery" then
                 amounts[effect.qty] = true
+                any = true
+            elseif effect.kind == "damageboon" then
+                damageAmounts[effect.qty] = true
+                any = true
+            elseif effect.kind == "maxstamina" then
+                staminaAmounts[effect.qty] = true
+                any = true
             end
         end
     end
@@ -1377,8 +1592,13 @@ function EncounterMontage.PrepareBoonAssets(beat)
                 end
             end
         end
+        for _, tableRoll in pairs(entry.tables or {}) do
+            for _, row in ipairs(tableRoll.rows or {}) do
+                Collect(row.effects)
+            end
+        end
     end
-    if next(amounts) == nil then
+    if not any then
         return
     end
 
@@ -1386,6 +1606,12 @@ function EncounterMontage.PrepareBoonAssets(beat)
     local ok, err = pcall(function()
         for amount, _ in pairs(amounts) do
             EnsureRecoveryBoonEffect(amount)
+        end
+        for amount, _ in pairs(damageAmounts) do
+            EnsureDamageBoonEffect(amount)
+        end
+        for amount, _ in pairs(staminaAmounts) do
+            EnsureMaxStaminaCurseEffect(amount)
         end
     end)
     DropHostPermissions()
@@ -1463,8 +1689,9 @@ end
 --ctx = { heroEntry (nil for consequences), heroEntries (several heroes --
 --a narrative option taken by more than one, takes precedence over
 --heroEntry), userid, entryName, source ("Montage"/"Narrative"), montage
---(the state table being mutated), entryId, doc (the script document, inside
---an open change, for effects that outlive the beat) }. Returns the list of
+--(the state table being mutated), entryId, entry (the parsed entry, whose
+--dice tables a "roll on <table>" clause rolls), doc (the script document,
+--inside an open change, for effects that outlive the beat) }. Returns the list of
 --human-readable results and the list of ally charids spawned.
 function EncounterMontage.ApplyEffects(effects, ctx)
     local applied = {}
@@ -1860,6 +2087,101 @@ function EncounterMontage.ApplyEffects(effects, ctx)
                     printf("EotW montage: '%s' has no montage to apply to", tostring(effect.text))
                 end
                 applied[#applied + 1] = EncounterScript.DescribeTestMod(effect.effect, effect.name)
+            elseif effect.kind == "rolltable" then
+                --"Roll twice on Tinkerer's Wares": the entry's own dice
+                --table, rolled here on the host, each row applied as if it
+                --were written in the tier. A row may not roll again (depth).
+                local tableRoll = ctx.entry ~= nil and (ctx.entry.tables or {})[effect.key] or nil
+                if tableRoll == nil then
+                    applied[#applied + 1] = string.format("No table '%s' to roll on", tostring(effect.name))
+                elseif (ctx.tableDepth or 0) >= 2 then
+                    printf("EotW montage: '%s' rolls on a table from inside a table roll; ignored", tostring(effect.text))
+                else
+                    for _ = 1, effect.qty do
+                        local total = RollDiceExpression(tableRoll.dice)
+                        local row = EncounterScript.ChestRow(tableRoll, total)
+                        applied[#applied + 1] = string.format("%s: rolled %d", tableRoll.name, total)
+                        if row ~= nil then
+                            local subCtx = {}
+                            for k, v in pairs(ctx) do
+                                subCtx[k] = v
+                            end
+                            subCtx.tableDepth = (ctx.tableDepth or 0) + 1
+                            local rowApplied, rowAllies = EncounterMontage.ApplyEffects(row.effects, subCtx)
+                            for _, text in ipairs(rowApplied) do
+                                applied[#applied + 1] = text
+                            end
+                            for _, charid in ipairs(rowAllies) do
+                                newAllies[#newAllies + 1] = charid
+                            end
+                        end
+                    end
+                end
+            elseif effect.kind == "damageboon" then
+                local names = {}
+                local effectid = EnsureDamageBoonEffect(effect.qty)
+                for _, target in ipairs(Targets(effect)) do
+                    local grantOk, granted = pcall(ApplyMontageEffect, target.token, effectid,
+                        string.format("Montage: rolled damage +%d", effect.qty))
+                    if grantOk and granted then
+                        names[#names + 1] = target.name
+                    end
+                end
+                if effect.target == "party" then
+                    applied[#applied + 1] = string.format("Every hero gains +%d to rolled damage until the next respite", effect.qty)
+                elseif #names > 0 then
+                    applied[#applied + 1] = string.format("%s +%d to rolled damage until the next respite", Subject(names, "gains", "gain"), effect.qty)
+                end
+            elseif effect.kind == "maxstamina" then
+                local names = {}
+                local effectid = EnsureMaxStaminaCurseEffect(effect.qty)
+                for _, target in ipairs(Targets(effect)) do
+                    local grantOk, granted = pcall(ApplyMontageEffect, target.token, effectid,
+                        string.format("Montage: Stamina maximum -%d", effect.qty))
+                    if grantOk and granted then
+                        names[#names + 1] = target.name
+                    end
+                end
+                if effect.target == "party" then
+                    applied[#applied + 1] = string.format("Every hero's Stamina maximum is reduced by %d until the next respite", effect.qty)
+                elseif #names > 0 then
+                    applied[#applied + 1] = string.format("%s: Stamina maximum -%d until the next respite", TargetNames(names), effect.qty)
+                end
+            elseif effect.kind == "loseconsumable" then
+                --a hero with no consumable loses a Recovery instead, and the
+                --line says only that: the swap is not announced.
+                for _, target in ipairs(Targets(effect)) do
+                    for _ = 1, effect.qty do
+                        local callOk, lostItem, lostRecoveries = pcall(LoseConsumable, target.token, SourceLabel(ctx))
+                        if callOk and lostItem ~= nil then
+                            pcall(UnrecordItem, ctx.doc, target.charid, lostItem.itemid, 1)
+                            applied[#applied + 1] = string.format("%s loses a %s", target.name, lostItem.name)
+                        elseif callOk and (lostRecoveries or 0) > 0 then
+                            applied[#applied + 1] = string.format("%s loses 1 Recovery", target.name)
+                        end
+                    end
+                end
+            elseif effect.kind == "startzone" then
+                --banked on the document; the start-zone confinement reads it
+                --(EncounterOfTheWeekGame.StartZoneLocs), and the encounter
+                --beat reveals the zone to the players.
+                if ctx.doc ~= nil then
+                    ctx.doc.data.startZones = ctx.doc.data.startZones or {}
+                    ctx.doc.data.startZones[effect.zone] = { entryName = ctx.entryName, at = dmhub.serverTime }
+                    local zones = rawget(_G, "EncounterZones")
+                    if zones ~= nil then
+                        zones.BankReveal(ctx.doc, effect.zone, ctx.entryName)
+                    end
+                end
+                applied[#applied + 1] = EncounterScript.DescribeStartZone(effect.zone)
+            elseif effect.kind == "revealobject" then
+                --banked; the encounter beat switches the inactive object(s)
+                --of that name on (EncounterZones.ApplyPendingReveals).
+                if ctx.doc ~= nil then
+                    ctx.doc.data.revealObjects = ctx.doc.data.revealObjects or {}
+                    ctx.doc.data.revealObjects[string.lower(effect.object)] = { name = effect.object, entryName = ctx.entryName, at = dmhub.serverTime }
+                end
+                applied[#applied + 1] = EncounterScript.DescribeRevealObject(effect.object)
             elseif effect.kind == "narrative" then
                 --A line is cut into clauses so the grammar can find the
                 --mechanical half hiding behind flavour ("You make off with
@@ -2178,6 +2500,7 @@ local function ExpireTemporaryEntries(m, doc, beat, userid)
                     userid = userid,
                     entryName = entry.name,
                     entryId = entry.id,
+                    entry = entry,
                     montage = m,
                     doc = doc,
                 })
@@ -2352,6 +2675,7 @@ local function ApplyResolution(m, doc, t, entry, option, tierIndex, heroes, user
         userid = userid,
         entryName = entry.name,
         entryId = entry.id,
+        entry = entry,
         montage = m,
         doc = doc,
     })
@@ -2618,6 +2942,7 @@ DelveObstacleResolved = function(m, doc, t, entry, option, tierIndex, heroes, us
         userid = userid,
         entryName = t.delve.entryName,
         entryId = t.entryId,
+        entry = entry,
         montage = m,
         doc = doc,
     })
@@ -3067,6 +3392,7 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
                 userid = userid,
                 entryName = entry.name,
                 entryId = entry.id,
+                entry = entry,
                 montage = m,
                 doc = doc,
             })
@@ -4030,6 +4356,9 @@ function EncounterMontage.ResetTest()
     doc.data.zoneSetup = nil
     doc.data.revealZones = nil
     doc.data.zonesRevealed = nil
+    doc.data.startZones = nil
+    doc.data.revealObjects = nil
+    doc.data.objectsRevealed = nil
     doc.data.unlocked = nil
     doc.data.intelligence = nil
     doc.data.intelligenceLog = nil
@@ -4038,10 +4367,13 @@ function EncounterMontage.ResetTest()
 
     --EotW game: the combat flags and the map script's run-once state.
     local state = mod:GetDocumentSnapshot("eotwstate")
-    if state.data.combatStarted ~= nil or state.data.proceedRequested ~= nil then
+    if state.data.combatStarted ~= nil or state.data.proceedRequested ~= nil or state.data.arrange ~= nil
+        or state.data.arrivalItems ~= nil then
         state:BeginChange()
         state.data.combatStarted = nil
         state.data.proceedRequested = nil
+        state.data.arrange = nil
+        state.data.arrivalItems = nil
         state:CompleteChange("Montage test reset", { undoable = false })
     end
     local ms = rawget(_G, "MapScript")
@@ -4104,6 +4436,9 @@ pcall(function()
         command = function(str)
             local arg = string.lower(string.gsub(str or "", "^%s*(.-)%s*$", "%1"))
             if arg == "start" then
+                --the item snapshot the real host takes on arrival, so a
+                --playtest's treasure is tracked like a real game's.
+                pcall(function() EncounterOfTheWeekGame.EnsureArrivalItems() end)
                 EncounterMontage.StartDevDriver()
             elseif arg == "stop" then
                 EncounterMontage.StopDevDriver()

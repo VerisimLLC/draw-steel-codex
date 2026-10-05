@@ -3638,8 +3638,41 @@ end
 
 --- the stage ---------------------------------------------------------------------------
 
+--Is this image asset a video (a .webm/.mp4 scene)? Videos have to be
+--streamed with an engine loop flag, or the clip plays once and goes blank.
+local function IsVideoAsset(imageid)
+    local video = false
+    pcall(function()
+        local asset = assets.imagesTable[imageid]
+        video = asset ~= nil and asset.isVideo == true
+    end)
+    return video
+end
+
+--Fill the stage with art of the given aspect (height / width), cropping
+--the overflow, exactly like FullscreenDisplay does it.
+local function FitBackdrop(element, imageAspect)
+    if element.parent == nil or imageAspect == nil or imageAspect <= 0 then
+        return
+    end
+    local w = element.parent.renderedWidth
+    local h = element.parent.renderedHeight
+    if w == 0 or h == 0 then
+        return
+    end
+    local aspect = h / w
+    if aspect > imageAspect then
+        element.selfStyle.height = "100%"
+        element.selfStyle.width = string.format("%f%% height", 100 / imageAspect)
+    else
+        element.selfStyle.width = "100%"
+        element.selfStyle.height = string.format("%f%% width", 100 * imageAspect)
+    end
+end
+
 --The scene art behind a stage, aspect-fit exactly like FullscreenDisplay
---does it. Shared by the montage and the narrative stage.
+--does it. Shared by the montage and the narrative stage. Set its art with
+--SetBackdropScene, which knows how to play a video scene.
 local function CreateBackdrop()
     return gui.Panel{
         floating = true,
@@ -3651,30 +3684,52 @@ local function CreateBackdrop()
         bgimage = "panels/square.png",
         bgcolor = "white",
         interactable = false,
+        data = { sceneId = nil },
         --aspect-fit the scene art exactly like FullscreenDisplay does.
         imageLoaded = function(element)
-            if element.bgsprite == nil then
+            if element.bgsprite ~= nil then
+                FitBackdrop(element, element.bgsprite.dimensions.y / element.bgsprite.dimensions.x)
                 return
             end
-            local w = element.parent.renderedWidth
-            local h = element.parent.renderedHeight
-            if w == 0 or h == 0 then
+            --a streamed video has no sprite to measure; ask for its size.
+            local sceneId = element.data.sceneId
+            if sceneId == nil then
                 return
             end
-            local aspect = h / w
-            local imageAspect = element.bgsprite.dimensions.y / element.bgsprite.dimensions.x
-            if aspect > imageAspect then
-                element.selfStyle.height = "100%"
-                element.selfStyle.width = string.format("%f%% height", 100 / imageAspect)
-            else
-                element.selfStyle.width = "100%"
-                element.selfStyle.height = string.format("%f%% width", 100 * imageAspect)
-            end
+            pcall(function()
+                gui.GetImageDimensionsCallback(sceneId, function(dims)
+                    if mod.unloaded or not element.valid or element.data.sceneId ~= sceneId then
+                        return
+                    end
+                    if dims ~= nil and (dims.width or 0) > 0 and (dims.height or 0) > 0 then
+                        FitBackdrop(element, dims.height / dims.width)
+                    end
+                end)
+            end)
         end,
         screenResized = function(element)
             element:ScheduleEvent("imageLoaded", 0.5)
         end,
     }
+end
+
+--Show a scene (an image or video asset id) on a backdrop, or hide it (nil).
+local function SetBackdropScene(backdrop, scene)
+    if scene == nil then
+        backdrop.data.sceneId = nil
+        backdrop:SetClass("hidden", true)
+        return
+    end
+    backdrop.data.sceneId = scene
+    if IsVideoAsset(scene) then
+        --a private looping player (the "###" suffix), muted: the stage's
+        --own music and sound play over it.
+        backdrop.bgimageStreamed = scene .. "###LOOP" .. dmhub.GenerateGuid()
+    else
+        backdrop.bgimage = scene
+    end
+    backdrop:SetClass("hidden", false)
+    backdrop:ScheduleEvent("imageLoaded", 0.2)
 end
 
 local function CreateDim()
@@ -4011,20 +4066,15 @@ local function CreateStage(args)
             introLabel.text = beat.intro or ""
             introLabel:SetClass("collapsed", (beat.intro or "") == "")
             m_turnSignature = nil
-            if not embedded then
-                --backdrop is built whenever the stage is not embedded.
-                ---@cast backdrop -nil
-                local scene = EncounterMontage.SceneImage(script, beat)
-                if scene ~= m_scene then
-                    m_scene = scene
-                    if scene ~= nil then
-                        backdrop.bgimage = scene
-                        backdrop:SetClass("hidden", false)
-                        backdrop:ScheduleEvent("imageLoaded", 0.2)
-                    else
-                        backdrop:SetClass("hidden", true)
-                    end
-                end
+        end
+        if not embedded then
+            --backdrop is built whenever the stage is not embedded. A round
+            --may hang its own scene, so this is checked every refresh.
+            ---@cast backdrop -nil
+            local scene = EncounterMontage.MontageSceneImage(script, beat, m.round)
+            if scene ~= m_scene then
+                m_scene = scene
+                SetBackdropScene(backdrop, scene)
             end
         end
 
@@ -4705,13 +4755,7 @@ local function CreateNarrativeStage(args)
                 local scene = EncounterNarrative.SceneImage(script, beat, section)
                 if scene ~= m_scene then
                     m_scene = scene
-                    if scene ~= nil then
-                        backdrop.bgimage = scene
-                        backdrop:SetClass("hidden", false)
-                        backdrop:ScheduleEvent("imageLoaded", 0.2)
-                    else
-                        backdrop:SetClass("hidden", true)
-                    end
+                    SetBackdropScene(backdrop, scene)
                 end
             end
         end
@@ -5337,7 +5381,7 @@ local function CurrentScriptBeat()
 end
 
 --The backdrop for whatever is on screen: a narrative section may override its
---beat's scene, a montage always uses the beat's.
+--beat's scene, and a montage round its beat's.
 local function CurrentSceneImage(beat, index, script)
     if beat == nil or script == nil then
         return nil
@@ -5370,6 +5414,18 @@ local function CurrentSceneImage(beat, index, script)
             end
         end
         return nil
+    end
+    if beat.kind == "montage" then
+        --a round may hang its own scene (day, then night); only trust the
+        --live state's round while it is this beat's.
+        local round = 1
+        pcall(function()
+            local m = EncounterMontage.GetState()
+            if m ~= nil and m.beatIndex == index then
+                round = m.round or 1
+            end
+        end)
+        return EncounterMontage.MontageSceneImage(script, beat, round)
     end
     return EncounterMontage.SceneImage(script, beat)
 end
@@ -5497,13 +5553,7 @@ local function CreateScriptStage(args)
         end
         if scene ~= m_scene then
             m_scene = scene
-            if scene ~= nil then
-                backdrop.bgimage = scene
-                backdrop:SetClass("hidden", false)
-                backdrop:ScheduleEvent("imageLoaded", 0.2)
-            else
-                backdrop:SetClass("hidden", true)
-            end
+            SetBackdropScene(backdrop, scene)
         end
     end
 
@@ -5701,9 +5751,7 @@ function EncounterMontageStage.ShowStoryScreen(args)
 
         create = function(element)
             if scene ~= nil then
-                backdrop.bgimage = scene
-                backdrop:SetClass("hidden", false)
-                backdrop:ScheduleEvent("imageLoaded", 0.2)
+                SetBackdropScene(backdrop, scene)
             end
         end,
 

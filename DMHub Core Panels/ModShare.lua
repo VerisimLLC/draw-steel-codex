@@ -815,8 +815,6 @@ local CreateObjectTableView = function(tableName, knownAssetsInCore)
 						op = "modify"
 					end
 
-                    print("ENTRY::", entry.name, type(entry.name), json(entry))
-
 					local panel = gui.Check{styles = g_CheckboxStyles,
 						classes = {"row", op}, --cond(hidden, "silent")},
 						text = string.format("%s (%s -- %s)", entry.name, op, k),
@@ -1167,7 +1165,9 @@ local function CreateCodeModView(modid, modInfo)
 		data = {
 			assetid = modid,
 			displayName = modInfo.name or "(unknown mod)",
-			addressable = false,
+			--addressable so the dependency search sees it: a code mod depends on the
+			--image assets its source names by guid, which must ship alongside it.
+			addressable = true,
 			type = "code",
 		}
 	}
@@ -1692,6 +1692,104 @@ local CreateAssetsHierarchy = function(moduleInstance)
 	return resultPanel
 end
 
+--The checks behind the "eotw" module type below. An Encounter of the Week
+--module is a set of encounter maps (named "Encounter" or "Encounter: <title>",
+--the rule in Codex Titlescreen/EncounterOfTheWeek.lua), each played from the
+--script filed in its journal folder. Parsing a script needs the EotW codemod,
+--which a game has when the code-only authoring module codex-eotwauthor (or the
+--official mcdm-encounteroftheweek module) is installed -- the same game an
+--author playtests in.
+--Returns { errors, warnings, encounters }: encounters is what the town reads
+--from the module record as publishingProperties.eotwEncounters, {<map name>
+--= {townGate = text}} from each script's "# Town Gate" section. Also ticks
+--every document a script is built from (ctx.include), since nothing else
+--ties a map to the documents in its journal folder.
+local CheckEncounterModule = function(ctx)
+	local result = { errors = {}, warnings = {}, encounters = {} }
+	local errors, warnings = result.errors, result.warnings
+
+	local eotw = rawget(_G, "EncounterOfTheWeek")
+	local montage = rawget(_G, "EncounterMontage")
+	if eotw == nil or montage == nil or montage.ScriptForMap == nil then
+		errors[#errors+1] = "Encounter scripts can only be checked in a game that has the Encounter of the Week authoring module (codex-eotwauthor) installed. Install it in this game, restart, then publish."
+		return result
+	end
+
+	local maps = {}
+	local seenNames = {}
+	for guid,_ in pairs(ctx.includedAssets) do
+		local info = ctx.assetInfo[guid]
+		if info ~= nil then
+			if info.type == "code" then
+				errors[#errors+1] = string.format("An Encounter of the Week module cannot include code (%s): its encounters run on the official module's code.", info.displayName)
+			elseif info.type == "map" and eotw.IsEncounterMapName(info.displayName) then
+				if seenNames[info.displayName] then
+					errors[#errors+1] = string.format("Two maps are named \"%s\". A game finds its encounter map by name, so each must be unique.", info.displayName)
+				end
+				seenNames[info.displayName] = true
+				maps[#maps+1] = { id = guid, name = info.displayName }
+			end
+		end
+	end
+	table.sort(maps, function(a, b) return a.name < b.name end)
+
+	if #maps == 0 then
+		errors[#errors+1] = "An Encounter of the Week module must include at least one map named \"Encounter\" or \"Encounter: <title>\"."
+	end
+
+	for _,m in ipairs(maps) do
+		--the name is a Firebase key in the module record and part of the
+		--encounter key ("<moduleid>|<map name>") a party record carries.
+		if string.find(m.name, "[%.%$#%[%]/|]") ~= nil then
+			errors[#errors+1] = string.format("The map name \"%s\" cannot contain any of . $ # [ ] / |", m.name)
+		elseif #m.name > 80 then
+			errors[#errors+1] = string.format("The map name \"%s\" is too long (80 characters at most).", m.name)
+		end
+
+		local found = nil
+		local ok, err = pcall(function() found = montage.ScriptForMap(m.id) end)
+		if not ok or found == nil then
+			errors[#errors+1] = string.format("%s: its script could not be read: %s", m.name, tostring(err))
+		else
+			for docid,_ in pairs(found.documents) do
+				ctx.include(docid)
+			end
+
+			local script = found.script
+			if script == nil then
+				errors[#errors+1] = string.format("%s: no script. File a journal document with # Narrative, # Montage and # Encounter beats in this map's journal folder.", m.name)
+			else
+				local hasEncounter = false
+				for _,beat in ipairs(script.parse.beats or {}) do
+					if beat.kind == "encounter" then
+						hasEncounter = true
+					end
+				end
+				if not hasEncounter then
+					errors[#errors+1] = string.format("%s: the script has no # Encounter beat, so the fight never starts.", m.name)
+				end
+
+				local scriptWarnings = script.parse.warnings or {}
+				for i=1,math.min(#scriptWarnings, 3) do
+					warnings[#warnings+1] = string.format("%s: %s", m.name, tostring(scriptWarnings[i]))
+				end
+				if #scriptWarnings > 3 then
+					warnings[#warnings+1] = string.format("%s: %d more script warnings (/eotwscript on the map lists them all).", m.name, #scriptWarnings - 3)
+				end
+
+				local towngate = script.parse.story ~= nil and script.parse.story.towngate or nil
+				if towngate ~= nil and type(towngate.text) == "string" and towngate.text ~= "" then
+					result.encounters[m.name] = { townGate = towngate.text }
+				else
+					warnings[#warnings+1] = string.format("%s: no # Town Gate section, so the town shows no backstory for it.", m.name)
+				end
+			end
+		end
+	end
+
+	return result
+end
+
 --Module types. Each entry is an option in the Module Type dropdown at the top
 --of the publish dialog; the chosen id is stored on the module record as
 --moduleInstance.moduleType so the rest of the app can tell packs apart.
@@ -1703,7 +1801,15 @@ end
 --  dependencyAssets = {guid -> {guids that need it}} from the dependency
 --                     searcher, covering the checked entries and everything
 --                     they pull in,
---  assetInfo       = {guid -> {type, displayName}} for every entry shown }.
+--  assetInfo       = {guid -> {type, displayName}} for every entry shown,
+--  include         = function(guid) ticks that entry, if the dialog lists it }.
+--
+--available (optional) returns false to leave the type out of the dropdown
+--(a module that already has the type still shows it).
+--
+--publishingProperties (optional) is called with the same ctx when the module
+--is published and returns {key -> value} to store in the module record's
+--publishingProperties.
 local g_moduleTypes = {
 	{
 		id = "general",
@@ -1776,6 +1882,31 @@ local g_moduleTypes = {
 			return errors, warnings
 		end,
 	},
+	{
+		--Encounter of the Week (dev-gated game mode). Published Public, the
+		--module's encounters join the pool the town's Form a Party dialog
+		--offers (Codex Titlescreen/EncounterOfTheWeek.lua); a game for one is
+		--created from the official module and installs this one on top.
+		id = "eotw",
+		text = "Encounter of the Week",
+		description = "Encounters for the Encounter of the Week game mode. Each map named \"Encounter\" or \"Encounter: <title>\" is an encounter, played from the script in its journal folder; those documents are included automatically. Publish it as Public to add its encounters to the pool players choose from at the Town Gate.",
+		available = function()
+			local enabled = false
+			pcall(function() enabled = dmhub.GetSettingValue("dev:encounteroftheweek") == true end)
+			return enabled
+		end,
+		validate = function(ctx)
+			local check = CheckEncounterModule(ctx)
+			local warnings = check.warnings
+			if g_dialogState ~= nil and not g_dialogState.moduleInstance.published then
+				warnings[#warnings+1] = "Only a Public module's encounters join the pool. Set Listing Status to Public on the next page."
+			end
+			return check.errors, warnings
+		end,
+		publishingProperties = function(ctx)
+			return { eotwEncounters = CheckEncounterModule(ctx).encounters }
+		end,
+	},
 }
 
 --Looks up a module type by id, falling back to the first (General Content)
@@ -1817,6 +1948,29 @@ local showShareModuleDialog = function(options)
 	--errors from the selected module type's validator; while non-empty the
 	--Proceed button stays hidden on the content page.
 	local m_moduleTypeErrors = {}
+
+	--the ctx a module type's validate / publishingProperties receive (see
+	--g_moduleTypes). include ticks an entry the way the author would, so the
+	--dependency pass then runs over it; entries the dialog does not list
+	--(content another module owns) are skipped.
+	local ModuleTypeContext = function()
+		return {
+			includedAssets = includedAssets,
+			dependencyAssets = m_dependencyAssets,
+			assetInfo = assetInfo,
+			include = function(guid)
+				if includedAssets[guid] or m_dependencyAssets[guid] then
+					return
+				end
+				local entry = allAssets[guid]
+				if entry == nil or entry.check == nil or not entry.check.valid then
+					return
+				end
+				entry.check.value = true
+				entry.check:FireEvent("change")
+			end,
+		}
+	end
 
 	local moduleInstance = options.moduleInfo or module.CreateModule()
 
@@ -2015,6 +2169,15 @@ local showShareModuleDialog = function(options)
 
 					moduleInstance.contentSummary = contentSummary
 
+					--properties the module type derives from the content
+					--(an Encounter of the Week module's Town Gate texts).
+					local typeInfo = GetModuleType(moduleInstance.moduleType)
+					if typeInfo.publishingProperties ~= nil then
+						for k,v in pairs(typeInfo.publishingProperties(ModuleTypeContext())) do
+							moduleInstance.publishingProperties[k] = v
+						end
+					end
+
 					moduleInstance:UploadModuleVersion{
 						includedAssets = assetsIncludingDependencies,
 
@@ -2028,6 +2191,11 @@ local showShareModuleDialog = function(options)
 							moduleInstance:Upload{
 								success = function()
 									statusLabel.text = "Your module has been uploaded"
+									if moduleInstance.moduleType == "eotw" then
+										statusLabel.text = statusLabel.text .. cond(moduleInstance.published,
+											". Its encounters are now in the Encounter of the Week pool.",
+											". It is not Public, so its encounters are not in the Encounter of the Week pool.")
+									end
 									moduleCodePanel:FireEventTree("moduleUploaded")
 
 									moduleInstance:UploadModulePublishProperties{
@@ -3051,11 +3219,7 @@ local showShareModuleDialog = function(options)
 
 		local errors, warnings = {}, {}
 		if typeInfo.validate ~= nil then
-			errors, warnings = typeInfo.validate{
-				includedAssets = includedAssets,
-				dependencyAssets = m_dependencyAssets,
-				assetInfo = assetInfo,
-			}
+			errors, warnings = typeInfo.validate(ModuleTypeContext())
 		end
 		m_moduleTypeErrors = errors
 
@@ -3079,8 +3243,10 @@ local showShareModuleDialog = function(options)
 	end
 
 	local moduleTypeOptions = {}
-	for i,info in ipairs(g_moduleTypes) do
-		moduleTypeOptions[i] = { id = info.id, text = info.text }
+	for _,info in ipairs(g_moduleTypes) do
+		if info.available == nil or info.available() or info.id == moduleInstance.moduleType then
+			moduleTypeOptions[#moduleTypeOptions+1] = { id = info.id, text = info.text }
+		end
 	end
 
 	local moduleTypePanel = gui.Panel{

@@ -296,22 +296,38 @@ local VEIL_WAIT_POLL_SECONDS = 0.1
 local VEIL_WAIT_IDLE_SECONDS = 0.5
 local VEIL_WAIT_MAX_SECONDS = 4
 
---── encounter list cache ─────────────────────────────────────────────
---Which encounters the week's module offers, for the create-game dropdown.
---The publisher writes every shipped map's name into the module record's
---contentSummary ({type = "map", items = {...}}), and module.DownloadModuleInfo
---returns that record without downloading the module itself -- one small
---fetch, no snapshot. Only maps that follow the encounter naming rule count.
+--- the encounter pool ------------------------------------------------
+--Every encounter a party can set out to face, for the Form a Party dialog.
+--It comes from two kinds of module:
+--  * the official module (STARTING_MODULE). Every EotW game is created from
+--    it, because it carries the EotW and Monster AI codemods, the Start
+--    keyword and the Hero Death rule. Its own encounter maps are in the pool.
+--  * community "Encounter of the Week" modules: any module published Public
+--    with moduleType == EncounterOfTheWeek.MODULE_TYPE (the publish dialog,
+--    DMHub Core Panels/ModShare.lua). When a party picks one of these, the
+--    host installs that module on top of the official one during setup
+--    (EncounterOfTheWeek/EncounterOfTheWeek.lua, EnsureEncounterModule).
+--Both are read from module records -- contentSummary lists the maps and
+--publishingProperties.eotwEncounters the "# Town Gate" text -- so listing
+--the pool downloads no module content. A map counts only if it follows the
+--encounter naming rule below.
 
---nil until loaded; then a list of map names, the default first, then the
---alternatives alphabetically. {} when the module lists no encounter maps.
+EncounterOfTheWeek.OFFICIAL_MODULE = STARTING_MODULE
+EncounterOfTheWeek.MODULE_TYPE = "eotw"
+
+--nil until loaded; then the pool, a list of entries
+--  { key, moduleid, mapName, title, official, moduleName, author, townGate }
+--with the official module's first (its default map leading), then each
+--community module's, grouped, modules ordered by name.
 local m_encounters = nil
 local m_encountersFetching = false
---map name -> { townGate = text } from the same record: the publisher copies
---each encounter script's "# Town Gate" section into the module record's
---publishingProperties.eotwEncounters, so the town can show an encounter's
---backstory without downloading the module.
-local m_encounterInfo = {}
+--key -> entry, for the same entries.
+local m_encounterByKey = {}
+--Every community EotW module the last fetch saw, pulled ones included, for
+--the admin pool dialog: list of { moduleid, name, author, pulled, count }.
+local m_poolModules = {}
+--callbacks waiting on the fetch in flight (EncounterOfTheWeek.RefreshPool).
+local m_poolCallbacks = {}
 
 --The naming rule: exactly ENCOUNTER_MAP_NAME, or "ENCOUNTER_MAP_NAME: <title>".
 function EncounterOfTheWeek.IsEncounterMapName(name)
@@ -321,10 +337,130 @@ function EncounterOfTheWeek.IsEncounterMapName(name)
     return name == ENCOUNTER_MAP_NAME or name:sub(1, #ENCOUNTER_MAP_NAME + 2) == ENCOUNTER_MAP_NAME .. ": "
 end
 
---Kick off (or re-kick after a failure) the module-record fetch. Safe to call
---any time; no-ops while a fetch is in flight or done.
-function EncounterOfTheWeek.CacheEncounters()
-    if m_encounters ~= nil or m_encountersFetching then
+--An encounter is named by a KEY string. For the official module it is the
+--map name ("Encounter: Goblin Ambush"), which is all party records and
+--completions carried before the pool existed. For a community module it is
+--"<moduleid>|<map name>", so two modules can each ship an "Encounter".
+--The key rides the party record (`encounter`), the game's state doc, the
+--outcome log and the City's completions (one Victory per hero per key).
+--The game side parses it with its own copy of ParseEncounterKey
+--(EncounterOfTheWeek/EncounterOfTheWeek.lua); keep the two in step.
+function EncounterOfTheWeek.EncounterKey(moduleid, mapName)
+    if moduleid == nil or moduleid == "" or moduleid == STARTING_MODULE then
+        return mapName
+    end
+    return moduleid .. "|" .. mapName
+end
+
+--key -> moduleid, map name. nil or "" is the official module's default map.
+function EncounterOfTheWeek.ParseEncounterKey(key)
+    if type(key) ~= "string" or key == "" then
+        return STARTING_MODULE, ENCOUNTER_MAP_NAME
+    end
+    local moduleid, mapName = key:match("^([^|]+)|(.+)$")
+    if moduleid == nil then
+        return STARTING_MODULE, key
+    end
+    return moduleid, mapName
+end
+
+--"Encounter: Goblin Ambush" -> "Goblin Ambush". The bare default map reads
+--as its own name.
+function EncounterOfTheWeek.MapTitle(mapName)
+    if type(mapName) ~= "string" then
+        return ENCOUNTER_MAP_NAME
+    end
+    return mapName:match("^" .. ENCOUNTER_MAP_NAME .. ":%s*(.+)$") or mapName
+end
+
+--A key as a player should read it: the official module's map names as they
+--always were, and "<title> (<module name>)" for a community encounter. Uses
+--the module id when the pool has not loaded (or no longer lists it).
+function EncounterOfTheWeek.EncounterDisplayName(key)
+    local moduleid, mapName = EncounterOfTheWeek.ParseEncounterKey(key)
+    if moduleid == STARTING_MODULE then
+        return mapName
+    end
+    local entry = m_encounterByKey[key]
+    local moduleName = moduleid
+    if entry ~= nil and entry.moduleName ~= nil and entry.moduleName ~= "" then
+        moduleName = entry.moduleName
+    end
+    return string.format("%s (%s)", EncounterOfTheWeek.MapTitle(mapName), moduleName)
+end
+
+--The pool entries one module record offers, default map first, then by title.
+local function ModuleEncounters(info, moduleid)
+    local official = moduleid == STARTING_MODULE
+    local summary, published, name, author = nil, nil, nil, nil
+    pcall(function() summary = info.contentSummary end)
+    pcall(function() published = info.publishingProperties.eotwEncounters end)
+    pcall(function() name = info.name end)
+    pcall(function() author = info.authorid end)
+
+    local result = {}
+    local seen = {}
+    for _,entry in ipairs(summary or {}) do
+        local kind = string.lower(tostring(entry.type or ""))
+        if kind == "map" or kind == "maps" then
+            for _,item in ipairs(entry.items or {}) do
+                if EncounterOfTheWeek.IsEncounterMapName(item) and not seen[item] then
+                    seen[item] = true
+                    local townGate = nil
+                    local story = type(published) == "table" and published[item] or nil
+                    if type(story) == "table" and type(story.townGate) == "string" and story.townGate ~= "" then
+                        townGate = story.townGate
+                    end
+                    result[#result+1] = {
+                        key = EncounterOfTheWeek.EncounterKey(moduleid, item),
+                        moduleid = moduleid,
+                        mapName = item,
+                        title = EncounterOfTheWeek.MapTitle(item),
+                        official = official,
+                        moduleName = name,
+                        author = author,
+                        townGate = townGate,
+                    }
+                end
+            end
+        end
+    end
+    table.sort(result, function(a, b)
+        if (a.mapName == ENCOUNTER_MAP_NAME) ~= (b.mapName == ENCOUNTER_MAP_NAME) then
+            return a.mapName == ENCOUNTER_MAP_NAME
+        end
+        return a.title < b.title
+    end)
+    return result
+end
+
+--A community module record's pool standing: "pool" if its encounters are
+--offered, "pulled" if an admin took it out, or nil if it does not belong
+--(not an EotW module, not Public, deleted or deprecated). The index the
+--candidates come from is an incrementally updated local cache that never
+--hears about a module leaving it, so this is always asked of a fresh record.
+local function PoolStanding(info)
+    local standing = nil
+    pcall(function()
+        if info.moduleType ~= EncounterOfTheWeek.MODULE_TYPE or not info.published or info.deleted or info.deprecated then
+            return
+        end
+        if info.publishingProperties.eotwPulled == true then
+            standing = "pulled"
+        else
+            standing = "pool"
+        end
+    end)
+    return standing
+end
+
+--Kick off (or re-kick after a failure) the pool fetch. Safe to call any
+--time; no-ops while a fetch is in flight or once loaded, unless force.
+function EncounterOfTheWeek.CacheEncounters(force)
+    if m_encountersFetching then
+        return
+    end
+    if m_encounters ~= nil and not force then
         return
     end
     if module.DownloadModuleInfo == nil then
@@ -333,72 +469,212 @@ function EncounterOfTheWeek.CacheEncounters()
     end
 
     m_encountersFetching = true
+
+    local officialEntries = nil
+    --moduleid -> { info, standing, entries } for each community module.
+    local community = {}
+    --one for the official record and one for the index query; each
+    --community record fetched adds one.
+    local pending = 2
+
+    local Finish = function()
+        pending = pending - 1
+        if pending > 0 then
+            return
+        end
+        m_encountersFetching = false
+        local callbacks = m_poolCallbacks
+        m_poolCallbacks = {}
+        if mod.unloaded then
+            return
+        end
+
+        if officialEntries ~= nil then
+            local list = {}
+            for _,entry in ipairs(officialEntries) do
+                list[#list+1] = entry
+            end
+
+            local modules = {}
+            for moduleid,c in pairs(community) do
+                local name = nil
+                pcall(function() name = c.info.name end)
+                local author = nil
+                pcall(function() author = c.info.authorid end)
+                modules[#modules+1] = {
+                    moduleid = moduleid,
+                    name = name or moduleid,
+                    author = author,
+                    pulled = c.standing == "pulled",
+                    count = #c.entries,
+                    entries = c.entries,
+                }
+            end
+            table.sort(modules, function(a, b)
+                if a.name ~= b.name then
+                    return a.name < b.name
+                end
+                return a.moduleid < b.moduleid
+            end)
+            for _,m in ipairs(modules) do
+                if not m.pulled then
+                    for _,entry in ipairs(m.entries) do
+                        list[#list+1] = entry
+                    end
+                end
+                m.entries = nil
+            end
+
+            local byKey = {}
+            for _,entry in ipairs(list) do
+                byKey[entry.key] = entry
+            end
+            m_encounters = list
+            m_encounterByKey = byKey
+            m_poolModules = modules
+            printf("EotW: the pool holds %d encounter(s): %d official, the rest from %d community module(s)", #list, #officialEntries, #modules)
+        end
+        --else the official record failed: m_encounters stays as it was
+        --(nil on a first fetch), so the next open retries.
+
+        for _,callback in ipairs(callbacks) do
+            callback()
+        end
+    end
+
     module.DownloadModuleInfo{
         moduleid = STARTING_MODULE,
         success = function(info)
-            m_encountersFetching = false
-            if mod.unloaded then
-                return
-            end
-            local names = {}
-            local seen = {}
-            local summary = nil
-            pcall(function() summary = info.contentSummary end)
-            for _,entry in ipairs(summary or {}) do
-                local kind = string.lower(tostring(entry.type or ""))
-                if kind == "map" or kind == "maps" then
-                    for _,item in ipairs(entry.items or {}) do
-                        if EncounterOfTheWeek.IsEncounterMapName(item) and not seen[item] then
-                            seen[item] = true
-                            names[#names+1] = item
-                        end
-                    end
-                end
-            end
-            table.sort(names, function(a, b)
-                if (a == ENCOUNTER_MAP_NAME) ~= (b == ENCOUNTER_MAP_NAME) then
-                    return a == ENCOUNTER_MAP_NAME
-                end
-                return a < b
-            end)
-            local encounterInfo = {}
-            pcall(function()
-                local published = info.publishingProperties.eotwEncounters
-                for name, entry in pairs(published or {}) do
-                    if type(name) == "string" and type(entry) == "table" and type(entry.townGate) == "string" then
-                        encounterInfo[name] = { townGate = entry.townGate }
-                    end
-                end
-            end)
-            m_encounterInfo = encounterInfo
-            m_encounters = names
-            printf("EotW: the module offers %d encounter map(s)", #names)
+            officialEntries = ModuleEncounters(info, STARTING_MODULE)
+            Finish()
         end,
         failure = function(msg)
-            --allow a retry the next time the screen opens.
-            m_encountersFetching = false
-            printf("EotW: could not fetch the module record for the encounter list: %s", tostring(msg))
+            printf("EotW: could not fetch the official module record for the encounter pool: %s", tostring(msg))
+            Finish()
+        end,
+    }
+
+    module.QueryModuleIndex{
+        index = "all",
+        success = function(index)
+            local ids = {}
+            index:Search{
+                text = "",
+                maxResults = 1000000,
+                success = function(result)
+                    for _,item in ipairs(result.items or {}) do
+                        local moduleType, id = nil, nil
+                        pcall(function()
+                            moduleType = item.moduleType
+                            id = item.fullid
+                        end)
+                        if moduleType == EncounterOfTheWeek.MODULE_TYPE and type(id) == "string" and id ~= STARTING_MODULE then
+                            ids[#ids+1] = id
+                        end
+                    end
+                end,
+            }
+            pending = pending + #ids
+            for _,id in ipairs(ids) do
+                module.DownloadModuleInfo{
+                    moduleid = id,
+                    success = function(info)
+                        local standing = PoolStanding(info)
+                        if standing ~= nil then
+                            community[id] = { info = info, standing = standing, entries = ModuleEncounters(info, id) }
+                        end
+                        Finish()
+                    end,
+                    failure = function(msg)
+                        printf("EotW: could not fetch pool module %s: %s", id, tostring(msg))
+                        Finish()
+                    end,
+                }
+            end
+            Finish()
+        end,
+        failure = function(msg)
+            printf("EotW: could not query the module index for the encounter pool: %s", tostring(msg))
+            Finish()
         end,
     }
 end
 
---nil while unavailable/loading; otherwise the list of encounter map names.
+--Re-fetch the pool now (it is otherwise fetched once per app run), then
+--call callback() when it lands. Used by the admin pool dialog, and by Form a
+--Party so a module published since the town opened shows up.
+function EncounterOfTheWeek.RefreshPool(callback)
+    if callback ~= nil then
+        m_poolCallbacks[#m_poolCallbacks+1] = callback
+    end
+    EncounterOfTheWeek.CacheEncounters(true)
+end
+
+--nil while unavailable/loading; otherwise the pool's entries (see m_encounters).
 function EncounterOfTheWeek.GetEncounters()
     EncounterOfTheWeek.CacheEncounters()
     return m_encounters
 end
 
---An encounter's backstory (its script's "# Town Gate" text), or nil. name
---is a map name as the party record carries it; "" or nil is the default map.
-function EncounterOfTheWeek.GetTownGateText(name)
-    if name == nil or name == "" then
-        name = ENCOUNTER_MAP_NAME
+--The pool entry for a key, or nil (not loaded, pulled, or unknown).
+function EncounterOfTheWeek.GetEncounter(key)
+    if key == nil or key == "" then
+        key = ENCOUNTER_MAP_NAME
     end
-    local entry = m_encounterInfo[name]
-    if entry == nil or entry.townGate == "" then
+    return m_encounterByKey[key]
+end
+
+--Every community EotW module the last fetch saw, pulled ones included:
+--a list of { moduleid, name, author, pulled, count }.
+function EncounterOfTheWeek.GetPoolModules()
+    return m_poolModules
+end
+
+--An encounter's backstory (its script's "# Town Gate" text), or nil. key is
+--an encounter key as the party record carries it; "" or nil is the default map.
+function EncounterOfTheWeek.GetTownGateText(key)
+    local entry = EncounterOfTheWeek.GetEncounter(key)
+    if entry == nil then
         return nil
     end
     return entry.townGate
+end
+
+--Admin: take a community module out of the pool (pulled = true) or put it
+--back. Flips publishingProperties.eotwPulled on the module's own record; the
+--database rules let an admin write any module record, and the author's next
+--publish keeps the flag (the publish dialog only rewrites the properties it
+--owns). callback(ok, message) when done.
+function EncounterOfTheWeek.SetModulePulled(moduleid, pulled, callback)
+    module.DownloadModuleInfo{
+        moduleid = moduleid,
+        success = function(info)
+            local ok, err = pcall(function()
+                info.publishingProperties.eotwPulled = cond(pulled, true, nil)
+                info:Upload{
+                    success = function()
+                        printf("EotW: module %s %s the encounter pool", moduleid, cond(pulled, "pulled from", "restored to"))
+                        if callback ~= nil then
+                            callback(true)
+                        end
+                    end,
+                    failure = function(msg)
+                        if callback ~= nil then
+                            callback(false, msg)
+                        end
+                    end,
+                }
+            end)
+            if not ok and callback ~= nil then
+                callback(false, tostring(err))
+            end
+        end,
+        failure = function(msg)
+            if callback ~= nil then
+                callback(false, msg)
+            end
+        end,
+    }
 end
 
 --── pregen hero cache ────────────────────────────────────────────────
@@ -1078,7 +1354,192 @@ function EncounterOfTheWeek.CodexMenuItems()
                 }
             end,
         },
+        {
+            text = "Encounter Pool...",
+            icon = "phosphor/sword-fill.png",
+            click = function()
+                EncounterOfTheWeek.ShowPoolDialog()
+            end,
+        },
     }
+end
+
+--Admin: the community encounter modules and their standing in the pool, with
+--Pull / Restore on each (EncounterOfTheWeek.SetModulePulled). Mounted over
+--the town screen; refetches the pool when it opens and after every change.
+function EncounterOfTheWeek.ShowPoolDialog()
+    if m_screen == nil or not m_screen.valid then
+        return
+    end
+
+    local dlg
+    local listPanel
+    local statusLabel
+
+    local SetStatus = function(text, isError)
+        if statusLabel ~= nil and statusLabel.valid then
+            statusLabel.text = text or ""
+            statusLabel.selfStyle.color = cond(isError, "#ff8888", Styles.textColor)
+        end
+    end
+
+    local Rebuild
+    Rebuild = function()
+        if listPanel == nil or not listPanel.valid then
+            return
+        end
+        local rows = {}
+        local modules = EncounterOfTheWeek.GetPoolModules()
+        if #modules == 0 then
+            rows[1] = gui.Label{
+                text = "No community Encounter of the Week modules are published yet.",
+                fontSize = 18,
+                italics = true,
+                color = Styles.textColor,
+                width = "100%",
+                height = "auto",
+                textAlignment = "center",
+                vmargin = 12,
+            }
+        end
+        for _,m in ipairs(modules) do
+            local byline = m.moduleid
+            if m.author ~= nil and m.author ~= "" then
+                byline = string.format("%s, by %s", m.moduleid, m.author)
+            end
+            rows[#rows+1] = gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                vmargin = 4,
+                gui.Panel{
+                    width = "100%-150",
+                    height = "auto",
+                    flow = "vertical",
+                    valign = "center",
+                    gui.Label{
+                        text = m.name,
+                        fontSize = 20,
+                        bold = true,
+                        color = cond(m.pulled, "#888888", Styles.textColor),
+                        width = "100%",
+                        height = "auto",
+                    },
+                    gui.Label{
+                        text = string.format("%s -- %d encounter%s%s", byline, m.count, cond(m.count == 1, "", "s"), cond(m.pulled, " -- PULLED", "")),
+                        fontSize = 14,
+                        color = "#b8ad96",
+                        width = "100%",
+                        height = "auto",
+                    },
+                },
+                gui.Button{
+                    text = cond(m.pulled, "Restore", "Pull"),
+                    fontSize = 18,
+                    width = 130,
+                    height = 38,
+                    valign = "center",
+                    click = function(element)
+                        SetStatus(cond(m.pulled, "Restoring ", "Pulling ") .. m.name .. "...")
+                        EncounterOfTheWeek.SetModulePulled(m.moduleid, not m.pulled, function(ok, message)
+                            if not ok then
+                                SetStatus("Could not change the module: " .. tostring(message), true)
+                                return
+                            end
+                            EncounterOfTheWeek.RefreshPool(function()
+                                SetStatus("")
+                                Rebuild()
+                            end)
+                        end)
+                    end,
+                },
+            }
+        end
+        listPanel.children = rows
+    end
+
+    dlg = gui.Panel{
+        floating = true,
+        width = 640,
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "#111111ff",
+        borderWidth = 2,
+        borderColor = Styles.textColor,
+        flow = "vertical",
+        pad = 16,
+        borderBox = true,
+        styles = { Styles.Default },
+
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        escape = function(element)
+            element:DestroySelf()
+        end,
+
+        gui.Label{
+            text = "Encounter Pool",
+            fontSize = 32,
+            bold = true,
+            color = Styles.textColor,
+            width = "auto",
+            height = "auto",
+            halign = "center",
+            vmargin = 8,
+        },
+        gui.Label{
+            text = "Community modules published Public as Encounter of the Week. A pulled module's encounters are not offered at the Town Gate; games already formed keep playing it.",
+            fontSize = 15,
+            color = "#b8ad96",
+            width = "100%",
+            height = "auto",
+            textAlignment = "center",
+            textWrap = true,
+            vmargin = 4,
+        },
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            maxHeight = 520,
+            vscroll = true,
+            flow = "vertical",
+            vmargin = 8,
+            create = function(element)
+                listPanel = element
+            end,
+        },
+        gui.Label{
+            text = "Loading the pool...",
+            fontSize = 16,
+            color = Styles.textColor,
+            width = "100%",
+            height = "auto",
+            minHeight = 22,
+            textAlignment = "center",
+            create = function(element)
+                statusLabel = element
+            end,
+        },
+        gui.Button{
+            text = "Close",
+            fontSize = 20,
+            width = 140,
+            height = 42,
+            halign = "center",
+            vmargin = 8,
+            click = function(element)
+                dlg:DestroySelf()
+            end,
+        },
+    }
+
+    m_screen:AddChild(dlg)
+    EncounterOfTheWeek.RefreshPool(function()
+        SetStatus("")
+        Rebuild()
+    end)
 end
 
 --Builds the full-screen EotW panel: overview text, the games list driven by
@@ -1474,7 +1935,7 @@ CreateScreen = function(args)
     --encounter; "" when the record has no choice (the module's default map).
     local EncounterSuffix = function(record)
         if record ~= nil and type(record.encounter) == "string" and record.encounter ~= "" then
-            return " -- " .. record.encounter
+            return " -- " .. EncounterOfTheWeek.EncounterDisplayName(record.encounter)
         end
         return ""
     end
@@ -1498,9 +1959,10 @@ CreateScreen = function(args)
         --entering combat. nil on a resume (no record) so the game keeps its
         --previously recorded roster.
         local members = nil
-        --the encounter map the host chose at create time (a map NAME in the
-        --module; "" or nil = the default). nil on a resume: the game-side
-        --setup then uses the name the host stamped into the game.
+        --the encounter the host chose at create time: an encounter KEY (see
+        --EncounterOfTheWeek.EncounterKey; "" or nil = the default map). nil on
+        --a resume: the game-side setup then uses what the host stamped into
+        --the game.
         local encounterMap = nil
         if record ~= nil then
             myHeroes = MyHeroesCopy(record)
@@ -3161,30 +3623,54 @@ CreateScreen = function(args)
         ---@type Panel
         local dlg = nil
 
-        --the encounter maps the week's module offers. With more than one the
-        --dialog shows a dropdown, defaulting to the bare "Encounter" map when
-        --it exists (else the first). With just one there is nothing to
-        --choose, but the party still records it by name (the town keys who
-        --has already won an encounter by that name). With none (or the list
-        --not loaded yet) the game plays the module's default map.
+        --the encounter pool (see "the encounter pool" above). With more than
+        --one encounter the dialog shows a dropdown, defaulting to the official
+        --module's bare "Encounter" map when it exists (else the first). With
+        --just one there is nothing to choose, but the party still records its
+        --key (the town keys who has already won an encounter by it). With none
+        --(or the pool not loaded yet) the game plays the official default map.
+        --m_encounter is an encounter KEY.
         local encounters = EncounterOfTheWeek.GetEncounters() or {}
         local m_encounter = nil
         local showEncounterChoice = #encounters > 1
         if #encounters > 0 then
-            m_encounter = encounters[1]
-            for _,name in ipairs(encounters) do
-                if name == ENCOUNTER_MAP_NAME then
-                    m_encounter = name
+            m_encounter = encounters[1].key
+            for _,entry in ipairs(encounters) do
+                if entry.official and entry.mapName == ENCOUNTER_MAP_NAME then
+                    m_encounter = entry.key
                 end
             end
         end
 
-        --the chosen encounter's backstory, under the choice.
+        --the chosen encounter's backstory, under the choice, and for a
+        --community encounter the module it comes from and its author.
         local backstoryLabel = BackstoryLabel("", 480)
+        local creditLabel = gui.Label{
+            text = "",
+            fontSize = 15,
+            color = "#b8ad96",
+            width = 480,
+            height = "auto",
+            halign = "center",
+            textAlignment = "center",
+            textWrap = true,
+            vmargin = 2,
+        }
         local ShowBackstory = function()
             local text = EncounterOfTheWeek.GetTownGateText(m_encounter)
             backstoryLabel.text = text or ""
             backstoryLabel:SetClass("collapsed", text == nil)
+
+            local entry = EncounterOfTheWeek.GetEncounter(m_encounter)
+            local credit = nil
+            if entry ~= nil and not entry.official then
+                credit = string.format("From the module %s", entry.moduleName or entry.moduleid)
+                if entry.author ~= nil and entry.author ~= "" then
+                    credit = credit .. " by " .. entry.author
+                end
+            end
+            creditLabel.text = credit or ""
+            creditLabel:SetClass("collapsed", credit == nil)
         end
         ShowBackstory()
 
@@ -3293,9 +3779,30 @@ CreateScreen = function(args)
             }
         end
 
+        --official encounters at the top level, then one flyout per community
+        --module ("<module> by <author>") holding its encounters. The pool
+        --lists each module's entries together, so a change of moduleid
+        --starts a new flyout.
         local encounterOptions = {}
-        for _,name in ipairs(encounters) do
-            encounterOptions[#encounterOptions+1] = { id = name, text = name }
+        local currentGroup = nil
+        for _,entry in ipairs(encounters) do
+            if entry.official then
+                encounterOptions[#encounterOptions+1] = { id = entry.key, text = entry.mapName }
+            else
+                if currentGroup == nil or currentGroup.moduleid ~= entry.moduleid then
+                    local groupText = entry.moduleName or entry.moduleid
+                    if entry.author ~= nil and entry.author ~= "" then
+                        groupText = string.format("%s by %s", groupText, entry.author)
+                    end
+                    currentGroup = { moduleid = entry.moduleid, id = "module:" .. entry.moduleid, text = groupText, submenu = {} }
+                    encounterOptions[#encounterOptions+1] = currentGroup
+                end
+                currentGroup.submenu[#currentGroup.submenu+1] = {
+                    id = entry.key,
+                    text = entry.title,
+                    tooltip = entry.townGate,
+                }
+            end
         end
 
         dlg = gui.Panel{
@@ -3386,6 +3893,7 @@ CreateScreen = function(args)
                 },
             },
 
+            creditLabel,
             backstoryLabel,
 
             gui.Check{
@@ -4046,6 +4554,8 @@ CreateScreen = function(args)
             --was built can come back empty if the lobby was not ready yet.
             RefreshResumeState()
             RefreshGames()
+            --pick up encounter modules published since the town opened.
+            EncounterOfTheWeek.RefreshPool()
         elseif id == "guild" then
             m_guildScene = LocationScene(CityLocation("guild"), 860, EotwRoster.GuildPanel(resultPanel))
             locationHost:AddChild(m_guildScene)

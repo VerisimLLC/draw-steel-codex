@@ -412,6 +412,50 @@ local function ParseClause(clause)
             key = EncounterScript.MatchKey(modName), text = clause }
     end
 
+    --"roll twice on Tinkerer's Wares": roll the entry's own dice table that
+    --many times and apply each row landed on. Before the item rule, which
+    --would read "you roll ..." as nothing but has no business near a table.
+    local rollQty, rollName = EncounterScript.ParseRollTableClause(clause)
+    if rollQty ~= nil then
+        return { kind = "rolltable", qty = rollQty, name = rollName,
+            key = EncounterScript.MatchKey(rollName), text = clause }
+    end
+
+    --"your rolled damage is increased by 1" / "+1 rolled damage": a bonus to
+    --the damage of every power roll the hero makes until the next respite.
+    local damageQty, damageTarget = EncounterScript.ParseDamageBoonClause(lower(clause))
+    if damageQty ~= nil then
+        return { kind = "damageboon", target = damageTarget, qty = damageQty, text = clause }
+    end
+
+    --"your maximum stamina is reduced by 5": a curse on the hero's Stamina
+    --maximum until the next respite.
+    local staminaQty, staminaTarget = EncounterScript.ParseMaxStaminaClause(lower(clause))
+    if staminaQty ~= nil then
+        return { kind = "maxstamina", target = staminaTarget, qty = staminaQty, text = clause }
+    end
+
+    --"you lose a consumable": one consumable item, picked at random from the
+    --hero's inventory. A hero with none loses a Recovery instead, quietly.
+    local consumableQty, consumableTarget = EncounterScript.ParseLoseConsumableClause(lower(clause))
+    if consumableQty ~= nil then
+        return { kind = "loseconsumable", target = consumableTarget, qty = consumableQty, text = clause }
+    end
+
+    --"the Start2 zone becomes a starting area": the heroes may also start
+    --the encounter in that zone type.
+    local startZone = EncounterScript.ParseStartZoneClause(lower(clause))
+    if startZone ~= nil then
+        return { kind = "startzone", zone = startZone, text = clause }
+    end
+
+    --"reveal the Treasure Chest object": a map object the author left
+    --inactive (hidden) appears for the encounter.
+    local objectName = EncounterScript.ParseRevealObjectClause(clause)
+    if objectName ~= nil then
+        return { kind = "revealobject", object = objectName, text = clause }
+    end
+
     --- boons --------------------------------------------------------------
     --These are matched BEFORE the generic "you gain <qty> <item>" rule
     --below, which would otherwise swallow "you gain 5 temporary stamina" as
@@ -781,6 +825,217 @@ function EncounterScript.ParseRevealZonesClause(lc)
     return SingularKeyword(rest)
 end
 
+--Timing words an author may hang on a boon or curse; they say nothing the
+--effect does not already do (it lasts until the next respite, which in
+--Encounter of the Week is the end of the game).
+local function StripEncounterTiming(lc)
+    lc = trim(lc)
+    for _, suffix in ipairs({ "%s+for the rest of the encounter$", "%s+for the rest of the adventure$",
+        "%s+for this encounter$", "%s+for the encounter$", "%s+this encounter$", "%s+during the encounter$",
+        "%s+until the next respite$", "%s+until your next respite$" }) do
+        lc = string.gsub(lc, suffix, "")
+    end
+    return lc
+end
+
+--"+1" / "one" / "a" -> 1 (a leading plus is allowed).
+local function SignedQuantity(word)
+    if word == nil then
+        return nil
+    end
+    return EncounterScript.ParseQuantity((string.gsub(word, "^%+", "")))
+end
+
+--"Roll twice on Tinkerer's Wares" and its spellings. Returns the number of
+--rolls and the table name as written, or nil. The table is a dice table
+--("|Tinkerer's Wares: 1d6" and its rows) written in the same montage entry.
+--  "roll on X" / "roll once on X" / "roll twice on X" / "roll 3 times on X"
+--  "you roll ..." / "the party rolls ..." ; "on the X table" works too.
+function EncounterScript.ParseRollTableClause(clause)
+    clause = trim(clause or "")
+    local lc = lower(clause)
+    local offset = nil
+    for _, lead in ipairs({ "^you roll%s+", "^the party rolls%s+", "^rolls?%s+" }) do
+        local _, stop = string.find(lc, lead)
+        if stop ~= nil then
+            offset = stop
+            break
+        end
+    end
+    if offset == nil then
+        return nil
+    end
+    local rest = string.sub(lc, offset + 1)
+    local qty, pos = nil, nil
+    local word, p = string.match(rest, "^(%S+) times? on%s+()")
+    if word ~= nil then
+        qty, pos = EncounterScript.ParseQuantity(word), p
+    else
+        for spelled, n in pairs({ once = 1, twice = 2, thrice = 3 }) do
+            p = string.match(rest, "^" .. spelled .. " on%s+()")
+            if p ~= nil then
+                qty, pos = n, p
+                break
+            end
+        end
+        if qty == nil then
+            p = string.match(rest, "^on%s+()")
+            if p ~= nil then
+                qty, pos = 1, p
+            end
+        end
+    end
+    if qty == nil or pos == nil then
+        return nil
+    end
+    local name = trim(string.sub(clause, offset + pos))
+    name = string.gsub(name, "^[Tt]he%s+", "")
+    name = string.gsub(name, "%s+[Tt]able$", "")
+    name = trim(name)
+    if name == "" then
+        return nil
+    end
+    return qty, name
+end
+
+--"Your rolled damage is increased by 1" and its spellings. Returns the
+--bonus and "self" / "party", or nil.
+--  "your rolled damage is increased by 1" / "+1 rolled damage" / "+1 to rolled damage"
+--  "you gain +1 to rolled damage" / "you gain a +1 bonus to rolled damage"
+--  "each party member's rolled damage is increased by 1"
+--  "each party member gains +1 to rolled damage"
+function EncounterScript.ParseDamageBoonClause(lc)
+    lc = StripEncounterTiming(lc)
+    for _, p in ipairs({ "^your rolled damage is increased by (%S+)$", "^(%+?%S+) to rolled damage$",
+        "^(%+?%S+) rolled damage$", "^you gain (%+?%S+) to rolled damage$", "^you gain an? (%+?%S+) bonus to rolled damage$",
+        "^you deal (%+?%S+) extra rolled damage$" }) do
+        local n = SignedQuantity(string.match(lc, p))
+        if n ~= nil then
+            return n, "self"
+        end
+    end
+    for _, p in ipairs({ "^each party members?'?s? rolled damage is increased by (%S+)$",
+        "^each party members? gains? (%+?%S+) to rolled damage$", "^each party members? gains? an? (%+?%S+) bonus to rolled damage$" }) do
+        local n = SignedQuantity(string.match(lc, p))
+        if n ~= nil then
+            return n, "party"
+        end
+    end
+    return nil
+end
+
+--"Your maximum Stamina is reduced by 5" and its spellings. Returns the
+--reduction (positive) and "self" / "party", or nil.
+--  "your maximum stamina is reduced by 5" / "your stamina maximum is reduced by 5"
+--  "you lose 5 maximum stamina" / "each party member's maximum stamina is reduced by 5"
+function EncounterScript.ParseMaxStaminaClause(lc)
+    lc = StripEncounterTiming(lc)
+    lc = string.gsub(lc, "stamina maximum", "maximum stamina")
+    lc = string.gsub(lc, "max stamina", "maximum stamina")
+    local n = SignedQuantity(string.match(lc, "^your maximum stamina is reduced by (%S+)$")
+        or string.match(lc, "^you lose (%S+) maximum stamina$"))
+    if n ~= nil then
+        return n, "self"
+    end
+    n = SignedQuantity(string.match(lc, "^each party members?'?s? maximum stamina is reduced by (%S+)$")
+        or string.match(lc, "^each party members? loses? (%S+) maximum stamina$"))
+    if n ~= nil then
+        return n, "party"
+    end
+    return nil
+end
+
+--"You lose a consumable" and its spellings. Returns the count and "self" /
+--"party", or nil.
+--  "you lose a consumable" / "you lose a consumable item" / "you lose 2 consumables"
+--  "each party member loses a consumable"
+function EncounterScript.ParseLoseConsumableClause(lc)
+    lc = trim(lc)
+    lc = string.gsub(lc, "consumable items?$", "consumable")
+    lc = string.gsub(lc, "consumables$", "consumable")
+    local n = EncounterScript.ParseQuantity(string.match(lc, "^you lose (%S+) consumable$"))
+    if n ~= nil then
+        return n, "self"
+    end
+    n = EncounterScript.ParseQuantity(string.match(lc, "^each party members? loses? (%S+) consumable$"))
+    if n ~= nil then
+        return n, "party"
+    end
+    return nil
+end
+
+--"The Start2 zone becomes a starting area" and its spellings. Returns the
+--zone keyword name, lower-cased, or nil. The heroes may then start the
+--encounter anywhere in that zone type as well as in the Start zone.
+--  "the start2 zone becomes a starting area" / "... an additional starting area"
+--  "the start2 zone is added to the starting area"
+--  "you may also start in the start2 zone" / "unlock the start2 starting area"
+function EncounterScript.ParseStartZoneClause(lc)
+    lc = trim(lc)
+    lc = string.gsub(lc, "start zone$", "starting area")
+    lc = string.gsub(lc, "start area$", "starting area")
+    lc = string.gsub(lc, "starting zone$", "starting area")
+    for _, p in ipairs({
+        "^the (%S+) zones? becomes? an? starting area$",
+        "^the (%S+) zones? becomes? an? additional starting area$",
+        "^the (%S+) zones? %a+ added to the starting area$",
+        "^you may also start in the (%S+) zones?$",
+        "^you can also start in the (%S+) zones?$",
+        "^the party may also start in the (%S+) zones?$",
+        "^unlocks? the (%S+) starting area$",
+        "^you unlock the (%S+) starting area$",
+        "^the (%S+) starting area is unlocked$",
+    }) do
+        local zone = string.match(lc, p)
+        if zone ~= nil then
+            return SingularKeyword(zone)
+        end
+    end
+    return nil
+end
+
+--"Reveal the Treasure Chest object" and its spellings. Returns the object
+--name as written, or nil. The word "object" is required: without it the
+--clause is a zone reveal ("reveal the traps").
+--  "reveal the treasure chest object" / "the treasure chest object is revealed"
+--  "you discover the treasure chest object" / "you find the treasure chest object"
+function EncounterScript.ParseRevealObjectClause(clause)
+    clause = trim(clause or "")
+    local lc = lower(clause)
+    --the timing suffix is flavour, as for a zone reveal.
+    for _, suffix in ipairs({ "%s+during the next %a+$", "%s+in the next %a+$", "%s+during combat$", "%s+on the map$" }) do
+        local cut = string.find(lc, suffix)
+        if cut ~= nil then
+            lc = string.sub(lc, 1, cut - 1)
+            clause = string.sub(clause, 1, cut - 1)
+        end
+    end
+    for _, p in ipairs({
+        "^reveal the ()(.-) objects?$",
+        "^reveal ()(.-) objects?$",
+        "^the ()(.-) objects? is revealed$",
+        "^the ()(.-) objects? are revealed$",
+        "^you discover the ()(.-) objects?$",
+        "^you find the ()(.-) objects?$",
+        "^the party discovers the ()(.-) objects?$",
+    }) do
+        local pos, name = string.match(lc, p)
+        if pos ~= nil and trim(name) ~= "" then
+            return trim(string.sub(clause, pos, pos + #name - 1))
+        end
+    end
+    return nil
+end
+
+--The player-facing lines for the newer boons and curses.
+function EncounterScript.DescribeStartZone(zone)
+    return string.format("The heroes may also start the encounter in the %s zone", tostring(zone))
+end
+
+function EncounterScript.DescribeRevealObject(object)
+    return string.format("The %s will be on the map when the encounter begins", tostring(object))
+end
+
 --The player-facing line for a zone reveal: "The Traps will be revealed
 --during the next combat".
 function EncounterScript.DescribeRevealZones(zone)
@@ -794,10 +1049,48 @@ end
 --  "Place one Pit object in the Pit zones"
 --  "Place 4 Snare Trap objects in Trap zones and remove the remaining Trap zones"
 --Returns { kind = "placeobjects", qty, object, zone, deleteOthers } or nil.
+--
+--Also the bystander line, for tokens already standing on the map (hostages,
+--townsfolk) that must not join the fight:
+--  "Civilian tokens stay out of initiative" / "Civilian tokens take no turns"
+--  "Civilian 1 and Civilian 2 are bystanders"
+--Returns { kind = "bystanders", names = { "Civilian", ... } }. A name
+--matches a token's name, a token named "<name> <anything>" ("Civilian 2"),
+--or a monster's bestiary type.
 function EncounterScript.ParseSetupInstruction(text)
     local original = trim(text or "")
     local lc = lower(original)
     lc = string.gsub(lc, "%.$", "")
+    for _, p in ipairs({
+        "^(.-) tokens? stays? out of initiative$",
+        "^(.-) tokens? stays? out of the initiative$",
+        "^(.-) tokens? stays? out of combat$",
+        "^(.-) tokens? stays? out of the fight$",
+        "^(.-) tokens? takes? no turns$",
+        "^(.-) tokens? never fights?$",
+        "^(.-) are bystanders$",
+        "^(.-) is a bystander$",
+    }) do
+        local who = string.match(lc, p)
+        if who ~= nil and trim(who) ~= "" then
+            local shown = string.sub(original, 1, #who)
+            if lower(shown) ~= who then
+                shown = who
+            end
+            local names = {}
+            local work = string.gsub(shown, "%s+[aA][nN][dD]%s+", ",")
+            for part in string.gmatch(work, "[^,]+") do
+                local name = trim(part)
+                name = string.gsub(name, "^[Tt]he%s+", "")
+                if name ~= "" then
+                    names[#names + 1] = name
+                end
+            end
+            if #names > 0 then
+                return { kind = "bystanders", names = names }
+            end
+        end
+    end
     local qtyWord, rest = string.match(lc, "^place (%S+) (.+)$")
     if qtyWord == nil then
         return nil
@@ -973,8 +1266,8 @@ local function Riders()
     return tr
 end
 
-function EncounterScript.RiderLabel(effect)
-    return Riders().Label(effect)
+function EncounterScript.RiderLabel(effect, round)
+    return Riders().Label(effect, round)
 end
 
 function EncounterScript.RiderBoons(effect)
@@ -1938,6 +2231,8 @@ function EncounterScript.Parse(text)
     ---@field entries table[]
     ---@field scaling table[]
     ---@field implicit boolean|nil
+    ---@field sceneTag string|nil the round's own [[scene]] (its backdrop from this round on)
+    ---@field sceneLine integer|nil
 
     ---@type EncounterScriptParsedRound?
     local round = nil     --current round (montage)
@@ -2391,6 +2686,12 @@ function EncounterScript.Parse(text)
                     beat.sceneTag = tagText
                     beat.sceneLine = i
                 end
+                --under a "## Round N" heading (above its entries) it is that
+                --round's backdrop: the stage swaps to it when the round opens.
+                if beat.kind == "montage" and tagName == "scene" and round ~= nil and entry == nil and round.sceneTag == nil then
+                    round.sceneTag = tagText
+                    round.sceneLine = i
+                end
                 if beat.kind == "narrative" and tagName == "scene" then
                     --inside a section it is that section's backdrop; above
                     --them all it is the beat's.
@@ -2457,12 +2758,25 @@ function EncounterScript.Parse(text)
                     end
                     j = j + 1
                 end
-                if entry == nil or entry.section ~= "chest" then
-                    Warn(i, "a dice table ('%s: %s') belongs under a delve's '## Chest'; ignored", trim(name), dice)
-                elseif entry.table ~= nil then
-                    Warn(i, "the chest already has a table; '%s' ignored", trim(name))
+                if entry ~= nil and entry.section == "chest" then
+                    if entry.table ~= nil then
+                        Warn(i, "the chest already has a table; '%s' ignored", trim(name))
+                    else
+                        entry.table = tableRoll
+                    end
+                elseif entry ~= nil and (entry.kind == "opportunity" or entry.kind == "threat" or entry.kind == "obstacle") then
+                    --a montage entry's (or delve obstacle's) own table, rolled
+                    --on by a "roll twice on <name>" clause in one of its tiers.
+                    local key = EncounterScript.MatchKey(tableRoll.name)
+                    entry.tables = entry.tables or {}
+                    if entry.tables[key] ~= nil then
+                        Warn(i, "%s '%s' already has a table named '%s'; this one is ignored", entry.kind, entry.name, trim(name))
+                    else
+                        tableRoll.line = i
+                        entry.tables[key] = tableRoll
+                    end
                 else
-                    entry.table = tableRoll
+                    Warn(i, "a dice table ('%s: %s') belongs in a montage entry or under a delve's '## Chest'; ignored", trim(name), dice)
                 end
                 i = j - 1
             elseif name == nil then
@@ -2476,8 +2790,13 @@ function EncounterScript.Parse(text)
                     if tierText == nil then
                         break
                     end
+                    --"|Tinkerer's Wares: 1d6" starts a dice table, even with
+                    --no blank line between it and the roll above.
+                    if string.match(trim(tierText), "^[^|]+:%s*%d*[dD]%d+%s*$") ~= nil then
+                        break
+                    end
                     --"|Edge: you speak Caelian" is a rider, not a tier
-                    local effect, requirementText = EncounterScript.ParseRiderLine(trim(tierText))
+                    local effect, requirementText, riderRound = EncounterScript.ParseRiderLine(trim(tierText))
                     if effect ~= nil then
                         if requirementText == "" then
                             Warn(j, "rider '%s' has no requirement; ignored", trim(tierText))
@@ -2485,10 +2804,10 @@ function EncounterScript.Parse(text)
                             local requirement = EncounterScript.ParseRequirement(requirementText)
                             for _, alt in ipairs(requirement.alternatives) do
                                 if alt.kind == "unknown" then
-                                    Warn(j, "requirement '%s' not understood (use 'you are skilled in X', 'you speak X' or 'you are a X'); never met", alt.text)
+                                    Warn(j, "requirement '%s' not understood (use 'you are skilled in X', 'you speak X', 'you are a X', 'you can climb' or 'your Wealth is 2 or higher'); never met", alt.text)
                                 end
                             end
-                            riders[#riders + 1] = { effect = effect, text = requirementText, requirement = requirement, line = j }
+                            riders[#riders + 1] = { effect = effect, text = requirementText, requirement = requirement, round = riderRound, line = j }
                         end
                     elseif #tiers >= 4 then
                         break
@@ -2689,9 +3008,13 @@ function EncounterScript.Parse(text)
                     optionNames[EncounterScript.MatchKey(o.name)] = true
                 end
             end
-            local function CheckReferences(effects, atLine)
+            local function CheckReferences(effects, atLine, entry)
                 for _, effect in ipairs(effects or {}) do
-                    if effect.kind == "unlock" then
+                    if effect.kind == "rolltable" then
+                        if entry == nil or (entry.tables or {})[effect.key] == nil then
+                            Warn(atLine, "'%s' names no dice table of this entry (write '|%s: 1d6' and its rows in the entry)", effect.text, effect.name)
+                        end
+                    elseif effect.kind == "unlock" then
                         if not locked[effect.key] then
                             Warn(atLine, "'%s' names no '(Locked)' opportunity or threat of this montage", effect.text)
                         else
@@ -2704,13 +3027,18 @@ function EncounterScript.Parse(text)
             end
             for _, e in ipairs(EncounterScript.MontageEntries(b)) do
                 if e.consequence ~= nil then
-                    CheckReferences(e.consequence.effects, e.line)
+                    CheckReferences(e.consequence.effects, e.line, e)
                 end
                 for _, o in ipairs(e.options) do
                     if o.roll ~= nil then
                         for t in ipairs(o.roll.tiers) do
-                            CheckReferences(o.roll.effects[t], o.line)
+                            CheckReferences(o.roll.effects[t], o.line, e)
                         end
+                    end
+                end
+                for _, tableRoll in pairs(e.tables or {}) do
+                    for _, row in ipairs(tableRoll.rows or {}) do
+                        CheckReferences(row.effects, row.line, e)
                     end
                 end
             end
@@ -2888,6 +3216,10 @@ local OUTCOME_OF_EFFECT = {
     malice = "malice",
     stamina = "harm",
     loserecovery = "harm",
+    maxstamina = "harm",
+    loseconsumable = "harm",
+    revealobject = "treasure",
+    rolltable = "treasure",
 }
 
 local function OutcomeOfEffect(effect)
@@ -3062,6 +3394,11 @@ function EncounterScript.ReferencedNames(parse)
                     end
                 end
             end
+            for _, tableRoll in pairs(e.tables or {}) do
+                for _, row in ipairs(tableRoll.rows or {}) do
+                    Collect(row.effects)
+                end
+            end
         end
     end
     return items, monsters
@@ -3080,6 +3417,8 @@ function EncounterScript.Describe(parse)
                 if ins.kind == "placeobjects" then
                     line("  setup %s: place %d x '%s' in %s zones%s", ins.label, ins.qty, ins.object, ins.zone,
                         cond(ins.deleteOthers, ", delete the other " .. ins.zone .. " zones", ""))
+                elseif ins.kind == "bystanders" then
+                    line("  setup %s: bystanders (no initiative): %s", ins.label, table.concat(ins.names, ", "))
                 else
                     line("  setup %s: UNRECOGNIZED '%s'", ins.label, ins.text)
                 end
@@ -3115,7 +3454,8 @@ function EncounterScript.Describe(parse)
                 line("  scene: [[%s]]", b.sceneTag)
             end
             for _, r in ipairs(b.rounds) do
-                line("  round %d%s", r.number, cond(r.implicit, " (implicit)", ""))
+                line("  round %d%s%s", r.number, cond(r.implicit, " (implicit)", ""),
+                    cond(r.sceneTag ~= nil, string.format(" scene [[%s]]", tostring(r.sceneTag)), ""))
                 for _, d in ipairs(r.scaling or {}) do
                     local parts = {}
                     for kind, n in pairs(d.removals) do
@@ -3133,6 +3473,12 @@ function EncounterScript.Describe(parse)
                         line("      consequence: %s", e.consequence.text)
                         for _, effect in ipairs(e.consequence.effects) do
                             line("        - %s", EncounterScript.DescribeEffect(effect))
+                        end
+                    end
+                    for _, tableRoll in pairs(e.tables or {}) do
+                        line("      table %s: %s", tableRoll.name, tableRoll.dice)
+                        for _, row in ipairs(tableRoll.rows) do
+                            line("        %d-%d: %s", row.lo, row.hi, row.text)
                         end
                     end
                     for _, o in ipairs(e.options) do
@@ -3154,7 +3500,7 @@ function EncounterScript.Describe(parse)
                                 for _, alt in ipairs(rider.requirement.alternatives) do
                                     alts[#alts + 1] = string.format("%s=%s", alt.kind, alt.name)
                                 end
-                                line("        %s: %s (%s)", EncounterScript.RiderLabel(rider.effect), rider.text, table.concat(alts, " | "))
+                                line("        %s: %s (%s)", EncounterScript.RiderLabel(rider.effect, rider.round), rider.text, table.concat(alts, " | "))
                             end
                         end
                     end
@@ -3224,6 +3570,19 @@ function EncounterScript.DescribeEffect(effect)
         return string.format("unlock '%s'", effect.name)
     elseif effect.kind == "testmod" then
         return string.format("%s on '%s'", lower(EncounterScript.RiderLabel(effect.effect)), effect.name)
+    elseif effect.kind == "rolltable" then
+        return string.format("roll %s on '%s'", cond(effect.qty == 1, "once", tostring(effect.qty) .. " times"), effect.name)
+    elseif effect.kind == "damageboon" then
+        return string.format("%s rolled damage +%d until the next respite", cond(effect.target == "party", "every hero's", "the hero's"), effect.qty)
+    elseif effect.kind == "maxstamina" then
+        return string.format("%s maximum stamina -%d until the next respite", cond(effect.target == "party", "every hero's", "the hero's"), effect.qty)
+    elseif effect.kind == "loseconsumable" then
+        return string.format("%s loses %s (a recovery if none)", cond(effect.target == "party", "every hero", "the hero"),
+            EncounterScript.Plural(effect.qty, "consumable"))
+    elseif effect.kind == "startzone" then
+        return EncounterScript.DescribeStartZone(effect.zone)
+    elseif effect.kind == "revealobject" then
+        return EncounterScript.DescribeRevealObject(effect.object)
     end
     return string.format("narrative%s: %s", cond(effect.unrecognized, " (unrecognized)", ""), effect.text)
 end

@@ -1523,4 +1523,127 @@ do
     check(implicit.story.towngate.text == "The gate.", "the island line is not story text")
 end
 
+
+--- the Dwarvish Bandits additions: dice tables in entries, new boons and
+--- curses, start zones, object reveals, bystanders, round scenes, riders.
+do
+    local function one(text)
+        local effects = EncounterScript.ParseEffects(text)
+        return effects[1]
+    end
+
+    local e = one("Roll twice on Tinkerer's Wares")
+    check(e.kind == "rolltable" and e.qty == 2 and e.name == "Tinkerer's Wares" and e.key == "tinkerer's wares", "roll twice on a table")
+    e = one("you roll on the Herb Pouch table")
+    check(e.kind == "rolltable" and e.qty == 1 and e.name == "Herb Pouch", "roll on the X table: " .. tostring(e.name))
+    e = one("roll 3 times on Loot")
+    check(e.kind == "rolltable" and e.qty == 3, "roll N times")
+
+    e = one("Your rolled damage is increased by 1 for the rest of the encounter")
+    check(e.kind == "damageboon" and e.qty == 1 and e.target == "self", "rolled damage boon (self)")
+    e = one("+1 to rolled damage")
+    check(e.kind == "damageboon" and e.qty == 1, "+1 to rolled damage")
+    e = one("Each party member's rolled damage is increased by 2")
+    check(e.kind == "damageboon" and e.qty == 2 and e.target == "party", "rolled damage boon (party)")
+
+    e = one("Your maximum Stamina is reduced by 5 this encounter")
+    check(e.kind == "maxstamina" and e.qty == 5 and e.target == "self", "max stamina curse")
+    e = one("each party member's stamina maximum is reduced by 3")
+    check(e.kind == "maxstamina" and e.qty == 3 and e.target == "party", "party max stamina curse")
+
+    e = one("You lose a consumable item")
+    check(e.kind == "loseconsumable" and e.qty == 1 and e.target == "self", "lose a consumable")
+    e = one("Each party member loses a consumable")
+    check(e.kind == "loseconsumable" and e.target == "party", "party loses a consumable")
+
+    e = one("The Start2 zone becomes a starting area")
+    check(e.kind == "startzone" and e.zone == "start2", "start zone unlock")
+    e = one("You may also start in the Start2 zone")
+    check(e.kind == "startzone" and e.zone == "start2", "may also start in")
+
+    e = one("Reveal the Treasure Chest object")
+    check(e.kind == "revealobject" and e.object == "Treasure Chest", "reveal an object keeps its spelling")
+    e = one("reveal the traps")
+    check(e.kind == "revealzones" and e.zone == "trap", "a zone reveal is not an object reveal")
+
+    local ins = EncounterScript.ParseSetupInstruction("Civilian tokens stay out of initiative.")
+    check(ins ~= nil and ins.kind == "bystanders" and ins.names[1] == "Civilian", "bystander setup line")
+    ins = EncounterScript.ParseSetupInstruction("Civilian 1 and Civilian 2 are bystanders")
+    check(ins ~= nil and #ins.names == 2 and ins.names[2] == "Civilian 2", "named bystanders")
+
+    local effect, req, round = EncounterScript.ParseRiderLine("|Edge (Round 1): you can climb or fly")
+    check(effect == "edge" and round == 1 and req == "you can climb or fly", "round-limited rider line")
+    local r = EncounterScript.ParseRequirement(req)
+    check(#r.alternatives == 2 and r.alternatives[1].kind == "movement" and r.alternatives[2].kind == "movement"
+        and r.alternatives[2].name == "fly", "climb or fly")
+    r = EncounterScript.ParseRequirement("your Wealth is 2 or higher")
+    check(#r.alternatives == 1 and r.alternatives[1].kind == "wealth" and r.alternatives[1].name == "2", "wealth threshold")
+    check(EncounterScript.RequirementMet(r, { wealth = 3 }) and not EncounterScript.RequirementMet(r, { wealth = 1 }), "wealth compares")
+    local riders = { { effect = "edge", round = 1, requirement = EncounterScript.ParseRequirement("you can fly") } }
+    check(EncounterScript.EvaluateRiders(riders, { movement = { fly = true }, round = 1 }).boons == 1, "round rider applies in its round")
+    check(EncounterScript.EvaluateRiders(riders, { movement = { fly = true }, round = 2 }).boons == 0, "round rider is off in another round")
+
+    local script = EncounterScript.Parse(table.concat({
+        "# Montage",
+        "",
+        "## Round 1",
+        "",
+        "[[scene:day]]",
+        "",
+        "## Opportunity: Dwarf Tinkerer",
+        "",
+        "A tinkerer sells wares.",
+        "",
+        "### Haggle",
+        "",
+        "|Haggle Test: Presence (Persuade)",
+        "|You fail",
+        "|Roll once on Tinkerer's Wares",
+        "|Roll twice on Tinkerer's Wares",
+        "|Edge: your Wealth is 2 or higher",
+        "|Tinkerer's Wares: 1d6",
+        "|1-3: You gain 1 Healing Potion",
+        "|4-6: +1 hero token",
+        "",
+        "## Round 2",
+        "",
+        "[[scene:night]]",
+        "",
+        "## Threat: Toll Collectors",
+        "",
+        "Consequence: Each party member loses a consumable",
+        "",
+        "### Pay",
+        "",
+        "|Pay Test: Presence (Lie)",
+        "|You lose a consumable",
+        "|The threat is vanquished",
+        "|The threat is vanquished",
+        "",
+        "# Encounter",
+        "",
+        "Hostages: Civilian tokens stay out of initiative",
+        "",
+        "[[encounter]]",
+    }, "\n"))
+    check(#script.warnings == 0, "dwarvish sample parses clean: " .. table.concat(script.warnings, " | "))
+    local montage = script.beats[1]
+    check(montage.rounds[1].sceneTag == "scene:day" and montage.rounds[2].sceneTag == "scene:night", "per-round scenes")
+    check(montage.sceneTag == "scene:day", "the beat keeps its first scene")
+    local tinkerer = montage.rounds[1].entries[1]
+    local wares = tinkerer.tables["tinkerer's wares"]
+    check(wares ~= nil and wares.dice == "1d6" and #wares.rows == 2, "an entry's own dice table")
+    check(#tinkerer.options[1].roll.tiers == 3 and #tinkerer.options[1].roll.riders == 1, "the table header ends the roll block")
+    check(script.beats[2].setup[1].kind == "bystanders", "bystander instruction on the encounter beat")
+
+    local bad = EncounterScript.Parse("# Montage\n\n## Opportunity: X\n\n### Y\n\n|Test: Might (Lift)\n|a\n|Roll on Nothing\n|c\n")
+    local warned = false
+    for _, w in ipairs(bad.warnings) do
+        if string.find(w, "names no dice table", 1, true) then
+            warned = true
+        end
+    end
+    check(warned, "rolling on a missing table warns")
+end
+
 print(string.format("encounter_script_test: %d checks passed", passed))

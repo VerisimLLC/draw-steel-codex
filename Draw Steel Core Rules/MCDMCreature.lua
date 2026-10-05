@@ -4209,6 +4209,8 @@ local g_conditionImmunitySpeech = {
     ["dazed"] = "You can't daze me!",
     ["frightened"] = "Nothing frightens me!",
     ["grabbed"] = "You can't grab me!",
+    --a list picks one line at random each time.
+    ["hidden"] = {"I can't hide right now", "I cannot hide currently"},
     ["prone"] = "I'll never be knocked down",
     ["restrained"] = "You can't tie me down!",
     ["slowed"] = "I won't be Slowed",
@@ -4245,8 +4247,12 @@ function creature:InflictCondition(conditionid, args)
                     --the creature can speak: use its custom immunity line, a
                     --flavorful per-condition variation, or a generic first-person
                     --fallback, rendered as an in-character speech bubble.
+                    local variation = g_conditionImmunitySpeech[string.lower(conditionInfo.name)]
+                    if type(variation) == "table" then
+                        variation = variation[math.random(#variation)]
+                    end
                     local text = self:GetConditionImmunityMessage(conditionid)
-                        or g_conditionImmunitySpeech[string.lower(conditionInfo.name)]
+                        or variation
                         or string.format("I can't be %s!", conditionInfo.name)
                     self:CharacterSpeech{
                         text = text,

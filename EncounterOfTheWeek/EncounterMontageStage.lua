@@ -2742,11 +2742,14 @@ local function CreateSceneStage()
 
     local function DelveChoiceButtons(m, t)
         local mine = IsMyTurn(m)
+        local delve = EncounterMontage.TurnDelve(t)
+        --an in-order delve (a story chain) presses on for free.
+        local ordered = delve ~= nil and delve.ordered == true
         ---@type Panel[]
         local children = {
             gui.Label{
                 classes = {"eotwSceneHint"},
-                text = cond(mine, "Press deeper, or turn back with what you have?", string.format("%s is deciding whether to press on...", t.heroName or "The hero")),
+                text = cond(mine, cond(ordered, "Press on, or turn back?", "Press deeper, or turn back with what you have?"), string.format("%s is deciding whether to press on...", t.heroName or "The hero")),
             },
         }
         if mine then
@@ -2775,9 +2778,11 @@ local function CreateSceneStage()
                 }
             end
             --pressing on costs a Recovery up front (EncounterMontage.CanPressDeeper).
-            local cost = EncounterMontage.DELVE_PRESS_ON_COST
+            local cost = EncounterMontage.DelvePressOnCost(delve)
             local costText = EncounterScript.Plural(cost, "Recovery", "Recoveries")
-            if EncounterMontage.CanPressDeeper(t.heroid) then
+            if ordered then
+                children[#children + 1] = Button("Press on", "delveOn", "Go on to what comes next.")
+            elseif EncounterMontage.CanPressDeeper(t.heroid, delve) then
                 children[#children + 1] = Button(string.format("Press deeper (lose %s)", costText), "delveOn",
                     string.format("Lose %s now and face another obstacle. There may be more treasure further in.", costText))
             else
@@ -3096,7 +3101,10 @@ local function BuildTurnChildren(m, beat)
         local last = logs[#logs]
         if last ~= nil and not last.consequence then
             Add(gui.Panel{ width = "60%", height = 1, bgimage = "panels/square.png", bgcolor = "#ffffff30", halign = "center", vmargin = 10 })
-            if last.delve then
+            if last.delve and last.ordered then
+                Add(gui.Label{ classes = {"eotwTurnText"}, text = string.format("%s took on %s: %d of %s.", last.heroName or "A hero", last.entryName or "",
+                    last.depth or 0, EncounterScript.Plural(last.steps or 0, "step")) })
+            elseif last.delve then
                 Add(gui.Label{ classes = {"eotwTurnText"}, text = string.format("%s delved into %s: %s met, %s opened.", last.heroName or "A hero", last.entryName or "",
                     EncounterScript.Plural(last.depth or 0, "obstacle"), EncounterScript.Plural(last.chests or 0, "chest")) })
             elseif last.passed then

@@ -1282,6 +1282,39 @@ local noDelve = EncounterScript.Parse(table.concat({
     "# Montage", "## Opportunity: Hole", "### Go in", "Delve: Nowhere",
 }, string.char(10)))
 check(string.find(table.concat(noDelve.warnings, "; "), "there is no '# Delve: Nowhere'", 1, true) ~= nil, "a missing delve warns")
+check(tomb.ordered == nil, "a delve is random unless it says otherwise")
+
+--an in-order delve: a story chain with no chest, ending in its "## End"
+local chain = EncounterScript.Parse(table.concat({
+    "# Montage", "## Round 1",
+    "## Opportunity: A Worried Mother", "A mother.",
+    "### Help her", "Delve: The Lost Boy",
+    "# Delve: The Lost Boy", "Order: in sequence",
+    "## Obstacle: The Trail", "### Track", "|Tracking Test: Intuition", "|You lose a recovery.", "|Nothing.", "|Nothing.",
+    "## Obstacle: The Cave", "### Climb", "|Rescue Test: Might", "|You lose a recovery. +3 hero tokens.", "|+3 hero tokens.", "|+3 hero tokens.",
+    "## Turn Back", "PC turns back.",
+    "## End", "The mother weeps.",
+}, string.char(10)))
+local chainWarns = {}
+for _, w in ipairs(chain.warnings) do
+    if string.find(w, "unrecognized effect", 1, true) == nil then chainWarns[#chainWarns + 1] = w end
+end
+check(#chainWarns == 0, "an in-order delve without a chest parses clean: " .. table.concat(chainWarns, "; "))
+local boy = EncounterScript.FindDelve(chain, "The Lost Boy")
+check(boy ~= nil and boy.ordered == true, "'Order: in sequence' marks the delve in-order")
+assert(boy ~= nil)
+check(boy.obstacles[1].name == "The Trail" and boy.obstacles[2].name == "The Cave", "in-order obstacles keep their written order")
+check(boy.sections.finish ~= nil and boy.sections.leave ~= nil, "'## End' is the finish scene")
+check(string.find(boy.intro, "Order", 1, true) == nil, "the order line is not delve prose")
+for _, spelling in ipairs({ "Order: in order", "Obstacles: in order", "order: In Sequence." }) do
+    local p = EncounterScript.Parse("# Delve: X" .. string.char(10) .. spelling)
+    local d = EncounterScript.FindDelve(p, "X")
+    check(d ~= nil and d.ordered == true, "in-order spelling: " .. spelling)
+end
+local randomEnd = EncounterScript.Parse(table.concat({
+    "# Delve: Y", "## Obstacle: A", "### Go", "|T: Might", "|a", "|b", "|c", "## End", "Done.",
+}, string.char(10)))
+check(string.find(table.concat(randomEnd.warnings, "; "), "plays only in an in-order delve", 1, true) ~= nil, "'## End' in a random delve warns")
 
 --authoring mistakes warn
 local bad = EncounterScript.Parse(table.concat({

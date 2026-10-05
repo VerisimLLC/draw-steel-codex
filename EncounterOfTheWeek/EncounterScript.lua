@@ -1578,13 +1578,16 @@ EncounterScript.SCENE_EMOTES = { alert = true, scared = true, alarmed = true }
 
 --The named sections of a "# Delve: <Name>" (lowered heading -> key), besides
 --its "## Obstacle: ..." entries: the chest (scene + dice table), the scene
---offering to press on, and the scenes for walking out and being forced out.
+--offering to press on, the scenes for walking out and being forced out, and
+--(an in-order delve's) the scene for reaching the end.
 EncounterScript.DELVE_SECTIONS = {
     ["chest"] = "chest",
     ["continue"] = "continue",
     ["leave"] = "leave",
     ["turn back"] = "leave",
     ["forced out"] = "forced",
+    ["end"] = "finish",
+    ["finish"] = "finish",
 }
 
 --"Witch (Hag) enters" -> "Witch", "Hag"; "Witch enters" -> "Witch", "Witch".
@@ -2385,6 +2388,15 @@ function EncounterScript.Parse(text)
             return
         end
         if beat.kind == "delve" then
+            --"Order: in sequence" makes the obstacles a story told in the
+            --order written (a rescue: the trail, then the cave) instead of
+            --random draws; pressing on between them is free.
+            local orderText = lower(trim(text))
+            if string.match(orderText, "^order:%s*in%s+sequence%.?$") or string.match(orderText, "^order:%s*in%s+order%.?$")
+                or string.match(orderText, "^obstacles:%s*in%s+order%.?$") then
+                beat.ordered = true
+                return
+            end
             --"Chest: every 1-2 obstacles" sets how often a chest turns up;
             --other prose is the delve's own notes.
             local lo, hi = string.match(lower(text), "^chest:%s*every%s+(%d+)%s*%-%s*(%d+)")
@@ -2555,7 +2567,7 @@ function EncounterScript.Parse(text)
                     end
                     sceneTarget = entry.sceneLines
                 else
-                    Warn(i, "'## %s' in a delve is not 'Obstacle: <name>', 'Chest', 'Continue', 'Leave' or 'Forced Out'; ignored", title)
+                    Warn(i, "'## %s' in a delve is not 'Obstacle: <name>', 'Chest', 'Continue', 'Leave', 'Forced Out' or 'End'; ignored", title)
                 end
             elseif beat == nil or beat.kind ~= "montage" then
                 Warn(i, "'## %s' outside a montage or narrative beat; ignored", title)
@@ -3116,9 +3128,15 @@ function EncounterScript.Parse(text)
         end
         local chest = d.sections.chest
         if chest == nil then
-            Warn(d.line, "delve '%s' has no '## Chest'; no treasure will turn up", d.name)
+            --an in-order delve is a story; its rewards are in its tiers.
+            if not d.ordered then
+                Warn(d.line, "delve '%s' has no '## Chest'; no treasure will turn up", d.name)
+            end
         elseif chest.table == nil then
             Warn(chest.line, "delve '%s': '## Chest' has no dice table ('|Treasure: 1d6' then '|1-2: ...' rows)", d.name)
+        end
+        if d.sections.finish ~= nil and not d.ordered then
+            Warn(d.sections.finish.line, "'## %s' plays only in an in-order delve ('Order: in sequence'); a random delve ignores it", d.sections.finish.name)
         end
         for _, sec in pairs(d.sections) do
             if #sec.options > 0 then

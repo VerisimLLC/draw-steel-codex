@@ -2741,6 +2741,11 @@ end
 --"Leave" (or "Forced Out") scene and resolves the turn: the entry is taken
 --and everything gained goes in the log line. Flat: going deeper is not
 --harder, it is just more chests (user direction).
+--
+--An in-order delve ("Order: in sequence", user direction 2026-10-04) is a
+--story chain instead, e.g. a rescue: its obstacles come in the order
+--written, after each one the hero may press on (free) or turn back, chests
+--are optional, and finishing the last step plays its "## End" scene.
 
 local function HeroRecoveries(heroid)
     local n = 0
@@ -2758,8 +2763,18 @@ EncounterMontage.HeroRecoveries = HeroRecoveries
 --a hero left on 0 would be forced out before meeting anything.
 EncounterMontage.DELVE_PRESS_ON_COST = 1
 
-function EncounterMontage.CanPressDeeper(heroid)
-    return HeroRecoveries(heroid) > EncounterMontage.DELVE_PRESS_ON_COST
+--What pressing on costs in this delve: nothing in an in-order delve ("Order:
+--in sequence", a story chain like a rescue), whose steps carry their own costs.
+function EncounterMontage.DelvePressOnCost(delve)
+    if delve ~= nil and delve.ordered then
+        return 0
+    end
+    return EncounterMontage.DELVE_PRESS_ON_COST
+end
+
+function EncounterMontage.CanPressDeeper(heroid, delve)
+    local cost = EncounterMontage.DelvePressOnCost(delve)
+    return cost == 0 or HeroRecoveries(heroid) > cost
 end
 
 --Chest rows the party has never landed on read "???" (user direction
@@ -2842,13 +2857,18 @@ local function DelveScene(m, doc, t, heroes, sectionKey, after, lead)
     t.sceneAfter = after
 end
 
---Walk out: voluntarily ("leave"), with no Recoveries left ("forced"), or
---because every obstacle has been met ("exhausted").
+--Walk out: voluntarily ("leave"), with no Recoveries left ("forced"),
+--because every obstacle has been met ("exhausted"), or at the end of an
+--in-order delve ("complete": its "## End" scene, if it has one).
 local function DelveLeave(m, doc, t, heroes, why)
     t.delve.obstacleId = nil
     ClearTest(t)
     local lead = nil
     local delve = EncounterMontage.TurnDelve(t)
+    if why == "complete" then
+        DelveScene(m, doc, t, heroes, "finish", "delve-end", nil)
+        return
+    end
     local sectionKey = cond(why == "forced", "forced", "leave")
     if why == "forced" and (delve == nil or delve.sections.forced == nil) then
         lead = { string.format("%s has no Recoveries left, and must turn back.", t.heroName or "The hero") }
@@ -2875,10 +2895,11 @@ local function DelveNextObstacle(m, doc, t, heroes)
         end
     end
     if #pool == 0 then
-        DelveLeave(m, doc, t, heroes, "exhausted")
+        DelveLeave(m, doc, t, heroes, cond(delve.ordered, "complete", "exhausted"))
         return
     end
-    local ob = pool[math.random(1, #pool)]
+    --an in-order delve meets its obstacles as written; otherwise at random.
+    local ob = cond(delve.ordered, pool[1], pool[math.random(1, #pool)])
     t.delve.used = t.delve.used or {}
     t.delve.used[ob.id] = true
     t.delve.obstacleId = ob.id
@@ -2896,6 +2917,7 @@ end
 --delve granted as its result.
 local function DelveFinish(m, doc, t)
     local d = t.delve
+    local delve = EncounterMontage.TurnDelve(t)
     t.status = "resolved"
     t.applied = d.applied or {}
     t.resolvedAt = dmhub.serverTime
@@ -2913,6 +2935,9 @@ local function DelveFinish(m, doc, t)
         delve = true,
         depth = d.depth or 0,
         chests = d.chests or 0,
+        --an in-order delve logs its steps: "2 of 3 steps".
+        ordered = delve ~= nil and delve.ordered == true or nil,
+        steps = delve ~= nil and #(delve.obstacles or {}) or nil,
         applied = d.applied or {},
     }
 end
@@ -2958,16 +2983,33 @@ DelveObstacleResolved = function(m, doc, t, entry, option, tierIndex, heroes, us
     t.delve.sinceChest = (t.delve.sinceChest or 0) + 1
     t.delve.obstacleId = nil
     ClearTest(t)
+    local delve = EncounterMontage.TurnDelve(t)
+    --an in-order delve whose last step is done has reached its end, even
+    --if that step left the hero with no Recoveries.
+    local remaining = 0
+    for _, ob in ipairs((delve and delve.obstacles) or {}) do
+        if not (t.delve.used or {})[ob.id] then
+            remaining = remaining + 1
+        end
+    end
+    if delve ~= nil and delve.ordered and remaining == 0 then
+        DelveLeave(m, doc, t, heroes, "complete")
+        return
+    end
     if HeroRecoveries(t.heroid) <= 0 then
         DelveLeave(m, doc, t, heroes, "forced")
         return
     end
-    local delve = EncounterMontage.TurnDelve(t)
     if delve ~= nil and delve.sections.chest ~= nil and delve.sections.chest.table ~= nil
         and t.delve.sinceChest >= (t.delve.chestAt or 1) then
         t.delve.sinceChest = 0
         t.delve.chestAt = ChestInterval(delve)
         DelveScene(m, doc, t, heroes, "chest", "delve-chest")
+        return
+    end
+    --an in-order delve offers the way back after every step.
+    if delve ~= nil and delve.ordered then
+        DelveScene(m, doc, t, heroes, "continue", "delve-choice")
         return
     end
     DelveNextObstacle(m, doc, t, heroes)
@@ -3040,7 +3082,7 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
             return "ignored pass: not choosing"
         end
         if t.delve ~= nil then
-            return "ignored pass: inside a delve (turn back at the next chest)"
+            return "ignored pass: inside a delve (turn back at the next choice)"
         end
         local entry = EncounterMontage.TurnEntry(beat, t)
         m.acted = m.acted or {}
@@ -3357,18 +3399,22 @@ local function HandleRequest(m, doc, userid, req, beat, heroes)
             return "ignored delve choice: not the moment"
         end
         if kind == "delveOn" then
-            if not EncounterMontage.CanPressDeeper(t.heroid) then
+            local delve = EncounterMontage.TurnDelve(t)
+            if not EncounterMontage.CanPressDeeper(t.heroid, delve) then
                 return "ignored press deeper: no Recovery to spare"
             end
-            local applied = EncounterMontage.ApplyEffects({ { kind = "loserecovery", qty = EncounterMontage.DELVE_PRESS_ON_COST } }, {
-                heroEntry = HeroByCharid(heroes, t.heroid),
-                userid = userid,
-                entryName = t.delve.entryName,
-                entryId = t.entryId,
-                montage = m,
-                doc = doc,
-            })
-            DelveAddApplied(t, applied)
+            local cost = EncounterMontage.DelvePressOnCost(delve)
+            if cost > 0 then
+                local applied = EncounterMontage.ApplyEffects({ { kind = "loserecovery", qty = cost } }, {
+                    heroEntry = HeroByCharid(heroes, t.heroid),
+                    userid = userid,
+                    entryName = t.delve.entryName,
+                    entryId = t.entryId,
+                    montage = m,
+                    doc = doc,
+                })
+                DelveAddApplied(t, applied)
+            end
             DelveNextObstacle(m, doc, t, heroes)
             return string.format("%s presses deeper into %s", t.heroName or "A hero", t.delve.entryName or "the delve")
         end

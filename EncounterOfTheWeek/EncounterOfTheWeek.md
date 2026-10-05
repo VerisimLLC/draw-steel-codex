@@ -2411,6 +2411,19 @@ Consequence: You begin the encounter surprised
   the hero has more Recoveries than the cost -- or "Turn back". At 0
   Recoveries the hero is forced out. The tomb is then taken and the log
   summarises it. Delving is flat: deeper is not harder, just more chests.
+- **In-order delves** (2026-10-04, user direction: a quest's steps should
+  all follow from one starting point, like the tomb, not be separate turns).
+  `Order: in sequence` (also `Order: in order`, `Obstacles: in order`) under
+  the `# Delve:` heading sets `delve.ordered`. Obstacles come in written
+  order; after each step but the last the `## Continue` scene plays and the
+  hero picks "Press on" (free: `EncounterMontage.DelvePressOnCost` is 0) or
+  "Turn back"; `## Chest` is optional and its absence does not warn;
+  finishing the last step leaves with why = "complete", which plays
+  `## End` / `## Finish` (section key `finish`; a random delve with one
+  warns) and resolves the turn even on 0 Recoveries. The 0-Recovery
+  forced-out rule still applies before a later step. The turn log reads
+  "<hero> took on <entry>: N of M steps." Parser tests in
+  `tests/encounter_script_test.lua`.
 
 **Effect clauses.** Each tier line (and `Consequence:` line) is split into
 clauses on `. , ; ! ?`, and each clause is matched case-insensitively.
@@ -2814,9 +2827,10 @@ rounds: day (round 1) and night (round 2) video scenes uploaded from
 temp Stamina), Exotic Herbs, Wanderers (Start2 unlock / chest reveal), The
 Indebted Farmer, The Unattended Toll Post; threats Dangerous Plants, Roving
 Bandits, Lost in the Badwoods (Required, `Edge (Round 1): you can climb or
-fly`), Toll Collectors (lose a consumable). Round 2: A Worried Mother -> The
-Lost Boy's Trail -> The Sinkhole Cave (a locked chain, up to 5 recoveries,
-+3 hero tokens), Mysterious Dwarvish Runes (rolled-damage / recovery-value
+fly`), Toll Collectors (lose a consumable). Round 2: A Worried Mother (its
+one option enters the in-order delve `The Lost Boy`: Where Did He Go? ->
+Down the Gully -> The Sinkhole Cave, one hero's turn, +3 hero tokens at the
+end; it replaced a chain of `(Locked)` entries 2026-10-04), Mysterious Dwarvish Runes (rolled-damage / recovery-value
 blessings, max-Stamina curse), The Caged Wolf; threats Golden Hand Lookouts,
 Bitter Night Chill. The fight: level-1 gold-tier dwarves on the ledge (two
 Gunner squads with Axethrowers / Hunters, a Trapper with Catchpoles, a lone

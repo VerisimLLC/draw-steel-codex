@@ -1889,7 +1889,7 @@ local g_moduleTypes = {
 		--created from the official module and installs this one on top.
 		id = "eotw",
 		text = "Encounter of the Week",
-		description = "Encounters for the Encounter of the Week game mode. Each map named \"Encounter\" or \"Encounter: <title>\" is an encounter, played from the script in its journal folder; those documents are included automatically. Publish it as Public to add its encounters to the pool players choose from at the Town Gate.",
+		description = "Encounters for the Encounter of the Week game mode. Each map named \"Encounter\" or \"Encounter: <title>\" is an encounter, played from the script in its journal folder; those documents are included automatically. Publish it as Public or Unlisted to add its encounters to the pool players choose from at the Town Gate.",
 		available = function()
 			local enabled = false
 			pcall(function() enabled = dmhub.GetSettingValue("dev:encounteroftheweek") == true end)

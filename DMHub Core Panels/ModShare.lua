@@ -1899,7 +1899,7 @@ local g_moduleTypes = {
 			local check = CheckEncounterModule(ctx)
 			local warnings = check.warnings
 			if g_dialogState ~= nil and not g_dialogState.moduleInstance.published then
-				warnings[#warnings+1] = "Only a Public module's encounters join the pool. Set Listing Status to Public on the next page."
+				warnings[#warnings+1] = "Only a Public or Unlisted module's encounters join the pool. Set Listing Status on the next page (Unlisted keeps the module out of the module browser)."
 			end
 			return check.errors, warnings
 		end,
@@ -1977,6 +1977,49 @@ local showShareModuleDialog = function(options)
 	--resolve the type through the known list so a brand new module records
 	--"general" explicitly and an unknown id from a newer build falls back.
 	moduleInstance.moduleType = GetModuleType(moduleInstance.moduleType).id
+
+	--The Listing Status choices. "Unlisted" exists only for an Encounter of the
+	--Week module: it joins the encounter pool like a Public one, but the module
+	--browser does not list it (publishingProperties.eotwUnlisted).
+	local ListingOptions = function()
+		return {
+			{
+				id = "unlisted",
+				text  = "Private",
+			},
+			{
+				id = "eotwunlisted",
+				text = "Unlisted",
+				hidden = moduleInstance.moduleType ~= "eotw",
+			},
+			{
+				id = "public",
+				text = "Public"
+			},
+			{
+				id = "premium",
+				text = "Premium",
+			},
+			{
+				--Deleting is only an option for an existing module, not a new one.
+				id = "deleted",
+				text = "Deleted",
+				hidden = isNewModule,
+			},
+		}
+	end
+
+	local ListingIdFor = function(instance)
+		if instance.deleted then
+			return "deleted"
+		end
+		if instance.published then
+			local unlisted = false
+			pcall(function() unlisted = instance.publishingProperties.eotwUnlisted == true end)
+			return cond(unlisted and instance.moduleType == "eotw", "eotwunlisted", "public")
+		end
+		return "unlisted"
+	end
 
 	if moduleInstance.publishingProperties.includedAssets ~= nil then
 		includedAssets = DeepCopy(moduleInstance.publishingProperties.includedAssets)
@@ -2916,35 +2959,31 @@ local showShareModuleDialog = function(options)
 			},
 
 			gui.Dropdown{
-				options = {
-					{
-						id = "unlisted",
-						text  = "Private",
-					},
-					{
-						id = "public",
-						text = "Public"
-					},
-					{
-						id = "premium",
-						text = "Premium",
-					},
-					{
-						--Deleting is only an option for an existing module, not a new one.
-						id = "deleted",
-						text = "Deleted",
-						hidden = isNewModule,
-					},
-				},
-				idChosen = cond(moduleInstance.deleted, "deleted", cond(moduleInstance.published, "public", "unlisted")),
+				options = ListingOptions(),
+				idChosen = ListingIdFor(moduleInstance),
 				events = {
 					change = function(element)
 						---@cast element Dropdown
-						moduleInstance.published = element.idChosen == "public"
+						--"eotwunlisted" (Encounter of the Week only) is published --
+						--in the module index, so the encounter pool sees it -- but
+						--flagged so the module browser leaves it out.
+						moduleInstance.published = element.idChosen == "public" or element.idChosen == "eotwunlisted"
 						moduleInstance.premium = element.idChosen == "premium"
 						moduleInstance.deleted = element.idChosen == "deleted"
+						moduleInstance.publishingProperties.eotwUnlisted = cond(element.idChosen == "eotwunlisted", true, nil)
 						dialogPanel:FireEventTree("refreshModule")
-					end
+					end,
+					--the module type changed (page 1): offer Unlisted only for
+					--Encounter of the Week, and drop it if the type moved away.
+					refreshListing = function(element)
+						---@cast element Dropdown
+						element.options = ListingOptions()
+						if moduleInstance.moduleType ~= "eotw" and element.idChosen == "eotwunlisted" then
+							moduleInstance.publishingProperties.eotwUnlisted = nil
+							moduleInstance.published = false
+							element.idChosen = "unlisted"
+						end
+					end,
 				}
 			}
 		},
@@ -2960,6 +2999,8 @@ local showShareModuleDialog = function(options)
 					element.text = string.format("DEPRECATED: %s\n\nThis module cannot be updated or published while it is deprecated.", moduleInstance.deprecationMessage)
 				elseif moduleInstance.deleted then
 					element.text = "This module will be deleted. Users who already installed it into their games will be able to continue to use its contents"
+				elseif moduleInstance.published and ListingIdFor(moduleInstance) == "eotwunlisted" then
+					element.text = "Your module's encounters join the Encounter of the Week pool, but the module is not listed in the module browser: only those you share its ID with can install it directly."
 				elseif moduleInstance.published then
 					element.text = "Others will be able to search for and install your module."
 				elseif moduleInstance.premium then
@@ -3004,7 +3045,7 @@ local showShareModuleDialog = function(options)
 				moduleInstance.dmhubCanUse = element.value
 			end,
 			refreshModule = function(element)
-				element:SetClass("collapsed", not moduleInstance.published)
+				element:SetClass("collapsed", not moduleInstance.published or ListingIdFor(moduleInstance) == "eotwunlisted")
 			end,
 		},
 	}
@@ -3239,6 +3280,9 @@ local showShareModuleDialog = function(options)
 		moduleTypeMessages.children = children
 		moduleTypeMessages:SetClass("collapsed", #children == 0)
 
+		if dialogPanel ~= nil and dialogPanel.valid then
+			dialogPanel:FireEventTree("refreshListing")
+		end
 		shareButton:FireEvent("refreshModule")
 	end
 
@@ -4624,8 +4668,23 @@ mod.shared.ShowDownloadShareDialog = function(options)
 				end
 
 				local items = {}
-				
+
+				--an Unlisted Encounter of the Week module is in the index only so
+				--the encounter pool can find it; the browsing tabs leave it out
+				--unless the search is exactly its module ID (how it is shared).
+				local browsing = m_tabSelected == "hot" or m_tabSelected == "new" or m_tabSelected == "best"
+				local searchId = string.lower(string.match(search or "", "^%s*(.-)%s*$") or "")
+
 				for _,item in ipairs(result.items) do
+					local unlisted = false
+					if browsing then
+						pcall(function()
+							unlisted = item.publishingProperties.eotwUnlisted == true and string.lower(item.fullid or "") ~= searchId
+						end)
+					end
+					if unlisted then
+						goto continue
+					end
 					local versions = item.versions
 					local stats = item.cachedStats
 					if stats == nil then
@@ -4651,6 +4710,7 @@ mod.shared.ShowDownloadShareDialog = function(options)
 						update = latestVersionAge,
 						score = score
 					}
+					::continue::
 				end
 
 				table.sort(items, function(a,b)

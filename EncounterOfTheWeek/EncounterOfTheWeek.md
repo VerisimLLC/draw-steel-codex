@@ -414,7 +414,8 @@ All in `Codex Titlescreen/EncounterOfTheWeek.lua`, mounted on
 - **Choosing the encounter.** A map named exactly `Encounter` is the
   default; any map named `Encounter: <title>` is an alternative. The
   create dialog lists the whole **encounter pool**: the official module's
-  maps, plus every Public community Encounter of the Week module's maps,
+  maps, plus every Public or Unlisted community Encounter of the Week
+  module's maps,
   one flyout per module (see "Community encounter modules and the
   encounter pool"). Names come from each module record's `contentSummary`
   via `module.DownloadModuleInfo`, with no snapshot download. The choice
@@ -2975,8 +2976,16 @@ ordinary in-app publish dialog. Publishing it adds its encounters to the
   dev-gated.
 - **Discovery filters the public module index** (`/ModuleIndex`, by
   `moduleType == "eotw"`). No server work. Consequence: only a module
-  published **Public** joins the pool. A Private or Premium one never
-  reaches the index.
+  published **Public** or **Unlisted** joins the pool. A Private or Premium
+  one never reaches the index.
+- **Unlisted (2026-10-04).** A Listing Status offered only for the Encounter
+  of the Week type, so an encounter can join the pool without being
+  advertised in the module browser. It is published like Public (it is in
+  `/ModuleIndex`, which the pool reads) with
+  `publishingProperties.eotwUnlisted = true`; ModShare's Hot / New / Best
+  tabs skip such a module unless the search text is exactly its module ID.
+  Changing the type away from Encounter of the Week drops it back to
+  Private. The "Submit to be included with DMHub" box is hidden for it.
 - **The official module stays the base.** Every EotW game is still created
   from `mcdm-encounteroftheweek`, which carries the EotW and Monster AI
   codemods, the Start keyword and the Hero Death rule. For a community
@@ -3005,7 +3014,7 @@ ordinary in-app publish dialog. Publishing it adds its encounters to the
   - any included code (codemods), because a community module plays on the
     official module's code.
 - **Warnings:** the first three script warnings per map, a map with no
-  `# Town Gate` section, and a module that is not Public.
+  `# Town Gate` section, and a module that is neither Public nor Unlisted.
 - **Documents are included automatically.** Every document in each
   encounter map's journal folder, plus everything those documents include,
   is ticked. Nothing else links a map to those documents.
@@ -3107,7 +3116,7 @@ EotW codemod all changed):
    journal folder. Check the publish dialog: the type is offered, the script
    documents tick themselves, and the errors fire (rename the map, drop the
    `# Encounter` beat).
-2. Publish it Public. Open the Gate: Form a Party shows the module's flyout
+2. Publish it Public or Unlisted. Open the Gate: Form a Party shows the module's flyout
    and its backstory and credit line.
 3. Form a party on it, Begin. The host log shows
    `EotW: installing the encounter module ...` and then the map. The member

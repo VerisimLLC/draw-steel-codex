@@ -303,7 +303,7 @@ local VEIL_WAIT_MAX_SECONDS = 4
 --    it, because it carries the EotW and Monster AI codemods, the Start
 --    keyword and the Hero Death rule. Its own encounter maps are in the pool.
 --  * community "Encounter of the Week" modules: any module published Public
---    with moduleType == EncounterOfTheWeek.MODULE_TYPE (the publish dialog,
+--    or Unlisted (both are in the index) with moduleType == EncounterOfTheWeek.MODULE_TYPE (the publish dialog,
 --    DMHub Core Panels/ModShare.lua). When a party picks one of these, the
 --    host installs that module on top of the official one during setup
 --    (EncounterOfTheWeek/EncounterOfTheWeek.lua, EnsureEncounterModule).
@@ -1490,7 +1490,7 @@ function EncounterOfTheWeek.ShowPoolDialog()
             vmargin = 8,
         },
         gui.Label{
-            text = "Community modules published Public as Encounter of the Week. A pulled module's encounters are not offered at the Town Gate; games already formed keep playing it.",
+            text = "Community modules published Public or Unlisted as Encounter of the Week. A pulled module's encounters are not offered at the Town Gate; games already formed keep playing it.",
             fontSize = 15,
             color = "#b8ad96",
             width = "100%",

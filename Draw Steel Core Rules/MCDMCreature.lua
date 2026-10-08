@@ -2327,7 +2327,7 @@ local function GetEnemiesAdjacentToToken(token)
     return result
 end
 
---Returns the bounding rectangle of a token's space in grid coordinates (x1,y1 inclusive corner, x2,y2 far corner).
+--Bounding rectangle of a token's space in grid coordinates.
 local function GetTokenBounds(token)
     local locs = token.locsOccupying
     local x1, y1, x2, y2 = locs[1].x, locs[1].y, locs[1].x + 1, locs[1].y + 1
@@ -2349,14 +2349,13 @@ local function AddTokenOnce(list, token)
     list[#list + 1] = token
 end
 
---True if the line between the centers of boxes a and b passes through the interior of target
---entering and leaving through opposite sides (or corners). Merely grazing a corner or edge is not flanking.
+--True if the line between the centers of boxes a and b crosses target from one side/corner to the opposite one.
 local function LineCrossesOppositeSides(a, b, target)
     local eps = 1e-6
     local px, py = (a.x1 + a.x2) / 2, (a.y1 + a.y2) / 2
     local dx, dy = (b.x1 + b.x2) / 2 - px, (b.y1 + b.y2) / 2 - py
 
-    --Liang-Barsky clip of the segment against the target rectangle.
+    --Clip the segment to the target rectangle (Liang-Barsky).
     local t0, t1 = 0, 1
     local p = { -dx, dx, -dy, dy }
     local q = { px - target.x1, target.x2 - px, py - target.y1, target.y2 - py }
@@ -2378,7 +2377,7 @@ local function LineCrossesOppositeSides(a, b, target)
         return false
     end
 
-    --The middle of the clipped segment must be strictly inside, otherwise it only runs along an edge.
+    --Reject lines that only run along an edge.
     local tm = (t0 + t1) / 2
     local mx, my = px + dx * tm, py + dy * tm
     if mx <= target.x1 + eps or mx >= target.x2 - eps or my <= target.y1 + eps or my >= target.y2 - eps then
@@ -2458,8 +2457,7 @@ function creature:GetFlankingTokens(tokensOverride)
         end
     end
 
-    --Per the rules: draw a line between the centers of the two flankers' spaces. They flank if
-    --that line passes through opposite sides (or corners) of this creature's space.
+    --Two enemies flank if the line between their centers passes through opposite sides of our space.
     local result = {}
     local targetBox = GetTokenBounds(token)
     for i = 1, #adjacentEnemies - 1 do

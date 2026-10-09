@@ -1689,3 +1689,459 @@ function ActivatedAbilityHurlGrabbedBehavior:EditorItems(parentPanel)
 
     return result
 end
+
+--- @class TeleportChatMessage
+--- @field new fun(o?: table): TeleportChatMessage
+--- Action log card recording that a token teleported, naming the ability responsible.
+TeleportChatMessage = RegisterGameType("TeleportChatMessage")
+TeleportChatMessage.tokenid = ""
+TeleportChatMessage.squares = 0
+TeleportChatMessage.abilityName = ""
+
+--- @return nil|CharacterToken
+function TeleportChatMessage:GetToken()
+    return dmhub.GetCharacterById(self.tokenid)
+end
+
+function TeleportChatMessage.Render(selfInput, message)
+    local token = selfInput:GetToken()
+    if token == nil or (not token.valid) then
+        return nil
+    end
+
+    local detailLabel = gui.Label{
+        classes = {"action-log-detail", "sizeXs", "fg"},
+        text = string.format("Teleported %d %s", selfInput.squares, cond(selfInput.squares == 1, "square", "squares")),
+    }
+    local abilityLabel = gui.Label{
+        classes = {"action-log-subtext", "sizeXxs", "fgMuted"},
+        text = selfInput.abilityName,
+    }
+
+    return gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        refreshMessage = function(element, message) end,
+        CreateActionLogCard{
+            token = token,
+            content = {detailLabel, abilityLabel},
+        },
+    }
+end
+
+--- @class ActivatedAbilityTeleportToLineEndBehavior:ActivatedAbilityBehavior
+--- @field new fun(o?: table): ActivatedAbilityTeleportToLineEndBehavior
+--- Teleports the caster to the first unoccupied square at the far end of a line ability
+--- (Shadow "Shadowfall"). Runs with applyto = caster after the power roll, so the caster
+--- reappears only once every creature in the line has taken its damage. The end square is
+--- used if it is free; otherwise the search walks back along the line toward the caster.
+ActivatedAbilityTeleportToLineEndBehavior = RegisterGameType("ActivatedAbilityTeleportToLineEndBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbility.RegisterType{
+    id = 'teleport_to_line_end',
+    text = 'Teleport To Line End',
+    createBehavior = function()
+        return ActivatedAbilityTeleportToLineEndBehavior.new{
+            applyto = "caster",
+        }
+    end,
+}
+
+ActivatedAbilityTeleportToLineEndBehavior.summary = 'Teleport To Line End'
+
+--- @param ability ActivatedAbility
+--- @param creatureLookup table
+--- @return string
+function ActivatedAbilityTeleportToLineEndBehavior:SummarizeBehavior(ability, creatureLookup)
+    return "Teleport to the first unoccupied square at the end of the line"
+end
+
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken
+--- @param targets table
+--- @param options table
+function ActivatedAbilityTeleportToLineEndBehavior:Cast(ability, casterToken, targets, options)
+    local locs = options.targetArea and options.targetArea.locations
+    if locs == nil or #locs == 0 then
+        casterToken.properties:FloatLabel("Needs a line target", "red")
+        return
+    end
+
+    --Furthest square first, then back toward the caster until one is free.
+    local ordered = {}
+    for _, loc in ipairs(locs) do
+        ordered[#ordered+1] = loc
+    end
+    table.sort(ordered, function(a, b)
+        return a:DistanceInTiles(casterToken.loc) > b:DistanceInTiles(casterToken.loc)
+    end)
+
+    local dest = nil
+    for _, loc in ipairs(ordered) do
+        if LocIsFreeForToken(casterToken, loc) then
+            dest = loc
+            break
+        end
+    end
+
+    if dest == nil then
+        casterToken.properties:FloatLabel("No room to reappear", "red")
+        return
+    end
+
+    --Reuse the normal teleport so spaces-moved, opportunity-attack and teleport-event
+    --handling stay identical. The relocate behavior replaces its target with the line's
+    --end square when it sees a line area, so hide the area while it runs.
+    local distance = casterToken:Distance(dest)
+    local savedArea = options.targetArea
+    options.targetArea = nil
+    local relocate = ActivatedAbilityRelocateCreatureBehavior.new{ movementType = "teleport", applyto = "caster" }
+    local ok, err = pcall(function()
+        relocate:Cast(ability, casterToken, { { loc = dest } }, options)
+    end)
+    options.targetArea = savedArea
+    if not ok then
+        print("TeleportToLineEnd:: ERROR", err)
+    elseif distance > 0 then
+        --Action log card under the ability's damage: "Teleported 6 squares (Shadowfall)".
+        local squares = math.floor(distance + 0.5)
+        chat.SendCustom(TeleportChatMessage.new{
+            tokenid = casterToken.charid,
+            squares = squares,
+            abilityName = ability.name,
+        })
+    end
+end
+
+--- @param parentPanel Panel
+--- @return Panel[]
+function ActivatedAbilityTeleportToLineEndBehavior:EditorItems(parentPanel)
+    local result = {}
+    self:ApplyToEditor(parentPanel, result)
+    return result
+end
+
+--- @class ActivatedAbilityStashTargetBehavior:ActivatedAbilityBehavior
+--- @field new fun(o?: table): ActivatedAbilityStashTargetBehavior
+--- Remembers the ability's (first) target on the caster so a custom trigger fired later in the
+--- same cast can ask about it with the "Stashed Target" GoblinScript symbol (the trigger system
+--- only passes a name and a number). Used by the Shadow's "You Were Watching the Wrong One".
+ActivatedAbilityStashTargetBehavior = RegisterGameType("ActivatedAbilityStashTargetBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbility.RegisterType{
+    id = 'stash_target',
+    text = 'Remember Target',
+    createBehavior = function()
+        return ActivatedAbilityStashTargetBehavior.new{
+            applyto = "targets",
+        }
+    end,
+}
+
+ActivatedAbilityStashTargetBehavior.summary = 'Remember Target'
+
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken
+--- @param targets table
+--- @param options table
+function ActivatedAbilityStashTargetBehavior:Cast(ability, casterToken, targets, options)
+    for _, target in ipairs(targets) do
+        if target.token ~= nil then
+            casterToken.properties._tmp_stashedTargetId = target.token.charid
+            return
+        end
+    end
+end
+
+--- @param parentPanel Panel
+--- @return Panel[]
+function ActivatedAbilityStashTargetBehavior:EditorItems(parentPanel)
+    local result = {}
+    self:ApplyToEditor(parentPanel, result)
+    return result
+end
+
+creature.RegisterSymbol{
+    symbol = "stashedtarget",
+    lookup = function(c)
+        local id = c:try_get("_tmp_stashedTargetId")
+        if id == nil then
+            return nil
+        end
+        local tok = dmhub.GetTokenById(id)
+        if tok == nil or not tok.valid then
+            return nil
+        end
+        return tok.properties
+    end,
+    help = {
+        name = "Stashed Target",
+        type = "creature",
+        desc = "The target this creature's most recent Remember Target behavior stored.",
+        seealso = {},
+    },
+}
+
+--- @class ActivatedAbilityChainReachBehavior:ActivatedAbilityBehavior
+--- @field new fun(o?: table): ActivatedAbilityChainReachBehavior
+--- Spreads an ability's targeting outward from its first target: every enemy of the caster
+--- within `chainRange` squares of any creature already targeted is added, repeating until no
+--- new creature is in reach (Shadow "Chain Reaction"). Later behaviors (the power roll) then
+--- roll against every creature added, because the list is extended in place.
+--- @field chainRange number Squares between one link and the next.
+ActivatedAbilityChainReachBehavior = RegisterGameType("ActivatedAbilityChainReachBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbility.RegisterType{
+    id = 'chain_reach',
+    text = 'Chain To Nearby Enemies',
+    createBehavior = function()
+        return ActivatedAbilityChainReachBehavior.new{
+            applyto = "caster",
+        }
+    end,
+}
+
+ActivatedAbilityChainReachBehavior.summary = 'Chain To Nearby Enemies'
+ActivatedAbilityChainReachBehavior.chainRange = 3
+
+--- Works out which enemies the chain reaches from a starting creature.
+--- Returns the newly reached tokens (not including the start) and the links drawn between
+--- them: { from = token, to = token } for each creature and the one that reached it.
+--- Shared by the cast and by the action bar's hover preview.
+--- @param casterToken CharacterToken
+--- @param startToken CharacterToken
+--- @param range number
+--- @param alreadyTargeted nil|table set of charids that are already targets
+--- @return CharacterToken[], table[]
+function ActivatedAbilityChainReachBehavior.ComputeChain(casterToken, startToken, range, alreadyTargeted)
+    local included = { [startToken.charid] = true }
+    for id,_ in pairs(alreadyTargeted or {}) do
+        included[id] = true
+    end
+
+    local candidates = {}
+    for _, tok in ipairs(dmhub.allTokens) do
+        if tok.valid and (not included[tok.charid]) and tok.charid ~= casterToken.charid
+           and (not tok:IsFriend(casterToken)) and (not tok.properties:IsDead()) then
+            candidates[#candidates+1] = tok
+        end
+    end
+
+    local reached = {}
+    local links = {}
+    local frontier = { startToken }
+
+    --Breadth-first spread: each newly added creature may reach more candidates.
+    while #frontier > 0 do
+        local nextFrontier = {}
+        for _, source in ipairs(frontier) do
+            for i = #candidates, 1, -1 do
+                local cand = candidates[i]
+                if cand.floorid == source.floorid and source:Distance(cand) <= range then
+                    table.remove(candidates, i)
+                    nextFrontier[#nextFrontier+1] = cand
+                    reached[#reached+1] = cand
+                    links[#links+1] = { from = source, to = cand }
+                end
+            end
+        end
+        frontier = nextFrontier
+    end
+
+    return reached, links
+end
+
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken
+--- @param targets table
+--- @param options table
+function ActivatedAbilityChainReachBehavior:Cast(ability, casterToken, targets, options)
+    local list = options.targets
+    if list == nil or #list == 0 then
+        return
+    end
+
+    local range = tonumber(self:try_get("chainRange", 3)) or 3
+    local alreadyTargeted = {}
+    local startToken = nil
+    for _, t in ipairs(list) do
+        if t.token ~= nil then
+            alreadyTargeted[t.token.charid] = true
+            startToken = startToken or t.token
+        end
+    end
+    if startToken == nil then
+        return
+    end
+
+    local reached, links = ActivatedAbilityChainReachBehavior.ComputeChain(casterToken, startToken, range, alreadyTargeted)
+    for _, tok in ipairs(reached) do
+        list[#list+1] = { token = tok }
+    end
+
+    if options.symbols ~= nil and options.symbols.cast ~= nil then
+        options.symbols.cast.targets = list
+    end
+
+    if #reached == 0 then
+        return
+    end
+
+    ability:CommitToPaying(casterToken, options)
+
+    --Show the chained creatures on the action log card too.
+    local message = options.chatMessage
+    if message ~= nil and message.targetids ~= nil then
+        local listed = {}
+        for _, id in ipairs(message.targetids) do
+            listed[id] = true
+        end
+        for _, tok in ipairs(reached) do
+            if not listed[tok.charid] then
+                message.targetids[#message.targetids+1] = tok.charid
+            end
+        end
+        chat.UpdateCustom(options.chatMessageKey, message)
+    end
+
+    --Draw red links between the chained creatures until the cast is over.
+    local rays = {}
+    for _, link in ipairs(links) do
+        local ray = dmhub.HighlightLine{ color = "red", a = link.from.pos, b = link.to.pos }
+        if ray ~= nil then
+            rays[#rays+1] = ray
+        end
+    end
+    if #rays > 0 then
+        options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
+        options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function()
+            for _, ray in ipairs(rays) do
+                pcall(function() ray:Destroy() end)
+            end
+        end
+    end
+end
+
+--- @param parentPanel Panel
+--- @return Panel[]
+function ActivatedAbilityChainReachBehavior:EditorItems(parentPanel)
+    local result = {}
+    self:ApplyToEditor(parentPanel, result)
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Chain Range:" },
+        gui.Input{
+            classes = { "formInput" },
+            text = tostring(self:try_get("chainRange", 3)),
+            change = function(element)
+                self.chainRange = tonumber(element.text) or 3
+                element.text = tostring(self.chainRange)
+            end,
+        },
+    }
+    return result
+end
+
+--- @class ActivatedAbilityLimitCasterEffectsBehavior:ActivatedAbilityBehavior
+--- @field new fun(o?: table): ActivatedAbilityLimitCasterEffectsBehavior
+--- Keeps the number of creatures carrying one of the caster's ongoing effects within a cap by
+--- removing the oldest ones to make room for this cast's targets (Shadow "Careful Observation":
+--- one observed creature at 3rd level, two at 7th, three at 10th). Put it before the
+--- behavior that applies the effect.
+--- @field ongoingEffect string Id of the ongoing effect being counted.
+--- @field maxFormula string GoblinScript on the caster: the most creatures that may carry the effect.
+ActivatedAbilityLimitCasterEffectsBehavior = RegisterGameType("ActivatedAbilityLimitCasterEffectsBehavior", "ActivatedAbilityBehavior")
+
+ActivatedAbility.RegisterType{
+    id = 'limit_caster_effects',
+    text = 'Limit Active Effects',
+    createBehavior = function()
+        return ActivatedAbilityLimitCasterEffectsBehavior.new{
+            applyto = "caster",
+            maxFormula = "1",
+        }
+    end,
+}
+
+ActivatedAbilityLimitCasterEffectsBehavior.summary = 'Limit Active Effects'
+ActivatedAbilityLimitCasterEffectsBehavior.maxFormula = "1"
+
+--- @param ability ActivatedAbility
+--- @param casterToken CharacterToken
+--- @param targets table
+--- @param options table
+function ActivatedAbilityLimitCasterEffectsBehavior:Cast(ability, casterToken, targets, options)
+    local effectid = self:try_get("ongoingEffect")
+    if effectid == nil then
+        return
+    end
+
+    local max = ExecuteGoblinScript(self:try_get("maxFormula", "1"), casterToken.properties:LookupSymbol(options.symbols or {}), 1, "Limit active effects")
+    max = math.floor(tonumber(max) or 1)
+
+    --Creatures this cast is about to (re)apply the effect to.
+    local incoming = {}
+    local incomingCount = 0
+    for _, target in ipairs(options.targets or targets) do
+        if target.token ~= nil and not incoming[target.token.charid] then
+            incoming[target.token.charid] = true
+            incomingCount = incomingCount + 1
+        end
+    end
+
+    --Everyone else the caster currently has the effect on, oldest first.
+    local existing = {}
+    for _, tok in ipairs(dmhub.allTokens) do
+        if tok.valid and tok.properties ~= nil and not incoming[tok.charid] then
+            for _, info in ipairs(tok.properties:ActiveOngoingEffects()) do
+                if info.ongoingEffectid == effectid and info:try_get("casterInfo") ~= nil and info.casterInfo.tokenid == casterToken.charid then
+                    existing[#existing+1] = { token = tok, seq = info.seq }
+                end
+            end
+        end
+    end
+    table.sort(existing, function(a, b) return a.seq < b.seq end)
+
+    local allowedExisting = math.max(0, max - incomingCount)
+    local i = 1
+    while #existing - (i - 1) > allowedExisting do
+        local entry = existing[i]
+        entry.token:ModifyProperties{
+            description = "Observation replaced",
+            execute = function()
+                entry.token.properties:RemoveOngoingEffectBySeq(entry.seq)
+            end,
+        }
+        i = i + 1
+    end
+end
+
+--- @param parentPanel Panel
+--- @return Panel[]
+function ActivatedAbilityLimitCasterEffectsBehavior:EditorItems(parentPanel)
+    local result = {}
+    self:ApplyToEditor(parentPanel, result)
+    result[#result+1] = gui.Panel{
+        classes = { "formPanel" },
+        gui.Label{ classes = { "formLabel" }, text = "Max Creatures:" },
+        gui.GoblinScriptInput{
+            classes = { "formInput" },
+            value = self:try_get("maxFormula", "1"),
+            change = function(element)
+                self.maxFormula = element.value
+            end,
+            documentation = {
+                help = "The most creatures that may carry the effect from this caster at once.",
+                output = "number",
+                subject = creature.helpSymbols,
+                subjectDescription = "The caster",
+                examples = { { script = "3 when Level >= 10 else 2 when Level >= 7 else 1", text = "Careful Observation limit." } },
+            },
+        },
+    }
+    return result
+end
+
+

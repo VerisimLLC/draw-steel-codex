@@ -17,6 +17,41 @@ ActivatedAbility.RegisterType
 	end
 }
 
+--Characteristic names -> attribute ids, and the letters tier text uses for them.
+local g_bonusAttributes = {
+    { name = "Might", letter = "M", id = "mgt" },
+    { name = "Agility", letter = "A", id = "agl" },
+    { name = "Reason", letter = "R", id = "rea" },
+    { name = "Intuition", letter = "I", id = "inu" },
+    { name = "Presence", letter = "P", id = "prs" },
+}
+
+--- Replaces the characteristic in a stolen ability's power roll and damage tiers with the
+--- original owner's characteristic value, so the thief rolls "using their bonus".
+--- @param ability ActivatedAbility the copied ability (edited in place)
+--- @param owner creature the creature the ability was copied from
+function ActivatedAbilityStealAbilityBehavior.BakeTargetBonus(ability, owner)
+    for _, behavior in ipairs(ability:try_get("behaviors", {})) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            local roll = behavior:try_get("roll", "")
+            for _, attr in ipairs(g_bonusAttributes) do
+                local value = owner:AttributeMod(attr.id) or 0
+                roll = string.gsub(roll, attr.name, tostring(value))
+            end
+            behavior.roll = roll
+
+            local tiers = behavior:try_get("tiers", {})
+            for i, tier in ipairs(tiers) do
+                for _, attr in ipairs(g_bonusAttributes) do
+                    local value = owner:AttributeMod(attr.id) or 0
+                    tier = string.gsub(tier, "%+ " .. attr.letter .. "%f[%A]", "+ " .. tostring(value))
+                end
+                tiers[i] = tier
+            end
+        end
+    end
+end
+
 function ActivatedAbilityStealAbilityBehavior:EditorItems(parentPanel)
 	local result = {}
 	self:ApplyToEditor(parentPanel, result)
@@ -112,6 +147,9 @@ function ActivatedAbilityStealAbilityBehavior:Cast(ability, casterToken, targets
             if passesFilter then
                 local synth = DeepCopy(a)
                 synth.stolenFrom = target.token.charid
+                if self:try_get("useTargetBonus", false) then
+                    ActivatedAbilityStealAbilityBehavior.BakeTargetBonus(synth, targetCreature)
+                end
 
                 results[#results+1] = synth
             end
@@ -126,6 +164,9 @@ function ActivatedAbilityStealAbilityBehavior:Cast(ability, casterToken, targets
     if chosenAbility == nil then
         return
     end
+
+    --Marks this copy as a new arrival so the action bar flags it with the red "new" dot.
+    chosenAbility.stolenStamp = dmhub.GenerateGuid()
 
     local casterInfo = {
         tokenid = casterToken.charid

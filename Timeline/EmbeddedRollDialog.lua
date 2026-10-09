@@ -3501,6 +3501,27 @@ function GameHud.CreateEmbeddedRollDialog()
     local CreateSurgeIcon = function(index)
         return gui.Panel {
             classes = { "icon", "surges" },
+            --Surges a modifier grants for this roll only (e.g. Trained Assassin) are lost if
+            --unused; say so when hovering one of those icons.
+            hover = function(element)
+                if rollProperties == nil or element:HasClass("inactive") then
+                    return
+                end
+                local forfeitable = rollProperties:try_get("surges", 0) - rollProperties:try_get("nonwastedSurges", 0)
+                if index > forfeitable then
+                    return
+                end
+                local names = {}
+                for _, mod in ipairs(GetEnabledModifiers()) do
+                    local m = mod.modifier
+                    if m ~= nil and m:try_get("surges", "") ~= "" and not m:try_get("surgesCanBeKept", false) then
+                        names[#names + 1] = trim(m.name)
+                    end
+                end
+                if #names > 0 then
+                    gui.Tooltip(string.format("%s: If not used on this strike, this surge is forfeited", table.concat(names, ", ")))(element)
+                end
+            end,
             width = 24,
             height = 24,
             textCalculated = function(element, calculationOptions)
@@ -6737,6 +6758,8 @@ function GameHud.CreateEmbeddedRollDialog()
 
                     local surgesNote = nil
 
+                    local freeSurgeNotes = {}
+
                     local triggerCostsPaid = {}
 
                     local modifiersAccountedFor = {}
@@ -6775,6 +6798,27 @@ function GameHud.CreateEmbeddedRollDialog()
                             thisTargetSurgesUsed = thisTargetSurgesUsed - thisTargetSurgesGained
                             if thisTargetSurgesUsed < -thisTargetNonWastedSurgesGained then
                                 thisTargetSurgesUsed = -thisTargetNonWastedSurgesGained
+                            end
+
+                            --Record free surges a modifier granted just for this strike, so the
+                            --action log shows them (they never touch the surge pool otherwise).
+                            local freeGranted = thisTargetSurgesGained - thisTargetNonWastedSurgesGained
+                            if freeGranted > 0 then
+                                local effective = target.surges
+                                if effective == nil then
+                                    effective = thisTargetSurgesGained
+                                end
+                                local freeUsed = math.min(math.max(effective, 0), freeGranted)
+                                local sourceNames = {}
+                                for _, usedMod in ipairs(target.modifiersUsed or {}) do
+                                    if usedMod:try_get("surges", "") ~= "" and not usedMod:try_get("surgesCanBeKept", false) then
+                                        sourceNames[#sourceNames + 1] = trim(usedMod.name)
+                                    end
+                                end
+                                freeSurgeNotes[#freeSurgeNotes + 1] = string.format("%s: %d free %s for %s, %d used%s",
+                                    cond(#sourceNames > 0, table.concat(sourceNames, ", "), "Modifier"), freeGranted,
+                                    cond(freeGranted > 1, "surges", "surge"), target.token.name, freeUsed,
+                                    cond(freeUsed < freeGranted, " (unused surge forfeited)", ""))
                             end
 
                             surgesUsed = surgesUsed + thisTargetSurgesUsed
@@ -6909,6 +6953,21 @@ function GameHud.CreateEmbeddedRollDialog()
                                     end,
                                 }
                             end
+                        end
+                    end
+
+                    if #freeSurgeNotes > 0 then
+                        local tokenUsed = dmhub.LookupToken(creatureUsed)
+                        local surgeid = CharacterResource.nameToId["Surges"]
+                        if tokenUsed ~= nil and surgeid ~= nil then
+                            tokenUsed:ModifyProperties {
+                                description = "Record free surges",
+                                undoable = false,
+                                execute = function()
+                                    --A zero change adds an action log entry without moving the pool.
+                                    creatureUsed:AddUnboundedResource(surgeid, 0, table.concat(freeSurgeNotes, "; "))
+                                end,
+                            }
                         end
                     end
 

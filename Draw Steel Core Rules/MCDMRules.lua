@@ -678,6 +678,101 @@ GameSystem.RegisterGoblinScriptField{
     end,
 }
 
+--Shortest 3D distance in squares between two tokens: the horizontal distance, or the
+--vertical gap between their altitude ranges (touching vertically counts as adjacent).
+local function TokenDistance3D(a, b)
+    local horizontal = a:Distance(b)
+    local aTop = (a.floorAltitude or 0) + (a.tileSize or 1)
+    local bTop = (b.floorAltitude or 0) + (b.tileSize or 1)
+    local vertical = 0
+    if aTop <= (b.floorAltitude or 0) then
+        vertical = (b.floorAltitude or 0) - aTop + 1
+    elseif bTop <= (a.floorAltitude or 0) then
+        vertical = (a.floorAltitude or 0) - bTop + 1
+    end
+    return math.max(horizontal, vertical)
+end
+
+GameSystem.RegisterGoblinScriptField{
+    name = "Has Line Of Effect To",
+
+	type = "function",
+	desc = "Given another creature, true if there is any clear line between this creature and that one (walls and solid objects fully blocking every line make it false). Unlike Line of Sight this ignores partial cover.",
+	examples = {"Self.HasLineOfEffectTo(Caster)"},
+
+    calculate = function(creatureSelf)
+        return function(other)
+            local tokenA = dmhub.LookupToken(creatureSelf)
+            local tokenB = dmhub.LookupToken(other)
+            if tokenA == nil or tokenB == nil or (not tokenA.valid) or (not tokenB.valid) then
+                return true
+            end
+            local pierce = 0
+            if tokenA.properties ~= nil then
+                pierce = tokenA.properties:GetPierceWalls()
+            end
+            return tokenA:GetLineOfSight(tokenB, pierce) > 0
+        end
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField{
+    name = "Count Friends Of Within",
+
+	type = "function",
+	desc = "Given a distance in squares and a creature, counts the living creatures within that distance of this creature (including vertically) who are allies of the given creature, not counting the given creature or this creature. Unlike Count Nearby Enemies, allegiance is judged from the given creature's side.",
+	examples = {"Target.CountFriendsOfWithin(1, Caster) > 0"},
+
+    calculate = function(targetCreature)
+        return function(distance, us)
+            local targetToken = dmhub.LookupToken(targetCreature)
+            local ourToken = dmhub.LookupToken(us)
+            if targetToken == nil or ourToken == nil then
+                return 0
+            end
+
+            local count = 0
+            for _,tok in ipairs(dmhub.allTokens) do
+                if tok.charid ~= ourToken.charid and tok.charid ~= targetToken.charid and tok.floorid == targetToken.floorid
+                   and tok:IsFriend(ourToken) and (not tok.properties:IsDead())
+                   and TokenDistance3D(targetToken, tok) <= (tonumber(distance) or 1) then
+                    count = count + 1
+                end
+            end
+            return count
+        end
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField{
+    name = "Flanking Partner Count",
+
+	type = "function",
+	desc = "Given a creature, counts the allies of that creature who are flanking this creature together with it. Zero if this creature is not flanked by the given creature.",
+	examples = {"Target.FlankingPartnerCount(Caster) > 1"},
+
+    calculate = function(targetCreature)
+        return function(us)
+            local targetToken = dmhub.LookupToken(targetCreature)
+            local ourToken = dmhub.LookupToken(us)
+            if targetToken == nil or ourToken == nil then
+                return 0
+            end
+
+            local count = 0
+            for _,tok in ipairs(dmhub.allTokens) do
+                if tok.charid ~= ourToken.charid and tok.charid ~= targetToken.charid and tok.floorid == targetToken.floorid
+                   and tok:IsFriend(ourToken) and (not tok.properties:IsDead())
+                   and targetCreature:FlankedBy(ourToken) and targetCreature:FlankedBy(tok)
+                   and #targetCreature:GetFlankingTokens({ ourToken, tok }) >= 2 then
+                    count = count + 1
+                end
+            end
+            return count
+        end
+    end,
+}
+
 GameSystem.RegisterGoblinScriptField{
     name = "Is Friend",
 

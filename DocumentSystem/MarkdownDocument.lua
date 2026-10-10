@@ -11606,7 +11606,7 @@ function MarkdownDocument:SeamlessEditPanel(args)
     --classes the document shell (DocumentSystem.lua) sets on the panel tree:
     --  changes     - the text differs from the last save (re-checked every second)
     --  savePending - a save is uploading and the server has not confirmed it yet
-    --  saveError   - the server never confirmed a save; stays until one confirms
+    --  saveError   - a save threw or the server never confirmed it; stays until one confirms
     local function SaveDocumentNow(element)
         local documentPanel = element:FindParentWithClass("documentPanel")
         if documentPanel ~= nil then
@@ -11663,7 +11663,7 @@ function MarkdownDocument:SeamlessEditPanel(args)
             valign = "center",
             hmargin = 4,
             hover = function(element)
-                gui.Tooltip("The server did not confirm your save, so your latest changes may not be stored. Keep this document open -- saving retries automatically and this message clears once a save goes through. You can also press Save (Ctrl+S) to retry now.")(element)
+                gui.Tooltip("Your save did not go through, so your latest changes may not be stored. Keep this document open -- saving retries automatically and this message clears once a save goes through. You can also press Save (Ctrl+S) to retry now.")(element)
             end,
         },
 

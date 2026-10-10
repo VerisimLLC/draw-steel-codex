@@ -2916,6 +2916,11 @@ local function checkUnsavedChanges(writePanel, resultPanel, doc, onProceed)
         local baseline = resultPanel.data.pendingOriginal or resultPanel.data.original
         needSave.save = baseline ~= nil and not dmhub.DeepEqual(doc, baseline)
     end
+    if resultPanel.data.pendingUploadFailed or resultPanel.data.saveThrew then
+        --A failed save has already flushed the editors into the document object,
+        --so they answer "nothing to save" while the server holds none of it.
+        needSave.save = true
+    end
     if not needSave.save then
         onProceed()
         return
@@ -2929,7 +2934,10 @@ local function checkUnsavedChanges(writePanel, resultPanel, doc, onProceed)
                 text = "Save",
                 execute = function()
                     resultPanel:FireEventTree("savedoc")
-                    if not dmhub.DeepEqual(doc, resultPanel.data.original) then
+                    if resultPanel.data.pendingUploadFailed or resultPanel.data.saveThrew then
+                        --the delta route has already failed; send everything.
+                        doc:Upload()
+                    elseif not dmhub.DeepEqual(doc, resultPanel.data.original) then
                         doc:Upload(resultPanel.data.original)
                     end
                     onProceed()
@@ -3832,6 +3840,53 @@ function CustomDocument:CreateInterface(args)
         return true
     end
 
+    -- BeginSaveAttempt behind a pcall: a save that throws never arms the watchdog, so
+    -- it failed with nothing on screen. A throw on the delta path falls back to a
+    -- whole-document write; if that throws too, the save error shows.
+    -- Returns sent, threw.
+    local function GuardedSaveAttempt(fullWrite)
+        local ok, result = pcall(BeginSaveAttempt, fullWrite)
+        local firstError = nil
+        if not ok and not fullWrite then
+            firstError = result
+            ok, result = pcall(BeginSaveAttempt, true)
+        end
+
+        if ok then
+            if firstError ~= nil then
+                dmhub.CloudError(string.format("JOURNAL_SAVE:: delta save of document '%s' threw (%s); wrote the whole document instead.", tostring(self.id), tostring(firstError)))
+            end
+            if resultPanel.data.saveThrew then
+                resultPanel.data.saveThrew = nil
+                if not result and not resultPanel.data.pendingUploadFailed then
+                    --nothing left to send, so no confirmation is coming to clear it.
+                    resultPanel:SetClassTree("saveError", false)
+                end
+            end
+            return result, false
+        end
+
+        if not resultPanel.data.saveThrew then
+            --once per streak: the retries below would otherwise flood the log.
+            dmhub.CloudError(string.format("JOURNAL_SAVE:: save of document '%s' threw; surfacing save error to user. %s", tostring(self.id), tostring(result)))
+        end
+        resultPanel.data.saveThrew = true
+
+        --retry on the autosave cadence rather than every tick.
+        local now = dmhub.Time()
+        resultPanel.data.firstEditTime = now
+        resultPanel.data.editTime = now
+        if resultPanel.data.pendingUpload ~= nil then
+            --stops the watchdog re-running a full write that just threw.
+            resultPanel.data.pendingUploadFailed = true
+        end
+
+        resultPanel:SetClassTree("savePending", false)
+        resultPanel:SetClassTree("saveError", true)
+        resultPanel:FireEventTree("saveFailed")
+        return false, true
+    end
+
     if dmhub.isDM and not args.presentationMode then
     -- Present to Players
         m_presentButton = gui.Button {
@@ -3946,6 +4001,7 @@ function CustomDocument:CreateInterface(args)
                     resultPanel.data.originalUpdateId = self.updateid
                     resultPanel.data.pendingOriginal = nil
                     resultPanel.data.pendingUpload = nil
+                    resultPanel.data.saveThrew = nil
                     --fresh baseline, nothing in flight: the save status starts clean
                     --(a save left in flight by the last session is never confirmed here).
                     resultPanel:SetClassTree("savePending", false)
@@ -4832,7 +4888,7 @@ function CustomDocument:CreateInterface(args)
         saveDocument = function(element)
             --normal (delta) save. The write-verification watchdog in 'think' escalates to
             --a full write and then to a visible error if the server never confirms this.
-            BeginSaveAttempt(false)
+            GuardedSaveAttempt(false)
         end,
 
         documentEdited = function(element)
@@ -4868,7 +4924,8 @@ function CustomDocument:CreateInterface(args)
             if resultPanel.data.firstEditTime ~= nil and IsEditing() then
                 local now = dmhub.Time()
                 if (now - resultPanel.data.editTime) >= AUTOSAVE_IDLE_DELAY or (now - resultPanel.data.firstEditTime) >= AUTOSAVE_MAX_DELAY then
-                    if not BeginSaveAttempt(false) then
+                    local sent, threw = GuardedSaveAttempt(false)
+                    if not sent and not threw then
                         resultPanel.data.firstEditTime = nil
                         resultPanel.data.editTime = nil
                     end
@@ -4886,7 +4943,7 @@ function CustomDocument:CreateInterface(args)
                 if elapsed >= SAVE_CONFIRM_TIMEOUT then
                     if not resultPanel.data.pendingUploadFull then
                         dmhub.Debug(string.format("JOURNAL_SAVE:: delta upload for document '%s' not confirmed after %.1fs; retrying with a full document write.", tostring(self.id), elapsed))
-                        BeginSaveAttempt(true)
+                        GuardedSaveAttempt(true)
                     else
                         dmhub.CloudError(string.format("JOURNAL_SAVE:: full document write for '%s' not confirmed after %.1fs; surfacing save error to user.", tostring(self.id), elapsed))
                         resultPanel.data.pendingUploadFailed = true

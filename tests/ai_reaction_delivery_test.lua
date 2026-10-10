@@ -138,7 +138,21 @@ reset()
 player.triggeredEvents={{info={path={}}}, {userid="other",eventName="move",timestamp=0},
     {userid="player",eventName="move",timestamp=0,info={}}}
 dmhub.userid="player"; player:PumpTriggeredEvents()
-check(calls==1 and #player.triggeredEvents==1 and player.triggeredEvents[1].userid=="other","legacy queue processed per recipient and record")
+check(calls==1 and player.triggeredEvents[1]==nil and player.triggeredEvents[3]==nil
+    and player.triggeredEvents[2].userid=="other","legacy queue processed per recipient and record")
+--A queue missing its first event is still read.
+reset()
+player.triggeredEvents={[2]={userid="player",eventName="move",timestamp=0,info={}}}
+dmhub.userid="player"; player:PumpTriggeredEvents()
+check(calls==1 and player.triggeredEvents[2]==nil,"sparse legacy queue drained")
+--Only the handled event is deleted. Other players' events and the version key stay.
+reset()
+local guidQueue={version=2, a={userid="player",eventName="move",timestamp=0,info={}},
+    b={userid="other",eventName="move",timestamp=0}}
+player.triggeredEvents=guidQueue
+dmhub.userid="player"; player:PumpTriggeredEvents()
+check(calls==1 and player.triggeredEvents==guidQueue and guidQueue.version==2 and guidQueue.a==nil and guidQueue.b~=nil,
+    "guid queue: handled key deleted, others and version kept")
 --A damaged new envelope is restored on retry; evaluation exceptions are terminal.
 reset(); id=queue(); host.aiReactionRequests[id]="broken"
 deliver(); check(calls==0,"malformed envelope not executed")

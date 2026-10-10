@@ -10660,59 +10660,75 @@ end
 --wrote still carries the "__serverTimestamp" placeholder until the server
 --echo -- it is live, not malformed (see EventTimestampAge). Every decision is
 --logged with a TRIGGERRELAY:: prefix so a lost prompt can be traced end to end.
+--
+--Each event has its own random key, and events are only ever added or deleted
+--one at a time. Numbering them made events from different players collide,
+--and trigger prompts went missing.
+
+--This key stays in the queue so it is never empty. Emptying it rewrites the
+--whole queue, which can erase an event another player just added.
+local g_triggeredEventsVersionKey = "version"
+
 function creature:PumpTriggeredEvents()
     local token = dmhub.LookupToken(self)
     local events = self:try_get("triggeredEvents")
     if token == nil or events == nil or self:try_get("_tmp_pumpingTriggeredEvents", false) then return end
     self._tmp_pumpingTriggeredEvents = true
+    --The events we handled, by key.
     local consumed = {}
-    for _,event in pairs(events) do
-        local age = type(event) == "table" and EventTimestampAge(event.timestamp) or nil
-        local valid = type(event) == "table" and type(event.userid) == "string"
-            and type(event.eventName) == "string" and age ~= nil
-        local mine = valid and event.userid == dmhub.userid
-        if not valid then
-            --Junk we cannot even address. Old clients wrote records of the same
-            --shape, so this only fires for genuinely damaged data.
-            consumed[event] = "malformed relay record"
-            print("TRIGGERRELAY:: DROP malformed on", token.name, token.charid, DescribeRelayEvent(event))
-        elseif age >= 30 then
-            consumed[event] = "relay record expired before evaluation"
-            if mine then
-                print("TRIGGERRELAY:: DROP expired on", token.name, token.charid, DescribeRelayEvent(event))
+    for key,event in pairs(events) do
+        if key ~= g_triggeredEventsVersionKey then
+            local age = type(event) == "table" and EventTimestampAge(event.timestamp) or nil
+            local valid = type(event) == "table" and type(event.userid) == "string"
+                and type(event.eventName) == "string" and age ~= nil
+            local mine = valid and event.userid == dmhub.userid
+            if not valid then
+                --Junk we cannot even address. Old clients wrote records of the same
+                --shape, so this only fires for genuinely damaged data.
+                consumed[key] = {event = event, result = "malformed relay record"}
+                print("TRIGGERRELAY:: DROP malformed on", token.name, token.charid, DescribeRelayEvent(event))
+            elseif age >= 30 then
+                consumed[key] = {event = event, result = "relay record expired before evaluation"}
+                if mine then
+                    print("TRIGGERRELAY:: DROP expired on", token.name, token.charid, DescribeRelayEvent(event))
+                end
+            elseif mine then
+                consumed[key] = {event = event, result = true}
+                print("TRIGGERRELAY:: RECV on", token.name, token.charid, DescribeRelayEvent(event))
+                local ok, err = pcall(function()
+                    local info = DeserializeEventValue(event.info or {})
+                    info.remote = true
+                    self:TriggerEvent(event.eventName, info, true, "skipLocal")
+                end)
+                if not ok then
+                    consumed[key].result = tostring(err)
+                    print("TRIGGERRELAY:: EVAL ERROR on", token.name, token.charid, event.eventName, tostring(err))
+                end
             end
-        elseif mine then
-            consumed[event] = true
-            print("TRIGGERRELAY:: RECV on", token.name, token.charid, DescribeRelayEvent(event))
-            local ok, err = pcall(function()
-                local info = DeserializeEventValue(event.info or {})
-                info.remote = true
-                self:TriggerEvent(event.eventName, info, true, "skipLocal")
-            end)
-            if not ok then
-                consumed[event] = tostring(err)
-                print("TRIGGERRELAY:: EVAL ERROR on", token.name, token.charid, event.eventName, tostring(err))
-            end
+            --else: addressed to another user; leave it for them.
         end
-        --else: addressed to another user; leave it for them.
     end
     if next(consumed) ~= nil then
         token:ModifyProperties{
             description = "Clear Processed Triggers", undoable = false,
             execute = function()
-                local remaining = {}
-                for _,event in ipairs(self:try_get("triggeredEvents", {})) do
-                    if not consumed[event] then remaining[#remaining+1] = event end
+                --Delete only the events we handled. Clearing the whole queue
+                --would also erase events another player just added.
+                local queue = self:try_get("triggeredEvents")
+                if queue ~= nil then
+                    for key,_ in pairs(consumed) do
+                        queue[key] = nil
+                    end
                 end
-                self.triggeredEvents = #remaining > 0 and remaining or nil
-                for event,result in pairs(consumed) do
+                for _,entry in pairs(consumed) do
+                    local event, result = entry.event, entry.result
                     local info = type(event) == "table" and event.info
                     if type(info) == "table" and type(info.aiReactionDispatchId) == "string" then
                         if result == true then
                             self:CompletePendingAIActivityReaction(info.aiActivityId, info.aiReactionDispatchId)
                         else
-                            local entry = self:try_get("pendingAIActivityReactions", {})[info.aiReactionDispatchId]
-                            if entry ~= nil then entry.state = "failed"; entry.reason = result end
+                            local pending = self:try_get("pendingAIActivityReactions", {})[info.aiReactionDispatchId]
+                            if pending ~= nil then pending.state = "failed"; pending.reason = result end
                         end
                     end
                 end
@@ -10942,13 +10958,22 @@ function creature:DispatchEvent(eventName, info)
 		undoable = false,
 		execute = function()
 			local triggeredEvents = self:get_or_add("triggeredEvents", {})
+			triggeredEvents[g_triggeredEventsVersionKey] = 2
 
-            --clear out any old or invalid events.
-            while #triggeredEvents > 0 and (triggeredEvents[1] == nil or EventTimestampAge(triggeredEvents[1].timestamp) == nil or EventTimestampAge(triggeredEvents[1].timestamp) > 30) do
-                table.remove(triggeredEvents, 1)
+            --Drop old or broken events, including ones an older version left behind.
+            local queued = 0
+            for key,event in pairs(triggeredEvents) do
+                if key ~= g_triggeredEventsVersionKey then
+                    local age = type(event) == "table" and EventTimestampAge(event.timestamp) or nil
+                    if age == nil or age > 30 then
+                        triggeredEvents[key] = nil
+                    else
+                        queued = queued + 1
+                    end
+                end
             end
 
-			triggeredEvents[#triggeredEvents+1] = {
+			triggeredEvents[dmhub.GenerateGuid()] = {
 				userid = activecontroller,
 				timestamp = ServerTimestamp(),
 				eventName = eventName,
@@ -10956,7 +10981,7 @@ function creature:DispatchEvent(eventName, info)
 			}
 
             print("TRIGGERRELAY:: SEND", eventName, "for", token.name, token.charid, "to", activecontroller,
-                "abilities=" .. table.concat(abilityNames, ", "), "queued=" .. #triggeredEvents)
+                "abilities=" .. table.concat(abilityNames, ", "), "queued=" .. (queued + 1))
 		end,
 	}
 end
@@ -13652,11 +13677,8 @@ function creature:IsValid()
         end
     end
 
-	local triggeredEvents = self:try_get("triggeredEvents")
-    if triggeredEvents ~= nil and #triggeredEvents > 0 and triggeredEvents[1] == nil then
-        --this has happened sometimes, so we repair it in this case.
-        return false
-    end
+    --The trigger queue is not checked here. Repairing it used to delete
+    --prompts players were still waiting for.
 
 	if self:try_get("complicationid") ~= nil then
 		return false
@@ -13839,11 +13861,6 @@ function creature:Repair(localOnly)
 
     for _,key in ipairs(deleteList) do
         self.availableTriggers[key] = nil
-    end
-
-	local triggeredEvents = self:try_get("triggeredEvents")
-    if triggeredEvents ~= nil and #triggeredEvents > 0 and triggeredEvents[1] == nil then
-        self.triggeredEvents = nil
     end
 
 	if self:try_get("complicationid") ~= nil then

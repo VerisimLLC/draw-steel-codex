@@ -304,6 +304,11 @@ local BEHAVIOR_METADATA = {
         tags = {"character sheet", "builder", "open", "show", "tab"},
         group = "narrative",
     },
+    log_note = {
+        description = "Post a note card to the action log (title + detail), e.g. to explain a silent trigger.",
+        tags = {"log", "chat", "note", "message", "explain", "action log"},
+        group = "narrative",
+    },
 
     -- Scripting & Advanced
     Macro = {

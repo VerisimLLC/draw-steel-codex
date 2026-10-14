@@ -6067,6 +6067,38 @@ local function AccumulateDamageThisTurn(self, amount)
     return self.damageTakenThisTurn
 end
 
+--Running damage total per ability cast and victim, exposed to losehitpoints as
+--Ability Damage, for "takes N damage from a single ability" traits (Beta Version).
+--Collision damage counts toward the ability whose forced movement caused it; an
+--invoked ability has its own cast, so it starts a fresh total. Weak keys let a
+--finished cast's totals be collected.
+local g_abilityDamageTaken = setmetatable({}, {__mode = "k"})
+
+--- Adds this hit to the victim's total for the ability that dealt it.
+--- @param victim creature
+--- @param info table the TakeDamage info (cast, damagetype)
+--- @param amount number damage actually taken by this hit
+--- @return number total damage from that ability so far, or amount when no ability dealt it
+local function AddAbilityDamageTaken(victim, info, amount)
+    local cast = nil
+    if info.damagetype == "collide" then
+        cast = victim:try_get("_tmp_forcedMovementCast")
+    end
+    cast = cast or info.cast
+    local victimid = dmhub.LookupTokenId(victim)
+    if cast == nil or victimid == nil then
+        return amount
+    end
+
+    local totals = g_abilityDamageTaken[cast]
+    if totals == nil then
+        totals = {}
+        g_abilityDamageTaken[cast] = totals
+    end
+    totals[victimid] = (totals[victimid] or 0) + amount
+    return totals[victimid]
+end
+
 function creature.TakeDamage(self, amount, note, info)
     info = info or {}
     if type(amount) == 'string' then
@@ -6224,6 +6256,7 @@ function creature.TakeDamage(self, amount, note, info)
             eventArg.attacker = nil
         end
         eventArg.damage = amount
+        eventArg.abilitydamage = AddAbilityDamageTaken(self, info, amount)
         --the minion path never draws on temporary Stamina, so the two are equal.
         eventArg.fulldamage = amount
         eventArg.damagethisturn = AccumulateDamageThisTurn(self, math.max(0, amount))
@@ -6414,6 +6447,7 @@ function creature.TakeDamage(self, amount, note, info)
         eventArg.attacker = nil
     end
     eventArg.damage = amount
+    eventArg.abilitydamage = AddAbilityDamageTaken(self, info, amount)
     --damage is the Stamina actually lost; fulldamage also counts what temporary
     --Stamina absorbed (the damage the creature took, by the rules).
     eventArg.fulldamage = original_amount

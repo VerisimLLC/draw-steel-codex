@@ -1177,6 +1177,7 @@ GoblinScriptProse.eventProse = {
     pressureplate     = "when {subject} step{s} on a pressure plate",
     pressureplateoff  = "when {subject} step{s} off a pressure plate",
     teleport          = "when {subject} teleport{s}",
+    teleportmove      = "when {subject} teleport{s} as part of moving",
 
     -- Resources & Victory band
     earnvictory       = "when {subject} earn{s} a victory",

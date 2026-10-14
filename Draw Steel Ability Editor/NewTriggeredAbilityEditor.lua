@@ -397,6 +397,12 @@ local TRIGGER_METADATA = {
         tags = {"teleport", "blink", "instant"},
         group = "movement",
     },
+    teleportmove = {
+        label = "Teleport as Movement",
+        description = "Fires when the creature teleports as its own movement (holding Ctrl while moving), not when an ability teleports it.",
+        tags = {"teleport", "move", "cinder", "ctrl"},
+        group = "movement",
+    },
 
     -- Resources & Victory
     earnvictory = {

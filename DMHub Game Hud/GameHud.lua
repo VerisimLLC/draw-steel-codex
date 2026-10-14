@@ -52,6 +52,95 @@ function GameHud.Refresh(self)
 	end
 end
 
+--Codex Callouts: boxed notes with the Codex logo that explain how to operate the Codex
+--("Hold Ctrl while moving to teleport.") as opposed to game rules. Drawn under the
+--movement tooltip text from args.codexCallouts (a list of strings), rebuilt when that
+--list changes. Same look as the character builder's Codex Note.
+--The frame is two rounded fills (frame colour, then the body inset 1px) rather than
+--`border`: the rounded border shader leaves stray ticks where each corner curve meets
+--a straight edge, while rounded fills draw cleanly.
+local g_codexCalloutStyles = {
+    {
+        selectors = {"codexCallout"},
+        width = 300,
+        height = "auto",
+        halign = "center",
+        bgimage = true,
+        bgcolor = "@fgStrong",
+        cornerRadius = 8,
+        pad = 1,
+        borderBox = true,
+        tmargin = 6,
+    },
+    {
+        selectors = {"codexCalloutBody"},
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        bgimage = true,
+        bgcolor = "@bgAlt",
+        cornerRadius = 7,
+        hpad = 14,
+        vpad = 4,
+        borderBox = true,
+    },
+    {
+        selectors = {"codexCalloutLogo"},
+        width = 16,
+        height = 16,
+        valign = "center",
+        bgcolor = "white",
+    },
+    {
+        selectors = {"codexCalloutText"},
+        width = "100%-22",
+        height = "auto",
+        lmargin = 6,
+        valign = "center",
+        fontSize = 14,
+        color = "@fg",
+    },
+}
+
+function GameHud.CreateCodexCalloutsPanel()
+    return gui.Panel{
+        width = "auto",
+        height = "auto",
+        flow = "vertical",
+        halign = "center",
+        --@tokens only resolve when routed through ThemeEngine.
+        styles = ThemeEngine.MergeTokens(g_codexCalloutStyles),
+        data = { key = nil },
+        args = function(element, args)
+            --args fires as the cursor moves; only rebuild when the notes change.
+            local key = table.concat(args.codexCallouts or {}, "\n")
+            if element.data.key == key then
+                return
+            end
+            element.data.key = key
+
+            local children = {}
+            for _,text in ipairs(args.codexCallouts or {}) do
+                children[#children+1] = gui.Panel{
+                    classes = {"codexCallout"},
+                    gui.Panel{
+                        classes = {"codexCalloutBody"},
+                        gui.Panel{
+                            classes = {"codexCalloutLogo"},
+                            bgimage = "ui-icons/codex-logo.png",
+                        },
+                        gui.Label{
+                            classes = {"codexCalloutText"},
+                            text = text,
+                        },
+                    },
+                }
+            end
+            element.children = children
+        end,
+    }
+end
+
 --function which can be called by dmhub to present a tooltip on the map.
 function GameHud.ShowTooltipNearLoc(self, loc, text, options)
 	options = options or {}
@@ -1686,6 +1775,7 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 								floorDeltaArrow,
 								m_tilelabel,
 							},
+							GameHud.CreateCodexCalloutsPanel(),
 							CreateMovementDiagramPanel(),
 						},
 						{

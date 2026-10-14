@@ -1001,6 +1001,7 @@ end
 local g_departureTriggers = {
     move = true,
     teleport = true,
+    teleportmove = true,
 }
 
 --Distance for a subjectRange gate. On a departure trigger the subject's token

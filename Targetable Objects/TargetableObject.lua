@@ -37,6 +37,27 @@ end
 --Lets the shared creature damage path tell objects apart (see creature.isMapObject).
 TargetableObject.isMapObject = true
 
+--- Fires a table-wide moment (a new round, the end of combat) on every map
+--- object that has a trigger for it. Objects have no initiative entry, so the
+--- round and combat code that walks the initiative queue never reaches them.
+--- Only objects with a matching trigger are dispatched to: a map can hold
+--- hundreds of targetable objects, and each dispatch also notifies every token.
+--- @param eventName string a trigger id, e.g. "beginround" or "endcombat"
+--- @param info nil|table event arguments (copied per object)
+function TargetableObject.DispatchToObjects(eventName, info)
+    for _, tok in ipairs(dmhub.allObjectTokens or {}) do
+        local props = tok.valid and tok.properties or nil
+        if props ~= nil then
+            for _, entry in ipairs(props:GetActiveModifiers()) do
+                if entry.mod:HasTriggeredEvent(props, eventName, false) then
+                    props:DispatchEvent(eventName, info ~= nil and shallow_copy_table(info) or {})
+                    break
+                end
+            end
+        end
+    end
+end
+
 --True if any of this object's modifiers has a triggered ability for eventName.
 --- @param eventName string
 --- @return boolean

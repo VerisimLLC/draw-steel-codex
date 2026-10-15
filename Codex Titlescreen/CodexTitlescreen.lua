@@ -5211,7 +5211,7 @@ function CreateGameDialog()
     }
 
     local modeSelector = gui.Panel{
-        classes = { "collapsed", cond(#m_modes <= 1, "collapsed") },
+        classes = { cond(#m_modes <= 1, "collapsed") },
         width = "auto",
         height = "auto",
         halign = "center",

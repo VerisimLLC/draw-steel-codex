@@ -37,6 +37,20 @@ local function StampRecordKey(obj, key)
     end
 end
 
+--Records which creature placed the object, so abilities can tell whose it is
+--(a thrown remote grenade only its thrower can detonate). Read in GoblinScript
+--as "Object Creator" (TargetableObject.lua). Must be set before Upload.
+local function StampObjectCreator(obj, casterToken)
+    if obj == nil or casterToken == nil or not casterToken.valid then
+        return
+    end
+
+    local targetable = obj:GetComponent("Targetable")
+    if targetable ~= nil and targetable.properties ~= nil then
+        targetable.properties.objectcreator = casterToken.charid
+    end
+end
+
 --True if this aura definition carries any onenter/end-of-turn trigger, counting
 --sub-aura triggers (a split aura normally keeps its triggers on the child payload).
 local function AuraDefHasTriggers(auraDef)
@@ -216,6 +230,7 @@ function ActivatedAbilityCreateObjectBehavior:Cast(ability, casterToken, targets
                 obj.x = loc.x + xdelta
                 obj.y = loc.y + ydelta
                 StampRecordKey(obj, recordKey)
+                StampObjectCreator(obj, casterToken)
                 StampAuraIdentity(obj)
                 StampAuraCaster(obj, casterToken)
                 RecordObjectInModification(obj)

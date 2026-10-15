@@ -228,6 +228,22 @@ GameSystem.RegisterGoblinScriptField{
     end,
 }
 
+--Objects placed by a Create Object behavior are stamped with the placing
+--creature's charid in the "objectcreator" property (AbilityCreateObject.lua).
+--Hashed like creature ids so filters can say "ObjectCreator = Caster.ID" (a
+--remote grenade only its thrower can detonate). Anything else returns 0.
+GameSystem.RegisterGoblinScriptField{
+    name = "Object Creator",
+
+    type = "number",
+    desc = "The id of the creature whose ability placed this object, or 0 if no creature placed it. Compare against a creature's ID field.",
+    examples = {"Target.ObjectCreator = Caster.ID"},
+
+    calculate = function(c)
+        return Utils.HashGuidToNumber(c:try_get("objectcreator", ""))
+    end,
+}
+
 --True for the topmost wall voxel of its tile's column. Wall abilities that
 --detach/topple "a square of wall" (e.g. the Wallmaster's Wall Slam) use this
 --to only offer the exposed top cube of a stacked column as a target.

@@ -921,6 +921,28 @@ CharacterModifier.TypeInfo.modifyability = {
 			end
 		end
 
+		--Optional data-driven cast-time modes: a list of {text=, rules=} the player picks from
+		--before targeting. Formulas on this modifier can branch on the Mode symbol.
+		local addModes = modifier:try_get("addModes")
+		if addModes ~= nil and #addModes > 0 then
+			local modeList = ability:try_get("modeList")
+			if not ability.multipleModes or modeList == nil then
+				modeList = {}
+				ability.multipleModes = true
+			end
+			for _,mode in ipairs(addModes) do
+				modeList[#modeList+1] = { text = mode.text, rules = mode.rules or "" }
+			end
+			ability.modeList = modeList
+		end
+
+		--Optional wording for the "Choose Target 1/2" prompt, so the player can see which feature
+		--is offering the extra targets. PromptText appends the "n/total" counter to it.
+		local targetPromptLabel = modifier:try_get("targetPromptLabel", "")
+		if targetPromptLabel ~= "" then
+			ability.targetPromptLabel = targetPromptLabel
+		end
+
 		if modifier:has_key("ability") then
 			local replacementMode = ReplaceBehaviorToEnum(modifier:try_get("replaceBehaviors", false))
 

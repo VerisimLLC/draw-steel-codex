@@ -1320,7 +1320,11 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 	if self.targetType == 'all' then
 		targets = {}
 		local range = self:GetRange(creature)
-		for i,tok in ipairs(dmhub.allTokens) do
+		--allTokens leaves out map objects; a trigger that can target objects
+		--("each creature and object in the area") has to look at them too.
+		--TargetPassesFilter still decides which objects it can actually hit.
+		local candidates = cond(self.objectTarget, dmhub.allTokensIncludingObjects, dmhub.allTokens)
+		for i,tok in ipairs(candidates) do
 			if (tok.id ~= casterToken.charid or self:try_get("selfTarget", false)) and self:TargetPassesFilter(casterToken, tok, symbols) and range >= tok:Distance(casterToken) then
 				targets[#targets+1] = {
 					loc = tok.loc,

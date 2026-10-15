@@ -71,7 +71,41 @@ function ActivatedAbilityThrowObjectBehavior:Cast(ability, casterToken, targets,
     local path = objectToken:Move(dest, { ignorecreatures = true, freeMovement = true, maxCost = 30000 })
     if path == nil then
         print("ThrowObject:: MOVE REFUSED -- object did not move. dest =", dest.str, "ability =", ability.name)
+        return
     end
+
+    --A throw counts as forced movement for the object's own "Force Moved"
+    --triggers, so "takes damage equal to the squares moved" covers being
+    --thrown as well as pushed (exploding barrels). Wait for the object to
+    --land first: its location only updates once the slide finishes, and a
+    --trigger that destroys it should go off where it landed.
+    if coroutine.running() ~= nil then
+        local landBy = dmhub.Time() + 3
+        while objectToken.valid and objectToken.loc.str ~= path.destination.str and dmhub.Time() < landBy do
+            coroutine.yield(0.05)
+        end
+    end
+    if not objectToken.valid or objectToken.properties == nil then
+        return
+    end
+
+    --The thrower: the creature using a granted throw, or whoever is
+    --operating the object when it throws itself.
+    local thrower = ability:GetOperatorToken()
+    if thrower == nil and casterToken.charid ~= objectToken.charid then
+        thrower = casterToken
+    end
+
+    objectToken.properties:DispatchEvent("forcemove", {
+        attacker = thrower ~= nil and thrower.properties or nil,
+        hasattacker = thrower ~= nil,
+        type = "throw",
+        vertical = false,
+        collision = 0,
+        collidewithobject = false,
+        distance = math.floor(path.numSteps or 0),
+        melee = false,
+    })
 end
 
 function ActivatedAbilityThrowObjectBehavior:EditorItems(parentPanel)

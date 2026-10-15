@@ -422,7 +422,7 @@ TriggeredAbility.triggers = {
 			type = {
 				name = "Type",
 				type = "string",
-				desc = "The type of forced movement. May be 'push', 'pull', or 'slide'",
+				desc = "The type of forced movement. May be 'push', 'pull', 'slide', or 'throw' (an object thrown with Throw Object)",
 			},
 			hasattacker = {
 				name = "Has Attacker",

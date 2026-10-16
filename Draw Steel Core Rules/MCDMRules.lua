@@ -1691,6 +1691,11 @@ TriggeredAbility.RegisterTrigger{
             type = "number",
             desc = "The amount of damage taken, after immunities and weaknesses, including any part absorbed by temporary Stamina. Use this for effects based on 'the triggering damage'.",
         },
+        abilitydamage = {
+            name = "Ability Damage",
+            type = "number",
+            desc = "Total damage taken so far from the ability that dealt this damage, including this hit and any collision damage from forced movement that ability caused. An ability invoked by another counts separately. Equals Damage when no ability dealt it. Use Ability Damage >= 10 and (Ability Damage - Damage) < 10 to fire once per ability.",
+        },
         damagethisturn = {
             name = "Damage This Turn",
             type = "number",
